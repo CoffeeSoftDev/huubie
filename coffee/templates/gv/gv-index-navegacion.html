@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Índice de templates</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .hub-header { background:linear-gradient(135deg,#003360 0%,#00264A 100%); color:#fff; }
+        .hub-logo { width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; }
+        .cv-hub-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:22px; transition:.2s; text-decoration:none; display:block; color:#0F172A; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+        .cv-hub-card:hover { border-color:#2563EB; transform:translateY(-3px); box-shadow:0 10px 30px rgba(37,99,235,.14); }
+        .hub-icon { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-action { background:rgba(37,99,235,.12); color:#2563EB; border-color:rgba(37,99,235,.35); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+        .section-h2 { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#64748B; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER azul institucional -->
+    <header class="hub-header">
+        <div class="max-w-6xl mx-auto px-6 py-8">
+            <div class="flex items-center gap-4">
+                <div class="hub-logo">GV</div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight">Grupo Varoch · Templates</h1>
+                    <p class="text-[13px] text-blue-100/80 mt-0.5">Interfaces estáticas con look inventory + paleta institucional Coffee-Varoch <b>#003360</b></p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+
+        <p class="section-h2 mb-3">Acceso y sesión</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <a href="gv-login.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="log-in" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Login</h3>
+                            <span class="cv-badge badge-success">Listo</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Glass card + blobs + placa flotante. Réplica del login de inventory recoloreada.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="gv-navbar.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="panel-top" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Navbar</h3>
+                            <span class="cv-badge badge-success">Listo</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Logo, UDN, admin, tema, módulos, usuario + rail lateral. Estilo navbar de inventory.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <p class="section-h2 mb-3">Usuario y accesos</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <a href="gv-perfil.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="user-circle" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Perfil de usuario</h3>
+                            <span class="cv-badge badge-success">Listo</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Foto + identidad + info laboral y personal. Campos reales de usuarios / rh_empleados.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="gv-permisos.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="key-round" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Perfiles y permisos</h3>
+                            <span class="cv-badge badge-success">Listo</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Lista de perfiles + matriz de directorios con ver / escribir / editar / imprimir.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <p class="section-h2 mb-3">Modales</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <a href="modals/modal-editar-perfil.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="user-cog" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Editar perfil</h3>
+                            <span class="cv-badge badge-action">Modal</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Datos de contacto, UDN, perfil de acceso y credenciales.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="modals/modal-asignar-permiso.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Asignar permiso</h3>
+                            <span class="cv-badge badge-action">Modal</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Módulo + directorio + toggles de acciones permitidas.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <p class="text-center text-[11px] text-slate-400 mt-10">Grupo Varoch · ERP-GV · Templates estáticos conjurados por CoffeeMagic © 2026</p>
+    </main>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

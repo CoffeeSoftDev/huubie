@@ -214,6 +214,13 @@ class Cierre extends MCierre {
         $paymentTx = $this->getPaymentTransactions([$date, $subsidiaries_id]);
         $ordersRaw = $this->getOrdersBreakdown([$date, $subsidiaries_id]);
 
+        $summary    = $this->getOrdersSummary([$date, $subsidiaries_id]);
+        $categories = $this->getSalesByCategory([$date, $subsidiaries_id]);
+        $cashShifts = $this->getCashShiftsSummary([$date, $subsidiaries_id]);
+        $livePays   = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
+        $prevRaw    = $this->getDailyPrevPayments([$date, $date, $date, $subsidiaries_id]);
+        $crossRaw   = $this->getDailyCrossPayments([$date, $subsidiaries_id, $subsidiaries_id]);
+
         $sub = $this->getSubsidiaryName([$subsidiaries_id]);
         $subsidiary_name = $sub ? $sub['sucursal'] : 'Sucursal';
         $company_name    = $sub ? $sub['company'] : '';
@@ -254,6 +261,56 @@ class Cierre extends MCierre {
             ];
         }
 
+        // Cobranza real del dia (fecha de pago + sucursal de cobro), para el corte Z.
+        $liveCash = 0; $liveCard = 0; $liveTransfer = 0;
+        foreach ($livePays as $pay) {
+            switch (intval($pay['method_pay_id'])) {
+                case 1: $liveCash     = floatval($pay['total_paid']); break;
+                case 2: $liveCard     = floatval($pay['total_paid']); break;
+                case 3: $liveTransfer = floatval($pay['total_paid']); break;
+            }
+        }
+
+        $openingTotal = 0;
+        foreach ($cashShifts as $cs) {
+            $openingTotal += floatval($cs['fondo_caja']);
+        }
+
+        $categoriesList = [];
+        foreach ($categories as $name => $total) {
+            $categoriesList[] = ['categoria' => $name, 'total' => floatval($total)];
+        }
+
+        $prevPayments = [];
+        foreach ($prevRaw as $p) {
+            $prevPayments[] = [
+                'id'                => intval($p['id']),
+                'folio'             => formatFolioCierre($p['origin_subsidiary_id'], $p['id']),
+                'client_name'       => $p['client_name'],
+                'origin_subsidiary' => $p['origin_subsidiary'],
+                'is_cross'          => intval($p['origin_subsidiary_id']) != intval($subsidiaries_id),
+                'total_pay'         => floatval($p['total_pay']),
+                'discount'          => floatval($p['discount']),
+                'payment_real'      => floatval($p['payment_real']),
+                'total_paid_upto'   => floatval($p['total_paid_upto'])
+            ];
+        }
+
+        $crossPayments = [];
+        foreach ($crossRaw as $p) {
+            $crossPayments[] = [
+                'id'                 => intval($p['id']),
+                'folio'              => formatFolioCierre($subsidiaries_id, $p['id']),
+                'client_name'        => $p['client_name'],
+                'charged_subsidiary' => $p['charged_subsidiary'],
+                'total_pay'          => floatval($p['total_pay']),
+                'payment_cross'      => floatval($p['payment_cross'])
+            ];
+        }
+
+        $totalCuentas = intval($summary['total_cuentas']);
+        $canceladas   = intval($summary['canceladas']);
+
         return [
             'status'  => 200,
             'closure' => [
@@ -284,7 +341,38 @@ class Cierre extends MCierre {
                 'card'     => ['amount' => floatval($closure['total_card']),     'count' => $countCard],
                 'transfer' => ['amount' => floatval($closure['total_transfer']), 'count' => $countTransfer]
             ],
-            'orders'            => $orders
+            'orders'            => $orders,
+            'prev_payments'     => $prevPayments,
+            'cross_payments'    => $crossPayments,
+            'report'            => [
+                'cuentas' => [
+                    'total'              => $totalCuentas,
+                    'cotizaciones'       => $quotation_count,
+                    'pendientes'         => $pending_count,
+                    'pagadas'            => $delivered_count,
+                    'canceladas'         => $canceladas,
+                    'con_descuento'      => intval($summary['con_descuento']),
+                    'importe_descuentos' => floatval($summary['total_descuentos']),
+                    'cuenta_promedio'    => floatval($summary['cuenta_promedio']),
+                    'folio_inicial'      => $summary['folio_inicial'] ? formatFolioCierre($subsidiaries_id, $summary['folio_inicial']) : '-',
+                    'folio_final'        => $summary['folio_final']   ? formatFolioCierre($subsidiaries_id, $summary['folio_final'])   : '-'
+                ],
+                'caja' => [
+                    'efectivo_inicial' => $openingTotal,
+                    'efectivo'         => $liveCash,
+                    'tarjeta'          => $liveCard,
+                    'transferencia'    => $liveTransfer,
+                    'saldo_final'      => $openingTotal + $liveCash + $liveCard + $liveTransfer
+                ],
+                'ventas' => [
+                    'subtotal'    => floatval($summary['total_ventas']),
+                    'descuentos'  => floatval($summary['total_descuentos']),
+                    'venta_neta'  => floatval($summary['total_ventas']) - floatval($summary['total_descuentos']),
+                    'venta_bruta' => floatval($summary['total_ventas'])
+                ],
+                'categorias' => $categoriesList,
+                'shifts'     => $cashShifts
+            ]
         ];
     }
 
@@ -425,6 +513,13 @@ class Cierre extends MCierre {
 }
 
 // Complements
+
+// Mismo formato de folio que formatSucursal() en ctrl-pedidos.php (P{numero}-{sucursal}).
+function formatFolioCierre($subsidiariesId = null, $numero = null) {
+    $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
+    return 'P' . $numero . '-' . $sucursal;
+}
+
 function statusCorte($statusId) {
     $statuses = [
         1 => ['bg' => 'bg-blue-100',   'text' => 'text-blue-700',   'label' => 'Cotización'],

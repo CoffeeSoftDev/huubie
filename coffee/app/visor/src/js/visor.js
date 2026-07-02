@@ -2666,6 +2666,8 @@ class CoffeeIA {
         this._apiChats  = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-chats.php');
         // Endpoint de GitHub Projects (GraphQL via token en credentials/.env).
         this._apiGithub = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-github.php');
+        // Endpoint de assets del modulo (imagenes que el HTML generado usa con <img src>).
+        this._apiAssets = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-module-assets.php');
         this._app     = appRef;
         this.history  = [];
         this._currentChatUid = null;   // uid de la conversacion guardada activa (para re-guardar/actualizar)
@@ -3237,8 +3239,12 @@ class CoffeeIA {
         }
 
         const imgHtml = this.pendingImages.map((img, i) => `
-            <div class="ia-img-chip" title="${this._escape(img.name)}">
+            <div class="ia-img-chip ${img.forModule ? 'is-module-asset' : ''}" title="${this._escape(img.name)}">
                 <img src="${img.dataUrl}" alt="">
+                <button type="button" class="ia-img-chip-asset" data-asset-idx="${i}"
+                    title="${img.forModule ? 'Se incrustara en el modulo generado (clic para quitar)' : 'Usar DENTRO del modulo generado (<img src>)'}">
+                    <i data-lucide="image-plus"></i>
+                </button>
                 <button type="button" class="ia-img-chip-remove" data-idx="${i}" title="Quitar">
                     <i data-lucide="x"></i>
                 </button>
@@ -3260,6 +3266,13 @@ class CoffeeIA {
         $strip.find('.ia-img-chip-remove').off('click').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).data('idx'), 10);
             this._removeImage(idx);
+        });
+        $strip.find('.ia-img-chip-asset').off('click').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).data('asset-idx'), 10);
+            const img = this.pendingImages[idx];
+            if (!img) return;
+            img.forModule = !img.forModule;
+            this._renderImageStrip();
         });
         $strip.find('.ia-doc-chip-remove').off('click').on('click', (e) => {
             const idx = parseInt($(e.currentTarget).data('doc-idx'), 10);
@@ -3329,6 +3342,34 @@ class CoffeeIA {
             ).join('\n\n');
             contentForModel = (text ? text + '\n\n' : '') +
                 '=== DOCUMENTOS ADJUNTOS POR EL USUARIO ===\n' + blocks;
+        }
+
+        // Imagenes marcadas "para el modulo": se suben al servidor y el modelo recibe
+        // sus URLs para incrustarlas con <img src> en el HTML que genere. Distintas de
+        // las de vision (que viajan en userMsg.images y no se persisten).
+        const moduleImgs = images.filter(i => i.forModule);
+        if (moduleImgs.length) {
+            try {
+                const up = await fetch(this._apiAssets, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ images: moduleImgs.map(i => ({ base64: i.base64, mime: i.mime, name: i.name })) })
+                });
+                const data = await up.json();
+                if (data.success && Array.isArray(data.files) && data.files.length) {
+                    contentForModel += '\n\n=== IMAGENES PARA EL MODULO ===\n'
+                        + 'El usuario adjunto imagen(es) para USARLAS DENTRO del componente/template HTML que generes. '
+                        + 'Ya estan subidas al servidor; incrustalas donde correspondan con <img src="URL"> '
+                        + '(usa object-fit/tamanos razonables para respetar proporciones):\n'
+                        + data.files.map(f => `- ${f.name}: ${f.url}`).join('\n');
+                } else if (typeof visorView !== 'undefined' && visorView) {
+                    visorView.toast(data.message || 'No se pudieron subir las imagenes del modulo', 'warn');
+                }
+            } catch (e) {
+                if (typeof visorView !== 'undefined' && visorView) {
+                    visorView.toast('Error de red al subir las imagenes del modulo', 'warn');
+                }
+            }
         }
 
         const userMsg = { role: 'user', content: contentForModel };
@@ -3436,11 +3477,19 @@ class CoffeeIA {
                     try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
 
                     if (ev === 'thinking') {
-                        // El modelo esta razonando: aun no hay respuesta. Mantenemos el
-                        // indicador pero mostramos progreso para que no parezca colgado.
+                        // Aun no hay respuesta: puede ser una etiqueta de tool-calling
+                        // completa ("[leyendo archivo]") o razonamiento streameado en
+                        // fragmentos (modelos thinking). La etiqueta se muestra tal cual;
+                        // los fragmentos se acumulan como progreso.
                         if (!firstToken) {
-                            thinkChars += (obj.t || '').length;
-                            this._setTypingPhase($typing, thinkChars);
+                            const t     = obj.t || '';
+                            const label = t.match(/\[([^\]]+)\]/);
+                            if (label) {
+                                this._setTypingText($typing, label[1]);
+                            } else {
+                                thinkChars += t.length;
+                                this._setTypingText($typing, 'Razonando… ≈ ' + Math.max(1, Math.round(thinkChars / 4)) + ' tokens');
+                            }
                         }
                     } else if (ev === 'chunk') {
                         if (!firstToken) {
@@ -5211,24 +5260,26 @@ class CoffeeIA {
         return $t;
     }
 
-    // Muestra que el modelo esta razonando (tokens de "thinking") con progreso vivo,
-    // para que el indicador no parezca colgado en modelos de razonamiento.
-    _setTypingPhase($typing, chars) {
+    // Muestra el estado del turno mientras no llega el 1er token: progreso de
+    // razonamiento (modelos thinking) o la etiqueta de la herramienta en curso
+    // ("leyendo archivo…"), para que el indicador no parezca colgado.
+    _setTypingText($typing, text) {
         if (!$typing) return;
         const $phase = $typing.find('.ia-typing-phase');
         if (!$phase.length) return;
-        const approxToks = Math.max(1, Math.round(chars / 4));   // ~4 chars/token
         // Pintamos el icono una sola vez (lucide lo convierte a <svg>); luego solo
-        // actualizamos el contador para no recrear el SVG en cada token.
+        // actualizamos el texto para no recrear el SVG en cada token.
         if (!$phase.data('inited')) {
-            // Al pasar a razonamiento ocultamos el loader "Analizando…": ahora el
-            // estado lo comunica la linea "Razonando…".
+            // Al pasar a esta fase ocultamos el loader "Analizando…": ahora el
+            // estado lo comunica esta linea.
             $typing.find('.ia-typing-loader').hide();
             $phase.html('<i data-lucide="brain" class="ia-typing-brain"></i><span class="ia-typing-phase-text"></span>').show();
             $phase.data('inited', true);
             if (window.lucide) lucide.createIcons();
         }
-        $phase.find('.ia-typing-phase-text').text('Razonando… ≈ ' + approxToks + ' tokens');
+        text = String(text || '').replace(/\s+/g, ' ').trim();
+        if (text.length > 70) text = text.slice(0, 70) + '…';
+        $phase.find('.ia-typing-phase-text').text(text);
     }
 
     // force=true: baja al fondo si o si y reactiva el pegado (envio de mensaje o

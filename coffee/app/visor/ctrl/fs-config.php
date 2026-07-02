@@ -32,4 +32,14 @@ define('FS_IGNORE_DIRS', (string)($_FS_ENV['FS_IGNORE_DIRS']
 define('FS_BINARY_EXTS', (string)($_FS_ENV['FS_BINARY_EXTS']
     ?? 'png,jpg,jpeg,gif,webp,ico,bmp,pdf,zip,rar,7z,gz,tar,exe,dll,so,bin,mp4,mp3,wav,mov,avi,woff,woff2,ttf,eot,otf,lock,map,class,o,a,psd,ai'));
 
+// Archivos SENSIBLES (patrones fnmatch sobre el nombre): nunca se leen, ni se
+// grep-ean, ni aparecen en arbol/listados. Evita que credenciales del propio www
+// (p.ej. coffee/app/credentials/.env) terminen en el contexto de un LLM externo.
+define('FS_DENY_FILES', (string)($_FS_ENV['FS_DENY_FILES']
+    ?? '.env,.env.*,*.pem,*.key,*.p12,*.pfx,*.jks,*.keystore,id_rsa*,id_ed25519*,*.htpasswd,secrets.*,credentials.*'));
+
+// Carpetas SENSIBLES: mismo tratamiento que FS_IGNORE_DIRS pero por motivo de
+// seguridad (separadas para poder relajar el ruido sin exponer credenciales).
+define('FS_DENY_DIRS', (string)($_FS_ENV['FS_DENY_DIRS'] ?? 'credentials,secrets,.ssh,.aws,.gnupg'));
+
 unset($_FS_ENV);

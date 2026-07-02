@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Navbar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+
+        /* ── Navbar estilo inventory — recoloreada a azul institucional Varoch #003360 ── */
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+
+        .nav-admin-btn { background:rgba(0,51,96,.08); color:#003360; border:1px solid rgba(0,51,96,.20); padding:6px 12px; border-radius:10px; transition:all .15s ease; cursor:pointer; }
+        .nav-admin-btn:hover { background:#003360; color:#fff; border-color:#003360; }
+
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
+        .nav-theme-toggle:hover { color:#003360; }
+
+        /* ── Pill de sucursal (selector en la navbar) ── */
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); transition:all .15s ease; cursor:pointer; }
+        .branch-pill:hover { border-color:#003360; background:rgba(0,51,96,.10); }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .branch-pill-chev { color:#94A3B8; transition:transform .2s ease; }
+        #btnBranch[aria-expanded="true"] .branch-pill-chev { transform:rotate(180deg); }
+
+        .branch-dd { position:absolute; right:0; top:calc(100% + 10px); width:300px; background:#FFFFFF; border:1px solid rgba(0,51,96,.18); border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; }
+        .branch-dd-head { display:flex; align-items:flex-start; justify-content:space-between; padding:12px 14px 10px; border-bottom:1px solid #F1F5F9; }
+        .branch-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:#003360; font-weight:700; }
+        .branch-dd-close { display:flex; align-items:center; gap:4px; font-size:11px; color:#94A3B8; padding:4px 8px; border-radius:8px; cursor:pointer; transition:all .15s ease; }
+        .branch-dd-close:hover { color:#111827; background:#F1F5F9; }
+        .branch-card { background:#FAFBFD; border:1px solid #E2E8F0; border-radius:10px; padding:8px 10px; cursor:pointer; transition:all .15s ease; }
+        .branch-card:hover { border-color:rgba(0,51,96,.40); background:#F0F5FB; }
+        .branch-card-sel { background:rgba(0,51,96,.06); border-color:#003360; box-shadow:0 0 0 1px rgba(0,51,96,.20); }
+        .branch-card-avatar { width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; color:#fff; box-shadow:0 4px 10px rgba(0,51,96,.30); flex-shrink:0; }
+        .branch-radio { width:16px; height:16px; border-radius:9999px; border:2px solid #CBD5E1; display:flex; align-items:center; justify-content:center; transition:all .2s ease; flex-shrink:0; }
+        .branch-card-sel .branch-radio { border-color:#003360; }
+        .branch-radio-inner { width:7px; height:7px; border-radius:9999px; background:#003360; opacity:0; transition:opacity .2s ease; }
+        .branch-card-sel .branch-radio-inner { opacity:1; }
+
+        .nav-user-pill { padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E2E8F0; border-radius:8px; transition:all .15s ease; cursor:pointer; }
+        .nav-user-pill:hover { background:#F1F5F9; border-color:#E2E8F0; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+        .nav-chevron { color:#94A3B8; transition:transform .2s ease; }
+        #btnUserMenu.open .nav-chevron { transform:rotate(180deg); }
+
+        .nav-dropdown { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 14px 38px rgba(17,24,39,.14); transition:all .22s ease; transform-origin:top right; overflow:hidden; }
+        .nav-divider { height:1px; background:#E2E8F0; }
+        .nav-user-head { display:flex; align-items:center; gap:12px; padding:16px; }
+        .nav-head-avatar { position:relative; width:46px; height:46px; border-radius:9999px; background:#EEF3F8; display:flex; align-items:center; justify-content:center; color:#64748B; font-weight:700; font-size:15px; flex-shrink:0; }
+        .nav-status-dot { position:absolute; right:0; bottom:1px; width:12px; height:12px; border-radius:9999px; background:#7AAB20; border:2px solid #FFFFFF; }
+        .nav-head-name { font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nav-head-email { font-size:12.5px; color:#94A3B8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nav-head-rol { display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:8px; background:rgba(0,51,96,.10); color:#003360; border:1px solid rgba(0,51,96,.20); }
+        .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid #E2E8F0; color:#9E1B32; border-radius:12px; font-weight:600; font-size:14px; background:#FFFFFF; cursor:pointer; transition:all .15s ease; }
+        .nav-logout-btn:hover { background:#FDECEA; border-color:#F3C0BD; }
+
+        /* ── Rail lateral #menu-sidebar (estilo inventory) recoloreado a #003360 ── */
+        .menu-rail-item { position:relative; width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:color .15s ease, background .15s ease, border-color .15s ease; }
+        .menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; flex-shrink:0; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; letter-spacing:.01em; line-height:1; white-space:nowrap; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+        .demo-note { font-size:11px; color:#64748B; }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════ NAVBAR (replica de acceso/src/js/navbar.js) ══════════ -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition" title="Menú">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Pill de sucursal / UDN -->
+            <div class="relative">
+                <button id="btnBranch" class="branch-pill flex items-center gap-2.5" aria-expanded="false">
+                    <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
+                    <div class="flex flex-col items-start leading-tight">
+                        <span class="branch-pill-label">Unidad de negocio</span>
+                        <span id="btnBranchName" class="branch-pill-name">Matriz CDMX</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="branch-pill-chev w-4 h-4"></i>
+                </button>
+                <div id="branchDropdown" class="branch-dd" style="display:none;">
+                    <div class="branch-dd-head">
+                        <div>
+                            <p class="branch-dd-label">Cambiar unidad de negocio</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Grupo Varoch</p>
+                        </div>
+                        <button class="branch-dd-close" onclick="document.getElementById('branchDropdown').style.display='none'">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i> Cerrar
+                        </button>
+                    </div>
+                    <div class="p-2 space-y-1.5 max-h-[320px] overflow-y-auto">
+                        <div class="branch-card branch-card-sel">
+                            <div class="flex items-center gap-2.5">
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#003360,#2563EB);">MC</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Matriz CDMX</p>
+                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Av. Insurgentes Sur 1234</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="branch-card">
+                            <div class="flex items-center gap-2.5">
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#0078D7,#60A5FA);">SN</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Sucursal Norte</p>
+                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Blvd. Manuel Ávila Camacho 90</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="branch-card">
+                            <div class="flex items-center gap-2.5">
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#00264A,#003360);">FG</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Fogaza Centro</p>
+                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Calle Madero 45, Centro</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btnAdmin" class="nav-admin-btn hidden sm:flex items-center gap-1.5" title="Administración">
+                <i data-lucide="shield" class="w-4 h-4"></i>
+                <span class="text-sm font-medium">Admin</span>
+            </button>
+
+            <button id="btnThemeToggle" class="nav-theme-toggle" title="Tema">
+                <i data-lucide="moon" class="w-[18px] h-[18px]"></i>
+            </button>
+
+            <button id="btnModulos" class="nav-theme-toggle" title="Módulos">
+                <i data-lucide="layout-grid" class="w-[18px] h-[18px]"></i>
+            </button>
+
+            <button id="btnUserMenu" class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name">Rosy A.</span>
+                    <span class="nav-user-rol">Contabilidad</span>
+                </div>
+                <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Dropdown de usuario -->
+    <div class="relative z-50">
+        <div id="userMenuDropdown" class="nav-dropdown absolute right-3 mt-2 w-72 opacity-0 scale-95 invisible">
+            <div class="nav-user-head">
+                <div class="nav-head-avatar">
+                    RA
+                    <span class="nav-status-dot"></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="nav-head-name">Rosy A.</p>
+                    <p class="nav-head-email">rosy.a@grupovaroch.com</p>
+                    <span class="nav-head-rol"><i data-lucide="shield" class="w-3 h-3"></i> Contabilidad</span>
+                </div>
+            </div>
+            <div class="nav-divider"></div>
+            <div class="px-3 py-2">
+                <a href="gv-perfil.html" class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-slate-100 transition"><i data-lucide="user" class="w-4 h-4"></i> Mi perfil</a>
+                <a href="gv-permisos.html" class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-slate-100 transition"><i data-lucide="key-round" class="w-4 h-4"></i> Perfiles y permisos</a>
+            </div>
+            <div class="nav-divider"></div>
+            <div class="px-3 py-3">
+                <button class="nav-logout-btn">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    Cerrar sesión
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════ Contexto: rail lateral + area de trabajo ══════════ -->
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <button class="menu-rail-item is-active"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+            <button class="menu-rail-item"><i data-lucide="users"></i><span class="menu-rail-label">Capital</span></button>
+            <button class="menu-rail-item"><i data-lucide="wallet"></i><span class="menu-rail-label">Tesorería</span></button>
+            <button class="menu-rail-item"><i data-lucide="calculator"></i><span class="menu-rail-label">Contab.</span></button>
+            <button class="menu-rail-item"><i data-lucide="badge-check"></i><span class="menu-rail-label">Calidad</span></button>
+            <button class="menu-rail-item"><i data-lucide="bar-chart-3"></i><span class="menu-rail-label">KPI</span></button>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="flex items-center gap-2 text-xs">
+                    <li class="uppercase tracking-wide text-slate-400">Corporativo</li>
+                    <li class="text-slate-300">/</li>
+                    <li class="font-bold" style="color:#003360;">Navbar institucional</li>
+                </ol>
+            </nav>
+            <div class="bg-white rounded-xl border border-slate-200 p-6" style="box-shadow:0 2px 8px rgba(15,23,42,.06);">
+                <h2 class="text-lg font-bold mb-1" style="color:#003360;">Navbar Grupo Varoch</h2>
+                <p class="demo-note mb-4">Réplica de la navbar de inventory (logo, UDN, admin, tema, módulos, usuario y dropdown) recoloreada a la paleta institucional azul <b>#003360</b>. Prueba el pill de unidad de negocio y el menú de usuario.</p>
+                <div class="flex flex-wrap gap-2">
+                    <a href="gv-login.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#003360;">Ver login</a>
+                    <a href="gv-perfil.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#2563EB;">Ver perfil</a>
+                    <a href="gv-permisos.html" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:rgba(0,51,96,.08);color:#003360;border:1px solid rgba(0,51,96,.2);">Ver permisos</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const btnUser = document.getElementById('btnUserMenu');
+        const ddUser  = document.getElementById('userMenuDropdown');
+        btnUser.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ddUser.classList.toggle('opacity-0'); ddUser.classList.toggle('scale-95'); ddUser.classList.toggle('invisible');
+            btnUser.classList.toggle('open');
+        });
+        const btnBranch = document.getElementById('btnBranch');
+        const ddBranch  = document.getElementById('branchDropdown');
+        btnBranch.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = btnBranch.getAttribute('aria-expanded') === 'true';
+            btnBranch.setAttribute('aria-expanded', !open);
+            ddBranch.style.display = open ? 'none' : 'block';
+        });
+        document.addEventListener('click', () => {
+            ddUser.classList.add('opacity-0','scale-95','invisible'); btnUser.classList.remove('open');
+            ddBranch.style.display = 'none'; btnBranch.setAttribute('aria-expanded','false');
+        });
+        document.querySelectorAll('.branch-card').forEach(c => c.addEventListener('click', () => {
+            document.querySelectorAll('.branch-card').forEach(x => x.classList.remove('branch-card-sel'));
+            c.classList.add('branch-card-sel');
+            document.getElementById('btnBranchName').textContent = c.querySelector('p.font-bold').textContent;
+        }));
+        document.querySelectorAll('.menu-rail-item').forEach(i => i.addEventListener('click', () => {
+            document.querySelectorAll('.menu-rail-item').forEach(x => x.classList.remove('is-active'));
+            i.classList.add('is-active');
+        }));
+    </script>
+</body>
+</html>

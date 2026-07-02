@@ -33,10 +33,6 @@ $(async () => {
 
     app.render();
 
-    // La navbar es la duena del filtro de sucursal (solo admin). Cuando el
-    // admin cambia de sucursal alli, replicamos el comportamiento del filtro.
-    document.addEventListener('branchChanged', () => app.onSubsidiaryChange());
-
     setInterval(() => {
         app.actualizarFechaHora({ label: app.getSubsidiaryLabel() });
     }, 60000);
@@ -252,6 +248,12 @@ class App extends Templates {
         const v = $sel.val();
         if (v === '0') return '0';
         return rol == 1 ? (v || '0') : null;
+    }
+
+    // La navbar es la duena del filtro de sucursal; el auto-listener de
+    // 'branchChanged' en Templates delega aqui.
+    onBranchChange() {
+        return this.onSubsidiaryChange();
     }
 
     async onSubsidiaryChange() {

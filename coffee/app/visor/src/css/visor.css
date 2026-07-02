@@ -3454,6 +3454,20 @@ body.ia-drawer-resizing * {
 }
 .ia-img-chip-remove:hover { background: #ef4444; }
 .ia-img-chip-remove i { width: 10px; height: 10px; }
+/* Toggle "usar dentro del modulo": la imagen se sube y el HTML generado la
+   referencia con <img src>. Activo = chip con borde/acento. */
+.ia-img-chip-asset {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(0,0,0,.75); color: #fff;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+}
+.ia-img-chip-asset:hover { background: var(--vsr-accent); }
+.ia-img-chip-asset i { width: 10px; height: 10px; }
+.ia-img-chip.is-module-asset { border-color: var(--vsr-accent); box-shadow: 0 0 0 1px var(--vsr-accent); }
+.ia-img-chip.is-module-asset .ia-img-chip-asset { background: var(--vsr-accent); }
 
 /* Chip de documento de texto adjunto en el composer */
 .ia-doc-chip {

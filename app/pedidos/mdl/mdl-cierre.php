@@ -96,6 +96,8 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Cobranza del dia: cuenta por fecha del pago y por la sucursal donde entro el
+    // dinero (COALESCE), igual que el corte de turno. La venta sigue por pedido.
     function getConsolidatedPayments($array) {
         $query = "
             SELECT
@@ -103,7 +105,7 @@ class MCierre extends CRUD {
                 SUM(pp.pay) as total_paid
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
-            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+            WHERE DATE(pp.date_pay) = ? AND COALESCE(pp.subsidiaries_id, o.subsidiaries_id) = ?
               AND o.status != 4 AND o.is_legacy = 0
             GROUP BY pp.method_pay_id
         ";
@@ -183,9 +185,69 @@ class MCierre extends CRUD {
                 COALESCE(SUM(pp.pay), 0) AS total
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
-            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+            WHERE DATE(pp.date_pay) = ? AND COALESCE(pp.subsidiaries_id, o.subsidiaries_id) = ?
               AND o.status != 4 AND o.is_legacy = 0
             GROUP BY pp.method_pay_id
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    // Abonos cobrados este dia en esta sucursal para pedidos de dias anteriores.
+    // Si el pedido es de otra sucursal (cobro cruzado entrante) origin_subsidiary
+    // lo identifica; el dinero cuenta aqui porque aqui entro a caja.
+    function getDailyPrevPayments($array) {
+        $query = "
+            SELECT
+                o.id,
+                o.total_pay,
+                o.discount,
+                SUM(op.pay) AS payment_real,
+                (SELECT COALESCE(SUM(op2.pay), 0)
+                   FROM {$this->bd}order_payments op2
+                  WHERE op2.order_id = o.id
+                    AND DATE(op2.date_pay) <= ?) AS total_paid_upto,
+                o.status,
+                o.date_creation,
+                o.subsidiaries_id AS origin_subsidiary_id,
+                os.name AS origin_subsidiary,
+                c.name AS client_name
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries os ON os.id = o.subsidiaries_id
+            WHERE DATE(op.date_pay) = ?
+              AND DATE(o.date_creation) < ?
+              AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, o.subsidiaries_id, os.name, c.name
+            ORDER BY o.date_creation ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
+    // Pagos del dia de pedidos de ESTA sucursal que se cobraron en OTRA (cobro
+    // cruzado saliente). No entran a esta caja: se reportan informativos y no suman.
+    function getDailyCrossPayments($array) {
+        $query = "
+            SELECT
+                o.id,
+                o.total_pay,
+                cs.name AS charged_subsidiary,
+                SUM(op.pay) AS payment_cross,
+                o.date_creation,
+                c.name AS client_name
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries cs ON cs.id = COALESCE(op.subsidiaries_id, o.subsidiaries_id)
+            WHERE DATE(op.date_pay) = ?
+              AND o.subsidiaries_id = ?
+              AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) != ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY o.id, o.total_pay, cs.name, COALESCE(op.subsidiaries_id, o.subsidiaries_id), o.date_creation, c.name
+            ORDER BY o.date_creation ASC
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) ? $result : [];

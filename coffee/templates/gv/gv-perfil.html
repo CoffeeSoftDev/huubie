@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Mi Perfil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+
+        /* ── Navbar (igual que gv-navbar.html) ── */
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E2E8F0; border-radius:8px; transition:all .15s ease; cursor:pointer; }
+        .nav-user-pill:hover { background:#F1F5F9; border-color:#E2E8F0; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; cursor:pointer; transition:.15s ease; }
+        .nav-score-wrap:hover { background:#F1F5F9; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; line-height:1; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+
+        /* ── Rail lateral ── */
+        .menu-rail-item { position:relative; width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s ease; }
+        .menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; white-space:nowrap; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+        /* ── Perfil (estructura del perfil.php de ERP-GV) ── */
+        .profile-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .profile-photo-wrap { position:relative; width:132px; height:132px; margin:0 auto; }
+        .profile-photo { width:132px; height:132px; border-radius:9999px; object-fit:cover; border:4px solid #fff; box-shadow:0 8px 24px rgba(0,51,96,.22); background:linear-gradient(135deg,#003360,#2563EB); display:flex; align-items:center; justify-content:center; color:#fff; font-size:44px; font-weight:800; }
+        .profile-photo-btn { position:absolute; bottom:4px; right:4px; width:34px; height:34px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; border:3px solid #fff; box-shadow:0 4px 10px rgba(0,51,96,.35); transition:.15s; }
+        .profile-photo-btn:hover { background:#00264A; }
+
+        .form-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .input-group { display:flex; align-items:stretch; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; background:#F8FAFC; transition:.15s; }
+        .input-group:focus-within { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .input-group-text { display:flex; align-items:center; justify-content:center; padding:0 11px; background:#EEF3F8; color:#003360; border-right:1px solid #CBD5E1; }
+        .input-group .ipt { flex:1; border:none; background:transparent; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; width:100%; }
+        .input-group .ipt:disabled { color:#334155; cursor:default; }
+        .input-group-btn { display:flex; align-items:center; justify-content:center; padding:0 11px; color:#2563EB; border-left:1px solid #CBD5E1; cursor:pointer; transition:.15s; }
+        .input-group-btn:hover { background:#EEF3F8; }
+
+        .section-title { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#003360; padding-bottom:6px; border-bottom:1px solid #E2E8F0; margin-bottom:14px; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+        .btn-primary:hover { background:#00264A; transform:translateY(-1px); }
+
+        /* ── Tabs del perfil ── */
+        .profile-tab { padding:15px 16px; font-size:13px; font-weight:500; color:#64748B; background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; white-space:nowrap; transition:.15s ease; }
+        .profile-tab:hover { color:#111827; }
+        .profile-tab.is-active { color:#111827; font-weight:700; border-bottom-color:#003360; }
+        .profile-meta-row { display:flex; align-items:center; gap:8px; background:#F8FAFC; border:1px solid #EEF2F7; border-radius:9px; padding:9px 12px; color:#475569; }
+        .profile-meta-row i, .profile-meta-row svg { width:15px; height:15px; color:#94A3B8; flex-shrink:0; }
+        .profile-meta-row b { color:#0F172A; }
+
+        /* ── Valores corporativos ── */
+        .val-donut { position:relative; width:112px; height:112px; margin:0 auto; border-radius:9999px; display:flex; align-items:baseline; justify-content:center; }
+        .val-donut::before { content:''; position:absolute; inset:10px; background:#fff; border-radius:9999px; }
+        .val-donut-num { position:relative; align-self:center; font-size:27px; font-weight:800; color:#003360; line-height:1; }
+        .val-donut-max { position:relative; align-self:center; font-size:11px; font-weight:600; color:#94A3B8; margin-left:2px; }
+        .val-bar-track { height:7px; border-radius:9999px; background:#EEF3F8; overflow:hidden; }
+        .val-bar-fill { height:100%; border-radius:9999px; transition:width .4s ease; }
+        .val-link { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:16px; padding:8px; border-radius:8px; font-size:12px; font-weight:600; color:#2563EB; border:1px dashed rgba(37,99,235,.4); cursor:pointer; transition:.15s; }
+        .val-link:hover { background:rgba(37,99,235,.06); }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="nav-score-wrap" id="navScore" title="Calificación de valores corporativos">
+                <div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-score-label">Valores</span>
+                    <span class="nav-score-sub">de 5.00</span>
+                </div>
+            </div>
+            <button class="nav-theme-toggle" title="Tema"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+            <button class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name">Rosy A.</span>
+                    <span class="nav-user-rol">Contabilidad</span>
+                </div>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <!-- RAIL -->
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <button class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+            <button class="menu-rail-item"><i data-lucide="users"></i><span class="menu-rail-label">Capital</span></button>
+            <button class="menu-rail-item"><i data-lucide="wallet"></i><span class="menu-rail-label">Tesorería</span></button>
+            <button class="menu-rail-item is-active"><i data-lucide="user-circle"></i><span class="menu-rail-label">Perfil</span></button>
+            <button class="menu-rail-item"><i data-lucide="key-round"></i><span class="menu-rail-label">Accesos</span></button>
+        </aside>
+
+        <!-- CONTENIDO -->
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="flex items-center gap-2 text-xs">
+                    <li class="uppercase tracking-wide text-slate-400">Corporativo</li>
+                    <li class="text-slate-300">/</li>
+                    <li class="font-bold" style="color:#003360;">Mi Perfil</li>
+                </ol>
+            </nav>
+
+            <div class="flex flex-col lg:flex-row gap-5 items-start">
+
+                <!-- Columna izquierda: foto + identidad -->
+                <div class="w-full lg:w-[300px] shrink-0 flex flex-col gap-5">
+                <div class="profile-card p-6">
+                    <div class="profile-photo-wrap mb-4">
+                        <div class="profile-photo">RA</div>
+                        <div class="profile-photo-btn" title="Cambiar foto"><i data-lucide="camera" class="w-4 h-4"></i></div>
+                    </div>
+                    <h2 class="text-center text-xl font-bold" style="color:#003360;">Rosy A.</h2>
+                    <div class="flex justify-center mt-2">
+                        <span class="cv-badge badge-success"><span class="w-1.5 h-1.5 rounded-full" style="background:#7AAB20;"></span> Activo</span>
+                    </div>
+                    <hr class="my-4 border-slate-200">
+                    <p class="text-center text-sm font-semibold text-slate-700">Contabilidad</p>
+                    <p class="text-center text-xs text-slate-400 mt-0.5">Auxiliar Contable</p>
+                    <hr class="my-4 border-slate-200">
+                    <div class="space-y-2 text-[12.5px]">
+                        <div class="profile-meta-row"><i data-lucide="hash"></i> ID usuario: <b>1042</b></div>
+                        <div class="profile-meta-row"><i data-lucide="user"></i> Usuario: <b>rosya</b></div>
+                        <div class="profile-meta-row"><i data-lucide="calendar-check"></i> Alta: <b>14/03/2022</b></div>
+                        <div class="profile-meta-row"><i data-lucide="fingerprint"></i> Código: <b>GV-1042</b></div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Columna derecha: tabs -->
+                <div class="profile-card flex-1 w-full overflow-hidden">
+                    <div class="flex items-center gap-1 border-b border-slate-200 px-4 overflow-x-auto">
+                        <button class="profile-tab is-active" data-tab="laboral">Información laboral</button>
+                        <button class="profile-tab" data-tab="personal">Información personal</button>
+                        <button class="profile-tab" data-tab="seguridad">Seguridad</button>
+                        <button class="profile-tab" data-tab="valores">Valores corporativos</button>
+                    </div>
+
+                    <div class="p-6">
+                        <!-- TAB: Informacion laboral -->
+                        <div class="profile-pane" id="tab-laboral">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label">Unidad de negocio</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="factory" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="Matriz CDMX" disabled>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Fecha de ingreso</label>
+                                    <div class="input-group">
+                                        <input type="text" class="ipt text-center" value="14 / 03 / 2022" disabled>
+                                        <span class="input-group-text" style="border-left:1px solid #CBD5E1;border-right:none;"><i data-lucide="calendar" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Área</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="briefcase" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="Administración y Finanzas" disabled>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Perfil de acceso</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="shield" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="Contabilidad" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Informacion personal -->
+                        <div class="profile-pane hidden" id="tab-personal">
+                            <div class="grid grid-cols-1 gap-4 mb-3">
+                                <div>
+                                    <label class="form-label">Nombre completo</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="user" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="Rosy A." disabled>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="form-label">Usuario</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="at-sign" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="rosya" disabled>
+                                        <span class="input-group-btn" title="Bloquear / Desbloquear"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Teléfono móvil</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="phone" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" value="5544887701" maxlength="10" disabled>
+                                        <span class="input-group-btn" title="Bloquear / Desbloquear"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Correo electrónico</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="mail" class="w-4 h-4"></i></span>
+                                        <input type="email" class="ipt" value="rosy.a@grupovaroch.com" disabled>
+                                        <span class="input-group-btn" title="Bloquear / Desbloquear"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Seguridad -->
+                        <div class="profile-pane hidden" id="tab-seguridad">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label">Nueva contraseña</label>
+                                    <div class="input-group">
+                                        <span class="input-group-btn" style="border-left:none;border-right:1px solid #CBD5E1;" title="Generar automática"><i data-lucide="key" class="w-4 h-4"></i></span>
+                                        <input type="password" class="ipt" id="clave1" value="secreto123">
+                                        <span class="input-group-btn" id="btnKeyShow" title="Mostrar / Ocultar"><i data-lucide="eye" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Confirmar contraseña</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+                                        <input type="password" class="ipt" id="clave2" value="secreto123">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Valores corporativos -->
+                        <div class="profile-pane hidden" id="tab-valores">
+                            <div class="flex flex-col md:flex-row gap-8 items-start">
+                                <div class="w-full md:w-[240px] shrink-0">
+                                    <div class="flex justify-center mb-3">
+                                        <span class="cv-badge badge-primary" id="valPeriodo"></span>
+                                    </div>
+                                    <div class="val-donut" id="valDonut">
+                                        <span class="val-donut-num" id="valCalf"></span><span class="val-donut-max">/ 5</span>
+                                    </div>
+                                    <p class="text-center text-xs text-slate-400 mt-2">Calificación global · <b class="text-slate-600" id="valPeople"></b> evaluadores</p>
+                                </div>
+                                <div class="flex-1 w-full">
+                                    <div id="valBars" class="space-y-4"></div>
+                                    <div class="val-link"><i data-lucide="bar-chart-3" class="w-4 h-4"></i> Ver evaluación completa</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SAMPLE_VALORES = {
+            periodo: 'FEB 2026 - MAR 2026',
+            calf: 4.49,
+            people_count: 28,
+            valores: [
+                { value: 'Trabajo en equipo',      shortName: 'te', calf: 4.33 },
+                { value: 'Actitud positiva',       shortName: 'ap', calf: 4.39 },
+                { value: 'Profesionalismo',        shortName: 'pr', calf: 4.73 },
+                { value: 'Pasión por el servicio', shortName: 'ps', calf: 4.52 }
+            ]
+        };
+
+        function colorCalf(calf) {
+            if (calf >= 4.5) return '#7AAB20';
+            if (calf >= 4)   return '#2563EB';
+            if (calf >= 3.5) return '#D97706';
+            return '#9E1B32';
+        }
+
+        function renderValores(data) {
+            const pct = (data.calf / 5) * 100;
+            document.getElementById('valPeriodo').textContent = data.periodo;
+            document.getElementById('valCalf').textContent = data.calf.toFixed(2);
+            document.getElementById('valPeople').textContent = data.people_count;
+            document.getElementById('valDonut').style.background =
+                `conic-gradient(${colorCalf(data.calf)} ${pct}%, #EEF3F8 ${pct}%)`;
+            const scoreColor = colorCalf(data.calf);
+            document.getElementById('navScoreRing').style.background =
+                `conic-gradient(${scoreColor} ${pct}%, #EEF3F8 ${pct}%)`;
+            const navScoreNum = document.getElementById('navScoreNum');
+            navScoreNum.textContent = data.calf.toFixed(2);
+            navScoreNum.style.color = scoreColor;
+            document.getElementById('valBars').innerHTML = data.valores.map(v => `
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[12px] font-medium text-slate-600">${v.value}</span>
+                        <b class="text-[12px]" style="color:${colorCalf(v.calf)};">${v.calf.toFixed(2)}</b>
+                    </div>
+                    <div class="val-bar-track">
+                        <div class="val-bar-fill" style="width:${(v.calf / 5) * 100}%; background:${colorCalf(v.calf)};"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        renderValores(SAMPLE_VALORES);
+
+        document.querySelectorAll('.profile-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.profile-tab.is-active').classList.remove('is-active');
+                btn.classList.add('is-active');
+                document.querySelectorAll('.profile-pane').forEach(p => p.classList.add('hidden'));
+                document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        lucide.createIcons();
+        const btnKeyShow = document.getElementById('btnKeyShow');
+        const clave1 = document.getElementById('clave1');
+        btnKeyShow.addEventListener('click', () => {
+            const showing = clave1.type === 'text';
+            clave1.type = showing ? 'password' : 'text';
+            btnKeyShow.innerHTML = `<i data-lucide="${showing ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>`;
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

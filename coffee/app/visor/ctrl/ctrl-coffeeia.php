@@ -17,6 +17,7 @@ $model       = $ctx['model'];
 $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
+$canvasMode  = !empty($ctx['canvas']);
 
 $t0 = microtime(true);
 
@@ -51,7 +52,7 @@ if ($dbSchema) {
 if ($fsRoot && !$dbSchema) {
     try {
         $client = llm_client_for($model);
-        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, null, 6);
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, null, $canvasMode ? 10 : 6);
         $usage = $r['usage'];
         echo json_encode([
             'ok'                => true,

@@ -4,6 +4,10 @@ class Pos extends Templates {
         this.PROJECT_NAME = "";
     }
 
+    // El cambio de sucursal lo maneja App; sin esto el auto-listener de
+    // Templates re-renderizaria el POS sobre la vista de pedidos.
+    onBranchChange() { }
+
     // Components.
     createPOSContainers(options) {
         const opts = Object.assign({

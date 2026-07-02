@@ -111,8 +111,7 @@ function fs_refine_by_hints(array $paths, array $hints) {
 function fs_list_projects() {
     static $cache = null;
     if ($cache !== null) return $cache;
-    $ignore = array_filter(array_map('trim', explode(',', FS_IGNORE_DIRS)));
-    $ignoreLc = array_map('strtolower', $ignore);
+    $ignoreLc = fs_ignored_dirs();
     $out = [];
     foreach (fs_allowed_roots() as $root) {
         foreach (@scandir($root) ?: [] as $e) {
@@ -134,7 +133,7 @@ function fs_list_projects() {
 function fs_folder_index($maxDepth = 4) {
     static $cache = null;
     if ($cache !== null) return $cache;
-    $ignore = array_map('strtolower', array_filter(array_map('trim', explode(',', FS_IGNORE_DIRS))));
+    $ignore = fs_ignored_dirs();
     $index  = [];
     $budget = 8000;   // tope de carpetas a indexar (defensa contra arboles enormes)
     $seen   = 0;
@@ -274,7 +273,7 @@ function fs_tree_digest($root, array $opts = []) {
     $limit    = (int)($opts['limit'] ?? FS_MAX_TREE_ENTRIES);
     $maxDepth = (int)($opts['maxDepth'] ?? 2);
     $root     = fs_norm(realpath($root) ?: $root);
-    $ignore   = array_map('strtolower', array_filter(array_map('trim', explode(',', FS_IGNORE_DIRS))));
+    $ignore   = fs_ignored_dirs();
 
     $lines = [];
     $state = ['count' => 0, 'truncated' => false, 'dirs' => 0, 'files' => 0];
@@ -302,6 +301,7 @@ function fs_tree_digest($root, array $opts = []) {
             else                    $state['truncated'] = true;
         }
         foreach ($files as $e) {
+            if (fs_is_denied_file($e)) continue;
             if ($state['count'] >= $limit) { $state['truncated'] = true; return; }
             $lines[] = $indent . $e . '  (' . fs_fmt_size(@filesize($dir . '/' . $e)) . ')';
             $state['count']++; $state['files']++;
@@ -314,7 +314,10 @@ function fs_tree_digest($root, array $opts = []) {
     $out .= 'RUTA: ' . $root . "\n\n";
     $out .= "== ARBOL (profundidad <= {$maxDepth}) ==\n" . implode("\n", $lines) . "\n";
     if ($state['truncated']) {
-        $out .= "\n(arbol parcial: hay mas contenido o profundidad. Usa list_dir para explorar subcarpetas concretas.)\n";
+        $out .= "\n(arbol parcial: hay mas contenido o profundidad. Usa list_dir para explorar subcarpetas\n"
+              . "concretas. Si la tarea se centra en una sola parte del proyecto, sugiere al usuario\n"
+              . "reconectarse a esa subcarpeta -- p.ej. 'conectate a " . basename($root) . "/sub/carpeta' --\n"
+              . "para trabajar con un arbol completo en vez de parcial.)\n";
     }
     return $out;
 }
@@ -331,6 +334,35 @@ function fs_is_binary_ext($path) {
     if ($bin === null) $bin = array_filter(array_map('trim', explode(',', FS_BINARY_EXTS)));
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     return $ext !== '' && in_array($ext, $bin, true);
+}
+
+/** Carpetas a ocultar en toda exploracion: ruido (FS_IGNORE_DIRS) + sensibles (FS_DENY_DIRS). */
+function fs_ignored_dirs() {
+    static $cache = null;
+    if ($cache === null) {
+        $csv = FS_IGNORE_DIRS . ',' . (defined('FS_DENY_DIRS') ? FS_DENY_DIRS : '');
+        $cache = array_values(array_unique(array_map('strtolower',
+            array_filter(array_map('trim', explode(',', $csv))))));
+    }
+    return $cache;
+}
+
+/**
+ * true si el nombre del archivo coincide con un patron sensible (FS_DENY_FILES).
+ * Los archivos sensibles no se leen, no se grep-ean y no aparecen en arbol/listados:
+ * su contenido nunca debe llegar al contexto de un LLM externo.
+ */
+function fs_is_denied_file($path) {
+    static $patterns = null;
+    if ($patterns === null) {
+        $csv = defined('FS_DENY_FILES') ? FS_DENY_FILES : '';
+        $patterns = array_filter(array_map('trim', explode(',', $csv)));
+    }
+    $name = strtolower(basename($path));
+    foreach ($patterns as $p) {
+        if (fnmatch(strtolower($p), $name)) return true;
+    }
+    return false;
 }
 
 /* ── Operaciones de SOLO LECTURA (sandbox a $root) ─────────────── */
@@ -352,7 +384,7 @@ function fs_resolve_in_root($root, $rel) {
 function fs_safe_list($root, $rel = '') {
     $dir = fs_resolve_in_root($root, $rel);
     if (!is_dir($dir)) throw new FsIntrospectException('No es una carpeta: ' . $rel);
-    $ignore = array_map('strtolower', array_filter(array_map('trim', explode(',', FS_IGNORE_DIRS))));
+    $ignore = fs_ignored_dirs();
     $dirs = []; $files = [];
     foreach (@scandir($dir) ?: [] as $e) {
         if ($e === '.' || $e === '..') continue;
@@ -361,6 +393,7 @@ function fs_safe_list($root, $rel = '') {
             if (in_array(strtolower($e), $ignore, true)) continue;
             $dirs[] = $e . '/';
         } else {
+            if (fs_is_denied_file($e)) continue;
             $files[] = ['name' => $e, 'size' => fs_fmt_size(@filesize($full))];
         }
         if (count($dirs) + count($files) >= FS_MAX_LIST_ENTRIES) break;
@@ -374,6 +407,9 @@ function fs_safe_read($root, $rel, $maxBytes = null) {
     $maxBytes = $maxBytes ?: FS_MAX_FILE_BYTES;
     $file = fs_resolve_in_root($root, $rel);
     if (!is_file($file)) throw new FsIntrospectException('No es un archivo: ' . $rel);
+    if (fs_is_denied_file($file)) {
+        throw new FsIntrospectException('Archivo restringido (credenciales/secretos): ' . $rel);
+    }
     if (fs_is_binary_ext($file)) {
         throw new FsIntrospectException('Archivo binario (no legible como texto): ' . $rel);
     }
@@ -395,7 +431,7 @@ function fs_safe_grep($root, $query, array $opts = []) {
     $query = (string) $query;
     if (trim($query) === '') throw new FsIntrospectException('Consulta de busqueda vacia.');
     $root   = fs_norm(realpath($root) ?: $root);
-    $ignore = array_map('strtolower', array_filter(array_map('trim', explode(',', FS_IGNORE_DIRS))));
+    $ignore = fs_ignored_dirs();
     $extFilter = isset($opts['ext']) && $opts['ext'] !== ''
         ? array_map('strtolower', array_filter(array_map('trim', explode(',', (string) $opts['ext']))))
         : null;
@@ -415,7 +451,7 @@ function fs_safe_grep($root, $query, array $opts = []) {
                 $queue[] = $full;
                 continue;
             }
-            if (fs_is_binary_ext($full)) continue;
+            if (fs_is_binary_ext($full) || fs_is_denied_file($full)) continue;
             if ($extFilter) {
                 $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
                 if (!in_array($ext, $extFilter, true)) continue;

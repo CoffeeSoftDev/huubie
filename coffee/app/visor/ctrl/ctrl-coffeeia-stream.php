@@ -50,6 +50,7 @@ $model       = $ctx['model'];
 $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
+$canvasMode  = !empty($ctx['canvas']);
 
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
@@ -107,7 +108,9 @@ if ($fsRoot && !$dbSchema) {
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
-        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, 6);
+        // Con lienzo activo el modelo necesita mas rondas: explorar + leer varios
+        // archivos (vista, css, js) antes de generar el template.
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $canvasMode ? 10 : 6);
 
         $final = (string) $r['final'];
         foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {

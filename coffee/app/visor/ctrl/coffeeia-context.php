@@ -311,7 +311,22 @@ function coffeeia_build_context(array $body) {
                     . "EXCLUSIVAMENTE su contenido real: explora con list_dir, localiza con grep_files y\n"
                     . "lee con read_file (todas SOLO LECTURA). Nunca inventes rutas ni codigo: si no estas\n"
                     . "seguro, abre el archivo. Cita las rutas relativas de los archivos que uses.\n"
+                    . "Si te piden RECREAR, portar o mejorar una pantalla de esta carpeta, el estilo visual\n"
+                    . "sale del CODIGO FUENTE leido (su paleta, su tono light/dark, su tipografia), NO de un\n"
+                    . "estilo por defecto — salvo que el usuario tenga un tema/sistema de diseno activado en\n"
+                    . "este contexto, que entonces manda sobre el estilo del fuente.\n"
                     . "\n" . $tree;
+                if ($canvasMode) {
+                    $systemBlock .= "\n=== CARPETA + LIENZO ===\n"
+                        . "El usuario quiere GENERAR un template usando la carpeta conectada como base\n"
+                        . "(recrear una pantalla existente o proponer una version mejorada). El flujo es:\n"
+                        . "1. Explora y LEE primero los archivos reales relevantes (vista, CSS, JS).\n"
+                        . "2. Despues genera el template nuevo en el lienzo segun las reglas del modo lienzo\n"
+                        . "   (respeta su PRIORIDAD DE ESTILO: tema activado > estilo del fuente > default).\n"
+                        . "La regla de 'nunca inventes codigo' aplica a DESCRIBIR lo existente; el template\n"
+                        . "que generas es codigo NUEVO y debe basarse fielmente en la estructura, textos y\n"
+                        . "estilos que leiste, no en suposiciones. No generes el template sin haber leido antes.\n";
+                }
             }
         } catch (Throwable $e) {
             $systemBlock .= "\n\n=== CARPETA ===\n"
@@ -342,7 +357,7 @@ function coffeeia_build_context(array $body) {
     }
 
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
-    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot];
+    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode];
 }
 
 /**

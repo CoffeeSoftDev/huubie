@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Editar perfil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; }
+        .cv-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
+        .cv-modal { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); width:100%; max-width:560px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; }
+        .cv-modal-header { padding:16px 20px; border-bottom:1px solid #E2E8F0; display:flex; align-items:center; justify-content:space-between; }
+        .cv-modal-body { padding:18px 20px; overflow-y:auto; }
+        .cv-modal-footer { padding:14px 20px; border-top:1px solid #E2E8F0; display:flex; gap:8px; justify-content:flex-end; background:#F8FAFC; }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .cv-input, .cv-select { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus, .cv-select:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-btn { padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:.15s; }
+        .cv-btn-primary { background:#003360; color:#fff; }
+        .cv-btn-primary:hover { background:#00264A; }
+        .cv-btn-ghost { background:transparent; color:#64748B; border-color:#E2E8F0; }
+        .cv-btn-ghost:hover { background:#F1F5F9; color:#0F172A; }
+        .modal-close { color:#94A3B8; cursor:pointer; transition:.15s; }
+        .modal-close:hover { color:#0F172A; }
+    </style>
+</head>
+<body>
+    <div class="cv-modal-overlay">
+        <div class="cv-modal">
+            <div class="cv-modal-header">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="user-cog" class="w-5 h-5"></i></div>
+                    <div>
+                        <h3 class="text-[15px] font-bold" style="color:#003360;">Editar perfil de usuario</h3>
+                        <p class="text-[11px] text-slate-400">Datos de contacto y credenciales</p>
+                    </div>
+                </div>
+                <span class="modal-close" onclick="window.close()"><i data-lucide="x" class="w-5 h-5"></i></span>
+            </div>
+
+            <div class="cv-modal-body">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="cv-label">Nombre completo</label>
+                        <input type="text" class="cv-input" value="Rosy A.">
+                    </div>
+                    <div>
+                        <label class="cv-label">Usuario</label>
+                        <input type="text" class="cv-input" value="rosya">
+                    </div>
+                    <div>
+                        <label class="cv-label">Teléfono móvil</label>
+                        <input type="text" class="cv-input" value="5544887701" maxlength="10">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="cv-label">Correo electrónico</label>
+                        <input type="email" class="cv-input" value="rosy.a@grupovaroch.com">
+                    </div>
+                    <div>
+                        <label class="cv-label">Unidad de negocio</label>
+                        <select class="cv-select">
+                            <option>Matriz CDMX</option>
+                            <option>Sucursal Norte</option>
+                            <option>Fogaza Centro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="cv-label">Perfil de acceso</label>
+                        <select class="cv-select">
+                            <option>Contabilidad</option>
+                            <option>Tesorería</option>
+                            <option>Gerente</option>
+                            <option>TICS root</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="cv-label">Nueva contraseña</label>
+                        <input type="password" class="cv-input" placeholder="Dejar vacío para no cambiar">
+                    </div>
+                    <div>
+                        <label class="cv-label">Confirmar contraseña</label>
+                        <input type="password" class="cv-input" placeholder="Repetir contraseña">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cv-modal-footer">
+                <button class="cv-btn cv-btn-ghost" onclick="window.close()">Cancelar</button>
+                <button class="cv-btn cv-btn-primary flex items-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

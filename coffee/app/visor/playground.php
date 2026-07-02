@@ -159,6 +159,10 @@
                         <i data-lucide="layout-template" class="w-3 h-3"></i>
                         <span>Lienzo</span>
                     </button>
+                    <button id="pgPlanToggle" class="ia-editor-toggle" title="Planear antes de construir: el agente propone un plan y espera tu OK antes de generar el template">
+                        <i data-lucide="notebook-pen" class="w-3 h-3"></i>
+                        <span>Planear</span>
+                    </button>
 
                     <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
                         <optgroup label="Ollama Cloud">

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Perfiles y permisos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+
+        /* ── Navbar ── */
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-admin-btn { background:rgba(0,51,96,.08); color:#003360; border:1px solid rgba(0,51,96,.20); padding:6px 12px; border-radius:10px; cursor:pointer; transition:.15s; }
+        .nav-admin-btn:hover { background:#003360; color:#fff; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border-left:1px solid #E2E8F0; border-radius:8px; cursor:pointer; transition:.15s; }
+        .nav-user-pill:hover { background:#F1F5F9; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+
+        /* ── Rail ── */
+        .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; transition:.15s; }
+        .menu-rail-item i { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+        /* ── Card ── */
+        .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-action { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+        .btn-action:hover { background:#1D4ED8; }
+
+        /* ── Lista de perfiles ── */
+        .perfil-row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:9px; cursor:pointer; border:1px solid transparent; transition:.15s; }
+        .perfil-row:hover { background:#F1F5F9; }
+        .perfil-row.active { background:rgba(0,51,96,.07); border-color:rgba(0,51,96,.25); }
+        .perfil-avatar { width:32px; height:32px; border-radius:9px; background:rgba(0,51,96,.10); color:#003360; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-neutral { background:rgba(100,116,139,.15); color:#64748B; border-color:rgba(100,116,139,.3); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+
+        /* ── Matriz de permisos ── */
+        .perm-table { width:100%; border-collapse:separate; border-spacing:0; }
+        .perm-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:11px 12px; text-align:left; }
+        .perm-table thead th.col-check { text-align:center; width:78px; }
+        .perm-table thead th:first-child { border-top-left-radius:10px; }
+        .perm-table thead th:last-child  { border-top-right-radius:10px; }
+        .perm-mod-row td { background:#EEF3F8; color:#003360; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:7px 12px; }
+        .perm-table tbody tr.dir-row:hover td { background:rgba(37,99,235,.05); }
+        .perm-table tbody td { font-size:13px; color:#334155; padding:9px 12px; border-bottom:1px solid #EEF2F7; }
+        .perm-table tbody td.col-check { text-align:center; }
+
+        /* Switch */
+        .sw { position:relative; display:inline-block; width:38px; height:20px; }
+        .sw input { opacity:0; width:0; height:0; }
+        .sw-slider { position:absolute; inset:0; background:#CBD5E1; border-radius:9999px; transition:.2s; cursor:pointer; }
+        .sw-slider::before { content:""; position:absolute; height:14px; width:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+        .sw input:checked + .sw-slider { background:#2563EB; }
+        .sw input:checked + .sw-slider::before { transform:translateX(18px); }
+        .sw.sw-view input:checked + .sw-slider { background:#7AAB20; }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="nav-admin-btn hidden sm:flex items-center gap-1.5"><i data-lucide="shield" class="w-4 h-4"></i><span class="text-sm font-medium">Admin</span></button>
+            <button class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name">Rosy A.</span>
+                    <span class="nav-user-rol">TICS root</span>
+                </div>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <!-- RAIL -->
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <button class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+            <button class="menu-rail-item"><i data-lucide="users"></i><span class="menu-rail-label">Usuarios</span></button>
+            <button class="menu-rail-item is-active"><i data-lucide="key-round"></i><span class="menu-rail-label">Permisos</span></button>
+            <button class="menu-rail-item"><i data-lucide="folder-tree"></i><span class="menu-rail-label">Directorios</span></button>
+            <button class="menu-rail-item"><i data-lucide="settings"></i><span class="menu-rail-label">Config.</span></button>
+        </aside>
+
+        <!-- CONTENIDO -->
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="flex items-center gap-2 text-xs">
+                    <li class="uppercase tracking-wide text-slate-400">TICS</li>
+                    <li class="text-slate-300">/</li>
+                    <li class="font-bold" style="color:#003360;">Perfiles y permisos</li>
+                </ol>
+            </nav>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+
+                <!-- Columna izquierda: perfiles -->
+                <div class="cv-card p-5">
+                    <label class="cv-label">Nuevo perfil</label>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" class="cv-input" placeholder="Nombre del perfil" autocomplete="off">
+                        <button class="btn-primary shrink-0 flex items-center gap-1.5"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="cv-label" style="margin-bottom:0;">Perfiles</span>
+                        <span class="text-[11px] text-slate-400">33 activos</span>
+                    </div>
+
+                    <div class="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
+                        <div class="perfil-row active">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">TR</div>
+                                <div>
+                                    <p class="text-[13px] font-semibold text-slate-800">TICS root</p>
+                                    <p class="text-[11px] text-slate-400">Acceso total</p>
+                                </div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">DI</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Dirección</p><p class="text-[11px] text-slate-400">Consejo directivo</p></div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">CO</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Contabilidad</p><p class="text-[11px] text-slate-400">Área contable</p></div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">TE</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Tesorería</p><p class="text-[11px] text-slate-400">Flujo y retiros</p></div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">GE</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Gerente</p><p class="text-[11px] text-slate-400">Operación de unidad</p></div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">SQ</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Subgerente QT</p><p class="text-[11px] text-slate-400">Quesos y tortillas</p></div>
+                            </div>
+                            <span class="cv-badge badge-success">Activo</span>
+                        </div>
+                        <div class="perfil-row">
+                            <div class="flex items-center gap-2.5">
+                                <div class="perfil-avatar">CJ</div>
+                                <div><p class="text-[13px] font-semibold text-slate-800">Ch jefe</p><p class="text-[11px] text-slate-400">Capital humano</p></div>
+                            </div>
+                            <span class="cv-badge badge-neutral">Inactivo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna derecha: matriz de permisos -->
+                <div class="cv-card p-0 lg:col-span-2 overflow-hidden">
+                    <div class="flex items-center justify-between p-5 pb-4 border-b border-slate-100">
+                        <div>
+                            <h2 class="text-base font-bold" style="color:#003360;">Permisos del perfil: <span class="text-slate-800">TICS root</span></h2>
+                            <p class="text-[12px] text-slate-500 mt-0.5">Directorios agrupados por módulo · toggles de <b>ver / escribir / editar / imprimir</b></p>
+                        </div>
+                        <button class="btn-action flex items-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Guardar</button>
+                    </div>
+
+                    <div class="max-h-[64vh] overflow-y-auto">
+                        <table class="perm-table">
+                            <thead>
+                                <tr>
+                                    <th>Directorio</th>
+                                    <th class="col-check">Ver</th>
+                                    <th class="col-check">Escribir</th>
+                                    <th class="col-check">Editar</th>
+                                    <th class="col-check">Imprimir</th>
+                                </tr>
+                            </thead>
+                            <tbody id="permBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 border-t border-slate-100 text-[12px] text-slate-500">
+                        <span>Mostrando <b>14</b> directorios de <b>4</b> módulos</span>
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#7AAB20;"></span> Ver</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#2563EB;"></span> Escritura / edición</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Datos reales de la BD ERP-GV (modulos + directorios)
+        const PERMISOS = [
+            { modulo: 'CAPITAL HUMANO', dirs: [
+                { dir: 'Colaboradores', ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Incidencias',   ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Anticipos',     ver:1, esc:1, edi:0, imp:1 },
+                { dir: 'Nóminas',       ver:1, esc:0, edi:0, imp:1 },
+                { dir: 'Reclutamiento', ver:1, esc:1, edi:1, imp:0 },
+            ]},
+            { modulo: 'CONTABILIDAD', dirs: [
+                { dir: 'Caratula',      ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Sobres',        ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Administración',ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Consultas',     ver:1, esc:0, edi:0, imp:1 },
+            ]},
+            { modulo: 'TESORERIA', dirs: [
+                { dir: 'Retiros',       ver:1, esc:1, edi:1, imp:1 },
+                { dir: 'Reembolsos',    ver:1, esc:1, edi:0, imp:1 },
+                { dir: 'Flujo',         ver:1, esc:0, edi:0, imp:0 },
+            ]},
+            { modulo: 'KPI', dirs: [
+                { dir: 'Análisis de ventas', ver:1, esc:0, edi:0, imp:1 },
+                { dir: 'Mercadotecnia',      ver:1, esc:0, edi:0, imp:0 },
+            ]},
+        ];
+
+        const sw = (checked, cls='') => `
+            <label class="sw ${cls}">
+                <input type="checkbox" ${checked ? 'checked' : ''}>
+                <span class="sw-slider"></span>
+            </label>`;
+
+        const body = document.getElementById('permBody');
+        PERMISOS.forEach(grp => {
+            body.insertAdjacentHTML('beforeend', `<tr class="perm-mod-row"><td colspan="5">${grp.modulo}</td></tr>`);
+            grp.dirs.forEach(d => {
+                body.insertAdjacentHTML('beforeend', `
+                    <tr class="dir-row">
+                        <td><div class="flex items-center gap-2"><i data-lucide="folder" class="w-4 h-4 text-slate-400"></i> ${d.dir}</div></td>
+                        <td class="col-check">${sw(d.ver, 'sw-view')}</td>
+                        <td class="col-check">${sw(d.esc)}</td>
+                        <td class="col-check">${sw(d.edi)}</td>
+                        <td class="col-check">${sw(d.imp)}</td>
+                    </tr>`);
+            });
+        });
+
+        lucide.createIcons();
+        document.querySelectorAll('.perfil-row').forEach(r => r.addEventListener('click', () => {
+            document.querySelectorAll('.perfil-row').forEach(x => x.classList.remove('active'));
+            r.classList.add('active');
+        }));
+    </script>
+</body>
+</html>

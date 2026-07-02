@@ -145,6 +145,7 @@ const pg = {
     prompt:    '',           // prompt vivo (puede estar editado sin guardar)
     knowledge: new Set(),    // grimorios seleccionados como contexto
     canvasMode: false,       // modo lienzo (genera HTML renderizable)
+    planMode:   false,       // planear primero: propone un plan y espera OK antes de construir
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
     history:   [],
@@ -176,6 +177,7 @@ $(async () => {
     await pgLoadLibrary();
     pgApplyAgent(pg.agentKey, true);
     pgApplyCanvasUI();
+    pgApplyPlanUI();
     pgApplyViewport();
     pgRestoreSession();   // retoma la última sesión (chat + render) si la había
     if (window.lucide) lucide.createIcons();
@@ -242,6 +244,7 @@ function pgLoadSettings() {
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
+        if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
@@ -250,7 +253,7 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
+            canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
             knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
@@ -359,6 +362,12 @@ function pgBind() {
     });
 
     // Modo lienzo
+    $('#pgPlanToggle').on('click', () => {
+        pg.planMode = !pg.planMode;
+        pgApplyPlanUI();
+        pgSaveSettings();
+    });
+
     $('#pgCanvasToggle').on('click', () => {
         pg.canvasMode = !pg.canvasMode;
         pgApplyCanvasUI();
@@ -568,6 +577,14 @@ function pgApplyCanvasUI() {
     $('#pgInput').attr('placeholder', pg.canvasMode
         ? 'Pide un componente UI (ej: "una card de producto con precio y botón")...'
         : 'Pide algo al agente...');
+}
+
+function pgApplyPlanUI() {
+    const $btn = $('#pgPlanToggle');
+    $btn.toggleClass('is-active', pg.planMode);
+    $btn.attr('title', pg.planMode
+        ? 'Planear primero ACTIVO — el agente propone un plan y espera tu OK antes de generar el template'
+        : 'Planear antes de construir: el agente propone un plan y espera tu OK antes de generar el template');
 }
 
 /* ── Imagenes adjuntas ── */
@@ -818,9 +835,21 @@ function pgRenderFolderChip() {
 const PG_SESSION_KEY = 'playground:session:v1';
 
 function pgSnapshotSession() {
+    // Historial LIGERO: sin base64 de vision ni previews. Con imagenes adjuntas el
+    // JSON superaba la cuota de localStorage, setItem lanzaba y la sesion no se
+    // guardaba en silencio -> al recargar el chat aparecia vacio ("sin historial").
+    const history = pg.history.map(m => {
+        if (!m.images && !m.imagesPreview) return m;
+        const rest = Object.assign({}, m);
+        delete rest.images;
+        delete rest.imagesPreview;
+        return rest;
+    });
     return {
-        history:      pg.history,
+        history:      history,
         templates:    pg.templates,
+        threadUid:    pg.threadUid,
+        threadTitle:  pg.threadTitle,
         activeTplId:  pg._activeTplId,
         pinnedTplId:  pg.pinnedTplId,
         lastUserText: pg._lastUserText,
@@ -840,11 +869,13 @@ function pgSaveSession() {
     try {
         localStorage.setItem(PG_SESSION_KEY, JSON.stringify(pgSnapshotSession()));
     } catch (e) {
-        // Sesión muy grande para localStorage: reintenta sin las miniaturas
-        // (conserva la conversación y el último render, que es lo esencial).
+        // Sesión muy grande para localStorage: reintenta sin las miniaturas ni el
+        // último render (conserva la conversación, que es lo esencial; el hilo del
+        // servidor guarda la versión completa).
         try {
             const snap = pgSnapshotSession();
             snap.templates = [];
+            snap.lastHtml  = '';
             localStorage.setItem(PG_SESSION_KEY, JSON.stringify(snap));
         } catch (e2) { /* sin espacio: no se persiste */ }
     }
@@ -896,6 +927,11 @@ function pgRestoreSession() {
     }
     pg.history       = s.history || [];
     pg.templates     = s.templates || [];
+    // Reasociar el hilo guardado: sin esto, el siguiente autosave creaba un hilo
+    // DUPLICADO en el servidor (misma conversacion, uid nuevo) tras cada recarga.
+    pg.threadUid     = s.threadUid || null;
+    pg.threadTitle   = s.threadTitle || '';
+    pgUpdateThreadChip();
     pg._activeTplId  = s.activeTplId || null;
     pg.pinnedTplId   = s.pinnedTplId || null;
     pg._lastUserText = s.lastUserText || '';
@@ -1003,7 +1039,7 @@ async function pgSaveThread(silent) {
     if (!pg.history.length) return;
     const meta = {
         theme: pg.theme, agentKey: pg.agentKey,
-        canvasMode: !!pg.canvasMode, lastUserText: pg._lastUserText || '',
+        canvasMode: !!pg.canvasMode, planMode: !!pg.planMode, lastUserText: pg._lastUserText || '',
         activeDb: pg.activeDb || '',
         activeFolder: pg.activeFolder || ''
     };
@@ -1152,6 +1188,7 @@ async function pgLoadThread(uid) {
             pgApplyAgent(meta.agentKey, true);   // keepHistory: no borra lo recién cargado
         }
         if (typeof meta.canvasMode === 'boolean') { pg.canvasMode = meta.canvasMode; pgApplyCanvasUI(); }
+        if (typeof meta.planMode === 'boolean')   { pg.planMode   = meta.planMode;   pgApplyPlanUI();   }
         pgSetActiveDb(meta.activeDb || null);   // reconecta la base que tenía el hilo (o suelta)
         pgSetActiveFolder(meta.activeFolder || null); // ...y la carpeta que tenía el hilo (o suelta)
         pg._lastUserText = meta.lastUserText || '';
@@ -1396,6 +1433,19 @@ async function pgSend(text, images, docs) {
         systemOverride += PG_INTERACTIVITY_NOTE;
     }
 
+    // Modo planeación: el agente propone un plan en prosa y espera el OK del
+    // usuario antes de generar el template (salvo pedido directo o ajuste menor).
+    if (pg.planMode && (usesDesignSystem || pg.canvasMode)) {
+        systemOverride += `\n\n## Modo planeación (activado por el usuario)\n`
+            + `Antes de construir un template NUEVO o hacer un rediseño grande, NO generes código todavía: `
+            + `responde en prosa con un PLAN breve (máx 6-8 puntos: objetivo, secciones/layout, componentes, estilo/tema, datos que mostrará) `
+            + `y termina preguntando si lo construyes así.\n`
+            + `Genera el código directamente, SIN plan previo, solo cuando: `
+            + `(a) el usuario apruebe el plan o pida construir ("hazlo", "constrúyelo", "dale", "adelante"), `
+            + `(b) el mensaje pida explícitamente ir directo al código, o `
+            + `(c) sea un AJUSTE PEQUEÑO sobre el template ya renderizado (p.ej. "cambia el fondo a blanco").`;
+    }
+
     // Base de datos conectada + agente que produce UI: el template del sandbox
     // debe poblarse con datos REALES (no de muestra). El backend ya inyecta el
     // esquema y expone run_select; aquí solo se lo exigimos de forma explícita.
@@ -1431,6 +1481,7 @@ async function pgSend(text, images, docs) {
     };
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
+    let thinkChars = 0;   // razonamiento acumulado (modelos thinking) antes del 1er token
 
     // Controlador para abortar la consulta desde el botón Detener.
     const ac = new AbortController();
@@ -1465,9 +1516,20 @@ async function pgSend(text, images, docs) {
                     received += obj.t || '';
                     stream.push(obj.t || '');
                 } else if (ev === 'thinking') {
-                    // Estado de las rondas de tool-calling (p.ej. "[consultando SELECT …]").
                     // Llega ANTES de cualquier chunk, mientras el indicador sigue visible.
-                    if (!firstToken) pgTypingStatus($typing, obj.t || '');
+                    // Dos formas: etiqueta de tool-calling COMPLETA ("[consultando SELECT …]",
+                    // "[leyendo archivo]") o razonamiento de modelos thinking que streamea en
+                    // fragmentos sueltos ("lo", " que"…) — esos NO se pintan tal cual: se
+                    // acumulan y se muestra el progreso, como hace el Visor.
+                    if (!firstToken) {
+                        const t = obj.t || '';
+                        if (/\[[^\]]*\]/.test(t)) {
+                            pgTypingStatus($typing, t);
+                        } else {
+                            thinkChars += t.length;
+                            pgTypingStatus($typing, 'Razonando… ≈ ' + Math.max(1, Math.round(thinkChars / 4)) + ' tokens');
+                        }
+                    }
                 } else if (ev === 'done') {
                     meta = obj;
                 } else if (ev === 'error') {
@@ -1527,7 +1589,8 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     const usesUI = pg.canvasMode || cfg.render === 'html' || cfg.render === 'code';
 
     let displayText = received;
-    if (usesUI) {
+    const hadCode = /```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/i.test(received) || pgLooksLikeHtml(received);
+    if (usesUI && hadCode) {
         // Quitar TODO bloque ```...``` (html/js/php/...) y cualquier HTML crudo
         // suelto: en el chat solo debe quedar la explicación en prosa.
         let rest = received.replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi, '').trim();
@@ -1542,7 +1605,9 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     }
 
     stream.complete(displayText, meta, received);
-    if (usesUI) {
+    // Solo se vuelca al sandbox si la respuesta trajo codigo: una respuesta en
+    // prosa (p.ej. el plan del modo planeacion) no debe pisar el render actual.
+    if (usesUI && hadCode) {
         const tpl = pgRenderToSandbox(received);
         if (tpl) pgAppendTemplateCard(stream.$msg, tpl);   // miniatura clicable dentro del chat
     }

@@ -10,6 +10,10 @@ class CustomOrder extends Templates {
         this.editingCustomId = null;
     }
 
+    // El cambio de sucursal lo maneja App; sin esto el auto-listener de
+    // Templates abriria el modal de pedido personalizado.
+    onBranchChange() { }
+
     render() {
         this.currentStep = 0;
         this.selectedOptions = {};
