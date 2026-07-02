@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Grupo Varoch · Índice de templates</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .hub-header { background:linear-gradient(135deg,#003360 0%,#00264A 100%); color:#fff; }
+        .hub-logo { width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; }
+        .cv-hub-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:22px; transition:.2s; text-decoration:none; display:block; color:#0F172A; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+        .cv-hub-card:hover { border-color:#2563EB; transform:translateY(-3px); box-shadow:0 10px 30px rgba(37,99,235,.14); }
+        .hub-icon { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-action { background:rgba(37,99,235,.12); color:#2563EB; border-color:rgba(37,99,235,.35); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+        .badge-warning { background:rgba(217,119,6,.13); color:#D97706; border-color:rgba(217,119,6,.32); }
+        .section-h2 { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#64748B; }
+    </style>
+</head>
+<body>
+
+    <header class="hub-header">
+        <div class="max-w-6xl mx-auto px-6 py-8">
+            <div class="flex items-center gap-4">
+                <div class="hub-logo">GV</div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight">Costsys · Grupo Varoch</h1>
+                    <p class="text-[13px] text-blue-100/80 mt-0.5">Sistema de control de costos por producto, clasificación y unidad de negocio · paleta institucional Coffee-Varoch <b>#003360</b></p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+
+        <!-- FASE 1 -->
+        <p class="section-h2 mb-3">Fase 1 · Catálogos y administración</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <a href="costsys-ingredientes.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="carrot" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Ingredientes</h3><span class="cv-badge badge-success">Listo</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Lista por UDN, exportar Excel, precio por unidad autocalculado y acciones editar / eliminar.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="costsys-subrecetas.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="soup" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Subrecetas</h3><span class="cv-badge badge-success">Listo</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Filtros UDN + clasificación, foto, costo x unidad y menú (…) ver / editar / imprimir.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="costsys-recetas.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(122,171,32,.15);color:#5d8418;"><i data-lucide="chef-hat" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Recetas</h3><span class="cv-badge badge-success">Listo</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Costeo automático, badges Borrador / Activa, clonar, temporada y vínculo SoftRestaurant.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="costsys-admin.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="sliders-horizontal" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Administrador</h3><span class="cv-badge badge-success">Listo</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Tabs de catálogos base: unidades, marcas, proveedores, clasificación y subclasificación.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="costsys-tablero-control.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(217,119,6,.13);color:#D97706;"><i data-lucide="gauge" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Tablero de control</h3><span class="cv-badge badge-success">Listo</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Rangos de semáforo % costo / MC por clasificación y subclasificación con preview de color.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- FASE 2 -->
+        <p class="section-h2 mb-3">Fase 2 · Costo potencial y proyección</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <a href="costsys-costo-potencial.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="table-2" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Costo potencial</h3><span class="cv-badge badge-warning">Fase 2</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Tablero mensual con semáforos, P. Propuesto editable en vivo y cards resumen ventas / costo / margen.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="costsys-proyeccion.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="calendar-clock" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Proyección</h3><span class="cv-badge badge-warning">Fase 2</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Ejercicio mensual actual vs propuesto, estado Boceto / Programada / Aplicada y botón Programación.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- MODALES -->
+        <p class="section-h2 mb-3">Modales</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <a href="modals/modal-ingrediente.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="file-plus-2" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Crear / editar ingrediente</h3><span class="cv-badge badge-action">Modal</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Nombre, contenido neto, unidad, precio y precio por unidad autocalculado (readonly).</p>
+                    </div>
+                </div>
+            </a>
+            <a href="modals/modal-subreceta-wizard.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="list-ordered" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Wizard de subreceta</h3><span class="cv-badge badge-action">Modal</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Dos pasos: alta base + panel de composición (ingredientes / subrecetas) y costeo.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="modals/modal-programar-precios.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(217,119,6,.13);color:#D97706;"><i data-lucide="calendar-check-2" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between"><h3 class="font-bold text-[15px]" style="color:#003360;">Programar precios</h3><span class="cv-badge badge-action">Modal</span></div>
+                        <p class="text-[12px] text-slate-500 mt-1">Fecha efectiva, tipo de aplicación (todas / clasificación / selección) y vista previa.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <p class="text-center text-[11px] text-slate-400 mt-10">Grupo Varoch · Costsys · Templates estáticos conjurados por CoffeeMagic © 2026</p>
+    </main>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

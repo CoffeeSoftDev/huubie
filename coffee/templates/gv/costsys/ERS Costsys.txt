@@ -1,0 +1,99 @@
+﻿
+COSTSYS
+REUNIÓN
+25/06/2026
+PRESENTES 
+Ing. Rosa Angelica Pérez Velásquez
+Ing. Sergio Osorio Méndez
+DESCRIPCIÓN BREVE DEL PROYECTO
+Es un sistema que se encarga de controlar los costos por producto, categoría y por unidad de negocio y así permitir tomar decisiones acerca del porcentaje saludable del costo a través de importación del reporte de ventas y la visualización del desplazamiento de cada producto. El costsys responde a las siguientes preguntas: ¿Cuánto cuesta producir cada producto? ¿Cuánto debería costar y cuánto se gana? ¿Cuánto es el costo de producción total por categoría? ¿Cuáles son los productos que más se venden? ¿Cuáles son los productos que se deberían ajustar el precio?
+
+
+OBJETIVO DEL PROYECTO
+Obtener el costeo correcto de las recetas y subrecetas pertenecientes a la empresa. 
+Monitorear el costo de producción estimado al importar los registros de desplazamiento de ventas mensual (archivo de productos vendidos) comparándolo con los márgenes de costos en porcentaje establecidos por cada categoría.
+Realizar proyecciones mensuales para aumentos de precios.
+Poner límites de costos por categoría y por subcategoría.
+Clonar recetas /Crear boceto de receta y activar receta.
+
+SECCIONES DEL PROYECTO
+Catálogos
+Catálogo de ingredientes
+Catálogo de subreceta
+Catálogo de receta
+
+
+Administrador
+El sistema incluye un panel administrativo para la gestión y control de los siguientes módulos:
+Administrador de unidades
+Administrador de marcas
+Administrador de proveedores
+Administrador de clasificación
+Administrador de subclasificación
+Administrador de tablero de control
+Es el módulo responsable de definir y mantener los semáforos de colores que determinan las siguientes celdas: %costo, Margen de contribución 
+Permite definir los rangos correctos de porcentaje por clasificación. 
+Permite definir los rangos correctos de porcentaje por subclasificación
+
+
+Catálogo de Ingredientes
+Permite administrar los ingredientes utilizados en recetas y sub recetas. Incluye la consulta, creación, edición y eliminación de ingredientes por unidad de negocio, validando registros duplicados y evitando la eliminación de ingredientes que se encuentren vinculados a recetas o subrecetas.
+Catálogo de Subrecetas
+Administra las subrecetas empleadas en la elaboración de recetas principales. Permite registrar su información general, asociar ingredientes y otras subrecetas, calcular automáticamente su costo de producción y rendimiento, además de administrar sus instrucciones culinarias y eliminación de subrecetas por unidad de negocio, validando registros duplicados y evitando la eliminación de subrecetas que se encuentren vinculados a recetas o subrecetas.
+Catálogo de Recetas
+Permite administrar las recetas finales de la unidad negocio, vinculando ingredientes y subrecetas para obtener automáticamente el costeo de receta, es decir, el costo de producción, rendimiento, precio de venta, margen de contribución y porcentaje de costo.Igualmente agregar el nombre de la receta, clasificación, subclasificación, select si es de temporada o no y foto. Además de administrar sus instrucciones culinarias y desactivación de recetas. 
+Permitir clonar receta con los mismos ingredientes, subrecetas, costeo de receta, clasificación y subclasificación con el nombre de la receta seguido de “- Copia” iniciando con el estado de “Borrador” y una vez definido los cambios tener la posibilidad de cambiar el estado de la receta a “Activa”, esto permitirá que se muestre en el Costo Potencial.
+Permite vincular la receta con productos del softrestaurant.
+Costo Potencial
+Genera un concentrado general mensual por unidad de negocio que contienen los datos de costo, margen de contribución, costo estimado de venta, desplazamiento por producto y por subclasificación.
+Incluye un tablero mensual de ventas, costo y margen por clasificación.
+Incluye un tablero mensual de ventas, costo y margen por subclasificación.
+Actualizar precios de ingredientes.
+Cargar desplazamiento automático al finalizar el mes.
+
+
+Proyección de costo potencial
+Generar una copia del costo potencial del mes elegido, por defecto el select debe mandar el mes anterior.
+Cambiar/ Editar los precios propuestos de cada producto.
+Seleccionar qué cambios se aplicarán de los precios propuestos, por producto o toda la proyección.
+Guardar bocetos de proyecciones mensuales hasta aplicarlos.
+Agregar funcionalidad de aplicar proyección a una fecha elegida.
+Editar proyección antes de ser aplicada.
+Eliminar proyección si no ha sido aplicada.
+Notificación de aplicación de precios propuestos 2 días antes para dirección operativa.
+Aplicación de proyección (Esto hace que los precios de las recetas se actualicen masivamente).
+
+Extras 
+Agregar una notificación flotante de que hubieron cambios de precio en el costo potencial, en las notificaciones del ERP, para gerente, dirección operativa y auxiliar de gerente.
+Agregar una notificación cuando el gerente genere un nuevo producto en el softRestaurant para notificarle a dirección operativa en las notificaciones del ERP.
+Agregar una notificación cuando el gerente de fogaza genere un nuevo producto en el sistema de pedidos para notificarle a dirección operativa en las notificaciones del ERP.
+
+
+
+
+USUARIOS QUE UTILIZARÁN EL PROYECTO
+Dirección general - Costo potencial
+Dirección operativa - Acceso completo
+Developers - Acceso completo
+Calidad - Acceso a ver catálogo y Costo potencial
+Gerentes - Visualización de catálogo y costo potencial.
+Marketing - ver costo potencial.
+
+¿EL ÉXITO DEL PROYECTO SE DA CUÁNDO?
+
+ACCIONES A REALIZAR
+FASE 1: 
+Crear estrategia de nueva base de datos para implementar el costo potencial 
+Crear un plan de migración del anterior costsys al nuevo 
+Desarrollar los módulos de administración de ingredientes,recetas y sub recetas
+Desarrollar los módulos de administración de proveedores, unidad, 
+Desarrollar administrador de tablero de control para definir los porcentajes mínimos y máximos de costos por categoría
+FASE 2:
+Desarrollar el apartado de proyección y ejercicio mensual.
+EXCEPCIONES
+
+
+OBSERVACIONES
+Será necesario reestructurar la base de datos para implementar un nuevo orden y lógica del sistema.
+
+

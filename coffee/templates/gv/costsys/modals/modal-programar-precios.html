@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Modal · Programar precios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: rgba(15,23,42,.55); margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .modal-card { width:100%; max-width:720px; background:#FFFFFF; border-radius:16px; box-shadow:0 24px 64px rgba(15,23,42,.28); overflow:hidden; display:flex; flex-direction:column; max-height:94vh; }
+        .modal-head { background:#003360; color:#fff; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; }
+        .modal-head h2 { font-size:16px; font-weight:700; display:flex; align-items:center; gap:9px; }
+        .modal-close { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; color:#E8EEF5; cursor:pointer; }
+        .modal-close:hover { background:rgba(255,255,255,.14); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:7px; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-cancel { background:#fff; color:#475569; border:1px solid #CBD5E1; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; }
+        .btn-cancel:hover { background:#F1F5F9; }
+        /* Radios como cards */
+        .radio-card { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1px solid #E2E8F0; border-radius:11px; cursor:pointer; transition:.15s; }
+        .radio-card:hover { border-color:rgba(0,51,96,.35); background:#F0F5FB; }
+        .radio-card.sel { border-color:#003360; background:rgba(0,51,96,.06); box-shadow:0 0 0 1px rgba(0,51,96,.2); }
+        .radio-dot { width:18px; height:18px; border-radius:9999px; border:2px solid #CBD5E1; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+        .radio-card.sel .radio-dot { border-color:#003360; }
+        .radio-inner { width:8px; height:8px; border-radius:9999px; background:#003360; opacity:0; transition:.15s; }
+        .radio-card.sel .radio-inner { opacity:1; }
+        .mini-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+        .mini-table thead th { background:#EEF3F8; color:#003360; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:7px 10px; text-align:right; }
+        .mini-table thead th.tl { text-align:left; }
+        .mini-table tbody td { font-size:12px; color:#334155; padding:7px 10px; border-bottom:1px solid #EEF2F7; text-align:right; }
+        .mini-table tbody td.tl { text-align:left; }
+        .up { color:#5d8418; font-weight:700; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-warning { background:rgba(217,119,6,.13); color:#D97706; border-color:rgba(217,119,6,.32); }
+    </style>
+</head>
+<body>
+
+    <div class="modal-card">
+        <div class="modal-head">
+            <h2><i data-lucide="calendar-check-2" class="w-5 h-5"></i> Programar actualización de precios</h2>
+            <div class="modal-close" onclick="window.close()"><i data-lucide="x" class="w-5 h-5"></i></div>
+        </div>
+
+        <div class="p-6 overflow-y-auto">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                <div>
+                    <label class="cv-label">Fecha efectiva</label>
+                    <input type="date" id="fFecha" class="cv-input">
+                    <p class="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5"><i data-lucide="info" class="w-3.5 h-3.5"></i> Por defecto el día 1 del mes siguiente</p>
+                </div>
+                <div class="flex items-end">
+                    <span class="cv-badge badge-warning"><i data-lucide="bell" class="w-3 h-3"></i> Notifica a dirección operativa 2 días antes</span>
+                </div>
+            </div>
+
+            <label class="cv-label mb-2">Tipo de aplicación</label>
+            <div class="space-y-2 mb-5">
+                <div class="radio-card sel" data-radio="todas" onclick="pickRadio('todas')">
+                    <div class="radio-dot"><div class="radio-inner"></div></div>
+                    <div><p class="text-[13px] font-semibold text-slate-800">Todas las recetas</p><p class="text-[11px] text-slate-500">Aplica el precio propuesto a todas las recetas sin excepción.</p></div>
+                </div>
+                <div class="radio-card" data-radio="clasif" onclick="pickRadio('clasif')">
+                    <div class="radio-dot"><div class="radio-inner"></div></div>
+                    <div class="flex-1">
+                        <p class="text-[13px] font-semibold text-slate-800">Por clasificación</p>
+                        <p class="text-[11px] text-slate-500 mb-2">Filtra qué clasificaciones se copian al tablero.</p>
+                        <select class="cv-input" id="selClasif" disabled><option>Cortes</option><option>Guarniciones</option><option>Postres</option></select>
+                    </div>
+                </div>
+                <div class="radio-card" data-radio="seleccion" onclick="pickRadio('seleccion')">
+                    <div class="radio-dot"><div class="radio-inner"></div></div>
+                    <div><p class="text-[13px] font-semibold text-slate-800">Por selección</p><p class="text-[11px] text-slate-500">Selección múltiple de recetas específicas en la vista previa.</p></div>
+                </div>
+            </div>
+
+            <!-- Vista previa -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[12px] font-bold text-slate-700 flex items-center gap-2"><i data-lucide="eye" class="w-4 h-4" style="color:#2563EB;"></i> Vista previa de cambios</span>
+                    <span class="text-[11px] text-slate-400"><span id="prevCount">4</span> recetas afectadas</span>
+                </div>
+                <div class="max-h-[220px] overflow-auto">
+                    <table class="mini-table">
+                        <thead><tr><th class="tl" style="width:34px;"></th><th class="tl">Receta</th><th>Precio actual</th><th>Precio propuesto</th><th>Δ</th></tr></thead>
+                        <tbody id="prevBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <p class="text-[11px] text-slate-400 mt-3 flex items-start gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 mt-0.5"></i> Reglas: una receta sólo puede tener una programación pendiente por mes · precio propuesto &gt; 0 · no se programan recetas descontinuadas · cancelable antes de la fecha.</p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <button class="btn-cancel" onclick="window.close()">Cancelar</button>
+            <button class="btn-primary" onclick="alert('Programación confirmada: inserta en costo potencial proyección (demo)')"><i data-lucide="check" class="w-4 h-4"></i> Confirmar programación</button>
+        </div>
+    </div>
+
+    <script>
+        const mx = n => '$' + n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+        // Fecha efectiva por defecto: día 1 del mes siguiente
+        (function(){
+            const now = new Date();
+            const next = new Date(now.getFullYear(), now.getMonth()+1, 1);
+            document.getElementById('fFecha').value = next.toISOString().slice(0,10);
+        })();
+
+        const PREV = [
+            { rec:'Rib Eye 400g',       act:589,  prop:629 },
+            { rec:'Tomahawk 900g',      act:1290, prop:1350 },
+            { rec:'Arrachera para dos', act:640,  prop:670 },
+            { rec:'Papas al romero',    act:120,  prop:135 },
+        ];
+        const body = document.getElementById('prevBody');
+        PREV.forEach((r,i) => {
+            const d = r.prop - r.act;
+            body.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td class="tl"><input type="checkbox" class="sel-chk" checked style="accent-color:#003360;"></td>
+                    <td class="tl font-medium text-slate-700">${r.rec}</td>
+                    <td>${mx(r.act)}</td>
+                    <td class="font-semibold" style="color:#003360;">${mx(r.prop)}</td>
+                    <td class="up">▲ ${mx(d)}</td>
+                </tr>`);
+        });
+
+        function updateCount(){
+            const n = document.querySelectorAll('.sel-chk:checked').length;
+            document.getElementById('prevCount').textContent = n;
+        }
+        document.querySelectorAll('.sel-chk').forEach(c => c.addEventListener('change', updateCount));
+
+        function pickRadio(val){
+            document.querySelectorAll('.radio-card').forEach(c => c.classList.toggle('sel', c.dataset.radio===val));
+            document.getElementById('selClasif').disabled = (val !== 'clasif');
+            // en "por selección" habilita checkboxes como foco visual
+            const chks = document.querySelectorAll('.sel-chk');
+            chks.forEach(c => c.disabled = false);
+            updateCount();
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Modal · Ingrediente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: rgba(15,23,42,.55); margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .modal-card { width:100%; max-width:640px; background:#FFFFFF; border-radius:16px; box-shadow:0 24px 64px rgba(15,23,42,.28); overflow:hidden; }
+        .modal-head { background:#003360; color:#fff; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; }
+        .modal-head h2 { font-size:16px; font-weight:700; display:flex; align-items:center; gap:9px; }
+        .modal-close { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; color:#E8EEF5; cursor:pointer; transition:.15s; }
+        .modal-close:hover { background:rgba(255,255,255,.14); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-input[readonly], .cv-input[disabled] { background:#EEF3F8; color:#64748B; cursor:not-allowed; }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .req { color:#9E1B32; }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:7px; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-cancel { background:#fff; color:#475569; border:1px solid #CBD5E1; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+        .btn-cancel:hover { background:#F1F5F9; }
+        .calc-note { font-size:11px; color:#94A3B8; margin-top:4px; display:flex; align-items:center; gap:5px; }
+    </style>
+</head>
+<body>
+
+    <div class="modal-card">
+        <div class="modal-head">
+            <h2><i data-lucide="carrot" class="w-5 h-5"></i> <span id="modalTitle">Nuevo ingrediente</span></h2>
+            <div class="modal-close" onclick="window.close()"><i data-lucide="x" class="w-5 h-5"></i></div>
+        </div>
+
+        <div class="p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="cv-label">Nombre <span class="req">*</span></label>
+                    <input type="text" class="cv-input" placeholder="Ej. Rib Eye Choice" autocomplete="off">
+                </div>
+
+                <div>
+                    <label class="cv-label">Contenido neto <span class="req">*</span></label>
+                    <input type="number" step="0.01" id="fNeto" class="cv-input" placeholder="5.00" oninput="calcPU()">
+                </div>
+                <div>
+                    <label class="cv-label">Unidad <span class="req">*</span></label>
+                    <select class="cv-input">
+                        <option value="">Seleccionar…</option>
+                        <option>kg</option><option>g</option><option>lt</option><option>ml</option><option>pza</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="cv-label">Precio <span class="req">*</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                        <input type="number" step="0.01" id="fPrecio" class="cv-input" style="padding-left:24px;" placeholder="2,450.00" oninput="calcPU()">
+                    </div>
+                </div>
+                <div>
+                    <label class="cv-label">Precio por unidad</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                        <input type="text" id="fPU" class="cv-input" style="padding-left:24px;" value="0.00" readonly>
+                    </div>
+                    <p class="calc-note"><i data-lucide="calculator" class="w-3.5 h-3.5"></i> precio / contenido neto (autocalculado)</p>
+                </div>
+
+                <div>
+                    <label class="cv-label">Marca</label>
+                    <select class="cv-input"><option value="">Sin marca</option><option>Sukarne</option><option>Sonora Prime</option><option>Lala</option><option>McCormick</option><option>Casa Varoch</option></select>
+                </div>
+                <div>
+                    <label class="cv-label">Proveedor</label>
+                    <select class="cv-input"><option value="">Sin proveedor</option><option>Frigorífico del Norte</option><option>Carnes del Valle</option><option>Abarrotera Hermosillo</option><option>Lácteos del Río</option></select>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="cv-label">Descripción</label>
+                    <textarea class="cv-input" rows="2" placeholder="Notas del ingrediente…"></textarea>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="cv-label">Unidad de negocio <span class="req">*</span></label>
+                    <select id="fUdn" class="cv-input"><option>Sonoras Meat</option><option>Fogaza</option><option>Baos</option><option>Punto Modelo</option><option>Quinta Tabachines</option></select>
+                    <p class="calc-note"><i data-lucide="lock" class="w-3.5 h-3.5"></i> En edición este campo queda <b>disabled</b>. Al guardar se valida duplicado por UDN (SweetAlert).</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <button class="btn-cancel" onclick="window.close()">Cancelar</button>
+            <button class="btn-primary" onclick="validar()"><i data-lucide="check" class="w-4 h-4"></i> Guardar ingrediente</button>
+        </div>
+    </div>
+
+    <script>
+        function calcPU() {
+            const precio = parseFloat(document.getElementById('fPrecio').value) || 0;
+            const neto = parseFloat(document.getElementById('fNeto').value) || 0;
+            const pu = neto > 0 ? precio / neto : 0;
+            document.getElementById('fPU').value = pu.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+        }
+        function validar() {
+            const udn = document.getElementById('fUdn').value;
+            // Demo estático: simula validación de duplicado por UDN
+            alert('Validación de duplicado: "Ya existe este ingrediente para (' + udn + ')" — si aplica.\n\n(Guardado simulado)');
+        }
+        lucide.createIcons();
+    </script>
+</body>
+</html>

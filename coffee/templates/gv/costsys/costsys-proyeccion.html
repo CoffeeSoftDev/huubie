@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Proyección</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); cursor:pointer; }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border-left:1px solid #E2E8F0; border-radius:8px; cursor:pointer; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol { font-size:11px; color:#64748B; }
+        .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; }
+        .menu-rail-item i { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+        .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 11px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-action { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-action:hover { background:#1D4ED8; }
+        .btn-ghost { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid #E2E8F0; background:#fff; color:#64748B; cursor:pointer; transition:.15s; }
+        .btn-ghost:hover { color:#003360; border-color:rgba(0,51,96,.3); background:#F0F5FB; }
+        .btn-ghost.danger:hover { color:#9E1B32; border-color:rgba(158,27,50,.3); background:#FDECEA; }
+        .btn-ghost.ok:hover { color:#5d8418; border-color:rgba(122,171,32,.35); background:rgba(122,171,32,.1); }
+        .cp-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+        .cp-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; padding:9px 10px; text-align:right; white-space:nowrap; z-index:2; }
+        .cp-table thead th.tl { text-align:left; }
+        .cp-table thead th.grp-actual { background:#00264A; }
+        .cp-table thead th.grp-prop { background:#1D4ED8; }
+        .cp-table thead th:first-child { border-top-left-radius:10px; }
+        .cp-table thead th:last-child { border-top-right-radius:10px; }
+        .cp-table tbody td { font-size:12.5px; color:#334155; padding:8px 10px; border-bottom:1px solid #EEF2F7; text-align:right; white-space:nowrap; }
+        .cp-table tbody td.tl { text-align:left; }
+        .cp-table tbody tr:hover td { background:rgba(37,99,235,.04); }
+        .col-prop { background:rgba(37,99,235,.05); }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-neutral { background:rgba(100,116,139,.15); color:#64748B; border-color:rgba(100,116,139,.3); }
+        .badge-action { background:rgba(37,99,235,.12); color:#2563EB; border-color:rgba(37,99,235,.35); }
+        .badge-warning { background:rgba(217,119,6,.13); color:#D97706; border-color:rgba(217,119,6,.32); }
+        .up { color:#5d8418; font-weight:700; }
+        .down { color:#9E1B32; font-weight:700; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3"><div class="nav-logo">GV</div><div class="flex flex-col leading-tight"><span class="navbar-title">Grupo Varoch</span><span class="navbar-subtitle">Costsys · Costos</span></div></div>
+        <div class="flex items-center gap-2">
+            <div class="branch-pill flex items-center gap-2.5"><span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span><div class="flex flex-col items-start leading-tight"><span class="branch-pill-label">Unidad de negocio</span><span class="branch-pill-name">Sonoras Meat</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></div>
+            <div class="nav-score-wrap" title="Valores"><div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-score-label">Valores</span><span class="nav-score-sub">de 5.00</span></div></div>
+            <button class="nav-theme-toggle" title="Tema"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+            <button class="nav-user-pill flex items-center gap-2.5"><div class="nav-avatar">RA</div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-user-name">Rosy A.</span><span class="nav-user-rol">Administradora</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <a href="costsys-index.html" class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></a>
+            <a href="costsys-ingredientes.html" class="menu-rail-item"><i data-lucide="carrot"></i><span class="menu-rail-label">Ingred.</span></a>
+            <a href="costsys-subrecetas.html" class="menu-rail-item"><i data-lucide="soup"></i><span class="menu-rail-label">Subrec.</span></a>
+            <a href="costsys-recetas.html" class="menu-rail-item"><i data-lucide="chef-hat"></i><span class="menu-rail-label">Recetas</span></a>
+            <a href="costsys-costo-potencial.html" class="menu-rail-item"><i data-lucide="table-2"></i><span class="menu-rail-label">Costo</span></a>
+            <a href="costsys-proyeccion.html" class="menu-rail-item is-active"><i data-lucide="calendar-clock"></i><span class="menu-rail-label">Proyec.</span></a>
+            <a href="costsys-admin.html" class="menu-rail-item"><i data-lucide="sliders-horizontal"></i><span class="menu-rail-label">Admin</span></a>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <nav aria-label="breadcrumb"><ol class="flex items-center gap-2 text-xs"><li class="uppercase tracking-wide text-slate-400">Costsys</li><li class="text-slate-300">/</li><li class="font-bold" style="color:#003360;">Proyección · Ejercicio mensual</li></ol></nav>
+                <button class="btn-primary" onclick="alert('Abre modals/modal-programar-precios.html')"><i data-lucide="calendar-check-2" class="w-4 h-4"></i> Programación</button>
+            </div>
+
+            <!-- Cabecera del ejercicio -->
+            <div class="cv-card p-4 mb-5 flex flex-wrap items-end gap-4">
+                <div style="width:200px;"><label class="cv-label">Mes origen (snapshot)</label><select class="cv-input"><option>Junio 2026</option><option>Mayo 2026</option><option>Abril 2026</option></select></div>
+                <div style="width:200px;"><label class="cv-label">Fecha destino del ejercicio</label><input type="date" class="cv-input" value="2026-08-01"></div>
+                <div class="flex items-center gap-2">
+                    <span class="cv-badge badge-action"><i data-lucide="flask-conical" class="w-3 h-3"></i> Boceto</span>
+                    <span class="text-[12px] text-slate-500">Copia sólo hacia adelante · el mes cerrado es de solo lectura</span>
+                </div>
+                <button class="btn-action ml-auto"><i data-lucide="play" class="w-4 h-4"></i> Ejecutar ejercicio</button>
+            </div>
+
+            <div class="cv-card overflow-hidden">
+                <div class="p-5 pb-4 border-b border-slate-100">
+                    <h2 class="text-base font-bold" style="color:#003360;">Comparativa actual vs propuesto</h2>
+                    <p class="text-[12px] text-slate-500 mt-0.5">Cada fila muestra el escenario <b>actual</b> del snapshot contra el <b>propuesto</b> simulado. Aplica sólo las que estén listas.</p>
+                </div>
+                <div class="max-h-[56vh] overflow-auto">
+                    <table class="cp-table">
+                        <thead>
+                            <tr>
+                                <th class="tl" rowspan="2">Producto</th>
+                                <th class="grp-actual" colspan="3">Actual</th>
+                                <th class="grp-prop" colspan="4">Propuesto</th>
+                                <th rowspan="2" class="text-center">Estado</th>
+                                <th rowspan="2" class="text-center">Acciones</th>
+                            </tr>
+                            <tr>
+                                <th class="grp-actual">P. Venta</th>
+                                <th class="grp-actual">MC</th>
+                                <th class="grp-actual">Costo %</th>
+                                <th class="grp-prop">P. Propuesto</th>
+                                <th class="grp-prop">MC prop.</th>
+                                <th class="grp-prop">Costo % prop.</th>
+                                <th class="grp-prop">Δ MC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proyBody"></tbody>
+                    </table>
+                </div>
+                <div class="flex items-center justify-between p-4 border-t border-slate-100 text-[12px] text-slate-500">
+                    <span>Ejercicio Ago-2026 · origen Jun-2026 · <b>4</b> recetas con propuesta</span>
+                    <span class="flex items-center gap-1.5"><i data-lucide="info" class="w-4 h-4" style="color:#2563EB;"></i> Notificación a dirección operativa 2 días antes de aplicar</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const IVA = 16, IEPS = 0;
+        const vSinIva = p => p / (1 + (IVA+IEPS)/100);
+        const mx = n => '$' + n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+        // estado: boceto | programada | aplicada
+        const PROY = [
+            { prod:'Rib Eye 400g',      venta:589,  costo:198.40, prop:629, estado:'programada' },
+            { prod:'Tomahawk 900g',     venta:1290, costo:512.00, prop:1350, estado:'boceto' },
+            { prod:'Arrachera para dos',venta:640,  costo:246.80, prop:670, estado:'boceto' },
+            { prod:'Papas al romero',   venta:120,  costo:38.20,  prop:135, estado:'aplicada' },
+            { prod:'Flan de cajeta',    venta:95,   costo:22.50,  prop:95,  estado:'boceto' },
+        ];
+        const BADGE = {
+            boceto:     '<span class="cv-badge badge-action"><i data-lucide="flask-conical" class="w-3 h-3"></i> Boceto</span>',
+            programada: '<span class="cv-badge badge-warning"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Programada</span>',
+            aplicada:   '<span class="cv-badge badge-success"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Aplicada</span>',
+        };
+
+        const body = document.getElementById('proyBody');
+        PROY.forEach(r => {
+            const vAct = vSinIva(r.venta), mcAct = vAct - r.costo, pctAct = r.costo/vAct*100;
+            const vProp = vSinIva(r.prop), mcProp = vProp - r.costo, pctProp = r.costo/vProp*100;
+            const dMc = mcProp - mcAct;
+            const dCls = dMc >= 0 ? 'up' : 'down';
+            const dArrow = dMc >= 0 ? '▲' : '▼';
+            const aplicada = r.estado === 'aplicada';
+            body.insertAdjacentHTML('beforeend', `
+                <tr>
+                    <td class="tl font-medium text-slate-700">${r.prod}</td>
+                    <td>${mx(r.venta)}</td>
+                    <td>${mx(mcAct)}</td>
+                    <td>${pctAct.toFixed(1)}%</td>
+                    <td class="col-prop font-semibold" style="color:#003360;">${mx(r.prop)}</td>
+                    <td class="col-prop">${mx(mcProp)}</td>
+                    <td class="col-prop">${pctProp.toFixed(1)}%</td>
+                    <td class="col-prop ${dCls}">${dArrow} ${mx(Math.abs(dMc))}</td>
+                    <td class="text-center">${BADGE[r.estado]}</td>
+                    <td>
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button class="btn-ghost" title="Editar" ${aplicada?'disabled style=\"opacity:.4;cursor:not-allowed\"':''}><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            <button class="btn-ghost ok" title="Aplicar ahora" onclick="alert('Aplica los precios propuestos de forma masiva')"><i data-lucide="check" class="w-4 h-4"></i></button>
+                            <button class="btn-ghost danger" title="Eliminar" ${aplicada?'disabled style=\"opacity:.4;cursor:not-allowed\"':''} onclick="alert('Sólo se puede eliminar antes de aplicar')"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                </tr>`);
+        });
+
+        lucide.createIcons();
+        const NAV_CALF = 4.49;
+        const c = NAV_CALF>=4.5?'#7AAB20':NAV_CALF>=4?'#2563EB':NAV_CALF>=3.5?'#D97706':'#9E1B32';
+        document.getElementById('navScoreRing').style.background = `conic-gradient(${c} ${(NAV_CALF/5)*100}%, #EEF3F8 ${(NAV_CALF/5)*100}%)`;
+        const nn=document.getElementById('navScoreNum'); nn.textContent=NAV_CALF.toFixed(2); nn.style.color=c;
+    </script>
+</body>
+</html>

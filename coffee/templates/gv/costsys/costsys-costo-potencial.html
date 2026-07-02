@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Costo Potencial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); cursor:pointer; }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border-left:1px solid #E2E8F0; border-radius:8px; cursor:pointer; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol { font-size:11px; color:#64748B; }
+        .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; }
+        .menu-rail-item i { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+        .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 11px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-action { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-action:hover { background:#1D4ED8; }
+
+        /* KPI cards */
+        .kpi-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+        .kpi-ico { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#64748B; }
+        .kpi-value { font-size:22px; font-weight:800; color:#0F172A; font-variant-numeric:tabular-nums; line-height:1.1; }
+        .kpi-sub { font-size:11px; color:#94A3B8; }
+
+        /* Tabla costo potencial */
+        .cp-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+        .cp-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; padding:10px 10px; text-align:right; white-space:nowrap; z-index:2; }
+        .cp-table thead th.tl { text-align:left; }
+        .cp-table thead th:first-child { border-top-left-radius:10px; }
+        .cp-table thead th:last-child { border-top-right-radius:10px; }
+        .cp-table tbody td { font-size:12.5px; color:#334155; padding:8px 10px; border-bottom:1px solid #EEF2F7; text-align:right; white-space:nowrap; }
+        .cp-table tbody td.tl { text-align:left; }
+        .cp-table tbody tr:hover td { background:rgba(37,99,235,.04); }
+        .grp-row td { background:#003360; color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:7px 12px; text-align:left; }
+        .sub-row td { background:#EEF3F8; color:#003360; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:5px 12px 5px 24px; text-align:left; }
+        .prop-input { width:88px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:7px; padding:5px 8px; font-size:12.5px; text-align:right; color:#0F172A; outline:none; font-variant-numeric:tabular-nums; }
+        .prop-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        td.edited { background:rgba(217,119,6,.14) !important; }
+        td.edited .prop-input { border-color:#D97706; background:#FFFBEB; }
+        .cell-good { color:#5d8418; font-weight:700; }
+        .cell-warn { color:#D97706; font-weight:700; }
+        .cell-bad { color:#9E1B32; font-weight:700; }
+        .bg-good { background:rgba(122,171,32,.12) !important; }
+        .bg-bad { background:rgba(158,27,50,.10) !important; }
+        .bg-warn { background:rgba(217,119,6,.12) !important; }
+        .warn-ico { display:inline-flex; vertical-align:middle; color:#D97706; margin-left:3px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3"><div class="nav-logo">GV</div><div class="flex flex-col leading-tight"><span class="navbar-title">Grupo Varoch</span><span class="navbar-subtitle">Costsys · Costos</span></div></div>
+        <div class="flex items-center gap-2">
+            <div class="branch-pill flex items-center gap-2.5"><span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span><div class="flex flex-col items-start leading-tight"><span class="branch-pill-label">Unidad de negocio</span><span class="branch-pill-name">Sonoras Meat</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></div>
+            <div class="nav-score-wrap" title="Valores"><div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-score-label">Valores</span><span class="nav-score-sub">de 5.00</span></div></div>
+            <button class="nav-theme-toggle" title="Tema"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+            <button class="nav-user-pill flex items-center gap-2.5"><div class="nav-avatar">RA</div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-user-name">Rosy A.</span><span class="nav-user-rol">Administradora</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <a href="costsys-index.html" class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></a>
+            <a href="costsys-ingredientes.html" class="menu-rail-item"><i data-lucide="carrot"></i><span class="menu-rail-label">Ingred.</span></a>
+            <a href="costsys-subrecetas.html" class="menu-rail-item"><i data-lucide="soup"></i><span class="menu-rail-label">Subrec.</span></a>
+            <a href="costsys-recetas.html" class="menu-rail-item"><i data-lucide="chef-hat"></i><span class="menu-rail-label">Recetas</span></a>
+            <a href="costsys-costo-potencial.html" class="menu-rail-item is-active"><i data-lucide="table-2"></i><span class="menu-rail-label">Costo</span></a>
+            <a href="costsys-proyeccion.html" class="menu-rail-item"><i data-lucide="calendar-clock"></i><span class="menu-rail-label">Proyec.</span></a>
+            <a href="costsys-admin.html" class="menu-rail-item"><i data-lucide="sliders-horizontal"></i><span class="menu-rail-label">Admin</span></a>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <nav aria-label="breadcrumb"><ol class="flex items-center gap-2 text-xs"><li class="uppercase tracking-wide text-slate-400">Costsys</li><li class="text-slate-300">/</li><li class="font-bold" style="color:#003360;">Costo Potencial</li></ol></nav>
+                <button class="btn-primary" id="btnProg" onclick="alert('Abre modals/modal-programar-precios.html')"><i data-lucide="calendar-check-2" class="w-4 h-4"></i> Programación</button>
+            </div>
+
+            <!-- Filter bar -->
+            <div class="cv-card p-4 mb-5 flex flex-wrap items-end gap-4">
+                <div style="width:180px;"><label class="cv-label">Unidad de negocio</label><select class="cv-input"><option>Sonoras Meat</option><option>Fogaza</option><option>Baos</option><option>Punto Modelo</option><option>Quinta Tabachines</option></select></div>
+                <div style="width:170px;"><label class="cv-label">Clasificación</label><select class="cv-input"><option>Todas</option><option>Cortes</option><option>Guarniciones</option><option>Postres</option></select></div>
+                <div style="width:120px;"><label class="cv-label">Año</label><select class="cv-input"><option>2026</option><option>2025</option></select></div>
+                <div style="width:140px;"><label class="cv-label">Mes</label><select class="cv-input"><option>Julio</option><option>Junio</option><option>Mayo</option></select></div>
+                <div class="ml-auto flex items-center gap-2 text-[12px] text-slate-500">
+                    <span class="inline-flex items-center gap-1"><i data-lucide="snowflake" class="w-4 h-4" style="color:#2563EB;"></i> Snapshot Jul-2026 · <b>congelado</b></span>
+                </div>
+            </div>
+
+            <!-- KPI cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                <div class="kpi-card flex items-center gap-3">
+                    <div class="kpi-ico" style="background:rgba(0,51,96,.1);color:#003360;"><i data-lucide="banknote" class="w-5 h-5"></i></div>
+                    <div><p class="kpi-label">Ventas estimadas</p><p class="kpi-value" id="kpiVentas">$0</p><p class="kpi-sub">Mes en curso</p></div>
+                </div>
+                <div class="kpi-card flex items-center gap-3">
+                    <div class="kpi-ico" style="background:rgba(158,27,50,.1);color:#9E1B32;"><i data-lucide="trending-down" class="w-5 h-5"></i></div>
+                    <div><p class="kpi-label">Costo estimado</p><p class="kpi-value" id="kpiCosto">$0</p><p class="kpi-sub">Producción total</p></div>
+                </div>
+                <div class="kpi-card flex items-center gap-3">
+                    <div class="kpi-ico" style="background:rgba(122,171,32,.15);color:#5d8418;"><i data-lucide="trending-up" class="w-5 h-5"></i></div>
+                    <div><p class="kpi-label">Margen estimado</p><p class="kpi-value" id="kpiMC">$0</p><p class="kpi-sub">MC total</p></div>
+                </div>
+                <div class="kpi-card flex items-center gap-3">
+                    <div class="kpi-ico" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="percent" class="w-5 h-5"></i></div>
+                    <div><p class="kpi-label">% Costo global</p><p class="kpi-value" id="kpiPct">0%</p><p class="kpi-sub">Costo / venta</p></div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="cv-card overflow-hidden">
+                <div class="max-h-[58vh] overflow-auto">
+                    <table class="cp-table">
+                        <thead>
+                            <tr>
+                                <th class="tl">Producto</th>
+                                <th>P. Propuesto</th>
+                                <th>P. Venta s/IVA</th>
+                                <th>Costo</th>
+                                <th>Costo %</th>
+                                <th>MC</th>
+                                <th>Desplaz.</th>
+                                <th>Ventas est.</th>
+                                <th>Costo est.</th>
+                                <th>MC est.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cpBody"></tbody>
+                    </table>
+                </div>
+                <div class="flex items-center justify-between p-4 border-t border-slate-100 text-[12px] text-slate-500">
+                    <span>Snapshot mensual · agrupado por clasificación → subclasificación · edita <b>P. Propuesto</b> para simular en vivo</span>
+                    <div class="flex items-center gap-3">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#7AAB20;"></span> Sano</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#D97706;"></span> Cambió / alerta</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#9E1B32;"></span> Fuera de rango</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // IVA + IEPS global de ejemplo (%)
+        const IVA = 16, IEPS = 0;
+        // desplazamiento promedio por clasificación (para pintarDesplazamiento)
+        const DESP_PROM = { 'Cortes': 90, 'Guarniciones': 130, 'Postres': 70 };
+        // rango de %costo sano por clasificación (del Tablero de control)
+        const RANGO_COSTO = { 'Cortes':{max:38}, 'Guarniciones':{max:35}, 'Postres':{max:30} };
+
+        const DATOS = [
+            { grupo:'Cortes', subs:[
+                { sub:'Cortes finos', rows:[
+                    { prod:'Rib Eye 400g', precio:589, costo:198.40, desp:112 },
+                    { prod:'Arrachera para dos', precio:640, costo:246.80, desp:88 },
+                ]},
+                { sub:'Cortes con hueso', rows:[
+                    { prod:'Tomahawk 900g', precio:1290, costo:512.00, desp:41 },
+                    { prod:'Costillar BBQ', precio:520, costo:340.00, desp:33 },
+                ]},
+            ]},
+            { grupo:'Guarniciones', subs:[
+                { sub:'Papas', rows:[
+                    { prod:'Papas rústicas al romero', precio:120, costo:38.20, desp:156 },
+                    { prod:'Papa asada gratinada', precio:135, costo:52.00, desp:98 },
+                ]},
+            ]},
+            { grupo:'Postres', subs:[
+                { sub:'Fríos', rows:[
+                    { prod:'Flan de cajeta Sonora', precio:95, costo:22.50, desp:74 },
+                ]},
+            ]},
+        ];
+
+        const mx = n => '$' + n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const mx0 = n => '$' + Math.round(n).toLocaleString('es-MX');
+        const ventaSinIva = precio => precio / (1 + (IVA+IEPS)/100);
+
+        const body = document.getElementById('cpBody');
+        let rid = 0;
+
+        DATOS.forEach(g => {
+            body.insertAdjacentHTML('beforeend', `<tr class="grp-row"><td colspan="10">${g.grupo}</td></tr>`);
+            g.subs.forEach(s => {
+                body.insertAdjacentHTML('beforeend', `<tr class="sub-row"><td colspan="10">${s.sub}</td></tr>`);
+                s.rows.forEach(r => {
+                    const id = 'row'+(rid++);
+                    const vSinIva = ventaSinIva(r.precio);
+                    const pctCosto = r.costo / vSinIva * 100;
+                    const mc = vSinIva - r.costo;
+                    const ventasEst = vSinIva * r.desp;
+                    const costoEst = r.costo * r.desp;
+                    const mcEst = mc * r.desp;
+                    const maxCosto = (RANGO_COSTO[g.grupo]||{max:40}).max;
+                    const pctCls = pctCosto <= maxCosto ? 'cell-good bg-good' : 'cell-bad bg-bad';
+                    const despProm = DESP_PROM[g.grupo] || 100;
+                    const despCls = r.desp >= despProm ? 'cell-good' : 'cell-bad';
+                    body.insertAdjacentHTML('beforeend', `
+                        <tr id="${id}" data-grupo="${g.grupo}" data-costo="${r.costo}" data-desp="${r.desp}" data-max="${maxCosto}" data-despprom="${despProm}">
+                            <td class="tl font-medium text-slate-700">${r.prod}</td>
+                            <td data-cell="prop"><input class="prop-input" type="number" step="0.01" value="${r.precio.toFixed(2)}"></td>
+                            <td data-cell="vsiva">${mx(vSinIva)}</td>
+                            <td data-cell="costo">${mx(r.costo)}</td>
+                            <td data-cell="pct" class="${pctCls}">${pctCosto.toFixed(1)}%</td>
+                            <td data-cell="mc" class="cell-good">${mx(mc)}</td>
+                            <td data-cell="desp" class="${despCls}">${r.desp}</td>
+                            <td data-cell="ventasEst">${mx0(ventasEst)}</td>
+                            <td data-cell="costoEst">${mx0(costoEst)}</td>
+                            <td data-cell="mcEst">${mx0(mcEst)}</td>
+                        </tr>`);
+                });
+            });
+        });
+
+        // Recalcular fila en vivo (HU-CP-04)
+        function recalcRow(row) {
+            const precio = parseFloat(row.querySelector('.prop-input').value) || 0;
+            const costo = parseFloat(row.dataset.costo);
+            const desp = parseFloat(row.dataset.desp);
+            const maxCosto = parseFloat(row.dataset.max);
+            const despProm = parseFloat(row.dataset.despprom);
+
+            const vSinIva = ventaSinIva(precio);          // precio propuesto / (1 + (iva+ieps)/100)
+            const mc = vSinIva - costo;                    // MC = venta sin IVA - costo
+            const pctCosto = vSinIva ? costo / vSinIva * 100 : 0; // % costo = costo / venta sin IVA * 100
+            const costoEst = costo * desp;                 // costo * desplazamiento
+            const mcEst = mc * desp;                        // MC * desplazamiento
+            const ventasEst = vSinIva * desp;
+
+            row.querySelector('[data-cell="vsiva"]').textContent = mx(vSinIva);
+            const pctTd = row.querySelector('[data-cell="pct"]');
+            pctTd.textContent = pctCosto.toFixed(1) + '%';
+            pctTd.className = pctCosto <= maxCosto ? 'cell-good bg-good' : 'cell-bad bg-bad';
+            const mcTd = row.querySelector('[data-cell="mc"]');
+            mcTd.textContent = mx(mc);
+            mcTd.className = mc > 0 ? 'cell-good' : 'cell-bad';
+            row.querySelector('[data-cell="ventasEst"]').textContent = mx0(ventasEst);
+            row.querySelector('[data-cell="costoEst"]').textContent = mx0(costoEst);
+            row.querySelector('[data-cell="mcEst"]').textContent = mx0(mcEst);
+
+            // pintar celda editada de amarillo
+            row.querySelector('[data-cell="prop"]').classList.add('edited');
+            recalcKPIs();
+        }
+        document.querySelectorAll('.prop-input').forEach(inp => {
+            inp.addEventListener('input', () => recalcRow(inp.closest('tr')));
+        });
+
+        // KPIs globales
+        function recalcKPIs() {
+            let ventas=0, costo=0, mc=0;
+            document.querySelectorAll('#cpBody tr[id]').forEach(row => {
+                const precio = parseFloat(row.querySelector('.prop-input').value)||0;
+                const c = parseFloat(row.dataset.costo);
+                const d = parseFloat(row.dataset.desp);
+                const v = ventaSinIva(precio);
+                ventas += v*d; costo += c*d; mc += (v-c)*d;
+            });
+            document.getElementById('kpiVentas').textContent = mx0(ventas);
+            document.getElementById('kpiCosto').textContent = mx0(costo);
+            document.getElementById('kpiMC').textContent = mx0(mc);
+            document.getElementById('kpiPct').textContent = (ventas ? (costo/ventas*100) : 0).toFixed(1) + '%';
+        }
+        recalcKPIs();
+
+        lucide.createIcons();
+        const NAV_CALF = 4.49;
+        const cc = NAV_CALF>=4.5?'#7AAB20':NAV_CALF>=4?'#2563EB':NAV_CALF>=3.5?'#D97706':'#9E1B32';
+        document.getElementById('navScoreRing').style.background = `conic-gradient(${cc} ${(NAV_CALF/5)*100}%, #EEF3F8 ${(NAV_CALF/5)*100}%)`;
+        const nn=document.getElementById('navScoreNum'); nn.textContent=NAV_CALF.toFixed(2); nn.style.color=cc;
+    </script>
+</body>
+</html>

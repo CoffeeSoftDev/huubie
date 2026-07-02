@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Administrador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; cursor:pointer; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); cursor:pointer; transition:.15s; }
+        .branch-pill:hover { border-color:#003360; background:rgba(0,51,96,.10); }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; }
+        .branch-pill-chev { color:#94A3B8; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border-left:1px solid #E2E8F0; border-radius:8px; cursor:pointer; transition:.15s; }
+        .nav-user-pill:hover { background:#F1F5F9; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol { font-size:11px; color:#64748B; }
+        .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; }
+        .menu-rail-item i { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+        .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+        .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-primary:hover { background:#00264A; }
+        .btn-ghost { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid #E2E8F0; background:#fff; color:#64748B; cursor:pointer; transition:.15s; }
+        .btn-ghost:hover { color:#003360; border-color:rgba(0,51,96,.3); background:#F0F5FB; }
+        .btn-ghost.danger:hover { color:#9E1B32; border-color:rgba(158,27,50,.3); background:#FDECEA; }
+        .cv-table { width:100%; border-collapse:separate; border-spacing:0; }
+        .cv-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:11px 14px; text-align:left; }
+        .cv-table thead th:first-child { border-top-left-radius:10px; }
+        .cv-table thead th:last-child { border-top-right-radius:10px; }
+        .cv-table tbody td { font-size:13px; color:#334155; padding:10px 14px; border-bottom:1px solid #EEF2F7; }
+        .cv-table tbody tr:hover td { background:rgba(37,99,235,.05); }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-neutral { background:rgba(100,116,139,.15); color:#64748B; border-color:rgba(100,116,139,.3); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+
+        /* Tabs */
+        .admin-tab { display:flex; align-items:center; gap:7px; padding:10px 16px; font-size:13px; font-weight:600; color:#64748B; border-bottom:2px solid transparent; cursor:pointer; transition:.15s; white-space:nowrap; }
+        .admin-tab:hover { color:#003360; }
+        .admin-tab.active { color:#003360; border-bottom-color:#003360; }
+        .admin-tab i { width:16px; height:16px; }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3"><div class="nav-logo">GV</div><div class="flex flex-col leading-tight"><span class="navbar-title">Grupo Varoch</span><span class="navbar-subtitle">Costsys · Costos</span></div></div>
+        <div class="flex items-center gap-2">
+            <div class="branch-pill flex items-center gap-2.5"><span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span><div class="flex flex-col items-start leading-tight"><span class="branch-pill-label">Unidad de negocio</span><span class="branch-pill-name">Sonoras Meat</span></div><i data-lucide="chevron-down" class="branch-pill-chev w-4 h-4"></i></div>
+            <div class="nav-score-wrap" title="Valores"><div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-score-label">Valores</span><span class="nav-score-sub">de 5.00</span></div></div>
+            <button class="nav-theme-toggle" title="Tema"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+            <button class="nav-user-pill flex items-center gap-2.5"><div class="nav-avatar">RA</div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-user-name">Rosy A.</span><span class="nav-user-rol">Administradora</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <a href="costsys-index.html" class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></a>
+            <a href="costsys-ingredientes.html" class="menu-rail-item"><i data-lucide="carrot"></i><span class="menu-rail-label">Ingred.</span></a>
+            <a href="costsys-subrecetas.html" class="menu-rail-item"><i data-lucide="soup"></i><span class="menu-rail-label">Subrec.</span></a>
+            <a href="costsys-recetas.html" class="menu-rail-item"><i data-lucide="chef-hat"></i><span class="menu-rail-label">Recetas</span></a>
+            <a href="costsys-costo-potencial.html" class="menu-rail-item"><i data-lucide="table-2"></i><span class="menu-rail-label">Costo</span></a>
+            <a href="costsys-proyeccion.html" class="menu-rail-item"><i data-lucide="calendar-clock"></i><span class="menu-rail-label">Proyec.</span></a>
+            <a href="costsys-admin.html" class="menu-rail-item is-active"><i data-lucide="sliders-horizontal"></i><span class="menu-rail-label">Admin</span></a>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4"><ol class="flex items-center gap-2 text-xs"><li class="uppercase tracking-wide text-slate-400">Costsys</li><li class="text-slate-300">/</li><li class="font-bold" style="color:#003360;">Administrador</li></ol></nav>
+
+            <div class="mb-4">
+                <h2 class="text-lg font-bold" style="color:#003360;">Catálogos base</h2>
+                <p class="text-[12px] text-slate-500 mt-0.5">Estos catálogos alimentan los selects de ingredientes, subrecetas y recetas. El <a href="costsys-tablero-control.html" class="font-semibold" style="color:#2563EB;">Tablero de control</a> define los semáforos del costo potencial.</p>
+            </div>
+
+            <div class="cv-card overflow-hidden">
+                <!-- Tabs -->
+                <div class="flex items-center gap-1 px-3 border-b border-slate-100 overflow-x-auto">
+                    <div class="admin-tab active" data-tab="unidades"><i data-lucide="ruler"></i> Unidades</div>
+                    <div class="admin-tab" data-tab="marcas"><i data-lucide="tag"></i> Marcas</div>
+                    <div class="admin-tab" data-tab="proveedores"><i data-lucide="truck"></i> Proveedores</div>
+                    <div class="admin-tab" data-tab="clasificacion"><i data-lucide="folder-tree"></i> Clasificación</div>
+                    <div class="admin-tab" data-tab="subclasificacion"><i data-lucide="git-branch"></i> Subclasificación</div>
+                </div>
+
+                <div class="p-5">
+                    <!-- UNIDADES -->
+                    <div class="tab-panel active" data-panel="unidades">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">Unidades de medida</h3><button class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Nueva unidad</button></div>
+                        <table class="cv-table"><thead><tr><th>Unidad</th><th>Abreviatura</th><th>Tipo</th><th>Estado</th><th class="text-center">Acciones</th></tr></thead><tbody id="tb-unidades"></tbody></table>
+                    </div>
+                    <!-- MARCAS -->
+                    <div class="tab-panel" data-panel="marcas">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">Marcas</h3><button class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Nueva marca</button></div>
+                        <table class="cv-table"><thead><tr><th>Marca</th><th>Categoría</th><th>Estado</th><th class="text-center">Acciones</th></tr></thead><tbody id="tb-marcas"></tbody></table>
+                    </div>
+                    <!-- PROVEEDORES -->
+                    <div class="tab-panel" data-panel="proveedores">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">Proveedores</h3><button class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Nuevo proveedor</button></div>
+                        <table class="cv-table"><thead><tr><th>Proveedor</th><th>Contacto</th><th>Teléfono</th><th>Estado</th><th class="text-center">Acciones</th></tr></thead><tbody id="tb-proveedores"></tbody></table>
+                    </div>
+                    <!-- CLASIFICACION -->
+                    <div class="tab-panel" data-panel="clasificacion">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">Clasificación <span class="text-[12px] text-slate-400 font-medium">(depende de la UDN)</span></h3><button class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Nueva clasificación</button></div>
+                        <table class="cv-table"><thead><tr><th>Clasificación</th><th>Unidad de negocio</th><th># Subclasif.</th><th>Estado</th><th class="text-center">Acciones</th></tr></thead><tbody id="tb-clasificacion"></tbody></table>
+                    </div>
+                    <!-- SUBCLASIFICACION -->
+                    <div class="tab-panel" data-panel="subclasificacion">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">Subclasificación <span class="text-[12px] text-slate-400 font-medium">(pertenece a una clasificación)</span></h3><button class="btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Nueva subclasificación</button></div>
+                        <table class="cv-table"><thead><tr><th>Subclasificación</th><th>Clasificación padre</th><th>Unidad de negocio</th><th>Estado</th><th class="text-center">Acciones</th></tr></thead><tbody id="tb-subclasificacion"></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const acciones = `<div class="flex items-center justify-center gap-1.5"><button class="btn-ghost" title="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="btn-ghost danger" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
+        const bA = '<span class="cv-badge badge-success">Activo</span>';
+        const bI = '<span class="cv-badge badge-neutral">Inactivo</span>';
+        const DATA = {
+            unidades: [
+                ['Kilogramo','kg','Peso',bA],['Gramo','g','Peso',bA],['Litro','lt','Volumen',bA],
+                ['Mililitro','ml','Volumen',bA],['Pieza','pza','Unidad',bA],['Porción','porc','Unidad',bI],
+            ],
+            marcas: [
+                ['Sukarne','Cárnicos',bA],['Sonora Prime','Cárnicos',bA],['Lala','Lácteos',bA],
+                ['McCormick','Especias',bA],['La Fina','Abarrotes',bA],['Casa Varoch','Producción interna',bA],
+            ],
+            proveedores: [
+                ['Frigorífico del Norte','Lic. Mario Ruiz','(662) 214-8890',bA],
+                ['Carnes del Valle','Ing. Elsa Domínguez','(662) 330-1177',bA],
+                ['Abarrotera Hermosillo','C. Jorge Peralta','(662) 289-4501',bA],
+                ['Lácteos del Río','Sra. Norma Ibáñez','(662) 415-6620',bA],
+                ['Central de Abastos','Mostrador','(662) 200-0000',bI],
+            ],
+            clasificacion: [
+                ['Cortes','Sonoras Meat','4',bA],['Guarniciones','Sonoras Meat','2',bA],['Postres','Sonoras Meat','3',bA],
+                ['Pizzas','Fogaza','5',bA],['Fogazas','Fogaza','2',bA],['Ramen','Baos','3',bA],
+            ],
+            subclasificacion: [
+                ['Cortes finos','Cortes','Sonoras Meat',bA],['Cortes con hueso','Cortes','Sonoras Meat',bA],
+                ['Papas','Guarniciones','Sonoras Meat',bA],['Napolitanas','Pizzas','Fogaza',bA],
+                ['Especiales','Pizzas','Fogaza',bA],['Ramen tonkotsu','Ramen','Baos',bI],
+            ],
+        };
+        function fillTable(id, rows){
+            const tb = document.getElementById('tb-'+id); tb.innerHTML='';
+            rows.forEach(r => {
+                const cells = r.map((c,i) => i===0 ? `<td class="font-semibold text-slate-800">${c}</td>` : `<td>${c}</td>`).join('');
+                tb.insertAdjacentHTML('beforeend', `<tr>${cells}<td>${acciones}</td></tr>`);
+            });
+        }
+        Object.keys(DATA).forEach(k => fillTable(k, DATA[k]));
+
+        document.querySelectorAll('.admin-tab').forEach(t => t.addEventListener('click', () => {
+            document.querySelectorAll('.admin-tab').forEach(x=>x.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+            t.classList.add('active');
+            document.querySelector(`[data-panel="${t.dataset.tab}"]`).classList.add('active');
+            lucide.createIcons();
+        }));
+
+        lucide.createIcons();
+        const NAV_CALF = 4.49;
+        const c = NAV_CALF>=4.5?'#7AAB20':NAV_CALF>=4?'#2563EB':NAV_CALF>=3.5?'#D97706':'#9E1B32';
+        document.getElementById('navScoreRing').style.background = `conic-gradient(${c} ${(NAV_CALF/5)*100}%, #EEF3F8 ${(NAV_CALF/5)*100}%)`;
+        const nn=document.getElementById('navScoreNum'); nn.textContent=NAV_CALF.toFixed(2); nn.style.color=c;
+    </script>
+</body>
+</html>

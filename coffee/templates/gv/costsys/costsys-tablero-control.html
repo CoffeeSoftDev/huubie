@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costsys · Tablero de control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); cursor:pointer; }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border-left:1px solid #E2E8F0; border-radius:8px; cursor:pointer; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol { font-size:11px; color:#64748B; }
+        .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; }
+        .menu-rail-item i { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+        .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .btn-action { background:#2563EB; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+        .btn-action:hover { background:#1D4ED8; }
+        .cv-table { width:100%; border-collapse:separate; border-spacing:0; }
+        .cv-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:11px 14px; text-align:left; white-space:nowrap; }
+        .cv-table thead th.center { text-align:center; }
+        .cv-table thead th:first-child { border-top-left-radius:10px; }
+        .cv-table thead th:last-child { border-top-right-radius:10px; }
+        .cv-table tbody td { font-size:13px; color:#334155; padding:9px 14px; border-bottom:1px solid #EEF2F7; }
+        .grp-row td { background:#EEF3F8; color:#003360; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:7px 14px; }
+        .num-input { width:70px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:7px; padding:6px 8px; font-size:12px; text-align:center; color:#0F172A; outline:none; font-variant-numeric:tabular-nums; }
+        .num-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .swatch { width:34px; height:22px; border-radius:6px; display:inline-block; border:1px solid rgba(15,23,42,.1); }
+        .legend-dot { width:12px; height:12px; border-radius:9999px; display:inline-block; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3"><div class="nav-logo">GV</div><div class="flex flex-col leading-tight"><span class="navbar-title">Grupo Varoch</span><span class="navbar-subtitle">Costsys · Costos</span></div></div>
+        <div class="flex items-center gap-2">
+            <div class="branch-pill flex items-center gap-2.5"><span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span><div class="flex flex-col items-start leading-tight"><span class="branch-pill-label">Unidad de negocio</span><span class="branch-pill-name">Sonoras Meat</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></div>
+            <div class="nav-score-wrap" title="Valores"><div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-score-label">Valores</span><span class="nav-score-sub">de 5.00</span></div></div>
+            <button class="nav-theme-toggle" title="Tema"><i data-lucide="moon" class="w-[18px] h-[18px]"></i></button>
+            <button class="nav-user-pill flex items-center gap-2.5"><div class="nav-avatar">RA</div><div class="hidden sm:flex flex-col items-start leading-tight"><span class="nav-user-name">Rosy A.</span><span class="nav-user-rol">Administradora</span></div><i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i></button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <a href="costsys-index.html" class="menu-rail-item"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></a>
+            <a href="costsys-ingredientes.html" class="menu-rail-item"><i data-lucide="carrot"></i><span class="menu-rail-label">Ingred.</span></a>
+            <a href="costsys-subrecetas.html" class="menu-rail-item"><i data-lucide="soup"></i><span class="menu-rail-label">Subrec.</span></a>
+            <a href="costsys-recetas.html" class="menu-rail-item"><i data-lucide="chef-hat"></i><span class="menu-rail-label">Recetas</span></a>
+            <a href="costsys-costo-potencial.html" class="menu-rail-item"><i data-lucide="table-2"></i><span class="menu-rail-label">Costo</span></a>
+            <a href="costsys-proyeccion.html" class="menu-rail-item"><i data-lucide="calendar-clock"></i><span class="menu-rail-label">Proyec.</span></a>
+            <a href="costsys-admin.html" class="menu-rail-item is-active"><i data-lucide="sliders-horizontal"></i><span class="menu-rail-label">Admin</span></a>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4"><ol class="flex items-center gap-2 text-xs"><li class="uppercase tracking-wide text-slate-400">Costsys / Admin</li><li class="text-slate-300">/</li><li class="font-bold" style="color:#003360;">Tablero de control</li></ol></nav>
+
+            <div class="cv-card overflow-hidden">
+                <div class="p-5 pb-4 border-b border-slate-100 flex flex-wrap items-center gap-4 justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold" style="color:#003360;">Tablero de control · Rangos de semáforo</h2>
+                        <p class="text-[12px] text-slate-500 mt-0.5">Estos rangos pintan las celdas <b>% Costo</b> y <b>MC</b> del Costo Potencial. Ajusta mínimo / máximo por clasificación y subclasificación.</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 text-[12px] text-slate-500">
+                            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#7AAB20;"></span> Sano</span>
+                            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#D97706;"></span> Alerta</span>
+                            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#9E1B32;"></span> Fuera de rango</span>
+                        </div>
+                        <button class="btn-action"><i data-lucide="save" class="w-4 h-4"></i> Guardar rangos</button>
+                    </div>
+                </div>
+
+                <div class="max-h-[68vh] overflow-auto">
+                    <table class="cv-table">
+                        <thead>
+                            <tr>
+                                <th>Clasificación / Subclasificación</th>
+                                <th class="center">% Costo mín.</th>
+                                <th class="center">% Costo máx.</th>
+                                <th class="center">MC mín.</th>
+                                <th class="center">MC máx.</th>
+                                <th class="center">Preview</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rangoBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Grupos (clasificación) -> filas (subclasificación) con rangos %costo y MC
+        const RANGOS = [
+            { grupo:'Cortes', rows:[
+                { sub:'Cortes finos',     cmin:28, cmax:38, mmin:55, mmax:72 },
+                { sub:'Cortes con hueso', cmin:32, cmax:42, mmin:50, mmax:68 },
+            ]},
+            { grupo:'Guarniciones', rows:[
+                { sub:'Papas',      cmin:25, cmax:35, mmin:60, mmax:75 },
+                { sub:'Ensaladas',  cmin:22, cmax:33, mmin:62, mmax:78 },
+            ]},
+            { grupo:'Postres', rows:[
+                { sub:'Fríos',      cmin:20, cmax:30, mmin:65, mmax:80 },
+                { sub:'Calientes',  cmin:24, cmax:34, mmin:60, mmax:76 },
+            ]},
+        ];
+
+        const body = document.getElementById('rangoBody');
+        RANGOS.forEach((g, gi) => {
+            body.insertAdjacentHTML('beforeend', `<tr class="grp-row"><td colspan="6"><div class="flex items-center gap-2"><i data-lucide="folder" class="w-4 h-4"></i> ${g.grupo}</div></td></tr>`);
+            g.rows.forEach((r, ri) => {
+                const uid = `r${gi}-${ri}`;
+                body.insertAdjacentHTML('beforeend', `
+                    <tr data-uid="${uid}">
+                        <td class="pl-8 font-medium text-slate-700">${r.sub}</td>
+                        <td class="text-center"><input class="num-input" data-field="cmin" value="${r.cmin}">%</td>
+                        <td class="text-center"><input class="num-input" data-field="cmax" value="${r.cmax}">%</td>
+                        <td class="text-center"><input class="num-input" data-field="mmin" value="${r.mmin}">%</td>
+                        <td class="text-center"><input class="num-input" data-field="mmax" value="${r.mmax}">%</td>
+                        <td class="text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <span class="swatch" style="background:#7AAB20;" title="Sano ≤ ${r.cmin}%"></span>
+                                <span class="swatch" data-prev="warn" style="background:#D97706;" title="Alerta"></span>
+                                <span class="swatch" data-prev="bad" style="background:#9E1B32;" title="Fuera > ${r.cmax}%"></span>
+                            </div>
+                        </td>
+                    </tr>`);
+            });
+        });
+
+        // Preview en vivo: si cmin >= cmax, el swatch de alerta se apaga (rango inválido)
+        document.querySelectorAll('tr[data-uid] .num-input').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const row = inp.closest('tr');
+                const cmin = parseFloat(row.querySelector('[data-field="cmin"]').value) || 0;
+                const cmax = parseFloat(row.querySelector('[data-field="cmax"]').value) || 0;
+                const warn = row.querySelector('[data-prev="warn"]');
+                const bad = row.querySelector('[data-prev="bad"]');
+                const invalido = cmin >= cmax;
+                warn.style.opacity = invalido ? '.25' : '1';
+                bad.style.background = invalido ? '#9E1B32' : '#9E1B32';
+                row.querySelector('[data-field="cmin"]').style.borderColor = invalido ? '#9E1B32' : '#CBD5E1';
+                row.querySelector('[data-field="cmax"]').style.borderColor = invalido ? '#9E1B32' : '#CBD5E1';
+            });
+        });
+
+        lucide.createIcons();
+        const NAV_CALF = 4.49;
+        const c = NAV_CALF>=4.5?'#7AAB20':NAV_CALF>=4?'#2563EB':NAV_CALF>=3.5?'#D97706':'#9E1B32';
+        document.getElementById('navScoreRing').style.background = `conic-gradient(${c} ${(NAV_CALF/5)*100}%, #EEF3F8 ${(NAV_CALF/5)*100}%)`;
+        const nn=document.getElementById('navScoreNum'); nn.textContent=NAV_CALF.toFixed(2); nn.style.color=c;
+    </script>
+</body>
+</html>
