@@ -231,12 +231,42 @@ function fs_detect_request($text, $force = false) {
     $low = mb_strtolower($text, 'UTF-8');
     $index = fs_folder_index();
 
-    // Tokeniza el mensaje (palabras >= 3 chars) y busca cada token como nombre de
+    // 0) Fragmentos con pinta de RUTA ("coffee/templates/gv", "C:\wamp64\www\gv"):
+    // se resuelven tal cual con fs_resolve_folder, que ya usa los segmentos previos
+    // como pistas de desempate. Es la unica via fiable para carpetas de nombre corto
+    // (ej. "gv") o para apuntar directo a una subcarpeta anidada. Si el fragmento
+    // termina en un ARCHIVO ("...gv/login-varoch.html"), se prueba su carpeta padre.
+    preg_match_all('#[a-z_.\-][a-z0-9_.\-:]*(?:[\\\\/][a-z0-9_.\-]+)+#u', $low, $pm);
+    $fragCandidates = [];
+    foreach (array_unique($pm[0]) as $frag) {
+        $frag = rtrim($frag, '.,;:');
+        $tries = [$frag];
+        $parent = preg_replace('#[\\\\/][^\\\\/]*\.[a-z0-9]{1,5}$#u', '', $frag);
+        if ($parent !== $frag && $parent !== '') $tries[] = $parent;
+        foreach ($tries as $t) {
+            $r = fs_resolve_folder($t);
+            if (count($r['matches']) === 1) {
+                return ['path' => $r['matches'][0], 'candidates' => $r['matches'], 'requested' => $text];
+            }
+            if (!empty($r['matches']) && empty($fragCandidates)) $fragCandidates = $r['matches'];
+        }
+    }
+    if (!empty($fragCandidates)) {
+        // La ruta escrita coincide con varias carpetas homonimas: que el usuario elija.
+        return ['path' => null, 'candidates' => $fragCandidates, 'requested' => $text];
+    }
+
+    // Tokeniza el mensaje (palabras >= 2 chars) y busca cada token como nombre de
     // carpeta en el indice. Lookup O(1) por palabra: encuentra carpetas anidadas sin
-    // recorrer todo el indice por cada nombre.
-    preg_match_all('/[a-z0-9_\-]{3,}/u', $low, $m);
+    // recorrer todo el indice por cada nombre. Los tokens de 2 chars se aceptan solo
+    // si no son palabras funcionales/tecnicas comunes (para no conectar una carpeta
+    // por un "de"/"js" suelto); una carpeta corta vetada aqui ("js") sigue siendo
+    // alcanzable escribiendo su ruta ("src/js"), que resuelve el bloque de arriba.
+    preg_match_all('/[a-z0-9_\-]{2,}/u', $low, $m);
+    $stop2 = ['de','la','el','en','un','al','lo','le','se','me','te','mi','tu','su','si','ya','no','ni','es','va','ve','da','of','to','in','on','at','is','it','an','or','as','by','be','do','go','my','we','he','js','ts','md','db','ui','id','px','ok'];
     $hits = [];   // ruta => peso (longitud del nombre que matcheo)
     foreach (array_unique($m[0]) as $tok) {
+        if (strlen($tok) < 3 && in_array($tok, $stop2, true)) continue;
         if (isset($index[$tok])) {
             foreach ($index[$tok] as $p) $hits[$p] = max($hits[$p] ?? 0, strlen($tok));
         }

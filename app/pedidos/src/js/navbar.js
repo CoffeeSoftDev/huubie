@@ -187,11 +187,12 @@ class Navbar {
 
     // Select oculto: es el puente de compatibilidad con el modulo de pedidos,
     // que lee la sucursal activa via $('#subsidiaries_id') (getSubsidiaryLabel /
-    // getListFilterSubsidiary). Solo se emite para el admin (filtro de vista).
+    // getListFilterSubsidiary). Se emite para cualquier usuario con sucursales:
+    // el admin lo usa como filtro completo y el operador solo para "0" (Todas).
     hiddenSelectHtml() {
-        if (!this.settings.isAdmin) return '';
-
         const branches     = this.settings.branches || [];
+        if (branches.length == 0) return '';
+
         const currentSubId = this.settings.subsidiaryId;
         const options = branches.map(b =>
             `<option value="${b.id}" ${currentSubId == b.id ? 'selected' : ''}>${b.name}</option>`
@@ -207,8 +208,10 @@ class Navbar {
     branchControlHtml() {
         const branches = this.settings.branches || [];
 
-        // Operador / sin sucursales: etiqueta fija con la sucursal de sesion.
-        if (!this.settings.isAdmin || branches.length == 0) {
+        // Sin sucursales asignadas: etiqueta fija con la sucursal de sesion.
+        // Con sucursales, todos ven el pill (misma configuracion que la navbar
+        // del POS): el admin filtra la vista y el operador cambia de sesion.
+        if (branches.length == 0) {
             return `
             <div class="flex items-center gap-2 branch-pill">
                 <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
@@ -271,7 +274,7 @@ class Navbar {
             <div id="branchDropdown" class="branch-dropdown absolute right-0 top-[calc(100%+10px)] w-[320px] z-40" style="display: none;">
                 <div class="px-3 pt-3 pb-2 flex items-start justify-between border-b border-gray-800/60">
                     <div>
-                        <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">Filtrar por sucursal</p>
+                        <p class="text-[10px] uppercase tracking-[.14em] text-purple-400 font-semibold">${this.settings.isAdmin ? 'Filtrar por sucursal' : 'Cambiar sucursal'}</p>
                         <p class="text-[11px] text-gray-400 mt-0.5">de ${this.settings.company || ''}</p>
                     </div>
                     <button id="btnBranchClose" class="btn-ghost flex items-center gap-1">
@@ -321,9 +324,19 @@ class Navbar {
         ];
         const gradient = gradients[index % gradients.length];
         const selectedClass = (branch.id == currentSubId) ? 'selected' : '';
-        const subRow = branch.ubication
-            ? `<p class="text-[11px] text-gray-400 mt-1 truncate">${branch.ubication}</p>`
-            : '';
+
+        const closedRow = `
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="branch-status-dot bg-gray-400" style="width:6px;height:6px;box-shadow:0 0 0 2px rgba(156,163,175,.18);"></span>
+                <span class="text-[11px] text-gray-400 font-medium">Cerrada</span>
+                ${branch.ubication ? `<span class="text-[11px] text-gray-500 truncate">· ${branch.ubication}</span>` : ''}
+            </div>`;
+
+        const subRow = branch.active === 0
+            ? closedRow
+            : (branch.ubication
+                ? `<p class="text-[11px] text-gray-400 mt-1 truncate">${branch.ubication}</p>`
+                : '');
 
         return `
         <div class="branch-card ${selectedClass}" data-id="${branch.id}" data-name="${branch.name}">
@@ -425,12 +438,37 @@ class Navbar {
         dd.style.display = "none";
     }
 
-    // En pedidos el cambio de sucursal es un FILTRO de vista (no toca la sesion):
-    // se sincroniza el <select id="subsidiaries_id"> oculto, se notifica al modulo
-    // con 'branchChanged' y se muestra el toast. El backend conserva la sesion.
-    selectBranch(id, name, cardEl) {
+    // Admin: el cambio es un FILTRO de vista (no toca la sesion) — se sincroniza
+    // el <select id="subsidiaries_id"> oculto y se notifica con 'branchChanged'.
+    // Operador: misma configuracion que la navbar del POS — elegir una sucursal
+    // hace switch de sesion real (switchBranch valida usr_user_subsidiaries) y se
+    // recarga la pagina, porque el init de pedidos (udn, catalogos, cierre) vive
+    // en la sesion. "Todas" (0) es solo consulta del listado, nunca escrituras.
+    async selectBranch(id, name, cardEl) {
         if (cardEl.classList.contains("selected")) {
             this.closeBranchDropdown();
+            return;
+        }
+
+        const isQueryFilter = this.settings.isAdmin || id === '0';
+        if (!isQueryFilter) {
+            const response = await useFetch({
+                url: "/app/access/ctrl/ctrl-access.php",
+                data: { opc: "switchBranch", id: id }
+            });
+
+            if (response.status != 200) {
+                alert({
+                    icon: "error",
+                    title: "No se pudo cambiar de sucursal",
+                    text: response.message || "Intentalo nuevamente.",
+                    btn1: true,
+                    btn1Text: "Ok"
+                });
+                return;
+            }
+
+            location.reload();
             return;
         }
 
@@ -525,6 +563,7 @@ $(async () => {
         name:      b.name,
         ubication: b.ubication || '',
         initials:  b.initials || '',
+        active:    b.active,
     }));
 
     navbar.init({

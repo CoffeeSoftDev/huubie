@@ -20,6 +20,10 @@ class AppDashboard extends Templates {
         this.PROJECT_NAME = "DashboardPedidos";
     }
 
+    // El filtro de sucursal de la navbar solo re-lista pedidos (App); evita que
+    // el auto-listener de 'branchChanged' en Templates re-renderice este modulo.
+    onBranchChange() { }
+
     render() {
         this.layout();
         dashboardPedidos.render();
@@ -133,6 +137,10 @@ class DashboardPedidos extends Templates {
         super(link, div_modulo);
         this.PROJECT_NAME = "DashboardPedidos";
     }
+
+    // El filtro de sucursal de la navbar solo re-lista pedidos (App); evita que
+    // el auto-listener de 'branchChanged' en Templates re-renderice este modulo.
+    onBranchChange() { }
 
     render() {
         this.layout();

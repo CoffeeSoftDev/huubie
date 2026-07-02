@@ -281,7 +281,12 @@ function coffeeia_build_context(array $body) {
     // Si el turno califica explicitamente "base/tabla/esquema" (y NO "carpeta/proyecto"),
     // no resolvemos como carpeta: es una consulta de BD.
     $fsIntentRe = '/(con[eé]ct\w*|\bcarpeta\b|\bproyecto\b|\bdirectorio\b|\bfolder\b|\brepositorio\b|\brepo\b|c[oó]digo\s+de)/iu';
-    $wantFs = (($folderConnect !== '') || (bool) preg_match($fsIntentRe, $lastUser)) && !($dbExplicit && !$fsExplicit);
+    // Una RUTA escrita en el mensaje ("coffee/templates/gv", "C:\wamp64\www\gv") tambien
+    // cuenta como intencion de carpeta: es la forma natural de responder a la pregunta de
+    // desambiguacion o de apuntar directo a una subcarpeta sin decir "carpeta".
+    $fsIntent = (bool) preg_match($fsIntentRe, $lastUser)
+             || (bool) preg_match('#[a-z_.\-][\w.\-]*[\\\\/][\w.\-]+#iu', $lastUser);
+    $wantFs = (($folderConnect !== '') || $fsIntent) && !($dbExplicit && !$fsExplicit);
 
     if ($wantFs) {
         try {
@@ -289,7 +294,7 @@ function coffeeia_build_context(array $body) {
             // Solo escaneamos el indice de carpetas si el mensaje tiene intencion
             // explicita; si ya hay conexion pegajosa y el turno no habla de carpetas,
             // reusamos la ruta sin reindexar.
-            $det = preg_match($fsIntentRe, $lastUser) ? fs_detect_request($lastUser, true) : null;
+            $det = $fsIntent ? fs_detect_request($lastUser, true) : null;
             if ($det && $det['path']) {
                 $fsRoot = $det['path'];
                 $fsFromMessage = true;

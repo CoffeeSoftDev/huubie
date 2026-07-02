@@ -17,11 +17,17 @@
         .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
         .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
 
-        .nav-admin-btn { background:rgba(0,51,96,.08); color:#003360; border:1px solid rgba(0,51,96,.20); padding:6px 12px; border-radius:10px; transition:all .15s ease; cursor:pointer; }
-        .nav-admin-btn:hover { background:#003360; color:#fff; border-color:#003360; }
-
         .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
         .nav-theme-toggle:hover { color:#003360; }
+
+        /* ── Score de valores corporativos (mismo widget que gv-perfil) ── */
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; cursor:pointer; transition:.15s ease; }
+        .nav-score-wrap:hover { background:#F1F5F9; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; line-height:1; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
 
         /* ── Pill de sucursal (selector en la navbar) ── */
         .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); transition:all .15s ease; cursor:pointer; }
@@ -98,7 +104,7 @@
                     <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
                     <div class="flex flex-col items-start leading-tight">
                         <span class="branch-pill-label">Unidad de negocio</span>
-                        <span id="btnBranchName" class="branch-pill-name">Matriz CDMX</span>
+                        <span id="btnBranchName" class="branch-pill-name">Sonoras Meat</span>
                     </div>
                     <i data-lucide="chevron-down" class="branch-pill-chev w-4 h-4"></i>
                 </button>
@@ -115,37 +121,61 @@
                     <div class="p-2 space-y-1.5 max-h-[320px] overflow-y-auto">
                         <div class="branch-card branch-card-sel">
                             <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#003360,#2563EB);">MC</div>
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#003360,#2563EB);">SM</div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Matriz CDMX</p>
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Sonoras Meat</p>
                                         <div class="branch-radio"><div class="branch-radio-inner"></div></div>
                                     </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Av. Insurgentes Sur 1234</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
                                 </div>
                             </div>
                         </div>
                         <div class="branch-card">
                             <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#0078D7,#60A5FA);">SN</div>
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#9E1B32,#F24444);">FG</div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Sucursal Norte</p>
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Fogaza</p>
                                         <div class="branch-radio"><div class="branch-radio-inner"></div></div>
                                     </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Blvd. Manuel Ávila Camacho 90</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
                                 </div>
                             </div>
                         </div>
                         <div class="branch-card">
                             <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#00264A,#003360);">FG</div>
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#0078D7,#60A5FA);">BA</div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Fogaza Centro</p>
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Baos</p>
                                         <div class="branch-radio"><div class="branch-radio-inner"></div></div>
                                     </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Calle Madero 45, Centro</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="branch-card">
+                            <div class="flex items-center gap-2.5">
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#5d8418,#7AAB20);">PM</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Punto Modelo</p>
+                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="branch-card">
+                            <div class="flex items-center gap-2.5">
+                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#00264A,#1B5E8C);">QT</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[13px] font-bold text-slate-800 truncate">Quinta Tabachines</p>
+                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
                                 </div>
                             </div>
                         </div>
@@ -153,10 +183,13 @@
                 </div>
             </div>
 
-            <button id="btnAdmin" class="nav-admin-btn hidden sm:flex items-center gap-1.5" title="Administración">
-                <i data-lucide="shield" class="w-4 h-4"></i>
-                <span class="text-sm font-medium">Admin</span>
-            </button>
+            <div class="nav-score-wrap" id="navScore" title="Calificación de valores corporativos">
+                <div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-score-label">Valores</span>
+                    <span class="nav-score-sub">de 5.00</span>
+                </div>
+            </div>
 
             <button id="btnThemeToggle" class="nav-theme-toggle" title="Tema">
                 <i data-lucide="moon" class="w-[18px] h-[18px]"></i>
@@ -170,7 +203,7 @@
                 <div class="nav-avatar">RA</div>
                 <div class="hidden sm:flex flex-col items-start leading-tight">
                     <span class="nav-user-name">Rosy A.</span>
-                    <span class="nav-user-rol">Contabilidad</span>
+                    <span class="nav-user-rol">Administradora</span>
                 </div>
                 <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
             </button>
@@ -188,7 +221,7 @@
                 <div class="flex-1 min-w-0">
                     <p class="nav-head-name">Rosy A.</p>
                     <p class="nav-head-email">rosy.a@grupovaroch.com</p>
-                    <span class="nav-head-rol"><i data-lucide="shield" class="w-3 h-3"></i> Contabilidad</span>
+                    <span class="nav-head-rol"><i data-lucide="shield" class="w-3 h-3"></i> Administradora</span>
                 </div>
             </div>
             <div class="nav-divider"></div>
@@ -227,9 +260,9 @@
             </nav>
             <div class="bg-white rounded-xl border border-slate-200 p-6" style="box-shadow:0 2px 8px rgba(15,23,42,.06);">
                 <h2 class="text-lg font-bold mb-1" style="color:#003360;">Navbar Grupo Varoch</h2>
-                <p class="demo-note mb-4">Réplica de la navbar de inventory (logo, UDN, admin, tema, módulos, usuario y dropdown) recoloreada a la paleta institucional azul <b>#003360</b>. Prueba el pill de unidad de negocio y el menú de usuario.</p>
+                <p class="demo-note mb-4">Réplica de la navbar de inventory (logo, UDN, tema, módulos, usuario y dropdown) recoloreada a la paleta institucional azul <b>#003360</b>. Prueba el pill de unidad de negocio y el menú de usuario.</p>
                 <div class="flex flex-wrap gap-2">
-                    <a href="gv-login.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#003360;">Ver login</a>
+                    <a href="login-varoch.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#003360;">Ver login</a>
                     <a href="gv-perfil.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#2563EB;">Ver perfil</a>
                     <a href="gv-permisos.html" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:rgba(0,51,96,.08);color:#003360;border:1px solid rgba(0,51,96,.2);">Ver permisos</a>
                 </div>
@@ -239,6 +272,15 @@
 
     <script>
         lucide.createIcons();
+
+        // Score de valores corporativos (mismos umbrales de color que gv-perfil)
+        const NAV_CALF = 4.49;
+        const navPct = (NAV_CALF / 5) * 100;
+        const navColor = NAV_CALF >= 4.5 ? '#7AAB20' : NAV_CALF >= 4 ? '#2563EB' : NAV_CALF >= 3.5 ? '#D97706' : '#9E1B32';
+        document.getElementById('navScoreRing').style.background = `conic-gradient(${navColor} ${navPct}%, #EEF3F8 ${navPct}%)`;
+        const navScoreNum = document.getElementById('navScoreNum');
+        navScoreNum.textContent = NAV_CALF.toFixed(2);
+        navScoreNum.style.color = navColor;
         const btnUser = document.getElementById('btnUserMenu');
         const ddUser  = document.getElementById('userMenuDropdown');
         btnUser.addEventListener('click', (e) => {
