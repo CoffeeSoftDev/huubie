@@ -1,43 +1,47 @@
 <!DOCTYPE html><html><head><meta charset="utf-8">
-        <base href="http://www.cs-huubie.com/coffee/app/visor/">
         <script src="https://cdn.tailwindcss.com"></script>
         
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
         
         <script src="https://unpkg.com/lucide@latest"></script>
-        <style>html,body{margin:0;}body{background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}body{min-height:100vh;}.pg-stage{box-sizing:border-box;width:100%;min-height:100vh;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}.pg-stage > *{width:100%;}[class*="fixed"][class*="inset-0"]{overflow-y:auto;}[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}</style>
+        <style>html,body{margin:0;height:100%;overflow:hidden;}body{background:#F8FAFC;color:#0F172A;font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}.pg-stage{box-sizing:border-box;width:100%;height:100vh;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;}.pg-stage > *{width:100%;}[class*="fixed"][class*="inset-0"]{overflow-y:auto;}[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}</style>
         </head><body><div class="pg-stage"><style>
   body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; margin: 0; }
 
-  .navbar-main { background:#003360; width:100%; position:relative; }
-  .navbar-top { height:56px; display:flex; align-items:center; padding:0 20px; gap:18px; position:relative; }
-  .nav-burger { width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:#fff; border:none; background:transparent; cursor:pointer; border-radius:7px; transition:.15s; }
-  .nav-burger:hover { background:rgba(255,255,255,.10); }
-  .nav-brand { display:flex; align-items:center; gap:10px; }
-  .nav-brand-tree { width:32px; height:32px; color:#fff; flex-shrink:0; }
-  .nav-brand-text { display:flex; flex-direction:column; line-height:1; }
-  .nav-brand-grupo { font-size:17px; font-weight:800; color:#fff; letter-spacing:.05em; }
-  .nav-brand-varoch { font-size:11px; font-weight:600; color:#9FC5E8; letter-spacing:.20em; margin-top:1px; }
+  /* Navbar blanco institucional estándar (UDN, Valores y usuario los inyectan gv-navbar-*.js) */
+  .navbar-main { background:#FFFFFF !important; width:100%; position:relative; z-index:50; border-bottom:1px solid rgba(0,51,96,.18); box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .navbar-top { height:60px; display:flex; align-items:center; padding:0 22px; gap:14px; position:relative; }
+  .nav-logo { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:.02em; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.35); }
+  .nav-brand-text { display:flex; flex-direction:column; line-height:1.1; }
+  .nav-brand-grupo { font-size:16px; font-weight:800; color:#111827; letter-spacing:.01em; }
+  .nav-brand-varoch { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:.22em; margin-top:2px; }
   .nav-spacer { flex:1; }
-  .nav-erp { display:flex; align-items:center; gap:6px; padding:8px 14px; border-left:1px solid rgba(255,255,255,.20); color:#fff; font-size:13px; font-weight:700; }
-  .nav-erp i { width:16px; height:16px; }
-  .nav-erp-version { background:rgba(255,255,255,.12); padding:2px 7px; border-radius:5px; font-size:11px; font-weight:600; margin-left:2px; }
-  .nav-notif-btn { position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center; color:#fff; border:none; background:transparent; cursor:pointer; border-radius:8px; transition:.15s; }
-  .nav-notif-btn:hover { background:rgba(255,255,255,.10); }
-  .nav-notif-btn i { width:18px; height:18px; }
-  .nav-notif-badge { position:absolute; top:2px; right:2px; min-width:16px; height:16px; border-radius:9999px; background:#9E1B32; color:#fff; font-size:9px; font-weight:800; display:none; align-items:center; justify-content:center; padding:0 4px; border:2px solid #003360; }
+  .nav-icon-btn { position:relative; width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; border-radius:10px; transition:.15s; }
+  .nav-icon-btn:hover { background:#F1F5F9; color:#003360; }
+  .nav-icon-btn i { width:18px; height:18px; }
+  .nav-notif-badge { position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; border-radius:9999px; background:#E0304F; color:#fff; font-size:9px; font-weight:800; display:none; align-items:center; justify-content:center; padding:0 4px; border:2px solid #FFFFFF; }
   .nav-notif-badge.show { display:flex; animation:notif-pulse 2s ease-in-out infinite; }
-  @keyframes notif-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-  
-  .nav-user { display:flex; align-items:center; gap:10px; padding:5px 8px 5px 14px; cursor:pointer; border-radius:9999px; transition:.15s; }
-  .nav-user:hover { background:rgba(255,255,255,.08); }
-  .nav-user-info { display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; }
-  .nav-user-name { font-size:12.5px; font-weight:700; color:#fff; }
-  .nav-user-rol { font-size:10.5px; color:#9FC5E8; font-weight:500; }
-  .nav-user-avatar { width:34px; height:34px; border-radius:9999px; background:#fff; color:#003360; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; border:2px solid rgba(255,255,255,.4); flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,.18); }
-  .nav-user-avatar i { width:18px; height:18px; }
-  .nav-breadcrumb-bar { background:#FFFFFF; border-bottom:1px solid #E2E8F0; padding:14px 24px; display:flex; align-items:center; gap:8px; font-size:13.5px; }
-  .nav-breadcrumb-section { color:#64748B; font-weight:600; text-transform:uppercase; letter-spacing:.06em; font-size:12px; }
+  @keyframes notif-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  .nav-divider { width:1px; height:26px; background:#E2E8F0; margin:0 4px; }
+  .nav-user { display:flex; align-items:center; gap:11px; padding:5px 10px 5px 8px; cursor:pointer; border-radius:12px; transition:.15s; }
+  .nav-user:hover { background:#F1F5F9; }
+  .nav-user-info { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+  .nav-user-name { font-size:13px; font-weight:700; color:#111827; }
+  .nav-user-rol { font-size:10.5px; color:#64748B; font-weight:500; }
+  .nav-user-avatar { width:36px; height:36px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+  .nav-chev { color:#94A3B8; flex-shrink:0; transition:transform .2s ease; }
+  .nav-launcher-wrap { position:relative; }
+  .launcher-panel { position:absolute; top:calc(100% + 12px); right:0; width:308px; background:#fff; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 20px 46px rgba(2,10,24,.24); padding:14px; z-index:80; opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top right; pointer-events:none; transition:.16s ease; }
+  .launcher-panel.open { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .launcher-head { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#94A3B8; padding:2px 4px 10px; }
+  .launcher-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .launcher-tile { display:flex; flex-direction:column; align-items:center; gap:9px; padding:15px 10px; border-radius:12px; border:1px solid #EEF2F7; background:#FAFBFD; text-decoration:none; transition:.15s; }
+  .launcher-tile:hover { border-color:#2563EB; background:#F0F5FF; transform:translateY(-2px); box-shadow:0 8px 20px rgba(37,99,235,.12); }
+  .launcher-tile-ico { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+  .launcher-tile-ico i { width:20px; height:20px; }
+  .launcher-tile-label { font-size:12px; font-weight:700; color:#0F172A; text-align:center; line-height:1.15; }
+  .nav-breadcrumb-bar { background:#FFFFFF; border-bottom:1px solid #E2E8F0; padding:12px 24px; display:flex; align-items:center; gap:8px; font-size:13px; }
+  .nav-breadcrumb-section { color:#64748B; font-weight:600; text-transform:uppercase; letter-spacing:.06em; font-size:11.5px; }
   .nav-breadcrumb-sep { color:#CBD5E1; font-weight:400; }
   .nav-breadcrumb-current { color:#0F172A; font-weight:700; }
 
@@ -58,24 +62,24 @@
   .pag-btn:hover { border-color:#CBD5E1; color:#334155; background:#F8FAFC; }
   .pag-btn.active { background:#334155; color:#fff; border-color:#334155; }
 
-  .cv-table { width:100%; border-collapse:separate; border-spacing:0; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; font-size:14px; color:#374151; font-variant-numeric:tabular-nums; }
-  .cv-table thead th { position:sticky; top:0; background:#F9FAFB; color:#6B7280; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; text-align:center; padding:11px 12px; white-space:nowrap; border-bottom:1px solid #E5E7EB; z-index:2; }
+  .cv-table { width:100%; border-collapse:separate; border-spacing:0; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; font-size:13px; color:#374151; font-variant-numeric:tabular-nums; }
+  .cv-table thead th { position:sticky; top:0; background:#F9FAFB; color:#6B7280; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; text-align:center; padding:6px 10px; white-space:nowrap; border-bottom:1px solid #E5E7EB; z-index:2; }
   .th-in { display:inline-flex; align-items:center; justify-content:center; gap:5px; }
   .th-sort { color:#D1D5DB; flex-shrink:0; }
   .cv-table thead th.tr .th-in { justify-content:flex-end; }
-  .cv-table tbody td { font-size:14px; color:#374151; padding:11px 12px; border-bottom:1px solid #F1F5F9; text-align:center; vertical-align:middle; white-space:nowrap; background:#FFFFFF; transition:.12s; }
+  .cv-table tbody td { font-size:13px; color:#374151; padding:5px 10px; border-bottom:1px solid #F1F5F9; text-align:center; vertical-align:middle; white-space:nowrap; background:#FFFFFF; transition:.12s; }
   .cv-table tbody td.tl { text-align:left; }
   .cv-table tbody td.tr { text-align:right; }
   .cv-table tbody tr.data-row:hover td { background:#F8FAFC; }
   .cv-table tbody tr.row-active > td { outline:2px solid #2563EB; outline-offset:-2px; }
   .cv-money { font-variant-numeric:tabular-nums; font-weight:600; color:#0F172A; }
-  .grp-row td { background:linear-gradient(180deg,#E2E8F0,#D8E0EA) !important; color:#1E293B; font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; padding:9px 14px !important; text-align:left; }
-  .grp-row .grp-ico { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px; background:rgba(0,51,96,.15); color:#003360; margin-right:8px; vertical-align:middle; }
+  .grp-row td { background:linear-gradient(180deg,#E2E8F0,#D8E0EA) !important; color:#1E293B; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; padding:5px 14px !important; text-align:left; }
+  .grp-row .grp-ico { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; background:rgba(0,51,96,.15); color:#003360; margin-right:8px; vertical-align:middle; }
   .grp-row .grp-meta { font-size:10.5px; font-weight:600; color:#64748B; text-transform:none; letter-spacing:0; margin-left:10px; }
-  .sub-row td { background:#F1F5F9 !important; color:#475569; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:7px 14px 7px 36px !important; text-align:left; }
+  .sub-row td { background:#F1F5F9 !important; color:#475569; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:4px 14px 4px 30px !important; text-align:left; }
   .sub-row .sub-meta { font-size:10px; color:#94A3B8; text-transform:none; letter-spacing:0; margin-left:8px; font-weight:500; }
 
-  .prop-input { width:96px; background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:8px; padding:6px 10px; font-size:13px; font-weight:700; text-align:right; color:#0F172A; outline:none; font-variant-numeric:tabular-nums; transition:.15s; }
+  .prop-input { width:82px; background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:7px; padding:3px 8px; font-size:12.5px; font-weight:700; text-align:right; color:#0F172A; outline:none; font-variant-numeric:tabular-nums; transition:.15s; }
   .prop-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); background:#fff; }
   .prop-input::placeholder { color:#CBD5E1; font-weight:500; }
 
@@ -116,7 +120,7 @@
   tr.data-row.is-dirty td[data-cell="desp"] .desp-input { border-color:#D97706; background:#FFFBEB; }
   tr.data-row.is-dirty td[data-cell="desp"]::after { content:'Modificado'; position:absolute; top:-9px; right:8px; background:#D97706; color:#fff; font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:9999px; letter-spacing:.04em; pointer-events:none; white-space:nowrap; z-index:3; box-shadow:0 2px 6px rgba(217,119,6,.35); }
 
-  .badge { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:9999px; font-size:12px; font-weight:700; line-height:1; white-space:nowrap; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:9999px; font-size:11px; font-weight:700; line-height:1; white-space:nowrap; }
   .badge .dot { width:6px; height:6px; border-radius:9999px; flex-shrink:0; }
   .badge i { width:12px; height:12px; flex-shrink:0; }
   .bd-green { background:rgba(122,171,32,.14); color:#3F5C0F; }
@@ -126,12 +130,12 @@
   .bd-red   { background:rgba(158,27,50,.14); color:#8B1A1A; }
   .bd-red   .dot { background:#9E1B32; }
 
-  .prod-cell { display:flex; align-items:center; gap:10px; }
-  .prod-avatar { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); color:#1D4ED8; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .prod-name { font-weight:600; color:#0F172A; font-size:13.5px; line-height:1.2; }
-  .prod-sub { font-size:10.5px; color:#94A3B8; font-weight:500; margin-top:1px; }
+  .prod-cell { display:flex; align-items:center; gap:8px; }
+  .prod-avatar { width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); color:#1D4ED8; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .prod-name { font-weight:600; color:#0F172A; font-size:13px; line-height:1.15; }
+  .prod-sub { font-size:10px; color:#94A3B8; font-weight:500; margin-top:0; }
 
-  .table-toolbar { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid #F1F5F9; background:#FAFBFC; flex-wrap:wrap; }
+  .table-toolbar { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid #F1F5F9; background:#FAFBFC; flex-wrap:wrap; }
   .search-box { display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px; min-width:220px; transition:.15s; }
   .search-box:focus-within { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
   .search-box input { border:none; outline:none; background:transparent; font-size:13px; color:#0F172A; flex:1; }
@@ -200,33 +204,48 @@
 
 <nav class="navbar-main">
   <div class="navbar-top">
-    <button class="nav-burger" title="Menú"><i data-lucide="menu" class="w-5 h-5"></i></button>
-    <div class="nav-brand">
-      <svg class="nav-brand-tree" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M32 8 C30 14 26 18 22 18 C26 18 28 16 30 12 C30 16 28 20 24 22 C20 24 16 24 14 22 C18 24 22 26 24 30 C22 30 20 32 18 32 C22 32 24 34 26 38 C26 42 28 46 32 50 C36 46 38 42 38 38 C40 34 42 32 46 32 C44 32 42 30 40 30 C42 26 46 24 50 22 C48 24 44 24 40 22 C36 20 34 16 34 12 C36 16 38 18 42 18 C38 18 34 14 32 8 Z" fill="currentColor"/>
-        <rect x="30" y="46" width="4" height="12" fill="currentColor"/>
-      </svg>
-      <div class="nav-brand-text">
-        <span class="nav-brand-grupo">GRUPO</span>
-        <span class="nav-brand-varoch">VAROCH</span>
-      </div>
+    <div class="nav-logo">GV</div>
+    <div class="nav-brand-text">
+      <span class="nav-brand-grupo">Grupo Varoch</span>
+      <span class="nav-brand-varoch">CORPORATIVO VAROCH</span>
     </div>
     <div class="nav-spacer"></div>
-    <div class="nav-erp">
-      <i data-lucide="log-in"></i>
-      <span>ERP</span>
-      <span class="nav-erp-version">v.1</span>
-    </div>
-    <button class="nav-notif-btn" id="navNotifBtn" title="Notificaciones del ERP">
+    <button class="nav-icon-btn" id="navNotifBtn" title="Notificaciones del ERP">
       <i data-lucide="bell"></i>
       <span class="nav-notif-badge" id="navNotifBadge">0</span>
     </button>
-    <div class="nav-user" title="Mi cuenta">
-      <div class="nav-user-info">
-        <span class="nav-user-name">Rosy A.</span>
-        <span class="nav-user-rol">Administradora</span>
+    <div class="nav-launcher-wrap">
+      <button class="nav-icon-btn" id="navLauncherBtn" title="Módulos"><i data-lucide="layout-grid"></i></button>
+      <div class="launcher-panel" id="launcherPanel">
+        <div class="launcher-head">Módulos principales</div>
+        <div class="launcher-grid">
+          <a href="../costsys/costsys-admin.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(0,51,96,.10);color:#003360;"><i data-lucide="sliders-horizontal"></i></span>
+            <span class="launcher-tile-label">Administrador</span>
+          </a>
+          <a href="recetas/recetas-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(122,171,32,.15);color:#5d8418;"><i data-lucide="book-open"></i></span>
+            <span class="launcher-tile-label">Catálogo</span>
+          </a>
+          <a href="costsys-proyeccion.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="calendar-clock"></i></span>
+            <span class="launcher-tile-label">Proyección</span>
+          </a>
+          <a href="costsys-coffee.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(217,119,6,.13);color:#D97706;"><i data-lucide="table-2"></i></span>
+            <span class="launcher-tile-label">Costo potencial</span>
+          </a>
+        </div>
       </div>
-      <div class="nav-user-avatar"><i data-lucide="user-round"></i></div>
+    </div>
+    <span class="nav-divider"></span>
+    <div class="nav-user" title="Mi cuenta">
+      <div class="nav-user-avatar">RA</div>
+      <div class="nav-user-info">
+        <span class="nav-user-name">Rosa A.</span>
+        <span class="nav-user-rol">Desarrolladora Fullstack</span>
+      </div>
+      <i data-lucide="chevron-down" class="nav-chev w-4 h-4"></i>
     </div>
   </div>
   <div class="nav-breadcrumb-bar">
@@ -242,22 +261,12 @@
   <div class="notif-confirm-text">Notificación enviada a <span>3 destinatarios</span> del ERP</div>
 </div>
 
-<main class="flex-1 p-6 overflow-y-auto" style="min-width:0;">
-  <div class="flex items-center justify-between mb-4">
-    <div class="flex items-center gap-2 text-[12px] text-slate-500">
-      <span class="inline-flex items-center gap-1">
-        <i data-lucide="snowflake" class="w-4 h-4" style="color:#2563EB;"></i>
-        Snapshot Jul-2026 · <b>congelado</b>
-      </span>
-    </div>
-    <div class="flex items-center gap-2">
-      <button class="btn-primary" id="btnProg">
-        <i data-lucide="calendar-check-2" class="w-4 h-4"></i> Programación
-      </button>
-      <button class="btn-action" id="btnExport">
-        <i data-lucide="download" class="w-4 h-4"></i> Exportar
-      </button>
-    </div>
+<main class="flex-1 min-h-0 p-6 overflow-hidden flex flex-col" style="min-width:0;">
+  <div class="flex items-center gap-2 text-[12px] text-slate-500 mb-4">
+    <span class="inline-flex items-center gap-1">
+      <i data-lucide="snowflake" class="w-4 h-4" style="color:#2563EB;"></i>
+      Snapshot Jul-2026 · <b>congelado</b>
+    </span>
   </div>
 
   <div class="cv-card p-4 mb-5 flex flex-wrap items-end gap-4">
@@ -302,7 +311,7 @@
     </div>
   </div>
 
-  <div class="cv-card overflow-hidden">
+  <div class="cv-card overflow-hidden flex flex-col flex-1 min-h-0">
     <div class="table-toolbar">
       <div class="search-box">
         <i data-lucide="search"></i>
@@ -320,7 +329,7 @@
       </div>
     </div>
 
-    <div class="max-h-[58vh] overflow-auto">
+    <div class="flex-1 min-h-0 overflow-auto">
       <table class="cv-table">
         <thead>
           <tr>
@@ -342,14 +351,14 @@
       </table>
     </div>
 
-    <div class="flex items-center justify-between p-4 border-t border-slate-100">
+    <div class="flex items-center justify-between px-4 py-2 border-t border-slate-100">
       <span class="text-[12px] text-slate-500">10 productos cargados de la base <code style="background:#F1F5F9;padding:1px 5px;border-radius:4px;font-size:11px;">recetas</code> filtrados por UDN Sonoras Meat</span>
       <div class="flex items-center gap-3 text-[12px]">
         <span class="text-slate-500" id="visibleCount">10 visibles</span>
       </div>
     </div>
 
-    <div class="flex items-center justify-between p-4 border-t border-slate-100">
+    <div class="flex items-center justify-between px-4 py-2 border-t border-slate-100">
       <span class="text-[12px] text-slate-500">Mostrando <b>1–10</b> de <b id="totalRows">10</b> recetas</span>
       <div class="flex items-center gap-1.5">
         <button class="pag-btn" id="prevBtn"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
@@ -365,25 +374,30 @@
   const IVA = 16, IEPS = 0;
   const DESP_PROM = { 'Cortes': 90, 'Guarniciones': 130, 'Postres': 70 };
   const RANGO_COSTO = { 'Cortes':{max:38, target:32}, 'Guarniciones':{max:35, target:28}, 'Postres':{max:30, target:24} };
-  const PROD_ICON = { 'Rib Eye 400g':'beef','Arrachera para dos':'beef','Tomahawk 900g':'drumstick','Costillar BBQ':'drumstick','Papas rústicas al romero':'wheat','Papa asada gratinada':'wheat','Flan de cajeta Sonora':'ice-cream-cone' };
+  const PROD_ICON = { 'Rib Eye 400g':'beef','Arrachera para dos':'beef','New York Steak 350g':'beef','Tomahawk 900g':'drumstick','Costillar BBQ':'drumstick','T-Bone 500g':'drumstick','Papas rústicas al romero':'wheat','Papa asada gratinada':'wheat','Elote asado con Cotija':'salad','Flan de cajeta Sonora':'ice-cream-cone' };
   const GRP_ICON = { 'Cortes':'beef','Guarniciones':'utensils','Postres':'cake' };
-  const SUB_ICON = { 'Cortes finos':'beef','Cortes con hueso':'drumstick','Papas':'wheat','Fríos':'snowflake' };
+  const SUB_ICON = { 'Cortes finos':'beef','Cortes con hueso':'drumstick','Papas':'wheat','Verduras':'salad','Fríos':'snowflake' };
 
   const DATOS = [
     { grupo:'Cortes', subs:[
       { sub:'Cortes finos', rows:[
         { prod:'Rib Eye 400g',            precio:589.00, costo:198.40, desp:112 },
         { prod:'Arrachera para dos',      precio:640.00, costo:246.80, desp: 88 },
+        { prod:'New York Steak 350g',     precio:465.00, costo:172.00, desp: 96 },
       ]},
       { sub:'Cortes con hueso', rows:[
         { prod:'Tomahawk 900g',           precio:1290.00,costo:512.00, desp: 41 },
         { prod:'Costillar BBQ',           precio:520.00, costo:340.00, desp: 33 },
+        { prod:'T-Bone 500g',             precio:680.00, costo:288.00, desp: 54 },
       ]},
     ]},
     { grupo:'Guarniciones', subs:[
       { sub:'Papas', rows:[
         { prod:'Papas rústicas al romero',precio:120.00, costo: 38.20, desp:156 },
         { prod:'Papa asada gratinada',    precio:135.00, costo: 52.00, desp: 98 },
+      ]},
+      { sub:'Verduras', rows:[
+        { prod:'Elote asado con Cotija',  precio: 90.00, costo: 26.50, desp:118 },
       ]},
     ]},
     { grupo:'Postres', subs:[
@@ -470,81 +484,54 @@
           </td>
         </tr>`);
 
-      g.subs.forEach(s => {
-        if (currentFilter !== 'all' || currentSearch) {
-          const hasInSub = s.rows.some(r => {
-            const v = ventaSinIva(r.precio);
-            const pct = r.costo/v*100;
-            const max = (RANGO_COSTO[g.grupo]||{max:40}).max;
-            const st = statusOf(pct, max);
-            if (currentFilter !== 'all' && st !== currentFilter) return false;
-            if (currentSearch && !r.prod.toLowerCase().includes(currentSearch)) return false;
-            return true;
-          });
-          if (!hasInSub) return;
-        }
-        const subVentas = s.rows.reduce((acc,r)=>acc+ventaSinIva(r.precio)*r.desp,0);
-        const subCosto = s.rows.reduce((acc,r)=>acc+r.costo*r.desp,0);
-        const subMC = subVentas - subCosto;
+      groupRows.forEach(r => {
+        const vSinIva = ventaSinIva(r.precio);
+        const pctCosto = r.costo / vSinIva * 100;
+        const maxCosto = (RANGO_COSTO[g.grupo]||{max:40}).max;
+        const st = statusOf(pctCosto, maxCosto);
+        if (currentFilter !== 'all' && st !== currentFilter) return;
+        if (currentSearch && !r.prod.toLowerCase().includes(currentSearch)) return;
+
+        const id = 'row'+(rid++);
+        const mc = vSinIva - r.costo;
+        const pctMargen = vSinIva ? (mc/vSinIva*100) : 0;
+        const ventasEst = vSinIva * r.desp;
+        const costoEst = r.costo * r.desp;
+        const mcEst = mc * r.desp;
+        const despProm = DESP_PROM[g.grupo] || 100;
+
+        const bPct = badgePctCosto(pctCosto, maxCosto);
+        const bMC  = badgeMC(mc, vSinIva);
+        const bDesp= badgeDesp(r.desp, despProm);
+
+        const ico = PROD_ICON[r.prod] || 'utensils';
+        allRowData.push({ id, r, g, st, originalPrice: r.precio, originalDesp: r.desp });
+
         body.insertAdjacentHTML('beforeend', `
-          <tr class="sub-row">
-            <td colspan="12" style="padding-left:36px;">
-              <i data-lucide="${SUB_ICON[s.sub]||'tag'}" class="w-[12px] h-[12px]" style="display:inline-block; vertical-align:middle; margin-right:6px;"></i>
-              ${s.sub}
-              <span class="sub-meta">${s.rows.length} ítems · MC ${mx0(subMC)}</span>
-            </td>
-          </tr>`);
-
-        s.rows.forEach(r => {
-          const vSinIva = ventaSinIva(r.precio);
-          const pctCosto = r.costo / vSinIva * 100;
-          const maxCosto = (RANGO_COSTO[g.grupo]||{max:40}).max;
-          const st = statusOf(pctCosto, maxCosto);
-          if (currentFilter !== 'all' && st !== currentFilter) return;
-          if (currentSearch && !r.prod.toLowerCase().includes(currentSearch)) return;
-
-          const id = 'row'+(rid++);
-          const mc = vSinIva - r.costo;
-          const pctMargen = vSinIva ? (mc/vSinIva*100) : 0;
-          const ventasEst = vSinIva * r.desp;
-          const costoEst = r.costo * r.desp;
-          const mcEst = mc * r.desp;
-          const despProm = DESP_PROM[g.grupo] || 100;
-
-          const bPct = badgePctCosto(pctCosto, maxCosto);
-          const bMC  = badgeMC(mc, vSinIva);
-          const bDesp= badgeDesp(r.desp, despProm);
-
-          const ico = PROD_ICON[r.prod] || 'utensils';
-          allRowData.push({ id, r, g, st, originalPrice: r.precio, originalDesp: r.desp });
-
-          body.insertAdjacentHTML('beforeend', `
-            <tr id="${id}" class="data-row" data-grupo="${g.grupo}" data-costo="${r.costo}" data-max="${maxCosto}" data-status="${st}">
-              <td class="tl" style="padding-left:18px;">
-                <div class="prod-cell">
-                  <div class="prod-avatar"><i data-lucide="${ico}" class="w-[16px] h-[16px]"></i></div>
-                  <div>
-                    <div class="prod-name">${r.prod}</div>
-                    <div class="prod-sub">${g.grupo} · ${s.sub}</div>
-                  </div>
+          <tr id="${id}" class="data-row" data-grupo="${g.grupo}" data-costo="${r.costo}" data-max="${maxCosto}" data-status="${st}">
+            <td class="tl" style="padding-left:18px;">
+              <div class="prod-cell">
+                <div class="prod-avatar"><i data-lucide="${ico}" class="w-[16px] h-[16px]"></i></div>
+                <div>
+                  <div class="prod-name">${r.prod}</div>
                 </div>
-              </td>
-              <td><span class="text-xs text-slate-400 font-semibold">${String(rid).padStart(2,'0')}</span></td>
-              <td class="tr" data-cell="prop"><input class="prop-input" type="number" step="0.01" value="${r.precio.toFixed(2)}"></td>
-              <td class="tr" data-cell="vsiva">${mx(vSinIva)}</td>
-              <td class="tr" data-cell="costo">${mx(r.costo)}</td>
-              <td data-cell="pct"><span class="badge ${bPct.cls}"><i data-lucide="${bPct.icon}"></i>${bPct.text}</span></td>
-              <td class="tr" data-cell="mc"><span class="badge ${bMC.cls}"><i data-lucide="${bMC.icon}"></i>${bMC.text}</span></td>
-              <td data-cell="pctMargen">${pctMargen.toFixed(1)}%</td>
-              <td data-cell="desp">
-                <span class="badge ${bDesp.cls} desp-badge" data-cell="desp-badge" title="Click para editar"><i data-lucide="${bDesp.icon}"></i>${bDesp.text}</span>
-                <input class="desp-input" type="number" step="1" min="0" value="${r.desp}" title="Desplazamiento estimado">
-              </td>
-              <td class="tr" data-cell="ventasEst">${mx0(ventasEst)}</td>
-              <td class="tr" data-cell="costoEst">${mx0(costoEst)}</td>
-              <td class="tr" data-cell="mcEst">${mx0(mcEst)}</td>
-            </tr>`);
-        });
+              </div>
+            </td>
+            <td><span class="text-xs text-slate-400 font-semibold">${String(rid).padStart(2,'0')}</span></td>
+            <td class="tr" data-cell="prop"><input class="prop-input" type="number" step="0.01" value="${r.precio.toFixed(2)}"></td>
+            <td class="tr" data-cell="vsiva">${mx(vSinIva)}</td>
+            <td class="tr" data-cell="costo">${mx(r.costo)}</td>
+            <td data-cell="pct"><span class="badge ${bPct.cls}"><i data-lucide="${bPct.icon}"></i>${bPct.text}</span></td>
+            <td class="tr" data-cell="mc"><span class="badge ${bMC.cls}"><i data-lucide="${bMC.icon}"></i>${bMC.text}</span></td>
+            <td data-cell="pctMargen">${pctMargen.toFixed(1)}%</td>
+            <td data-cell="desp">
+              <span class="badge ${bDesp.cls} desp-badge" data-cell="desp-badge" title="Click para editar"><i data-lucide="${bDesp.icon}"></i>${bDesp.text}</span>
+              <input class="desp-input" type="number" step="1" min="0" value="${r.desp}" title="Desplazamiento estimado">
+            </td>
+            <td class="tr" data-cell="ventasEst">${mx0(ventasEst)}</td>
+            <td class="tr" data-cell="costoEst">${mx0(costoEst)}</td>
+            <td class="tr" data-cell="mcEst">${mx0(mcEst)}</td>
+          </tr>`);
       });
     });
 
@@ -854,19 +841,16 @@
     render();
   });
 
-  // MODIFICACIÓN: El botón Programación ahora lanza la notificación flotante
-  document.getElementById('btnProg').addEventListener('click', () => {
-    const dirtyRows = document.querySelectorAll('tr.data-row.is-dirty');
-    if (dirtyRows.length > 0) {
-      if (toastVisible) hideToast();
-      showToast(dirtyRows);
-    } else {
-      alert('No hay cambios para programar.');
-    }
+  const launcherBtn = document.getElementById('navLauncherBtn');
+  const launcherPanel = document.getElementById('launcherPanel');
+  launcherBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    launcherPanel.classList.toggle('open');
   });
-
-  document.getElementById('btnExport').addEventListener('click', () => {
-    alert('Exportando snapshot Jul-2026...');
+  document.addEventListener('click', (e) => {
+    if (launcherPanel && !launcherPanel.contains(e.target) && !launcherBtn.contains(e.target)) {
+      launcherPanel.classList.remove('open');
+    }
   });
 
   document.getElementById('navNotifBtn')?.addEventListener('click', () => {
@@ -883,4 +867,8 @@
   render();
   lucide.createIcons();
 })();
-</script></div><script>if(window.lucide)lucide.createIcons();</script></body></html>
+</script></div><script>if(window.lucide)lucide.createIcons();</script>
+    <script src="../gv-navbar-costsys.js"></script>
+    <script src="../gv-navbar-branch.js"></script>
+    <script src="../gv-navbar-user.js"></script>
+</body></html>

@@ -98,90 +98,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <!-- Pill de sucursal / UDN -->
-            <div class="relative">
-                <button id="btnBranch" class="branch-pill flex items-center gap-2.5" aria-expanded="false">
-                    <span class="branch-pill-icon"><i data-lucide="building-2" class="w-[18px] h-[18px]"></i></span>
-                    <div class="flex flex-col items-start leading-tight">
-                        <span class="branch-pill-label">Unidad de negocio</span>
-                        <span id="btnBranchName" class="branch-pill-name">Sonoras Meat</span>
-                    </div>
-                    <i data-lucide="chevron-down" class="branch-pill-chev w-4 h-4"></i>
-                </button>
-                <div id="branchDropdown" class="branch-dd" style="display:none;">
-                    <div class="branch-dd-head">
-                        <div>
-                            <p class="branch-dd-label">Cambiar unidad de negocio</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Grupo Varoch</p>
-                        </div>
-                        <button class="branch-dd-close" onclick="document.getElementById('branchDropdown').style.display='none'">
-                            <i data-lucide="x" class="w-3.5 h-3.5"></i> Cerrar
-                        </button>
-                    </div>
-                    <div class="p-2 space-y-1.5 max-h-[320px] overflow-y-auto">
-                        <div class="branch-card branch-card-sel">
-                            <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#003360,#2563EB);">SM</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Sonoras Meat</p>
-                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="branch-card">
-                            <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#9E1B32,#F24444);">FG</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Fogaza</p>
-                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="branch-card">
-                            <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#0078D7,#60A5FA);">BA</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Baos</p>
-                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="branch-card">
-                            <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#5d8418,#7AAB20);">PM</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Punto Modelo</p>
-                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="branch-card">
-                            <div class="flex items-center gap-2.5">
-                                <div class="branch-card-avatar" style="background:linear-gradient(135deg,#00264A,#1B5E8C);">QT</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-[13px] font-bold text-slate-800 truncate">Quinta Tabachines</p>
-                                        <div class="branch-radio"><div class="branch-radio-inner"></div></div>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Grupo Varoch</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Selector de sucursal / UDN: lo inyecta gv-navbar-branch.js -->
 
             <div class="nav-score-wrap" id="navScore" title="Calificación de valores corporativos">
                 <div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div>
@@ -210,34 +127,7 @@
         </div>
     </nav>
 
-    <!-- Dropdown de usuario -->
-    <div class="relative z-50">
-        <div id="userMenuDropdown" class="nav-dropdown absolute right-3 mt-2 w-72 opacity-0 scale-95 invisible">
-            <div class="nav-user-head">
-                <div class="nav-head-avatar">
-                    RA
-                    <span class="nav-status-dot"></span>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="nav-head-name">Rosy A.</p>
-                    <p class="nav-head-email">rosy.a@grupovaroch.com</p>
-                    <span class="nav-head-rol"><i data-lucide="shield" class="w-3 h-3"></i> Administradora</span>
-                </div>
-            </div>
-            <div class="nav-divider"></div>
-            <div class="px-3 py-2">
-                <a href="gv-perfil.html" class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-slate-100 transition"><i data-lucide="user" class="w-4 h-4"></i> Mi perfil</a>
-                <a href="gv-permisos.html" class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-700 hover:bg-slate-100 transition"><i data-lucide="key-round" class="w-4 h-4"></i> Perfiles y permisos</a>
-            </div>
-            <div class="nav-divider"></div>
-            <div class="px-3 py-3">
-                <button class="nav-logout-btn">
-                    <i data-lucide="log-out" class="w-4 h-4"></i>
-                    Cerrar sesión
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Dropdown de usuario: lo inyecta gv-navbar-user.js -->
 
     <!-- ══════════ Contexto: rail lateral + area de trabajo ══════════ -->
     <div class="flex" style="height: calc(100vh - 64px);">
@@ -281,34 +171,13 @@
         const navScoreNum = document.getElementById('navScoreNum');
         navScoreNum.textContent = NAV_CALF.toFixed(2);
         navScoreNum.style.color = navColor;
-        const btnUser = document.getElementById('btnUserMenu');
-        const ddUser  = document.getElementById('userMenuDropdown');
-        btnUser.addEventListener('click', (e) => {
-            e.stopPropagation();
-            ddUser.classList.toggle('opacity-0'); ddUser.classList.toggle('scale-95'); ddUser.classList.toggle('invisible');
-            btnUser.classList.toggle('open');
-        });
-        const btnBranch = document.getElementById('btnBranch');
-        const ddBranch  = document.getElementById('branchDropdown');
-        btnBranch.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const open = btnBranch.getAttribute('aria-expanded') === 'true';
-            btnBranch.setAttribute('aria-expanded', !open);
-            ddBranch.style.display = open ? 'none' : 'block';
-        });
-        document.addEventListener('click', () => {
-            ddUser.classList.add('opacity-0','scale-95','invisible'); btnUser.classList.remove('open');
-            ddBranch.style.display = 'none'; btnBranch.setAttribute('aria-expanded','false');
-        });
-        document.querySelectorAll('.branch-card').forEach(c => c.addEventListener('click', () => {
-            document.querySelectorAll('.branch-card').forEach(x => x.classList.remove('branch-card-sel'));
-            c.classList.add('branch-card-sel');
-            document.getElementById('btnBranchName').textContent = c.querySelector('p.font-bold').textContent;
-        }));
         document.querySelectorAll('.menu-rail-item').forEach(i => i.addEventListener('click', () => {
             document.querySelectorAll('.menu-rail-item').forEach(x => x.classList.remove('is-active'));
             i.classList.add('is-active');
         }));
     </script>
+    <script src="gv-navbar-theme.js"></script>
+    <script src="gv-navbar-branch.js"></script>
+    <script src="gv-navbar-user.js"></script>
 </body>
 </html>

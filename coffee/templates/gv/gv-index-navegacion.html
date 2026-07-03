@@ -19,9 +19,42 @@
         .badge-action { background:rgba(37,99,235,.12); color:#2563EB; border-color:rgba(37,99,235,.35); }
         .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
         .section-h2 { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#64748B; }
+
+        /* ── Navbar institucional (el selector de UDN lo inyecta gv-navbar-branch.js) ── */
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E2E8F0; border-radius:8px; transition:all .15s ease; cursor:pointer; }
+        .nav-user-pill:hover { background:#F1F5F9; border-color:#E2E8F0; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+        .nav-chevron { color:#94A3B8; }
     </style>
 </head>
 <body>
+
+    <!-- ══════════ NAVBAR (el selector de UDN lo inyecta gv-navbar-branch.js) ══════════ -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name">Rosa A.</span>
+                    <span class="nav-user-rol">Administradora</span>
+                </div>
+                <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+            </button>
+        </div>
+    </nav>
 
     <!-- HEADER azul institucional -->
     <header class="hub-header">
@@ -61,6 +94,18 @@
                             <span class="cv-badge badge-success">Listo</span>
                         </div>
                         <p class="text-[12px] text-slate-500 mt-1">Logo, UDN, admin, tema, módulos, usuario + rail lateral. Estilo navbar de inventory.</p>
+                    </div>
+                </div>
+            </a>
+            <a href="gv-modulos.html" class="cv-hub-card">
+                <div class="flex items-start gap-3">
+                    <div class="hub-icon" style="background:rgba(122,171,32,.15);color:#5d8418;"><i data-lucide="layout-grid" class="w-5 h-5"></i></div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-[15px]" style="color:#003360;">Módulos</h3>
+                            <span class="cv-badge badge-success">Listo</span>
+                        </div>
+                        <p class="text-[12px] text-slate-500 mt-1">Navegador de tarjetas: clic en un módulo abre sus submódulos (2 niveles + buscar). Réplica del dashboard de módulos de inventory.</p>
                     </div>
                 </div>
             </a>
@@ -126,5 +171,9 @@
     </main>
 
     <script>lucide.createIcons();</script>
+    <script src="gv-navbar-theme.js"></script>
+    <script src="gv-navbar-branch.js"></script>
+    <script src="gv-navbar-score.js"></script>
+    <script src="gv-navbar-user.js"></script>
 </body>
 </html>

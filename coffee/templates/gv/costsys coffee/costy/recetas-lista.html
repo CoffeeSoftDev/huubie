@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista de Recetas · CoffeeSoft</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; background: #111928; color: #fff; }
+  [data-theme="light"] body { background: #f3f4f6; color: #111928; }
+  [data-theme="light"] .bg-card { background: #fff !important; }
+  [data-theme="light"] .bg-sidebar { background: #f9fafb !important; border-color: #e5e7eb !important; }
+  [data-theme="light"] .bg-header { background: #fff !important; border-color: #e5e7eb !important; }
+  [data-theme="light"] .bg-input { background: #f9fafb !important; border-color: #e5e7eb !important; color: #111928 !important; }
+  [data-theme="light"] .border-gray-700 { border-color: #e5e7eb !important; }
+  [data-theme="light"] .border-gray-800 { border-color: #e5e7eb !important; }
+  [data-theme="light"] .text-gray-400 { color: #6b7280 !important; }
+  [data-theme="light"] .text-gray-500 { color: #6b7280 !important; }
+  [data-theme="light"] .hover-row:hover { background: #f9fafb !important; }
+  [data-theme="light"] .sticky-thead { background: #f9fafb !important; }
+  .input-modal { background:#1a2332; border:1px solid #374151; border-radius:8px; padding:8px 12px; font-size:12px; color:#d1d5db; width:100%; }
+  .input-modal:focus { outline:none; border-color:#7c3aed; }
+  [data-theme="light"] .input-modal { background:#fff; border-color:#e5e7eb; color:#111928; }
+  .badge-base { font-size:11px; padding:2px 10px; border-radius:9999px; font-weight:500; }
+  .hover-row:hover { background: rgba(26,35,50,.4); }
+  .sticky-thead { background: #141d2b; }
+  [data-theme="light"] .sticky-thead { background: #f3f4f6; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-56 bg-sidebar border-r border-gray-800 flex flex-col fixed h-screen" style="background:#0f172a;">
+    <div class="p-4 border-b border-gray-800">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center">
+          <span class="text-white font-bold text-sm">C</span>
+        </div>
+        <div>
+          <p class="text-sm font-bold">CoffeeSoft</p>
+          <p class="text-[10px] text-gray-500">Recetas</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-3 space-y-1">
+      <a href="recetas-index-navegacion.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Inicio
+      </a>
+      <a href="recetas-lista.html" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] bg-purple-600/15 text-purple-400 font-medium">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        Recetas
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Subrecetas
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m4 4v10M4 7v10l8 4"/></svg>
+        Ingredientes
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Reportes
+      </a>
+    </nav>
+    <div class="p-3 border-t border-gray-800 space-y-1">
+      <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Configuración
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] text-gray-400 hover:bg-gray-800 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Cerrar Sesión
+      </a>
+      <div class="flex items-center gap-2 px-3 py-2">
+        <div class="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-[11px] font-bold">RG</div>
+        <div>
+          <p class="text-[11px] font-medium">Rosy García</p>
+          <p class="text-[10px] text-gray-500">Admin</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 ml-56">
+    <!-- Header -->
+    <header class="bg-header border-b border-gray-800 px-6 py-3 flex items-center justify-between sticky top-0 z-30" style="background:#141d2b;">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-800 transition">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+        <div class="relative">
+          <svg class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" placeholder="Buscar..." class="input-modal pl-9 w-64">
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="relative p-2 rounded-lg hover:bg-gray-800 transition">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Subheader -->
+    <div class="px-6 py-4 border-b border-gray-800">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h1 class="text-lg font-bold">Lista de Recetas / Restaurante Centro</h1>
+          <p class="text-[12px] text-gray-500">Gestiona recetas finales con costeo completo e integración Softrestaurant</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-2 rounded-lg border border-gray-700 hover:border-gray-600 text-[12px] text-gray-400 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Exportar Excel
+          </button>
+          <a href="recetas-nueva-paso1.html" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-[12px] font-medium text-white transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nueva Receta
+          </a>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div>
+          <label class="text-[11px] text-gray-500 block mb-1">Unidad de Negocio</label>
+          <select class="input-modal w-44">
+            <option>Todas</option>
+            <option selected>Restaurante Centro</option>
+            <option>Cafetería Norte</option>
+            <option>Bar Lounge</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] text-gray-500 block mb-1">Clasificación</label>
+          <select class="input-modal w-40">
+            <option>Todas</option>
+            <option>Platos Fuertes</option>
+            <option>Entradas</option>
+            <option>Bebidas</option>
+            <option>Postres</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] text-gray-500 block mb-1">Subclasificación</label>
+          <select class="input-modal w-40">
+            <option>Todas</option>
+            <option>Pastas</option>
+            <option>Carnes</option>
+            <option>Ensaladas</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] text-gray-500 block mb-1">Estado</label>
+          <select class="input-modal w-36">
+            <option>Todos</option>
+            <option>Borrador</option>
+            <option>Activa</option>
+            <option>Inactiva</option>
+          </select>
+        </div>
+        <div class="flex-1"></div>
+        <div class="flex items-end gap-2">
+          <button class="px-3 py-2 rounded-lg border border-gray-700 hover:border-purple-500 text-[12px] text-gray-400 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+            Filtros
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="px-6 py-4">
+      <div class="bg-card rounded-xl border border-gray-700 overflow-hidden" style="background:#1F2A37;">
+        <div class="overflow-x-auto">
+          <table class="w-full text-[12px]">
+            <thead class="sticky-thead sticky top-0 z-10 border-b border-gray-700">
+              <tr class="text-left text-gray-500">
+                <th class="px-4 py-3 font-medium">Foto</th>
+                <th class="px-4 py-3 font-medium">Nombre Receta</th>
+                <th class="px-4 py-3 font-medium">Clasificación</th>
+                <th class="px-4 py-3 font-medium">Subclasificación</th>
+                <th class="px-4 py-3 font-medium">Temporada</th>
+                <th class="px-4 py-3 font-medium">Estado</th>
+                <th class="px-4 py-3 font-medium text-right">Costo</th>
+                <th class="px-4 py-3 font-medium text-right">Precio Venta</th>
+                <th class="px-4 py-3 font-medium text-right">Margen</th>
+                <th class="px-4 py-3 font-medium text-right">% Costo</th>
+                <th class="px-4 py-3 font-medium">Softrestaurant</th>
+                <th class="px-4 py-3 font-medium text-center">Opciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+              <!-- Row 1 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/7c3aed/fff?text=PB" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Pasta Boloñesa</td>
+                <td class="px-4 py-3"><span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">Platos Fuertes</span></td>
+                <td class="px-4 py-3 text-gray-400">Pastas</td>
+                <td class="px-4 py-3 text-gray-400">Permanente</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activa</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$45.50</td>
+                <td class="px-4 py-3 text-right text-gray-300">$135.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$78.50</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">33.7%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-orange-400">Pasta Bol. SR</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/1c64f2/fff?text=EC" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Ensalada César</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Entradas</span></td>
+                <td class="px-4 py-3 text-gray-400">Ensaladas</td>
+                <td class="px-4 py-3 text-gray-400">Verano</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activa</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$28.00</td>
+                <td class="px-4 py-3 text-right text-gray-300">$95.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$58.20</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">29.5%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-orange-400">Ens. César SR</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/f59e0b/fff?text=TM" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Tiramisú Clásico</td>
+                <td class="px-4 py-3"><span class="badge-base bg-pink-500/15 text-pink-400 border border-pink-500/30">Postres</span></td>
+                <td class="px-4 py-3 text-gray-400">Postres Fríos</td>
+                <td class="px-4 py-3 text-gray-400">Navidad</td>
+                <td class="px-4 py-3"><span class="badge-base bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">Borrador</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$22.00</td>
+                <td class="px-4 py-3 text-right text-gray-300">$85.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$55.60</td>
+                <td class="px-4 py-3 text-right"><span class="text-red-400 font-medium">38.2%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-gray-500">Sin vínculo</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 4 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/ef4444/fff?text=RC" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Rib Eye con Papas</td>
+                <td class="px-4 py-3"><span class="badge-base bg-blue-500/15 text-blue-400 border border-blue-500/30">Platos Fuertes</span></td>
+                <td class="px-4 py-3 text-gray-400">Carnes</td>
+                <td class="px-4 py-3 text-gray-400">Permanente</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activa</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$120.00</td>
+                <td class="px-4 py-3 text-right text-gray-300">$320.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$164.80</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">37.5%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-orange-400">Rib Eye SR</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 5 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/8b5cf6/fff?text=CD" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Café de Olla</td>
+                <td class="px-4 py-3"><span class="badge-base bg-orange-500/15 text-orange-400 border border-orange-500/30">Bebidas</span></td>
+                <td class="px-4 py-3 text-gray-400">Cafés</td>
+                <td class="px-4 py-3 text-gray-400">Permanente</td>
+                <td class="px-4 py-3"><span class="badge-base bg-gray-500/15 text-gray-400 border border-gray-500/30">Inactiva</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$8.50</td>
+                <td class="px-4 py-3 text-right text-gray-300">$35.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$22.80</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">24.3%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-gray-500">Sin vínculo</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 6 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/06b6d4/fff?text=CC" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Ceviche del Chef</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Entradas</span></td>
+                <td class="px-4 py-3 text-gray-400">Mariscos</td>
+                <td class="px-4 py-3 text-gray-400">Verano</td>
+                <td class="px-4 py-3"><span class="badge-base bg-green-500/15 text-green-400 border border-green-500/30">Activa</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$52.00</td>
+                <td class="px-4 py-3 text-right text-gray-300">$165.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$94.30</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">31.5%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-orange-400">Ceviche SR</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+              <!-- Row 7 -->
+              <tr class="hover-row transition">
+                <td class="px-4 py-3">
+                  <div class="w-10 h-10 rounded-lg bg-gray-700 overflow-hidden">
+                    <img src="https://placehold.co/40x40/ec4899/fff?text=FL" alt="" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">Flan Napolitano</td>
+                <td class="px-4 py-3"><span class="badge-base bg-pink-500/15 text-pink-400 border border-pink-500/30">Postres</span></td>
+                <td class="px-4 py-3 text-gray-400">Postres Fríos</td>
+                <td class="px-4 py-3 text-gray-400">Permanente</td>
+                <td class="px-4 py-3"><span class="badge-base bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">Borrador</span></td>
+                <td class="px-4 py-3 text-right text-gray-300">$15.00</td>
+                <td class="px-4 py-3 text-right text-gray-300">$65.00</td>
+                <td class="px-4 py-3 text-right text-green-400">$42.25</td>
+                <td class="px-4 py-3 text-right"><span class="text-gray-300">23.1%</span></td>
+                <td class="px-4 py-3"><span class="text-[11px] text-gray-500">Sin vínculo</span></td>
+                <td class="px-4 py-3 text-center">
+                  <button class="px-2 py-1 rounded-lg hover:bg-gray-700 text-gray-400 transition text-[11px]">···</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="px-4 py-3 border-t border-gray-800 flex items-center justify-between">
+          <p class="text-[11px] text-gray-500">Mostrando 1-7 de 42 recetas</p>
+          <div class="flex items-center gap-1">
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">Anterior</button>
+            <button class="px-3 py-1 rounded-lg bg-purple-600 text-[11px] text-white font-medium">1</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">2</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">3</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">4</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">5</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">6</button>
+            <button class="px-3 py-1 rounded-lg border border-gray-700 text-[11px] text-gray-400 hover:border-purple-500 transition">Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+(function() {
+  const saved = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

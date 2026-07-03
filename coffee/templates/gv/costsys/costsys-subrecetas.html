@@ -236,5 +236,6 @@
         document.addEventListener('click', ()=>{ ddUser.classList.add('opacity-0','scale-95','invisible'); btnUser.classList.remove('open'); ddBranch.style.display='none'; btnBranch.setAttribute('aria-expanded','false'); closeAllDots(); });
         document.querySelectorAll('.branch-card').forEach(cd => cd.addEventListener('click', ()=>{ document.querySelectorAll('.branch-card').forEach(x=>x.classList.remove('branch-card-sel')); cd.classList.add('branch-card-sel'); document.getElementById('btnBranchName').textContent = cd.querySelector('p.font-bold').textContent; }));
     </script>
+    <script src="../gv-navbar-theme.js"></script>
 </body>
 </html>

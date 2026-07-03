@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costsys · Nueva receta · Paso 1</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { font-family:'Inter',system-ui,sans-serif; background:#F2F5F9; color:#0F172A; margin:0; }
+
+  /* ================== NAVBAR ================== */
+  /* Navbar blanco institucional estándar (UDN, Valores y usuario los inyectan gv-navbar-*.js) */
+  .navbar-main { background:#FFFFFF !important; width:100%; position:relative; z-index:50; border-bottom:1px solid rgba(0,51,96,.18); box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .navbar-top { height:64px; display:flex; align-items:center; padding:0 22px; gap:14px; position:relative; }
+  .nav-logo { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:.02em; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.35); }
+  .nav-brand-text { display:flex; flex-direction:column; line-height:1.1; }
+  .nav-brand-grupo { font-size:16px; font-weight:800; color:#111827; letter-spacing:.01em; }
+  .nav-brand-varoch { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:.22em; margin-top:2px; }
+  .nav-spacer { flex:1; }
+  .nav-icon-btn { position:relative; width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; border-radius:10px; transition:.15s; }
+  .nav-icon-btn:hover { background:#F1F5F9; color:#003360; }
+  .nav-icon-btn i { width:18px; height:18px; }
+  .nav-divider { width:1px; height:26px; background:#E2E8F0; margin:0 4px; }
+  .nav-user { display:flex; align-items:center; gap:11px; padding:5px 10px 5px 8px; cursor:pointer; border-radius:12px; transition:.15s; }
+  .nav-user:hover { background:#F1F5F9; }
+  .nav-user-info { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+  .nav-user-name { font-size:13px; font-weight:700; color:#111827; }
+  .nav-user-rol { font-size:10.5px; color:#64748B; font-weight:500; }
+  .nav-user-avatar { width:36px; height:36px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+  .nav-chev { color:#94A3B8; flex-shrink:0; transition:transform .2s ease; }
+
+  /* ================== RAIL ================== */
+  .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; font-size:8.5px; font-weight:600; }
+  .menu-rail-item i { width:19px; height:19px; }
+  .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+  .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+  /* ================== COMPONENTES ================== */
+  .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 11px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+  .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+  .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,51,96,.18); }
+  .btn-primary:hover { background:#00264A; }
+  .btn-outline { background:#fff; color:#475569; border:1px solid #E2E8F0; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .btn-outline:hover { border-color:#CBD5E1; }
+
+  /* stepper */
+  .step-circle { width:34px; height:34px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; }
+  .step-circle.is-active { background:#003360; color:#fff; box-shadow:0 3px 8px rgba(0,51,96,.25); }
+  .step-circle.is-done { background:#5d8418; color:#fff; }
+  .step-circle.is-pending { background:#E2E8F0; color:#64748B; }
+  .step-line { flex:1; height:2px; background:#E2E8F0; border-radius:2px; }
+
+  /* dropzone */
+  .dropzone { border:2px dashed #CBD5E1; border-radius:12px; padding:26px; text-align:center; cursor:pointer; transition:.15s; background:#FAFBFD; }
+  .dropzone:hover { border-color:#2563EB; background:#F0F5FF; }
+
+  /* editor */
+  .editor-toolbar { display:flex; align-items:center; gap:2px; padding:6px 8px; border-bottom:1px solid #E2E8F0; background:#F8FAFC; }
+  .editor-toolbar button { width:28px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:none; background:transparent; border-radius:6px; color:#64748B; font-size:12px; cursor:pointer; transition:.15s; font-family:inherit; }
+  .editor-toolbar button:hover { background:rgba(0,51,96,.08); color:#003360; }
+  .editor-toolbar .tb-div { width:1px; height:16px; background:#E2E8F0; margin:0 5px; }
+
+  /* modales */
+  .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:60; display:none; align-items:flex-start; justify-content:center; overflow-y:auto; padding:24px; }
+  .modal-card { width:100%; max-width:480px; background:#fff; border-radius:14px; box-shadow:0 30px 60px rgba(15,23,42,.25); overflow:hidden; margin:32px auto; }
+  .modal-head { padding:18px 20px; background:linear-gradient(135deg,rgba(0,51,96,.06) 0%,rgba(37,99,235,.04) 100%); border-bottom:1px solid #F1F5F9; display:flex; align-items:flex-start; gap:12px; }
+  .modal-ico { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .modal-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:16px 20px; background:#FAFBFC; border-top:1px solid #F1F5F9; }
+  .info-tile { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px; padding:12px 14px; }
+
+  .toast-item { display:flex; align-items:center; gap:10px; background:#0F172A; color:#fff; border-radius:10px; padding:11px 15px; font-size:12.5px; font-weight:600; box-shadow:0 14px 30px rgba(15,23,42,.3); animation:toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ================== NAVBAR ================== -->
+<nav class="navbar-main">
+  <div class="navbar-top">
+    <button class="nav-icon-btn" title="Menú"><i data-lucide="menu"></i></button>
+    <div class="nav-logo">GV</div>
+    <div class="nav-brand-text">
+      <span class="nav-brand-grupo">Grupo Varoch</span>
+      <span class="nav-brand-varoch">CORPORATIVO VAROCH</span>
+    </div>
+    <div class="nav-spacer"></div>
+    <button class="nav-icon-btn" title="Notificaciones"><i data-lucide="bell"></i></button>
+    <button class="nav-icon-btn" title="Módulos" onclick="location.href='recetas-lista.html'"><i data-lucide="layout-grid"></i></button>
+    <span class="nav-divider"></span>
+    <div class="nav-user" title="Mi cuenta">
+      <div class="nav-user-avatar">RA</div>
+      <div class="nav-user-info">
+        <span class="nav-user-name">Rosa Angelica</span>
+        <span class="nav-user-rol">Desarrolladora Fullstack</span>
+      </div>
+      <i data-lucide="chevron-down" class="nav-chev w-4 h-4"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- ================== BODY ================== -->
+<div class="flex" style="height:calc(100vh - 64px);">
+
+  <main class="flex-1 min-h-0 p-6 overflow-y-auto">
+
+    <div class="flex items-center justify-between mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="flex items-center gap-2 text-xs">
+          <li class="uppercase tracking-wide text-slate-400">Costsys</li>
+          <li class="text-slate-300">/</li>
+          <li><a href="recetas-lista.html" class="text-slate-400 hover:text-slate-600" style="text-decoration:none;">Recetas</a></li>
+          <li class="text-slate-300">/</li>
+          <li class="font-bold" style="color:#003360;">Nueva receta</li>
+        </ol>
+      </nav>
+      <a href="recetas-lista.html" class="btn-outline"><i data-lucide="arrow-left" class="w-4 h-4"></i> Volver al catálogo</a>
+    </div>
+
+    <!-- ================== STEPPER ================== -->
+    <div class="cv-card p-4 mb-5" style="max-width:760px;margin-left:auto;margin-right:auto;">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2.5">
+          <div class="step-circle is-active">1</div>
+          <div class="leading-tight">
+            <p class="text-[12.5px] font-bold" style="color:#003360;">Información general</p>
+            <p class="text-[10.5px] text-slate-400">Datos básicos de la receta</p>
+          </div>
+        </div>
+        <div class="step-line"></div>
+        <div class="flex items-center gap-2.5 opacity-70">
+          <div class="step-circle is-pending">2</div>
+          <div class="leading-tight">
+            <p class="text-[12.5px] font-semibold text-slate-500">Componentes y costeo</p>
+            <p class="text-[10.5px] text-slate-400">Ingredientes, subrecetas y precios</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================== FORMULARIO ================== -->
+    <div class="cv-card overflow-hidden" style="max-width:760px;margin:0 auto;">
+      <div class="p-5 pb-4 border-b border-slate-100">
+        <h2 class="text-base font-bold" style="color:#003360;">Información general</h2>
+        <p class="text-[12px] text-slate-500 mt-0.5">El nombre debe ser único por unidad de negocio. Los campos con <span style="color:#9E1B32;">*</span> son obligatorios.</p>
+      </div>
+
+      <div class="p-5 space-y-5">
+
+        <div>
+          <label class="cv-label">Imagen de la receta <span class="text-slate-400 normal-case font-normal">(JPG/PNG · máx 2 MB)</span></label>
+          <div class="dropzone" onclick="toast('Selector de archivo del sistema','image-plus')">
+            <div style="width:46px;height:46px;margin:0 auto 10px;border-radius:9999px;background:rgba(0,51,96,.08);display:flex;align-items:center;justify-content:center;">
+              <i data-lucide="image-plus" class="w-5 h-5" style="color:#003360;"></i>
+            </div>
+            <p class="text-[12.5px] text-slate-600">Arrastra una imagen o <span class="font-bold" style="color:#2563EB;">haz clic para subir</span></p>
+            <p class="text-[11px] text-slate-400 mt-1">JPG, PNG · Máximo 2 MB</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="cv-label">Unidad de negocio <span style="color:#9E1B32;">*</span></label>
+            <select class="cv-input" style="cursor:pointer;">
+              <option value="">Seleccionar…</option>
+              <option selected>Sonoras Meat</option>
+              <option>Fogaza</option>
+              <option>Baos</option>
+              <option>Punto Modelo</option>
+              <option>Quinta Tabachines</option>
+            </select>
+          </div>
+          <div>
+            <label class="cv-label">Nombre <span style="color:#9E1B32;">*</span></label>
+            <input type="text" id="inpNombre" placeholder="Ej. Arrachera 500 g" class="cv-input">
+          </div>
+          <div>
+            <label class="cv-label">Clasificación <span style="color:#9E1B32;">*</span></label>
+            <select class="cv-input" style="cursor:pointer;">
+              <option value="">Seleccionar…</option>
+              <option>Cortes</option>
+              <option>Guarniciones</option>
+              <option>Postres</option>
+              <option>Bebidas</option>
+            </select>
+          </div>
+          <div>
+            <label class="cv-label">Subclasificación</label>
+            <select class="cv-input" style="cursor:pointer;">
+              <option value="">Seleccionar…</option>
+              <option>Res</option>
+              <option>Cerdo</option>
+              <option>Salsas</option>
+              <option>Ensaladas</option>
+            </select>
+          </div>
+          <div>
+            <label class="cv-label">Temporada</label>
+            <select class="cv-input" style="cursor:pointer;">
+              <option value="">Seleccionar…</option>
+              <option>Permanente</option>
+              <option>Verano</option>
+              <option>Invierno</option>
+              <option>Navidad</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="cv-label">Instrucciones <span class="text-slate-400 normal-case font-normal">(opcional)</span></label>
+          <div style="border:1px solid #CBD5E1;border-radius:8px;overflow:hidden;">
+            <div class="editor-toolbar">
+              <button type="button" style="font-weight:800;">B</button>
+              <button type="button" style="font-style:italic;">I</button>
+              <button type="button" style="text-decoration:underline;">U</button>
+              <span class="tb-div"></span>
+              <button type="button" title="Lista"><i data-lucide="list" class="w-4 h-4 pointer-events-none"></i></button>
+              <button type="button" title="Enlace"><i data-lucide="link" class="w-4 h-4 pointer-events-none"></i></button>
+            </div>
+            <textarea rows="5" placeholder="Escribe las instrucciones de preparación…" style="width:100%;border:none;outline:none;padding:11px;font-size:13px;color:#0F172A;background:#fff;resize:vertical;font-family:inherit;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between p-4" style="background:#FAFBFC;border-top:1px solid #F1F5F9;">
+        <a href="recetas-lista.html" class="btn-outline">Cancelar</a>
+        <button class="btn-primary" id="btnContinuar">
+          Guardar y continuar
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================== MODAL NOMBRE EXISTENTE ================== -->
+<div class="modal-overlay" id="modalNombre">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:rgba(158,27,50,.10);color:#9E1B32;"><i data-lucide="shield-alert" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;">Nombre no disponible</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5">Ya existe una receta con este nombre en esta unidad de negocio.</p>
+      </div>
+    </div>
+    <div class="p-5 space-y-4">
+      <div class="info-tile space-y-2">
+        <div class="flex items-center justify-between text-[12px]"><span class="text-slate-500">Nombre ingresado</span><span class="font-bold" style="color:#9E1B32;" id="nombreDup">Arrachera</span></div>
+        <div class="flex items-center justify-between text-[12px]"><span class="text-slate-500">Unidad de negocio</span><span class="font-medium text-slate-700">Sonoras Meat</span></div>
+      </div>
+      <div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.22);border-radius:9px;padding:11px 13px;">
+        <p class="text-[11px] font-bold mb-1" style="color:#2563EB;"><i data-lucide="lightbulb" class="w-3.5 h-3.5 inline"></i> Sugerencia</p>
+        <p class="text-[12.5px] text-slate-600">Prueba con: <b style="color:#2563EB;" id="sugerencia1">Arrachera Especial</b> o <b style="color:#2563EB;" id="sugerencia2">Arrachera V2</b></p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-primary" id="btnCambiarNombre"><i data-lucide="pencil" class="w-4 h-4"></i> Cambiar nombre</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" style="position:fixed;bottom:24px;right:24px;z-index:70;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  const NOMBRES_EXISTENTES = ['arrachera','rib eye choice','top sirloin','new york','rib eye selecto','diezmillo','top sirloin paquete','salsa molcajeteada c/chile','salsa huacachile','guacamole 180 g'];
+
+  document.getElementById('btnContinuar').addEventListener('click', () => {
+    const nombre = document.getElementById('inpNombre').value.trim();
+    if(!nombre){
+      toast('Captura el nombre de la receta', 'alert-triangle');
+      document.getElementById('inpNombre').focus();
+      return;
+    }
+    if(NOMBRES_EXISTENTES.includes(nombre.toLowerCase())){
+      document.getElementById('nombreDup').textContent = nombre;
+      document.getElementById('sugerencia1').textContent = nombre + ' Especial';
+      document.getElementById('sugerencia2').textContent = nombre + ' V2';
+      document.getElementById('modalNombre').style.display = 'flex';
+      lucide.createIcons();
+      return;
+    }
+    toast('Información general guardada', 'check-circle-2');
+    setTimeout(() => location.href = 'recetas-editar-paso2.html', 700);
+  });
+
+  document.getElementById('btnCambiarNombre').addEventListener('click', () => {
+    document.getElementById('modalNombre').style.display = 'none';
+    const inp = document.getElementById('inpNombre');
+    inp.focus(); inp.select();
+  });
+  document.getElementById('modalNombre').addEventListener('click', e => {
+    if(e.target.id === 'modalNombre') e.target.style.display = 'none';
+  });
+
+  window.toast = function(msg, icon){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast-item';
+    el.innerHTML = `<i data-lucide="${icon || 'info'}" style="width:16px;height:16px;color:#7AAB20;"></i> ${msg}`;
+    wrap.appendChild(el);
+    lucide.createIcons();
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = '.25s'; setTimeout(() => el.remove(), 260); }, 3200);
+  };
+
+  lucide.createIcons();
+})();
+</script>
+    <script src="../../gv-navbar-costsys.js"></script>
+    <script src="../../gv-navbar-branch.js"></script>
+    <script src="../../gv-navbar-user.js"></script>
+</body>
+</html>
