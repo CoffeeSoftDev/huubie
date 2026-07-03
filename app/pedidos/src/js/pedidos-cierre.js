@@ -6,6 +6,7 @@ class Cierre {
         this._closureData = null;
         this._closureResponse = null;
         this._dailyView = 'reporte';
+        this._reportZoom = 80;
     }
 
     async initCierre() {
@@ -247,64 +248,94 @@ class Cierre {
         const active   = 'bg-purple-600 text-white shadow-sm';
         const inactive = 'text-gray-400 hover:text-gray-200';
         const isReport = this._dailyView !== 'ticket';
+        const maxed    = this._reportZoom >= 100;
+
+        // Controles de zoom: solo aplican a la vista Reporte (Corte Z).
+        const zoomBar = !isReport ? '' : `
+            <div class="absolute right-0 inline-flex items-center gap-0.5 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
+                <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Alejar" onclick="cierre.zoomReport(-10)">${lucideIcon('zoom-out', 'w-3.5 h-3.5')}</button>
+                <button id="reportZoomPct" class="px-1 py-0.5 rounded-md font-semibold text-gray-300 hover:text-white min-w-[36px] text-center transition-all" title="Restablecer zoom" onclick="cierre.setReportZoom(80)">${this._reportZoom}%</button>
+                <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Acercar" onclick="cierre.zoomReport(10)">${lucideIcon('zoom-in', 'w-3.5 h-3.5')}</button>
+                <button id="btnReportZoomMax" class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="${maxed ? 'Minimizar' : 'Maximizar'}" onclick="cierre.toggleReportZoomMax()">${lucideIcon(maxed ? 'minimize' : 'maximize', 'w-3.5 h-3.5')}</button>
+            </div>
+        `;
+
         return `
-            <div class="flex justify-center mb-3">
+            <div class="relative flex justify-center items-center mb-3">
                 <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
                     <button class="px-4 py-1 rounded-md font-semibold transition-all ${isReport ? active : inactive}" onclick="cierre.setDailyView('reporte')">Reporte</button>
                     <button class="px-4 py-1 rounded-md font-semibold transition-all ${!isReport ? active : inactive}" onclick="cierre.setDailyView('ticket')">Ticket</button>
                 </div>
+                ${zoomBar}
             </div>
         `;
     }
 
+    // Zoom del Corte Z (solo vista Reporte): 50%-150%, por defecto 80%.
+    zoomReport(delta) {
+        this.setReportZoom(this._reportZoom + delta);
+    }
+
+    setReportZoom(value) {
+        this._reportZoom = Math.min(150, Math.max(50, value));
+        $('#reportZoomWrap').css('zoom', this._reportZoom / 100);
+        $('#reportZoomPct').text(this._reportZoom + '%');
+        const maxed = this._reportZoom >= 100;
+        $('#btnReportZoomMax').attr('title', maxed ? 'Minimizar' : 'Maximizar').html(lucideIcon(maxed ? 'minimize' : 'maximize', 'w-3.5 h-3.5'));
+    }
+
+    toggleReportZoomMax() {
+        this.setReportZoom(this._reportZoom >= 100 ? 80 : 100);
+    }
+
     // Estilos del corte Z (mismo sistema pdf-* de alpha/pedidos-reportes):
-    // dark en pantalla y revierte a documento blanco al imprimir.
+    // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
         return `
-            .pdf-document { background: #1a1f2e; color: #d1d5db; max-width: 1000px; margin: 0 auto; padding: 28px 32px; border-radius: 3px; box-shadow: 0 1px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #4b5563; }
-            .pdf-header h2 { font-size: 20px; font-weight: 700; color: #f3f4f6; letter-spacing: 1.5px; margin: 0; }
-            .pdf-header .meta { font-size: 12px; color: #9ca3af; }
-            .pdf-header .meta span { color: #e5e7eb; font-weight: 600; }
+            .pdf-document { background: #fff; color: #2c3e50; max-width: 1000px; margin: 0 auto; padding: 28px 32px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
+            .pdf-header h2 { font-size: 20px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
+            .pdf-header .meta { font-size: 12px; color: #7f8c8d; }
+            .pdf-header .meta span { color: #2c3e50; font-weight: 600; }
             .pdf-totals-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-            .pdf-totals-bar .total-item { padding: 8px 10px; background: #242937; border: 1px solid #374151; border-radius: 4px; border-top: 3px solid #4b5563; }
-            .pdf-totals-bar .total-item .label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
-            .pdf-totals-bar .total-item .value { font-size: 15px; font-weight: 700; color: #f3f4f6; font-family: 'Consolas', 'Courier New', monospace; }
-            .pdf-totals-bar .total-item.highlight { background: #1e3a5f; border-color: #1e3a5f; border-top-color: #3b82f6; }
-            .pdf-totals-bar .total-item.highlight .label { color: #93c5fd; }
-            .pdf-totals-bar .total-item.highlight .value { color: #dbeafe; }
+            .pdf-totals-bar .total-item { padding: 8px 10px; background: #f7f9fb; border: 1px solid #dce3ea; border-radius: 4px; border-top: 3px solid #bdc3c7; }
+            .pdf-totals-bar .total-item .label { font-size: 9px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
+            .pdf-totals-bar .total-item .value { font-size: 15px; font-weight: 700; color: #2c3e50; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-totals-bar .total-item.highlight { background: #3d4f5f; border-color: #3d4f5f; border-top-color: #2c3e50; }
+            .pdf-totals-bar .total-item.highlight .label { color: #b0bec5; }
+            .pdf-totals-bar .total-item.highlight .value { color: #eceff1; }
             .pdf-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px; }
             @media (max-width: 900px) { .pdf-grid { grid-template-columns: 1fr 1fr; } }
             @media (max-width: 600px) { .pdf-grid { grid-template-columns: 1fr; } }
-            .pdf-section { border: 1px solid #374151; border-radius: 3px; overflow: hidden; background: #1f2937; }
-            .pdf-section-title { background: linear-gradient(180deg, #2d3748 0%, #252d3a 100%); padding: 8px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #9ca3af; border-bottom: 1px solid #374151; }
+            .pdf-section { border: 1px solid #dce3ea; border-radius: 3px; overflow: hidden; background: #fff; }
+            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); padding: 8px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4a5568; border-bottom: 1px solid #d1d9e0; }
             .pdf-section-body { padding: 10px 12px; }
-            .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #2d3748; }
+            .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
             .pdf-kv:last-child { border-bottom: none; }
-            .pdf-kv .kv-label { color: #9ca3af; font-size: 12px; }
-            .pdf-kv .kv-value { font-weight: 600; font-size: 13px; color: #e5e7eb; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
-            .pdf-kv.total-row { border-top: 1px solid #4b5563; border-bottom: none; padding: 6px 12px 5px; margin: 4px -12px 0; background: #242937; }
-            .pdf-kv.total-row .kv-label { font-weight: 700; color: #e5e7eb; }
-            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 14px; color: #f3f4f6; }
-            .pdf-kv .kv-value.negative { color: #f87171; }
-            .pdf-sub-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin: 8px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #2d3748; }
+            .pdf-kv .kv-label { color: #5a6a7a; font-size: 12px; }
+            .pdf-kv .kv-value { font-weight: 600; font-size: 13px; color: #2c3e50; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-kv.total-row { border-top: 1px solid #95a5a6; border-bottom: none; padding: 6px 12px 5px; margin: 4px -12px 0; background: #f7f9fb; }
+            .pdf-kv.total-row .kv-label { font-weight: 700; color: #2c3e50; }
+            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 14px; color: #1a252f; }
+            .pdf-kv .kv-value.negative { color: #943030; }
+            .pdf-sub-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin: 8px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #e8ecf0; }
             .pdf-pct-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
-            .pdf-pct-bar .bar { flex: 1; height: 5px; background: #2d3748; border-radius: 2px; overflow: hidden; }
+            .pdf-pct-bar .bar { flex: 1; height: 5px; background: #e8ecf0; border-radius: 2px; overflow: hidden; }
             .pdf-pct-bar .bar .fill { height: 100%; border-radius: 2px; }
-            .pdf-pct-bar .pct-text { font-size: 9px; color: #9ca3af; min-width: 30px; text-align: right; font-family: 'Consolas', monospace; }
+            .pdf-pct-bar .pct-text { font-size: 9px; color: #7f8c8d; min-width: 30px; text-align: right; font-family: 'Consolas', monospace; }
             .pdf-grid-bottom { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 18px; }
             @media (max-width: 768px) { .pdf-grid-bottom { grid-template-columns: 1fr; } }
             table.pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            table.pdf-table thead th { background: linear-gradient(180deg, #2d3748 0%, #252d3a 100%); color: #9ca3af; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 10px; text-align: left; border-bottom: 1px solid #374151; }
-            table.pdf-table tbody tr { border-bottom: 1px solid #2d3748; }
-            table.pdf-table tbody tr:nth-child(even) { background: #242937; }
-            table.pdf-table tbody td { padding: 5px 10px; color: #e5e7eb; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
+            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); color: #4a5568; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 10px; text-align: left; border-bottom: 1px solid #d1d9e0; }
+            table.pdf-table tbody tr { border-bottom: 1px solid #f0f2f5; }
+            table.pdf-table tbody tr:nth-child(even) { background: #fafbfc; }
+            table.pdf-table tbody td { padding: 5px 10px; color: #2c3e50; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
             table.pdf-table .text-right { text-align: right; }
             table.pdf-table .text-center { text-align: center; }
-            table.pdf-table .col-importe { font-weight: 700; color: #f3f4f6; background: #242937; }
-            table.pdf-table .col-efectivo { color: #e5e7eb; font-weight: 600; }
-            table.pdf-table .col-tarjeta { color: #e5e7eb; font-weight: 600; }
-            .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 3px double #4b5563; display: flex; justify-content: space-between; font-size: 10px; color: #6b7280; letter-spacing: 0.5px; }
+            table.pdf-table .col-importe { font-weight: 700; color: #1a252f; background: #f0f3f6; }
+            table.pdf-table .col-efectivo { color: #2c3e50; font-weight: 600; }
+            table.pdf-table .col-tarjeta { color: #2c3e50; font-weight: 600; }
+            .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 3px double #bdc3c7; display: flex; justify-content: space-between; font-size: 10px; color: #95a5a6; letter-spacing: 0.5px; }
         `;
     }
 
@@ -783,6 +814,7 @@ class Cierre {
 
         const html = `
             ${this.dailyViewToggle()}
+            <div id="reportZoomWrap" style="zoom:${this._reportZoom / 100}">
             <div id="ticketDailyClose" class="pdf-document">
                 <div class="pdf-header">
                     <div>
@@ -840,6 +872,7 @@ class Cierre {
                     <span>Documento generado automaticamente</span>
                     <span>Pagina 1 de 1</span>
                 </div>
+            </div>
             </div>
         `;
 

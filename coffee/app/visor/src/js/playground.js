@@ -1902,6 +1902,7 @@ function pgAppendTemplateCard($msg, tpl) {
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-view" title="Ver en el sandbox"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-pin${pinned ? ' is-pinned' : ''}" title="${pinned ? 'Fijado como referencia' : 'Fijar este template como referencia: el próximo mensaje pedirá modificarlo'}"><i data-lucide="pin" class="w-3.5 h-3.5"></i></button>
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-fork" title="Bifurcar: abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3.5 h-3.5"></i></button>
+                    <button type="button" class="pg-tpl-ico pg-chat-tpl-del" title="Quitar este render del chat"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </span>
             </div>
         </div>`);
@@ -1912,6 +1913,7 @@ function pgAppendTemplateCard($msg, tpl) {
     $card.find('.pg-chat-tpl-view').on('click', e => { e.stopPropagation(); pgRestoreTemplate(tpl.id); });
     $card.find('.pg-chat-tpl-pin').on('click', e => { e.stopPropagation(); pgTogglePinTemplate(tpl.id); });
     $card.find('.pg-chat-tpl-thread, .pg-chat-tpl-fork').on('click', e => { e.stopPropagation(); pgForkFromTemplate(tpl.id); });
+    $card.find('.pg-chat-tpl-del').on('click', e => { e.stopPropagation(); pgDeleteTemplate(tpl.id); });
     if (window.lucide) lucide.createIcons();
     pgScroll();
 }
@@ -1933,6 +1935,23 @@ function pgRestoreTemplate(id) {
     $(`.pg-chat-tpl[data-tpl-id="${id}"]`).addClass('is-active');
     pgSaveSession();
     pgToast('Template cargado en el sandbox', 'success');
+}
+
+/* ── Quitar un render del chat ──
+ * Elimina la tarjeta-miniatura y su registro de la sesión (pg.templates), y lo
+ * persiste (sesión + hilo). No toca el sandbox: si el template estaba visible
+ * ahí, el render queda como "último render" pero ya no es restaurable desde el
+ * chat. Si estaba fijado como referencia, se libera el pin. */
+function pgDeleteTemplate(id) {
+    const idx = pg.templates.findIndex(x => x.id === id);
+    if (idx === -1) return;
+    pg.templates.splice(idx, 1);
+    if (pg.pinnedTplId === id) { pg.pinnedTplId = null; pgRefreshPinUI(); }
+    if (pg._activeTplId === id) pg._activeTplId = null;
+    $(`.pg-chat-tpl[data-tpl-id="${id}"]`).remove();
+    pgSaveSession();
+    pgAutoSaveThread();
+    pgToast('Render quitado del chat', 'info');
 }
 
 /* ── Bifurcar hilo desde un sandbox de la sesión ──

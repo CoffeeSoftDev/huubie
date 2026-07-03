@@ -21,10 +21,37 @@ $canvasMode  = !empty($ctx['canvas']);
 
 $t0 = microtime(true);
 
-// SELECT en vivo: base conectada -> loop de tool-calling (OpenRouter u Ollama
-// tool-capable). Si el modelo no soporta tools o falla, caemos al chat normal de
-// abajo (el esquema ya esta inyectado en el contexto).
-if ($dbSchema) {
+// Carpeta + base conectadas A LA VEZ: loop HIBRIDO con ambas familias de herramientas
+// (leer codigo real + consultar datos reales). Si el modelo no soporta tools o falla,
+// caemos al chat normal de abajo (arbol y esquema ya van inyectados en el contexto).
+if ($dbSchema && $fsRoot) {
+    try {
+        $client = llm_client_for($model);
+        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, null, $canvasMode ? 12 : 8);
+        $usage = $r['usage'];
+        echo json_encode([
+            'ok'                => true,
+            'reply'             => $r['final'],
+            'model'             => $model,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
+            'prompt_tokens'     => (int)($usage['prompt_tokens'] ?? 0),
+            'completion_tokens' => (int)($usage['completion_tokens'] ?? 0),
+            'cost_usd'          => isset($usage['cost']) ? (float) $usage['cost'] : null,
+            'credits_estimate'  => isset($usage['completion_tokens']) ? round($usage['completion_tokens'] / 1000, 4) : 0,
+            'db'                => $dbSchema,
+            'fs'                => $fsRoot,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o error: seguimos al chat normal de abajo.
+    }
+}
+
+// SELECT en vivo: base conectada (sin carpeta) -> loop de tool-calling (OpenRouter u
+// Ollama tool-capable). Si el modelo no soporta tools o falla, caemos al chat normal
+// de abajo (el esquema ya esta inyectado en el contexto).
+if ($dbSchema && !$fsRoot) {
     try {
         $client = llm_client_for($model);
         $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, null, 4);

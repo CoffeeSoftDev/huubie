@@ -130,7 +130,7 @@ function fs_list_projects() {
  * (ej. www/GrupoVaroch/costsys) por nombre, no solo las de primer nivel. Acotado por
  * profundidad y un presupuesto de carpetas para no recorrer el disco entero.
  */
-function fs_folder_index($maxDepth = 4) {
+function fs_folder_index($maxDepth = 6) {
     static $cache = null;
     if ($cache !== null) return $cache;
     $ignore = fs_ignored_dirs();

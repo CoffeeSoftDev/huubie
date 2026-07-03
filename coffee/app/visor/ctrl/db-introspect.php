@@ -122,11 +122,18 @@ function db_detect_request($text, $force = false) {
 
     $low = mb_strtolower($text, 'UTF-8');
 
+    // Alias que son palabras GENERICAS del espanol y aparecen en prosa normal:
+    // "rellena el formulario con datos reales" NO debe conectar 'nombre_base_datos'
+    // por su alias 'datos' (pisaba incluso la conexion pegajosa). Una base cuyo
+    // alias este vetado sigue siendo alcanzable escribiendo su nombre completo.
+    static $stopAliases = ['datos', 'base'];
+
     // Busca cualquier alias de base como PALABRA COMPLETA dentro del texto.
     $hits = [];      // schema => peso (longitud del alias que matcheo)
     foreach (db_list_schemas() as $s) {
         foreach (db_schema_aliases($s) as $a) {
             if (strlen($a) < 3) continue;   // evita alias triviales
+            if (in_array($a, $stopAliases, true)) continue;
             if (preg_match('/(?<![a-z0-9_])' . preg_quote($a, '/') . '(?![a-z0-9_])/u', $low)) {
                 $hits[$s] = max($hits[$s] ?? 0, strlen($a));
             }

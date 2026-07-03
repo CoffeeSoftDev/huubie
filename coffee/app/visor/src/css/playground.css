@@ -593,6 +593,12 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     border-color: var(--vsr-accent);
 }
 .pg-chat-tpl-pin.is-pinned i { fill: currentColor; }
+/* "Quitar del chat": hover en rojo para señalar que es destructiva. */
+.pg-chat-tpl-del:hover {
+    color: var(--cs-danger, #EA0234);
+    border-color: rgba(234, 2, 52, .45);
+    background: rgba(234, 2, 52, .08);
+}
 
 /* ── Card colapsada para bloques de código en la prosa del chat ──
    Evita volcar HTML/JS crudo en la burbuja: queda contraída con su rótulo y se

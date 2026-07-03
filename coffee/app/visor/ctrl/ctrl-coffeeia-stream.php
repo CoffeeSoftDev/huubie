@@ -55,11 +55,56 @@ $canvasMode  = !empty($ctx['canvas']);
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
 
-// SELECT en vivo: si hay una base conectada, corremos las rondas de tool-calling de
-// forma sincrona (sirve para OpenRouter y para modelos Ollama tool-capable como GLM o
-// qwen3-coder) y luego emitimos la respuesta final. Si el modelo no soporta tools o
-// falla, caemos al streaming normal (el esquema ya esta inyectado -> el grafico sale).
-if ($dbSchema) {
+// Carpeta + base conectadas A LA VEZ: loop HIBRIDO con ambas familias de herramientas
+// (leer codigo real de la carpeta + consultar datos reales con run_select). Es el flujo
+// "recrea la pantalla y rellena sus tablas/formularios con datos de la base". Si el
+// modelo no soporta tools o falla, caemos al streaming normal (arbol y esquema ya van
+// inyectados en el contexto).
+if ($dbSchema && $fsRoot) {
+    try {
+        $client = llm_client_for($model);
+        $onStatus = function ($label) use ($send) {
+            $send('thinking', ['t' => "\n[{$label}]\n"]);
+        };
+        // Mas rondas que los loops simples: explorar + leer archivos + varias consultas.
+        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $canvasMode ? 12 : 8);
+
+        $final = (string) $r['final'];
+        foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {
+            if ($piece !== '') $send('chunk', ['t' => $piece]);
+        }
+
+        $u         = $r['usage'];
+        $inTokens  = (int)($u['prompt_tokens']     ?? 0);
+        $outTokens = (int)($u['completion_tokens'] ?? 0);
+        $costUsd   = isset($u['cost']) ? (float) $u['cost'] : null;
+        $credits   = $outTokens > 0 ? round($outTokens / 1000, 4) : 0;
+
+        $send('done', [
+            'ok'                => true,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => $outTokens,
+            'prompt_tokens'     => $inTokens,
+            'completion_tokens' => $outTokens,
+            'cost_usd'          => $costUsd,
+            'credits_estimate'  => $credits,
+            'model'             => $model ?: '',
+            'db'                => $dbSchema,
+            'fs'                => $fsRoot,
+            'tool_rounds'       => $r['rounds'],
+        ]);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o error: seguimos al streaming normal (contexto ya inyectado).
+    }
+}
+
+// SELECT en vivo: si hay una base conectada (sin carpeta), corremos las rondas de
+// tool-calling de forma sincrona (sirve para OpenRouter y para modelos Ollama
+// tool-capable como GLM o qwen3-coder) y luego emitimos la respuesta final. Si el
+// modelo no soporta tools o falla, caemos al streaming normal (el esquema ya esta
+// inyectado -> el grafico sale).
+if ($dbSchema && !$fsRoot) {
     try {
         $client = llm_client_for($model);
         $onStatus = function ($sql) use ($send) {

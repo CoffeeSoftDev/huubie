@@ -339,26 +339,24 @@ function coffeeia_build_context(array $body) {
         }
     }
 
-    // Prioridad cuando quedan resueltas una BASE y una CARPETA a la vez. El gate de
-    // aclaracion SOLO aplica a la ambiguedad REAL: que el usuario nombrara EN ESTE TURNO
-    // un nombre que resuelve a la vez a base y carpeta homonimas. Si uno de los dos
-    // proviene de la conexion PEGAJOSA (turnos anteriores), no hay ambiguedad: manda lo que
-    // el usuario nombro ahora y la conexion pegajosa del otro tipo cede el turno (asi no se
-    // dispara la aclaracion en cada mensaje neutro cuando hay base y carpeta conectadas).
+    // Cuando quedan resueltas una BASE y una CARPETA a la vez (nombradas este turno o
+    // pegajosas), se MANTIENEN AMBAS: el endpoint corre un loop HIBRIDO con las
+    // herramientas de las dos fuentes (list_dir/read_file/grep_files + run_select).
+    // Es el flujo "recrea la pantalla de la carpeta y rellenala con datos reales":
+    // el codigo/estructura sale del filesystem y las filas/valores de MySQL.
+    // (Antes se anulaban entre si o una cedia el turno, y el modelo se quedaba sin
+    // una de las dos fuentes — p.ej. la carpeta costsys vs la base gvsl_costsys.)
     if ($dbSchema && $fsRoot) {
-        if ($dbFromMessage && $fsFromMessage) {
-            $systemBlock .= "\n\n=== ACLARAR: BASE DE DATOS vs CARPETA ===\n"
-                . "El nombre solicitado coincide a la vez con una BASE DE DATOS ('{$dbSchema}') y con\n"
-                . "una CARPETA ('" . basename($fsRoot) . "'). NO asumas cual: pregunta al usuario si se\n"
-                . "refiere a la base de datos o a la carpeta de archivos antes de continuar.\n";
-            $dbSchema = null;
-            $fsRoot   = null;
-        } elseif ($fsFromMessage && !$dbFromMessage) {
-            $dbSchema = null;   // el usuario nombro una CARPETA este turno; la base pegajosa no manda ahora
-        } elseif ($dbFromMessage && !$fsFromMessage) {
-            $fsRoot = null;     // el usuario nombro una BASE este turno; la carpeta pegajosa no manda ahora
-        }
-        // (ambos pegajosos, sin nombrar nada este turno: se mantienen; el endpoint prioriza la base.)
+        $systemBlock .= "\n\n=== CARPETA + BASE DE DATOS (USA AMBAS FUENTES) ===\n"
+            . "Tienes DOS fuentes conectadas a la vez:\n"
+            . "- CARPETA '" . basename($fsRoot) . "': codigo/estructura real (list_dir, grep_files, read_file).\n"
+            . "- BASE '{$dbSchema}': datos reales (run_select, SOLO LECTURA).\n"
+            . "Si generas o recreas una pantalla con tablas, formularios, selects, cards o KPIs:\n"
+            . "1. LEE primero el codigo fuente relevante de la carpeta (estructura, campos, estilos).\n"
+            . "2. POBLA esos componentes con filas y valores REALES obtenidos con run_select usando\n"
+            . "   los nombres reales del esquema: los <option> de un select, las filas de una tabla y\n"
+            . "   los valores de un formulario salen de la base; nunca los inventes. Si una consulta\n"
+            . "   no devuelve filas, muestra un estado vacio honesto.\n";
     }
 
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
@@ -494,6 +492,71 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
             if (!is_array($args)) $args = [];
             if ($onStatus) $onStatus(fs_tool_label($fn, $args));
             $result = fs_run_tool($fn, $args, $root);
+            $messages[] = [
+                'role'         => 'tool',
+                'tool_call_id' => $tc['id'] ?? '',
+                'name'         => $fn,
+                'content'      => $result,
+            ];
+        }
+    }
+
+    if ($final === '') {
+        $res = $client->chat($messages, $model, []);
+        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
+        $final = (string)($res['content'] ?? '');
+    }
+
+    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+}
+
+/**
+ * Loop agentico HIBRIDO de SOLO LECTURA: carpeta + base conectadas A LA VEZ. Expone
+ * las herramientas de ambas fuentes (list_dir/read_file/grep_files + run_select) y
+ * despacha cada llamada al sandbox que corresponda. Es el flujo "recrea la pantalla
+ * de la carpeta y rellenala con datos reales de la base": el codigo sale del
+ * filesystem y las filas/valores de MySQL.
+ *
+ * @param object   $client    cliente LLM con chat() que soporte 'tools'.
+ * @param array    $messages  mensajes ya armados (incluye arbol + esquema en el system).
+ * @param string   $model
+ * @param string   $schema    base conectada.
+ * @param string   $root      carpeta conectada (ruta absoluta ya resuelta).
+ * @param callable $onStatus  fn(string) opcional para avisar "leyendo…/consultando…" al UI.
+ * @return array{final: string, usage: array, rounds: int}
+ */
+function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $root, callable $onStatus = null, $maxRounds = 8) {
+    $tools   = array_merge(fs_tool_specs(), db_tool_specs());
+    $fsNames = ['list_dir', 'read_file', 'grep_files'];
+    $usage = [];
+    $final = '';
+    $rounds = 0;
+
+    for ($round = 0; $round < $maxRounds; $round++) {
+        $rounds = $round + 1;
+        $res = $client->chat($messages, $model, ['tools' => $tools]);
+        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
+
+        $toolCalls = $res['tool_calls'] ?? [];
+        if (empty($toolCalls)) {                       // el modelo ya respondio
+            $final = (string)($res['content'] ?? '');
+            break;
+        }
+
+        $messages[] = [
+            'role'       => 'assistant',
+            'content'    => (string)($res['content'] ?? ''),
+            'tool_calls' => $toolCalls,
+        ];
+        foreach ($toolCalls as $tc) {
+            $fn  = $tc['function']['name'] ?? '';
+            // OpenRouter manda arguments como STRING JSON; Ollama como OBJETO ya parseado.
+            $raw = $tc['function']['arguments'] ?? '{}';
+            $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
+            if (!is_array($args)) $args = [];
+            $isFs = in_array($fn, $fsNames, true);
+            if ($onStatus) $onStatus($isFs ? fs_tool_label($fn, $args) : ('consultando ' . ($args['sql'] ?? $fn)));
+            $result = $isFs ? fs_run_tool($fn, $args, $root) : db_run_tool($fn, $args, $schema);
             $messages[] = [
                 'role'         => 'tool',
                 'tool_call_id' => $tc['id'] ?? '',

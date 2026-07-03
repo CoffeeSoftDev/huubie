@@ -2719,7 +2719,7 @@ class App extends Templates {
         `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px]">
+            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px] lg:h-[78vh]">
                 <!-- Sidebar -->
                 <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
@@ -2789,8 +2789,26 @@ class App extends Templates {
                 </div>`,
             message: modalContent,
             size:'large',
-            closeButton: true
+            closeButton: true,
+            className: 'daily-close-enhanced-modal'
         });
+
+        $("<style>").text(`
+            .daily-close-enhanced-modal .modal-dialog {
+                max-width: 1400px !important;
+                width: 92vw !important;
+            }
+            .daily-close-enhanced-modal .modal-body {
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            @media (max-width: 768px) {
+                .daily-close-enhanced-modal .modal-dialog {
+                    width: 98vw !important;
+                    margin: 10px auto !important;
+                }
+            }
+        `).appendTo("head");
 
         dialog.on('shown.bs.modal', () => {
             dataPicker({

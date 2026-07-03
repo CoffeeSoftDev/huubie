@@ -50,17 +50,45 @@
         .kpi-value { font-size:22px; font-weight:800; color:#0F172A; font-variant-numeric:tabular-nums; line-height:1.1; }
         .kpi-sub { font-size:11px; color:#94A3B8; }
 
-        /* Tabla costo potencial */
-        .cp-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
-        .cp-table thead th { position:sticky; top:0; background:#003360; color:#E8EEF5; font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; padding:10px 10px; text-align:right; white-space:nowrap; z-index:2; }
-        .cp-table thead th.tl { text-align:left; }
-        .cp-table thead th:first-child { border-top-left-radius:10px; }
-        .cp-table thead th:last-child { border-top-right-radius:10px; }
-        .cp-table tbody td { font-size:12.5px; color:#334155; padding:8px 10px; border-bottom:1px solid #EEF2F7; text-align:right; white-space:nowrap; }
-        .cp-table tbody td.tl { text-align:left; }
-        .cp-table tbody tr:hover td { background:rgba(37,99,235,.04); }
-        .grp-row td { background:#003360; color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:7px 12px; text-align:left; }
-        .sub-row td { background:#EEF3F8; color:#003360; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:5px 12px 5px 24px; text-align:left; }
+        /* ============================================================
+           Tabla identica al listado real de inventory/ (captura):
+           - THEAD claro (#F9FAFB), titulos CENTRADOS en una linea +
+             icono de sort decorativo (doble flecha gris) a la derecha
+           - Filas TODAS blancas (sin striping), altas y aireadas
+             (~40px), separadas por borde inferior fino gris claro
+           - Texto 14px gris oscuro; 1a col izquierda, resto centrado
+           - Pill de estado verde (#DEF7EC / #03543F)
+           - Paginacion abajo a la derecha, activo neutro oscuro
+           El semaforo de celdas (verde/ambar/vino) es semantico: intacto.
+           ============================================================ */
+        .cv-table { width:100%; border-collapse:separate; border-spacing:0; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; font-size:14px; color:#374151; font-variant-numeric:tabular-nums; }
+        /* THEAD claro, titulos centrados 12px semibold, una sola linea */
+        .cv-table thead th { position:sticky; top:0; background:#F9FAFB; color:#6B7280; font-size:12px; font-weight:600; text-transform:capitalize; text-align:center; padding:12px 14px; white-space:nowrap; border-bottom:1px solid #E5E7EB; z-index:2; }
+        /* wrapper para centrar el titulo + icono de sort decorativo */
+        .th-in { display:inline-flex; align-items:center; justify-content:center; gap:5px; }
+        .th-sort { color:#D1D5DB; flex-shrink:0; }
+        .cv-table thead th.tr .th-in { justify-content:flex-end; }
+        /* TBODY: filas altas/aireadas (~40px), texto gris oscuro 14px, borde inferior fino */
+        .cv-table tbody td { font-size:14px; color:#374151; padding:12px 14px; border-bottom:1px solid #F3F4F6; text-align:center; vertical-align:middle; white-space:nowrap; background:#FFFFFF; }
+        .cv-table tbody td.tl { text-align:left; }
+        .cv-table tbody td.tr { text-align:right; }
+        /* SIN striping: todas las filas blancas. Solo hover gris muy sutil. */
+        .cv-table tbody tr.data-row:hover td { background:#FAFBFC; }
+        /* fila activa/seleccionada: tinte gris + barra lateral gris oscuro neutra (patron tr.row-active del ERP) */
+        .cv-table tbody tr.row-active > td { background:rgba(100,116,139,.10) !important; }
+        .cv-table tbody tr.row-active > td:first-child { box-shadow:inset 4px 0 0 0 #64748B; }
+        .cv-money { font-variant-numeric:tabular-nums; font-weight:600; color:#0F172A; }
+        /* Pill de estado verde (identica a la captura) */
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 12px; border-radius:9999px; font-size:12px; font-weight:600; line-height:1; }
+        .badge-active { background:#DEF7EC; color:#03543F; }
+        .badge-neutral { background:#F3F4F6; color:#6B7280; }
+        /* Paginacion neutra: abajo a la derecha, activo en gris oscuro (sin azul) */
+        .pag-btn { min-width:32px; height:32px; padding:0 8px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid #E2E8F0; background:#fff; color:#475569; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+        .pag-btn:hover { border-color:#CBD5E1; color:#334155; background:#F8FAFC; }
+        .pag-btn.active { background:#334155; color:#fff; border-color:#334155; }
+        /* Filas de agrupacion: en tono claro neutro (color_group gris del ERP), sin azul */
+        .grp-row td { background:#E2E8F0 !important; color:#334155; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:8px 14px; text-align:left; }
+        .sub-row td { background:#F1F5F9 !important; color:#475569; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:6px 14px 6px 26px; text-align:left; }
         .prop-input { width:88px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:7px; padding:5px 8px; font-size:12.5px; text-align:right; color:#0F172A; outline:none; font-variant-numeric:tabular-nums; }
         .prop-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
         td.edited { background:rgba(217,119,6,.14) !important; }
@@ -137,30 +165,40 @@
             <!-- Tabla -->
             <div class="cv-card overflow-hidden">
                 <div class="max-h-[58vh] overflow-auto">
-                    <table class="cp-table">
+                    <table class="cv-table">
                         <thead>
                             <tr>
-                                <th class="tl">Producto</th>
-                                <th>P. Propuesto</th>
-                                <th>P. Venta s/IVA</th>
-                                <th>Costo</th>
-                                <th>Costo %</th>
-                                <th>MC</th>
-                                <th>Desplaz.</th>
-                                <th>Ventas est.</th>
-                                <th>Costo est.</th>
-                                <th>MC est.</th>
+                                <th style="text-align:left;"><span class="th-in" style="justify-content:flex-start;">Producto <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">P. Propuesto <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">P. Venta s/IVA <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">Costo <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">Costo % <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">MC <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">Desplaz. <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">Ventas est. <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">Costo est. <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
+                                <th class="tr"><span class="th-in">MC est. <svg class="th-sort" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 12 5 16 9"></polyline><polyline points="8 15 12 19 16 15"></polyline></svg></span></th>
                             </tr>
                         </thead>
                         <tbody id="cpBody"></tbody>
                     </table>
                 </div>
-                <div class="flex items-center justify-between p-4 border-t border-slate-100 text-[12px] text-slate-500">
-                    <span>Snapshot mensual · agrupado por clasificación → subclasificación · edita <b>P. Propuesto</b> para simular en vivo</span>
-                    <div class="flex items-center gap-3">
+                <div class="flex items-center justify-between p-4 border-t border-slate-100">
+                    <span class="text-[12px] text-slate-500">Snapshot mensual · agrupado por clasificación → subclasificación · edita <b>P. Propuesto</b> para simular en vivo</span>
+                    <div class="flex items-center gap-3 text-[12px] text-slate-500">
                         <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#7AAB20;"></span> Sano</span>
                         <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#D97706;"></span> Cambió / alerta</span>
                         <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#9E1B32;"></span> Fuera de rango</span>
+                    </div>
+                </div>
+
+                <!-- Paginación (patron canonico costsys/inventario) -->
+                <div class="flex items-center justify-between p-4 border-t border-slate-100">
+                    <span class="text-[12px] text-slate-500">Mostrando <b>1–6</b> de <b>6</b> productos</span>
+                    <div class="flex items-center gap-1.5">
+                        <button class="pag-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <button class="pag-btn active">1</button>
+                        <button class="pag-btn"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                     </div>
                 </div>
             </div>
@@ -223,17 +261,17 @@
                     const despProm = DESP_PROM[g.grupo] || 100;
                     const despCls = r.desp >= despProm ? 'cell-good' : 'cell-bad';
                     body.insertAdjacentHTML('beforeend', `
-                        <tr id="${id}" data-grupo="${g.grupo}" data-costo="${r.costo}" data-desp="${r.desp}" data-max="${maxCosto}" data-despprom="${despProm}">
+                        <tr id="${id}" class="data-row" data-grupo="${g.grupo}" data-costo="${r.costo}" data-desp="${r.desp}" data-max="${maxCosto}" data-despprom="${despProm}">
                             <td class="tl font-medium text-slate-700">${r.prod}</td>
-                            <td data-cell="prop"><input class="prop-input" type="number" step="0.01" value="${r.precio.toFixed(2)}"></td>
-                            <td data-cell="vsiva">${mx(vSinIva)}</td>
-                            <td data-cell="costo">${mx(r.costo)}</td>
-                            <td data-cell="pct" class="${pctCls}">${pctCosto.toFixed(1)}%</td>
-                            <td data-cell="mc" class="cell-good">${mx(mc)}</td>
-                            <td data-cell="desp" class="${despCls}">${r.desp}</td>
-                            <td data-cell="ventasEst">${mx0(ventasEst)}</td>
-                            <td data-cell="costoEst">${mx0(costoEst)}</td>
-                            <td data-cell="mcEst">${mx0(mcEst)}</td>
+                            <td class="tr" data-cell="prop"><input class="prop-input" type="number" step="0.01" value="${r.precio.toFixed(2)}"></td>
+                            <td class="tr" data-cell="vsiva">${mx(vSinIva)}</td>
+                            <td class="tr" data-cell="costo">${mx(r.costo)}</td>
+                            <td class="tr ${pctCls}" data-cell="pct">${pctCosto.toFixed(1)}%</td>
+                            <td class="tr cell-good" data-cell="mc">${mx(mc)}</td>
+                            <td class="tr ${despCls}" data-cell="desp">${r.desp}</td>
+                            <td class="tr" data-cell="ventasEst">${mx0(ventasEst)}</td>
+                            <td class="tr" data-cell="costoEst">${mx0(costoEst)}</td>
+                            <td class="tr" data-cell="mcEst">${mx0(mcEst)}</td>
                         </tr>`);
                 });
             });
@@ -257,10 +295,10 @@
             row.querySelector('[data-cell="vsiva"]').textContent = mx(vSinIva);
             const pctTd = row.querySelector('[data-cell="pct"]');
             pctTd.textContent = pctCosto.toFixed(1) + '%';
-            pctTd.className = pctCosto <= maxCosto ? 'cell-good bg-good' : 'cell-bad bg-bad';
+            pctTd.className = 'tr ' + (pctCosto <= maxCosto ? 'cell-good bg-good' : 'cell-bad bg-bad');
             const mcTd = row.querySelector('[data-cell="mc"]');
             mcTd.textContent = mx(mc);
-            mcTd.className = mc > 0 ? 'cell-good' : 'cell-bad';
+            mcTd.className = 'tr ' + (mc > 0 ? 'cell-good' : 'cell-bad');
             row.querySelector('[data-cell="ventasEst"]').textContent = mx0(ventasEst);
             row.querySelector('[data-cell="costoEst"]').textContent = mx0(costoEst);
             row.querySelector('[data-cell="mcEst"]').textContent = mx0(mcEst);
