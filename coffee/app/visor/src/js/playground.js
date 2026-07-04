@@ -348,7 +348,9 @@ function pgBind() {
         pgSaveSettings();
     });
 
-    $('#pgClearBtn, #pgResetBtn').on('click', () => pgNewThread());
+    // "Limpiar" solo suelta los datos conectados; "Reiniciar" sí abre hilo nuevo.
+    $('#pgClearBtn').on('click', () => pgClearData());
+    $('#pgResetBtn').on('click', () => pgNewThread());
 
     // Hilos de conversación
     $('#pgNewThreadBtn').on('click', () => pgNewThread());
@@ -737,6 +739,25 @@ async function pgSavePrompt() {
 }
 
 /* ── Chat ── */
+
+/* "Limpiar" (junto al input): suelta SOLO los datos conectados — base, carpeta y
+ * template fijado — conservando la conversación y el hilo. Antes estaba cableado
+ * a pgNewThread() y borraba todo; para empezar de cero están "Nuevo hilo" (+) y
+ * "Reiniciar" (⟲) en la cabecera. */
+function pgClearData() {
+    const had = !!(pg.activeDb || pg.activeFolder || pg.pinnedTplId);
+    pg.activeDb = null;
+    pgRenderDbChip();
+    pg.activeFolder = null;
+    pgRenderFolderChip();
+    pg.pinnedTplId = null;
+    pgRefreshPinUI();
+    pgSaveSession();
+    pgToast(had
+        ? 'Datos desconectados (base/carpeta/referencia). La conversación se conserva.'
+        : 'No había base, carpeta ni referencia conectadas.', 'info');
+}
+
 function pgClearChat() {
     pg.history = [];
     pg.templates = [];

@@ -386,6 +386,39 @@ function coffeeia_extract_usage(array $res) {
     return $u;
 }
 
+/* ── Disciplina de herramientas (compartida por los tres loops) ──────────────
+ * Los LLM a veces ANUNCIAN una consulta en prosa ("Voy a explorar las tablas…")
+ * y cierran el turno sin ejecutarla; el loop interpreta "sin tool_calls" como
+ * respuesta final y el usuario recibe un mensaje a medias. Dos defensas:
+ * 1) regla en el system al entrar al loop (previene), 2) deteccion de intencion
+ * inconclusa + ronda de rescate (corrige). */
+
+/** Regla anti-narración: se anexa como system al entrar a un loop de tools. */
+function coffeeia_tool_discipline_msg() {
+    return ['role' => 'system', 'content' =>
+        'REGLA DE HERRAMIENTAS: nunca anuncies en prosa que "vas a" consultar, explorar o leer algo — '
+      . 'ejecuta la herramienta correspondiente en ese MISMO turno y encadena las llamadas que hagan '
+      . 'falta hasta tener el dato. Tu respuesta final debe estar COMPLETA, sin acciones pendientes.'];
+}
+
+/** ¿La respuesta CIERRA anunciando una accion pendiente en vez de ejecutarla?
+ *  (p.ej. "…Voy a explorar las tablas que tienen FK hacia udn:") */
+function coffeeia_looks_unfinished($text) {
+    $t = mb_strtolower(trim((string) $text), 'UTF-8');
+    if ($t === '') return false;
+    // Si ya entrego un bloque de codigo/template, se considera completa aunque narre pasos.
+    if (strpos($t, '```') !== false) return false;
+    // Solo cuenta el TRAMO FINAL: una intencion al inicio seguida de la respuesta
+    // completa no debe disparar el rescate.
+    $tail = mb_substr($t, -400);
+    return (bool) preg_match(
+        '/((voy|vamos|procedo|proceder[eé])\s+a|d[eé]jame|perm[ií]teme|let me|i\'ll|i will)\s+'
+      . '(explorar|consultar|revisar|buscar|leer|verificar|inspeccionar|obtener|ejecutar|traer|analizar|'
+      . 'explore|check|query|read|look|run)\b[^.!?]{0,160}[:…]?\s*$/u',
+        $tail
+    );
+}
+
 /**
  * Loop agentico de SOLO LECTURA: deja que el modelo invoque run_select contra la base
  * conectada, ejecuta las consultas y le devuelve las filas, hasta que produce su
@@ -404,8 +437,11 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
     $usage = [];
     $final = '';
     $rounds = 0;
+    $rescued = false;
+    $messages[] = coffeeia_tool_discipline_msg();
 
-    for ($round = 0; $round < $maxRounds; $round++) {
+    // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
+    for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
         // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (ahí se va
         // el tiempo, no en MySQL); avisar en cuál va evita el "silencio" largo.
@@ -418,6 +454,17 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            // Ronda de RESCATE (una sola vez): anuncio una consulta en prosa sin
+            // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
+            if (!$rescued && coffeeia_looks_unfinished($final)) {
+                $rescued = true;
+                if ($onStatus) $onStatus('el modelo anunció una consulta sin ejecutarla: ronda extra para completarla…');
+                $messages[] = ['role' => 'assistant', 'content' => $final];
+                $messages[] = ['role' => 'user', 'content' =>
+                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
+                $final = '';
+                continue;
+            }
             break;
         }
 
@@ -531,8 +578,11 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
     $usage = [];
     $final = '';
     $rounds = 0;
+    $rescued = false;
+    $messages[] = coffeeia_tool_discipline_msg();
 
-    for ($round = 0; $round < $maxRounds; $round++) {
+    // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
+    for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
         // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
         if ($onStatus) $onStatus($round === 0
@@ -544,6 +594,17 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            // Ronda de RESCATE (una sola vez): anuncio una lectura en prosa sin
+            // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
+            if (!$rescued && coffeeia_looks_unfinished($final)) {
+                $rescued = true;
+                if ($onStatus) $onStatus('el modelo anunció una acción sin ejecutarla: ronda extra para completarla…');
+                $messages[] = ['role' => 'assistant', 'content' => $final];
+                $messages[] = ['role' => 'user', 'content' =>
+                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con lo leído.'];
+                $final = '';
+                continue;
+            }
             break;
         }
 
@@ -600,8 +661,11 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
     $usage = [];
     $final = '';
     $rounds = 0;
+    $rescued = false;
+    $messages[] = coffeeia_tool_discipline_msg();
 
-    for ($round = 0; $round < $maxRounds; $round++) {
+    // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
+    for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
         // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
         if ($onStatus) $onStatus($round === 0
@@ -613,6 +677,17 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            // Ronda de RESCATE (una sola vez): anuncio una accion en prosa sin
+            // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
+            if (!$rescued && coffeeia_looks_unfinished($final)) {
+                $rescued = true;
+                if ($onStatus) $onStatus('el modelo anunció una acción sin ejecutarla: ronda extra para completarla…');
+                $messages[] = ['role' => 'assistant', 'content' => $final];
+                $messages[] = ['role' => 'user', 'content' =>
+                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
+                $final = '';
+                continue;
+            }
             break;
         }
 
