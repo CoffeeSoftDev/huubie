@@ -292,7 +292,7 @@ class Cierre {
     // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
         return `
-            .pdf-document { background: #fff; color: #2c3e50; max-width: 1000px; margin: 0 auto; padding: 28px 32px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; }
+            .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 40px 44px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
             .pdf-header h2 { font-size: 20px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
             .pdf-header .meta { font-size: 12px; color: #7f8c8d; }

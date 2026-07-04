@@ -2719,9 +2719,9 @@ class App extends Templates {
         `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px] lg:h-[78vh]">
+            <div class="flex flex-col lg:flex-row gap-3 lg:min-h-[420px] lg:h-[72vh]">
                 <!-- Sidebar -->
-                <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
+                <div class="w-full lg:w-[240px] flex-shrink-0 space-y-3">
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
                         ${subsidiarySelect}
                         <div id="dateFieldWrapper">
@@ -2795,11 +2795,11 @@ class App extends Templates {
 
         $("<style>").text(`
             .daily-close-enhanced-modal .modal-dialog {
-                max-width: 1400px !important;
-                width: 92vw !important;
+                max-width: 1120px !important;
+                width: 90vw !important;
             }
             .daily-close-enhanced-modal .modal-body {
-                max-height: 90vh;
+                max-height: 86vh;
                 overflow-y: auto;
             }
             @media (max-width: 768px) {
