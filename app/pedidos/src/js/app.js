@@ -2719,9 +2719,9 @@ class App extends Templates {
         `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-3 lg:min-h-[420px] lg:h-[72vh]">
+            <div class="flex flex-col lg:flex-row gap-3 lg:min-h-[380px] lg:h-[62vh]">
                 <!-- Sidebar -->
-                <div class="w-full lg:w-[240px] flex-shrink-0 space-y-3">
+                <div class="w-full lg:w-[220px] flex-shrink-0 space-y-3">
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
                         ${subsidiarySelect}
                         <div id="dateFieldWrapper">
@@ -2749,7 +2749,7 @@ class App extends Templates {
                             ${lucideIcon('lock')} <span>Cerrar<span class="hidden md:inline"> Turno</span></span>
                         </button>
                         <button id="btnPrintTicket" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
-                            ${lucideIcon('printer')} <span>Imprimir<span class="hidden md:inline"> Ticket</span></span>
+                            ${lucideIcon('printer')} <span>Imprimir</span>
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
@@ -2760,7 +2760,7 @@ class App extends Templates {
                 </div>
                 <!-- Ticket Preview -->
                 <div class="flex-1 relative">
-                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[420px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[380px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
                         <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
                             <p class="text-xs text-gray-500">Vista previa de impresión</p>
                             <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
@@ -2795,11 +2795,11 @@ class App extends Templates {
 
         $("<style>").text(`
             .daily-close-enhanced-modal .modal-dialog {
-                max-width: 1120px !important;
-                width: 90vw !important;
+                max-width: 940px !important;
+                width: 82vw !important;
             }
             .daily-close-enhanced-modal .modal-body {
-                max-height: 86vh;
+                max-height: 78vh;
                 overflow-y: auto;
             }
             @media (max-width: 768px) {

@@ -69,6 +69,42 @@ class Cierre extends MCierre {
             $checks[] = ['key' => 'pending_balance', 'ok' => true, 'blocker' => false, 'label' => 'Sin saldos pendientes', 'detail' => ''];
         }
 
+        // Cobros cruzados del dia: mismas consultas que el ticket del cierre (getCierre)
+        // y mismo criterio que el corte de turno (COALESCE = sucursal donde entro el dinero).
+        // Salientes: pedidos de esta sucursal cobrados en otra (no entran a esta caja).
+        // Entrantes: abonos cobrados aqui para pedidos de otra sucursal.
+        $crossOut = $this->getDailyCrossPayments([$date, $subsidiaries_id, $subsidiaries_id]);
+        $prevRaw  = $this->getDailyPrevPayments([$date, $date, $date, $subsidiaries_id]);
+
+        $crossItems = [];
+        $crossOutTotal = 0;
+        $crossInTotal  = 0;
+        foreach ($crossOut as $p) {
+            $crossOutTotal += floatval($p['payment_cross']);
+            $crossItems[] = [
+                'folio' => formatFolioCierre($subsidiaries_id, $p['id']),
+                'name'  => 'Cobrado en ' . ($p['charged_subsidiary'] ?: 'otra sucursal') . ' (no entra a esta caja)',
+                'total' => floatval($p['payment_cross'])
+            ];
+        }
+        foreach ($prevRaw as $p) {
+            if (intval($p['origin_subsidiary_id']) != intval($subsidiaries_id)) {
+                $crossInTotal += floatval($p['payment_real']);
+                $crossItems[] = [
+                    'folio' => formatFolioCierre($p['origin_subsidiary_id'], $p['id']),
+                    'name'  => 'Cobrado aqui — pedido de ' . ($p['origin_subsidiary'] ?: 'otra sucursal'),
+                    'total' => floatval($p['payment_real'])
+                ];
+            }
+        }
+
+        if (count($crossItems) > 0) {
+            $crossDetail = 'Salen: $' . number_format($crossOutTotal, 2) . ' | Entran: $' . number_format($crossInTotal, 2);
+            $checks[] = ['key' => 'cross_payments', 'ok' => false, 'blocker' => false, 'label' => count($crossItems) . ' cobro(s) cruzado(s) con otras sucursales', 'detail' => $crossDetail, 'items' => $crossItems];
+        } else {
+            $checks[] = ['key' => 'cross_payments', 'ok' => true, 'blocker' => false, 'label' => 'Sin cobros cruzados', 'detail' => ''];
+        }
+
         $payments = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
         $cash = 0; $card = 0; $transfer = 0;
         if (is_array($payments)) {

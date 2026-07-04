@@ -76,6 +76,11 @@ if ($dbSchema && $fsRoot) {
         // Mas rondas que los loops simples: explorar + leer archivos + varias consultas.
         $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $canvasMode ? 12 : 8);
 
+        // Un final VACIO se trata como fallo → catch (plan B + streaming normal).
+        if (trim((string) $r['final']) === '') {
+            throw new Exception('el modelo agotó las rondas sin entregar respuesta');
+        }
+
         $final = (string) $r['final'];
         foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {
             if ($piece !== '') $send('chunk', ['t' => $piece]);
@@ -111,9 +116,9 @@ if ($dbSchema && $fsRoot) {
         $inj = coffeeia_inject_sample_rows($allMessages, $dbSchema);
         $allMessages = $inj['messages'];
         $toolsFallback = $inj['tables']
-            ? 'Este modelo no soporta consultas en vivo (tools); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
-            : 'Este modelo no soporta consultas en vivo (tools) y el mensaje no nombra ninguna tabla: los datos no se pudieron leer. Nombra la tabla o cambia a GLM/Qwen3 Coder/Kimi.';
-        $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con contexto precargado]\n"]);
+            ? 'Las consultas en vivo no se completaron (' . $e->getMessage() . '); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
+            : 'Las consultas en vivo no se completaron (' . $e->getMessage() . ') y el mensaje no nombra ninguna tabla: los datos pueden no ser reales. Nombra la tabla o cambia de modelo.';
+        $send('thinking', ['t' => "\n[consultas en vivo no completadas: genero con contexto precargado]\n"]);
     }
 }
 
@@ -129,7 +134,14 @@ if ($dbSchema && !$fsRoot) {
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
-        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, 4);
+        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, 6);
+
+        // Un final VACIO jamas debe llegar al usuario como done ok (se veia
+        // "el agente no devolvio respuesta"): se trata como fallo y cae al
+        // catch (plan B con filas precargadas + streaming normal).
+        if (trim((string) $r['final']) === '') {
+            throw new Exception('el modelo agotó las rondas sin entregar respuesta');
+        }
 
         // "Streaming" del texto final: lo troceamos por palabras para que el UI lo
         // pinte progresivamente (la consulta a la base ya se hizo arriba).
@@ -169,9 +181,9 @@ if ($dbSchema && !$fsRoot) {
         $inj = coffeeia_inject_sample_rows($allMessages, $dbSchema);
         $allMessages = $inj['messages'];
         $toolsFallback = $inj['tables']
-            ? 'Este modelo no soporta consultas en vivo (tools); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
-            : 'Este modelo no soporta consultas en vivo (tools) y el mensaje no nombra ninguna tabla: los datos no se pudieron leer. Nombra la tabla o cambia a GLM/Qwen3 Coder/Kimi.';
-        $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con filas precargadas]\n"]);
+            ? 'Las consultas en vivo no se completaron (' . $e->getMessage() . '); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
+            : 'Las consultas en vivo no se completaron (' . $e->getMessage() . ') y el mensaje no nombra ninguna tabla: los datos pueden no ser reales. Nombra la tabla o cambia de modelo.';
+        $send('thinking', ['t' => "\n[consultas en vivo no completadas: genero con filas precargadas]\n"]);
     }
 }
 
@@ -187,6 +199,11 @@ if ($fsRoot && !$dbSchema) {
         // Con lienzo activo el modelo necesita mas rondas: explorar + leer varios
         // archivos (vista, css, js) antes de generar el template.
         $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $canvasMode ? 10 : 6);
+
+        // Un final VACIO se trata como fallo → catch (streaming normal con el árbol).
+        if (trim((string) $r['final']) === '') {
+            throw new Exception('el modelo agotó las rondas sin entregar respuesta');
+        }
 
         $final = (string) $r['final'];
         foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {

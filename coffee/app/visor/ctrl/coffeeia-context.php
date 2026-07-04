@@ -494,6 +494,12 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
     // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
     if ($final === '') {
         if ($onStatus) $onStatus('cerrando la respuesta…');
+        // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
+        // contenido VACIO aqui porque intentan seguir llamando herramientas que
+        // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
+        $messages[] = ['role' => 'user', 'content' =>
+            'Se acabaron las rondas de herramientas. Con los datos YA obtenidos arriba, '
+          . 'entrega AHORA tu respuesta final completa; no llames a ninguna herramienta.'];
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
@@ -632,6 +638,12 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
 
     if ($final === '') {
         if ($onStatus) $onStatus('cerrando la respuesta…');
+        // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
+        // contenido VACIO aqui porque intentan seguir llamando herramientas que
+        // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
+        $messages[] = ['role' => 'user', 'content' =>
+            'Se acabaron las rondas de herramientas. Con los datos YA obtenidos arriba, '
+          . 'entrega AHORA tu respuesta final completa; no llames a ninguna herramienta.'];
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
@@ -716,6 +728,12 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
 
     if ($final === '') {
         if ($onStatus) $onStatus('cerrando la respuesta…');
+        // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
+        // contenido VACIO aqui porque intentan seguir llamando herramientas que
+        // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
+        $messages[] = ['role' => 'user', 'content' =>
+            'Se acabaron las rondas de herramientas. Con los datos YA obtenidos arriba, '
+          . 'entrega AHORA tu respuesta final completa; no llames a ninguna herramienta.'];
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');

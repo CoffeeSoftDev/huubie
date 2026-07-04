@@ -39,6 +39,7 @@ class Cierre {
         const svgOk = `<svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
         const svgWarn = `<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
         const svgBlock = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+        const svgCross = `<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>`;
 
         let checksHtml = '';
         data.checks.forEach((check, idx) => {
@@ -76,6 +77,17 @@ class Cierre {
                                 </div>
                             </div>
                         `).join('');
+                    } else if (check.key === 'cross_payments') {
+                        // Mismo tratamiento que la seccion COBRADO EN OTRA SUCURSAL del turno.
+                        itemsHtml = check.items.map(item => `
+                            <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
+                                <div>
+                                    <p class="text-xs font-semibold text-white">${item.folio || '-'}</p>
+                                    <p class="text-[10px] text-purple-400">${item.name || ''}</p>
+                                </div>
+                                <span class="text-xs font-bold text-white">${formatPrice(item.total)}</span>
+                            </div>
+                        `).join('');
                     } else {
                         itemsHtml = check.items.map(item => `
                             <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
@@ -89,17 +101,26 @@ class Cierre {
                     }
                 }
 
+                // Los cobros cruzados van en purpura (informativos), igual que en el ticket de turno.
+                const isCross  = check.key === 'cross_payments';
+                const boxCls   = isCross ? 'border-purple-600/30' : 'border-yellow-600/30';
+                const iconBg   = isCross ? 'bg-purple-600/20' : 'bg-yellow-600/20';
+                const iconSvg  = isCross ? svgCross : svgWarn;
+                const noteCls  = isCross ? 'text-purple-400/70' : 'text-yellow-400/70';
+                const noteTxt  = isCross ? (check.detail || 'Informativo — no bloquea el cierre') : 'No bloquea el cierre';
+                const bodyCls  = isCross ? 'border-purple-600/20' : 'border-yellow-600/20';
+
                 checksHtml += `
-                    <div class="bg-[#1a2332] rounded-lg border border-yellow-600/30 overflow-hidden">
+                    <div class="bg-[#1a2332] rounded-lg border ${boxCls} overflow-hidden">
                         <div class="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#1e2a3a] transition-colors" onclick="cierre.toggleDetail('check-${idx}')">
-                            <div class="w-7 h-7 rounded-full bg-yellow-600/20 flex items-center justify-center flex-shrink-0">${svgWarn}</div>
+                            <div class="w-7 h-7 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0">${iconSvg}</div>
                             <div class="flex-1">
                                 <p class="text-sm font-semibold text-white">${check.label}</p>
-                                <p class="text-[11px] text-yellow-400/70">No bloquea el cierre</p>
+                                <p class="text-[11px] ${noteCls}">${noteTxt}</p>
                             </div>
                             <svg id="arrow-check-${idx}" class="w-4 h-4 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </div>
-                        <div id="detail-check-${idx}" class="hidden border-t border-yellow-600/20 px-3 pb-3 pt-2 space-y-1.5">${itemsHtml}</div>
+                        <div id="detail-check-${idx}" class="hidden border-t ${bodyCls} px-3 pb-3 pt-2 space-y-1.5">${itemsHtml}</div>
                     </div>`;
             }
         });
@@ -292,15 +313,15 @@ class Cierre {
     // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
         return `
-            .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 40px 44px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 13px; }
+            .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 40px 44px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 12px; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
-            .pdf-header h2 { font-size: 20px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
-            .pdf-header .meta { font-size: 12px; color: #7f8c8d; }
+            .pdf-header h2 { font-size: 17px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
+            .pdf-header .meta { font-size: 11px; color: #7f8c8d; }
             .pdf-header .meta span { color: #2c3e50; font-weight: 600; }
             .pdf-totals-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
             .pdf-totals-bar .total-item { padding: 8px 10px; background: #f7f9fb; border: 1px solid #dce3ea; border-radius: 4px; border-top: 3px solid #bdc3c7; }
-            .pdf-totals-bar .total-item .label { font-size: 9px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
-            .pdf-totals-bar .total-item .value { font-size: 15px; font-weight: 700; color: #2c3e50; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-totals-bar .total-item .label { font-size: 8px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
+            .pdf-totals-bar .total-item .value { font-size: 13px; font-weight: 700; color: #2c3e50; font-family: 'Consolas', 'Courier New', monospace; }
             .pdf-totals-bar .total-item.highlight { background: #3d4f5f; border-color: #3d4f5f; border-top-color: #2c3e50; }
             .pdf-totals-bar .total-item.highlight .label { color: #b0bec5; }
             .pdf-totals-bar .total-item.highlight .value { color: #eceff1; }
@@ -308,34 +329,34 @@ class Cierre {
             @media (max-width: 900px) { .pdf-grid { grid-template-columns: 1fr 1fr; } }
             @media (max-width: 600px) { .pdf-grid { grid-template-columns: 1fr; } }
             .pdf-section { border: 1px solid #dce3ea; border-radius: 3px; overflow: hidden; background: #fff; }
-            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); padding: 8px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4a5568; border-bottom: 1px solid #d1d9e0; }
+            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); padding: 8px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4a5568; border-bottom: 1px solid #d1d9e0; }
             .pdf-section-body { padding: 10px 12px; }
             .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
             .pdf-kv:last-child { border-bottom: none; }
-            .pdf-kv .kv-label { color: #5a6a7a; font-size: 12px; }
-            .pdf-kv .kv-value { font-weight: 600; font-size: 13px; color: #2c3e50; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-kv .kv-label { color: #5a6a7a; font-size: 11px; }
+            .pdf-kv .kv-value { font-weight: 600; font-size: 12px; color: #2c3e50; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
             .pdf-kv.total-row { border-top: 1px solid #95a5a6; border-bottom: none; padding: 6px 12px 5px; margin: 4px -12px 0; background: #f7f9fb; }
             .pdf-kv.total-row .kv-label { font-weight: 700; color: #2c3e50; }
-            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 14px; color: #1a252f; }
+            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 13px; color: #1a252f; }
             .pdf-kv .kv-value.negative { color: #943030; }
-            .pdf-sub-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin: 8px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #e8ecf0; }
+            .pdf-sub-title { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin: 8px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #e8ecf0; }
             .pdf-pct-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
             .pdf-pct-bar .bar { flex: 1; height: 5px; background: #e8ecf0; border-radius: 2px; overflow: hidden; }
             .pdf-pct-bar .bar .fill { height: 100%; border-radius: 2px; }
             .pdf-pct-bar .pct-text { font-size: 9px; color: #7f8c8d; min-width: 30px; text-align: right; font-family: 'Consolas', monospace; }
-            .pdf-grid-bottom { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 18px; }
-            @media (max-width: 768px) { .pdf-grid-bottom { grid-template-columns: 1fr; } }
-            table.pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); color: #4a5568; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 10px; text-align: left; border-bottom: 1px solid #d1d9e0; }
+            /* Columna unica: la tabla de turnos (7 columnas) necesita el ancho completo para no generar scroll-x. */
+            .pdf-grid-bottom { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
+            table.pdf-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); color: #4a5568; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 8px; text-align: left; border-bottom: 1px solid #d1d9e0; }
             table.pdf-table tbody tr { border-bottom: 1px solid #f0f2f5; }
             table.pdf-table tbody tr:nth-child(even) { background: #fafbfc; }
-            table.pdf-table tbody td { padding: 5px 10px; color: #2c3e50; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
+            table.pdf-table tbody td { padding: 5px 8px; color: #2c3e50; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
             table.pdf-table .text-right { text-align: right; }
             table.pdf-table .text-center { text-align: center; }
             table.pdf-table .col-importe { font-weight: 700; color: #1a252f; background: #f0f3f6; }
             table.pdf-table .col-efectivo { color: #2c3e50; font-weight: 600; }
             table.pdf-table .col-tarjeta { color: #2c3e50; font-weight: 600; }
-            .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 3px double #bdc3c7; display: flex; justify-content: space-between; font-size: 10px; color: #95a5a6; letter-spacing: 0.5px; }
+            .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 3px double #bdc3c7; display: flex; justify-content: space-between; font-size: 9px; color: #95a5a6; letter-spacing: 0.5px; }
         `;
     }
 
@@ -829,23 +850,6 @@ class Cierre {
                     </div>
                 </div>
 
-                ${totalsBar}
-
-                <div class="pdf-grid">
-                    ${cuentasHtml}
-                    ${cajaHtml}
-                    ${descuentosHtml}
-                    ${ventasHtml}
-                </div>
-
-                ${prevSection}
-                ${crossSection}
-
-                <div class="pdf-grid-bottom">
-                    ${pagoVentasHtml}
-                    ${shiftsTableHtml}
-                </div>
-
                 <div class="pdf-section" style="margin-bottom:12px">
                     <div class="pdf-section-title" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="cierre.toggleOrdersBreakdown()">
                         <span>Desglose de Pedidos</span>
@@ -866,6 +870,23 @@ class Cierre {
                             <tbody>${ordersRows}</tbody>
                         </table>
                     </div>
+                </div>
+
+                ${prevSection}
+                ${crossSection}
+
+                <div class="pdf-grid-bottom">
+                    ${pagoVentasHtml}
+                    ${shiftsTableHtml}
+                </div>
+
+                ${totalsBar}
+
+                <div class="pdf-grid">
+                    ${cuentasHtml}
+                    ${cajaHtml}
+                    ${descuentosHtml}
+                    ${ventasHtml}
                 </div>
 
                 <div class="pdf-footer">
