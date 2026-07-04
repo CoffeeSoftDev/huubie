@@ -1266,7 +1266,7 @@ function pgRenderSandbox(htmlBody, isDoc) {
     // Pintamos el contenedor con el fondo del tema para que cubra TODO el preview.
     pgUpdateSandboxBg();
     const fr = document.getElementById('pgSandboxFrame');
-    fr.onload = () => pgApplyZoom();   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
+    fr.onload = () => { pgSyncStageViewport(); pgApplyZoom(); };   // el scroll lo hace el iframe interno; reaplicamos edge y zoom al cargar
     fr.srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
     // La pestaña "Código" refleja la fuente de lo que se está renderizando.
     if (!isDoc) {
@@ -1282,30 +1282,15 @@ function pgShowSandboxCode(code) {
     $('.pg-tab[data-sbtab="code"]').click();
 }
 
-/* ── Viewport del preview/live (móvil/laptop/desktop) ──
- * Fija el ancho del iframe para previsualizar diseños/módulos responsive. 'full'
- * deja el iframe al 100%; 'mobile'/'laptop' centran un ancho concreto (clase
- * .pg-vp-fixed + var --pg-vp-w en el CSS). Mismo patrón que el Playground. */
-const PG_VIEWPORTS = {
-    mobile: { w: 390 },
-    laptop: { w: 1280 },
-    full:   { w: 0 }
-};
-function pgApplyViewport() {
-    const mode = PG_VIEWPORTS[pg.viewport] ? pg.viewport : 'full';
-    pg.viewport = mode;
-    const $body = $('.pg-sandbox-body');
-    const fixed = mode !== 'full';
-    $body.toggleClass('pg-vp-fixed', fixed);
-    $body.css('--pg-vp-w', fixed ? PG_VIEWPORTS[mode].w + 'px' : '');
-    $('.pg-vp-btn').each(function () { $(this).toggleClass('is-active', $(this).data('vp') === mode); });
+/* ── Viewport del preview/live ──
+ * El motor (PG_VIEWPORTS, pgApplyViewport, pgSetViewport, pgSyncStageViewport)
+ * vive en pg-core.js, COMPARTIDO con el Playground (incluye el mockup de
+ * teléfono en vista móvil). Aquí solo va el remate propio de esta página. */
+
+/* Hook de pg-core tras aplicar el viewport: fondo según vista + nav del Live. */
+function pgOnViewportApplied() {
     pgUpdateSandboxBg();
     fgUpdateLiveNav();   // en móvil/laptop se oculta el navegador del Live (también reaplica el zoom)
-}
-function pgSetViewport(mode) {
-    pg.viewport = PG_VIEWPORTS[mode] ? mode : 'full';
-    pgApplyViewport();
-    pgSaveSettings();
 }
 // Decide el fondo del área del sandbox según el viewport y la vista activa:
 //  - viewport fijo (móvil/laptop): lo deja al CSS (.pg-vp-fixed = fondo escritorio).
@@ -1320,68 +1305,9 @@ function pgUpdateSandboxBg() {
 }
 
 /* ── Zoom del preview ──
- * Escala el CONTENIDO del iframe (no el tamaño del iframe), que es el único que
- * hace scroll. Usa la propiedad CSS `zoom` (reflowea el layout, a diferencia de
- * transform:scale). Se reaplica en cada render (onload) porque el iframe recarga. */
-function pgApplyZoom() {
-    const z = (pg.zoom || 100) / 100;
-    $('#pgZoomLabel').text((pg.zoom || 100) + '%');
-    // Aplica el zoom al iframe visible (Preview o Live).
-    const id = $('#fgLiveFrame').hasClass('hidden') ? 'pgSandboxFrame' : 'fgLiveFrame';
-    const fr = document.getElementById(id);
-    if (!fr) return;
-
-    // Con viewport fijo (móvil/laptop) el ANCHO lo controla el CSS (.pg-vp-fixed);
-    // no debemos sobreescribirlo con escalado externo.
-    const vpFixed = $('.pg-sandbox-body').hasClass('pg-vp-fixed');
-
-    // 1º intento: zoom "interno" (escala el documento del iframe y respeta su
-    // propio scroll). Solo es posible same-origin. Si el módulo Live vive en otro
-    // dominio, el navegador prohíbe tocar su documento → lanza excepción y caemos
-    // a escalar el ELEMENTO iframe desde fuera (transform), que sí funciona
-    // cross-origin. Sin esto, el zoom fallaba en silencio y el módulo no se
-    // ajustaba al panel (síntoma "no se visualiza correctamente").
-    let innerOk = false;
-    try {
-        const doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document);
-        if (doc && doc.documentElement) { doc.documentElement.style.zoom = z; innerOk = true; }
-    } catch (e) { innerOk = false; }
-
-    if (innerOk || vpFixed) {
-        // Zoom interno OK (o ancho fijo por CSS): limpiar cualquier escalado
-        // externo previo y volver al iframe normal (el width lo da CSS).
-        fr.style.position = fr.style.top = fr.style.left = '';
-        fr.style.transform = fr.style.width = fr.style.height = '';
-    } else {
-        // Escalado externo (cross-origin): posicionamos el iframe en ABSOLUTO
-        // dentro de .pg-sandbox-body (position:relative) y lo dimensionamos en
-        // PÍXELES reales del contenedor divididos por el zoom; al escalarlo ocupa
-        // EXACTAMENTE el contenedor sin huecos. Usamos px (no %) porque el height
-        // en % no siempre resuelve y dejaba el panel recortado mostrando el fondo.
-        const host = fr.parentElement;                       // .pg-sandbox-body
-        const r = host ? host.getBoundingClientRect() : { width: 0, height: 0 };
-        // Si la barra del Live está activa, el iframe arranca FG_NAV_H más abajo
-        // y dispone de esa altura menos (igual que el margin-top del caso same-origin).
-        const navOff = (id === 'fgLiveFrame' && $('.pg-sandbox-body').hasClass('fg-live-nav-on')) ? FG_NAV_H : 0;
-        fr.style.position = 'absolute';
-        fr.style.top = navOff + 'px';
-        fr.style.left = '0';
-        fr.style.transformOrigin = 'top left';
-        fr.style.transform = 'scale(' + z + ')';
-        fr.style.width  = (r.width  / z) + 'px';
-        fr.style.height = ((r.height - navOff) / z) + 'px';
-    }
-}
-function pgSetZoom(z) {
-    pg.zoom = Math.max(25, Math.min(200, Math.round(z / 5) * 5));   // 25%–200%, pasos de 5
-    pgApplyZoom();
-    pgSaveSettings();
-}
-// Detecta si el HTML ya es un documento completo (head/tailwind/tema propios).
-function pgIsFullDoc(html) {
-    return /<!doctype\s+html/i.test(html) || /<html[\s>]/i.test(html) ||
-           /<head[\s>]/i.test(html) || /<body[\s>]/i.test(html);
-}
+ * pgApplyZoom / pgSetZoom / pgIsFullDoc viven en pg-core.js (compartido con el
+ * Playground). El core conserva el fallback cross-origin por transform que se
+ * escribió aquí para el Live y elige el frame visible (#fgLiveFrame o Preview). */
 
 // Reune los assets de un sistema de diseño: <link> + <style> embebido + <script> + atributos.
 function pgThemeAssets(t) {
@@ -1454,7 +1380,9 @@ function pgWrapHtml(body, themeKey, isDoc) {
         // `safe center`: centra el componente cuando cabe, pero si es más alto
         // que el iframe alinea al inicio en vez de recortar — así se puede
         // scrollear y ver TODO el componente (login, formularios largos, etc.).
-        : `body{min-height:100vh;display:grid;place-content:safe center;padding:28px;}.pg-stage{width:auto;max-width:100%;min-width:0;}`;
+        // pg-vp-edge la pone pgSyncStageViewport() de pg-core (full/móvil): el
+        // contenido ocupa el lienzo de borde a borde, sin padding de presentación.
+        : `body{min-height:100vh;display:grid;place-content:safe center;padding:28px;}.pg-stage{width:auto;max-width:100%;min-width:0;}body.pg-vp-edge{padding:0;}`;
 
     return `<!DOCTYPE html><html${htmlAttr}><head><meta charset="utf-8">
         <base href="${appBase}">
@@ -2468,7 +2396,7 @@ function fgCopyModuleToAgent() {
     $('#pgSandboxEmpty').hide();
     const pf = document.getElementById('pgSandboxFrame');
     pf.removeAttribute('src');
-    pf.onload = () => pgApplyZoom();
+    pf.onload = () => { pgSyncStageViewport(); pgApplyZoom(); };
     pf.srcdoc = fullHtml;
     pg.lastHtml = fullHtml; pg.lastTheme = pg.theme; pg._lastIsDoc = true;
     const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(fullHtml);
@@ -2555,7 +2483,7 @@ function fgRecreateFromNode(el) {
     $('#pgSandboxEmpty').hide();
     const pf = document.getElementById('pgSandboxFrame');
     pf.removeAttribute('src');
-    pf.onload = () => pgApplyZoom();
+    pf.onload = () => { pgSyncStageViewport(); pgApplyZoom(); };
     pf.srcdoc = docHtml;
     pg.lastHtml = nodeHtml; pg.lastTheme = pg.theme; pg._lastIsDoc = false;
 

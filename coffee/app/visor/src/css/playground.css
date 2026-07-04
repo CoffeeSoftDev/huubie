@@ -174,9 +174,16 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
 
-/* Viewport fijo (móvil/laptop): centra el iframe con un ancho concreto sobre un
+/* Shell de dispositivo: por defecto NO participa en el layout (display:contents),
+   así el iframe sigue siendo hijo directo del flex del body y todos los selectores
+   .pg-sandbox-frame existentes siguen funcionando. Solo toma forma en vista móvil. */
+.pg-device-shell { display: contents; }
+
+/* Viewport fijo (laptop): centra el iframe con un ancho concreto sobre un
    fondo de "escritorio" para que se vea como un dispositivo. El ancho lo fija JS
-   en --pg-vp-w. En "full" no se aplica esta clase y el iframe ocupa el 100%. */
+   en --pg-vp-w. En "full" no se aplica esta clase y el iframe ocupa el 100%.
+   ÚNICA fuente de estos estilos para Playground Y Forge (forge.php incluye esta
+   hoja; el motor JS está en pg-core.js). */
 .pg-sandbox-body.pg-vp-fixed {
     overflow: auto;
     display: flex; justify-content: center; align-items: flex-start;
@@ -190,6 +197,40 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     height: 100%;
     background: #fff;
     border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+
+/* Viewport móvil: mockup de teléfono. El shell dibuja el chasis (bisel, bocina y
+   barra home) y el iframe es la "pantalla" con el template dentro a 390px. */
+.pg-sandbox-body.pg-vp-phone {
+    overflow: auto;
+    display: flex;
+    padding: 16px 0;
+    background: var(--vsr-bg-chrome);
+}
+.pg-sandbox-body.pg-vp-phone .pg-device-shell {
+    display: block; position: relative;
+    flex: 0 0 auto;
+    margin: auto;               /* centra en ambos ejes sin recortar al desbordar */
+    width: calc(var(--pg-vp-w, 390px) + 24px);   /* pantalla + bisel lateral */
+    height: min(844px, 100%);
+    padding: 34px 12px 30px;                     /* bisel: superior/lados/inferior */
+    background: #0b0f19;
+    border-radius: 44px;
+    box-shadow: 0 14px 42px rgba(0,0,0,.45), inset 0 0 0 2px #262f3f;
+}
+.pg-sandbox-body.pg-vp-phone .pg-device-shell::before {   /* bocina/cámara */
+    content: ''; position: absolute; top: 13px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 9px; border-radius: 999px; background: #1f2937;
+}
+.pg-sandbox-body.pg-vp-phone .pg-device-shell::after {    /* barra home */
+    content: ''; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 5px; border-radius: 999px; background: #374151;
+}
+.pg-sandbox-body.pg-vp-phone .pg-sandbox-frame {
+    width: 100%; height: 100%;
+    background: #fff;
+    border-radius: 22px;
 }
 
 /* Aviso de plantilla activa en el modal de guardar (editando una cargada). */

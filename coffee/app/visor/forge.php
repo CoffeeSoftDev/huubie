@@ -276,10 +276,14 @@
                     </div>
                     <button id="fgNavOpenTab" class="fg-nav-btn" title="Abrir en una pestaña nueva del navegador"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></button>
                 </div>
-                <!-- Preview: los diseños que genera el agente (srcdoc) -->
-                <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
-                <!-- Live: el módulo real en línea (src), independiente del preview -->
-                <iframe id="fgLiveFrame" class="pg-sandbox-frame hidden" title="Live"></iframe>
+                <!-- Shell de dispositivo (pg-core): invisible (display:contents) salvo en
+                     vista móvil, donde dibuja el marco de teléfono alrededor del frame visible. -->
+                <div id="pgDeviceShell" class="pg-device-shell">
+                    <!-- Preview: los diseños que genera el agente (srcdoc) -->
+                    <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Preview"></iframe>
+                    <!-- Live: el módulo real en línea (src), independiente del preview -->
+                    <iframe id="fgLiveFrame" class="pg-sandbox-frame hidden" title="Live"></iframe>
+                </div>
                 <!-- Banner del modo selección: guía al hacer clic en un componente -->
                 <div id="fgRecBanner" class="fg-rec-banner hidden">
                     <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
@@ -507,6 +511,7 @@
 
     <div id="pgToast" class="visor-toast"></div>
 
+    <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/forge.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

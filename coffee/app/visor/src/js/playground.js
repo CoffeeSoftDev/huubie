@@ -54,7 +54,13 @@ function pgMetaItems(meta) {
         toksItem = `<span class="meta-item" title="Tokens entrada / salida">Tokens: <strong>${fmt(meta.promptTokens)} in / ${fmt(meta.completionTokens)} out</strong></span>`;
     }
 
-    return costItem + toksItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
+    // Aviso persistente cuando el tool-calling no funcionó en este turno: el
+    // template pudo salir sin datos reales (el title trae el motivo completo).
+    const warnItem = meta.toolsFallback
+        ? `<span class="meta-item" style="color:#f59e0b;" title="${pgEscape(meta.toolsFallback)}">⚠ sin consultas en vivo</span>`
+        : '';
+
+    return costItem + toksItem + warnItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
 }
 
 const PG_STORE_KEY  = 'playground:settings:v1';
@@ -335,7 +341,7 @@ function pgBind() {
     });
     $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
 
-    $('#pgModelSelect').on('change', e => { pg.model = e.target.value || ''; pgSaveSettings(); });
+    $('#pgModelSelect').on('change', e => { pg.model = e.target.value || ''; pgSaveSettings(); pgWarnModelTools(); });
 
     $('#pgThemeToggle').on('click', () => {
         pgApplyUiTheme(pg.uiTheme === 'dark' ? 'light' : 'dark');
@@ -768,7 +774,10 @@ function pgSetActiveDb(schema) {
     const changed = next !== pg.activeDb;
     pg.activeDb = next;
     pgRenderDbChip();
-    if (changed && next) pgToast('🛢 Conectado a la base ' + next, 'success');
+    if (changed && next) {
+        pgToast('🛢 Conectado a la base ' + next, 'success');
+        pgWarnModelTools();   // recién conectada + modelo sin tools = avisar ya, no al fallar
+    }
 }
 
 // Chip "🛢 <base> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
@@ -1329,6 +1338,25 @@ function pgModelHasVision(model) {
     return !!opt && /vision/i.test(opt.textContent || '');
 }
 
+// ¿El modelo dado soporta TOOL-CALLING (run_select / lectura de carpeta)? Se
+// deriva del atributo data-tools="1" del <option> (mismo patrón que la visión).
+// Un modelo desconocido (p.ej. restaurado de un hilo viejo) no genera aviso.
+function pgModelSupportsTools(model) {
+    const m = model || pg.model;
+    if (!m) return true;   // sin modelo explícito decide el backend (default tool-capable)
+    const opt = document.querySelector(`#pgModelSelect option[value="${m.replace(/"/g, '\\"')}"]`);
+    return !opt || opt.getAttribute('data-tools') === '1';
+}
+
+// Aviso suave cuando el modelo activo puede no soportar consultas en vivo: sin
+// tools, la base/carpeta conectada no se lee y el template sale sin datos reales.
+function pgWarnModelTools() {
+    if (pgModelSupportsTools(pg.model)) return;
+    const target = pg.activeDb ? `la base conectada ("${pg.activeDb}")` :
+                   pg.activeFolder ? 'la carpeta conectada' : 'bases de datos y carpetas';
+    pgToast(`Este modelo puede no soportar consultas en vivo (tools): ${target} podría no leerse. Para datos reales usa GLM, Qwen3 Coder o Kimi.`, 'warn');
+}
+
 async function pgSend(text, images, docs) {
     pgSetBusy(true);
     images = Array.isArray(images) ? images : [];
@@ -1459,9 +1487,24 @@ async function pgSend(text, images, docs) {
             + `Si una consulta no devuelve filas, refléjalo con un estado vacío en el componente.`;
     }
 
+    // Poda del PAYLOAD (pg.history no se toca: chat, sesión e hilos guardan todo).
+    // Cada iteración deja un template HTML completo en el historial y todo viajaba
+    // en cada turno — y en CADA ronda del loop de herramientas — así que el modelo
+    // releía miles de tokens de versiones obsoletas. Solo el ÚLTIMO bloque ```html
+    // de la conversación viaja completo (es la versión vigente, la que se modifica);
+    // los anteriores se sustituyen por una marca.
+    let lastHtmlIdx = -1;
+    pg.history.forEach((m, i) => {
+        if (/```html/i.test(m.content || '')) lastHtmlIdx = i;
+    });
     const payload = {
-        messages: pg.history.map(m => {
-            const o = { role: m.role, content: m.content };
+        messages: pg.history.map((m, i) => {
+            let content = m.content;
+            if (i !== lastHtmlIdx && /```html/i.test(content || '')) {
+                content = content.replace(/```html[\s\S]*?```/gi,
+                    '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque ```html de la conversación]');
+            }
+            const o = { role: m.role, content };
             // Solo adjuntar imágenes si el modelo activo tiene visión.
             if (!dropImages && m.images && m.images.length) o.images = m.images;
             return o;
@@ -1564,13 +1607,17 @@ async function pgSend(text, images, docs) {
     if (meta && meta.db) pgSetActiveDb(meta.db);
     // Igual para la carpeta local conectada (list_dir/read_file/grep_files).
     if (meta && meta.fs) pgSetActiveFolder(meta.fs);
+    // El backend avisa cuando el tool-calling no funcionó (modelo sin tools o que
+    // no consultó): toast inmediato + chip persistente en el pie del mensaje.
+    if (meta && meta.tools_fallback) pgToast('⚠ ' + meta.tools_fallback, 'warn');
     pg.history.push({ role: 'assistant', content: received });
     pgFinalizeResponse(stream, received, {
         credits:          meta.credits_estimate,
         cost:             meta.cost_usd,            // costo real USD (OpenRouter) o null (Ollama)
         promptTokens:     meta.prompt_tokens,
         completionTokens: meta.completion_tokens,
-        elapsed_ms:       meta.elapsed_ms
+        elapsed_ms:       meta.elapsed_ms,
+        toolsFallback:    meta.tools_fallback || null
     }, false);
     pgPlayPopSound();
     pgAutoSaveThread();
@@ -2076,9 +2123,11 @@ function pgRenderSandbox(htmlBody, isDoc) {
     // completo) no pinta su propio fondo, se vería el blanco del contenedor.
     // Pintamos el contenedor con el fondo del tema para que cubra TODO el preview.
     const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
-    $('.pg-sandbox-body').css('background', t.bg || '#fff');
+    // En viewport de dispositivo (móvil/laptop) el fondo "escritorio" lo pinta el
+    // CSS; el color del tema solo aplica a ancho completo (iframe llenando todo).
+    $('.pg-sandbox-body').css('background', (pg.viewport && pg.viewport !== 'full') ? '' : (t.bg || '#fff'));
     const fr = document.getElementById('pgSandboxFrame');
-    fr.onload = () => { pgApplyZoom(); if (pg._inspecting) pgBindInspect(); };   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
+    fr.onload = () => { pgSyncStageViewport(); pgApplyZoom(); if (pg._inspecting) pgBindInspect(); };   // el scroll lo hace el iframe interno; reaplicamos el zoom al cargar
     fr.srcdoc = pgWrapHtml(htmlBody, pg.theme, isDoc);
     // La pestaña "Código" refleja la fuente de lo que se está renderizando.
     if (!isDoc) {
@@ -2113,6 +2162,9 @@ function pgChipTip() {
 }
 function pgEnterInspect() {
     pg._inspecting = true;
+    // El inspector lee el documento del iframe: requiere same-origin. Se relaja
+    // el sandbox y el preview recarga; su onload llama a pgBindInspect de nuevo.
+    pgSetFrameSandbox(false);
     $('.pg-sandbox-body').addClass('is-inspecting');
     $('#pgStylesPanel').attr('aria-hidden', 'false');
     pgBindInspect();
@@ -2123,6 +2175,7 @@ function pgExitInspect() {
     $('.pg-sandbox-body').removeClass('is-inspecting');
     $('#pgStylesPanel').attr('aria-hidden', 'true');
     pgUnbindInspect();
+    pgSetFrameSandbox(true);   // fuera del inspector, el preview vuelve aislado
 }
 function pgBindInspect() {
     const doc = pgInspectDoc();
@@ -2547,61 +2600,51 @@ function pgHoverHtml(hover) {
          + `<i data-lucide="mouse-pointer-2"></i> Al pasar el mouse (:hover)</div>${blocks}</div>`;
 }
 
-/* ── Zoom del preview ──
- * Escala el CONTENIDO del iframe (no el tamaño del iframe), que es el único que
- * hace scroll. Usa la propiedad CSS `zoom` (reflowea el layout, a diferencia de
- * transform:scale). Se reaplica en cada render (onload) porque el iframe recarga. */
-function pgApplyZoom() {
-    const fr = document.getElementById('pgSandboxFrame');
-    $('#pgZoomLabel').text((pg.zoom || 100) + '%');
-    if (!fr) return;
-    let doc;
-    try { doc = fr.contentDocument || (fr.contentWindow && fr.contentWindow.document); } catch (e) { return; }
-    if (doc && doc.documentElement) doc.documentElement.style.zoom = (pg.zoom || 100) / 100;
-}
-function pgSetZoom(z) {
-    pg.zoom = Math.max(25, Math.min(200, Math.round(z / 5) * 5));   // 25%–200%, pasos de 5
-    pgApplyZoom();
-    pgSaveSettings();
-}
+/* ── Zoom y viewport ──
+ * El motor (pgApplyZoom, pgSetZoom, PG_VIEWPORTS, pgApplyViewport, pgSetViewport,
+ * pgSyncStageViewport, pgIsFullDoc) vive en pg-core.js, COMPARTIDO con el Forge.
+ * Aquí solo va el remate propio de esta página. */
 
-/* ── Viewport del preview (móvil / laptop / completo) ──
- * Fija el ancho del iframe para previsualizar diseños responsive. 'full' deja el
- * iframe al 100%; los demás centran un ancho concreto sobre un fondo de escritorio. */
-const PG_VIEWPORTS = {
-    mobile: { w: 390 },
-    laptop: { w: 1280 },
-    full:   { w: 0 }
-};
-function pgApplyViewport() {
-    const mode = PG_VIEWPORTS[pg.viewport] ? pg.viewport : 'full';
-    pg.viewport = mode;
-    const $body  = $('.pg-sandbox-body');
-    const $frame = $('#pgSandboxFrame');
-    const fixed  = mode !== 'full';
-    $body.toggleClass('pg-vp-fixed', fixed);
-    if (fixed) {
-        $body.css('--pg-vp-w', PG_VIEWPORTS[mode].w + 'px');
+/* Hook de pg-core tras aplicar el viewport: fondo del panel + zoom. */
+function pgOnViewportApplied(mode) {
+    const $body = $('.pg-sandbox-body');
+    if (mode !== 'full') {
+        // El fondo "escritorio" del dispositivo lo pinta el CSS; sin inline que lo tape.
+        $body.css('background', '');
     } else {
-        // Ancho completo: sin residuos del modo fijo; el iframe llena el contenedor.
-        $body.css('--pg-vp-w', '');
-        $frame.css({ width: '', height: '' });
+        // A ancho completo el fondo vuelve a ser el del tema activo.
+        const t = PG_THEMES[pg.theme] || PG_THEMES[PG_DEFAULT_THEME];
+        $body.css('background', t.bg || '#fff');
     }
-    $('.pg-vp-btn').each(function () {
-        $(this).toggleClass('is-active', $(this).data('vp') === mode);
-    });
     pgApplyZoom();   // el iframe recargó/cambió de ancho: reaplica el zoom interno
 }
-function pgSetViewport(mode) {
-    pg.viewport = PG_VIEWPORTS[mode] ? mode : 'full';
-    pgApplyViewport();
-    pgSaveSettings();
+
+/* ── Sandbox del preview ──
+ * El sandbox ejecuta código GENERADO por el agente. El atributo sandbox (sin
+ * allow-same-origin) lo aísla en un origen opaco: no puede leer el localStorage
+ * del playground ni llamar a los ctrl con las cookies del usuario. El inspector
+ * "Estilos" sí necesita leer el documento (same-origin), así que al entrar se
+ * relaja el sandbox — contenido que el usuario ya está viendo y decidió
+ * inspeccionar — y al salir se restaura. */
+const PG_SANDBOX_FLAGS = 'allow-scripts allow-forms allow-modals allow-popups';
+function pgSetFrameSandbox(on) {
+    const fr = document.getElementById('pgSandboxFrame');
+    if (!fr || fr.hasAttribute('sandbox') === !!on) return;
+    if (on) fr.setAttribute('sandbox', PG_SANDBOX_FLAGS);
+    else fr.removeAttribute('sandbox');
+    // El cambio de sandbox aplica en la SIGUIENTE navegación: reasignar el
+    // srcdoc recarga el preview (su onload re-aplica zoom/edge/inspector).
+    if (fr.getAttribute('srcdoc')) fr.srcdoc = fr.getAttribute('srcdoc');
 }
-// Detecta si el HTML ya es un documento completo (head/tailwind/tema propios).
-function pgIsFullDoc(html) {
-    return /<!doctype\s+html/i.test(html) || /<html[\s>]/i.test(html) ||
-           /<head[\s>]/i.test(html) || /<body[\s>]/i.test(html);
-}
+
+/* Bridge inyectado en el <head> de cada preview: con el iframe sandboxeado el
+ * padre no puede tocar el documento, así que el zoom y el modo edge llegan por
+ * postMessage. Se registra en el <head> para existir antes del load. */
+const PG_BRIDGE_JS =
+      `<script>(function(){window.addEventListener('message',function(e){var d=e.data||{};`
+    + `if(d.pgZoom!=null)document.documentElement.style.zoom=d.pgZoom;`
+    + `if(d.pgEdge!=null&&document.body)document.body.classList.toggle('pg-vp-edge',!!d.pgEdge);`
+    + `});})();<\/script>`;
 
 // Parche del preview para overlays/modales a pantalla completa (fixed inset-0).
 // Un position:fixed se ancla al viewport del IFRAME y NO genera scroll, así que
@@ -2653,7 +2696,7 @@ function pgWrapHtml(body, themeKey, isDoc) {
         } else {
             doc = `<html${htmlAttr}>` + doc + '</html>';
         }
-        const headInject = `<base href="${appBase}">${scripts}${links}${style}<style>${PG_PREVIEW_FIX_CSS}</style>`;
+        const headInject = `<base href="${appBase}">${PG_BRIDGE_JS}${scripts}${links}${style}<style>${PG_PREVIEW_FIX_CSS}</style>`;
         if (/<head(\s[^>]*)?>/i.test(doc)) {
             doc = doc.replace(/<head(\s[^>]*)?>/i, m => `${m}${headInject}`);
         } else {
@@ -2692,10 +2735,13 @@ function pgWrapHtml(body, themeKey, isDoc) {
           +           `display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}`
           // Hijo directo a ancho completo (la mayoría de componentes que deben
           // llenar el lienzo) pero respetando su propio max-width si lo declaran.
-          + `.pg-stage > *{width:100%;}`;
+          + `.pg-stage > *{width:100%;}`
+          // pg-vp-edge la pone pgSyncStageViewport() (full/móvil): el template
+          // ocupa el lienzo de borde a borde, sin el padding de presentación.
+          + `body.pg-vp-edge .pg-stage{padding:0;}`;
 
     return `<!DOCTYPE html><html${htmlAttr}><head><meta charset="utf-8">
-        <base href="${appBase}">
+        <base href="${appBase}">${PG_BRIDGE_JS}
         <script src="https://cdn.tailwindcss.com"><\/script>
         ${scripts}
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">

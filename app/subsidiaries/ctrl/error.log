@@ -1,3 +1,231 @@
+[ 2026-07-03 16:29:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
+[ 2026-07-03 16:29:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
+[ 2026-07-03 16:29:35 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
+[ 2026-07-03 16:00:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
+[ 2026-07-03 16:00:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
+[ 2026-07-03 16:00:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COALESCE(open_any.cnt,    0)    AS open_shifts,
+                COALESCE(open_any.oldest, NULL) AS oldest_open_at,
+                COALESCE(open_today.cnt,  0)    AS open_shifts_today,
+                COALESCE(closed_today.cnt,0)    AS closed_shifts_today,
+                COALESCE(daily.id,        0)    AS daily_closure_id
+            FROM (SELECT 1) AS dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opened_at) AS oldest
+                FROM fayxzvov_reginas.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_any      ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'open' AND active = 1 AND subsidiary_id = ?
+            ) open_today    ON 1 = 1
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt
+                FROM fayxzvov_reginas.cash_shift
+                WHERE DATE(opened_at) = CURDATE() AND status = 'closed' AND active = 1 AND subsidiary_id = ?
+            ) closed_today  ON 1 = 1
+            LEFT JOIN (
+                SELECT id
+                FROM fayxzvov_reginas.daily_closure
+                WHERE closure_date = CURDATE() AND is_legacy = 0 AND active = 1 AND subsidiary_id = ?
+                LIMIT 1
+            ) daily         ON 1 = 1
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'dual
+            LEFT JOIN (
+                SELECT COUNT(*) AS cnt, MIN(opene' at line 7
+
+
 [ 2026-07-02 22:32:56 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

@@ -407,6 +407,11 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
 
     for ($round = 0; $round < $maxRounds; $round++) {
         $rounds = $round + 1;
+        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (ahí se va
+        // el tiempo, no en MySQL); avisar en cuál va evita el "silencio" largo.
+        if ($onStatus) $onStatus($round === 0
+            ? "ronda 1/{$maxRounds}: el modelo analiza qué consultar…"
+            : "ronda {$rounds}/{$maxRounds}: generando con los datos obtenidos…");
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -428,7 +433,7 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
             $raw = $tc['function']['arguments'] ?? '{}';
             $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
             if (!is_array($args)) $args = [];
-            if ($onStatus) $onStatus(isset($args['sql']) ? $args['sql'] : $fn);
+            if ($onStatus) $onStatus('consultando ' . (isset($args['sql']) ? $args['sql'] : $fn));
             $result = db_run_tool($fn, $args, $schema);
             $messages[] = [
                 'role'         => 'tool',
@@ -441,12 +446,71 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
 
     // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
     if ($final === '') {
+        if ($onStatus) $onStatus('cerrando la respuesta…');
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
     }
 
     return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+}
+
+/**
+ * Plan B cuando el modelo NO soporta tool-calling: precarga filas REALES de las
+ * tablas que el usuario nombro en su ultimo mensaje y las inyecta como mensaje
+ * system, para que el template salga poblado aunque el modelo no sepa invocar
+ * run_select. Si el mensaje no nombra ninguna tabla del esquema, no inyecta nada
+ * (meter tablas al azar solo gasta contexto).
+ *
+ * @return array{messages: array, tables: string[]}  mensajes (quiza ampliados) y
+ *         las tablas cuyas filas se precargaron (vacio = no se inyecto).
+ */
+function coffeeia_inject_sample_rows(array $messages, $schema, $maxTables = 3, $rowsPerTable = 8) {
+    $lastUser = '';
+    for ($i = count($messages) - 1; $i >= 0; $i--) {
+        if (($messages[$i]['role'] ?? '') === 'user') { $lastUser = mb_strtolower((string)($messages[$i]['content'] ?? ''), 'UTF-8'); break; }
+    }
+    if ($lastUser === '') return ['messages' => $messages, 'tables' => []];
+
+    try {
+        $res = db_safe_select($schema, 'SHOW TABLES');
+    } catch (Throwable $e) {
+        return ['messages' => $messages, 'tables' => []];
+    }
+    $names = [];
+    foreach ($res['rows'] as $r) { $names[] = (string) reset($r); }
+
+    // Tablas nombradas como PALABRA COMPLETA en el mensaje ("recetas" matchea la
+    // tabla recetas pero no receta), mismas reglas que db_detect_request.
+    $picked = [];
+    foreach ($names as $n) {
+        $a = mb_strtolower($n, 'UTF-8');
+        if (preg_match('/(?<![a-z0-9_])' . preg_quote($a, '/') . '(?![a-z0-9_])/u', $lastUser)) $picked[] = $n;
+    }
+    if (!$picked) return ['messages' => $messages, 'tables' => []];
+    $picked = array_slice($picked, 0, $maxTables);
+
+    $block = "=== FILAS REALES PRECARGADAS (run_select NO disponible con este modelo) ===\n"
+           . "No puedes ejecutar consultas en este turno. Usa EXACTAMENTE las filas de abajo\n"
+           . "para poblar el componente; no inventes otras ni alteres sus valores.\n";
+    $loaded = [];
+    foreach ($picked as $t) {
+        try {
+            $q = db_safe_select($schema, 'SELECT * FROM `' . str_replace('`', '', $t) . '`', $rowsPerTable);
+        } catch (Throwable $e) { continue; }
+        // Valores largos truncados: son muestras para UI, no un dump completo.
+        $rows = array_map(function ($row) {
+            foreach ($row as $k => $v) {
+                if (is_string($v) && mb_strlen($v) > 120) $row[$k] = mb_substr($v, 0, 117) . '...';
+            }
+            return $row;
+        }, $q['rows']);
+        $block .= "\n-- Tabla {$t} (primeras " . count($rows) . " filas reales) --\n"
+                . json_encode(['columns' => $q['columns'], 'rows' => $rows], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
+        $loaded[] = $t;
+    }
+    if ($loaded) $messages[] = ['role' => 'system', 'content' => $block];
+    return ['messages' => $messages, 'tables' => $loaded];
 }
 
 /**
@@ -470,6 +534,10 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
 
     for ($round = 0; $round < $maxRounds; $round++) {
         $rounds = $round + 1;
+        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
+        if ($onStatus) $onStatus($round === 0
+            ? "ronda 1/{$maxRounds}: el modelo decide qué leer…"
+            : "ronda {$rounds}/{$maxRounds}: generando con lo leído…");
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -502,6 +570,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
     }
 
     if ($final === '') {
+        if ($onStatus) $onStatus('cerrando la respuesta…');
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
@@ -534,6 +603,10 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
 
     for ($round = 0; $round < $maxRounds; $round++) {
         $rounds = $round + 1;
+        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
+        if ($onStatus) $onStatus($round === 0
+            ? "ronda 1/{$maxRounds}: el modelo decide qué leer y consultar…"
+            : "ronda {$rounds}/{$maxRounds}: generando con lo obtenido…");
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -567,6 +640,7 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
     }
 
     if ($final === '') {
+        if ($onStatus) $onStatus('cerrando la respuesta…');
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');

@@ -51,6 +51,13 @@ $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
 $canvasMode  = !empty($ctx['canvas']);
+$dbMode      = isset($body['dbMode']) ? trim((string) $body['dbMode']) : '';
+
+// Cuando el tool-calling no funciona (modelo sin tools o que no las usa), aqui se
+// guarda el motivo y viaja en el evento `done` como `tools_fallback` para que el
+// frontend lo muestre — antes el fallback era SILENCIOSO y el usuario no sabia por
+// que su template salia sin datos.
+$toolsFallback = null;
 
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
@@ -92,10 +99,21 @@ if ($dbSchema && $fsRoot) {
             'db'                => $dbSchema,
             'fs'                => $fsRoot,
             'tool_rounds'       => $r['rounds'],
+            // rounds<=1 = el modelo respondio a la primera SIN invocar herramienta alguna.
+            'tools_fallback'    => ($r['rounds'] <= 1 && $dbMode === 'data')
+                                    ? 'El modelo respondió sin consultar la base ni la carpeta: los datos del template pueden no ser reales.'
+                                    : null,
         ]);
         exit;
     } catch (Throwable $e) {
-        // Modelo sin tools o error: seguimos al streaming normal (contexto ya inyectado).
+        // Modelo sin tools o error: avisamos (antes era silencioso), precargamos filas
+        // reales de las tablas nombradas (plan B) y seguimos al streaming normal.
+        $inj = coffeeia_inject_sample_rows($allMessages, $dbSchema);
+        $allMessages = $inj['messages'];
+        $toolsFallback = $inj['tables']
+            ? 'Este modelo no soporta consultas en vivo (tools); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
+            : 'Este modelo no soporta consultas en vivo (tools) y el mensaje no nombra ninguna tabla: los datos no se pudieron leer. Nombra la tabla o cambia a GLM/Qwen3 Coder/Kimi.';
+        $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con contexto precargado]\n"]);
     }
 }
 
@@ -107,8 +125,9 @@ if ($dbSchema && $fsRoot) {
 if ($dbSchema && !$fsRoot) {
     try {
         $client = llm_client_for($model);
-        $onStatus = function ($sql) use ($send) {
-            $send('thinking', ['t' => "\n[consultando {$sql}]\n"]);
+        // El loop ya manda etiquetas completas ("ronda 1/4: …", "consultando SELECT …").
+        $onStatus = function ($label) use ($send) {
+            $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
         $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, 4);
 
@@ -136,11 +155,23 @@ if ($dbSchema && !$fsRoot) {
             'model'             => $model ?: '',
             'db'                => $dbSchema,
             'tool_rounds'       => $r['rounds'],
+            // rounds<=1 = el modelo respondio a la primera SIN ejecutar ningun SELECT.
+            'tools_fallback'    => ($r['rounds'] <= 1 && $dbMode === 'data')
+                                    ? 'El modelo respondió sin ejecutar consultas a la base: los datos del template pueden no ser reales.'
+                                    : null,
         ]);
         exit;
     } catch (Throwable $e) {
         // Modelo sin tools o consulta fallida: aun NO emitimos chunks, asi que es
-        // seguro continuar al streaming normal de abajo (con el esquema ya inyectado).
+        // seguro continuar al streaming normal de abajo. Antes este fallback era
+        // SILENCIOSO ("template sin datos" sin explicacion); ahora avisamos y
+        // precargamos filas reales de las tablas nombradas (plan B).
+        $inj = coffeeia_inject_sample_rows($allMessages, $dbSchema);
+        $allMessages = $inj['messages'];
+        $toolsFallback = $inj['tables']
+            ? 'Este modelo no soporta consultas en vivo (tools); se precargaron filas reales de: ' . implode(', ', $inj['tables']) . '.'
+            : 'Este modelo no soporta consultas en vivo (tools) y el mensaje no nombra ninguna tabla: los datos no se pudieron leer. Nombra la tabla o cambia a GLM/Qwen3 Coder/Kimi.';
+        $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con filas precargadas]\n"]);
     }
 }
 
@@ -182,7 +213,10 @@ if ($fsRoot && !$dbSchema) {
         ]);
         exit;
     } catch (Throwable $e) {
-        // Modelo sin tools o error: seguimos al streaming normal (arbol ya inyectado).
+        // Modelo sin tools o error: seguimos al streaming normal (arbol ya inyectado),
+        // pero avisando — antes el fallback era silencioso.
+        $toolsFallback = 'Este modelo no soporta lectura de carpetas en vivo (tools): respondo solo con el árbol del proyecto ya inyectado.';
+        $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con el árbol precargado]\n"]);
     }
 }
 
@@ -220,6 +254,7 @@ try {
         'model'             => $meta['model'] ?? ($model ?: ''),
         'db'                => $dbSchema,
         'fs'                => $fsRoot,
+        'tools_fallback'    => $toolsFallback,
     ]);
 } catch (Throwable $e) {
     $send('error', ['error' => "Error al conectar con $provider: " . $e->getMessage()]);

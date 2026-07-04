@@ -165,24 +165,26 @@
                     </button>
 
                     <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
+                        <!-- data-tools="1" = soporta tool-calling (run_select / lectura de
+                             carpeta); sin el atributo, pgWarnModelTools avisa al elegirlo. -->
                         <optgroup label="Ollama Cloud">
-                            <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
-                            <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
-                            <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
-                            <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
+                            <option value="glm-5.2:cloud" data-tools="1">GLM 5.2 (código)</option>
+                            <option value="glm-5.1:cloud" data-tools="1">GLM 5.1 (código)</option>
+                            <option value="qwen3-coder-next:cloud" data-tools="1">Qwen3 Coder Next (código)</option>
+                            <option value="minimax-m3:cloud" data-tools="1">MiniMax M3 (código, vision)</option>
                             <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
                             <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
-                            <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
-                            <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código, vision)</option>
+                            <option value="kimi-k2.6:cloud" data-tools="1">Kimi K2.6 (agéntico, vision)</option>
+                            <option value="kimi-k2.7-code:cloud" data-tools="1">Kimi K2.7 Code (código, vision)</option>
                         </optgroup>
                         <optgroup label="OpenRouter (free)">
-                            <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
-                            <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
+                            <option value="openai/gpt-oss-120b:free" data-tools="1">GPT-OSS 120B (free)</option>
+                            <option value="z-ai/glm-4.5-air:free" data-tools="1">GLM 4.5 Air (free)</option>
                             <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free)</option>
                         </optgroup>
                         <optgroup label="OpenRouter (de pago)">
-                            <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
-                            <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
+                            <option value="qwen/qwen3.7-max" data-tools="1">Qwen3.7 Max (pago)</option>
+                            <option value="qwen/qwen3.6-27b" data-tools="1">Qwen3.6 27B (pago)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -251,7 +253,15 @@
             </header>
 
             <div class="pg-sandbox-body">
-                <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"></iframe>
+                <!-- Shell de dispositivo: display:contents (invisible al layout) salvo
+                     en vista móvil, donde dibuja el marco de teléfono alrededor del iframe. -->
+                <!-- sandbox SIN allow-same-origin: el código generado por el agente corre
+                     en un origen opaco (no puede leer localStorage ni llamar a los ctrl).
+                     El inspector "Estilos" lo relaja temporalmente (pgSetFrameSandbox). -->
+                <div id="pgDeviceShell" class="pg-device-shell">
+                    <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"
+                            sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+                </div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
 
                 <!-- Inspector de estilos: panel lateral que muestra el CSS resuelto
@@ -409,6 +419,7 @@
 
     <div id="pgToast" class="visor-toast"></div>
 
+    <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

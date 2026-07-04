@@ -277,24 +277,9 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--vsr-bg-base); }
 .pg-sandbox-frame { width: 100%; height: 100%; border: none; display: block; }
 
-/* Viewport fijo (móvil/laptop): centra el iframe con un ancho concreto sobre un
-   fondo de "escritorio" para verlo como dispositivo. El ancho lo fija JS en
-   --pg-vp-w. En "full" no se aplica y el iframe ocupa el 100%. */
-.pg-sandbox-body.pg-vp-fixed {
-    overflow: auto;
-    display: flex; justify-content: center; align-items: flex-start;
-    padding: 14px 0;
-    background: var(--vsr-bg-chrome);
-}
-.pg-sandbox-body.pg-vp-fixed .pg-sandbox-frame {
-    flex: 0 0 auto;
-    width: var(--pg-vp-w, 390px);
-    max-width: 100%;
-    height: 100%;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 8px 28px rgba(0,0,0,.35);
-}
+/* Viewport (laptop fijo / mockup de teléfono / device shell): los estilos viven
+   en playground.css — forge.php la incluye — como única fuente para ambas
+   páginas (motor en pg-core.js). Aquí no se duplican. */
 
 /* ── Mini-navegador del Live ──
    Chrome tipo navegador sobre el iframe del módulo real: navega entre secciones
