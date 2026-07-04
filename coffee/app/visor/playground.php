@@ -151,7 +151,7 @@
                     <button id="pgAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (también Ctrl+V para pegar)">
                         <i data-lucide="paperclip" class="w-3 h-3"></i>
                     </button>
-                    <button id="pgClearBtn" title="Limpiar conversación" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
+                    <button id="pgClearBtn" title="Soltar los datos conectados (base, carpeta, referencia); la conversación se conserva" style="background:transparent;border:none;cursor:pointer;color:var(--vsr-text-mute2);font-size:10px;padding:0;">
                         <i data-lucide="trash-2" class="w-3 h-3" style="display:inline-block;vertical-align:middle;margin-right:3px;"></i>
                         Limpiar
                     </button>
