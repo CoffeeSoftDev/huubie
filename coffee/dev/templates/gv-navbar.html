@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Navbar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+
+        /* ── Navbar estilo inventory — recoloreada a azul institucional Varoch #003360 ── */
+        .navbar-main { background:#FFFFFF; border-bottom:1px solid rgba(0,51,96,.18) !important; }
+
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
+        .nav-theme-toggle:hover { color:#003360; }
+
+        /* ── Score de valores corporativos (mismo widget que gv-perfil) ── */
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; cursor:pointer; transition:.15s ease; }
+        .nav-score-wrap:hover { background:#F1F5F9; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:#fff; border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; line-height:1; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+
+        /* ── Pill de sucursal (selector en la navbar) ── */
+        .branch-pill { padding:4px 10px; border:1px solid rgba(0,51,96,.24); border-radius:10px; background:rgba(0,51,96,.05); transition:all .15s ease; cursor:pointer; }
+        .branch-pill:hover { border-color:#003360; background:rgba(0,51,96,.10); }
+        .branch-pill-icon { width:30px; height:30px; border-radius:8px; background:rgba(0,51,96,.10); display:flex; align-items:center; justify-content:center; color:#003360; flex-shrink:0; }
+        .branch-pill-label { font-size:9px; text-transform:uppercase; letter-spacing:.14em; color:#94A3B8; font-weight:600; }
+        .branch-pill-name { font-size:13px; font-weight:700; color:#111827; max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .branch-pill-chev { color:#94A3B8; transition:transform .2s ease; }
+        #btnBranch[aria-expanded="true"] .branch-pill-chev { transform:rotate(180deg); }
+
+        .branch-dd { position:absolute; right:0; top:calc(100% + 10px); width:300px; background:#FFFFFF; border:1px solid rgba(0,51,96,.18); border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); z-index:60; }
+        .branch-dd-head { display:flex; align-items:flex-start; justify-content:space-between; padding:12px 14px 10px; border-bottom:1px solid #F1F5F9; }
+        .branch-dd-label { font-size:10px; text-transform:uppercase; letter-spacing:.12em; color:#003360; font-weight:700; }
+        .branch-dd-close { display:flex; align-items:center; gap:4px; font-size:11px; color:#94A3B8; padding:4px 8px; border-radius:8px; cursor:pointer; transition:all .15s ease; }
+        .branch-dd-close:hover { color:#111827; background:#F1F5F9; }
+        .branch-card { background:#FAFBFD; border:1px solid #E2E8F0; border-radius:10px; padding:8px 10px; cursor:pointer; transition:all .15s ease; }
+        .branch-card:hover { border-color:rgba(0,51,96,.40); background:#F0F5FB; }
+        .branch-card-sel { background:rgba(0,51,96,.06); border-color:#003360; box-shadow:0 0 0 1px rgba(0,51,96,.20); }
+        .branch-card-avatar { width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; color:#fff; box-shadow:0 4px 10px rgba(0,51,96,.30); flex-shrink:0; }
+        .branch-radio { width:16px; height:16px; border-radius:9999px; border:2px solid #CBD5E1; display:flex; align-items:center; justify-content:center; transition:all .2s ease; flex-shrink:0; }
+        .branch-card-sel .branch-radio { border-color:#003360; }
+        .branch-radio-inner { width:7px; height:7px; border-radius:9999px; background:#003360; opacity:0; transition:opacity .2s ease; }
+        .branch-card-sel .branch-radio-inner { opacity:1; }
+
+        .nav-user-pill { padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E2E8F0; border-radius:8px; transition:all .15s ease; cursor:pointer; }
+        .nav-user-pill:hover { background:#F1F5F9; border-color:#E2E8F0; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+        .nav-chevron { color:#94A3B8; transition:transform .2s ease; }
+        #btnUserMenu.open .nav-chevron { transform:rotate(180deg); }
+
+        .nav-dropdown { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 14px 38px rgba(17,24,39,.14); transition:all .22s ease; transform-origin:top right; overflow:hidden; }
+        .nav-divider { height:1px; background:#E2E8F0; }
+        .nav-user-head { display:flex; align-items:center; gap:12px; padding:16px; }
+        .nav-head-avatar { position:relative; width:46px; height:46px; border-radius:9999px; background:#EEF3F8; display:flex; align-items:center; justify-content:center; color:#64748B; font-weight:700; font-size:15px; flex-shrink:0; }
+        .nav-status-dot { position:absolute; right:0; bottom:1px; width:12px; height:12px; border-radius:9999px; background:#7AAB20; border:2px solid #FFFFFF; }
+        .nav-head-name { font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nav-head-email { font-size:12.5px; color:#94A3B8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .nav-head-rol { display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:8px; background:rgba(0,51,96,.10); color:#003360; border:1px solid rgba(0,51,96,.20); }
+        .nav-logout-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1px solid #E2E8F0; color:#9E1B32; border-radius:12px; font-weight:600; font-size:14px; background:#FFFFFF; cursor:pointer; transition:all .15s ease; }
+        .nav-logout-btn:hover { background:#FDECEA; border-color:#F3C0BD; }
+
+        /* ── Rail lateral #menu-sidebar (estilo inventory) recoloreado a #003360 ── */
+        .menu-rail-item { position:relative; width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:color .15s ease, background .15s ease, border-color .15s ease; }
+        .menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; flex-shrink:0; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; letter-spacing:.01em; line-height:1; white-space:nowrap; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+        .demo-note { font-size:11px; color:#64748B; }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════ NAVBAR (replica de acceso/src/js/navbar.js) ══════════ -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition" title="Menú">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Selector de sucursal / UDN: lo inyecta gv-navbar-branch.js -->
+
+            <div class="nav-score-wrap" id="navScore" title="Calificación de valores corporativos">
+                <div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-score-label">Valores</span>
+                    <span class="nav-score-sub">de 5.00</span>
+                </div>
+            </div>
+
+            <button id="btnThemeToggle" class="nav-theme-toggle" title="Tema">
+                <i data-lucide="moon" class="w-[18px] h-[18px]"></i>
+            </button>
+
+            <button id="btnModulos" class="nav-theme-toggle" title="Módulos">
+                <i data-lucide="layout-grid" class="w-[18px] h-[18px]"></i>
+            </button>
+
+            <button id="btnUserMenu" class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name">Rosy A.</span>
+                    <span class="nav-user-rol">Administradora</span>
+                </div>
+                <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Dropdown de usuario: lo inyecta gv-navbar-user.js -->
+
+    <!-- ══════════ Contexto: rail lateral + area de trabajo ══════════ -->
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <button class="menu-rail-item is-active"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+            <button class="menu-rail-item"><i data-lucide="users"></i><span class="menu-rail-label">Capital</span></button>
+            <button class="menu-rail-item"><i data-lucide="wallet"></i><span class="menu-rail-label">Tesorería</span></button>
+            <button class="menu-rail-item"><i data-lucide="calculator"></i><span class="menu-rail-label">Contab.</span></button>
+            <button class="menu-rail-item"><i data-lucide="badge-check"></i><span class="menu-rail-label">Calidad</span></button>
+            <button class="menu-rail-item"><i data-lucide="bar-chart-3"></i><span class="menu-rail-label">KPI</span></button>
+        </aside>
+
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="flex items-center gap-2 text-xs">
+                    <li class="uppercase tracking-wide text-slate-400">Corporativo</li>
+                    <li class="text-slate-300">/</li>
+                    <li class="font-bold" style="color:#003360;">Navbar institucional</li>
+                </ol>
+            </nav>
+            <div class="bg-white rounded-xl border border-slate-200 p-6" style="box-shadow:0 2px 8px rgba(15,23,42,.06);">
+                <h2 class="text-lg font-bold mb-1" style="color:#003360;">Navbar Grupo Varoch</h2>
+                <p class="demo-note mb-4">Réplica de la navbar de inventory (logo, UDN, tema, módulos, usuario y dropdown) recoloreada a la paleta institucional azul <b>#003360</b>. Prueba el pill de unidad de negocio y el menú de usuario.</p>
+                <div class="flex flex-wrap gap-2">
+                    <a href="login-varoch.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#003360;">Ver login</a>
+                    <a href="gv-perfil.html" class="px-3 py-2 rounded-lg text-sm font-semibold text-white" style="background:#2563EB;">Ver perfil</a>
+                    <a href="gv-permisos.html" class="px-3 py-2 rounded-lg text-sm font-semibold" style="background:rgba(0,51,96,.08);color:#003360;border:1px solid rgba(0,51,96,.2);">Ver permisos</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Score de valores corporativos (mismos umbrales de color que gv-perfil)
+        const NAV_CALF = 4.49;
+        const navPct = (NAV_CALF / 5) * 100;
+        const navColor = NAV_CALF >= 4.5 ? '#7AAB20' : NAV_CALF >= 4 ? '#2563EB' : NAV_CALF >= 3.5 ? '#D97706' : '#9E1B32';
+        const navColorDark = NAV_CALF >= 4 ? '#7AAB20' : navColor;
+        const navScoreRing = document.getElementById('navScoreRing');
+        navScoreRing.style.setProperty('--score-color', navColor);
+        navScoreRing.style.setProperty('--score-color-dark', navColorDark);
+        navScoreRing.style.background = `conic-gradient(var(--score-fill, ${navColor}) ${navPct}%, var(--nav-score-track, #EEF3F8) ${navPct}%)`;
+        const navScoreNum = document.getElementById('navScoreNum');
+        navScoreNum.textContent = NAV_CALF.toFixed(2);
+        navScoreNum.style.color = `var(--score-fill, ${navColor})`;
+        document.querySelectorAll('.menu-rail-item').forEach(i => i.addEventListener('click', () => {
+            document.querySelectorAll('.menu-rail-item').forEach(x => x.classList.remove('is-active'));
+            i.classList.add('is-active');
+        }));
+    </script>
+    <script src="gv-navbar-theme.js"></script>
+    <script src="gv-navbar-branch.js"></script>
+    <script src="gv-navbar-user.js"></script>
+</body>
+</html>

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costsys · Ingredientes</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { font-family:'Inter',system-ui,sans-serif; background:#F2F5F9; color:#0F172A; margin:0; }
+
+  /* ================== NAVBAR ================== */
+  /* Navbar blanco institucional estándar (UDN, Valores y usuario los inyectan gv-navbar-*.js) */
+  .navbar-main { background:#FFFFFF !important; width:100%; position:relative; z-index:50; border-bottom:1px solid rgba(0,51,96,.18); box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .navbar-top { height:64px; display:flex; align-items:center; padding:0 22px; gap:14px; position:relative; }
+  .nav-logo { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:.02em; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.35); }
+  .nav-brand-text { display:flex; flex-direction:column; line-height:1.1; }
+  .nav-brand-grupo { font-size:16px; font-weight:800; color:#111827; letter-spacing:.01em; }
+  .nav-brand-varoch { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:.22em; margin-top:2px; }
+  .nav-spacer { flex:1; }
+  .nav-icon-btn { position:relative; width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; border-radius:10px; transition:.15s; }
+  .nav-icon-btn:hover { background:#F1F5F9; color:#003360; }
+  .nav-icon-btn i { width:18px; height:18px; }
+  .nav-divider { width:1px; height:26px; background:#E2E8F0; margin:0 4px; }
+  .nav-user { display:flex; align-items:center; gap:11px; padding:5px 10px 5px 8px; cursor:pointer; border-radius:12px; transition:.15s; }
+  .nav-user:hover { background:#F1F5F9; }
+  .nav-user-info { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+  .nav-user-name { font-size:13px; font-weight:700; color:#111827; }
+  .nav-user-rol { font-size:10.5px; color:#64748B; font-weight:500; }
+  .nav-user-avatar { width:36px; height:36px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+  .nav-chev { color:#94A3B8; flex-shrink:0; transition:transform .2s ease; }
+  .nav-launcher-wrap { position:relative; }
+  .launcher-panel { position:absolute; top:calc(100% + 12px); right:0; width:308px; background:#fff; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 20px 46px rgba(2,10,24,.24); padding:14px; z-index:80; opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top right; pointer-events:none; transition:.16s ease; }
+  .launcher-panel.open { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .launcher-head { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#94A3B8; padding:2px 4px 10px; }
+  .launcher-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .launcher-tile { display:flex; flex-direction:column; align-items:center; gap:9px; padding:15px 10px; border-radius:12px; border:1px solid #EEF2F7; background:#FAFBFD; text-decoration:none; transition:.15s; }
+  .launcher-tile:hover { border-color:#2563EB; background:#F0F5FF; transform:translateY(-2px); box-shadow:0 8px 20px rgba(37,99,235,.12); }
+  .launcher-tile-ico { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+  .launcher-tile-ico i { width:20px; height:20px; }
+  .launcher-tile-label { font-size:12px; font-weight:700; color:#0F172A; text-align:center; line-height:1.15; }
+
+  /* ================== RAIL ================== */
+  .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; font-size:8.5px; font-weight:600; }
+  .menu-rail-item i { width:19px; height:19px; }
+  .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+  .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+  /* ================== COMPONENTES ================== */
+  .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 11px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+  .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .cv-input[readonly], .cv-input:disabled { background:#F1F5F9; border-color:#E2E8F0; color:#475569; cursor:not-allowed; }
+  .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+  .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,51,96,.18); }
+  .btn-primary:hover { background:#00264A; }
+  .btn-secondary { background:#fff; color:#003360; border:1px solid rgba(0,51,96,.3); border-radius:8px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-secondary:hover { background:#F0F5FB; }
+  .btn-outline { background:#fff; color:#475569; border:1px solid #E2E8F0; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; }
+  .btn-outline:hover { border-color:#CBD5E1; }
+  .btn-danger { background:#9E1B32; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-danger:hover { background:#82152A; }
+  .btn-ghost { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:7px; border:1px solid #E2E8F0; background:#fff; color:#64748B; cursor:pointer; transition:.15s; }
+  .btn-ghost:hover { color:#003360; border-color:#CBD5E1; }
+  .btn-ghost.danger:hover { color:#9E1B32; border-color:rgba(158,27,50,.3); background:#FDECEA; }
+  .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1.6; white-space:nowrap; }
+  .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+  .badge-warning { background:rgba(217,119,6,.13); color:#D97706; border-color:rgba(217,119,6,.32); }
+  .badge-neutral { background:rgba(100,116,139,.15); color:#64748B; border-color:rgba(100,116,139,.3); }
+
+  /* tabla */
+  .rc-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+  .rc-table thead th { position:sticky; top:0; z-index:2; background:#F8FAFC; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#64748B; padding:11px 12px; text-align:left; white-space:nowrap; border-bottom:1px solid #E2E8F0; }
+  .rc-table thead th.tr { text-align:right; }
+  .rc-table thead th.tc { text-align:center; }
+  .rc-table tbody td { font-size:12.5px; color:#334155; padding:9px 12px; border-bottom:1px solid #F1F5F9; white-space:nowrap; }
+  .rc-table tbody td.tr { text-align:right; }
+  .rc-table tbody td.tc { text-align:center; }
+  .rc-table tbody tr:hover td { background:rgba(37,99,235,.04); }
+  .rc-foto { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rc-foto i { width:17px; height:17px; }
+
+  /* modales */
+  .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:60; display:none; align-items:flex-start; justify-content:center; overflow-y:auto; padding:24px; }
+  .modal-card { width:100%; max-width:520px; background:#fff; border-radius:14px; box-shadow:0 30px 60px rgba(15,23,42,.25); overflow:hidden; margin:32px auto; }
+  .modal-head { padding:18px 20px; background:linear-gradient(135deg,rgba(0,51,96,.06) 0%,rgba(37,99,235,.04) 100%); border-bottom:1px solid #F1F5F9; display:flex; align-items:flex-start; gap:12px; }
+  .modal-ico { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .modal-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:16px 20px; background:#FAFBFC; border-top:1px solid #F1F5F9; }
+  .info-tile { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px; padding:12px 14px; }
+
+  /* pager y toasts */
+  .pg-btn { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #E2E8F0; background:#fff; color:#64748B; border-radius:7px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .pg-btn.is-active { border-color:#003360; background:#003360; color:#fff; }
+  .toast-item { display:flex; align-items:center; gap:10px; background:#0F172A; color:#fff; border-radius:10px; padding:11px 15px; font-size:12.5px; font-weight:600; box-shadow:0 14px 30px rgba(15,23,42,.3); animation:toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ================== NAVBAR ================== -->
+<nav class="navbar-main">
+  <div class="navbar-top">
+    <button class="nav-icon-btn" title="Menú"><i data-lucide="menu"></i></button>
+    <div class="nav-logo">GV</div>
+    <div class="nav-brand-text">
+      <span class="nav-brand-grupo">Grupo Varoch</span>
+      <span class="nav-brand-varoch">CORPORATIVO VAROCH</span>
+    </div>
+    <div class="nav-spacer"></div>
+    <button class="nav-icon-btn" title="Notificaciones"><i data-lucide="bell"></i></button>
+    <div class="nav-launcher-wrap">
+      <button class="nav-icon-btn" id="navLauncherBtn" title="Módulos"><i data-lucide="layout-grid"></i></button>
+      <div class="launcher-panel" id="launcherPanel">
+        <div class="launcher-head">Módulos principales</div>
+        <div class="launcher-grid">
+          <a href="../recetas/recetas-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(234,88,12,.13);color:#EA580C;"><i data-lucide="chef-hat"></i></span>
+            <span class="launcher-tile-label">Recetas</span>
+          </a>
+          <a href="../ingredientes/ingredientes-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(16,185,129,.13);color:#059669;"><i data-lucide="carrot"></i></span>
+            <span class="launcher-tile-label">Ingredientes</span>
+          </a>
+          <a href="../subrecetas/subrecetas-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(147,51,234,.12);color:#9333EA;"><i data-lucide="layers"></i></span>
+            <span class="launcher-tile-label">Subrecetas</span>
+          </a>
+          <a href="../costsys-proyeccion.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="calendar-clock"></i></span>
+            <span class="launcher-tile-label">Proyección</span>
+          </a>
+          <a href="../costsys-coffee.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(217,119,6,.13);color:#D97706;"><i data-lucide="table-2"></i></span>
+            <span class="launcher-tile-label">Costo potencial</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <span class="nav-divider"></span>
+    <div class="nav-user" title="Mi cuenta">
+      <div class="nav-user-avatar">RA</div>
+      <div class="nav-user-info">
+        <span class="nav-user-name">Rosa Angelica</span>
+        <span class="nav-user-rol">Desarrolladora Fullstack</span>
+      </div>
+      <i data-lucide="chevron-down" class="nav-chev w-4 h-4"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- ================== BODY ================== -->
+<div class="flex" style="height:calc(100vh - 64px);">
+
+  <main class="flex-1 min-h-0 p-6 overflow-hidden flex flex-col">
+
+    <div class="flex items-center justify-between mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="flex items-center gap-2 text-xs">
+          <li class="uppercase tracking-wide text-slate-400">Costsys</li>
+          <li class="text-slate-300">/</li>
+          <li class="font-bold" style="color:#003360;">Ingredientes · Catálogo</li>
+        </ol>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button class="btn-secondary" onclick="toast('Exportando catálogo de ingredientes a Excel…','file-down')">
+          <i data-lucide="file-down" class="w-4 h-4"></i> Exportar Excel
+        </button>
+        <button class="btn-primary" id="btnNuevo">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nuevo ingrediente
+        </button>
+      </div>
+    </div>
+
+    <!-- ================== FILTER BAR ================== -->
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 1px 3px rgba(15,23,42,.04);padding:14px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;">
+      <div style="width:200px;">
+        <label class="cv-label">Unidad de negocio</label>
+        <select id="filtroUdn" class="cv-input" style="cursor:pointer;"><option>Sonoras Meat</option><option>Fogaza</option><option>Baos</option><option>Punto Modelo</option><option>Quinta Tabachines</option></select>
+      </div>
+    </div>
+
+    <!-- ================== TABLA DE INGREDIENTES ================== -->
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.06);overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:0;">
+
+      <div class="flex flex-wrap items-center gap-3 p-4" style="border-bottom:1px solid #F1F5F9;">
+        <div style="flex:1;min-width:220px;">
+          <h2 class="text-[15px] font-bold" style="color:#003360;">Lista de Ingredientes <span class="text-slate-300 font-normal">/</span> <span id="tituloUdn" class="text-slate-500 font-semibold">Sonoras Meat</span></h2>
+        </div>
+        <div class="relative" style="flex:1;min-width:200px;max-width:320px;">
+          <i data-lucide="search" class="w-4 h-4" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94A3B8;"></i>
+          <input id="searchInp" type="text" placeholder="Buscar ingrediente…" style="width:100%;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 11px 8px 33px;font-size:12.5px;color:#0F172A;outline:none;">
+        </div>
+      </div>
+
+      <div style="overflow:auto;flex:1;min-height:0;">
+        <table class="rc-table">
+          <thead>
+            <tr>
+              <th style="padding-left:16px;">Producto</th>
+              <th class="tr">Precio compra ($)</th>
+              <th class="tr">Contenido neto</th>
+              <th class="tr">Precio unidad ($)</th>
+              <th>Unidad</th>
+              <th>Marca</th>
+              <th>Proveedor</th>
+              <th>Descripción</th>
+              <th class="tc" style="width:96px;">Opciones</th>
+            </tr>
+          </thead>
+          <tbody id="ingBody"></tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between p-4 text-[12px] text-slate-500" style="border-top:1px solid #F1F5F9;background:#FAFBFC;">
+        <span id="footerInfo">Mostrando <b>1-8</b> de <b>10</b> ingredientes · UDN Sonoras Meat</span>
+        <div class="flex items-center gap-1" id="pager"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================== MODAL CREAR / EDITAR INGREDIENTE ================== -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal-card" style="max-width:560px;">
+    <div class="modal-head">
+      <div class="modal-ico" id="formIco" style="background:rgba(0,51,96,.10);color:#003360;"><i data-lucide="plus" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;" id="formTitulo">Nuevo ingrediente</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5">El nombre debe ser único por unidad de negocio. Los campos con <span style="color:#9E1B32;">*</span> son obligatorios.</p>
+      </div>
+      <button class="btn-outline" data-close="modalForm" style="width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+
+      <div>
+        <label class="cv-label">Nombre <span style="color:#9E1B32;">*</span></label>
+        <input type="text" id="fNombre" placeholder="Ej. Arrachera marinada" class="cv-input">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="cv-label">Contenido neto <span style="color:#9E1B32;">*</span></label>
+          <input type="number" id="fContenido" value="1" min="0.001" step="0.001" class="cv-input">
+        </div>
+        <div>
+          <label class="cv-label">Unidad <span style="color:#9E1B32;">*</span></label>
+          <select id="fUnidad" class="cv-input" style="cursor:pointer;">
+            <option value="kg">kg</option>
+            <option value="gr">gr</option>
+            <option value="lt">lt</option>
+            <option value="ml">ml</option>
+            <option value="pza">pza</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="cv-label">Precio ($) <span style="color:#9E1B32;">*</span></label>
+          <input type="number" id="fPrecio" value="0" min="0" step="0.01" class="cv-input">
+        </div>
+        <div>
+          <label class="cv-label">Precio por unidad ($)</label>
+          <input type="text" id="fPrecioUnidad" readonly class="cv-input" value="$ 0.00">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="cv-label">Marca</label>
+          <select id="fMarca" class="cv-input" style="cursor:pointer;">
+            <option value="">Sin marca</option>
+            <option>Sukarne</option><option>Del Campo</option><option>La Tortillería</option>
+            <option>Sal Sol</option><option>Cítricos MX</option><option>Gloria</option>
+            <option>Carbonell</option><option>Caperucita</option><option>Otra</option>
+          </select>
+        </div>
+        <div>
+          <label class="cv-label">Proveedor</label>
+          <select id="fProveedor" class="cv-input" style="cursor:pointer;">
+            <option value="">Sin proveedor</option>
+            <option>Sukarne Distribución</option><option>Central de Abastos</option>
+            <option>Tortillas del Valle</option><option>Abarrotes González</option>
+            <option>Lácteos del Norte</option><option>Otro</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="cv-label">Descripción</label>
+        <textarea id="fDesc" rows="2" placeholder="Notas del ingrediente…" class="cv-input" style="resize:vertical;"></textarea>
+      </div>
+
+      <div>
+        <label class="cv-label">Unidad de negocio <span style="color:#9E1B32;">*</span></label>
+        <select id="fUdn" class="cv-input" style="cursor:pointer;">
+          <option>Sonoras Meat</option><option>Fogaza</option><option>Baos</option><option>Punto Modelo</option><option>Quinta Tabachines</option>
+        </select>
+      </div>
+
+      <div id="formNota" style="display:none;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.22);border-radius:9px;padding:11px 13px;">
+        <p class="text-[11.5px]" style="color:#1D4ED8;line-height:1.5;"><i data-lucide="info" class="w-3.5 h-3.5 inline" style="margin-top:-2px;"></i> Al cambiar el precio se recalculará el costo de las recetas y subrecetas vinculadas.</p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" data-close="modalForm">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarForm"><i data-lucide="save" class="w-4 h-4"></i> <span id="btnGuardarTxt">Guardar ingrediente</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== MODAL NOMBRE DUPLICADO ================== -->
+<div class="modal-overlay" id="modalDup">
+  <div class="modal-card" style="max-width:460px;">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:rgba(158,27,50,.10);color:#9E1B32;"><i data-lucide="shield-alert" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;">Ingrediente duplicado</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5" id="dupMsg">Ya existe este ingrediente para Sonoras Meat.</p>
+      </div>
+    </div>
+    <div class="p-5">
+      <div class="info-tile space-y-2">
+        <div class="flex items-center justify-between text-[12px]"><span class="text-slate-500">Nombre ingresado</span><span class="font-bold" style="color:#9E1B32;" id="dupNombre">Arrachera marinada</span></div>
+        <div class="flex items-center justify-between text-[12px]"><span class="text-slate-500">Unidad de negocio</span><span class="font-medium text-slate-700" id="dupUdn">Sonoras Meat</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-primary" id="btnDupOk"><i data-lucide="pencil" class="w-4 h-4"></i> Corregir nombre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== MODAL ELIMINAR ================== -->
+<div class="modal-overlay" id="modalEliminar">
+  <div class="modal-card" style="max-width:480px;">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:rgba(158,27,50,.10);color:#9E1B32;"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;" id="delTitulo">Eliminar ingrediente</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5" id="delSub">Esta acción no se puede deshacer.</p>
+      </div>
+      <button class="btn-outline" data-close="modalEliminar" style="width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div class="info-tile flex items-center gap-3">
+        <div class="rc-foto" id="delFoto" style="background:rgba(0,51,96,.10);color:#003360;"><i data-lucide="carrot"></i></div>
+        <div>
+          <p class="text-[13px] font-bold text-slate-800" id="delNombre">Arrachera marinada</p>
+          <p class="text-[11px] text-slate-500" id="delDetalle">Sonoras Meat</p>
+        </div>
+      </div>
+
+      <!-- Estado BLOQUEADO (tiene vínculos) -->
+      <div id="delBlocked" style="display:none;">
+        <div style="background:rgba(158,27,50,.06);border:1px solid rgba(158,27,50,.22);border-radius:9px;padding:11px 13px;">
+          <p class="text-[12px] font-semibold mb-2" style="color:#9E1B32;">No se puede eliminar porque está vinculado a:</p>
+          <div class="space-y-2">
+            <div>
+              <p class="text-[10.5px] font-bold uppercase tracking-wide text-slate-400 mb-1">Subrecetas</p>
+              <p class="text-[12px] text-slate-600" id="delSubrecetas">—</p>
+            </div>
+            <div>
+              <p class="text-[10.5px] font-bold uppercase tracking-wide text-slate-400 mb-1">Recetas</p>
+              <p class="text-[12px] text-slate-600" id="delRecetas">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estado CONFIRMAR (sin vínculos) -->
+      <div id="delConfirm" style="display:none;">
+        <div style="background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.28);border-radius:9px;padding:11px 13px;display:flex;align-items:flex-start;gap:8px;">
+          <i data-lucide="alert-triangle" class="w-4 h-4" style="color:#D97706;flex-shrink:0;margin-top:1px;"></i>
+          <p class="text-[12.5px]" style="color:#92600A;line-height:1.5;">¿Desea eliminar para siempre este ingrediente?</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" data-close="modalEliminar" id="delCancelar">Cancelar</button>
+      <button class="btn-danger" id="btnConfirmDel"><i data-lucide="trash-2" class="w-4 h-4"></i> Sí, eliminar</button>
+      <button class="btn-primary" id="btnBlockedOk" style="display:none;">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" style="position:fixed;bottom:24px;right:24px;z-index:70;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  const fmt$ = n => '$ ' + n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const numFmt = n => n.toLocaleString('es-MX',{maximumFractionDigits:3});
+  const UDN = 'Sonoras Meat';
+
+  // Catálogo de ejemplo (mock). precioUnidad se calcula = precio / contenido.
+  const ING = [
+    { id:1,  nombre:'Arrachera marinada', icon:'beef',    color:'#9E1B32', precio:598.00, contenido:1,   unidad:'kg',  marca:'Sukarne',       proveedor:'Sukarne Distribución', desc:'Corte de res marinado premium', subrecetas:[], recetas:['Arrachera','New York'] },
+    { id:2,  nombre:'Papa cambray',       icon:'carrot',  color:'#D97706', precio:32.00,  contenido:1,   unidad:'kg',  marca:'Del Campo',     proveedor:'Central de Abastos',   desc:'Papa pequeña para guarnición',  subrecetas:['Guacamole base'], recetas:['Arrachera'] },
+    { id:3,  nombre:'Cebollín',           icon:'leaf',    color:'#5d8418', precio:45.00,  contenido:1,   unidad:'kg',  marca:'Del Campo',     proveedor:'Central de Abastos',   desc:'Cebollín fresco en manojo',     subrecetas:['Chimichurri de la casa'], recetas:[] },
+    { id:4,  nombre:'Tortilla de harina', icon:'wheat',   color:'#D97706', precio:68.00,  contenido:20,  unidad:'pza', marca:'La Tortillería', proveedor:'Tortillas del Valle',  desc:'Paquete de 20 piezas',          subrecetas:[], recetas:[] },
+    { id:5,  nombre:'Sal parrillera',     icon:'package', color:'#64748B', precio:90.00,  contenido:5,   unidad:'kg',  marca:'Sal Sol',       proveedor:'Abarrotes González',   desc:'Sal de grano para asador',      subrecetas:['Frijoles charros'], recetas:['Arrachera','Top Sirloin'] },
+    { id:6,  nombre:'Limón',              icon:'citrus',  color:'#5d8418', precio:22.00,  contenido:1,   unidad:'kg',  marca:'Cítricos MX',   proveedor:'Central de Abastos',   desc:'Limón sin semilla',             subrecetas:['Salsa Huacachile','Guacamole base'], recetas:[] },
+    { id:7,  nombre:'Mantequilla',        icon:'milk',    color:'#D97706', precio:24.00,  contenido:90,  unidad:'gr',  marca:'Gloria',        proveedor:'Lácteos del Norte',    desc:'Barra de 90 g sin sal',         subrecetas:[], recetas:[] },
+    { id:8,  nombre:'Aceite de oliva',    icon:'droplet', color:'#5d8418', precio:210.00, contenido:500, unidad:'ml',  marca:'Carbonell',     proveedor:'Abarrotes González',   desc:'Extra virgen 500 ml',           subrecetas:['Chimichurri de la casa'], recetas:[] },
+    { id:9,  nombre:'Queso Oaxaca',       icon:'package', color:'#D97706', precio:168.00, contenido:1,   unidad:'kg',  marca:'Caperucita',    proveedor:'Lácteos del Norte',    desc:'Queso de hebra para fundir',    subrecetas:[], recetas:[] },
+    { id:10, nombre:'Chile serrano',      icon:'flame',   color:'#9E1B32', precio:38.00,  contenido:1,   unidad:'kg',  marca:'Del Campo',     proveedor:'Central de Abastos',   desc:'Chile fresco para salsas',      subrecetas:['Salsa Molcajeteada c/Chile','Salsa Huacachile'], recetas:[] },
+  ];
+
+  const PAGE_SIZE = 8;
+  let page = Math.max(1, +(localStorage.getItem('ing_page') || 1));
+  let searchTxt = '';
+  let editId = null;   // null = crear
+  let delTarget = null;
+
+  function hexA(hex, a){
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+  const precioUnidad = it => it.contenido > 0 ? it.precio / it.contenido : 0;
+
+  function filtered(){
+    return ING.filter(it => !searchTxt || it.nombre.toLowerCase().includes(searchTxt));
+  }
+
+  function render(){
+    const rows = filtered();
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    if(page > totalPages) page = totalPages;
+    const start = (page - 1) * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+    document.getElementById('ingBody').innerHTML = pageRows.map(it => {
+      const pu = precioUnidad(it);
+      const desc = it.desc || '<span class="text-slate-400">—</span>';
+      return `
+        <tr data-id="${it.id}">
+          <td style="padding-left:16px;">
+            <div class="flex items-center gap-2.5">
+              <div class="rc-foto" style="background:${hexA(it.color,.10)};color:${it.color};"><i data-lucide="${it.icon}"></i></div>
+              <span class="font-semibold text-slate-800">${it.nombre}</span>
+            </div>
+          </td>
+          <td class="tr">${fmt$(it.precio)}</td>
+          <td class="tr">${numFmt(it.contenido)}</td>
+          <td class="tr font-semibold" style="color:#003360;">${fmt$(pu)}</td>
+          <td><span class="cv-badge badge-neutral">${it.unidad}</span></td>
+          <td class="text-slate-600">${it.marca || '<span class="text-slate-400">—</span>'}</td>
+          <td class="text-slate-500">${it.proveedor || '<span class="text-slate-400">—</span>'}</td>
+          <td class="text-slate-500" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;">${desc}</td>
+          <td class="tc">
+            <div class="inline-flex items-center gap-1.5">
+              <button class="btn-ghost row-edit" data-id="${it.id}" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5 pointer-events-none"></i></button>
+              <button class="btn-ghost danger row-del" data-id="${it.id}" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i></button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    const desde = rows.length ? start + 1 : 0;
+    const hasta = start + pageRows.length;
+    document.getElementById('footerInfo').innerHTML =
+      `Mostrando <b>${desde}-${hasta}</b> de <b>${rows.length}</b> ingredientes · UDN ${UDN}`;
+
+    renderPager(totalPages);
+    lucide.createIcons();
+    bindRowBtns();
+  }
+
+  function renderPager(totalPages){
+    const pager = document.getElementById('pager');
+    let html = `<button class="pg-btn" data-pg="prev"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>`;
+    for(let p = 1; p <= totalPages; p++){
+      html += `<button class="pg-btn ${p === page ? 'is-active' : ''}" data-pg="${p}">${p}</button>`;
+    }
+    html += `<button class="pg-btn" data-pg="next"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>`;
+    pager.innerHTML = html;
+    pager.querySelectorAll('.pg-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        const v = b.dataset.pg;
+        const totalPages = Math.max(1, Math.ceil(filtered().length / PAGE_SIZE));
+        if(v === 'prev') page = Math.max(1, page - 1);
+        else if(v === 'next') page = Math.min(totalPages, page + 1);
+        else page = +v;
+        localStorage.setItem('ing_page', page);  // recuerda la hoja de paginación
+        render();
+      });
+    });
+  }
+
+  function bindRowBtns(){
+    document.querySelectorAll('.row-edit').forEach(b => b.addEventListener('click', () => openEditar(ING.find(x => x.id === +b.dataset.id))));
+    document.querySelectorAll('.row-del').forEach(b => b.addEventListener('click', () => openEliminar(ING.find(x => x.id === +b.dataset.id))));
+  }
+
+  // ---- modales base ----
+  function openModal(id){ document.getElementById(id).style.display = 'flex'; lucide.createIcons(); }
+  function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+  document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target === m) m.style.display = 'none'; }));
+
+  // ---- calc precio por unidad en vivo ----
+  function recalcPU(){
+    const precio = parseFloat(document.getElementById('fPrecio').value) || 0;
+    const cont = parseFloat(document.getElementById('fContenido').value) || 0;
+    document.getElementById('fPrecioUnidad').value = fmt$(cont > 0 ? precio / cont : 0);
+  }
+  document.getElementById('fPrecio').addEventListener('input', recalcPU);
+  document.getElementById('fContenido').addEventListener('input', recalcPU);
+
+  // ---- crear ----
+  function openCrear(){
+    editId = null;
+    document.getElementById('formTitulo').textContent = 'Nuevo ingrediente';
+    document.getElementById('formIco').innerHTML = '<i data-lucide="plus" class="w-5 h-5"></i>';
+    document.getElementById('btnGuardarTxt').textContent = 'Guardar ingrediente';
+    document.getElementById('fNombre').value = '';
+    document.getElementById('fContenido').value = '1';
+    document.getElementById('fUnidad').value = 'kg';
+    document.getElementById('fPrecio').value = '0';
+    document.getElementById('fMarca').value = '';
+    document.getElementById('fProveedor').value = '';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fUdn').value = UDN;
+    document.getElementById('fUdn').disabled = false;
+    document.getElementById('formNota').style.display = 'none';
+    recalcPU();
+    openModal('modalForm');
+  }
+  document.getElementById('btnNuevo').addEventListener('click', openCrear);
+
+  // ---- editar (UDN disabled + nota informativa) ----
+  function openEditar(it){
+    editId = it.id;
+    document.getElementById('formTitulo').textContent = 'Editar ingrediente';
+    document.getElementById('formIco').innerHTML = '<i data-lucide="pencil" class="w-5 h-5"></i>';
+    document.getElementById('btnGuardarTxt').textContent = 'Guardar cambios';
+    document.getElementById('fNombre').value = it.nombre;
+    document.getElementById('fContenido').value = it.contenido;
+    document.getElementById('fUnidad').value = it.unidad;
+    document.getElementById('fPrecio').value = it.precio;
+    document.getElementById('fMarca').value = it.marca || '';
+    document.getElementById('fProveedor').value = it.proveedor || '';
+    document.getElementById('fDesc').value = it.desc || '';
+    document.getElementById('fUdn').value = UDN;
+    document.getElementById('fUdn').disabled = true;   // UDN no editable en edición
+    document.getElementById('formNota').style.display = 'block';
+    recalcPU();
+    openModal('modalForm');
+  }
+
+  // ---- guardar con validación de unicidad por UDN ----
+  document.getElementById('btnGuardarForm').addEventListener('click', () => {
+    const nombre = document.getElementById('fNombre').value.trim();
+    if(!nombre){ toast('Captura el nombre del ingrediente', 'alert-triangle'); document.getElementById('fNombre').focus(); return; }
+    const precio = parseFloat(document.getElementById('fPrecio').value) || 0;
+    const cont = parseFloat(document.getElementById('fContenido').value) || 0;
+    if(cont <= 0){ toast('El contenido neto debe ser mayor a 0', 'alert-triangle'); return; }
+    if(precio <= 0){ toast('Captura un precio válido', 'alert-triangle'); return; }
+    // unicidad por UDN, excluyendo el propio registro cuando se edita
+    const dup = ING.some(x => x.nombre.toLowerCase() === nombre.toLowerCase() && x.id !== editId);
+    if(dup){
+      document.getElementById('dupMsg').textContent = `Ya existe este ingrediente para ${UDN}.`;
+      document.getElementById('dupNombre').textContent = nombre;
+      document.getElementById('dupUdn').textContent = UDN;
+      openModal('modalDup');
+      return;
+    }
+    closeModal('modalForm');
+    if(editId){
+      toast(`Ingrediente "${nombre}" actualizado · recalculando recetas vinculadas…`, 'check-circle-2');
+    } else {
+      toast(`Ingrediente "${nombre}" creado`, 'check-circle-2');
+    }
+  });
+  document.getElementById('btnDupOk').addEventListener('click', () => {
+    closeModal('modalDup');
+    const inp = document.getElementById('fNombre'); inp.focus(); inp.select();
+  });
+
+  // ---- eliminar (bloqueo si vinculado / confirmación si no) ----
+  function openEliminar(it){
+    delTarget = it;
+    document.getElementById('delNombre').textContent = it.nombre;
+    document.getElementById('delDetalle').textContent = UDN;
+    document.getElementById('delFoto').style.background = hexA(it.color, .10);
+    document.getElementById('delFoto').style.color = it.color;
+    document.getElementById('delFoto').innerHTML = `<i data-lucide="${it.icon}"></i>`;
+
+    const vinculado = it.subrecetas.length > 0 || it.recetas.length > 0;
+    document.getElementById('delBlocked').style.display = vinculado ? 'block' : 'none';
+    document.getElementById('delConfirm').style.display = vinculado ? 'none' : 'block';
+    document.getElementById('btnConfirmDel').style.display = vinculado ? 'none' : 'inline-flex';
+    document.getElementById('btnBlockedOk').style.display = vinculado ? 'inline-flex' : 'none';
+    document.getElementById('delCancelar').style.display = vinculado ? 'none' : 'inline-flex';
+
+    if(vinculado){
+      document.getElementById('delTitulo').textContent = 'No se puede eliminar';
+      document.getElementById('delSub').textContent = `${it.nombre} está en uso.`;
+      document.getElementById('delSubrecetas').textContent = it.subrecetas.length ? it.subrecetas.join(', ') : 'No tiene subrecetas vinculadas';
+      document.getElementById('delRecetas').textContent = it.recetas.length ? it.recetas.join(', ') : 'No tiene recetas vinculadas';
+    } else {
+      document.getElementById('delTitulo').textContent = 'Eliminar ingrediente';
+      document.getElementById('delSub').textContent = 'Esta acción no se puede deshacer.';
+    }
+    openModal('modalEliminar');
+  }
+  document.getElementById('btnBlockedOk').addEventListener('click', () => closeModal('modalEliminar'));
+  document.getElementById('btnConfirmDel').addEventListener('click', () => {
+    const idx = ING.findIndex(x => x.id === delTarget.id);
+    if(idx >= 0) ING.splice(idx, 1);
+    closeModal('modalEliminar');
+    toast(`Ingrediente "${delTarget.nombre}" eliminado`, 'trash-2');
+    render();
+  });
+
+  // ---- filtros ----
+  document.getElementById('searchInp').addEventListener('input', e => { searchTxt = e.target.value.trim().toLowerCase(); page = 1; render(); });
+  document.getElementById('filtroUdn').addEventListener('change', e => {
+    document.getElementById('tituloUdn').textContent = e.target.value;
+    toast(`Filtrando ingredientes de ${e.target.value}`, 'filter');
+  });
+
+  // ---- launcher ----
+  const lb = document.getElementById('navLauncherBtn');
+  const lp = document.getElementById('launcherPanel');
+  lb.addEventListener('click', e => { e.stopPropagation(); lp.classList.toggle('open'); });
+  document.addEventListener('click', e => { if(!lp.contains(e.target) && !lb.contains(e.target)) lp.classList.remove('open'); });
+
+  // ---- toasts ----
+  window.toast = function(msg, icon){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast-item';
+    el.innerHTML = `<i data-lucide="${icon || 'info'}" style="width:16px;height:16px;color:#7AAB20;"></i> ${msg}`;
+    wrap.appendChild(el);
+    lucide.createIcons();
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = '.25s'; setTimeout(() => el.remove(), 260); }, 3200);
+  };
+
+  render();
+  lucide.createIcons();
+})();
+</script>
+    <script src="../gv-navbar-costsys.js"></script>
+    <script src="../gv-navbar-branch.js"></script>
+    <script src="../gv-navbar-user.js"></script>
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Varoch · Mi Perfil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #F2F5F9; color: #0F172A; }
+
+        /* ── Navbar (igual que gv-navbar.html) ── */
+        :root { --nav-bg:#FFFFFF; }
+        .navbar-main { position:relative; background:var(--nav-bg); border-bottom:1px solid rgba(0,51,96,.18) !important; transition:background .2s ease; }
+        .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.35); flex-shrink:0; }
+        .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
+        .navbar-subtitle { font-size:10px; color:#94A3B8; letter-spacing:.12em; text-transform:uppercase; }
+        .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
+        .nav-theme-toggle:hover { color:#003360; }
+        .nav-user-pill { padding:4px 8px 4px 13px; border:1px solid transparent; border-left:1px solid #E2E8F0; border-radius:8px; transition:all .15s ease; cursor:pointer; }
+        .nav-user-pill:hover { background:#F1F5F9; border-color:#E2E8F0; }
+        .nav-avatar { width:38px; height:38px; border-radius:9999px; background:#003360; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+        .nav-user-name { font-size:13px; font-weight:600; color:#111827; }
+        .nav-user-rol  { font-size:11px; color:#64748B; }
+        .nav-score-wrap { display:flex; align-items:center; gap:8px; padding:3px 10px 3px 4px; border-radius:9999px; cursor:pointer; transition:.15s ease; }
+        .nav-score-wrap:hover { background:#F1F5F9; }
+        .nav-score-ring { position:relative; width:40px; height:40px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .nav-score-ring::before { content:''; position:absolute; inset:4px; background:var(--nav-bg); border-radius:9999px; }
+        .nav-score-ring span { position:relative; font-size:10.5px; font-weight:800; line-height:1; }
+        .nav-score-label { font-size:11.5px; font-weight:600; color:#111827; }
+        .nav-score-sub { font-size:9.5px; color:#94A3B8; }
+        /* El selector de color y el modo oscuro de navbar los provee gv-navbar-theme.js */
+
+        /* ── Rail lateral ── */
+        .menu-rail-item { position:relative; width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s ease; }
+        .menu-rail-item i, .menu-rail-item svg { width:19px; height:19px; }
+        .menu-rail-label { font-size:8.5px; font-weight:600; line-height:1; white-space:nowrap; }
+        .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+        .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+        /* ── Perfil (estructura del perfil.php de ERP-GV) ── */
+        .profile-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+        .profile-photo-wrap { position:relative; width:168px; height:168px; margin:0 auto; }
+        .profile-photo { width:168px; height:168px; border-radius:9999px; object-fit:cover; border:5px solid #fff; box-shadow:0 8px 24px rgba(236,72,153,.30); background:linear-gradient(135deg,#F472B6 0%,#EC4899 50%,#DB2777 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:56px; font-weight:800; }
+        .profile-photo-btn { position:absolute; bottom:6px; right:6px; width:40px; height:40px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; border:3px solid #fff; box-shadow:0 4px 10px rgba(0,51,96,.35); transition:.15s; }
+        .profile-photo-btn:hover { background:#00264A; }
+
+        .form-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+        .input-group { display:flex; align-items:stretch; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; background:#F8FAFC; transition:.15s; }
+        .input-group:focus-within { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+        .input-group-text { display:flex; align-items:center; justify-content:center; padding:0 11px; background:#EEF3F8; color:#003360; border-right:1px solid #CBD5E1; }
+        .input-group .ipt { flex:1; border:none; background:transparent; padding:9px 12px; font-size:13px; color:#0F172A; outline:none; width:100%; }
+        .input-group .ipt:disabled { color:#334155; cursor:default; }
+        .input-group-btn { display:flex; align-items:center; justify-content:center; padding:0 11px; color:#2563EB; border-left:1px solid #CBD5E1; cursor:pointer; transition:.15s; }
+        .input-group-btn:hover { background:#EEF3F8; }
+
+        .section-title { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#003360; padding-bottom:6px; border-bottom:1px solid #E2E8F0; margin-bottom:14px; }
+        .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1; }
+        .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+        .badge-primary { background:rgba(0,51,96,.10); color:#003360; border-color:rgba(0,51,96,.30); }
+        .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; }
+        .btn-primary:hover { background:#00264A; transform:translateY(-1px); }
+
+        /* ── Tabs del perfil (segmented/pill igual a coffeeSoft.js tabLayout light) ── */
+        .profile-tabs { display:flex; gap:4px; padding:4px; border-radius:10px; background:#EEF2F7; }
+        .profile-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px 12px; font-size:13px; font-weight:500; color:#64748B; background:transparent; border:none; border-radius:8px; cursor:pointer; white-space:nowrap; transition:.15s ease; }
+        .profile-tab:hover { color:#111827; background:rgba(255,255,255,.6); }
+        .profile-tab.is-active { color:#003360; font-weight:600; background:#FFFFFF; box-shadow:0 1px 3px rgba(15,23,42,.10); }
+        .profile-meta-row { display:flex; align-items:center; gap:8px; background:#F8FAFC; border:1px solid #EEF2F7; border-radius:9px; padding:9px 12px; color:#475569; }
+        .profile-meta-row i, .profile-meta-row svg { width:15px; height:15px; color:#94A3B8; flex-shrink:0; }
+        .profile-meta-row b { color:#0F172A; }
+
+        /* ── Valores corporativos · dashboard ── */
+        .eval-head-title { font-size:15px; font-weight:800; letter-spacing:.02em; color:#0F172A; }
+        .eval-head-scale { font-size:10.5px; font-weight:600; color:#B45309; margin-top:2px; }
+        .val-select { appearance:none; -webkit-appearance:none; background-color:#fff; border:1px solid #CBD5E1; border-radius:8px; padding:8px 30px 8px 12px; font-size:11.5px; font-weight:700; letter-spacing:.02em; color:#334155; cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 9px center; transition:.15s; }
+        .val-select:hover { border-color:#94A3B8; }
+        .val-refresh { width:36px; height:36px; border-radius:8px; background:#0F2740; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; transition:.15s; }
+        .val-refresh:hover { background:#00264A; }
+
+        .kpi-card { background:#F8FAFC; border:1px solid #EEF2F7; border-radius:11px; padding:13px 15px; }
+        .kpi-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#94A3B8; }
+        .kpi-value { font-size:22px; font-weight:800; color:#0F172A; line-height:1.05; margin-top:4px; }
+        .kpi-sub { font-size:10.5px; color:#94A3B8; margin-top:3px; }
+
+        .eval-donut-card { background:#fff; border:1px solid #E2E8F0; border-radius:14px; padding:22px 18px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+        .eval-donut { position:relative; width:150px; height:150px; margin:0 auto; border-radius:9999px; display:flex; align-items:baseline; justify-content:center; }
+        .eval-donut::before { content:''; position:absolute; inset:13px; background:#fff; border-radius:9999px; }
+        .eval-donut-num { position:relative; align-self:center; font-size:38px; font-weight:800; color:#0F172A; line-height:1; }
+        .eval-donut-max { position:relative; align-self:center; font-size:13px; font-weight:600; color:#94A3B8; margin-left:3px; }
+        .eval-band { display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:9999px; font-size:11px; font-weight:700; background:rgba(0,51,96,.09); color:#003360; border:1px solid rgba(0,51,96,.18); }
+
+        .val-metric-card { border:1px solid; border-radius:13px; padding:15px 16px; }
+        .val-metric-icon { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .val-metric-icon i, .val-metric-icon svg { width:18px; height:18px; }
+        .val-metric-score { font-size:21px; font-weight:800; line-height:1; }
+        .val-metric-name { font-size:13.5px; font-weight:700; margin-top:11px; }
+        .val-metric-note { font-size:10.5px; margin-top:2px; }
+        .val-metric-track { height:6px; border-radius:9999px; margin-top:12px; overflow:hidden; }
+        .val-metric-fill { height:100%; border-radius:9999px; transition:width .4s ease; }
+
+        .btn-outline { background:#fff; border:1px solid #CBD5E1; color:#334155; border-radius:8px; padding:9px 15px; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:.15s; }
+        .btn-outline:hover { background:#F1F5F9; border-color:#94A3B8; }
+        .btn-dark { background:#0F2740; border:1px solid #0F2740; color:#fff; border-radius:8px; padding:9px 15px; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:.15s; }
+        .btn-dark:hover { background:#00264A; transform:translateY(-1px); }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar-main w-full px-4 py-2 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="nav-logo">GV</div>
+            <div class="flex flex-col leading-tight">
+                <span class="navbar-title">Grupo Varoch</span>
+                <span class="navbar-subtitle">Corporativo Varoch</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="nav-score-wrap" id="navScore" title="Calificación de valores corporativos">
+                <div class="nav-score-ring" id="navScoreRing"><span id="navScoreNum"></span></div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-score-label">Valores</span>
+                    <span class="nav-score-sub">de 5.00</span>
+                </div>
+            </div>
+            <button class="nav-user-pill flex items-center gap-2.5">
+                <div class="nav-avatar" id="navAvatar">RA</div>
+                <div class="hidden sm:flex flex-col items-start leading-tight">
+                    <span class="nav-user-name" id="navUserName">Rosa A.</span>
+                    <span class="nav-user-rol" id="navUserRol">Desarrolladora</span>
+                </div>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex" style="height: calc(100vh - 64px);">
+        <!-- RAIL -->
+        <aside id="menu-sidebar" class="bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-1" style="width:60px;">
+            <button class="menu-rail-item" onclick="location.href='gv-modulos.html'"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Inicio</span></button>
+            <button class="menu-rail-item"><i data-lucide="users"></i><span class="menu-rail-label">Capital</span></button>
+            <button class="menu-rail-item"><i data-lucide="wallet"></i><span class="menu-rail-label">Tesorería</span></button>
+            <button class="menu-rail-item is-active"><i data-lucide="user-circle"></i><span class="menu-rail-label">Perfil</span></button>
+            <button class="menu-rail-item" onclick="location.href='gv-permisos.html'"><i data-lucide="key-round"></i><span class="menu-rail-label">Accesos</span></button>
+        </aside>
+
+        <!-- CONTENIDO -->
+        <main class="flex-1 p-6 overflow-y-auto">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="flex items-center gap-2 text-xs">
+                    <li class="uppercase tracking-wide text-slate-400">Corporativo</li>
+                    <li class="text-slate-300">/</li>
+                    <li class="font-bold" style="color:#003360;">Mi Perfil</li>
+                </ol>
+            </nav>
+
+            <div class="flex flex-col lg:flex-row gap-5 items-start">
+
+                <!-- Columna izquierda: foto + identidad -->
+                <div class="w-full lg:w-[360px] shrink-0 flex flex-col gap-5">
+                <div class="profile-card p-7">
+                    <div class="profile-photo-wrap mb-5">
+                        <div class="profile-photo" id="idAvatar">RA</div>
+                        <div class="profile-photo-btn" title="Cambiar foto"><i data-lucide="camera" class="w-[18px] h-[18px]"></i></div>
+                    </div>
+                    <h2 class="text-center text-[22px] font-bold" style="color:#003360;" id="idNombre">Rosa A. Pérez Velázquez</h2>
+                    <div class="flex justify-center mt-2" id="idEstadoWrap">
+                        <span class="cv-badge badge-success"><span class="w-1.5 h-1.5 rounded-full" style="background:#7AAB20;"></span> <span id="idEstado">Activo</span></span>
+                    </div>
+                    <hr class="my-5 border-slate-200">
+                    <p class="text-center text-[15px] font-semibold text-slate-700" id="idPuesto">Desarrolladora Fullstack</p>
+                    <p class="text-center text-[13px] mt-1" style="color:#2563EB;" id="idArea">Tecnologías de la información</p>
+                    <hr class="my-5 border-slate-200">
+                    <div class="space-y-2.5 text-[13px]">
+                        <div class="profile-meta-row"><i data-lucide="hash"></i> ID usuario: <b id="idUserId">1042</b></div>
+                        <div class="profile-meta-row"><i data-lucide="user"></i> Usuario: <b id="idUserName">rperezv</b></div>
+                        <div class="profile-meta-row"><i data-lucide="calendar-check"></i> Alta: <b id="idAlta">14/03/2022</b></div>
+                        <div class="profile-meta-row"><i data-lucide="file-text"></i> Código: <b id="idCodigo">GV-1042</b></div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Columna derecha: tabs -->
+                <div class="profile-card flex-1 w-full overflow-hidden flex flex-col min-h-[calc(100vh-150px)]">
+                    <div class="px-4 pt-4 shrink-0">
+                        <div class="profile-tabs overflow-x-auto">
+                            <button class="profile-tab is-active" data-tab="laboral"><i data-lucide="briefcase" class="w-4 h-4"></i> Información laboral</button>
+                            <button class="profile-tab" data-tab="personal"><i data-lucide="user" class="w-4 h-4"></i> Información personal</button>
+                            <button class="profile-tab" data-tab="seguridad"><i data-lucide="shield" class="w-4 h-4"></i> Seguridad</button>
+                            <button class="profile-tab" data-tab="valores"><i data-lucide="award" class="w-4 h-4"></i> Valores corporativos</button>
+                        </div>
+                    </div>
+
+                    <div class="p-6 flex-1">
+                        <!-- TAB: Informacion laboral -->
+                        <div class="profile-pane" id="tab-laboral">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label">Unidad de negocio</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="factory" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idUnidad" value="Corporativo" disabled>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Fecha de ingreso</label>
+                                    <div class="input-group">
+                                        <input type="text" class="ipt text-center" id="idIngreso" value="14 / 03 / 2022" disabled>
+                                        <span class="input-group-text" style="border-left:1px solid #CBD5E1;border-right:none;"><i data-lucide="calendar" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Empresa</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="building-2" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idEmpresa" value="Grupo Varoch" disabled>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Perfil de acceso</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="shield" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idPerfil" value="Desarrollo" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Informacion personal -->
+                        <div class="profile-pane hidden" id="tab-personal">
+                            <div class="grid grid-cols-1 gap-4 mb-3">
+                                <div>
+                                    <label class="form-label">Nombre completo</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="user" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idFullname" value="Rosa A. Pérez Velázquez" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="form-label">Usuario</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="at-sign" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idUsuario" value="rperezv" disabled>
+                                        <span class="input-group-btn" title="Bloquear / Desbloquear"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Teléfono móvil</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="phone" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idTelefono" value="5544887701" maxlength="10" disabled>
+                                        <span class="input-group-btn" title="Bloquear / Desbloquear"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Sucursal</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="map-pin" class="w-4 h-4"></i></span>
+                                        <input type="text" class="ipt" id="idSucursal" value="Matriz CDMX" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Seguridad -->
+                        <div class="profile-pane hidden" id="tab-seguridad">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label">Nueva contraseña</label>
+                                    <div class="input-group">
+                                        <span class="input-group-btn" style="border-left:none;border-right:1px solid #CBD5E1;" title="Generar automática"><i data-lucide="key" class="w-4 h-4"></i></span>
+                                        <input type="password" class="ipt" id="clave1" value="secreto123">
+                                        <span class="input-group-btn" id="btnKeyShow" title="Mostrar / Ocultar"><i data-lucide="eye" class="w-4 h-4"></i></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Confirmar contraseña</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i data-lucide="key-round" class="w-4 h-4"></i></span>
+                                        <input type="password" class="ipt" id="clave2" value="secreto123">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6">
+                                <button class="btn-primary flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB: Valores corporativos -->
+                        <div class="profile-pane hidden" id="tab-valores">
+                            <!-- Encabezado + control de periodo -->
+                            <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+                                <div>
+                                    <h3 class="eval-head-title">EVALUACIÓN DE VALORES CORPORATIVOS</h3>
+                                    <p class="eval-head-scale">Escala: 1 = Totalmente en desacuerdo · 5 = Totalmente de acuerdo</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <select class="val-select" id="valSelect">
+                                        <option>FEB 2026 - MAR 2026</option>
+                                        <option>DIC 2025 - ENE 2026</option>
+                                        <option>OCT 2025 - NOV 2025</option>
+                                    </select>
+                                    <button class="val-refresh" title="Actualizar datos" onclick="renderValores(SAMPLE_VALORES)"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Fila de KPIs -->
+                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                                <div class="kpi-card">
+                                    <p class="kpi-label">Promedio general</p>
+                                    <p class="kpi-value" id="kpiCalf"></p>
+                                    <p class="kpi-sub">de 5 posible</p>
+                                </div>
+                                <div class="kpi-card">
+                                    <p class="kpi-label">Evaluadores</p>
+                                    <p class="kpi-value" id="kpiPeople"></p>
+                                    <p class="kpi-sub">participaron</p>
+                                </div>
+                                <div class="kpi-card">
+                                    <p class="kpi-label">Estado</p>
+                                    <p class="kpi-value flex items-center gap-1.5" style="font-size:15px;color:#5d8418;"><span class="w-2 h-2 rounded-full" style="background:#7AAB20;"></span><span id="kpiEstado"></span></p>
+                                    <p class="kpi-sub" id="kpiCierre"></p>
+                                </div>
+                                <div class="kpi-card">
+                                    <p class="kpi-label">Período</p>
+                                    <p class="kpi-value" style="font-size:15px;" id="kpiPeriodoCorto"></p>
+                                    <p class="kpi-sub" id="kpiUnidad"></p>
+                                </div>
+                            </div>
+
+                            <!-- Dona global + tarjetas de valor -->
+                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                                <div class="lg:col-span-4">
+                                    <div class="eval-donut-card h-full flex flex-col justify-center">
+                                        <div class="eval-donut" id="valDonut">
+                                            <span class="eval-donut-num" id="valCalf"></span><span class="eval-donut-max">/5</span>
+                                        </div>
+                                        <p class="text-center text-xs text-slate-400 mt-3">Calificación global</p>
+                                        <div class="flex justify-center mt-2">
+                                            <span class="eval-band" id="valBand"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:col-span-8">
+                                    <div id="valCards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 h-full"></div>
+                                </div>
+                            </div>
+
+                            <!-- Acciones de la evaluación -->
+                            <div class="flex flex-wrap justify-end gap-2 mt-5">
+                                <button class="btn-outline"><i data-lucide="download" class="w-4 h-4"></i> Descargar constancia</button>
+                                <button class="btn-dark"><i data-lucide="list-checks" class="w-4 h-4"></i> Ver concentrado completo</button>
+                            </div>
+                            <hr class="my-5 border-slate-200">
+                            <div class="flex justify-end">
+                                <button class="btn-dark"><i data-lucide="save" class="w-4 h-4"></i> Actualizar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SAMPLE_VALORES = {
+            periodo: 'FEB 2026 - MAR 2026',
+            periodo_corto: 'Feb - Mar 26',
+            unidad: 'Matriz CDMX',
+            estado: 'Finalizado',
+            fecha_cierre: '15 / 03 / 2026',
+            calf: 4.49,
+            people_count: 28,
+            valores: [
+                { value: 'Trabajo en equipo',      shortName: 'te', calf: 4.33, evals: 42, icon: 'users' },
+                { value: 'Actitud positiva',       shortName: 'ap', calf: 4.39, evals: 43, icon: 'smile' },
+                { value: 'Profesionalismo',        shortName: 'pr', calf: 4.73, evals: 45, icon: 'badge-check' },
+                { value: 'Pasión por el servicio', shortName: 'ps', calf: 4.52, evals: 44, icon: 'heart-handshake' }
+            ]
+        };
+
+        function colorCalf(calf) {
+            if (calf >= 4.5) return '#7AAB20';
+            if (calf >= 4)   return '#2563EB';
+            if (calf >= 3.5) return '#D97706';
+            return '#9E1B32';
+        }
+
+        // En navbars azules el azul se camuflajea: el nivel azul usa el verde corporativo.
+        function colorCalfDark(calf) {
+            return calf >= 4 ? '#7AAB20' : colorCalf(calf);
+        }
+
+        // Paleta de tarjeta por rango de calificación (verde / azul / ámbar / rojo).
+        function tierCard(calf) {
+            if (calf >= 4.6) return { bg:'#ECFDF3', border:'#BBF7D0', ink:'#15803D', bar:'#22C55E', ibg:'#DCFCE7', iink:'#16A34A' };
+            if (calf >= 4.5) return { bg:'#EFF6FF', border:'#BFDBFE', ink:'#1D4ED8', bar:'#3B82F6', ibg:'#DBEAFE', iink:'#2563EB' };
+            if (calf >= 4.0) return { bg:'#FEFCE8', border:'#FEF08A', ink:'#A16207', bar:'#EAB308', ibg:'#FEF9C3', iink:'#CA8A04' };
+            return { bg:'#FEF2F2', border:'#FECACA', ink:'#B91C1C', bar:'#EF4444', ibg:'#FEE2E2', iink:'#DC2626' };
+        }
+
+        // Nivel de desempeño global.
+        function bandCalf(calf) {
+            if (calf >= 4.5) return 'SB · Sobresaliente';
+            if (calf >= 4.0) return 'AD · Por encima del esperado';
+            if (calf >= 3.0) return 'ES · En lo esperado';
+            return 'PM · Por mejorar';
+        }
+
+        function renderValores(data) {
+            const pct = (data.calf / 5) * 100;
+            const scoreColor = colorCalf(data.calf);
+
+            // KPIs
+            document.getElementById('kpiCalf').textContent = data.calf.toFixed(2);
+            document.getElementById('kpiPeople').textContent = data.people_count;
+            document.getElementById('kpiEstado').textContent = data.estado;
+            document.getElementById('kpiCierre').textContent = data.fecha_cierre;
+            document.getElementById('kpiPeriodoCorto').textContent = data.periodo_corto;
+            document.getElementById('kpiUnidad').textContent = data.unidad;
+
+            // Dona global + nivel
+            document.getElementById('valCalf').textContent = data.calf.toFixed(2);
+            document.getElementById('valDonut').style.background =
+                `conic-gradient(${scoreColor} ${pct}%, #EEF3F8 ${pct}%)`;
+            document.getElementById('valBand').textContent = bandCalf(data.calf);
+
+            // Navbar score ring (los colores dark los resuelve gv-navbar-theme.js vía --score-fill)
+            const navScoreRing = document.getElementById('navScoreRing');
+            navScoreRing.style.setProperty('--score-color', scoreColor);
+            navScoreRing.style.setProperty('--score-color-dark', colorCalfDark(data.calf));
+            navScoreRing.style.background =
+                `conic-gradient(var(--score-fill, ${scoreColor}) ${pct}%, var(--nav-score-track, #EEF3F8) ${pct}%)`;
+            const navScoreNum = document.getElementById('navScoreNum');
+            navScoreNum.textContent = data.calf.toFixed(2);
+            navScoreNum.style.color = `var(--score-fill, ${scoreColor})`;
+
+            // Tarjetas de valor (ordenadas de mayor a menor)
+            const orden = [...data.valores].sort((a, b) => b.calf - a.calf);
+            const maxCalf = orden[0].calf, minCalf = orden[orden.length - 1].calf;
+            document.getElementById('valCards').innerHTML = orden.map(v => {
+                const t = tierCard(v.calf);
+                let nota = `${v.evals} evaluaciones`;
+                if (v.calf === maxCalf) nota = 'Valor más alto';
+                else if (v.calf === minCalf) nota = 'Valor con menor promedio';
+                return `
+                <div class="val-metric-card" style="background:${t.bg};border-color:${t.border};">
+                    <div class="flex items-start justify-between">
+                        <div class="val-metric-icon" style="background:${t.ibg};color:${t.iink};">
+                            <i data-lucide="${v.icon}"></i>
+                        </div>
+                        <span class="val-metric-score" style="color:${t.ink};">${v.calf.toFixed(2)}</span>
+                    </div>
+                    <p class="val-metric-name" style="color:${t.ink};">${v.value}</p>
+                    <p class="val-metric-note" style="color:${t.ink};opacity:.75;">${nota}</p>
+                    <div class="val-metric-track" style="background:${t.border};">
+                        <div class="val-metric-fill" style="width:${(v.calf / 5) * 100}%;background:${t.bar};"></div>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+        renderValores(SAMPLE_VALORES);
+
+        // ── Datos reales del usuario (endpoint getUser de alpha/admin) ──
+        function initials(name) {
+            if (!name) return '';
+            const p = name.trim().split(/\s+/);
+            return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase();
+        }
+        function setText(id, val) {
+            const el = document.getElementById(id);
+            if (el && val != null && String(val).trim() !== '') el.textContent = val;
+        }
+        function setVal(id, val) {
+            const el = document.getElementById(id);
+            if (el && val != null && String(val).trim() !== '') el.value = val;
+        }
+
+        let perfilData = {};
+
+        function pintarPerfil(d) {
+            perfilData = d;
+            const nombre = (d.fullname || '').trim();
+
+            // Card de identidad + navbar
+            if (nombre) {
+                setText('idNombre', nombre);
+                setText('navUserName', nombre.split(/\s+/).slice(0, 2).join(' '));
+                const ini = initials(nombre);
+                const av = document.getElementById('idAvatar');
+                const navAv = document.getElementById('navAvatar');
+                av.textContent = ini;
+                if (d.photo) {
+                    const img = document.createElement('img');
+                    img.src = d.photo;
+                    img.alt = 'Foto de perfil';
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:9999px;';
+                    img.onerror = () => { av.textContent = ini; }; // si la foto no resuelve, deja las iniciales
+                    av.innerHTML = '';
+                    av.appendChild(img);
+                }
+                if (navAv) navAv.textContent = ini;
+            }
+            setText('navUserRol', d.rol);
+            setText('idPuesto', d.rol);
+            setText('idArea', d.company);
+            setText('idEstado', Number(d.active) === 1 ? 'Activo' : 'Inactivo');
+            setText('idUserId', d.id);
+            setText('idUserName', d.user);
+            setText('idAlta', d.date_creation);
+            if (d.id != null) setText('idCodigo', 'GV-' + d.id);
+
+            // Información laboral
+            setVal('idIngreso', d.date_creation);
+            setVal('idEmpresa', d.company);
+            setVal('idPerfil', d.rol);
+
+            // Información personal
+            setVal('idFullname', nombre);
+            setVal('idUsuario', d.user);
+            setVal('idTelefono', d.phone);
+            setVal('idSucursal', (d.subsidiary || '') + (d.ubication ? ' · ' + d.ubication : ''));
+
+            lucide.createIcons();
+        }
+
+        // Parseo tolerante: el backend puede anteponer Notices de PHP/xdebug al JSON.
+        function parseJsonLoose(raw) {
+            let s = raw.indexOf('{"status"');
+            if (s === -1) s = raw.indexOf('{');
+            if (s === -1) return null;
+            try { return JSON.parse(raw.slice(s)); } catch (e) { return null; }
+        }
+
+        async function cargarPerfil() {
+            try {
+                const res = await fetch('../../../alpha/admin/ctrl/ctrl-perfil.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'opc=getUser'
+                });
+                const json = parseJsonLoose(await res.text());
+                if (json && json.status === 200 && json.data) pintarPerfil(json.data);
+            } catch (e) {
+                // Maqueta abierta sin sesión activa: conserva los valores de ejemplo.
+            }
+        }
+        cargarPerfil();
+
+        // ── Funcionalidad del perfil ──
+        const PERFIL_API = '../../../alpha/admin/ctrl/ctrl-perfil.php';
+
+        function toast(msg, type) {
+            const colors = { success: '#16A34A', error: '#DC2626', info: '#2563EB', warning: '#D97706' };
+            const t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;bottom:22px;right:22px;z-index:9999;background:' + (colors[type] || '#334155') +
+                ';color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 12px 32px rgba(0,0,0,.22);opacity:0;transform:translateY(10px);transition:.25s ease;max-width:340px;';
+            document.body.appendChild(t);
+            requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+            setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; setTimeout(() => t.remove(), 300); }, 3200);
+        }
+
+        // Guarda Información personal (y opcionalmente la foto) vía editUser
+        async function guardarInfoPersonal(btn, file) {
+            const fullname = (document.getElementById('idFullname').value || '').trim();
+            const user = (document.getElementById('idUsuario').value || '').trim();
+            const phone = (document.getElementById('idTelefono').value || '').trim();
+            if (!fullname || !user) { toast('Nombre y usuario son obligatorios', 'warning'); return; }
+
+            if (btn) btn.disabled = true;
+            const fd = new FormData();
+            fd.append('opc', 'editUser');
+            fd.append('fullname', fullname);
+            fd.append('user', user);
+            fd.append('phone', phone);
+            fd.append('birthday', perfilData.birthday || '');
+            if (file) fd.append('photo', file);
+
+            try {
+                const res = await fetch(PERFIL_API, { method: 'POST', credentials: 'same-origin', body: fd });
+                const json = parseJsonLoose(await res.text());
+                if (json && json.status === 200) {
+                    toast(json.message || 'Cambios guardados', 'success');
+                    cargarPerfil();
+                } else {
+                    toast((json && json.message) || 'No se pudo guardar. ¿Sesión activa?', 'error');
+                }
+            } catch (e) {
+                toast('Error de conexión con el servidor', 'error');
+            }
+            if (btn) btn.disabled = false;
+        }
+
+        // Validación de contraseña (Seguridad)
+        function guardarSeguridad(btn) {
+            const c1 = document.getElementById('clave1').value;
+            const c2 = document.getElementById('clave2').value;
+            if (!c1 || c1.length < 6) { toast('La contraseña debe tener al menos 6 caracteres', 'warning'); return; }
+            if (c1 !== c2) { toast('Las contraseñas no coinciden', 'error'); return; }
+            toast('Contraseña validada. El guardado se habilitará al conectar el endpoint.', 'info');
+        }
+
+        // Botones "Bloquear / Desbloquear" (pencil) → habilitan su input
+        document.querySelectorAll('.input-group-btn[title="Bloquear / Desbloquear"]').forEach(pb => {
+            pb.addEventListener('click', () => {
+                const inp = pb.parentElement.querySelector('.ipt');
+                if (!inp) return;
+                inp.disabled = !inp.disabled;
+                if (!inp.disabled) inp.focus();
+            });
+        });
+
+        // Cambiar foto de perfil (input file dinámico → preview + subida inmediata)
+        const inputFoto = document.createElement('input');
+        inputFoto.type = 'file';
+        inputFoto.accept = 'image/*';
+        inputFoto.style.display = 'none';
+        document.body.appendChild(inputFoto);
+        const btnFoto = document.querySelector('.profile-photo-btn');
+        if (btnFoto) btnFoto.addEventListener('click', () => inputFoto.click());
+        inputFoto.addEventListener('change', () => {
+            const f = inputFoto.files[0];
+            if (!f) return;
+            const url = URL.createObjectURL(f);
+            const av = document.getElementById('idAvatar');
+            av.innerHTML = '<img src="' + url + '" alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;">';
+            guardarInfoPersonal(null, f);
+        });
+
+        // Enlazar los botones "Actualizar" de cada pestaña
+        const btnPersonal = document.querySelector('#tab-personal .btn-primary');
+        if (btnPersonal) btnPersonal.addEventListener('click', () => guardarInfoPersonal(btnPersonal));
+
+        const btnLaboral = document.querySelector('#tab-laboral .btn-primary');
+        if (btnLaboral) btnLaboral.addEventListener('click', () => toast('Estos datos los administra Recursos Humanos', 'info'));
+
+        const btnSeguridad = document.querySelector('#tab-seguridad .btn-primary');
+        if (btnSeguridad) btnSeguridad.addEventListener('click', () => guardarSeguridad(btnSeguridad));
+
+        const btnValores = Array.from(document.querySelectorAll('#tab-valores button'))
+            .find(b => b.textContent.trim().indexOf('Actualizar') !== -1);
+        if (btnValores) btnValores.addEventListener('click', () => toast('Evaluación de valores registrada', 'success'));
+
+        document.querySelectorAll('.profile-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.profile-tab.is-active').classList.remove('is-active');
+                btn.classList.add('is-active');
+                document.querySelectorAll('.profile-pane').forEach(p => p.classList.add('hidden'));
+                document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        // Clic en el indicador de Valores de la navbar → abre la pestaña de valores corporativos
+        document.getElementById('navScore').addEventListener('click', () => {
+            const tab = document.querySelector('.profile-tab[data-tab="valores"]');
+            if (tab) {
+                tab.click();
+                tab.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+
+        lucide.createIcons();
+        const btnKeyShow = document.getElementById('btnKeyShow');
+        const clave1 = document.getElementById('clave1');
+        btnKeyShow.addEventListener('click', () => {
+            const showing = clave1.type === 'text';
+            clave1.type = showing ? 'password' : 'text';
+            btnKeyShow.innerHTML = `<i data-lucide="${showing ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>`;
+            lucide.createIcons();
+        });
+    </script>
+    <script src="gv-navbar-theme.js"></script>
+    <script src="gv-navbar-branch.js"></script>
+    <script src="gv-navbar-user.js"></script>
+</body>
+</html>

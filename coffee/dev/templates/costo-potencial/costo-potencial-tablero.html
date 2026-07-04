@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costsys · Costo Potencial</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { font-family:'Inter',system-ui,sans-serif; background:#F2F5F9; color:#0F172A; margin:0; }
+
+  /* ================== NAVBAR ================== */
+  /* Navbar blanco institucional estándar (UDN, Valores y usuario los inyectan gv-navbar-*.js) */
+  .navbar-main { background:#FFFFFF !important; width:100%; position:relative; z-index:50; border-bottom:1px solid rgba(0,51,96,.18); box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .navbar-top { height:64px; display:flex; align-items:center; padding:0 22px; gap:14px; position:relative; }
+  .nav-logo { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#003360 0%,#2563EB 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:.02em; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.35); }
+  .nav-brand-text { display:flex; flex-direction:column; line-height:1.1; }
+  .nav-brand-grupo { font-size:16px; font-weight:800; color:#111827; letter-spacing:.01em; }
+  .nav-brand-varoch { font-size:10px; font-weight:600; color:#94A3B8; letter-spacing:.22em; margin-top:2px; }
+  .nav-spacer { flex:1; }
+  .nav-icon-btn { position:relative; width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#64748B; border:none; background:transparent; cursor:pointer; border-radius:10px; transition:.15s; }
+  .nav-icon-btn:hover { background:#F1F5F9; color:#003360; }
+  .nav-icon-btn i { width:18px; height:18px; }
+  .nav-divider { width:1px; height:26px; background:#E2E8F0; margin:0 4px; }
+  .nav-user { display:flex; align-items:center; gap:11px; padding:5px 10px 5px 8px; cursor:pointer; border-radius:12px; transition:.15s; }
+  .nav-user:hover { background:#F1F5F9; }
+  .nav-user-info { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+  .nav-user-name { font-size:13px; font-weight:700; color:#111827; }
+  .nav-user-rol { font-size:10.5px; color:#64748B; font-weight:500; }
+  .nav-user-avatar { width:36px; height:36px; border-radius:9999px; background:#003360; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12.5px; flex-shrink:0; box-shadow:0 4px 12px rgba(0,51,96,.32); }
+  .nav-chev { color:#94A3B8; flex-shrink:0; transition:transform .2s ease; }
+  .nav-launcher-wrap { position:relative; }
+  .launcher-panel { position:absolute; top:calc(100% + 12px); right:0; width:308px; background:#fff; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 20px 46px rgba(2,10,24,.24); padding:14px; z-index:80; opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top right; pointer-events:none; transition:.16s ease; }
+  .launcher-panel.open { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .launcher-head { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#94A3B8; padding:2px 4px 10px; }
+  .launcher-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .launcher-tile { display:flex; flex-direction:column; align-items:center; gap:9px; padding:15px 10px; border-radius:12px; border:1px solid #EEF2F7; background:#FAFBFD; text-decoration:none; transition:.15s; }
+  .launcher-tile:hover { border-color:#2563EB; background:#F0F5FF; transform:translateY(-2px); box-shadow:0 8px 20px rgba(37,99,235,.12); }
+  .launcher-tile-ico { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+  .launcher-tile-ico i { width:20px; height:20px; }
+  .launcher-tile-label { font-size:12px; font-weight:700; color:#0F172A; text-align:center; line-height:1.15; }
+
+  /* ================== RAIL ================== */
+  .menu-rail-item { width:48px; min-height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:7px 2px; color:#64748B; background:transparent; border:1px solid transparent; cursor:pointer; text-align:center; transition:.15s; text-decoration:none; font-size:8.5px; font-weight:600; }
+  .menu-rail-item i { width:19px; height:19px; }
+  .menu-rail-item:hover { color:#111827; background:#F1F5F9; border-color:#E2E8F0; }
+  .menu-rail-item.is-active { color:#003360; background:rgba(0,51,96,.10); border-color:rgba(0,51,96,.14); }
+
+  /* ================== COMPONENTES ================== */
+  .cv-card { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .cv-input { width:100%; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 11px; font-size:13px; color:#0F172A; outline:none; transition:.15s; }
+  .cv-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .cv-label { font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#475569; margin-bottom:5px; display:block; }
+  .btn-primary { background:#003360; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,51,96,.18); }
+  .btn-primary:hover { background:#00264A; }
+  .btn-secondary { background:#fff; color:#003360; border:1px solid rgba(0,51,96,.3); border-radius:8px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-secondary:hover { background:#F0F5FB; }
+  .btn-outline { background:#fff; color:#475569; border:1px solid #E2E8F0; border-radius:8px; padding:8px 14px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; }
+  .btn-outline:hover { border-color:#CBD5E1; }
+  .cv-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9999px; font-size:10.5px; font-weight:600; border:1px solid; line-height:1.6; white-space:nowrap; }
+  .badge-success { background:rgba(122,171,32,.15); color:#5d8418; border-color:rgba(122,171,32,.35); }
+  .badge-warning { background:rgba(217,119,6,.13); color:#D97706; border-color:rgba(217,119,6,.32); }
+  .badge-neutral { background:rgba(100,116,139,.15); color:#64748B; border-color:rgba(100,116,139,.3); }
+
+  /* tabla tablero */
+  .cp-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; min-width:1140px; }
+  .cp-table thead th { position:sticky; top:0; z-index:2; background:#F8FAFC; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748B; padding:10px 10px; text-align:right; white-space:nowrap; border-bottom:1px solid #E2E8F0; }
+  .cp-table thead th.tl { text-align:left; }
+  .cp-table thead th.tc { text-align:center; }
+  .cp-table tbody td { font-size:12px; color:#334155; padding:6px 10px; border-bottom:1px solid #F1F5F9; white-space:nowrap; text-align:right; }
+  .cp-table tbody td.tl { text-align:left; }
+  .cp-table tbody td.tc { text-align:center; }
+  .cp-table tbody tr:hover td { background:rgba(37,99,235,.03); }
+  .grp-row td { background:#EEF2F7 !important; font-weight:800; color:#003360; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; padding:7px 16px !important; text-align:left !important; border-bottom:1px solid #E2E8F0; }
+  .prop-input { width:92px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:7px; padding:4px 8px; font-size:12px; color:#0F172A; outline:none; text-align:right; font-variant-numeric:tabular-nums; }
+  .prop-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .prop-input.dirty { background:rgba(217,119,6,.14); border-color:#D97706; color:#92600A; font-weight:700; }
+  .ind-pill { display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:9999px; font-weight:700; font-size:11.5px; }
+
+  /* modales */
+  .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:60; display:none; align-items:flex-start; justify-content:center; overflow-y:auto; padding:24px; }
+  .modal-card { width:100%; max-width:520px; background:#fff; border-radius:14px; box-shadow:0 30px 60px rgba(15,23,42,.25); overflow:hidden; margin:32px auto; }
+  .modal-head { padding:18px 20px; background:linear-gradient(135deg,rgba(0,51,96,.06) 0%,rgba(37,99,235,.04) 100%); border-bottom:1px solid #F1F5F9; display:flex; align-items:flex-start; gap:12px; }
+  .modal-ico { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .modal-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:16px 20px; background:#FAFBFC; border-top:1px solid #F1F5F9; }
+  .info-tile { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:9px; padding:12px 14px; }
+  .radio-tile { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1px solid #E2E8F0; border-radius:10px; cursor:pointer; transition:.15s; }
+  .radio-tile:hover { border-color:#CBD5E1; background:#FAFBFD; }
+  .radio-tile.is-sel { border-color:#003360; background:rgba(0,51,96,.04); }
+
+  /* leyenda semáforo */
+  .legend-dot { width:9px; height:9px; border-radius:9999px; display:inline-block; }
+  .toast-item { display:flex; align-items:center; gap:10px; background:#0F172A; color:#fff; border-radius:10px; padding:11px 15px; font-size:12.5px; font-weight:600; box-shadow:0 14px 30px rgba(15,23,42,.3); animation:toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ================== NAVBAR ================== -->
+<nav class="navbar-main">
+  <div class="navbar-top">
+    <button class="nav-icon-btn" title="Menú"><i data-lucide="menu"></i></button>
+    <div class="nav-logo">GV</div>
+    <div class="nav-brand-text">
+      <span class="nav-brand-grupo">Grupo Varoch</span>
+      <span class="nav-brand-varoch">CORPORATIVO VAROCH</span>
+    </div>
+    <div class="nav-spacer"></div>
+    <button class="nav-icon-btn" title="Notificaciones"><i data-lucide="bell"></i></button>
+    <div class="nav-launcher-wrap">
+      <button class="nav-icon-btn" id="navLauncherBtn" title="Módulos"><i data-lucide="layout-grid"></i></button>
+      <div class="launcher-panel" id="launcherPanel">
+        <div class="launcher-head">Módulos principales</div>
+        <div class="launcher-grid">
+          <a href="../recetas/recetas-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(234,88,12,.13);color:#EA580C;"><i data-lucide="chef-hat"></i></span>
+            <span class="launcher-tile-label">Recetas</span>
+          </a>
+          <a href="../ingredientes/ingredientes-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(16,185,129,.13);color:#059669;"><i data-lucide="carrot"></i></span>
+            <span class="launcher-tile-label">Ingredientes</span>
+          </a>
+          <a href="../subrecetas/subrecetas-lista.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(147,51,234,.12);color:#9333EA;"><i data-lucide="layers"></i></span>
+            <span class="launcher-tile-label">Subrecetas</span>
+          </a>
+          <a href="../costsys-proyeccion.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="calendar-clock"></i></span>
+            <span class="launcher-tile-label">Proyección</span>
+          </a>
+          <a href="../costsys-coffee.html" class="launcher-tile">
+            <span class="launcher-tile-ico" style="background:rgba(217,119,6,.13);color:#D97706;"><i data-lucide="table-2"></i></span>
+            <span class="launcher-tile-label">Costo potencial</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <span class="nav-divider"></span>
+    <div class="nav-user" title="Mi cuenta">
+      <div class="nav-user-avatar">RA</div>
+      <div class="nav-user-info">
+        <span class="nav-user-name">Rosa Angelica</span>
+        <span class="nav-user-rol">Desarrolladora Fullstack</span>
+      </div>
+      <i data-lucide="chevron-down" class="nav-chev w-4 h-4"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- ================== BODY ================== -->
+<div class="flex" style="height:calc(100vh - 64px);">
+
+  <main class="flex-1 min-h-0 p-6 overflow-hidden flex flex-col">
+
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <nav aria-label="breadcrumb">
+        <ol class="flex items-center gap-2 text-xs">
+          <li class="uppercase tracking-wide text-slate-400">Costsys</li>
+          <li class="text-slate-300">/</li>
+          <li class="font-bold" style="color:#003360;">Costo Potencial</li>
+        </ol>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button class="btn-secondary" id="btnEjercicio">
+          <i data-lucide="calendar-plus" class="w-4 h-4"></i> Ejecutar ejercicio mensual
+        </button>
+        <button class="btn-primary" id="btnProgramacion" style="display:none;">
+          <i data-lucide="calendar-clock" class="w-4 h-4"></i> Programación
+        </button>
+      </div>
+    </div>
+
+    <!-- ================== FILTER BAR ================== -->
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 1px 3px rgba(15,23,42,.04);padding:14px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;">
+      <div style="width:180px;">
+        <label class="cv-label">Unidad de negocio</label>
+        <select class="cv-input" style="cursor:pointer;"><option>Sonoras Meat</option><option>Fogaza</option><option>Baos</option><option>Punto Modelo</option><option>Quinta Tabachines</option></select>
+      </div>
+      <div style="width:160px;">
+        <label class="cv-label">Clasificación</label>
+        <select id="filtroClasif" class="cv-input" style="cursor:pointer;"><option value="">Todas</option><option>Cortes</option><option>Guarniciones</option><option>Postres</option></select>
+      </div>
+      <div style="width:120px;">
+        <label class="cv-label">Año</label>
+        <select class="cv-input" style="cursor:pointer;"><option>2026</option><option>2025</option></select>
+      </div>
+      <div style="width:140px;">
+        <label class="cv-label">Mes</label>
+        <select class="cv-input" style="cursor:pointer;"><option>Enero</option><option>Febrero</option><option>Marzo</option><option>Abril</option><option>Mayo</option><option>Junio</option><option selected>Julio</option><option>Agosto</option><option>Septiembre</option><option>Octubre</option><option>Noviembre</option><option>Diciembre</option></select>
+      </div>
+      <div class="flex-1"></div>
+      <!-- leyenda del semáforo -->
+      <div class="flex items-center gap-4 text-[11px] text-slate-500" style="padding-bottom:4px;">
+        <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#5d8418;"></span> Sano</span>
+        <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#D97706;"></span> Atención / cambio</span>
+        <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#9E1B32;"></span> Fuera de rango</span>
+      </div>
+    </div>
+
+    <!-- ================== TABLERO ================== -->
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.06);overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:0;">
+
+      <div class="flex flex-wrap items-center gap-3 p-4" style="border-bottom:1px solid #F1F5F9;">
+        <div style="flex:1;min-width:220px;">
+          <h2 class="text-[15px] font-bold" style="color:#003360;">Tablero de Costo Potencial <span class="text-slate-300 font-normal">/</span> <span class="text-slate-500 font-semibold">Sonoras Meat</span></h2>
+          <p class="text-[11.5px] text-slate-400 mt-0.5">Captura un <b>precio propuesto</b> para simular el escenario. IVA UDN 8%.</p>
+        </div>
+        <div class="relative" style="flex:1;min-width:200px;max-width:300px;">
+          <i data-lucide="search" class="w-4 h-4" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94A3B8;"></i>
+          <input id="searchInp" type="text" placeholder="Buscar producto…" style="width:100%;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 11px 8px 33px;font-size:12.5px;color:#0F172A;outline:none;">
+        </div>
+      </div>
+
+      <div style="overflow:auto;flex:1;min-height:0;">
+        <table class="cp-table">
+          <thead>
+            <tr>
+              <th class="tl" style="padding-left:16px;">Producto</th>
+              <th class="tc">P. Propuesto</th>
+              <th>P. Venta s/IVA</th>
+              <th>Costo</th>
+              <th class="tc">Costo %</th>
+              <th>MC</th>
+              <th class="tc">Desplaz.</th>
+              <th>Ventas est.</th>
+              <th>Costo est.</th>
+              <th>MC est.</th>
+            </tr>
+          </thead>
+          <tbody id="cpBody"></tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between p-4 text-[12px] text-slate-500" style="border-top:1px solid #F1F5F9;background:#FAFBFC;">
+        <span id="footerInfo">Snapshot Julio 2026 · UDN Sonoras Meat</span>
+        <span id="footerProp" class="font-semibold" style="color:#D97706;display:none;"></span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================== MODAL EJERCICIO MENSUAL ================== -->
+<div class="modal-overlay" id="modalEjercicio">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:rgba(37,99,235,.12);color:#2563EB;"><i data-lucide="calendar-plus" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;">Ejecutar ejercicio mensual</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5">Genera una copia del snapshot para simular precios sin alterar el catálogo.</p>
+      </div>
+      <button class="btn-outline" data-close="modalEjercicio" style="width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="cv-label">Mes del ejercicio <span style="color:#9E1B32;">*</span></label>
+        <input type="month" id="ejMes" class="cv-input">
+        <p class="text-[11px] text-slate-400 mt-1.5">Solo se puede crear hacia adelante, nunca en un mes ya cerrado.</p>
+      </div>
+      <div class="info-tile">
+        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-2">El snapshot separa</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <p class="text-[11px] font-bold mb-1" style="color:#003360;">Actual (base)</p>
+            <ul class="text-[11.5px] text-slate-600 space-y-0.5">
+              <li>· Precio venta</li><li>· Costo</li><li>· Margen contribución</li><li>· Ventas / costo / MC estimados</li>
+            </ul>
+          </div>
+          <div>
+            <p class="text-[11px] font-bold mb-1" style="color:#D97706;">Propuesto (simulado)</p>
+            <ul class="text-[11.5px] text-slate-600 space-y-0.5">
+              <li>· Precio propuesto</li><li>· % costo propuesto</li><li>· Ventas est. propuesto</li><li>· Costo / MC propuesto</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.28);border-radius:9px;padding:11px 13px;display:flex;align-items:flex-start;gap:8px;">
+        <i data-lucide="lock" class="w-4 h-4" style="color:#D97706;flex-shrink:0;margin-top:1px;"></i>
+        <p class="text-[11.5px]" style="color:#92600A;line-height:1.5;">Un ejercicio de un mes ya cerrado queda en modo solo lectura. Editarlo requiere permiso de administrador.</p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" data-close="modalEjercicio">Cancelar</button>
+      <button class="btn-primary" id="btnCrearEjercicio"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Crear ejercicio</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================== MODAL PROGRAMACIÓN ================== -->
+<div class="modal-overlay" id="modalProgramacion">
+  <div class="modal-card" style="max-width:560px;">
+    <div class="modal-head">
+      <div class="modal-ico" style="background:rgba(217,119,6,.12);color:#D97706;"><i data-lucide="calendar-clock" class="w-5 h-5"></i></div>
+      <div style="flex:1;">
+        <h3 class="text-base font-bold" style="color:#003360;">Programar actualización de precios</h3>
+        <p class="text-[12px] text-slate-500 mt-0.5">Los precios propuestos se aplicarán de forma masiva en la fecha efectiva.</p>
+      </div>
+      <button class="btn-outline" data-close="modalProgramacion" style="width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="cv-label">Fecha efectiva <span style="color:#9E1B32;">*</span></label>
+        <input type="date" id="progFecha" class="cv-input">
+        <p class="text-[11px] text-slate-400 mt-1.5">Por defecto, el día 1 del mes siguiente. Debe ser igual o posterior a la fecha del ejercicio.</p>
+      </div>
+      <div>
+        <label class="cv-label">Tipo de aplicación</label>
+        <div class="space-y-2" id="progTipos">
+          <label class="radio-tile is-sel" data-tipo="todas">
+            <input type="radio" name="progTipo" value="todas" checked style="margin-top:2px;accent-color:#003360;">
+            <div><p class="text-[12.5px] font-bold text-slate-800">Todas</p><p class="text-[11.5px] text-slate-500">Todas las recetas sin excepción.</p></div>
+          </label>
+          <label class="radio-tile" data-tipo="clasif">
+            <input type="radio" name="progTipo" value="clasif" style="margin-top:2px;accent-color:#003360;">
+            <div style="flex:1;">
+              <p class="text-[12.5px] font-bold text-slate-800">Por clasificación</p>
+              <p class="text-[11.5px] text-slate-500 mb-2">Solo las recetas de la clasificación elegida.</p>
+              <select id="progClasif" class="cv-input" style="cursor:pointer;max-width:220px;" disabled><option>Cortes</option><option>Guarniciones</option><option>Postres</option></select>
+            </div>
+          </label>
+          <label class="radio-tile" data-tipo="seleccion">
+            <input type="radio" name="progTipo" value="seleccion" style="margin-top:2px;accent-color:#003360;">
+            <div><p class="text-[12.5px] font-bold text-slate-800">Por selección</p><p class="text-[11.5px] text-slate-500">Selección múltiple de recetas específicas.</p></div>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="cv-label">Vista previa de cambios</label>
+        <div class="info-tile" style="padding:0;overflow:hidden;">
+          <div id="progPreview" style="max-height:180px;overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-outline" data-close="modalProgramacion">Cancelar</button>
+      <button class="btn-primary" id="btnConfirmProg"><i data-lucide="calendar-check" class="w-4 h-4"></i> Confirmar programación</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastWrap" style="position:fixed;bottom:24px;right:24px;z-index:70;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  const fmt$ = n => '$ ' + n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const numFmt = n => n.toLocaleString('es-MX',{maximumFractionDigits:0});
+
+  const GREEN = { c:'#5d8418', bg:'rgba(122,171,32,.14)' };
+  const RED   = { c:'#9E1B32', bg:'rgba(158,27,50,.10)' };
+  const AMBER = { c:'#D97706', bg:'rgba(217,119,6,.14)' };
+
+  // Tablero de ejemplo (mock). costoSnapshot = costo congelado en el snapshot.
+  // Si costo != costoSnapshot -> pintarCosto marca la celda en ámbar.
+  const PROD = [
+    { id:1,  nombre:'Arrachera',        clasif:'Cortes',       precioVenta:750, costo:374.00, costoSnapshot:374.00, desplazamiento:120, iva:8, ieps:0, propuesto:0 },
+    { id:2,  nombre:'Rib Eye Choice',   clasif:'Cortes',       precioVenta:980, costo:575.00, costoSnapshot:560.00, desplazamiento:85,  iva:8, ieps:0, propuesto:0 },
+    { id:3,  nombre:'Top Sirloin',      clasif:'Cortes',       precioVenta:620, costo:281.52, costoSnapshot:281.52, desplazamiento:95,  iva:8, ieps:0, propuesto:0 },
+    { id:4,  nombre:'New York',         clasif:'Cortes',       precioVenta:685, costo:321.05, costoSnapshot:321.05, desplazamiento:70,  iva:8, ieps:0, propuesto:0 },
+    { id:5,  nombre:'Diezmillo',        clasif:'Cortes',       precioVenta:595, costo:288.04, costoSnapshot:300.00, desplazamiento:60,  iva:8, ieps:0, propuesto:0 },
+    { id:6,  nombre:'Papas gajo',       clasif:'Guarniciones', precioVenta:65,  costo:18.50,  costoSnapshot:18.50,  desplazamiento:210, iva:8, ieps:0, propuesto:0 },
+    { id:7,  nombre:'Elote asado',      clasif:'Guarniciones', precioVenta:55,  costo:12.30,  costoSnapshot:12.30,  desplazamiento:180, iva:8, ieps:0, propuesto:0 },
+    { id:8,  nombre:'Frijoles charros', clasif:'Guarniciones', precioVenta:48,  costo:22.40,  costoSnapshot:20.00,  desplazamiento:95,  iva:8, ieps:0, propuesto:0 },
+    { id:9,  nombre:'Flan napolitano',  clasif:'Postres',      precioVenta:75,  costo:28.60,  costoSnapshot:28.60,  desplazamiento:60,  iva:8, ieps:0, propuesto:0 },
+    { id:10, nombre:'Pay de queso',     clasif:'Postres',      precioVenta:85,  costo:41.20,  costoSnapshot:41.20,  desplazamiento:40,  iva:8, ieps:0, propuesto:0 },
+  ];
+  const GRUPOS = ['Cortes', 'Guarniciones', 'Postres'];
+
+  let searchTxt = '', clasifFilter = '';
+
+  // Promedios por clasificación (base) para el semáforo de MC y desplazamiento
+  const statsClasif = {};
+  GRUPOS.forEach(g => {
+    const items = PROD.filter(p => p.clasif === g);
+    const mcs = items.map(p => (p.precioVenta / (1 + (p.iva + p.ieps) / 100)) - p.costo);
+    const desps = items.map(p => p.desplazamiento);
+    statsClasif[g] = {
+      avgMc: mcs.reduce((s, v) => s + v, 0) / (items.length || 1),
+      avgDesp: desps.reduce((s, v) => s + v, 0) / (items.length || 1),
+    };
+  });
+
+  // aplicarCalculo: recalcula los indicadores en tiempo real usando el precio
+  // propuesto si existe (si no, el actual). El costo y el desplazamiento no se tocan.
+  function aplicarCalculo(p){
+    const iva = p.iva + p.ieps;
+    const usarProp = p.propuesto > 0;
+    const precio = usarProp ? p.propuesto : p.precioVenta;
+    const ventaSinIVA = precio / (1 + iva / 100);          // Venta s/IVA propuesta
+    const mc = ventaSinIVA - p.costo;                      // Margen de contribución
+    const costoPct = ventaSinIVA > 0 ? (p.costo / ventaSinIVA) * 100 : 0;   // % costo
+    const ventasEst = ventaSinIVA * p.desplazamiento;
+    const costoEst = p.costo * p.desplazamiento;           // costo * desplazamiento
+    const mcEst = mc * p.desplazamiento;                   // MC propuesto * desplazamiento
+    return { usarProp, ventaSinIVA, mc, costoPct, ventasEst, costoEst, mcEst };
+  }
+
+  // pintarCosto: ámbar + warning si el costo cambió respecto al snapshot
+  function pintarCosto(p){ return Math.abs(p.costo - p.costoSnapshot) > 0.001; }
+  // pintarPorcentajeCosto: verde si % costo bajo (sano), rojo si supera el alto
+  function pintarPorcentajeCosto(pct){ if(pct <= 35) return GREEN; if(pct >= 45) return RED; return AMBER; }
+  // pintarMC: verde si el MC es alto (>= promedio de su clasificación), rojo si es bajo
+  function pintarMC(mc, clasif){ return mc >= statsClasif[clasif].avgMc ? GREEN : RED; }
+  // pintarDesplazamiento: verde si sale por encima del promedio de su clasificación, rojo por debajo
+  function pintarDesplazamiento(desp, clasif){ return desp >= statsClasif[clasif].avgDesp ? GREEN : RED; }
+
+  function pill(text, col){ return `<span class="ind-pill" style="color:${col.c};background:${col.bg};">${text}</span>`; }
+
+  function render(){
+    const body = document.getElementById('cpBody');
+    let html = '';
+    GRUPOS.forEach(g => {
+      if(clasifFilter && g !== clasifFilter) return;
+      const items = PROD.filter(p => p.clasif === g && (!searchTxt || p.nombre.toLowerCase().includes(searchTxt)));
+      if(!items.length) return;
+      html += `<tr class="grp-row"><td colspan="10"><i data-lucide="folder" style="width:12px;height:12px;display:inline;margin-right:6px;"></i>${g} · ${items.length} producto${items.length === 1 ? '' : 's'}</td></tr>`;
+      items.forEach(p => {
+        const d = aplicarCalculo(p);
+        const pctCol = pintarPorcentajeCosto(d.costoPct);
+        const mcCol = pintarMC(d.mc, p.clasif);
+        const despCol = pintarDesplazamiento(p.desplazamiento, p.clasif);
+        const costoChanged = pintarCosto(p);
+        const costoCell = costoChanged
+          ? `<span class="ind-pill" style="color:${AMBER.c};background:${AMBER.bg};"><i data-lucide="alert-triangle" style="width:11px;height:11px;"></i>${fmt$(p.costo)}</span>`
+          : fmt$(p.costo);
+        html += `
+          <tr data-id="${p.id}">
+            <td class="tl" style="padding-left:16px;"><span class="font-semibold text-slate-800">${p.nombre}</span></td>
+            <td class="tc" id="tdprop-${p.id}"><input type="number" class="prop-input ${d.usarProp ? 'dirty' : ''}" data-id="${p.id}" value="${p.propuesto || ''}" min="0" step="0.5" placeholder="—"></td>
+            <td id="pvsiva-${p.id}">${fmt$(d.ventaSinIVA)}</td>
+            <td>${costoCell}</td>
+            <td class="tc">${pill(d.costoPct.toFixed(1) + '%', pctCol)}</td>
+            <td><span id="mc-${p.id}" style="font-weight:700;color:${mcCol.c};">${fmt$(d.mc)}</span></td>
+            <td class="tc">${pill(numFmt(p.desplazamiento), despCol)}</td>
+            <td id="vest-${p.id}" class="text-slate-500">${fmt$(d.ventasEst)}</td>
+            <td class="text-slate-500">${fmt$(d.costoEst)}</td>
+            <td id="mcest-${p.id}"><span style="font-weight:600;color:${mcCol.c};">${fmt$(d.mcEst)}</span></td>
+          </tr>`;
+      });
+    });
+    if(!html) html = `<tr><td colspan="10" style="text-align:center;color:#94A3B8;padding:24px;">Sin productos para el filtro seleccionado</td></tr>`;
+    body.innerHTML = html;
+    lucide.createIcons();
+    bindPropInputs();
+  }
+
+  // Edición inline del precio propuesto -> recalcula la fila en vivo y pinta la celda
+  function bindPropInputs(){
+    document.querySelectorAll('.prop-input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const p = PROD.find(x => x.id === +inp.dataset.id);
+        p.propuesto = Math.max(0, parseFloat(inp.value) || 0);
+        inp.classList.toggle('dirty', p.propuesto > 0);
+        const d = aplicarCalculo(p);
+        const mcCol = pintarMC(d.mc, p.clasif);
+        const pctCol = pintarPorcentajeCosto(d.costoPct);
+        document.getElementById('pvsiva-' + p.id).textContent = fmt$(d.ventaSinIVA);
+        document.getElementById('mc-' + p.id).outerHTML = `<span id="mc-${p.id}" style="font-weight:700;color:${mcCol.c};">${fmt$(d.mc)}</span>`;
+        document.getElementById('vest-' + p.id).textContent = fmt$(d.ventasEst);
+        document.getElementById('mcest-' + p.id).innerHTML = `<span style="font-weight:600;color:${mcCol.c};">${fmt$(d.mcEst)}</span>`;
+        // repinta el % costo (celda hermana)
+        const row = inp.closest('tr');
+        const pctCell = row.children[4];
+        pctCell.innerHTML = pill(d.costoPct.toFixed(1) + '%', pctCol);
+        updateProgBtn();
+      });
+    });
+  }
+
+  // El botón Programación aparece solo cuando hay >= 1 precio propuesto capturado
+  function updateProgBtn(){
+    const n = PROD.filter(p => p.propuesto > 0).length;
+    document.getElementById('btnProgramacion').style.display = n > 0 ? 'inline-flex' : 'none';
+    const fp = document.getElementById('footerProp');
+    if(n > 0){ fp.style.display = 'inline'; fp.textContent = `${n} precio${n === 1 ? '' : 's'} propuesto${n === 1 ? '' : 's'} sin programar`; }
+    else fp.style.display = 'none';
+  }
+
+  // ---- filtros ----
+  document.getElementById('searchInp').addEventListener('input', e => { searchTxt = e.target.value.trim().toLowerCase(); render(); });
+  document.getElementById('filtroClasif').addEventListener('change', e => { clasifFilter = e.target.value; render(); });
+
+  // ---- modales base ----
+  function openModal(id){ document.getElementById(id).style.display = 'flex'; lucide.createIcons(); }
+  function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+  document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target === m) m.style.display = 'none'; }));
+
+  // ---- ejercicio mensual ----
+  const hoy = new Date();
+  const mesSig = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('ejMes').value = `${mesSig.getFullYear()}-${pad(mesSig.getMonth() + 1)}`;
+  document.getElementById('btnEjercicio').addEventListener('click', () => openModal('modalEjercicio'));
+  document.getElementById('btnCrearEjercicio').addEventListener('click', () => {
+    closeModal('modalEjercicio');
+    toast('Ejercicio mensual creado · snapshot listo para simular', 'calendar-plus');
+  });
+
+  // ---- programación ----
+  // Fecha efectiva por defecto: día 1 del mes siguiente
+  document.getElementById('progFecha').value = `${mesSig.getFullYear()}-${pad(mesSig.getMonth() + 1)}-01`;
+  document.getElementById('btnProgramacion').addEventListener('click', () => {
+    renderPreview();
+    openModal('modalProgramacion');
+  });
+  document.querySelectorAll('#progTipos .radio-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      document.querySelectorAll('#progTipos .radio-tile').forEach(t => t.classList.remove('is-sel'));
+      tile.classList.add('is-sel');
+      tile.querySelector('input').checked = true;
+      document.getElementById('progClasif').disabled = tile.dataset.tipo !== 'clasif';
+      renderPreview();
+    });
+  });
+  function renderPreview(){
+    const props = PROD.filter(p => p.propuesto > 0);
+    const cont = document.getElementById('progPreview');
+    if(!props.length){ cont.innerHTML = `<p class="text-[12px] text-slate-400 p-3 text-center">Aún no hay precios propuestos.</p>`; return; }
+    cont.innerHTML = props.map(p => `
+      <div class="flex items-center justify-between px-3 py-2" style="border-bottom:1px solid #F1F5F9;">
+        <div class="flex items-center gap-2">
+          <span class="cv-badge badge-neutral">${p.clasif}</span>
+          <span class="text-[12px] font-semibold text-slate-700">${p.nombre}</span>
+        </div>
+        <div class="flex items-center gap-2 text-[12px]">
+          <span class="text-slate-400 line-through">${fmt$(p.precioVenta)}</span>
+          <i data-lucide="arrow-right" style="width:13px;height:13px;color:#D97706;"></i>
+          <span class="font-bold" style="color:#5d8418;">${fmt$(p.propuesto)}</span>
+        </div>
+      </div>`).join('');
+    lucide.createIcons();
+  }
+  document.getElementById('btnConfirmProg').addEventListener('click', () => {
+    const fecha = document.getElementById('progFecha').value;
+    const tipo = document.querySelector('input[name="progTipo"]:checked').value;
+    const n = PROD.filter(p => p.propuesto > 0).length;
+    closeModal('modalProgramacion');
+    toast(`Programación creada (${tipo}) para el ${fecha} · ${n} precio${n === 1 ? '' : 's'} en cola`, 'calendar-check');
+  });
+
+  // ---- launcher ----
+  const lb = document.getElementById('navLauncherBtn');
+  const lp = document.getElementById('launcherPanel');
+  lb.addEventListener('click', e => { e.stopPropagation(); lp.classList.toggle('open'); });
+  document.addEventListener('click', e => { if(!lp.contains(e.target) && !lb.contains(e.target)) lp.classList.remove('open'); });
+
+  // ---- toasts ----
+  window.toast = function(msg, icon){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast-item';
+    el.innerHTML = `<i data-lucide="${icon || 'info'}" style="width:16px;height:16px;color:#7AAB20;"></i> ${msg}`;
+    wrap.appendChild(el);
+    lucide.createIcons();
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = '.25s'; setTimeout(() => el.remove(), 260); }, 3200);
+  };
+
+  render();
+  updateProgBtn();
+  lucide.createIcons();
+})();
+</script>
+    <script src="../gv-navbar-costsys.js"></script>
+    <script src="../gv-navbar-branch.js"></script>
+    <script src="../gv-navbar-user.js"></script>
+</body>
+</html>
