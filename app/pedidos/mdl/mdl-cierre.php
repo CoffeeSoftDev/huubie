@@ -254,6 +254,11 @@ class MCierre extends CRUD {
     }
 
     function getOrdersBreakdown($array) {
+        $date            = $array[0];
+        $subsidiaries_id = $array[1];
+
+        // payment_real: cobrado este dia en esta sucursal (mismo criterio que el corte de turno).
+        // total_paid_upto: acumulado pagado hasta el fin del dia, sin filtrar sucursal (saldo global).
         $query = "
             SELECT
                 o.id AS folio,
@@ -261,6 +266,20 @@ class MCierre extends CRUD {
                 oc.name AS client_name,
                 o.status,
                 o.total_pay,
+                o.discount,
+                COALESCE((
+                    SELECT SUM(op.pay)
+                    FROM {$this->bd}order_payments op
+                    WHERE op.order_id = o.id
+                      AND DATE(op.date_pay) = ?
+                      AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
+                ), 0) AS payment_real,
+                COALESCE((
+                    SELECT SUM(op2.pay)
+                    FROM {$this->bd}order_payments op2
+                    WHERE op2.order_id = o.id
+                      AND DATE(op2.date_pay) <= ?
+                ), 0) AS total_paid_upto,
                 (
                     SELECT mp.method_pay
                     FROM {$this->bd}order_payments pp
@@ -275,7 +294,7 @@ class MCierre extends CRUD {
               AND o.is_legacy = 0
             ORDER BY o.date_creation ASC
         ";
-        $result = $this->_Read($query, $array);
+        $result = $this->_Read($query, [$date, $subsidiaries_id, $date, $date, $subsidiaries_id]);
         return is_array($result) ? $result : [];
     }
 

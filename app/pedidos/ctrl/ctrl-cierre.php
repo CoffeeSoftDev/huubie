@@ -288,12 +288,15 @@ class Cierre extends MCierre {
         $orders = [];
         foreach ($ordersRaw as $o) {
             $orders[] = [
-                'folio'  => $o['folio'],
-                'date'   => $o['date_creation'],
-                'client' => $o['client_name'],
-                'status' => intval($o['status']),
-                'total'  => floatval($o['total_pay']),
-                'method' => $o['method']
+                'folio'           => formatFolioCierre($subsidiaries_id, $o['folio']),
+                'date'            => $o['date_creation'],
+                'client'          => $o['client_name'],
+                'status'          => intval($o['status']),
+                'total'           => floatval($o['total_pay']),
+                'discount'        => floatval($o['discount']),
+                'payment_real'    => floatval($o['payment_real']),
+                'total_paid_upto' => floatval($o['total_paid_upto']),
+                'method'          => $o['method']
             ];
         }
 

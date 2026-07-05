@@ -250,6 +250,46 @@ class App extends Templates {
         return rol == 1 ? (v || '0') : null;
     }
 
+    // Sucursal con la que se ESCRIBE un pedido: admin usa la seleccion de la
+    // navbar; el resto de roles su sucursal de sesion (el backend resuelve con
+    // $_SESSION['SUB']). '0' (Todas) nunca es valido para escribir.
+    getOrderSubsidiary() {
+        if (rol != 1) return udn;
+        return $('#subsidiaries_id').val() || '0';
+    }
+
+    getSubsidiaryName(id) {
+        const sub = (subsidiaries || []).find(s => s.id == id);
+        return sub ? sub.valor : (sub_name || '');
+    }
+
+    // Alinea el formulario de nuevo pedido con la sucursal activa de la navbar.
+    // Solo aplica al crear: en edicion la sucursal del pedido es fija.
+    syncOrderFormSubsidiary() {
+        const $hidden = $('#order_subsidiaries_id');
+        // Sin input (no admin / form cerrado), form ya guardado (inputs
+        // deshabilitados) o en edicion: la sucursal no se toca.
+        if (rol != 1 || !$hidden.length || $hidden.is(':disabled') || normal.layoutEdit) return;
+
+        const id = this.getOrderSubsidiary();
+
+        if (id === '0') {
+            $('#order_subsidiaries_id').val('');
+            $('#orderSubsidiaryName').text('Todas las sucursales');
+            $('#btnGuardarPedido').prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
+            $('#orderSubsidiaryAlert').html(`
+                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
+                    <i class="icon-attention"></i> Selecciona una sucursal específica en la navbar para guardar el pedido
+                </div>
+            `);
+            return;
+        }
+
+        $('#order_subsidiaries_id').val(id);
+        $('#orderSubsidiaryName').text(this.getSubsidiaryName(id));
+        this.validateOrderSubsidiary();
+    }
+
     // La navbar es la duena del filtro de sucursal; el auto-listener de
     // 'branchChanged' en Templates delega aqui.
     onBranchChange() {
@@ -257,7 +297,11 @@ class App extends Templates {
     }
 
     async onSubsidiaryChange() {
-        this.ls();
+        // Primero el formulario: si esta abierto, la vista de lista no existe
+        // y ls() truena (getDataRangePicker exige #calendar), cortando la cadena.
+        this.syncOrderFormSubsidiary();
+
+        if ($('#calendar').length) this.ls();
         await this.checkAndUpdateDailyClosure();
     }
 
@@ -369,6 +413,18 @@ class App extends Templates {
     }
 
     showTypePedido() {
+        // "Todas las sucursales" es solo consulta: para crear un pedido se
+        // necesita una sucursal especifica seleccionada en la navbar.
+        if (this.getListFilterSubsidiary() === '0') {
+            alert({
+                icon: "warning",
+                title: "Selecciona una sucursal",
+                text: "Estás viendo todas las sucursales. Elige una sucursal específica en la navbar para crear el pedido.",
+                btn1: true,
+                btn1Text: "Entendido"
+            });
+            return;
+        }
         if (dailyClosure.is_closed) {
             alert({
                 icon: "warning",
@@ -485,7 +541,6 @@ class App extends Templates {
 
                     // 🔒 Bloquear todos los campos después de guardar
                     $("#formPedido :input, #formPedido textarea").prop("disabled", true);
-                    $("#subsidiaryFilter").prop("disabled", true);
 
 
                 } else {
@@ -501,8 +556,8 @@ class App extends Templates {
 
         // render.
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
-        $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
-        $('#subsidiaryFilter').prev('label').remove();
+        $('#orderSubsidiaryInfo').prev('label').remove();
+        this.syncOrderFormSubsidiary();
 
         $("#date_order").val(new Date().toISOString().split("T")[0]);
         $("#date_birthday").val(new Date().toISOString().split("T")[0]);
@@ -641,11 +696,11 @@ class App extends Templates {
         });
 
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
-        $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
-        $('#subsidiaryFilter').prev('label').remove();
+        $('#orderSubsidiaryInfo').prev('label').remove();
 
-        // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
-        $('#formPedido #subsidiaries_id').val(order.subsidiaries_id).prop('disabled', true);
+        // En edición la sucursal del pedido es fija: mostrar la del pedido.
+        $('#order_subsidiaries_id').val(order.subsidiaries_id);
+        $('#orderSubsidiaryName').text(this.getSubsidiaryName(order.subsidiaries_id));
 
         $("#date_order").val(new Date().toISOString().split("T")[0]);
         if (!$("#date_birthday").val()) $("#date_birthday").val(new Date().toISOString().split("T")[0]);
@@ -1158,18 +1213,20 @@ class App extends Templates {
 
 
     if (rol == 1) {
+        // La sucursal ya no se elige aqui: la manda la navbar. El input oculto
+        // viaja en el POST y se mantiene sincronizado si el admin cambia de
+        // sucursal con el formulario abierto (syncOrderFormSubsidiary).
         orderFields.push({
             opc: "div",
-            id: "subsidiaryFilter",
+            id: "orderSubsidiaryInfo",
             lbl: "",
-            class: "col-12 offset-10 col-lg-2 mb-1",
+            class: "col-12 mb-2",
             html: `
-                <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
-                    <label for="subsidiaries_id" class="text-sm font-medium text-white">Sucursal:</label>
-                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" onchange="app.validateOrderSubsidiary()">
-                        ${subsidiaries.map(sub => `<option value="${sub.id}" ${dailyClosure.subsidiary_id == sub.id ? 'selected' : ''}>${sub.valor}</option>`).join('')}
-                    </select>
-                    <div id="orderSubsidiaryAlert"></div>
+                <div class="flex flex-wrap items-center gap-2 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm">
+                    <span class="text-sm font-medium text-white">Sucursal del pedido:</span>
+                    <span id="orderSubsidiaryName" class="text-sm font-semibold text-purple-300"></span>
+                    <input type="hidden" id="order_subsidiaries_id" name="subsidiaries_id" value="">
+                    <div id="orderSubsidiaryAlert" class="w-full"></div>
                 </div>
             `
         });
@@ -1303,7 +1360,7 @@ class App extends Templates {
    }
 
     async validateOrderSubsidiary() {
-        const subsidiaries_id = $('#formPedido #subsidiaries_id').val();
+        const subsidiaries_id = $('#order_subsidiaries_id').val() || this.getOrderSubsidiary();
         const btn = $('#btnGuardarPedido');
         const alertDiv = $('#orderSubsidiaryAlert');
 

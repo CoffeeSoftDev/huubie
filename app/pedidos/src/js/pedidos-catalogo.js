@@ -1087,20 +1087,24 @@ class CatalogProduct extends Pos {
 
     layout() {
 
-        this.primaryLayout({
+        this.createLayout({
             parent: "root",
-            id: this.PROJECT_NAME,
-            class: "flex mx-2 ",
-            heightPreset: 'viewport', // Usa el preset estándar
-            card: {
-                filterBar: {
-                    id: "filterBar" + this.PROJECT_NAME,
-                    class: "w-full"
-                },
-                container: {
-                    class: "w-full my-3  bg-[#1F2A37] rounded-lg p-3",
-                },
-            },
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: "flex mx-2 ",
+                container: [
+                    {
+                        type: "div",
+                        id: "singleLayout",
+                        class: "flex flex-col col-12",
+                        children: [
+                            { id: "filterBar" + this.PROJECT_NAME, class: "w-full" },
+                            { id: "container" + this.PROJECT_NAME, class: "w-full my-3  bg-[#1F2A37] rounded-lg p-3" }
+                        ]
+                    }
+                ]
+            }
         });
     }
 
@@ -1115,6 +1119,7 @@ class CatalogProduct extends Pos {
             id: "tabsPedido",
             theme: "dark",
             type: 'short',
+            showBorder: false,
             content: { class: "h-[calc(100vh-200px)] overflow-y-auto" },
             json: [
                 {

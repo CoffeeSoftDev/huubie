@@ -760,18 +760,6 @@ class Cierre {
             `;
         }
 
-        const pagoVentasHtml = `
-            <div class="pdf-section">
-                <div class="pdf-section-title">Forma de Pago Ventas</div>
-                <div class="pdf-section-body">
-                    ${kv('Efectivo', formatPrice(caja.efectivo || 0))}
-                    ${kv('Tarjeta', formatPrice(caja.tarjeta || 0))}
-                    ${kv('Transferencia', formatPrice(caja.transferencia || 0))}
-                    ${kv('Total', formatPrice((caja.efectivo || 0) + (caja.tarjeta || 0) + (caja.transferencia || 0)), { total: true })}
-                </div>
-            </div>
-        `;
-
         let shiftsRows = '';
         shifts.forEach(shift => {
             shiftsRows += `
@@ -817,21 +805,115 @@ class Cierre {
             </div>
         `;
 
-        let ordersRows = '';
-        if (orders.length > 0) {
-            ordersRows = orders.map(o => `
-                <tr>
-                    <td>P-${String(o.folio).padStart(3, '0')}</td>
-                    <td>${o.date ? moment(o.date).format('hh:mm a') : '&mdash;'}</td>
-                    <td>${o.client || '&mdash;'}</td>
-                    <td class="text-center">${statusMap[o.status] || 'Desconocido'}</td>
-                    <td class="text-right col-importe">${formatPrice(o.total)}</td>
-                    <td class="text-right">${o.method || '&mdash;'}</td>
-                </tr>
-            `).join('');
-        } else {
-            ordersRows = '<tr><td colspan="6" style="text-align:center;color:#95a5a6;padding:14px">Sin pedidos registrados</td></tr>';
-        }
+        const orderRowsFor = (list) => list.map(o => `
+            <tr>
+                <td>${o.folio}</td>
+                <td>${o.date ? moment(o.date).format('hh:mm a') : '&mdash;'}</td>
+                <td>${o.client || '&mdash;'}</td>
+                <td class="text-center">${statusMap[o.status] || 'Desconocido'}</td>
+                <td class="text-right col-importe">${formatPrice(o.total)}</td>
+                <td class="text-right">${o.method || '&mdash;'}</td>
+            </tr>
+        `).join('');
+
+        const ordersGroup = (title, list, totalLabel, note = '') => {
+            if (list.length === 0) return '';
+            const groupTotal = list.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+            return `
+                <div class="pdf-sub-title" style="margin:10px 8px 4px">${title} &mdash; ${list.length} pedido(s)${note ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">(${note})</span>` : ''}</div>
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Hora</th>
+                            <th>Cliente</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orderRowsFor(list)}
+                        <tr>
+                            <td colspan="4" style="font-weight:700">${totalLabel}</td>
+                            <td class="text-right col-importe" style="font-weight:800">${formatPrice(groupTotal)}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        };
+
+        const saldoPedido = (o) => parseFloat(o.total || 0) - parseFloat(o.discount || 0) - parseFloat(o.total_paid_upto || 0);
+
+        const paymentBadge = (o) => {
+            if (saldoPedido(o) <= 0.005) return '<span style="color:#2e7d4f;font-weight:700">Liquidado</span>';
+            if (parseFloat(o.payment_real || 0) > 0) return '<span style="color:#b9770e;font-weight:700">Parcial</span>';
+            return '<span style="color:#95a5a6;font-weight:600">Sin pago</span>';
+        };
+
+        const salesTable = (list) => {
+            if (list.length === 0) return '';
+
+            const sumTotal = list.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+            const sumAbono = list.reduce((s, o) => s + parseFloat(o.payment_real || 0), 0);
+            const sumQuedo = list.reduce((s, o) => s + Math.max(saldoPedido(o), 0), 0);
+
+            const rows = list.map(o => {
+                const abono = parseFloat(o.payment_real || 0);
+                const quedo = Math.max(saldoPedido(o), 0);
+                return `
+                    <tr>
+                        <td>${o.folio}</td>
+                        <td>${o.date ? moment(o.date).format('hh:mm a') : '&mdash;'}</td>
+                        <td>${o.client || '&mdash;'}</td>
+                        <td class="text-right">${o.method || '&mdash;'}</td>
+                        <td class="text-right">${formatPrice(o.total)}</td>
+                        <td class="text-right col-importe">${abono ? formatPrice(abono) : '&mdash;'}</td>
+                        <td class="text-right">${quedo ? formatPrice(quedo) : '&mdash;'}</td>
+                        <td class="text-center">${paymentBadge(o)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="pdf-sub-title" style="margin:10px 8px 4px">Ventas del Día &mdash; ${list.length} pedido(s)</div>
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Hora</th>
+                            <th>Cliente</th>
+                            <th class="text-right">Método</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Abonó</th>
+                            <th class="text-right">Quedó</th>
+                            <th class="text-center">Cobro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                        <tr>
+                            <td colspan="4" style="font-weight:700">TOTAL VENTAS DEL DÍA</td>
+                            <td class="text-right" style="font-weight:800">${formatPrice(sumTotal)}</td>
+                            <td class="text-right col-importe" style="font-weight:800">${formatPrice(sumAbono)}</td>
+                            <td class="text-right" style="font-weight:800">${formatPrice(sumQuedo)}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        };
+
+        const salesOrders     = orders.filter(o => o.status === 2 || o.status === 3);
+        const quoteOrders     = orders.filter(o => o.status === 1);
+        const cancelledOrders = orders.filter(o => o.status === 4);
+
+        const ordersBreakdown = (
+            salesTable(salesOrders) +
+            ordersGroup('Cotizaciones', quoteOrders, 'TOTAL COTIZADO', 'no suman a la venta') +
+            ordersGroup('Cancelados', cancelledOrders, 'TOTAL CANCELADO', 'no suman a la venta')
+        ) || '<div style="text-align:center;color:#95a5a6;padding:14px;font-size:11px">Sin pedidos registrados</div>';
 
         const html = `
             ${this.dailyViewToggle()}
@@ -856,19 +938,7 @@ class Cierre {
                         <span style="font-size:10px;color:#95a5a6;font-weight:400">${orders.length} pedido(s)</span>
                     </div>
                     <div id="ordersBreakdownBody" style="overflow-x:auto">
-                        <table class="pdf-table">
-                            <thead>
-                                <tr>
-                                    <th>Pedido</th>
-                                    <th>Hora</th>
-                                    <th>Cliente</th>
-                                    <th class="text-center">Estado</th>
-                                    <th class="text-right">Total</th>
-                                    <th class="text-right">Método</th>
-                                </tr>
-                            </thead>
-                            <tbody>${ordersRows}</tbody>
-                        </table>
+                        ${ordersBreakdown}
                     </div>
                 </div>
 
@@ -876,7 +946,6 @@ class Cierre {
                 ${crossSection}
 
                 <div class="pdf-grid-bottom">
-                    ${pagoVentasHtml}
                     ${shiftsTableHtml}
                 </div>
 
