@@ -443,11 +443,11 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
     for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
-        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (ahí se va
-        // el tiempo, no en MySQL); avisar en cuál va evita el "silencio" largo.
-        if ($onStatus) $onStatus($round === 0
-            ? "ronda 1/{$maxRounds}: el modelo analiza qué consultar…"
-            : "ronda {$rounds}/{$maxRounds}: generando con los datos obtenidos…");
+        // Fase en lenguaje natural (sin jerga de "rondas"): cada chat() es una
+        // llamada COMPLETA al modelo (ahí se va el tiempo, no en MySQL); avisar
+        // en cuál va evita el "silencio" largo.
+        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
+            : ($round === 1 ? 'analizando los resultados…' : 'generando la respuesta con los datos…'));
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -458,7 +458,7 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
                 $rescued = true;
-                if ($onStatus) $onStatus('el modelo anunció una consulta sin ejecutarla: ronda extra para completarla…');
+                if ($onStatus) $onStatus('completando una consulta pendiente…');
                 $messages[] = ['role' => 'assistant', 'content' => $final];
                 $messages[] = ['role' => 'user', 'content' =>
                     'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
@@ -493,7 +493,7 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
 
     // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
     if ($final === '') {
-        if ($onStatus) $onStatus('cerrando la respuesta…');
+        if ($onStatus) $onStatus('redactando la respuesta final…');
         // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
         // contenido VACIO aqui porque intentan seguir llamando herramientas que
         // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
@@ -590,10 +590,9 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
     for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
-        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
-        if ($onStatus) $onStatus($round === 0
-            ? "ronda 1/{$maxRounds}: el modelo decide qué leer…"
-            : "ronda {$rounds}/{$maxRounds}: generando con lo leído…");
+        // Fase en lenguaje natural (sin jerga de "rondas").
+        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
+            : ($round === 1 ? 'revisando lo leído…' : 'generando la respuesta con lo leído…'));
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -604,7 +603,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
                 $rescued = true;
-                if ($onStatus) $onStatus('el modelo anunció una acción sin ejecutarla: ronda extra para completarla…');
+                if ($onStatus) $onStatus('completando una acción pendiente…');
                 $messages[] = ['role' => 'assistant', 'content' => $final];
                 $messages[] = ['role' => 'user', 'content' =>
                     'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con lo leído.'];
@@ -637,7 +636,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
     }
 
     if ($final === '') {
-        if ($onStatus) $onStatus('cerrando la respuesta…');
+        if ($onStatus) $onStatus('redactando la respuesta final…');
         // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
         // contenido VACIO aqui porque intentan seguir llamando herramientas que
         // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
@@ -679,10 +678,9 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
     for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
-        // Fase de la ronda: cada chat() es una llamada COMPLETA al modelo (lo lento).
-        if ($onStatus) $onStatus($round === 0
-            ? "ronda 1/{$maxRounds}: el modelo decide qué leer y consultar…"
-            : "ronda {$rounds}/{$maxRounds}: generando con lo obtenido…");
+        // Fase en lenguaje natural (sin jerga de "rondas").
+        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
+            : ($round === 1 ? 'analizando lo obtenido…' : 'generando la respuesta con lo obtenido…'));
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -693,7 +691,7 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
                 $rescued = true;
-                if ($onStatus) $onStatus('el modelo anunció una acción sin ejecutarla: ronda extra para completarla…');
+                if ($onStatus) $onStatus('completando una acción pendiente…');
                 $messages[] = ['role' => 'assistant', 'content' => $final];
                 $messages[] = ['role' => 'user', 'content' =>
                     'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
@@ -727,7 +725,7 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
     }
 
     if ($final === '') {
-        if ($onStatus) $onStatus('cerrando la respuesta…');
+        if ($onStatus) $onStatus('redactando la respuesta final…');
         // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
         // contenido VACIO aqui porque intentan seguir llamando herramientas que
         // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".

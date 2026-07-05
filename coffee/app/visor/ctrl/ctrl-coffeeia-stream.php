@@ -62,6 +62,15 @@ $toolsFallback = null;
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
 
+// Tope de rondas de herramientas POR PROVEEDOR. Ollama Cloud es tarifa plana:
+// se le da margen amplio para que explore la base/carpeta lo que haga falta y
+// SIEMPRE llegue a una respuesta. OpenRouter cobra por token (y el prompt crece
+// con cada ronda), así que ahí el tope es conservador.
+$isOR         = llm_is_openrouter_model($model);
+$dbRounds     = $isOR ? 6 : 12;
+$fsRounds     = $isOR ? ($canvasMode ? 10 : 6)  : ($canvasMode ? 14 : 10);
+$hybridRounds = $isOR ? ($canvasMode ? 12 : 8)  : ($canvasMode ? 16 : 12);
+
 // Carpeta + base conectadas A LA VEZ: loop HIBRIDO con ambas familias de herramientas
 // (leer codigo real de la carpeta + consultar datos reales con run_select). Es el flujo
 // "recrea la pantalla y rellena sus tablas/formularios con datos de la base". Si el
@@ -74,7 +83,7 @@ if ($dbSchema && $fsRoot) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
         // Mas rondas que los loops simples: explorar + leer archivos + varias consultas.
-        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $canvasMode ? 12 : 8);
+        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $hybridRounds);
 
         // Un final VACIO se trata como fallo → catch (plan B + streaming normal).
         if (trim((string) $r['final']) === '') {
@@ -134,7 +143,7 @@ if ($dbSchema && !$fsRoot) {
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
-        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, 6);
+        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, $dbRounds);
 
         // Un final VACIO jamas debe llegar al usuario como done ok (se veia
         // "el agente no devolvio respuesta"): se trata como fallo y cae al
@@ -198,7 +207,7 @@ if ($fsRoot && !$dbSchema) {
         };
         // Con lienzo activo el modelo necesita mas rondas: explorar + leer varios
         // archivos (vista, css, js) antes de generar el template.
-        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $canvasMode ? 10 : 6);
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $fsRounds);
 
         // Un final VACIO se trata como fallo → catch (streaming normal con el árbol).
         if (trim((string) $r['final']) === '') {
