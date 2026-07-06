@@ -1013,6 +1013,14 @@ class Cierre {
             const cierre   = shift.cierre ? moment(shift.cierre).format('hh:mm A') : 'Abierto';
             const statusBg = shift.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
 
+            // Botón de recálculo del corte: solo admin (rol == 1).
+            const recalcBtn = (typeof rol !== 'undefined' && rol == 1) ? `
+                    <div class="mt-2 text-right">
+                        <button class="text-[10px] font-semibold text-purple-700 hover:text-purple-900 inline-flex items-center gap-1" onclick="cierre.recalcShift(${shift.id})">
+                            ${lucideIcon('rotate-cw')} Recalcular corte
+                        </button>
+                    </div>` : '';
+
             shiftsRows += `
                 <div class="bg-gray-50 rounded-lg p-3 mb-2 border border-gray-100">
                     <div class="flex justify-between items-center mb-2">
@@ -1034,6 +1042,7 @@ class Cierre {
                         <span class="text-xs font-bold text-gray-700">Total</span>
                         <span class="text-xs font-bold text-gray-900">${formatPrice(shift.total || 0)}</span>
                     </div>
+                    ${recalcBtn}
                 </div>
             `;
         });
@@ -1200,6 +1209,36 @@ class Cierre {
             app.loadShifts();
         } else {
             Swal.fire({ title: 'Error', text: res.message || 'Error al reabrir', icon: 'error', background: '#1F2A37', color: '#fff' });
+        }
+    }
+
+    recalcShift(shiftId) {
+        Swal.fire({
+            title: 'Recalcular corte del turno',
+            html: 'Se recalcularán <b>efectivo</b>, <b>tarjeta</b> y <b>transferencia</b> de este turno a partir de los pagos actuales.<br><span class="text-xs text-gray-400">Úsalo si corregiste un método de pago después de cerrar el turno.</span>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Recalcular',
+            cancelButtonText: 'Cancelar',
+            background: '#1F2A37',
+            color: '#fff',
+            confirmButtonColor: '#7c3aed',
+            cancelButtonColor: '#4b5563'
+        }).then(result => {
+            if (result.isConfirmed) {
+                this._executeRecalc(shiftId);
+            }
+        });
+    }
+
+    async _executeRecalc(shiftId) {
+        const res = await useFetch({ url: this.api, data: { opc: 'recalcShift', shift_id: shiftId } });
+
+        if (res.status === 200) {
+            Swal.fire({ title: 'Corte recalculado', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#7c3aed' });
+            this.showCorteCaja();
+        } else {
+            Swal.fire({ title: 'Error', text: res.message || 'No se pudo recalcular el corte', icon: 'error', background: '#1F2A37', color: '#fff' });
         }
     }
 }

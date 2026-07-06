@@ -515,6 +515,79 @@ class Cierre extends MCierre {
             'message' => 'Cierre reabierto correctamente'
         ];
     }
+
+    // Recalcula el corte de un turno (cash_shift) a partir de los pagos actuales.
+    // No cambia status ni fechas del turno: solo regenera cash/card/transfer,
+    // total_sales, total_orders y el desglose en shift_payment. Es idempotente.
+    function recalcShift() {
+        if ($_SESSION['ROLID'] != 1) {
+            return ['status' => 403, 'message' => 'Solo administradores pueden recalcular un corte'];
+        }
+
+        $shift_id = $_POST['shift_id'] ?? null;
+        if (empty($shift_id)) {
+            return ['status' => 400, 'message' => 'Falta el turno a recalcular'];
+        }
+
+        $shift = $this->getShiftById([$shift_id]);
+        if (!$shift) {
+            return ['status' => 404, 'message' => 'Turno no encontrado'];
+        }
+
+        $opened_at     = $shift['opened_at'];
+        // Turno cerrado: recalcula sobre su ventana original. Abierto: hasta ahora.
+        $end_at        = !empty($shift['closed_at']) ? $shift['closed_at'] : date('Y-m-d H:i:s');
+        $subsidiary_id = $shift['subsidiary_id'];
+
+        // Totales de venta / pedidos (mismo criterio de vinculación que el cierre).
+        $orderTotals  = $this->getShiftOrderTotals([$shift_id, $opened_at, $end_at, $subsidiary_id]);
+        $od           = is_array($orderTotals) && !empty($orderTotals) ? $orderTotals[0] : ['total_orders' => 0, 'total_sales' => 0];
+        $total_sales  = floatval($od['total_sales']);
+        $total_orders = intval($od['total_orders']);
+
+        // Desglose por método recomputado desde los pagos actuales.
+        $rows = $this->getShiftPaymentTotals([$opened_at, $end_at, $subsidiary_id]);
+        $cash = 0; $card = 0; $transfer = 0;
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                switch (intval($r['method_pay_id'])) {
+                    case 1: $cash     = floatval($r['total_paid']); break;
+                    case 2: $card     = floatval($r['total_paid']); break;
+                    case 3: $transfer = floatval($r['total_paid']); break;
+                }
+            }
+        }
+
+        // Guardar el snapshot recalculado (sin tocar status ni fechas del turno).
+        $this->updateCashShiftTotals([$total_sales, $cash, $card, $transfer, $total_orders, $shift_id]);
+
+        // Regenerar el desglose de pagos del turno (borrar + reinsertar los 3 métodos).
+        $this->deleteShiftPayments([$shift_id]);
+        foreach ([[1, $cash], [2, $card], [3, $transfer]] as $pm) {
+            $this->insertShiftPayment([
+                'values' => 'cash_shift_id, payment_method_id, amount',
+                'data'   => [$shift_id, $pm[0], $pm[1]]
+            ]);
+        }
+
+        $message = 'Corte del turno recalculado correctamente';
+        if (!empty($shift['daily_closure_id'])) {
+            $message .= '. Este turno pertenece a un cierre diario; si aplica, revisa también el cierre del día.';
+        }
+
+        return [
+            'status'   => 200,
+            'message'  => $message,
+            'shift_id' => intval($shift_id),
+            'totals'   => [
+                'cash'         => $cash,
+                'card'         => $card,
+                'transfer'     => $transfer,
+                'total_sales'  => $total_sales,
+                'total_orders' => $total_orders
+            ]
+        ];
+    }
 }
 
 // Complements

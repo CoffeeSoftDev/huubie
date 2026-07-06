@@ -448,6 +448,74 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // =============================================
+    // Recálculo de corte de turno (cash_shift)
+    // Recomputa los totales de un turno cerrado a partir de los pagos actuales,
+    // usando la misma lógica que el cierre (getShiftSalesMetrics de MPedidos):
+    // ventana del turno + atribución por COALESCE(pago.subsidiaries_id, orden.subsidiaries_id).
+    // Sirve para reflejar en el corte una corrección de método de pago hecha
+    // después de cerrar el turno, sin editar los totales a mano.
+    // =============================================
+
+    function getShiftById($array) {
+        $query = "
+            SELECT id, opened_at, closed_at, status, subsidiary_id, daily_closure_id
+            FROM {$this->bd}cash_shift
+            WHERE id = ? AND active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
+    function getShiftPaymentTotals($array) {
+        // $array = [opened_at, end_at, subsidiary_id]
+        $query = "
+            SELECT pp.method_pay_id, SUM(pp.pay) AS total_paid
+            FROM {$this->bd}order_payments pp
+            INNER JOIN {$this->bd}`order` po ON pp.order_id = po.id
+            WHERE pp.date_pay >= ? AND pp.date_pay <= ?
+              AND COALESCE(pp.subsidiaries_id, po.subsidiaries_id) = ?
+              AND po.status != 4
+            GROUP BY pp.method_pay_id
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function getShiftOrderTotals($array) {
+        // $array = [shift_id, opened_at, end_at, subsidiary_id]
+        $query = "
+            SELECT COUNT(*) AS total_orders, COALESCE(SUM(total_pay), 0) AS total_sales
+            FROM {$this->bd}`order`
+            WHERE (cash_shift_id = ? OR (cash_shift_id IS NULL AND date_creation >= ? AND date_creation < ? AND subsidiaries_id = ?))
+              AND status != 4
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function updateCashShiftTotals($array) {
+        // $array = [total_sales, cash, card, transfer, total_orders, shift_id]
+        $query = "
+            UPDATE {$this->bd}cash_shift
+            SET total_sales = ?, cash = ?, card = ?, transfer = ?, total_orders = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteShiftPayments($array) {
+        $query = "DELETE FROM {$this->bd}shift_payment WHERE cash_shift_id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function insertShiftPayment($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}shift_payment",
+            'values' => $array['values'],
+            'data'   => $array['data'],
+        ]);
+    }
+
     function getSalesByCategory($array) {
         $query = "
             SELECT
