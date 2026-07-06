@@ -1,15 +1,16 @@
 /* ──────────────────────────────────────────────────────────────
-   Playground de Agentes — pagina hermana del Visor.
-   Reusa los endpoints del visor SIN tocarlo:
+   Coffee Studio — copia independiente del Playground que produce
+   templates MULTI-ARCHIVO (index + src/js + src/css) con el
+   contrato @file del Forge. Reusa los endpoints del visor:
      - ctrl/ctrl-visor.php          → lista agentes + grimorios (con raw)
      - ctrl/ctrl-coffeeia-stream.php → chat SSE (acepta systemOverride opcional)
-   Porta el motor de chat del Visor: typewriter, card "Conjurando…",
-   sonido al terminar, adjuntar imagenes y modo lienzo.
+   Sus hilos viven en un almacén SQLite propio (store=studio) y su
+   estado local usa claves studio:* para no pisarse con el Playground.
    ────────────────────────────────────────────────────────────── */
 
 const PG_API         = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM  = 'ctrl/ctrl-coffeeia-stream.php';
-const PG_API_THREADS = 'ctrl/ctrl-pg-threads.php';   // hilos de conversación (SQLite)
+const PG_API_THREADS = 'ctrl/ctrl-pg-threads.php?store=studio';   // hilos (SQLite propio del Studio)
 
 // Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
 // y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
@@ -63,7 +64,7 @@ function pgMetaItems(meta) {
     return costItem + toksItem + warnItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
 }
 
-const PG_STORE_KEY  = 'playground:settings:v1';
+const PG_STORE_KEY  = 'studio:settings:v1';
 
 // Agentes que el playground sabe presentar. `render` define como interpretar
 // la salida en el sandbox: 'html' (renderiza), 'code' (modulo), 'markdown' (doc).
@@ -141,6 +142,22 @@ const PG_INTERACTIVITY_NOTE =
     + `- NO agregues un toggle de tema claro/oscuro.\n`
     + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
 
+// Contrato multi-archivo del Studio (heredado del Forge): el agente entrega el
+// template como carpeta — cada archivo en su propio bloque cercado, con su ruta
+// en la primera línea marcada con @file. El sandbox los ensambla en memoria.
+const PG_MODULE_NOTE =
+    `\n\n## Entrega multi-archivo (obligatoria)\n`
+    + `Entrega el template como un MÓDULO con estructura de carpeta, MÍNIMO estos archivos:\n`
+    + `- \`index.html\` — solo el markup; referencia los demás con rutas relativas: `
+    + `\`<link rel="stylesheet" href="src/css/styles.css">\` en el head y \`<script src="src/js/app.js"></script>\` antes de cerrar el body.\n`
+    + `- \`src/css/styles.css\` — TODO el CSS propio del template (nada de <style> embebido en el index).\n`
+    + `- \`src/js/app.js\` — TODO el JavaScript (vanilla, sin dependencias) que cablea la interacción (nada de <script> con lógica en el index).\n`
+    + `Cada archivo va en su PROPIO bloque cercado y la PRIMERA línea del bloque es su ruta con el marcador @file en el comentario del lenguaje:\n`
+    + "```html\n<!-- @file: index.html -->\n<!DOCTYPE html>…\n```\n"
+    + "```css\n/* @file: src/css/styles.css */\n…\n```\n"
+    + "```js\n// @file: src/js/app.js\n…\n```\n"
+    + `Puedes añadir más archivos (p.ej. src/js/data.js) con el mismo marcador. No mezcles archivos en un mismo bloque.`;
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
@@ -154,6 +171,8 @@ const pg = {
     planMode:   false,       // planear primero: propone un plan y espera OK antes de construir
     dbToolsOn:  true,        // tools de base de datos (run_select + conexión automática al nombrar una base)
     fsToolsOn:  true,        // tools de archivos (list_dir/read_file/grep_files + conexión automática de carpeta)
+    moduleMode: true,        // módulo carpeta: exige entrega multi-archivo (@file) index + src/css + src/js
+    _moduleFiles: [],        // archivos del módulo renderizado (pestaña Código con tabs por archivo)
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
     history:   [],
@@ -188,6 +207,7 @@ $(async () => {
     pgApplyCanvasUI();
     pgApplyPlanUI();
     pgApplyToolsUI();
+    pgApplyModuleUI();
     pgApplyViewport();
     pgRestoreSession();   // retoma la última sesión (chat + render) si la había
     if (window.lucide) lucide.createIcons();
@@ -257,6 +277,7 @@ function pgLoadSettings() {
         if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
         if (typeof s.dbToolsOn === 'boolean')    pg.dbToolsOn  = s.dbToolsOn;
         if (typeof s.fsToolsOn === 'boolean')    pg.fsToolsOn  = s.fsToolsOn;
+        if (typeof s.moduleMode === 'boolean')   pg.moduleMode = s.moduleMode;
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
@@ -266,7 +287,7 @@ function pgSaveSettings() {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
             canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
-            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn,
+            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, moduleMode: pg.moduleMode,
             knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
@@ -423,6 +444,12 @@ function pgBind() {
         pgSaveSettings();
         pgToast(pg.fsToolsOn ? 'Tools de archivos activadas' : 'Tools de archivos desactivadas', 'info');
     });
+    $('#pgModuleToggle').on('click', () => {
+        pg.moduleMode = !pg.moduleMode;
+        pgApplyModuleUI();
+        pgSaveSettings();
+        pgToast(pg.moduleMode ? 'Módulo carpeta activado: entrega index + src/css + src/js' : 'Módulo carpeta desactivado: entrega de un solo bloque html', 'info');
+    });
 
     // Adjuntar archivos: imagenes -> vision; texto/codigo/html/md/csv/json -> contexto.
     $('#pgAttachBtn').on('click', () => $('#pgImageInput').trigger('click'));
@@ -469,6 +496,7 @@ function pgBind() {
         // se oculta en "Código".
         $('#pgSandboxFrame').toggleClass('hidden', tab === 'code');
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
+        $('#stFileTabs').toggleClass('hidden', tab !== 'code' || !(pg._moduleFiles || []).length);
         if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
     });
 
@@ -655,10 +683,19 @@ function pgApplyToolsUI() {
     pgApplyToolsBadge();
 }
 
-// El botón "Tools" se enciende cuando algo difiere del default (planear activo
-// o alguna familia de tools apagada), para que el estado no quede escondido.
+function pgApplyModuleUI() {
+    const $btn = $('#pgModuleToggle');
+    $btn.toggleClass('is-on', pg.moduleMode);
+    $btn.attr('title', pg.moduleMode
+        ? 'Módulo carpeta ACTIVO — el agente entrega index.html + src/css + src/js con el contrato @file'
+        : 'Módulo carpeta desactivado — el agente entrega un solo bloque html (como el Playground)');
+    pgApplyToolsBadge();
+}
+
+// El botón "Tools" se enciende cuando algo difiere del default (planear activo,
+// alguna familia de tools apagada o el módulo carpeta apagado).
 function pgApplyToolsBadge() {
-    const dirty = pg.planMode || !pg.dbToolsOn || !pg.fsToolsOn;
+    const dirty = pg.planMode || !pg.dbToolsOn || !pg.fsToolsOn || !pg.moduleMode;
     $('#pgToolsToggle').toggleClass('is-active', dirty);
 }
 
@@ -932,7 +969,7 @@ function pgRenderFolderChip() {
  * miniaturas de la sesión, y los restaura al abrir, igual que Forge retoma su
  * hilo. Se autoguarda al terminar cada respuesta, al renderizar y al cargar una
  * plantilla; se borra al limpiar el chat. */
-const PG_SESSION_KEY = 'playground:session:v1';
+const PG_SESSION_KEY = 'studio:session:v1';
 
 function pgSnapshotSession() {
     // Historial LIGERO: sin base64 de vision ni previews. Con imagenes adjuntas el
@@ -1121,6 +1158,7 @@ function pgResetSandbox() {
     const fr = document.getElementById('pgSandboxFrame');
     if (fr) fr.srcdoc = '';
     $('#pgSandboxCode').find('code').text('');
+    pgHideModuleFiles();
     pg.lastHtml = '';
 }
 
@@ -1175,7 +1213,7 @@ async function pgOpenThreads() {
     $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
     if (window.lucide) lucide.createIcons();
     try {
-        const res  = await fetch(PG_API_THREADS + '?action=list', { cache: 'no-store' });
+        const res  = await fetch(PG_API_THREADS + '&action=list', { cache: 'no-store' });
         const data = await res.json();
         if (!data.success) { $('#pgThreadsList').html('<p class="pg-hint">' + (data.message || 'Error al listar') + '</p>'); return; }
         pgRenderThreadsList(data.rows || []);
@@ -1300,7 +1338,7 @@ function pgRenameThreadChipInline() {
 async function pgLoadThread(uid) {
     if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
     try {
-        const res  = await fetch(PG_API_THREADS + '?action=get&uid=' + encodeURIComponent(uid), { cache: 'no-store' });
+        const res  = await fetch(PG_API_THREADS + '&action=get&uid=' + encodeURIComponent(uid), { cache: 'no-store' });
         const data = await res.json();
         if (!data.success || !data.thread) { pgToast(data.message || 'No se pudo abrir el hilo', 'error'); return; }
         const th = data.thread;
@@ -1640,7 +1678,7 @@ async function pgSend(text, images, docs) {
     // directo, sin anunciar consultas ni proponer Opus/Sonnet.
     if (cfgAgent.render === 'code') {
         systemOverride += `\n\n## Entorno sandbox — genera directo\n`
-            + `Corres en un lienzo aislado (Playground) SIN acceso a los archivos del proyecto (MDL.md, CTRL.md, coffeSoft.js, DOC-COFFEESOFT.md, new-component.md) ni a herramientas de lectura, y SIN opción de cambiar de modelo. `
+            + `Corres en un lienzo aislado (Coffee Studio) SIN acceso a los archivos del proyecto (MDL.md, CTRL.md, coffeSoft.js, DOC-COFFEESOFT.md, new-component.md) ni a herramientas de lectura, y SIN opción de cambiar de modelo. `
             + `Por eso: NO anuncies que vas a "consultar las reglas" ni "la librería base", ni propongas escalar a Opus/Sonnet — no puedes hacerlo aquí. `
             + `Aplica de memoria las convenciones del framework CoffeeSoft (nomenclatura ls/get, patrón pivote, createTable/createForm/createModalForm, etc.).`;
         if (!pg.planMode) systemOverride += ` Genera el componente DIRECTAMENTE en un bloque de código; no entregues solo un plan en prosa.`;
@@ -1660,6 +1698,11 @@ async function pgSend(text, images, docs) {
     // entregar un componente HTML funcional, no una maqueta inerte.
     if (pg.canvasMode && cfgAgent.render !== 'html') {
         systemOverride += PG_INTERACTIVITY_NOTE;
+    }
+
+    // Módulo carpeta (corazón del Studio): exigir entrega multi-archivo @file.
+    if (pg.moduleMode && (usesDesignSystem || pg.canvasMode)) {
+        systemOverride += PG_MODULE_NOTE;
     }
 
     // Modo planeación: el agente propone un plan en prosa y espera el OK del
@@ -1802,7 +1845,7 @@ async function pgSend(text, images, docs) {
         if (stream) { await stream.drain(); stream.fail(m); } else { pgAppendAI(m); }
         pgFinish(); return;
     }
-    if (!firstToken) { $typing.remove(); pgAppendAI('⚠️ El agente no devolvió respuesta. El modelo actual puede no soportar esta tarea (minimax suele quedarse vacío en respuestas largas). Prueba con **glm-5.2** para código, o **kimi-k2.7-code** si necesitas visión.'); pgFinish(); return; }
+    if (!firstToken) { $typing.remove(); pgAppendAI('⚠️ El agente no devolvió respuesta. El modelo actual puede no soportar esta tarea (minimax suele quedarse vacío en módulos largos). Prueba con **glm-5.2** para código, o **kimi-k2.7-code** si necesitas visión para recrear desde imagen.'); pgFinish(); return; }
 
     await stream.drain();
     // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
@@ -2083,9 +2126,130 @@ function pgPlayPopSound() {
     } catch (e) {}
 }
 
+/* ── Módulo multi-archivo (@file) ──
+ * Contrato heredado del Forge: cada archivo llega en su propio bloque cercado
+ * con `@file: ruta` en la primera línea. Aquí se parsean, se ENSAMBLAN en
+ * memoria para el preview (inline de css/js referenciados por el index) y la
+ * pestaña Código muestra cada archivo por separado con una barra de tabs. */
+
+// Marcador de archivo: tolera el comentario propio de cada lenguaje
+// (// , # , -- , ; , /* */ , <!-- -->) o el @file desnudo.
+const PG_FILE_MARKER = /^[ \t]*(?:\/\/|#|--|;|\/\*|<!--)?[ \t]*@file:[ \t]*(.+?)[ \t]*(?:\*\/|-->)?[ \t]*$/i;
+
+/** Extrae [{path, lang, content}] de la respuesta del agente. */
+function pgParseModule(text) {
+    if (!text) return [];
+    const files = [];
+    const fenceRe = /```([a-z0-9+\-.]*)[ \t]*\r?\n([\s\S]*?)```/gi;
+    let m;
+    while ((m = fenceRe.exec(text)) !== null) {
+        const lang = (m[1] || '').toLowerCase();
+        let body   = m[2];
+        let path   = null;
+        const lines = body.split('\n');
+        let i = 0;
+        while (i < lines.length && lines[i].trim() === '') i++;
+        const inner = lines[i] != null ? lines[i].match(PG_FILE_MARKER) : null;
+        if (inner) {
+            path = inner[1].trim();
+            lines.splice(0, i + 1);
+            body = lines.join('\n').replace(/^\s*\r?\n/, '');
+        } else {
+            const before = text.slice(0, m.index).split('\n').filter(l => l.trim() !== '');
+            const prev   = before.length ? before[before.length - 1] : '';
+            const pm = prev.match(PG_FILE_MARKER);
+            if (pm) path = pm[1].trim();
+        }
+        if (path) {
+            path = path.replace(/^["'`]+|["'`]+$/g, '').replace(/^\.\//, '');
+            files.push({ path, lang, content: body.replace(/\s+$/, '') });
+        }
+    }
+    return files;
+}
+
+/** Archivo de entrada del módulo: index.html (o el primer .html). */
+function pgModuleIndex(files) {
+    return files.find(f => /(^|\/)index\.(html?|php)$/i.test(f.path))
+        || files.find(f => /\.html?$/i.test(f.path))
+        || null;
+}
+
+/** Ensambla el módulo en UN html renderizable: el <link>/<script src> del index
+ *  que apunte a un archivo virtual del módulo se sustituye por su contenido
+ *  inline. Las URLs absolutas (CDNs) se conservan tal cual. */
+function pgAssembleModule(files) {
+    const idx = pgModuleIndex(files);
+    if (!idx) return '';
+    const norm = p => String(p || '').trim().replace(/^\.\//, '').replace(/^\//, '');
+    const byRef = ref => {
+        if (/^https?:/i.test(ref) || /^\/\//.test(ref) || /^data:/i.test(ref)) return null;
+        const r = norm(ref).split(/[?#]/)[0];
+        let f = files.find(x => norm(x.path) === r);
+        if (!f) {
+            // Tolerancia: si el index dice "css/styles.css" y el archivo llegó como
+            // "src/css/styles.css" (o viceversa), matchea por nombre si es único.
+            const base = r.split('/').pop();
+            const cand = files.filter(x => x.path.split('/').pop() === base);
+            if (cand.length === 1) f = cand[0];
+        }
+        return f || null;
+    };
+    let html = idx.content;
+    html = html.replace(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?>/gi, (m, href) => {
+        const f = byRef(href);
+        return (f && /\.css$/i.test(f.path)) ? '<style>\n' + f.content + '\n</style>' : m;
+    });
+    html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (m, src) => {
+        const f = byRef(src);
+        return (f && /\.m?js$/i.test(f.path)) ? '<script>\n' + f.content + '\n<\/script>' : m;
+    });
+    return html;
+}
+
+/** Barra de tabs por archivo sobre la pestaña Código. */
+function pgShowModuleFiles(files) {
+    pg._moduleFiles = Array.isArray(files) ? files : [];
+    const $bar = $('#stFileTabs').empty();
+    if (!pg._moduleFiles.length) { $bar.addClass('hidden'); return; }
+    pg._moduleFiles.forEach((f, i) => {
+        $bar.append(`<button type="button" class="st-file-tab" data-idx="${i}" title="${pgEscape(f.path)}">${pgEscape(f.path)}</button>`);
+    });
+    $bar.find('.st-file-tab').on('click', function () { pgShowModuleFile(parseInt($(this).data('idx'), 10)); });
+    const idxFile = pgModuleIndex(pg._moduleFiles);
+    pgShowModuleFile(Math.max(0, pg._moduleFiles.indexOf(idxFile)));
+    // La barra solo se ve mientras la pestaña Código está activa.
+    $bar.toggleClass('hidden', $('#pgSandboxCode').hasClass('hidden'));
+}
+function pgShowModuleFile(i) {
+    const f = (pg._moduleFiles || [])[i];
+    if (!f) return;
+    $('#stFileTabs .st-file-tab').removeClass('is-active').filter(`[data-idx="${i}"]`).addClass('is-active');
+    const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(f.content);
+    if (window.hljs) hljs.highlightElement($code[0]);
+}
+function pgHideModuleFiles() {
+    pg._moduleFiles = [];
+    $('#stFileTabs').empty().addClass('hidden');
+}
+
 /* ── Render al sandbox ── */
 function pgRenderToSandbox(received) {
     const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
+
+    // Módulo multi-archivo: si la respuesta trae ≥2 archivos @file con un index,
+    // se ensambla para el preview y la pestaña Código muestra cada archivo.
+    const modFiles = pgParseModule(received);
+    if (modFiles.length >= 2 && pgModuleIndex(modFiles)) {
+        const assembled = pgAssembleModule(modFiles);
+        if (assembled) {
+            pgRenderSandbox(assembled, false);
+            pgShowModuleFiles(modFiles);
+            const tpl = pgPushTemplate(assembled, false);
+            if (tpl) tpl.files = modFiles;
+            return tpl;
+        }
+    }
 
     if (cfg.render === 'html') {
         const html = pgExtractHtml(received);   // tolerante: fence o crudo
@@ -2180,6 +2344,7 @@ function pgRestoreTemplate(id) {
         pgSaveSettings();
     }
     pgRenderSandbox(t.html, t.isDoc);
+    if (t.files && t.files.length) pgShowModuleFiles(t.files);
     // Resalta en el chat la tarjeta activa.
     $('.pg-chat-tpl').removeClass('is-active');
     $(`.pg-chat-tpl[data-tpl-id="${id}"]`).addClass('is-active');
@@ -2321,6 +2486,7 @@ function pgRenderPinBanner() {
 
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
+    pgHideModuleFiles();   // un render simple limpia los tabs de archivos; el flujo módulo los repone después
     pg.lastHtml = htmlBody; pg.lastTheme = pg.theme; pg._lastIsDoc = !!isDoc;
     // El iframe es transparente: si el contenido (sobre todo un documento
     // completo) no pinta su propio fondo, se vería el blanco del contenedor.

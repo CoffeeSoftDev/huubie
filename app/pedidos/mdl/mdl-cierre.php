@@ -211,10 +211,12 @@ class MCierre extends CRUD {
                 o.date_creation,
                 o.subsidiaries_id AS origin_subsidiary_id,
                 os.name AS origin_subsidiary,
-                c.name AS client_name
+                c.name AS client_name,
+                GROUP_CONCAT(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ' + ') AS method
             FROM {$this->bd}order_payments op
             JOIN {$this->bd}`order` o ON o.id = op.order_id
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
+            LEFT JOIN {$this->bd}method_pay mp ON mp.id = op.method_pay_id
             LEFT JOIN fayxzvov_alpha.subsidiaries os ON os.id = o.subsidiaries_id
             WHERE DATE(op.date_pay) = ?
               AND DATE(o.date_creation) < ?
@@ -263,6 +265,9 @@ class MCierre extends CRUD {
             SELECT
                 o.id AS folio,
                 o.date_creation,
+                -- Hora del pedido: hora real de registro si existe; si date_creation viene sin
+                -- hora (medianoche, pedidos con fecha de entrega), cae a time_order.
+                COALESCE(NULLIF(TIME(o.date_creation), '00:00:00'), o.time_order) AS order_time,
                 oc.name AS client_name,
                 o.status,
                 o.total_pay,
@@ -418,6 +423,8 @@ class MCierre extends CRUD {
     }
 
     function getCashShiftsSummary($array) {
+        // Dinero en caja del turno = efectivo + tarjeta + transferencia cobrados (snapshot al cierre,
+        // no editable a diferencia de los totales de pedido). El reporte lo recalcula desde estos 3.
         $query = "
             SELECT
                 cs.id,
@@ -425,7 +432,7 @@ class MCierre extends CRUD {
                 u.fullname AS cajero,
                 cs.opened_at AS apertura,
                 cs.closed_at AS cierre,
-                cs.total_sales AS total,
+                (cs.cash + cs.card + cs.transfer) AS total,
                 cs.opening_amount AS fondo_caja,
                 cs.cash AS efectivo,
                 cs.card AS tarjeta,

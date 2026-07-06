@@ -33,5 +33,5 @@ function llm_vision_model_for($model) {
     if (llm_is_openrouter_model($model)) {
         return defined('OPENROUTER_VISION_MODEL') ? OPENROUTER_VISION_MODEL : 'google/gemini-2.0-flash-001';
     }
-    return defined('OLLAMA_VISION_MODEL') ? OLLAMA_VISION_MODEL : 'qwen3-vl:235b-cloud';
+    return defined('OLLAMA_VISION_MODEL') ? OLLAMA_VISION_MODEL : 'kimi-k2.7-code:cloud';
 }

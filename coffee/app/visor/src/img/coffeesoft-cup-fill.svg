@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="currentColor" fill-rule="evenodd" role="img" aria-label="CoffeeSoft coffee cup">
+  <!-- vapor: voluta única enroscada, como el diseño original -->
+  <path fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" d="M300 212 C250 177 340 152 300 116 C260 80 336 60 305 33"/>
+  <!-- cuerpo: boca ancha con opening + base afinada -->
+  <path d="M76 240 C84 302 150 474 256 474 C362 474 428 302 436 240 C436 205 76 205 76 240 Z M118 232 C118 214 394 214 394 232 C394 250 118 250 118 232 Z"/>
+  <!-- asa a la derecha (alcanza el borde, como en el original) -->
+  <path d="M430 250 C472 250 488 286 470 322 C458 346 438 351 430 345 L424 322 C444 322 454 304 447 288 C440 272 432 268 424 270 Z"/>
+</svg>

@@ -132,7 +132,10 @@ function pgSetZoom(z) {
 }
 
 // Detecta si el HTML ya es un documento completo (head/tailwind/tema propios).
+// Solo cuenta si EMPIEZA como documento: un fragmento cuyo <script> arma strings
+// "<html>/<body>" (p.ej. ventana de impresión con document.write) no lo es —
+// tratarlo como doc completo lo dejaba sin Tailwind/fuentes (render "pelón").
 function pgIsFullDoc(html) {
-    return /<!doctype\s+html/i.test(html) || /<html[\s>]/i.test(html) ||
-           /<head[\s>]/i.test(html) || /<body[\s>]/i.test(html);
+    const s = String(html || '').replace(/^(\s+|<!--[\s\S]*?-->)+/, '');
+    return /^(<!doctype\s+html|<html[\s>]|<head[\s>]|<body[\s>])/i.test(s);
 }

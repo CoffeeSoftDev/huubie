@@ -201,12 +201,19 @@ function coffeeia_build_context(array $body) {
     $dbExplicit = (bool) preg_match('/(base\s+de\s+datos|\bbases?\b|\besquema\b|\bschema\b|\bbd\b|\btablas?\b|modelo\s+de\s+datos)/iu', $lastUser);
     $fsExplicit = (bool) preg_match('/(\bcarpeta\b|\bproyecto\b|\bdirectorio\b|\bfolder\b|\brepositorio\b|\brepo\b|c[oó]digo\b|\barchivos?\b)/iu', $lastUser);
 
+    // Interruptores de herramientas (Playground): permiten APAGAR la resolucion de
+    // base de datos y/o carpeta aunque el mensaje "huela" a ellas (la deteccion por
+    // lenguaje natural se activa sola con palabras como "base", "tablas" o rutas).
+    // Si el flag no viaja (Visor y clientes existentes), quedan ACTIVAS.
+    $dbToolsOn = !isset($body['dbTools']) || !empty($body['dbTools']);
+    $fsToolsOn = !isset($body['fsTools']) || !empty($body['fsTools']);
+
     // Gate barato: solo intentamos tocar MySQL si el mensaje huele a "base de datos".
     // El guard REAL es que ademas aparezca el alias de una base existente (db_detect_request),
     // asi que podemos ser amplios aqui sin inyectar de mas. Si el turno califica
     // explicitamente "carpeta/proyecto" (y NO "base/tabla"), no resolvemos como base.
     $dbIntentRe = '/(con[eé]ct\w*|\bbase\b|\besquema\b|\bschema\b|\bbd\b|\btablas?\b|modelo\s+de\s+datos)/iu';
-    $wantDb = (($dbConnect !== '') || (bool) preg_match($dbIntentRe, $lastUser)) && !($fsExplicit && !$dbExplicit);
+    $wantDb = $dbToolsOn && (($dbConnect !== '') || (bool) preg_match($dbIntentRe, $lastUser)) && !($fsExplicit && !$dbExplicit);
 
     if ($wantDb) {
         try {
@@ -286,7 +293,7 @@ function coffeeia_build_context(array $body) {
     // desambiguacion o de apuntar directo a una subcarpeta sin decir "carpeta".
     $fsIntent = (bool) preg_match($fsIntentRe, $lastUser)
              || (bool) preg_match('#[a-z_.\-][\w.\-]*[\\\\/][\w.\-]+#iu', $lastUser);
-    $wantFs = (($folderConnect !== '') || $fsIntent) && !($dbExplicit && !$fsExplicit);
+    $wantFs = $fsToolsOn && (($folderConnect !== '') || $fsIntent) && !($dbExplicit && !$fsExplicit);
 
     if ($wantFs) {
         try {

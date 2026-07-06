@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Playground de Agentes — CoffeeSoft</title>
+    <title>Coffee Studio — CoffeeSoft</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
-    <link rel="stylesheet" href="src/css/playground.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/studio.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -25,8 +25,8 @@
         <div class="pg-header-left">
             <div class="pg-logo">CS</div>
             <div class="flex flex-col leading-tight">
-                <span class="pg-title">Playground de Agentes</span>
-                <span class="pg-subtitle">Entrena y prueba tus agentes CoffeeSoft</span>
+                <span class="pg-title">Coffee Studio</span>
+                <span class="pg-subtitle">Produce templates multi-archivo (index + src/js + src/css)</span>
             </div>
         </div>
 
@@ -83,11 +83,11 @@
                     <i data-lucide="layout-dashboard"></i>
                     <span class="app-rail-label">Visor</span>
                 </a>
-                <a href="playground.php" class="app-rail-item active" title="Playground de Agentes">
+                <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="studio.php" class="app-rail-item" title="Coffee Studio — Templates multi-archivo">
+                <a href="studio.php" class="app-rail-item active" title="Coffee Studio — Templates multi-archivo">
                     <i data-lucide="clapperboard"></i>
                     <span class="app-rail-label">Studio</span>
                 </a>
@@ -174,6 +174,11 @@
                             <span>Tools</span>
                         </button>
                         <div class="pg-tools-pop" id="pgToolsPop">
+                            <button id="pgModuleToggle" class="pg-toolitem" title="Módulo carpeta: el agente entrega index.html + src/css + src/js con el contrato @file">
+                                <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                                <span class="pg-toolitem-label">Módulo carpeta</span>
+                                <i data-lucide="check" class="pg-toolitem-check w-3.5 h-3.5"></i>
+                            </button>
                             <button id="pgPlanToggle" class="pg-toolitem" title="Planear antes de construir: el agente propone un plan y espera tu OK antes de generar el template">
                                 <i data-lucide="notebook-pen" class="w-3.5 h-3.5"></i>
                                 <span class="pg-toolitem-label">Planear primero</span>
@@ -300,6 +305,10 @@
                     <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"
                             sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
                 </div>
+                <!-- Barra de archivos del módulo: visible solo cuando el agente
+                     entregó un template multi-archivo (@file). Cambia qué archivo
+                     se muestra en la pestaña Código. -->
+                <div id="stFileTabs" class="st-file-tabs hidden"></div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
 
                 <!-- Inspector de estilos: panel lateral que muestra el CSS resuelto
@@ -458,6 +467,6 @@
     <div id="pgToast" class="visor-toast"></div>
 
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
-    <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/studio.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

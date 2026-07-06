@@ -128,7 +128,11 @@
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
+                <a href="studio.php" class="app-rail-item" title="Coffee Studio - Templates multi-archivo">
+                    <i data-lucide="clapperboard"></i>
+                    <span class="app-rail-label">Studio</span>
+                </a>
+<a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>

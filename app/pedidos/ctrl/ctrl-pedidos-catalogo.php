@@ -403,7 +403,6 @@ class ctrl extends MPedidos{
             'discount'      => $discount,
             'type_id'       => $type_id,
             'status'        => $type_id,
-            'date_creation' => date('Y-m-d'),
             'id'            => $id
         ];
 

@@ -33,9 +33,6 @@
     font-weight: 800; font-size: 14px; letter-spacing: .5px;
     color: #fff; background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
 }
-/* La taza CoffeeSoft va inline (como los iconos lucide): hereda el color #fff
-   del cuadro y conserva el gradiente terracota de fondo. */
-.pg-logo svg { width: 26px; height: 26px; display: block; }
 .pg-title { font-weight: 700; font-size: 14px; color: var(--vsr-text); }
 .pg-subtitle { font-size: 11px; color: var(--vsr-text-muted); }
 .pg-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -410,13 +407,6 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     margin: auto; padding: 30px;
 }
 .pg-empty i { width: 48px; height: 48px; color: var(--vsr-text-mute2); opacity: .7; }
-
-/* Cerebro pulsante del estado "Razonando…" (modelos thinking). */
-.pg-think-brain { width: 15px; height: 15px; color: #ec4899; animation: pgBrainPulse 1.6s ease-in-out infinite; }
-@keyframes pgBrainPulse {
-    0%, 100% { opacity: .55; transform: scale(1); }
-    50%      { opacity: 1;   transform: scale(1.15); }
-}
 .pg-empty-title { font-size: 14px; font-weight: 700; color: var(--vsr-text-soft); }
 .pg-empty-sub { font-size: 12px; max-width: 280px; }
 .pg-sandbox-empty { position: absolute; inset: 0; background: var(--vsr-bg-base); }
@@ -976,4 +966,41 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     font-size: 13px; font-weight: 600; color: var(--vsr-text);
     background: var(--vsr-bg-input); border: 1px solid var(--vsr-accent);
     border-radius: 6px; padding: 2px 7px; outline: none;
+}
+
+/* ── Studio: barra de archivos del módulo (pestaña Código) ──
+   Tabs monoespaciados por archivo (@file) sobre el visor de código. */
+.st-file-tabs {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: 7px 10px;
+    background: var(--vsr-bg-chrome);
+    border-bottom: 1px solid var(--vsr-border);
+}
+.st-file-tabs.hidden { display: none; }
+.st-file-tab {
+    border: 1px solid var(--vsr-border); background: transparent;
+    color: var(--vsr-text-mute); cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    padding: 3px 9px; border-radius: 6px; white-space: nowrap;
+}
+.st-file-tab:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.st-file-tab.is-active {
+    color: var(--vsr-accent); border-color: var(--vsr-accent);
+    background: var(--vsr-accent-tint);
+}
+/* Con la barra visible, el código baja para no quedar debajo de ella. */
+.st-file-tabs:not(.hidden) ~ .pg-sandbox-code { padding-top: 46px; }
+
+/* La taza CoffeeSoft va inline (como los iconos lucide): hereda el color #fff
+   del cuadro y conserva el gradiente terracota de fondo. */
+.pg-logo svg { width: 26px; height: 26px; display: block; }
+
+/* Taza CoffeeSoft en los empty-states (svg inline, hereda color). */
+
+/* Cerebro pulsante del estado "Razonando…" (modelos thinking). */
+.pg-think-brain { width: 15px; height: 15px; color: #ec4899; animation: pgBrainPulse 1.6s ease-in-out infinite; }
+@keyframes pgBrainPulse {
+    0%, 100% { opacity: .55; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.15); }
 }

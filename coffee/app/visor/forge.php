@@ -60,14 +60,21 @@
 
             <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
                 <optgroup label="Ollama Cloud">
+                    <option value="qwen3-coder:480b-cloud">Qwen3 Coder 480B (código · módulos ⭐)</option>
                     <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
+                    <option value="glm-5:cloud">GLM 5 (flagship)</option>
                     <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
+                    <option value="glm-4.7:cloud">GLM 4.7 (código)</option>
                     <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
-                    <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
-                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
-                    <option value="gemini-3-flash-preview:cloud">Gemini 3 Flash (rápido, vision)</option>
                     <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
-                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
+                    <option value="deepseek-v4-flash:cloud">DeepSeek V4 Flash (razonamiento rápido)</option>
+                    <option value="gpt-oss:120b-cloud">GPT-OSS 120B (razonamiento)</option>
+                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código · vision)</option>
+                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico · vision)</option>
+                    <option value="kimi-k2.5:cloud">Kimi K2.5 (agéntico · vision)</option>
+                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
+                    <option value="gemini-3-flash-preview:cloud">Gemini 3 Flash (rápido · vision)</option>
+                    <option value="minimax-m3:cloud">MiniMax M3 (vision · débil en módulos)</option>
                 </optgroup>
                 <optgroup label="OpenRouter (free)">
                     <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
@@ -117,7 +124,11 @@
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="forge.php" class="app-rail-item active" title="Forge — Fábrica de Módulos">
+                <a href="studio.php" class="app-rail-item" title="Coffee Studio - Templates multi-archivo">
+                    <i data-lucide="clapperboard"></i>
+                    <span class="app-rail-label">Studio</span>
+                </a>
+<a href="forge.php" class="app-rail-item active" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>

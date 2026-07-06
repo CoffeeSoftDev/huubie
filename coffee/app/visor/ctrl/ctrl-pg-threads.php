@@ -30,8 +30,14 @@ if (!is_dir($dataDir) && !@mkdir($dataDir, 0775, true)) {
     pgt_fail('No se pudo crear el directorio de datos', 500);
 }
 
+// Almacen separable por pagina: el Studio manda ?store=studio y sus hilos viven
+// en su propio archivo (studio-threads.sqlite) sin mezclarse con el Playground.
+// Sin el parametro (Playground y clientes existentes) todo sigue en pg-threads.sqlite.
+$store  = isset($_GET['store']) ? preg_replace('/[^a-z0-9_-]/i', '', (string) $_GET['store']) : '';
+$dbFile = $store !== '' ? $store . '-threads.sqlite' : 'pg-threads.sqlite';
+
 try {
-    $pdo = new PDO('sqlite:' . $dataDir . '/pg-threads.sqlite');
+    $pdo = new PDO('sqlite:' . $dataDir . '/' . $dbFile);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('PRAGMA journal_mode = WAL');
     $pdo->exec('

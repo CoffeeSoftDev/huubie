@@ -290,6 +290,7 @@ class Cierre extends MCierre {
             $orders[] = [
                 'folio'           => formatFolioCierre($subsidiaries_id, $o['folio']),
                 'date'            => $o['date_creation'],
+                'time'            => $o['order_time'],
                 'client'          => $o['client_name'],
                 'status'          => intval($o['status']),
                 'total'           => floatval($o['total_pay']),
@@ -331,7 +332,8 @@ class Cierre extends MCierre {
                 'total_pay'         => floatval($p['total_pay']),
                 'discount'          => floatval($p['discount']),
                 'payment_real'      => floatval($p['payment_real']),
-                'total_paid_upto'   => floatval($p['total_paid_upto'])
+                'total_paid_upto'   => floatval($p['total_paid_upto']),
+                'method'            => $p['method']
             ];
         }
 
