@@ -342,162 +342,510 @@ class Cierre {
         return `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${s.cls}">${s.label}</span>`;
     }
 
-    renderExecutiveSummary(res) {
-        const c      = res.closure;
-        const shifts = res.shifts || [];
-        const orders = res.orders || [];
-        const pay    = res.payments || { cash: {}, card: {}, transfer: {} };
+    // Estilos del corte Z (mismo sistema pdf-* de alpha/pedidos-reportes):
+    // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
+    pdfBaseCss() {
+        return `
+            .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 40px 44px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 12px; }
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
+            .pdf-header h2 { font-size: 17px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
+            .pdf-header .meta { font-size: 11px; color: #7f8c8d; }
+            .pdf-header .meta span { color: #2c3e50; font-weight: 600; }
+            .pdf-totals-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+            .pdf-totals-bar .total-item { padding: 8px 10px; background: #f7f9fb; border: 1px solid #dce3ea; border-radius: 4px; border-top: 3px solid #bdc3c7; }
+            .pdf-totals-bar .total-item .label { font-size: 8px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
+            .pdf-totals-bar .total-item .value { font-size: 13px; font-weight: 700; color: #2c3e50; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-totals-bar .total-item.highlight { background: #3d4f5f; border-color: #3d4f5f; border-top-color: #2c3e50; }
+            .pdf-totals-bar .total-item.highlight .label { color: #b0bec5; }
+            .pdf-totals-bar .total-item.highlight .value { color: #eceff1; }
+            .pdf-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+            @media (max-width: 900px) { .pdf-grid { grid-template-columns: 1fr 1fr; } }
+            @media (max-width: 600px) { .pdf-grid { grid-template-columns: 1fr; } }
+            .pdf-section { border: 1px solid #dce3ea; border-radius: 3px; overflow: hidden; background: #fff; }
+            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); padding: 8px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4a5568; border-bottom: 1px solid #d1d9e0; }
+            .pdf-section-body { padding: 10px 12px; }
+            .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
+            .pdf-kv:last-child { border-bottom: none; }
+            .pdf-kv .kv-label { color: #5a6a7a; font-size: 11px; }
+            .pdf-kv .kv-value { font-weight: 600; font-size: 12px; color: #2c3e50; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-kv.total-row { border-top: 1px solid #95a5a6; border-bottom: none; padding: 6px 12px 5px; margin: 4px -12px 0; background: #f7f9fb; }
+            .pdf-kv.total-row .kv-label { font-weight: 700; color: #2c3e50; }
+            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 13px; color: #1a252f; }
+            .pdf-kv .kv-value.negative { color: #943030; }
+            .pdf-sub-title { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin: 8px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #e8ecf0; }
+            .pdf-pct-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+            .pdf-pct-bar .bar { flex: 1; height: 5px; background: #e8ecf0; border-radius: 2px; overflow: hidden; }
+            .pdf-pct-bar .bar .fill { height: 100%; border-radius: 2px; }
+            .pdf-pct-bar .pct-text { font-size: 9px; color: #7f8c8d; min-width: 30px; text-align: right; font-family: 'Consolas', monospace; }
+            /* Columna unica: la tabla de turnos (7 columnas) necesita el ancho completo para no generar scroll-x. */
+            .pdf-grid-bottom { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
+            table.pdf-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); color: #4a5568; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 6px 8px; text-align: left; border-bottom: 1px solid #d1d9e0; }
+            table.pdf-table tbody tr { border-bottom: 1px solid #f0f2f5; }
+            table.pdf-table tbody tr:nth-child(even) { background: #fafbfc; }
+            table.pdf-table tbody td { padding: 5px 8px; color: #2c3e50; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
+            table.pdf-table .text-right { text-align: right; }
+            table.pdf-table .text-center { text-align: center; }
+            table.pdf-table .col-importe { font-weight: 700; color: #1a252f; background: #f0f3f6; }
+            table.pdf-table .col-efectivo { color: #2c3e50; font-weight: 600; }
+            table.pdf-table .col-tarjeta { color: #2c3e50; font-weight: 600; }
+            .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 3px double #bdc3c7; display: flex; justify-content: space-between; font-size: 9px; color: #95a5a6; letter-spacing: 0.5px; }
+            /* Corte Z — acento navy y layout de resumen (imagen de referencia) */
+            .pdf-header h2 { color: #003360; }
+            .pdf-section-title.cz-title { color: #003360; }
+            .cz-count { font-size: 10px; color: #7f96ad; font-weight: 600; }
+            .cz-subhead { padding: 6px 14px; font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #5a6a7a; background: #f4f7fa; border-bottom: 1px solid #eef1f4; }
+            table.pdf-table tr.cz-total-row td { background: #eef3f8; font-weight: 800; color: #003360; border-top: 1px solid #cdd8e3; }
+            .cz-estado { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; }
+            .cz-pagado { color: #1a7a4a; }
+            .cz-parcial { color: #b9770e; }
+            .cz-pend { color: #8a94a0; }
+            .cz-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+            @media (max-width: 700px) { .cz-resumen { grid-template-columns: 1fr; } }
+            .cz-mp-count { color: #9aa7b4; font-weight: 600; font-size: 10px; }
+            .cz-sign { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; }
+            .cz-sign .slot { text-align: center; border-top: 1px solid #2c3e50; padding-top: 5px; font-size: 9px; letter-spacing: 1px; color: #5a6a7a; text-transform: uppercase; }
+        `;
+    }
 
-        const kpi = (label, value, accent = 'text-gray-900') => `
-            <div class="kpi-box border !border-[#E2E8F0] bg-[#F8FAFC] rounded-lg p-3">
-                <p class="text-[9px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">${label}</p>
-                <p class="text-sm font-bold ${accent}">${value}</p>
+    pdfPrintCss() {
+        return `
+            body { background: #fff !important; margin: 0; }
+            .pdf-document { background: #fff !important; color: #2c3e50 !important; box-shadow: none !important; padding: 15px !important; max-width: 100% !important; }
+            .pdf-header { border-bottom-color: #2c3e50 !important; }
+            .pdf-header h2 { color: #1a252f !important; }
+            .pdf-header .meta { color: #7f8c8d !important; }
+            .pdf-header .meta span { color: #2c3e50 !important; }
+            .pdf-totals-bar .total-item { background: #f7f9fb !important; border-color: #dce3ea !important; border-top-color: #bdc3c7 !important; }
+            .pdf-totals-bar .total-item .label { color: #7f8c8d !important; }
+            .pdf-totals-bar .total-item .value { color: #2c3e50 !important; }
+            .pdf-totals-bar .total-item.highlight { background: #3d4f5f !important; border-color: #3d4f5f !important; border-top-color: #2c3e50 !important; }
+            .pdf-totals-bar .total-item.highlight .label { color: #b0bec5 !important; }
+            .pdf-totals-bar .total-item.highlight .value { color: #eceff1 !important; }
+            .pdf-section { background: #fff !important; border-color: #dce3ea !important; }
+            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%) !important; color: #4a5568 !important; border-bottom-color: #d1d9e0 !important; }
+            .pdf-kv { border-bottom-color: #f0f2f5 !important; }
+            .pdf-kv .kv-label { color: #5a6a7a !important; }
+            .pdf-kv .kv-value { color: #2c3e50 !important; }
+            .pdf-kv.total-row { background: #f7f9fb !important; border-top-color: #95a5a6 !important; }
+            .pdf-kv.total-row .kv-label { color: #2c3e50 !important; }
+            .pdf-kv.total-row .kv-value { color: #1a252f !important; }
+            .pdf-kv .kv-value.negative { color: #943030 !important; }
+            .pdf-sub-title { color: #95a5a6 !important; border-bottom-color: #e8ecf0 !important; }
+            .pdf-pct-bar .bar { background: #e8ecf0 !important; }
+            .pdf-pct-bar .pct-text { color: #7f8c8d !important; }
+            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%) !important; color: #4a5568 !important; border-bottom-color: #d1d9e0 !important; }
+            table.pdf-table tbody tr { border-bottom-color: #f0f2f5 !important; }
+            table.pdf-table tbody tr:nth-child(even) { background: #fafbfc !important; }
+            table.pdf-table tbody td { color: #2c3e50 !important; }
+            table.pdf-table .col-importe { color: #1a252f !important; background: #f0f3f6 !important; }
+            table.pdf-table .col-efectivo { color: #2c3e50 !important; }
+            table.pdf-table .col-tarjeta { color: #2c3e50 !important; }
+            .pdf-footer { border-top-color: #bdc3c7 !important; color: #95a5a6 !important; }
+            .pdf-header h2 { color: #003360 !important; }
+            .pdf-section-title.cz-title { color: #003360 !important; }
+            .cz-subhead { color: #5a6a7a !important; background: #f4f7fa !important; border-bottom-color: #eef1f4 !important; }
+            table.pdf-table tr.cz-total-row td { background: #eef3f8 !important; color: #003360 !important; border-top-color: #cdd8e3 !important; }
+            .cz-pagado { color: #1a7a4a !important; }
+            .cz-parcial { color: #b9770e !important; }
+            .cz-pend { color: #8a94a0 !important; }
+            .cz-sign .slot { border-top-color: #2c3e50 !important; color: #5a6a7a !important; }
+        `;
+    }
+
+    injectPdfStyles() {
+        if ($('#pdf-cierre-styles').length) return;
+        $('head').append(`<style id="pdf-cierre-styles">${this.pdfBaseCss()} @media print { ${this.pdfPrintCss()} }</style>`);
+    }
+
+    renderExecutiveSummary(res) {
+        this.injectPdfStyles();
+
+        const c      = res.closure;
+        const r      = res.report || {};
+        const cta    = r.cuentas || {};
+        const caja   = r.caja || {};
+        const ventas = r.ventas || {};
+        const categorias = r.categorias || [];
+        const shifts = r.shifts || [];
+        const orders = res.orders || [];
+        const prevPayments  = res.prev_payments || [];
+        const crossPayments = res.cross_payments || [];
+        const statusMap = { 1: 'Cotización', 2: 'Pendiente', 3: 'Pagado', 4: 'Cancelado' };
+
+        const kv = (label, value, opts = {}) => `
+            <div class="pdf-kv${opts.total ? ' total-row' : ''}">
+                <span class="kv-label">${label}</span>
+                <span class="kv-value${opts.negative ? ' negative' : ''}">${value}</span>
             </div>
         `;
 
-        const payRow = (label, info) => {
-            const amount = info && info.amount > 0 ? formatPrice(info.amount) : '<span class="text-gray-300">-</span>';
-            const count  = info ? (info.count || 0) : 0;
+        const money = (v) => parseFloat(v || 0) ? formatPrice(v) : '&mdash;';
+
+        // === COBROS CRUZADOS ===
+        // Cuentas cobradas en esta sucursal que pertenecen a pedidos de días/turnos previos
+        // (incluye las que son de otra sucursal). Este dinero SÍ entró a esta caja.
+        const crossPrev = { debia: 0, abono: 0, quedo: 0 };
+        const crossRowsHtml = prevPayments.map(o => {
+            const total    = parseFloat(o.total_pay || 0);
+            const discount = parseFloat(o.discount || 0);
+            const abono    = parseFloat(o.payment_real || 0);
+            const paidUpto = parseFloat(o.total_paid_upto || 0);
+            const quedo    = Math.max(total - discount - paidUpto, 0);
+            const debia    = quedo + abono;
+            crossPrev.debia += debia; crossPrev.abono += abono; crossPrev.quedo += quedo;
+            const liquidado = quedo <= 0.005;
             return `
-                <tr class="border-b border-gray-100 last:border-0">
-                    <td class="py-2 text-gray-700">${label}</td>
-                    <td class="py-2 text-right text-gray-900 font-medium">${amount}</td>
-                    <td class="py-2 text-right text-gray-500">${count}</td>
+                <tr>
+                    <td>${o.folio || '#' + o.id}</td>
+                    <td>${o.client_name || 'Sin cliente'}</td>
+                    <td>${o.is_cross ? (o.origin_subsidiary || 'Otra sucursal') : '&mdash;'}</td>
+                    <td>${o.method || '&mdash;'}</td>
+                    <td class="text-right">${money(debia)}</td>
+                    <td class="text-right col-importe">${money(abono)}</td>
+                    <td class="text-right">${money(quedo)}</td>
+                    <td class="text-center"><span class="cz-estado ${liquidado ? 'cz-pagado' : 'cz-pend'}">${liquidado ? 'LIQUIDADO' : 'PENDIENTE'}</span></td>
                 </tr>
             `;
+        }).join('');
+
+        const crossBody = prevPayments.length > 0
+            ? `${crossRowsHtml}
+                <tr class="cz-total-row">
+                    <td colspan="4">TOTAL COBROS CRUZADOS</td>
+                    <td class="text-right">${money(crossPrev.debia)}</td>
+                    <td class="text-right col-importe">${money(crossPrev.abono)}</td>
+                    <td class="text-right">${money(crossPrev.quedo)}</td>
+                    <td></td>
+                </tr>`
+            : `<tr><td colspan="8" style="text-align:center;color:#95a5a6;padding:16px;font-style:italic">Sin cobros cruzados en esta fecha</td></tr>`;
+
+        const crossSectionHtml = `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>*** Cobros Cruzados ***</span>
+                    <span class="cz-count">${prevPayments.length} pedido(s)</span>
+                </div>
+                <div class="cz-subhead">Cuentas cobradas en sucursal &mdash; pertenecen a otra sucursal</div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Origen</th>
+                                <th>Método</th>
+                                <th class="text-right">Debía</th>
+                                <th class="text-right">Abono</th>
+                                <th class="text-right">Quedó</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>${crossBody}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // === CORTE DE CAJA X (Cierre x Turno) ===
+        // Dinero en caja por turno = efectivo + tarjeta + transferencia COBRADOS en el turno.
+        // Ese cobro ya incluye: pedidos del día + abonos de días anteriores + cobros cruzados entrantes.
+        const shiftsTotals = { caja: 0, efectivo: 0, tarjeta: 0, transferencia: 0 };
+        const shiftsRows = shifts.map(shift => {
+            const efe    = parseFloat(shift.efectivo || 0);
+            const tar    = parseFloat(shift.tarjeta || 0);
+            const tra    = parseFloat(shift.transferencia || 0);
+            const enCaja = efe + tar + tra;
+            shiftsTotals.caja          += enCaja;
+            shiftsTotals.efectivo      += efe;
+            shiftsTotals.tarjeta       += tar;
+            shiftsTotals.transferencia += tra;
+            return `
+                <tr>
+                    <td>${shift.cajero || 'Sin cajero'}</td>
+                    <td>${shift.apertura ? moment(shift.apertura).format('DD/MM/YYYY hh:mm A') : '-'}</td>
+                    <td>${shift.cierre ? moment(shift.cierre).format('hh:mm A') : 'Abierto'}</td>
+                    <td class="text-right col-importe">${money(enCaja)}</td>
+                    <td class="text-right col-efectivo">${money(efe)}</td>
+                    <td class="text-right col-tarjeta">${money(tar)}</td>
+                    <td class="text-right">${money(tra)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const shiftsTableHtml = shifts.length > 0 ? `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>*** Corte de Caja X (Cierre x Turno) ***</span>
+                    <span class="cz-count">${shifts.length} turno(s)</span>
+                </div>
+                <div class="cz-subhead">Dinero en caja por turno &mdash; pedidos del día + abonos de días anteriores + cobros cruzados</div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Responsable</th>
+                                <th>Apertura</th>
+                                <th>Cierre</th>
+                                <th class="text-right">En Caja</th>
+                                <th class="text-right">Efectivo</th>
+                                <th class="text-right">Tarjeta</th>
+                                <th class="text-right">Transferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${shiftsRows}
+                            <tr class="cz-total-row">
+                                <td colspan="3">TOTAL CAJA</td>
+                                <td class="text-right col-importe">${money(shiftsTotals.caja)}</td>
+                                <td class="text-right">${money(shiftsTotals.efectivo)}</td>
+                                <td class="text-right">${money(shiftsTotals.tarjeta)}</td>
+                                <td class="text-right">${money(shiftsTotals.transferencia)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        ` : `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title">*** Corte de Caja X (Cierre x Turno) ***</div>
+                <div class="pdf-section-body" style="text-align:center;color:#95a5a6;padding:20px">Sin turnos registrados</div>
+            </div>
+        `;
+
+        const salesOrders     = orders.filter(o => o.status === 2 || o.status === 3);
+        const quoteOrders     = orders.filter(o => o.status === 1);
+        const cancelledOrders = orders.filter(o => o.status === 4);
+
+        const saldoPedido = (o) => parseFloat(o.total || 0) - parseFloat(o.discount || 0) - parseFloat(o.total_paid_upto || 0);
+
+        // Hora del pedido: usa order_time (real o de entrega); si no hay, guion.
+        const horaPedido = (o) => o.time ? moment(o.time, 'HH:mm:ss').format('hh:mm a') : '&mdash;';
+
+        const estadoVenta = (o) => {
+            if (saldoPedido(o) <= 0.005) return '<span class="cz-estado cz-pagado">PAGADO</span>';
+            if (parseFloat(o.payment_real || 0) > 0) return '<span class="cz-estado cz-parcial">PARCIAL</span>';
+            return '<span class="cz-estado cz-pend">PENDIENTE</span>';
         };
 
-        let shiftsHtml = '';
-        if (shifts.length > 0) {
-            shiftsHtml = shifts.map((shift, idx) => {
-                const isClosed   = shift.status === 'closed';
-                const badge      = isClosed
-                    ? '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">cerrado</span>'
-                    : '<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">abierto</span>';
-                const apertura   = moment(shift.opened_at).locale('es').format('DD/MMM/YYYY hh:mm a');
-                const cierre     = isClosed && shift.closed_at ? moment(shift.closed_at).locale('es').format('DD/MMM/YYYY hh:mm a') : '—';
-                const openedBy   = shift.employee_name || '—';
-                const closedBy   = isClosed ? (shift.employee_name || '—') : '—';
-                return `
-                    <div class="turno-row border !border-[#E2E8F0] bg-[#F8FAFC] rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-bold text-gray-900">${shift.shift_name || 'Turno ' + (idx + 1)}</span>
-                            ${badge}
-                        </div>
-                        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
-                            <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Apertura</p>
-                                <p class="text-gray-700">${apertura}</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Cierre</p>
-                                <p class="text-gray-700">${cierre}</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Abierto por</p>
-                                <p class="text-gray-700 uppercase">${openedBy}</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-0.5">Cerrado por</p>
-                                <p class="text-gray-700 uppercase">${closedBy}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            shiftsHtml = '<p class="text-xs text-gray-400 text-center py-3">Sin turnos registrados</p>';
-        }
-
-        let ordersHtml = '';
-        if (orders.length > 0) {
-            ordersHtml = orders.map(o => `
-                <tr class="border-b border-gray-100 last:border-0">
-                    <td class="py-2 font-semibold text-gray-900">P-${String(o.folio).padStart(3, '0')}</td>
-                    <td class="py-2 text-gray-500">${o.date ? moment(o.date).format('hh:mm a') : '—'}</td>
-                    <td class="py-2 text-gray-700">${o.client || '—'}</td>
-                    <td class="py-2 text-center">${this.statusBadge(o.status)}</td>
-                    <td class="py-2 text-right text-gray-900 font-medium">${formatPrice(o.total)}</td>
-                    <td class="py-2 text-right text-gray-600">${o.method || '—'}</td>
+        // === DESGLOSE DE PEDIDOS · VENTAS DEL DÍA ===
+        const ventasTotales = { importe: 0, abono: 0, quedo: 0 };
+        const ventasRows = salesOrders.map(o => {
+            const abono = parseFloat(o.payment_real || 0);
+            const quedo = Math.max(saldoPedido(o), 0);
+            ventasTotales.importe += parseFloat(o.total || 0);
+            ventasTotales.abono   += abono;
+            ventasTotales.quedo   += quedo;
+            return `
+                <tr>
+                    <td>${o.folio}</td>
+                    <td>${o.client || '&mdash;'}</td>
+                    <td>${o.method || '&mdash;'}</td>
+                    <td class="text-right col-importe">${money(o.total)}</td>
+                    <td class="text-right">${money(abono)}</td>
+                    <td class="text-right">${money(quedo)}</td>
+                    <td class="text-center">${estadoVenta(o)}</td>
                 </tr>
-            `).join('');
-        } else {
-            ordersHtml = '<tr><td colspan="6" class="py-4 text-center text-gray-400">Sin pedidos registrados</td></tr>';
-        }
+            `;
+        }).join('');
 
-        const sectionTitle = 'text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2';
+        const ventasBody = salesOrders.length > 0
+            ? `${ventasRows}
+                <tr class="cz-total-row">
+                    <td colspan="3">TOTAL VENTAS DEL DÍA</td>
+                    <td class="text-right col-importe">${money(ventasTotales.importe)}</td>
+                    <td class="text-right">${money(ventasTotales.abono)}</td>
+                    <td class="text-right">${money(ventasTotales.quedo)}</td>
+                    <td></td>
+                </tr>`
+            : `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
+
+        const desgloseSectionHtml = `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>Desglose de Pedidos</span>
+                    <span class="cz-count">${salesOrders.length} pedido(s)</span>
+                </div>
+                <div class="cz-subhead">Ventas del día &mdash; ${salesOrders.length} pedido(s)</div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cuenta</th>
+                                <th>Método</th>
+                                <th class="text-right">Importe</th>
+                                <th class="text-right">Abono</th>
+                                <th class="text-right">Quedó</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>${ventasBody}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // === COTIZACIONES (no suman a la venta) ===
+        const quotesTotal = quoteOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+        const quotesRows = quoteOrders.map(o => `
+            <tr>
+                <td>${o.folio}</td>
+                <td>${horaPedido(o)}</td>
+                <td>${o.client || '&mdash;'}</td>
+                <td class="text-center">${statusMap[o.status] || 'Cotización'}</td>
+                <td class="text-right col-importe">${money(o.total)}</td>
+                <td class="text-right">${o.method || '&mdash;'}</td>
+            </tr>
+        `).join('');
+
+        const cotizacionesSectionHtml = quoteOrders.length > 0 ? `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>Cotizaciones <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#7f96ad">(no suman a la venta)</span></span>
+                    <span class="cz-count">${quoteOrders.length} pedido(s)</span>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">Método</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${quotesRows}
+                            <tr class="cz-total-row">
+                                <td colspan="4">TOTAL COTIZADO</td>
+                                <td class="text-right col-importe">${money(quotesTotal)}</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        ` : '';
+
+        // === RESUMEN DEL DÍA ===
+        const pay = res.payments || {};
+        const mCash = pay.cash || {}, mCard = pay.card || {}, mTransfer = pay.transfer || {};
+        const cobrado    = parseFloat(mCash.amount || 0) + parseFloat(mCard.amount || 0) + parseFloat(mTransfer.amount || 0);
+        const ventaBruta = parseFloat(ventas.venta_bruta || 0);
+        const ventaNeta  = parseFloat(ventas.venta_neta || 0);
+        const pendiente  = ventasTotales.quedo;
+        // Cruzados = lo cobrado de pedidos de días anteriores (la tabla "Cobros Cruzados").
+        const cruzadosMonto = crossPrev.abono;
+        const cruzadosCount = prevPayments.length;
+        // Estado de cuentas por SALDO al corte (consistente con la columna Estado de la tabla),
+        // no por el status del pedido: un pedido entregado con saldo sigue siendo pendiente.
+        const cuPagadas = salesOrders.filter(o => saldoPedido(o) <= 0.005).length;
+        const cuPend    = salesOrders.filter(o => saldoPedido(o) > 0.005).length;
+        const cuCotiz   = quoteOrders.length;
+
+        const rTotales = `
+            <div class="pdf-section">
+                <div class="pdf-section-title cz-title">Totales</div>
+                <div class="pdf-section-body">
+                    ${kv('Venta Bruta', money(ventaBruta))}
+                    ${kv('Cobrado', money(cobrado))}
+                    ${kv('Cruzados', money(cruzadosMonto))}
+                    ${kv('Pendiente', money(pendiente))}
+                    ${kv('NETA', money(ventaNeta), { total: true })}
+                </div>
+            </div>
+        `;
+
+        const mpRow = (label, count, amount) => `
+            <div class="pdf-kv">
+                <span class="kv-label">${label} <span class="cz-mp-count">${count}</span></span>
+                <span class="kv-value">${money(amount)}</span>
+            </div>
+        `;
+
+        const rMetodos = `
+            <div class="pdf-section">
+                <div class="pdf-section-title cz-title">Métodos de Pago</div>
+                <div class="pdf-section-body">
+                    ${mpRow('Efectivo', parseInt(mCash.count || 0), mCash.amount)}
+                    ${mpRow('Tarjeta', parseInt(mCard.count || 0), mCard.amount)}
+                    ${mpRow('Transfer.', parseInt(mTransfer.count || 0), mTransfer.amount)}
+                    ${mpRow('Cruzados', cruzadosCount, cruzadosMonto)}
+                    ${kv('TOTAL', money(cobrado + cruzadosMonto), { total: true })}
+                </div>
+            </div>
+        `;
+
+        const rCuentas = `
+            <div class="pdf-section">
+                <div class="pdf-section-title cz-title">Estado de Cuentas</div>
+                <div class="pdf-section-body">
+                    ${kv('Pagadas', cuPagadas)}
+                    ${kv('Pendientes', cuPend)}
+                    ${kv('Cotizaciones', cuCotiz)}
+                    ${kv('TOTAL', cuPagadas + cuPend + cuCotiz, { total: true })}
+                </div>
+            </div>
+        `;
+
+        const resumenSectionHtml = `
+            <div class="pdf-section" style="margin-bottom:14px">
+                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>Resumen del Día</span>
+                    <span class="cz-count">${moment(c.closure_date).format('DD/MM/YYYY')} &middot; ${res.subsidiary_name || ''}</span>
+                </div>
+                <div class="pdf-section-body">
+                    <div class="cz-resumen">
+                        ${rTotales}
+                        ${rMetodos}
+                        ${rCuentas}
+                    </div>
+                </div>
+            </div>
+        `;
 
         const html = `
             ${this.dailyViewToggle()}
-            <div class="flex justify-center p-1">
-                <div id="ticketDailyClose" class="bg-white rounded-xl border border-gray-200 p-4 text-gray-900 w-full" style="max-width: 720px;">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h2 class="text-base font-bold text-gray-900">Corte Z</h2>
-                            <p class="text-[11px] text-gray-400">Cierre diario</p>
-                        </div>
-                        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Moneda local</span>
-                    </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                        ${kpi('Ventas', formatPrice(c.total_sales))}
-                        ${kpi('Pedidos', c.total_orders)}
-                        ${kpi('Turnos', c.total_shifts)}
-                        ${kpi('Caja', formatPrice(c.total_cash), 'text-green-600')}
-                    </div>
-
-                    <div class="mb-4">
-                        <p class="${sectionTitle}">Formas de pago</p>
-                        <table class="w-full text-xs">
-                            <thead>
-                                <tr class="text-[10px] font-bold uppercase tracking-wide text-gray-400 border-b border-gray-200">
-                                    <th class="py-2 text-left font-bold">Método</th>
-                                    <th class="py-2 text-right font-bold">Monto</th>
-                                    <th class="py-2 text-right font-bold">Transacciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${payRow('Efectivo', pay.cash)}
-                                ${payRow('Tarjeta', pay.card)}
-                                ${payRow('Transferencia', pay.transfer)}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mb-4">
-                        <p class="${sectionTitle}">Turnos del día</p>
-                        <div class="space-y-2">${shiftsHtml}</div>
-                    </div>
-
+            <div id="reportZoomWrap">
+            <div id="ticketDailyClose" class="pdf-document">
+                <div class="pdf-header">
                     <div>
-                        <div class="flex items-center justify-between cursor-pointer mb-2" onclick="cierre.toggleOrdersBreakdown()">
-                            <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Desglose de pedidos</p>
-                            <svg id="ordersBreakdownArrow" class="w-4 h-4 text-gray-400 transition-transform" style="transform: rotate(180deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </div>
-                        <div id="ordersBreakdownBody" class="overflow-x-auto">
-                            <table class="w-full text-xs">
-                                <thead>
-                                    <tr class="text-[10px] font-bold uppercase tracking-wide text-gray-400 border-b border-gray-200">
-                                        <th class="py-2 text-left font-bold">Pedido</th>
-                                        <th class="py-2 text-left font-bold">Hora</th>
-                                        <th class="py-2 text-left font-bold">Cliente</th>
-                                        <th class="py-2 text-center font-bold">Estado</th>
-                                        <th class="py-2 text-right font-bold">Total</th>
-                                        <th class="py-2 text-right font-bold">Método</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${ordersHtml}</tbody>
-                            </table>
-                        </div>
+                        <h2>CORTE Z</h2>
+                        <div class="meta">Sucursal: <span>${res.subsidiary_name || ''}</span></div>
+                        <div class="meta">${res.company_name || ''}</div>
                     </div>
-
-                    <p class="text-[9px] text-gray-400 text-center mt-4">${res.subsidiary_name || ''} — Cerrado por ${c.closed_by || 'Admin'} · ${moment(c.created_at).format('DD/MM/YYYY hh:mm A')}</p>
+                    <div style="text-align:right">
+                        <div class="meta">Fecha: <span>${moment(c.closure_date).format('DD/MM/YYYY')}</span></div>
+                        <div class="meta">Cerrado por: <span>${c.closed_by || 'Admin'} &mdash; ${moment(c.created_at).format('hh:mm A')}</span></div>
+                        <div class="meta">Generado: <span>${moment().format('DD/MM/YYYY hh:mm A')}</span></div>
+                    </div>
                 </div>
+
+                ${desgloseSectionHtml}
+                ${crossSectionHtml}
+                ${cotizacionesSectionHtml}
+                ${shiftsTableHtml}
+                ${resumenSectionHtml}
+
+                <div class="cz-sign">
+                    <div class="slot">Gerente</div>
+                    <div class="slot">Cajero</div>
+                </div>
+
+                <div class="pdf-footer">
+                    <span>&mdash; Fin del reporte &middot; CoffeeSoft &mdash;</span>
+                    <span>Generado: ${moment().format('DD/MM/YYYY hh:mm A')}</span>
+                </div>
+            </div>
             </div>
         `;
 
         $('#ticketContainer').html(html);
     }
+
 
     toggleOrdersBreakdown() {
         const body  = $('#ordersBreakdownBody');
@@ -514,12 +862,17 @@ class Cierre {
         }
 
         const isTicket = report.id === 'ticketPasteleria';
-        const printWindow = window.open('', '', isTicket ? 'height=700,width=420' : 'height=800,width=820');
+        const isPdfDoc = report.classList.contains('pdf-document');
+        // Corte Z: se imprime con los estilos pdf-* ya en su variante clara (documento).
+        const headAssets = isPdfDoc
+            ? `<style>${this.pdfBaseCss()} ${this.pdfPrintCss()}</style>`
+            : `<script src="https://cdn.tailwindcss.com"><\/script>`;
+        const printWindow = window.open('', '', isTicket ? 'height=700,width=420' : 'height=800,width=1020');
         printWindow.document.write(`
             <html>
                 <head>
                     <title>${isTicket ? 'Ticket de cierre' : 'Corte Z'}</title>
-                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    ${headAssets}
                     <style>@media print { body { margin: 0; } #ticketDailyClose, #ticketPasteleria { border: none !important; box-shadow: none !important; } }</style>
                 </head>
                 <body class="${isTicket ? 'p-2' : 'p-4'}">${report.outerHTML}</body>

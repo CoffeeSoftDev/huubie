@@ -2135,6 +2135,19 @@ function pgPlayPopSound() {
 // Marcador de archivo: tolera el comentario propio de cada lenguaje
 // (// , # , -- , ; , /* */ , <!-- -->) o el @file desnudo.
 const PG_FILE_MARKER = /^[ \t]*(?:\/\/|#|--|;|\/\*|<!--)?[ \t]*@file:[ \t]*(.+?)[ \t]*(?:\*\/|-->)?[ \t]*$/i;
+// Marcador LAXO: un comentario cuyo contenido es SOLO una ruta con extensión, sin
+// el prefijo @file (p.ej. `<!-- index.php -->`, `// src/js/app.js`, `/* styles.css */`).
+// Los agentes CoffeeIA a veces rotulan así en vez de con @file. Exige extensión
+// conocida y que no haya texto extra, para no confundir un comentario normal.
+const PG_FILE_LOOSE = /^[ \t]*(?:\/\/|#|--|;|\/\*|<!--)[ \t]*([\w][\w./-]*\.(?:html?|php|jsx?|mjs|ts|css|scss|less|json|sql|py|rb|vue))[ \t]*(?:\*\/|-->)?[ \t]*$/i;
+// Extrae la ruta de una línea probando primero @file y luego el marcador laxo.
+function pgFileMarkerPath(line) {
+    if (line == null) return null;
+    const strict = line.match(PG_FILE_MARKER);
+    if (strict) return strict[1].trim();
+    const loose = line.match(PG_FILE_LOOSE);
+    return loose ? loose[1].trim() : null;
+}
 
 /** Extrae [{path, lang, content}] de la respuesta del agente. */
 function pgParseModule(text) {
@@ -2149,16 +2162,16 @@ function pgParseModule(text) {
         const lines = body.split('\n');
         let i = 0;
         while (i < lines.length && lines[i].trim() === '') i++;
-        const inner = lines[i] != null ? lines[i].match(PG_FILE_MARKER) : null;
+        // (a) marcador (@file o ruta desnuda) en la 1ª línea DENTRO del bloque
+        const inner = lines[i] != null ? pgFileMarkerPath(lines[i]) : null;
         if (inner) {
-            path = inner[1].trim();
+            path = inner;
             lines.splice(0, i + 1);
             body = lines.join('\n').replace(/^\s*\r?\n/, '');
         } else {
+            // (b) marcador en la línea justo ANTES del bloque cercado
             const before = text.slice(0, m.index).split('\n').filter(l => l.trim() !== '');
-            const prev   = before.length ? before[before.length - 1] : '';
-            const pm = prev.match(PG_FILE_MARKER);
-            if (pm) path = pm[1].trim();
+            path = before.length ? pgFileMarkerPath(before[before.length - 1]) : null;
         }
         if (path) {
             path = path.replace(/^["'`]+|["'`]+$/g, '').replace(/^\.\//, '');
@@ -2175,9 +2188,22 @@ function pgModuleIndex(files) {
         || null;
 }
 
+// Archivos del framework CoffeeSoft que un módulo referencia pero NO incluye
+// (jQuery ya va por CDN en el módulo). Se resuelven a la copia REAL, un nivel
+// arriba del visor (coffee/app/src/js/), para que el preview cargue Templates +
+// plugins y el módulo se renderice de verdad. El <base> del wrap apunta al dir
+// del visor, así que estas rutas relativas resuelven correctamente.
+const PG_FRAMEWORK_FILES = {
+    'coffesoft.js':   '../src/js/coffeSoft.js',
+    'coffeesoft.js':  '../src/js/coffeSoft.js',
+    'coffesoft-2.js': '../src/js/coffeSoft-2.js',
+    'plugins.js':     '../src/js/plugins.js'
+};
+
 /** Ensambla el módulo en UN html renderizable: el <link>/<script src> del index
  *  que apunte a un archivo virtual del módulo se sustituye por su contenido
- *  inline. Las URLs absolutas (CDNs) se conservan tal cual. */
+ *  inline; las refs al framework (coffeSoft.js/plugins.js) se reapuntan a la copia
+ *  real; las URLs absolutas (CDNs) se conservan tal cual. */
 function pgAssembleModule(files) {
     const idx = pgModuleIndex(files);
     if (!idx) return '';
@@ -2195,6 +2221,12 @@ function pgAssembleModule(files) {
         }
         return f || null;
     };
+    // Ruta real del framework si `ref` no es un archivo del módulo (ni CDN).
+    const frameworkSrc = ref => {
+        if (/^https?:/i.test(ref) || /^\/\//.test(ref)) return null;
+        const base = norm(ref).split(/[?#]/).shift().split('/').pop().toLowerCase();
+        return PG_FRAMEWORK_FILES[base] || null;
+    };
     let html = idx.content;
     html = html.replace(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?>/gi, (m, href) => {
         const f = byRef(href);
@@ -2202,7 +2234,9 @@ function pgAssembleModule(files) {
     });
     html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (m, src) => {
         const f = byRef(src);
-        return (f && /\.m?js$/i.test(f.path)) ? '<script>\n' + f.content + '\n<\/script>' : m;
+        if (f && /\.m?js$/i.test(f.path)) return '<script>\n' + f.content + '\n<\/script>';
+        const fw = frameworkSrc(src);
+        return fw ? `<script src="${fw}"><\/script>` : m;
     });
     return html;
 }
