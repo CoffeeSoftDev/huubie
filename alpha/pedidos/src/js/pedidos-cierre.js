@@ -346,6 +346,9 @@ class Cierre {
     // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
         return `
+            /* En el popup de impresion no hay Tailwind (preflight): sin border-box el
+               padding del documento suma al width 100% y se recorta por la derecha. */
+            .pdf-document, .pdf-document * { box-sizing: border-box; }
             .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 40px 44px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 12px; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
             .pdf-header h2 { font-size: 17px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
@@ -450,6 +453,13 @@ class Cierre {
             .cz-parcial { color: #b9770e !important; }
             .cz-pend { color: #8a94a0 !important; }
             .cz-sign .slot { border-top-color: #2c3e50 !important; color: #5a6a7a !important; }
+            /* En papel no hay scroll horizontal: las tablas deben caber en el ancho de la
+               hoja. Se libera el clip del wrapper y se permite que el texto envuelva,
+               conservando en una linea solo las columnas de montos. */
+            div[style*="overflow-x"] { overflow: visible !important; }
+            table.pdf-table { width: 100% !important; font-size: 10px !important; }
+            table.pdf-table tbody td { white-space: normal !important; }
+            table.pdf-table tbody td.text-right, table.pdf-table tbody td.col-importe { white-space: nowrap !important; }
         `;
     }
 

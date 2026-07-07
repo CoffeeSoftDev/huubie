@@ -3373,42 +3373,87 @@ class App extends Templates {
         }
         printWindow.document.write(`
             <style>
-                body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; }
+                /* Sin este reset, el padding p-4 del ticket suma al width:100% inline
+                   y el contenido se desborda/recorta por la derecha al imprimir. */
+                * { box-sizing: border-box; }
+                body { font-family: 'Courier New', monospace; padding: 10px; max-width: 320px; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 .bg-white { background-color: white; }
                 .p-4 { padding: 1rem; }
+                .p-3 { padding: 0.75rem; }
                 .rounded-lg { border-radius: 0.5rem; }
+                .rounded { border-radius: 0.25rem; }
                 .shadow-lg { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
                 .font-mono { font-family: 'Courier New', monospace; }
                 .text-gray-900 { color: #111827; }
                 .flex { display: flex; }
+                .flex > * { min-width: 0; }
                 .flex-col { flex-direction: column; }
+                .flex-1 { flex: 1 1 0%; }
                 .items-center { align-items: center; }
                 .justify-between { justify-content: space-between; }
+                .justify-center { justify-content: center; }
+                .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .text-right { text-align: right; }
                 .mb-3 { margin-bottom: 0.75rem; }
                 .mb-2 { margin-bottom: 0.5rem; }
                 .mb-1 { margin-bottom: 0.25rem; }
+                .mb-0\\.5 { margin-bottom: 2px; }
                 .mt-4 { margin-top: 1rem; }
+                .mt-3 { margin-top: 0.75rem; }
                 .mt-2 { margin-top: 0.5rem; }
                 .mt-1 { margin-top: 0.25rem; }
+                .mt-0\\.5 { margin-top: 2px; }
+                .pt-2 { padding-top: 0.5rem; }
+                .pt-1 { padding-top: 0.25rem; }
+                .pt-0\\.5 { padding-top: 2px; }
+                .px-1\\.5 { padding-left: 6px; padding-right: 6px; }
+                .py-0\\.5 { padding-top: 2px; padding-bottom: 2px; }
                 .text-sm { font-size: 0.875rem; }
                 .text-xs { font-size: 0.75rem; }
+                .text-\\[11px\\] { font-size: 11px; }
                 .text-\\[10px\\] { font-size: 10px; }
                 .text-\\[9px\\] { font-size: 9px; }
                 .font-bold { font-weight: bold; }
                 .font-semibold { font-weight: 600; }
+                .font-normal { font-weight: normal; }
                 .text-gray-600 { color: #4B5563; }
                 .text-gray-500 { color: #6B7280; }
+                .text-gray-400 { color: #9CA3AF; }
+                .text-green-700 { color: #15803D; }
                 .text-purple-800 { color: #6B21A8; }
+                .text-purple-700 { color: #7E22CE; }
+                .text-purple-500 { color: #A855F7; }
+                .text-purple-400 { color: #C084FC; }
                 .text-center { text-align: center; }
                 .uppercase { text-transform: uppercase; }
                 .italic { font-style: italic; }
                 .space-y-1 > * + * { margin-top: 0.25rem; }
                 .space-y-0\\.5 > * + * { margin-top: 0.125rem; }
                 hr { border: 0; border-top: 1px dashed #D1D5DB; margin: 0.5rem 0; }
+                .border { border: 1px solid #E5E7EB; }
+                .border-t { border-top: 1px solid #E5E7EB; }
+                .border-dashed { border-style: dashed; }
+                .border-gray-200 { border-color: #E5E7EB; }
+                .border-purple-200 { border-color: #E9D5FF; }
                 .bg-green-100, .bg-blue-100 { padding: 2px 8px; border-radius: 9999px; display: inline-block; }
                 .bg-green-100 { background: #dcfce7; color: #166534; }
                 .bg-blue-100 { background: #dbeafe; color: #1e40af; }
-                @media print { body { padding: 0; } }
+                .bg-gray-100 { background: #F3F4F6; }
+                .bg-purple-50 { background: #FAF5FF; }
+                @page { margin: 5mm; }
+                @media print {
+                    /* En papel el ancho lo define la impresora (termica 58/80mm o carta),
+                       no el max-width de 320px de la vista previa. */
+                    body { padding: 0; max-width: none; margin: 0; }
+                    #ticketDailyClose {
+                        max-width: none !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        border-radius: 0 !important;
+                    }
+                }
             </style>
         `);
         printWindow.document.write('</head><body>');
