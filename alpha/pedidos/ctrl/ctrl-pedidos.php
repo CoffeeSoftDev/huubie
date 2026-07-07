@@ -266,7 +266,7 @@ class Pedidos extends MPedidos{
             $data_client = $this->util->sql([
                 'name'            => $_POST['name'],
                 'phone'           => $_POST['phone'],
-                'email'           => $_POST['mail'],
+                'email'           => $_POST['email'],
                 'date_create'     => date('Y-m-d H:i:s'),
                 'subsidiaries_id' => $subsidiaries_id ,
                 'active'          => 1,
