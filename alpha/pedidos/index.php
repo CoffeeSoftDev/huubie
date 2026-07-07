@@ -159,5 +159,8 @@
     <!-- Badge de nueva actualización -->
     <script src="<?=PATH_PEDIDOS?>src/js/version-badge.js?t=<?php echo time(); ?>"></script>
 
+    <!-- TEMPORAL: timer que fuerza reinicio de sesión una vez (retirar cuando ya no se necesite) -->
+    <script src="<?=PATH_PEDIDOS?>src/js/session-reset-timer.js?t=<?php echo time(); ?>"></script>
+
 </body>
 </html>

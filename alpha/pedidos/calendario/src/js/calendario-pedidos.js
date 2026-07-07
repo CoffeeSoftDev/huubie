@@ -25,6 +25,17 @@ class App extends Templates {
         this.subsidiaryName = data.subsidiaryName || '';
         this.subsidiaryId = data.subsidiaryId || null;
         this.render();
+
+        // Sincronizar con el navbar global (menus): cuando el admin cambia de sucursal
+        // en el navbar filtra la vista y dispara 'subsidiaryChanged' SIN recargar. El
+        // calendario refleja ese cambio en su propio filtro (#subsidiaryFilter) y
+        // recarga. (El cajero hace switch de sesion con recarga, que ya reinicia el
+        // calendario por si mismo.)
+        document.addEventListener('subsidiaryChanged', (e) => {
+            const id = (e.detail && e.detail.id != null) ? String(e.detail.id) : '0';
+            $('#subsidiaryFilter').val(id);
+            this.createCalendar();
+        });
     }
 
     render() {

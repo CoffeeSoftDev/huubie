@@ -227,7 +227,7 @@ class Pedidos extends MPedidos{
                     'class' => 'text-center'
                 ],
                 
-                'dropdown'        => dropdownOrder($order['id'], $order['idStatus'], floatval($order['discount'] ?? 0)),
+                'dropdown'        => dropdownOrder($order['id'], $order['idStatus'], floatval($order['discount'] ?? 0), $order['subsidiaries_id'] ?? null),
             ];
         }
 
@@ -437,7 +437,20 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Permite mutar un pedido solo si el usuario es admin o si el pedido pertenece a
+    // su sucursal de sesion. Bloquea escrituras sobre pedidos de otra sucursal cuando
+    // el cajero (rol 2) usa el filtro de vista del navbar (solo consulta).
+    private function canWriteOrder($orderId) {
+        if (($_SESSION['ROLID'] ?? 0) == 1) return true;
+        $o = $this->getOrderID([$orderId]);
+        return isset($o[0]['subsidiaries_id']) && $o[0]['subsidiaries_id'] == ($_SESSION['SUB'] ?? null);
+    }
+
     function cancelOrder(){
+        if (!$this->canWriteOrder($_POST['id'] ?? null)) {
+            return ['status' => 403, 'message' => 'Solo puedes operar pedidos de tu sucursal'];
+        }
+
         $status  = 500;
         $message = 'Error al cancelar el evento.';
 
@@ -1313,7 +1326,14 @@ class Pedidos extends MPedidos{
                 'message' => 'Parámetros incompletos'
             ];
         }
-        
+
+        if (!$this->canWriteOrder($id)) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo puedes operar pedidos de tu sucursal'
+            ];
+        }
+
         $order = $this->getOrderID([$id]);
         
             
@@ -1881,12 +1901,12 @@ class Pedidos extends MPedidos{
         $status  = 500;
         $message = "Error al aplicar el descuento";
 
-        // if ($_SESSION['ROLID'] != 1) {
-        //     return [
-        //         'status'  => 403,
-        //         'message' => 'No tienes permisos para aplicar descuentos'
-        //     ];
-        // }
+        if (!$this->canWriteOrder($_POST['id'] ?? null)) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo puedes operar pedidos de tu sucursal'
+            ];
+        }
 
         $id       = $_POST['id'];
         $discount = floatval($_POST['discount'] ?? 0);
@@ -2049,12 +2069,12 @@ class Pedidos extends MPedidos{
     }
 
     function deleteDiscount() {
-        // if ($_SESSION['ROLID'] != 1) {
-        //     return [
-        //         'status'  => 403,
-        //         'message' => 'No tienes permisos para eliminar descuentos'
-        //     ];
-        // }
+        if (!$this->canWriteOrder($_POST['id'] ?? null)) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo puedes operar pedidos de tu sucursal'
+            ];
+        }
 
         $id = $_POST['id'];
 
@@ -2111,12 +2131,25 @@ class Pedidos extends MPedidos{
 
 
 // Complements.
-function dropdownOrder($id, $status, $discount = 0) {
+function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
     $instancia = 'app';
     $impresion = 'payment';
     $rolId     = $_SESSION['ROLID'] ?? 0;
     $owner     = $_SESSION['OWNER'] ?? 0;
     $hasDiscount = $discount > 0;
+
+    // Cajero/no-admin viendo un pedido de OTRA sucursal (filtro de vista): solo lectura.
+    // Sin acciones de mutacion (cancelar, descuentos, editar, pagar).
+    if ($rolId != 1 && $orderSub !== null && $orderSub != ($_SESSION['SUB'] ?? null)) {
+        return array_map(fn($opt) => [
+            'text'    => $opt[0],
+            'icon'    => $opt[1],
+            'onclick' => $opt[2],
+        ], [
+            ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
+            ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
+        ]);
+    }
 
     $options = [
         ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],

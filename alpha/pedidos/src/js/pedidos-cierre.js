@@ -377,6 +377,9 @@ class Cierre {
     // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
         return `
+            /* La ventana de impresion no carga Tailwind: sin este reset, width:100% + padding
+               (content-box) hace que el documento se salga por el lado derecho de la hoja. */
+            .pdf-document, .pdf-document * { box-sizing: border-box; }
             .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 18px 22px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 10px; }
             .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
             .pdf-header h2 { font-size: 12px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
@@ -437,8 +440,6 @@ class Cierre {
             .cz-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
             @media (max-width: 700px) { .cz-resumen { grid-template-columns: 1fr; } }
             .cz-mp-count { color: #9aa7b4; font-weight: 600; font-size: 9px; }
-            .cz-sign { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; }
-            .cz-sign .slot { text-align: center; border-top: 1px solid #2c3e50; padding-top: 5px; font-size: 8px; letter-spacing: 1px; color: #5a6a7a; text-transform: uppercase; }
         `;
     }
 
@@ -486,7 +487,6 @@ class Cierre {
             .cz-pagado { color: #1a7a4a !important; }
             .cz-parcial { color: #b9770e !important; }
             .cz-pend { color: #8a94a0 !important; }
-            .cz-sign .slot { border-top-color: #2c3e50 !important; color: #5a6a7a !important; }
             /* Impresion: tablas ajustadas al ancho de la hoja (no se cortan) y tipografia legible en papel. */
             table.pdf-table { table-layout: fixed !important; width: 100% !important; font-size: 10px !important; }
             table.pdf-table td, table.pdf-table th { white-space: normal !important; overflow-wrap: break-word; word-break: break-word; }
@@ -928,11 +928,6 @@ class Cierre {
                 ${cotizacionesSectionHtml}
                 ${shiftsTableHtml}
                 ${resumenSectionHtml}
-
-                <div class="cz-sign">
-                    <div class="slot">Gerente</div>
-                    <div class="slot">Cajero</div>
-                </div>
 
                 <div class="pdf-footer">
                     <span>&mdash; Fin del reporte &middot; CoffeeSoft &mdash;</span>

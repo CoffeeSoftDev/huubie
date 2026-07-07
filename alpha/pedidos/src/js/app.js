@@ -236,22 +236,23 @@ class App extends Templates {
         const selected = $('#subsidiaries_id');
         // "Todas" aplica a cualquier rol (admin o cajero en modo consulta).
         if (selected.length && selected.val() === '0') return 'Todas las sucursales';
-        if (rol != 1) return sub_name;
+        // Admin y cajero (rol 2) tienen selector: el label refleja la sucursal filtrada.
         if (!selected.length) return sub_name;
         const selectedName = selected.find('option:selected').text();
         const isOwnSubsidiary = selected.val() == udn;
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
     }
 
-    // Sucursal con la que se FILTRA la lista (solo consulta). Admin filtra por el
-    // selector de navbar (incluye "0" = todas). Operadores solo usan "0" como
-    // consulta de todas; en cualquier otro caso null => el backend usa su sesion.
+    // Sucursal con la que se FILTRA la lista (solo consulta). Admin y cajero (rol 2)
+    // filtran por el selector de navbar (incluye "0" = todas). Otros roles => null
+    // => el backend usa su sesion. Es solo filtro de vista: las escrituras siempre
+    // usan la sucursal de sesion del usuario.
     getListFilterSubsidiary() {
         const $sel = $('#subsidiaries_id');
         if (!$sel.length) return null;
         const v = $sel.val();
         if (v === '0') return '0';
-        return rol == 1 ? (v || '0') : null;
+        return (rol == 1 || rol == 2) ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -260,6 +261,31 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
+        // Cajero (rol 2): el selector de navbar es SOLO filtro de vista. El cajero
+        // opera SIEMPRE en su sucursal de sesion (udn): el estado de turno/cierre y el
+        // boton "Nuevo pedido" se evaluan contra udn sin importar que sucursal filtre.
+        // Los pedidos nuevos nacen en su sucursal (el backend usa $_SESSION['SUB']).
+        if (rol == 2) {
+            const req = await useFetch({
+                url: this._link,
+                data: { opc: "checkDailyClosure", subsidiaries_id: udn }
+            });
+            dailyClosure = req || { is_closed: false };
+            openShift = req.open_shift ? req.open_shift : { has_open_shift: false };
+            this.updateDailyClosureStatus();
+
+            // Aviso NO bloqueante cuando consulta otra sucursal o "Todas": aclara que
+            // el pedido nuevo se registra en su sucursal, no en la que esta viendo.
+            const $sel = $('#subsidiaries_id');
+            const filtered = $sel.length ? $sel.val() : null;
+            if (filtered !== null && filtered != udn) {
+                this.showForeignBranchNote();
+            }
+
+            this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
+            return;
+        }
+
         let subsidiaries_id = this.getListFilterSubsidiary();
 
         if (subsidiaries_id === '0') {
@@ -291,7 +317,7 @@ class App extends Templates {
         const btn = $('#btnNuevoPedido');
 
         // Limpiar todas las alertas previas antes de evaluar el nuevo estado
-        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert').remove();
+        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert, #foreignBranchNote').remove();
 
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
@@ -364,6 +390,19 @@ class App extends Templates {
         $('#dailyClosureAlert').remove();
         $('#shiftAlert').remove();
         $('#shiftOldAlert').remove();
+        $('#foreignBranchNote').remove();
+    }
+
+    // Cajero consultando otra sucursal o "Todas": aviso NO bloqueante de que los
+    // pedidos nuevos se registran en su sucursal de sesion (las escrituras van a
+    // $_SESSION['SUB'], nunca a la sucursal filtrada en el navbar).
+    showForeignBranchNote() {
+        if (document.getElementById('foreignBranchNote')) return;
+        $('#containerHours').after(`
+            <div id="foreignBranchNote" class="flex items-center gap-2 mb-3 pl-1">
+                <span class="w-1.5 h-1.5 bg-sky-400 rounded-full flex-shrink-0"></span>
+                <p class="text-[11px] text-gray-500">Vista de consulta — los pedidos nuevos se registran en tu sucursal (${sub_name})</p>
+            </div>`);
     }
 
     showTypePedido() {

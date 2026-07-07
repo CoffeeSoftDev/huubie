@@ -1,974 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Facturador SAT · CoffeeSoft</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-  /* Remapeo de la paleta (blue/purple/pink/violet/indigo -> Terracota "Arcilla Invernal").
-     Verde/rojo/amarillo se conservan porque son estados semanticos. */
-  tailwind.config={theme:{extend:{colors:{
-    purple:{200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A32',700:'#8F3E2A'},
-    violet:{200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A32',700:'#8F3E2A'},
-    indigo:{200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A32',700:'#8F3E2A'},
-    blue:{200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A32',700:'#8F3E2A'},
-    pink:{400:'#E08A70',500:'#C05A40',600:'#A84A32'}
+  /* Paleta "Arcilla Invernal" (tema light inventory).
+     blue-* remapeado a terracota #C05A40 igual que en inventory/. */
+  tailwind.config = { theme: { extend: { colors: {
+    blue:   {50:'#FBF1ED',100:'#F5E3DC',200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A33',700:'#8F3D2A',800:'#6E2F20',900:'#4E2117'},
+    indigo: {50:'#FBF1ED',100:'#F5E3DC',500:'#C05A40',600:'#A84A33',700:'#8F3D2A'}
   }}}};
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
-  body{background:#1c1917;color:#faf7f5;min-height:100vh}
+  body{background:#F3F4F6;color:#111928;min-height:100vh}
 
-  /* ---- inputs / controles ---- */
-  .input-base{background:#24201e;border:1px solid #44403c;border-radius:8px;padding:6px 12px;font-size:12px;color:#d6d1cc}
-  .input-base:focus{outline:none;border-color:#C05A40}
-  select.input-base{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-  .input-modal{background:#24201e;border:1px solid #44403c;border-radius:8px;padding:8px 12px;font-size:12px;color:#d6d1cc;width:100%}
-  .input-modal:focus{outline:none;border-color:#C05A40}
+  /* ---- inputs ---- */
+  .input-base{background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:7px 12px;font-size:12px;color:#374151}
+  .input-base:focus{outline:none;border-color:#C05A40;box-shadow:0 0 0 3px rgba(192,90,64,.12)}
+  select.input-base{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 
   /* ---- cards ---- */
-  .card-base{background:#292524;border:1px solid rgba(120,113,108,.28);border-radius:12px}
+  .card-base{background:#fff;border:1px solid #E5E7EB;border-radius:12px}
 
   /* ---- badges ---- */
-  .badge-base{display:inline-flex;align-items:center;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;border:1px solid;white-space:nowrap}
-  .b-green {background:rgba(63,193,137,.15);color:#3fc189;border-color:rgba(63,193,137,.3)}
-  .b-red   {background:rgba(217,83,79,.16);color:#e77a76;border-color:rgba(217,83,79,.35)}
-  .b-yellow{background:rgba(224,163,65,.15);color:#e0a341;border-color:rgba(224,163,65,.3)}
-  .b-blue  {background:rgba(192,90,64,.16);color:#E08A70;border-color:rgba(192,90,64,.34)}   /* tarjeta = terracota */
-  .b-purple{background:rgba(192,90,64,.16);color:#E08A70;border-color:rgba(192,90,64,.34)}   /* marca = terracota */
-  .b-gray  {background:rgba(168,162,158,.15);color:#a8a29e;border-color:rgba(168,162,158,.3)}
+  .badge-base{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;border:1px solid;white-space:nowrap}
+  .b-green {background:#DCFCE7;color:#15803D;border-color:#BBF7D0}
+  .b-red   {background:#FEE2E2;color:#B91C1C;border-color:#FECACA}
+  .b-yellow{background:#FEF3C7;color:#B45309;border-color:#FDE68A}
+  .b-terra {background:#F5E3DC;color:#A84A33;border-color:#F0C4B5}
+  .b-gray  {background:#F3F4F6;color:#6B7280;border-color:#E5E7EB}
 
   /* ---- tabs ---- */
-  .tab-btn{padding:10px 16px;font-size:12px;font-weight:600;color:#a8a29e;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:.15s}
-  .tab-btn:hover{color:#d6d1cc}
-  .tab-btn.active{color:#E08A70;border-bottom-color:#C05A40}
+  .tab-btn{padding:12px 16px;font-size:12px;font-weight:600;color:#6B7280;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:.15s;background:none;border-top:none;border-left:none;border-right:none}
+  .tab-btn:hover{color:#374151}
+  .tab-btn.active{color:#C05A40;border-bottom-color:#C05A40}
+  .tab-btn i{width:15px;height:15px}
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
-  /* ---- tabla ---- */
+  /* ---- tablas ---- */
   table{width:100%;border-collapse:collapse}
-  thead th{position:sticky;top:0;background:#1c1917;z-index:10;font-size:10px;color:#78716c;text-transform:uppercase;letter-spacing:.05em;font-weight:600;text-align:left;padding:10px 12px;white-space:nowrap}
-  tbody td{font-size:11px;color:#a8a29e;padding:9px 12px;white-space:nowrap}
-  tbody tr{border-top:1px solid rgba(68,64,60,.5)}
-  tbody tr:hover{background:#24201e}
-  tbody tr.empty-row:hover{background:transparent}
-  .row-locked{background:rgba(217,83,79,.05)}
-  .row-locked:hover{background:rgba(217,83,79,.09)}
+  thead th{position:sticky;top:0;background:#F9FAFB;z-index:10;font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;text-align:left;padding:10px 12px;white-space:nowrap;border-bottom:1px solid #E5E7EB}
+  tbody td{font-size:11px;color:#4B5563;padding:9px 12px;white-space:nowrap}
+  tbody tr{border-top:1px solid #F3F4F6}
+  tbody tr:hover{background:#F9FAFB}
+  tfoot td{font-size:11px;font-weight:700;color:#111928;padding:10px 12px;border-top:2px solid #E5E7EB;background:#F9FAFB;white-space:nowrap}
+  .cell-null{color:#9CA3AF;font-style:italic;font-size:10px}
+  .row-locked{background:#FBF1ED}
+  .row-locked:hover{background:#F5E3DC}
 
   /* ---- scrollbar ---- */
-  .scroll-thin::-webkit-scrollbar{width:6px;height:6px}
+  .scroll-thin::-webkit-scrollbar{width:6px;height:8px}
   .scroll-thin::-webkit-scrollbar-track{background:transparent}
-  .scroll-thin::-webkit-scrollbar-thumb{background:#44403c;border-radius:4px}
+  .scroll-thin::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
+  .scroll-thin::-webkit-scrollbar-thumb:hover{background:#9CA3AF}
 
   /* ---- upload zone ---- */
-  .upload-zone{border:1px dashed #57534e;border-radius:12px;padding:22px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:.15s}
-  .upload-zone:hover{border-color:#C05A40;background:rgba(192,90,64,.05)}
-  .upload-zone.loaded{border-style:solid;border-color:rgba(63,193,137,.5);background:rgba(63,193,137,.04)}
+  .upload-zone{border:1px dashed #D1D5DB;border-radius:12px;padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:.15s;background:#fff}
+  .upload-zone:hover{border-color:#C05A40;background:#FBF1ED}
 
   /* ---- botones ---- */
   .btn-primary{background:#C05A40;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:.15s;border:none}
-  .btn-primary:hover{background:#A84A32}
-  .btn-purple{background:#A84A32;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:.15s;border:none}
-  .btn-purple:hover{background:#8F3E2A}
-  .btn-ghost{background:transparent;color:#d6d1cc;border:1px solid #57534e;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer}
-  .btn-ghost:hover{background:#24201e}
+  .btn-primary:hover{background:#A84A33}
+  .btn-ghost{background:#fff;color:#374151;border:1px solid #E5E7EB;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:.15s}
+  .btn-ghost:hover{background:#F9FAFB;border-color:#D1D5DB}
+  .btn-primary i,.btn-ghost i{width:14px;height:14px}
   button:disabled{opacity:.45;cursor:not-allowed}
 
-  /* ---- theme switcher ---- */
-  [data-theme-btn]{transition:.15s;border-radius:6px;padding:5px 9px;cursor:pointer;color:#a8a29e}
-  [data-theme-btn].theme-active{background:rgba(192,90,64,.9);color:#fff}
-
-  /* progress */
-  .prog-track{height:10px;border-radius:9999px;background:#24201e;overflow:hidden}
+  /* ---- progreso ---- */
+  .prog-track{height:10px;border-radius:9999px;background:#E5E7EB;overflow:hidden}
   .prog-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,#C05A40,#E08A70);transition:width .5s ease}
 
-  /* ================= LIGHT THEME ================= */
-  body[data-theme="light"]{background:#f6f3f1;color:#292524}
-  body[data-theme="light"] .bg-main{background:#f6f3f1 !important}
-  body[data-theme="light"] .bg-header{background:#ffffff !important}
-  body[data-theme="light"] .card-base{background:#ffffff !important;border-color:#e7e2de !important}
-  body[data-theme="light"] .input-base,body[data-theme="light"] .input-modal{background:#faf8f6 !important;border-color:#e7e2de !important;color:#292524 !important}
-  body[data-theme="light"] .bg-soft{background:#faf8f6 !important;border-color:#e7e2de !important}
-  body[data-theme="light"] thead th{background:#faf8f6 !important;color:#78716c !important}
-  body[data-theme="light"] tbody td{color:#57534e !important}
-  body[data-theme="light"] tbody tr{border-color:#ece7e3 !important}
-  body[data-theme="light"] tbody tr:hover{background:#f6f3f1 !important}
-  body[data-theme="light"] .prog-track{background:#ece7e3 !important}
-  body[data-theme="light"] .upload-zone{border-color:#d6cfc9 !important}
-  body[data-theme="light"] .text-white{color:#292524 !important}
-  body[data-theme="light"] .text-gray-300{color:#44403c !important}
-  body[data-theme="light"] .text-gray-400{color:#57534e !important}
-  body[data-theme="light"] .text-gray-500{color:#78716c !important}
-  body[data-theme="light"] .border-gray-800{border-color:#ece7e3 !important}
-  body[data-theme="light"] .border-gray-700{border-color:#d6cfc9 !important}
-  body[data-theme="light"] .modal-card{background:#ffffff !important;border-color:#e7e2de !important;color:#292524}
-  body[data-theme="light"] .ticket-paper{background:#ffffff !important;color:#292524 !important}
+  /* ---- ticket virtual ---- */
+  .ticket-paper{background:#fff;border:1px solid #E5E7EB;border-radius:10px;box-shadow:0 4px 14px rgba(17,25,40,.08);font-family:'Courier New',ui-monospace,monospace;font-size:11px;color:#1F2937;padding:22px 20px;max-width:320px;margin:0 auto}
+  .ticket-paper .tk-sep{border-top:1px dashed #9CA3AF;margin:8px 0}
+  .ticket-paper table{width:100%}
+  .ticket-paper td{padding:2px 0;font-size:11px;color:#1F2937;white-space:normal}
+  .ticket-paper tr,.ticket-paper tr:hover{border:none;background:transparent}
 
   @media print{
-    header,footer,.no-print{display:none !important}
-    body{background:#fff !important;color:#000 !important}
+    body *{visibility:hidden}
+    #ticketPrintArea,#ticketPrintArea *{visibility:visible}
+    #ticketPrintArea{position:absolute;left:0;top:0;width:100%}
+    .ticket-paper{border:none;box-shadow:none}
   }
 </style>
+</head>
+<body>
 
-<!-- ============================== HEADER / BARRA SUPERIOR ============================== -->
-<header class="bg-header sticky top-0 z-30 border-b border-gray-800" style="background:#211d1b">
-  <div class="flex items-center gap-4 px-5 h-16">
-    <!-- logo -->
+<!-- ============================== HEADER ============================== -->
+<header class="bg-white sticky top-0 z-30 border-b border-gray-200">
+  <div class="flex items-center gap-4 px-5 h-16 max-w-[1500px] mx-auto">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-white text-sm shrink-0">
-        <img src="logo.png" alt="logo" class="w-9 h-9 rounded-lg object-cover" onerror="this.style.display='none';this.parentNode.innerText='FS'">
-      </div>
+      <img src="logo.png" alt="Logo" class="w-9 h-9 rounded-lg object-contain bg-[#F5E3DC] p-1 shrink-0">
       <div>
-        <p class="text-sm font-bold text-white leading-tight">Facturador SAT</p>
-        <p class="text-[10px] text-gray-500 leading-tight">Control de tickets · Meta 70% al 16% IVA</p>
+        <h1 class="text-sm font-bold text-gray-900 leading-tight">Facturador SAT</h1>
+        <p class="text-[10px] text-gray-500 leading-tight">Control de tickets y facturación · Restaurant</p>
       </div>
     </div>
 
     <div class="flex-1"></div>
 
-    <!-- control de fecha -->
+    <!-- control de fecha (ERS: apartado de impresión y control de fecha) -->
     <div class="hidden md:flex items-center gap-2">
-      <div class="flex items-center gap-2 bg-soft border border-gray-700 rounded-lg px-3 py-1.5" style="background:#24201e">
-        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        <input id="headerDate" type="date" value="2024-06-10" class="bg-transparent text-xs text-gray-300 focus:outline-none">
+      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Periodo</label>
+      <select class="input-base">
+        <option selected>Junio 2026</option>
+        <option>Mayo 2026</option>
+        <option>Abril 2026</option>
+      </select>
+      <label class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide ml-2">Día</label>
+      <input type="date" value="2026-06-10" class="input-base">
+    </div>
+
+    <div class="flex items-center gap-2 pl-4 border-l border-gray-200">
+      <div class="w-8 h-8 rounded-full bg-[#C05A40] text-white text-[11px] font-bold flex items-center justify-center">AP</div>
+      <div class="hidden sm:block">
+        <p class="text-[11px] font-semibold text-gray-800 leading-tight">Administrador POS</p>
+        <p class="text-[10px] text-gray-400 leading-tight">Sucursal Tapachula</p>
       </div>
-      <button class="btn-ghost" title="Imprimir" onclick="window.print()">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-      </button>
     </div>
-
-    <!-- theme switcher -->
-    <div class="flex items-center gap-1 bg-soft border border-gray-700 rounded-lg p-1" style="background:#24201e">
-      <span data-theme-btn="dark" title="Modo oscuro">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-      </span>
-      <span data-theme-btn="light" title="Modo claro">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-      </span>
-    </div>
-
-    <!-- avatar -->
-    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[11px] font-bold text-white">AD</div>
   </div>
 
-  <!-- TAB NAV -->
-  <nav class="flex items-center gap-1 px-5 overflow-x-auto scroll-thin border-t border-gray-800">
-    <div class="tab-btn active" data-tab="tablero">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
-      Tablero
-    </div>
-    <div class="tab-btn" data-tab="detallado">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-      Detallado
-    </div>
-    <div class="tab-btn" data-tab="facturados">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      Facturados
-    </div>
-    <div class="tab-btn" data-tab="ventapago">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-      Venta por pago
-    </div>
-    <div class="tab-btn" data-tab="consulta">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      Consulta / Resumen
-    </div>
-    <div class="tab-btn" data-tab="folios">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-      Generador de folios
-    </div>
+  <!-- tabs -->
+  <nav class="max-w-[1500px] mx-auto px-5 flex gap-1 overflow-x-auto scroll-thin">
+    <button class="tab-btn active" data-tab="resumen"    onclick="showTab('resumen',this)"><i data-lucide="layout-dashboard"></i>Resumen</button>
+    <button class="tab-btn" data-tab="ventapago"  onclick="showTab('ventapago',this)"><i data-lucide="credit-card"></i>Venta por pago</button>
+    <button class="tab-btn" data-tab="detallado"  onclick="showTab('detallado',this)"><i data-lucide="list"></i>Detallado</button>
+    <button class="tab-btn" data-tab="facturados" onclick="showTab('facturados',this)"><i data-lucide="file-check-2"></i>Facturados</button>
+    <button class="tab-btn" data-tab="generador"  onclick="showTab('generador',this)"><i data-lucide="printer"></i>Generador de folios</button>
   </nav>
 </header>
 
-<main class="p-5 max-w-[1500px] mx-auto">
+<main class="max-w-[1500px] mx-auto px-5 py-6">
 
-  <!-- ==================================================================== -->
-  <!-- TAB 1: TABLERO / DASHBOARD                                           -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel active" data-panel="tablero">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h1 class="text-lg font-bold text-white">Tablero de facturación</h1>
-        <p class="text-xs text-gray-500">Análisis del día · <span class="text-purple-400 font-semibold">Lunes 10 de junio 2024</span></p>
+<!-- ============================================================ -->
+<!-- TAB 1 · RESUMEN (módulo de consulta)                         -->
+<!-- ============================================================ -->
+<section id="tab-resumen" class="tab-panel active">
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-base font-bold text-gray-900">Resumen del día · Miércoles 10 de junio de 2026</h2>
+      <p class="text-[11px] text-gray-500">Meta de facturación: <b class="text-gray-700">70%</b> de la venta del día facturada al 16% de IVA.</p>
+    </div>
+    <button class="btn-ghost"><i data-lucide="refresh-cw"></i>Recalcular</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Venta total del día</span>
+        <i data-lucide="banknote" class="w-4 h-4 text-gray-400"></i>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="badge-base b-purple">Tasa a facturar 16%</span>
-        <span class="badge-base b-blue">Meta 70%</span>
+      <p class="text-xl font-extrabold text-gray-900">$31,843.90</p>
+      <p class="text-[10px] text-gray-400 mt-1">42 tickets · efectivo + tarjeta</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Meta al 70%</span>
+        <i data-lucide="target" class="w-4 h-4 text-[#C05A40]"></i>
+      </div>
+      <p class="text-xl font-extrabold text-gray-900">$22,290.73</p>
+      <p class="text-[10px] text-gray-400 mt-1">monto que debe quedar gravado al 16%</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Monto facturado</span>
+        <i data-lucide="lock" class="w-4 h-4 text-green-600"></i>
+      </div>
+      <p class="text-xl font-extrabold text-green-700">$2,978.30</p>
+      <p class="text-[10px] text-gray-400 mt-1">2 órdenes bloqueadas (CFDI vigente)</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Por facturar al 16%</span>
+        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500"></i>
+      </div>
+      <p class="text-xl font-extrabold text-[#C05A40]">$19,312.43</p>
+      <p class="text-[10px] text-gray-400 mt-1">= meta 70% − monto ya facturado</p>
+    </div>
+  </div>
+
+  <!-- avance de meta -->
+  <div class="card-base p-4 mb-5">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-[11px] font-semibold text-gray-700">Avance de la meta de facturación</span>
+      <span class="text-[11px] font-bold text-[#C05A40]">13.4%</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" style="width:13.4%"></div></div>
+    <div class="flex justify-between mt-2 text-[10px] text-gray-400">
+      <span>$2,978.30 facturado</span>
+      <span>objetivo $22,290.73</span>
+    </div>
+  </div>
+
+  <!-- tres paneles como el Excel: Acumulado / No facturado / Orden facturado -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+    <!-- Acumulado total real -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2">
+          <i data-lucide="sigma" class="w-4 h-4 text-gray-400"></i>Acumulado total real
+        </h3>
+        <span class="badge-base b-gray">todos los pagos</span>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-80">
+        <table>
+          <thead><tr><th>ID</th><th>Orden</th><th>Forma de pago</th><th class="text-right">Monto</th></tr></thead>
+          <tbody>
+            <tr><td class="font-mono text-[10px]">461831</td><td>1</td><td><span class="badge-base b-green">Efectivo</span></td><td class="text-right font-semibold text-gray-800">$1,058.20</td></tr>
+            <tr><td class="font-mono text-[10px]">461832</td><td>2</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$1,282.00</td></tr>
+            <tr><td class="font-mono text-[10px]">461833</td><td>3</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$2,274.80</td></tr>
+            <tr><td class="font-mono text-[10px]">461834</td><td>4</td><td><span class="badge-base b-green">Efectivo</span></td><td class="text-right font-semibold text-gray-800">$1,610.40</td></tr>
+            <tr><td class="font-mono text-[10px]">461835</td><td>5</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$1,271.00</td></tr>
+            <tr><td class="font-mono text-[10px]">461836</td><td>6</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$1,633.00</td></tr>
+            <tr><td class="font-mono text-[10px]">461837</td><td>7</td><td><span class="badge-base b-green">Efectivo</span></td><td class="text-right font-semibold text-gray-800">$1,533.40</td></tr>
+            <tr><td class="font-mono text-[10px]">461838</td><td>8</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$1,345.30</td></tr>
+            <tr><td class="font-mono text-[10px]">461839</td><td>9</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$2,024.00</td></tr>
+            <tr><td class="font-mono text-[10px]">4618310</td><td>10</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$1,422.55</td></tr>
+            <tr><td class="font-mono text-[10px]">4618312</td><td>12</td><td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td class="text-right font-semibold text-gray-800">$3,034.90</td></tr>
+            <tr><td class="text-center text-gray-400" colspan="4">… 31 pagos más</td></tr>
+          </tbody>
+          <tfoot><tr><td colspan="3">Total del día</td><td class="text-right">$31,843.90</td></tr></tfoot>
+        </table>
       </div>
     </div>
 
-    <!-- KPI CARDS -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-      <!-- total venta -->
-      <div class="card-base p-4">
-        <div class="flex items-start justify-between mb-2">
-          <p class="text-[11px] text-gray-400 font-medium">Total de venta del día</p>
-          <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
-          </div>
-        </div>
-        <p id="kpiTotal" class="text-2xl font-bold text-white">$31,843.90</p>
-        <p class="text-[10px] text-gray-500 mt-1">142 tickets · 3 terminales</p>
+    <!-- No facturado que voy a facturar -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2">
+          <i data-lucide="file-clock" class="w-4 h-4 text-amber-500"></i>No facturado que voy a facturar
+        </h3>
+        <span class="badge-base b-yellow">solo tarjeta</span>
       </div>
-
-      <!-- monto a facturar -->
-      <div class="card-base p-4">
-        <div class="flex items-start justify-between mb-2">
-          <p class="text-[11px] text-gray-400 font-medium">Monto a facturar al 16%</p>
-          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-          </div>
-        </div>
-        <p id="kpiFacturar" class="text-2xl font-bold text-white">$19,312.43</p>
-        <p class="text-[10px] text-gray-500 mt-1">70% de la venta gravada</p>
+      <div class="overflow-auto scroll-thin max-h-64">
+        <table>
+          <thead><tr><th></th><th>ID</th><th>Orden</th><th class="text-right">Monto</th></tr></thead>
+          <tbody id="pendingBody">
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="1282.00" checked></td><td class="font-mono text-[10px]">461832</td><td>2</td><td class="text-right font-semibold text-gray-800">$1,282.00</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="2274.80" checked></td><td class="font-mono text-[10px]">461833</td><td>3</td><td class="text-right font-semibold text-gray-800">$2,274.80</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="1271.00" checked></td><td class="font-mono text-[10px]">461835</td><td>5</td><td class="text-right font-semibold text-gray-800">$1,271.00</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="2024.00" checked></td><td class="font-mono text-[10px]">461839</td><td>9</td><td class="text-right font-semibold text-gray-800">$2,024.00</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="1422.55" checked></td><td class="font-mono text-[10px]">4618310</td><td>10</td><td class="text-right font-semibold text-gray-800">$1,422.55</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="1699.70"></td><td class="font-mono text-[10px]">4618311</td><td>11</td><td class="text-right font-semibold text-gray-800">$1,699.70</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="3034.90"></td><td class="font-mono text-[10px]">4618312</td><td>12</td><td class="text-right font-semibold text-gray-800">$3,034.90</td></tr>
+            <tr><td><input type="checkbox" class="chk-pending accent-[#C05A40]" data-amount="969.10"></td><td class="font-mono text-[10px]">4618316</td><td>16</td><td class="text-right font-semibold text-gray-800">$969.10</td></tr>
+          </tbody>
+        </table>
       </div>
-
-      <!-- ya facturado -->
-      <div class="card-base p-4">
-        <div class="flex items-start justify-between mb-2">
-          <p class="text-[11px] text-gray-400 font-medium">Monto ya facturado</p>
-          <div class="w-8 h-8 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          </div>
-        </div>
-        <p id="kpiFacturado" class="text-2xl font-bold text-green-400">$2,978.30</p>
-        <p class="text-[10px] text-gray-500 mt-1">8 CFDI vigentes emitidos</p>
-      </div>
-
-      <!-- pendiente -->
-      <div class="card-base p-4">
-        <div class="flex items-start justify-between mb-2">
-          <p class="text-[11px] text-gray-400 font-medium">Pendiente para meta</p>
-          <div class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-        </div>
-        <p id="kpiPendiente" class="text-2xl font-bold text-red-400">$16,334.13</p>
-        <p class="text-[10px] text-gray-500 mt-1">Falta para el 70% objetivo</p>
-      </div>
-    </div>
-
-    <!-- PROGRESO META + GRAFICO -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- meta 70% -->
-      <div class="card-base p-5 lg:col-span-1">
-        <div class="flex items-center justify-between mb-4">
-          <p class="text-sm font-bold text-white">Meta de facturación 70%</p>
-          <span id="progLabel" class="badge-base b-yellow">15.4% logrado</span>
-        </div>
-
-        <div class="flex items-end gap-2 mb-1">
-          <p id="progNow" class="text-3xl font-bold text-white">$2,978.30</p>
-          <p id="progGoal" class="text-xs text-gray-500 mb-1">de $19,312.43</p>
-        </div>
-        <div class="prog-track mt-3 mb-2">
-          <div id="progFill" class="prog-fill" style="width:15.4%"></div>
+      <div class="px-4 py-3 border-t border-gray-100 bg-[#FBF1ED]">
+        <div class="flex justify-between text-[11px] mb-1">
+          <span class="text-gray-600 font-semibold">Suma seleccionada</span>
+          <span class="font-bold text-[#C05A40]" id="pendingSum">$8,274.35</span>
         </div>
         <div class="flex justify-between text-[10px] text-gray-500">
-          <span>0%</span><span class="text-purple-400 font-semibold">Meta 70%</span>
-        </div>
-
-        <div class="mt-5 space-y-2 border-t border-gray-800 pt-4">
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-gray-500">Facturado (bloqueado)</span>
-            <span id="brkFacturado" class="text-green-400 font-semibold">$2,978.30</span>
-          </div>
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-gray-500">Por facturar (IVA 0%)</span>
-            <span id="brkPorFacturar" class="text-yellow-400 font-semibold">$16,334.13</span>
-          </div>
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-gray-500">Venta no gravable (30%)</span>
-            <span id="brkNoGravable" class="text-gray-300 font-semibold">$12,531.47</span>
-          </div>
+          <span>Objetivo restante</span><span>$19,312.43</span>
         </div>
       </div>
+    </div>
 
-      <!-- grafico -->
-      <div class="card-base p-5 lg:col-span-2">
+    <!-- Orden facturado -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2">
+          <i data-lucide="lock" class="w-4 h-4 text-green-600"></i>Orden facturado
+        </h3>
+        <span class="badge-base b-green">bloqueadas</span>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-64">
+        <table>
+          <thead><tr><th>ID</th><th>Orden</th><th>Folio</th><th class="text-right">Monto</th></tr></thead>
+          <tbody>
+            <tr class="row-locked"><td class="font-mono text-[10px]">461836</td><td>6</td><td><span class="badge-base b-terra">A134</span></td><td class="text-right font-semibold text-gray-800">$1,633.00</td></tr>
+            <tr class="row-locked"><td class="font-mono text-[10px]">461838</td><td>8</td><td><span class="badge-base b-terra">A135</span></td><td class="text-right font-semibold text-gray-800">$1,345.30</td></tr>
+          </tbody>
+          <tfoot><tr><td colspan="3">Monto facturado</td><td class="text-right text-green-700">$2,978.30</td></tr></tfoot>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-gray-100">
+        <p class="text-[10px] text-gray-500 flex items-start gap-2">
+          <i data-lucide="info" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-[1px]"></i>
+          Las órdenes con CFDI vigente quedan bloqueadas: no entran al generador de folios ni admiten ajuste de precio.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2 · VENTA POR PAGO (carga mensual)                       -->
+<!-- ============================================================ -->
+<section id="tab-ventapago" class="tab-panel">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-gray-900">Venta por pago</h2>
+      <p class="text-[11px] text-gray-500">Cada renglón es un pago aplicado a una orden. Una orden puede tener varios pagos (efectivo + tarjeta).</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select class="input-base"><option selected>Junio</option><option>Mayo</option><option>Abril</option></select>
+      <select class="input-base"><option selected>2026</option><option>2025</option></select>
+      <button class="btn-primary"><i data-lucide="upload"></i>Subir Excel</button>
+    </div>
+  </div>
+
+  <div class="upload-zone mb-4">
+    <div class="w-11 h-11 rounded-lg bg-[#F5E3DC] flex items-center justify-center shrink-0">
+      <i data-lucide="file-spreadsheet" class="w-5 h-5 text-[#C05A40]"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-[12px] font-semibold text-gray-800">Arrastra aquí el export del POS <span class="text-gray-400 font-normal">(hoja "Venta por pago")</span></p>
+      <p class="text-[10px] text-gray-500 mt-0.5">Última carga: <b>Sistema Factura SAT.xlsx</b> · 1,212 renglones · 30/06/2026 21:15</p>
+    </div>
+    <span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>
+  </div>
+
+  <!-- mini KPIs -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Pagos del mes</p><p class="text-lg font-extrabold text-gray-900">1,212</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Órdenes</p><p class="text-lg font-extrabold text-gray-900">784</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Tarjeta de crédito</p><p class="text-lg font-extrabold text-[#C05A40]">$412,038.55</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Efectivo</p><p class="text-lg font-extrabold text-green-700">$298,554.10</p></div>
+  </div>
+
+  <div class="card-base overflow-hidden">
+    <div class="overflow-auto scroll-thin max-h-[480px]">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Facturado</th><th>Forma de pago</th><th>Fecha</th><th>Orden</th>
+            <th>Mov. PDV</th><th>Estatus</th><th>Mesero</th><th>Cajero</th><th>Terminal</th>
+            <th class="text-right">Total</th><th class="text-right">Propina</th><th class="text-right">Total cobrado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-mono text-[10px]">461741</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>1</td><td>3413</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JORGE GORDILLO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$7,443.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$7,443.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461741</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>1</td><td>3413</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JORGE GORDILLO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$370.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$370.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461741</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>1</td><td>3413</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JORGE GORDILLO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$1,302.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,302.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461742</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>2</td><td>3397</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>ANGEL ANTONIO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$904.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$904.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461743</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>3</td><td>3398</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JAZMIN DOMINGUEZ</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$923.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$923.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461744</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>4</td><td>3399</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>ISMAEL CORTES</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$643.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$643.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461745</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>5</td><td>3407</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>MOISES ROBLES</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$2,604.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$2,604.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461746</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>6</td><td>3405</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>OBED PEREZ</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$1,337.00</td><td class="text-right">$200.55</td><td class="text-right font-semibold text-gray-800">$1,537.55</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461747</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>7</td><td>3403</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>ANGEL ANTONIO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$1,035.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,035.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461748</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>8</td><td>3400</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JAZMIN DOMINGUEZ</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$612.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$612.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461748</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>8</td><td>3400</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>JAZMIN DOMINGUEZ</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$826.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$826.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">461749</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>9</td><td>3404</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>ISMAEL CORTES</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$622.00</td><td class="text-right">$78.00</td><td class="text-right font-semibold text-gray-800">$700.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">4617410</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>10</td><td>3402</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>MOISES ROBLES</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$1,382.00</td><td class="text-right">$138.20</td><td class="text-right font-semibold text-gray-800">$1,520.20</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">4617411</td><td><span class="badge-base b-gray">No</span></td>
+            <td><span class="badge-base b-green">Efectivo</span></td><td>01/06/2026</td><td>11</td><td>3401</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>OBED PEREZ</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$413.00</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$413.00</td>
+          </tr>
+          <tr>
+            <td class="font-mono text-[10px]">4617412</td><td><span class="badge-base b-terra">Sí</span></td>
+            <td><span class="badge-base b-terra">Tarjeta de crédito</span></td><td>01/06/2026</td><td>12</td><td>3412</td>
+            <td><span class="badge-base b-green">Pagada</span></td><td>ANGEL ANTONIO</td><td>Pruebas</td><td>SERVER1</td>
+            <td class="text-right font-semibold text-gray-800">$1,156.00</td><td class="text-right">$115.60</td><td class="text-right font-semibold text-gray-800">$1,271.60</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+      <p class="text-[10px] text-gray-500">Mostrando 15 de 1,212 pagos · Junio 2026</p>
+      <div class="flex items-center gap-1">
+        <button class="btn-ghost !px-2.5 !py-1.5"><i data-lucide="chevron-left"></i></button>
+        <button class="btn-ghost !px-2.5 !py-1.5"><i data-lucide="chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3 · DETALLADO (tickets del POS línea por línea)          -->
+<!-- ============================================================ -->
+<section id="tab-detallado" class="tab-panel">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-gray-900">Detallado</h2>
+      <p class="text-[11px] text-gray-500">Tickets del POS línea por línea. Si la columna no trae dato en el Excel, la celda se guarda como <span class="cell-null">NULL</span>.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select class="input-base"><option selected>Junio</option><option>Mayo</option></select>
+      <select class="input-base"><option selected>2026</option><option>2025</option></select>
+      <button class="btn-primary"><i data-lucide="upload"></i>Subir Excel</button>
+    </div>
+  </div>
+
+  <div class="upload-zone mb-4">
+    <div class="w-11 h-11 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+      <i data-lucide="file-spreadsheet" class="w-5 h-5 text-amber-500"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-[12px] font-semibold text-gray-800">Arrastra aquí el export detallado del POS <span class="text-gray-400 font-normal">(hoja "Detallado")</span></p>
+      <p class="text-[10px] text-gray-500 mt-0.5">Sin carga para junio 2026 — los renglones de abajo son un ejemplo del formato esperado.</p>
+    </div>
+    <span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>
+  </div>
+
+  <div class="card-base overflow-hidden">
+    <div class="overflow-auto scroll-thin max-h-[480px]">
+      <table class="min-w-[3000px]">
+        <thead>
+          <tr>
+            <th>Día</th><th>Fecha de operación</th><th>Hora de cierre</th><th>Semana</th><th>Mov. PDV</th>
+            <th>Orden</th><th>Tipo de orden</th><th>Subtipo</th><th>Mesa</th><th>Personas</th><th>Mesero</th>
+            <th>Terminal</th><th>Acción</th>
+            <th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th>
+            <th class="text-right">Descuento</th><th class="text-right">Cant.</th><th class="text-right">P. unitario</th>
+            <th class="text-right">Costo real</th><th class="text-right">Costo c/mod</th><th class="text-right">Costo ideal</th>
+            <th>Tipo de grupo</th><th>Grupo</th><th>Descripción</th><th>Platillo / Artículo</th><th>Modificador</th>
+            <th>Clave platillo</th><th>Es modificado</th><th>Hora de captura</th><th>Terminal de captura</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>15:42</td><td>24</td><td>3521</td><td>3</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>12</td><td>4</td><td>JAZMIN DOMINGUEZ</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$556.03</td><td class="text-right">$88.97</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$645.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">1</td><td class="text-right">$645.00</td>
+            <td class="text-right">$212.40</td><td class="text-right">$212.40</td><td class="text-right">$198.00</td>
+            <td>Alimentos</td><td>Parrillas</td><td>Parrillada mixta 2 personas</td><td>Parrillada Argentina</td>
+            <td class="cell-null">NULL</td><td>PAR-001</td><td>No</td><td>14:05</td><td>CAJA1</td>
+          </tr>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>15:42</td><td>24</td><td>3521</td><td>3</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>12</td><td>4</td><td>JAZMIN DOMINGUEZ</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$168.10</td><td class="text-right">$26.90</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$195.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">3</td><td class="text-right">$65.00</td>
+            <td class="text-right">$27.60</td><td class="text-right">$27.60</td><td class="text-right">$24.00</td>
+            <td>Bebidas</td><td>Aguas frescas</td><td>Limonada c/ agua mineral</td><td>Limonada mineral</td>
+            <td>Sin azúcar</td><td>BEB-014</td><td>Sí</td><td>14:06</td><td>CAJA1</td>
+          </tr>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>16:10</td><td>24</td><td>3524</td><td>5</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>7</td><td>2</td><td>MOISES ROBLES</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$849.14</td><td class="text-right">$135.86</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$985.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">1</td><td class="text-right">$985.00</td>
+            <td class="text-right">$402.00</td><td class="text-right">$418.50</td><td class="text-right">$390.00</td>
+            <td>Alimentos</td><td>Cortes</td><td>Rib Eye 400 g término medio</td><td>Rib Eye 400g</td>
+            <td>Término medio</td><td>COR-003</td><td>Sí</td><td>15:22</td><td>CAJA1</td>
+          </tr>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>16:10</td><td>24</td><td>3524</td><td>5</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>7</td><td>2</td><td>MOISES ROBLES</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$163.79</td><td class="text-right">$26.21</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$190.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">2</td><td class="text-right">$95.00</td>
+            <td class="text-right">$56.00</td><td class="text-right">$56.00</td><td class="text-right">$52.00</td>
+            <td>Bebidas</td><td>Cervezas</td><td>Cerveza artesanal 355 ml</td><td>Cerveza artesanal</td>
+            <td class="cell-null">NULL</td><td>CER-021</td><td>No</td><td>15:23</td><td>CAJA1</td>
+          </tr>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>17:05</td><td>24</td><td>3529</td><td>9</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>4</td><td>6</td><td>OBED PEREZ</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$159.48</td><td class="text-right">$25.52</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$185.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">1</td><td class="text-right">$185.00</td>
+            <td class="text-right">$61.05</td><td class="text-right">$61.05</td><td class="text-right">$58.00</td>
+            <td>Alimentos</td><td>Entradas</td><td>Queso fundido con chorizo</td><td>Queso fundido</td>
+            <td>Con chorizo</td><td>ENT-007</td><td>Sí</td><td>16:31</td><td>CAJA2</td>
+          </tr>
+          <tr>
+            <td>10</td><td>10/06/2026</td><td>17:05</td><td>24</td><td>3529</td><td>9</td><td>Restaurant</td>
+            <td class="cell-null">NULL</td><td>4</td><td>6</td><td>OBED PEREZ</td><td>SERVER1</td><td>Venta</td>
+            <td class="text-right">$81.90</td><td class="text-right">$13.10</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$95.00</td>
+            <td class="text-right">$0.00</td><td class="text-right">1</td><td class="text-right">$95.00</td>
+            <td class="text-right">$22.80</td><td class="text-right">$22.80</td><td class="text-right">$21.00</td>
+            <td>Alimentos</td><td>Postres</td><td>Flan napolitano casero</td><td>Flan napolitano</td>
+            <td class="cell-null">NULL</td><td>POS-002</td><td>No</td><td>16:58</td><td>CAJA2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-3 border-t border-gray-100">
+      <p class="text-[10px] text-gray-500">6 renglones de ejemplo · el detallado real de junio no se ha subido</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4 · FACTURADOS (CFDI emitidos)                           -->
+<!-- ============================================================ -->
+<section id="tab-facturados" class="tab-panel">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-gray-900">Facturados</h2>
+      <p class="text-[11px] text-gray-500">CFDI emitidos en el mes (auto-emisión desde el portal del cliente).</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select class="input-base"><option selected>Junio</option><option>Mayo</option></select>
+      <select class="input-base"><option selected>2026</option><option>2025</option></select>
+      <button class="btn-primary"><i data-lucide="upload"></i>Subir Excel</button>
+    </div>
+  </div>
+
+  <div class="upload-zone mb-4">
+    <div class="w-11 h-11 rounded-lg bg-[#F5E3DC] flex items-center justify-center shrink-0">
+      <i data-lucide="file-check-2" class="w-5 h-5 text-[#C05A40]"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-[12px] font-semibold text-gray-800">Arrastra aquí la lista de facturas <span class="text-gray-400 font-normal">(hoja "Facturados")</span></p>
+      <p class="text-[10px] text-gray-500 mt-0.5">Última carga: <b>Sistema Factura SAT.xlsx</b> · 133 facturas · 30/06/2026 21:15</p>
+    </div>
+    <span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Facturas del mes</p><p class="text-lg font-extrabold text-gray-900">133</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Vigentes</p><p class="text-lg font-extrabold text-green-700">131</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Canceladas</p><p class="text-lg font-extrabold text-red-600">2</p></div>
+    <div class="card-base p-3"><p class="text-[10px] text-gray-500 uppercase font-semibold">Monto facturado</p><p class="text-lg font-extrabold text-[#C05A40]">$186,904.20</p></div>
+  </div>
+
+  <div class="card-base overflow-hidden">
+    <div class="overflow-auto scroll-thin max-h-[480px]">
+      <table class="min-w-[1900px]">
+        <thead>
+          <tr>
+            <th>Folio</th><th>RFC</th><th>Nombre / Razón social</th><th>Referencia</th><th>Estatus</th><th>Fecha</th>
+            <th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th>
+            <th>UUID</th><th>Forma de pago</th><th>Método</th><th>Orden</th><th>Fecha operación</th><th>Tipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge-base b-terra">A133</span></td><td class="font-mono text-[10px]">SACS810810APA</td>
+            <td>JOSE SAUL SANCHEZ CHAVEZ</td><td class="font-mono text-[10px]">AE_63918457880806221</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>30/06/2026</td>
+            <td class="text-right">$1,993.97</td><td class="text-right">$319.03</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$2,313.00</td>
+            <td class="font-mono text-[10px] text-gray-400">5417562a-3821-…-de59162c9838</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>9</td><td>26/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A132</span></td><td class="font-mono text-[10px]">FRA960216DL0</td>
+            <td>FLETERA RAMCA</td><td class="font-mono text-[10px]">AE_63918434040330562</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>30/06/2026</td>
+            <td class="text-right">$1,700.86</td><td class="text-right">$272.14</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,973.00</td>
+            <td class="font-mono text-[10px] text-gray-400">76c4da17-e1b1-…-95117eb4caa5</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>7</td><td>30/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A131</span></td><td class="font-mono text-[10px]">CAQA7911302B5</td>
+            <td>Alejandra Cardenas Quiñones</td><td class="font-mono text-[10px]">AE_63918427507709236</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>30/06/2026</td>
+            <td class="text-right">$1,385.34</td><td class="text-right">$221.66</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,607.00</td>
+            <td class="font-mono text-[10px] text-gray-400">eb815fbd-9f29-…-64a2cbc3ec72</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>3</td><td>26/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A130</span></td><td class="font-mono text-[10px]">CIA210729KS0</td>
+            <td>Comercializadora de Insumos Agrícolas Siete Estrellas</td><td class="font-mono text-[10px]">AE_63918367646585437</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>29/06/2026</td>
+            <td class="text-right">$2,069.83</td><td class="text-right">$331.17</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$2,401.00</td>
+            <td class="font-mono text-[10px] text-gray-400">51bdb90a-546e-…-69792bb4d044</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>8</td><td>29/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A129</span></td><td class="font-mono text-[10px]">OAC151105PA8</td>
+            <td>OPERADORA AGLECO DE CHIAPAS</td><td class="font-mono text-[10px]">AE_63918336099372132</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>29/06/2026</td>
+            <td class="text-right">$3,319.83</td><td class="text-right">$531.17</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$3,851.00</td>
+            <td class="font-mono text-[10px] text-gray-400">fcb91043-f597-…-ed1dd93243dd</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>3</td><td>13/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A128</span></td><td class="font-mono text-[10px]">PED781129JT6</td>
+            <td>GRUPO YAZAKI</td><td class="font-mono text-[10px]">AE_63918274947417574</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>28/06/2026</td>
+            <td class="text-right">$327.59</td><td class="text-right">$52.41</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$380.00</td>
+            <td class="font-mono text-[10px] text-gray-400">f3e97bd6-c414-…-89005ea6d977</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>41</td><td>28/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A127</span></td><td class="font-mono text-[10px]">DUS930517IG7</td>
+            <td>DUSGEM</td><td class="font-mono text-[10px]">AE_63918264820438293</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>28/06/2026</td>
+            <td class="text-right">$1,631.03</td><td class="text-right">$260.97</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,892.00</td>
+            <td class="font-mono text-[10px] text-gray-400">559aca1b-2196-…-e38e7f538054</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>38</td><td>28/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A126</span></td><td class="font-mono text-[10px]">GCM050221BV0</td>
+            <td>Grupo Constructor Metha</td><td class="font-mono text-[10px]">AE_63918263262111041</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>28/06/2026</td>
+            <td class="text-right">$1,571.55</td><td class="text-right">$251.45</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$1,823.00</td>
+            <td class="font-mono text-[10px] text-gray-400">1c8ca7e9-c0df-…-c8e34d76d0a5</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>33</td><td>28/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A125</span></td><td class="font-mono text-[10px]">SAEC761031B3A</td>
+            <td>Carlos Alberto Salazar Estrada</td><td class="font-mono text-[10px]">AE_63918190490114280</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>27/06/2026</td>
+            <td class="text-right">$1,746.55</td><td class="text-right">$279.45</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$2,026.00</td>
+            <td class="font-mono text-[10px] text-gray-400">8f111c30-edaa-…-cf42282f9fc5</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>8</td><td>04/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A124</span></td><td class="font-mono text-[10px]">HCD1108216E6</td>
+            <td>HONORABLE CAMARA DE DIPUTADOS</td><td class="font-mono text-[10px]">AE_63918076135825434</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>26/06/2026</td>
+            <td class="text-right">$519.83</td><td class="text-right">$83.17</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$603.00</td>
+            <td class="font-mono text-[10px] text-gray-400">0ea26d13-390b-…-7437c45c594d</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>5</td><td>24/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A121</span></td><td class="font-mono text-[10px]">BIM011108DJ5</td>
+            <td>BIMBO</td><td class="font-mono text-[10px]">AE_63917849002985495</td>
+            <td><span class="badge-base b-red">Cancelado</span></td><td>23/06/2026</td>
+            <td class="text-right">$282.76</td><td class="text-right">$45.24</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$328.00</td>
+            <td class="font-mono text-[10px] text-gray-400">a27adbde-b850-…-4870a771dbf2</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>17</td><td>23/06/2026</td><td>Auto emisión</td>
+          </tr>
+          <tr>
+            <td><span class="badge-base b-terra">A120</span></td><td class="font-mono text-[10px]">CTA130515AR3</td>
+            <td>CONSULTORES TECNICOS ADMINISTRATIVOS CONSULTEC</td><td class="font-mono text-[10px]">AE_63917836200541009</td>
+            <td><span class="badge-base b-green">Vigente</span></td><td>23/06/2026</td>
+            <td class="text-right">$451.72</td><td class="text-right">$72.28</td><td class="text-right">$0.00</td><td class="text-right font-semibold text-gray-800">$524.00</td>
+            <td class="font-mono text-[10px] text-gray-400">65c19605-a452-…-d91add209b84</td>
+            <td>04 · Tarjetas de crédito</td><td>PUE</td><td>9</td><td>23/06/2026</td><td>Auto emisión</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+      <p class="text-[10px] text-gray-500">Mostrando 12 de 133 facturas · Junio 2026</p>
+      <div class="flex items-center gap-1">
+        <button class="btn-ghost !px-2.5 !py-1.5"><i data-lucide="chevron-left"></i></button>
+        <button class="btn-ghost !px-2.5 !py-1.5"><i data-lucide="chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5 · GENERADOR DE FOLIOS (ticket virtual)                 -->
+<!-- ============================================================ -->
+<section id="tab-generador" class="tab-panel">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-gray-900">Generador de folios · 10/06/2026</h2>
+      <p class="text-[11px] text-gray-500">Tickets del día pagados con tarjeta. Los tickets en <b>efectivo no se muestran</b>. Las notas del día se reinician cada día.</p>
+    </div>
+    <input type="date" value="2026-06-10" class="input-base">
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+
+    <!-- lista de tickets del día -->
+    <div class="xl:col-span-3">
+      <div class="card-base overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2">
+            <i data-lucide="receipt" class="w-4 h-4 text-gray-400"></i>Tickets del día (sin efectivo)
+          </h3>
+          <div class="flex items-center gap-2">
+            <span class="badge-base b-green">2 bloqueados</span>
+            <span class="badge-base b-yellow">5 con IVA 0%</span>
+          </div>
+        </div>
+        <div class="overflow-auto scroll-thin max-h-[520px]">
+          <table>
+            <thead>
+              <tr><th>Nota</th><th>ID</th><th>Tasa</th><th>Estado</th><th class="text-right">Monto</th><th class="text-right">Acción</th></tr>
+            </thead>
+            <tbody>
+              <tr class="row-locked">
+                <td class="font-bold text-gray-800">#6</td><td class="font-mono text-[10px]">461836</td>
+                <td><span class="badge-base b-terra">16%</span></td>
+                <td><span class="badge-base b-green"><i data-lucide="lock" class="w-3 h-3"></i>Facturado A134</span></td>
+                <td class="text-right font-semibold text-gray-800">$1,633.00</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1" disabled>Bloqueado</button></td>
+              </tr>
+              <tr class="row-locked">
+                <td class="font-bold text-gray-800">#8</td><td class="font-mono text-[10px]">461838</td>
+                <td><span class="badge-base b-terra">16%</span></td>
+                <td><span class="badge-base b-green"><i data-lucide="lock" class="w-3 h-3"></i>Facturado A135</span></td>
+                <td class="text-right font-semibold text-gray-800">$1,345.30</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1" disabled>Bloqueado</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#2</td><td class="font-mono text-[10px]">461832</td>
+                <td><span class="badge-base b-terra">16%</span></td>
+                <td><span class="badge-base b-gray">Pendiente de facturar</span></td>
+                <td class="text-right font-semibold text-gray-800">$1,282.00</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="eye"></i>Ver</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#5</td><td class="font-mono text-[10px]">461835</td>
+                <td><span class="badge-base b-terra">16%</span></td>
+                <td><span class="badge-base b-gray">Pendiente de facturar</span></td>
+                <td class="text-right font-semibold text-gray-800">$1,271.00</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="eye"></i>Ver</button></td>
+              </tr>
+              <tr class="bg-[#FBF1ED]">
+                <td class="font-bold text-gray-800">#12</td><td class="font-mono text-[10px]">4618312</td>
+                <td><span class="badge-base b-yellow">0%</span></td>
+                <td><span class="badge-base b-yellow">Requiere ticket virtual</span></td>
+                <td class="text-right font-semibold text-gray-800">$3,034.90</td>
+                <td class="text-right"><button class="btn-primary !px-2.5 !py-1"><i data-lucide="wand-2"></i>Generado</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#13</td><td class="font-mono text-[10px]">4618313</td>
+                <td><span class="badge-base b-yellow">0%</span></td>
+                <td><span class="badge-base b-yellow">Requiere ticket virtual</span></td>
+                <td class="text-right font-semibold text-gray-800">$355.30</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="wand-2"></i>Generar</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#14</td><td class="font-mono text-[10px]">4618314</td>
+                <td><span class="badge-base b-yellow">0%</span></td>
+                <td><span class="badge-base b-yellow">Requiere ticket virtual</span></td>
+                <td class="text-right font-semibold text-gray-800">$503.80</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="wand-2"></i>Generar</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#15</td><td class="font-mono text-[10px]">4618315</td>
+                <td><span class="badge-base b-yellow">0%</span></td>
+                <td><span class="badge-base b-yellow">Requiere ticket virtual</span></td>
+                <td class="text-right font-semibold text-gray-800">$1,093.00</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="wand-2"></i>Generar</button></td>
+              </tr>
+              <tr>
+                <td class="font-bold text-gray-800">#16</td><td class="font-mono text-[10px]">4618316</td>
+                <td><span class="badge-base b-yellow">0%</span></td>
+                <td><span class="badge-base b-yellow">Requiere ticket virtual</span></td>
+                <td class="text-right font-semibold text-gray-800">$969.10</td>
+                <td class="text-right"><button class="btn-ghost !px-2.5 !py-1"><i data-lucide="wand-2"></i>Generar</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 border-t border-gray-100">
+          <p class="text-[10px] text-gray-500 flex items-start gap-2">
+            <i data-lucide="info" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-[1px]"></i>
+            Al generar, el sistema arma una lista de productos aleatorios del catálogo puente que suman el total del ticket.
+            Si la combinación excede el monto, se aplica un descuento para cuadrar.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ticket virtual -->
+    <div class="xl:col-span-2">
+      <div class="card-base p-4">
         <div class="flex items-center justify-between mb-4">
-          <p class="text-sm font-bold text-white">Facturado vs. No facturado</p>
-          <div class="flex items-center gap-4 text-[10px] text-gray-400">
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#3fc189"></span>Facturado</div>
-            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#C05A40"></span>No facturado</div>
+          <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2">
+            <i data-lucide="printer" class="w-4 h-4 text-gray-400"></i>Ticket virtual · Nota #12
+          </h3>
+          <span class="badge-base b-yellow">IVA 0%</span>
+        </div>
+
+        <div id="ticketPrintArea">
+          <div class="ticket-paper">
+            <div style="text-align:center">
+              <p style="font-weight:700;font-size:13px;letter-spacing:1px">RESTAURANT</p>
+              <p>Av. Central Norte 45, Tapachula, Chis.</p>
+              <p>Tel. (962) 555-0134</p>
+            </div>
+            <div class="tk-sep"></div>
+            <table>
+              <tr><td>NOTA:</td><td style="text-align:right;font-weight:700">#12</td></tr>
+              <tr><td>FECHA:</td><td style="text-align:right">10/06/2026 19:47</td></tr>
+              <tr><td>MESA:</td><td style="text-align:right">9</td></tr>
+              <tr><td>MESERO:</td><td style="text-align:right">ANGEL ANTONIO</td></tr>
+              <tr><td>TERMINAL:</td><td style="text-align:right">SERVER1</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+              <tr><td style="font-weight:700">CANT DESCRIPCIÓN</td><td style="text-align:right;font-weight:700">IMPORTE</td></tr>
+              <tr><td>2&nbsp;&nbsp;Parrillada Argentina</td><td style="text-align:right">$1,290.00</td></tr>
+              <tr><td>1&nbsp;&nbsp;Rib Eye 400g</td><td style="text-align:right">$985.00</td></tr>
+              <tr><td>3&nbsp;&nbsp;Limonada mineral</td><td style="text-align:right">$195.00</td></tr>
+              <tr><td>2&nbsp;&nbsp;Cerveza artesanal</td><td style="text-align:right">$190.00</td></tr>
+              <tr><td>1&nbsp;&nbsp;Queso fundido</td><td style="text-align:right">$185.00</td></tr>
+              <tr><td>1&nbsp;&nbsp;Guacamole tradicional</td><td style="text-align:right">$110.00</td></tr>
+              <tr><td>1&nbsp;&nbsp;Flan napolitano</td><td style="text-align:right">$95.00</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+              <tr><td>SUBTOTAL:</td><td style="text-align:right">$3,050.00</td></tr>
+              <tr><td>DESCUENTO:</td><td style="text-align:right;color:#B91C1C">-$15.10</td></tr>
+              <tr><td style="font-weight:700;font-size:13px">TOTAL:</td><td style="text-align:right;font-weight:700;font-size:13px">$3,034.90</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <div style="text-align:center">
+              <p>PAGO: TARJETA DE CRÉDITO</p>
+              <p style="margin-top:6px">¡GRACIAS POR SU VISITA!</p>
+              <p style="margin-top:6px;color:#6B7280">Este ticket no es un comprobante fiscal</p>
+            </div>
           </div>
         </div>
-        <div class="h-[260px]"><canvas id="chartFact"></canvas></div>
-      </div>
-    </div>
-  </section>
 
-  <!-- ==================================================================== -->
-  <!-- TAB 2: DETALLADO                                                     -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel" data-panel="detallado">
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
-      <div>
-        <h1 class="text-lg font-bold text-white">Detallado del POS</h1>
-        <p class="text-xs text-gray-500">Sube los tickets generados por el punto de venta</p>
-      </div>
-      <div class="flex items-end gap-2">
-        <div>
-          <label class="text-[11px] text-gray-500 block mb-1">Mes</label>
-          <select id="mesDetallado" class="input-base"><option>Todos</option><option>Junio</option><option>Mayo</option><option>Abril</option></select>
+        <div class="flex items-center justify-center gap-2 mt-4">
+          <button class="btn-ghost"><i data-lucide="dices"></i>Regenerar productos</button>
+          <button class="btn-primary" onclick="window.print()"><i data-lucide="printer"></i>Imprimir</button>
         </div>
-        <div>
-          <label class="text-[11px] text-gray-500 block mb-1">Año</label>
-          <select id="anioDetallado" class="input-base"><option>Todos</option><option>2024</option><option>2023</option></select>
-        </div>
+        <p class="text-[10px] text-gray-400 text-center mt-3">
+          Productos puente: 7 artículos suman $3,050.00 → descuento de $15.10 para cuadrar los $3,034.90 del ticket.
+        </p>
       </div>
     </div>
-
-    <!-- upload -->
-    <div class="upload-zone mb-4" id="zoneDetallado" onclick="document.getElementById('fileDetallado').click()">
-      <input type="file" id="fileDetallado" accept=".xlsx,.xls,.csv" class="hidden">
-      <div class="w-11 h-11 rounded-lg bg-soft border border-gray-700 flex items-center justify-center shrink-0" style="background:#24201e">
-        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-      </div>
-      <div class="flex-1">
-        <p class="text-sm font-semibold text-white" id="ttlDetallado">Subir Excel de tickets detallado</p>
-        <p class="text-[11px] text-gray-500" id="subDetallado">Formato .xlsx exportado del POS · las celdas sin dato quedan en null</p>
-      </div>
-      <button class="btn-primary" type="button">Seleccionar archivo</button>
-    </div>
-
-    <!-- tabla -->
-    <div class="card-base overflow-hidden">
-      <div class="overflow-x-auto scroll-thin" style="max-height:480px">
-        <table>
-          <thead><tr>
-            <th>Día</th><th>Fecha operación</th><th>Hora cierre</th><th>Orden</th><th>Tipo orden</th>
-            <th>No. Mesa</th><th>Mesero</th><th>Terminal</th>
-            <th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th>
-          </tr></thead>
-          <tbody id="tbDetallado"></tbody>
-        </table>
-      </div>
-      <div class="flex items-center justify-between px-5 py-3 border-t border-gray-800 text-[11px] text-gray-500">
-        <span id="infoDetallado">—</span>
-        <div class="flex gap-1">
-          <button class="btn-ghost !py-1 !px-3" id="prevDetallado">Anterior</button>
-          <button class="btn-purple !py-1 !px-3" id="nextDetallado">Siguiente</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================================================================== -->
-  <!-- TAB 3: FACTURADOS                                                    -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel" data-panel="facturados">
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
-      <div>
-        <h1 class="text-lg font-bold text-white">CFDI Facturados</h1>
-        <p class="text-xs text-gray-500">Lista de facturas timbradas del mes</p>
-      </div>
-      <div class="flex items-end gap-2">
-        <select id="periodoFacturados" class="input-base"><option>Todos</option><option>Junio 2024</option><option>Mayo 2024</option></select>
-      </div>
-    </div>
-
-    <div class="upload-zone mb-4" id="zoneFacturados" onclick="document.getElementById('fileFacturados').click()">
-      <input type="file" id="fileFacturados" accept=".xlsx,.xls,.csv" class="hidden">
-      <div class="w-11 h-11 rounded-lg bg-soft border border-gray-700 flex items-center justify-center shrink-0" style="background:#24201e">
-        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      </div>
-      <div class="flex-1">
-        <p class="text-sm font-semibold text-white" id="ttlFacturados">Subir Excel de facturas (CFDI)</p>
-        <p class="text-[11px] text-gray-500" id="subFacturados">RFC, folio, UUID, forma y método de pago SAT</p>
-      </div>
-      <button class="btn-primary" type="button">Seleccionar archivo</button>
-    </div>
-
-    <div class="card-base overflow-hidden">
-      <div class="overflow-x-auto scroll-thin" style="max-height:480px">
-        <table>
-          <thead><tr>
-            <th>ID</th><th>RFC</th><th>Nombre</th><th>Folio</th><th>Referencia</th><th>Estatus</th><th>Fecha</th>
-            <th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th>
-            <th>UUID</th><th>Forma pago</th><th>Método</th>
-          </tr></thead>
-          <tbody id="tbFacturados"></tbody>
-        </table>
-      </div>
-      <div class="flex items-center justify-between px-5 py-3 border-t border-gray-800 text-[11px] text-gray-500">
-        <span id="infoFacturados">—</span>
-        <div class="flex gap-1">
-          <button class="btn-ghost !py-1 !px-3" id="prevFacturados">Anterior</button>
-          <button class="btn-purple !py-1 !px-3" id="nextFacturados">Siguiente</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================================================================== -->
-  <!-- TAB 4: VENTA POR PAGO                                                -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel" data-panel="ventapago">
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
-      <div>
-        <h1 class="text-lg font-bold text-white">Venta por pago</h1>
-        <p class="text-xs text-gray-500">Cada renglón es un pago aplicado a una orden (efectivo / tarjeta)</p>
-      </div>
-      <div class="flex items-end gap-2">
-        <select id="periodoVentaPago" class="input-base"><option>Todos</option><option>Junio 2024</option><option>Mayo 2024</option></select>
-      </div>
-    </div>
-
-    <div class="upload-zone mb-4" id="zoneVentaPago" onclick="document.getElementById('fileVentaPago').click()">
-      <input type="file" id="fileVentaPago" accept=".xlsx,.xls,.csv" class="hidden">
-      <div class="w-11 h-11 rounded-lg bg-soft border border-gray-700 flex items-center justify-center shrink-0" style="background:#24201e">
-        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-      </div>
-      <div class="flex-1">
-        <p class="text-sm font-semibold text-white" id="ttlVentaPago">Subir Excel de ventas por pago</p>
-        <p class="text-[11px] text-gray-500" id="subVentaPago">Export del POS con formas de pago y montos cobrados</p>
-      </div>
-      <button class="btn-primary" type="button">Seleccionar archivo</button>
-    </div>
-
-    <div class="card-base overflow-hidden">
-      <div class="overflow-x-auto scroll-thin" style="max-height:480px">
-        <table>
-          <thead><tr>
-            <th>ID</th><th>Facturado</th><th>Forma de pago</th><th>Día</th><th>Orden</th>
-            <th class="text-right">Monto</th><th class="text-right">Total</th><th class="text-right">Propina</th>
-            <th>Estatus</th><th>Mesero</th><th>Cajero</th><th>Terminal</th><th class="text-right">Total cobrado</th>
-          </tr></thead>
-          <tbody id="tbVentaPago"></tbody>
-        </table>
-      </div>
-      <div class="flex items-center justify-between px-5 py-3 border-t border-gray-800 text-[11px] text-gray-500">
-        <span id="infoVentaPago">—</span>
-        <div class="flex gap-1">
-          <button class="btn-ghost !py-1 !px-3" id="prevVentaPago">Anterior</button>
-          <button class="btn-purple !py-1 !px-3" id="nextVentaPago">Siguiente</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================================================================== -->
-  <!-- TAB 5: CONSULTA / RESUMEN                                            -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel" data-panel="consulta">
-    <div class="mb-4">
-      <h1 class="text-lg font-bold text-white">Consulta · Resumen de ventas</h1>
-      <p class="text-xs text-gray-500">Acumulado real, no facturados de banco y órdenes facturadas por rango</p>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- acumulado -->
-      <div class="card-base p-5">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          </div>
-          <p class="text-sm font-bold text-white">Acumulado total real</p>
-        </div>
-        <p id="accTotal" class="text-3xl font-bold text-white mb-1">$486,204.15</p>
-        <p class="text-[11px] text-gray-500 mb-4">Venta total del mes de junio 2024</p>
-        <div class="space-y-2 border-t border-gray-800 pt-3">
-          <div class="flex justify-between text-[11px]"><span class="text-gray-500">Efectivo</span><span id="accEfectivo" class="text-gray-300 font-semibold">$198,441.20</span></div>
-          <div class="flex justify-between text-[11px]"><span class="text-gray-500">Tarjeta crédito/débito</span><span id="accTarjeta" class="text-gray-300 font-semibold">$287,762.95</span></div>
-          <div class="flex justify-between text-[11px] border-t border-gray-800 pt-2"><span class="text-white font-semibold">Total operado</span><span id="accOperado" class="text-blue-400 font-bold">$486,204.15</span></div>
-        </div>
-      </div>
-
-      <!-- no facturados banco -->
-      <div class="card-base p-5">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-8 h-8 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          </div>
-          <p class="text-sm font-bold text-white">No facturados (banco)</p>
-        </div>
-        <p id="nfTotal" class="text-3xl font-bold text-yellow-400 mb-1">$84,915.60</p>
-        <p class="text-[11px] text-gray-500 mb-3">Solo tarjeta de crédito · <span class="text-red-400">excluye efectivo</span></p>
-        <div class="overflow-x-auto scroll-thin -mx-2">
-          <table><thead><tr><th>Orden</th><th>Forma</th><th class="text-right">Monto</th></tr></thead>
-          <tbody id="tbNoFacturados"></tbody></table>
-        </div>
-      </div>
-
-      <!-- ordenes facturadas -->
-      <div class="card-base p-5">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-8 h-8 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <p class="text-sm font-bold text-white">Órdenes facturadas</p>
-        </div>
-        <div class="flex items-end gap-2 mb-3">
-          <div class="flex-1">
-            <label class="text-[11px] text-gray-500 block mb-1">Desde</label>
-            <input id="ofDesde" type="date" value="2024-06-01" class="input-base w-full">
-          </div>
-          <div class="flex-1">
-            <label class="text-[11px] text-gray-500 block mb-1">Hasta</label>
-            <input id="ofHasta" type="date" value="2024-06-30" class="input-base w-full">
-          </div>
-        </div>
-        <div class="overflow-x-auto scroll-thin -mx-2">
-          <table><thead><tr><th>Folio</th><th>RFC</th><th class="text-right">Total</th></tr></thead>
-          <tbody id="tbOrdenesFact"></tbody></table>
-        </div>
-        <div class="flex justify-between text-[11px] border-t border-gray-800 pt-3 mt-3">
-          <span class="text-white font-semibold">Total facturado</span><span id="ofTotal" class="text-green-400 font-bold">$2,978.30</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================================================================== -->
-  <!-- TAB 6: GENERADOR DE FOLIOS                                           -->
-  <!-- ==================================================================== -->
-  <section class="tab-panel" data-panel="folios">
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
-      <div>
-        <h1 class="text-lg font-bold text-white">Generador de folios</h1>
-        <p class="text-xs text-gray-500">Tickets del día · <span class="text-red-400">no se muestran los de efectivo</span> · IVA 0% habilita generar ticket virtual</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="badge-base b-red">🔒 Facturado = bloqueado</span>
-        <span class="badge-base b-yellow">IVA 0% = generable</span>
-      </div>
-    </div>
-
-    <div class="card-base overflow-hidden">
-      <div class="overflow-x-auto scroll-thin" style="max-height:520px">
-        <table>
-          <thead><tr>
-            <th>Orden</th><th>Hora</th><th>Mesa</th><th>Mesero</th><th>Forma de pago</th>
-            <th class="text-right">IVA</th><th class="text-right">Total</th><th>Estado</th><th class="text-right">Acción</th>
-          </tr></thead>
-          <tbody id="tbFolios"></tbody>
-        </table>
-      </div>
-      <div class="px-5 py-3 border-t border-gray-800 text-[11px] text-gray-500" id="infoFolios">—</div>
-    </div>
-  </section>
+  </div>
+</section>
 
 </main>
 
-<!-- ==================================================================== -->
-<!-- MODAL: TICKET VIRTUAL (recibo)                                       -->
-<!-- ==================================================================== -->
-<div id="modalTicket" class="fixed inset-0 z-50 hidden items-center justify-center">
-  <div class="absolute inset-0 bg-black/60" onclick="closeTicket()"></div>
-  <div class="modal-card relative z-10 w-[420px] max-h-[92vh] overflow-y-auto scroll-thin border border-gray-700 rounded-2xl p-5" style="background:#292524">
-    <button class="absolute top-3 right-3 text-gray-400 hover:text-white no-print" onclick="closeTicket()">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-    </button>
-    <div class="flex items-center gap-2 mb-4 no-print">
-      <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-xs">FS</div>
-      <div><p class="text-sm font-bold text-white">Ticket virtual</p><p class="text-[10px] text-gray-500">Vista previa de impresión · IVA 0%</p></div>
-    </div>
-
-    <!-- ticket paper -->
-    <div class="ticket-paper bg-white text-gray-900 rounded-lg p-5 font-mono text-[11px] leading-relaxed" style="color:#111">
-      <div class="text-center mb-2">
-        <p class="font-bold text-sm">RESTAURANTE COFFEESOFT</p>
-        <p>Sucursal Centro · Terminal 02</p>
-        <p id="ticketHead">Orden #461768 · Mesa 14</p>
-        <p>10/Jun/2024 · 21:34 hrs</p>
-      </div>
-      <div class="border-t border-dashed border-gray-400 my-2"></div>
-      <div id="ticketItems"></div>
-      <div class="border-t border-dashed border-gray-400 my-2"></div>
-      <div class="flex justify-between"><span>Subtotal</span><span id="ticketSub">$1,991.38</span></div>
-      <div class="flex justify-between"><span>IVA (0%)</span><span>$0.00</span></div>
-      <div class="flex justify-between"><span>IEPS</span><span>$0.00</span></div>
-      <div class="flex justify-between font-bold text-sm mt-1"><span>TOTAL</span><span id="ticketTotal">$1,991.38</span></div>
-      <div class="border-t border-dashed border-gray-400 my-2"></div>
-      <p class="text-center text-[10px]">Forma de pago: 04 Tarjeta de crédito</p>
-      <p class="text-center text-[10px] mt-2">*** GRACIAS POR SU VISITA ***</p>
-    </div>
-
-    <div class="mt-3 flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 no-print">
-      <svg class="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.96L13.75 4a2 2 0 00-3.5 0L3.32 16.04A2 2 0 005.07 19z"/></svg>
-      <p class="text-[10px] text-yellow-300">Ticket con IVA 0%. Los productos se generan de forma aleatoria para cuadrar el total; si excede el límite se aplica descuento automático.</p>
-    </div>
-
-    <div class="flex gap-2 mt-4 no-print">
-      <button class="btn-ghost flex-1 justify-center" onclick="closeTicket()">Cerrar</button>
-      <button class="btn-purple flex-1 justify-center" onclick="window.print()">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-        Imprimir ticket
-      </button>
+<!-- ============================== FOOTER ============================== -->
+<footer class="border-t border-gray-200 bg-white mt-6">
+  <div class="max-w-[1500px] mx-auto px-5 py-4 flex flex-wrap items-center justify-between gap-2">
+    <p class="text-[10px] text-gray-400">Facturador SAT · Template Fase 1 (Análisis) · CoffeeSoft © 2026</p>
+    <div class="flex items-center gap-4 text-[10px] text-gray-400">
+      <span class="flex items-center gap-1"><i data-lucide="calendar-sync" class="w-3 h-3"></i>Las notas del día se reinician al siguiente día</span>
+      <span class="flex items-center gap-1"><i data-lucide="eye-off" class="w-3 h-3"></i>Los tickets en efectivo no se muestran en el generador</span>
     </div>
   </div>
-</div>
-
-<footer class="text-center text-[10px] text-gray-600 py-6">
-  Facturador SAT · Fase 1 funcional (carga Excel + generación) · Sistema de facturación CoffeeSoft ☕ · Datos de ejemplo
 </footer>
 
 <script>
-/* ============ HELPERS ============ */
-const money=n=>'$'+num(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
-function num(v){if(typeof v==='number')return v;const f=parseFloat(String(v??'').replace(/[^0-9.\-]/g,''));return isNaN(f)?0:f;}
-function norm(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');}
-const MESES={enero:'ene',febrero:'feb',marzo:'mar',abril:'abr',mayo:'may',junio:'jun',julio:'jul',agosto:'ago',septiembre:'sep',octubre:'oct',noviembre:'nov',diciembre:'dic'};
-
-/* ============ THEME TOGGLE ============ */
-(function(){
-  const KEY='facturador-theme';
-  const btns=document.querySelectorAll('[data-theme-btn]');
-  function apply(t){
-    document.body.setAttribute('data-theme',t);
-    btns.forEach(b=>b.classList.toggle('theme-active',b.getAttribute('data-theme-btn')===t));
-    localStorage.setItem(KEY,t);
+  function showTab(name, btn){
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
   }
-  btns.forEach(b=>b.addEventListener('click',()=>apply(b.getAttribute('data-theme-btn'))));
-  apply(localStorage.getItem(KEY)||'dark');
-})();
 
-/* ============ TAB NAV ============ */
-document.querySelectorAll('.tab-btn').forEach(t=>{
-  t.addEventListener('click',()=>{
-    const id=t.getAttribute('data-tab');
-    document.querySelectorAll('.tab-btn').forEach(x=>x.classList.toggle('active',x===t));
-    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.getAttribute('data-panel')===id));
-  });
-});
-
-/* ============ SAMPLE DATA (semilla) ============ */
-const detallado=[
-  ['Lun','10/Jun/2024','14:05','461741','Comedor','8','Ana López','T-01',1068.97,171.03,0,1240.00],
-  ['Lun','10/Jun/2024','14:22','461755','Para llevar','—','Luis Pérez','T-02',746.12,119.38,0,865.50],
-  ['Lun','10/Jun/2024','15:10','461768','Comedor','14','Ana López','T-02',1991.38,318.62,0,2310.00],
-  ['Lun','10/Jun/2024','15:48','461772','Comedor','6','Marta Ruiz','T-01',465.78,74.52,0,540.30],
-  ['Lun','10/Jun/2024','16:30','461790','Domicilio','—','Luis Pérez','T-03',1155.17,184.83,0,1340.00],
-  ['Lun','10/Jun/2024','17:12','461803','Comedor','3','Marta Ruiz','T-01',689.66,110.34,0,800.00],
-  ['Lun','10/Jun/2024','18:05','461818','Comedor','9','Ana López','T-02',2327.59,372.41,0,2700.00],
-  ['Lun','10/Jun/2024','19:40','461834','Barra','—','Luis Pérez','T-03',387.93,62.07,0,450.00],
-  ['Mar','11/Jun/2024','13:50','461902','Comedor','5','Ana López','T-01',862.07,137.93,0,1000.00],
-  ['Mar','11/Jun/2024','14:35','461915','Para llevar','—','Marta Ruiz','T-02',603.45,96.55,0,700.00],
-  ['Mar','11/Jun/2024','20:10','461980','Comedor','12','Luis Pérez','T-03',1724.14,275.86,0,2000.00],
-];
-const facturados=[
-  [1,'XAXX010101000','Público General','A133','REF-9012','Vigente','10/Jun/2024',1240.00,198.40,0,1438.40,'A1B2C3D4-E5F6-7890-ABCD-1234567890EF','01 Efectivo','PUE'],
-  [2,'GODE561231GR8','Godínez Delgado','A132','REF-9008','Vigente','10/Jun/2024',850.17,136.03,0,986.20,'B2C3D4E5-F6A7-8901-BCDE-2345678901FA','04 Tarjeta','PUE'],
-  [3,'CACX7605101P8','Carrasco Xoloc','A131','REF-9001','Vigente','10/Jun/2024',477.33,76.37,0,553.70,'C3D4E5F6-A7B8-9012-CDEF-3456789012AB','04 Tarjeta','PUE'],
-  [4,'MOTA890512QX2','Mora Tapia','A130','REF-8995','Cancelado','09/Jun/2024',620.69,99.31,0,720.00,'D4E5F6A7-B8C9-0123-DEFA-4567890123BC','01 Efectivo','PUE'],
-  [5,'ROVE740920HN4','Rojas Vega','A129','REF-8990','Vigente','09/Jun/2024',1120.69,179.31,0,1300.00,'E5F6A7B8-C9D0-1234-EFAB-5678901234CD','04 Tarjeta','PUE'],
-  [6,'XAXX010101000','Público General','A128','REF-8984','Vigente','09/Jun/2024',344.83,55.17,0,400.00,'F6A7B8C9-D0E1-2345-FABC-6789012345DE','01 Efectivo','PUE'],
-  [7,'IIA040805DZ4','Innova Alimentos','A127','REF-8970','Vigente','08/Jun/2024',965.52,154.48,0,1120.00,'A7B8C9D0-E1F2-3456-ABCD-7890123456EF','04 Tarjeta','PUE'],
-];
-const ventapago=[
-  [461741,'Sí','04 Tarjeta','10/Jun/2024','461741',1240.00,1240.00,124.00,'Cobrado','Ana López','C. Torres','T-01',1364.00],
-  [461741,'No','01 Efectivo','10/Jun/2024','461741',380.00,380.00,0,'Cobrado','Ana López','C. Torres','T-01',380.00],
-  [461755,'No','04 Tarjeta','10/Jun/2024','461755',865.50,865.50,86.55,'Cobrado','Luis Pérez','C. Torres','T-02',952.05],
-  [461768,'No','04 Tarjeta','10/Jun/2024','461768',2310.00,2310.00,231.00,'Cobrado','Ana López','R. Díaz','T-02',2541.00],
-  [461772,'No','01 Efectivo','10/Jun/2024','461772',540.30,540.30,0,'Cobrado','Marta Ruiz','R. Díaz','T-01',540.30],
-  [461790,'No','04 Tarjeta','10/Jun/2024','461790',1340.00,1340.00,134.00,'Cobrado','Luis Pérez','R. Díaz','T-03',1474.00],
-  [461803,'Sí','04 Tarjeta','10/Jun/2024','461803',800.00,800.00,80.00,'Cobrado','Marta Ruiz','C. Torres','T-01',880.00],
-  [461818,'No','01 Efectivo','10/Jun/2024','461818',2700.00,2700.00,0,'Cobrado','Ana López','R. Díaz','T-02',2700.00],
-  [461902,'No','04 Tarjeta','11/Jun/2024','461902',1000.00,1000.00,100.00,'Cobrado','Ana López','C. Torres','T-01',1100.00],
-];
-const folios=[
-  ['461741','14:05','8','Ana López','04 Tarjeta',0,1240.00,'locked'],
-  ['461755','14:22','—','Luis Pérez','04 Tarjeta',0,865.50,'gen'],
-  ['461768','15:10','14','Ana López','04 Tarjeta',0,2310.00,'gen'],
-  ['461790','16:30','—','Luis Pérez','04 Tarjeta',0,1340.00,'gen'],
-  ['461803','17:12','3','Marta Ruiz','04 Tarjeta',80.00,800.00,'locked'],
-  ['461818','18:05','9','Ana López','04 Tarjeta',0,2700.00,'gen'],
-  ['461845','20:15','11','Marta Ruiz','04 Tarjeta',0,1580.00,'gen'],
-  ['461862','21:34','14','Luis Pérez','04 Tarjeta',0,1991.38,'gen'],
-];
-
-/* ============ RENDER DE FILAS ============ */
-function rowDetallado(r){return `<tr>
-  <td class="text-gray-300">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
-  <td class="text-gray-300 font-medium">${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td><td>${r[7]}</td>
-  <td class="text-right">${money(r[8])}</td><td class="text-right text-purple-400">${money(r[9])}</td>
-  <td class="text-right">${money(r[10])}</td><td class="text-right text-white font-medium">${money(r[11])}</td></tr>`;}
-
-const cfdiBadge=s=>norm(s)==='cancelado'?'<span class="badge-base b-red">Cancelado</span>':'<span class="badge-base b-green">Vigente</span>';
-function rowFacturados(r){return `<tr>
-  <td class="text-gray-300">${r[0]}</td><td class="text-gray-300 font-medium">${r[1]}</td><td>${r[2]}</td>
-  <td class="text-purple-400 font-medium">${r[3]}</td><td>${r[4]}</td><td>${cfdiBadge(r[5])}</td><td>${r[6]}</td>
-  <td class="text-right">${money(r[7])}</td><td class="text-right">${money(r[8])}</td><td class="text-right">${money(r[9])}</td>
-  <td class="text-right text-white font-medium">${money(r[10])}</td>
-  <td class="text-[10px] text-gray-500">${r[11]}</td><td>${r[12]}</td><td>${r[13]}</td></tr>`;}
-
-const factBadge=f=>norm(f)==='si'?'<span class="badge-base b-green">Sí</span>':'<span class="badge-base b-gray">No</span>';
-const pagoBadge=p=>/tarjeta/i.test(p)?'<span class="badge-base b-blue">'+p+'</span>':'<span class="badge-base b-gray">'+p+'</span>';
-function rowVentaPago(r){return `<tr>
-  <td class="text-gray-300">${r[0]}</td><td>${factBadge(r[1])}</td>
-  <td>${pagoBadge(r[2])}</td>
-  <td>${r[3]}</td><td class="text-gray-300 font-medium">${r[4]}</td>
-  <td class="text-right">${money(r[5])}</td><td class="text-right">${money(r[6])}</td><td class="text-right text-pink-400">${money(r[7])}</td>
-  <td><span class="badge-base b-green">${r[8]}</span></td><td>${r[9]}</td><td>${r[10]}</td><td>${r[11]}</td>
-  <td class="text-right text-white font-medium">${money(r[12])}</td></tr>`;}
-
-/* ============ CONTROLADOR DE TABLA (paginación + filtro + carga Excel) ============ */
-const TABLES={
-  detallado:{full:detallado,data:detallado.slice(),page:0,size:8,body:'tbDetallado',info:'infoDetallado',
-    prev:'prevDetallado',next:'nextDetallado',cols:12,row:rowDetallado,unidad:'registros',
-    aliases:[['dia'],['fechadeoperacion','fechaoperacion','fecha'],['horadecierre','horacierre','hora'],['orden','movimiento'],['tipodeorden','tipoorden','tipo'],['nomesa','mesa','numesa'],['mesero'],['terminal'],['subtotal'],['iva'],['ieps'],['total']],
-    dateCols:[1,0]},
-  facturados:{full:facturados,data:facturados.slice(),page:0,size:6,body:'tbFacturados',info:'infoFacturados',
-    prev:'prevFacturados',next:'nextFacturados',cols:14,row:rowFacturados,unidad:'CFDI',
-    aliases:[['id'],['rfc'],['nombre','razonsocial'],['folio'],['referencia'],['estatus','estado'],['fecha'],['subtotal'],['iva'],['ieps'],['total'],['uuid','foliofiscal'],['formadepago','formapago','forma'],['metodo','metododepago']],
-    dateCols:[6]},
-  ventapago:{full:ventapago,data:ventapago.slice(),page:0,size:8,body:'tbVentaPago',info:'infoVentaPago',
-    prev:'prevVentaPago',next:'nextVentaPago',cols:13,row:rowVentaPago,unidad:'pagos',
-    aliases:[['id'],['facturados','facturado'],['formadepago','formapago','forma'],['dia','fecha'],['orden'],['monto'],['total'],['propina'],['estatus','estado'],['mesero'],['cajero'],['terminal'],['totalcobrado']],
-    dateCols:[3]}
-};
-
-function renderTable(key){
-  const t=TABLES[key];
-  const total=t.data.length, pages=Math.max(1,Math.ceil(total/t.size));
-  if(t.page>=pages)t.page=pages-1;
-  if(t.page<0)t.page=0;
-  const start=t.page*t.size, slice=t.data.slice(start,start+t.size);
-  const body=document.getElementById(t.body);
-  body.innerHTML= slice.length
-    ? slice.map(t.row).join('')
-    : `<tr class="empty-row"><td colspan="${t.cols}" class="text-center text-gray-500 py-8">Sin registros para el filtro seleccionado</td></tr>`;
-  const desde=total?start+1:0, hasta=Math.min(start+t.size,total);
-  document.getElementById(t.info).textContent=`Mostrando ${desde}–${hasta} de ${total} ${t.unidad}`;
-  document.getElementById(t.prev).disabled=t.page<=0;
-  document.getElementById(t.next).disabled=t.page>=pages-1;
-}
-
-Object.keys(TABLES).forEach(key=>{
-  const t=TABLES[key];
-  document.getElementById(t.prev).addEventListener('click',()=>{t.page--;renderTable(key);});
-  document.getElementById(t.next).addEventListener('click',()=>{t.page++;renderTable(key);});
-});
-
-/* ---- filtro por mes/año sobre las columnas de fecha ---- */
-function applyFilter(key,mes,anio){
-  const t=TABLES[key];
-  const mAbbr=mes&&MESES[norm(mes)]?MESES[norm(mes)]:'';
-  const y=anio&&norm(anio)!=='todos'?String(anio).replace(/\D/g,''):'';
-  t.data=t.full.filter(r=>{
-    const cells=t.dateCols.map(i=>norm(r[i])).join(' ');
-    const okMes=!mAbbr||cells.includes(mAbbr);
-    const okAnio=!y||t.full.length&&(r.some(c=>String(c).includes(y)));
-    return okMes&&okAnio;
-  });
-  t.page=0; renderTable(key);
-}
-
-document.getElementById('mesDetallado').addEventListener('change',()=>filtrarDetallado());
-document.getElementById('anioDetallado').addEventListener('change',()=>filtrarDetallado());
-function filtrarDetallado(){
-  const mes=document.getElementById('mesDetallado').value;
-  const anio=document.getElementById('anioDetallado').value;
-  applyFilter('detallado', mes==='Todos'?'':mes, anio);
-}
-function periodoHandler(selId,key){
-  document.getElementById(selId).addEventListener('change',e=>{
-    const v=e.target.value; // "Junio 2024" | "Todos"
-    if(v==='Todos'){applyFilter(key,'','');return;}
-    const [mes,anio]=v.split(' ');
-    applyFilter(key,mes,anio);
-  });
-}
-periodoHandler('periodoFacturados','facturados');
-periodoHandler('periodoVentaPago','ventapago');
-
-/* ============ CARGA DE EXCEL (SheetJS) ============ */
-function findHeaderRow(rows,aliases){
-  const flat=aliases.flat();
-  for(let i=0;i<Math.min(rows.length,8);i++){
-    const hits=rows[i].filter(c=>flat.some(a=>norm(c)===a||norm(c).includes(a))).length;
-    if(hits>=2)return i;
+  // Suma de tickets seleccionados en "No facturado que voy a facturar".
+  function updatePendingSum(){
+    let sum = 0;
+    document.querySelectorAll('.chk-pending:checked').forEach(c => sum += parseFloat(c.dataset.amount));
+    document.getElementById('pendingSum').textContent =
+      '$' + sum.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   }
-  return 0;
-}
-function mapColumns(header,aliases){
-  return aliases.map(al=>{
-    let idx=header.findIndex(c=>al.some(a=>norm(c)===a));
-    if(idx<0)idx=header.findIndex(c=>al.some(a=>norm(c).includes(a)&&norm(c)));
-    return idx;
-  });
-}
-function sheetToRows(sheet,aliases){
-  const raw=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
-  const nonEmpty=raw.filter(r=>r.some(c=>String(c).trim()!==''));
-  if(!nonEmpty.length)return [];
-  const hIdx=findHeaderRow(nonEmpty,aliases);
-  const header=nonEmpty[hIdx];
-  const map=mapColumns(header,aliases);
-  const hasHeader=map.some(i=>i>=0);
-  const dataRows=hasHeader?nonEmpty.slice(hIdx+1):nonEmpty;
-  return dataRows.map(r=>aliases.map((al,i)=>{
-    const idx=hasHeader?map[i]:i;
-    return idx>=0&&idx<r.length?r[idx]:'';
-  }));
-}
-function handleUpload(key,file){
-  const t=TABLES[key];
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const sheet=wb.Sheets[wb.SheetNames[0]];
-      const rows=sheetToRows(sheet,t.aliases);
-      if(!rows.length){alert('El archivo no contiene filas de datos reconocibles.');return;}
-      t.full=rows; t.data=rows.slice(); t.page=0;
-      renderTable(key);
-      markLoaded(key,file.name,rows.length);
-      if(key==='ventapago'||key==='facturados'){recomputeDashboard();recomputeConsulta();}
-      if(key==='ventapago'){recomputeFolios();}
-    }catch(err){console.error(err);alert('No se pudo leer el archivo: '+err.message);}
-  };
-  reader.readAsArrayBuffer(file);
-}
-const ZONE={detallado:{zone:'zoneDetallado',ttl:'ttlDetallado',sub:'subDetallado',file:'fileDetallado'},
-            facturados:{zone:'zoneFacturados',ttl:'ttlFacturados',sub:'subFacturados',file:'fileFacturados'},
-            ventapago:{zone:'zoneVentaPago',ttl:'ttlVentaPago',sub:'subVentaPago',file:'fileVentaPago'}};
-function markLoaded(key,name,n){
-  const z=ZONE[key];
-  document.getElementById(z.zone).classList.add('loaded');
-  document.getElementById(z.ttl).textContent='Archivo cargado ✓';
-  document.getElementById(z.sub).textContent=`${name} · ${n} registros importados`;
-}
-Object.keys(ZONE).forEach(key=>{
-  document.getElementById(ZONE[key].file).addEventListener('change',e=>{
-    if(e.target.files.length)handleUpload(key,e.target.files[0]);
-  });
-});
+  document.querySelectorAll('.chk-pending').forEach(c => c.addEventListener('change', updatePendingSum));
+  updatePendingSum();
 
-/* ============ TABLERO: recálculo desde datos ============ */
-function recomputeDashboard(){
-  const vp=TABLES.ventapago.full;
-  const fc=TABLES.facturados.full;
-  const total=vp.reduce((a,r)=>a+num(r[6]),0);                 // Total del pago
-  const facturado=fc.filter(r=>norm(r[5])!=='cancelado').reduce((a,r)=>a+num(r[10]),0); // Total CFDI vigentes
-  const goal=total*0.7;
-  const pend=Math.max(goal-facturado,0);
-  const pct=goal?Math.min(facturado/goal*100,100):0;
-  document.getElementById('kpiTotal').textContent=money(total);
-  document.getElementById('kpiFacturar').textContent=money(goal);
-  document.getElementById('kpiFacturado').textContent=money(facturado);
-  document.getElementById('kpiPendiente').textContent=money(pend);
-  document.getElementById('progNow').textContent=money(facturado);
-  document.getElementById('progGoal').textContent='de '+money(goal);
-  document.getElementById('progLabel').textContent=pct.toFixed(1)+'% logrado';
-  document.getElementById('progFill').style.width=pct.toFixed(1)+'%';
-  document.getElementById('brkFacturado').textContent=money(facturado);
-  document.getElementById('brkPorFacturar').textContent=money(pend);
-  document.getElementById('brkNoGravable').textContent=money(total*0.3);
-  if(window._chart){
-    const ds=window._chart.data.datasets;
-    ds[0].data[4]=Math.round(facturado);
-    ds[1].data[4]=Math.round(pend);
-    window._chart.update();
-  }
-}
-
-/* ============ CONSULTA / RESUMEN ============ */
-function recomputeConsulta(){
-  const vp=TABLES.ventapago.full;
-  const fc=TABLES.facturados.full;
-  const efectivo=vp.filter(r=>/efectivo/i.test(r[2])).reduce((a,r)=>a+num(r[12]||r[6]),0);
-  const tarjeta =vp.filter(r=>/tarjeta/i.test(r[2])).reduce((a,r)=>a+num(r[12]||r[6]),0);
-  document.getElementById('accEfectivo').textContent=money(efectivo);
-  document.getElementById('accTarjeta').textContent=money(tarjeta);
-  document.getElementById('accTotal').textContent=money(efectivo+tarjeta);
-  document.getElementById('accOperado').textContent=money(efectivo+tarjeta);
-  // No facturados: solo tarjeta + facturado = No
-  const nf=vp.filter(r=>/tarjeta/i.test(r[2])&&norm(r[1])!=='si');
-  document.getElementById('nfTotal').textContent=money(nf.reduce((a,r)=>a+num(r[6]),0));
-  document.getElementById('tbNoFacturados').innerHTML=nf.slice(0,6).map(r=>
-    `<tr><td class="text-gray-300">${r[4]}</td><td><span class="badge-base b-blue">${r[2]}</span></td><td class="text-right text-gray-300">${money(r[6])}</td></tr>`
-  ).join('')||`<tr><td colspan="3" class="text-center text-gray-500 py-3">Sin pendientes de banco</td></tr>`;
-  // Órdenes facturadas vigentes
-  const of=fc.filter(r=>norm(r[5])!=='cancelado');
-  document.getElementById('tbOrdenesFact').innerHTML=of.slice(0,6).map(r=>
-    `<tr><td class="text-gray-300">${r[3]}</td><td class="text-gray-400">${r[1]}</td><td class="text-right text-green-400">${money(r[10])}</td></tr>`
-  ).join('')||`<tr><td colspan="3" class="text-center text-gray-500 py-3">Sin facturas</td></tr>`;
-  document.getElementById('ofTotal').textContent=money(of.reduce((a,r)=>a+num(r[10]),0));
-}
-
-/* ============ GENERADOR DE FOLIOS ============ */
-function recomputeFolios(){
-  // Del export de venta por pago: solo tarjeta (excluye efectivo).
-  const vp=TABLES.ventapago.full;
-  const rows=vp.filter(r=>/tarjeta/i.test(r[2])).map(r=>{
-    const facturado=norm(r[1])==='si';
-    return [r[4]||r[0], '', '', r[9]||'—', r[2], 0, num(r[6]), facturado?'locked':'gen'];
-  });
-  renderFolios(rows.length?rows:folios);
-}
-function renderFolios(list){
-  let gen=0,locked=0;
-  document.getElementById('tbFolios').innerHTML=list.map(r=>{
-    const isLocked=r[7]==='locked'; isLocked?locked++:gen++;
-    const estado=isLocked
-      ?'<span class="badge-base b-red">🔒 Facturado</span>'
-      :'<span class="badge-base b-yellow">IVA 0% · generable</span>';
-    const accion=isLocked
-      ?'<button class="btn-ghost !py-1 !px-3" disabled>Bloqueado</button>'
-      :`<button class="btn-purple !py-1 !px-3" onclick="openTicket('${r[0]}',${num(r[6])},'${r[2]||'—'}')">Generar ticket</button>`;
-    return `<tr class="${isLocked?'row-locked':''}">
-      <td class="text-gray-300 font-medium">${r[0]}</td><td>${r[1]||'—'}</td><td>${r[2]||'—'}</td><td>${r[3]}</td>
-      <td><span class="badge-base b-blue">${r[4]}</span></td>
-      <td class="text-right ${num(r[5])===0?'text-yellow-400':'text-gray-400'}">${money(r[5])}</td>
-      <td class="text-right text-white font-medium">${money(r[6])}</td>
-      <td>${estado}</td><td class="text-right">${accion}</td></tr>`;
-  }).join('');
-  document.getElementById('infoFolios').textContent=`Órdenes de tarjeta del día · ${gen} generables (IVA 0%) · ${locked} bloqueadas (ya facturadas)`;
-}
-
-/* ============ TICKET VIRTUAL MODAL ============ */
-const productos=['Ribeye 400g','Ensalada César','Refresco 600ml','Postre de la casa','Sopa del día','Pasta Alfredo','Agua mineral','Café americano','Pan de la casa','Tacos de pescado'];
-function openTicket(orden,total,mesa){
-  let restante=total, items=[];
-  while(restante>60 && items.length<6){
-    const p=productos[Math.floor(Math.random()*productos.length)];
-    const precio=Math.min(restante, +(Math.random()*400+80).toFixed(2));
-    items.push([p,precio]); restante-=precio;
-  }
-  if(restante>0.01) items.push(['Ajuste / descuento',restante]);
-  const sum=items.reduce((a,i)=>a+i[1],0);
-  document.getElementById('ticketHead').textContent=`Orden #${orden}`+(mesa&&mesa!=='—'?` · Mesa ${mesa}`:'');
-  document.getElementById('ticketItems').innerHTML=items.map(i=>
-    `<div class="flex justify-between"><span>${i[0]}</span><span>${money(i[1])}</span></div>`).join('');
-  document.getElementById('ticketSub').textContent=money(sum);
-  document.getElementById('ticketTotal').textContent=money(sum);
-  const m=document.getElementById('modalTicket');
-  m.classList.remove('hidden'); m.classList.add('flex');
-}
-function closeTicket(){
-  const m=document.getElementById('modalTicket');
-  m.classList.add('hidden'); m.classList.remove('flex');
-}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTicket();});
-
-/* ============ CHART ============ */
-window._chart=new Chart(document.getElementById('chartFact'),{
-  type:'bar',
-  data:{
-    labels:['06 Jun','07 Jun','08 Jun','09 Jun','10 Jun','11 Jun','12 Jun'],
-    datasets:[
-      {label:'Facturado',data:[3200,2850,4100,3600,2978,3900,3400],backgroundColor:'#3fc189',borderRadius:5,barPercentage:.6,categoryPercentage:.6},
-      {label:'No facturado',data:[15800,16200,14900,15600,16334,15100,15900],backgroundColor:'#C05A40',borderRadius:5,barPercentage:.6,categoryPercentage:.6}
-    ]
-  },
-  options:{
-    responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': $'+c.parsed.y.toLocaleString('es-MX')}}},
-    scales:{
-      x:{grid:{display:false},ticks:{color:'#78716c',font:{size:10}}},
-      y:{grid:{color:'rgba(120,113,108,.14)'},ticks:{color:'#78716c',font:{size:10},callback:v=>'$'+(v/1000)+'k'},stacked:false}
-    }
-  }
-});
-
-/* ============ INIT ============ */
-renderTable('detallado');
-renderTable('facturados');
-renderTable('ventapago');
-recomputeConsulta();
-renderFolios(folios);
+  lucide.createIcons();
 </script>
+
+</body>
+</html>

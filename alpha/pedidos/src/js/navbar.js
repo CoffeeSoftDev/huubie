@@ -181,11 +181,17 @@ class Navbar {
         this.parent.prepend(navbarHtml);
     }
 
+    // Roles con filtro de vista por sucursal: admin (ROLID 1) y cajero (ROLID 2).
+    // Es SOLO consulta: no cambia la sesion ni las escrituras.
+    canUseBranchFilter() {
+        return this.settings.isAdmin || String(this.settings.level) === '2';
+    }
+
     // Select oculto: es el puente de compatibilidad con el modulo de pedidos,
     // que lee la sucursal activa via $('#subsidiaries_id') (getSubsidiaryLabel /
-    // getListFilterSubsidiary). Solo se emite para el admin (filtro de vista).
+    // getListFilterSubsidiary). Se emite para admin y cajero (filtro de vista).
     hiddenSelectHtml() {
-        if (!this.settings.isAdmin) return '';
+        if (!this.canUseBranchFilter()) return '';
 
         const branches     = this.settings.branches || [];
         const currentSubId = this.settings.subsidiaryId;
@@ -203,8 +209,8 @@ class Navbar {
     branchControlHtml() {
         const branches = this.settings.branches || [];
 
-        // Operador / sin sucursales: etiqueta fija con la sucursal de sesion.
-        if (!this.settings.isAdmin || branches.length == 0) {
+        // Sin filtro (roles 3/4) o sin sucursales: etiqueta fija con la sucursal de sesion.
+        if (!this.canUseBranchFilter() || branches.length == 0) {
             return `
             <div class="flex items-center gap-2 branch-pill">
                 <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
