@@ -111,5 +111,40 @@
 
             return (isset($success) && count($success) > 0) ? $success[0] : null;
         }
+
+        // Sucursales de la empresa para la navbar, con ubicacion y estado activo
+        // (las columnas que necesita la tarjeta del selector de sucursal).
+        function getBranchesForNavbar($array){
+            $query = "SELECT
+                id,
+                name,
+                ubication,
+                active
+            FROM
+                fayxzvov_alpha.subsidiaries
+            WHERE
+                companies_id = ?
+                AND enabled = 1
+            ORDER BY active DESC, name ASC";
+            return $this->_Read($query, $array);
+        }
+
+        // Turnos de caja abiertos por sucursal (el mas reciente de cada una), para
+        // el indicador de "turno activo" en la navbar. cash_shift vive en la BD
+        // operativa de alpha (fayxzvov_reginas), no en fayxzvov_alpha.
+        function getOpenShifts(){
+            $query = "SELECT
+                subsidiary_id,
+                MAX(opened_at) AS last_opened
+            FROM
+                fayxzvov_reginas.cash_shift
+            WHERE
+                status = 'open'
+                AND active = 1
+                AND subsidiary_id IS NOT NULL
+            GROUP BY subsidiary_id";
+            $result = $this->_Read($query, null);
+            return is_array($result) ? $result : [];
+        }
     }
 ?>

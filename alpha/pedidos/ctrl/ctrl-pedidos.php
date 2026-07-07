@@ -75,9 +75,10 @@ class Pedidos extends MPedidos{
         $message = 'Error al obtener las sucursales';
         $data    = [];
 
-        // Solo permitir si el rol es 1 (admin)
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) reciben la lista
+        // de sucursales de la empresa para el selector del Cierre del dia.
 
-        if ($_SESSION['ROLID'] == 1) {
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
 
             $subsidiaries = $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]);
             
@@ -1601,8 +1602,13 @@ class Pedidos extends MPedidos{
     // =============================================
 
     function openShift() {
-        if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
+        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
+                ? $postSub
+                : $_SESSION['SUB'];
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }
@@ -1723,8 +1729,13 @@ class Pedidos extends MPedidos{
     }
 
     function getShiftsByDate() {
-        if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
+        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
+                ? $postSub
+                : $_SESSION['SUB'];
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }
@@ -1739,8 +1750,13 @@ class Pedidos extends MPedidos{
     }
 
     function getOpenShifts() {
-        if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
+        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
+                ? $postSub
+                : $_SESSION['SUB'];
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }
@@ -1871,8 +1887,13 @@ class Pedidos extends MPedidos{
     }
 
     function checkOpenShift() {
-        if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'] ?? $_SESSION['SUB'];
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
+        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
+                ? $postSub
+                : $_SESSION['SUB'];
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }

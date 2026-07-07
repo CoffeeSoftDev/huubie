@@ -6,6 +6,18 @@ class Navbar {
         this.initEvents();
     }
 
+    // Escapa el texto de la sucursal antes de inyectarlo en el HTML/atributos:
+    // el nombre viene de BD y puede traer comillas o < > que romperian el markup
+    // (p. ej. data-name="...") o abririan la puerta a inyeccion.
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     render(options) {
         const defaults = {
             logo:      "/alpha/src/img/logo/logo.svg",
@@ -21,7 +33,7 @@ class Navbar {
 
             navbar: {
                 bg:     '#141d2b',
-                border: '#EC4899',
+                border: '#1C64F2',
             },
             header: {
                 bg:           '#1F2A37',
@@ -96,11 +108,23 @@ class Navbar {
                 <div class="flex items-center gap-3">
                     ${branchControl}
                     ${hiddenSelect}
+                    <button id="btnReloadApp" class="flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Recargar (limpia caché)">
+                        <svg class="w-[18px] h-[18px] text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                            <path d="M3 21v-5h5"/>
+                        </svg>
+                    </button>
                     <a href="/alpha/menu/" class="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Menus">
                         <i class="icon-th-large-3 text-gray-300 text-base"></i>
                     </a>
-                    <button id="btnUserMenu" class="ml-1 flex items-center justify-center border-l border-gray-700 pl-3">
+                    <button id="btnUserMenu" class="ml-1 flex items-center gap-2 border-l border-gray-700 pl-3">
                         ${navbarAvatar}
+                        <div class="hidden md:flex flex-col items-start leading-tight text-left">
+                            <span class="text-xs font-semibold text-white">${this.settings.username}</span>
+                            <span class="text-[10px] text-gray-400">${this.settings.role || 'Sin rol'}</span>
+                        </div>
                     </button>
                 </div>
             </nav>
@@ -181,10 +205,11 @@ class Navbar {
         this.parent.prepend(navbarHtml);
     }
 
-    // Roles con filtro de vista por sucursal: admin (ROLID 1) y cajero (ROLID 2).
-    // Es SOLO consulta: no cambia la sesion ni las escrituras.
+    // Roles con filtro de vista por sucursal: admin (ROLID 1), cajero (ROLID 2)
+    // y vendedor (ROLID 3). Es SOLO consulta: no cambia la sesion ni las escrituras.
     canUseBranchFilter() {
-        return this.settings.isAdmin || String(this.settings.level) === '2';
+        const lvl = String(this.settings.level);
+        return this.settings.isAdmin || lvl === '2' || lvl === '3';
     }
 
     // Select oculto: es el puente de compatibilidad con el modulo de pedidos,
@@ -196,7 +221,7 @@ class Navbar {
         const branches     = this.settings.branches || [];
         const currentSubId = this.settings.subsidiaryId;
         const options = branches.map(b =>
-            `<option value="${b.id}" ${currentSubId == b.id ? 'selected' : ''}>${b.name}</option>`
+            `<option value="${b.id}" ${currentSubId == b.id ? 'selected' : ''}>${this.escapeHtml(b.name)}</option>`
         ).join('');
 
         return `
@@ -211,9 +236,10 @@ class Navbar {
 
         // Sin filtro (roles 3/4) o sin sucursales: etiqueta fija con la sucursal de sesion.
         if (!this.canUseBranchFilter() || branches.length == 0) {
+            const pillDot = this.pillDotClass(this.settings.subsidiaryShift || 'none');
             return `
             <div class="flex items-center gap-2 branch-pill">
-                <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
+                <span class="branch-status-dot ${pillDot}"></span>
                 <span class="text-sm font-semibold text-white truncate max-w-[160px]">${this.settings.subsidiary || 'Sucursal'}</span>
             </div>`;
         }
@@ -255,6 +281,7 @@ class Navbar {
         const currentSubId = this.settings.subsidiaryId;
         const currentFull  = branches.find(b => b.id == currentSubId);
         const currentName  = currentFull ? currentFull.name : (this.settings.subsidiary || 'Seleccionar');
+        const pillDot      = this.pillDotClass(this.settings.subsidiaryShift || 'none');
 
         return `
         <div class="relative">
@@ -262,8 +289,8 @@ class Navbar {
                 <div class="flex flex-col items-start leading-tight">
                     <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
                     <div class="flex items-center gap-2">
-                        <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
-                        <span id="btnBranchName" class="text-sm font-semibold text-white">${currentName}</span>
+                        <span class="branch-status-dot ${pillDot}"></span>
+                        <span id="btnBranchName" class="text-sm font-semibold text-white">${this.escapeHtml(currentName)}</span>
                     </div>
                 </div>
                 <svg class="chev w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -323,23 +350,68 @@ class Navbar {
         ];
         const gradient = gradients[index % gradients.length];
         const selectedClass = (branch.id == currentSubId) ? 'selected' : '';
-        const subRow = branch.ubication
-            ? `<p class="text-[11px] text-gray-400 mt-1 truncate">${branch.ubication}</p>`
+
+        const ubicSuffix = branch.ubication
+            ? `<span class="text-[11px] text-gray-500 truncate">· ${this.escapeHtml(branch.ubication)}</span>`
             : '';
 
+        const closedRow = `
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="branch-status-dot bg-gray-400" style="width:6px;height:6px;box-shadow:0 0 0 2px rgba(156,163,175,.18);"></span>
+                <span class="text-[11px] text-gray-400 font-medium">Cerrada</span>
+                ${ubicSuffix}
+            </div>`;
+
+        // Indicador de turno de caja (lo pide la operacion: saber de un vistazo si
+        // la sucursal tiene turno activo). Coincide con el candado de creacion de
+        // pedidos: solo 'open' (turno abierto hoy) permite crear.
+        const shiftMeta = {
+            open:  { dot: 'bg-green-500', ring: 'rgba(34,197,94,.20)',  text: 'text-green-400', label: 'Turno abierto',    pulse: true  },
+            stale: { dot: 'bg-amber-400', ring: 'rgba(251,191,36,.20)', text: 'text-amber-400', label: 'Turno sin cerrar', pulse: false },
+            none:  { dot: 'bg-gray-500',  ring: 'rgba(156,163,175,.18)', text: 'text-gray-500', label: 'Sin turno',        pulse: false },
+        }[branch.shift_state || 'none'];
+
+        const shiftRow = `
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="branch-status-dot ${shiftMeta.dot}${shiftMeta.pulse ? ' animate-pulse' : ''}" style="width:6px;height:6px;box-shadow:0 0 0 2px ${shiftMeta.ring};"></span>
+                <span class="text-[11px] ${shiftMeta.text} font-medium">${shiftMeta.label}</span>
+                ${ubicSuffix}
+            </div>`;
+
+        // Sucursal deshabilitada -> "Cerrada"; si esta activa, mostramos el turno.
+        const subRow = branch.active === 0 ? closedRow : shiftRow;
+
         return `
-        <div class="branch-card ${selectedClass}" data-id="${branch.id}" data-name="${branch.name}">
+        <div class="branch-card ${selectedClass}" data-id="${branch.id}" data-name="${this.escapeHtml(branch.name)}">
             <div class="flex items-center gap-2.5">
-                <div class="branch-avatar" style="background: ${gradient};">${branch.initials || ''}</div>
+                <div class="branch-avatar" style="background: ${gradient};">${this.escapeHtml(branch.initials || '')}</div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
-                        <p class="text-[13px] font-bold text-white truncate">${branch.name}</p>
+                        <p class="text-[13px] font-bold text-white truncate">${this.escapeHtml(branch.name)}</p>
                         <div class="radio-mark"><div class="inner"></div></div>
                     </div>
                     ${subRow}
                 </div>
             </div>
         </div>`;
+    }
+
+    // Clases del punto de estado del pill segun el turno de la sucursal activa.
+    pillDotClass(state) {
+        return ({
+            open:  'bg-green-500 ring-2 ring-green-500/20',
+            stale: 'bg-amber-400 ring-2 ring-amber-400/20',
+            none:  'bg-gray-500 ring-2 ring-gray-500/20',
+        })[state] || 'bg-gray-500 ring-2 ring-gray-500/20';
+    }
+
+    // Refresca el punto del pill (sin recargar) al cambiar de sucursal en el
+    // filtro de vista: toma el shift_state de la sucursal elegida.
+    updatePillShiftDot(id) {
+        const branch = (this.settings.branches || []).find(b => b.id == id);
+        const state  = branch ? (branch.shift_state || 'none') : 'none';
+        this.settings.subsidiaryShift = state;
+        $('#btnBranch .branch-status-dot').attr('class', `branch-status-dot ${this.pillDotClass(state)}`);
     }
 
     branchToastHtml() {
@@ -373,6 +445,7 @@ class Navbar {
 
     initEvents() {
         $("#btnUserMenu, #btnCloseUserMenu").on("click", () => this.toggleUserMenu());
+        $("#btnReloadApp").on("click", () => this.hardReload());
         $("#btnLogout").on("click", () => this.logout());
         $("#toggleSidebar").on("click", () => this.toggleSidebar());
         $("#btn_perfil").on("click", () => window.location.href = "/alpha/perfil/");
@@ -402,6 +475,24 @@ class Navbar {
 
     toggleUserMenu() {
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
+    }
+
+    // Recarga "dura" equivalente a Ctrl+F5: limpia el Cache Storage (service worker,
+    // si lo hubiera) y vuelve a pedir la pagina con un parametro efimero para saltarse
+    // la cache del documento, forzando que el navegador reevalue los assets (JS/CSS).
+    async hardReload() {
+        const btn = document.getElementById('btnReloadApp');
+        if (btn) btn.classList.add('animate-spin');
+        try {
+            if (window.caches && caches.keys) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+            }
+        } catch (e) { /* sin cache API: continuar con la recarga */ }
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('_r', Date.now());
+        window.location.replace(url.toString());
     }
 
     toggleSidebar() {
@@ -442,6 +533,7 @@ class Navbar {
         this.settings.subsidiaryId = id;
         $("#subsidiaries_id").val(id);
         $("#btnBranchName").text(name);
+        this.updatePillShiftDot(id);
 
         this.closeBranchDropdown();
         this.showToast(name);
@@ -504,7 +596,8 @@ class Navbar {
 }
 
 $(async () => {
-    const data = await useFetch({ url: "../access/ctrl/ctrl-access.php", data: { opc: 'company' } });
+    const data       = await useFetch({ url: "../access/ctrl/ctrl-access.php", data: { opc: 'company' } });
+    const branchInfo = await useFetch({ url: "../access/ctrl/ctrl-access.php", data: { opc: 'branches' } });
 
     const navbar = new Navbar();
     window.navbar = navbar;
@@ -518,29 +611,28 @@ $(async () => {
 
     level = data.level;
 
-    const branches = (data['subsidiaries'] || []).map(s => {
-        const parts = String(s.valor || '').trim().split(/\s+/);
-        let initials = (parts[0] || '').charAt(0).toUpperCase();
-        if (parts.length > 1) initials += (parts[parts.length - 1] || '').charAt(0).toUpperCase();
-        return {
-            id:        s.id,
-            name:      s.valor,
-            ubication: s.ubication || '',
-            initials:  initials,
-        };
-    });
+    const current  = branchInfo?.current || { id: 0, name: '', shift_state: 'none' };
+    const branches = (branchInfo?.branches || []).map(b => ({
+        id:          b.id,
+        name:        b.name,
+        ubication:   b.ubication || '',
+        initials:    b.initials || '',
+        active:      b.active,
+        shift_state: b.shift_state || 'none',
+    }));
 
     navbar.init({
-        logo:         "/alpha/src/img/logo/logo.svg",
-        imgPerfil:    data['photo'],
-        company:      data['company'],
-        username:     user,
-        role:         data.rol,
-        level:        data.level,
-        parent:       "#menu-navbar",
-        isAdmin:      data['is_admin'],
-        subsidiary:   data['subsidiary'],
-        subsidiaryId: data['subsidiary_id'],
-        branches:     branches,
+        logo:            "/alpha/src/img/logo/logo.svg",
+        imgPerfil:       data['photo'],
+        company:         data['company'],
+        username:        user,
+        role:            data.rol,
+        level:           data.level,
+        parent:          "#menu-navbar",
+        isAdmin:         data['is_admin'],
+        subsidiary:      data['subsidiary'],
+        subsidiaryId:    data['subsidiary_id'],
+        subsidiaryShift: current.shift_state || 'none',
+        branches:        branches,
     });
 });

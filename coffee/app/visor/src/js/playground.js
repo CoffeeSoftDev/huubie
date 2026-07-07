@@ -152,8 +152,8 @@ const pg = {
     knowledge: new Set(),    // grimorios seleccionados como contexto
     canvasMode: false,       // modo lienzo (genera HTML renderizable)
     planMode:   false,       // planear primero: propone un plan y espera OK antes de construir
-    dbToolsOn:  true,        // tools de base de datos (run_select + conexión automática al nombrar una base)
-    fsToolsOn:  true,        // tools de archivos (list_dir/read_file/grep_files + conexión automática de carpeta)
+    dbToolsOn:  false,       // tools de base de datos (run_select + conexión automática al nombrar una base) — apagadas hasta activarlas con clic
+    fsToolsOn:  false,       // tools de archivos (list_dir/read_file/grep_files + conexión automática de carpeta) — apagadas hasta activarlas con clic
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
     history:   [],
@@ -255,8 +255,8 @@ function pgLoadSettings() {
         if (typeof s.model === 'string')         pg.model    = s.model;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
-        if (typeof s.dbToolsOn === 'boolean')    pg.dbToolsOn  = s.dbToolsOn;
-        if (typeof s.fsToolsOn === 'boolean')    pg.fsToolsOn  = s.fsToolsOn;
+        // Las tools NO se restauran a propósito: arrancan siempre apagadas en cada
+        // carga y solo se habilitan al darles clic (dbToolsOn/fsToolsOn se quedan en false).
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
@@ -655,11 +655,12 @@ function pgApplyToolsUI() {
     pgApplyToolsBadge();
 }
 
-// El botón "Tools" se enciende cuando algo difiere del default (planear activo
-// o alguna familia de tools apagada), para que el estado no quede escondido.
+// El botón "Tools" se enciende SOLO cuando hay algo activo dentro del menú
+// (planear, tools de BD o tools de archivos). Si no hay ninguna activa, el badge
+// queda apagado para que refleje el estado real y no confunda.
 function pgApplyToolsBadge() {
-    const dirty = pg.planMode || !pg.dbToolsOn || !pg.fsToolsOn;
-    $('#pgToolsToggle').toggleClass('is-active', dirty);
+    const active = pg.planMode || pg.dbToolsOn || pg.fsToolsOn;
+    $('#pgToolsToggle').toggleClass('is-active', active);
 }
 
 /* ── Imagenes adjuntas ── */

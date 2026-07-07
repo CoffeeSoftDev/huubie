@@ -20,7 +20,7 @@ $(async () => {
           clients      = req.clients || [];
           rol          = req.access;
           sub_name     = req.subsidiaries_name;
-          user_name    = req.user_name;
+          user_name    = req.user_name; 
           subsidiaries = req.sucursales;
           subsidiariesCobro = req.sucursales_cobro || [];
           dailyClosure = req.daily_closure || { is_closed: false };
@@ -243,16 +243,16 @@ class App extends Templates {
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
     }
 
-    // Sucursal con la que se FILTRA la lista (solo consulta). Admin y cajero (rol 2)
-    // filtran por el selector de navbar (incluye "0" = todas). Otros roles => null
-    // => el backend usa su sesion. Es solo filtro de vista: las escrituras siempre
-    // usan la sucursal de sesion del usuario.
+    // Sucursal con la que se FILTRA la lista (solo consulta). Admin, cajero (rol 2)
+    // y vendedor (rol 3) filtran por el selector de navbar (incluye "0" = todas).
+    // Otros roles => null => el backend usa su sesion. Es solo filtro de vista: las
+    // escrituras siempre usan la sucursal de sesion del usuario.
     getListFilterSubsidiary() {
         const $sel = $('#subsidiaries_id');
         if (!$sel.length) return null;
         const v = $sel.val();
         if (v === '0') return '0';
-        return (rol == 1 || rol == 2) ? (v || '0') : null;
+        return (rol == 1 || rol == 2 || rol == 3) ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -261,11 +261,11 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
-        // Cajero (rol 2): el selector de navbar es SOLO filtro de vista. El cajero
-        // opera SIEMPRE en su sucursal de sesion (udn): el estado de turno/cierre y el
-        // boton "Nuevo pedido" se evaluan contra udn sin importar que sucursal filtre.
+        // Cajero (rol 2) y vendedor (rol 3): el selector de navbar es SOLO filtro de
+        // vista. Operan SIEMPRE en su sucursal de sesion (udn): el estado de turno/cierre
+        // y el boton "Nuevo pedido" se evaluan contra udn sin importar que sucursal filtren.
         // Los pedidos nuevos nacen en su sucursal (el backend usa $_SESSION['SUB']).
-        if (rol == 2) {
+        if (rol == 2 || rol == 3) {
             const req = await useFetch({
                 url: this._link,
                 data: { opc: "checkDailyClosure", subsidiaries_id: udn }
@@ -1221,6 +1221,22 @@ class App extends Templates {
                         ${subsidiaries.map(sub => `<option value="${sub.id}" ${dailyClosure.subsidiary_id == sub.id ? 'selected' : ''}>${sub.valor}</option>`).join('')}
                     </select>
                     <div id="orderSubsidiaryAlert"></div>
+                </div>
+            `
+        });
+    } else {
+        // Cajero/vendedor: el pedido se registra SIEMPRE en su sucursal de sesion
+        // (el backend usa $_SESSION['SUB']). Badge informativo, no editable, para
+        // dejar claro en que sucursal se esta vendiendo, sin importar el filtro del navbar.
+        orderFields.push({
+            opc: "div",
+            id: "subsidiarySellBadge",
+            lbl: "",
+            class: "col-12 mb-2",
+            html: `
+                <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
+                    <i class="icon-shop text-amber-400"></i>
+                    <b class="text-xs text-amber-100">${sub_name || 'tu sucursal'}</b>
                 </div>
             `
         });
@@ -2752,11 +2768,19 @@ class App extends Templates {
         this.reportMode = 'summary';
         this._selectedShiftId = null;
 
-        const subsidiarySelect = rol == 1 ? `
+        // La sucursal activa la define el filtro de navbar (#subsidiaries_id): es la
+        // sucursal que el admin esta trabajando. Si esta en "0" (Todas) o no existe,
+        // caemos a la sucursal de sesion (udn) para no dejar el select sin seleccion.
+        const navbarSub = $('#subsidiaries_id').val();
+        const activeSub = (navbarSub && navbarSub !== '0') ? navbarSub : (dailyClosure.subsidiary_id ?? udn);
+
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) eligen la sucursal
+        // del cierre en el modal; arranca en la seleccionada en el navbar (activeSub).
+        const subsidiarySelect = (rol == 1 || rol == 2 || rol == 3) ? `
             <div>
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
                 <select id="subsidiariesDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.onDailyCloseFilterChange()">
-                    ${subsidiaries.map(s => `<option value="${s.id}" ${dailyClosure.subsidiary_id == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
+                    ${subsidiaries.map(s => `<option value="${s.id}" ${activeSub == s.id ? 'selected' : ''}>${s.valor}</option>`).join('')}
                 </select>
             </div>
         ` : `
@@ -2888,7 +2912,7 @@ class App extends Templates {
     async loadShifts() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
-        let subsidiaries_id = rol == 1 ? $('#subsidiariesDailyClose').val() : null;
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3) ? $('#subsidiariesDailyClose').val() : null;
 
         // Limpiar badge de cierre (opcion C) y restaurar boton Cerrar Dia
         $('.closure-badge').remove();
@@ -3353,8 +3377,8 @@ class App extends Templates {
     }
 
     openShift() {
-        let subsidiaries_id = rol == 1 ? ($('#subsidiariesDailyClose').val() || null) : null;
-        const subName = rol == 1
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3) ? ($('#subsidiariesDailyClose').val() || null) : null;
+        const subName = (rol == 1 || rol == 2 || rol == 3)
             ? $('#subsidiariesDailyClose option:selected').text()
             : sub_name;
 
@@ -3404,9 +3428,14 @@ class App extends Templates {
 
                 if (response.status === 200) {
                     alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                    openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: null, opened_at: new Date().toISOString() };
-                    this.updateDailyClosureStatus();
-                    this.actualizarFechaHora({ label: sub_name });
+                    // La pantalla principal (boton "Nuevo Pedido") refleja SOLO la sucursal de
+                    // sesion, porque los pedidos nuevos nacen ahi. Si el turno se abrio para otra
+                    // sucursal (cajero/vendedor eligiendo en el modal), no tocamos ese estado.
+                    if (subsidiaries_id == null || subsidiaries_id == udn) {
+                        openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: null, opened_at: new Date().toISOString() };
+                        this.updateDailyClosureStatus();
+                        this.actualizarFechaHora({ label: sub_name });
+                    }
                     await this.selectOpenShift(response.shift_id, moment().format('YYYY-MM-DD'));
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
@@ -3449,9 +3478,15 @@ class App extends Templates {
                     this.loadShifts();
                     this.ls();
 
-                    openShift = { has_open_shift: false };
-                    this.updateDailyClosureStatus();
-                    this.actualizarFechaHora({ label: sub_name });
+                    // Solo sincronizamos el estado de la pantalla principal si el turno cerrado
+                    // era de la sucursal de sesion (donde nacen los pedidos). Si era de otra
+                    // sucursal (cajero/vendedor operando por el modal), no lo tocamos.
+                    const modalSub = $('#subsidiariesDailyClose').val();
+                    if (!modalSub || modalSub == udn) {
+                        openShift = { has_open_shift: false };
+                        this.updateDailyClosureStatus();
+                        this.actualizarFechaHora({ label: sub_name });
+                    }
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }

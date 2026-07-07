@@ -11,8 +11,14 @@ require_once '../mdl/mdl-cierre.php';
 class Cierre extends MCierre {
 
     private function resolveSubsidiary() {
-        if ($_SESSION['ROLID'] == 1) {
-            return $_POST['subsidiaries_id'];
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan el cierre
+        // sobre la sucursal que eligen en el modal. Si no llega una sucursal util,
+        // se cae a la sucursal de sesion. El resto de roles siempre usa su sesion.
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            if ($postSub !== null && $postSub !== '' && $postSub != '0') {
+                return $postSub;
+            }
         }
         return $_SESSION['SUB'];
     }

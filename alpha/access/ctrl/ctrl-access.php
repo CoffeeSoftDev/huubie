@@ -92,6 +92,55 @@ class Access extends MAccess {
     }
 
 
+    // Sucursales de la empresa para el selector de la navbar, con el estado del
+    // turno de caja por sucursal (para el indicador "Turno abierto / Sin turno"):
+    //   'open'  -> turno abierto hoy
+    //   'stale' -> turno abierto pero de un dia anterior (sin cerrar)
+    //   'none'  -> sin turno abierto
+    function branches(){
+        $list = $this->getBranchesForNavbar([$_SESSION['COMPANY_ID']]);
+
+        $today        = date('Y-m-d');
+        $openShiftMap = [];
+        foreach ($this->getOpenShifts() as $os) {
+            $openShiftMap[(int) $os['subsidiary_id']] = $os['last_opened'];
+        }
+        $shiftStateFor = function ($id) use ($openShiftMap, $today) {
+            if (!isset($openShiftMap[(int) $id])) return 'none';
+            return substr($openShiftMap[(int) $id], 0, 10) === $today ? 'open' : 'stale';
+        };
+
+        $branches = [];
+        foreach ($list as $branch) {
+            $parts    = preg_split('/\s+/', trim($branch['name']));
+            $initials = strtoupper(substr($parts[0], 0, 1));
+            if (count($parts) > 1) {
+                $initials .= strtoupper(substr(end($parts), 0, 1));
+            }
+
+            $branches[] = [
+                'id'          => (int) $branch['id'],
+                'name'        => $branch['name'],
+                'ubication'   => $branch['ubication'] ?? '',
+                'active'      => (int) $branch['active'],
+                'initials'    => $initials,
+                'selected'    => ((int) $branch['id'] === (int) $_SESSION['SUB']) ? 1 : 0,
+                'shift_state' => $shiftStateFor($branch['id']),
+            ];
+        }
+
+        return [
+            'status'   => 200,
+            'company'  => $_SESSION['COMPANY'] ?? '',
+            'current'  => [
+                'id'          => (int) ($_SESSION['SUB'] ?? 0),
+                'name'        => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
+                'shift_state' => $shiftStateFor($_SESSION['SUB'] ?? 0),
+            ],
+            'branches' => $branches,
+        ];
+    }
+
     // Cambia la sucursal activa reescribiendo la sesion. Equivale a re-loguear
     // con otro usuario de la misma empresa, pero sin teclear credenciales.
     function switchSubsidiary(){
