@@ -91,6 +91,20 @@ class Access extends MAccess {
             $list = $this->getBranchesByUser([$_SESSION['USR']]);
         }
 
+        // Estado del turno de caja por sucursal, para el indicador de la navbar:
+        //   'open'  -> turno abierto hoy
+        //   'stale' -> turno abierto pero de un dia anterior (sin cerrar)
+        //   'none'  -> sin turno abierto
+        $today        = date('Y-m-d');
+        $openShiftMap = [];
+        foreach ($this->getOpenShiftsByCompany([$_SESSION['DB'] ?? '']) as $os) {
+            $openShiftMap[(int) $os['subsidiary_id']] = $os['last_opened'];
+        }
+        $shiftStateFor = function ($id) use ($openShiftMap, $today) {
+            if (!isset($openShiftMap[(int) $id])) return 'none';
+            return substr($openShiftMap[(int) $id], 0, 10) === $today ? 'open' : 'stale';
+        };
+
         $branches = [];
         foreach ($list as $branch) {
             $parts = preg_split('/\s+/', trim($branch['name']));
@@ -100,12 +114,13 @@ class Access extends MAccess {
             }
 
             $branches[] = [
-                'id'        => (int) $branch['id'],
-                'name'      => $branch['name'],
-                'ubication' => $branch['ubication'] ?? '',
-                'active'    => (int) $branch['active'],
-                'initials'  => $initials,
-                'selected'  => ((int) $branch['id'] === (int) $_SESSION['SUB']) ? 1 : 0,
+                'id'          => (int) $branch['id'],
+                'name'        => $branch['name'],
+                'ubication'   => $branch['ubication'] ?? '',
+                'active'      => (int) $branch['active'],
+                'initials'    => $initials,
+                'selected'    => ((int) $branch['id'] === (int) $_SESSION['SUB']) ? 1 : 0,
+                'shift_state' => $shiftStateFor($branch['id']),
             ];
         }
 
@@ -113,8 +128,9 @@ class Access extends MAccess {
             'status'   => 200,
             'company'  => $_SESSION['COMPANY']           ?? '',
             'current'  => [
-                'id'   => (int) ($_SESSION['SUB'] ?? 0),
-                'name' => $_SESSION['SUBSIDIARIE_NAME']  ?? '',
+                'id'          => (int) ($_SESSION['SUB'] ?? 0),
+                'name'        => $_SESSION['SUBSIDIARIE_NAME']  ?? '',
+                'shift_state' => $shiftStateFor($_SESSION['SUB'] ?? 0),
             ],
             'branches' => $branches,
         ];

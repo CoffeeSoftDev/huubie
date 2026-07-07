@@ -244,10 +244,22 @@ class Pedidos extends MPedidos{
         $client = $this->getClientName([$_POST['name']]);
         $folio = null;
 
+        // La sucursal del pedido NO puede quedar vacia: si se inserta NULL el pedido
+        // nace huerfano (no cae en ningun cierre ni corte de caja). El admin la manda
+        // por POST desde la navbar; URLSearchParams puede enviar ''/'null'/'undefined'
+        // y "Todas las sucursales" manda '0'. Todos esos casos se normalizan a null y
+        // se cortan antes de escribir, en lugar de crear un huerfano.
         if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'] ;
-        }else{
+            $postSub = $_POST['subsidiaries_id'] ?? null;
+            $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null'
+                                || $postSub === 'undefined' || $postSub === '0' || $postSub === 0)
+                ? null : $postSub;
+        } else {
             $subsidiaries_id = $_SESSION['SUB'];
+        }
+
+        if (empty($subsidiaries_id)) {
+            return ['status' => 400, 'message' => 'Selecciona una sucursal específica antes de crear el pedido.'];
         }
 
         if (!is_array($client) || empty($client['id'])) {
@@ -276,9 +288,19 @@ class Pedidos extends MPedidos{
 
        
 
-        // Vincular al turno abierto si existe
+        // Candado: no se puede crear un pedido si la sucursal no tiene un turno de
+        // caja abierto ("sucursal abierta" = turno abierto). Sin turno el pedido
+        // naceria huerfano (no cae en ningun cierre ni corte de caja). Se valida
+        // aqui en el backend para que no se pueda evadir desde el front (estado
+        // obsoleto, admin que cambio de sucursal, etc).
         $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
-        $cash_shift_id = $openShift ? $openShift['id'] : null;
+        if (!$openShift) {
+            return [
+                'status'  => 423,
+                'message' => 'La sucursal no tiene un turno abierto. Abre el turno en "Cierre del día" antes de crear el pedido.'
+            ];
+        }
+        $cash_shift_id = $openShift['id'];
 
         $data = $this->util->sql([
             'note'            => $_POST['note'],

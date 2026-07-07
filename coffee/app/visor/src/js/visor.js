@@ -2167,9 +2167,9 @@ class VisorView {
                 </div>`;
         };
 
-        // Contenido interno (tipos + archivos) de UN proyecto. openTypes = true abre los
-        // tipos de entrada (vista de carpeta) para ver el contenido sin un clic extra.
-        const buildProjectInner = (proj, openTypes) => {
+        // Contenido interno (tipos + archivos) de UN proyecto. Las sub-carpetas
+        // (tipos) arrancan contraidas; solo se abren las que el usuario recuerde.
+        const buildProjectInner = (proj) => {
             const types = documents[proj];
             let total = 0, inner = '';
             for (const tipo of Object.keys(types).sort(typeSort)) {
@@ -2185,7 +2185,7 @@ class VisorView {
                 }
 
                 const typeKey = `${proj}::${tipo}`;
-                const typeCollapsed = (forceOpen || openTypes) ? false : !expandedTypes.includes(typeKey);
+                const typeCollapsed = forceOpen ? false : !expandedTypes.includes(typeKey);
                 inner += `
                     <div class="tree-type-header ${typeCollapsed ? 'collapsed' : ''}" data-type-key="${typeKey}">
                         <span class="tree-type-label">
@@ -2203,11 +2203,11 @@ class VisorView {
 
         const projNames = Object.keys(documents).sort((a, b) => a.localeCompare(b));
 
-        // Estado de carpetas colapsadas. Por defecto TODO esta expandido (como un
-        // explorador de archivos); solo se recuerda lo que el usuario colapsa.
-        let collapsedProjects = [];
-        try { collapsedProjects = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
-        catch (e) { collapsedProjects = []; }
+        // Estado de carpetas expandidas. Por defecto TODO arranca contraido (arbol
+        // limpio al cargar); solo se recuerda lo que el usuario abre.
+        let expandedProjects = [];
+        try { expandedProjects = JSON.parse(localStorage.getItem('visor:tree:expandedProjects') || '[]'); }
+        catch (e) { expandedProjects = []; }
 
         // Carpeta enfocada: el boton "entrar" de una carpeta muestra SOLO su
         // contenido + un boton "volver". No aplica con filtro activo (manda la busqueda).
@@ -2234,7 +2234,7 @@ class VisorView {
 
         if (docFolder && !f) {
             // VISTA ENFOCADA: solo el contenido de la carpeta abierta + "volver".
-            const { total, inner } = buildProjectInner(docFolder, true);
+            const { total, inner } = buildProjectInner(docFolder);
             hasAny = total > 0;
             body = `
                 <div class="docs-folder-back" title="Volver a todas las carpetas">
@@ -2248,10 +2248,10 @@ class VisorView {
             // ARBOL COMPLETO de carpetas expandibles. Con filtro activo todo queda
             // abierto; sin filtro se respeta lo que el usuario haya colapsado.
             for (const proj of projNames) {
-                const { total, inner } = buildProjectInner(proj, false);
+                const { total, inner } = buildProjectInner(proj);
                 if (!total) continue;
                 hasAny = true;
-                const collapsed = f ? false : collapsedProjects.includes(proj);
+                const collapsed = f ? false : !expandedProjects.includes(proj);
                 body += projectNode(proj, total, inner, collapsed);
             }
         }
@@ -2297,14 +2297,14 @@ class VisorView {
                 $header.toggleClass('collapsed');
                 $header.next('.tree-project-body').toggleClass('collapsed');
                 let state = [];
-                try { state = JSON.parse(localStorage.getItem('visor:tree:collapsedProjects') || '[]'); }
+                try { state = JSON.parse(localStorage.getItem('visor:tree:expandedProjects') || '[]'); }
                 catch (er) { state = []; }
                 if ($header.hasClass('collapsed')) {
-                    if (!state.includes(proj)) state.push(proj);
-                } else {
                     state = state.filter(p => p !== proj);
+                } else {
+                    if (!state.includes(proj)) state.push(proj);
                 }
-                localStorage.setItem('visor:tree:collapsedProjects', JSON.stringify(state));
+                localStorage.setItem('visor:tree:expandedProjects', JSON.stringify(state));
                 if (window.lucide) lucide.createIcons();
                 return;
             }

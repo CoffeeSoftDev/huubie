@@ -118,6 +118,24 @@
             return $this->_Read($query, $array);
         }
 
+        // Turnos de caja abiertos por sucursal (el mas reciente de cada una), para
+        // el indicador de "turno activo" en la navbar. La tabla cash_shift vive en
+        // la BD operativa del tenant (companies.name_bd), que llega en $array[0];
+        // se sanea porque se interpola como nombre de base en el FROM.
+        function getOpenShiftsByCompany($array){
+            $db = preg_replace('/[^a-zA-Z0-9_]/', '', $array[0] ?? '');
+            if ($db === '') return [];
+
+            $query = "
+                SELECT subsidiary_id, MAX(opened_at) AS last_opened
+                FROM `{$db}`.cash_shift
+                WHERE status = 'open' AND active = 1 AND subsidiary_id IS NOT NULL
+                GROUP BY subsidiary_id
+            ";
+            $result = $this->_Read($query, null);
+            return is_array($result) ? $result : [];
+        }
+
         function userHasAccessToBranch($array){
             $query = "
                 SELECT 1

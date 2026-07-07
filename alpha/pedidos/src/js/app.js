@@ -501,6 +501,35 @@ class App extends Templates {
         $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
         $('#subsidiaryFilter').prev('label').remove();
 
+        // Candado en el submit de "Guardar Pedido" (fase de captura: corre antes del
+        // handler de envio del framework, asi el request ni siquiera sale). El backend
+        // valida lo mismo; esto es la primera linea de defensa. Dos bloqueos:
+        //   1) Sin turno abierto en la sucursal -> no se puede crear el pedido.
+        //   2) Admin sin sucursal especifica seleccionada.
+        const formEl = document.getElementById('btnGuardarPedido')?.closest('form');
+        if (formEl) {
+            formEl.addEventListener('submit', (e) => {
+                if (!this.requireOpenShift()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return;
+                }
+                if (rol == 1) {
+                    const sub = $('#formPedido #subsidiaries_id').val();
+                    if (!sub || sub === '0') {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        alert({
+                            icon: 'warning',
+                            text: 'Selecciona una sucursal específica antes de guardar el pedido.',
+                            btn1: true,
+                            btn1Text: 'Ok'
+                        });
+                    }
+                }
+            }, true);
+        }
+
         $("#date_order").val(new Date().toISOString().split("T")[0]);
         $("#date_birthday").val(new Date().toISOString().split("T")[0]);
 
@@ -2702,9 +2731,9 @@ class App extends Templates {
         `;
 
         const modalContent = `
-            <div class="flex flex-col lg:flex-row gap-4 lg:min-h-[480px]">
+            <div class="flex flex-col lg:flex-row gap-3 lg:min-h-[380px] lg:h-[62vh]">
                 <!-- Sidebar -->
-                <div class="w-full lg:w-[280px] flex-shrink-0 space-y-4">
+                <div class="w-full lg:w-[220px] flex-shrink-0 space-y-3">
                     <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
                         ${subsidiarySelect}
                         <div id="dateFieldWrapper">
@@ -2732,7 +2761,7 @@ class App extends Templates {
                             ${lucideIcon('lock')} <span>Cerrar<span class="hidden md:inline"> Turno</span></span>
                         </button>
                         <button id="btnPrintTicket" class="py-2.5 rounded-lg text-xs md:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 opacity-50 cursor-not-allowed" disabled onclick="app.printDailyCloseTicket()">
-                            ${lucideIcon('printer')} <span>Imprimir<span class="hidden md:inline"> Ticket</span></span>
+                            ${lucideIcon('printer')} <span>Imprimir</span>
                         </button>
                     </div>
                     <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
@@ -2743,7 +2772,7 @@ class App extends Templates {
                 </div>
                 <!-- Ticket Preview -->
                 <div class="flex-1 relative">
-                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[420px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
+                    <div id="ticketPreview" class="relative lg:absolute lg:inset-0 w-full min-h-[380px] lg:min-h-0 bg-[#151d2a] rounded-lg p-4 overflow-y-auto">
                         <div id="ticketModeBar" class="flex items-center justify-between mb-3 gap-3 hidden">
                             <p class="text-xs text-gray-500">Vista previa de impresión</p>
                             <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px] flex-shrink-0">
@@ -2772,8 +2801,26 @@ class App extends Templates {
                 </div>`,
             message: modalContent,
             size:'large',
-            closeButton: true
+            closeButton: true,
+            className: 'daily-close-enhanced-modal'
         });
+
+        $("<style>").text(`
+            .daily-close-enhanced-modal .modal-dialog {
+                max-width: 940px !important;
+                width: 82vw !important;
+            }
+            .daily-close-enhanced-modal .modal-body {
+                max-height: 78vh;
+                overflow-y: auto;
+            }
+            @media (max-width: 768px) {
+                .daily-close-enhanced-modal .modal-dialog {
+                    width: 98vw !important;
+                    margin: 10px auto !important;
+                }
+            }
+        `).appendTo("head");
 
         dialog.on('shown.bs.modal', () => {
             dataPicker({
@@ -2850,23 +2897,23 @@ class App extends Templates {
                 const time = moment(s.opened_at).format('hh:mm A');
                 const name = s.shift_name || time;
                 return `
-                    <div class="flex items-center justify-between py-1.5 px-2 bg-[#1a2332] rounded-md cursor-pointer hover:bg-[#243044] transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
-                        <div class="flex items-center gap-2">
+                    <div class="flex items-center justify-between gap-3 py-2.5 pl-3 pr-3.5 bg-slate-800/40 border-l-2 border-orange-500 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex items-center gap-2.5">
                             <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                            <span class="text-xs text-gray-300">${name}</span>
+                            <span class="text-sm font-medium text-slate-100">${name}</span>
                         </div>
-                        <span class="text-[10px] text-gray-500">${date}</span>
+                        <span class="text-xs text-slate-400">${date}</span>
                     </div>
                 `;
             }).join('');
 
             alertContainer.html(`
-                <div class="bg-orange-900/30 rounded-lg p-3">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="icon-attention text-orange-400 text-sm"></i>
-                        <span class="text-xs font-bold text-orange-400 uppercase">Turnos sin cerrar (${openShifts.length})</span>
+                <div class="rounded-lg border border-slate-600/50 bg-slate-900/40 p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Turnos sin cerrar (${openShifts.length})</span>
                     </div>
-                    <div class="space-y-1">${shiftItems}</div>
+                    <div class="space-y-2">${shiftItems}</div>
                 </div>
             `).removeClass('hidden');
 
@@ -2881,8 +2928,15 @@ class App extends Templates {
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         }
 
-        // Si hay turnos, seleccionar el primero (más reciente)
-        if (shifts.length > 0) {
+        // Verificar si el día ya está cerrado ANTES de pintar (para mostrar el Corte Z, no el ticket de un turno)
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
+        const isDayClosed = closureCheck.status === 200 && !!closureCheck.closure;
+
+        if (isDayClosed) {
+            // Día cerrado: mostrar el Corte Z (opción "CIERRE DIARIO"). No pintar el ticket de un turno.
+            await cierre.loadClosedView(date, subsidiaries_id);
+        } else if (shifts.length > 0) {
+            // Seleccionar el turno más reciente y mostrar su ticket.
             select.val(shifts[0].id);
             this.viewShiftPreview();
         } else {
@@ -2898,21 +2952,20 @@ class App extends Templates {
             $('#ticketModeBar').addClass('hidden');
         }
 
-        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
+        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado (y el día no está cerrado)
         const hasClosedShifts = shifts.some(s => s.status === 'closed');
-        if (hasClosedShifts) {
-            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
-        } else {
-            $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-        }
+        if (!isDayClosed) {
+            if (hasClosedShifts) {
+                $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+            } else {
+                $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            }
 
-        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
-        if (closureCheck.status === 200 && closureCheck.closure) {
-            cierre.loadClosedView(date, subsidiaries_id);
-        } else if (date === moment().format('YYYY-MM-DD')) {
-            // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
-            dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
-            this.updateDailyClosureStatus();
+            if (date === moment().format('YYYY-MM-DD')) {
+                // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
+                dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
+                this.updateDailyClosureStatus();
+            }
         }
     }
 
@@ -2934,15 +2987,30 @@ class App extends Templates {
             return;
         }
 
+        // "CIERRE DIARIO": mostrar el corte Z del día, no un turno individual.
+        if (shiftId === 'daily') {
+            if (typeof cierre !== 'undefined') cierre.renderDaily();
+            return;
+        }
+
         this._selectedShiftId = shiftId;
+
+        // Animación de carga mientras se consulta el ticket del turno.
+        $('#ticketContainer').html(`
+            <div class="flex flex-col items-center justify-center text-gray-400 min-h-[340px]">
+                <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mb-4"></div>
+                <p>Cargando ticket...</p>
+            </div>
+        `);
+
         const selectedOption = $(`#shiftSelector option[value="${shiftId}"]`);
         const shiftStatus = selectedOption.data('status');
 
         // Obtener métricas
-        const metricsRes = await useFetch({
-            url: this._link,
-            data: { opc: "getShiftMetrics", shift_id: shiftId }
-        });
+        const [metricsRes] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: "getShiftMetrics", shift_id: shiftId } }),
+            new Promise(resolve => setTimeout(resolve, 500))
+        ]);
 
         if (metricsRes.status !== 200) {
             $('#ticketContainer').html(`<p class="text-center text-gray-400 py-10">${metricsRes.message || 'Error al obtener datos'}</p>`);

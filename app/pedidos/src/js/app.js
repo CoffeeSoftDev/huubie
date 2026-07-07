@@ -559,6 +559,35 @@ class App extends Templates {
         $('#orderSubsidiaryInfo').prev('label').remove();
         this.syncOrderFormSubsidiary();
 
+        // Candado en el submit de "Guardar Pedido" (fase de captura: corre antes del
+        // handler de envio del framework, asi el request ni siquiera sale). El backend
+        // valida lo mismo; esto es la primera linea de defensa. Dos bloqueos:
+        //   1) Sin turno abierto en la sucursal -> no se puede crear el pedido.
+        //   2) Admin sin sucursal especifica seleccionada en la navbar.
+        const formEl = document.getElementById('btnGuardarPedido')?.closest('form');
+        if (formEl) {
+            formEl.addEventListener('submit', (e) => {
+                if (!this.requireOpenShift()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return;
+                }
+                if (rol == 1) {
+                    const sub = $('#order_subsidiaries_id').val();
+                    if (!sub || sub === '0') {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        alert({
+                            icon: 'warning',
+                            text: 'Selecciona una sucursal específica en la navbar antes de guardar el pedido.',
+                            btn1: true,
+                            btn1Text: 'Ok'
+                        });
+                    }
+                }
+            }, true);
+        }
+
         $("#date_order").val(new Date().toISOString().split("T")[0]);
         $("#date_birthday").val(new Date().toISOString().split("T")[0]);
 
@@ -2973,8 +3002,15 @@ class App extends Templates {
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         }
 
-        // Si hay turnos, seleccionar el primero (más reciente)
-        if (shifts.length > 0) {
+        // Verificar si el día ya está cerrado ANTES de pintar (para mostrar el Corte Z, no el ticket de un turno)
+        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
+        const isDayClosed = closureCheck.status === 200 && !!closureCheck.closure;
+
+        if (isDayClosed) {
+            // Día cerrado: mostrar el Corte Z (opción "CIERRE DIARIO"). No pintar el ticket de un turno.
+            await cierre.loadClosedView(date, subsidiaries_id);
+        } else if (shifts.length > 0) {
+            // Seleccionar el turno más reciente y mostrar su ticket.
             select.val(shifts[0].id);
             this.viewShiftPreview();
         } else {
@@ -2990,21 +3026,20 @@ class App extends Templates {
             $('#ticketModeBar').addClass('hidden');
         }
 
-        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado
+        // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado (y el día no está cerrado)
         const hasClosedShifts = shifts.some(s => s.status === 'closed');
-        if (hasClosedShifts) {
-            $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
-        } else {
-            $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-        }
+        if (!isDayClosed) {
+            if (hasClosedShifts) {
+                $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+            } else {
+                $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+            }
 
-        const closureCheck = await useFetch({ url: cierre.api, data: { opc: 'getCierre', date: date, subsidiaries_id: subsidiaries_id } });
-        if (closureCheck.status === 200 && closureCheck.closure) {
-            cierre.loadClosedView(date, subsidiaries_id);
-        } else if (date === moment().format('YYYY-MM-DD')) {
-            // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
-            dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
-            this.updateDailyClosureStatus();
+            if (date === moment().format('YYYY-MM-DD')) {
+                // Sincronizar estado de la pantalla principal si hoy no hay cierre activo
+                dailyClosure = { is_closed: false, subsidiary_id: subsidiaries_id || udn };
+                this.updateDailyClosureStatus();
+            }
         }
     }
 
@@ -3026,15 +3061,30 @@ class App extends Templates {
             return;
         }
 
+        // "CIERRE DIARIO": mostrar el corte Z del día, no un turno individual.
+        if (shiftId === 'daily') {
+            if (typeof cierre !== 'undefined') cierre.renderDaily();
+            return;
+        }
+
         this._selectedShiftId = shiftId;
+
+        // Animación de carga mientras se consulta el ticket del turno.
+        $('#ticketContainer').html(`
+            <div class="flex flex-col items-center justify-center text-gray-400 min-h-[340px]">
+                <div class="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mb-4"></div>
+                <p>Cargando ticket...</p>
+            </div>
+        `);
+
         const selectedOption = $(`#shiftSelector option[value="${shiftId}"]`);
         const shiftStatus = selectedOption.data('status');
 
         // Obtener métricas
-        const metricsRes = await useFetch({
-            url: this._link,
-            data: { opc: "getShiftMetrics", shift_id: shiftId }
-        });
+        const [metricsRes] = await Promise.all([
+            useFetch({ url: this._link, data: { opc: "getShiftMetrics", shift_id: shiftId } }),
+            new Promise(resolve => setTimeout(resolve, 500))
+        ]);
 
         if (metricsRes.status !== 200) {
             $('#ticketContainer').html(`<p class="text-center text-gray-400 py-10">${metricsRes.message || 'Error al obtener datos'}</p>`);

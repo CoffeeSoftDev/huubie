@@ -292,7 +292,21 @@ class MCierre extends CRUD {
                     WHERE pp.order_id = o.id
                     ORDER BY pp.pay DESC
                     LIMIT 1
-                ) AS method
+                ) AS method,
+                (
+                    SELECT cs.id
+                    FROM {$this->bd}cash_shift cs
+                    WHERE cs.active = 1
+                      AND (
+                        cs.id = o.cash_shift_id
+                        OR (o.cash_shift_id IS NULL
+                            AND o.date_creation >= cs.opened_at
+                            AND o.date_creation < COALESCE(cs.closed_at, NOW())
+                            AND cs.subsidiary_id = o.subsidiaries_id)
+                      )
+                    ORDER BY cs.opened_at DESC
+                    LIMIT 1
+                ) AS shift_id
             FROM {$this->bd}`order` o
             INNER JOIN {$this->bd}order_clients oc ON o.client_id = oc.id
             WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?

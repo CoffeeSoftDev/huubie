@@ -212,9 +212,10 @@ class Navbar {
         // Con sucursales, todos ven el pill (misma configuracion que la navbar
         // del POS): el admin filtra la vista y el operador cambia de sesion.
         if (branches.length == 0) {
+            const pillDot = this.pillDotClass(this.settings.subsidiaryShift || 'none');
             return `
             <div class="flex items-center gap-2 branch-pill">
-                <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
+                <span class="branch-status-dot ${pillDot}"></span>
                 <span class="text-sm font-semibold text-white truncate max-w-[160px]">${this.settings.subsidiary || 'Sucursal'}</span>
             </div>`;
         }
@@ -256,6 +257,7 @@ class Navbar {
         const currentSubId = this.settings.subsidiaryId;
         const currentFull  = branches.find(b => b.id == currentSubId);
         const currentName  = currentFull ? currentFull.name : (this.settings.subsidiary || 'Seleccionar');
+        const pillDot      = this.pillDotClass(this.settings.subsidiaryShift || 'none');
 
         return `
         <div class="relative">
@@ -263,7 +265,7 @@ class Navbar {
                 <div class="flex flex-col items-start leading-tight">
                     <span class="text-[9px] uppercase tracking-[.14em] text-gray-500 font-semibold">Sucursal</span>
                     <div class="flex items-center gap-2">
-                        <span class="branch-status-dot bg-green-500 ring-2 ring-green-500/20"></span>
+                        <span class="branch-status-dot ${pillDot}"></span>
                         <span id="btnBranchName" class="text-sm font-semibold text-white">${currentName}</span>
                     </div>
                 </div>
@@ -332,11 +334,28 @@ class Navbar {
                 ${branch.ubication ? `<span class="text-[11px] text-gray-500 truncate">· ${branch.ubication}</span>` : ''}
             </div>`;
 
-        const subRow = branch.active === 0
-            ? closedRow
-            : (branch.ubication
-                ? `<p class="text-[11px] text-gray-400 mt-1 truncate">${branch.ubication}</p>`
-                : '');
+        // Indicador de turno de caja (lo pide la operacion: saber de un vistazo si
+        // la sucursal tiene turno activo). Coincide con el candado de creacion de
+        // pedidos: solo 'open' (turno abierto hoy) permite crear.
+        const shiftMeta = {
+            open:  { dot: 'bg-green-500', ring: 'rgba(34,197,94,.20)',  text: 'text-green-400', label: 'Turno abierto',    pulse: true  },
+            stale: { dot: 'bg-amber-400', ring: 'rgba(251,191,36,.20)', text: 'text-amber-400', label: 'Turno sin cerrar', pulse: false },
+            none:  { dot: 'bg-gray-500',  ring: 'rgba(156,163,175,.18)', text: 'text-gray-500', label: 'Sin turno',        pulse: false },
+        }[branch.shift_state || 'none'];
+
+        const ubicSuffix = branch.ubication
+            ? `<span class="text-[11px] text-gray-500 truncate">· ${branch.ubication}</span>`
+            : '';
+
+        const shiftRow = `
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="branch-status-dot ${shiftMeta.dot}${shiftMeta.pulse ? ' animate-pulse' : ''}" style="width:6px;height:6px;box-shadow:0 0 0 2px ${shiftMeta.ring};"></span>
+                <span class="text-[11px] ${shiftMeta.text} font-medium">${shiftMeta.label}</span>
+                ${ubicSuffix}
+            </div>`;
+
+        // Sucursal deshabilitada -> "Cerrada"; si esta activa, mostramos el turno.
+        const subRow = branch.active === 0 ? closedRow : shiftRow;
 
         return `
         <div class="branch-card ${selectedClass}" data-id="${branch.id}" data-name="${branch.name}">
@@ -351,6 +370,24 @@ class Navbar {
                 </div>
             </div>
         </div>`;
+    }
+
+    // Clases del punto de estado del pill segun el turno de la sucursal activa.
+    pillDotClass(state) {
+        return ({
+            open:  'bg-green-500 ring-2 ring-green-500/20',
+            stale: 'bg-amber-400 ring-2 ring-amber-400/20',
+            none:  'bg-gray-500 ring-2 ring-gray-500/20',
+        })[state] || 'bg-gray-500 ring-2 ring-gray-500/20';
+    }
+
+    // Refresca el punto del pill (sin recargar) al cambiar de sucursal en modo
+    // filtro (admin/"Todas"): toma el shift_state de la sucursal elegida.
+    updatePillShiftDot(id) {
+        const branch = (this.settings.branches || []).find(b => b.id == id);
+        const state  = branch ? (branch.shift_state || 'none') : 'none';
+        this.settings.subsidiaryShift = state;
+        $('#btnBranch .branch-status-dot').attr('class', `branch-status-dot ${this.pillDotClass(state)}`);
     }
 
     branchToastHtml() {
@@ -478,6 +515,7 @@ class Navbar {
         this.settings.subsidiaryId = id;
         $("#subsidiaries_id").val(id);
         $("#btnBranchName").text(name);
+        this.updatePillShiftDot(id);
 
         this.closeBranchDropdown();
         this.showToast(name);
@@ -559,11 +597,12 @@ $(async () => {
     const isAdmin = parseInt(data.level, 10) === 1;
     const current = branchInfo?.current || { id: 0, name: '' };
     const branches = (branchInfo?.branches || []).map(b => ({
-        id:        b.id,
-        name:      b.name,
-        ubication: b.ubication || '',
-        initials:  b.initials || '',
-        active:    b.active,
+        id:          b.id,
+        name:        b.name,
+        ubication:   b.ubication || '',
+        initials:    b.initials || '',
+        active:      b.active,
+        shift_state: b.shift_state || 'none',
     }));
 
     navbar.init({
@@ -577,6 +616,7 @@ $(async () => {
         isAdmin:      isAdmin,
         subsidiary:   current.name,
         subsidiaryId: current.id,
+        subsidiaryShift: current.shift_state || 'none',
         branches:     branches,
     });
 });

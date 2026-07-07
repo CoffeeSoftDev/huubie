@@ -261,7 +261,8 @@ class Cierre extends MCierre {
                 'discount'        => floatval($o['discount']),
                 'payment_real'    => floatval($o['payment_real']),
                 'total_paid_upto' => floatval($o['total_paid_upto']),
-                'method'          => $o['method']
+                'method'          => $o['method'],
+                'shift_id'        => $o['shift_id'] !== null ? intval($o['shift_id']) : null
             ];
         }
 
