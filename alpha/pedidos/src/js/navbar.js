@@ -106,7 +106,7 @@ class Navbar {
                     <button id="toggleSidebar" class="text-white text-xl leading-none">☰</button>
                 </div>
                 <div class="flex items-center gap-3">
-                    ${branchControl}
+                    <div id="navbarBranchControl">${branchControl}</div>
                     ${hiddenSelect}
                     <button id="btnReloadApp" class="flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Recargar (limpia caché)">
                         <svg class="w-[18px] h-[18px] text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">

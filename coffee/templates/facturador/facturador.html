@@ -15,6 +15,10 @@
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -66,6 +70,28 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
+  /* ===== DateRangePicker (paleta terracota) ===== */
+  .daterangepicker{font-family:'Inter',system-ui,sans-serif;border-color:#E5E7EB;box-shadow:0 8px 30px rgba(17,25,40,.15)}
+  .daterangepicker td.active,.daterangepicker td.active:hover{background:#C05A40}
+  .daterangepicker td.in-range{background:#F7F0EB}
+  .daterangepicker td.available:hover,.daterangepicker th.available:hover{background:#F5E3DC}
+  .daterangepicker .ranges li.active{background:#C05A40}
+  .daterangepicker .ranges li:hover{background:#F5E3DC}
+  .daterangepicker .drp-buttons .btn.btn-primary,.daterangepicker .applyBtn{background:#C05A40;border-color:#C05A40}
+  .daterangepicker:before{border-bottom-color:#E5E7EB}
+  body.dark-mode .daterangepicker{background:#1F2A37;border-color:#374151;color:#e5e5e5}
+  body.dark-mode .daterangepicker .calendar-table{background:#1F2A37;border-color:#374151}
+  body.dark-mode .daterangepicker th,body.dark-mode .daterangepicker td{color:#e5e5e5}
+  body.dark-mode .daterangepicker td.off{color:#6B7280;background:#1F2A37}
+  body.dark-mode .daterangepicker td.available:hover{background:#1F2937}
+  body.dark-mode .daterangepicker td.in-range{background:rgba(192,90,64,.18);color:#fff}
+  body.dark-mode .daterangepicker td.active,body.dark-mode .daterangepicker td.active:hover{background:#C05A40}
+  body.dark-mode .daterangepicker .drp-calendar.left,body.dark-mode .daterangepicker .drp-calendar.right{border-color:#374151}
+  body.dark-mode .daterangepicker .drp-buttons{border-color:#374151}
+  body.dark-mode .daterangepicker select{background:#1F2937;color:#e5e5e5;border-color:#374151}
+  body.dark-mode .daterangepicker:before{border-bottom-color:#374151}
+  body.dark-mode .daterangepicker:after{border-bottom-color:#1F2A37}
+
   table{width:100%;border-collapse:collapse}
   thead th{position:sticky;top:0;background:#F9FAFB;z-index:10;font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:.05em;font-weight:600;text-align:left;padding:10px 12px;white-space:nowrap;border-bottom:1px solid #E5E7EB}
   tbody td{font-size:11px;color:#4B5563;padding:9px 12px;white-space:nowrap}
@@ -75,6 +101,10 @@
   .cell-null{color:#9CA3AF;font-style:italic;font-size:10px}
   .row-locked{background:#F7F0EB}
   .row-locked:hover{background:#F0E0D8}
+  .row-fact{background:#F3F4F6}
+  .row-fact:hover{background:#E5E7EB}
+  body.dark-mode .row-fact{background:#1a2332}
+  body.dark-mode .row-fact:hover{background:#26344a}
   table.striped tbody tr:nth-child(odd){background:#FFFFFF}
   table.striped tbody tr:nth-child(even){background:#F3F4F6}
   table.striped tbody tr:hover{background:#E5E7EB}
@@ -107,6 +137,13 @@
 
   .prog-track{height:10px;border-radius:9999px;background:#E5E7EB;overflow:hidden}
   .prog-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,#C05A40,#E08A70);transition:width .5s ease}
+
+  .tk-fmt-btn{padding:5px 14px;border-radius:7px;font-size:11px;font-weight:600;color:#6B7280;background:transparent;border:none;cursor:pointer;transition:.15s}
+  .tk-fmt-btn:hover{color:#C05A40}
+  .tk-fmt-btn.is-active{background:#C05A40;color:#fff}
+  body.dark-mode #ticketFmtToggle{background:#141d2b;border-color:#374151}
+  body.dark-mode .tk-fmt-btn{color:#9CA3AF}
+  body.dark-mode .tk-fmt-btn.is-active{background:#C05A40;color:#fff}
 
   .ticket-paper{background:#fff;border:1px solid #E5E7EB;border-radius:10px;box-shadow:0 4px 14px rgba(17,25,40,.08);font-family:'Courier New',ui-monospace,monospace;font-size:11px;color:#1F2937;padding:22px 20px;max-width:320px;margin:0 auto}
   .ticket-paper .tk-sep{border-top:1px dashed #9CA3AF;margin:8px 0}
@@ -188,6 +225,18 @@
   body.dark-mode .bg-\[\#fafcff\]{background:#111928!important}
   body.dark-mode .ticket-paper{background:#fff;color:#1F2937}
   body.dark-mode .empty-state p.t{color:#CBD5E1}
+
+  /* ===== Tab Consulta · sub-tabs + paneles ===== */
+  .consulta-subtab{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .8rem;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+  .consulta-subtab:hover{border-color:#F0C4B5;color:#C05A40}
+  .consulta-subtab.is-active{background:#C05A40;border-color:#C05A40;color:#fff}
+  .consulta-panel{display:none}
+  .consulta-panel.active{display:block}
+  body.dark-mode .consulta-subtab{background:#1F2A37;border-color:#374151;color:#9CA3AF}
+  body.dark-mode .consulta-subtab:hover{border-color:rgba(192,90,64,.4);color:#E8A68F}
+  body.dark-mode .consulta-subtab.is-active{background:#C05A40;border-color:#C05A40;color:#fff}
+  body.dark-mode .bg-gray-50{background:#1F2A37!important;border-color:#374151!important}
+  body.dark-mode .bg-green-50{background:rgba(34,197,94,.12)!important;border-color:rgba(34,197,94,.25)!important}
 </style>
 </head>
 <body>
@@ -196,8 +245,8 @@
   <div class="flex items-center gap-3">
     <div class="nav-logo"><i data-lucide="coffee" class="w-5 h-5"></i></div>
     <div class="flex flex-col leading-tight">
-      <span class="navbar-title">CoffeeSoft</span>
-      <span class="navbar-subtitle">Facturador SAT · Restaurant</span>
+      <span class="navbar-title">Facturador</span>
+      <span class="navbar-subtitle">Restaurant</span>
     </div>
   </div>
 
@@ -211,7 +260,8 @@
     </div>
     <div class="hidden md:flex items-center gap-2 branch-pill branch-pill-static !px-2" id="wrapDia">
       <span class="branch-pill-label">Día</span>
-      <input type="date" id="ctrlDia" class="input-base !border-transparent !bg-transparent !p-1 !text-[12px] font-semibold" style="min-width:124px" onchange="renderAll()">
+      <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#C05A40]"></i>
+      <input type="text" id="ctrlDia" readonly class="input-base !border-transparent !bg-transparent !p-1 !text-[12px] font-semibold cursor-pointer" style="min-width:120px">
     </div>
     <div class="hidden md:flex items-center gap-2 branch-pill branch-pill-static !px-2" id="wrapMes" style="display:none">
       <span class="branch-pill-label">Mes</span>
@@ -236,6 +286,7 @@
   <button class="menu-rail-item" data-tab="ventapago"  onclick="showTab('ventapago',this)" title="Venta por pago"><i data-lucide="credit-card"></i><span class="menu-rail-label">Ventas</span></button>
   <button class="menu-rail-item" data-tab="detallado"  onclick="showTab('detallado',this)" title="Detallado"><i data-lucide="list"></i><span class="menu-rail-label">Detallado</span></button>
   <button class="menu-rail-item" data-tab="facturados" onclick="showTab('facturados',this)" title="Facturados"><i data-lucide="file-check-2"></i><span class="menu-rail-label">Facturas</span></button>
+  <button class="menu-rail-item" data-tab="consulta"  onclick="showTab('consulta',this)" title="Consulta"><i data-lucide="search"></i><span class="menu-rail-label">Consulta</span></button>
   <button class="menu-rail-item" data-tab="catalogos"  onclick="showTab('catalogos',this)" title="Catálogos"><i data-lucide="book-open"></i><span class="menu-rail-label">Catálogo</span></button>
 </aside>
 
@@ -459,11 +510,11 @@
               <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2"><i data-lucide="receipt" class="w-4 h-4 text-[#C05A40]"></i>Tickets del día</h3>
               <p class="text-[9px] text-gray-400 mt-0.5">todos los tickets del día · se omiten efectivos no facturados · los facturados quedan congelados con CFDI vigente</p>
             </div>
-            <span class="badge-base b-terra" id="foliosCount">0 tickets</span>
+            <span class="badge-base b-terra ml-auto" id="foliosCount">0 tickets</span>
           </div>
           <div class="overflow-auto scroll-thin" style="max-height:calc(100vh - 200px)">
-            <table class="striped">
-              <thead><tr><th>ORDEN</th><th>ID</th><th>Facturado</th><th>Folio</th><th>Forma de pago</th><th class="text-right">Monto</th><th class="text-center">16%</th><th class="text-right">Acción</th></tr></thead>
+            <table>
+              <thead><tr><th>ORDEN</th><th>ID</th><th class="text-center">Facturado</th><th>Folio</th><th class="text-right">Monto</th><th class="text-center">16%</th><th class="text-right">Acción</th></tr></thead>
               <tbody id="bodyOrdFactFolios"></tbody>
               <tfoot id="footOrdFactFolios"></tfoot>
             </table>
@@ -501,6 +552,139 @@
               <p class="text-[8px] text-gray-400 leading-tight">= total × 70% − facturado</p>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 7 · CONSULTA ============ -->
+  <section id="tab-consulta" class="tab-panel">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-base font-bold text-gray-900">Consulta</h2>
+        <p class="text-[11px] text-gray-500">Resumen de ventas por rango de fecha</p>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Rango</span>
+        <input type="date" id="conDesde" class="input-base !py-1 !text-[12px]" onchange="renderConsulta()">
+        <span class="text-gray-400 text-[12px]">→</span>
+        <input type="date" id="conHasta" class="input-base !py-1 !text-[12px]" onchange="renderConsulta()">
+        <span class="badge-base b-terra" id="conRangoLabel">—</span>
+      </div>
+    </div>
+
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button class="consulta-subtab is-active" data-sub="A" onclick="setConsultaSub('A')"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Acumulado total real</button>
+      <button class="consulta-subtab" data-sub="B" onclick="setConsultaSub('B')"><i data-lucide="credit-card" class="w-3.5 h-3.5"></i> No facturado (tarjeta)</button>
+      <button class="consulta-subtab" data-sub="C" onclick="setConsultaSub('C')"><i data-lucide="file-check-2" class="w-3.5 h-3.5"></i> Orden facturado</button>
+    </div>
+
+    <!-- Panel A · Acumulado total real -->
+    <div class="consulta-panel active" data-sub="A">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Acumulado total real</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conA_total">$0.00</p>
+          <p class="text-[8px] text-gray-400">suma de todos los pagos</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Efectivo</span>
+          <p class="text-lg font-extrabold text-green-700 leading-tight" id="conA_efectivo">$0.00</p>
+          <p class="text-[8px] text-gray-400">forma 01</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Tarjeta</span>
+          <p class="text-lg font-extrabold text-[#A84A33] leading-tight" id="conA_tarjeta">$0.00</p>
+          <p class="text-[8px] text-gray-400">forma 04</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Tickets</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conA_tickets">0</p>
+          <p class="text-[8px] text-gray-400">en el rango</p>
+        </div>
+      </div>
+      <div class="card-base overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2"><i data-lucide="layers" class="w-4 h-4 text-[#C05A40]"></i>Detalle de pagos</h3>
+        </div>
+        <div class="overflow-auto scroll-thin" style="max-height:calc(100vh - 320px)">
+          <table class="striped">
+            <thead><tr><th>ORDEN</th><th>Fecha</th><th>Forma de pago</th><th class="text-right">Monto</th></tr></thead>
+            <tbody id="bodyConA"></tbody>
+            <tfoot id="footConA"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel B · No facturado (tarjeta) -->
+    <div class="consulta-panel" data-sub="B">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Monto tarjeta no facturado</span>
+          <p class="text-lg font-extrabold text-[#A84A33] leading-tight" id="conB_total">$0.00</p>
+          <p class="text-[8px] text-gray-400">sólo pagos forma 04</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Tickets</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conB_tickets">0</p>
+          <p class="text-[8px] text-gray-400">con tarjeta, sin CFDI</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Ticket con más monto</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conB_max">$0.00</p>
+          <p class="text-[8px] text-gray-400">mayor porción tarjeta</p>
+        </div>
+      </div>
+      <div class="card-base overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2"><i data-lucide="credit-card" class="w-4 h-4 text-[#C05A40]"></i>Pagos de banco no facturados</h3>
+          <p class="text-[9px] text-gray-400 mt-0.5">sólo tarjetas de crédito (forma 04) · no incluye efectivo puro · monto = porción tarjeta</p>
+        </div>
+        <div class="overflow-auto scroll-thin" style="max-height:calc(100vh - 320px)">
+          <table class="striped">
+            <thead><tr><th>ORDEN</th><th>Fecha</th><th>Facturado</th><th>Forma de pago</th><th class="text-right">Monto tarjeta</th><th class="text-right">Acción</th></tr></thead>
+            <tbody id="bodyConB"></tbody>
+            <tfoot id="footConB"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel C · Orden facturado -->
+    <div class="consulta-panel" data-sub="C">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Facturado vigente</span>
+          <p class="text-lg font-extrabold text-green-700 leading-tight" id="conC_total">$0.00</p>
+          <p class="text-[8px] text-gray-400">suma de vigentes</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Vigentes</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conC_vigentes">0</p>
+          <p class="text-[8px] text-gray-400">CFDI vigente</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Canceladas</span>
+          <p class="text-lg font-extrabold text-red-600 leading-tight" id="conC_canceladas">0</p>
+          <p class="text-[8px] text-gray-400">CFDI cancelado</p>
+        </div>
+        <div class="card-base p-3">
+          <span class="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Total facturas</span>
+          <p class="text-lg font-extrabold text-gray-900 leading-tight" id="conC_count">0</p>
+          <p class="text-[8px] text-gray-400">en el rango</p>
+        </div>
+      </div>
+      <div class="card-base overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h3 class="text-[12px] font-bold text-gray-800 flex items-center gap-2"><i data-lucide="file-check-2" class="w-4 h-4 text-[#C05A40]"></i>Facturas en el rango</h3>
+        </div>
+        <div class="overflow-auto scroll-thin" style="max-height:calc(100vh - 320px)">
+          <table class="striped">
+            <thead><tr><th>Orden</th><th>Folio</th><th>RFC</th><th>Razón</th><th>Estatus</th><th>Fecha</th><th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th><th>UUID</th><th>Forma</th><th>Método</th><th>Fecha op.</th></tr></thead>
+            <tbody id="bodyConC"></tbody>
+            <tfoot id="footConC"></tfoot>
+          </table>
         </div>
       </div>
     </div>
@@ -638,7 +822,11 @@
       <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4 text-[#C05A40]"></i>Ticket virtual · <span id="ticketModalOrden" class="text-gray-500 font-normal"></span></h3>
       <button class="ml-auto text-gray-400 hover:text-gray-700" onclick="closeModal('modalTicketVirtual')"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
-    <div class="modal-body flex justify-center">
+    <div class="modal-body flex flex-col items-center gap-3">
+      <div class="flex items-center gap-1 p-1 rounded-lg bg-gray-100 border border-gray-200" id="ticketFmtToggle">
+        <button class="tk-fmt-btn" data-tkfmt="soft" onclick="setTicketFmt('soft')">CoffeeSoft</button>
+        <button class="tk-fmt-btn" data-tkfmt="wansoft" onclick="setTicketFmt('wansoft')">Wansoft</button>
+      </div>
       <div id="ticketPrintArea">
         <div class="ticket-paper" id="ticketPaper"></div>
       </div>
@@ -739,6 +927,7 @@ function showTab(name, btn){
   if(name==='facturados') renderFacturados();
   if(name==='generador') renderGenerador();
   if(name==='catalogos') renderCatalogos();
+  if(name==='consulta') renderConsulta();
 }
 
 function isCashOnly(sale){
@@ -749,24 +938,56 @@ function isInvoiced(sale){
       || !!sale.invoiced;
 }
 
+function calcTasasDia(salesDia){
+  const ticketTotal = s => s.payments.reduce((x,p)=>x+(p.totalCharged||0),0);
+  const totalReal = salesDia.flatMap(s=>s.payments).reduce((a,p)=>a+(p.totalCharged||0),0);
+  const metaDia = totalReal * (DB.meta.porcentaje||0.70);
+  const tasaPorId = {};
+  let acum = 0;
+
+  salesDia.filter(isInvoiced).forEach(s=>{ tasaPorId[s.id]='16%'; acum+=ticketTotal(s); });
+
+  salesDia.filter(s=>!isInvoiced(s)).sort((a,b)=>(a.orderSeq||0)-(b.orderSeq||0)).forEach(s=>{
+    if(acum<metaDia){ tasaPorId[s.id]='16%'; acum+=ticketTotal(s); } else tasaPorId[s.id]='0%';
+  });
+  return tasaPorId;
+}
+
 function renderAll(){
-  renderResumen(); renderVentaPago(); renderDetallado(); renderFacturados(); renderGenerador(); renderCatalogos();
+  renderResumen(); renderVentaPago(); renderDetallado(); renderFacturados(); renderGenerador(); renderCatalogos(); renderConsulta();
 }
 
 function getPeriodo(){
   const modo = document.getElementById('ctrlPeriodo').value;
   if(modo==='mes'){
     const mes = document.getElementById('ctrlMes').value || '';
-    return { modo:'mes', valor:mes, label: mes?fmtMes(mes):'—', match:(f)=> !!f && f.startsWith(mes) };
+    return { modo:'mes', valor:mes, label: mes?fmtMes(mes):'—', titulo:'del mes', chip:'Mes', match:(f)=> !!f && f.startsWith(mes) };
   }
-  const dia = document.getElementById('ctrlDia').value || '';
-  return { modo:'dia', valor:dia, label: dia?fmtDate(dia):'—', match:(f)=> f===dia };
+  const drp = $('#ctrlDia').data('daterangepicker');
+  const dia = drp ? drp.startDate.format('YYYY-MM-DD') : '';
+  return { modo:'dia', valor:dia, label: dia?fmtDate(dia):'—', titulo:'del día', chip:'Día', match:(f)=> f===dia };
 }
 function togglePeriodo(){
   const modo = document.getElementById('ctrlPeriodo').value;
   document.getElementById('wrapDia').style.display = modo==='dia' ? '' : 'none';
   document.getElementById('wrapMes').style.display = modo==='mes' ? '' : 'none';
   renderAll();
+}
+function initDatePicker(){
+  $('#ctrlDia').daterangepicker({
+    singleDatePicker: true,
+    startDate: moment('2026-06-08'),
+    opens: 'left',
+    autoApply: true,
+    locale: {
+      format: 'DD MMM YYYY',
+      applyLabel: 'Aplicar',
+      cancelLabel: 'Cancelar',
+      daysOfWeek: ['Do','Lu','Ma','Mi','Ju','Vi','Sa'],
+      monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+      firstDay: 1
+    }
+  }, function(){ renderAll(); });
 }
 
 function renderResumen(){
@@ -780,7 +1001,7 @@ function renderResumen(){
   const porFacturar = Math.max(0, meta - facturado);
   const pct = meta>0 ? Math.min(100,(facturado/meta)*100) : 0;
 
-  document.getElementById('resumenTitulo').textContent = 'Resumen '+(per.modo==='dia'?'del día':'del mes')+' · ' + per.label;
+  document.getElementById('resumenTitulo').textContent = 'Resumen '+per.titulo+' · ' + per.label;
   document.getElementById('resumenMetaPct').textContent = Math.round((DB.meta.porcentaje||0.70)*100)+'%';
   document.getElementById('kpiVenta').textContent = money(venta);
   document.getElementById('kpiVentaDet').textContent = salesDia.length + ' tickets · efectivo + tarjeta';
@@ -920,8 +1141,8 @@ function renderGenerador(){
   const per = getPeriodo();
   currentGenDate = per.valor;
   document.getElementById('genTitulo').textContent = 'Folios · consulta de tickets';
-  document.getElementById('genSub').textContent = (per.modo==='dia'?'Día':'Mes')+' · '+per.label;
-  document.getElementById('foliosPeriodo').textContent = (per.modo==='dia'?'Día':'Mes')+' · '+per.label;
+  document.getElementById('genSub').textContent = per.chip+' · '+per.label;
+  document.getElementById('foliosPeriodo').textContent = per.chip+' · '+per.label;
 
   const salesDia = DB.sales.filter(s=>per.match(s.operationDate));
   const payments = salesDia.flatMap(s=>s.payments.map(p=>({sale:s,pay:p})));
@@ -944,13 +1165,7 @@ function renderGenerador(){
   const pendientes = visibles.filter(s => !isInvoiced(s));
   const montoPend = pendientes.reduce((a,s)=>a+s.payments.reduce((x,p)=>x+(p.totalCharged||0),0),0);
 
-  const metaDia = totalReal * pct;
-  let acumT = totalFact;
-  const tasaPorId = {};
-  pendientes.slice().sort((a,b)=>(a.orderSeq||0)-(b.orderSeq||0)).forEach(s=>{
-    const monto = s.payments.filter(p=>p.formCode!=='01').reduce((x,p)=>x+(p.totalCharged||0),0);
-    if(acumT<metaDia){ tasaPorId[s.id]='16%'; acumT+=monto; } else tasaPorId[s.id]='0%';
-  });
+  const tasaPorId = calcTasasDia(salesDia);
 
   document.getElementById('foliosCount').textContent = visibles.length+' tickets';
 
@@ -959,29 +1174,144 @@ function renderGenerador(){
     const fact = isInvoiced(s);
     const inv = fact ? DB.invoices.find(i=>i.orderNo===s.orderSeq && i.operationDate===s.operationDate) : null;
     const monto = s.payments.reduce((a,p)=>a+(p.totalCharged||0),0);
-    const forma = s.payments.some(p=>p.formCode!=='01') ? 'Tarjeta de crédito' : 'Efectivo';
-    const formaB = s.payments.some(p=>p.formCode!=='01') ? 'b-terra' : 'b-green';
-    const accion = fact
-      ? `<button class="btn-ghost !px-2 !py-0.5 text-[10px]" onclick="verTicket(${s.id})"><i data-lucide="printer" class="w-3 h-3"></i>Ver ticket</button>`
-      : `<button class="btn-ghost !px-2 !py-0.5 text-[10px] !text-[#A84A33] !border-[#E8A68F] hover:!bg-[#FBF1ED]" onclick="generarTicket(${s.id})"><i data-lucide="wand-2" class="w-3 h-3"></i>Generar</button>`;
+    const accion = `<button class="btn-ghost !px-2 !py-0.5 text-[10px]" onclick="verTicket(${s.id})"><i data-lucide="printer" class="w-3 h-3"></i>Ver ticket</button>`;
     const celda16 = fact
       ? '<span class="badge-base b-green">16%</span>'
       : (tasaPorId[s.id]==='16%' ? '<span class="badge-base b-terra">16%</span>' : '<span class="badge-base b-gray">0%</span>');
-    return `<tr>
+    const facturadoCell = fact ? '<i data-lucide="check-circle" class="w-4 h-4 text-green-600 inline-block"></i>' : '';
+    return `<tr class="${fact?'row-fact':''}">
       <td class="font-bold text-gray-800">${s.orderSeq||'-'}</td>
       <td class="font-mono text-[10px]">${s.posRef||'-'}</td>
-      <td>${fact?'<span class="badge-base b-green">Si</span>':'<span class="badge-base b-yellow">No</span>'}</td>
+      <td class="text-center">${facturadoCell}</td>
       <td>${inv?`<span class="badge-base b-terra">${inv.folio}</span>`:'<span class="text-gray-300">—</span>'}</td>
-      <td><span class="badge-base ${formaB}">${forma}</span></td>
       <td class="text-right font-semibold text-gray-800">${money(monto)}</td>
       <td class="text-center">${celda16}</td>
       <td class="text-right">${accion}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="8" class="text-center text-gray-400">Sin tickets en '+per.label+'.</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="text-center text-gray-400">Sin tickets en '+per.label+'.</td></tr>';
   document.getElementById('footOrdFactFolios').innerHTML =
-    '<tr><td colspan="6">Facturados '+facturados.length+' · Pendientes '+pendientes.length+'</td><td class="text-right text-green-700">'+money(totalFact)+'</td><td class="text-right text-[#A84A33]">'+money(montoPend)+'</td></tr>';
+    '<tr><td colspan="4">Facturados '+facturados.length+' ('+money(totalFact)+') · Pendientes '+pendientes.length+'</td><td class="text-right text-[#A84A33]">'+money(montoPend)+'</td><td colspan="2"></td></tr>';
 
   lucide.createIcons();
+}
+
+/* ===== Helpers de Consulta ===== */
+function matchRango(from,to,d){ if(!d) return false; if(from && d<from) return false; if(to && d>to) return false; return true; }
+function isCard(s){ return s.payments.some(p=>p.formCode==='04'); }
+function sumaTarjeta(s){ return s.payments.filter(p=>p.formCode==='04').reduce((a,p)=>a+(p.totalCharged||0),0); }
+function getRangoConsulta(){
+  return { from: document.getElementById('conDesde').value, to: document.getElementById('conHasta').value };
+}
+
+let conSub='A';
+function setConsultaSub(s){
+  conSub=s;
+  document.querySelectorAll('.consulta-subtab').forEach(b=>b.classList.toggle('is-active', b.dataset.sub===s));
+  document.querySelectorAll('.consulta-panel').forEach(p=>p.classList.toggle('active', p.dataset.sub===s));
+  lucide.createIcons();
+}
+
+function renderConsulta(){
+  const {from,to}=getRangoConsulta();
+  document.getElementById('conRangoLabel').textContent = (from||'—')+' → '+(to||'—');
+  renderConsultaAcumulado(from,to);
+  renderConsultaNoFacturado(from,to);
+  renderConsultaFacturado(from,to);
+  lucide.createIcons();
+}
+
+function renderConsultaAcumulado(from,to){
+  const sales = DB.sales.filter(s=>matchRango(from,to,s.operationDate));
+  const pays = sales.flatMap(s=>s.payments.map(p=>({s,p})));
+  const total = pays.reduce((a,x)=>a+(x.p.totalCharged||0),0);
+  const efec = pays.filter(x=>x.p.formCode==='01').reduce((a,x)=>a+(x.p.totalCharged||0),0);
+  const tarj = total - efec;
+  document.getElementById('conA_total').textContent = money(total);
+  document.getElementById('conA_efectivo').textContent = money(efec);
+  document.getElementById('conA_tarjeta').textContent = money(tarj);
+  document.getElementById('conA_tickets').textContent = sales.length;
+  const tbody = document.getElementById('bodyConA');
+  tbody.innerHTML = pays.map(({s,p})=>{
+    const forma = p.formCode==='01' ? 'Efectivo' : 'Tarjeta de crédito';
+    const formaB = p.formCode==='01' ? 'b-green' : 'b-terra';
+    return `<tr>
+      <td class="font-bold text-gray-800">${s.orderSeq||'-'}</td>
+      <td>${fmtDate(s.operationDate)}</td>
+      <td><span class="badge-base ${formaB}">${forma}</span></td>
+      <td class="text-right font-semibold text-gray-800">${money(p.totalCharged||0)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="text-center text-gray-400">Sin pagos en el rango.</td></tr>';
+  document.getElementById('footConA').innerHTML = '<tr><td colspan="3" class="text-right">Total acumulado real</td><td class="text-right font-bold text-[#C05A40]">'+money(total)+'</td></tr>';
+}
+
+function renderConsultaNoFacturado(from,to){
+  const sales = DB.sales.filter(s=>matchRango(from,to,s.operationDate) && isCard(s) && !isInvoiced(s));
+  const total = sales.reduce((a,s)=>a+sumaTarjeta(s),0);
+  const max = sales.length ? Math.max(...sales.map(s=>sumaTarjeta(s))) : 0;
+  document.getElementById('conB_total').textContent = money(total);
+  document.getElementById('conB_tickets').textContent = sales.length;
+  document.getElementById('conB_max').textContent = money(max);
+  const tbody = document.getElementById('bodyConB');
+  tbody.innerHTML = sales.map(s=>{
+    const monto = sumaTarjeta(s);
+    const forma = s.payments.some(p=>p.formCode==='04') ? 'Tarjeta de crédito' : 'Efectivo';
+    const formaB = s.payments.some(p=>p.formCode==='04') ? 'b-terra' : 'b-green';
+    const accion = `<button class="btn-ghost !px-2 !py-0.5 text-[10px] !text-[#A84A33] !border-[#E8A68F] hover:!bg-[#FBF1ED]" onclick="generarTicket(${s.id})"><i data-lucide="wand-2" class="w-3 h-3"></i>Generar</button>`;
+    return `<tr>
+      <td class="font-bold text-gray-800">${s.orderSeq||'-'}</td>
+      <td>${fmtDate(s.operationDate)}</td>
+      <td><span class="badge-base b-yellow">No</span></td>
+      <td><span class="badge-base ${formaB}">${forma}</span></td>
+      <td class="text-right font-semibold text-[#A84A33]">${money(monto)}</td>
+      <td class="text-right">${accion}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="text-center text-gray-400">Sin tickets de tarjeta sin facturar en el rango.</td></tr>';
+  document.getElementById('footConB').innerHTML = '<tr><td colspan="4" class="text-right">Total tarjeta no facturado</td><td class="text-right font-bold text-[#A84A33]">'+money(total)+'</td><td></td></tr>';
+}
+
+function renderConsultaFacturado(from,to){
+  const inv = DB.invoices.filter(i=>matchRango(from,to,i.operationDate)||matchRango(from,to,i.invoiceDate));
+  const vigentes = inv.filter(i=>i.status!=='Cancelado');
+  const canceladas = inv.filter(i=>i.status==='Cancelado');
+  const totalVig = vigentes.reduce((a,i)=>a+(i.total||0),0);
+  document.getElementById('conC_total').textContent = money(totalVig);
+  document.getElementById('conC_vigentes').textContent = vigentes.length;
+  document.getElementById('conC_canceladas').textContent = canceladas.length;
+  document.getElementById('conC_count').textContent = inv.length;
+  const tbody = document.getElementById('bodyConC');
+  tbody.innerHTML = inv.map(i=>{
+    const bEst = i.status==='Cancelado' ? '<span class="badge-base b-red">Cancelado</span>' : '<span class="badge-base b-green">Vigente</span>';
+    const uuid = (i.uuid||'').slice(0,8)+'…'+(i.uuid||'').slice(-6);
+    const sale = DB.sales.find(s=>s.orderSeq===i.orderNo && s.operationDate===i.operationDate);
+    return `<tr>
+      <td class="font-bold text-gray-800">${sale?(sale.orderSeq||'-'):(i.orderNo||'-')}</td>
+      <td><span class="badge-base b-terra">${i.folio||'-'}</span></td>
+      <td class="font-mono text-[10px]">${i.rfc||'-'}</td>
+      <td>${i.name||'-'}</td>
+      <td>${bEst}</td>
+      <td>${fmtDate(i.invoiceDate)}</td>
+      <td class="text-right">${money(i.subtotal)}</td>
+      <td class="text-right">${money(i.tax)}</td>
+      <td class="text-right">${money(i.ieps)}</td>
+      <td class="text-right font-semibold text-gray-800">${money(i.total)}</td>
+      <td class="font-mono text-[10px] text-gray-400">${uuid}</td>
+      <td>${i.paymentFormCode||'-'}</td>
+      <td>${i.paymentMethodCode||'-'}</td>
+      <td>${fmtDate(i.operationDate)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="14" class="text-center text-gray-400">Sin facturas en el rango.</td></tr>';
+  document.getElementById('footConC').innerHTML = '<tr><td colspan="9" class="text-right">Total vigente</td><td class="text-right font-bold text-green-700">'+money(totalVig)+'</td><td colspan="4"></td></tr>';
+}
+
+/* ===== Generador: tickets en 0% ===== */
+function generarSeleccionados(){
+  const per = getPeriodo();
+  const salesDia = DB.sales.filter(s=>per.match(s.operationDate));
+  const tasaPorId = calcTasasDia(salesDia);
+  const ceros = salesDia.filter(s=>tasaPorId[s.id]==='0%' && !isCashOnly(s) && !isInvoiced(s)).map(s=>s.id);
+  if(!ceros.length){ toast('No hay tickets en 0% para generar.','err'); return; }
+  ceros.forEach(id=>generarTicket(id));
+  toast(ceros.length+' ticket(s) virtual(es) generado(s).','ok');
 }
 
 function generarTicket(saleId){
@@ -1219,7 +1549,10 @@ function guardarTicket(){
   saveDB();
   closeModal('modalCaptura');
   toast('Ticket #'+orden+' guardado.','ok');
-  document.getElementById('ctrlDia').value = fecha;
+  const drp = $('#ctrlDia').data('daterangepicker');
+  if(drp){ drp.setStartDate(moment(fecha)); drp.setEndDate(moment(fecha)); }
+  document.getElementById('ctrlPeriodo').value = 'dia';
+  togglePeriodo();
   renderAll();
 }
 
@@ -1371,9 +1704,11 @@ function normDate(v){
 /* ===== init ===== */
 function init(){
   loadDB();
-  document.getElementById('ctrlDia').value = '2026-06-01';
   document.getElementById('ctrlMes').value = '2026-06';
   document.getElementById('ctrlPeriodo').value = 'dia';
+  document.getElementById('conDesde').value = '2026-06-01';
+  document.getElementById('conHasta').value = '2026-06-30';
+  initDatePicker();
   togglePeriodo();
   fillFormaPago();
   if(localStorage.getItem('facturador_dark')==='1'){ document.body.classList.add('dark-mode'); }

@@ -2314,7 +2314,7 @@ class VisorView {
         const setDocsView = (v) => { try { localStorage.setItem('visor:docs:view', v); } catch (e) {} };
 
         // Breadcrumb navegable "documents / proj / tipo" (cada segmento recorta).
-        const crumbBtns = [`<button type="button" class="docx-crumb" data-crumb-to="0">documents</button>`]
+        const crumbBtns = [`<button type="button" class="docx-crumb" data-crumb-to="0">Documents</button>`]
             .concat(crumb.map((seg, i) =>
                 `<span class="docx-crumb-sep">/</span><button type="button" class="docx-crumb" data-crumb-to="${i + 1}" title="${seg}">${seg}</button>`
             )).join('');

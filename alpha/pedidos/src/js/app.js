@@ -49,6 +49,9 @@ class App extends Templates {
     }
 
     render() {
+        // Vista de listado: el selector de sucursal del navbar SI aplica (filtro de
+        // vista), asi que se muestra. En crear/editar se oculta (ver CatalogProduct.render).
+        $('#navbarBranchControl').removeClass('hidden');
         this.layout();
         this.createFilterBar();
         this.ls();
@@ -1209,6 +1212,11 @@ class App extends Templates {
 
 
     if (rol == 1) {
+        // Selector de sucursal del pedido (solo admin). Durante crear/editar el
+        // selector de sucursal del navbar se oculta, y ESTE es la fuente de la
+        // sucursal del pedido: su input #subsidiaries_id se envia al guardar y lo
+        // consumen el candado de submit + validateOrderSubsidiary() (crear) y
+        // lockSubsidiarySelector() (editar).
         orderFields.push({
             opc: "div",
             id: "subsidiaryFilter",
@@ -1296,28 +1304,33 @@ class App extends Templates {
             lbl: "Tipo de entrega",
             class: "col-12 col-lg-6",
             html: `
-                <div class="form-check form-check-inline col-sm-3  mt-2 ">
-                    <input
-                        class="form-check-input me-2"
-                        type="radio"
-                        name="delivery_type"
-                        id="local"
-                        value=0
-                        onclick="this.value='0'"
-                        checked
-                    >
-                    <label class="form-check-label" for="local">Local</label>
-                </div>
-                <div class="form-check form-check-inline col-sm-3  mt-2  ">
-                    <input
-                        class="form-check-input me-2"
-                        type="radio"
-                        name="delivery_type"
-                        id="domicilio"
-                        onclick="this.value='1'"
-                        value=1
-                    >
-                    <label class="form-check-label" for="domicilio">A domicilio</label>
+                <div class="flex gap-2 mt-2">
+                    <label class="w-1/3 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                        <input
+                            class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                            type="radio"
+                            name="delivery_type"
+                            id="local"
+                            value="0"
+                            onclick="this.value='0'"
+                            checked
+                        >
+                        ${lucideIcon('store', 'w-4 h-4')}
+                        <span class="text-sm font-medium">Local</span>
+                    </label>
+
+                    <label class="w-1/3 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                        <input
+                            class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                            type="radio"
+                            name="delivery_type"
+                            id="domicilio"
+                            value="1"
+                            onclick="this.value='1'"
+                        >
+                        ${lucideIcon('truck', 'w-4 h-4')}
+                        <span class="text-sm font-medium">A domicilio</span>
+                    </label>
                 </div>
             `
         },
@@ -1332,13 +1345,13 @@ class App extends Templates {
             opc: "btn-submit",
             id: "btnGuardarPedido",
             text: "Guardar Pedido",
-            class: "col-12  offset-md-8 offset-lg-6 col-md-2 col-lg-3 "
+            class: "col-12  offset-md-8 offset-lg-8 col-md-2 col-lg-2 "
         },
         {
             opc: "button",
             id: "btnRegresar",
             text: "Salir",
-            class: "col-12 col-lg-3 col-md-2 ",
+            class: "col-12 col-lg-2 col-md-2 ",
             className: 'w-full',
             icon: "icon-left-open",
             color_btn: "danger",

@@ -1076,6 +1076,10 @@ class CatalogProduct extends Pos {
     }
 
     render() {
+        // Crear/editar pedido: se oculta el selector de sucursal del navbar. La
+        // sucursal del pedido la define el selector del formulario (#subsidiaryFilter
+        // -> #subsidiaries_id). Al volver al listado, App.render() lo vuelve a mostrar.
+        $('#navbarBranchControl').addClass('hidden');
         this.layout();
         this.formCreateOrder();
         this.layoutPos();
