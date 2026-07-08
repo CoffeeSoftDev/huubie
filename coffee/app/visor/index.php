@@ -185,6 +185,7 @@
                     <span id="footerPath">.claude/agents</span>
                 </div>
             </div>
+            <div id="sidebarResizeHandle" class="visor-sidebar-resize" title="Arrastra para redimensionar"></div>
         </aside>
 
         <main id="root" class="visor-main">

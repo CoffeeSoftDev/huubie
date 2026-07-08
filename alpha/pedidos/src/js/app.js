@@ -481,12 +481,16 @@ class App extends Templates {
       
 
         normal.layoutEdit = false;
-        $("#container-pedido").html(`<form id="formCreatePedido" novalidate></form>`);
+        // Host <div> (no <form>): coffeeForm crea su propio <form id="formPedido">,
+        // asi se evita el anidamiento de formularios.
+        $("#container-pedido").html(`<div id="formCreatePedido"></div>`);
 
 
         this.createForm({
             parent: "formCreatePedido",
             id: "formPedido",
+            coffeesoft: true,
+            theme: 'dark',
             data: { opc: "addOrder" },
             json: this.jsonOrder(),
 
@@ -576,9 +580,6 @@ class App extends Templates {
         const hora = ahora.toTimeString().split(":").slice(0, 2).join(":");
         $("#time_order").val(hora);
 
-        $("#lblCliente").addClass("border-b p-1");
-        $("#lblPedido").addClass("border-b p-1");
-
         $("#phone").on("input", function () {
             let value = $(this).val().replace(/\D/g, ""); // Elimina caracteres no numéricos
             if (value.length > 10) {
@@ -608,6 +609,8 @@ class App extends Templates {
             }
         });
 
+        // Estado inicial del boton segun el turno de la sucursal por defecto (admin).
+        if (rol == 1) this.validateOrderSubsidiary();
 
     }
 
@@ -696,7 +699,7 @@ class App extends Templates {
         $('#subsidiaryFilter').prev('label').remove();
 
         // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
-        $('#formPedido #subsidiaries_id').val(order.subsidiaries_id).prop('disabled', true);
+        this.lockSubsidiarySelector(order.subsidiaries_id);
 
         $("#date_order").val(new Date().toISOString().split("T")[0]);
         if (!$("#date_birthday").val()) $("#date_birthday").val(new Date().toISOString().split("T")[0]);
@@ -704,9 +707,6 @@ class App extends Templates {
         const ahora = new Date();
         const hora = ahora.toTimeString().split(":").slice(0, 2).join(":");
         if (!$("#time_order").val()) $("#time_order").val(hora);
-
-        $("#lblCliente").addClass("border-b p-1");
-        $("#lblPedido").addClass("border-b p-1");
 
         $("#phone").on("input", function () {
             let value = $(this).val().replace(/\D/g, "");
@@ -1213,16 +1213,8 @@ class App extends Templates {
             opc: "div",
             id: "subsidiaryFilter",
             lbl: "",
-            class: "col-12 offset-10 col-lg-2 mb-1",
-            html: `
-                <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-full">
-                    <label for="subsidiaries_id" class="text-sm font-medium text-white">Sucursal:</label>
-                    <select id="subsidiaries_id" name="subsidiaries_id" class="w-full text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" onchange="app.validateOrderSubsidiary()">
-                        ${subsidiaries.map(sub => `<option value="${sub.id}" ${dailyClosure.subsidiary_id == sub.id ? 'selected' : ''}>${sub.valor}</option>`).join('')}
-                    </select>
-                    <div id="orderSubsidiaryAlert"></div>
-                </div>
-            `
+            class: "col-12 col-lg-3 mb-3",
+            html: this.renderSubsidiarySelector()
         });
     } else {
         // Cajero/vendedor: el pedido se registra SIEMPRE en su sucursal de sesion
@@ -1244,10 +1236,10 @@ class App extends Templates {
 
     orderFields.push(
         {
-            opc: "label",
+            opc: "div",
             id: "lblCliente",
-            text: "Información del cliente",
-            class: "col-12 fw-bold text-lg mb-2  p-1"
+            class: "col-12 mb-2",
+            html: `<h3 class="text-base font-bold text-white border-b border-gray-600/60 pb-1.5 pt-1">Información del cliente</h3>`
         },
         {
             opc: "input",
@@ -1279,10 +1271,10 @@ class App extends Templates {
             class: "col-12 col-sm-6 col-lg-3 mb-3"
         },
         {
-            opc: "label",
+            opc: "div",
             id: "lblPedido",
-            text: "Datos del pedido",
-            class: "col-12 fw-bold text-lg  mb-2 p-1"
+            class: "col-12 mb-2 mt-2",
+            html: `<h3 class="text-base font-bold text-white border-b border-gray-600/60 pb-1.5 pt-1">Datos del pedido</h3>`
         },
         {
             opc: "input",
@@ -1348,7 +1340,7 @@ class App extends Templates {
             text: "Salir",
             class: "col-12 col-lg-3 col-md-2 ",
             className: 'w-full',
-            icono: "fas fa-arrow-left",
+            icon: "icon-left-open",
             color_btn: "danger",
             onClick: () => this.render()
         }
@@ -1369,45 +1361,165 @@ class App extends Templates {
        }
    }
 
-    async validateOrderSubsidiary() {
-        const subsidiaries_id = $('#formPedido #subsidiaries_id').val();
-        const btn = $('#btnGuardarPedido');
-        const alertDiv = $('#orderSubsidiaryAlert');
+    // Estado de turno de una sucursal a partir del snapshot (sub.shift_opened_at):
+    // sin turno (gris), turno abierto hoy (verde) o turno de otro dia sin cerrar (ambar).
+    subsidiaryShift(sub) {
+        const opened = sub && sub.shift_opened_at;
+        if (!opened) return { status: 'none', label: 'Sin turno', dot: 'bg-gray-500', canSell: false };
+        if (moment(opened).isSame(moment(), 'day')) return { status: 'open', label: 'Turno abierto', dot: 'bg-green-500', canSell: true };
+        return { status: 'old', label: 'Turno sin cerrar', dot: 'bg-amber-500', canSell: false };
+    }
 
-        const response = await useFetch({
-            url: this._link,
-            data: { opc: "checkDailyClosure", subsidiaries_id: subsidiaries_id }
+    subsidiaryStatusLine(sub) {
+        const s = this.subsidiaryShift(sub);
+        const ubic = (sub && sub.ubication ? sub.ubication : '').trim();
+        return `<span class="w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0"></span>`
+            + `<span>${s.label}</span>`
+            + (ubic ? `<span class="text-gray-500 truncate">· ${ubic}</span>` : '');
+    }
+
+    // Habilita/bloquea "Guardar Pedido" segun el turno de la sucursal seleccionada.
+    // Solo aplica cuando existe el selector (admin); si no, no toca el boton.
+    validateOrderSubsidiary() {
+        const el = $('#formPedido #subsidiaries_id');
+        if (!el.length) return;
+        const sub = subsidiaries.find(s => String(s.id) === String(el.val()));
+        if (!sub) return;
+
+        const btn = $('#btnGuardarPedido');
+        if (this.subsidiaryShift(sub).canSell) {
+            btn.prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+        } else {
+            btn.prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+        }
+    }
+
+    // Selector de sucursal del formulario (solo admin): card con avatar + panel
+    // desplegable con radios. El value real vive en el input hidden #subsidiaries_id
+    // (name para el submit) y lo consumen validateOrderSubsidiary() y el candado de submit.
+
+    renderSubsidiarySelector() {
+        const current = subsidiaries.find(s => String(s.id) === String(dailyClosure.subsidiary_id))
+            || subsidiaries[0] || { id: '', valor: '', ubication: '' };
+
+        const chevron = `<svg id="subsidiaryChevron" class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
+
+        const rows = subsidiaries.map(sub => {
+            const isSel = String(sub.id) === String(current.id);
+            return `
+                <div data-sub-id="${sub.id}" onclick="app.selectSubsidiary('${sub.id}')"
+                    class="sub-option flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors border-l-2 ${isSel ? 'border-violet-500 bg-violet-500/10' : 'border-transparent hover:bg-white/5'}">
+                    <span class="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold">${this.subsidiaryInitials(sub.valor)}</span>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm font-medium text-white truncate">${sub.valor}</span>
+                        <span class="flex items-center gap-1.5 text-xs text-gray-400 truncate mt-0.5">${this.subsidiaryStatusLine(sub)}</span>
+                    </span>
+                    <span class="sub-radio flex-shrink-0 w-4 h-4 rounded-full border-2 ${isSel ? 'border-violet-500' : 'border-gray-500'} flex items-center justify-center">
+                        <span class="w-2 h-2 rounded-full bg-violet-500 ${isSel ? '' : 'hidden'}"></span>
+                    </span>
+                </div>`;
+        }).join('');
+
+        return `
+            <div id="subsidiarySelectorWrap" class="relative w-full">
+                <button type="button" id="subsidiaryTrigger" onclick="app.toggleSubsidiarySelector()"
+                    class="w-full flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-left hover:border-violet-500/60 transition-colors">
+                    <span id="subsidiaryTriggerAvatar" class="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold">${this.subsidiaryInitials(current.valor)}</span>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Sucursal</span>
+                        <span id="subsidiaryTriggerName" class="block text-sm font-bold text-white truncate">${current.valor}</span>
+                        <span id="subsidiaryTriggerStatus" class="flex items-center gap-1.5 text-xs text-gray-400 truncate mt-0.5">${this.subsidiaryStatusLine(current)}</span>
+                    </span>
+                    ${chevron}
+                </button>
+                <input type="hidden" id="subsidiaries_id" name="subsidiaries_id" value="${current.id}">
+                <div id="subsidiaryPanel" class="hidden fixed z-[9999] bg-[#161d29] border border-[#2a3444] rounded-xl shadow-2xl overflow-hidden py-1">
+                    <p class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Sucursal</p>
+                    ${rows}
+                </div>
+            </div>`;
+    }
+
+    subsidiaryInitials(name) {
+        const n = (name || '').trim();
+        if (!n) return '--';
+        return n.replace(/\s+/g, '').slice(0, 2).toUpperCase();
+    }
+
+    toggleSubsidiarySelector() {
+        const panel = document.getElementById('subsidiaryPanel');
+        const trigger = document.getElementById('subsidiaryTrigger');
+        const chevron = document.getElementById('subsidiaryChevron');
+        if (!panel || !trigger) return;
+
+        if (!panel.classList.contains('hidden')) {
+            this.closeSubsidiarySelector();
+            return;
+        }
+
+        // Posicion fixed bajo el trigger: inmune al overflow del tab (no se recorta).
+        const r = trigger.getBoundingClientRect();
+        const width = Math.max(r.width, 260);
+        const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+        panel.style.top = (r.bottom + 6) + 'px';
+        panel.style.left = left + 'px';
+        panel.style.width = width + 'px';
+        panel.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+
+        if (this.subsidiaryOutsideClose) document.removeEventListener('click', this.subsidiaryOutsideClose);
+        setTimeout(() => {
+            this.subsidiaryOutsideClose = (e) => {
+                if (!trigger.contains(e.target) && !panel.contains(e.target)) this.closeSubsidiarySelector();
+            };
+            document.addEventListener('click', this.subsidiaryOutsideClose);
+        }, 0);
+    }
+
+    closeSubsidiarySelector() {
+        const panel = document.getElementById('subsidiaryPanel');
+        const chevron = document.getElementById('subsidiaryChevron');
+        if (panel) panel.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+        if (this.subsidiaryOutsideClose) {
+            document.removeEventListener('click', this.subsidiaryOutsideClose);
+            this.subsidiaryOutsideClose = null;
+        }
+    }
+
+    selectSubsidiary(id) {
+        const sub = subsidiaries.find(s => String(s.id) === String(id));
+        if (!sub) return;
+
+        $('#formPedido #subsidiaries_id').val(sub.id);
+        $('#subsidiaryTriggerName').text(sub.valor);
+        $('#subsidiaryTriggerAvatar').text(this.subsidiaryInitials(sub.valor));
+        $('#subsidiaryTriggerStatus').html(this.subsidiaryStatusLine(sub));
+
+        $('#subsidiaryPanel .sub-option').each(function () {
+            const isSel = String($(this).data('sub-id')) === String(sub.id);
+            $(this).toggleClass('border-violet-500 bg-violet-500/10', isSel)
+                   .toggleClass('border-transparent hover:bg-white/5', !isSel);
+            $(this).find('.sub-radio').toggleClass('border-violet-500', isSel).toggleClass('border-gray-500', !isSel);
+            $(this).find('.sub-radio > span').toggleClass('hidden', !isSel);
         });
 
-        const shift = response.open_shift || { has_open_shift: false };
-        const isClosed = response.is_closed || false;
-        const isOldShift = shift.has_open_shift && shift.opened_at && !moment(shift.opened_at).isSame(moment(), 'day');
+        this.closeSubsidiarySelector();
+        this.validateOrderSubsidiary();
+    }
 
-        if (isClosed) {
-            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
-            alertDiv.html(`
-                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-yellow-900/40 border border-yellow-600/50 rounded text-[11px] text-yellow-300">
-                    <i class="icon-lock"></i> Cierre del día realizado en esta sucursal
-                </div>
-            `);
-        } else if (!shift.has_open_shift) {
-            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
-            alertDiv.html(`
-                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
-                    <i class="icon-attention"></i> Sin turno abierto en esta sucursal
-                </div>
-            `);
-        } else if (isOldShift) {
-            btn.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary opacity-50 cursor-not-allowed');
-            alertDiv.html(`
-                <div class="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-amber-900/40 border border-amber-600/50 rounded text-[11px] text-amber-300">
-                    <i class="icon-attention"></i> Turno pendiente de otro día sin cerrar
-                </div>
-            `);
-        } else {
-            btn.prop('disabled', false).removeClass('btn-secondary opacity-50 cursor-not-allowed').addClass('btn-primary');
-            alertDiv.html('');
+    // Edición: fija la sucursal del pedido y bloquea el cambio del selector.
+    lockSubsidiarySelector(id) {
+        const sub = subsidiaries.find(s => String(s.id) === String(id));
+        $('#formPedido #subsidiaries_id').val(id).prop('disabled', true);
+        if (sub) {
+            $('#subsidiaryTriggerName').text(sub.valor);
+            $('#subsidiaryTriggerAvatar').text(this.subsidiaryInitials(sub.valor));
+            $('#subsidiaryTriggerStatus').html(this.subsidiaryStatusLine(sub));
         }
+        $('#subsidiaryTrigger').prop('disabled', true).attr('onclick', null)
+            .removeClass('hover:border-violet-500/60').addClass('opacity-70 cursor-not-allowed');
+        $('#subsidiaryChevron').addClass('hidden');
     }
 
 

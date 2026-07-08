@@ -230,7 +230,7 @@ class App {
         const validStyles = ['github', 'notion', 'dracula', 'monokai'];
         const fallback = {
             folder: 'agents', customPath: '', theme: 'dark', docStyle: 'github', docZoom: 1,
-            sidebarCollapsed: false, iaDrawerWidth: 420
+            sidebarCollapsed: false, iaDrawerWidth: 420, sidebarWidth: 320
         };
         try {
             const raw = localStorage.getItem(VISOR_STORAGE_KEY);
@@ -238,6 +238,7 @@ class App {
             const parsed = JSON.parse(raw);
             const zoom = Number(parsed.docZoom);
             const drawerW = Number(parsed.iaDrawerWidth);
+            const sidebarW = Number(parsed.sidebarWidth);
             // Drive es volatil (depende del SA) — nunca lo restauramos desde localStorage
             const folder = (parsed.folder && !this.isDriveFolder(parsed.folder)) ? parsed.folder : 'agents';
             return {
@@ -247,7 +248,8 @@ class App {
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
                 sidebarCollapsed: !!parsed.sidebarCollapsed,
-                iaDrawerWidth:    (isFinite(drawerW) && drawerW >= 380 && drawerW <= 900) ? drawerW : 420
+                iaDrawerWidth:    (isFinite(drawerW) && drawerW >= 380 && drawerW <= 900) ? drawerW : 420,
+                sidebarWidth:     (isFinite(sidebarW) && sidebarW >= 200 && sidebarW <= 680) ? sidebarW : 320
             };
         } catch (e) {
             return fallback;
@@ -274,6 +276,7 @@ class App {
         visorView.applyDocZoom(this.settings.docZoom);
         this.applySidebarCollapsed(this.settings.sidebarCollapsed, false);
         this.applyIaDrawerWidth(this.settings.iaDrawerWidth);
+        this.applySidebarWidth(this.settings.sidebarWidth);
         this.applyUser(this.currentUser);
 
         const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
@@ -382,6 +385,7 @@ class App {
         this.bindSidebarToggle();
         this.bindMobileSidebar();
         this.bindIaDrawerResize();
+        this.bindSidebarResize();
         this.bindUserMenu();
         this.bindNewFileModal();
     }
@@ -449,6 +453,12 @@ class App {
         document.getElementById('iaDrawer')?.style.setProperty('--ia-drawer-width', w + 'px');
     }
 
+    applySidebarWidth(px) {
+        const w = Math.min(680, Math.max(200, Number(px) || 320));
+        const sb = document.querySelector('.visor-sidebar');
+        if (sb) sb.style.setProperty('--visor-sidebar-w', w + 'px');
+    }
+
     bindSidebarToggle() {
         $('#btnToggleSidebar').off('click').on('click', () => {
             this.settings.sidebarCollapsed = !this.settings.sidebarCollapsed;
@@ -490,6 +500,40 @@ class App {
             dragging = false;
             $drawer.removeClass('is-resizing');
             document.body.classList.remove('ia-drawer-resizing');
+            this.saveSettings();
+        });
+    }
+
+    // Redimensionar el sidebar de archivos arrastrando su borde derecho (mismo
+    // patrón que el drawer de CoffeeIA). El grid del explorador reacomoda columnas
+    // solo (auto-fill): al angostar, las carpetas se apilan.
+    bindSidebarResize() {
+        const $handle = $('#sidebarResizeHandle');
+        const $sb     = $('.visor-sidebar');
+        if (!$handle.length || !$sb.length) return;
+
+        let dragging = false, startX = 0, startW = this.settings.sidebarWidth;
+
+        $handle.off('mousedown').on('mousedown', (e) => {
+            if ($sb.hasClass('is-collapsed')) return;
+            e.preventDefault();
+            dragging = true;
+            startX = e.clientX;
+            startW = this.settings.sidebarWidth;
+            $sb.addClass('is-resizing');
+            document.body.classList.add('visor-sidebar-resizing');
+        });
+        $(document).off('mousemove.sbResize').on('mousemove.sbResize', (e) => {
+            if (!dragging) return;
+            const next = Math.min(680, Math.max(200, startW + (e.clientX - startX)));   // crece a la derecha
+            this.applySidebarWidth(next);
+            this.settings.sidebarWidth = next;
+        });
+        $(document).off('mouseup.sbResize').on('mouseup.sbResize', () => {
+            if (!dragging) return;
+            dragging = false;
+            $sb.removeClass('is-resizing');
+            document.body.classList.remove('visor-sidebar-resizing');
             this.saveSettings();
         });
     }
@@ -1531,6 +1575,92 @@ class App {
         }
     }
 
+    // Mueve un archivo (por su fullPath) a la carpeta destino (destDir) via backend
+    // y recarga la biblioteca para reflejar el cambio. La usa el drag & drop del
+    // explorador de documentos (arrastrar un archivo sobre una carpeta).
+    async moveDoc(fullPath, destDir) {
+        if (!fullPath || !destDir) return;
+        try {
+            const form = new FormData();
+            form.append('action',     'move');
+            form.append('fullPath',   fullPath);
+            form.append('destDir',    destDir);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo mover', 'error'); return; }
+            if (data.moved === false) { visorView.toast(data.message || 'Sin cambios', 'info'); return; }
+            visorView.toast('Archivo movido', 'success');
+            await this.reloadLibrary();
+        } catch (e) {
+            visorView.toast('Error de red al mover', 'error');
+        }
+    }
+
+    // Mueve una CARPETA (por su fullPath) dentro de destDir y recarga. La usa el
+    // drag & drop del explorador (arrastrar una carpeta sobre otra o al panel).
+    async moveDir(fullPath, destDir) {
+        if (!fullPath || !destDir) return;
+        try {
+            const form = new FormData();
+            form.append('action',     'movedir');
+            form.append('fullPath',   fullPath);
+            form.append('destDir',    destDir);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo mover la carpeta', 'error'); return; }
+            if (data.moved === false) { visorView.toast(data.message || 'Sin cambios', 'info'); return; }
+            visorView.toast('Carpeta movida', 'success');
+            await this.reloadLibrary();
+        } catch (e) {
+            visorView.toast('Error de red al mover la carpeta', 'error');
+        }
+    }
+
+    // Crea una carpeta nueva dentro de parentDir (nivel actual del explorador) y
+    // recarga la biblioteca. Devuelve true si se creó (para que el input inline se cierre).
+    async createFolder(parentDir, name) {
+        if (!parentDir || !name) return false;
+        try {
+            const form = new FormData();
+            form.append('action',     'mkdir');
+            form.append('parentDir',  parentDir);
+            form.append('name',       name);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo crear la carpeta', 'error'); return false; }
+            visorView.toast('Carpeta creada', 'success');
+            await this.reloadLibrary();
+            return true;
+        } catch (e) {
+            visorView.toast('Error de red al crear la carpeta', 'error');
+            return false;
+        }
+    }
+
+    // Renombra la carpeta (por su fullPath) y recarga. Devuelve true si tuvo éxito.
+    async renameFolder(fullPath, newName) {
+        if (!fullPath || !newName) return false;
+        try {
+            const form = new FormData();
+            form.append('action',     'renamedir');
+            form.append('fullPath',   fullPath);
+            form.append('newName',    newName);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo renombrar', 'error'); return false; }
+            visorView.toast('Carpeta renombrada', 'success');
+            await this.reloadLibrary();
+            return true;
+        } catch (e) {
+            visorView.toast('Error de red al renombrar', 'error');
+            return false;
+        }
+    }
+
     // Cierra el lienzo y muestra el .drawio activo como fuente (XML), sin reabrir.
     exitDiagram() {
         if (drawioBoard) drawioBoard.close();
@@ -2046,7 +2176,7 @@ class VisorView {
         }
 
         // Solo el arbol de documentos lleva el acento rojo "carpeta de archivos".
-        $('#sidebarList').removeClass('is-doc-tree');
+        $('#sidebarList').removeClass('is-doc-tree is-doc-explorer');
 
         const agentsFiltered     = visor.filterFiles(data.agents, filter);
         const grimoiresFiltered  = visor.filterFiles(data.grimoires, filter);
@@ -2132,21 +2262,12 @@ class VisorView {
     }
 
     renderSidebarTree(documents, currentFile, filter, header) {
+        // Explorador de iconos navegable (estilo Finder): un nivel a la vez, con
+        // breadcrumb clickeable. La jerarquia de `documents` es proyecto -> tipo
+        // (sub-carpeta) -> archivos; los archivos "(sin clasificar)" cuelgan sueltos
+        // del proyecto. Navegacion: [] raiz (proyectos) | [proj] | [proj, tipo].
         const f = (filter || '').trim().toLowerCase();
-        // Crear archivos solo en origenes locales validos (Drive no usa 'save').
-        // El unico boton "+" vive en la cabecera raiz; el destino se elige en el modal.
         const canCreate = !!(header && header.source !== 'Drive' && header.currentPath && header.valid !== false);
-        let expandedTypes = [];
-        try { expandedTypes = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]'); }
-        catch (e) { expandedTypes = []; }
-        // Cuando hay filtro activo, abrimos todo para que se vean los resultados.
-        const forceOpen = f !== '';
-
-        const filterMatch = (item) => {
-            if (!f) return true;
-            const hay = `${item.name} ${item.frontmatter?.description || ''} ${item.project || ''} ${item.type || ''}`.toLowerCase();
-            return hay.includes(f);
-        };
 
         const typeSort = (a, b) => {
             if (a === '(sin clasificar)') return 1;
@@ -2154,126 +2275,98 @@ class VisorView {
             return a.localeCompare(b);
         };
 
-        const fileRow = (item) => {
+        // Nivel actual (saneado contra la data vigente).
+        let crumb = [];
+        try { crumb = JSON.parse(localStorage.getItem('visor:docs:crumb') || '[]'); } catch (e) { crumb = []; }
+        if (!Array.isArray(crumb)) crumb = [];
+        if (crumb[0] && !documents[crumb[0]]) crumb = [];
+        if (crumb[1] && !(documents[crumb[0]] && documents[crumb[0]][crumb[1]])) crumb = crumb.slice(0, 1);
+        const setCrumb = (arr) => { try { localStorage.setItem('visor:docs:crumb', JSON.stringify(arr)); } catch (e) {} };
+
+        // Carpetas (subniveles) y archivos del nivel actual.
+        let folders = [];   // { name, count, nav:[...] }
+        let files   = [];
+        if (crumb.length === 0) {
+            for (const proj of Object.keys(documents).sort((a, b) => a.localeCompare(b))) {
+                let count = 0;
+                for (const t in documents[proj]) count += documents[proj][t].length;
+                folders.push({ name: proj, count, nav: [proj] });
+            }
+        } else if (crumb.length === 1) {
+            const types = documents[crumb[0]] || {};
+            for (const tipo of Object.keys(types).sort(typeSort)) {
+                if (tipo === '(sin clasificar)') { files = files.concat(types[tipo]); continue; }
+                folders.push({ name: tipo, count: types[tipo].length, nav: [crumb[0], tipo] });
+            }
+        } else {
+            files = ((documents[crumb[0]] && documents[crumb[0]][crumb[1]]) || []).slice();
+        }
+
+        // Filtro por nombre en el nivel actual (carpetas + archivos).
+        if (f) {
+            folders = folders.filter(fo => fo.name.toLowerCase().includes(f));
+            files   = files.filter(it => (it.file || it.name || '').toLowerCase().includes(f));
+        }
+
+        // Modo de presentación del nivel actual: 'grid' (carpetas/iconos) o 'list' (filas).
+        let docsView = 'grid';
+        try { const v = localStorage.getItem('visor:docs:view'); if (v === 'list' || v === 'grid') docsView = v; } catch (e) {}
+        const setDocsView = (v) => { try { localStorage.setItem('visor:docs:view', v); } catch (e) {} };
+
+        // Breadcrumb navegable "documents / proj / tipo" (cada segmento recorta).
+        const crumbBtns = [`<button type="button" class="docx-crumb" data-crumb-to="0">documents</button>`]
+            .concat(crumb.map((seg, i) =>
+                `<span class="docx-crumb-sep">/</span><button type="button" class="docx-crumb" data-crumb-to="${i + 1}" title="${seg}">${seg}</button>`
+            )).join('');
+        // Toggle de presentación: lista (filas) / carpetas (iconos).
+        const viewToggle = `
+            <div class="docx-view" role="group" aria-label="Vista">
+                <button type="button" class="docx-viewbtn ${docsView === 'list' ? 'is-active' : ''}" data-docview="list" title="Ver en lista"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
+                <button type="button" class="docx-viewbtn ${docsView === 'grid' ? 'is-active' : ''}" data-docview="grid" title="Ver en carpetas"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
+            </div>`;
+        const bar = `
+            <div class="docx-bar">
+                <div class="docx-crumbs">${crumbBtns}</div>
+                <div class="docx-bar-actions">
+                    ${viewToggle}
+                    ${(canCreate && crumb.length <= 1) ? `<button type="button" class="tree-new-btn docx-newfolder-btn" title="Nueva carpeta"><i data-lucide="folder-plus" class="w-4 h-4"></i></button>` : ''}
+                    ${canCreate ? `<button type="button" class="tree-new-btn tree-root-new" title="Nuevo archivo — elige la carpeta destino"><i data-lucide="file-plus" class="w-4 h-4"></i></button>` : ''}
+                </div>
+            </div>`;
+
+        // Paths fisicos derivados de la raiz real de la biblioteca (header.currentPath):
+        // baseDir/proj[/tipo]. Fiable para mover / crear / renombrar carpetas.
+        const baseDir   = (header && header.currentPath) ? String(header.currentPath).replace(/[\/\\]+$/, '') : '';
+        const levelDir  = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
+        const parentDir = crumb.length ? levelDir(crumb.slice(0, -1)) : '';   // '' en la raiz: no hay a donde subir
+
+        // Tarjetas del grid: carpeta (icono amarillo, drop target + renombrar al
+        // hover) y archivo (icono segun tipo, arrastrable por su fullPath).
+        const folderCard = (fo, i) => `
+            <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${levelDir(fo.nav)}" draggable="true" title="${fo.name}">
+                <i data-lucide="folder" class="docx-ic docx-ic-folder"></i>
+                <span class="docx-name">${fo.name}</span>
+                <button type="button" class="docx-folder-rename" title="Renombrar carpeta"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+            </div>`;
+        const fileCard = (item) => {
             const fmt = visor.fileFormat(item);
             return `
-                <div class="sidebar-item ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" title="${item.file}">
-                    <i data-lucide="${fmt.icon}" class="file-icon ${fmt.cls}"></i>
-                    <span class="file-name">${item.file}</span>
+                <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" draggable="true" title="${item.file}">
+                    <i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>
+                    <span class="docx-name">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
-                    <span class="file-size">${item.size}</span>
+                    <span class="docx-size">${item.size || ''}</span>
                     ${this.delBtnHtml(item)}
                     ${this.pinBtnHtml(item.file)}
                 </div>`;
         };
 
-        // Contenido interno (tipos + archivos) de UN proyecto. Las sub-carpetas
-        // (tipos) arrancan contraidas; solo se abren las que el usuario recuerde.
-        const buildProjectInner = (proj) => {
-            const types = documents[proj];
-            let total = 0, inner = '';
-            for (const tipo of Object.keys(types).sort(typeSort)) {
-                const matched = f ? types[tipo].filter(filterMatch) : types[tipo];
-                if (!matched.length) continue;
-                total += matched.length;
+        const gridInner = folders.map(folderCard).join('') + files.map(fileCard).join('');
+        const grid = gridInner
+            ? `<div class="docx-items is-${docsView}">${gridInner}</div>`
+            : `<div class="empty-state"><i data-lucide="${f ? 'search-x' : 'folder-open'}" class="w-8 h-8"></i><p class="text-xs">${f ? 'Sin resultados' : 'Carpeta vacía'}</p></div>`;
 
-                // Archivos sueltos del proyecto: cuelgan directo de la carpeta,
-                // sin nivel "tipo" intermedio (como un explorador de archivos).
-                if (tipo === '(sin clasificar)') {
-                    inner += `<div class="tree-files-wrap tree-files-loose">${matched.map(fileRow).join('')}</div>`;
-                    continue;
-                }
-
-                const typeKey = `${proj}::${tipo}`;
-                const typeCollapsed = forceOpen ? false : !expandedTypes.includes(typeKey);
-                inner += `
-                    <div class="tree-type-header ${typeCollapsed ? 'collapsed' : ''}" data-type-key="${typeKey}">
-                        <span class="tree-type-label">
-                            <i data-lucide="chevron-right" class="tree-chevron tree-chevron-sm"></i>
-                            <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
-                            <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
-                            <span class="tree-type-name">${tipo}</span>
-                        </span>
-                        <span class="badge-count">${matched.length}</span>
-                    </div>
-                    <div class="tree-files-wrap ${typeCollapsed ? 'collapsed' : ''}" data-type-body="${typeKey}">${matched.map(fileRow).join('')}</div>`;
-            }
-            return { total, inner };
-        };
-
-        const projNames = Object.keys(documents).sort((a, b) => a.localeCompare(b));
-
-        // Estado de carpetas expandidas. Por defecto TODO arranca contraido (arbol
-        // limpio al cargar); solo se recuerda lo que el usuario abre.
-        let expandedProjects = [];
-        try { expandedProjects = JSON.parse(localStorage.getItem('visor:tree:expandedProjects') || '[]'); }
-        catch (e) { expandedProjects = []; }
-
-        // Carpeta enfocada: el boton "entrar" de una carpeta muestra SOLO su
-        // contenido + un boton "volver". No aplica con filtro activo (manda la busqueda).
-        let docFolder = '';
-        try { docFolder = localStorage.getItem('visor:docs:folder') || ''; } catch (e) {}
-        if (docFolder && !documents[docFolder]) docFolder = '';
-
-        let hasAny = false;
-        let body = '';
-
-        // Nodo de carpeta (proyecto): clic en la cabecera abre la vista enfocada de
-        // solo esa carpeta; clic en el chevron la expande/colapsa in-place.
-        const projectNode = (proj, total, inner, collapsed) => `
-            <div class="tree-project-header ${collapsed ? 'collapsed' : ''}" data-project="${proj}" title="Abrir ${proj}">
-                <span class="tree-type-label">
-                    <i data-lucide="chevron-right" class="tree-chevron" title="Expandir / contraer"></i>
-                    <i data-lucide="folder" class="tree-folder-icon tree-folder-closed"></i>
-                    <i data-lucide="folder-open" class="tree-folder-icon tree-folder-open"></i>
-                    <span class="font-semibold tree-project-name">${proj}</span>
-                </span>
-                <span class="badge-count">${total}</span>
-            </div>
-            <div class="tree-project-body ${collapsed ? 'collapsed' : ''}">${inner}</div>`;
-
-        if (docFolder && !f) {
-            // VISTA ENFOCADA: solo el contenido de la carpeta abierta + "volver".
-            const { total, inner } = buildProjectInner(docFolder);
-            hasAny = total > 0;
-            body = `
-                <div class="docs-folder-back" title="Volver a todas las carpetas">
-                    <i data-lucide="chevron-left" class="tree-chevron tree-chevron-sm"></i>
-                    <i data-lucide="folder-open" class="tree-folder-icon"></i>
-                    <span class="docs-folder-current">${docFolder}</span>
-                    <span class="badge-count">${total}</span>
-                </div>
-                <div class="docs-folder-content">${inner || '<div class="tree-loading">Carpeta vacia</div>'}</div>`;
-        } else {
-            // ARBOL COMPLETO de carpetas expandibles. Con filtro activo todo queda
-            // abierto; sin filtro se respeta lo que el usuario haya colapsado.
-            for (const proj of projNames) {
-                const { total, inner } = buildProjectInner(proj);
-                if (!total) continue;
-                hasAny = true;
-                const collapsed = f ? false : !expandedProjects.includes(proj);
-                body += projectNode(proj, total, inner, collapsed);
-            }
-        }
-
-        const empty = !hasAny ? `
-            <div class="empty-state">
-                <i data-lucide="search-x" class="w-8 h-8"></i>
-                <p class="text-xs">Sin resultados</p>
-            </div>
-        ` : '';
-
-        // Cabecera raiz del arbol: unico punto de creacion. El destino se elige
-        // dentro del modal (selector de carpetas), no por carpeta del arbol.
-        const rootHeader = canCreate ? `
-            <div class="tree-root-header">
-                <span class="tree-root-title">${(header && header.currentLabel) || 'Documentos'}</span>
-                <button type="button" class="tree-new-btn tree-root-new" title="Nuevo archivo — elige la carpeta destino">
-                    <i data-lucide="file-plus" class="w-4 h-4"></i>
-                </button>
-            </div>` : '';
-
-        $('#sidebarList').html(rootHeader + body + empty).addClass('is-doc-tree');
+        $('#sidebarList').html(bar + grid).addClass('is-doc-tree is-doc-explorer');
 
         const reRender = () => {
             visorView.renderSidebar(app.dataInit, app.currentFile, $('#sidebarSearch').val() || '');
@@ -2281,64 +2374,157 @@ class VisorView {
             if (window.lucide) lucide.createIcons();
         };
 
-        // Volver del modo enfocado al arbol completo.
-        $('#sidebarList .docs-folder-back').off('click').on('click', () => {
-            try { localStorage.removeItem('visor:docs:folder'); } catch (er) {}
+        // Entrar a una carpeta (proyecto o sub-carpeta); el botón renombrar no navega.
+        $('#sidebarList .docx-folder').off('click').on('click', function (e) {
+            if ($(e.target).closest('.docx-folder-rename').length) return;
+            const fo = folders[Number($(this).data('nav-idx'))];
+            if (fo) { setCrumb(fo.nav); reRender(); }
+        });
+
+        // Navegar por el breadcrumb: recorta el crumb a N segmentos.
+        $('#sidebarList .docx-crumb').off('click').on('click', function () {
+            setCrumb(crumb.slice(0, Number($(this).data('crumb-to')) || 0));
             reRender();
         });
 
-        // Carpeta (proyecto): clic en el chevron -> expandir/colapsar in-place;
-        // clic en el resto de la cabecera -> entrar a la vista enfocada.
-        $('#sidebarList .tree-project-header').off('click').on('click', (e) => {
-            const $header = $(e.currentTarget);
-            const proj = $header.data('project');
-
-            if ($(e.target).closest('.tree-chevron').length) {
-                $header.toggleClass('collapsed');
-                $header.next('.tree-project-body').toggleClass('collapsed');
-                let state = [];
-                try { state = JSON.parse(localStorage.getItem('visor:tree:expandedProjects') || '[]'); }
-                catch (er) { state = []; }
-                if ($header.hasClass('collapsed')) {
-                    state = state.filter(p => p !== proj);
-                } else {
-                    if (!state.includes(proj)) state.push(proj);
-                }
-                localStorage.setItem('visor:tree:expandedProjects', JSON.stringify(state));
-                if (window.lucide) lucide.createIcons();
-                return;
-            }
-
-            try { localStorage.setItem('visor:docs:folder', proj); } catch (er) {}
-            reRender();
-        });
-
-        // Bind collapse toggle de tipo (nivel 2) — sub-carpeta
-        $('#sidebarList .tree-type-header').off('click').on('click', (e) => {
-            const $header = $(e.currentTarget);
-            const key = $header.data('type-key');
-            $header.toggleClass('collapsed');
-            $('#sidebarList .tree-files-wrap[data-type-body="' + key + '"]').toggleClass('collapsed');
-            let state = [];
-            try { state = JSON.parse(localStorage.getItem('visor:tree:expandedTypes') || '[]'); }
-            catch (e) { state = []; }
-            if ($header.hasClass('collapsed')) {
-                state = state.filter(k => k !== key);
-            } else if (!state.includes(key)) {
-                state.push(key);
-            }
-            localStorage.setItem('visor:tree:expandedTypes', JSON.stringify(state));
-            if (window.lucide) lucide.createIcons();
-        });
-
-        // Boton "+" de la raiz: abre el modal "Nuevo archivo"; la carpeta destino
-        // se elige ahi con un selector. stopPropagation para no togglear nada.
+        // Boton "+": abre el modal "Nuevo archivo" (la carpeta destino se elige ahi).
         $('#sidebarList .tree-root-new').off('click').on('click', (e) => {
             e.stopPropagation();
-            if (typeof app !== 'undefined' && app && app.openNewFileModal) {
-                app.openNewFileModal();
-            }
+            if (typeof app !== 'undefined' && app && app.openNewFileModal) app.openNewFileModal();
         });
+
+        // Toggle de presentación: alterna lista / carpetas y re-renderiza.
+        $('#sidebarList .docx-viewbtn').off('click').on('click', function () {
+            setDocsView($(this).data('docview'));
+            reRender();
+        });
+
+        // ── Renombrar carpeta inline (estilo Windows): el nombre se vuelve input. ──
+        const startRenameFolder = ($folder) => {
+            const fo = folders[Number($folder.data('nav-idx'))];
+            if (!fo || $folder.find('.docx-rename-input').length) return;
+            const $input = $('<input type="text" class="docx-rename-input" maxlength="120">').val(fo.name);
+            $folder.find('.docx-name').replaceWith($input);
+            $input.trigger('focus').trigger('select');
+            let done = false;
+            const finish = async (save) => {
+                if (done) return; done = true;
+                const val = ($input.val() || '').trim();
+                if (save && val && val !== fo.name && app.renameFolder) {
+                    if (await app.renameFolder(levelDir(fo.nav), val)) return;   // reloadLibrary re-renderiza
+                }
+                reRender();
+            };
+            $input.on('click', ev => ev.stopPropagation())
+                  .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
+                  .on('blur', () => finish(true));
+        };
+        $('#sidebarList .docx-folder-rename').off('click').on('click', function (e) {
+            e.stopPropagation();
+            startRenameFolder($(this).closest('.docx-folder'));
+        });
+
+        // ── Crear carpeta nueva en el nivel actual (tarjeta temporal con input). ──
+        const startCreateFolder = () => {
+            const $items = $('#sidebarList .docx-items');
+            if (!$items.length || $items.find('.docx-newfolder').length) return;
+            const $card = $('<div class="docx-item docx-folder docx-newfolder">'
+                + '<i data-lucide="folder" class="docx-ic docx-ic-folder"></i>'
+                + '<input type="text" class="docx-rename-input" placeholder="Nueva carpeta" maxlength="120">'
+                + '</div>');
+            $items.prepend($card);
+            if (window.lucide) lucide.createIcons();
+            const $input = $card.find('input').trigger('focus');
+            let done = false;
+            const finish = async (save) => {
+                if (done) return; done = true;
+                const val = ($input.val() || '').trim();
+                if (save && val && app.createFolder) {
+                    if (await app.createFolder(levelDir(crumb), val)) return;   // reloadLibrary re-renderiza
+                }
+                $card.remove();
+            };
+            $input.on('click', ev => ev.stopPropagation())
+                  .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
+                  .on('blur', () => finish(true));
+        };
+        $('#sidebarList .docx-newfolder-btn').off('click').on('click', (e) => { e.stopPropagation(); startCreateFolder(); });
+
+        // ── Drag & drop ── Archivos Y carpetas arrastrables. El payload viaja como
+        // JSON {k:'file'|'folder', p:path}. Un handler en el panel decide por el
+        // target: drop en una CARPETA -> mover dentro; drop en el PANEL vacío -> subir
+        // un nivel. Se valida no soltar una carpeta dentro de sí misma / descendiente.
+        $('#sidebarList').off('dragstart.docx dragend.docx dragover.docx dragleave.docx drop.docx')
+            .on('dragstart.docx', '.docx-file', function (e) {
+                const p = $(this).attr('data-fullpath') || '';
+                if (!p) { e.preventDefault(); return; }
+                e.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({ k: 'file', p }));
+                e.originalEvent.dataTransfer.effectAllowed = 'move';
+                $(this).addClass('docx-dragging');
+            })
+            .on('dragstart.docx', '.docx-folder', function (e) {
+                // No arrastrar desde el botón renombrar ni durante la edición inline.
+                if ($(e.target).closest('.docx-folder-rename').length || $(this).find('.docx-rename-input').length) { e.preventDefault(); return; }
+                const p = $(this).attr('data-destdir') || '';   // el path de la carpeta = su propio nivel
+                if (!p) { e.preventDefault(); return; }
+                e.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({ k: 'folder', p }));
+                e.originalEvent.dataTransfer.effectAllowed = 'move';
+                $(this).addClass('docx-dragging');
+            })
+            .on('dragend.docx', '.docx-item', function () {
+                $('#sidebarList .docx-dragging').removeClass('docx-dragging');
+                $('#sidebarList .docx-drop').removeClass('docx-drop');
+                $('#sidebarList').removeClass('docx-panel-drop');
+            })
+            .on('dragover.docx', function (e) {
+                const $folder = $(e.target).closest('.docx-folder');
+                if ($folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging')) {
+                    e.preventDefault();
+                    if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.dropEffect = 'move';
+                    $('#sidebarList .docx-drop').not($folder).removeClass('docx-drop');
+                    $folder.addClass('docx-drop');
+                    $('#sidebarList').removeClass('docx-panel-drop');
+                } else if (parentDir) {
+                    e.preventDefault();
+                    if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.dropEffect = 'move';
+                    $('#sidebarList .docx-drop').removeClass('docx-drop');
+                    $('#sidebarList').addClass('docx-panel-drop');
+                }
+            })
+            .on('dragleave.docx', function (e) {
+                if (!e.relatedTarget || !this.contains(e.relatedTarget)) {
+                    $('#sidebarList .docx-drop').removeClass('docx-drop');
+                    $('#sidebarList').removeClass('docx-panel-drop');
+                }
+            })
+            .on('drop.docx', function (e) {
+                const $folder = $(e.target).closest('.docx-folder');
+                let payload = null;
+                try { payload = JSON.parse((e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.getData('text/plain')) || ''); } catch (_) {}
+                $('#sidebarList .docx-drop').removeClass('docx-drop');
+                $('#sidebarList').removeClass('docx-panel-drop');
+                if (!payload || !payload.p) return;
+
+                let dest = null;
+                if ($folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging')) {
+                    e.preventDefault();
+                    dest = $folder.attr('data-destdir') || '';
+                } else if (parentDir) {
+                    e.preventDefault();
+                    dest = parentDir;
+                }
+                if (!dest) return;
+
+                if (payload.k === 'folder') {
+                    if (dest === payload.p || (dest + '/').indexOf(payload.p + '/') === 0) {
+                        visorView.toast('No puedes mover una carpeta dentro de sí misma', 'warn');
+                        return;
+                    }
+                    if (app.moveDir) app.moveDir(payload.p, dest);
+                } else if (app.moveDoc) {
+                    app.moveDoc(payload.p, dest);
+                }
+            });
     }
 
     renderBreadcrumb(file, header) {

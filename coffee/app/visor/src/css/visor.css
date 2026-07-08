@@ -97,7 +97,7 @@ html, body { height: 100%; }
 }
 
 .visor-sidebar {
-    width: 320px;
+    width: var(--visor-sidebar-w, 320px);
     flex-shrink: 0;
     position: relative;            /* contexto de posicion para el handle flotante */
     background-color: var(--vsr-bg-chrome);
@@ -106,6 +106,18 @@ html, body { height: 100%; }
     overflow: visible;             /* deja sobresalir el handle del borde derecho */
     transition: width .22s cubic-bezier(.4, 0, .2, 1);
 }
+/* Handle para redimensionar el sidebar arrastrando su borde derecho. */
+.visor-sidebar-resize {
+    position: absolute; top: 0; right: -3px; bottom: 0;
+    width: 7px; z-index: 6;
+    cursor: col-resize; background: transparent;
+    transition: background .15s;
+}
+.visor-sidebar-resize:hover,
+.visor-sidebar.is-resizing .visor-sidebar-resize { background: var(--vsr-accent); }
+.visor-sidebar.is-resizing { transition: none; }   /* sin lag al arrastrar */
+.visor-sidebar.is-collapsed .visor-sidebar-resize { display: none; }
+body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 /* Wrapper interno: aplica el layout en columna y recorta el contenido al ancho
    del panel (el handle vive fuera de este wrapper para poder sobresalir). */
 .visor-sidebar-inner {
@@ -2581,6 +2593,147 @@ select.new-file-input {
     color: var(--vsr-text);
 }
 
+/* ── Explorador de documentos (grid de iconos navegable estilo Finder) ──
+   Carpetas amarillas + archivos como tarjetas; breadcrumb clickeable arriba.
+   Las reglas van tras .is-doc-tree para ganar (mismo elemento, ambas clases). */
+#sidebarList.is-doc-explorer { padding: 0; }
+
+.docx-bar {
+    position: sticky; top: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 10px;
+    background: var(--vsr-bg-chrome);
+    border-bottom: 1px solid var(--vsr-border-soft);
+}
+.docx-crumbs { display: flex; align-items: center; gap: 1px; flex-wrap: wrap; min-width: 0; }
+.docx-crumb {
+    background: none; border: none; cursor: pointer;
+    padding: 2px 5px; border-radius: 5px;
+    font-size: 12px; font-weight: 600; color: var(--vsr-text-muted);
+    max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.docx-crumb:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.docx-crumb:last-of-type { color: var(--vsr-text); }
+.docx-crumb-sep { color: var(--vsr-text-mute2); font-size: 12px; }
+.docx-bar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.docx-bar .tree-new-btn { flex-shrink: 0; }
+
+/* Toggle de presentación: lista (filas) / carpetas (iconos). */
+.docx-view {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border); border-radius: 7px;
+}
+.docx-viewbtn {
+    display: grid; place-items: center; width: 26px; height: 24px;
+    border: none; border-radius: 5px; background: transparent; cursor: pointer;
+    color: var(--vsr-text-muted); transition: all .12s;
+}
+.docx-viewbtn:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.docx-viewbtn.is-active { color: #fff; background: var(--vsr-accent); }
+
+/* Vista CARPETAS: grid de iconos. */
+.docx-items.is-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 4px; padding: 12px 10px; align-content: start;
+}
+/* Vista LISTA: filas compactas (icono + nombre + tamaño/conteo). */
+.docx-items.is-list { display: flex; flex-direction: column; gap: 1px; padding: 6px; }
+#sidebarList.is-doc-explorer .docx-items.is-list .docx-item {
+    flex-direction: row; align-items: center; gap: 9px;
+    padding: 7px 9px; text-align: left; border-radius: 7px;
+}
+.docx-items.is-list .docx-ic { width: 20px; height: 20px; }
+.docx-items.is-list .docx-name {
+    flex: 1; min-width: 0; text-align: left; font-size: 12.5px;
+    -webkit-line-clamp: 1; line-clamp: 1; white-space: nowrap;
+}
+.docx-items.is-list .docx-badge { position: static; top: auto; right: auto; flex-shrink: 0; }
+.docx-items.is-list .docx-size { flex-shrink: 0; }
+#sidebarList.is-doc-explorer .docx-items.is-list .docx-item .sidebar-del-btn,
+#sidebarList.is-doc-explorer .docx-items.is-list .docx-item .sidebar-pin-btn {
+    position: static; top: auto; right: auto; left: auto; flex-shrink: 0;
+}
+#sidebarList.is-doc-explorer .docx-item {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    margin: 0; padding: 12px 6px 10px;
+    border: 1px solid transparent; border-radius: 10px;
+    background: transparent; cursor: pointer; text-align: center;
+    width: 100%; min-width: 0;
+    transition: background .12s, border-color .12s;
+}
+#sidebarList.is-doc-explorer .docx-item:hover { background: var(--vsr-bg-hover); }
+#sidebarList.is-doc-explorer .docx-file.active {
+    background: var(--vsr-accent-tint); border-color: var(--vsr-accent-tint);
+}
+.docx-ic { width: 42px; height: 42px; flex-shrink: 0; stroke-width: 1.5; }
+.docx-ic-folder { color: #F5B841; fill: rgba(245, 184, 65, .16); }
+.docx-ic-file { color: var(--vsr-text-muted); }
+
+/* Drag & drop: arrastrar un archivo sobre una carpeta lo mueve a esa carpeta. */
+#sidebarList.is-doc-explorer .docx-file[draggable="true"] { cursor: grab; }
+#sidebarList.is-doc-explorer .docx-item.docx-dragging { opacity: .4; }
+#sidebarList.is-doc-explorer .docx-folder.docx-drop {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-accent);
+    box-shadow: inset 0 0 0 1px var(--vsr-accent);
+}
+#sidebarList.is-doc-explorer .docx-folder.docx-drop .docx-ic-folder { color: var(--vsr-accent); }
+/* Panel resaltado al arrastrar sobre el área vacía (soltar = subir un nivel). */
+#sidebarList.is-doc-explorer.docx-panel-drop {
+    outline: 2px dashed var(--vsr-accent); outline-offset: -6px;
+    background: var(--vsr-accent-tint);
+}
+
+/* Botón renombrar carpeta: aparece al hover en la esquina (no choca con el badge). */
+#sidebarList.is-doc-explorer .docx-folder-rename {
+    position: absolute; top: 5px; left: 5px;
+    width: 20px; height: 20px; padding: 0;
+    display: grid; place-items: center;
+    border: none; border-radius: 5px; cursor: pointer;
+    background: var(--vsr-bg-card); color: var(--vsr-text-muted);
+    opacity: 0; transition: opacity .12s;
+}
+#sidebarList.is-doc-explorer .docx-folder:hover .docx-folder-rename { opacity: .9; }
+#sidebarList.is-doc-explorer .docx-folder-rename:hover { color: var(--vsr-accent); }
+/* En vista lista el botón va al final de la fila. */
+.docx-items.is-list .docx-folder-rename { position: static; top: auto; left: auto; }
+
+/* Input inline para crear / renombrar carpetas. */
+.docx-rename-input {
+    width: 100%; box-sizing: border-box;
+    font-size: 11.5px; text-align: center;
+    color: var(--vsr-text); background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-accent); border-radius: 5px;
+    padding: 2px 4px; outline: none;
+}
+.docx-items.is-list .docx-rename-input { flex: 1; text-align: left; }
+.docx-name {
+    font-size: 11.5px; line-height: 1.25; color: var(--vsr-text-soft);
+    width: 100%; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.docx-file .docx-name { color: var(--vsr-text-mid); font-weight: 500; }
+.docx-size { font-size: 10px; color: var(--vsr-text-mute2); }
+.docx-badge {
+    position: absolute; top: 7px; right: 9px;
+    min-width: 16px; padding: 0 5px; border-radius: 999px;
+    font-size: 10px; line-height: 15px; text-align: center;
+    color: var(--vsr-text-muted);
+    background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft);
+}
+/* Acciones (borrar / anclar) discretas: aparecen al hover, en las esquinas. */
+#sidebarList.is-doc-explorer .docx-item .sidebar-del-btn,
+#sidebarList.is-doc-explorer .docx-item .sidebar-pin-btn {
+    position: absolute; top: 5px; opacity: 0;
+    width: 20px; height: 20px; transition: opacity .12s;
+}
+#sidebarList.is-doc-explorer .docx-item:hover .sidebar-del-btn,
+#sidebarList.is-doc-explorer .docx-item:hover .sidebar-pin-btn { opacity: .85; }
+#sidebarList.is-doc-explorer .docx-item .sidebar-del-btn { right: 5px; }
+#sidebarList.is-doc-explorer .docx-item .sidebar-pin-btn { left: 5px; }
+
 /* Cuerpo de la carpeta: los archivos cuelgan sangrados y una linea guia
    vertical los conecta con la carpeta padre (como un explorador de archivos). */
 #sidebarList.is-doc-tree .tree-project-body { position: relative; }
@@ -2733,10 +2886,8 @@ body.ia-drawer-resizing * {
 .cs-agent-coffee { color: var(--vsr-text); }
 .cs-agent-suffix { color: var(--vsr-accent); }
 .ia-empty .cs-brand-mark { margin-top: -10px; margin-bottom: 6px; }
-/* En el visor la parte oscura del lockup (grano + "Coffee") va en gris, no en
-   primer plano; "IA" conserva el tono del tema. */
-.ia-drawer-title .cs-brand-ink, .ia-drawer-title .cs-agent-coffee,
-.ia-empty .cs-brand-ink, .ia-empty .cs-agent-coffee { color: var(--vsr-text-muted); }
+/* El grano y "Coffee" en negro (primer plano), igual que en el Lab; "IA" en el
+   tono del tema. Heredan .cs-brand-ink / .cs-agent-coffee (var(--vsr-text)). */
 /* En el chat del visor (drawer) el grano va un poco más grande que el texto. */
 .ia-drawer-title .cs-brand-mark svg { width: 22px; height: 22px; }
 /* Estado vacío del drawer: grano a tamaño hero sobre el título. */

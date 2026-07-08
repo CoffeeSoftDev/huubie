@@ -301,6 +301,289 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// Endpoint para MOVER un archivo local a otra carpeta (POST move).
+// Mismo sandbox que save/delete: el origen y la carpeta destino deben caer dentro
+// de un root conocido. No sobrescribe si el destino ya tiene un archivo con ese nombre.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'move') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $destDir    = trim($_POST['destDir']    ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+
+    if ($fullPath === '' || $destDir === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'fullPath y destDir requeridos']);
+        exit;
+    }
+
+    $allowedExts = [
+        'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+        'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
+    ];
+    $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts, true)) {
+        echo json_encode(['success' => false, 'message' => "Extension no movible: .$ext"]);
+        exit;
+    }
+
+    $userHome    = coffee_user_home();
+    $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
+    $allowedRoots = [
+        $CLAUDE_HOME . '/agents',
+        $CLAUDE_HOME . '/commands',
+        $CLAUDE_HOME . '/steering',
+        str_replace('\\', '/', __DIR__ . '/../documents'),
+    ];
+    if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
+
+    $insideSandbox = function ($absReal) use ($allowedRoots) {
+        $absReal = rtrim(str_replace('\\', '/', $absReal), '/');
+        foreach ($allowedRoots as $root) {
+            $rootReal = realpath($root);
+            if ($rootReal === false) continue;
+            $rootReal = rtrim(str_replace('\\', '/', $rootReal), '/');
+            if (strpos($absReal . '/', $rootReal . '/') === 0) return true;
+        }
+        return false;
+    };
+
+    // Origen: existe, es archivo y está dentro del sandbox.
+    $srcReal = realpath(str_replace('\\', '/', $fullPath));
+    if ($srcReal === false || !is_file($srcReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'El archivo no existe']);
+        exit;
+    }
+    if (!$insideSandbox($srcReal)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Origen fuera del sandbox del visor']);
+        exit;
+    }
+
+    // Carpeta destino: existe, es directorio y está dentro del sandbox.
+    $dstDirReal = realpath(str_replace('\\', '/', $destDir));
+    if ($dstDirReal === false || !is_dir($dstDirReal)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'La carpeta destino no existe']);
+        exit;
+    }
+    if (!$insideSandbox($dstDirReal)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Destino fuera del sandbox del visor']);
+        exit;
+    }
+
+    $srcReal    = str_replace('\\', '/', $srcReal);
+    $dstDirReal = rtrim(str_replace('\\', '/', $dstDirReal), '/');
+    $dstFull    = $dstDirReal . '/' . basename($srcReal);
+
+    if (dirname($srcReal) === $dstDirReal) {
+        echo json_encode(['success' => true, 'moved' => false, 'message' => 'El archivo ya está en esa carpeta', 'fullPath' => $srcReal]);
+        exit;
+    }
+    if (file_exists($dstFull)) {
+        echo json_encode(['success' => false, 'message' => 'Ya existe un archivo con ese nombre en la carpeta destino']);
+        exit;
+    }
+    if (!@rename($srcReal, $dstFull)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo mover: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'moved' => true, 'message' => 'Archivo movido', 'fullPath' => $dstFull]);
+    exit;
+}
+
+// Helper de sandbox reutilizable por mkdir/renamedir: ¿la ruta real cae dentro de
+// un root permitido (agents/commands/steering/documents o el customPath activo)?
+if (!function_exists('coffee_visor_inside_sandbox')) {
+    function coffee_visor_inside_sandbox($absReal, $customPath = '') {
+        $userHome    = coffee_user_home();
+        $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
+        $roots = [
+            $CLAUDE_HOME . '/agents',
+            $CLAUDE_HOME . '/commands',
+            $CLAUDE_HOME . '/steering',
+            str_replace('\\', '/', __DIR__ . '/../documents'),
+        ];
+        if ($customPath !== '') $roots[] = str_replace('\\', '/', $customPath);
+        $absReal = rtrim(str_replace('\\', '/', $absReal), '/');
+        foreach ($roots as $root) {
+            $rootReal = realpath($root);
+            if ($rootReal === false) continue;
+            $rootReal = rtrim(str_replace('\\', '/', $rootReal), '/');
+            if (strpos($absReal . '/', $rootReal . '/') === 0) return true;
+        }
+        return false;
+    }
+}
+
+// Sanea un nombre de carpeta: sin separadores, sin ".."/"." y sin caracteres
+// invalidos de Windows. Devuelve '' si no es utilizable.
+if (!function_exists('coffee_visor_safe_name')) {
+    function coffee_visor_safe_name($name) {
+        $name = trim(str_replace(['/', '\\'], '', (string) $name));
+        if ($name === '' || $name === '.' || $name === '..') return '';
+        if (preg_match('/[<>:"|?*\\x00-\\x1F]/', $name)) return '';
+        return mb_substr($name, 0, 120);
+    }
+}
+
+// Endpoint para CREAR una carpeta dentro del sandbox (POST mkdir).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'mkdir') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $parentDir  = trim($_POST['parentDir']  ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+    $name       = coffee_visor_safe_name($_POST['name'] ?? '');
+
+    if ($parentDir === '' || $name === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Nombre de carpeta inválido']);
+        exit;
+    }
+
+    $parentReal = realpath(str_replace('\\', '/', $parentDir));
+    if ($parentReal === false || !is_dir($parentReal)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'La carpeta contenedora no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($parentReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $newDir = rtrim(str_replace('\\', '/', $parentReal), '/') . '/' . $name;
+    if (file_exists($newDir)) {
+        echo json_encode(['success' => false, 'message' => 'Ya existe una carpeta con ese nombre']);
+        exit;
+    }
+    if (!@mkdir($newDir, 0775)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo crear la carpeta: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Carpeta creada', 'name' => $name, 'fullPath' => $newDir]);
+    exit;
+}
+
+// Endpoint para RENOMBRAR una carpeta dentro del sandbox (POST renamedir).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'renamedir') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+    $newName    = coffee_visor_safe_name($_POST['newName'] ?? '');
+
+    if ($fullPath === '' || $newName === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Nombre inválido']);
+        exit;
+    }
+
+    $dirReal = realpath(str_replace('\\', '/', $fullPath));
+    if ($dirReal === false || !is_dir($dirReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'La carpeta no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($dirReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $parent = rtrim(str_replace('\\', '/', dirname($dirReal)), '/');
+    $target = $parent . '/' . $newName;
+    if (str_replace('\\', '/', $dirReal) === $target) {
+        echo json_encode(['success' => true, 'message' => 'Sin cambios', 'fullPath' => $target]);
+        exit;
+    }
+    if (file_exists($target)) {
+        echo json_encode(['success' => false, 'message' => 'Ya existe una carpeta con ese nombre']);
+        exit;
+    }
+    if (!@rename($dirReal, $target)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo renombrar: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Carpeta renombrada', 'name' => $newName, 'fullPath' => $target]);
+    exit;
+}
+
+// Endpoint para MOVER una carpeta dentro de otra (POST movedir). Mismo sandbox.
+// No permite mover una carpeta dentro de sí misma o de un descendiente (bucle).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'movedir') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $destDir    = trim($_POST['destDir']    ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+
+    if ($fullPath === '' || $destDir === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'fullPath y destDir requeridos']);
+        exit;
+    }
+
+    $srcReal = realpath(str_replace('\\', '/', $fullPath));
+    if ($srcReal === false || !is_dir($srcReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'La carpeta no existe']);
+        exit;
+    }
+    $dstDirReal = realpath(str_replace('\\', '/', $destDir));
+    if ($dstDirReal === false || !is_dir($dstDirReal)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'La carpeta destino no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($srcReal, $customPath) || !coffee_visor_inside_sandbox($dstDirReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $srcReal    = str_replace('\\', '/', $srcReal);
+    $dstDirReal = rtrim(str_replace('\\', '/', $dstDirReal), '/');
+
+    // No mover una carpeta dentro de sí misma ni de un descendiente suyo.
+    if ($dstDirReal === $srcReal || strpos($dstDirReal . '/', $srcReal . '/') === 0) {
+        echo json_encode(['success' => false, 'message' => 'No puedes mover una carpeta dentro de sí misma']);
+        exit;
+    }
+
+    $target = $dstDirReal . '/' . basename($srcReal);
+    if (dirname($srcReal) === $dstDirReal) {
+        echo json_encode(['success' => true, 'moved' => false, 'message' => 'La carpeta ya está ahí', 'fullPath' => $srcReal]);
+        exit;
+    }
+    if (file_exists($target)) {
+        echo json_encode(['success' => false, 'message' => 'Ya existe una carpeta con ese nombre en el destino']);
+        exit;
+    }
+    if (!@rename($srcReal, $target)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo mover la carpeta: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'moved' => true, 'message' => 'Carpeta movida', 'fullPath' => $target]);
+    exit;
+}
+
 // Endpoint para GUARDAR una plantilla del Playground (POST savetemplate).
 // Cada plantilla vive en documents/template/<slug>/ con:
 //   template.html  -> el render listo para reutilizar
@@ -736,8 +1019,13 @@ function readDocumentsTree($baseDir, $relPrefix) {
     if ($projects === false) return $documents;
     sort($projects);
 
+    // Carpetas de sistema dentro de documents/ (no son documentos del usuario):
+    // se ocultan del explorador. 'template' y 'Chats' las gestionan el Playground/Chat.
+    $SYSTEM_DIRS = ['template', 'chats'];
+
     foreach ($projects as $proj) {
         if ($proj === '.' || $proj === '..') continue;
+        if (in_array(strtolower($proj), $SYSTEM_DIRS, true)) continue;
         $projPath = $baseDir . '/' . $proj;
         if (!is_dir($projPath)) continue;
 
@@ -779,7 +1067,9 @@ function readDocumentsTree($baseDir, $relPrefix) {
                 usort($typeItems, function ($a, $b) {
                     return strcasecmp($a['name'], $b['name']);
                 });
-                if (count($typeItems)) $types[$entry] = $typeItems;
+                // Incluimos la sub-carpeta aunque esté vacía (explorador tipo Windows:
+                // las carpetas recién creadas deben verse aunque no tengan archivos aún).
+                $types[$entry] = $typeItems;
             } else if (substr($entry, -3) === '.md') {
                 $full = $entryPath;
                 if (!is_file($full)) continue;
@@ -810,14 +1100,13 @@ function readDocumentsTree($baseDir, $relPrefix) {
             $types['(sin clasificar)'] = $uncategorized;
         }
 
-        if (count($types)) {
-            uksort($types, function ($a, $b) {
-                if ($a === '(sin clasificar)') return 1;
-                if ($b === '(sin clasificar)') return -1;
-                return strcasecmp($a, $b);
-            });
-            $documents[$proj] = $types;
-        }
+        uksort($types, function ($a, $b) {
+            if ($a === '(sin clasificar)') return 1;
+            if ($b === '(sin clasificar)') return -1;
+            return strcasecmp($a, $b);
+        });
+        // Incluimos el proyecto aunque esté vacío (carpeta recién creada en la raíz).
+        $documents[$proj] = $types;
     }
 
     return $documents;

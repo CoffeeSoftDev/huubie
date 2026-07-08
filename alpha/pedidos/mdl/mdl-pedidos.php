@@ -39,11 +39,19 @@ class MPedidos extends CRUD {
     function getSubsidiariesByCompany($array){
         $query = "SELECT
             id,
-            name as valor
-            
+            name as valor,
+            ubication,
+            (SELECT cs.opened_at
+               FROM {$this->bd}cash_shift cs
+              WHERE cs.subsidiary_id = subsidiaries.id
+                AND cs.status = 'open'
+                AND cs.active = 1
+              ORDER BY cs.opened_at DESC
+              LIMIT 1) AS shift_opened_at
+
         FROM
             fayxzvov_alpha.subsidiaries
-        WHERE 
+        WHERE
             companies_id = ?
         ORDER BY name";
         return $this->_Read($query, $array);
