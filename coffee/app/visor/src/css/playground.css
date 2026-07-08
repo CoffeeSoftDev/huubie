@@ -38,6 +38,21 @@
 .pg-logo svg { width: 26px; height: 26px; display: block; }
 .pg-title { font-weight: 700; font-size: 14px; color: var(--vsr-text); }
 .pg-subtitle { font-size: 11px; color: var(--vsr-text-muted); }
+
+/* ── Marca CoffeeSoft junto al nombre del agente (encabezado del chat) ──
+   El grano (SVG con fill=currentColor) y "Coffee" van en negro (color de
+   texto de primer plano, visible en claro y oscuro); el sufijo "IA" en el
+   tono del tema (acento). */
+.pg-brand-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-right: -4px;             /* acerca el grano al texto (compensa el gap del título) */
+    color: var(--vsr-text);         /* grano en negro / primer plano */
+}
+.pg-brand-mark svg { width: 20px; height: 20px; display: block; }
+
+.pg-agent-coffee { color: var(--vsr-text); }     /* "Coffee" en negro */
+.pg-agent-suffix { color: var(--vsr-accent); }   /* "IA" en el tono del tema */
 .pg-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .pg-select-wrap {
@@ -977,3 +992,74 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     background: var(--vsr-bg-input); border: 1px solid var(--vsr-accent);
     border-radius: 6px; padding: 2px 7px; outline: none;
 }
+
+/* ── Toggle de vista (lista / miniaturas) en el modal de hilos ── */
+.pg-threads-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pg-threads-view {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border);
+    border-radius: 8px;
+}
+.pg-threads-viewbtn {
+    display: grid; place-items: center;
+    width: 28px; height: 26px; border-radius: 6px;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--vsr-text-muted); transition: all .15s;
+}
+.pg-threads-viewbtn:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.pg-threads-viewbtn.is-active { color: #fff; background: var(--vsr-accent); }
+
+/* ── Vista MINIATURAS: grid de tarjetas con el último render del hilo ── */
+.pg-threads-list.is-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 240px);
+    justify-content: center;
+    gap: 14px;
+    padding: 2px;
+}
+.pg-thread-card {
+    position: relative;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 12px; overflow: hidden;
+    background: var(--vsr-bg-card); cursor: pointer;
+    transition: border-color .15s, transform .12s, box-shadow .15s;
+}
+.pg-thread-card:hover { border-color: var(--vsr-accent); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.32); }
+.pg-thread-card.is-active { border-color: var(--vsr-accent); box-shadow: 0 0 0 1px var(--vsr-accent); }
+
+.pg-thread-card-thumb {
+    position: relative;
+    width: 100%; height: 150px; overflow: hidden;
+    background: var(--vsr-bg-base);
+    border-bottom: 1px solid var(--vsr-border-soft);
+    pointer-events: none;   /* el clic lo captura la tarjeta */
+}
+/* Render a tamaño real escalado para caber en la miniatura (240px de ancho). */
+.pg-thread-card-frame {
+    width: 1000px; height: 680px; border: 0;
+    transform: scale(0.24); transform-origin: top left;
+    pointer-events: none; background: #fff;
+}
+.pg-thread-card-noimg {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    color: var(--vsr-text-mute2); font-size: 11px;
+}
+.pg-thread-card-noimg i { width: 22px; height: 22px; }
+
+.pg-thread-card-info { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; min-width: 0; }
+.pg-thread-card .pg-thread-title { font-size: 12px; }
+.pg-thread-card .pg-thread-meta { font-size: 10.5px; color: var(--vsr-text-mute2); }
+
+.pg-thread-card-actions {
+    position: absolute; top: 6px; right: 6px; z-index: 2;
+    display: flex; gap: 4px; opacity: 0; transition: opacity .15s;
+}
+.pg-thread-card:hover .pg-thread-card-actions { opacity: 1; }
+.pg-thread-card-actions .pg-iconbtn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: rgba(17,24,39,.72); border: 1px solid rgba(255,255,255,.16);
+    color: #fff;
+}
+.pg-thread-card-actions .pg-thread-del:hover { color: #ef4444; border-color: rgba(239,68,68,.5); }

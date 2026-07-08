@@ -31,7 +31,7 @@
 
     <header class="chat-header">
         <div class="chat-header-left">
-            <div class="chat-logo">CH</div>
+            <div class="chat-logo"><span class="cs-brand-mark cs-brand-lg"><?php include __DIR__ . '/brand-mark.php'; ?></span></div>
             <div class="flex flex-col leading-tight">
                 <span class="chat-title">Chat con Agentes</span>
                 <span class="chat-subtitle">Conversación multi-modelo estilo OpenAI</span>

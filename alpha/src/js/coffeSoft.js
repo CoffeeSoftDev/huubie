@@ -1,5 +1,56 @@
 // Coffeesoft rev. 1.0.0 
 
+const CF_REGEX = {
+    texto: /^[a-zA-ZÀ-ÖØ-öø-ÿ\s]+$/,
+    texto_clean: /[^a-zA-ZÀ-ÖØ-öø-ÿ\s]+/g,
+    numero: /^\d+$/,
+    numero_clean: /[^0-9]/g,
+    cifra: /^-?\d+(\.\d+)?$/,
+    email: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/,
+    tel: /^[0-9+\-() ]+$/,
+    tel_clean: /[^0-9+\-() ]/g,
+};
+
+// Clases que pintan un control inválido. 'is-invalid' se conserva por compatibilidad,
+// pero el borde rojo real lo dan las utilidades Tailwind con '!' (vencen al border-gray
+// de CF_CSS.input/select/textarea, que de otro modo gana sobre el color del borde).
+const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
+
+const CF_CSS = {
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
+    error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
+    btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnWarning: 'tw-btn w-full rounded-lg bg-[#FFC107] px-4 py-2 text-sm font-semibold text-[#003360] hover:bg-[#FFC107]/80 active:bg-[#FFC107]/80 focus:outline-none focus:ring-2 focus:ring-[#FFC107] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnOutline: 'tw-btn w-full rounded-lg border border-[#003360] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#003360] dark:text-gray-200 hover:bg-[#003360] hover:text-white active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
+    radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
+    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+};
+
+const CF_BTN_COLORS = {
+    primary: 'btnPrimary',
+    secondary: 'btnSecondary',
+    success: 'btnSuccess',
+    danger: 'btnDanger',
+    warning: 'btnWarning',
+    info: 'btnInfo',
+    light: 'btnLight',
+    dark: 'btnDark',
+    link: 'btnLink',
+    outline: 'btnOutline',
+};
+
 class Complements {
 
     constructor(link, div_modulo) {
@@ -423,6 +474,766 @@ class Components extends Complements {
 
     }
 
+    cfBindLiveValidation(container) {
+        container.find('input, textarea').on('input', function () {
+            let el = $(this);
+            let tipo = el.attr('data-tipo');
+            let val = el.val();
+
+            if (tipo === 'texto' && !CF_REGEX.texto.test(val))
+                el.val(val.replace(CF_REGEX.texto_clean, ''));
+
+            if (tipo === 'numero' && !CF_REGEX.numero.test(val))
+                el.val(val.replace(CF_REGEX.numero_clean, ''));
+
+            if (tipo === 'cifra' && !CF_REGEX.cifra.test(val))
+                el.val(val.replace('--', '-').replace('..', '.').replace('.-', '.').replace('-.', '-0.')
+                    .replace(/^\./, '0.').replace(/[^0-9.\-]/g, '')
+                    .replace(/(\.[^.]+)\./g, '$1').replace(/(\d)\-/g, '$1'));
+
+            if (tipo === 'tel' && !CF_REGEX.tel.test(val))
+                el.val(val.replace(CF_REGEX.tel_clean, ''));
+
+            if (tipo === 'email') {
+                el.removeClass(CF_INVALID);
+                let errSpan = el.parent().find('.tw-error');
+                if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
+                    el.addClass(CF_INVALID);
+                    if (errSpan.length) errSpan.text('Ingrese un correo valido').removeClass('hidden');
+                } else if (errSpan.length) {
+                    errSpan.addClass('hidden');
+                }
+            }
+
+            if (el.val().trim() !== '') {
+                el.removeClass(CF_INVALID);
+                el.parent().find('.tw-error').addClass('hidden');
+            }
+        });
+
+        container.find('input, textarea').on('blur', function () {
+            $(this).val($(this).val().trim());
+        });
+
+        container.find('select').on('change', function () {
+            let el = $(this);
+            if (el.val() && el.val() !== '0') {
+                el.removeClass(CF_INVALID);
+                el.closest('div').parent().find('.tw-error').addClass('hidden');
+            }
+        });
+    }
+
+    cfValidateForm(container) {
+        let valid = true;
+
+        container.find('[required]').each(function () {
+            let el = $(this);
+            let val = el.val() ? el.val().trim() : '';
+            let isEmpty = val === '' || val === '0';
+
+            let parent = el.is('select') ? el.closest('div').parent() : el.parent();
+            let errSpan = parent.find('.tw-error');
+
+            if (isEmpty) {
+                valid = false;
+                el.addClass(CF_INVALID);
+                // Si el campo vive en una pestaña oculta (opc:'tabs'), revelarla antes del focus.
+                let panel = el.closest('[data-cf-panel]');
+                if (panel.length && panel.hasClass('hidden')) {
+                    container.find(`.cf-tab-btn[data-cf-tab="${panel.attr('data-cf-panel')}"]`).trigger('click');
+                }
+                el.focus();
+                if (errSpan.length) errSpan.text('El campo es requerido').removeClass('hidden');
+            } else {
+                el.removeClass(CF_INVALID);
+                if (errSpan.length) errSpan.addClass('hidden');
+            }
+        });
+
+        container.find('[data-tipo="email"]').each(function () {
+            let el = $(this);
+            if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
+                valid = false;
+                el.addClass(CF_INVALID);
+            }
+        });
+
+        return valid;
+    }
+
+    cfAutofill(containerId, data) {
+        let container = $('#' + containerId);
+        if (!container.length) return;
+
+        for (let key in data) {
+            let el = container.find(`[name="${key}"]`);
+            if (!el.length) continue;
+            el.val(data[key]);
+            if (el.is('select')) el.trigger('change');
+        }
+    }
+
+    cfToTailwindGrid(bsClass) {
+        let result = bsClass;
+        result = result.replace(/\bcol-(sm|md|lg|xl)-(\d{1,2})\b/g, (_, bp, n) => `${bp}:col-span-${n}`);
+        result = result.replace(/\bcol-(\d{1,2})\b/g, (_, n) => `col-span-${n}`);
+        result = result.replace(/\boffset-(sm|md|lg|xl)-(\d{1,2})\b/g, (_, bp, n) => `${bp}:col-start-${Number(n) + 1}`);
+        result = result.replace(/\boffset-(\d{1,2})\b/g, (_, n) => `col-start-${Number(n) + 1}`);
+        result = result.replace(/\b(mb-\d|mt-\d|p-\d|fw-bold|text-lg|text-uppercase|line|hidex|resize|text-end)\b/g, '').trim();
+        return result;
+    }
+
+    cfThemedClass(str, theme) {
+        if (!str) return str;
+        const tokens = str.split(/\s+/).filter(Boolean);
+        if (theme !== 'dark') {
+            return tokens.filter(t => !t.startsWith('dark:')).join(' ');
+        }
+        const darkTokens = tokens.filter(t => t.startsWith('dark:')).map(t => t.slice(5));
+        const isColorVal = (v) => /^(white|black|transparent|current|inherit|[a-z]+-\d{2,3})(\/\d+)?$/.test(v);
+        const propPrefix = (t) => {
+            let base = t.replace(/-\[[^\]]*\]/g, '');
+            const m = base.match(/^((?:[a-z]+:)*(?:bg|text|border|ring|placeholder|fill|stroke|accent|outline|caret|divide|from|to|via|decoration))-(.+)$/);
+            if (m && isColorVal(m[2])) return m[1] + '-COLOR';
+            return base.replace(/-\d+(\.\d+)?(\/\d+)?$/, '');
+        };
+        const darkProps = new Set(darkTokens.map(propPrefix));
+        const lightFiltered = tokens.filter(t => {
+            if (t.startsWith('dark:')) return false;
+            return !darkProps.has(propPrefix(t));
+        });
+        return [...lightFiltered, ...darkTokens].join(' ');
+    }
+
+    coffeeForm(options) {
+        const self = this;
+
+        const defaults = {
+            parent: 'root',
+            id: 'coffeeForm',
+            class: 'grid grid-cols-12 gap-x-4 gap-y-1',
+            type: 'default',
+            Element: 'div',
+            json: [],
+            data: {},
+            autofill: false,
+            prefijo: '',
+            color: 'primary',
+            color_default: 'primary',
+            theme: 'light',
+            card: false,
+            showRequired: true,
+            onSave: () => { },
+            onAdd: () => { },
+            onUpdate: () => { },
+            onDelete: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const css = {};
+        for (const k in CF_CSS) css[k] = self.cfThemedClass(CF_CSS[k], opts.theme);
+
+        const makeLabel = (text, forId, required) => {
+            let lbl = $('<label>', {
+                class: css.label,
+                for: forId
+            });
+            lbl.html(text + (opts.showRequired && required ? '<span class="text-red-400 ml-0.5">*</span>' : ''));
+            return lbl;
+        };
+
+        let themeWrap = $('<div>', {
+            class: opts.theme === 'dark' ? 'dark' : ''
+        });
+        let card = $('<div>', {
+            class: opts.card
+                ? self.cfThemedClass('bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-6 fade-in', opts.theme)
+                : 'fade-in',
+        });
+        themeWrap.append(card);
+
+        let container;
+        if (opts.Element === 'form') {
+            container = $('<form>', {
+                id: opts.id,
+                class: opts.class
+            });
+            container.attr('novalidate', true);
+        } else {
+            container = $('<div>', {
+                id: opts.id,
+                class: opts.class
+            });
+        }
+
+        const buildField = (x) => {
+            let div_col = self.cfToTailwindGrid(x.class || 'col-sm-4') + ' mt-1';
+            let div_hijo = $('<div>', {
+                class: div_col
+            });
+
+            let required = x.required === false ? false : true;
+            let aux_name = x.name ? x.name : x.id;
+
+            if (x.showLabel !== false && x.lbl) {
+                div_hijo.append(makeLabel(x.lbl, opts.prefijo + x.id, required));
+            }
+
+            let attr_default = {
+                id: opts.prefijo + x.id,
+                'data-tipo': x.tipo,
+                name: aux_name,
+                value: x.value,
+                placeholder: x.placeholder,
+            };
+
+            if (required) attr_default.required = '';
+            if (x.disabled) attr_default.disabled = '';
+
+            let color;
+
+            switch (x.opc) {
+
+                case 'tabs':
+                    return buildTabs(x);
+
+                case 'code':
+                    div_hijo.empty();
+                    let codeText = JSON.stringify(x.json, null, 2);
+                    div_hijo.addClass('rounded-lg bg-gray-900 dark:bg-gray-950 p-4 overflow-x-auto');
+                    let pre = $('<pre>', {
+                        class: 'text-xs text-gray-200 font-mono whitespace-pre'
+                    }).text(codeText);
+                    div_hijo.append(pre);
+                    break;
+
+                case 'radio':
+                    if (x.data) {
+                        let radioGroup = $('<div>', {
+                            class: 'flex flex-wrap gap-4 mt-1'
+                        });
+                        $.each(x.data, function (_, item) {
+                            let radioLabel = $('<label>', {
+                                class: 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                                for: item.id,
+                            });
+                            let rd = $('<input>', {
+                                type: 'radio',
+                                class: x.className || 'w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500 accent-blue-600',
+                                name: x.name || x.id,
+                                value: item.id,
+                                id: item.id,
+                            });
+                            if (item.checked) rd.prop('checked', true);
+                            if (x.onchange) rd.attr('onchange', x.onchange);
+                            radioLabel.append(rd, document.createTextNode(item.valor));
+                            radioGroup.append(radioLabel);
+                        });
+                        div_hijo.append(radioGroup);
+                    } else {
+                        let rdSingle = $('<input>', {
+                            type: 'radio',
+                            class: x.className || css.radio,
+                            name: x.name || x.id,
+                            value: x.value,
+                            id: opts.prefijo + x.id,
+                        });
+                        if (x.checked) rdSingle.prop('checked', true);
+                        if (x.onchange) rdSingle.attr('onchange', x.onchange);
+
+                        let rdLabel = $('<label>', {
+                            class: 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                            text: x.text || x.valor,
+                            for: opts.prefijo + x.id,
+                        });
+                        div_hijo.append(rdSingle, rdLabel);
+                    }
+                    break;
+
+                case 'checkbox':
+                    if (x.data) {
+                        let cbGroup = $('<div>', {
+                            class: 'flex flex-wrap gap-4 mt-1'
+                        });
+                        $.each(x.data, function (_, item) {
+                            let cbLabel = $('<label>', {
+                                class: x.classLabel || 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                                for: item.id,
+                            });
+                            let cb = $('<input>', {
+                                type: 'checkbox',
+                                class: x.className || 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 accent-blue-600',
+                                name: item.id,
+                                value: 'true',
+                                id: item.id,
+                            });
+                            if (item.checked) cb.prop('checked', true);
+                            if (x.onchange) cb.attr('onchange', x.onchange);
+                            cbLabel.append(cb, document.createTextNode(item.valor));
+                            cbGroup.append(cbLabel);
+                        });
+                        div_hijo.append(cbGroup);
+                    } else {
+                        div_hijo.empty();
+                        let cbId = opts.prefijo + x.id;
+                        let cbSingle = $('<input>', {
+                            type: 'checkbox',
+                            class: x.className || css.checkbox,
+                            name: x.name || x.id,
+                            value: true,
+                            id: cbId,
+                        });
+                        if (x.onchange) cbSingle.attr('onchange', x.onchange);
+
+                        let cbLbl = $('<label>', {
+                            class: x.classLabel || 'inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300',
+                            text: x.text || x.valor,
+                            for: cbId,
+                        });
+                        div_hijo.append(cbSingle, cbLbl);
+                    }
+                    break;
+
+                case 'list-group':
+                    let divGroup = $('<div>', {
+                        class: 'flex flex-col gap-1'
+                    });
+                    x.data.forEach(function (item) {
+                        let a = $('<a>', {
+                            class: 'flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors'
+                        });
+                        let iconText = $('<span>', {
+                            class: 'text-sm text-gray-600 dark:text-gray-300'
+                        });
+                        if (item.ico) iconText.prepend($('<i>', { class: item.ico + ' mr-2' }));
+                        iconText.append(item.text);
+
+                        let badge = $('<span>', {
+                            class: 'text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+                            text: item.notifications,
+                        });
+                        a.append(iconText, badge);
+                        divGroup.append(a);
+                    });
+                    div_hijo.append(divGroup);
+                    break;
+
+                case 'input':
+                    let align = '';
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') align = ' text-right';
+
+                    let htmlType = x.type || 'text';
+                    if (x.tipo === 'email') htmlType = 'email';
+                    if (x.tipo === 'tel') htmlType = 'tel';
+
+                    let attrInput = Object.assign({}, attr_default, {
+                        class: css.input + align,
+                        type: htmlType,
+                        onkeyup: x.onkeyup || '',
+                    });
+                    if (x.onchange) attrInput.onchange = x.onchange;
+                    if (x.readonly) attrInput.readonly = '';
+
+                    div_hijo.append($('<input>', attrInput));
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-group':
+                    let inputGroup = $('<div>', {
+                        class: 'flex'
+                    });
+
+                    let valType = x.type || 'text';
+                    let alignGrp = '';
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') alignGrp = ' text-right';
+
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') {
+                        let iconPre = $('<span>', {
+                            class: css.groupAddon
+                        });
+                        if (x.icon) iconPre.html(`<i class="${x.icon}"></i>`);
+                        inputGroup.append(iconPre);
+                    }
+
+                    let attrGrp = Object.assign({}, attr_default, {
+                        class: css.input + ' rounded-l-none' + alignGrp,
+                        type: valType,
+                        onkeyup: x.onkeyup || '',
+                    });
+                    if (x.cat) attrGrp.cat = x.cat;
+                    if (x.readonly) attrGrp.readonly = '';
+                    if (x.onchange) attrGrp.onchange = x.onchange;
+
+                    inputGroup.append($('<input>', attrGrp));
+
+                    if (x.tipo !== 'cifra' && x.tipo !== 'numero') {
+                        let iconApp = $('<span>', {
+                            class: 'inline-flex items-center justify-center px-3 rounded-r-lg border border-l-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+                        });
+                        if (x.icon) iconApp.html(`<i class="${x.icon}"></i>`);
+                        inputGroup.append(iconApp);
+                    }
+
+                    div_hijo.append(inputGroup);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'textarea':
+                    div_hijo.append($('<textarea>', {
+                        class: css.textarea,
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        text: x.value,
+                        placeholder: x.placeholder,
+                        cols: x.cols,
+                        rows: x.rows || 3,
+                        required: x.required || false,
+                    }));
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-file-btn':
+                    div_hijo.append($('<input>', {
+                        class: css.file,
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        type: 'file',
+                    }));
+                    break;
+
+                case 'input-file':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyFile = CF_BTN_COLORS[color] || 'btnOutline';
+
+                    let iptFile = $('<input>', {
+                        class: 'hidden',
+                        type: 'file',
+                        accept: x.accept || '.xlsx, .xls',
+                        id: opts.prefijo + x.id,
+                        onchange: x.fn,
+                    });
+
+                    let lblBtn = $('<label>', {
+                        class: css[cssKeyFile] + ' mt-4 cursor-pointer text-center',
+                        html: `  ${x.text} `,
+                        for: opts.prefijo + x.id,
+                    });
+
+                    div_hijo.append(iptFile, lblBtn);
+                    break;
+
+                case 'btn':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyBtn = CF_BTN_COLORS[color] || 'btnOutline';
+                    let iconBtn = x.icon ? `<i class="${x.icon}"></i>` : '';
+                    let textBtn = x.text || '';
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeyBtn] + ' w-full ' + (x.className || ''),
+                        html: `${iconBtn}  ${textBtn} `,
+                        type: 'button',
+                        id: opts.prefijo + x.id,
+                        onclick: x.fn,
+                    }));
+                    break;
+
+                case 'btn-submit':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeySub = CF_BTN_COLORS[color] || 'btnPrimary';
+                    let iconSub = (x.icon || x.icono) ? `<i class="${x.icon || x.icono} mr-1"></i> ` : '';
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeySub] + ' ' + (x.className || ''),
+                        html: iconSub + (x.text || 'Enviar'),
+                        type: 'submit',
+                        id: opts.prefijo + x.id,
+                        onclick: x.fn,
+                    }));
+                    break;
+
+                case 'button':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyButton = CF_BTN_COLORS[color] || 'btnPrimary';
+                    let iconButton = x.icon ? `<i class="${x.icon}"></i>` : '';
+                    let textButton = x.text || '';
+
+                    let buttonEvents = {};
+                    if (x.fn) buttonEvents.onclick = x.fn;
+                    if (x.onClick) buttonEvents.click = x.onClick;
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeyButton] + ' ' + (x.className || ''),
+                        html: `${iconButton} ${textButton} `,
+                        id: opts.prefijo + x.id,
+                        type: 'button',
+                        ...buttonEvents,
+                    }));
+                    break;
+
+                case 'select':
+                    let selectWrap = $('<div>', {
+                        class: 'relative'
+                    });
+
+                    let select = $('<select>', {
+                        class: css.select + ' pr-8',
+                        id: opts.prefijo + x.id,
+                        name: x.name || x.id,
+                        onchange: x.onchange,
+                        placeholder: x.placeholder,
+                    });
+
+                    if (x.selected) {
+                        select.html(`<option value="0"> ${x.selected} </option>`);
+                    }
+
+                    if (x.data) {
+                        $.each(x.data, function (_, item) {
+                            let bandera = false;
+                            if (String(item.id) == String(x.value)) bandera = true;
+                            select.append($('<option>', {
+                                value: item.id,
+                                text: item.valor,
+                                selected: bandera,
+                            }));
+                        });
+                    }
+
+                    let chevron = $('<div>', {
+                        class: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5',
+                        html: '<svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
+                    });
+
+                    selectWrap.append(select, chevron);
+                    div_hijo.append(selectWrap);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-calendar':
+                    let calWrap = $('<div>', {
+                        class: 'relative'
+                    });
+
+                    let calInput = $('<input>', {
+                        class: css.input + ' pr-10 cursor-pointer',
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        value: x.value,
+                        placeholder: x.placeholder || 'dd/mm/aaaa',
+                    });
+
+                    if (required) calInput.attr('required', '');
+                    if (x.disabled) calInput.attr('disabled', '');
+                    if (x.readonly) calInput.attr('readonly', '');
+                    if (x.onchange) calInput.attr('onchange', x.onchange);
+
+                    let calIcon = $('<div>', {
+                        class: self.cfThemedClass('pointer-events-none absolute inset-y-px right-px flex items-center pl-2 pr-3 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 rounded-r-lg', opts.theme),
+                        html: '<i class="icon-calendar-2 text-base"></i>',
+                    });
+
+                    calWrap.append(calInput, calIcon);
+                    div_hijo.append(calWrap);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'btn-select':
+                    let bsGroup = $('<div>', {
+                        class: 'flex'
+                    });
+
+                    let bsSelect = $('<select>', {
+                        class: css.select + ' rounded-r-none pr-8',
+                        id: opts.prefijo + x.id,
+                        name: x.name || x.id,
+                        onchange: x.onchange,
+                    });
+                    if (required) bsSelect.attr('required', '');
+
+                    if (x.selected) {
+                        bsSelect.html(`<option value="0"> ${x.selected} </option>`);
+                    }
+
+                    if (x.data) {
+                        $.each(x.data, function (_, item) {
+                            let bandera = String(item.id) == String(x.value);
+                            bsSelect.append($('<option>', {
+                                value: item.id,
+                                text: item.valor,
+                                selected: bandera,
+                            }));
+                        });
+                    }
+
+                    let bsBtn = $('<button>', {
+                        type: 'button',
+                        id: x.btnId || (opts.prefijo + x.id + '_btn'),
+                        class: 'px-3 rounded-r-lg border border-l-0 border-gray-300 dark:border-gray-600 bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium transition-colors',
+                        html: x.btnIcon ? `<i class="${x.btnIcon}"></i>` : (x.btnText || '+'),
+                    });
+                    if (x.fn) bsBtn.attr('onclick', x.fn);
+                    if (x.btnFn) bsBtn.attr('onclick', x.btnFn);
+                    if (x.btnOnClick) bsBtn.on('click', x.btnOnClick);
+
+                    let bsBtnIcon = x.icon ? $('<i>', { class: x.icon }) : null;
+                    if (bsBtnIcon) bsBtn.append(bsBtnIcon);
+
+                    bsGroup.append(bsSelect, bsBtn);
+                    div_hijo.append(bsGroup);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                default:
+                    if (x.opc) {
+                        const { class: _, ...xWithoutClass } = x;
+                        div_hijo.append($('<' + x.opc + '>', xWithoutClass));
+                    }
+                    break;
+            }
+
+            return div_hijo;
+        };
+
+        // Renderiza un grupo de pestañas (opc:'tabs'). Cada tab declara su propio
+        // json y se construye con buildField, por lo que todo el motor de campos
+        // (inputs, selects, validación, temas) funciona dentro de los paneles.
+        // Los inputs siguen colgando del mismo <form>, así que FormData, cfAutofill
+        // y cfValidateForm operan igual sin importar la pestaña.
+        const buildTabs = (cfg) => {
+            // ObjectMerge (usado al construir el modal) convierte los arrays anidados
+            // en objetos {0:..,1:..}; normalizamos a array real antes de iterar.
+            const toArray = (v) => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+
+            // Estilo nativo de tabLayout: nav redondeado tematizado, pildora activa azul
+            // y soporte de lucideIcon. Los paneles siguen colgando del mismo <form>.
+            const isDark   = opts.theme === 'dark';
+            const navBase  = isDark ? 'bg-[#19232D] text-white' : 'bg-gray-200 text-black';
+            const onClass  = 'bg-blue-600 text-white';
+            const offClass = isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-white';
+            const btnBase  = 'cf-tab-btn transition text-sm font-medium rounded px-3 py-2 whitespace-nowrap flex-shrink-0 ';
+            const offIcon  = isDark ? 'text-gray-400' : 'text-gray-800';
+
+            const wrap = $('<div>', { class: self.cfToTailwindGrid(cfg.class || 'col-12') });
+            const nav  = $('<div>', { class: `${navBase} rounded-lg flex flex-wrap gap-1 px-1 py-1 text-sm mb-3` });
+            const body = $('<div>', { class: 'w-full' });
+
+            const tabsArr   = toArray(cfg.tabs);
+            const anyActive = tabsArr.some(t => t.active);
+
+            tabsArr.forEach((tab, i) => {
+                const isActive = tab.active || (i === 0 && !anyActive);
+
+                let iconHtml = '';
+                const iconColor = isActive ? 'text-white' : offIcon;
+                if (tab.lucideIcon) {
+                    const base = 'w-4 h-4 inline-block mr-2';
+                    iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${base} ${iconColor}"></i>`;
+                } else if (tab.icon) {
+                    const base = `${tab.icon} mr-2 text-sm`;
+                    iconHtml = `<i class="${base} ${iconColor}"></i>`;
+                }
+
+                nav.append($('<button>', {
+                    type: 'button',
+                    'data-cf-tab': tab.id,
+                    class: btnBase + (isActive ? onClass : offClass),
+                    html: iconHtml + (tab.tab || tab.label || '')
+                }));
+
+                const panel = $('<div>', {
+                    'data-cf-panel': tab.id,
+                    class: 'grid grid-cols-12 gap-x-4 gap-y-1' + (isActive ? '' : ' hidden')
+                });
+                toArray(tab.json).forEach(f => panel.append(buildField(f)));
+                body.append(panel);
+            });
+
+            nav.on('click', '.cf-tab-btn', function () {
+                const id = $(this).attr('data-cf-tab');
+                nav.find('.cf-tab-btn').each(function () {
+                    $(this).removeClass(onClass).addClass(offClass)
+                        .find('i, svg').removeClass('text-white').addClass(offIcon);
+                });
+                $(this).addClass(onClass).removeClass(offClass)
+                    .find('i, svg').removeClass(offIcon).addClass('text-white');
+                body.find('[data-cf-panel]').addClass('hidden');
+                body.find(`[data-cf-panel="${id}"]`).removeClass('hidden');
+            });
+
+            wrap.append(nav, body);
+            if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 0);
+            return wrap;
+        };
+
+        for (const x of opts.json) container.append(buildField(x));
+
+        if (opts.type === 'btn') {
+            let cssKeyAuto = CF_BTN_COLORS[opts.color] || 'btnPrimary';
+            let divBtn = $('<div>', {
+                class: 'mt-3 col-span-12 flex justify-center'
+            });
+            let btnSubmit = $('<button>', {
+                class: css[cssKeyAuto] + ' sm:w-1/3',
+                text: 'Aceptar',
+                id: 'btnAceptar',
+                type: 'submit',
+            });
+            divBtn.append(btnSubmit);
+            container.append(divBtn);
+        }
+
+        card.append(container);
+        $(`#${opts.parent}`).html(themeWrap);
+
+        if (opts.autofill) self.cfAutofill(opts.id, opts.autofill);
+
+        self.cfBindLiveValidation(container);
+
+        if (opts.Element === 'form') {
+            container.on('submit', function (e) {
+                e.preventDefault();
+                if (!self.cfValidateForm(container)) return;
+
+                let formData = new FormData(container[0]);
+                let result = Object.assign({}, opts.data);
+                formData.forEach(function (val, key) { result[key] = val; });
+
+                opts.onSave(result);
+            });
+        }
+
+        return container;
+    }
+
     createForm(options) {
         // Conf:
         let defaults = {
@@ -464,6 +1275,36 @@ class Components extends Complements {
         // Fusionar opciones con valores por defecto
         const opts = Object.assign(defaults, options);
         opts.methods = Object.assign({}, defaults.methods, options.methods);  // Asegurar que los mÃ©todos personalizados se fusionen correctamente
+
+        // Ruta CoffeeForm (coffeesoft:true): render Tailwind + theme light/dark con
+        // validacion propia. coffeeForm entrega la data por onSave; aqui se puentea a
+        // useFetch para conservar el contrato de createForm (success / methods.send).
+        // El else mantiene intacta la ruta legacy content_json_form + validation_form.
+        if (opts.coffeesoft) {
+            return this.coffeeForm({
+                parent: opts.parent,
+                id: opts.id,
+                Element: 'form',
+                json: jsonForm,
+                theme: opts.theme || 'light',
+                card: opts.card === true,
+                prefijo: opts.prefijo || '',
+                autofill: opts.autofill,
+                showRequired: opts.showRequired !== false,
+                data: opts.data,
+                onSave: (formData) => {
+                    if (options.beforeSend) options.beforeSend();
+                    useFetch({
+                        url: this._link,
+                        data: formData,
+                        success: (req) => {
+                            if (opts.success) opts.success(req);
+                            if (opts.methods.send) opts.methods.send(req);
+                        }
+                    });
+                }
+            });
+        }
 
         $('#' + opts.parent)[opts.plugin]({ data: jsonForm, class: opts.class, type: 'default', id: opts.id, Element: opts.type });
 

@@ -2720,6 +2720,28 @@ body.ia-drawer-resizing * {
     color: var(--vsr-text);
 }
 .ia-drawer-title i { color: var(--vsr-accent-soft); }
+
+/* ── Marca CoffeeSoft (grano) — junto a "CoffeeIA" en el drawer del visor, en su
+   estado vacío y en el logo del chat. El SVG hereda currentColor: el grano va en
+   negro (primer plano) con .cs-brand-ink, o hereda el color del contenedor (p.ej.
+   blanco dentro del .chat-logo terracota). El lockup pinta "Coffee" en negro e
+   "IA" en el tono del tema. ── */
+.cs-brand-mark { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 0; }
+.cs-brand-mark svg { width: 18px; height: 18px; display: block; }
+.cs-brand-mark.cs-brand-lg svg { width: 28px; height: 28px; }
+.cs-brand-ink { color: var(--vsr-text); }
+.cs-agent-coffee { color: var(--vsr-text); }
+.cs-agent-suffix { color: var(--vsr-accent); }
+.ia-empty .cs-brand-mark { margin-top: -10px; margin-bottom: 6px; }
+/* En el visor la parte oscura del lockup (grano + "Coffee") va en gris, no en
+   primer plano; "IA" conserva el tono del tema. */
+.ia-drawer-title .cs-brand-ink, .ia-drawer-title .cs-agent-coffee,
+.ia-empty .cs-brand-ink, .ia-empty .cs-agent-coffee { color: var(--vsr-text-muted); }
+/* En el chat del visor (drawer) el grano va un poco más grande que el texto. */
+.ia-drawer-title .cs-brand-mark svg { width: 22px; height: 22px; }
+/* Estado vacío del drawer: grano a tamaño hero sobre el título. */
+.ia-empty .cs-brand-mark svg { width: 44px; height: 44px; }
+
 .ia-drawer-close {
     width: 26px; height: 26px; border-radius: 6px;
     background: transparent; border: none;

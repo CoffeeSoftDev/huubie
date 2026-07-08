@@ -364,8 +364,8 @@
 
                 <header class="ia-drawer-header">
                     <div class="ia-drawer-title">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i>
-                        <span>CoffeeIA</span>
+                        <span class="cs-brand-mark cs-brand-ink" title="CoffeeSoft"><?php include __DIR__ . '/brand-mark.php'; ?></span>
+                        <span><span class="cs-agent-coffee">Coffee</span><span class="cs-agent-suffix">IA</span></span>
                     </div>
                     <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
                         <i data-lucide="x" class="w-4 h-4"></i>
@@ -390,8 +390,8 @@
                 <!-- Estado VACIO -->
                 <div class="ia-drawer-body" id="iaBodyEmpty">
                     <div class="ia-empty">
-                        <i data-lucide="sparkles"></i>
-                        <div class="ia-empty-title">CoffeeIA</div>
+                        <span class="cs-brand-mark cs-brand-lg cs-brand-ink"><?php include __DIR__ . '/brand-mark.php'; ?></span>
+                        <div class="ia-empty-title"><span class="cs-agent-coffee">Coffee</span><span class="cs-agent-suffix">IA</span></div>
                         <div class="ia-empty-subtitle">Pregunta cualquier cosa sobre el documento o elige una sugerencia.</div>
                         <div class="ia-empty-suggestions">
                             <button class="ia-suggestion" data-prompt="Resume este documento">Resume este documento</button>

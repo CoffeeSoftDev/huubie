@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modal · Cliente fiscal · Facturador SAT</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    blue:{50:'#FBF1ED',100:'#F5E3DC',200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A33',700:'#8F3D2A',800:'#6E2F20',900:'#4E2117'}
+  }}}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+  body{background:rgba(17,25,40,.5);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px}
+  .input-base{background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:7px 12px;font-size:12px;color:#374151}
+  .input-base:focus{outline:none;border-color:#C05A40;box-shadow:0 0 0 3px rgba(192,90,64,.12)}
+  .modal-box{background:#fff;border-radius:14px;max-width:520px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(17,25,40,.25)}
+  .modal-head{padding:16px 20px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:12px}
+  .modal-body{padding:20px}
+  .modal-foot{padding:14px 20px;border-top:1px solid #F3F4F6;display:flex;justify-content:flex-end;gap:8px;background:#FAFCFF;border-radius:0 0 14px 14px}
+  .btn-primary{background:#C05A40;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;border:none}
+  .btn-primary:hover{background:#A84A33}
+  .btn-ghost{background:#fff;color:#374151;border:1px solid #E5E7EB;font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+  .btn-primary i,.btn-ghost i{width:14px;height:14px}
+</style>
+</head>
+<body>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-[#C05A40]"></i>Nuevo cliente fiscal</h3>
+      <button class="ml-auto text-gray-400 hover:text-gray-700" onclick="window.close()"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-[11px] text-gray-500 mb-4">Ficha visual canónica. Receptor CFDI: el RFC y razón social que aparecen en la hoja "Facturados" del POS.</p>
+      <div class="grid gap-3">
+        <div><label class="text-[10px] font-semibold text-gray-500 uppercase">RFC</label><input type="text" class="input-base w-full" value="SACS810810APA"></div>
+        <div><label class="text-[10px] font-semibold text-gray-500 uppercase">Razón social</label><input type="text" class="input-base w-full" value="JOSE SAUL SANCHEZ CHAVEZ"></div>
+      </div>
+      <div class="mt-4 p-3 rounded-lg bg-[#FBF1ED] border border-[#F5E3DC]">
+        <p class="text-[10px] text-gray-600 flex items-start gap-2"><i data-lucide="info" class="w-3.5 h-3.5 text-[#C05A40] shrink-0 mt-[1px]"></i>Los campos CFDI 4.0 adicionales (uso CFDI, régimen fiscal, código postal) entran cuando se integre el PAC real — no se inventan ahora.</p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="window.close()">Cancelar</button>
+      <button class="btn-primary"><i data-lucide="save"></i>Guardar</button>
+    </div>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

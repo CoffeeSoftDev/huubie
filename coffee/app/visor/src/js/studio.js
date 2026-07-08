@@ -137,7 +137,7 @@ const PG_INTERACTIVITY_NOTE =
     + `- Usa \`addEventListener\` y \`querySelector\`/\`data-*\`; evita IDs globales que choquen.\n`
     + `- El \`<script>\` va al final del componente y se autoejecuta (envuélvelo en un IIFE o \`DOMContentLoaded\`).\n`
     + `- Si insertas iconos Lucide dinámicamente, llama a \`window.lucide && lucide.createIcons()\` tras inyectarlos.\n`
-    + `- El componente se renderiza en un contenedor a pantalla completa: debe LLENAR el ancho disponible (usa \`w-full\`/grid/flex), no quedar encogido en una columna estrecha.\n`
+    + `- El resultado se renderiza en un lienzo a PANTALLA COMPLETA: su nodo raíz debe ocupar TODO el ancho y alto. Empieza SIEMPRE el markup con un contenedor de pantalla \`<div class="w-full min-h-screen ...">\` (o \`h-screen\` + \`flex\`/\`grid\`) que llene el lienzo de borde a borde. NUNCA entregues como raíz una card o panel suelto centrado con \`max-w-*\` ni un fragmento (una sola barra/fila): eso deja el render "encogido" arriba con huecos alrededor. Si el diseño ES una tarjeta o formulario pequeño, ENVUÉLVELO en ese contenedor de pantalla completa (con \`flex items-center justify-center\`) para que quede centrado dentro de un lienzo que sí llena todo.\n`
     + `- Si es un modal/diálogo, el overlay (\`fixed inset-0\`) debe llevar \`overflow-y-auto\` y la tarjeta márgenes verticales (\`my-8\`) para que se vea COMPLETO y haga scroll cuando sea alto — nunca recortado arriba o abajo.\n`
     + `- NO agregues un toggle de tema claro/oscuro.\n`
     + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
@@ -3172,7 +3172,12 @@ const PG_BRIDGE_JS =
 // superior. Resultado: el componente SIEMPRE se ve completo dentro del contenedor.
 // Vive dentro del srcdoc del iframe, por eso el selector global es seguro.
 const PG_PREVIEW_FIX_CSS =
-      '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
+      // El scroll HORIZONTAL del root del preview es espurio: nace del gutter del
+      // scrollbar vertical o de algún 100vw/w-screen del template. Lo suprimimos en
+      // html,body (root) para que el render llene el lienzo sin barra en x. Los
+      // contenedores internos con overflow-x propio (tablas anchas) siguen scrolleando.
+      'html,body{overflow-x:hidden;}'
+    + '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
     + '[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}';
 
 // Reune los assets de un sistema de diseño: <link> + <style> embebido + <script> + atributos.
@@ -3246,7 +3251,9 @@ function pgWrapHtml(body, themeKey, isDoc) {
         // El stage ocupa TODO el ancho/alto del lienzo: un componente con w-full,
         // grid o flex llena el sandbox; uno con ancho propio (max-w-sm, etc.) se
         // centra horizontalmente sin estirarse. Así no queda "encogido" en medio.
-        // align-items:flex-start evita recortar componentes altos (se scrollea).
+        // El llenado a pantalla completa lo garantiza el prompt (nodo raíz
+        // w-full min-h-screen); aquí NO forzamos altura extra para no provocar
+        // scroll vertical espurio (y con él una barra horizontal de gutter).
         : `body{min-height:100vh;}`
           + `.pg-stage{box-sizing:border-box;width:100%;min-height:100vh;padding:28px;`
           +           `display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}`

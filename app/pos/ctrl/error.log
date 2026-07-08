@@ -1,3 +1,38 @@
+[ 2026-07-07 21:53:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT
+                p.id,
+                p.name,
+                p.price,
+                p.description,
+                p.image,
+                oc.classification          AS category,
+                COALESCE(st.quantity, 0)   AS stock,
+                COALESCE(pa.stock_min, 0)  AS stock_min
+            FROM fayxzvov_reginas.order_products p
+            LEFT JOIN fayxzvov_reginas.order_category oc ON p.category_id = oc.id
+            LEFT JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN (
+                SELECT s.product_id, SUM(s.quantity) AS quantity
+                FROM fayxzvov_reginas.stock s
+                INNER JOIN fayxzvov_reginas.warehouse w ON s.warehouse_id = w.id AND w.active = 1 AND w.subsidiaries_id = ?
+                WHERE s.active = 1
+                GROUP BY s.product_id
+            ) st ON st.product_id = p.id
+            WHERE p.active = 1
+              AND (
+                  p.companies_id = ?
+                  OR (p.companies_id IS NULL AND p.subsidiaries_id IN (
+                      SELECT id FROM fayxzvov_alpha.subsidiaries WHERE companies_id = ?
+                  ))
+              )
+            ORDER BY oc.id, p.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.product_attribute' doesn't exist
+
+
 [ 2026-06-03 14:16:14 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-56GL0L8$

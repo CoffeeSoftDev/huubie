@@ -131,22 +131,44 @@ try {
 
         case 'list': {
             // No devolvemos messages/templates (pueden ser grandes); solo el resumen.
+            // Con ?thumb=1 añadimos, por hilo, SOLO el último render (thumb_html +
+            // tema) para pintar una miniatura en la vista de tarjetas del modal.
+            $withThumb = !empty($_GET['thumb']) || !empty($_POST['thumb']);
+            $cols = 'uid, title, user_id, model, msg_count, tpl_count, created_at, updated_at'
+                  . ($withThumb ? ', templates' : '');
             $userId = trim($_POST['user_id'] ?? $_GET['user_id'] ?? '');
             if ($userId !== '') {
-                $st = $pdo->prepare('
-                    SELECT uid, title, user_id, model, msg_count, tpl_count, created_at, updated_at
-                      FROM threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT 200
-                ');
+                $st = $pdo->prepare("SELECT $cols FROM threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT 200");
                 $st->execute([$userId]);
             } else {
-                $st = $pdo->query('
-                    SELECT uid, title, user_id, model, msg_count, tpl_count, created_at, updated_at
-                      FROM threads ORDER BY updated_at DESC LIMIT 200
-                ');
+                $st = $pdo->query("SELECT $cols FROM threads ORDER BY updated_at DESC LIMIT 200");
             }
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($withThumb) {
+                foreach ($rows as &$r) {
+                    $tpls = json_decode($r['templates'] ?? '[]', true);
+                    unset($r['templates']);   // no devolver el array completo (pesado)
+                    $r['thumb_html']   = '';
+                    $r['thumb_theme']  = '';
+                    $r['thumb_is_doc'] = false;
+                    if (is_array($tpls)) {
+                        for ($i = count($tpls) - 1; $i >= 0; $i--) {   // último render con html
+                            if (!empty($tpls[$i]['html'])) {
+                                $r['thumb_html']   = $tpls[$i]['html'];
+                                $r['thumb_theme']  = $tpls[$i]['theme'] ?? '';
+                                $r['thumb_is_doc'] = !empty($tpls[$i]['isDoc']);
+                                break;
+                            }
+                        }
+                    }
+                }
+                unset($r);
+            }
+
             echo json_encode([
                 'success' => true,
-                'rows'    => $st->fetchAll(PDO::FETCH_ASSOC)
+                'rows'    => $rows
             ], JSON_UNESCAPED_UNICODE);
             break;
         }

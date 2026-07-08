@@ -136,7 +136,7 @@ const PG_INTERACTIVITY_NOTE =
     + `- Usa \`addEventListener\` y \`querySelector\`/\`data-*\`; evita IDs globales que choquen.\n`
     + `- El \`<script>\` va al final del componente y se autoejecuta (envuélvelo en un IIFE o \`DOMContentLoaded\`).\n`
     + `- Si insertas iconos Lucide dinámicamente, llama a \`window.lucide && lucide.createIcons()\` tras inyectarlos.\n`
-    + `- El componente se renderiza en un contenedor a pantalla completa: debe LLENAR el ancho disponible (usa \`w-full\`/grid/flex), no quedar encogido en una columna estrecha.\n`
+    + `- El resultado se renderiza en un lienzo a PANTALLA COMPLETA: su nodo raíz debe ocupar TODO el ancho y alto. Empieza SIEMPRE el markup con un contenedor de pantalla \`<div class="w-full min-h-screen ...">\` (o \`h-screen\` + \`flex\`/\`grid\`) que llene el lienzo de borde a borde. NUNCA entregues como raíz una card o panel suelto centrado con \`max-w-*\` ni un fragmento (una sola barra/fila): eso deja el render "encogido" arriba con huecos alrededor. Si el diseño ES una tarjeta o formulario pequeño, ENVUÉLVELO en ese contenedor de pantalla completa (con \`flex items-center justify-center\`) para que quede centrado dentro de un lienzo que sí llena todo.\n`
     + `- Si es un modal/diálogo, el overlay (\`fixed inset-0\`) debe llevar \`overflow-y-auto\` y la tarjeta márgenes verticales (\`my-8\`) para que se vea COMPLETO y haga scroll cuando sea alto — nunca recortado arriba o abajo.\n`
     + `- NO agregues un toggle de tema claro/oscuro.\n`
     + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
@@ -174,6 +174,9 @@ const pg = {
     threadUid:   null,       // uid del hilo activo (null = aún no persistido)
     threadTitle: '',         // título del hilo activo
     _threadSaveTimer: null,  // debounce del autosave del hilo
+    threadsView: 'list',     // vista del modal de hilos: 'list' | 'grid' (miniaturas)
+    _threadRows: [],         // cache de la última respuesta de list (para alternar sin re-fetch)
+    _threadThumbObs: null,   // IntersectionObserver que carga las miniaturas al entrar en viewport
     activeDb:    null,       // base MySQL conectada (conexión pegajosa de la conversación)
     activeFolder: null       // carpeta local conectada (conexión pegajosa de la conversación)
 };
@@ -258,6 +261,7 @@ function pgLoadSettings() {
         // Las tools NO se restauran a propósito: arrancan siempre apagadas en cada
         // carga y solo se habilitan al darles clic (dbToolsOn/fsToolsOn se quedan en false).
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
+        if (s.threadsView === 'list' || s.threadsView === 'grid') pg.threadsView = s.threadsView;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
     } catch (e) {}
 }
@@ -266,7 +270,7 @@ function pgSaveSettings() {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
             canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
-            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn,
+            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, threadsView: pg.threadsView,
             knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
@@ -314,7 +318,13 @@ function pgApplyAgent(key, keepHistory) {
     const file = pg.agents[key];
 
     pg.prompt = file ? (file.raw || '') : '';
-    $('#pgChatAgentName').text(cfg.label);
+    // "Coffee" en color de texto (negro) y el sufijo ("IA"/"Magic"/…) en el
+    // tono del tema, para el lockup de marca junto al grano.
+    const label = cfg.label || '';
+    const m = label.match(/^(Coffee)(.*)$/i);
+    $('#pgChatAgentName').html(m
+        ? `<span class="pg-agent-coffee">${pgEscape(m[1])}</span><span class="pg-agent-suffix">${pgEscape(m[2])}</span>`
+        : pgEscape(label));
     $('#pgKnowAgentName').text(cfg.label);
     $('#pgChatAgentIcon').attr('data-lucide', cfg.icon);
     $('#pgPromptEditor').val(pg.prompt);
@@ -367,6 +377,8 @@ function pgBind() {
     $('#pgThreadsClose, #pgThreadsDone').on('click', () => pgCloseThreads());
     $('#pgThreadsModal .pg-modal-backdrop').on('click', () => pgCloseThreads());
     $('#pgThreadsNew').on('click', () => { pgNewThread(); pgCloseThreads(); });
+    $('#pgThreadsViewList').on('click', () => pgSetThreadsView('list'));
+    $('#pgThreadsViewGrid').on('click', () => pgSetThreadsView('grid'));
 
     pgBindSplitter();
 
@@ -1169,28 +1181,58 @@ async function pgSaveThread(silent) {
 
 function pgCloseThreads() {
     $('#pgThreadsModal').addClass('hidden').attr('aria-hidden', 'true');
+    if (pg._threadThumbObs) { pg._threadThumbObs.disconnect(); pg._threadThumbObs = null; }
 }
 
 async function pgOpenThreads() {
     $('#pgThreadsModal').removeClass('hidden').attr('aria-hidden', 'false');
-    $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
+    pgApplyThreadsViewButtons();
+    $('#pgThreadsList').removeClass('is-grid').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
     if (window.lucide) lucide.createIcons();
     try {
-        const res  = await fetch(PG_API_THREADS + '?action=list', { cache: 'no-store' });
+        // thumb=1 trae, por hilo, el último render para la miniatura de la vista tarjetas.
+        const sep = PG_API_THREADS.indexOf('?') === -1 ? '?' : '&';
+        const res  = await fetch(PG_API_THREADS + sep + 'action=list&thumb=1', { cache: 'no-store' });
         const data = await res.json();
         if (!data.success) { $('#pgThreadsList').html('<p class="pg-hint">' + (data.message || 'Error al listar') + '</p>'); return; }
-        pgRenderThreadsList(data.rows || []);
+        pg._threadRows = data.rows || [];
+        pgRenderThreadsList(pg._threadRows);
     } catch (e) {
         $('#pgThreadsList').html('<p class="pg-hint">Error de red al cargar los hilos.</p>');
     }
 }
 
+/* Alterna lista/miniaturas sin re-pedir al backend (usa la cache pg._threadRows). */
+function pgSetThreadsView(view) {
+    const next = view === 'grid' ? 'grid' : 'list';
+    if (next === pg.threadsView) return;
+    pg.threadsView = next;
+    pgSaveSettings();
+    pgApplyThreadsViewButtons();
+    pgRenderThreadsList(pg._threadRows || []);
+}
+function pgApplyThreadsViewButtons() {
+    $('#pgThreadsViewList').toggleClass('is-active', pg.threadsView === 'list');
+    $('#pgThreadsViewGrid').toggleClass('is-active', pg.threadsView === 'grid');
+}
+
 function pgRenderThreadsList(rows) {
+    pg._threadRows = rows;
     $('#pgThreadsSummary').text(rows.length ? (rows.length + ' hilo(s) guardado(s)') : 'Sin hilos guardados');
+    const $list = $('#pgThreadsList').toggleClass('is-grid', pg.threadsView === 'grid');
+    if (pg._threadThumbObs) { pg._threadThumbObs.disconnect(); pg._threadThumbObs = null; }
     if (!rows.length) {
-        $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:24px 0;">No hay hilos guardados todavía. Empieza a conversar y el hilo se guardará solo.</p>');
+        $list.removeClass('is-grid').html('<p class="pg-hint" style="text-align:center;padding:24px 0;">No hay hilos guardados todavía. Empieza a conversar y el hilo se guardará solo.</p>');
         return;
     }
+    if (pg.threadsView === 'grid') pgRenderThreadsGrid(rows);
+    else pgRenderThreadsListView(rows);
+    pgBindThreadItems();
+    if (window.lucide) lucide.createIcons();
+}
+
+/* Vista LISTA (compacta): una fila por hilo. */
+function pgRenderThreadsListView(rows) {
     const html = rows.map(r => `
         <div class="pg-thread-item${r.uid === pg.threadUid ? ' is-active' : ''}" data-thread="${r.uid}" title="Abrir este hilo">
             <div class="pg-thread-main">
@@ -1206,10 +1248,65 @@ function pgRenderThreadsList(rows) {
             <button class="pg-thread-del" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </div>`).join('');
     $('#pgThreadsList').html(html);
-    $('#pgThreadsList .pg-thread-item').on('click', function () { pgLoadThread($(this).data('thread')); });
-    $('#pgThreadsList .pg-thread-edit').on('click', function (e) { e.stopPropagation(); pgRenameThreadInline($(this).closest('.pg-thread-item')); });
-    $('#pgThreadsList .pg-thread-del').on('click', function (e) { e.stopPropagation(); pgDeleteThread($(this).data('thread-del')); });
-    if (window.lucide) lucide.createIcons();
+}
+
+/* Vista MINIATURAS: tarjeta por hilo con el último render del sandbox. Los iframes
+ * se cargan de forma perezosa (IntersectionObserver) para no montar 30 previews de
+ * golpe; cada uno vuelve a envolverse con pgWrapHtml (Tailwind + tema del hilo). */
+function pgRenderThreadsGrid(rows) {
+    const html = rows.map((r, i) => {
+        const hasThumb = !!(r.thumb_html && String(r.thumb_html).trim());
+        const thumb = hasThumb
+            ? `<iframe class="pg-thread-card-frame" data-thumb-idx="${i}" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>`
+            : `<div class="pg-thread-card-noimg"><i data-lucide="message-square-text"></i><span>Sin render</span></div>`;
+        return `
+        <div class="pg-thread-card${r.uid === pg.threadUid ? ' is-active' : ''}" data-thread="${r.uid}" title="Abrir este hilo">
+            <div class="pg-thread-card-thumb">${thumb}</div>
+            <div class="pg-thread-card-info">
+                <span class="pg-thread-title">${pgEscape(r.title)}</span>
+                <span class="pg-thread-meta">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> ${r.msg_count}
+                    ${Number(r.tpl_count) ? '· <i data-lucide="layout-template" class="w-3 h-3"></i> ' + r.tpl_count : ''}
+                    · ${pgEscape(r.updated_at || '')}
+                </span>
+            </div>
+            <div class="pg-thread-card-actions">
+                <button class="pg-thread-edit pg-iconbtn" data-thread-edit="${r.uid}" title="Renombrar hilo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button class="pg-thread-del pg-iconbtn" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+    $('#pgThreadsList').html(html);
+    pgSetupThumbObserver(rows);
+}
+
+function pgSetupThumbObserver(rows) {
+    const frames = document.querySelectorAll('#pgThreadsList .pg-thread-card-frame');
+    if (!frames.length) return;
+    const load = (fr) => {
+        if (fr.dataset.loaded) return;
+        const r = rows[parseInt(fr.getAttribute('data-thumb-idx'), 10)];
+        if (!r || !r.thumb_html) return;
+        fr.dataset.loaded = '1';
+        fr.srcdoc = pgWrapHtml(r.thumb_html, r.thumb_theme || pg.theme, !!r.thumb_is_doc);
+    };
+    if (!('IntersectionObserver' in window)) { frames.forEach(load); return; }
+    pg._threadThumbObs = new IntersectionObserver((entries, obs) => {
+        entries.forEach(en => { if (en.isIntersecting) { load(en.target); obs.unobserve(en.target); } });
+    }, { root: document.getElementById('pgThreadsList'), rootMargin: '150px' });
+    frames.forEach(fr => pg._threadThumbObs.observe(fr));
+}
+
+/* Clic (abrir), renombrar y eliminar — compartido por lista y tarjetas. */
+function pgBindThreadItems() {
+    const sel = '#pgThreadsList .pg-thread-item, #pgThreadsList .pg-thread-card';
+    $(sel).off('click').on('click', function () { pgLoadThread($(this).data('thread')); });
+    $('#pgThreadsList .pg-thread-edit').off('click').on('click', function (e) {
+        e.stopPropagation(); pgRenameThreadInline($(this).closest('.pg-thread-item, .pg-thread-card'));
+    });
+    $('#pgThreadsList .pg-thread-del').off('click').on('click', function (e) {
+        e.stopPropagation(); pgDeleteThread($(this).data('thread-del'));
+    });
 }
 
 // Edición inline del título: convierte el <span> del título en un <input>.
@@ -2973,7 +3070,12 @@ const PG_BRIDGE_JS =
 // superior. Resultado: el componente SIEMPRE se ve completo dentro del contenedor.
 // Vive dentro del srcdoc del iframe, por eso el selector global es seguro.
 const PG_PREVIEW_FIX_CSS =
-      '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
+      // El scroll HORIZONTAL del root del preview es espurio: nace del gutter del
+      // scrollbar vertical o de algún 100vw/w-screen del template. Lo suprimimos en
+      // html,body (root) para que el render llene el lienzo sin barra en x. Los
+      // contenedores internos con overflow-x propio (tablas anchas) siguen scrolleando.
+      'html,body{overflow-x:hidden;}'
+    + '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
     + '[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}';
 
 // Reune los assets de un sistema de diseño: <link> + <style> embebido + <script> + atributos.
@@ -3047,7 +3149,9 @@ function pgWrapHtml(body, themeKey, isDoc) {
         // El stage ocupa TODO el ancho/alto del lienzo: un componente con w-full,
         // grid o flex llena el sandbox; uno con ancho propio (max-w-sm, etc.) se
         // centra horizontalmente sin estirarse. Así no queda "encogido" en medio.
-        // align-items:flex-start evita recortar componentes altos (se scrollea).
+        // El llenado a pantalla completa lo garantiza el prompt (nodo raíz
+        // w-full min-h-screen); aquí NO forzamos altura extra para no provocar
+        // scroll vertical espurio (y con él una barra horizontal de gutter).
         : `body{min-height:100vh;}`
           + `.pg-stage{box-sizing:border-box;width:100%;min-height:100vh;padding:28px;`
           +           `display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}`
