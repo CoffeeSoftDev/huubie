@@ -502,30 +502,83 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .fg-module-group-head { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; }
 .fg-module-group-head:first-child { padding-top: 0; }
 
-/* Vista de Código del módulo: un bloque por archivo, agrupado por carpeta */
-.fg-module-code { position: absolute; inset: 0; overflow: auto; padding: 14px 16px; background: var(--vsr-bg-base); }
-.fg-mc-group { margin-bottom: 14px; }
-.fg-mc-file {
-    margin: 6px 0 12px; border: 1px solid var(--vsr-border);
-    border-radius: 10px; overflow: hidden; background: var(--vsr-bg-card);
+/* ── Vista de Código del módulo: mini-IDE (árbol + tabs + editor numerado) ── */
+.fg-module-code { position: absolute; inset: 0; overflow: hidden; background: var(--vsr-bg-base); }
+.fg-ide { display: flex; height: 100%; }
+
+/* Árbol lateral */
+.fg-ide-side { width: 220px; min-width: 170px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--vsr-bg-chrome); border-right: 1px solid var(--vsr-border); }
+.fg-ide-side-head {
+    display: flex; align-items: center; gap: 7px; padding: 9px 12px; flex-shrink: 0;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+    color: var(--vsr-text-muted); border-bottom: 1px solid var(--vsr-border);
 }
-.fg-mc-file.is-flash { border-color: var(--vsr-accent); box-shadow: 0 0 0 2px var(--vsr-accent-tint); }
-.fg-mc-file-head {
-    display: flex; align-items: center; gap: 8px; padding: 7px 11px;
-    background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+.fg-ide-side-head i { width: 13px; height: 13px; color: var(--vsr-accent-soft); }
+.fg-ide-side-n { margin-left: auto; padding: 1px 7px; border-radius: 999px; font-size: 10px; background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.fg-ide-tree { flex: 1; overflow: auto; padding: 6px 0; }
+.fg-ide-row {
+    display: flex; align-items: center; gap: 6px; padding: 3px 8px; cursor: pointer;
+    font-size: 12.5px; color: var(--vsr-text-soft); white-space: nowrap; user-select: none;
 }
-.fg-mc-file-head i { width: 14px; height: 14px; color: var(--vsr-accent-soft); flex-shrink: 0; }
-.fg-mc-file-path { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--vsr-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fg-mc-file-meta { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
-.fg-mc-copy {
+.fg-ide-row:hover { background: var(--vsr-bg-hover); }
+.fg-ide-row span { overflow: hidden; text-overflow: ellipsis; }
+.fg-ide-filerow.is-active { background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.fg-ide-chev { width: 13px; height: 13px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.fg-ide-fico { width: 14px; height: 14px; color: var(--vsr-text-muted); flex-shrink: 0; }
+.fg-ide-dirrow .fg-ide-fico { color: var(--vsr-accent-soft); }
+/* Colapsar carpetas: pares de iconos abierto/cerrado conmutados por CSS
+   (lucide reemplaza el <i> por <svg>, así que no se puede cambiar data-lucide). */
+.fg-ide-dir .chev-closed, .fg-ide-dir .ico-closed { display: none; }
+.fg-ide-dir.is-closed .chev-open, .fg-ide-dir.is-closed .ico-open { display: none; }
+.fg-ide-dir.is-closed .chev-closed, .fg-ide-dir.is-closed .ico-closed { display: inline-block; }
+.fg-ide-dir.is-closed > .fg-ide-children { display: none; }
+
+/* Zona principal: tabs + migas + editor */
+.fg-ide-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fg-ide-tabs { display: flex; align-items: stretch; flex-shrink: 0; overflow-x: auto; background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border); }
+.fg-ide-tab {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 12px; cursor: pointer;
+    font-size: 12px; color: var(--vsr-text-muted); white-space: nowrap; border-right: 1px solid var(--vsr-border);
+}
+.fg-ide-tab i { width: 13px; height: 13px; flex-shrink: 0; }
+.fg-ide-tab.is-active { background: var(--vsr-bg-base); color: var(--vsr-text); box-shadow: inset 0 2px 0 var(--vsr-accent); }
+.fg-ide-tab-x { display: inline-flex; padding: 2px; border: none; border-radius: 4px; background: transparent; color: var(--vsr-text-mute2); cursor: pointer; }
+.fg-ide-tab-x i { width: 11px; height: 11px; }
+.fg-ide-tab-x:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.fg-ide-crumbs { display: flex; align-items: center; gap: 6px; padding: 5px 12px; flex-shrink: 0; font-size: 11.5px; color: var(--vsr-text-muted); border-bottom: 1px solid var(--vsr-border-soft); }
+.fg-ide-crumb-path { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+.fg-ide-crumb { white-space: nowrap; }
+.fg-ide-crumb.is-file { color: var(--vsr-text-soft); font-weight: 600; }
+.fg-ide-crumb-sep { width: 12px; height: 12px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.fg-ide-crumb-meta { flex-shrink: 0; font-size: 10.5px; color: var(--vsr-text-mute2); }
+.fg-ide-copy {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+    width: 22px; height: 22px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
     border: 1px solid transparent; background: transparent; color: var(--vsr-text-muted);
 }
-.fg-mc-copy i { width: 13px; height: 13px; color: inherit; }
-.fg-mc-copy:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
-.fg-mc-pre { margin: 0; padding: 12px 14px; overflow-x: auto; max-height: 60vh; overflow-y: auto; }
-.fg-mc-pre code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--vsr-text); white-space: pre; background: transparent; }
+.fg-ide-copy i { width: 12px; height: 12px; }
+.fg-ide-copy:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+
+/* Editor: gutter de números (sticky al hacer scroll horizontal) + código */
+.fg-ide-editor { flex: 1; min-height: 0; position: relative; }
+.fg-ide-scroll { position: absolute; inset: 0; overflow: auto; display: flex; align-items: flex-start; }
+.fg-ide-gutter {
+    position: sticky; left: 0; z-index: 1; flex-shrink: 0; margin: 0;
+    padding: 12px 10px 12px 14px; text-align: right; user-select: none;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.55;
+    color: var(--vsr-text-mute2); background: var(--vsr-bg-base); border-right: 1px solid var(--vsr-border-soft);
+}
+.fg-ide-code { flex: 1; margin: 0; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.55; }
+.fg-ide-code code { display: block; font-family: inherit; font-size: inherit; line-height: inherit; white-space: pre; color: var(--vsr-text); }
+/* El tema de hljs mete padding/fondo propios en code.hljs: romperían la
+   alineación con el gutter y el fondo del lienzo. */
+.fg-ide-code code.hljs { padding: 0 !important; background: transparent !important; }
+.fg-ide-empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    color: var(--vsr-text-muted); font-size: 12.5px;
+}
+.fg-ide-empty i { width: 34px; height: 34px; color: var(--vsr-text-mute2); }
 
 .fg-module-empty { margin: auto; text-align: center; color: var(--vsr-text-muted); padding: 30px; max-width: 360px; }
 .fg-module-empty i { width: 40px; height: 40px; color: var(--vsr-text-mute2); margin-bottom: 8px; }

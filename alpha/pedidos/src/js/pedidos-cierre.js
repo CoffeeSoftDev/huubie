@@ -376,133 +376,96 @@ class Cierre {
     // Estilos del corte Z (mismo sistema pdf-* de alpha/pedidos-reportes):
     // documento blanco tanto en pantalla como al imprimir (WYSIWYG).
     pdfBaseCss() {
+        // Corte Z — estilo monocromo tipo POS (Soft Restaurant): negro sobre blanco,
+        // bandas grises (#9ca3af encabezados, #e5e7eb divisores, #f3f4f6 sub-tablas),
+        // sin color de estado. WYSIWYG: se ve igual en pantalla y al imprimir.
         return `
             /* La ventana de impresion no carga Tailwind: sin este reset, width:100% + padding
                (content-box) hace que el documento se salga por el lado derecho de la hoja. */
             .pdf-document, .pdf-document * { box-sizing: border-box; }
-            .pdf-document { background: #fff; color: #2c3e50; width: 100%; max-width: 816px; margin: 0 auto; padding: 18px 22px; border-radius: 3px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 10px; }
-            .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 3px double #2c3e50; }
-            .pdf-header h2 { font-size: 12px; font-weight: 700; color: #1a252f; letter-spacing: 1.5px; margin: 0; }
-            .pdf-header .meta { font-size: 9px; color: #7f8c8d; }
-            .pdf-header .meta span { color: #2c3e50; font-weight: 600; }
-            .pdf-totals-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-            .pdf-totals-bar .total-item { padding: 8px 10px; background: #f7f9fb; border: 1px solid #dce3ea; border-radius: 4px; border-top: 3px solid #bdc3c7; }
-            .pdf-totals-bar .total-item .label { font-size: 7px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; font-weight: 600; }
-            .pdf-totals-bar .total-item .value { font-size: 11px; font-weight: 700; color: #2c3e50; font-family: 'Consolas', 'Courier New', monospace; }
-            .pdf-totals-bar .total-item.highlight { background: #3d4f5f; border-color: #3d4f5f; border-top-color: #2c3e50; }
-            .pdf-totals-bar .total-item.highlight .label { color: #b0bec5; }
-            .pdf-totals-bar .total-item.highlight .value { color: #eceff1; }
-            .pdf-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px; }
-            @media (max-width: 900px) { .pdf-grid { grid-template-columns: 1fr 1fr; } }
-            @media (max-width: 600px) { .pdf-grid { grid-template-columns: 1fr; } }
-            .pdf-section { border: 1px solid #dce3ea; border-radius: 3px; overflow: hidden; background: #fff; }
-            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); padding: 6px 11px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4a5568; border-bottom: 1px solid #d1d9e0; }
-            .pdf-section-body { padding: 8px 10px; }
-            .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f2f5; }
-            .pdf-kv:last-child { border-bottom: none; }
-            .pdf-kv .kv-label { color: #5a6a7a; font-size: 9px; }
-            .pdf-kv .kv-value { font-weight: 600; font-size: 10px; color: #2c3e50; text-align: right; font-family: 'Consolas', 'Courier New', monospace; }
-            .pdf-kv.total-row { border-top: 1px solid #95a5a6; border-bottom: none; padding: 6px 12px 5px; margin: 4px -12px 0; background: #f7f9fb; }
-            .pdf-kv.total-row .kv-label { font-weight: 700; color: #2c3e50; }
-            .pdf-kv.total-row .kv-value { font-weight: 800; font-size: 11px; color: #1a252f; }
-            .pdf-kv .kv-value.negative { color: #943030; }
-            .pdf-sub-title { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #95a5a6; letter-spacing: 1px; margin: 7px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #e8ecf0; }
-            .pdf-pct-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
-            .pdf-pct-bar .bar { flex: 1; height: 5px; background: #e8ecf0; border-radius: 2px; overflow: hidden; }
-            .pdf-pct-bar .bar .fill { height: 100%; border-radius: 2px; }
-            .pdf-pct-bar .pct-text { font-size: 8px; color: #7f8c8d; min-width: 30px; text-align: right; font-family: 'Consolas', monospace; }
-            /* Columna unica: la tabla de turnos (7 columnas) necesita el ancho completo para no generar scroll-x. */
-            .pdf-grid-bottom { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
-            table.pdf-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%); color: #4a5568; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 5px 6px; text-align: left; border-bottom: 1px solid #d1d9e0; }
-            table.pdf-table tbody tr { border-bottom: 1px solid #f0f2f5; }
-            table.pdf-table tbody tr:nth-child(even) { background: #fafbfc; }
-            table.pdf-table tbody td { padding: 4px 6px; color: #2c3e50; white-space: nowrap; font-family: 'Consolas', 'Courier New', monospace; }
+            .pdf-document { background: #fff; color: #000; width: 100%; max-width: 1100px; margin: 0 auto; padding: 24px 26px; border-radius: 2px; box-shadow: 0 2px 12px rgba(0,0,0,0.35); font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-size: 9px; line-height: 1.3; }
+
+            /* Membrete */
+            .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #9ca3af; }
+            .pdf-header h2 { font-size: 22px; font-weight: 700; color: #000; letter-spacing: 0; margin: 0 0 3px; line-height: 1; }
+            .pdf-header .meta { font-size: 10px; color: #000; line-height: 1.35; }
+            .pdf-header .meta span { color: #000; font-weight: 600; }
+
+            /* Secciones */
+            .pdf-section { margin-top: 16px; }
+            .pdf-section-title { display: flex; justify-content: space-between; align-items: center; background: #9ca3af; color: #000; padding: 4px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border-top: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af; }
+            .cz-count { font-size: 10px; color: #000; font-weight: 700; text-transform: uppercase; }
+            .cz-subhead { padding: 2px 8px; font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #000; background: #fff; border-bottom: 1px solid #9ca3af; }
+            .pdf-section-body { padding: 0; }
+
+            /* Tabla */
+            table.pdf-table { width: 100%; border-collapse: collapse; font-size: 9px; color: #000; }
+            table.pdf-table thead th { background: #9ca3af; color: #000; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 4px 8px; text-align: left; border-top: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af; }
+            table.pdf-table.sub thead th { background: #f3f4f6; }
+            table.pdf-table thead th.text-right { text-align: right; }
+            table.pdf-table thead th.text-center { text-align: center; }
+            table.pdf-table tbody td { padding: 2px 8px; color: #000; vertical-align: top; border-bottom: 1px solid #d1d5db; }
             table.pdf-table .text-right { text-align: right; }
             table.pdf-table .text-center { text-align: center; }
-            table.pdf-table .col-importe { font-weight: 700; color: #1a252f; background: #f0f3f6; }
-            table.pdf-table .col-efectivo { color: #2c3e50; font-weight: 600; }
-            table.pdf-table .col-tarjeta { color: #2c3e50; font-weight: 600; }
-            .pdf-footer { margin-top: 16px; padding-top: 10px; border-top: 3px double #bdc3c7; display: flex; justify-content: space-between; font-size: 8px; color: #95a5a6; letter-spacing: 0.5px; }
-            /* Corte Z — acento navy y layout de resumen (imagen de referencia) */
-            .pdf-header h2 { color: #003360; }
-            .pdf-section-title.cz-title { color: #003360; }
-            .cz-count { font-size: 9px; color: #7f96ad; font-weight: 600; }
-            .cz-subhead { padding: 5px 11px; font-size: 8px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #5a6a7a; background: #f4f7fa; border-bottom: 1px solid #eef1f4; }
-            table.pdf-table tr.cz-total-row td { background: #eef3f8; font-weight: 800; color: #003360; border-top: 1px solid #cdd8e3; }
-            table.pdf-table tr.cz-shift-row td { background: #e8eef5; color: #003360; font-weight: 800; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 5px 8px; border-top: 2px solid #cdd8e3; }
-            .cz-shift-count { font-weight: 600; color: #7f96ad; text-transform: none; letter-spacing: 0; font-size: 8px; margin-left: 6px; }
-            table.pdf-table tr.cz-shift-subtotal td { background: #f6f8fb; color: #33526f; font-weight: 700; border-top: 1px dashed #cdd8e3; }
-            .cz-estado { font-size: 8px; font-weight: 700; letter-spacing: 0.4px; }
-            .cz-pagado { color: #1a7a4a; }
-            .cz-parcial { color: #b9770e; }
-            .cz-pend { color: #8a94a0; }
-            .cz-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+            table.pdf-table .col-importe { font-weight: 400; color: #000; background: transparent; }
+            /* Origen de la Venta Neta: importe (con descuento aplicado) de las ventas del día. */
+            table.pdf-table .col-venta-neta { background: #d1d5db; font-weight: 600; }
+            table.pdf-table .col-efectivo, table.pdf-table .col-tarjeta { color: #000; font-weight: 400; }
+            .cz-folio { font-weight: 600; color: #000; }
+            .cz-origen { font-size: 8px; color: #000; line-height: 1; margin-top: 0; }
+            .cz-de { color: #9ca3af; font-weight: 400; font-size: 8px; }
+            .cz-tachado { text-decoration: line-through; color: #9ca3af; font-weight: 400; font-size: 8px; }
+            .cz-desc { font-size: 8px; color: #000; font-weight: 700; line-height: 1; margin-top: 1px; }
+
+            /* Encabezado de turno */
+            table.pdf-table tr.cz-shift-row td { background: #9ca3af; color: #000; font-weight: 700; font-size: 8px; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 8px; border-top: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af; }
+            .cz-shift-count { font-weight: 700; color: #000; text-transform: uppercase; letter-spacing: 0; font-size: 8px; }
+
+            /* Divisor de sub-bloque dentro de un turno (Pedidos del turno / Abonos anteriores) */
+            table.pdf-table tr.cz-divider td { background: #e5e7eb; color: #000; font-weight: 700; font-size: 8px; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 8px; border-top: 1px solid #9ca3af; border-bottom: 1px solid #9ca3af; }
+
+            /* Subtotales y totales: label a la derecha, montos con linea superior */
+            table.pdf-table tr.cz-shift-subtotal td, table.pdf-table tr.cz-total-row td { font-weight: 700; color: #000; font-size: 9px; padding: 6px 8px; border-bottom: none; }
+            table.pdf-table tr.cz-shift-subtotal td:first-child, table.pdf-table tr.cz-total-row td:first-child { text-align: right; text-transform: uppercase; font-size: 8px; }
+            table.pdf-table tr.cz-shift-subtotal td.text-right, table.pdf-table tr.cz-total-row td.text-right { border-top: 1px solid #9ca3af; }
+
+            /* Estado en texto plano negro (sin pill ni color) */
+            .cz-estado { font-size: 8px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; color: #000; }
+            .cz-pagado, .cz-parcial, .cz-pend { color: #000; }
+
+            /* Resumen del dia — 3 tarjetas */
+            .cz-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
             @media (max-width: 700px) { .cz-resumen { grid-template-columns: 1fr; } }
-            .cz-mp-count { color: #9aa7b4; font-weight: 600; font-size: 9px; }
+            .cz-resumen .pdf-section { margin-top: 0; border: 1px solid #9ca3af; border-radius: 2px; overflow: hidden; }
+            .cz-resumen .pdf-section-title { display: block; background: #f3f4f6; color: #000; font-size: 9px; letter-spacing: 0.4px; border-top: none; border-bottom: 1px solid #9ca3af; }
+            .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; border-bottom: 1px solid #d1d5db; }
+            .pdf-kv:last-child { border-bottom: none; }
+            .pdf-kv .kv-label { color: #000; font-size: 9px; }
+            .pdf-kv .kv-value { font-weight: 400; font-size: 9px; color: #000; text-align: right; }
+            .pdf-kv.cz-neta { background: #d1d5db; }
+            .pdf-kv.cz-neta .kv-label, .pdf-kv.cz-neta .kv-value { font-weight: 700; }
+            .pdf-kv.total-row { border-top: 1px solid #9ca3af; border-bottom: none; padding: 4px 8px; margin: 0; background: transparent; }
+            .pdf-kv.total-row .kv-label { font-weight: 700; color: #000; }
+            .pdf-kv.total-row .kv-value { font-weight: 700; font-size: 9px; color: #000; }
+            .pdf-kv .kv-value.negative { color: #000; }
+            .cz-mp-count { color: #000; font-weight: 400; font-size: 9px; }
+
+            .pdf-footer { margin-top: 16px; padding-top: 6px; border-top: 1px solid #9ca3af; display: flex; justify-content: space-between; font-size: 9px; color: #000; }
         `;
     }
 
     pdfPrintCss() {
         return `
+            /* Forzar impresion de las bandas grises (encabezados de seccion/turno). */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             body { background: #fff !important; margin: 0; }
-            .pdf-document { background: #fff !important; color: #2c3e50 !important; box-shadow: none !important; padding: 15px !important; max-width: 100% !important; }
-            .pdf-header { border-bottom-color: #2c3e50 !important; }
-            .pdf-header h2 { color: #1a252f !important; }
-            .pdf-header .meta { color: #7f8c8d !important; }
-            .pdf-header .meta span { color: #2c3e50 !important; }
-            .pdf-totals-bar .total-item { background: #f7f9fb !important; border-color: #dce3ea !important; border-top-color: #bdc3c7 !important; }
-            .pdf-totals-bar .total-item .label { color: #7f8c8d !important; }
-            .pdf-totals-bar .total-item .value { color: #2c3e50 !important; }
-            .pdf-totals-bar .total-item.highlight { background: #3d4f5f !important; border-color: #3d4f5f !important; border-top-color: #2c3e50 !important; }
-            .pdf-totals-bar .total-item.highlight .label { color: #b0bec5 !important; }
-            .pdf-totals-bar .total-item.highlight .value { color: #eceff1 !important; }
-            .pdf-section { background: #fff !important; border-color: #dce3ea !important; }
-            .pdf-section-title { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%) !important; color: #4a5568 !important; border-bottom-color: #d1d9e0 !important; }
-            .pdf-kv { border-bottom-color: #f0f2f5 !important; }
-            .pdf-kv .kv-label { color: #5a6a7a !important; }
-            .pdf-kv .kv-value { color: #2c3e50 !important; }
-            .pdf-kv.total-row { background: #f7f9fb !important; border-top-color: #95a5a6 !important; }
-            .pdf-kv.total-row .kv-label { color: #2c3e50 !important; }
-            .pdf-kv.total-row .kv-value { color: #1a252f !important; }
-            .pdf-kv .kv-value.negative { color: #943030 !important; }
-            .pdf-sub-title { color: #95a5a6 !important; border-bottom-color: #e8ecf0 !important; }
-            .pdf-pct-bar .bar { background: #e8ecf0 !important; }
-            .pdf-pct-bar .pct-text { color: #7f8c8d !important; }
-            table.pdf-table thead th { background: linear-gradient(180deg, #f0f3f6 0%, #e4e9ee 100%) !important; color: #4a5568 !important; border-bottom-color: #d1d9e0 !important; }
-            table.pdf-table tbody tr { border-bottom-color: #f0f2f5 !important; }
-            table.pdf-table tbody tr:nth-child(even) { background: #fafbfc !important; }
-            table.pdf-table tbody td { color: #2c3e50 !important; }
-            table.pdf-table .col-importe { color: #1a252f !important; background: #f0f3f6 !important; }
-            table.pdf-table .col-efectivo { color: #2c3e50 !important; }
-            table.pdf-table .col-tarjeta { color: #2c3e50 !important; }
-            .pdf-footer { border-top-color: #bdc3c7 !important; color: #95a5a6 !important; }
-            .pdf-header h2 { color: #003360 !important; }
-            .pdf-section-title.cz-title { color: #003360 !important; }
-            .cz-subhead { color: #5a6a7a !important; background: #f4f7fa !important; border-bottom-color: #eef1f4 !important; }
-            table.pdf-table tr.cz-total-row td { background: #eef3f8 !important; color: #003360 !important; border-top-color: #cdd8e3 !important; }
-            table.pdf-table tr.cz-shift-row td { background: #e8eef5 !important; color: #003360 !important; border-top-color: #cdd8e3 !important; }
-            .cz-shift-count { color: #7f96ad !important; }
-            table.pdf-table tr.cz-shift-subtotal td { background: #f6f8fb !important; color: #33526f !important; border-top-color: #cdd8e3 !important; }
-            .cz-pagado { color: #1a7a4a !important; }
-            .cz-parcial { color: #b9770e !important; }
-            .cz-pend { color: #8a94a0 !important; }
-            /* Impresion: tablas ajustadas al ancho de la hoja (no se cortan) y tipografia legible en papel. */
-            table.pdf-table { table-layout: fixed !important; width: 100% !important; font-size: 10px !important; }
+            .pdf-document { background: #fff !important; color: #000 !important; box-shadow: none !important; padding: 12px !important; max-width: 100% !important; }
+            /* Tablas ajustadas al ancho de la hoja (no se cortan) y tipografia legible en papel. */
+            table.pdf-table { table-layout: fixed !important; width: 100% !important; }
             table.pdf-table td, table.pdf-table th { white-space: normal !important; overflow-wrap: break-word; word-break: break-word; }
-            table.pdf-table thead th { font-size: 9px !important; }
-            .pdf-document { font-size: 11px !important; }
-            .pdf-header h2 { font-size: 16px !important; }
-            .pdf-header .meta { font-size: 10px !important; }
-            .pdf-section-title { font-size: 11px !important; }
-            .pdf-kv .kv-label { font-size: 11px !important; }
-            .pdf-kv .kv-value { font-size: 12px !important; }
-            .pdf-kv.total-row .kv-value { font-size: 13px !important; }
-            .pdf-totals-bar .total-item .value { font-size: 13px !important; }
-            .cz-subhead { font-size: 9px !important; }
-            .cz-estado { font-size: 9px !important; }
             div[style*="overflow"] { overflow: visible !important; }
-            .pdf-section { page-break-inside: avoid; }
+            .cz-resumen { page-break-inside: avoid; }
+            table.pdf-table tr.cz-shift-row, table.pdf-table tr.cz-divider { page-break-after: avoid; }
         `;
     }
 
@@ -527,7 +490,7 @@ class Cierre {
         const statusMap = { 1: 'Cotización', 2: 'Pendiente', 3: 'Pagado', 4: 'Cancelado' };
 
         const kv = (label, value, opts = {}) => `
-            <div class="pdf-kv${opts.total ? ' total-row' : ''}">
+            <div class="pdf-kv${opts.total ? ' total-row' : ''}${opts.highlight ? ' cz-neta' : ''}">
                 <span class="kv-label">${label}</span>
                 <span class="kv-value${opts.negative ? ' negative' : ''}">${value}</span>
             </div>
@@ -542,22 +505,31 @@ class Cierre {
         // con el mismo formato del ticket de cierre de turno (importe -> abono -> quedó, LIQUIDADO/PENDIENTE).
         const crossPrev = { importe: 0, abono: 0, quedo: 0 };
 
-        const filaAbonoPrev = (o) => {
+        // Saldo pendiente ANTES del abono de hoy = total - descuento - abonos previos.
+        // (No es el total del pedido: pudo haber abonos en días anteriores.)
+        const saldoPrevio = (o) => {
             const total    = parseFloat(o.total_pay || 0);
             const discount = parseFloat(o.discount || 0);
             const abono    = parseFloat(o.payment_real || 0);
             const paidUpto = parseFloat(o.total_paid_upto || 0);
             const quedo    = Math.max(total - discount - paidUpto, 0);
+            return { total, abono, quedo, debia: quedo + abono };
+        };
+
+        const filaAbonoPrev = (o) => {
+            const { total, abono, quedo, debia } = saldoPrevio(o);
             const liquidado = quedo <= 0.005;
             const origen = (o.is_cross && o.origin_subsidiary)
-                ? `<div style="font-size:8px;color:#7f96ad">Origen: ${o.origin_subsidiary}</div>`
+                ? `<div class="cz-origen">Origen: ${o.origin_subsidiary}</div>`
                 : '';
+            // Formato del ticket detallado: "Debía $X de $Total" (X = saldo antes del abono de hoy).
+            const importeCell = `${money(debia)} <span class="cz-de">de ${money(total)}</span>`;
             return `
                     <tr>
-                        <td>${o.folio || '#' + o.id}</td>
+                        <td class="cz-folio">${o.folio || '#' + o.id}</td>
                         <td>${o.client_name || 'Sin cliente'}${origen}</td>
                         <td>${o.method || '&mdash;'}</td>
-                        <td class="text-right col-importe">${money(total)}</td>
+                        <td class="text-right col-importe">${importeCell}</td>
                         <td class="text-right">${money(abono)}</td>
                         <td class="text-right">${money(quedo)}</td>
                         <td class="text-center"><span class="cz-estado ${liquidado ? 'cz-pagado' : 'cz-pend'}">${liquidado ? 'LIQUIDADO' : 'PENDIENTE'}</span></td>
@@ -567,18 +539,15 @@ class Cierre {
 
         const acumulaAbonoPrev = (lista, sub) => {
             lista.forEach(o => {
-                const total    = parseFloat(o.total_pay || 0);
-                const discount = parseFloat(o.discount || 0);
-                const abono    = parseFloat(o.payment_real || 0);
-                const paidUpto = parseFloat(o.total_paid_upto || 0);
-                const quedo    = Math.max(total - discount - paidUpto, 0);
-                sub.importe += total; sub.abono += abono; sub.quedo += quedo;
-                crossPrev.importe += total; crossPrev.abono += abono; crossPrev.quedo += quedo;
+                const { abono, quedo, debia } = saldoPrevio(o);
+                sub.importe += debia; sub.abono += abono; sub.quedo += quedo;
+                crossPrev.importe += debia; crossPrev.abono += abono; crossPrev.quedo += quedo;
             });
         };
 
-        // Fila divisoria tenue dentro de un turno: separa las ventas de los abonos anteriores.
-        const dividerAbonos = `<tr><td colspan="7" style="background:#fbfcfd;color:#7f96ad;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding:3px 8px;border-top:1px dashed #e8ecf0">Abonos de pedidos anteriores</td></tr>`;
+        // Divisores de sub-bloque dentro de un turno (banda gris clara).
+        const dividerPedidos = `<tr class="cz-divider"><td colspan="7">Pedidos del turno</td></tr>`;
+        const dividerAbonos  = `<tr class="cz-divider"><td colspan="7">Abonos de pedidos anteriores</td></tr>`;
 
         // === CORTE DE CAJA X (Cierre x Turno) ===
         // Dinero en caja por turno = efectivo + tarjeta + transferencia COBRADOS en el turno.
@@ -614,7 +583,7 @@ class Cierre {
                 </div>
                 <div class="cz-subhead">Dinero en caja por turno &mdash; pedidos del día + abonos de días anteriores + cobros cruzados</div>
                 <div style="overflow-x:auto">
-                    <table class="pdf-table">
+                    <table class="pdf-table sub">
                         <thead>
                             <tr>
                                 <th>Responsable</th>
@@ -668,12 +637,22 @@ class Cierre {
         const filaPedido = (o) => {
             const abono = parseFloat(o.payment_real || 0);
             const quedo = Math.max(saldoPedido(o), 0);
+            const total = parseFloat(o.total || 0);
+            const descuento = parseFloat(o.discount || 0);
+            // Con descuento: importe original tachado (gris) + importe neto (total - descuento),
+            // y el monto del descuento anotado bajo la cuenta.
+            const importeCell = descuento > 0.005
+                ? `<span class="cz-tachado">${money(total)}</span><br>${money(total - descuento)}`
+                : money(total);
+            const descLine = descuento > 0.005
+                ? `<div class="cz-desc">Descuento: -${money(descuento)}</div>`
+                : '';
             return `
                     <tr>
-                        <td>${o.folio}</td>
-                        <td>${o.client || '&mdash;'}</td>
+                        <td class="cz-folio">${o.folio}</td>
+                        <td>${o.client || '&mdash;'}${descLine}</td>
                         <td>${o.method || '&mdash;'}</td>
-                        <td class="text-right col-importe">${money(o.total)}</td>
+                        <td class="text-right col-importe col-venta-neta">${importeCell}</td>
                         <td class="text-right">${money(abono)}</td>
                         <td class="text-right">${money(quedo)}</td>
                         <td class="text-center">${estadoVenta(o)}</td>
@@ -684,42 +663,64 @@ class Cierre {
             lista.forEach(o => {
                 const abono = parseFloat(o.payment_real || 0);
                 const quedo = Math.max(saldoPedido(o), 0);
-                sub.importe += parseFloat(o.total || 0);
+                // Importe = venta neta (total - descuento): así el subtotal cuadra con la Venta Neta.
+                const neto  = parseFloat(o.total || 0) - parseFloat(o.discount || 0);
+                sub.importe += neto;
                 sub.abono   += abono;
                 sub.quedo   += quedo;
-                ventasTotales.importe += parseFloat(o.total || 0);
+                ventasTotales.importe += neto;
                 ventasTotales.abono   += abono;
                 ventasTotales.quedo   += quedo;
             });
         };
 
-        // Un grupo por turno: ventas del día + abonos a pedidos anteriores cobrados en ese turno,
-        // en la misma tabla, separados por una línea divisoria tenue. El subtotal combina ambos.
-        const grupoTurno = (titulo, ventasLista, abonosLista) => {
-            const sub = { importe: 0, abono: 0, quedo: 0 };
-            acumula(ventasLista, sub);
-            acumulaAbonoPrev(abonosLista, sub);
+        // Fila de subtotal (label a la derecha vía CSS, montos importe/abono/quedó).
+        // importeClass permite resaltar el importe cuando alimenta la Venta Bruta.
+        const subtotalRow = (label, s, importeClass = '') => `
+                <tr class="cz-shift-subtotal">
+                    <td colspan="3">${label}</td>
+                    <td class="text-right col-importe ${importeClass}">${money(s.importe)}</td>
+                    <td class="text-right">${money(s.abono)}</td>
+                    <td class="text-right">${money(s.quedo)}</td>
+                    <td></td>
+                </tr>
+        `;
 
-            let filas = ventasLista.map(filaPedido).join('');
+        // Un grupo por turno: ventas del día + abonos a pedidos anteriores cobrados en ese turno,
+        // en la misma tabla. Cada sub-bloque lleva su subtotal; el "Subtotal del turno" (combinado)
+        // solo se muestra cuando el turno tiene ambos bloques (si hay uno solo, sería redundante).
+        const grupoTurno = (titulo, ventasLista, abonosLista) => {
+            const subVentas = { importe: 0, abono: 0, quedo: 0 };
+            const subAbonos = { importe: 0, abono: 0, quedo: 0 };
+            acumula(ventasLista, subVentas);
+            acumulaAbonoPrev(abonosLista, subAbonos);
+
+            let filas = '';
+            if (ventasLista.length) {
+                filas += dividerPedidos + ventasLista.map(filaPedido).join('') + subtotalRow('Subtotal pedidos del turno', subVentas, 'col-venta-neta');
+            }
             if (abonosLista.length) {
-                filas += dividerAbonos + abonosLista.map(filaAbonoPrev).join('');
+                filas += dividerAbonos + abonosLista.map(filaAbonoPrev).join('') + subtotalRow('Subtotal abonos anteriores', subAbonos);
             }
             if (!ventasLista.length && !abonosLista.length) {
-                filas = `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:9px;font-style:italic">Sin movimientos en este turno</td></tr>`;
+                filas = `<tr><td colspan="7" style="text-align:center;padding:9px;font-style:italic">Sin movimientos en este turno</td></tr>`;
             }
+
+            const totalTurno = (ventasLista.length && abonosLista.length)
+                ? subtotalRow('Subtotal del turno', {
+                    importe: subVentas.importe + subAbonos.importe,
+                    abono:   subVentas.abono   + subAbonos.abono,
+                    quedo:   subVentas.quedo   + subAbonos.quedo
+                })
+                : '';
+
             const cuentas = ventasLista.length + abonosLista.length;
             return `
                 <tr class="cz-shift-row">
                     <td colspan="7">${titulo} <span class="cz-shift-count">${cuentas} cuenta(s)</span></td>
                 </tr>
                 ${filas}
-                <tr class="cz-shift-subtotal">
-                    <td colspan="3">Subtotal del turno</td>
-                    <td class="text-right col-importe">${money(sub.importe)}</td>
-                    <td class="text-right">${money(sub.abono)}</td>
-                    <td class="text-right">${money(sub.quedo)}</td>
-                    <td></td>
-                </tr>
+                ${totalTurno}
             `;
         };
 
@@ -740,49 +741,12 @@ class Cierre {
             ventasGroupsHtml += grupoTurno('Sin turno', huerfanosVentas, huerfanosAbonos);
         }
 
-        // Pie de totales: sin abonos anteriores solo se muestra el total de ventas; con abonos se
-        // desglosa ventas + abonos y se cierra con el total combinado (dinero cobrado en el día).
-        const totalesPie = prevPayments.length > 0 ? `
-                <tr class="cz-shift-subtotal">
-                    <td colspan="3">Total ventas del día</td>
-                    <td class="text-right col-importe">${money(ventasTotales.importe)}</td>
-                    <td class="text-right">${money(ventasTotales.abono)}</td>
-                    <td class="text-right">${money(ventasTotales.quedo)}</td>
-                    <td></td>
-                </tr>
-                <tr class="cz-shift-subtotal">
-                    <td colspan="3">Total abonos a pedidos anteriores</td>
-                    <td class="text-right col-importe">${money(crossPrev.importe)}</td>
-                    <td class="text-right">${money(crossPrev.abono)}</td>
-                    <td class="text-right">${money(crossPrev.quedo)}</td>
-                    <td></td>
-                </tr>
-                <tr class="cz-total-row">
-                    <td colspan="3">TOTAL DEL DÍA</td>
-                    <td class="text-right col-importe">${money(ventasTotales.importe + crossPrev.importe)}</td>
-                    <td class="text-right">${money(ventasTotales.abono + crossPrev.abono)}</td>
-                    <td class="text-right">${money(ventasTotales.quedo + crossPrev.quedo)}</td>
-                    <td></td>
-                </tr>` : `
-                <tr class="cz-total-row">
-                    <td colspan="3">TOTAL VENTAS DEL DÍA</td>
-                    <td class="text-right col-importe">${money(ventasTotales.importe)}</td>
-                    <td class="text-right">${money(ventasTotales.abono)}</td>
-                    <td class="text-right">${money(ventasTotales.quedo)}</td>
-                    <td></td>
-                </tr>`;
-
         const ventasBody = (salesOrders.length > 0 || prevPayments.length > 0 || cierreShifts.length > 0)
-            ? `${ventasGroupsHtml}${totalesPie}`
-            : `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
+            ? ventasGroupsHtml
+            : `<tr><td colspan="7" style="text-align:center;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
 
         const desgloseSectionHtml = `
-            <div class="pdf-section" style="margin-bottom:14px">
-                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
-                    <span>Desglose de Pedidos</span>
-                    <span class="cz-count">${salesOrders.length + prevPayments.length} cuenta(s)</span>
-                </div>
-                <div class="cz-subhead">Ventas del día${prevPayments.length ? ' y abonos a pedidos anteriores' : ''} &mdash; agrupados por turno</div>
+            <div class="pdf-section" style="margin-top:0">
                 <div style="overflow-x:auto">
                     <table class="pdf-table">
                         <thead>
@@ -797,6 +761,50 @@ class Cierre {
                             </tr>
                         </thead>
                         <tbody>${ventasBody}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // === COBROS CRUZADOS (salientes) ===
+        // Pedidos de ESTA sucursal cuyo abono se cobró en OTRA. No entran a esta caja (informativo).
+        // Los abonos ENTRANTES de otra sucursal ya se listan dentro de su turno en el desglose.
+        const crossRows = crossPayments.map(o => {
+            const total = parseFloat(o.total_pay || 0);
+            const abono = parseFloat(o.payment_cross || 0);
+            const quedo = Math.max(total - abono, 0);
+            return `
+                    <tr>
+                        <td class="cz-folio">${o.folio || '#' + o.id}</td>
+                        <td>${o.client_name || 'Sin cliente'}</td>
+                        <td>${o.charged_subsidiary || 'Otra sucursal'}</td>
+                        <td class="text-right col-importe">${money(total)}</td>
+                        <td class="text-right">${money(abono)}</td>
+                        <td class="text-right">${money(quedo)}</td>
+                    </tr>
+            `;
+        }).join('');
+
+        const cobrosCruzadosHtml = `
+            <div class="pdf-section">
+                <div class="pdf-section-title cz-title">
+                    <span>*** Cobros Cruzados ***</span>
+                    <span class="cz-count">${crossPayments.length} pedido(s)</span>
+                </div>
+                <div class="cz-subhead">Pedidos de esta sucursal cobrados en otra &mdash; no entran a esta caja</div>
+                <div style="overflow-x:auto">
+                    <table class="pdf-table sub">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Cobrado en</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">Abono</th>
+                                <th class="text-right">Quedó</th>
+                            </tr>
+                        </thead>
+                        <tbody>${crossPayments.length > 0 ? crossRows : `<tr><td colspan="6" style="text-align:center;padding:12px;font-style:italic">Sin cobros cruzados en esta fecha</td></tr>`}</tbody>
                     </table>
                 </div>
             </div>
@@ -818,11 +826,11 @@ class Cierre {
         const cotizacionesSectionHtml = quoteOrders.length > 0 ? `
             <div class="pdf-section" style="margin-bottom:14px">
                 <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
-                    <span>Cotizaciones <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#7f96ad">(no suman a la venta)</span></span>
+                    <span>Cotizaciones <span style="text-transform:none;letter-spacing:0;font-weight:400">(no suman a la venta)</span></span>
                     <span class="cz-count">${quoteOrders.length} pedido(s)</span>
                 </div>
                 <div style="overflow-x:auto">
-                    <table class="pdf-table">
+                    <table class="pdf-table sub">
                         <thead>
                             <tr>
                                 <th>Pedido</th>
@@ -858,9 +866,10 @@ class Cierre {
         const cruzadosCount = prevPayments.length;
         // Estado de cuentas por SALDO al corte (consistente con la columna Estado de la tabla),
         // no por el status del pedido: un pedido entregado con saldo sigue siendo pendiente.
-        const cuPagadas = salesOrders.filter(o => saldoPedido(o) <= 0.005).length;
-        const cuPend    = salesOrders.filter(o => saldoPedido(o) > 0.005).length;
-        const cuCotiz   = quoteOrders.length;
+        const cuPagadas   = salesOrders.filter(o => saldoPedido(o) <= 0.005).length;
+        const cuPend      = salesOrders.filter(o => saldoPedido(o) > 0.005).length;
+        const cuCotiz     = quoteOrders.length;
+        const cuDescuento = salesOrders.filter(o => parseFloat(o.discount || 0) > 0.005).length;
 
         const rTotales = `
             <div class="pdf-section">
@@ -870,7 +879,7 @@ class Cierre {
                     ${kv('Cobrado', money(cobrado))}
                     ${kv('Abonos ant.', money(cruzadosMonto))}
                     ${kv('Pendiente', money(pendiente))}
-                    ${kv('NETA', money(ventaNeta), { total: true })}
+                    ${kv('NETA', money(ventaNeta), { total: true, highlight: true })}
                 </div>
             </div>
         `;
@@ -903,6 +912,7 @@ class Cierre {
                     ${kv('Pendientes', cuPend)}
                     ${kv('Cotizaciones', cuCotiz)}
                     ${kv('TOTAL', cuPagadas + cuPend + cuCotiz, { total: true })}
+                    ${kv('Con descuento', cuDescuento)}
                 </div>
             </div>
         `;
@@ -942,6 +952,7 @@ class Cierre {
                 </div>
 
                 ${desgloseSectionHtml}
+                ${cobrosCruzadosHtml}
                 ${cotizacionesSectionHtml}
                 ${shiftsTableHtml}
                 ${resumenSectionHtml}

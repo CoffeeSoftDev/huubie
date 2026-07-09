@@ -1903,57 +1903,171 @@ function fgRenderModulePanel() {
     if (window.lucide) lucide.createIcons();
 }
 
-/* ── Vista de Código del módulo: un bloque por archivo, agrupado por carpeta ──
- * Sustituye al <pre> único cuando la respuesta es un módulo: cada archivo lleva
- * su cabecera (ruta + líneas + copiar) y su propio bloque resaltado, bajo el
- * encabezado de su parte (index/ctrl/mdl/src/otros). */
+/* ── Vista de Código del módulo: mini-IDE ──
+ * Sustituye al <pre> único cuando la respuesta es un módulo. Réplica del layout
+ * de un editor: árbol de archivos a la izquierda (carpetas ctrl/mdl/src
+ * colapsables), pestañas de archivos abiertos, migas de ruta y editor con
+ * numeración de líneas. Se ve UN archivo a la vez, como en VSCode. */
 function fgShowModuleCode(files) {
     pg._codeMulti = !!(files && files.length);
+    pg._ideFiles  = files || [];
+    pg._ideTabs   = [];
+    pg._ideActive = null;
     const $wrap = $('#fgModuleCode').empty();
     if (!pg._codeMulti) { fgSyncCodeView(); return; }
 
-    fgGroupByPart(files).forEach(g => {
-        const $g = $(`
-            <div class="fg-mc-group">
-                <div class="fg-module-group-head">
-                    <span class="fg-mt-chip is-${g.part}">${g.part}</span>
-                    <span class="fg-mt-group-n">${g.items.length} archivo(s)</span>
-                </div>
-            </div>`);
-        g.items.forEach(({ file: f }) => {
-            const lines = f.content ? f.content.split('\n').length : 0;
-            const $f = $(`
-                <div class="fg-mc-file" data-path="${pgEscape(f.path)}">
-                    <div class="fg-mc-file-head">
-                        <i data-lucide="${fgFileIcon(f.path)}"></i>
-                        <span class="fg-mc-file-path">${pgEscape(f.path)}</span>
-                        <span class="fg-mc-file-meta">${lines} ln</span>
-                        <button class="fg-mc-copy" title="Copiar este archivo"><i data-lucide="copy"></i></button>
-                    </div>
-                    <pre class="fg-mc-pre"><code${f.lang ? ` class="language-${pgEscape(f.lang)}"` : ''}></code></pre>
-                </div>`);
-            $f.find('code').text(f.content || '');
-            $f.find('.fg-mc-copy').on('click', () => {
-                if (navigator.clipboard) navigator.clipboard.writeText(f.content || '');
-                pgToast('Archivo copiado: ' + f.path, 'success');
-            });
-            $g.append($f);
-        });
-        $wrap.append($g);
-    });
-    $wrap.find('pre code').each((i, el) => { if (window.hljs) hljs.highlightElement(el); });
+    $wrap.html(`
+        <div class="fg-ide">
+            <aside class="fg-ide-side">
+                <div class="fg-ide-side-head"><i data-lucide="package"></i><span>Módulo</span><span class="fg-ide-side-n">${files.length}</span></div>
+                <div class="fg-ide-tree"></div>
+            </aside>
+            <section class="fg-ide-main">
+                <div class="fg-ide-tabs"></div>
+                <div class="fg-ide-crumbs hidden"></div>
+                <div class="fg-ide-editor"></div>
+            </section>
+        </div>`);
+    fgIdeRenderTree();
+    // Abre por defecto el index (si existe) o el primer archivo del módulo.
+    const first = files.find(f => fgPartOf(f.path) === 'index') || files[0];
+    if (first) fgIdeOpenFile(first.path);
     if (window.lucide) lucide.createIcons();
     fgSyncCodeView();
 }
 
-// Reaplica qué contenedor se ve en la pestaña Código (único vs multi-archivo).
+// Reaplica qué contenedor se ve en la pestaña Código (único vs mini-IDE).
 function fgSyncCodeView() {
     const codeActive = $('.pg-tab[data-sbtab="code"]').hasClass('active');
     $('#pgSandboxCode').toggleClass('hidden', !codeActive || !!pg._codeMulti);
     $('#fgModuleCode').toggleClass('hidden', !codeActive || !pg._codeMulti);
 }
 
-// Abre la pestaña Código posicionada en un archivo del módulo (con destello).
+// Árbol lateral: carpetas primero (colapsables), archivos después — como VSCode.
+function fgIdeRenderTree() {
+    const $tree = $('#fgModuleCode .fg-ide-tree').empty();
+
+    const root = { dirs: {}, files: [] };
+    (pg._ideFiles || []).forEach(f => {
+        const parts = String(f.path).split('/');
+        let node = root;
+        for (let i = 0; i < parts.length - 1; i++) {
+            node = node.dirs[parts[i]] = node.dirs[parts[i]] || { dirs: {}, files: [] };
+        }
+        node.files.push(f);
+    });
+
+    const render = (node, depth) => {
+        const frag = $(document.createDocumentFragment());
+        Object.keys(node.dirs).sort((a, b) => a.localeCompare(b)).forEach(name => {
+            const $dir = $(`
+                <div class="fg-ide-dir">
+                    <div class="fg-ide-row fg-ide-dirrow" style="padding-left:${8 + depth * 14}px">
+                        <i data-lucide="chevron-down" class="fg-ide-chev chev-open"></i>
+                        <i data-lucide="chevron-right" class="fg-ide-chev chev-closed"></i>
+                        <i data-lucide="folder-open" class="fg-ide-fico ico-open"></i>
+                        <i data-lucide="folder" class="fg-ide-fico ico-closed"></i>
+                        <span>${pgEscape(name)}</span>
+                    </div>
+                    <div class="fg-ide-children"></div>
+                </div>`);
+            $dir.children('.fg-ide-dirrow').on('click', function () {
+                $(this).closest('.fg-ide-dir').toggleClass('is-closed');
+            });
+            $dir.children('.fg-ide-children').append(render(node.dirs[name], depth + 1));
+            frag.append($dir);
+        });
+        node.files.slice().sort((a, b) => a.path.localeCompare(b.path)).forEach(f => {
+            const name = f.path.split('/').pop();
+            const $row = $(`
+                <div class="fg-ide-row fg-ide-filerow" data-path="${pgEscape(f.path)}" style="padding-left:${8 + depth * 14 + 17}px" title="${pgEscape(f.path)}">
+                    <i data-lucide="${fgFileIcon(f.path)}" class="fg-ide-fico"></i>
+                    <span>${pgEscape(name)}</span>
+                </div>`);
+            $row.on('click', () => fgIdeOpenFile(f.path));
+            frag.append($row);
+        });
+        return frag;
+    };
+    $tree.append(render(root, 0));
+}
+
+// Abre un archivo en el editor: crea/activa su pestaña y pinta su contenido.
+function fgIdeOpenFile(path) {
+    const f = (pg._ideFiles || []).find(x => x.path === path);
+    if (!f) return;
+    if (pg._ideTabs.indexOf(path) === -1) pg._ideTabs.push(path);
+    pg._ideActive = path;
+    fgIdeRenderTabs();
+    fgIdeRenderEditor(f);
+    $('#fgModuleCode .fg-ide-filerow').removeClass('is-active')
+        .filter(function () { return $(this).attr('data-path') === path; }).addClass('is-active');
+}
+
+function fgIdeRenderTabs() {
+    const $tabs = $('#fgModuleCode .fg-ide-tabs').empty();
+    (pg._ideTabs || []).forEach(p => {
+        const name = p.split('/').pop();
+        const $t = $(`
+            <div class="fg-ide-tab${p === pg._ideActive ? ' is-active' : ''}" title="${pgEscape(p)}">
+                <i data-lucide="${fgFileIcon(p)}"></i><span>${pgEscape(name)}</span>
+                <button class="fg-ide-tab-x" title="Cerrar"><i data-lucide="x"></i></button>
+            </div>`);
+        $t.on('click', e => { if ($(e.target).closest('.fg-ide-tab-x').length) return; fgIdeOpenFile(p); });
+        $t.find('.fg-ide-tab-x').on('click', e => { e.stopPropagation(); fgIdeCloseTab(p); });
+        $tabs.append($t);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+function fgIdeCloseTab(path) {
+    const i = (pg._ideTabs || []).indexOf(path);
+    if (i === -1) return;
+    pg._ideTabs.splice(i, 1);
+    if (pg._ideActive !== path) { fgIdeRenderTabs(); return; }
+    const next = pg._ideTabs[Math.max(0, i - 1)];
+    if (next) { fgIdeOpenFile(next); return; }
+    pg._ideActive = null;
+    fgIdeRenderTabs();
+    $('#fgModuleCode .fg-ide-crumbs').addClass('hidden').empty();
+    $('#fgModuleCode .fg-ide-editor').html(
+        '<div class="fg-ide-empty"><i data-lucide="file-code-2"></i><p>Elige un archivo del árbol para ver su código.</p></div>');
+    $('#fgModuleCode .fg-ide-filerow').removeClass('is-active');
+    if (window.lucide) lucide.createIcons();
+}
+
+// Editor: migas de ruta (carpeta › archivo) + gutter de líneas + código resaltado.
+function fgIdeRenderEditor(f) {
+    const content = f.content || '';
+    const lines   = content === '' ? 1 : content.split('\n').length;
+
+    const parts  = f.path.split('/');
+    const crumbs = parts.map((p, i) =>
+        `<span class="fg-ide-crumb${i === parts.length - 1 ? ' is-file' : ''}">${pgEscape(p)}</span>`
+    ).join('<i data-lucide="chevron-right" class="fg-ide-crumb-sep"></i>');
+    const $cr = $('#fgModuleCode .fg-ide-crumbs').removeClass('hidden').html(`
+        <div class="fg-ide-crumb-path">${crumbs}</div>
+        <span class="fg-ide-crumb-meta">${pgEscape(f.lang || '')}${f.lang ? ' · ' : ''}${lines} ln</span>
+        <button class="fg-ide-copy" title="Copiar este archivo"><i data-lucide="copy"></i></button>`);
+    $cr.find('.fg-ide-copy').on('click', () => {
+        if (navigator.clipboard) navigator.clipboard.writeText(content);
+        pgToast('Archivo copiado: ' + f.path, 'success');
+    });
+
+    let nums = '';
+    for (let n = 1; n <= lines; n++) nums += n + '\n';
+    const $ed = $('#fgModuleCode .fg-ide-editor').html(`
+        <div class="fg-ide-scroll">
+            <pre class="fg-ide-gutter">${nums}</pre>
+            <pre class="fg-ide-code"><code${f.lang ? ` class="language-${pgEscape(f.lang)}"` : ''}></code></pre>
+        </div>`);
+    const codeEl = $ed.find('code').text(content)[0];
+    if (window.hljs) hljs.highlightElement(codeEl);
+    $ed.find('.fg-ide-scroll')[0].scrollTop = 0;
+    if (window.lucide) lucide.createIcons();
+}
+
+// Abre la pestaña Código posicionada en un archivo del módulo.
 function fgOpenFileInCode(path) {
     if (!pg._codeMulti) {
         const f = pg.module.files.find(x => x.path === path);
@@ -1962,12 +2076,7 @@ function fgOpenFileInCode(path) {
     }
     $('#pgSandboxEmpty').hide();
     $('.pg-tab[data-sbtab="code"]').trigger('click');
-    const el = $('#fgModuleCode .fg-mc-file').filter(function () { return $(this).attr('data-path') === path; }).get(0);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        $(el).addClass('is-flash');
-        setTimeout(() => $(el).removeClass('is-flash'), 1000);
-    }
+    fgIdeOpenFile(path);
 }
 
 /** Previsualiza el módulo contra el proyecto destino (diff, sin escribir). */

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Facturador · CoffeeSoft</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    terra: { DEFAULT:'#C05A40', hover:'#A84A33', dark:'#8F3D2A', tint:'#F7F0EB', salmon:'#E8A68F' },
+    navy:  { DEFAULT:'#141d2b', hover:'#1e293b', light:'#334155' }
+  }}}};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+  body{background:#F3F4F6;color:#111827;padding-left:60px;padding-top:64px;height:100vh;overflow:hidden}
+
+  .navbar-main{background:#FFFFFF;border-bottom:1px solid rgba(192,90,64,.22);position:fixed;top:0;left:0;right:0;height:64px;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+  .nav-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#C05A40 0%,#E8A68F 100%);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 12px rgba(192,90,64,.35)}
+  .navbar-title{font-size:15px;font-weight:700;color:#111827;line-height:1.15}
+  .navbar-subtitle{font-size:10px;color:#9CA3AF;letter-spacing:.12em;text-transform:uppercase}
+  .nav-avatar{width:38px;height:38px;border-radius:9999px;background:#C05A40;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+
+  #menu-sidebar{width:60px;height:calc(100vh - 64px);position:fixed;left:0;top:64px;z-index:40;border-right:1px solid #E5E7EB;background:#FFFFFF;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;overflow-y:auto}
+  .menu-rail-item{position:relative;width:48px;min-height:46px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px;color:#6B7280;background:transparent;border:1px solid transparent;cursor:pointer;text-align:center;transition:.15s}
+  .menu-rail-item i{width:19px;height:19px}
+  .menu-rail-label{font-size:8.5px;font-weight:600;line-height:1;white-space:nowrap}
+  .menu-rail-item:hover{color:#111827;background:#F3F4F6;border-color:#E5E7EB}
+  .menu-rail-item.is-active{color:#C05A40;background:rgba(192,90,64,.10);border-color:rgba(192,90,64,.12)}
+
+  #main__content{height:calc(100vh - 64px);overflow:hidden;padding:16px}
+  #root{height:100%;display:flex}
+
+  .daterangepicker{font-family:'Inter',system-ui,sans-serif;border-color:#E5E7EB;font-size:11px}
+  .daterangepicker td.active,.daterangepicker td.active:hover{background:#C05A40}
+  .daterangepicker td.in-range{background:#F7F0EB}
+  .daterangepicker td.available:hover,.daterangepicker th.available:hover{background:#F5E3DC}
+  .daterangepicker .ranges li.active{background:#C05A40}
+  .daterangepicker .drp-buttons .btn.btn-primary,.daterangepicker .applyBtn{background:#C05A40;border-color:#C05A40}
+</style>
+</head>
+
+<body class="bg-[#F3F4F6]">
+
+<nav class="navbar-main">
+  <div class="flex items-center gap-3">
+    <div class="nav-logo"><i data-lucide="coffee" class="w-5 h-5"></i></div>
+    <div class="flex flex-col leading-tight">
+      <span class="navbar-title">Facturador</span>
+      <span class="navbar-subtitle">Restaurant</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="nav-avatar">AP</div>
+  </div>
+</nav>
+
+<aside id="menu-sidebar">
+  <button class="menu-rail-item is-active" title="Generador de folios"><i data-lucide="printer"></i><span class="menu-rail-label">Folios</span></button>
+  <button class="menu-rail-item" title="Resumen"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Resumen</span></button>
+  <button class="menu-rail-item" title="Venta por pago"><i data-lucide="credit-card"></i><span class="menu-rail-label">Ventas</span></button>
+  <button class="menu-rail-item" title="Detallado"><i data-lucide="list"></i><span class="menu-rail-label">Detallado</span></button>
+  <button class="menu-rail-item" title="Facturados"><i data-lucide="file-check-2"></i><span class="menu-rail-label">Facturas</span></button>
+  <button class="menu-rail-item" title="Catalogos"><i data-lucide="book-open"></i><span class="menu-rail-label">Catalogo</span></button>
+</aside>
+
+<main id="main__content">
+  <div id="root"></div>
+</main>
+
+<script src="../../../inventory/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
+<script src="../../../inventory/src/js/plugins.js?t=<?php echo time(); ?>"></script>
+<script src="../../../inventory/src/js/complementos.js?t=<?php echo time(); ?>"></script>
+
+<script src="src/js/sample_facturador.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/facturador.js?t=<?php echo time(); ?>"></script>
+
+<script>
+  if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>
