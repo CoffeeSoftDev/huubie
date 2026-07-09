@@ -8,6 +8,13 @@
  *   - POST  action=preview      → diff por archivo (nuevo/modificado), SIN escribir
  *   - POST  action=materialize  → escribe los archivos aprobados al proyecto
  *
+ * Templates de módulo (copias REALES de un módulo que ya corre, separadas en
+ * index/ctrl/mdl/src, guardadas en documents/module-template/<slug>/):
+ *   - POST  action=clonemodule       → clona una carpeta del proyecto como template
+ *   - GET  ?action=modtemplates      → lista los templates de módulo guardados
+ *   - POST  action=applymodtemplate  → aplica un template a proyecto+carpeta (dry=1 previsualiza)
+ *   - POST  action=deletemodtemplate → elimina un template de módulo
+ *
  * Seguridad: cada destino debe caer DENTRO de la raíz del proyecto elegido, que
  * a su vez vive dentro de www. Sin path traversal, sin rutas absolutas, sólo
  * extensiones de texto/código en lista blanca.
@@ -121,6 +128,95 @@ function forge_read_files() {
         $out[] = ['path' => (string) ($f['path'] ?? ''), 'content' => (string) ($f['content'] ?? '')];
     }
     return $out;
+}
+
+/* ── Templates de módulo ─────────────────────────────────────────
+ * Un template es la copia REAL (byte a byte) de la carpeta de un módulo que ya
+ * funciona, clasificada por partes (index / ctrl / mdl / src / otros) y con un
+ * manifiesto template.json. Se guarda fuera de los proyectos, en el visor. */
+
+$MT_ROOT = str_replace('\\', '/', dirname(__DIR__)) . '/documents/module-template';
+
+// Carpetas que nunca forman parte del código de un módulo.
+$MT_SKIP_DIRS = ['.git', '.svn', 'node_modules', 'vendor', '__pycache__', '.idea', '.vscode'];
+// Extensiones que no aportan a un módulo funcional (paquetes, binarios de SO, logs).
+$MT_SKIP_EXTS = ['zip', 'rar', '7z', 'gz', 'tar', 'exe', 'dll', 'msi', 'log', 'bak'];
+const MT_MAX_FILE_BYTES  = 8388608;    // 8 MB por archivo
+const MT_MAX_TOTAL_BYTES = 83886080;   // 80 MB por template
+const MT_MAX_FILES       = 1500;
+
+/** Slug de carpeta (gemelo del pgSlugify del frontend). */
+function forge_slug($name) {
+    $s = strtolower(trim((string) $name));
+    if (function_exists('iconv')) {
+        $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
+        if ($t !== false) $s = $t;
+    }
+    $s = preg_replace('/[^a-z0-9]+/', '-', $s);
+    $s = trim($s, '-');
+    return $s !== '' ? $s : 'template';
+}
+
+/** Parte del módulo a la que pertenece una ruta relativa a su raíz. */
+function forge_part($rel) {
+    if (preg_match('#^index\.(php|html?)$#i', $rel)) return 'index';
+    $seg = strtolower(explode('/', $rel)[0]);
+    if ($seg === 'ctrl') return 'ctrl';
+    if ($seg === 'mdl')  return 'mdl';
+    if ($seg === 'src')  return 'src';
+    return 'otros';
+}
+
+/**
+ * Recorre la carpeta del módulo y devuelve sus archivos relativos, aplicando
+ * los filtros de carpeta/extensión/tamaño. @return array{files:array, skipped:int}
+ */
+function forge_scan_module($dir, $skipDirs, $skipExts) {
+    $files = []; $skipped = 0;
+    $walk = function ($abs, $rel) use (&$walk, &$files, &$skipped, $skipDirs, $skipExts) {
+        foreach (@scandir($abs) ?: [] as $e) {
+            if ($e === '.' || $e === '..') continue;
+            $full     = $abs . '/' . $e;
+            $childRel = ($rel === '' ? '' : $rel . '/') . $e;
+            if (is_dir($full)) {
+                if (in_array(strtolower($e), $skipDirs, true) || $e[0] === '.') { $skipped++; continue; }
+                $walk($full, $childRel);
+                continue;
+            }
+            $ext   = strtolower(pathinfo($e, PATHINFO_EXTENSION));
+            $bytes = (int) @filesize($full);
+            if (in_array($ext, $skipExts, true) || $bytes > MT_MAX_FILE_BYTES) { $skipped++; continue; }
+            $files[] = ['rel' => $childRel, 'bytes' => $bytes, 'part' => forge_part($childRel)];
+        }
+    };
+    $walk(rtrim($dir, '/'), '');
+    return ['files' => $files, 'skipped' => $skipped];
+}
+
+/** Borra una carpeta recursivamente (solo se usa dentro de MT_ROOT). */
+function forge_rrmdir($dir) {
+    foreach (@scandir($dir) ?: [] as $e) {
+        if ($e === '.' || $e === '..') continue;
+        $full = $dir . '/' . $e;
+        if (is_dir($full)) forge_rrmdir($full);
+        else @unlink($full);
+    }
+    @rmdir($dir);
+}
+
+/** Raíz validada de un template por slug (null si no existe o slug inválido). */
+function forge_mt_dir($mtRoot, $slug) {
+    if (!preg_match('/^[a-z0-9][a-z0-9-]*$/', (string) $slug)) return null;
+    $dir = $mtRoot . '/' . $slug;
+    return is_dir($dir) ? $dir : null;
+}
+
+/** Lee el manifiesto de un template. */
+function forge_mt_manifest($mtRoot, $slug) {
+    $dir = forge_mt_dir($mtRoot, $slug);
+    if ($dir === null) return null;
+    $m = json_decode((string) @file_get_contents($dir . '/template.json'), true);
+    return is_array($m) ? $m : null;
 }
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -258,6 +354,175 @@ if ($isPost && $action === 'materialize') {
     }
     echo json_encode(['success' => count($errors) === 0, 'written' => $written, 'errors' => $errors],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ── POST clonemodule ──────────────────────────────────────────
+// Copia REAL de una carpeta del proyecto (el módulo) a documents/module-template/
+// <slug>/files/**, con manifiesto que clasifica cada archivo por parte.
+if ($isPost && $action === 'clonemodule') {
+    $project = trim($_POST['project'] ?? '');
+    $root    = forge_project_root($WWW_ROOT, $project);
+    if ($root === null) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'Proyecto inválido']); exit; }
+
+    $rel = str_replace('\\', '/', trim($_POST['path'] ?? ''));
+    $rel = trim($rel, '/');
+    if (preg_match('#(^|/)\.\.(/|$)#', $rel)) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'path traversal']); exit; }
+
+    $srcDir   = $rel === '' ? $root : rtrim($root, '/') . '/' . $rel;
+    $srcReal  = realpath($srcDir);
+    $rootReal = str_replace('\\', '/', realpath($root));
+    if ($srcReal === false || !is_dir($srcReal)
+        || strpos(str_replace('\\', '/', $srcReal) . '/', $rootReal . '/') !== 0) {
+        http_response_code(404); echo json_encode(['success' => false, 'message' => 'Carpeta no encontrada']); exit;
+    }
+    $srcReal = str_replace('\\', '/', $srcReal);
+
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '') $name = basename($srcReal) ?: $project;
+
+    $scan  = forge_scan_module($srcReal, $MT_SKIP_DIRS, $MT_SKIP_EXTS);
+    $files = $scan['files'];
+    if (!$files) { echo json_encode(['success' => false, 'message' => 'La carpeta no tiene archivos clonables']); exit; }
+    if (count($files) > MT_MAX_FILES) {
+        echo json_encode(['success' => false, 'message' => 'Demasiados archivos (' . count($files) . '); clona la carpeta del módulo, no el proyecto completo']); exit;
+    }
+    $total = 0;
+    foreach ($files as $f) $total += $f['bytes'];
+    if ($total > MT_MAX_TOTAL_BYTES) {
+        echo json_encode(['success' => false, 'message' => 'La carpeta pesa demasiado (' . round($total / 1048576) . ' MB); clona solo el módulo']); exit;
+    }
+
+    // Slug único: si ya existe un template con ese nombre, sufija -2, -3…
+    $slug = forge_slug($name);
+    $base = $slug; $n = 2;
+    while (is_dir($MT_ROOT . '/' . $slug)) { $slug = $base . '-' . $n; $n++; }
+
+    $destBase = $MT_ROOT . '/' . $slug . '/files';
+    $errors = [];
+    foreach ($files as $f) {
+        $to  = $destBase . '/' . $f['rel'];
+        $dir = dirname($to);
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true)) { $errors[] = $f['rel'] . ': no se pudo crear la carpeta'; continue; }
+        if (!@copy($srcReal . '/' . $f['rel'], $to))     { $errors[] = $f['rel'] . ': no se pudo copiar'; }
+    }
+    if ($errors) {
+        forge_rrmdir($MT_ROOT . '/' . $slug);
+        echo json_encode(['success' => false, 'message' => 'Falló la copia: ' . implode('; ', array_slice($errors, 0, 5))]); exit;
+    }
+
+    $parts = ['index' => 0, 'ctrl' => 0, 'mdl' => 0, 'src' => 0, 'otros' => 0];
+    foreach ($files as $f) $parts[$f['part']]++;
+    $manifest = [
+        'name'       => $name,
+        'slug'       => $slug,
+        'source'     => ['project' => $project, 'path' => $rel],
+        'createdAt'  => date('Y-m-d H:i:s'),
+        'files'      => $files,
+        'parts'      => $parts,
+        'totalBytes' => $total,
+        'skipped'    => $scan['skipped']
+    ];
+    @file_put_contents($MT_ROOT . '/' . $slug . '/template.json',
+        json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+
+    echo json_encode(['success' => true, 'template' => $manifest], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ── GET modtemplates ──────────────────────────────────────────
+if ($action === 'modtemplates') {
+    $out = [];
+    foreach (@scandir($MT_ROOT) ?: [] as $e) {
+        if ($e === '.' || $e === '..') continue;
+        $m = forge_mt_manifest($MT_ROOT, $e);
+        if ($m) $out[] = $m;
+    }
+    usort($out, function ($a, $b) { return strcmp($b['createdAt'] ?? '', $a['createdAt'] ?? ''); });
+    echo json_encode(['success' => true, 'templates' => $out], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// ── POST applymodtemplate ─────────────────────────────────────
+// Aplica un template a proyecto + carpeta destino. Con dry=1 solo compara
+// (nuevo/sobrescribe/idéntico, por hash); sin dry copia disco a disco, lo que
+// preserva binarios (imágenes, fuentes) y mantiene el módulo funcional.
+if ($isPost && $action === 'applymodtemplate') {
+    $slug = trim($_POST['slug'] ?? '');
+    $m    = forge_mt_manifest($MT_ROOT, $slug);
+    if ($m === null) { http_response_code(404); echo json_encode(['success' => false, 'message' => 'Template no encontrado']); exit; }
+
+    $project = trim($_POST['project'] ?? '');
+    $root    = forge_project_root($WWW_ROOT, $project);
+    if ($root === null) { http_response_code(400); echo json_encode(['success' => false, 'message' => 'Proyecto destino inválido']); exit; }
+
+    $dest = str_replace('\\', '/', trim($_POST['dest'] ?? ''));
+    $dest = trim($dest, '/');
+    if (preg_match('#(^|/)\.\.(/|$)#', $dest) || preg_match('#^[A-Za-z]:#', $dest)) {
+        http_response_code(400); echo json_encode(['success' => false, 'message' => 'Carpeta destino inválida']); exit;
+    }
+
+    $dry      = ($_POST['dry'] ?? '') === '1';
+    $filesDir = $MT_ROOT . '/' . $slug . '/files';   // slug ya validado por forge_mt_manifest
+    $rootReal = str_replace('\\', '/', realpath($root));
+
+    $results = []; $written = []; $errors = [];
+    foreach (($m['files'] ?? []) as $f) {
+        $rel     = $f['rel'];
+        $destRel = ($dest === '' ? '' : $dest . '/') . $rel;
+        $from    = $filesDir . '/' . $rel;
+        $target  = rtrim($root, '/') . '/' . $destRel;
+
+        if (!is_file($from)) {
+            $row = ['path' => $destRel, 'status' => 'blocked', 'reason' => 'falta en el template'];
+            $dry ? $results[] = $row : $errors[] = ['path' => $destRel, 'reason' => 'falta en el template'];
+            continue;
+        }
+        // El padre puede no existir aún: validar contra el ancestro real más cercano.
+        $probe = dirname($target);
+        while ($probe && !is_dir($probe)) $probe = dirname($probe);
+        $probeReal = $probe ? str_replace('\\', '/', realpath($probe)) : false;
+        if ($probeReal === false || strpos($probeReal . '/', $rootReal . '/') !== 0) {
+            $row = ['path' => $destRel, 'status' => 'blocked', 'reason' => 'fuera de la raíz del proyecto'];
+            $dry ? $results[] = $row : $errors[] = ['path' => $destRel, 'reason' => 'fuera de la raíz del proyecto'];
+            continue;
+        }
+
+        if ($dry) {
+            $exists = is_file($target);
+            $status = !$exists ? 'new' : (md5_file($target) === md5_file($from) ? 'identical' : 'modified');
+            $results[] = [
+                'path'     => $destRel,
+                'status'   => $status,
+                'newBytes' => (int) @filesize($from),
+                'oldBytes' => $exists ? (int) @filesize($target) : 0
+            ];
+            continue;
+        }
+
+        $dir = dirname($target);
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true)) { $errors[] = ['path' => $destRel, 'reason' => 'no se pudo crear la carpeta']; continue; }
+        if (!@copy($from, $target))                     { $errors[] = ['path' => $destRel, 'reason' => 'no se pudo escribir']; continue; }
+        $written[] = ['path' => $destRel, 'bytes' => (int) @filesize($target)];
+    }
+
+    if ($dry) {
+        echo json_encode(['success' => true, 'project' => $project, 'dest' => $dest, 'files' => $results],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } else {
+        echo json_encode(['success' => count($errors) === 0, 'written' => $written, 'errors' => $errors],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    exit;
+}
+
+// ── POST deletemodtemplate ────────────────────────────────────
+if ($isPost && $action === 'deletemodtemplate') {
+    $slug = trim($_POST['slug'] ?? '');
+    $dir  = forge_mt_dir($MT_ROOT, $slug);
+    if ($dir === null) { http_response_code(404); echo json_encode(['success' => false, 'message' => 'Template no encontrado']); exit; }
+    forge_rrmdir($dir);
+    echo json_encode(['success' => !is_dir($dir)]);
     exit;
 }
 

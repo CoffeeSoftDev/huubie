@@ -1,0 +1,19 @@
+<!-- @file: alpha/layout/navbar.php -->
+<nav class="cs-navbar fixed top-0 left-0 w-full text-white px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b border-[#1F2A37] bg-[#7C3AED]">
+    <div class="flex items-center space-x-2">
+        <button id="toggleSidebar" class="text-white text-xl">☰</button>
+    </div>
+    <div class="flex items-center gap-2">
+        
+        <a href="/alpha/menu/" class="flex items-center justify-center w-8 h-8 rounded-lg text-white hover:text-white hover:bg-[#6D28D9] transition" title="Ir a Menús">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-[18px] h-[18px]"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg>
+        </a>
+        <button id="btnUserMenu" class="flex items-center gap-2 border-l border-white/30 pl-2">
+            <div class="w-8 h-8 rounded-full bg-[#1F2A37] flex items-center justify-center text-white"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-[18px] h-[18px]"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+            <div class="hidden md:flex flex-col items-start leading-tight text-left">
+                <span class="text-xs font-medium text-white">Ana Laura Tinajero</span>
+                <span class="text-[10px] text-white/80">Administrador</span>
+            </div>
+        </button>
+    </div>
+</nav>

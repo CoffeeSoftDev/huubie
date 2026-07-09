@@ -497,6 +497,36 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .fg-file-path { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--vsr-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fg-file-meta { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
 
+/* Cabecera de grupo por parte del módulo (index/ctrl/mdl/src/otros): se usa en
+   la lista del panel Módulo y en la vista de Código multi-archivo. */
+.fg-module-group-head { display: flex; align-items: center; gap: 7px; padding: 8px 2px 3px; }
+.fg-module-group-head:first-child { padding-top: 0; }
+
+/* Vista de Código del módulo: un bloque por archivo, agrupado por carpeta */
+.fg-module-code { position: absolute; inset: 0; overflow: auto; padding: 14px 16px; background: var(--vsr-bg-base); }
+.fg-mc-group { margin-bottom: 14px; }
+.fg-mc-file {
+    margin: 6px 0 12px; border: 1px solid var(--vsr-border);
+    border-radius: 10px; overflow: hidden; background: var(--vsr-bg-card);
+}
+.fg-mc-file.is-flash { border-color: var(--vsr-accent); box-shadow: 0 0 0 2px var(--vsr-accent-tint); }
+.fg-mc-file-head {
+    display: flex; align-items: center; gap: 8px; padding: 7px 11px;
+    background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+}
+.fg-mc-file-head i { width: 14px; height: 14px; color: var(--vsr-accent-soft); flex-shrink: 0; }
+.fg-mc-file-path { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--vsr-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-mc-file-meta { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.fg-mc-copy {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+    border: 1px solid transparent; background: transparent; color: var(--vsr-text-muted);
+}
+.fg-mc-copy i { width: 13px; height: 13px; color: inherit; }
+.fg-mc-copy:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+.fg-mc-pre { margin: 0; padding: 12px 14px; overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+.fg-mc-pre code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--vsr-text); white-space: pre; background: transparent; }
+
 .fg-module-empty { margin: auto; text-align: center; color: var(--vsr-text-muted); padding: 30px; max-width: 360px; }
 .fg-module-empty i { width: 40px; height: 40px; color: var(--vsr-text-mute2); margin-bottom: 8px; }
 .fg-module-empty p { font-size: 12.5px; line-height: 1.55; }
@@ -570,6 +600,60 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     color: var(--vsr-text-soft); font-family: 'JetBrains Mono', monospace; font-size: 11.5px; outline: none;
 }
 .fg-open-input:focus { border-color: var(--vsr-accent); }
+
+/* ── Templates de módulo (modal): copias reales separadas por parte ── */
+.fg-mt-list { display: flex; flex-direction: column; gap: 8px; max-height: 48vh; overflow-y: auto; }
+.fg-mt-row { border: 1px solid var(--vsr-border-soft); border-radius: 10px; background: var(--vsr-bg-card); }
+.fg-mt-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.fg-mt-ic { width: 18px; height: 18px; color: var(--vsr-accent-soft); flex-shrink: 0; }
+.fg-mt-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fg-mt-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fg-mt-name { font-size: 13px; font-weight: 700; color: var(--vsr-text-soft); }
+.fg-mt-meta { font-size: 11px; color: var(--vsr-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-mt-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.fg-mt-acts .fg-br-act { display: inline-flex; align-items: center; }
+.fg-mt-use-btn { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+.fg-mt-use-btn:hover { filter: brightness(1.08); }
+.fg-mt-del {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+    border: 1px solid transparent; background: transparent; color: var(--vsr-text-muted);
+}
+.fg-mt-del i { width: 13px; height: 13px; }
+.fg-mt-del:hover { color: #fff; background: #dc2626; border-color: #dc2626; }
+.fg-mt-del.is-armed { color: #fff; background: #dc2626; border-color: #dc2626; animation: fgMtArm .35s ease; }
+.fg-mt-del:disabled { opacity: .5; cursor: default; }
+@keyframes fgMtArm { 0% { transform: scale(.8); } 100% { transform: scale(1); } }
+
+/* Chips de parte (index/ctrl/mdl/src/otros) */
+.fg-mt-chip {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-muted);
+    text-transform: uppercase; letter-spacing: .3px;
+}
+.fg-mt-chip.is-index { background: rgba(34,197,94,.14);  color: #4ade80; }
+.fg-mt-chip.is-ctrl  { background: rgba(59,130,246,.14); color: #60a5fa; }
+.fg-mt-chip.is-mdl   { background: rgba(168,85,247,.14); color: #c084fc; }
+.fg-mt-chip.is-src   { background: rgba(245,158,11,.14); color: #fbbf24; }
+
+/* Archivos agrupados por parte (expandible) */
+.fg-mt-files { border-top: 1px solid var(--vsr-border-soft); padding: 10px 12px; max-height: 240px; overflow-y: auto; }
+.fg-mt-group { margin-bottom: 10px; }
+.fg-mt-group:last-child { margin-bottom: 0; }
+.fg-mt-group-head { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.fg-mt-group-n { font-size: 10.5px; color: var(--vsr-text-muted); }
+.fg-mt-file {
+    display: flex; align-items: center; gap: 7px; padding: 2px 0 2px 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--vsr-text-soft);
+}
+.fg-mt-file i { width: 13px; height: 13px; color: var(--vsr-text-muted); flex-shrink: 0; }
+.fg-mt-file span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fg-mt-file-b { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+
+/* Controles "Usar": proyecto + carpeta destino + previsualizar */
+.fg-mt-use { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--vsr-border-soft); padding: 10px 12px; flex-wrap: wrap; }
+.fg-mt-use .fg-mt-project { max-width: 190px; }
+.fg-mt-use .fg-mt-dest { flex: 1; min-width: 200px; }
 
 /* ── Responsive móvil: re-aplica el patrón del Lab. forge.css se carga DESPUÉS
    de playground.css, así que sus reglas base del header/workspace pisaban la

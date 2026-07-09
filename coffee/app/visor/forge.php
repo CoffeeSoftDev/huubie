@@ -250,6 +250,9 @@
                             <button id="fgRecreateBtn" class="pg-more-item" role="menuitem" title="Copiar el módulo completo del Live al chat del agente">
                                 <i data-lucide="copy-plus" class="w-4 h-4"></i> Recrear módulo (Live → chat)
                             </button>
+                            <button id="fgModTplBtn" class="pg-more-item" role="menuitem" title="Copias reales de módulos (index/ctrl/mdl/src) listas para aplicar a un proyecto">
+                                <i data-lucide="package" class="w-4 h-4"></i> Templates de módulo
+                            </button>
                             <div class="pg-more-sep"></div>
                             <button id="pgTemplatesBtn" class="pg-more-item" role="menuitem" title="Hilos guardados">
                                 <i data-lucide="library" class="w-4 h-4"></i> Hilos guardados
@@ -316,6 +319,10 @@
                     <div class="pg-empty-sub">Pulsa <strong>Abrir módulo existente</strong> (📂) para cargar aquí un módulo real con sus datos. Tus diseños generados viven aparte, en <strong>Preview</strong>.</div>
                 </div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
+                <!-- Código del módulo multi-archivo: un bloque por archivo, agrupado
+                     por carpeta (index/ctrl/mdl/src). Sustituye al <pre> único cuando
+                     lo que se muestra es un módulo y no un componente suelto. -->
+                <div id="fgModuleCode" class="fg-module-code hidden"></div>
 
                 <!-- ── Panel Módulo: archivos generados + destino + acciones ── -->
                 <div id="pgModulePanel" class="fg-module-panel hidden">
@@ -490,6 +497,9 @@
                         <select id="fgBrowserProject" class="pg-select"></select>
                     </div>
                     <div id="fgBrowserPath" class="fg-browser-crumbs"></div>
+                    <button id="fgCloneHereBtn" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Clonar la carpeta actual como template de módulo (copia real: index/ctrl/mdl/src)">
+                        <i data-lucide="package-plus" class="w-3.5 h-3.5"></i> Clonar como template
+                    </button>
                 </div>
                 <div id="fgBrowserList" class="fg-browser-list"></div>
 
@@ -516,6 +526,28 @@
             <footer class="pg-modal-foot">
                 <span id="fgBrowserSummary" class="pg-hint">—</span>
                 <button id="fgBrowserDone" class="cs-btn cs-btn-primary cs-btn-sm">Cerrar</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Templates de módulo (copias reales de módulos) ── -->
+    <div id="fgModTplModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:780px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    <h3>Templates de módulo</h3>
+                </div>
+                <button id="fgModTplClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">Copias <strong>reales</strong> de módulos que ya funcionan, separadas en <code>index</code> · <code>ctrl</code> · <code>mdl</code> · <code>src</code>. Para crear uno: <strong>Abrir módulo existente</strong> (📂) → botón <strong>Template</strong> sobre la carpeta del módulo. <strong>Usar</strong> lo copia al proyecto destino pasando por el preview; si tiene <code>index</code>, se abre en el Live al terminar.</p>
+                <div id="fgModTplList" class="fg-mt-list"></div>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="fgModTplSummary" class="pg-hint">—</span>
+                <button id="fgModTplDone" class="cs-btn cs-btn-primary cs-btn-sm">Cerrar</button>
             </footer>
         </div>
     </div>

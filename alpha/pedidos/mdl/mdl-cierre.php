@@ -256,17 +256,24 @@ class MCierre extends CRUD {
     // Abonos cobrados este dia en esta sucursal para pedidos de dias anteriores.
     // Si el pedido es de otra sucursal (cobro cruzado entrante) origin_subsidiary
     // lo identifica; el dinero cuenta aqui porque aqui entro a caja.
+    // Abonos recibidos hoy a pedidos creados en dias previos. Cada abono se atribuye al
+    // turno (cash_shift) de la sucursal que cobro cuyo rango [opened_at, closed_at] contiene
+    // la fecha del pago. Un pedido abonado en dos turnos del mismo dia aparece una vez por turno.
+    // El saldo ("total_paid_upto") se calcula hasta el cierre de ESE turno para que "Quedo" sea
+    // coherente con el momento del cobro.
     function getDailyPrevPayments($array) {
         $query = "
             SELECT
                 o.id,
                 o.total_pay,
                 o.discount,
+                cs.id AS shift_id,
+                cs.opened_at AS shift_opened_at,
                 SUM(op.pay) AS payment_real,
                 (SELECT COALESCE(SUM(op2.pay), 0)
                    FROM {$this->bd}order_payments op2
                   WHERE op2.order_id = o.id
-                    AND DATE(op2.date_pay) <= ?) AS total_paid_upto,
+                    AND op2.date_pay <= COALESCE(cs.closed_at, ?)) AS total_paid_upto,
                 o.status,
                 o.date_creation,
                 o.subsidiaries_id AS origin_subsidiary_id,
@@ -278,12 +285,17 @@ class MCierre extends CRUD {
             LEFT JOIN {$this->bd}order_clients c ON c.id = o.client_id
             LEFT JOIN {$this->bd}method_pay mp ON mp.id = op.method_pay_id
             LEFT JOIN fayxzvov_alpha.subsidiaries os ON os.id = o.subsidiaries_id
+            LEFT JOIN {$this->bd}cash_shift cs
+                   ON cs.subsidiary_id = COALESCE(op.subsidiaries_id, o.subsidiaries_id)
+                  AND cs.active = 1
+                  AND op.date_pay >= cs.opened_at
+                  AND (cs.closed_at IS NULL OR op.date_pay <= cs.closed_at)
             WHERE DATE(op.date_pay) = ?
               AND DATE(o.date_creation) < ?
               AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
               AND o.status != 4 AND o.is_legacy = 0
-            GROUP BY o.id, o.total_pay, o.discount, o.status, o.date_creation, o.subsidiaries_id, os.name, c.name
-            ORDER BY o.date_creation ASC
+            GROUP BY o.id, cs.id, cs.opened_at, o.total_pay, o.discount, o.status, o.date_creation, o.subsidiaries_id, os.name, c.name
+            ORDER BY cs.opened_at ASC, o.date_creation ASC
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) ? $result : [];

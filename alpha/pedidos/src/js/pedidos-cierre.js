@@ -535,70 +535,50 @@ class Cierre {
 
         const money = (v) => parseFloat(v || 0) ? formatPrice(v) : '&mdash;';
 
-        // === COBROS CRUZADOS ===
-        // Cuentas cobradas en esta sucursal que pertenecen a pedidos de días/turnos previos
-        // (incluye las que son de otra sucursal). Este dinero SÍ entró a esta caja.
-        const crossPrev = { debia: 0, abono: 0, quedo: 0 };
-        const crossRowsHtml = prevPayments.map(o => {
+        // === ABONOS DE PEDIDOS ANTERIORES ===
+        // Pagos recibidos hoy a pedidos creados en días previos (misma sucursal o cruzados de otra).
+        // Este dinero SÍ entró a esta caja; el backend atribuye cada abono al turno (shift_id) en que
+        // cayó el pago. Se listan JUNTO a las ventas del día, dentro del grupo de su turno (más abajo),
+        // con el mismo formato del ticket de cierre de turno (importe -> abono -> quedó, LIQUIDADO/PENDIENTE).
+        const crossPrev = { importe: 0, abono: 0, quedo: 0 };
+
+        const filaAbonoPrev = (o) => {
             const total    = parseFloat(o.total_pay || 0);
             const discount = parseFloat(o.discount || 0);
             const abono    = parseFloat(o.payment_real || 0);
             const paidUpto = parseFloat(o.total_paid_upto || 0);
             const quedo    = Math.max(total - discount - paidUpto, 0);
-            const debia    = quedo + abono;
-            crossPrev.debia += debia; crossPrev.abono += abono; crossPrev.quedo += quedo;
             const liquidado = quedo <= 0.005;
+            const origen = (o.is_cross && o.origin_subsidiary)
+                ? `<div style="font-size:8px;color:#7f96ad">Origen: ${o.origin_subsidiary}</div>`
+                : '';
             return `
-                <tr>
-                    <td>${o.folio || '#' + o.id}</td>
-                    <td>${o.client_name || 'Sin cliente'}</td>
-                    <td>${o.is_cross ? (o.origin_subsidiary || 'Otra sucursal') : '&mdash;'}</td>
-                    <td>${o.method || '&mdash;'}</td>
-                    <td class="text-right">${money(debia)}</td>
-                    <td class="text-right col-importe">${money(abono)}</td>
-                    <td class="text-right">${money(quedo)}</td>
-                    <td class="text-center"><span class="cz-estado ${liquidado ? 'cz-pagado' : 'cz-pend'}">${liquidado ? 'LIQUIDADO' : 'PENDIENTE'}</span></td>
-                </tr>
+                    <tr>
+                        <td>${o.folio || '#' + o.id}</td>
+                        <td>${o.client_name || 'Sin cliente'}${origen}</td>
+                        <td>${o.method || '&mdash;'}</td>
+                        <td class="text-right col-importe">${money(total)}</td>
+                        <td class="text-right">${money(abono)}</td>
+                        <td class="text-right">${money(quedo)}</td>
+                        <td class="text-center"><span class="cz-estado ${liquidado ? 'cz-pagado' : 'cz-pend'}">${liquidado ? 'LIQUIDADO' : 'PENDIENTE'}</span></td>
+                    </tr>
             `;
-        }).join('');
+        };
 
-        const crossBody = prevPayments.length > 0
-            ? `${crossRowsHtml}
-                <tr class="cz-total-row">
-                    <td colspan="4">TOTAL COBROS CRUZADOS</td>
-                    <td class="text-right">${money(crossPrev.debia)}</td>
-                    <td class="text-right col-importe">${money(crossPrev.abono)}</td>
-                    <td class="text-right">${money(crossPrev.quedo)}</td>
-                    <td></td>
-                </tr>`
-            : `<tr><td colspan="8" style="text-align:center;color:#95a5a6;padding:16px;font-style:italic">Sin cobros cruzados en esta fecha</td></tr>`;
+        const acumulaAbonoPrev = (lista, sub) => {
+            lista.forEach(o => {
+                const total    = parseFloat(o.total_pay || 0);
+                const discount = parseFloat(o.discount || 0);
+                const abono    = parseFloat(o.payment_real || 0);
+                const paidUpto = parseFloat(o.total_paid_upto || 0);
+                const quedo    = Math.max(total - discount - paidUpto, 0);
+                sub.importe += total; sub.abono += abono; sub.quedo += quedo;
+                crossPrev.importe += total; crossPrev.abono += abono; crossPrev.quedo += quedo;
+            });
+        };
 
-        const crossSectionHtml = `
-            <div class="pdf-section" style="margin-bottom:14px">
-                <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
-                    <span>*** Cobros Cruzados ***</span>
-                    <span class="cz-count">${prevPayments.length} pedido(s)</span>
-                </div>
-                <div class="cz-subhead">Cuentas cobradas en sucursal &mdash; pertenecen a otra sucursal</div>
-                <div style="overflow-x:auto">
-                    <table class="pdf-table">
-                        <thead>
-                            <tr>
-                                <th>Pedido</th>
-                                <th>Cliente</th>
-                                <th>Origen</th>
-                                <th>Método</th>
-                                <th class="text-right">Debía</th>
-                                <th class="text-right">Abono</th>
-                                <th class="text-right">Quedó</th>
-                                <th class="text-center">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>${crossBody}</tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+        // Fila divisoria tenue dentro de un turno: separa las ventas de los abonos anteriores.
+        const dividerAbonos = `<tr><td colspan="7" style="background:#fbfcfd;color:#7f96ad;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding:3px 8px;border-top:1px dashed #e8ecf0">Abonos de pedidos anteriores</td></tr>`;
 
         // === CORTE DE CAJA X (Cierre x Turno) ===
         // Dinero en caja por turno = efectivo + tarjeta + transferencia COBRADOS en el turno.
@@ -713,58 +693,96 @@ class Cierre {
             });
         };
 
-        // Un grupo por cada turno abierto ese día (aunque no tenga pedidos), en orden de apertura.
-        let ventasGroupsHtml = cierreShifts.map(shift => {
-            const titulo = shift.shift_name || moment(shift.opened_at).format('hh:mm A');
-            const folioTurno = '#' + String(shift.id).padStart(3, '0');
-            const lista  = salesOrders.filter(o => o.shift_id == shift.id);
+        // Un grupo por turno: ventas del día + abonos a pedidos anteriores cobrados en ese turno,
+        // en la misma tabla, separados por una línea divisoria tenue. El subtotal combina ambos.
+        const grupoTurno = (titulo, ventasLista, abonosLista) => {
             const sub = { importe: 0, abono: 0, quedo: 0 };
-            acumula(lista, sub);
-            const rows = lista.length
-                ? lista.map(filaPedido).join('')
-                : `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:9px;font-style:italic">Sin pedidos en este turno</td></tr>`;
+            acumula(ventasLista, sub);
+            acumulaAbonoPrev(abonosLista, sub);
+
+            let filas = ventasLista.map(filaPedido).join('');
+            if (abonosLista.length) {
+                filas += dividerAbonos + abonosLista.map(filaAbonoPrev).join('');
+            }
+            if (!ventasLista.length && !abonosLista.length) {
+                filas = `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:9px;font-style:italic">Sin movimientos en este turno</td></tr>`;
+            }
+            const cuentas = ventasLista.length + abonosLista.length;
             return `
                 <tr class="cz-shift-row">
-                    <td colspan="7">Turno ${folioTurno} &middot; ${titulo} <span class="cz-shift-count">${lista.length} pedido(s)</span></td>
+                    <td colspan="7">${titulo} <span class="cz-shift-count">${cuentas} cuenta(s)</span></td>
                 </tr>
-                ${rows}
+                ${filas}
                 <tr class="cz-shift-subtotal">
-                    <td colspan="3">Subtotal</td>
+                    <td colspan="3">Subtotal del turno</td>
                     <td class="text-right col-importe">${money(sub.importe)}</td>
                     <td class="text-right">${money(sub.abono)}</td>
                     <td class="text-right">${money(sub.quedo)}</td>
                     <td></td>
                 </tr>
             `;
+        };
+
+        // Un grupo por cada turno abierto ese día (aunque no tenga movimientos), en orden de apertura.
+        let ventasGroupsHtml = cierreShifts.map(shift => {
+            const titulo = shift.shift_name || moment(shift.opened_at).format('hh:mm A');
+            const folioTurno = '#' + String(shift.id).padStart(3, '0');
+            const ventasLista = salesOrders.filter(o => o.shift_id == shift.id);
+            const abonosLista = prevPayments.filter(o => o.shift_id == shift.id);
+            return grupoTurno(`Turno ${folioTurno} &middot; ${titulo}`, ventasLista, abonosLista);
         }).join('');
 
-        // Pedidos fuera de todo turno (huérfanos): al final, sin encabezado.
-        const cierreShiftIds = cierreShifts.map(s => String(s.id));
-        const huerfanos = salesOrders.filter(o => !cierreShiftIds.includes(String(o.shift_id)));
-        if (huerfanos.length) {
-            const subH = { importe: 0, abono: 0, quedo: 0 };
-            acumula(huerfanos, subH);
-            ventasGroupsHtml += huerfanos.map(filaPedido).join('');
+        // Movimientos fuera de todo turno del día (huérfanos): ventas y abonos sin turno asociado.
+        const cierreShiftIds  = cierreShifts.map(s => String(s.id));
+        const huerfanosVentas = salesOrders.filter(o => !cierreShiftIds.includes(String(o.shift_id)));
+        const huerfanosAbonos = prevPayments.filter(o => !cierreShiftIds.includes(String(o.shift_id)));
+        if (huerfanosVentas.length || huerfanosAbonos.length) {
+            ventasGroupsHtml += grupoTurno('Sin turno', huerfanosVentas, huerfanosAbonos);
         }
 
-        const ventasBody = (salesOrders.length > 0 || cierreShifts.length > 0)
-            ? `${ventasGroupsHtml}
+        // Pie de totales: sin abonos anteriores solo se muestra el total de ventas; con abonos se
+        // desglosa ventas + abonos y se cierra con el total combinado (dinero cobrado en el día).
+        const totalesPie = prevPayments.length > 0 ? `
+                <tr class="cz-shift-subtotal">
+                    <td colspan="3">Total ventas del día</td>
+                    <td class="text-right col-importe">${money(ventasTotales.importe)}</td>
+                    <td class="text-right">${money(ventasTotales.abono)}</td>
+                    <td class="text-right">${money(ventasTotales.quedo)}</td>
+                    <td></td>
+                </tr>
+                <tr class="cz-shift-subtotal">
+                    <td colspan="3">Total abonos a pedidos anteriores</td>
+                    <td class="text-right col-importe">${money(crossPrev.importe)}</td>
+                    <td class="text-right">${money(crossPrev.abono)}</td>
+                    <td class="text-right">${money(crossPrev.quedo)}</td>
+                    <td></td>
+                </tr>
+                <tr class="cz-total-row">
+                    <td colspan="3">TOTAL DEL DÍA</td>
+                    <td class="text-right col-importe">${money(ventasTotales.importe + crossPrev.importe)}</td>
+                    <td class="text-right">${money(ventasTotales.abono + crossPrev.abono)}</td>
+                    <td class="text-right">${money(ventasTotales.quedo + crossPrev.quedo)}</td>
+                    <td></td>
+                </tr>` : `
                 <tr class="cz-total-row">
                     <td colspan="3">TOTAL VENTAS DEL DÍA</td>
                     <td class="text-right col-importe">${money(ventasTotales.importe)}</td>
                     <td class="text-right">${money(ventasTotales.abono)}</td>
                     <td class="text-right">${money(ventasTotales.quedo)}</td>
                     <td></td>
-                </tr>`
+                </tr>`;
+
+        const ventasBody = (salesOrders.length > 0 || prevPayments.length > 0 || cierreShifts.length > 0)
+            ? `${ventasGroupsHtml}${totalesPie}`
             : `<tr><td colspan="7" style="text-align:center;color:#95a5a6;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
 
         const desgloseSectionHtml = `
             <div class="pdf-section" style="margin-bottom:14px">
                 <div class="pdf-section-title cz-title" style="display:flex;justify-content:space-between;align-items:center">
                     <span>Desglose de Pedidos</span>
-                    <span class="cz-count">${salesOrders.length} pedido(s)</span>
+                    <span class="cz-count">${salesOrders.length + prevPayments.length} cuenta(s)</span>
                 </div>
-                <div class="cz-subhead">Ventas del día &mdash; ${salesOrders.length} pedido(s)</div>
+                <div class="cz-subhead">Ventas del día${prevPayments.length ? ' y abonos a pedidos anteriores' : ''} &mdash; agrupados por turno</div>
                 <div style="overflow-x:auto">
                     <table class="pdf-table">
                         <thead>
@@ -835,7 +853,7 @@ class Cierre {
         const ventaBruta = parseFloat(ventas.venta_bruta || 0);
         const ventaNeta  = parseFloat(ventas.venta_neta || 0);
         const pendiente  = ventasTotales.quedo;
-        // Cruzados = lo cobrado de pedidos de días anteriores (la tabla "Cobros Cruzados").
+        // Abonos anteriores = lo cobrado hoy de pedidos de días previos (grupo del Desglose de Pedidos).
         const cruzadosMonto = crossPrev.abono;
         const cruzadosCount = prevPayments.length;
         // Estado de cuentas por SALDO al corte (consistente con la columna Estado de la tabla),
@@ -850,7 +868,7 @@ class Cierre {
                 <div class="pdf-section-body">
                     ${kv('Venta Bruta', money(ventaBruta))}
                     ${kv('Cobrado', money(cobrado))}
-                    ${kv('Cruzados', money(cruzadosMonto))}
+                    ${kv('Abonos ant.', money(cruzadosMonto))}
                     ${kv('Pendiente', money(pendiente))}
                     ${kv('NETA', money(ventaNeta), { total: true })}
                 </div>
@@ -871,7 +889,7 @@ class Cierre {
                     ${mpRow('Efectivo', parseInt(mCash.count || 0), mCash.amount)}
                     ${mpRow('Tarjeta', parseInt(mCard.count || 0), mCard.amount)}
                     ${mpRow('Transfer.', parseInt(mTransfer.count || 0), mTransfer.amount)}
-                    ${mpRow('Cruzados', cruzadosCount, cruzadosMonto)}
+                    ${mpRow('Abonos ant.', cruzadosCount, cruzadosMonto)}
                     ${kv('TOTAL', money(cobrado + cruzadosMonto), { total: true })}
                 </div>
             </div>
@@ -924,7 +942,6 @@ class Cierre {
                 </div>
 
                 ${desgloseSectionHtml}
-                ${crossSectionHtml}
                 ${cotizacionesSectionHtml}
                 ${shiftsTableHtml}
                 ${resumenSectionHtml}

@@ -224,7 +224,7 @@ class Cierre extends MCierre {
         $categories = $this->getSalesByCategory([$date, $subsidiaries_id]);
         $cashShifts = $this->getCashShiftsSummary([$date, $subsidiaries_id]);
         $livePays   = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
-        $prevRaw    = $this->getDailyPrevPayments([$date, $date, $date, $subsidiaries_id]);
+        $prevRaw    = $this->getDailyPrevPayments([$date . ' 23:59:59', $date, $date, $subsidiaries_id]);
         $crossRaw   = $this->getDailyCrossPayments([$date, $subsidiaries_id, $subsidiaries_id]);
 
         $sub = $this->getSubsidiaryName([$subsidiaries_id]);
@@ -304,7 +304,8 @@ class Cierre extends MCierre {
                 'discount'          => floatval($p['discount']),
                 'payment_real'      => floatval($p['payment_real']),
                 'total_paid_upto'   => floatval($p['total_paid_upto']),
-                'method'            => $p['method']
+                'method'            => $p['method'],
+                'shift_id'          => $p['shift_id'] !== null ? intval($p['shift_id']) : null
             ];
         }
 

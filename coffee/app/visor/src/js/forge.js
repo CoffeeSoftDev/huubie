@@ -441,7 +441,10 @@ function pgBind() {
         pg.sandboxTab = tab; pgSaveSettings();   // recordar la pestaña para reabrir Forge en ella
         $('#pgSandboxFrame').toggleClass('hidden', tab !== 'preview');
         $('#fgLiveFrame').toggleClass('hidden', tab !== 'live');
-        $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
+        // Código: si hay módulo multi-archivo se muestra agrupado por carpeta
+        // (#fgModuleCode); el <pre> único queda para componentes sueltos.
+        $('#pgSandboxCode').toggleClass('hidden', tab !== 'code' || !!pg._codeMulti);
+        $('#fgModuleCode').toggleClass('hidden', tab !== 'code' || !pg._codeMulti);
         $('#pgModulePanel').toggleClass('hidden', tab !== 'module');
         pgUpdateSandboxBg();   // fondo según viewport + vista activa
         $('#fgLiveEmpty').toggleClass('hidden', !(tab === 'live' && !pg._liveModule));
@@ -531,7 +534,7 @@ function pgBind() {
     $('#pgTemplatesModal .pg-modal-backdrop').on('click', () => pgCloseTemplates());
 
     $(document).on('keydown', e => {
-        if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); }
+        if (e.key === 'Escape') { pgCloseKnowledge(); pgCloseSaveTemplate(); pgCloseTemplates(); fgCloseModTpls(); }
     });
 }
 
@@ -1185,7 +1188,10 @@ function pgRenderToSandbox(received) {
         return html ? pgPushTemplate(html, false) : null;   // solo componentes reales al historial
     }
     if (cfg.render === 'code') {
-        pgShowSandboxCode(pgExtractCode(received) || received);
+        // Módulo multi-archivo (marcadores @file): la vista de Código agrupada
+        // por carpeta la construye fgSetModule justo después. Solo sin marcadores
+        // se cae al bloque único de antes.
+        if (!fgParseModule(received).length) pgShowSandboxCode(pgExtractCode(received) || received);
         const html = pgExtractHtml(received);
         if (html) { pgRenderSandbox(html, false); return pgPushTemplate(html, false); }
         return null;
@@ -1277,7 +1283,8 @@ function pgRenderSandbox(htmlBody, isDoc) {
 }
 function pgShowSandboxCode(code) {
     $('#pgSandboxEmpty').hide();
-    const $code = $('#pgSandboxCode').find('code').text(code);
+    pg._codeMulti = false;   // bloque único: componente suelto o archivo individual
+    const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(code);
     if (window.hljs) hljs.highlightElement($code[0]);
     $('.pg-tab[data-sbtab="code"]').click();
 }
@@ -1827,13 +1834,34 @@ async function fgLoadProjects() {
     else pg.project = $sel.val() || '';
 }
 
-/** Guarda el módulo parseado y refresca badge + panel. */
+/** Parte del módulo a la que pertenece una ruta (gemelo JS de forge_part PHP). */
+function fgPartOf(path) {
+    const p = String(path || '');
+    if (/^index\.(php|html?)$/i.test(p)) return 'index';
+    const seg = p.split('/')[0].toLowerCase();
+    if (seg === 'ctrl' || seg === 'mdl' || seg === 'src') return seg;
+    return 'otros';
+}
+const FG_PART_ORDER = ['index', 'ctrl', 'mdl', 'src', 'otros'];
+
+/** Agrupa archivos {path,...} por parte, respetando FG_PART_ORDER. */
+function fgGroupByPart(files) {
+    const groups = {};
+    (files || []).forEach((f, i) => {
+        const k = fgPartOf(f.path || f.rel);
+        (groups[k] = groups[k] || []).push({ file: f, idx: i });
+    });
+    return FG_PART_ORDER.filter(k => groups[k]).map(k => ({ part: k, items: groups[k] }));
+}
+
+/** Guarda el módulo parseado y refresca badge + panel + vista de código. */
 function fgSetModule(files) {
     pg.module.files = Array.isArray(files) ? files : [];
     const n = pg.module.files.length;
     const $count = $('#fgModuleCount');
     if (n > 0) $count.text(n).show(); else $count.hide();
     fgRenderModulePanel();
+    fgShowModuleCode(pg.module.files);
 }
 
 /** Si hay módulo, salta a la pestaña Módulo. */
@@ -1851,26 +1879,102 @@ function fgRenderModulePanel() {
         if (window.lucide) lucide.createIcons();
         return;
     }
-    files.forEach((f, i) => {
-        const lines = f.content ? f.content.split('\n').length : 0;
+    // Agrupado por parte del módulo (index → ctrl → mdl → src → otros).
+    fgGroupByPart(files).forEach(g => {
         $list.append(`
-            <div class="fg-file" data-idx="${i}" title="Ver contenido">
-                <i data-lucide="${fgFileIcon(f.path)}" class="fg-file-icon"></i>
-                <span class="fg-file-path">${pgEscape(f.path)}</span>
-                <span class="fg-file-meta">${pgEscape(f.lang || '')}${f.lang ? ' · ' : ''}${lines} ln</span>
+            <div class="fg-module-group-head">
+                <span class="fg-mt-chip is-${g.part}">${g.part}</span>
+                <span class="fg-mt-group-n">${g.items.length} archivo(s)</span>
             </div>`);
+        g.items.forEach(({ file: f, idx }) => {
+            const lines = f.content ? f.content.split('\n').length : 0;
+            $list.append(`
+                <div class="fg-file" data-idx="${idx}" title="Ver contenido">
+                    <i data-lucide="${fgFileIcon(f.path)}" class="fg-file-icon"></i>
+                    <span class="fg-file-path">${pgEscape(f.path)}</span>
+                    <span class="fg-file-meta">${pgEscape(f.lang || '')}${f.lang ? ' · ' : ''}${lines} ln</span>
+                </div>`);
+        });
     });
     $list.find('.fg-file').on('click', function () {
         const f = pg.module.files[parseInt($(this).data('idx'), 10)];
-        if (f) pgShowSandboxCode(f.content);
+        if (f) fgOpenFileInCode(f.path);
     });
     if (window.lucide) lucide.createIcons();
+}
+
+/* ── Vista de Código del módulo: un bloque por archivo, agrupado por carpeta ──
+ * Sustituye al <pre> único cuando la respuesta es un módulo: cada archivo lleva
+ * su cabecera (ruta + líneas + copiar) y su propio bloque resaltado, bajo el
+ * encabezado de su parte (index/ctrl/mdl/src/otros). */
+function fgShowModuleCode(files) {
+    pg._codeMulti = !!(files && files.length);
+    const $wrap = $('#fgModuleCode').empty();
+    if (!pg._codeMulti) { fgSyncCodeView(); return; }
+
+    fgGroupByPart(files).forEach(g => {
+        const $g = $(`
+            <div class="fg-mc-group">
+                <div class="fg-module-group-head">
+                    <span class="fg-mt-chip is-${g.part}">${g.part}</span>
+                    <span class="fg-mt-group-n">${g.items.length} archivo(s)</span>
+                </div>
+            </div>`);
+        g.items.forEach(({ file: f }) => {
+            const lines = f.content ? f.content.split('\n').length : 0;
+            const $f = $(`
+                <div class="fg-mc-file" data-path="${pgEscape(f.path)}">
+                    <div class="fg-mc-file-head">
+                        <i data-lucide="${fgFileIcon(f.path)}"></i>
+                        <span class="fg-mc-file-path">${pgEscape(f.path)}</span>
+                        <span class="fg-mc-file-meta">${lines} ln</span>
+                        <button class="fg-mc-copy" title="Copiar este archivo"><i data-lucide="copy"></i></button>
+                    </div>
+                    <pre class="fg-mc-pre"><code${f.lang ? ` class="language-${pgEscape(f.lang)}"` : ''}></code></pre>
+                </div>`);
+            $f.find('code').text(f.content || '');
+            $f.find('.fg-mc-copy').on('click', () => {
+                if (navigator.clipboard) navigator.clipboard.writeText(f.content || '');
+                pgToast('Archivo copiado: ' + f.path, 'success');
+            });
+            $g.append($f);
+        });
+        $wrap.append($g);
+    });
+    $wrap.find('pre code').each((i, el) => { if (window.hljs) hljs.highlightElement(el); });
+    if (window.lucide) lucide.createIcons();
+    fgSyncCodeView();
+}
+
+// Reaplica qué contenedor se ve en la pestaña Código (único vs multi-archivo).
+function fgSyncCodeView() {
+    const codeActive = $('.pg-tab[data-sbtab="code"]').hasClass('active');
+    $('#pgSandboxCode').toggleClass('hidden', !codeActive || !!pg._codeMulti);
+    $('#fgModuleCode').toggleClass('hidden', !codeActive || !pg._codeMulti);
+}
+
+// Abre la pestaña Código posicionada en un archivo del módulo (con destello).
+function fgOpenFileInCode(path) {
+    if (!pg._codeMulti) {
+        const f = pg.module.files.find(x => x.path === path);
+        if (f) pgShowSandboxCode(f.content);
+        return;
+    }
+    $('#pgSandboxEmpty').hide();
+    $('.pg-tab[data-sbtab="code"]').trigger('click');
+    const el = $('#fgModuleCode .fg-mc-file').filter(function () { return $(this).attr('data-path') === path; }).get(0);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $(el).addClass('is-flash');
+        setTimeout(() => $(el).removeClass('is-flash'), 1000);
+    }
 }
 
 /** Previsualiza el módulo contra el proyecto destino (diff, sin escribir). */
 async function fgPreview() {
     if (!pg.module.files.length) { pgToast('No hay módulo que previsualizar', 'warn'); return; }
     if (!pg.project)             { pgToast('Elige un proyecto destino', 'warn'); return; }
+    pg._previewApply = null;   // el confirm del modal materializa el módulo del agente
     const $b1 = $('#fgPreviewBtn').prop('disabled', true);
     const $b2 = $('#fgMaterializeBtn').prop('disabled', true);
     try {
@@ -1896,9 +2000,13 @@ function fgOpenPreviewModal(data) {
         else if (f.status === 'modified')  { badge = 'SOBRESCRIBE'; tone = 'mod';     nMod++; }
         else if (f.status === 'identical') { badge = 'SIN CAMBIOS'; tone = 'same';            }
         else                               { badge = 'BLOQUEADO';   tone = 'blocked'; nBlocked++; }
+        // Los templates de módulo comparan por bytes (binarios incluidos); el
+        // módulo del agente, por líneas.
         const meta = f.status === 'blocked'
             ? pgEscape(f.reason || '')
-            : (f.status === 'modified' ? `${f.oldLines} → ${f.newLines} ln` : `${f.newLines || 0} ln`);
+            : (typeof f.newBytes === 'number'
+                ? (f.status === 'modified' ? `${fgFmtBytes(f.oldBytes)} → ${fgFmtBytes(f.newBytes)}` : fgFmtBytes(f.newBytes))
+                : (f.status === 'modified' ? `${f.oldLines} → ${f.newLines} ln` : `${f.newLines || 0} ln`));
         $list.append(`
             <div class="fg-prev-row tone-${tone}">
                 <span class="fg-prev-badge">${badge}</span>
@@ -1917,6 +2025,7 @@ function fgOpenPreviewModal(data) {
 }
 function fgClosePreviewModal() {
     $('#fgPreviewModal').addClass('hidden').attr('aria-hidden', 'true');
+    pg._previewApply = null;
 }
 
 /** Escribe el módulo al proyecto (tras confirmar en el modal de diff). */
@@ -2608,6 +2717,7 @@ function fgRenderBrowser(data) {
                 <div class="fg-br-row fg-br-dir" data-rel="${pgEscape(en.rel)}">
                     <i data-lucide="folder" class="fg-br-icon"></i>
                     <span class="fg-br-name">${pgEscape(en.name)}</span>
+                    <span class="fg-br-acts"><button class="fg-br-act fg-br-clone" data-rel="${pgEscape(en.rel)}" title="Clonar esta carpeta como template de módulo (copia real: index/ctrl/mdl/src)">Template</button></span>
                     <i data-lucide="chevron-right" class="fg-br-go"></i>
                 </div>`);
         } else {
@@ -2624,6 +2734,7 @@ function fgRenderBrowser(data) {
 
     $('#fgBrowserPath .fg-crumb').on('click', function () { fgBrowseTo($(this).data('rel') || ''); });
     $list.find('.fg-br-dir').on('click', function () { fgBrowseTo($(this).data('rel')); });
+    $list.find('.fg-br-clone').on('click', function (e) { e.stopPropagation(); fgCloneModule(pg._browseProject, $(this).data('rel')); });
     $list.find('.fg-br-open').on('click', function (e) { e.stopPropagation(); fgOpenModuleInSandbox(pg._browseProject, $(this).data('rel')); });
     $list.find('.fg-br-import').on('click', function (e) { e.stopPropagation(); fgImportSource(pg._browseProject, $(this).data('rel')); });
 
@@ -2633,14 +2744,246 @@ function fgRenderBrowser(data) {
     if (window.lucide) lucide.createIcons();
 }
 
+/* ── Templates de módulo ─────────────────────────────────────────
+ * Copia REAL (byte a byte, binarios incluidos) de la carpeta de un módulo que
+ * ya funciona, guardada en documents/module-template/<slug>/ y clasificada en
+ * index / ctrl / mdl / src / otros. Aplicarla a un proyecto copia disco a disco
+ * en el backend (por eso el módulo resultante queda funcional), pasando siempre
+ * por el mismo modal de preview que la materialización. */
+
+function fgFmtBytes(b) {
+    b = b || 0;
+    if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+    if (b >= 1024)    return Math.round(b / 1024) + ' KB';
+    return b + ' B';
+}
+
+// Clona una carpeta del proyecto como template de módulo.
+async function fgCloneModule(project, rel) {
+    if (!project) { pgToast('Elige un proyecto primero', 'warn'); return; }
+    const def  = (String(rel || '').split('/').filter(Boolean).pop() || project);
+    const name = window.prompt(
+        rel ? 'Nombre del template de módulo:' : 'Vas a clonar la RAÍZ del proyecto. Nombre del template:', def);
+    if (name === null || !name.trim()) return;
+    pgToast('Clonando módulo…', 'info');
+    try {
+        const form = new FormData();
+        form.append('action', 'clonemodule');
+        form.append('project', project);
+        form.append('path', rel || '');
+        form.append('name', name.trim());
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'No se pudo clonar', 'error', 7000); return; }
+        const t = data.template, p = t.parts || {};
+        pgToast(`Template "${t.name}" creado: ${(t.files || []).length} archivo(s) · index ${p.index || 0} · ctrl ${p.ctrl || 0} · mdl ${p.mdl || 0} · src ${p.src || 0}`, 'success', 6000);
+        fgCloseBrowser();
+        fgOpenModTpls();
+    } catch (e) { pgToast('Error de red al clonar el módulo', 'error'); }
+}
+
+async function fgOpenModTpls() {
+    $('#fgModTplModal').removeClass('hidden').attr('aria-hidden', 'false');
+    $('#fgModTplList').html('<p class="pg-hint">Cargando templates…</p>');
+    if (window.lucide) lucide.createIcons();
+    try {
+        const res  = await fetch(`${FG_API}?action=modtemplates`, { cache: 'no-store' });
+        const data = await res.json();
+        pg._modTpls = data.templates || [];
+        fgRenderModTpls();
+    } catch (e) {
+        $('#fgModTplList').html('<p class="pg-hint">No se pudieron cargar los templates.</p>');
+    }
+}
+function fgCloseModTpls() {
+    $('#fgModTplModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+
+function fgRenderModTpls() {
+    const items = pg._modTpls || [];
+    const $list = $('#fgModTplList').empty();
+    $('#fgModTplSummary').text(items.length ? `${items.length} template(s)` : 'Sin templates');
+    if (!items.length) {
+        $list.html('<p class="pg-hint">Aún no hay templates de módulo. Abre el explorador (📂 <strong>Abrir módulo existente</strong>) y pulsa <strong>Template</strong> sobre la carpeta de un módulo.</p>');
+        return;
+    }
+    items.forEach(t => {
+        const p = t.parts || {};
+        const chips = ['index', 'ctrl', 'mdl', 'src', 'otros']
+            .filter(k => p[k])
+            .map(k => `<span class="fg-mt-chip is-${k}">${k} ${p[k]}</span>`).join('');
+        const src = t.source ? (t.source.project + (t.source.path ? '/' + t.source.path : '')) : '';
+        const $row = $(`
+            <div class="fg-mt-row" data-slug="${pgEscape(t.slug)}">
+                <div class="fg-mt-head">
+                    <i data-lucide="package" class="fg-mt-ic"></i>
+                    <div class="fg-mt-info">
+                        <div class="fg-mt-title"><span class="fg-mt-name">${pgEscape(t.name)}</span>${chips}</div>
+                        <span class="fg-mt-meta" title="Origen del clon">${pgEscape(src)} · ${(t.files || []).length} archivo(s) · ${fgFmtBytes(t.totalBytes)} · ${pgEscape(t.createdAt || '')}</span>
+                    </div>
+                    <div class="fg-mt-acts">
+                        <button class="fg-br-act fg-mt-use-btn" title="Aplicar este template a un proyecto (pasa por el preview)">Usar</button>
+                        <button class="fg-br-act fg-mt-exp-btn" title="Ver archivos por parte"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+                        <button class="fg-mt-del" title="Eliminar template"><i data-lucide="trash-2"></i></button>
+                    </div>
+                </div>
+                <div class="fg-mt-files hidden"></div>
+                <div class="fg-mt-use hidden">
+                    <select class="pg-select fg-mt-project" title="Proyecto destino"></select>
+                    <input class="fg-open-input fg-mt-dest" placeholder="Carpeta destino en el proyecto (ej. alpha/mi-modulo)" spellcheck="false" autocomplete="off">
+                    <button class="cs-btn cs-btn-primary cs-btn-sm fg-mt-preview">Previsualizar</button>
+                </div>
+            </div>`);
+
+        $row.find('.fg-mt-exp-btn').on('click', () => {
+            const $f = $row.find('.fg-mt-files');
+            if ($f.hasClass('hidden')) {
+                $f.html(fgModTplFilesHtml(t)).removeClass('hidden');
+                if (window.lucide) lucide.createIcons();
+            } else $f.addClass('hidden');
+        });
+
+        // "Usar": muestra los controles de destino. Sugerimos la ruta de origen;
+        // si el destino es el MISMO proyecto de origen, sufijamos -copia para no
+        // pisar el módulo original por accidente (editable: pisar deliberadamente
+        // sirve como "restaurar desde template" y el preview lo deja claro).
+        const suggest = (proj) => {
+            const sp = (t.source && t.source.path) || pgSlugify(t.name);
+            return (t.source && proj === t.source.project) ? sp + '-copia' : sp;
+        };
+        $row.find('.fg-mt-use-btn').on('click', () => {
+            const $u = $row.find('.fg-mt-use');
+            if (!$u.hasClass('hidden')) { $u.addClass('hidden'); return; }
+            const $sel = $u.find('.fg-mt-project').empty();
+            pg.projects.forEach(pr => $sel.append(`<option value="${pgEscape(pr.key)}">${pgEscape(pr.name)}</option>`));
+            if (pg.project) $sel.val(pg.project);
+            const $dest = $u.find('.fg-mt-dest');
+            $dest.val(suggest($sel.val())).data('auto', true);
+            $u.removeClass('hidden');
+            $dest.trigger('focus');
+        });
+        $row.find('.fg-mt-project').on('change', function () {
+            const $dest = $row.find('.fg-mt-dest');
+            if ($dest.data('auto')) $dest.val(suggest($(this).val()));
+        });
+        $row.find('.fg-mt-dest').on('input', function () { $(this).data('auto', false); })
+            .on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $row.find('.fg-mt-preview').trigger('click'); } });
+
+        $row.find('.fg-mt-preview').on('click', () => {
+            fgModTplPreview(t, $row.find('.fg-mt-project').val() || '', ($row.find('.fg-mt-dest').val() || '').trim());
+        });
+        $row.find('.fg-mt-del').on('click', function (e) { e.stopPropagation(); fgDeleteModTpl(t, $(this)); });
+        $list.append($row);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+// Archivos del template agrupados por parte (index → ctrl → mdl → src → otros).
+function fgModTplFilesHtml(t) {
+    const order = ['index', 'ctrl', 'mdl', 'src', 'otros'];
+    const groups = {};
+    (t.files || []).forEach(f => { (groups[f.part] = groups[f.part] || []).push(f); });
+    return order.filter(k => groups[k]).map(k => `
+        <div class="fg-mt-group">
+            <div class="fg-mt-group-head"><span class="fg-mt-chip is-${k}">${k}</span><span class="fg-mt-group-n">${groups[k].length} archivo(s)</span></div>
+            ${groups[k].map(f => `<div class="fg-mt-file"><i data-lucide="${fgFileIcon(f.rel)}"></i><span>${pgEscape(f.rel)}</span><span class="fg-mt-file-b">${fgFmtBytes(f.bytes)}</span></div>`).join('')}
+        </div>`).join('');
+}
+
+// Dry-run del template contra proyecto+carpeta destino → mismo modal de preview.
+async function fgModTplPreview(t, project, dest) {
+    if (!project) { pgToast('Elige un proyecto destino', 'warn'); return; }
+    try {
+        const form = new FormData();
+        form.append('action', 'applymodtemplate');
+        form.append('slug', t.slug);
+        form.append('project', project);
+        form.append('dest', dest);
+        form.append('dry', '1');
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'Error al previsualizar el template', 'error'); return; }
+        const indexRel = ((t.files || []).find(f => f.part === 'index') || {}).rel || '';
+        pg._previewApply = { slug: t.slug, name: t.name, project, dest, indexRel };
+        fgCloseModTpls();
+        fgOpenPreviewModal({ project: project + (dest ? '/' + dest : ''), files: data.files });
+    } catch (e) { pgToast('Error de red al previsualizar el template', 'error'); }
+}
+
+// Escribe el template al destino (tras confirmar el preview) y, si el módulo
+// tiene index, lo abre en el Live para comprobar que quedó funcional.
+async function fgApplyModTpl() {
+    const ap = pg._previewApply;
+    if (!ap) return;
+    const $btn = $('#fgPreviewConfirm').prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'applymodtemplate');
+        form.append('slug', ap.slug);
+        form.append('project', ap.project);
+        form.append('dest', ap.dest);
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            const where = ap.project + (ap.dest ? '/' + ap.dest : '');
+            pgToast(`Template "${ap.name}" aplicado: ${(data.written || []).length} archivo(s) en ${where}`, 'success', 6000);
+            fgClosePreviewModal();
+            if (ap.indexRel) fgOpenModuleInSandbox(ap.project, (ap.dest ? ap.dest + '/' : '') + ap.indexRel);
+        } else {
+            const errs = (data.errors || []).map(e => e.path + ': ' + e.reason).join('; ');
+            pgToast(errs ? 'No se escribieron: ' + errs : (data.message || 'Error al aplicar el template'), 'error', 8000);
+        }
+    } catch (e) { pgToast('Error de red al aplicar el template', 'error'); }
+    $btn.prop('disabled', false);
+}
+
+// Eliminar con confirmación en dos pasos (mismo patrón que los hilos guardados).
+async function fgDeleteModTpl(t, $btn) {
+    if (!t || !t.slug) return;
+    if (!$btn.hasClass('is-armed')) {
+        $btn.addClass('is-armed').attr('title', 'Pulsa otra vez para eliminar');
+        clearTimeout($btn.data('armTimer'));
+        $btn.data('armTimer', setTimeout(() => $btn.removeClass('is-armed').attr('title', 'Eliminar template'), 3000));
+        return;
+    }
+    clearTimeout($btn.data('armTimer'));
+    $btn.prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'deletemodtemplate');
+        form.append('slug', t.slug);
+        const res  = await fetch(FG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            pg._modTpls = (pg._modTpls || []).filter(x => x.slug !== t.slug);
+            fgRenderModTpls();
+            pgToast('Template "' + (t.name || t.slug) + '" eliminado', 'success');
+        } else {
+            pgToast(data.message || 'No se pudo eliminar', 'error');
+            $btn.prop('disabled', false).removeClass('is-armed');
+        }
+    } catch (e) {
+        pgToast('Error de red al eliminar el template', 'error');
+        $btn.prop('disabled', false).removeClass('is-armed');
+    }
+}
+
 /** Bindings de la capa fábrica. */
 function fgBind() {
     $('#fgProjectSelect').on('change', e => { pg.project = e.target.value || ''; pgSaveSettings(); });
     // Ambos botones pasan por el diff: nunca se escribe sin previsualizar.
     $('#fgPreviewBtn, #fgMaterializeBtn').on('click', () => fgPreview());
-    $('#fgPreviewConfirm').on('click', () => fgMaterialize());
+    // El confirm del preview escribe lo que se esté previsualizando: un template
+    // de módulo (pg._previewApply) o el módulo generado por el agente.
+    $('#fgPreviewConfirm').on('click', () => pg._previewApply ? fgApplyModTpl() : fgMaterialize());
     $('#fgPreviewClose, #fgPreviewCancel').on('click', () => fgClosePreviewModal());
     $('#fgPreviewModal .pg-modal-backdrop').on('click', () => fgClosePreviewModal());
+
+    // Templates de módulo (copias reales de módulos).
+    $('#fgModTplBtn').on('click', () => fgOpenModTpls());
+    $('#fgModTplClose, #fgModTplDone').on('click', () => fgCloseModTpls());
+    $('#fgModTplModal .pg-modal-backdrop').on('click', () => fgCloseModTpls());
+    $('#fgCloneHereBtn').on('click', () => fgCloneModule(pg._browseProject, pg._browsePath || ''));
 
     // Explorador "Abrir módulo existente".
     $('#fgOpenModuleBtn').on('click', () => fgOpenBrowser());
