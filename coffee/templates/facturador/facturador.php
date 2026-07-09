@@ -18,8 +18,10 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="../../../inventory/src/plugin/datatables/datatables.min.css">
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="../../../inventory/src/plugin/datatables/datatables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
