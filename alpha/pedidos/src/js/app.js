@@ -316,6 +316,18 @@ class App extends Templates {
         this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
     }
 
+    // Abrir o cerrar un turno invalida dos estados que viven en memoria: el de la
+    // pantalla principal (boton "Nuevo pedido", alertas, hora de apertura) y el
+    // indicador de turno del navbar, que solo se cargaba al abrir la pagina. En vez
+    // de suponer el nuevo estado en el cliente, se lo volvemos a preguntar al backend:
+    // checkAndUpdateDailyClosure ya consulta la sucursal que corresponde a cada rol.
+    async syncShiftState() {
+        await this.checkAndUpdateDailyClosure();
+        if (window.navbar && typeof navbar.refreshShiftStates === 'function') {
+            await navbar.refreshShiftStates();
+        }
+    }
+
     updateDailyClosureStatus() {
         const btn = $('#btnNuevoPedido');
 
@@ -3553,15 +3565,10 @@ class App extends Templates {
 
                 if (response.status === 200) {
                     alert({ icon: "success", title: "Turno abierto", text: response.message, timer: 2000 });
-                    // La pantalla principal (boton "Nuevo Pedido") refleja SOLO la sucursal de
-                    // sesion, porque los pedidos nuevos nacen ahi. Si el turno se abrio para otra
-                    // sucursal (cajero/vendedor eligiendo en el modal), no tocamos ese estado.
-                    if (subsidiaries_id == null || subsidiaries_id == udn) {
-                        openShift = { has_open_shift: true, shift_id: response.shift_id, shift_name: null, opened_at: new Date().toISOString() };
-                        this.updateDailyClosureStatus();
-                        this.actualizarFechaHora({ label: sub_name });
-                    }
                     await this.selectOpenShift(response.shift_id, moment().format('YYYY-MM-DD'));
+                    // Va al final: loadShifts() reescribe dailyClosure con la sucursal del
+                    // modal, y syncShiftState deja el estado real de la que se esta viendo.
+                    await this.syncShiftState();
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }
@@ -3600,18 +3607,9 @@ class App extends Templates {
 
                 if (response.status === 200) {
                     alert({ icon: "success", title: "Turno cerrado", text: response.message, timer: 2000 });
-                    this.loadShifts();
+                    await this.loadShifts();
                     this.ls();
-
-                    // Solo sincronizamos el estado de la pantalla principal si el turno cerrado
-                    // era de la sucursal de sesion (donde nacen los pedidos). Si era de otra
-                    // sucursal (cajero/vendedor operando por el modal), no lo tocamos.
-                    const modalSub = $('#subsidiariesDailyClose').val();
-                    if (!modalSub || modalSub == udn) {
-                        openShift = { has_open_shift: false };
-                        this.updateDailyClosureStatus();
-                        this.actualizarFechaHora({ label: sub_name });
-                    }
+                    await this.syncShiftState();
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }

@@ -1828,6 +1828,35 @@ class App {
 }
 
 
+// ── Iconos por TIPO DE DOCUMENTO ────────────────────────────────
+// Un .md puede ser un diagrama ER, un plan o unas notas: la extension no lo
+// dice, el nombre si. Cada entrada mapea palabras del nombre a un icono lucide
+// + una clase de color (ver .fmt-kind-* en visor.css). Gana la PRIMERA que
+// coincida, asi que las mas especificas van arriba. Para agregar un tipo:
+// una entrada aqui y una regla de color en el CSS.
+const DOC_KIND_EXTS = ['md', 'markdown', 'txt'];
+const DOC_KINDS = [
+    { icon: 'database',         cls: 'fmt-kind-db',    words: ['er', 'mer', 'bd', 'db', 'database', 'schema', 'esquema', 'modelo', 'ddl', 'entidad'] },
+    { icon: 'workflow',         cls: 'fmt-kind-flow',  words: ['diagrama', 'diagramas', 'diagram', 'flujo', 'flow', 'arquitectura'] },
+    { icon: 'sparkles',         cls: 'fmt-kind-feat',  words: ['feature', 'features', 'funcionalidad', 'funcionalidades'] },
+    { icon: 'list-todo',        cls: 'fmt-kind-plan',  words: ['plan', 'roadmap', 'tareas', 'todo', 'backlog', 'pendientes'] },
+    { icon: 'lightbulb',        cls: 'fmt-kind-idea',  words: ['propuesta', 'propuestas', 'idea', 'ideas', 'rfc'] },
+    { icon: 'sticky-note',      cls: 'fmt-kind-note',  words: ['nota', 'notas', 'note', 'notes', 'minuta'] },
+    { icon: 'layout-dashboard', cls: 'fmt-kind-dash',  words: ['dashboard', 'tablero', 'kpi', 'reporte', 'reportes'] },
+    { icon: 'history',          cls: 'fmt-kind-log',   words: ['changelog', 'historial', 'bitacora', 'cambios'] },
+    { icon: 'bug',              cls: 'fmt-kind-bug',   words: ['bug', 'bugs', 'issue', 'issues', 'errores'] },
+    { icon: 'book-open',        cls: 'fmt-kind-guide', words: ['readme', 'guia', 'guide', 'manual', 'doc', 'docs', 'documento', 'documentos', 'documentacion'] }
+];
+
+// Reconoce el tipo por el nombre sin extension. Compara TOKENS (separa por
+// guiones, puntos, espacios) para que 'features-inventory' y 'features' caigan
+// en el mismo tipo, pero 'planificador' no se confunda con 'plan'.
+function docKindOf(baseName) {
+    const norm   = String(baseName).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    return DOC_KINDS.find(k => tokens.some(t => k.words.includes(t))) || null;
+}
+
 class Visor {
 
     constructor(link, rootId) {
@@ -2031,6 +2060,13 @@ class Visor {
             || mime.includes('compressed')
             || mime.includes('x-rar')
             || mime.includes('x-7z'))              return { icon: 'file-archive',  cls: 'fmt-archive' };
+
+        // Por TIPO de documento (nombre): solo en notas de texto, donde la
+        // extension no distingue un ER de un plan. Cae al switch si no coincide.
+        if (DOC_KIND_EXTS.includes(ext)) {
+            const kind = docKindOf(parts.join('.'));   // `parts` ya viene sin la extension
+            if (kind) return { icon: kind.icon, cls: kind.cls };
+        }
 
         // Por extension
         switch (ext) {
@@ -2340,13 +2376,13 @@ class VisorView {
         const levelDir  = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
         const parentDir = crumb.length ? levelDir(crumb.slice(0, -1)) : '';   // '' en la raiz: no hay a donde subir
 
-        // Tarjetas del grid: carpeta (icono amarillo, drop target + renombrar al
-        // hover) y archivo (icono segun tipo, arrastrable por su fullPath).
+        // Tarjetas del grid: carpeta (icono amarillo, drop target, burbuja con el
+        // numero de archivos) y archivo (icono segun tipo, arrastrable por su fullPath).
         const folderCard = (fo, i) => `
             <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${levelDir(fo.nav)}" draggable="true" title="${fo.name}">
                 <i data-lucide="folder" class="docx-ic docx-ic-folder"></i>
-                <span class="docx-name">${fo.name}</span>
-                <button type="button" class="docx-folder-rename" title="Renombrar carpeta"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                <span class="docx-name" title="Doble clic para renombrar">${fo.name}</span>
+                <span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>
             </div>`;
         const fileCard = (item) => {
             const fmt = visor.fileFormat(item);
@@ -2374,13 +2410,6 @@ class VisorView {
             if (window.lucide) lucide.createIcons();
         };
 
-        // Entrar a una carpeta (proyecto o sub-carpeta); el botón renombrar no navega.
-        $('#sidebarList .docx-folder').off('click').on('click', function (e) {
-            if ($(e.target).closest('.docx-folder-rename').length) return;
-            const fo = folders[Number($(this).data('nav-idx'))];
-            if (fo) { setCrumb(fo.nav); reRender(); }
-        });
-
         // Navegar por el breadcrumb: recorta el crumb a N segmentos.
         $('#sidebarList .docx-crumb').off('click').on('click', function () {
             setCrumb(crumb.slice(0, Number($(this).data('crumb-to')) || 0));
@@ -2399,7 +2428,8 @@ class VisorView {
             reRender();
         });
 
-        // ── Renombrar carpeta inline (estilo Windows): el nombre se vuelve input. ──
+        // ── Renombrar carpeta inline (estilo Windows): doble clic al nombre y el
+        //    nombre se vuelve input. ──
         const startRenameFolder = ($folder) => {
             const fo = folders[Number($folder.data('nav-idx'))];
             if (!fo || $folder.find('.docx-rename-input').length) return;
@@ -2419,10 +2449,25 @@ class VisorView {
                   .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
                   .on('blur', () => finish(true));
         };
-        $('#sidebarList .docx-folder-rename').off('click').on('click', function (e) {
-            e.stopPropagation();
-            startRenameFolder($(this).closest('.docx-folder'));
-        });
+        // Entrar a una carpeta (proyecto o sub-carpeta). El clic que cae sobre el
+        // nombre se difiere: si llega un doble clic se cancela la navegacion y se
+        // abre el rename inline. Fuera del nombre la carpeta se abre al instante.
+        let folderNavTimer = null;
+        $('#sidebarList .docx-folder').off('click dblclick')
+            .on('click', function (e) {
+                if ($(this).find('.docx-rename-input').length) return;   // renombrando
+                const fo = folders[Number($(this).data('nav-idx'))];
+                if (!fo) return;
+                const enter = () => { setCrumb(fo.nav); reRender(); };
+                if (!$(e.target).closest('.docx-name').length) { enter(); return; }
+                clearTimeout(folderNavTimer);
+                folderNavTimer = setTimeout(enter, 260);
+            })
+            .on('dblclick', '.docx-name', function (e) {
+                e.stopPropagation();
+                clearTimeout(folderNavTimer);
+                startRenameFolder($(this).closest('.docx-folder'));
+            });
 
         // ── Crear carpeta nueva en el nivel actual (tarjeta temporal con input). ──
         const startCreateFolder = () => {
@@ -2463,8 +2508,8 @@ class VisorView {
                 $(this).addClass('docx-dragging');
             })
             .on('dragstart.docx', '.docx-folder', function (e) {
-                // No arrastrar desde el botón renombrar ni durante la edición inline.
-                if ($(e.target).closest('.docx-folder-rename').length || $(this).find('.docx-rename-input').length) { e.preventDefault(); return; }
+                // No arrastrar durante la edición inline del nombre.
+                if ($(this).find('.docx-rename-input').length) { e.preventDefault(); return; }
                 const p = $(this).attr('data-destdir') || '';   // el path de la carpeta = su propio nivel
                 if (!p) { e.preventDefault(); return; }
                 e.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({ k: 'folder', p }));

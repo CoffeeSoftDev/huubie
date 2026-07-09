@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Facturador · CoffeeSoft</title>
+<title>Facturador · Soft</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-  tailwind.config = { theme: { extend: { colors: {
+  // darkMode 'class': el modulo es light. Sin esto el Play CDN usa 'media' y las
+  // variantes dark: de coffeeSoft (dark:bg-gray-700) se activan con el tema del SO.
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: {
     terra: { DEFAULT:'#C05A40', hover:'#A84A33', dark:'#8F3D2A', tint:'#F7F0EB', salmon:'#E8A68F' },
     navy:  { DEFAULT:'#141d2b', hover:'#1e293b', light:'#334155' }
   }}}};
@@ -16,12 +18,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+<link rel="stylesheet" href="src/plugin/fontello/css/fontello.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-<link rel="stylesheet" href="../../../inventory/src/plugin/datatables/datatables.min.css">
+<link rel="stylesheet" href="src/plugin/datatables/datatables.min.css">
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="../../../inventory/src/plugin/datatables/datatables.min.js"></script>
+<script src="src/plugin/datatables/datatables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -74,8 +77,6 @@
   .ct-add:hover{background:#A84A33}
 
   .cell-null{display:inline-block;padding:0 6px;border-radius:4px;background:#F3F4F6;color:#9CA3AF;font-size:9px;font-weight:700;letter-spacing:.04em}
-
-  #fDia{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C05A40' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:32px !important;cursor:pointer}
 </style>
 </head>
 
@@ -107,12 +108,15 @@
   <div id="root"></div>
 </main>
 
-<script src="../../../inventory/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
-<script src="../../../inventory/src/js/plugins.js?t=<?php echo time(); ?>"></script>
-<script src="../../../inventory/src/js/complementos.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/core/coffeeSoft.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/core/plugins.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/core/complementos.js?t=<?php echo time(); ?>"></script>
 
 <script src="src/js/sample_facturador.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/facturador-config.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/app.js?t=<?php echo time(); ?>"></script>
 <script src="src/js/facturador.js?t=<?php echo time(); ?>"></script>
+<script src="src/js/facturador-view.js?t=<?php echo time(); ?>"></script>
 
 <script>
   if (window.lucide) lucide.createIcons();

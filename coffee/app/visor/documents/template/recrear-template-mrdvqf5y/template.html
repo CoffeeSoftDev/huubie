@@ -1,0 +1,20 @@
+Voy a recrear el template del módulo **Pedidos** basándome en el HTML adjunto. Primero necesito consultar la documentación clave de CoffeeSoft.
+
+Voy a leer en paralelo las secciones relevantes del framework: la clase Templates (métodos del frontend), la estructura del modelo y las convenciones de controlador. Denme un momento... pero antes, una pregunta rápida para confirmar el alcance:
+
+**Para recrear el template necesito confirmar el alcance.** Lo que veo en el HTML:
+
+1. `index.php` — estructura base con navbar, sidebar y `<div id="root">`
+2. `js/pedidos.js` (app) — clase que extiende `Templates` con:
+   - `singleLayout` con `filterBar` (calendario + estados + botones Nuevo/Cierre/Calendario)
+   - `containerHours` (info de sucursal + fecha actual)
+   - `shiftAlert` (alerta de turno)
+   - Tabla `tbPedidos` con 12 columnas (folio, Creación, Cliente, Abono, Total, Saldo, Fecha/Hora entrega, Estado, Entregado, Tipo, acciones)
+   - Dropdown de acciones por fila (Ver, Editar, Pagar, Imprimir, Aplicar/Eliminar descuento)
+3. `js/pedidos-cierre.js` (cierre) — el modal "Cierre del Día" con sidebar (sucursal, fecha, turno, botones) + preview ticket/reporte (Corte Z)
+4. `ctrl/ctrl-pedidos.php` — controlador con init, ls, y métodos de negocio (showOrder, editOrder, historyPay, printOrder, addDiscount, deleteDiscount, handleDeliveryClick, dailyClose, etc.)
+5. `mdl/mdl-pedidos.php` — modelo con queries (listPedidos, getPedidosCounts, etc.)
+
+**Pregunta:** ¿Quieres que genere **todos** los archivos (index + js app + js cierre + ctrl + mdl) replicando el HTML tal cual, o solo alguno en específico?
+
+Si confirmas "todos", procedo directamente. Si quieres algo puntual (por ejemplo, solo el `app.js` o solo el cierre), dímelo y lo aterrizo.

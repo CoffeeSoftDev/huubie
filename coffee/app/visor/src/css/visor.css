@@ -759,6 +759,31 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 .sidebar-item .file-icon.fmt-backup  { color: var(--vsr-text-mute2); }
 .sidebar-item .file-icon.fmt-generic { color: var(--vsr-text-mute2); }
 .sidebar-item .file-icon.fmt-folder  { color: #FACC15; }              /* yellow  */
+
+/* ── Iconos por tipo de documento (ER, features, plan, ...) ────
+   El tipo sale del nombre del archivo: ver DOC_KINDS en visor.js.
+   Se colorean en el arbol (.file-icon) y en el explorador (.docx-ic-file). */
+.sidebar-item .file-icon.fmt-kind-db,
+.docx-ic-file.fmt-kind-db            { color: #14B8A6; }              /* teal    */
+.sidebar-item .file-icon.fmt-kind-flow,
+.docx-ic-file.fmt-kind-flow          { color: #8B5CF6; }              /* violet  */
+.sidebar-item .file-icon.fmt-kind-feat,
+.docx-ic-file.fmt-kind-feat          { color: #F59E0B; }              /* amber   */
+.sidebar-item .file-icon.fmt-kind-plan,
+.docx-ic-file.fmt-kind-plan          { color: #22C55E; }              /* green   */
+.sidebar-item .file-icon.fmt-kind-idea,
+.docx-ic-file.fmt-kind-idea          { color: #FACC15; }              /* yellow  */
+.sidebar-item .file-icon.fmt-kind-note,
+.docx-ic-file.fmt-kind-note          { color: #E8A68F; }              /* salmon  */
+.sidebar-item .file-icon.fmt-kind-dash,
+.docx-ic-file.fmt-kind-dash          { color: #06B6D4; }              /* cyan    */
+.sidebar-item .file-icon.fmt-kind-log,
+.docx-ic-file.fmt-kind-log           { color: #A1A1AA; }              /* zinc    */
+.sidebar-item .file-icon.fmt-kind-bug,
+.docx-ic-file.fmt-kind-bug           { color: #EF4444; }              /* red     */
+.sidebar-item .file-icon.fmt-kind-guide,
+.docx-ic-file.fmt-kind-guide         { color: #3B82F6; }              /* blue    */
+
 .sidebar-item.is-folder .file-name   { font-weight: 600; }
 .sidebar-item.is-folder.up-link      { opacity: .75; font-style: italic; }
 .sidebar-item.is-folder.up-link .file-icon { color: var(--vsr-text-mute2); }
@@ -2686,20 +2711,6 @@ select.new-file-input {
     background: var(--vsr-accent-tint);
 }
 
-/* Botón renombrar carpeta: aparece al hover en la esquina (no choca con el badge). */
-#sidebarList.is-doc-explorer .docx-folder-rename {
-    position: absolute; top: 5px; left: 5px;
-    width: 20px; height: 20px; padding: 0;
-    display: grid; place-items: center;
-    border: none; border-radius: 5px; cursor: pointer;
-    background: var(--vsr-bg-card); color: var(--vsr-text-muted);
-    opacity: 0; transition: opacity .12s;
-}
-#sidebarList.is-doc-explorer .docx-folder:hover .docx-folder-rename { opacity: .9; }
-#sidebarList.is-doc-explorer .docx-folder-rename:hover { color: var(--vsr-accent); }
-/* En vista lista el botón va al final de la fila. */
-.docx-items.is-list .docx-folder-rename { position: static; top: auto; left: auto; }
-
 /* Input inline para crear / renombrar carpetas. */
 .docx-rename-input {
     width: 100%; box-sizing: border-box;
@@ -2715,7 +2726,14 @@ select.new-file-input {
     display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .docx-file .docx-name { color: var(--vsr-text-mid); font-weight: 500; }
+/* El nombre de la carpeta se edita con doble clic: se marca al hover y no se
+   selecciona el texto (el doble clic abre el input, no una selección). */
+#sidebarList.is-doc-explorer .docx-folder .docx-name { user-select: none; }
+#sidebarList.is-doc-explorer .docx-folder .docx-name:hover {
+    color: var(--vsr-text); text-decoration: underline dotted; text-underline-offset: 2px;
+}
 .docx-size { font-size: 10px; color: var(--vsr-text-mute2); }
+/* Burbuja con el numero de archivos de la carpeta. */
 .docx-badge {
     position: absolute; top: 7px; right: 9px;
     min-width: 16px; padding: 0 5px; border-radius: 999px;
