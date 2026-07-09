@@ -958,7 +958,7 @@ class Cierre {
                 ${resumenSectionHtml}
 
                 <div class="pdf-footer">
-                    <span>&mdash; Fin del reporte &middot; CoffeeSoft &mdash;</span>
+                    <span>&mdash; Fin del reporte &middot; Huubie &mdash;</span>
                     <span>Generado: ${moment().format('DD/MM/YYYY hh:mm A')}</span>
                 </div>
             </div>

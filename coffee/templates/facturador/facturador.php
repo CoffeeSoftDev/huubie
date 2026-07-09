@@ -52,6 +52,28 @@
   .daterangepicker td.available:hover,.daterangepicker th.available:hover{background:#F5E3DC}
   .daterangepicker .ranges li.active{background:#C05A40}
   .daterangepicker .drp-buttons .btn.btn-primary,.daterangepicker .applyBtn{background:#C05A40;border-color:#C05A40}
+  .daterangepicker .drp-calendar{max-width:228px;padding:6px}
+  .daterangepicker .calendar-table th,.daterangepicker .calendar-table td{width:24px;min-width:24px;height:22px;line-height:22px;font-size:10.5px;padding:0}
+  .daterangepicker th.month{font-size:11px;font-weight:700}
+
+  .badge-base{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:9999px;font-size:10px;font-weight:700;border:1px solid;white-space:nowrap}
+  .b-terra{background:#F7F0EB;color:#A84A33;border-color:#F0C4B5}
+  .b-green{background:#ECFDF5;color:#15803D;border-color:#A7F3D0}
+  .b-red{background:#FEF2F2;color:#B91C1C;border-color:#FECACA}
+  .b-yellow{background:#FEF9C3;color:#A16207;border-color:#FDE68A}
+  .b-gray{background:#F3F4F6;color:#6B7280;border-color:#E5E7EB}
+
+  .ct-print{background:none;border:none;color:#9CA3AF;cursor:pointer;padding:2px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px}
+  .ct-print:hover{color:#C05A40;background:#F7F0EB}
+  .ct-mini{background:none;border:1px solid #E5E7EB;color:#6B7280;cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px}
+  .ct-mini:hover{color:#C05A40;border-color:#F0C4B5;background:#FBF1ED}
+  .ct-mini.danger:hover{color:#B91C1C;border-color:#FECACA;background:#FEF2F2}
+  .ct-add{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#fff;background:#C05A40;padding:6px 12px;border-radius:8px;border:none;cursor:pointer}
+  .ct-add:hover{background:#A84A33}
+
+  .cell-null{display:inline-block;padding:0 6px;border-radius:4px;background:#F3F4F6;color:#9CA3AF;font-size:9px;font-weight:700;letter-spacing:.04em}
+
+  #fDia{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C05A40' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;padding-left:32px !important;cursor:pointer}
 </style>
 </head>
 
@@ -71,12 +93,12 @@
 </nav>
 
 <aside id="menu-sidebar">
-  <button class="menu-rail-item is-active" title="Generador de folios"><i data-lucide="printer"></i><span class="menu-rail-label">Folios</span></button>
-  <button class="menu-rail-item" title="Resumen"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Resumen</span></button>
-  <button class="menu-rail-item" title="Venta por pago"><i data-lucide="credit-card"></i><span class="menu-rail-label">Ventas</span></button>
-  <button class="menu-rail-item" title="Detallado"><i data-lucide="list"></i><span class="menu-rail-label">Detallado</span></button>
-  <button class="menu-rail-item" title="Facturados"><i data-lucide="file-check-2"></i><span class="menu-rail-label">Facturas</span></button>
-  <button class="menu-rail-item" title="Catalogos"><i data-lucide="book-open"></i><span class="menu-rail-label">Catalogo</span></button>
+  <button class="menu-rail-item is-active" data-tab="folios" title="Generador de folios"><i data-lucide="printer"></i><span class="menu-rail-label">Folios</span></button>
+  <button class="menu-rail-item" data-tab="resumen" title="Resumen"><i data-lucide="layout-dashboard"></i><span class="menu-rail-label">Resumen</span></button>
+  <button class="menu-rail-item" data-tab="ventas" title="Venta por pago"><i data-lucide="credit-card"></i><span class="menu-rail-label">Ventas</span></button>
+  <button class="menu-rail-item" data-tab="detallado" title="Detallado"><i data-lucide="list"></i><span class="menu-rail-label">Detallado</span></button>
+  <button class="menu-rail-item" data-tab="facturas" title="Facturados"><i data-lucide="file-check-2"></i><span class="menu-rail-label">Facturas</span></button>
+  <button class="menu-rail-item" data-tab="catalogos" title="Catalogos"><i data-lucide="book-open"></i><span class="menu-rail-label">Catalogo</span></button>
 </aside>
 
 <main id="main__content">
