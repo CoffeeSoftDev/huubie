@@ -380,12 +380,13 @@ class MCierre extends CRUD {
             SELECT
                 COUNT(*) AS total_cuentas,
                 SUM(CASE WHEN o.status = 4 THEN 1 ELSE 0 END) AS canceladas,
-                SUM(CASE WHEN o.discount > 0 AND o.status != 4 THEN 1 ELSE 0 END) AS con_descuento,
-                COALESCE(SUM(CASE WHEN o.status != 4 THEN o.total_pay ELSE 0 END), 0) AS total_ventas,
-                COALESCE(AVG(CASE WHEN o.status != 4 THEN o.total_pay ELSE NULL END), 0) AS cuenta_promedio,
+                -- Ventas reales = pendientes + pagados (status 2,3). Se excluyen cotizaciones (1) y cancelados (4).
+                SUM(CASE WHEN o.discount > 0 AND o.status IN (2,3) THEN 1 ELSE 0 END) AS con_descuento,
+                COALESCE(SUM(CASE WHEN o.status IN (2,3) THEN o.total_pay ELSE 0 END), 0) AS total_ventas,
+                COALESCE(AVG(CASE WHEN o.status IN (2,3) THEN o.total_pay ELSE NULL END), 0) AS cuenta_promedio,
                 MIN(o.id) AS folio_inicial,
                 MAX(o.id) AS folio_final,
-                COALESCE(SUM(CASE WHEN o.status != 4 THEN o.discount ELSE 0 END), 0) AS total_descuentos
+                COALESCE(SUM(CASE WHEN o.status IN (2,3) THEN o.discount ELSE 0 END), 0) AS total_descuentos
             FROM {$this->bd}`order` o
             WHERE DATE(o.date_creation) = ?
             AND o.subsidiaries_id = ?

@@ -858,7 +858,7 @@ class Cierre {
         const pay = res.payments || {};
         const mCash = pay.cash || {}, mCard = pay.card || {}, mTransfer = pay.transfer || {};
         const cobrado    = parseFloat(mCash.amount || 0) + parseFloat(mCard.amount || 0) + parseFloat(mTransfer.amount || 0);
-        const ventaBruta = parseFloat(ventas.venta_bruta || 0);
+        // "Venta Bruta" del resumen muestra la venta NETA (con descuento), por decisión del negocio.
         const ventaNeta  = parseFloat(ventas.venta_neta || 0);
         const pendiente  = ventasTotales.quedo;
         // Abonos anteriores = lo cobrado hoy de pedidos de días previos (grupo del Desglose de Pedidos).
@@ -875,11 +875,10 @@ class Cierre {
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">Totales</div>
                 <div class="pdf-section-body">
-                    ${kv('Venta Bruta', money(ventaBruta))}
+                    ${kv('Venta Bruta', money(ventaNeta), { highlight: true })}
                     ${kv('Cobrado', money(cobrado))}
                     ${kv('Abonos ant.', money(cruzadosMonto))}
                     ${kv('Pendiente', money(pendiente))}
-                    ${kv('NETA', money(ventaNeta), { total: true, highlight: true })}
                 </div>
             </div>
         `;
