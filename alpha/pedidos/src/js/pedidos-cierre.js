@@ -114,7 +114,7 @@ class Cierre {
                 </p>
             </div>
 
-            <div class="bg-[#1a2332] border border-gray-600/60 rounded-lg px-3.5 py-3 flex items-center justify-between">
+            <div class="bg-[#1a2332] rounded-lg px-3.5 py-3 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                     <span class="text-[13px] text-gray-200">${shifts} ${plural} &middot; ${orders} tickets</span>
@@ -136,6 +136,7 @@ class Cierre {
             reverseButtons: true,
             confirmText: `<span class="inline-flex items-center justify-center gap-1.5">${lucideIcon('check', 'w-4 h-4')} Sí, cerrar el día</span>`,
             confirmBg: 'bg-blue-600 hover:bg-blue-700',
+            cancelBg: 'bg-[#2a3441] hover:bg-[#333f4f] text-gray-200',
             cancelText: 'No, seguir operando',
             footerNote: 'El sistema se cerrará al confirmar el cierre',
             json: [{ opc: 'html', html: html }],

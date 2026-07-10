@@ -51,6 +51,7 @@
             confirmText: 'Confirmar',
             cancelText: 'Cancelar',
             confirmBg: 'bg-green-600 hover:bg-green-700',
+            cancelBg: '',           // clases del boton cancelar; vacio = estilo por defecto (borde)
             hideHeader: false,      // oculta el header (icono lateral + titulo + X): modo dialogo centrado
             reverseButtons: false,  // confirmar a la izquierda, cancelar a la derecha
             footerNote: '',         // texto pequeno centrado debajo de los botones
@@ -120,7 +121,7 @@
                         <button type="button" class="cf-close ${closeCls} flex items-center justify-center p-1 -mr-1">${closeHtml}</button>
                     </div>`;
 
-        const cancelBtn  = `<button type="button" class="cf-cancel flex-1 py-2.5 rounded-lg text-sm font-semibold ${cancelCls}">${o.cancelText}</button>`;
+        const cancelBtn  = `<button type="button" class="cf-cancel flex-1 py-2.5 rounded-lg text-sm font-semibold ${o.cancelBg || cancelCls}">${o.cancelText}</button>`;
         const confirmBtn = `<button type="button" class="cf-confirm flex-1 py-2.5 rounded-lg text-sm font-semibold ${o.confirmBg} text-white">${o.confirmText}</button>`;
         const buttonsHtml = o.reverseButtons ? confirmBtn + cancelBtn : cancelBtn + confirmBtn;
 
