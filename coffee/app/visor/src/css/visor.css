@@ -2711,6 +2711,44 @@ select.new-file-input {
     background: var(--vsr-accent-tint);
 }
 
+/* ── Menú de clic derecho: elegir el icono de un archivo ──────── */
+.docx-icmenu {
+    position: fixed; z-index: 9999;
+    width: 232px; padding: 8px;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border-soft); border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .38);
+}
+.docx-icmenu-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--vsr-text-mute2); padding: 2px 4px 8px;
+}
+.docx-icmenu-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.docx-icmenu-btn {
+    display: grid; place-items: center;
+    height: 38px; padding: 0; cursor: pointer;
+    background: transparent; border: 1px solid transparent; border-radius: 7px;
+    transition: background .12s, border-color .12s;
+}
+.docx-icmenu-btn svg { width: 19px; height: 19px; stroke-width: 1.6; }
+.docx-icmenu-btn:hover { background: var(--vsr-bg-hover); }
+.docx-icmenu-btn.is-active {
+    background: var(--vsr-accent-tint); border-color: var(--vsr-accent);
+}
+/* "Automático": borra el override y devuelve el icono deducido del nombre. */
+.docx-icmenu-auto {
+    display: flex; align-items: center; gap: 7px;
+    width: 100%; margin-top: 8px; padding: 7px 8px;
+    font-size: 11.5px; text-align: left; cursor: pointer;
+    color: var(--vsr-text-soft);
+    background: transparent; border: 1px solid var(--vsr-border-soft); border-radius: 7px;
+    transition: background .12s, color .12s;
+}
+.docx-icmenu-auto:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.docx-icmenu-auto.is-active {
+    color: var(--vsr-accent); border-color: var(--vsr-accent); background: var(--vsr-accent-tint);
+}
+
 /* Input inline para crear / renombrar carpetas. */
 .docx-rename-input {
     width: 100%; box-sizing: border-box;

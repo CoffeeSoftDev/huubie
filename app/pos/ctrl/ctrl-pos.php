@@ -3,7 +3,8 @@ session_start();
 if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-pos.php';
-date_default_timezone_set('America/Mexico_City');
+// UTC-6 fijo (Etc/GMT+6 invierte el signo). Ver app/conf/_Utileria.php.
+date_default_timezone_set('Etc/GMT+6');
 
 class ctrl extends mdl {
 
