@@ -310,7 +310,7 @@ class Navbar {
                         Cerrar
                     </button>
                 </div>
-                <div class="p-2 space-y-1.5 max-h-[360px] overflow-y-auto">
+                <div id="branchCardList" class="p-2 space-y-1.5 max-h-[360px] overflow-y-auto">
                     ${this.allBranchesCardHtml()}
                     ${branches.map((branch, i) => this.branchCardHtml(branch, i, currentSubId)).join('')}
                 </div>
@@ -412,6 +412,39 @@ class Navbar {
         const state  = branch ? (branch.shift_state || 'none') : 'none';
         this.settings.subsidiaryShift = state;
         $('#btnBranch .branch-status-dot').attr('class', `branch-status-dot ${this.pillDotClass(state)}`);
+    }
+
+    // Los shift_state se piden una sola vez al cargar la pagina. Abrir o cerrar un
+    // turno los invalida, asi que el modulo llama aqui para volver a pedirlos y
+    // repintar el pill y las tarjetas sin recargar. El click de .branch-card esta
+    // delegado en document, por eso reemplazar el HTML de la lista no lo rompe.
+    async refreshShiftStates() {
+        const info = await useFetch({
+            url: "../access/ctrl/ctrl-access.php",
+            data: { opc: 'branches' }
+        });
+        if (!info) return;
+
+        const states = new Map((info.branches || []).map(b => [String(b.id), b.shift_state || 'none']));
+        (this.settings.branches || []).forEach(b => {
+            b.shift_state = states.get(String(b.id)) || 'none';
+        });
+
+        // Roles sin filtro (3/4): no hay dropdown, solo el pill fijo de la sucursal
+        // de sesion, cuyo estado lo manda el backend en `current`.
+        if (!this.canUseBranchFilter() || (this.settings.branches || []).length == 0) {
+            this.settings.subsidiaryShift = info.current?.shift_state || 'none';
+            $('.branch-pill > .branch-status-dot')
+                .attr('class', `branch-status-dot ${this.pillDotClass(this.settings.subsidiaryShift)}`);
+            return;
+        }
+
+        const currentSubId = this.settings.subsidiaryId;
+        $('#branchCardList').html(
+            this.allBranchesCardHtml() +
+            this.settings.branches.map((b, i) => this.branchCardHtml(b, i, currentSubId)).join('')
+        );
+        this.updatePillShiftDot(currentSubId);
     }
 
     branchToastHtml() {

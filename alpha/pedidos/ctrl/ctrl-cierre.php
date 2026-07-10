@@ -225,6 +225,7 @@ class Cierre extends MCierre {
         $cashShifts = $this->getCashShiftsSummary([$date, $subsidiaries_id]);
         $livePays   = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
         $prevRaw    = $this->getDailyPrevPayments([$date . ' 23:59:59', $date, $date, $subsidiaries_id]);
+        $prevByTx   = $this->getDailyPrevPaymentsByMethod([$date, $date, $subsidiaries_id]);
         $crossRaw   = $this->getDailyCrossPayments([$date, $subsidiaries_id, $subsidiaries_id]);
 
         $sub = $this->getSubsidiaryName([$subsidiaries_id]);
@@ -252,6 +253,19 @@ class Cierre extends MCierre {
                 case 1: $countCash     = intval($tx['transactions']); break;
                 case 2: $countCard     = intval($tx['transactions']); break;
                 case 3: $countTransfer = intval($tx['transactions']); break;
+            }
+        }
+
+        // Abonos de dias anteriores cobrados hoy, repartidos en su metodo de pago:
+        // el desglose de Metodos de Pago suma el dinero que entro a esta caja, venga
+        // de un pedido del dia o de uno anterior.
+        $prevCash = 0; $prevCard = 0; $prevTransfer = 0;
+        $prevCountCash = 0; $prevCountCard = 0; $prevCountTransfer = 0;
+        foreach ($prevByTx as $tx) {
+            switch (intval($tx['method_pay_id'])) {
+                case 1: $prevCash     = floatval($tx['total_paid']); $prevCountCash     = intval($tx['transactions']); break;
+                case 2: $prevCard     = floatval($tx['total_paid']); $prevCountCard     = intval($tx['transactions']); break;
+                case 3: $prevTransfer = floatval($tx['total_paid']); $prevCountTransfer = intval($tx['transactions']); break;
             }
         }
 
@@ -349,10 +363,11 @@ class Cierre extends MCierre {
                 'delivered'  => $delivered_count,
                 'cancelled'  => $cancelled_count
             ],
+            // amount/count = pedidos creados hoy; prev_* = abonos cobrados hoy de pedidos anteriores.
             'payments'          => [
-                'cash'     => ['amount' => floatval($closure['total_cash']),     'count' => $countCash],
-                'card'     => ['amount' => floatval($closure['total_card']),     'count' => $countCard],
-                'transfer' => ['amount' => floatval($closure['total_transfer']), 'count' => $countTransfer]
+                'cash'     => ['amount' => floatval($closure['total_cash']),     'count' => $countCash,     'prev_amount' => $prevCash,     'prev_count' => $prevCountCash],
+                'card'     => ['amount' => floatval($closure['total_card']),     'count' => $countCard,     'prev_amount' => $prevCard,     'prev_count' => $prevCountCard],
+                'transfer' => ['amount' => floatval($closure['total_transfer']), 'count' => $countTransfer, 'prev_amount' => $prevTransfer, 'prev_count' => $prevCountTransfer]
             ],
             'orders'            => $orders,
             'prev_payments'     => $prevPayments,
@@ -381,7 +396,9 @@ class Cierre extends MCierre {
                     'subtotal'    => floatval($summary['total_ventas']),
                     'descuentos'  => floatval($summary['total_descuentos']),
                     'venta_neta'  => floatval($summary['total_ventas']) - floatval($summary['total_descuentos']),
-                    'venta_bruta' => floatval($summary['total_ventas'])
+                    // Venta bruta con el descuento ya aplicado: cuadra con el subtotal del
+                    // desglose de pedidos, que tambien suma el neto (total - discount).
+                    'venta_bruta' => floatval($summary['total_ventas']) - floatval($summary['total_descuentos'])
                 ],
                 'categorias' => $categoriesList,
                 'shifts'     => $cashShifts

@@ -279,7 +279,12 @@ class App {
         this.applySidebarWidth(this.settings.sidebarWidth);
         this.applyUser(this.currentUser);
 
-        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        // En paralelo con la biblioteca: ninguno depende del otro y el primer
+        // render necesita los dos (fileFormat consulta los overrides).
+        const [data] = await Promise.all([
+            visor.fetchLibrary(this.settings.folder, this.settings.customPath),
+            visor.loadIconOverrides()
+        ]);
         if (data) {
             if (data.documents && typeof data.documents === 'object') {
                 let allFiles = [];
@@ -1661,6 +1666,30 @@ class App {
         }
     }
 
+    // Fija el icono de un archivo (clic derecho en el explorador). key vacia =
+    // volver al icono automatico. El backend responde con el mapa ya actualizado,
+    // asi que no hace falta recargar la biblioteca: basta repintar el sidebar.
+    async setFileIcon(relPath, key) {
+        if (!relPath) return;
+        try {
+            const form = new FormData();
+            form.append('action', 'seticon');
+            form.append('path',   relPath);
+            form.append('icon',   key || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo guardar el icono', 'error'); return; }
+
+            visor.iconOverrides = data.icons || {};
+            visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
+            this.bindSidebarClicks();
+            if (window.lucide) lucide.createIcons();
+            visorView.toast(data.message, 'success');
+        } catch (e) {
+            visorView.toast('Error de red al guardar el icono', 'error');
+        }
+    }
+
     // Cierra el lienzo y muestra el .drawio activo como fuente (XML), sin reabrir.
     exitDiagram() {
         if (drawioBoard) drawioBoard.close();
@@ -1828,11 +1857,60 @@ class App {
 }
 
 
+// ── Iconos por TIPO DE DOCUMENTO ────────────────────────────────
+// Un .md puede ser un diagrama ER, un plan o unas notas: la extension no lo
+// dice, el nombre si. Cada entrada mapea palabras del nombre a un icono lucide
+// + una clase de color (ver .fmt-kind-* en visor.css). Gana la PRIMERA que
+// coincida, asi que las mas especificas van arriba.
+//
+// Esta misma lista alimenta el menu de clic derecho del explorador, donde el
+// usuario fuerza el icono de un archivo concreto. Para agregar un tipo hacen
+// falta tres cosas: una entrada aqui, una regla .fmt-kind-* en visor.css y su
+// `key` en coffee_visor_icon_keys() (ctrl-visor.php), que es la lista blanca
+// del backend.
+const DOC_KIND_EXTS = ['md', 'markdown', 'txt'];
+const DOC_KINDS = [
+    { key: 'db',    label: 'Base de datos / ER', icon: 'database',         cls: 'fmt-kind-db',    words: ['er', 'mer', 'bd', 'db', 'database', 'schema', 'esquema', 'modelo', 'ddl', 'entidad'] },
+    { key: 'flow',  label: 'Diagrama / flujo',   icon: 'workflow',         cls: 'fmt-kind-flow',  words: ['diagrama', 'diagramas', 'diagram', 'flujo', 'flow', 'arquitectura'] },
+    { key: 'feat',  label: 'Features',           icon: 'sparkles',         cls: 'fmt-kind-feat',  words: ['feature', 'features', 'funcionalidad', 'funcionalidades'] },
+    { key: 'plan',  label: 'Plan / tareas',      icon: 'list-todo',        cls: 'fmt-kind-plan',  words: ['plan', 'roadmap', 'tareas', 'todo', 'backlog', 'pendientes'] },
+    { key: 'idea',  label: 'Propuesta / idea',   icon: 'lightbulb',        cls: 'fmt-kind-idea',  words: ['propuesta', 'propuestas', 'idea', 'ideas', 'rfc'] },
+    { key: 'note',  label: 'Notas',              icon: 'sticky-note',      cls: 'fmt-kind-note',  words: ['nota', 'notas', 'note', 'notes', 'minuta'] },
+    { key: 'dash',  label: 'Dashboard',          icon: 'layout-dashboard', cls: 'fmt-kind-dash',  words: ['dashboard', 'tablero', 'kpi', 'reporte', 'reportes'] },
+    { key: 'log',   label: 'Historial',          icon: 'history',          cls: 'fmt-kind-log',   words: ['changelog', 'historial', 'bitacora', 'cambios'] },
+    { key: 'bug',   label: 'Bugs / incidencias', icon: 'bug',              cls: 'fmt-kind-bug',   words: ['bug', 'bugs', 'issue', 'issues', 'errores'] },
+    { key: 'guide', label: 'Guía / documento',   icon: 'book-open',        cls: 'fmt-kind-guide', words: ['readme', 'guia', 'guide', 'manual', 'doc', 'docs', 'documento', 'documentos', 'documentacion'] }
+];
+const DOC_KIND_BY_KEY = Object.fromEntries(DOC_KINDS.map(k => [k.key, k]));
+
+// Reconoce el tipo por el nombre sin extension. Compara TOKENS (separa por
+// guiones, puntos, espacios) para que 'features-inventory' y 'features' caigan
+// en el mismo tipo, pero 'planificador' no se confunda con 'plan'.
+function docKindOf(baseName) {
+    const norm   = String(baseName).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    return DOC_KINDS.find(k => tokens.some(t => k.words.includes(t))) || null;
+}
+
 class Visor {
 
     constructor(link, rootId) {
         this._link  = link;
         this.rootId = rootId;
+        this.iconOverrides = {};   // { relPath: iconKey } — iconos forzados a mano
+    }
+
+    // Iconos elegidos con clic derecho. Viven en el servidor (data/icons.json),
+    // asi que son los mismos para todos. Se cargan una vez al arrancar; despues
+    // App.setFileIcon() mantiene el mapa al dia sin volver a pedirlo.
+    async loadIconOverrides() {
+        try {
+            const res  = await fetch(`${this._link}?action=listicons`, { cache: 'no-store' });
+            const data = await res.json();
+            this.iconOverrides = (data && data.icons) || {};
+        } catch (e) {
+            this.iconOverrides = {};   // sin overrides se cae al icono automatico
+        }
     }
 
     async fetchLibrary(folderKey, customPath) {
@@ -2009,6 +2087,10 @@ class Visor {
     }
 
     fileFormat(file) {
+        // Icono forzado a mano (clic derecho): gana sobre el nombre y la extension.
+        const forced = DOC_KIND_BY_KEY[this.iconOverrides[file.relPath] || ''];
+        if (forced) return { icon: forced.icon, cls: forced.cls };
+
         if (file.isBackup) return { icon: 'archive', cls: 'fmt-backup' };
 
         const mime  = (file.mimeType || '').toLowerCase();
@@ -2031,6 +2113,13 @@ class Visor {
             || mime.includes('compressed')
             || mime.includes('x-rar')
             || mime.includes('x-7z'))              return { icon: 'file-archive',  cls: 'fmt-archive' };
+
+        // Por TIPO de documento (nombre): solo en notas de texto, donde la
+        // extension no distingue un ER de un plan. Cae al switch si no coincide.
+        if (DOC_KIND_EXTS.includes(ext)) {
+            const kind = docKindOf(parts.join('.'));   // `parts` ya viene sin la extension
+            if (kind) return { icon: kind.icon, cls: kind.cls };
+        }
 
         // Por extension
         switch (ext) {
@@ -2231,6 +2320,56 @@ class VisorView {
         `);
     }
 
+    // Menu de clic derecho para elegir el icono de un archivo: los 10 tipos de
+    // DOC_KINDS mas "Automatico", que borra el override y devuelve el icono
+    // deducido del nombre. Se cierra al elegir, al clic fuera, con Escape o al
+    // hacer scroll (quedaria flotando lejos de su archivo).
+    openIconMenu(x, y, relPath) {
+        this.closeIconMenu();
+
+        const current = visor.iconOverrides[relPath] || '';
+        const cells = DOC_KINDS.map(k => `
+            <button type="button" class="docx-icmenu-btn ${current === k.key ? 'is-active' : ''}" data-icon-key="${k.key}" title="${k.label}">
+                <i data-lucide="${k.icon}" class="${k.cls}"></i>
+            </button>`).join('');
+
+        const $menu = $(`
+            <div id="docxIconMenu" class="docx-icmenu" role="menu">
+                <div class="docx-icmenu-title">Icono del archivo</div>
+                <div class="docx-icmenu-grid">${cells}</div>
+                <button type="button" class="docx-icmenu-auto ${current ? '' : 'is-active'}" data-icon-key="">
+                    <i data-lucide="wand-2" class="w-3.5 h-3.5"></i><span>Automático (por nombre)</span>
+                </button>
+            </div>`).appendTo('body');
+
+        // Reencuadre: cerca del cursor, pero nunca fuera de la ventana.
+        const pad = 8;
+        $menu.css({
+            left: Math.max(pad, Math.min(x, window.innerWidth  - $menu.outerWidth()  - pad)),
+            top:  Math.max(pad, Math.min(y, window.innerHeight - $menu.outerHeight() - pad))
+        });
+        if (window.lucide) lucide.createIcons();
+
+        $menu.on('click', '[data-icon-key]', function () {
+            const key = $(this).attr('data-icon-key');
+            visorView.closeIconMenu();
+            app.setFileIcon(relPath, key);
+        });
+
+        // En el siguiente tick, para no capturar el propio evento que abrio el menu.
+        setTimeout(() => {
+            $(document).on('click.docxicmenu', () => this.closeIconMenu());
+            $(document).on('keydown.docxicmenu', (e) => { if (e.key === 'Escape') this.closeIconMenu(); });
+            $('#sidebarList').on('scroll.docxicmenu', () => this.closeIconMenu());
+        }, 0);
+    }
+
+    closeIconMenu() {
+        $('#docxIconMenu').remove();
+        $(document).off('.docxicmenu');
+        $('#sidebarList').off('scroll.docxicmenu');
+    }
+
     // Fila de archivo del arbol. depth controla la sangria (estilo VS Code).
     treeFileRowHtml(item, currentFile, depth) {
         const fmt = visor.fileFormat(item);
@@ -2340,18 +2479,18 @@ class VisorView {
         const levelDir  = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
         const parentDir = crumb.length ? levelDir(crumb.slice(0, -1)) : '';   // '' en la raiz: no hay a donde subir
 
-        // Tarjetas del grid: carpeta (icono amarillo, drop target + renombrar al
-        // hover) y archivo (icono segun tipo, arrastrable por su fullPath).
+        // Tarjetas del grid: carpeta (icono amarillo, drop target, burbuja con el
+        // numero de archivos) y archivo (icono segun tipo, arrastrable por su fullPath).
         const folderCard = (fo, i) => `
             <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${levelDir(fo.nav)}" draggable="true" title="${fo.name}">
                 <i data-lucide="folder" class="docx-ic docx-ic-folder"></i>
-                <span class="docx-name">${fo.name}</span>
-                <button type="button" class="docx-folder-rename" title="Renombrar carpeta"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+                <span class="docx-name" title="Doble clic para renombrar">${fo.name}</span>
+                <span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>
             </div>`;
         const fileCard = (item) => {
             const fmt = visor.fileFormat(item);
             return `
-                <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" draggable="true" title="${item.file}">
+                <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" data-relpath="${item.relPath || ''}" draggable="true" title="${item.file}">
                     <i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>
                     <span class="docx-name">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
@@ -2374,13 +2513,6 @@ class VisorView {
             if (window.lucide) lucide.createIcons();
         };
 
-        // Entrar a una carpeta (proyecto o sub-carpeta); el botón renombrar no navega.
-        $('#sidebarList .docx-folder').off('click').on('click', function (e) {
-            if ($(e.target).closest('.docx-folder-rename').length) return;
-            const fo = folders[Number($(this).data('nav-idx'))];
-            if (fo) { setCrumb(fo.nav); reRender(); }
-        });
-
         // Navegar por el breadcrumb: recorta el crumb a N segmentos.
         $('#sidebarList .docx-crumb').off('click').on('click', function () {
             setCrumb(crumb.slice(0, Number($(this).data('crumb-to')) || 0));
@@ -2399,7 +2531,8 @@ class VisorView {
             reRender();
         });
 
-        // ── Renombrar carpeta inline (estilo Windows): el nombre se vuelve input. ──
+        // ── Renombrar carpeta inline (estilo Windows): doble clic al nombre y el
+        //    nombre se vuelve input. ──
         const startRenameFolder = ($folder) => {
             const fo = folders[Number($folder.data('nav-idx'))];
             if (!fo || $folder.find('.docx-rename-input').length) return;
@@ -2419,10 +2552,25 @@ class VisorView {
                   .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
                   .on('blur', () => finish(true));
         };
-        $('#sidebarList .docx-folder-rename').off('click').on('click', function (e) {
-            e.stopPropagation();
-            startRenameFolder($(this).closest('.docx-folder'));
-        });
+        // Entrar a una carpeta (proyecto o sub-carpeta). El clic que cae sobre el
+        // nombre se difiere: si llega un doble clic se cancela la navegacion y se
+        // abre el rename inline. Fuera del nombre la carpeta se abre al instante.
+        let folderNavTimer = null;
+        $('#sidebarList .docx-folder').off('click dblclick')
+            .on('click', function (e) {
+                if ($(this).find('.docx-rename-input').length) return;   // renombrando
+                const fo = folders[Number($(this).data('nav-idx'))];
+                if (!fo) return;
+                const enter = () => { setCrumb(fo.nav); reRender(); };
+                if (!$(e.target).closest('.docx-name').length) { enter(); return; }
+                clearTimeout(folderNavTimer);
+                folderNavTimer = setTimeout(enter, 260);
+            })
+            .on('dblclick', '.docx-name', function (e) {
+                e.stopPropagation();
+                clearTimeout(folderNavTimer);
+                startRenameFolder($(this).closest('.docx-folder'));
+            });
 
         // ── Crear carpeta nueva en el nivel actual (tarjeta temporal con input). ──
         const startCreateFolder = () => {
@@ -2450,6 +2598,16 @@ class VisorView {
         };
         $('#sidebarList .docx-newfolder-btn').off('click').on('click', (e) => { e.stopPropagation(); startCreateFolder(); });
 
+        // ── Clic derecho sobre un archivo: elegir su icono. ──
+        // Delegado en #sidebarList (sobrevive a los re-render) y solo si el item
+        // trae relPath, que es la clave con la que el backend guarda la eleccion.
+        $('#sidebarList').off('contextmenu.docx').on('contextmenu.docx', '.docx-file', function (e) {
+            const relPath = $(this).attr('data-relpath') || '';
+            if (!relPath) return;   // sin clave estable no hay donde guardar: menu nativo
+            e.preventDefault();
+            visorView.openIconMenu(e.pageX, e.pageY, relPath);
+        });
+
         // ── Drag & drop ── Archivos Y carpetas arrastrables. El payload viaja como
         // JSON {k:'file'|'folder', p:path}. Un handler en el panel decide por el
         // target: drop en una CARPETA -> mover dentro; drop en el PANEL vacío -> subir
@@ -2463,8 +2621,8 @@ class VisorView {
                 $(this).addClass('docx-dragging');
             })
             .on('dragstart.docx', '.docx-folder', function (e) {
-                // No arrastrar desde el botón renombrar ni durante la edición inline.
-                if ($(e.target).closest('.docx-folder-rename').length || $(this).find('.docx-rename-input').length) { e.preventDefault(); return; }
+                // No arrastrar durante la edición inline del nombre.
+                if ($(this).find('.docx-rename-input').length) { e.preventDefault(); return; }
                 const p = $(this).attr('data-destdir') || '';   // el path de la carpeta = su propio nivel
                 if (!p) { e.preventDefault(); return; }
                 e.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({ k: 'folder', p }));

@@ -757,6 +757,95 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// ── Iconos elegidos a mano ──────────────────────────────────────────────
+// El explorador deduce el icono del nombre del archivo, pero el usuario puede
+// forzar uno con clic derecho. La eleccion se guarda en data/icons.json como
+// { relPath: iconKey } y es COMPARTIDA (vive en el servidor, no en el navegador).
+//
+// La clave es el relPath que ya expone el listado ("coffee/app/visor/documents/
+// Proyecto/Tipo/archivo.md"): unico y estable entre maquinas. Si el archivo se
+// mueve o renombra pierde su override y vuelve al icono automatico.
+//
+// iconKey se valida contra esta lista blanca; debe coincidir con DOC_KINDS en
+// visor.js. Agregar un tipo = una entrada aqui y otra alla.
+function coffee_visor_icon_keys() {
+    return ['db', 'flow', 'feat', 'plan', 'idea', 'note', 'dash', 'log', 'bug', 'guide'];
+}
+
+function coffee_visor_icons_file() {
+    return str_replace('\\', '/', __DIR__ . '/../data/icons.json');
+}
+
+function coffee_visor_read_icons() {
+    $file = coffee_visor_icons_file();
+    if (!is_file($file)) return [];
+    $decoded = json_decode((string)@file_get_contents($file), true);
+    if (!is_array($decoded)) return [];
+
+    // Descarta claves que ya no esten en la lista blanca (p. ej. un tipo retirado
+    // de DOC_KINDS): mejor caer al icono automatico que pintar una clase muerta.
+    $valid = coffee_visor_icon_keys();
+    return array_filter($decoded, function ($v) use ($valid) {
+        return is_string($v) && in_array($v, $valid, true);
+    });
+}
+
+function coffee_visor_write_icons($icons) {
+    $file = coffee_visor_icons_file();
+    $dir  = dirname($file);
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true)) return false;
+    $json = json_encode($icons, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return @file_put_contents($file, $json, LOCK_EX) !== false;
+}
+
+// GET listicons: el mapa completo, que el frontend cachea al arrancar.
+if (($_GET['action'] ?? '') === 'listicons') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => true,
+        'icons'   => (object)coffee_visor_read_icons()
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// POST seticon: fija el icono de un archivo. icon vacio = volver al automatico.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'seticon') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $path = trim($_POST['path'] ?? '');
+    $icon = trim($_POST['icon'] ?? '');
+
+    // `path` solo se usa como clave del JSON (nunca toca el filesystem), pero se
+    // acota para que nadie engorde el archivo con una clave arbitraria.
+    if ($path === '' || strlen($path) > 512) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Ruta de archivo inválida']);
+        exit;
+    }
+    if ($icon !== '' && !in_array($icon, coffee_visor_icon_keys(), true)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Icono desconocido']);
+        exit;
+    }
+
+    $icons = coffee_visor_read_icons();
+    if ($icon === '') unset($icons[$path]);
+    else              $icons[$path] = $icon;
+
+    if (!coffee_visor_write_icons($icons)) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo guardar el icono']);
+        exit;
+    }
+
+    echo json_encode([
+        'success' => true,
+        'message' => $icon === '' ? 'Icono automático restaurado' : 'Icono actualizado',
+        'icons'   => (object)$icons
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 // Endpoint para leer el contenido de un archivo (usado por el modulo Chat)
 if (($_GET['action'] ?? '') === 'read') {
     header('Content-Type: application/json; charset=utf-8');

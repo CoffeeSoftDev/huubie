@@ -301,6 +301,28 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Mismos abonos que getDailyPrevPayments, pero agrupados por metodo de pago:
+    // el listado por pedido concatena los metodos (GROUP_CONCAT) y no permite
+    // repartir el monto entre efectivo/tarjeta/transferencia cuando un pedido
+    // recibe mas de un abono en el dia.
+    function getDailyPrevPaymentsByMethod($array) {
+        $query = "
+            SELECT
+                op.method_pay_id,
+                SUM(op.pay) AS total_paid,
+                COUNT(*) AS transactions
+            FROM {$this->bd}order_payments op
+            JOIN {$this->bd}`order` o ON o.id = op.order_id
+            WHERE DATE(op.date_pay) = ?
+              AND DATE(o.date_creation) < ?
+              AND COALESCE(op.subsidiaries_id, o.subsidiaries_id) = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY op.method_pay_id
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
     // Pagos del dia de pedidos de ESTA sucursal que se cobraron en OTRA (cobro
     // cruzado saliente). No entran a esta caja: se reportan informativos y no suman.
     function getDailyCrossPayments($array) {

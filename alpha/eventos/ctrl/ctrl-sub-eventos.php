@@ -2,7 +2,8 @@
 if (empty($_POST['opc'])) exit(0);
 session_start();
 setlocale(LC_TIME, 'es_ES.UTF-8');
-date_default_timezone_set('America/Mexico_City');
+// UTC-6 fijo (Etc/GMT+6 invierte el signo). Ver alpha/conf/_Utileria.php.
+date_default_timezone_set('Etc/GMT+6');
 
 header("Access-Control-Allow-Origin: *"); // Permite solicitudes de cualquier origen
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitidos

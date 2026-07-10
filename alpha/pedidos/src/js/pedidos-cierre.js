@@ -5,7 +5,6 @@ class Cierre {
         this.api = api;
         this._closureData = null;
         this._closureResponse = null;
-        this._dailyView = 'reporte';
         this._reportZoom = 100;
     }
 
@@ -227,46 +226,25 @@ class Cierre {
         }
 
         $('#ticketModeBar').addClass('hidden');
-        this._dailyView = 'reporte';
         this.renderDaily();
     }
 
     renderDaily() {
-        if (this._dailyView === 'ticket') {
-            this.renderDailyTicket(this._closureResponse);
-        } else {
-            this.renderExecutiveSummary(this._closureResponse);
-        }
+        this.renderExecutiveSummary(this._closureResponse);
     }
 
-    setDailyView(mode) {
-        this._dailyView = mode;
-        this.renderDaily();
-    }
-
-    dailyViewToggle() {
-        const active   = 'bg-purple-600 text-white shadow-sm';
-        const inactive = 'text-gray-400 hover:text-gray-200';
-        const isReport = this._dailyView !== 'ticket';
-        const maxed    = this._reportZoom > 100;
-
-        // Controles de zoom: solo aplican a la vista Reporte (Corte Z).
-        const zoomBar = !isReport ? '' : `
-            <div class="absolute right-0 inline-flex items-center gap-0.5 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
-                <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Alejar" onclick="cierre.zoomReport(-10)">${lucideIcon('zoom-out', 'w-3.5 h-3.5')}</button>
-                <button id="reportZoomPct" class="px-1 py-0.5 rounded-md font-semibold text-gray-300 hover:text-white min-w-[36px] text-center transition-all" title="Restablecer zoom" onclick="cierre.setReportZoom(100)">${this._reportZoom}%</button>
-                <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Acercar" onclick="cierre.zoomReport(10)">${lucideIcon('zoom-in', 'w-3.5 h-3.5')}</button>
-                <button id="btnReportZoomMax" class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="${maxed ? 'Minimizar' : 'Maximizar'}" onclick="cierre.toggleReportZoomMax()">${lucideIcon(maxed ? 'minimize' : 'maximize', 'w-3.5 h-3.5')}</button>
-            </div>
-        `;
+    // Barra de herramientas del Corte Z: solo controles de zoom.
+    reportToolbar() {
+        const maxed = this._reportZoom > 100;
 
         return `
-            <div class="relative flex justify-center items-center mb-3">
-                <div class="inline-flex items-center gap-1 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
-                    <button class="px-4 py-1 rounded-md font-semibold transition-all ${isReport ? active : inactive}" onclick="cierre.setDailyView('reporte')">Reporte</button>
-                    <button class="px-4 py-1 rounded-md font-semibold transition-all ${!isReport ? active : inactive}" onclick="cierre.setDailyView('ticket')">Ticket</button>
+            <div class="relative flex justify-end items-center mb-3">
+                <div class="inline-flex items-center gap-0.5 bg-[#1a2332] p-1 rounded-lg border border-gray-700/50 text-[11px]">
+                    <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Alejar" onclick="cierre.zoomReport(-10)">${lucideIcon('zoom-out', 'w-3.5 h-3.5')}</button>
+                    <button id="reportZoomPct" class="px-1 py-0.5 rounded-md font-semibold text-gray-300 hover:text-white min-w-[36px] text-center transition-all" title="Restablecer zoom" onclick="cierre.setReportZoom(100)">${this._reportZoom}%</button>
+                    <button class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="Acercar" onclick="cierre.zoomReport(10)">${lucideIcon('zoom-in', 'w-3.5 h-3.5')}</button>
+                    <button id="btnReportZoomMax" class="p-1 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700/40 transition-all" title="${maxed ? 'Minimizar' : 'Maximizar'}" onclick="cierre.toggleReportZoomMax()">${lucideIcon(maxed ? 'minimize' : 'maximize', 'w-3.5 h-3.5')}</button>
                 </div>
-                ${zoomBar}
             </div>
         `;
     }
@@ -286,80 +264,6 @@ class Cierre {
 
     toggleReportZoomMax() {
         this.setReportZoom(this._reportZoom > 100 ? 100 : 130);
-    }
-
-    renderDailyTicket(res) {
-        const c = res.closure;
-        const ticketAvg = c.total_orders > 0 ? (c.total_sales / c.total_orders) : 0;
-
-        let shiftsHtml = '';
-        if (res.shifts && res.shifts.length > 0) {
-            shiftsHtml = res.shifts.map(shift => `
-                <div class="bg-gray-50 rounded p-2 mb-1.5">
-                    <div class="flex justify-between font-semibold"><span>${shift.shift_name || moment(shift.opened_at).format('hh:mm A')}</span><span>${formatPrice(shift.total_sales || 0)}</span></div>
-                    <div class="text-[10px] text-gray-500">${moment(shift.opened_at).format('hh:mm A')}${shift.closed_at ? ' - ' + moment(shift.closed_at).format('hh:mm A') : ''} | ${shift.total_orders || 0} pedidos</div>
-                </div>
-            `).join('');
-        }
-
-        const html = `
-            ${this.dailyViewToggle()}
-            <div class="flex justify-center p-4">
-                <div id="ticketPasteleria" class="bg-white p-5 rounded-lg shadow-lg text-gray-900 border border-gray-200" style="max-width: 320px; width: 100%; font-family: 'Courier New', monospace; font-size: 12px;">
-                    <div class="flex flex-col items-center mb-3">
-                        <div style="width:60px;height:60px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;" class="mb-2">
-                            <span style="color:white;font-size:24px;font-weight:bold;">R</span>
-                        </div>
-                        <h1 class="text-sm font-bold uppercase">${res.company_name || 'Reginas Pasteleria'}</h1>
-                        <div class="text-xs font-semibold">PEDIDOS DE PASTELERIA</div>
-                        <div class="text-xs text-gray-600 mt-0.5">Cierre Diarios</div>
-                        <div class="bg-green-100 text-green-800 px-3 py-0.5 rounded-full text-[10px] font-bold mt-1.5">CERRADO</div>
-                        <div class="text-[10px] text-gray-500 mt-0.5">Por: ${c.closed_by || 'Admin'}</div>
-                    </div>
-                    <div class="text-xs space-y-0.5 mb-2">
-                        <div class="flex justify-between"><span>Sucursal:</span><span>${res.subsidiary_name}</span></div>
-                        <div class="flex justify-between"><span>Fecha:</span><span class="font-semibold">${moment(c.closure_date).locale('es').format('DD/MMM/YYYY')} ${moment(c.created_at).format('hh:mm A')}</span></div>
-                    </div>
-                    <hr class="border-dashed border-t border-gray-400 my-2" />
-                    <div class="text-xs mb-2">
-                        <div class="font-bold text-center mb-1.5">RESUMEN DE TURNOS (${c.total_shifts})</div>
-                        ${shiftsHtml}
-                    </div>
-                    <hr class="border-dashed border-t border-gray-400 my-2" />
-                    <div class="text-xs space-y-0.5">
-                        <div class="flex justify-between"><span class="font-semibold">EFECTIVO:</span><span>${formatPrice(c.total_cash)}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">TARJETA:</span><span>${formatPrice(c.total_card)}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">TRANSFERENCIA:</span><span>${formatPrice(c.total_transfer)}</span></div>
-                    </div>
-                    <hr class="border-dashed border-t border-gray-400 my-2" />
-                    <div class="text-xs">
-                        <div class="flex justify-between"><span class="font-semibold">DESCUENTOS:</span><span class="text-red-600">-${formatPrice(c.total_discount)}</span></div>
-                    </div>
-                    <hr class="border-dashed border-t border-gray-400 my-2" />
-                    <div class="flex justify-between items-center text-sm font-bold">
-                        <span>TOTAL DEL DIA:</span>
-                        <span class="text-base">${formatPrice(c.total_sales)}</span>
-                    </div>
-                    <hr class="border-dashed border-t border-gray-400 my-2" />
-                    <div class="text-xs space-y-0.5">
-                        <div class="flex justify-between"><span class="font-semibold">TOTAL PEDIDOS:</span><span class="font-bold">${c.total_orders}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">PAGADOS:</span><span>${(c.total_orders || 0) - (res.counts.quotations || 0) - (res.counts.cancelled || 0) - (res.counts.pending || 0)}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">PENDIENTES:</span><span>${res.counts.pending}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">COTIZACIONES:</span><span>${res.counts.quotations}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">ENTREGADOS:</span><span>${res.counts.delivered}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">CANCELADOS:</span><span>${res.counts.cancelled}</span></div>
-                        <div class="flex justify-between"><span class="font-semibold">TICKET PROMEDIO:</span><span>${formatPrice(ticketAvg)}</span></div>
-                    </div>
-                    <div class="text-center mt-4 text-[10px] font-bold text-gray-900 space-y-1">
-                        <p>GRACIAS POR SU PREFERENCIA</p>
-                        <p class="text-purple-800 text-xs">Huubie</p>
-                        <p class="text-gray-500 font-normal text-[9px]">Generado: ${moment().format('DD/MM/YYYY HH:mm:ss')}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        $('#ticketContainer').html(html);
     }
 
     statusBadge(statusId) {
@@ -438,6 +342,8 @@ class Cierre {
             @media (max-width: 700px) { .cz-resumen { grid-template-columns: 1fr; } }
             .cz-resumen .pdf-section { margin-top: 0; border: 1px solid #9ca3af; border-radius: 2px; overflow: hidden; }
             .cz-resumen .pdf-section-title { display: block; background: #f3f4f6; color: #000; font-size: 9px; letter-spacing: 0.4px; border-top: none; border-bottom: 1px solid #9ca3af; }
+            /* Aclara que cada tarjeta mide algo distinto: venta vs dinero recibido vs cuentas. */
+            .cz-resumen .cz-subhead { padding: 2px 8px; font-size: 8px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #000; background: #fff; border-bottom: 1px solid #d1d5db; }
             .pdf-kv { display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; border-bottom: 1px solid #d1d5db; }
             .pdf-kv:last-child { border-bottom: none; }
             .pdf-kv .kv-label { color: #000; font-size: 9px; }
@@ -858,27 +764,37 @@ class Cierre {
         const pay = res.payments || {};
         const mCash = pay.cash || {}, mCard = pay.card || {}, mTransfer = pay.transfer || {};
         const cobrado    = parseFloat(mCash.amount || 0) + parseFloat(mCard.amount || 0) + parseFloat(mTransfer.amount || 0);
-        // "Venta Bruta" del resumen muestra la venta NETA (con descuento), por decisión del negocio.
-        const ventaNeta  = parseFloat(ventas.venta_neta || 0);
+        // La Venta Bruta ya trae los descuentos aplicados (importe - descuentos).
+        const ventaBruta = parseFloat(ventas.venta_bruta || 0);
         const pendiente  = ventasTotales.quedo;
         // Abonos anteriores = lo cobrado hoy de pedidos de días previos (grupo del Desglose de Pedidos).
+        // Es dinero recibido hoy, no venta de hoy: por eso "En Caja" (que los suma) puede exceder
+        // la Venta Bruta del día y no cierra contra Pendiente cuando hay abonos previos.
         const cruzadosMonto = crossPrev.abono;
-        const cruzadosCount = prevPayments.length;
+        // Dinero que efectivamente entró hoy: cobros de pedidos del día + abonos a pedidos anteriores.
+        const enCajaHoy    = cobrado + cruzadosMonto;
+        const fondoInicial = parseFloat(caja.efectivo_inicial || 0);
         // Estado de cuentas por SALDO al corte (consistente con la columna Estado de la tabla),
         // no por el status del pedido: un pedido entregado con saldo sigue siendo pendiente.
         const cuPagadas   = salesOrders.filter(o => saldoPedido(o) <= 0.005).length;
         const cuPend      = salesOrders.filter(o => saldoPedido(o) > 0.005).length;
         const cuCotiz     = quoteOrders.length;
         const cuDescuento = salesOrders.filter(o => parseFloat(o.discount || 0) > 0.005).length;
+        const cuCancel    = cancelledOrders.length;
+        // Ticket promedio sobre la venta neta de las cuentas del día (excluye cotizaciones y cancelados),
+        // igual que el subtotal del desglose de pedidos.
+        const ticketProm  = salesOrders.length > 0 ? ventasTotales.importe / salesOrders.length : 0;
 
         const rTotales = `
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">Totales</div>
+                <div class="cz-subhead">Venta del día y dinero recibido</div>
                 <div class="pdf-section-body">
-                    ${kv('Venta Bruta', money(ventaNeta), { highlight: true })}
-                    ${kv('Cobrado', money(cobrado))}
-                    ${kv('Abonos ant.', money(cruzadosMonto))}
+                    ${kv('Venta Bruta', money(ventaBruta))}
                     ${kv('Pendiente', money(pendiente))}
+                    ${kv('Pedidos del día', money(cobrado))}
+                    ${kv('Abonos ant.', money(cruzadosMonto))}
+                    ${kv('EN CAJA', money(enCajaHoy), { total: true, highlight: true })}
                 </div>
             </div>
         `;
@@ -890,15 +806,21 @@ class Cierre {
             </div>
         `;
 
+        // Cada metodo suma lo cobrado de pedidos del dia + los abonos a pedidos anteriores
+        // que entraron por ese mismo metodo (backend: payments.*.prev_amount / prev_count).
+        const mpTotal = (m) => parseFloat(m.amount || 0) + parseFloat(m.prev_amount || 0);
+        const mpCount = (m) => parseInt(m.count || 0) + parseInt(m.prev_count || 0);
+
         const rMetodos = `
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">Métodos de Pago</div>
+                <div class="cz-subhead">El dinero que entró hoy</div>
                 <div class="pdf-section-body">
-                    ${mpRow('Efectivo', parseInt(mCash.count || 0), mCash.amount)}
-                    ${mpRow('Tarjeta', parseInt(mCard.count || 0), mCard.amount)}
-                    ${mpRow('Transfer.', parseInt(mTransfer.count || 0), mTransfer.amount)}
-                    ${mpRow('Abonos ant.', cruzadosCount, cruzadosMonto)}
-                    ${kv('TOTAL', money(cobrado + cruzadosMonto), { total: true })}
+                    ${mpRow('Efectivo', mpCount(mCash), mpTotal(mCash))}
+                    ${mpRow('Tarjeta', mpCount(mCard), mpTotal(mCard))}
+                    ${mpRow('Transfer.', mpCount(mTransfer), mpTotal(mTransfer))}
+                    ${kv('ENTRÓ A CAJA', money(enCajaHoy), { total: true })}
+                    ${kv('Fondo inicial', money(fondoInicial))}
                 </div>
             </div>
         `;
@@ -906,12 +828,15 @@ class Cierre {
         const rCuentas = `
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">Estado de Cuentas</div>
+                <div class="cz-subhead">Por saldo al corte</div>
                 <div class="pdf-section-body">
                     ${kv('Pagadas', cuPagadas)}
                     ${kv('Pendientes', cuPend)}
                     ${kv('Cotizaciones', cuCotiz)}
                     ${kv('TOTAL', cuPagadas + cuPend + cuCotiz, { total: true })}
+                    ${kv('Canceladas', cuCancel)}
                     ${kv('Con descuento', cuDescuento)}
+                    ${kv('Ticket promedio', money(ticketProm))}
                 </div>
             </div>
         `;
@@ -933,7 +858,7 @@ class Cierre {
         `;
 
         const html = `
-            ${this.dailyViewToggle()}
+            ${this.reportToolbar()}
             <div id="reportZoomWrap" style="zoom:${this._reportZoom / 100}">
             <div id="ticketDailyClose" class="pdf-document">
                 <div class="pdf-header">
@@ -976,19 +901,20 @@ class Cierre {
     }
 
     printDaily() {
-        const report = document.getElementById('ticketDailyClose') || document.getElementById('ticketPasteleria');
+        // #ticketDailyClose lo comparten el Corte Z (con .pdf-document) y el ticket de turno
+        // que arma app.viewShiftPreview(); cada uno se imprime con sus propios estilos.
+        const report = document.getElementById('ticketDailyClose');
         if (!report) {
             Swal.fire({ title: 'Sin contenido', text: 'No hay nada para imprimir.', icon: 'warning', background: '#1F2A37', color: '#fff', confirmButtonColor: '#ea580c' });
             return;
         }
 
-        const isTicket = report.id === 'ticketPasteleria';
         const isPdfDoc = report.classList.contains('pdf-document');
         // Corte Z: se imprime con los estilos pdf-* ya en su variante clara (documento).
         const headAssets = isPdfDoc
             ? `<style>${this.pdfBaseCss()} ${this.pdfPrintCss()}</style>`
             : `<script src="https://cdn.tailwindcss.com"><\/script>`;
-        // Tamano de hoja por defecto: Carta (Letter) para el Corte Z; el ticket usa hoja angosta automatica.
+        // Tamano de hoja por defecto: Carta (Letter) para el Corte Z; el turno usa hoja angosta automatica.
         const marginMm = 8;
         const pageCss = isPdfDoc
             ? `@page { size: letter portrait; margin: ${marginMm}mm; }`
@@ -1000,15 +926,15 @@ class Cierre {
                 #ticketDailyClose { width: 816px !important; max-width: 816px !important; margin: 0 auto !important; box-shadow: 0 0 14px rgba(0,0,0,0.45); }
             }
         ` : '';
-        const printWindow = window.open('', '', isTicket ? 'height=700,width=420' : 'height=900,width=900');
+        const printWindow = window.open('', '', 'height=900,width=900');
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>${isTicket ? 'Ticket de cierre' : 'Corte Z'}</title>
+                    <title>Corte Z</title>
                     ${headAssets}
-                    <style>${pageCss} ${screenCss} @media print { body { margin: 0; background: #fff; } #ticketDailyClose, #ticketPasteleria { border: none !important; box-shadow: none !important; } }</style>
+                    <style>${pageCss} ${screenCss} @media print { body { margin: 0; background: #fff; } #ticketDailyClose { border: none !important; box-shadow: none !important; } }</style>
                 </head>
-                <body class="${isTicket ? 'p-2' : 'p-4'}">${report.outerHTML}</body>
+                <body class="p-4">${report.outerHTML}</body>
             </html>
         `);
         printWindow.document.close();
