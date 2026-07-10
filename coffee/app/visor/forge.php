@@ -141,6 +141,10 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
+
+            <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
+                <span class="account-avatar">CD</span>
+            </button>
         </nav>
 
         <!-- ── Izquierda: chat con el agente ── -->
@@ -555,6 +559,8 @@
     <div id="pgToast" class="visor-toast"></div>
 
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/forge.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

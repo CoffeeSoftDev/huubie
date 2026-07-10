@@ -104,6 +104,10 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
+
+            <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
+                <span class="account-avatar">CD</span>
+            </button>
         </nav>
 
         <!-- ── Izquierda: chat con el agente ── -->
@@ -305,10 +309,27 @@
                     <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"
                             sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
                 </div>
-                <!-- Barra de archivos del módulo: visible solo cuando el agente
-                     entregó un template multi-archivo (@file). Cambia qué archivo
-                     se muestra en la pestaña Código. -->
-                <div id="stFileTabs" class="st-file-tabs hidden"></div>
+                <!-- Vista de código estilo VS Code: visible solo cuando el agente
+                     entregó un template multi-archivo (@file). Explorador con árbol
+                     de carpetas a la izquierda + editor con pestañas y números de
+                     línea a la derecha. Para código de un solo archivo se usa el
+                     <pre> plano de abajo. -->
+                <div id="stCodeView" class="st-code-view hidden">
+                    <aside class="st-explorer">
+                        <div class="st-explorer-head">
+                            <i data-lucide="files" class="w-3.5 h-3.5"></i>
+                            <span id="stExplorerTitle">MÓDULO</span>
+                        </div>
+                        <div id="stFileTree" class="st-file-tree"></div>
+                    </aside>
+                    <div class="st-editor">
+                        <div id="stEditorTabs" class="st-editor-tabs"></div>
+                        <div class="st-editor-body">
+                            <pre id="stGutter" class="st-gutter"></pre>
+                            <pre class="st-code"><code id="stEditorCode"></code></pre>
+                        </div>
+                    </div>
+                </div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
 
                 <!-- Inspector de estilos: panel lateral que muestra el CSS resuelto
@@ -451,9 +472,19 @@
             <div class="pg-modal-body">
                 <div class="pg-threads-bar">
                     <p class="pg-hint" style="margin:0;">Cada hilo guarda su conversación y los renders del sandbox. Ábrelo para seguir iterando donde lo dejaste.</p>
-                    <button id="pgThreadsNew" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo hilo
-                    </button>
+                    <div class="pg-threads-bar-actions">
+                        <div class="pg-threads-view" role="group" aria-label="Modo de vista">
+                            <button id="pgThreadsViewList" class="pg-threads-viewbtn" data-tview="list" title="Ver en lista">
+                                <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button id="pgThreadsViewGrid" class="pg-threads-viewbtn" data-tview="grid" title="Ver en miniaturas">
+                                <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                        <button id="pgThreadsNew" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo hilo
+                        </button>
+                    </div>
                 </div>
                 <div id="pgThreadsList" class="pg-threads-list"></div>
             </div>
@@ -467,6 +498,8 @@
     <div id="pgToast" class="visor-toast"></div>
 
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/studio.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

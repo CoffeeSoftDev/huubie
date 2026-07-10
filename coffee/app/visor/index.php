@@ -163,6 +163,10 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
+
+            <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
+                <span class="account-avatar">CD</span>
+            </button>
         </nav>
 
         <aside class="visor-sidebar">
@@ -649,7 +653,9 @@
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 
     <!-- Integración Excalidraw (lienzo de bocetos): parchea App.loadFile y monta el board. -->
     <script src="src/js/excalidraw-board.js?t=<?php echo time(); ?>"></script>

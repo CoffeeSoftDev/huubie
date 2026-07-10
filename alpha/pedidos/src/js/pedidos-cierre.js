@@ -31,152 +31,140 @@ class Cierre {
         }
 
         this._closureData = data;
-        this.renderChecklist(data, date, subsidiaries_id);
+
+        // Sin checklist intermedio: si hay bloqueantes se avisan y se aborta;
+        // si el día se puede cerrar, va directo al recibo de confirmación.
+        if (!data.can_close) {
+            const blockers = (data.checks || []).filter(c => !c.ok && c.blocker);
+            await Swal.fire({
+                title: 'No se puede cerrar el día',
+                html: `
+                    <div class="text-left text-sm space-y-1.5">
+                        ${blockers.map(b => `
+                            <div class="flex items-start gap-2 text-red-400">
+                                <span class="leading-none">&#10007;</span><span>${b.label}${b.detail ? ` <span class="text-slate-400">(${b.detail})</span>` : ''}</span>
+                            </div>`).join('')}
+                    </div>
+                `,
+                icon: 'error',
+                background: '#1F2A37',
+                color: '#fff',
+                confirmButtonColor: '#ea580c',
+                confirmButtonText: 'Entendido'
+            });
+            this.resetCierreView();
+            return;
+        }
+
+        await this.confirmClose(date, subsidiaries_id);
     }
 
-    renderChecklist(data, date, subsidiaries_id) {
-        const svgOk = `<svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
-        const svgWarn = `<svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
-        const svgBlock = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
-
-        let checksHtml = '';
-        data.checks.forEach((check, idx) => {
-            if (check.ok) {
-                checksHtml += `
-                    <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-green-600/30">
-                        <div class="w-7 h-7 rounded-full bg-green-600/20 flex items-center justify-center flex-shrink-0">${svgOk}</div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold text-white">${check.label}</p>
-                            <p class="text-[11px] text-gray-500">${check.detail || ''}</p>
-                        </div>
-                    </div>`;
-            } else if (check.blocker) {
-                checksHtml += `
-                    <div class="flex items-center gap-3 bg-[#1a2332] rounded-lg p-3 border border-red-600/30">
-                        <div class="w-7 h-7 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">${svgBlock}</div>
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold text-white">${check.label}</p>
-                            <p class="text-[11px] text-red-400/70">Bloquea el cierre</p>
-                        </div>
-                    </div>`;
-            } else {
-                let itemsHtml = '';
-                if (check.items && check.items.length > 0) {
-                    if (check.key === 'pending_balance') {
-                        itemsHtml = check.items.map(item => `
-                            <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
-                                <div>
-                                    <p class="text-xs font-semibold text-white">${item.folio || '-'}</p>
-                                    <p class="text-[10px] text-gray-500">${item.date ? moment(item.date).format('DD/MM/YYYY hh:mm A') : ''}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-xs font-bold text-white">${formatPrice(item.total)}</p>
-                                    <p class="text-[10px] text-red-400">Saldo: ${formatPrice(item.pending)}</p>
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        itemsHtml = check.items.map(item => `
-                            <div class="flex items-center justify-between bg-[#151d2a] rounded-md px-3 py-2">
-                                <div>
-                                    <p class="text-xs font-semibold text-white">${item.folio || item.name || '-'}</p>
-                                    <p class="text-[10px] text-gray-500">${item.date ? moment(item.date).format('DD/MM/YYYY hh:mm A') : (item.opened_at ? moment(item.opened_at).format('DD/MM/YYYY hh:mm A') : '')}</p>
-                                </div>
-                                <span class="text-xs font-bold text-white">${item.total ? formatPrice(item.total) : (item.employee || '')}</span>
-                            </div>
-                        `).join('');
-                    }
-                }
-
-                checksHtml += `
-                    <div class="bg-[#1a2332] rounded-lg border border-yellow-600/30 overflow-hidden">
-                        <div class="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#1e2a3a] transition-colors" onclick="cierre.toggleDetail('check-${idx}')">
-                            <div class="w-7 h-7 rounded-full bg-yellow-600/20 flex items-center justify-center flex-shrink-0">${svgWarn}</div>
-                            <div class="flex-1">
-                                <p class="text-sm font-semibold text-white">${check.label}</p>
-                                <p class="text-[11px] text-yellow-400/70">No bloquea el cierre</p>
-                            </div>
-                            <svg id="arrow-check-${idx}" class="w-4 h-4 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </div>
-                        <div id="detail-check-${idx}" class="hidden border-t border-yellow-600/20 px-3 pb-3 pt-2 space-y-1.5">${itemsHtml}</div>
-                    </div>`;
-            }
-        });
-
-        const s = data.summary;
-        const html = `
-            <h2 class="text-base font-bold text-white mb-1">Checklist de Cierre</h2>
-            <p class="text-xs text-gray-500 mb-4">${data.subsidiary_name} — ${moment(date).format('DD/MM/YYYY')}</p>
-            <div class="grid grid-cols-3 gap-3 mb-3">
-                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
-                    <p class="text-lg font-bold text-green-400">${formatPrice(s.total_sales)}</p>
-                    <p class="text-[10px] text-gray-500">Ventas</p>
-                </div>
-                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
-                    <p class="text-lg font-bold text-white">${s.total_orders}</p>
-                    <p class="text-[10px] text-gray-500">Pedidos</p>
-                </div>
-                <div class="bg-[#1a2332] rounded-lg p-3 text-center border border-gray-700/50">
-                    <p class="text-lg font-bold text-white">${s.total_shifts}</p>
-                    <p class="text-[10px] text-gray-500">Turnos</p>
-                </div>
-            </div>
-            <div class="space-y-2.5 mb-6">${checksHtml}</div>
-            <div class="flex gap-3">
-                <button class="flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-600 hover:bg-gray-700 text-white" onclick="cierre.cancelChecklist()">Cancelar</button>
-                <button class="flex-1 py-2 rounded-lg text-sm font-semibold ${data.can_close ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 opacity-50 cursor-not-allowed'} text-white" ${data.can_close ? '' : 'disabled'} onclick="cierre.confirmClose('${date}', '${subsidiaries_id}')">Confirmar Cierre</button>
-            </div>
-        `;
-
-        $('#ticketContainer').html(html);
-        $('#btnOpenShift, #btnCloseShift, #btnPrintTicket').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-    }
-
-    toggleDetail(id) {
-        const detail = $(`#detail-${id}`);
-        const arrow  = $(`#arrow-${id}`);
-        detail.toggleClass('hidden');
-        arrow.css('transform', detail.hasClass('hidden') ? '' : 'rotate(180deg)');
-    }
-
-    cancelChecklist() {
+    resetCierreView() {
         $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         app.loadShifts();
     }
 
     async confirmClose(date, subsidiariesId) {
         const s = this._closureData.summary;
-        const result = await Swal.fire({
-            title: 'Confirmar Cierre Diario',
-            html: `
-                <div class="text-left text-sm">
-                    <p class="mb-2">Se consolidaran <strong>${s.total_shifts} turno(s)</strong> con <strong>${s.total_orders} pedido(s)</strong>.</p>
-                    <p class="text-gray-400 text-xs">Total del dia: <strong>${formatPrice(s.total_sales)}</strong></p>
-                    <p class="text-red-400 text-xs mt-2">Esta accion no se puede deshacer facilmente.</p>
+        const warnings = (this._closureData.checks || []).filter(c => !c.ok && !c.blocker);
+        const shifts = s.total_shifts;
+        const orders = s.total_orders;
+        const plural = shifts === 1 ? 'turno' : 'turnos';
+
+        const row = (label, value, valueClass = 'text-white') => `
+            <div class="flex items-center justify-between py-1">
+                <span class="text-gray-400 text-[13px]">${label}</span>
+                <span class="${valueClass} text-[13px] font-semibold">${value}</span>
+            </div>`;
+
+        const warningsHtml = warnings.length ? `
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 space-y-1">
+                ${warnings.map(w => `
+                    <div class="flex items-start gap-2 text-[12px] text-amber-400">
+                        <span class="leading-none">&#9888;</span><span>${w.label}</span>
+                    </div>`).join('')}
+                <p class="text-[11px] text-amber-400/60 pt-0.5">Al cerrar aceptas estos avisos.</p>
+            </div>` : '';
+
+        // Detalle desplegable (oculto): se muestra con "Ver info del día".
+        const detailHtml = `
+            <div id="closeDayInfo" class="hidden space-y-2 text-left">
+                <div class="bg-[#1a2332] border border-gray-600/60 rounded-lg px-3 py-2.5">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Venta del día</p>
+                    ${row('Total ventas', formatPrice(s.total_sales), 'text-green-400')}
+                    ${s.total_discount > 0 ? row('Descuentos', '&minus;' + formatPrice(s.total_discount), 'text-gray-300') : ''}
                 </div>
-            `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ea580c',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Si, cerrar dia',
-            cancelButtonText: 'Cancelar',
-            background: '#1F2A37',
-            color: '#fff'
+                <div class="bg-[#1a2332] border border-gray-600/60 rounded-lg px-3 py-2.5">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Dinero en caja</p>
+                    ${row('&#128181; Efectivo', formatPrice(s.total_cash))}
+                    ${row('&#128179; Tarjeta', formatPrice(s.total_card))}
+                    ${row('&#128257; Transferencia', formatPrice(s.total_transfer))}
+                </div>
+                ${warningsHtml}
+            </div>`;
+
+        const html = `
+            <div class="flex flex-col items-center text-center pt-1">
+                <div class="w-16 h-16 rounded-full border border-gray-600/70 bg-white/5 flex items-center justify-center mb-4 text-amber-400">
+                    ${lucideIcon('power', 'w-7 h-7')}
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">¿Deseas cerrar el día?</h3>
+                <p class="text-[13px] text-gray-400 leading-relaxed max-w-[300px]">
+                    Al cerrar el día se cerrará el sistema y se registrarán <strong class="text-white font-semibold">${shifts} ${plural}</strong> del día.
+                </p>
+            </div>
+
+            <div class="bg-[#1a2332] border border-gray-600/60 rounded-lg px-3.5 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span class="text-[13px] text-gray-200">${shifts} ${plural} &middot; ${orders} tickets</span>
+                </div>
+                <button type="button" id="closeDayInfoToggle" class="text-[12px] text-gray-400 hover:text-white flex items-center gap-0.5 whitespace-nowrap">
+                    <span id="closeDayInfoLabel">Ver info del día</span>
+                    <span id="closeDayInfoChevron" class="inline-flex transition-transform">${lucideIcon('chevron-right', 'w-3.5 h-3.5')}</span>
+                </button>
+            </div>
+
+            ${detailHtml}
+        `;
+
+        const modal = createCoffeeModalForm({
+            id: 'frmCloseDay',
+            theme: 'dark',
+            width: 430,
+            hideHeader: true,
+            reverseButtons: true,
+            confirmText: `<span class="inline-flex items-center justify-center gap-1.5">${lucideIcon('check', 'w-4 h-4')} Sí, cerrar el día</span>`,
+            confirmBg: 'bg-blue-600 hover:bg-blue-700',
+            cancelText: 'No, seguir operando',
+            footerNote: 'El sistema se cerrará al confirmar el cierre',
+            json: [{ opc: 'html', html: html }],
+            onCancel: () => this.resetCierreView(),
+            onConfirm: async (_, m) => {
+                m.el.find('.cf-confirm').prop('disabled', true).addClass('opacity-60 cursor-not-allowed');
+
+                const res = await useFetch({ url: this.api, data: { opc: 'addCierre', date: date, subsidiaries_id: subsidiariesId } });
+                m.close();
+
+                if (res.status === 200) {
+                    Swal.fire({ title: 'Cierre realizado', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#2563eb' });
+                    dailyClosure = { is_closed: true, closure_id: res.closure_id };
+                    await this.loadClosedView(date, subsidiariesId);
+                } else {
+                    Swal.fire({ title: 'Error', text: res.message || 'Error al realizar el cierre', icon: 'error', background: '#1F2A37', color: '#fff' });
+                    this.resetCierreView();
+                }
+            }
         });
 
-        if (!result.isConfirmed) return;
-
-        const res = await useFetch({ url: this.api, data: { opc: 'addCierre', date: date, subsidiaries_id: subsidiariesId } });
-
-        if (res.status === 200) {
-            Swal.fire({ title: 'Cierre realizado', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#ea580c' });
-            dailyClosure = { is_closed: true, closure_id: res.closure_id };
-            await this.loadClosedView(date, subsidiariesId);
-        } else {
-            Swal.fire({ title: 'Error', text: res.message || 'Error al realizar el cierre', icon: 'error', background: '#1F2A37', color: '#fff' });
-            this.cancelChecklist();
-        }
+        // "Ver info del día": despliega el desglose y rota el chevron.
+        modal.el.find('#closeDayInfoToggle').on('click', () => {
+            const info = modal.el.find('#closeDayInfo');
+            const willOpen = info.hasClass('hidden');
+            info.toggleClass('hidden');
+            modal.el.find('#closeDayInfoLabel').text(willOpen ? 'Ocultar info' : 'Ver info del día');
+            modal.el.find('#closeDayInfoChevron').css('transform', willOpen ? 'rotate(90deg)' : '');
+        });
     }
 
     async loadClosedView(date, subsidiariesId) {

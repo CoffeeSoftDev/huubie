@@ -3094,26 +3094,35 @@ class App extends Templates {
         if (openShifts.length > 0) {
             const shiftItems = openShifts.map(s => {
                 const date = moment(s.opened_at).format('DD/MM/YYYY');
-                const time = moment(s.opened_at).format('hh:mm A');
-                const name = s.shift_name || time;
+                const time = moment(s.opened_at).format('hh:mm').replace(/^0/, '');
+                const meridiem = moment(s.opened_at).format('A');
                 return `
-                    <div class="flex items-center justify-between gap-3 py-2.5 pl-3 pr-3.5 bg-slate-800/40 border-l-2 border-orange-500 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                            <span class="text-sm font-medium text-slate-100">${name}</span>
+                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-800/40 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
+                        <div class="flex flex-col gap-0.5">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-sm font-bold text-white leading-none">${time}</span>
+                                <span class="text-[10px] font-semibold text-slate-400">${meridiem}</span>
+                            </div>
+                            <div class="flex items-center gap-1 text-[10px] text-slate-400">
+                                <i class="icon-calendar text-[10px]"></i>
+                                <span>${date}</span>
+                            </div>
                         </div>
-                        <span class="text-xs text-slate-400">${date}</span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30">
+                            <span class="w-1 h-1 bg-orange-400 rounded-full animate-pulse"></span>
+                            <span class="text-[10px] font-semibold text-orange-400">Abierto</span>
+                        </span>
                     </div>
                 `;
             }).join('');
 
             alertContainer.html(`
-                <div class="rounded-lg border border-slate-600/50 bg-slate-900/40 p-4">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">Turnos sin cerrar (${openShifts.length})</span>
+                <div class="rounded-lg border border-slate-700/60 bg-slate-900/40 p-2.5">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Turnos sin cerrar</span>
+                        <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-[10px] font-bold text-white">${openShifts.length}</span>
                     </div>
-                    <div class="space-y-2">${shiftItems}</div>
+                    <div class="space-y-1.5">${shiftItems}</div>
                 </div>
             `).removeClass('hidden');
 

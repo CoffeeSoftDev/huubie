@@ -18,16 +18,24 @@
      width:       360,                 // ancho max en px
      confirmText: 'Confirmar',
      cancelText:  'Cancelar',
+     confirmBg:   'bg-green-600 hover:bg-green-700',   // color del boton confirmar
+     hideHeader:  false,   // oculta header lateral (icono+titulo+X) -> modo dialogo centrado
+     reverseButtons: false,// confirmar a la izquierda
+     footerNote:  '',      // texto pequeno centrado bajo los botones
      json: [
        { opc:'display', id, lbl, value },                       // caja solo lectura
        { opc:'money',   id, lbl, placeholder, min, step, ... }, // input number con prefijo $
-       { opc:'text'|'number', id, lbl, placeholder, prefix, required, ... }
+       { opc:'text'|'number', id, lbl, placeholder, prefix, required, ... },
+       { opc:'html',    html }                                  // bloque libre (resumen/recibo), sin caja ni label
      ],
      // onConfirm recibe los valores de los inputs y el modal.
      //   - devuelve true  -> el modal se cierra automaticamente.
      //   - devuelve otra cosa (incl. Promise) -> permanece abierto; cierra tu
      //     mismo con modal.close() (o modal.modal('hide')) al terminar (async).
-     onConfirm: (data, modal) => {}
+     onConfirm: (data, modal) => {},
+     // onCancel se dispara al cerrar por accion del usuario (X, Cancelar, Escape,
+     // clic fuera). NO se dispara en el cierre programatico via modal.close().
+     onCancel: () => {}
    }
    ============================================================================ */
 (function () {
@@ -42,8 +50,13 @@
             width: 360,
             confirmText: 'Confirmar',
             cancelText: 'Cancelar',
+            confirmBg: 'bg-green-600 hover:bg-green-700',
+            hideHeader: false,      // oculta el header (icono lateral + titulo + X): modo dialogo centrado
+            reverseButtons: false,  // confirmar a la izquierda, cancelar a la derecha
+            footerNote: '',         // texto pequeno centrado debajo de los botones
             json: [],
-            onConfirm: () => true
+            onConfirm: () => true,
+            onCancel: null
         }, options);
 
         const dark = o.theme !== 'light';
@@ -60,6 +73,10 @@
                                : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300';
 
         const fieldHtml = (f) => {
+            // Bloque de HTML libre: se inyecta tal cual, sin label ni caja.
+            // Sirve para resumenes/recibos dentro del mismo marco del modal.
+            if (f.opc === 'html') return f.html || '';
+
             const lbl = `<label class="text-[10px] font-bold ${labelCls} uppercase tracking-wide block mb-1.5">${f.lbl || ''}</label>`;
 
             if (f.opc === 'display') {
@@ -94,21 +111,30 @@
         const iconHtml  = o.iconSvg || (o.icon ? `<i class="${o.icon} text-white"></i>` : '');
         const closeHtml = (typeof lucideIcon !== 'undefined') ? lucideIcon('x', 'w-5 h-5') : '&times;';
 
-        const overlay = $(`
-            <div class="cf-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;transition:opacity .15s ease;">
-                <div class="cf-card ${cardBg} rounded-2xl shadow-2xl w-full p-4" style="max-width:${o.width}px;transform:scale(.96);transition:transform .15s ease;">
+        const headerHtml = o.hideHeader ? '' : `
                     <div class="flex items-center gap-3 mb-3">
                         <div class="w-9 h-9 ${o.iconBg} rounded-lg flex items-center justify-center flex-shrink-0 text-white">
                             ${iconHtml}
                         </div>
                         <span class="text-base font-bold ${titleCls} flex-1 truncate">${o.title}</span>
                         <button type="button" class="cf-close ${closeCls} flex items-center justify-center p-1 -mr-1">${closeHtml}</button>
-                    </div>
+                    </div>`;
+
+        const cancelBtn  = `<button type="button" class="cf-cancel flex-1 py-2.5 rounded-lg text-sm font-semibold ${cancelCls}">${o.cancelText}</button>`;
+        const confirmBtn = `<button type="button" class="cf-confirm flex-1 py-2.5 rounded-lg text-sm font-semibold ${o.confirmBg} text-white">${o.confirmText}</button>`;
+        const buttonsHtml = o.reverseButtons ? confirmBtn + cancelBtn : cancelBtn + confirmBtn;
+
+        const footerNoteHtml = o.footerNote
+            ? `<p class="text-[11px] ${labelCls} text-center mt-3">${o.footerNote}</p>`
+            : '';
+
+        const overlay = $(`
+            <div class="cf-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;transition:opacity .15s ease;">
+                <div class="cf-card ${cardBg} rounded-2xl shadow-2xl w-full p-4" style="max-width:${o.width}px;transform:scale(.96);transition:transform .15s ease;">
+                    ${headerHtml}
                     <div class="space-y-3">${fieldsHtml}</div>
-                    <div class="flex gap-3 mt-4">
-                        <button type="button" class="cf-cancel flex-1 py-2.5 rounded-lg text-sm font-semibold ${cancelCls}">${o.cancelText}</button>
-                        <button type="button" class="cf-confirm flex-1 py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white">${o.confirmText}</button>
-                    </div>
+                    <div class="flex gap-3 mt-4">${buttonsHtml}</div>
+                    ${footerNoteHtml}
                 </div>
             </div>
         `);
@@ -131,7 +157,7 @@
         };
 
         let closed = false;
-        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        const onKey = (e) => { if (e.key === 'Escape') userCancel(); };
         function close() {
             if (closed) return;
             closed = true;
@@ -139,6 +165,13 @@
             overlay.css('opacity', 0);
             overlay.find('.cf-card').css('transform', 'scale(.96)');
             setTimeout(() => overlay.remove(), 150);
+        }
+        // Cierre por accion del usuario (X, Cancelar, Escape, clic fuera): dispara onCancel.
+        // El cierre programatico via modal.close() NO lo dispara.
+        function userCancel() {
+            if (closed) return;
+            if (typeof o.onCancel === 'function') o.onCancel();
+            close();
         }
 
         const modal = {
@@ -148,8 +181,8 @@
             modal: (action) => { if (action === 'hide') close(); }
         };
 
-        overlay.on('mousedown', (e) => { if (e.target === overlay[0]) close(); });
-        overlay.find('.cf-close, .cf-cancel').on('click', close);
+        overlay.on('mousedown', (e) => { if (e.target === overlay[0]) userCancel(); });
+        overlay.find('.cf-close, .cf-cancel').on('click', userCancel);
         overlay.find('.cf-confirm').on('click', () => {
             if (!validate()) return;
             const ret = o.onConfirm(collect(), modal);

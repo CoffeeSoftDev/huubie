@@ -316,9 +316,16 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* Cabecera: etiqueta del elemento + botones "Copiar CSS" / "Copiar clases" */
 .pg-sty-head { padding: 11px 14px; border-bottom: 1px solid var(--vsr-border); position: sticky; top: 0; background: var(--vsr-bg-chrome); z-index: 2; }
+.pg-sty-tagrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pg-sty-tag { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--vsr-accent-soft); word-break: break-all; }
+.pg-sty-parent {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; cursor: pointer;
+    font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 6px;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border);
+}
+.pg-sty-parent:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
 .pg-sty-dims { font-size: 10.5px; color: var(--vsr-text-mute2); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.pg-sty-actions { display: flex; gap: 6px; margin-top: 9px; }
+.pg-sty-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .pg-sty-copy {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1 1 0; cursor: pointer;
     font-size: 11px; font-weight: 700; padding: 6px 9px; border-radius: 7px;
@@ -327,6 +334,8 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sty-copy:hover { filter: brightness(1.08); }
 .pg-sty-copy-alt { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border); }
 .pg-sty-copy-alt:hover { filter: none; border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.pg-sty-copy-prompt { flex: 1 1 100%; background: transparent; color: var(--vsr-accent-soft); border: 1px dashed var(--vsr-accent-tint); }
+.pg-sty-copy-prompt:hover { filter: none; background: var(--vsr-bg-hover); border-style: solid; }
 
 /* Chips de clases utilitarias (Tailwind, .cs-*, etc.), agrupados por categoría */
 .pg-sty-classes { display: flex; flex-direction: column; gap: 7px; padding: 11px 14px 4px; }
@@ -968,29 +977,172 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     border-radius: 6px; padding: 2px 7px; outline: none;
 }
 
-/* ── Studio: barra de archivos del módulo (pestaña Código) ──
-   Tabs monoespaciados por archivo (@file) sobre el visor de código. */
-.st-file-tabs {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 6;
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-    padding: 7px 10px;
-    background: var(--vsr-bg-chrome);
-    border-bottom: 1px solid var(--vsr-border);
+/* ── Toggle de vista (lista / miniaturas) en el modal de hilos ── */
+.pg-threads-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pg-threads-view {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--vsr-bg-base); border: 1px solid var(--vsr-border);
+    border-radius: 8px;
 }
-.st-file-tabs.hidden { display: none; }
-.st-file-tab {
-    border: 1px solid var(--vsr-border); background: transparent;
-    color: var(--vsr-text-mute); cursor: pointer;
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    padding: 3px 9px; border-radius: 6px; white-space: nowrap;
+.pg-threads-viewbtn {
+    display: grid; place-items: center;
+    width: 28px; height: 26px; border-radius: 6px;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--vsr-text-muted); transition: all .15s;
 }
-.st-file-tab:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
-.st-file-tab.is-active {
-    color: var(--vsr-accent); border-color: var(--vsr-accent);
-    background: var(--vsr-accent-tint);
+.pg-threads-viewbtn:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.pg-threads-viewbtn.is-active { color: #fff; background: var(--vsr-accent); }
+
+/* ── Vista MINIATURAS: grid de tarjetas con el último render del hilo ── */
+.pg-threads-list.is-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 240px);
+    justify-content: center;
+    gap: 14px;
+    padding: 2px;
 }
-/* Con la barra visible, el código baja para no quedar debajo de ella. */
-.st-file-tabs:not(.hidden) ~ .pg-sandbox-code { padding-top: 46px; }
+.pg-thread-card {
+    position: relative;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 12px; overflow: hidden;
+    background: var(--vsr-bg-card); cursor: pointer;
+    transition: border-color .15s, transform .12s, box-shadow .15s;
+}
+.pg-thread-card:hover { border-color: var(--vsr-accent); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.32); }
+.pg-thread-card.is-active { border-color: var(--vsr-accent); box-shadow: 0 0 0 1px var(--vsr-accent); }
+
+.pg-thread-card-thumb {
+    position: relative;
+    width: 100%; height: 150px; overflow: hidden;
+    background: var(--vsr-bg-base);
+    border-bottom: 1px solid var(--vsr-border-soft);
+    pointer-events: none;   /* el clic lo captura la tarjeta */
+}
+/* Render a tamaño real escalado para caber en la miniatura (240px de ancho). */
+.pg-thread-card-frame {
+    width: 1000px; height: 680px; border: 0;
+    transform: scale(0.24); transform-origin: top left;
+    pointer-events: none; background: #fff;
+}
+.pg-thread-card-noimg {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    color: var(--vsr-text-mute2); font-size: 11px;
+}
+.pg-thread-card-noimg i { width: 22px; height: 22px; }
+
+.pg-thread-card-info { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; min-width: 0; }
+.pg-thread-card .pg-thread-title { font-size: 12px; }
+.pg-thread-card .pg-thread-meta { font-size: 10.5px; color: var(--vsr-text-mute2); }
+
+.pg-thread-card-actions {
+    position: absolute; top: 6px; right: 6px; z-index: 2;
+    display: flex; gap: 4px; opacity: 0; transition: opacity .15s;
+}
+.pg-thread-card:hover .pg-thread-card-actions { opacity: 1; }
+.pg-thread-card-actions .pg-iconbtn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: rgba(17,24,39,.72); border: 1px solid rgba(255,255,255,.16);
+    color: #fff;
+}
+.pg-thread-card-actions .pg-thread-del:hover { color: #ef4444; border-color: rgba(239,68,68,.5); }
+
+/* ── Studio: vista de código estilo VS Code (pestaña Código, módulo @file) ──
+   Explorador con árbol de carpetas a la izquierda + editor con pestañas de
+   archivo y números de línea a la derecha. */
+.st-code-view {
+    position: absolute; inset: 0; z-index: 6;
+    display: flex; overflow: hidden;
+    background: var(--vsr-bg-base);
+}
+.st-code-view.hidden { display: none; }
+
+/* Explorador (izquierda) */
+.st-explorer {
+    flex: 0 0 210px; min-width: 0; display: flex; flex-direction: column;
+    background: var(--vsr-bg-chrome); border-right: 1px solid var(--vsr-border);
+}
+.st-explorer-head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 12px; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; letter-spacing: .1em;
+    color: var(--vsr-text-mute); border-bottom: 1px solid var(--vsr-border-soft);
+}
+.st-file-tree { flex: 1 1 auto; overflow: auto; padding: 6px 4px; }
+.st-tree-dir summary {
+    display: flex; align-items: center; gap: 5px; cursor: pointer; list-style: none;
+    padding: 3px 8px; border-radius: 6px;
+    font-size: 12px; color: var(--vsr-text-mid); user-select: none;
+}
+.st-tree-dir summary::-webkit-details-marker { display: none; }
+.st-tree-dir summary:hover { background: var(--vsr-bg-hover); }
+.st-tree-caret { width: 13px; height: 13px; flex-shrink: 0; color: var(--vsr-text-mute); transition: transform .12s; }
+.st-tree-dir[open] > summary .st-tree-caret { transform: rotate(90deg); }
+.st-tree-foldericon { width: 14px; height: 14px; flex-shrink: 0; color: #D8A25E; }
+.st-tree-children { padding-left: 15px; }
+.st-tree-file {
+    display: flex; align-items: center; gap: 6px; width: 100%; cursor: pointer;
+    padding: 3px 8px 3px 22px; border: 0; border-radius: 6px; background: transparent;
+    font-size: 12px; color: var(--vsr-text-mid); text-align: left; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.st-tree-file i, .st-tree-file svg { width: 14px; height: 14px; flex-shrink: 0; }
+.st-tree-file:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.st-tree-file.is-active { background: var(--vsr-accent-tint); color: var(--vsr-text); }
+
+/* Editor (derecha) */
+.st-editor { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.st-editor-tabs {
+    display: flex; align-items: stretch; overflow-x: auto; flex-shrink: 0;
+    background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+    scrollbar-width: thin; scrollbar-color: var(--vsr-scrollbar) transparent;
+}
+.st-editor-tab {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 7px 8px 7px 12px; white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    color: var(--vsr-text-mute); background: transparent;
+    border-right: 1px solid var(--vsr-border-soft);
+    border-top: 2px solid transparent;
+}
+.st-editor-tab i, .st-editor-tab > svg { width: 13px; height: 13px; flex-shrink: 0; }
+.st-editor-tab:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.st-editor-tab.is-active {
+    color: var(--vsr-text); background: var(--vsr-bg-base);
+    border-top-color: var(--vsr-accent);
+}
+.st-tab-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; padding: 0; margin-left: 2px; cursor: pointer;
+    border: 0; border-radius: 4px; background: transparent; color: var(--vsr-text-mute);
+}
+.st-tab-close i, .st-tab-close svg { width: 11px; height: 11px; }
+.st-tab-close:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+
+/* Cuerpo del editor: gutter de líneas sticky + código con scroll compartido. */
+.st-editor-body {
+    flex: 1 1 auto; display: flex; overflow: auto; min-height: 0;
+    scrollbar-width: thin; scrollbar-color: var(--vsr-scrollbar) transparent;
+}
+.st-gutter {
+    flex: 0 0 auto; position: sticky; left: 0; z-index: 1; margin: 0;
+    padding: 14px 10px 14px 14px; text-align: right; user-select: none;
+    background: var(--vsr-bg-base); border-right: 1px solid var(--vsr-border-soft);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.55;
+    color: var(--vsr-text-mute2);
+}
+.st-code { flex: 1 1 auto; margin: 0; padding: 14px 16px; }
+.st-code code {
+    display: block; background: transparent; padding: 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.55;
+    color: var(--vsr-text); white-space: pre;
+}
+
+/* En pantallas angostas el explorador se compacta. */
+@media (max-width: 900px) {
+    .st-explorer { flex-basis: 160px; }
+}
 
 /* La taza CoffeeSoft va inline (como los iconos lucide): hereda el color #fff
    del cuadro y conserva el gradiente terracota de fondo. */

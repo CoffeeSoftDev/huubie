@@ -122,6 +122,10 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
+
+            <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
+                <span class="account-avatar">CD</span>
+            </button>
         </nav>
 
         <aside class="chat-sidebar">
@@ -293,6 +297,8 @@
     <div id="chatToast" class="visor-toast"></div>
 
     <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/chat.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

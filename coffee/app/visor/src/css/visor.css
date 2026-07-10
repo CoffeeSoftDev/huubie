@@ -314,6 +314,89 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
     text-align: right; direction: rtl; /* recorta por la izquierda para preservar el final de la ruta */
 }
 
+/* ── Botón de cuenta (estilo ChatGPT) al fondo del rail ─────── */
+.app-rail-account {
+    margin-top: auto;                 /* empuja al fondo del rail */
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    min-height: 48px; padding: 8px 4px; cursor: pointer;
+    border-radius: 11px; border: 1px solid transparent;
+    background: transparent; color: var(--vsr-text-muted);
+    transition: background .12s, border-color .12s, color .12s;
+}
+.app-rail-account:hover, .app-rail-account.is-active {
+    color: var(--vsr-text); background: var(--vsr-bg-hover); border-color: var(--vsr-border-soft);
+}
+.app-rail-account .app-rail-label { font-size: 9px; font-weight: 600; letter-spacing: .02em; }
+.account-avatar {
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .02em;
+    background: var(--vsr-accent); color: #fff;
+}
+.account-avatar-sm { width: 26px; height: 26px; font-size: 10px; }
+
+/* Menú emergente de la cuenta (flota sobre body, posición JS) */
+.account-menu {
+    position: fixed; z-index: 1200; min-width: 240px;
+    background: var(--vsr-bg-chrome); border: 1px solid var(--vsr-border);
+    border-radius: 12px; padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.45);
+}
+.account-menu[hidden] { display: none; }
+.account-menu-head { display: flex; align-items: center; gap: 9px; padding: 8px 10px 10px; border-bottom: 1px solid var(--vsr-border-soft); margin-bottom: 6px; }
+.account-menu-head-meta { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.account-menu-head-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-head-plan { font-size: 10.5px; color: var(--vsr-text-muted); }
+.account-menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer;
+    padding: 9px 10px; border-radius: 8px; border: 0; background: transparent;
+    color: var(--vsr-text-soft); font-size: 12.5px; text-align: left; transition: background .1s;
+}
+.account-menu-item:hover { background: var(--vsr-bg-hover); }
+.account-menu-item i { color: var(--vsr-text-muted); flex: 0 0 auto; }
+.account-menu-item[data-act="logout"] { color: var(--vsr-accent-soft); }
+.account-menu-item[data-act="logout"] i { color: var(--vsr-accent-soft); }
+.account-menu-sep { height: 1px; background: var(--vsr-border-soft); margin: 6px 4px; }
+
+/* ── Modal de Configuración (habilitar/deshabilitar modelos) ── */
+.acct-modal { position: fixed; inset: 0; z-index: 1300; display: flex; align-items: center; justify-content: center; }
+.acct-modal[hidden] { display: none; }
+.acct-modal-backdrop { position: absolute; inset: 0; background: rgba(4,8,14,.62); backdrop-filter: blur(2px); }
+.acct-modal-card {
+    position: relative; z-index: 1; width: min(560px, 92vw); max-height: 86vh; display: flex; flex-direction: column;
+    background: var(--vsr-bg-chrome); border: 1px solid var(--vsr-border); border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5); overflow: hidden;
+}
+.acct-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--vsr-border-soft); }
+.acct-modal-title { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 700; color: var(--vsr-text); }
+.acct-modal-title i { color: var(--vsr-accent-soft); }
+.acct-modal-x { display: inline-flex; padding: 6px; border-radius: 8px; border: 0; background: transparent; color: var(--vsr-text-muted); cursor: pointer; }
+.acct-modal-x:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.acct-modal-body { padding: 16px 18px; overflow-y: auto; }
+.acct-sec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.acct-sec-title { font-size: 13px; font-weight: 700; color: var(--vsr-text); }
+.acct-sec-sub { font-size: 11.5px; color: var(--vsr-text-muted); margin-top: 2px; max-width: 42ch; }
+.acct-sec-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.acct-mini { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border); }
+.acct-mini:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.acct-model-list { display: flex; flex-direction: column; gap: 14px; }
+.acct-model-group-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--vsr-text-mute2); margin-bottom: 6px; }
+.acct-model-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--vsr-border-soft); background: var(--vsr-bg-card); margin-bottom: 6px; transition: border-color .12s, background .12s;
+}
+.acct-model-item:hover { border-color: var(--vsr-border); }
+.acct-model-item.is-on { border-color: var(--vsr-accent-tint); }
+.acct-model-cb { width: 16px; height: 16px; accent-color: var(--vsr-accent); flex: 0 0 auto; cursor: pointer; }
+.acct-model-name { font-size: 12.5px; font-weight: 600; color: var(--vsr-text-soft); flex: 1 1 auto; }
+.acct-model-val { font-size: 10.5px; font-family: 'JetBrains Mono', monospace; color: var(--vsr-text-mute2); }
+.acct-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--vsr-border-soft); }
+.acct-foot-count { font-size: 11.5px; color: var(--vsr-text-muted); }
+.acct-btn { font-size: 12.5px; font-weight: 600; padding: 8px 16px; border-radius: 9px; cursor: pointer; border: 1px solid var(--vsr-border); background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.acct-btn-primary { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+.acct-btn-primary:hover { filter: brightness(1.08); }
+
 /* ── Main piezas ────────────────────────────────────────────── */
 
 .main-breadcrumb {
@@ -4612,10 +4695,11 @@ body.ia-drawer-resizing * {
         border-right: none; border-top: 1px solid var(--vsr-border);
         padding: 6px 8px; gap: 4px;
     }
-    .app-rail-nav { flex-direction: row; justify-content: space-around; width: 100%; }
+    .app-rail-nav { flex-direction: row; justify-content: space-around; width: auto; flex: 1 1 auto; }
     .app-rail-item { flex: 1 1 0; min-height: 44px; padding: 6px 2px; }
     .app-rail-item .app-rail-label { font-size: 8.5px; }
     .app-rail-item.active::before { display: none; }
+    .app-rail-account { margin-top: 0; width: auto; flex: 0 0 auto; min-height: 44px; padding: 6px 10px; }
 
     /* Toolbar del documento: scroll horizontal en vez de romper el layout. */
     .main-breadcrumb { gap: 8px; padding: 8px 10px; }

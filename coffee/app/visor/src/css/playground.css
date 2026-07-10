@@ -334,9 +334,16 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* Cabecera: etiqueta del elemento + botones "Copiar CSS" / "Copiar clases" */
 .pg-sty-head { padding: 11px 14px; border-bottom: 1px solid var(--vsr-border); position: sticky; top: 0; background: var(--vsr-bg-chrome); z-index: 2; }
+.pg-sty-tagrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pg-sty-tag { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 700; color: var(--vsr-accent-soft); word-break: break-all; }
+.pg-sty-parent {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; cursor: pointer;
+    font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 6px;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border);
+}
+.pg-sty-parent:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
 .pg-sty-dims { font-size: 10.5px; color: var(--vsr-text-mute2); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.pg-sty-actions { display: flex; gap: 6px; margin-top: 9px; }
+.pg-sty-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .pg-sty-copy {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1 1 0; cursor: pointer;
     font-size: 11px; font-weight: 700; padding: 6px 9px; border-radius: 7px;
@@ -345,6 +352,8 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sty-copy:hover { filter: brightness(1.08); }
 .pg-sty-copy-alt { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border); }
 .pg-sty-copy-alt:hover { filter: none; border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.pg-sty-copy-prompt { flex: 1 1 100%; background: transparent; color: var(--vsr-accent-soft); border: 1px dashed var(--vsr-accent-tint); }
+.pg-sty-copy-prompt:hover { filter: none; background: var(--vsr-bg-hover); border-style: solid; }
 
 /* Chips de clases utilitarias (Tailwind, .cs-*, etc.), agrupados por categoría */
 .pg-sty-classes { display: flex; flex-direction: column; gap: 7px; padding: 11px 14px 4px; }

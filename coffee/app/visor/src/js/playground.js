@@ -490,6 +490,8 @@ function pgBind() {
     // Copiar la configuración del elemento inspeccionado: CSS resuelto o clases Tailwind.
     $('#pgStylesContent').on('click', '#pgStyCopyBtn', function (e) { e.stopPropagation(); pgCopyStyleConfig(); });
     $('#pgStylesContent').on('click', '#pgStyCopyCls', function (e) { e.stopPropagation(); pgCopyClasses(); });
+    $('#pgStylesContent').on('click', '#pgStyCopyHtml', function (e) { e.stopPropagation(); pgCopyStructurePrompt(); });
+    $('#pgStylesContent').on('click', '#pgStyParent', function (e) { e.stopPropagation(); pgInsSelectParent(); });
 
     // Copiar un valor/clase suelto desde el inspector de estilos (delegado).
     $('#pgStylesContent').on('click', '[data-copy]', function () {
@@ -2556,7 +2558,9 @@ function pgElLabel(el) {
     return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls.length ? '.' + cls.join('.') : '');
 }
 // outerHTML del fragmento SIN las clases del resaltado, con tope de tamaño.
-function pgTargetFragHtml(el) {
+// maxLen=0 desactiva el truncado (p.ej. al copiar el contenedor completo).
+function pgTargetFragHtml(el, maxLen) {
+    const cap   = (maxLen === undefined) ? 8000 : maxLen;
     const clone = el.cloneNode(true);
     [clone, ...clone.querySelectorAll('.pg-ins-hover, .pg-ins-sel')].forEach(n => {
         if (!n.classList) return;
@@ -2564,7 +2568,7 @@ function pgTargetFragHtml(el) {
         if (!n.classList.length) n.removeAttribute('class');
     });
     let html = clone.outerHTML || '';
-    if (html.length > 8000) html = html.slice(0, 8000) + '\n<!-- fragmento truncado -->';
+    if (cap && html.length > cap) html = html.slice(0, cap) + '\n<!-- fragmento truncado -->';
     return html;
 }
 /* Chip "Editando componente: <label> ✕" encima del input, hermano del banner
@@ -2628,13 +2632,28 @@ function pgInsOver(e) { if (e.target && e.target.classList && e.target !== e.cur
 function pgInsOut(e)  { if (e.target && e.target.classList) e.target.classList.remove('pg-ins-hover'); }
 function pgInsClick(e) {
     e.preventDefault(); e.stopPropagation();
-    const el = e.target;
+    pgInsSelectEl(e.target);
+}
+// Marca visualmente un elemento como seleccionado en el doc inspeccionado y
+// refresca el panel de estilos. Punto único de selección (clic o navegar al padre).
+function pgInsSelectEl(el) {
     if (!el || !el.tagName) return;
-    const doc = pg._insDoc;
+    const doc = pg._insDoc || el.ownerDocument;
     if (doc) doc.querySelectorAll('.pg-ins-sel').forEach(n => n.classList.remove('pg-ins-sel'));
     el.classList.remove('pg-ins-hover');
     el.classList.add('pg-ins-sel');
     pgRenderStyles(el);
+}
+// Sube al contenedor padre del elemento seleccionado (sin pasar de <body>).
+function pgInsSelectParent() {
+    const el = pg._styleEl;
+    if (!el) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    const doc = pg._insDoc || el.ownerDocument;
+    const parent = el.parentElement;
+    if (!parent || parent === (doc && doc.body) || parent.tagName === 'BODY' || parent.tagName === 'HTML') {
+        pgToast('Ya estás en el contenedor raíz', 'warn'); return;
+    }
+    pgInsSelectEl(parent);
 }
 
 // ¿El valor parece un color (para pintar el swatch junto a la propiedad)?
@@ -2841,13 +2860,20 @@ function pgRenderStyles(el) {
     // Config copiable: snippet CSS (con su :hover) y las clases Tailwind tal cual.
     pg._styleSnippet = pgBuildSnippet(selName || tag, cs, hasBorder, hover);
     pg._styleClasses = clsArr.join(' ');
+    pg._styleEl      = el;
 
+    const kidCount = el.querySelectorAll('*').length;
+    const canUp = el.parentElement && el.parentElement.tagName !== 'BODY' && el.parentElement.tagName !== 'HTML';
     const head = `<div class="pg-sty-head">`
-        + `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
-        + `<div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${disp}</div>`
+        + `<div class="pg-sty-tagrow">`
+        +   `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
+        +   (canUp ? `<button id="pgStyParent" class="pg-sty-parent" title="Seleccionar el contenedor padre"><i data-lucide="corner-left-up" class="w-3.5 h-3.5"></i> padre</button>` : '')
+        + `</div>`
+        + `<div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${disp}${kidCount ? ` · ${kidCount} ${kidCount === 1 ? 'hijo' : 'hijos'}` : ''}</div>`
         + `<div class="pg-sty-actions">`
         +   `<button id="pgStyCopyBtn" class="pg-sty-copy" title="Copiar el CSS resuelto del elemento"><i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> Copiar CSS</button>`
         +   `<button id="pgStyCopyCls" class="pg-sty-copy pg-sty-copy-alt" title="Copiar las clases Tailwind del elemento"><i data-lucide="code-2" class="w-3.5 h-3.5"></i> Copiar clases</button>`
+        +   `<button id="pgStyCopyHtml" class="pg-sty-copy pg-sty-copy-prompt" title="Copiar la estructura HTML con un prompt para recrearla"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Copiar estructura</button>`
         + `</div></div>`;
 
     const chips = pgClassChips(clsArr);
@@ -2943,6 +2969,27 @@ function pgCopyStyleConfig() {
 function pgCopyClasses() {
     if (!pg._styleClasses) { pgToast('Selecciona un elemento primero', 'warn'); return; }
     pgCopyText(pg._styleClasses, 'Clases Tailwind copiadas');
+}
+// Clasifica lo seleccionado para adaptar el verbo del prompt: un contenedor grande
+// es un "módulo", un bloque con estructura interna un "componente", un control de
+// formulario "código" y una hoja simple un "elemento".
+function pgStructKind(el) {
+    const tag  = el.tagName.toLowerCase();
+    const kids = el.querySelectorAll('*').length;
+    if (['input', 'select', 'textarea', 'button', 'a', 'label'].includes(tag) && kids <= 2) return 'código';
+    if (tag === 'form' || tag === 'table' || tag === 'nav' || kids >= 20) return 'módulo';
+    if (kids >= 3) return 'componente';
+    return 'elemento';
+}
+// Copia la estructura HTML del elemento seleccionado envuelta en un prompt listo
+// para pegar en el chat: "Recrea este <módulo|componente|código|elemento>…".
+function pgCopyStructurePrompt() {
+    const el = pg._styleEl;
+    if (!el) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    const kind = pgStructKind(el);
+    const html = pgTargetFragHtml(el, 0);
+    const prompt = `Recrea este ${kind} respetando su estructura, clases y estilo visual:\n\n\`\`\`html\n${html}\n\`\`\``;
+    pgCopyText(prompt, `Prompt de ${kind} copiado`);
 }
 // Copia robusta: usa la Clipboard API si está disponible (contexto seguro) y, si
 // no (p.ej. http por IP/hostname), cae al método clásico con execCommand.

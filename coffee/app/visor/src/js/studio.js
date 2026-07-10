@@ -158,9 +158,39 @@ const PG_MODULE_NOTE =
     + "```js\n// @file: src/js/app.js\n…\n```\n"
     + `Puedes añadir más archivos (p.ej. src/js/data.js) con el mismo marcador. No mezcles archivos en un mismo bloque.`;
 
+// Contrato de módulo CoffeeSoft: cuando el agente activo es de código (CoffeeIA)
+// y el módulo carpeta está activo, la entrega deja de ser vanilla y pasa a ser un
+// módulo del framework (jQuery + Templates + componentes). El detalle completo de
+// las reglas viaja en el contexto como FRONT-JS.md (steering real de .claude).
+const PG_COFFEESOFT_NOTE =
+    `\n\n## Entrega multi-archivo — Módulo CoffeeSoft (obligatoria)\n`
+    + `Entrega un MÓDULO del framework CoffeeSoft (jQuery + clase \`Templates\` + componentes del framework), NO vanilla JS. `
+    + `El contexto incluye **FRONT-JS.md** con las reglas completas del framework: síguelas al pie de la letra.\n`
+    + `Cada archivo va en su PROPIO bloque cercado y la PRIMERA línea del bloque es su ruta con el marcador @file. Archivos mínimos:\n\n`
+    + `1. \`index.html\` — SOLO carga librerías y el contenedor raíz, con esta estructura EXACTA (el sandbox resuelve \`plugins.js\` y \`coffeSoft.js\` al framework real):\n`
+    + "```html\n<!-- @file: index.html -->\n<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n"
+    + "<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"><\/script>\n<script src=\"https://cdn.tailwindcss.com\"><\/script>\n"
+    + "<script src=\"https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js\"><\/script>\n<script src=\"https://cdn.jsdelivr.net/npm/sweetalert2@11\"><\/script>\n"
+    + "<script src=\"https://unpkg.com/lucide@latest\"><\/script>\n</head>\n<body>\n<div id=\"root\"></div>\n"
+    + "<script src=\"plugins.js\"><\/script>\n<script src=\"coffeSoft.js\"><\/script>\n<script src=\"src/js/sample_modulo.js\"><\/script>\n<script src=\"src/js/app.js\"><\/script>\n</body>\n</html>\n```\n"
+    + `2. \`src/js/sample_<modulo>.js\` — datos de muestra: constantes \`SAMPLE_<ENTIDAD>\` al inicio. Aquí NO hay backend: el módulo pinta TODO desde estos samples (patrón UI-first).\n`
+    + `3. \`src/js/app.js\` — el módulo coffeeSoft. Reglas innegociables:\n`
+    + `- Clase \`App extends Templates\` con \`this.PROJECT_NAME\`; submódulos en clase APARTE (extienden \`App\` solo si comparten estructura; si App solo orquesta tabs, el submódulo extiende \`Templates\` directo).\n`
+    + `- Variable global = PROJECT_NAME en minúsculas, instanciada en \`$(function(){ ... })\` — así los \`fn: "ventas.ls()"\` del filterBar funcionan.\n`
+    + `- \`init()\` → \`render()\`; \`render()\` → \`layout()\` + \`filterBar()\` (o \`renderTabs()\` + \`renderActiveTab()\` si hay tabs).\n`
+    + `- \`layout()\` con \`primaryLayout\` canónico (parent 'root', id PROJECT_NAME, ids \`filterBar\${this.PROJECT_NAME}\` y \`container\${this.PROJECT_NAME}\`); módulos con tabs usan \`createLayout\`.\n`
+    + `- La UI se construye SOLO con componentes del framework: \`createTable\`, \`createModalForm\`, \`createForm\`, \`createfilterBar\`, \`tabLayout\`, \`infoCard\`, \`dataPicker\`. PROHIBIDO HTML crudo en \`.html()\` (máx 2 wrappers vacíos de 1 línea).\n`
+    + `- Alimenta los componentes con los \`SAMPLE_\` (parámetro \`data\`/\`json\`), NUNCA \`useFetch\` (no hay backend en el sandbox).\n`
+    + `- Métodos de tablas con nomenclatura \`ls()\`/\`ls<Entidad>()\`; acciones \`add()\`, \`edit()\`. camelCase inglés, SIN prefijo \`_\`, sin comentarios banner \`// ====\`.\n`
+    + `- Object literals SIEMPRE en formato vertical (una propiedad por línea), nunca contraídos.\n`
+    + `- Tabs con render perezoso: al arrancar solo el tab activo; los demás bajo demanda en su \`onClick\`.\n`
+    + `- El theme de \`tabLayout\`/\`createTable\`/\`createModalForm\` sigue el sistema de diseño activo (light por defecto; dark solo Huubie).\n`
+    + `Puedes añadir más archivos (p.ej. \`src/js/mdl-<entidad>.js\` para clases CRUD adicionales) con el mismo marcador @file y cargarlos en el index antes de \`app.js\`. No mezcles archivos en un mismo bloque.`;
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
+    rules:     {},   // file -> {file, raw} — steering de .claude/steering (FRONT-JS.md para módulos coffeeSoft)
     agentKey:  'CoffeeIA.md',
     theme:     'huubie-ui',     // sistema de diseño del SANDBOX (iframe)
     uiTheme:   'dark',          // tema de la UI del playground (chrome)
@@ -192,6 +222,7 @@ const pg = {
     _varochCss: '',          // CSS embebido extraido del grimorio Coffee-Varoch
     threadUid:   null,       // uid del hilo activo (null = aún no persistido)
     threadTitle: '',         // título del hilo activo
+    threadsView: 'list',     // vista del modal de hilos: 'list' | 'grid' (miniaturas)
     _threadSaveTimer: null,  // debounce del autosave del hilo
     activeDb:    null,       // base MySQL conectada (conexión pegajosa de la conversación)
     activeFolder: null       // carpeta local conectada (conexión pegajosa de la conversación)
@@ -277,6 +308,7 @@ function pgLoadSettings() {
         if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
         if (typeof s.dbToolsOn === 'boolean')    pg.dbToolsOn  = s.dbToolsOn;
         if (typeof s.fsToolsOn === 'boolean')    pg.fsToolsOn  = s.fsToolsOn;
+        if (s.threadsView === 'list' || s.threadsView === 'grid') pg.threadsView = s.threadsView;
         if (typeof s.moduleMode === 'boolean')   pg.moduleMode = s.moduleMode;
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (Array.isArray(s.knowledge))          pg.knowledge = new Set(s.knowledge);
@@ -287,7 +319,7 @@ function pgSaveSettings() {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
             canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
-            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, moduleMode: pg.moduleMode,
+            dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, moduleMode: pg.moduleMode, threadsView: pg.threadsView,
             knowledge: Array.from(pg.knowledge)
         }));
     } catch (e) {}
@@ -303,6 +335,17 @@ async function pgLoadLibrary() {
     } catch (e) {
         pgToast('No se pudo cargar la librería de agentes', 'error');
     }
+
+    // Reglas de .claude/steering para módulos coffeeSoft (FRONT-JS.md se inyecta
+    // como contexto cuando el agente de código entrega módulo). Fallo silencioso:
+    // sin reglas el contrato compacto PG_COFFEESOFT_NOTE sigue aplicando.
+    try {
+        const resR  = await fetch(`${PG_API}?folder=steering`, { cache: 'no-store' });
+        const dataR = await resR.json();
+        (dataR.agents || []).forEach(f => {
+            if (/^(FRONT-JS|DOC-COFFEESOFT|new-component)\.md$/i.test(f.file)) pg.rules[f.file] = f;
+        });
+    } catch (e) {}
 
     // Coffee-Varoch declara su CSS embebido en un bloque ```css dentro del
     // grimorio ("NO requiere archivos externos"). Lo extraemos para el sandbox.
@@ -385,6 +428,8 @@ function pgBind() {
     $('#pgDelThreadBtn').on('click', () => pgDeleteCurrentThread());
     $('#pgThreadChip').on('click', () => pgRenameThreadChipInline());
     $('#pgThreadsBtn').on('click', () => pgOpenThreads());
+    $('#pgThreadsViewList').on('click', () => pgSetThreadsView('list'));
+    $('#pgThreadsViewGrid').on('click', () => pgSetThreadsView('grid'));
     $('#pgThreadsClose, #pgThreadsDone').on('click', () => pgCloseThreads());
     $('#pgThreadsModal .pg-modal-backdrop').on('click', () => pgCloseThreads());
     $('#pgThreadsNew').on('click', () => { pgNewThread(); pgCloseThreads(); });
@@ -448,7 +493,10 @@ function pgBind() {
         pg.moduleMode = !pg.moduleMode;
         pgApplyModuleUI();
         pgSaveSettings();
-        pgToast(pg.moduleMode ? 'Módulo carpeta activado: entrega index + src/css + src/js' : 'Módulo carpeta desactivado: entrega de un solo bloque html', 'info');
+        const isCode = (PG_AGENTS[pg.agentKey] || {}).render === 'code';
+        pgToast(pg.moduleMode
+            ? (isCode ? 'Módulo CoffeeSoft activado: entrega con framework (Templates + componentes + reglas FRONT-JS)' : 'Módulo carpeta activado: entrega index + src/css + src/js')
+            : 'Módulo carpeta desactivado: entrega de un solo bloque html', 'info');
     });
 
     // Adjuntar archivos: imagenes -> vision; texto/codigo/html/md/csv/json -> contexto.
@@ -494,9 +542,11 @@ function pgBind() {
         const tab = $(this).data('sbtab');
         // En "Estilos" el iframe sigue visible (es lo que se inspecciona); solo
         // se oculta en "Código".
+        const hasModule = (pg._moduleFiles || []).length > 0;
         $('#pgSandboxFrame').toggleClass('hidden', tab === 'code');
-        $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
-        $('#stFileTabs').toggleClass('hidden', tab !== 'code' || !(pg._moduleFiles || []).length);
+        // Módulo multi-archivo → vista VS Code (árbol + editor); si no, <pre> plano.
+        $('#pgSandboxCode').toggleClass('hidden', tab !== 'code' || hasModule);
+        $('#stCodeView').toggleClass('hidden', tab !== 'code' || !hasModule);
         if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
     });
 
@@ -506,6 +556,8 @@ function pgBind() {
     // Copiar la configuración del elemento inspeccionado: CSS resuelto o clases Tailwind.
     $('#pgStylesContent').on('click', '#pgStyCopyBtn', function (e) { e.stopPropagation(); pgCopyStyleConfig(); });
     $('#pgStylesContent').on('click', '#pgStyCopyCls', function (e) { e.stopPropagation(); pgCopyClasses(); });
+    $('#pgStylesContent').on('click', '#pgStyCopyHtml', function (e) { e.stopPropagation(); pgCopyStructurePrompt(); });
+    $('#pgStylesContent').on('click', '#pgStyParent', function (e) { e.stopPropagation(); pgInsSelectParent(); });
 
     // Copiar un valor/clase suelto desde el inspector de estilos (delegado).
     $('#pgStylesContent').on('click', '[data-copy]', function () {
@@ -685,9 +737,12 @@ function pgApplyToolsUI() {
 
 function pgApplyModuleUI() {
     const $btn = $('#pgModuleToggle');
+    const isCode = (PG_AGENTS[pg.agentKey] || {}).render === 'code';
     $btn.toggleClass('is-on', pg.moduleMode);
     $btn.attr('title', pg.moduleMode
-        ? 'Módulo carpeta ACTIVO — el agente entrega index.html + src/css + src/js con el contrato @file'
+        ? (isCode
+            ? 'Módulo CoffeeSoft ACTIVO — el agente entrega un módulo del framework (Templates + componentes) con las reglas FRONT-JS en contexto'
+            : 'Módulo carpeta ACTIVO — el agente entrega index.html + src/css + src/js con el contrato @file')
         : 'Módulo carpeta desactivado — el agente entrega un solo bloque html (como el Playground)');
     pgApplyToolsBadge();
 }
@@ -1210,24 +1265,53 @@ function pgCloseThreads() {
 
 async function pgOpenThreads() {
     $('#pgThreadsModal').removeClass('hidden').attr('aria-hidden', 'false');
-    $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
+    pgApplyThreadsViewButtons();
+    $('#pgThreadsList').removeClass('is-grid').html('<p class="pg-hint" style="text-align:center;padding:20px 0;">Cargando…</p>');
     if (window.lucide) lucide.createIcons();
     try {
-        const res  = await fetch(PG_API_THREADS + '&action=list', { cache: 'no-store' });
+        // thumb=1 trae, por hilo, el último render para la miniatura de la vista tarjetas.
+        const sep = PG_API_THREADS.indexOf('?') === -1 ? '?' : '&';
+        const res  = await fetch(PG_API_THREADS + sep + 'action=list&thumb=1', { cache: 'no-store' });
         const data = await res.json();
         if (!data.success) { $('#pgThreadsList').html('<p class="pg-hint">' + (data.message || 'Error al listar') + '</p>'); return; }
-        pgRenderThreadsList(data.rows || []);
+        pg._threadRows = data.rows || [];
+        pgRenderThreadsList(pg._threadRows);
     } catch (e) {
         $('#pgThreadsList').html('<p class="pg-hint">Error de red al cargar los hilos.</p>');
     }
 }
 
+/* Alterna lista/miniaturas sin re-pedir al backend (usa la cache pg._threadRows). */
+function pgSetThreadsView(view) {
+    const next = view === 'grid' ? 'grid' : 'list';
+    if (next === pg.threadsView) return;
+    pg.threadsView = next;
+    pgSaveSettings();
+    pgApplyThreadsViewButtons();
+    pgRenderThreadsList(pg._threadRows || []);
+}
+function pgApplyThreadsViewButtons() {
+    $('#pgThreadsViewList').toggleClass('is-active', pg.threadsView === 'list');
+    $('#pgThreadsViewGrid').toggleClass('is-active', pg.threadsView === 'grid');
+}
+
 function pgRenderThreadsList(rows) {
+    pg._threadRows = rows;
     $('#pgThreadsSummary').text(rows.length ? (rows.length + ' hilo(s) guardado(s)') : 'Sin hilos guardados');
+    const $list = $('#pgThreadsList').toggleClass('is-grid', pg.threadsView === 'grid');
+    if (pg._threadThumbObs) { pg._threadThumbObs.disconnect(); pg._threadThumbObs = null; }
     if (!rows.length) {
-        $('#pgThreadsList').html('<p class="pg-hint" style="text-align:center;padding:24px 0;">No hay hilos guardados todavía. Empieza a conversar y el hilo se guardará solo.</p>');
+        $list.removeClass('is-grid').html('<p class="pg-hint" style="text-align:center;padding:24px 0;">No hay hilos guardados todavía. Empieza a conversar y el hilo se guardará solo.</p>');
         return;
     }
+    if (pg.threadsView === 'grid') pgRenderThreadsGrid(rows);
+    else pgRenderThreadsListView(rows);
+    pgBindThreadItems();
+    if (window.lucide) lucide.createIcons();
+}
+
+/* Vista LISTA (compacta): una fila por hilo. */
+function pgRenderThreadsListView(rows) {
     const html = rows.map(r => `
         <div class="pg-thread-item${r.uid === pg.threadUid ? ' is-active' : ''}" data-thread="${r.uid}" title="Abrir este hilo">
             <div class="pg-thread-main">
@@ -1243,10 +1327,65 @@ function pgRenderThreadsList(rows) {
             <button class="pg-thread-del" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         </div>`).join('');
     $('#pgThreadsList').html(html);
-    $('#pgThreadsList .pg-thread-item').on('click', function () { pgLoadThread($(this).data('thread')); });
-    $('#pgThreadsList .pg-thread-edit').on('click', function (e) { e.stopPropagation(); pgRenameThreadInline($(this).closest('.pg-thread-item')); });
-    $('#pgThreadsList .pg-thread-del').on('click', function (e) { e.stopPropagation(); pgDeleteThread($(this).data('thread-del')); });
-    if (window.lucide) lucide.createIcons();
+}
+
+/* Vista MINIATURAS: tarjeta por hilo con el último render del sandbox. Los iframes
+ * se cargan de forma perezosa (IntersectionObserver) para no montar 30 previews de
+ * golpe; cada uno vuelve a envolverse con pgWrapHtml (Tailwind + tema del hilo). */
+function pgRenderThreadsGrid(rows) {
+    const html = rows.map((r, i) => {
+        const hasThumb = !!(r.thumb_html && String(r.thumb_html).trim());
+        const thumb = hasThumb
+            ? `<iframe class="pg-thread-card-frame" data-thumb-idx="${i}" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>`
+            : `<div class="pg-thread-card-noimg"><i data-lucide="message-square-text"></i><span>Sin render</span></div>`;
+        return `
+        <div class="pg-thread-card${r.uid === pg.threadUid ? ' is-active' : ''}" data-thread="${r.uid}" title="Abrir este hilo">
+            <div class="pg-thread-card-thumb">${thumb}</div>
+            <div class="pg-thread-card-info">
+                <span class="pg-thread-title">${pgEscape(r.title)}</span>
+                <span class="pg-thread-meta">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> ${r.msg_count}
+                    ${Number(r.tpl_count) ? '· <i data-lucide="layout-template" class="w-3 h-3"></i> ' + r.tpl_count : ''}
+                    · ${pgEscape(r.updated_at || '')}
+                </span>
+            </div>
+            <div class="pg-thread-card-actions">
+                <button class="pg-thread-edit pg-iconbtn" data-thread-edit="${r.uid}" title="Renombrar hilo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button class="pg-thread-del pg-iconbtn" data-thread-del="${r.uid}" title="Eliminar hilo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+    $('#pgThreadsList').html(html);
+    pgSetupThumbObserver(rows);
+}
+
+function pgSetupThumbObserver(rows) {
+    const frames = document.querySelectorAll('#pgThreadsList .pg-thread-card-frame');
+    if (!frames.length) return;
+    const load = (fr) => {
+        if (fr.dataset.loaded) return;
+        const r = rows[parseInt(fr.getAttribute('data-thumb-idx'), 10)];
+        if (!r || !r.thumb_html) return;
+        fr.dataset.loaded = '1';
+        fr.srcdoc = pgWrapHtml(r.thumb_html, r.thumb_theme || pg.theme, !!r.thumb_is_doc);
+    };
+    if (!('IntersectionObserver' in window)) { frames.forEach(load); return; }
+    pg._threadThumbObs = new IntersectionObserver((entries, obs) => {
+        entries.forEach(en => { if (en.isIntersecting) { load(en.target); obs.unobserve(en.target); } });
+    }, { root: document.getElementById('pgThreadsList'), rootMargin: '150px' });
+    frames.forEach(fr => pg._threadThumbObs.observe(fr));
+}
+
+/* Clic (abrir), renombrar y eliminar — compartido por lista y tarjetas. */
+function pgBindThreadItems() {
+    const sel = '#pgThreadsList .pg-thread-item, #pgThreadsList .pg-thread-card';
+    $(sel).off('click').on('click', function () { pgLoadThread($(this).data('thread')); });
+    $('#pgThreadsList .pg-thread-edit').off('click').on('click', function (e) {
+        e.stopPropagation(); pgRenameThreadInline($(this).closest('.pg-thread-item, .pg-thread-card'));
+    });
+    $('#pgThreadsList .pg-thread-del').off('click').on('click', function (e) {
+        e.stopPropagation(); pgDeleteThread($(this).data('thread-del'));
+    });
 }
 
 // Edición inline del título: convierte el <span> del título en un <input>.
@@ -1651,6 +1790,17 @@ async function pgSend(text, images, docs) {
         return f ? { file: f.file, fullPath: f.fullPath || '', content: f.raw || '' } : null;
     }).filter(Boolean);
 
+    // Módulo CoffeeSoft: agente de código + módulo carpeta => las reglas REALES
+    // del framework (FRONT-JS.md de .claude/steering) viajan como contexto.
+    const coffeeModule = pg.moduleMode && cfgAgent.render === 'code';
+    if (coffeeModule && pg.rules['FRONT-JS.md']) {
+        pinned.push({
+            file: 'FRONT-JS.md',
+            fullPath: pg.rules['FRONT-JS.md'].fullPath || '',
+            content: pg.rules['FRONT-JS.md'].raw || ''
+        });
+    }
+
     // Directiva de render: le indica al agente qué sistema de diseño usar. En
     // modo libre (sin grimorio) no se impone paleta: conjura con su conocimiento.
     let systemOverride = pg.prompt || '';
@@ -1677,11 +1827,14 @@ async function pgSend(text, images, docs) {
     // generan. Esta nota los desbloquea: aplica las convenciones de MEMORIA y genera
     // directo, sin anunciar consultas ni proponer Opus/Sonnet.
     if (cfgAgent.render === 'code') {
+        const hasRules = pg.moduleMode && !!pg.rules['FRONT-JS.md'];
         systemOverride += `\n\n## Entorno sandbox — genera directo\n`
-            + `Corres en un lienzo aislado (Coffee Studio) SIN acceso a los archivos del proyecto (MDL.md, CTRL.md, coffeSoft.js, DOC-COFFEESOFT.md, new-component.md) ni a herramientas de lectura, y SIN opción de cambiar de modelo. `
-            + `Por eso: NO anuncies que vas a "consultar las reglas" ni "la librería base", ni propongas escalar a Opus/Sonnet — no puedes hacerlo aquí. `
-            + `Aplica de memoria las convenciones del framework CoffeeSoft (nomenclatura ls/get, patrón pivote, createTable/createForm/createModalForm, etc.).`;
-        if (!pg.planMode) systemOverride += ` Genera el componente DIRECTAMENTE en un bloque de código; no entregues solo un plan en prosa.`;
+            + `Corres en un lienzo aislado (Coffee Studio) sin herramientas de lectura de archivos y SIN opción de cambiar de modelo. `
+            + (hasRules
+                ? `Las reglas del framework van INCLUIDAS en este contexto (FRONT-JS.md): aplícalas directamente, no anuncies que vas a "consultar" nada ni propongas escalar a Opus/Sonnet. `
+                : `NO anuncies que vas a "consultar las reglas" ni "la librería base", ni propongas escalar a Opus/Sonnet — no puedes hacerlo aquí. `
+                  + `Aplica de memoria las convenciones del framework CoffeeSoft (nomenclatura ls/get, patrón pivote, createTable/createForm/createModalForm, etc.). `);
+        if (!pg.planMode) systemOverride += `Genera el componente DIRECTAMENTE en un bloque de código; no entregues solo un plan en prosa.`;
     }
 
     // Si el usuario adjuntó imagen(es), exigir fidelidad visual: el render debe
@@ -1701,7 +1854,12 @@ async function pgSend(text, images, docs) {
     }
 
     // Módulo carpeta (corazón del Studio): exigir entrega multi-archivo @file.
-    if (pg.moduleMode && (usesDesignSystem || pg.canvasMode)) {
+    // Con agente de código (CoffeeIA) el contrato es el módulo CoffeeSoft (framework
+    // real: Templates + componentes, reglas FRONT-JS en contexto); con agentes de UI
+    // se mantiene el módulo vanilla (html + css + js sin dependencias).
+    if (coffeeModule) {
+        systemOverride += PG_COFFEESOFT_NOTE;
+    } else if (pg.moduleMode && (usesDesignSystem || pg.canvasMode)) {
         systemOverride += PG_MODULE_NOTE;
     }
 
@@ -2241,30 +2399,143 @@ function pgAssembleModule(files) {
     return html;
 }
 
-/** Barra de tabs por archivo sobre la pestaña Código. */
+/* ── Vista de código estilo VS Code (módulos multi-archivo) ──
+ * Explorador con árbol de carpetas + editor con pestañas y números de línea.
+ * pg._moduleFiles es la lista plana [{path, content}]; pg._openTabs los índices
+ * de archivos abiertos como pestañas del editor. */
+
+// Color e icono lucide por extensión (referencia visual rápida en árbol y tabs).
+function stFileMeta(path) {
+    const ext = String(path).split('.').pop().toLowerCase();
+    const map = {
+        html: { icon: 'code-2',       color: '#E8A68F' },
+        htm:  { icon: 'code-2',       color: '#E8A68F' },
+        css:  { icon: 'palette',      color: '#6AA6E8' },
+        js:   { icon: 'file-code-2',  color: '#E8C56A' },
+        mjs:  { icon: 'file-code-2',  color: '#E8C56A' },
+        json: { icon: 'braces',       color: '#A8C97F' },
+        md:   { icon: 'file-text',    color: '#9CA3AF' },
+        php:  { icon: 'file-code-2',  color: '#B48EE0' },
+        svg:  { icon: 'image',        color: '#7FC9C0' }
+    };
+    return map[ext] || { icon: 'file', color: 'var(--vsr-text-mute)' };
+}
+// Lenguaje hljs por extensión (mejor precisión que la autodetección).
+function stHljsLang(path) {
+    const ext = String(path).split('.').pop().toLowerCase();
+    return { html: 'xml', htm: 'xml', css: 'css', js: 'javascript', mjs: 'javascript',
+             json: 'json', md: 'markdown', php: 'php', svg: 'xml' }[ext] || '';
+}
+
+// Árbol { dirs: {nombre: subárbol}, files: [{name, idx}] } desde las rutas planas.
+function stBuildTree(files) {
+    const root = { dirs: {}, files: [] };
+    files.forEach((f, idx) => {
+        const parts = String(f.path).split('/').filter(Boolean);
+        let node = root;
+        for (let d = 0; d < parts.length - 1; d++) {
+            node = node.dirs[parts[d]] || (node.dirs[parts[d]] = { dirs: {}, files: [] });
+        }
+        node.files.push({ name: parts[parts.length - 1] || f.path, idx });
+    });
+    return root;
+}
+// HTML recursivo del árbol: carpetas como <details open> (chevron por CSS).
+function stTreeHtml(node) {
+    let html = '';
+    Object.keys(node.dirs).sort().forEach(name => {
+        html += `<details class="st-tree-dir" open>`
+             +  `<summary><i data-lucide="chevron-right" class="st-tree-caret"></i>`
+             +  `<i data-lucide="folder" class="st-tree-foldericon"></i>${pgEscape(name)}</summary>`
+             +  `<div class="st-tree-children">${stTreeHtml(node.dirs[name])}</div>`
+             +  `</details>`;
+    });
+    node.files.sort((a, b) => a.name.localeCompare(b.name)).forEach(f => {
+        const m = stFileMeta(f.name);
+        html += `<button type="button" class="st-tree-file" data-idx="${f.idx}" title="${pgEscape(pg._moduleFiles[f.idx].path)}">`
+             +  `<i data-lucide="${m.icon}" style="color:${m.color}"></i>${pgEscape(f.name)}</button>`;
+    });
+    return html;
+}
+
 function pgShowModuleFiles(files) {
     pg._moduleFiles = Array.isArray(files) ? files : [];
-    const $bar = $('#stFileTabs').empty();
-    if (!pg._moduleFiles.length) { $bar.addClass('hidden'); return; }
-    pg._moduleFiles.forEach((f, i) => {
-        $bar.append(`<button type="button" class="st-file-tab" data-idx="${i}" title="${pgEscape(f.path)}">${pgEscape(f.path)}</button>`);
-    });
-    $bar.find('.st-file-tab').on('click', function () { pgShowModuleFile(parseInt($(this).data('idx'), 10)); });
+    pg._openTabs = [];
+    if (!pg._moduleFiles.length) { pgHideModuleFiles(); return; }
+
+    $('#stExplorerTitle').text(`MÓDULO (${pg._moduleFiles.length})`);
+    $('#stFileTree').html(stTreeHtml(stBuildTree(pg._moduleFiles)));
+    $('#stFileTree .st-tree-file').on('click', function () { pgShowModuleFile(parseInt($(this).data('idx'), 10)); });
+    if (window.lucide) lucide.createIcons();
+
     const idxFile = pgModuleIndex(pg._moduleFiles);
     pgShowModuleFile(Math.max(0, pg._moduleFiles.indexOf(idxFile)));
-    // La barra solo se ve mientras la pestaña Código está activa.
-    $bar.toggleClass('hidden', $('#pgSandboxCode').hasClass('hidden'));
+    // La vista solo se ve mientras la pestaña Código está activa.
+    $('#stCodeView').toggleClass('hidden', !$('.pg-tab[data-sbtab="code"]').hasClass('active'));
 }
+
+// Pestañas de archivos abiertos en el editor (clic en árbol abre; × cierra).
+function stRenderEditorTabs() {
+    const $tabs = $('#stEditorTabs').empty();
+    (pg._openTabs || []).forEach(idx => {
+        const f = pg._moduleFiles[idx];
+        if (!f) return;
+        const m = stFileMeta(f.path);
+        const name = f.path.split('/').pop();
+        $tabs.append(
+            `<div class="st-editor-tab${idx === pg._activeTab ? ' is-active' : ''}" data-idx="${idx}" title="${pgEscape(f.path)}">`
+            + `<i data-lucide="${m.icon}" style="color:${m.color}"></i><span>${pgEscape(name)}</span>`
+            + `<button type="button" class="st-tab-close" data-idx="${idx}" title="Cerrar"><i data-lucide="x"></i></button>`
+            + `</div>`
+        );
+    });
+    $tabs.find('.st-editor-tab').on('click', function () { pgShowModuleFile(parseInt($(this).data('idx'), 10)); });
+    $tabs.find('.st-tab-close').on('click', function (e) { e.stopPropagation(); stCloseTab(parseInt($(this).data('idx'), 10)); });
+    if (window.lucide) lucide.createIcons();
+}
+function stCloseTab(idx) {
+    pg._openTabs = (pg._openTabs || []).filter(i => i !== idx);
+    if (pg._activeTab === idx) {
+        const next = pg._openTabs[pg._openTabs.length - 1];
+        if (next !== undefined) { pgShowModuleFile(next); return; }
+        pg._activeTab = -1;
+        $('#stEditorCode').text('');
+        $('#stGutter').empty();
+    }
+    stRenderEditorTabs();
+}
+
 function pgShowModuleFile(i) {
     const f = (pg._moduleFiles || [])[i];
     if (!f) return;
-    $('#stFileTabs .st-file-tab').removeClass('is-active').filter(`[data-idx="${i}"]`).addClass('is-active');
-    const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(f.content);
+    pg._openTabs = pg._openTabs || [];
+    if (pg._openTabs.indexOf(i) === -1) pg._openTabs.push(i);
+    pg._activeTab = i;
+
+    $('#stFileTree .st-tree-file').removeClass('is-active').filter(`[data-idx="${i}"]`).addClass('is-active');
+    stRenderEditorTabs();
+
+    // Gutter de números de línea (mismo line-height que el código).
+    const lines = String(f.content).split('\n').length;
+    let gutter = '';
+    for (let n = 1; n <= lines; n++) gutter += n + '\n';
+    $('#stGutter').text(gutter);
+
+    const $code = $('#stEditorCode').removeAttr('data-highlighted')
+        .attr('class', stHljsLang(f.path) ? 'language-' + stHljsLang(f.path) : '')
+        .text(f.content);
     if (window.hljs) hljs.highlightElement($code[0]);
+    $('.st-editor-body').scrollTop(0).scrollLeft(0);
 }
+
 function pgHideModuleFiles() {
     pg._moduleFiles = [];
-    $('#stFileTabs').empty().addClass('hidden');
+    pg._openTabs = [];
+    pg._activeTab = -1;
+    $('#stFileTree, #stEditorTabs').empty();
+    $('#stEditorCode').text('');
+    $('#stGutter').empty();
+    $('#stCodeView').addClass('hidden');
 }
 
 /* ── Render al sandbox ── */
@@ -2658,7 +2929,9 @@ function pgElLabel(el) {
     return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (cls.length ? '.' + cls.join('.') : '');
 }
 // outerHTML del fragmento SIN las clases del resaltado, con tope de tamaño.
-function pgTargetFragHtml(el) {
+// maxLen=0 desactiva el truncado (p.ej. al copiar el contenedor completo).
+function pgTargetFragHtml(el, maxLen) {
+    const cap   = (maxLen === undefined) ? 8000 : maxLen;
     const clone = el.cloneNode(true);
     [clone, ...clone.querySelectorAll('.pg-ins-hover, .pg-ins-sel')].forEach(n => {
         if (!n.classList) return;
@@ -2666,7 +2939,7 @@ function pgTargetFragHtml(el) {
         if (!n.classList.length) n.removeAttribute('class');
     });
     let html = clone.outerHTML || '';
-    if (html.length > 8000) html = html.slice(0, 8000) + '\n<!-- fragmento truncado -->';
+    if (cap && html.length > cap) html = html.slice(0, cap) + '\n<!-- fragmento truncado -->';
     return html;
 }
 /* Chip "Editando componente: <label> ✕" encima del input, hermano del banner
@@ -2730,13 +3003,28 @@ function pgInsOver(e) { if (e.target && e.target.classList && e.target !== e.cur
 function pgInsOut(e)  { if (e.target && e.target.classList) e.target.classList.remove('pg-ins-hover'); }
 function pgInsClick(e) {
     e.preventDefault(); e.stopPropagation();
-    const el = e.target;
+    pgInsSelectEl(e.target);
+}
+// Marca visualmente un elemento como seleccionado en el doc inspeccionado y
+// refresca el panel de estilos. Punto único de selección (clic o navegar al padre).
+function pgInsSelectEl(el) {
     if (!el || !el.tagName) return;
-    const doc = pg._insDoc;
+    const doc = pg._insDoc || el.ownerDocument;
     if (doc) doc.querySelectorAll('.pg-ins-sel').forEach(n => n.classList.remove('pg-ins-sel'));
     el.classList.remove('pg-ins-hover');
     el.classList.add('pg-ins-sel');
     pgRenderStyles(el);
+}
+// Sube al contenedor padre del elemento seleccionado (sin pasar de <body>).
+function pgInsSelectParent() {
+    const el = pg._styleEl;
+    if (!el) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    const doc = pg._insDoc || el.ownerDocument;
+    const parent = el.parentElement;
+    if (!parent || parent === (doc && doc.body) || parent.tagName === 'BODY' || parent.tagName === 'HTML') {
+        pgToast('Ya estás en el contenedor raíz', 'warn'); return;
+    }
+    pgInsSelectEl(parent);
 }
 
 // ¿El valor parece un color (para pintar el swatch junto a la propiedad)?
@@ -2943,13 +3231,20 @@ function pgRenderStyles(el) {
     // Config copiable: snippet CSS (con su :hover) y las clases Tailwind tal cual.
     pg._styleSnippet = pgBuildSnippet(selName || tag, cs, hasBorder, hover);
     pg._styleClasses = clsArr.join(' ');
+    pg._styleEl      = el;
 
+    const kidCount = el.querySelectorAll('*').length;
+    const canUp = el.parentElement && el.parentElement.tagName !== 'BODY' && el.parentElement.tagName !== 'HTML';
     const head = `<div class="pg-sty-head">`
-        + `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
-        + `<div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${disp}</div>`
+        + `<div class="pg-sty-tagrow">`
+        +   `<div class="pg-sty-tag">&lt;${tag}${id}&gt;</div>`
+        +   (canUp ? `<button id="pgStyParent" class="pg-sty-parent" title="Seleccionar el contenedor padre"><i data-lucide="corner-left-up" class="w-3.5 h-3.5"></i> padre</button>` : '')
+        + `</div>`
+        + `<div class="pg-sty-dims">${Math.round(r.width)} × ${Math.round(r.height)} px · ${disp}${kidCount ? ` · ${kidCount} ${kidCount === 1 ? 'hijo' : 'hijos'}` : ''}</div>`
         + `<div class="pg-sty-actions">`
         +   `<button id="pgStyCopyBtn" class="pg-sty-copy" title="Copiar el CSS resuelto del elemento"><i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> Copiar CSS</button>`
         +   `<button id="pgStyCopyCls" class="pg-sty-copy pg-sty-copy-alt" title="Copiar las clases Tailwind del elemento"><i data-lucide="code-2" class="w-3.5 h-3.5"></i> Copiar clases</button>`
+        +   `<button id="pgStyCopyHtml" class="pg-sty-copy pg-sty-copy-prompt" title="Copiar la estructura HTML con un prompt para recrearla"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Copiar estructura</button>`
         + `</div></div>`;
 
     const chips = pgClassChips(clsArr);
@@ -3045,6 +3340,27 @@ function pgCopyStyleConfig() {
 function pgCopyClasses() {
     if (!pg._styleClasses) { pgToast('Selecciona un elemento primero', 'warn'); return; }
     pgCopyText(pg._styleClasses, 'Clases Tailwind copiadas');
+}
+// Clasifica lo seleccionado para adaptar el verbo del prompt: un contenedor grande
+// es un "módulo", un bloque con estructura interna un "componente", un control de
+// formulario "código" y una hoja simple un "elemento".
+function pgStructKind(el) {
+    const tag  = el.tagName.toLowerCase();
+    const kids = el.querySelectorAll('*').length;
+    if (['input', 'select', 'textarea', 'button', 'a', 'label'].includes(tag) && kids <= 2) return 'código';
+    if (tag === 'form' || tag === 'table' || tag === 'nav' || kids >= 20) return 'módulo';
+    if (kids >= 3) return 'componente';
+    return 'elemento';
+}
+// Copia la estructura HTML del elemento seleccionado envuelta en un prompt listo
+// para pegar en el chat: "Recrea este <módulo|componente|código|elemento>…".
+function pgCopyStructurePrompt() {
+    const el = pg._styleEl;
+    if (!el) { pgToast('Selecciona un elemento primero', 'warn'); return; }
+    const kind = pgStructKind(el);
+    const html = pgTargetFragHtml(el, 0);
+    const prompt = `Recrea este ${kind} respetando su estructura, clases y estilo visual:\n\n\`\`\`html\n${html}\n\`\`\``;
+    pgCopyText(prompt, `Prompt de ${kind} copiado`);
 }
 // Copia robusta: usa la Clipboard API si está disponible (contexto seguro) y, si
 // no (p.ej. http por IP/hostname), cae al método clásico con execCommand.

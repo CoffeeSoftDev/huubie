@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css">
-    <link rel="stylesheet" href="src/css/visor.css">
+    <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/documents-admin.css?t=<?php echo time(); ?>">
 </head>
 <body class="visor-body" data-theme="dark">
@@ -68,6 +68,10 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
+
+            <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
+                <span class="account-avatar">CD</span>
+            </button>
         </nav>
 
         <!-- Sidebar -->
@@ -176,6 +180,8 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/documents-admin.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>
