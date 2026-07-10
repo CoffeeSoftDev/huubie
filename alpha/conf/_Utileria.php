@@ -93,7 +93,10 @@ class Utileria{
             'es_ES',                // Locale en español
             IntlDateFormatter::FULL, // Estilo de fecha (no se usa en formato personalizado)
             IntlDateFormatter::NONE, // No mostrar la hora
-            'America/Mexico_City',
+            // UTC-6 fijo, igual que la zona por defecto. Con 'America/Mexico_City' la
+            // tzdata de ICU (2020d) aplica DST y una hora >= 23:00 se formateaba con
+            // la fecha del dia siguiente.
+            'Etc/GMT+6',
             IntlDateFormatter::GREGORIAN
         );
 

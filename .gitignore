@@ -7,4 +7,9 @@ coffee/app/visor/data/*.sqlite
 coffee/app/visor/data/*.sqlite-wal
 coffee/app/visor/data/*.sqlite-shm
 
+# Base de datos local de usuarios (login) — runtime, no versionar
+coffee/app/data/*.sqlite
+coffee/app/data/*.sqlite-wal
+coffee/app/data/*.sqlite-shm
+
 .vscode/settings.json

@@ -2,6 +2,15 @@
 header('Cache-Control: no-store');
 
 require_once __DIR__ . '/path-helper.php';
+require_once __DIR__ . '/../../ctrl/auth-session.php';
+require_once __DIR__ . '/../../ctrl/auth-db.php';
+require_once __DIR__ . '/../../ctrl/auth-helpers.php';
+
+function coffee_visor_header_user() {
+    $u = auth_current_user();
+    if (!$u) return ['initials' => 'US', 'name' => 'Usuario', 'role' => 'Miembro'];
+    return ['initials' => coffee_auth_initials($u['name']), 'name' => $u['name'], 'role' => 'Miembro'];
+}
 
 // Endpoint lazy-read para archivos de Drive (no devuelve JSON, devuelve el contenido raw)
 if (($_GET['action'] ?? '') === 'driveread') {
@@ -1341,7 +1350,7 @@ if ($mode === 'drive') {
         'header' => [
             'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
-            'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
+            'user'         => coffee_visor_header_user(),
             'pathLabel'    => $pathLabel,
             'source'       => 'Drive',
             'currentKey'   => $activeKey,
@@ -1362,7 +1371,7 @@ if ($mode === 'drive') {
         'header' => [
             'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
-            'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
+            'user'         => coffee_visor_header_user(),
             'pathLabel'    => $pathLabel,
             'source'       => 'Local',
             'currentKey'   => $activeKey,
@@ -1416,7 +1425,7 @@ if ($mode === 'drive') {
         'header' => [
             'title'        => 'CoffeeDocs',
             'subtitle'     => 'CoffeeSoft Library',
-            'user'         => ['initials' => 'RV', 'name' => 'Rosy V.', 'role' => 'Guardiana'],
+            'user'         => coffee_visor_header_user(),
             'pathLabel'    => $pathLabel,
             'source'       => 'Local',
             'currentKey'   => $activeKey,

@@ -202,7 +202,10 @@ class Cierre {
         $('#btnOpenShift, #btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('onclick', 'cierre.printDaily()');
 
-        let btnArea = $('#btnCerrarDia').parent();
+        // Contenedor estable del boton (#closeDayBtnArea): se referencia por id, no por
+        // .parent() del boton, para que loadShifts pueda reconstruir "Cerrar Dia" al volver
+        // a un dia sin cerrar aunque aqui se haya vaciado el contenedor.
+        const btnArea = $('#closeDayBtnArea');
         if (rol == 1) {
             btnArea.html(`
                 <button id="btnReabrirDia" class="w-full py-2 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2" onclick="cierre.reopenClosure(${res.closure.id})">

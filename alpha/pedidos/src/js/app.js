@@ -2964,7 +2964,7 @@ class App extends Templates {
                             ${lucideIcon('printer')} <span>Imprimir</span>
                         </button>
                     </div>
-                    <div class="border-t border-gray-600 pt-2 mt-2 space-y-2">
+                    <div id="closeDayBtnArea" class="border-t border-gray-600 pt-2 mt-2 space-y-2">
                         <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
                             ${lucideIcon('check-check')} Cerrar Dia
                         </button>
@@ -3060,12 +3060,15 @@ class App extends Templates {
             wrapper.replaceWith(label);
         }
         $('#calendarDailyClose').removeClass('!border-green-600/50');
-        let btnArea = $('#btnCerrarDia').parent();
+        // Restaurar el boton "Cerrar Dia" en su contenedor estable (#closeDayBtnArea).
+        // Al visitar un dia cerrado, loadClosedView reemplaza ese contenedor por "Reabrir
+        // Dia" (admin) o lo vacia (otros roles); por eso se reconstruye por id y no via
+        // .parent() de un boton que pudo dejar de existir (bug: el boton no volvia). Nace
+        // deshabilitado y mas abajo se habilita si el dia tiene turnos cerrados y no esta cerrado.
         if (!$('#btnCerrarDia').length) {
-            btnArea = $('#btnReabrirDia').parent();
-            btnArea.html(`
+            $('#closeDayBtnArea').html(`
                 <button id="btnCerrarDia" class="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled onclick="cierre.initCierre()">
-                    <i class="icon-check"></i> Cerrar Dia
+                    ${lucideIcon('check-check')} Cerrar Dia
                 </button>
             `);
         }
@@ -3130,11 +3133,16 @@ class App extends Templates {
             alertContainer.addClass('hidden').html('');
         }
 
-        // Deshabilitar abrir turno si hay cualquier turno abierto (hoy u otros días)
-        if (hasAnyOpenShift) {
-            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700');
+        // "Abrir Turno" solo aplica a HOY: el turno nace con opened_at = NOW, no con la
+        // fecha del selector. Con el selector en un dia pasado (o futuro) el boton no debe
+        // invitar a abrir turno de ese dia. Ademas se deshabilita si ya hay un turno abierto
+        // en la sucursal (cualquier dia, que hay que cerrar antes).
+        const isToday = date === today;
+        if (isToday && !hasAnyOpenShift) {
+            $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('title', '');
         } else {
-            $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').removeClass('hover:bg-green-700')
+                .attr('title', !isToday ? 'Solo puedes abrir turno en la fecha de hoy' : 'Ya hay un turno abierto en esta sucursal');
         }
 
         // Verificar si el día ya está cerrado ANTES de pintar (para mostrar el Corte Z, no el ticket de un turno)
@@ -3578,6 +3586,10 @@ class App extends Templates {
                     // Va al final: loadShifts() reescribe dailyClosure con la sucursal del
                     // modal, y syncShiftState deja el estado real de la que se esta viendo.
                     await this.syncShiftState();
+                } else if (response.status === 423) {
+                    // El dia de hoy ya esta cerrado: no es un error de captura, es un bloqueo
+                    // de negocio (requiere reabrir el cierre). Se avisa como advertencia.
+                    alert({ icon: "warning", title: "Día cerrado", text: response.message, btn1: true });
                 } else {
                     alert({ icon: "error", title: "Error", text: response.message, btn1: true });
                 }

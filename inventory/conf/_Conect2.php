@@ -31,7 +31,7 @@
             $this->crearArchivoLog($logFile);
             
             // Formato del mensaje: [Fecha y hora] Mensaje de error
-            date_default_timezone_set('America/Chihuahua');
+            date_default_timezone_set('Etc/GMT+6');
             $logMessage  = "[ ".date('Y-m-d H:i:s'). " ]";
             $logMessage .= "\n[ UNIX_USR ] :: " . trim(exec('whoami'));
             $logMessage .= "\n[ WINDOWS_USR ] :: " . trim(exec('echo %USERNAME%'));

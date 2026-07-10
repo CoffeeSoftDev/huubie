@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/../ctrl/auth-guard.php'; ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
