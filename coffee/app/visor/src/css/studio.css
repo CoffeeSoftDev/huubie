@@ -1093,9 +1093,23 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* Editor (derecha) */
 .st-editor { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.st-editor-tabs {
-    display: flex; align-items: stretch; overflow-x: auto; flex-shrink: 0;
+.st-editor-bar {
+    display: flex; align-items: stretch; flex-shrink: 0;
     background: var(--vsr-bg-chrome); border-bottom: 1px solid var(--vsr-border);
+}
+.st-editor-actions { display: flex; align-items: center; gap: 6px; padding: 0 8px; flex: 0 0 auto; margin-left: auto; }
+.st-editor-actbtn {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 7px;
+    background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border: 1px solid var(--vsr-border);
+    white-space: nowrap;
+}
+.st-editor-actbtn:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.st-editor-actbtn.hidden { display: none; }
+.st-editor-run { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+.st-editor-run:hover { filter: brightness(1.08); color: #fff; }
+.st-editor-tabs {
+    display: flex; align-items: stretch; overflow-x: auto; flex: 1 1 auto; min-width: 0;
     scrollbar-width: thin; scrollbar-color: var(--vsr-scrollbar) transparent;
 }
 .st-editor-tab {
@@ -1133,11 +1147,24 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
     color: var(--vsr-text-mute2);
 }
 .st-code { flex: 1 1 auto; margin: 0; padding: 14px 16px; }
+.st-code.hidden { display: none; }
 .st-code code {
     display: block; background: transparent; padding: 0;
     font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.55;
     color: var(--vsr-text); white-space: pre;
 }
+
+/* Modo edición: textarea a pantalla completa del editor (sin gutter). */
+.st-editor-area {
+    flex: 1 1 auto; width: 100%; min-height: 0; resize: none;
+    margin: 0; padding: 14px 16px; border: 0; outline: none;
+    background: var(--vsr-bg-base); color: var(--vsr-text);
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.55;
+    white-space: pre; overflow: auto; tab-size: 4;
+    scrollbar-width: thin; scrollbar-color: var(--vsr-scrollbar) transparent;
+}
+.st-editor-area.hidden { display: none; }
+.st-gutter.hidden { display: none; }
 
 /* En pantallas angostas el explorador se compacta. */
 @media (max-width: 900px) {

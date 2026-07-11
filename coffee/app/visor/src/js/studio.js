@@ -167,12 +167,14 @@ const PG_COFFEESOFT_NOTE =
     + `Entrega un MÓDULO del framework CoffeeSoft (jQuery + clase \`Templates\` + componentes del framework), NO vanilla JS. `
     + `El contexto incluye **FRONT-JS.md** con las reglas completas del framework: síguelas al pie de la letra.\n`
     + `Cada archivo va en su PROPIO bloque cercado y la PRIMERA línea del bloque es su ruta con el marcador @file. Archivos mínimos:\n\n`
-    + `1. \`index.html\` — SOLO carga librerías y el contenedor raíz, con esta estructura EXACTA (el sandbox resuelve \`plugins.js\` y \`coffeSoft.js\` al framework real):\n`
+    + `1. \`index.html\` — SOLO carga librerías y el contenedor raíz, con esta estructura EXACTA (el sandbox resuelve \`complementos.js\`, \`plugins.js\` y \`coffeSoft.js\` al framework real de Huubie; respeta ese orden):\n`
     + "```html\n<!-- @file: index.html -->\n<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n"
+    + "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.css\">\n"
     + "<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"><\/script>\n<script src=\"https://cdn.tailwindcss.com\"><\/script>\n"
-    + "<script src=\"https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js\"><\/script>\n<script src=\"https://cdn.jsdelivr.net/npm/sweetalert2@11\"><\/script>\n"
+    + "<script src=\"https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js\"><\/script>\n<script src=\"https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.min.js\"><\/script>\n"
+    + "<script src=\"https://cdn.jsdelivr.net/npm/sweetalert2@11\"><\/script>\n"
     + "<script src=\"https://unpkg.com/lucide@latest\"><\/script>\n</head>\n<body>\n<div id=\"root\"></div>\n"
-    + "<script src=\"plugins.js\"><\/script>\n<script src=\"coffeSoft.js\"><\/script>\n<script src=\"src/js/sample_modulo.js\"><\/script>\n<script src=\"src/js/app.js\"><\/script>\n</body>\n</html>\n```\n"
+    + "<script src=\"complementos.js\"><\/script>\n<script src=\"plugins.js\"><\/script>\n<script src=\"coffeSoft.js\"><\/script>\n<script src=\"src/js/sample_modulo.js\"><\/script>\n<script src=\"src/js/app.js\"><\/script>\n</body>\n</html>\n```\n"
     + `2. \`src/js/sample_<modulo>.js\` — datos de muestra: constantes \`SAMPLE_<ENTIDAD>\` al inicio. Aquí NO hay backend: el módulo pinta TODO desde estos samples (patrón UI-first).\n`
     + `3. \`src/js/app.js\` — el módulo coffeeSoft. Reglas innegociables:\n`
     + `- Clase \`App extends Templates\` con \`this.PROJECT_NAME\`; submódulos en clase APARTE (extienden \`App\` solo si comparten estructura; si App solo orquesta tabs, el submódulo extiende \`Templates\` directo).\n`
@@ -548,6 +550,21 @@ function pgBind() {
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code' || hasModule);
         $('#stCodeView').toggleClass('hidden', tab !== 'code' || !hasModule);
         if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
+    });
+
+    // Editor del módulo: editar el archivo activo, guardar+ejecutar o cancelar.
+    $('#stEditBtn').on('click', () => stEnterEdit());
+    $('#stRunBtn').on('click', () => stRunModule());
+    $('#stCancelBtn').on('click', () => stExitEdit(false));
+    // Ctrl+S / Ctrl+Enter dentro del textarea = guardar y ejecutar.
+    $('#stEditorArea').on('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'Enter')) {
+            e.preventDefault();
+            stRunModule();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            stExitEdit(false);
+        }
     });
 
     // Apuntar un componente del preview para anclarlo como objetivo de edición.
@@ -2347,15 +2364,20 @@ function pgModuleIndex(files) {
 }
 
 // Archivos del framework CoffeeSoft que un módulo referencia pero NO incluye
-// (jQuery ya va por CDN en el módulo). Se resuelven a la copia REAL, un nivel
-// arriba del visor (coffee/app/src/js/), para que el preview cargue Templates +
-// plugins y el módulo se renderice de verdad. El <base> del wrap apunta al dir
-// del visor, así que estas rutas relativas resuelven correctamente.
+// (jQuery ya va por CDN en el módulo). Se resuelven al framework PROPIO de Huubie
+// (alpha/src/js — el mismo que cargan los módulos reales vía PATH_BASE=/alpha/),
+// para que el preview cargue Templates y el módulo se renderice de verdad. El
+// <base> del wrap apunta al dir del visor, así que las rutas relativas resuelven.
 const PG_FRAMEWORK_FILES = {
-    'coffesoft.js':   '../src/js/coffeSoft.js',
-    'coffeesoft.js':  '../src/js/coffeSoft.js',
-    'coffesoft-2.js': '../src/js/coffeSoft-2.js',
-    'plugins.js':     '../src/js/plugins.js'
+    // Framework PROPIO de Huubie (alpha/src/js): la misma tríada que cargan los
+    // módulos reales vía PATH_BASE=/alpha/ y en el mismo orden — complementos.js
+    // (getCookies/createForm/alert/swal helpers) → plugins.js (dataPicker, que usa
+    // el daterangepicker del CDN del contrato) → coffeSoft.js (Templates + useFetch
+    // + componentes core).
+    'complementos.js': '../../../alpha/src/js/complementos.js',
+    'coffesoft.js':    '../../../alpha/src/js/coffeSoft.js',
+    'coffeesoft.js':   '../../../alpha/src/js/coffeSoft.js',
+    'plugins.js':      '../../../alpha/src/js/plugins.js'
 };
 
 /** Ensambla el módulo en UN html renderizable: el <link>/<script src> del index
@@ -2386,6 +2408,7 @@ function pgAssembleModule(files) {
         return PG_FRAMEWORK_FILES[base] || null;
     };
     let html = idx.content;
+    let usesFramework = false;
     html = html.replace(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?>/gi, (m, href) => {
         const f = byRef(href);
         return (f && /\.css$/i.test(f.path)) ? '<style>\n' + f.content + '\n</style>' : m;
@@ -2394,8 +2417,64 @@ function pgAssembleModule(files) {
         const f = byRef(src);
         if (f && /\.m?js$/i.test(f.path)) return '<script>\n' + f.content + '\n<\/script>';
         const fw = frameworkSrc(src);
-        return fw ? `<script src="${fw}"><\/script>` : m;
+        if (fw) { usesFramework = true; return `<script src="${fw}"><\/script>`; }
+        return m;
     });
+
+    // Red de seguridad para módulos coffeeSoft: si el index referencia el framework
+    // pero el modelo omitió alguna dependencia base del contrato (moment /
+    // daterangepicker, que dataPicker necesita), se inyecta al <head>.
+    if (usesFramework) {
+        const need = [];
+        if (!/moment(\.min)?\.js/i.test(html)) need.push('<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"><\/script>');
+        if (!/daterangepicker[^"']*\.js/i.test(html)) need.push('<script src="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.min.js"><\/script>');
+        if (!/daterangepicker[^"']*\.css/i.test(html)) need.push('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.css">');
+        // daterangepicker requiere jQuery Y moment ya cargados: se insertan tras el
+        // script de moment si el index lo trae (aunque esté después de jQuery); si
+        // no, tras jQuery (need[] ya pone moment primero); último recurso: fin de head.
+        if (need.length) {
+            const anchor = html.match(/<script\b[^>]*moment[^>]*><\/script>/i)
+                        || html.match(/<script\b[^>]*jquery[^>]*><\/script>/i);
+            if (anchor) html = html.replace(anchor[0], anchor[0] + '\n' + need.join('\n'));
+            else html = html.replace(/<\/head>/i, need.join('\n') + '\n</head>');
+        }
+        // Complementos.js va ANTES de plugins/coffeSoft (define getCookies/createForm/
+        // alert): si el modelo no lo incluyó, se antepone al primer script del framework.
+        if (!/complementos\.js/i.test(html)) {
+            html = html.replace(/<script src="[^"]*(?:plugins|coffeSoft)\.js"><\/script>/i,
+                `<script src="${PG_FRAMEWORK_FILES['complementos.js']}"><\/script>\n$&`);
+        }
+        // Consola de errores del sandbox: sin ella, cualquier ReferenceError deja el
+        // preview EN BLANCO sin pista alguna. Panel rojo colapsable (clic en el header
+        // pliega/despliega) con botones Limpiar y ✕ (cerrar); captura errores de JS
+        // y promesas rechazadas con archivo:línea.
+        const trap = '<script>(function(){'
+            + 'var box=null,list=null,ttl=null,n=0,open=true;'
+            + 'function ui(){if(box)return;'
+            + 'box=document.createElement("div");box.id="pg-err-trap";'
+            + 'box.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7f1d1d;color:#fff;font:12px/1.5 monospace;border-top:3px solid #ef4444;";'
+            + 'var head=document.createElement("div");'
+            + 'head.style.cssText="display:flex;align-items:center;gap:10px;padding:5px 12px;background:#611616;cursor:pointer;user-select:none;";'
+            + 'ttl=document.createElement("span");ttl.style.cssText="font-weight:700;flex:1;";'
+            + 'var clr=document.createElement("button");clr.textContent="Limpiar";'
+            + 'clr.style.cssText="background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;font:11px monospace;padding:1px 8px;border-radius:5px;cursor:pointer;";'
+            + 'var x=document.createElement("button");x.textContent="\\u2715";'
+            + 'x.style.cssText=clr.style.cssText;'
+            + 'list=document.createElement("div");'
+            + 'list.style.cssText="max-height:32vh;overflow:auto;padding:6px 12px;";'
+            + 'head.appendChild(ttl);head.appendChild(clr);head.appendChild(x);'
+            + 'box.appendChild(head);box.appendChild(list);document.body.appendChild(box);'
+            + 'head.addEventListener("click",function(){open=!open;list.style.display=open?"":"none";});'
+            + 'clr.addEventListener("click",function(e){e.stopPropagation();list.innerHTML="";n=0;title();});'
+            + 'x.addEventListener("click",function(e){e.stopPropagation();box.style.display="none";});}'
+            + 'function title(){ttl.textContent="\\u26a0 Consola de errores ("+n+")";}'
+            + 'function add(msg,src){ui();box.style.display="";n++;title();'
+            + 'var p=document.createElement("div");p.textContent=msg+(src?"  \\u00b7  "+src:"");list.appendChild(p);}'
+            + 'window.addEventListener("error",function(e){add(e.message||e.type,e.filename?e.filename.split("/").pop()+":"+e.lineno:"");});'
+            + 'window.addEventListener("unhandledrejection",function(e){var r=e.reason;add("Promise: "+(r&&r.message?r.message:String(r)),"");});'
+            + '})();<\/script>';
+        html = html.replace(/<body([^>]*)>/i, '<body$1>' + trap);
+    }
     return html;
 }
 
@@ -2494,6 +2573,8 @@ function stRenderEditorTabs() {
     if (window.lucide) lucide.createIcons();
 }
 function stCloseTab(idx) {
+    // Cerrar el tab que se está editando descarta su buffer (sin guardar).
+    if (pg._editing && pg._activeTab === idx) { pg._editing = false; stApplyEditUI(); }
     pg._openTabs = (pg._openTabs || []).filter(i => i !== idx);
     if (pg._activeTab === idx) {
         const next = pg._openTabs[pg._openTabs.length - 1];
@@ -2508,6 +2589,8 @@ function stCloseTab(idx) {
 function pgShowModuleFile(i) {
     const f = (pg._moduleFiles || [])[i];
     if (!f) return;
+    // En modo edición, cambiar de archivo guarda el buffer del anterior (en memoria).
+    if (pg._editing && pg._activeTab !== i) stCommitBuffer();
     pg._openTabs = pg._openTabs || [];
     if (pg._openTabs.indexOf(i) === -1) pg._openTabs.push(i);
     pg._activeTab = i;
@@ -2525,16 +2608,62 @@ function pgShowModuleFile(i) {
         .attr('class', stHljsLang(f.path) ? 'language-' + stHljsLang(f.path) : '')
         .text(f.content);
     if (window.hljs) hljs.highlightElement($code[0]);
+    if (pg._editing) $('#stEditorArea').val(f.content);
     $('.st-editor-body').scrollTop(0).scrollLeft(0);
 }
 
+/* ── Edición en vivo del módulo: Editar → textarea; Guardar y ejecutar →
+ * persiste al archivo en memoria, re-ensambla y re-renderiza el preview. */
+function stCommitBuffer() {
+    const f = (pg._moduleFiles || [])[pg._activeTab];
+    if (!f) return;
+    f.content = $('#stEditorArea').val();
+}
+function stApplyEditUI() {
+    $('#stEditorArea').toggleClass('hidden', !pg._editing);
+    $('#stGutter').toggleClass('hidden', pg._editing);
+    $('.st-editor .st-code').toggleClass('hidden', pg._editing);
+    $('#stEditBtn').toggleClass('hidden', pg._editing);
+    $('#stRunBtn, #stCancelBtn').toggleClass('hidden', !pg._editing);
+}
+function stEnterEdit() {
+    const f = (pg._moduleFiles || [])[pg._activeTab];
+    if (!f) { pgToast('Abre un archivo del módulo primero', 'warn'); return; }
+    pg._editing = true;
+    $('#stEditorArea').val(f.content);
+    stApplyEditUI();
+    $('#stEditorArea').trigger('focus');
+}
+function stExitEdit(save) {
+    if (!pg._editing) return;
+    if (save) stCommitBuffer();
+    pg._editing = false;
+    stApplyEditUI();
+    pgShowModuleFile(pg._activeTab);   // refresca highlight y gutter con el contenido vigente
+}
+function stRunModule() {
+    if (pg._editing) stCommitBuffer();
+    const files = pg._moduleFiles.slice();
+    const assembled = pgAssembleModule(files);
+    if (!assembled) { pgToast('El módulo no tiene un index.html ensamblable', 'warn'); return; }
+    if (pg._editing) { pg._editing = false; stApplyEditUI(); }
+    pgRenderSandbox(assembled, false);        // limpia los files y salta al preview…
+    pgShowModuleFiles(files);                 // …así que se reponen (mismo flujo que pgRenderToSandbox)
+    // El template activo refleja la edición (el autosave del hilo persiste esto).
+    const tpl = pg.templates.find(t => t.id === pg._activeTplId);
+    if (tpl) { tpl.html = assembled; tpl.files = files; }
+    pgToast('Módulo actualizado y ejecutado', 'success');
+}
+
 function pgHideModuleFiles() {
+    if (pg._editing) { pg._editing = false; stApplyEditUI(); }
     pg._moduleFiles = [];
     pg._openTabs = [];
     pg._activeTab = -1;
     $('#stFileTree, #stEditorTabs').empty();
     $('#stEditorCode').text('');
     $('#stGutter').empty();
+    $('#stEditorArea').val('');
     $('#stCodeView').addClass('hidden');
 }
 
