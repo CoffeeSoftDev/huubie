@@ -6,6 +6,7 @@
 
 const CHAT_API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
 const CHAT_API_DOCS   = 'ctrl/ctrl-visor.php';
+const CHAT_API_CHATS  = 'ctrl/ctrl-chats.php';   // persistencia en SQLite, igual que el Visor
 
 const CHAT_AGENTS = {
     'CoffeeIA.md':            { key: 'CoffeeIA.md',            label: 'CoffeeIA',          icon: 'sparkles',      slug: 'CoffeeIA' },
@@ -14,29 +15,12 @@ const CHAT_AGENTS = {
 };
 const CHAT_DEFAULT_AGENT = 'CoffeeIA.md';
 
-const CHAT_MODEL_OPTIONS = [
-    { group: 'Ollama Cloud', options: [
-        { value: 'glm-5.2:cloud',            label: 'GLM 5.2 (código)' },
-        { value: 'glm-5.1:cloud',            label: 'GLM 5.1 (código)' },
-        { value: 'qwen3-coder-next:cloud',   label: 'Qwen3 Coder Next (código)' },
-        { value: 'minimax-m3:cloud',         label: 'MiniMax M3 (código, vision)' },
-        { value: 'gemma4:31b-cloud',         label: 'Gemma4 31B (vision)' },
-        { value: 'deepseek-v4-pro:cloud',    label: 'DeepSeek V4 Pro (razonamiento)' },
-        { value: 'kimi-k2.6:cloud',          label: 'Kimi K2.6 (agéntico, vision)' },
-        { value: 'kimi-k2.7-code:cloud',     label: 'Kimi K2.7 Code (código)' }
-    ]},
-    { group: 'OpenRouter (free)', options: [
-        { value: 'openai/gpt-oss-120b:free',                  label: 'GPT-OSS 120B (free)' },
-        { value: 'z-ai/glm-4.5-air:free',                     label: 'GLM 4.5 Air (free)' },
-        { value: 'nvidia/nemotron-3-super-120b-a12b:free',    label: 'Nemotron 3 Super 120B (free)' },
-        { value: 'google/gemma-4-31b-it:free',                label: 'Gemma 4 31B (free, vision)' },
-        { value: 'nvidia/nemotron-nano-12b-v2-vl:free',       label: 'Nemotron Nano 12B VL (free, vision)' }
-    ]},
-    { group: 'OpenRouter (de pago)', options: [
-        { value: 'qwen/qwen3.7-max',  label: 'Qwen3.7 Max (pago)' },
-        { value: 'qwen/qwen3.6-27b',  label: 'Qwen3.6 27B (pago)' }
-    ]}
-];
+// Catálogo de modelos: fuente única en model-config.js (CoffeeModelConfig.CATALOG),
+// igual que Visor y Lab. Así el chat respeta los modelos habilitados en
+// Configuración y el modelo activo global compartido entre superficies.
+function chatModelCatalog() {
+    return (window.CoffeeModelConfig && window.CoffeeModelConfig.CATALOG) || [];
+}
 
 // Tipos de grafica del modo grafica (mismo set que el visor).
 const CHAT_GRAPH_TYPES  = ['mermaid', 'drawio', 'excalidraw'];
@@ -49,13 +33,17 @@ const chat = {
     uiTheme:       'dark',
     canvasMode:    false,      // la IA genera componentes HTML renderizables
     graphMode:     '',         // '' | 'mermaid' | 'drawio' | 'excalidraw'
+    dbToolsOn:     false,      // tools de base de datos (run_select + conexión al nombrar una base)
+    fsToolsOn:     false,      // tools de archivos (list_dir/read_file/grep_files + conexión de carpeta)
+    activeDb:      null,       // base conectada (conexión pegajosa por conversación)
+    activeFolder:  null,       // carpeta conectada (conexión pegajosa por conversación)
     history:       [],
     pendingImages: [],
     pendingDocs:   [],
     isBusy:        false,
     _abort:        null,
     conversations: [],
-    currentFile:   null,
+    currentUid:    null,       // uid de la conversación en SQLite (ctrl-chats.php)
     currentTitle:  'Nueva conversacion',
     dirty:         false,
     _popSound:     null
@@ -100,6 +88,8 @@ function chatLoadSettings() {
         chat.uiTheme    = s.uiTheme || 'dark';
         chat.canvasMode = !!s.canvasMode;
         chat.graphMode  = CHAT_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
+        chat.dbToolsOn  = !!s.dbToolsOn;
+        chat.fsToolsOn  = !!s.fsToolsOn;
     } catch (_) { /* noop */ }
 }
 
@@ -109,7 +99,9 @@ function chatSaveSettings() {
         model: chat.model,
         uiTheme: chat.uiTheme,
         canvasMode: chat.canvasMode,
-        graphMode: chat.graphMode
+        graphMode: chat.graphMode,
+        dbToolsOn: chat.dbToolsOn,
+        fsToolsOn: chat.fsToolsOn
     }));
 }
 
@@ -140,10 +132,12 @@ function chatPopulateModelSelect() {
     const $sel = $('#chatModelSelect');
     $sel.empty();
     $sel.append('<option value="">— Default del proveedor —</option>');
-    CHAT_MODEL_OPTIONS.forEach(g => {
+    chatModelCatalog().forEach(g => {
         const $grp = $(`<optgroup label="${g.group}"></optgroup>`);
         g.options.forEach(o => {
-            $grp.append(`<option value="${o.value}">${o.label}</option>`);
+            const $opt = $(`<option value="${o.value}">${o.label}</option>`);
+            if (o.tools) $opt.attr('data-tools', '1');
+            $grp.append($opt);
         });
         $sel.append($grp);
     });
@@ -153,7 +147,7 @@ function chatPopulateModelSelect() {
 /* ---------- Bindings ---------- */
 function chatBind() {
     $('#chatAgentSelect').on('change', e => chatApplyAgent(e.target.value, false));
-    $('#chatModelSelect').on('change', e => { chat.model = e.target.value || ''; chatSaveSettings(); });
+    $('#chatModelSelect').on('change', e => { chat.model = e.target.value || ''; chatSaveSettings(); chatWarnModelTools(); });
     $('#chatThemeToggle').on('click', () => chatApplyUiTheme(chat.uiTheme === 'dark' ? 'light' : 'dark'));
 
     // Modo lienzo (HTML renderizable).
@@ -171,7 +165,45 @@ function chatBind() {
         chatSetGraphMode(type);
     });
 
+    // Menú Tools: interruptores de BD/archivos (tool-calling del agente).
+    $('#chatToolsBtn').on('click', e => { e.stopPropagation(); chatToggleToolsMenu(e.currentTarget); });
+    $(document).on('click.chatToolsMenu', e => {
+        if (!$(e.target).closest('#chatToolsMenu, #chatToolsBtn').length) $('#chatToolsMenu').hide();
+    });
+    $(window).on('resize.chatToolsMenu scroll.chatToolsMenu', () => $('#chatToolsMenu').hide());
+    $('#chatToolsMenu').on('click', '.graph-menu-item', e => {
+        const tool = $(e.currentTarget).data('cht');
+        if (tool === 'db') {
+            chat.dbToolsOn = !chat.dbToolsOn;
+            if (!chat.dbToolsOn && chat.activeDb) chatSetActiveDb(null);
+            chatToast(chat.dbToolsOn ? 'Tools de base de datos activadas: nombra una base en el chat para conectarte' : 'Tools de base de datos desactivadas', 'info');
+            if (chat.dbToolsOn) chatWarnModelTools();
+        } else if (tool === 'fs') {
+            chat.fsToolsOn = !chat.fsToolsOn;
+            if (!chat.fsToolsOn && chat.activeFolder) chatSetActiveFolder(null);
+            chatToast(chat.fsToolsOn ? 'Tools de archivos activadas: nombra una carpeta en el chat para conectarte' : 'Tools de archivos desactivadas', 'info');
+            if (chat.fsToolsOn) chatWarnModelTools();
+        }
+        chatSaveSettings();
+        chatApplyModeUI();
+    });
+
     $('#chatNewBtn, #chatNewSidebarBtn').on('click', () => chatNewConversation());
+
+    // Buscador de conversaciones guardadas (filtra el sidebar por título).
+    $('#chatSearchInput').on('input', function () {
+        chat._filter = String($(this).val() || '').toLowerCase().trim();
+        chatRenderSidebar();
+    });
+
+    // Scroll pegajoso: si el usuario sube a leer, se despega y aparece el botón
+    // flotante para volver al final (mismo patrón que el Visor).
+    $('#chatScrollDownBtn').on('click', () => chatScrollBottom(true));
+    $('#chatBody').on('scroll', function () {
+        const nearBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 48;
+        chat._stickBottom = nearBottom;
+        chatToggleScrollDownBtn(!nearBottom && chat.history.length > 0);
+    });
 
     $('#chatSendBtn').on('click', () => {
         if (chat.isBusy) chatStop();
@@ -234,6 +266,16 @@ function chatApplyModeUI() {
         $(this).toggleClass('is-active', $(this).data('graph') === chat.graphMode);
     });
 
+    const $tools = $('#chatToolsBtn');
+    $tools.toggleClass('is-active', chat.dbToolsOn || chat.fsToolsOn);
+    $tools.attr('title', (chat.dbToolsOn || chat.fsToolsOn)
+        ? 'Tools del agente ACTIVAS (' + [chat.dbToolsOn && 'base de datos', chat.fsToolsOn && 'archivos'].filter(Boolean).join(' + ') + ')'
+        : 'Tools del agente: base de datos y archivos');
+    $('#chatToolsMenu .graph-menu-item').each(function () {
+        const t = $(this).data('cht');
+        $(this).toggleClass('is-active', t === 'db' ? chat.dbToolsOn : chat.fsToolsOn);
+    });
+
     chatApplyInputPlaceholder();
 }
 
@@ -267,7 +309,14 @@ function chatSetGraphMode(type) {
 // Posiciona el menu FIXED sobre el boton (abre hacia arriba) para que el
 // overflow del composer no lo recorte.
 function chatToggleGraphMenu(btnEl) {
-    const $menu = $('#chatGraphMenu');
+    chatToggleFloatingMenu($('#chatGraphMenu'), btnEl);
+}
+
+function chatToggleToolsMenu(btnEl) {
+    chatToggleFloatingMenu($('#chatToolsMenu'), btnEl);
+}
+
+function chatToggleFloatingMenu($menu, btnEl) {
     if ($menu.is(':visible')) { $menu.hide(); return; }
     $menu.css({ display: 'block', visibility: 'hidden', position: 'fixed', top: '0px', left: '0px' });
     const rect = btnEl.getBoundingClientRect();
@@ -277,6 +326,85 @@ function chatToggleGraphMenu(btnEl) {
     if (top < 8) top = rect.bottom + gap;
     $menu.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
     if (window.lucide) lucide.createIcons();
+}
+
+/* ---------- Tools de datos (BD y carpeta), gemelo de Lab/Visor ----------
+ * La base/carpeta se conecta nombrándola en el chat ("conéctate a reginas…");
+ * el backend la resuelve y la devuelve en el evento `done`. Aquí solo se
+ * recuerda (conexión pegajosa) y se reenvía en cada turno. */
+
+function chatSetActiveDb(schema) {
+    const next = schema || null;
+    const changed = next !== chat.activeDb;
+    chat.activeDb = next;
+    chatRenderDbChip();
+    if (changed && next) {
+        chatToast('🛢 Conectado a la base ' + next, 'success');
+        chatWarnModelTools();
+    }
+}
+
+function chatRenderDbChip() {
+    const $chip = $('#chatDbChip');
+    if (!$chip.length) return;
+    if (!chat.activeDb) { $chip.hide().empty(); return; }
+    $chip.html(`
+        <i data-lucide="database" class="w-3 h-3"></i>
+        <span class="ia-db-chip-name" title="Base conectada: ${chatEscape(chat.activeDb)}">${chatEscape(chat.activeDb)}</span>
+        <button type="button" class="ia-db-chip-x" title="Desconectar de la base"><i data-lucide="x" class="w-3 h-3"></i></button>
+    `).show();
+    $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+        chatSetActiveDb(null);
+        chatToast('Desconectado de la base', 'info');
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+function chatSetActiveFolder(path) {
+    const next = path || null;
+    const changed = next !== chat.activeFolder;
+    chat.activeFolder = next;
+    chatRenderFolderChip();
+    if (changed && next) {
+        const fname = String(next).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+        chatToast('📁 Conectado a la carpeta ' + fname, 'success');
+        chatWarnModelTools();
+    }
+}
+
+function chatRenderFolderChip() {
+    const $chip = $('#chatFolderChip');
+    if (!$chip.length) return;
+    if (!chat.activeFolder) { $chip.hide().empty(); return; }
+    const name = String(chat.activeFolder).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+    $chip.html(`
+        <i data-lucide="folder-open" class="w-3 h-3"></i>
+        <span class="ia-db-chip-name" title="Carpeta conectada: ${chatEscape(chat.activeFolder)}">${chatEscape(name)}</span>
+        <button type="button" class="ia-db-chip-x" title="Desconectar de la carpeta"><i data-lucide="x" class="w-3 h-3"></i></button>
+    `).show();
+    $chip.find('.ia-db-chip-x').off('click').on('click', () => {
+        chatSetActiveFolder(null);
+        chatToast('Desconectado de la carpeta', 'info');
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+// ¿El modelo dado soporta tool-calling? Se deriva del data-tools="1" del
+// <option> (mismo patrón que Lab). Un modelo desconocido no genera aviso.
+function chatModelSupportsTools(model) {
+    const m = model || chat.model;
+    if (!m) return true;   // sin modelo explícito decide el backend (default tool-capable)
+    const opt = document.querySelector(`#chatModelSelect option[value="${m.replace(/"/g, '\\"')}"]`);
+    return !opt || opt.getAttribute('data-tools') === '1';
+}
+
+// Aviso suave cuando el modelo activo puede no soportar consultas en vivo.
+function chatWarnModelTools() {
+    if (!chat.dbToolsOn && !chat.fsToolsOn) return;
+    if (chatModelSupportsTools(chat.model)) return;
+    const target = chat.activeDb ? `la base conectada ("${chat.activeDb}")` :
+                   chat.activeFolder ? 'la carpeta conectada' : 'bases de datos y carpetas';
+    chatToast(`Este modelo puede no soportar consultas en vivo (tools): ${target} podría no leerse. Para datos reales usa GLM, Qwen3 Coder o Kimi.`, 'warn');
 }
 
 function chatBindAttachments() {
@@ -397,16 +525,22 @@ function chatDocsToContextString() {
     return chat.pendingDocs.map(d => `\n\n--- ${d.name} ---\n${d.text}`).join('');
 }
 
-/* ---------- Conversations list ---------- */
+/* ---------- Conversations list (SQLite via ctrl-chats.php, como el Visor) ---------- */
 async function chatLoadConversations() {
     try {
-        const res = await fetch(`${CHAT_API_DOCS}?folder=documents`);
+        const res = await fetch(`${CHAT_API_CHATS}?action=list`, { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        const all = chatFlattenTree(data.tree || []);
-        chat.conversations = all
-            .filter(n => n.rel && n.rel.indexOf('Chats/') === 0 && n.rel.endsWith('.md'))
-            .map(n => chatParseConversationMeta(n));
+        if (!data.success) throw new Error(data.message || 'Error al listar');
+        chat.conversations = (data.rows || []).map(r => ({
+            uid:      r.uid,
+            title:    r.title || 'Sin titulo',
+            model:    r.model || '',
+            agentKey: CHAT_AGENTS[r.doc] ? r.doc : CHAT_DEFAULT_AGENT,   // el agente viaja en el campo `doc`
+            msgCount: r.msg_count || 0,
+            // SQLite guarda 'Y-m-d H:i:s'; el espacio rompe Date() en algunos parsers.
+            mtime:    String(r.updated_at || r.created_at || '').replace(' ', 'T')
+        }));
         chatRenderSidebar();
     } catch (err) {
         console.error('chatLoadConversations:', err);
@@ -415,41 +549,13 @@ async function chatLoadConversations() {
     }
 }
 
-function chatFlattenTree(nodes, parentRel) {
-    const out = [];
-    (nodes || []).forEach(n => {
-        const rel = parentRel ? parentRel + '/' + (n.name || n.path || '') : (n.rel || n.path || n.name || '');
-        out.push(Object.assign({}, n, { rel: rel }));
-        if (n.children && n.children.length) {
-            out.push.apply(out, chatFlattenTree(n.children, rel));
-        }
-    });
-    return out;
-}
-
-function chatParseConversationMeta(node) {
-    const rel = node.rel || '';
-    const parts = rel.split('/').filter(Boolean);
-    const agentDir = parts[1] || '';
-    const file = parts.slice(2).join('/') || (node.name || '');
-    const title = (node.name || file || '').replace(/\.md$/i, '');
-    return {
-        file: file,
-        fullPath: node.fullPath || rel,
-        rel: rel,
-        title: title,
-        agentDir: agentDir,
-        agentKey: Object.values(CHAT_AGENTS).find(a => a.slug === agentDir)?.key || CHAT_DEFAULT_AGENT,
-        mtime: node.mtime || node.date || node.modified || new Date().toISOString(),
-        size: node.size || 0,
-        raw: node.raw || ''
-    };
-}
-
 function chatRenderSidebar() {
     const groups = { today: [], yesterday: [], week: [], older: [] };
     const now = Date.now();
-    chat.conversations.forEach(c => {
+    const list = chat._filter
+        ? chat.conversations.filter(c => (c.title || '').toLowerCase().indexOf(chat._filter) !== -1)
+        : chat.conversations;
+    list.forEach(c => {
         const t = new Date(c.mtime).getTime();
         if (isNaN(t)) { groups.older.push(c); return; }
         const diffDays = Math.floor((now - t) / 86400000);
@@ -459,6 +565,7 @@ function chatRenderSidebar() {
         else groups.older.push(c);
     });
     ['today', 'yesterday', 'week', 'older'].forEach(g => chatRenderGroup(g, groups[g]));
+    $('#chatSidebarEmpty').toggle(list.length === 0);
 }
 
 function chatRenderGroup(groupKey, items) {
@@ -469,18 +576,47 @@ function chatRenderGroup(groupKey, items) {
     $wrap.show();
     items.sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
     items.forEach(c => {
-        const active = c.fullPath === chat.currentFile ? ' active' : '';
+        const active = c.uid === chat.currentUid ? ' active' : '';
         const $li = $(`
-            <li class="chat-sidebar-item${active}" data-path="${chatEscape(c.fullPath)}" title="${chatEscape(c.title)}">
+            <li class="chat-sidebar-item${active}" data-uid="${chatEscape(c.uid)}" title="${chatEscape(c.title)}">
                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                 <span class="item-title">${chatEscape(c.title)}</span>
                 <span class="item-meta">${chatRelativeTime(c.mtime)}</span>
+                <button class="item-del" title="Eliminar conversación"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
             </li>
         `);
-        $li.on('click', () => chatOpenConversation(c.fullPath));
+        $li.on('click', () => chatOpenConversation(c.uid));
+        $li.find('.item-del').on('click', e => {
+            e.stopPropagation();
+            chatDeleteSaved(c.uid, c.title);
+        });
         $ul.append($li);
     });
     if (window.lucide) lucide.createIcons();
+}
+
+// Elimina una conversación guardada directo desde el sidebar (✕ al hover).
+async function chatDeleteSaved(uid, title) {
+    if (!uid) return;
+    if (!confirm('¿Eliminar "' + (title || 'esta conversación') + '"? Esta acción no se puede deshacer.')) return;
+    const form = new FormData();
+    form.append('action', 'delete');
+    form.append('uid', uid);
+    try {
+        const res = await fetch(CHAT_API_CHATS, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { chatToast('Error al eliminar: ' + (data.message || ''), 'error'); return; }
+        // Si borraste la conversación abierta, el chat queda en una nueva.
+        if (uid === chat.currentUid) {
+            chat.dirty = false;
+            chatNewConversation();
+        }
+        await chatLoadConversations();
+        chatToast('Conversación eliminada', 'success');
+    } catch (err) {
+        console.error(err);
+        chatToast('Error de red al eliminar', 'error');
+    }
 }
 
 /* ---------- New / Open / Save / Delete / Rename ---------- */
@@ -488,43 +624,46 @@ function chatNewConversation() {
     if (chat.dirty) {
         if (!confirm('Tienes cambios sin guardar. ¿Descartar y empezar una nueva conversacion?')) return;
     }
+    clearTimeout(chat._autoSaveTimer);   // que no se guarde la conversación anterior aquí
     chat.history = [];
-    chat.currentFile = null;
+    chat.currentUid = null;
     chat.currentTitle = 'Nueva conversacion';
     chat.dirty = false;
     chat.pendingImages = [];
     chat.pendingDocs = [];
+    chatSetActiveDb(null);
+    chatSetActiveFolder(null);
     chatRenderAttachments();
     chatRenderMain();
     chatRenderSidebar();
     $('#chatInput').focus();
 }
 
-async function chatOpenConversation(fullPath) {
-    if (chat.dirty && chat.currentFile !== fullPath) {
+async function chatOpenConversation(uid) {
+    if (chat.dirty && chat.currentUid !== uid) {
         if (!confirm('Tienes cambios sin guardar. ¿Descartarlos y abrir esta conversacion?')) return;
     }
-    const conv = chat.conversations.find(c => c.fullPath === fullPath);
-    let raw = conv ? conv.raw : '';
-    if (!raw) {
-        try {
-            const res = await fetch(`${CHAT_API_DOCS}?action=read&fullPath=${encodeURIComponent(fullPath)}`);
-            const data = await res.json();
-            if (!data.success) { chatToast('No se pudo abrir: ' + (data.message || ''), 'error'); return; }
-            raw = data.content || '';
-        } catch (err) {
-            console.error(err);
-            chatToast('Error al abrir la conversacion', 'error');
-            return;
-        }
+    let c;
+    try {
+        const res = await fetch(`${CHAT_API_CHATS}?action=get&uid=${encodeURIComponent(uid)}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data.success) { chatToast('No se pudo abrir: ' + (data.message || ''), 'error'); return; }
+        c = data.chat || {};
+    } catch (err) {
+        console.error(err);
+        chatToast('Error al abrir la conversacion', 'error');
+        return;
     }
-    const { frontmatter, body } = chatParseFrontmatter(raw);
-    chat.history = chatParseHistoryFromBody(body);
-    chat.currentFile = fullPath;
-    chat.currentTitle = frontmatter.name || 'Conversacion';
-    chat.agentKey = Object.values(CHAT_AGENTS).find(a => a.slug === (frontmatter.agent_dir || ''))?.key || frontmatter.agent || chat.agentKey;
-    chat.model = frontmatter.model && frontmatter.model !== 'default' ? frontmatter.model : '';
+    clearTimeout(chat._autoSaveTimer);   // que no se guarde la conversación anterior aquí
+    chat.history = Array.isArray(c.messages) ? c.messages : [];
+    chat.currentUid = uid;
+    chat.currentTitle = c.title || 'Conversacion';
+    chat.agentKey = CHAT_AGENTS[c.doc] ? c.doc : chat.agentKey;   // el agente viaja en `doc`
+    chat.model = c.model || '';
     chat.dirty = false;
+    // Las conexiones pegajosas son por conversación: al abrir otra, se sueltan.
+    chatSetActiveDb(null);
+    chatSetActiveFolder(null);
     chatRenderMain();
     chatRenderSidebar();
     chatApplyAgent(chat.agentKey, true);
@@ -532,41 +671,47 @@ async function chatOpenConversation(fullPath) {
     $('#chatInput').focus();
 }
 
-async function chatSaveConversation() {
+async function chatSaveConversation(silent) {
     if (!chat.history.length) {
-        chatToast('Conversacion vacia, nada que guardar', 'info');
+        if (!silent) chatToast('Conversacion vacia, nada que guardar', 'info');
         return;
     }
     if (chat.currentTitle === 'Nueva conversacion' || !chat.currentTitle.trim()) {
         chat.currentTitle = (chat.history[0].content || 'Conversacion').slice(0, 50).trim() || 'Conversacion';
     }
-    const stamp = chatStamp();
-    const agentDef = CHAT_AGENTS[chat.agentKey] || CHAT_AGENTS[CHAT_DEFAULT_AGENT];
-    const slug = chatSlugify(chat.currentTitle) || agentDef.slug.toLowerCase();
-    const filename = `${stamp}-${slug}.md`;
-    const fullPath = `coffee/app/visor/documents/Chats/${agentDef.slug}/${filename}`;
-    const content = chatSerializeToMd();
-
+    // Upsert en SQLite (ctrl-chats.php), igual que el Visor: con uid actualiza la
+    // misma fila; sin uid el backend lo genera y lo recordamos para el resto de
+    // la conversación. El agente viaja en el campo `doc` del esquema.
     const form = new FormData();
     form.append('action', 'save');
-    form.append('fullPath', fullPath);
-    form.append('content', content);
+    if (chat.currentUid) form.append('uid', chat.currentUid);
+    form.append('title',    chat.currentTitle);
+    form.append('user_id',  '');
+    form.append('model',    chat.model || '');
+    form.append('doc',      chat.agentKey || '');
+    form.append('messages', JSON.stringify(chat.history));
 
     try {
-        const res = await fetch(CHAT_API_DOCS, { method: 'POST', body: form });
+        const res = await fetch(CHAT_API_CHATS, { method: 'POST', body: form });
         const data = await res.json();
         if (!data.success) {
-            chatToast('Error al guardar: ' + (data.message || ''), 'error');
+            if (!silent) chatToast('Error al guardar: ' + (data.message || ''), 'error');
             return;
         }
-        chat.currentFile = fullPath;
+        chat.currentUid = data.uid;
         chat.dirty = false;
         await chatLoadConversations();
-        chatToast('Conversacion guardada', 'success');
+        if (!silent) chatToast('Conversacion guardada', 'success');
     } catch (err) {
         console.error(err);
-        chatToast('Error de red al guardar', 'error');
+        if (!silent) chatToast('Error de red al guardar', 'error');
     }
+}
+
+// Autoguardado silencioso tras cada respuesta (debounced), como los hilos de Lab.
+function chatAutoSave() {
+    clearTimeout(chat._autoSaveTimer);
+    chat._autoSaveTimer = setTimeout(() => chatSaveConversation(true), 600);
 }
 
 function chatDownloadConversation() {
@@ -583,7 +728,7 @@ function chatDownloadConversation() {
 }
 
 function chatOpenDeleteModal() {
-    if (!chat.currentFile) { chatToast('Esta conversacion aun no esta guardada', 'info'); return; }
+    if (!chat.currentUid) { chatToast('Esta conversacion aun no esta guardada', 'info'); return; }
     $('#chatDeleteText').text('Vas a eliminar "' + chat.currentTitle + '". Esta accion no se puede deshacer.');
     $('#chatDeleteModal').removeClass('hidden');
 }
@@ -591,12 +736,12 @@ function chatOpenDeleteModal() {
 function chatCloseDeleteModal() { $('#chatDeleteModal').addClass('hidden'); }
 
 async function chatApplyDelete() {
-    if (!chat.currentFile) return;
+    if (!chat.currentUid) return;
     const form = new FormData();
     form.append('action', 'delete');
-    form.append('fullPath', chat.currentFile);
+    form.append('uid', chat.currentUid);
     try {
-        const res = await fetch(CHAT_API_DOCS, { method: 'POST', body: form });
+        const res = await fetch(CHAT_API_CHATS, { method: 'POST', body: form });
         const data = await res.json();
         if (!data.success) { chatToast('Error al eliminar: ' + (data.message || ''), 'error'); return; }
         chatToast('Conversacion eliminada', 'success');
@@ -624,7 +769,8 @@ function chatApplyRename() {
     chat.dirty = true;
     $('#chatCurrentTitle').text(chat.currentTitle);
     chatCloseRenameModal();
-    chatToast('Titulo actualizado (guarda para persistir)', 'info');
+    chatToast('Titulo actualizado', 'success');
+    if (chat.currentUid) chatAutoSave();
 }
 
 /* ---------- Serialize / parse markdown ---------- */
@@ -649,32 +795,6 @@ function chatSerializeToMd() {
     return fmLines.join('\n') + blocks.join('\n---\n\n');
 }
 
-function chatParseFrontmatter(md) {
-    const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-    if (!m) return { frontmatter: {}, body: md };
-    const fm = {};
-    m[1].split(/\r?\n/).forEach(line => {
-        const kv = line.match(/^([\w-]+):\s*(.*)$/);
-        if (kv) fm[kv[1]] = kv[2].trim();
-    });
-    return { frontmatter: fm, body: m[2] };
-}
-
-function chatParseHistoryFromBody(body) {
-    const blocks = body.split(/\n---\n\n/);
-    const history = [];
-    blocks.forEach(b => {
-        const m = b.match(/^###\s+(\S+)\s+·\s+(.+?)\n\n([\s\S]*)$/);
-        if (!m) return;
-        const ts = m[1];
-        const roleRaw = m[2];
-        const content = m[3].trim();
-        const role = /Tu|user/i.test(roleRaw) ? 'user' : 'assistant';
-        history.push({ role: role, content: content, ts: new Date(ts).getTime() || Date.now() });
-    });
-    return history;
-}
-
 /* ---------- Render main / mensajes ---------- */
 function chatRenderMain() {
     $('#chatCurrentTitle').text(chat.currentTitle);
@@ -682,6 +802,7 @@ function chatRenderMain() {
     $body.empty();
     if (!chat.history.length) {
         $body.html(chatEmptyHtml());
+        $body.find('.chat-empty-brand').append($('.chat-logo svg').first().clone());
         chatBindSuggestions();
         if (window.lucide) lucide.createIcons();
         return;
@@ -698,8 +819,8 @@ function chatRenderMain() {
 function chatEmptyHtml() {
     return `
         <div class="chat-empty">
-            <i data-lucide="message-circle"></i>
-            <div class="chat-empty-title">Inicia una conversacion</div>
+            <div class="chat-empty-brand"></div>
+            <div class="chat-empty-wordmark">Coffee <span>IA</span></div>
             <div class="chat-empty-sub">Pregunta lo que quieras. Adjunta imagenes o documentos para enriquecer el contexto.</div>
             <div class="chat-suggestions">
                 <button class="chat-suggestion" data-prompt="¿Que puedes hacer?">¿Que puedes hacer?</button>
@@ -782,9 +903,20 @@ function chatMarkdown(text) {
     return window.DOMPurify ? window.DOMPurify.sanitize(raw, { ADD_ATTR: ['target'] }) : raw;
 }
 
-function chatScrollBottom() {
-    const $body = $('#chatBody');
-    $body.scrollTop($body[0].scrollHeight);
+// force=true: baja al fondo sí o sí y reactiva el pegado (envío de mensaje o
+// clic en "bajar al final"). Sin force: respeta _stickBottom, de modo que si
+// el usuario subió a leer mientras la IA escribe, no lo arrastra de vuelta.
+function chatScrollBottom(force) {
+    const el = $('#chatBody')[0];
+    if (!el) return;
+    if (force) { chat._stickBottom = true; chatToggleScrollDownBtn(false); }
+    if (chat._stickBottom !== false) el.scrollTop = el.scrollHeight;
+}
+
+function chatToggleScrollDownBtn(show) {
+    const $b = $('#chatScrollDownBtn');
+    if (!$b.length) return;
+    if (show) $b.css('display', 'flex'); else $b.hide();
 }
 
 function chatCopyMessage(idx) {
@@ -893,6 +1025,7 @@ async function chatSubmit() {
         chat.currentTitle = auto || 'Nueva conversacion';
     }
     chatRenderMain();
+    chatScrollBottom(true);   // enviar re-pega el scroll al fondo
 
     chatSetBusy(true);
     const ac = new AbortController();
@@ -903,7 +1036,7 @@ async function chatSubmit() {
     let streamErr = null;
     let firstToken = false;
     let thinkChars = 0;
-    const streamState = { conjuring: false, kind: null };
+    const streamState = { conjuring: false, kind: null, fed: 0, pending: '', shown: '', raf: null, done: false, drainCb: null, credit: 0, last: 0, $text: null };
 
     try {
         const payload = {
@@ -916,6 +1049,10 @@ async function chatSubmit() {
             model: chat.model || '',
             canvasMode: !!chat.canvasMode,
             graphMode: chat.graphMode || '',
+            dbConnect:     (chat.dbToolsOn && chat.activeDb) || '',     // base conectada (conexión pegajosa)
+            folderConnect: (chat.fsToolsOn && chat.activeFolder) || '', // carpeta conectada (conexión pegajosa)
+            dbTools:       !!chat.dbToolsOn,   // apagado: el backend no resuelve base ni al nombrarla
+            fsTools:       !!chat.fsToolsOn,   // apagado: el backend no resuelve carpeta ni al nombrarla
             currentFile: '',
             currentFileContent: docsContext || ''
         };
@@ -948,7 +1085,18 @@ async function chatSubmit() {
                 let obj = {};
                 try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
                 if (ev === 'thinking') {
-                    if (!firstToken) { thinkChars += (obj.t || '').length; chatSetTypingPhase($typing, thinkChars); }
+                    // Etiqueta de tool-calling completa ("[consultando SELECT …]",
+                    // "[leyendo archivo]") se muestra tal cual; el razonamiento en
+                    // fragmentos se acumula como progreso (mismo patrón que Lab).
+                    if (!firstToken) {
+                        const t = obj.t || '';
+                        if (/\[[^\]]*\]/.test(t)) {
+                            chatSetTypingLabel($typing, t);
+                        } else {
+                            thinkChars += t.length;
+                            chatSetTypingPhase($typing, thinkChars);
+                        }
+                    }
                 } else if (ev === 'chunk') {
                     if (!firstToken) { firstToken = true; $typing.remove(); }
                     received += obj.t || '';
@@ -962,6 +1110,7 @@ async function chatSubmit() {
         }
     } catch (err) {
         $typing.remove();
+        chatStreamCancel(streamState);
         const aborted = err && err.name === 'AbortError';
         if (aborted) {
             const content = received ? (received + '\n\n_[generacion detenida]_') : '⏹ Generacion detenida.';
@@ -974,10 +1123,19 @@ async function chatSubmit() {
         chatRenderMain();
         chatSetBusy(false);
         chat._abort = null;
+        chatAutoSave();
         return;
     }
 
     if ($typing && $typing.length) $typing.remove();
+    // Deja que el typewriter termine de escribir lo pendiente antes del render final.
+    if (streamErr) chatStreamCancel(streamState);
+    else await chatStreamDrain(streamState);
+    // Conexión pegajosa: si el backend resolvió una base/carpeta (la nombrada en
+    // el mensaje o la reenviada), la recordamos para los siguientes turnos.
+    if (meta && meta.db) chatSetActiveDb(meta.db);
+    if (meta && meta.fs) chatSetActiveFolder(meta.fs);
+    if (meta && meta.tools_fallback) chatToast('⚠ ' + meta.tools_fallback, 'warn');
     if (streamErr) {
         chat.history.push({ role: 'assistant', content: '⚠️ ' + streamErr, ts: Date.now(), meta: meta });
     } else {
@@ -996,10 +1154,7 @@ async function chatSubmit() {
     chatSetBusy(false);
     chat._abort = null;
     chatPlayPopSound();
-
-    if (chat.history.length > 0 && chat.history.length % 3 === 0) {
-        chatSaveConversation();
-    }
+    chatAutoSave();
 }
 
 function chatAppendTyping() {
@@ -1009,10 +1164,27 @@ function chatAppendTyping() {
         $inner = $('<div class="chat-body-inner"></div>');
         $body.empty().append($inner);
     }
-    const $typing = $('<div class="chat-typing"><span></span><span></span><span></span></div>');
+    // Mismo indicador que Visor/Lab: loader "quantum" + "Analizando…" animado.
+    const $typing = $(`<div class="chat-typing"><div class="ia-typing-loader">${chatQuantumLoader('Analizando')}</div></div>`);
     $inner.append($typing);
     chatScrollBottom();
     return $typing;
+}
+
+// Loader "quantum" replicado de Templates.loader() (coffeeSoft.js), igual que en
+// Visor/Lab: un orbe que muta forma y color; visor.css le añade el texto atenuado
+// y los puntos "…" animados.
+function chatQuantumLoader(text) {
+    if (!document.getElementById('coffeeia-loader-css')) {
+        const style = document.createElement('style');
+        style.id = 'coffeeia-loader-css';
+        style.textContent = '@keyframes coffeeiaQuantum{0%{border-radius:50%;transform:translate(0,0);background:#ec4899}25%{background:#3b82f6}50%{border-radius:40% 60% 50% 50%;transform:translate(1px,-1px);background:#8b5cf6}75%{background:#a855f7}100%{border-radius:50%;transform:translate(0,0);background:#ec4899}}';
+        document.head.appendChild(style);
+    }
+    const txt = text ? `<span style="color:#374151;font-weight:500;font-size:12px">${text}</span>` : '';
+    return `<div class="coffeeia-loader" style="display:inline-flex;align-items:center;gap:8px">`
+         + `<div style="width:10px;height:10px;border-radius:50%;animation:coffeeiaQuantum 2s steps(8) infinite"></div>`
+         + txt + `</div>`;
 }
 
 // Pinta el stream. Si detecta un bloque de codigo "conjurable" (HTML en modo
@@ -1047,6 +1219,7 @@ function chatAppendOrUpdateStream(received, state) {
         if (kind) {
             state.conjuring = true;
             state.kind = kind;
+            chatStreamCancel(state);   // el typewriter se apaga: la card comunica el progreso
             const ui = CHAT_CONJURE_UI[kind] || CHAT_CONJURE_UI.html;
             $last.find('.chat-msg-text').html(`
                 <div class="ia-conjuring">
@@ -1068,22 +1241,97 @@ function chatAppendOrUpdateStream(received, state) {
         return;
     }
 
-    $last.find('.chat-msg-text').html(chatMarkdown(received) + '<span class="ia-stream-cursor">▍</span>');
-    chatScrollBottom();
+    // Tecleo palabra a palabra (efecto Claude, mismo patrón que el Visor): al
+    // typewriter solo se le alimenta el DELTA nuevo; un requestAnimationFrame
+    // saca palabras del backlog a 14-60 palabras/seg y repinta el markdown.
+    state.$text = $last.find('.chat-msg-text');
+    state.pending += received.slice(state.fed || 0);
+    state.fed = received.length;
+    chatStreamKick(state);
+}
+
+function chatStreamKick(state) {
+    if (state.raf) return;
+    state.last = performance.now();
+    state.credit = state.credit || 0;
+    const pump = (now) => {
+        const dt = Math.min(100, now - state.last);   // cap por si la pestaña estuvo inactiva
+        state.last = now;
+        // Ritmo en palabras/seg; sube si se acumula backlog para no rezagarse.
+        const wps = 14 + Math.min(46, state.pending.length / 40);
+        state.credit += (dt / 1000) * wps;
+        let painted = false;
+        while (state.credit >= 1 && state.pending.length) {
+            const m = state.pending.match(/^\s*\S+\s*/);
+            const len = m ? m[0].length : state.pending.length;
+            state.shown += state.pending.slice(0, len);
+            state.pending = state.pending.slice(len);
+            state.credit -= 1;
+            painted = true;
+        }
+        if (painted) {
+            state.$text.html(chatMarkdown(state.shown) + '<span class="ia-stream-cursor">▍</span>');
+            chatScrollBottom();
+        }
+        if (!state.pending.length) state.credit = 0;
+        if (state.done && !state.pending.length) {
+            state.raf = null;
+            const cb = state.drainCb; state.drainCb = null;
+            if (cb) cb();
+            return;
+        }
+        state.raf = requestAnimationFrame(pump);
+    };
+    state.raf = requestAnimationFrame(pump);
+}
+
+// Espera a que el typewriter termine de escribir el backlog (para no cortar la
+// animación al llegar el último chunk antes de pintar el mensaje definitivo).
+function chatStreamDrain(state) {
+    if (state.conjuring || (!state.raf && !state.pending.length)) return Promise.resolve();
+    return new Promise(res => { state.done = true; state.drainCb = res; });
+}
+
+// Corta el typewriter en seco (error/abort): sin esto el rAF seguiría pintando
+// sobre un nodo ya desmontado por el re-render.
+function chatStreamCancel(state) {
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.raf = null;
+    state.pending = '';
+    state.done = true;
+    const cb = state.drainCb; state.drainCb = null;
+    if (cb) cb();
 }
 
 // Indica que el modelo esta razonando (tokens de "thinking") con progreso vivo.
 function chatSetTypingPhase($typing, chars) {
-    if (!$typing || !$typing.length) return;
-    let $phase = $typing.find('.chat-typing-phase');
-    if (!$phase.length) {
-        $typing.find('span').hide();
-        $phase = $('<span class="chat-typing-phase"><i data-lucide="brain" class="w-3 h-3"></i><span class="phase-text"></span></span>');
-        $typing.append($phase);
-        if (window.lucide) lucide.createIcons();
-    }
     const approxToks = Math.max(1, Math.round(chars / 4));
-    $phase.find('.phase-text').text('Razonando… ≈ ' + approxToks + ' tokens');
+    chatSetTypingLabel($typing, 'Razonando… ≈ ' + approxToks + ' tokens');
+}
+
+// Cambia el texto del indicador para reflejar el estado: etiquetas de
+// tool-calling ("[consultando SELECT …]", "[leyendo archivo]") van con el orbe
+// quantum; "Razonando…" (cadena de pensamiento) lleva un cerebro pulsante que
+// se monta una sola vez y solo refresca el contador (mismo patrón que Lab).
+function chatSetTypingLabel($typing, text) {
+    if (!$typing || !$typing.length) return;
+    let t = String(text || '').replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+    if (/^consultando/i.test(t)) t = 'Consultando: ' + t.replace(/^consultando\s*/i, '');
+    if (t.length > 70) t = t.slice(0, 70) + '…';
+    if (/^razonando/i.test(t)) {
+        const $loader = $typing.find('.ia-typing-loader');
+        const $txt = $loader.find('.chat-think-txt');
+        if ($txt.length) { $txt.text(t); chatScrollBottom(); return; }
+        $loader.html(
+            `<div style="display:inline-flex;align-items:center;gap:8px">`
+          + `<i data-lucide="brain" class="chat-think-brain"></i>`
+          + `<span class="chat-think-txt"></span></div>`);
+        $loader.find('.chat-think-txt').text(t);
+        if (window.lucide) lucide.createIcons();
+        chatScrollBottom();
+        return;
+    }
+    $typing.find('.ia-typing-loader').html(chatQuantumLoader(t || 'Analizando'));
     chatScrollBottom();
 }
 

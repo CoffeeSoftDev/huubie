@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Coffee Studio — CoffeeSoft</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -324,10 +325,24 @@
                         <div id="stFileTree" class="st-file-tree"></div>
                     </aside>
                     <div class="st-editor">
-                        <div id="stEditorTabs" class="st-editor-tabs"></div>
+                        <div class="st-editor-bar">
+                            <div id="stEditorTabs" class="st-editor-tabs"></div>
+                            <div class="st-editor-actions">
+                                <button id="stEditBtn" class="st-editor-actbtn" title="Editar el archivo activo">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar
+                                </button>
+                                <button id="stRunBtn" class="st-editor-actbtn st-editor-run hidden" title="Guardar los cambios y re-ejecutar el módulo en el preview">
+                                    <i data-lucide="play" class="w-3.5 h-3.5"></i> Guardar y ejecutar
+                                </button>
+                                <button id="stCancelBtn" class="st-editor-actbtn hidden" title="Descartar los cambios">
+                                    <i data-lucide="x" class="w-3.5 h-3.5"></i> Cancelar
+                                </button>
+                            </div>
+                        </div>
                         <div class="st-editor-body">
                             <pre id="stGutter" class="st-gutter"></pre>
                             <pre class="st-code"><code id="stEditorCode"></code></pre>
+                            <textarea id="stEditorArea" class="st-editor-area hidden" spellcheck="false"></textarea>
                         </div>
                     </div>
                 </div>

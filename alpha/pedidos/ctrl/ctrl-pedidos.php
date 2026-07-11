@@ -46,8 +46,13 @@ class Pedidos extends MPedidos{
             ? $_POST['subsidiaries_id']
             : $_SESSION['SUB'];
 
+        // El estado "dia cerrado" debe medirse por la JORNADA cerrada (closure_date),
+        // no por cuando se ejecuto el cierre (created_at). Si no, cerrar la jornada
+        // anterior a la mañana siguiente marca "hoy" como cerrado (su created_at cae
+        // hoy) y bloquea letrero + boton "Nuevo Pedido" con un turno de hoy abierto.
+        // Mismo criterio que el candado de openShift() (getDailyClosureByClosureDate).
         $today = date('Y-m-d');
-        $closure = $this->getDailyClosureByDate([$today, $subsidiaries_id]);
+        $closure = $this->getDailyClosureByClosureDate([$today, $subsidiaries_id]);
 
         // Verificar turno abierto para la sucursal seleccionada
         $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
@@ -246,15 +251,18 @@ class Pedidos extends MPedidos{
         $folio = null;
 
         // La sucursal del pedido NO puede quedar vacia: si se inserta NULL el pedido
-        // nace huerfano (no cae en ningun cierre ni corte de caja). El admin la manda
-        // por POST desde la navbar; URLSearchParams puede enviar ''/'null'/'undefined'
-        // y "Todas las sucursales" manda '0'. Todos esos casos se normalizan a null y
-        // se cortan antes de escribir, en lugar de crear un huerfano.
-        if ($_SESSION['ROLID'] == 1) {
+        // nace huerfano (no cae en ningun cierre ni corte de caja). Los roles con
+        // selector en el formulario (admin 1, cajero 2, vendedor 3) la mandan por
+        // POST; URLSearchParams puede enviar ''/'null'/'undefined' y "Todas las
+        // sucursales" manda '0'. Sin valor util, el admin se corta antes de escribir
+        // y cajero/vendedor caen a su sucursal de sesion (front viejo sin selector).
+        if (in_array($_SESSION['ROLID'], [1, 2, 3])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
-            $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null'
-                                || $postSub === 'undefined' || $postSub === '0' || $postSub === 0)
-                ? null : $postSub;
+            $noSub   = ($postSub === null || $postSub === '' || $postSub === 'null'
+                        || $postSub === 'undefined' || $postSub === '0' || $postSub === 0);
+            $subsidiaries_id = $noSub
+                ? ($_SESSION['ROLID'] == 1 ? null : $_SESSION['SUB'])
+                : $postSub;
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }
@@ -438,13 +446,17 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Permite mutar un pedido solo si el usuario es admin o si el pedido pertenece a
-    // su sucursal de sesion. Bloquea escrituras sobre pedidos de otra sucursal cuando
-    // el cajero (rol 2) usa el filtro de vista del navbar (solo consulta).
+    // Permite mutar un pedido si el usuario es admin, si el pedido pertenece a su
+    // sucursal de sesion, o si es personal rotativo (cajero 2, vendedor 3) y la
+    // sucursal del pedido tiene turno abierto: misma regla que el candado de
+    // creacion, para que quien vende en otra sucursal tambien pueda operar ahi.
     private function canWriteOrder($orderId) {
         if (($_SESSION['ROLID'] ?? 0) == 1) return true;
         $o = $this->getOrderID([$orderId]);
-        return isset($o[0]['subsidiaries_id']) && $o[0]['subsidiaries_id'] == ($_SESSION['SUB'] ?? null);
+        if (!isset($o[0]['subsidiaries_id'])) return false;
+        if ($o[0]['subsidiaries_id'] == ($_SESSION['SUB'] ?? null)) return true;
+        if (!in_array($_SESSION['ROLID'] ?? 0, [2, 3])) return false;
+        return (bool) $this->getOpenShiftBySubsidiary([$o[0]['subsidiaries_id']]);
     }
 
     function cancelOrder(){
@@ -1384,216 +1396,6 @@ class Pedidos extends MPedidos{
             'status'  => $status,
             'message' => $message,
             $delete
-        ];
-    }
-
-    function getDailyClose() {
-        $status  = 500;
-        $message = 'Error al obtener resumen del día';
-        $data    = null;
-
-
-        if ($_SESSION['ROLID'] == 1 ) {
-
-            $subsidiaries_id = $_POST['subsidiaries_id'];
-        
-        } else {
-            $subsidiaries_id = $_SESSION['SUB'];
-        }
-
-        // Obtener información de la sucursal
-        $subsidiary_name = '';
-        $is_all_subsidiaries = false;
-
-        if ($subsidiaries_id == 0 || $subsidiaries_id == '0') {
-            // Modo "todas las sucursales"
-            $subsidiary_name = 'TODAS LAS SUCURSALES';
-            $is_all_subsidiaries = true;
-        } else {
-            // Obtener nombre de sucursal específica
-            $subsidiary = $this->getSucursalByID([$subsidiaries_id]);
-            if ($subsidiary && isset($subsidiary['name'])) {
-                $subsidiary_name = $subsidiary['name'];
-            } else {
-                $subsidiary_name = 'Sucursal Desconocida';
-            }
-        }
-
-        $summary = $this->getDailySalesMetrics([
-            $_POST['date'],
-            $subsidiaries_id
-        ]);
-        
-        // Verificar que los datos de pagos se obtengan correctamente
-        if ($summary && $summary['total_orders'] > 0) {
-            $status  = 200;
-            $message = 'Resumen obtenido correctamente';
-            $data    = [
-                'total_sales'          => $summary['total_sales'],
-                'card_sales'           => $summary['card_sales'],
-                'cash_sales'           => $summary['cash_sales'],
-                'transfer_sales'       => $summary['transfer_sales'],
-                'total_orders'         => $summary['total_orders'],
-                'quotation_count'      => $summary['quotation_count'],
-                'cancelled_count'      => $summary['cancelled_count'],
-                'pending_count'        => $summary['pending_count'],
-                'subsidiary_name'      => $subsidiary_name,
-                'is_all_subsidiaries'  => $is_all_subsidiaries
-            ];
-        } else {
-            $status  = 404;
-            $message = 'No hay pedidos registrados para esta fecha';
-            $data    = [
-                'quotation_count'      => $summary['quotation_count'] ?? 0,
-                'cancelled_count'      => $summary['cancelled_count'] ?? 0,
-                'pending_count'        => $summary['pending_count'] ?? 0,
-                'subsidiary_name'      => $subsidiary_name,
-                'is_all_subsidiaries'  => $is_all_subsidiaries
-            ];
-        }
-
-        $data['logo'] = $_SESSION['LOGO'];
-
-        // Verificar si ya existe un cierre para esta fecha/sucursal
-        $closure_exists = false;
-        $closure_id     = null;
-        if (!$is_all_subsidiaries) {
-            $closure = $this->getDailyClosureByDate([$_POST['date'], $subsidiaries_id]);
-            if ($closure) {
-                $closure_exists = true;
-                $closure_id     = $closure['id'];
-                $closed_by      = $closure['closed_by_name'];
-                $closed_at      = $closure['created_at'];
-
-                // Sobreescribir con los datos guardados del cierre
-                $closure_payments = $this->getClosurePayments($closure_id);
-                if (is_array($closure_payments)) {
-                    $data['cash_sales']     = 0;
-                    $data['card_sales']     = 0;
-                    $data['transfer_sales'] = 0;
-                    foreach ($closure_payments as $cp) {
-                        switch ($cp['payment_method_id']) {
-                            case 1: $data['cash_sales']     = $cp['amount']; break;
-                            case 2: $data['card_sales']     = $cp['amount']; break;
-                            case 3: $data['transfer_sales'] = $cp['amount']; break;
-                        }
-                    }
-                }
-
-                $closure_statuses = $this->getClosureStatusProcess($closure_id);
-                if (is_array($closure_statuses)) {
-                    $data['quotation_count'] = 0;
-                    $data['pending_count']   = 0;
-                    $data['cancelled_count'] = 0;
-                    foreach ($closure_statuses as $cs) {
-                        switch ($cs['status_process_id']) {
-                            case 1: $data['quotation_count'] = $cs['amount']; break;
-                            case 2: $data['pending_count']   = $cs['amount']; break;
-                            case 4: $data['cancelled_count'] = $cs['amount']; break;
-                        }
-                    }
-                }
-
-                $data['total_sales']  = $closure['total'];
-                $data['total_orders'] = $closure['total_orders'];
-            }
-        }
-
-        $data['closure_exists'] = $closure_exists;
-        $data['closure_id']     = $closure_id;
-        $data['closed_by']      = $closed_by ?? null;
-        $data['closed_at']      = $closed_at ?? null;
-
-        return [
-            'status'  => $status,
-            'message' => $message,
-            'data'    => $data,
-            'sumary'  => $summary,
-            $subsidiaries_id
-        ];
-    }
-
-    function saveDailyClose() {
-        $status  = 500;
-        $message = 'Error al realizar el cierre del día';
-
-        if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'];
-        } else {
-            $subsidiaries_id = $_SESSION['SUB'];
-        }
-
-        if ($subsidiaries_id == 0 || $subsidiaries_id == '0') {
-            return ['status' => 400, 'message' => 'No se puede cerrar todas las sucursales a la vez'];
-        }
-
-        $date = $_POST['date'];
-
-        $existing = $this->getDailyClosureByDate([$date, $subsidiaries_id]);
-        if ($existing) {
-            return ['status' => 409, 'message' => 'Ya existe un cierre para esta fecha y sucursal', 'closure_id' => $existing['id']];
-        }
-
-        $summary = $this->getDailySalesMetrics([$date, $subsidiaries_id]);
-        if (!$summary || $summary['total_orders'] <= 0) {
-            return ['status' => 404, 'message' => 'No hay pedidos para cerrar en esta fecha'];
-        }
-
-        $total_sales = floatval($summary['total_sales']);
-
-        $closure_id = $this->createDailyClosure([
-            'values' => 'total, tax, subtotal, employee_id, subsidiary_id, created_at, active, total_orders',
-            'data'   => [
-                $total_sales,
-                0,
-                $total_sales,
-                $_SESSION['ID'],
-                $subsidiaries_id,
-                date('Y-m-d H:i:s'),
-                1,
-                $summary['total_orders']
-            ]
-        ]);
-
-        if (!$closure_id) {
-            return ['status' => 500, 'message' => 'Error al crear el cierre'];
-        }
-
-        // Guardar formas de pago
-        $payments = [
-            ['method_id' => 1, 'amount' => floatval($summary['cash_sales'])],
-            ['method_id' => 2, 'amount' => floatval($summary['card_sales'])],
-            ['method_id' => 3, 'amount' => floatval($summary['transfer_sales'])]
-        ];
-
-        foreach ($payments as $pay) {
-            $this->createClosurePayment([
-                'values' => 'daily_closure_id, payment_method_id, amount',
-                'data'   => [$closure_id, $pay['method_id'], $pay['amount']]
-            ]);
-        }
-
-        // Guardar status de pedidos
-        $statuses = [
-            ['status_id' => 1, 'amount' => intval($summary['quotation_count'])],
-            ['status_id' => 2, 'amount' => intval($summary['pending_count'])],
-            ['status_id' => 4, 'amount' => intval($summary['cancelled_count'])]
-        ];
-
-        foreach ($statuses as $st) {
-            $this->createClosureStatusProcess([
-                'values' => 'daily_closure_id, status_process_id, amount',
-                'data'   => [$closure_id, $st['status_id'], $st['amount']]
-            ]);
-        }
-
-        // Asignar folio de cierre a pedidos del día
-        $this->updateOrdersDailyClosure([$closure_id, $date, $subsidiaries_id]);
-
-        return [
-            'status'     => 200,
-            'message'    => 'Cierre realizado correctamente',
-            'closure_id' => $closure_id
         ];
     }
 

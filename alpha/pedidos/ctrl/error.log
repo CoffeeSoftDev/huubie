@@ -1,0 +1,38 @@
+[ 2026-07-11 08:51:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                p.name,
+                SUM(od.quantity) as quantity,
+                SUM(od.quantity * od.price) as total
+            FROM fayxzvov_reginas.order_details od
+            INNER JOIN fayxzvov_reginas.order_products p ON od.product_id = p.id
+            INNER JOIN fayxzvov_reginas.order o ON od.order_id = o.id
+            WHERE DATE(o.date_creation) BETWEEN ? AND ? AND o.status != 4 AND o.subsidiaries_id = ?
+            GROUP BY p.id, p.name
+            ORDER BY quantity DESC
+            LIMIT 100
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.order_details' doesn't exist
+
+
+[ 2026-07-11 08:51:18 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT 
+                p.name,
+                SUM(od.quantity) as quantity,
+                SUM(od.quantity * od.price) as total
+            FROM fayxzvov_reginas.order_details od
+            INNER JOIN fayxzvov_reginas.order_products p ON od.product_id = p.id
+            INNER JOIN fayxzvov_reginas.order o ON od.order_id = o.id
+            WHERE DATE(o.date_creation) BETWEEN ? AND ? AND o.status != 4 AND o.subsidiaries_id = ?
+            GROUP BY p.id, p.name
+            ORDER BY quantity DESC
+            LIMIT 100
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.order_details' doesn't exist
+
+

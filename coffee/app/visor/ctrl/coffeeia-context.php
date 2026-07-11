@@ -15,6 +15,7 @@ require_once __DIR__ . '/llm-client.php';
 require_once __DIR__ . '/path-helper.php';
 require_once __DIR__ . '/db-introspect.php';
 require_once __DIR__ . '/fs-introspect.php';
+require_once __DIR__ . '/web-fetch.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
@@ -290,9 +291,11 @@ function coffeeia_build_context(array $body) {
     $fsIntentRe = '/(con[eé]ct\w*|\bcarpeta\b|\bproyecto\b|\bdirectorio\b|\bfolder\b|\brepositorio\b|\brepo\b|c[oó]digo\s+de)/iu';
     // Una RUTA escrita en el mensaje ("coffee/templates/gv", "C:\wamp64\www\gv") tambien
     // cuenta como intencion de carpeta: es la forma natural de responder a la pregunta de
-    // desambiguacion o de apuntar directo a una subcarpeta sin decir "carpeta".
+    // desambiguacion o de apuntar directo a una subcarpeta sin decir "carpeta". Las URLs
+    // http(s) NO cuentan como ruta local (se atienden con la consulta web de mas abajo).
+    $lastUserNoUrls = preg_replace('#https?://[^\s"\'<>()\[\]{}]+#iu', ' ', $lastUser);
     $fsIntent = (bool) preg_match($fsIntentRe, $lastUser)
-             || (bool) preg_match('#[a-z_.\-][\w.\-]*[\\\\/][\w.\-]+#iu', $lastUser);
+             || (bool) preg_match('#[a-z_.\-][\w.\-]*[\\\\/][\w.\-]+#iu', $lastUserNoUrls);
     $wantFs = $fsToolsOn && (($folderConnect !== '') || $fsIntent) && !($dbExplicit && !$fsExplicit);
 
     if ($wantFs) {
@@ -366,8 +369,21 @@ function coffeeia_build_context(array $body) {
             . "   no devuelve filas, muestra un estado vacio honesto.\n";
     }
 
+    // ── Pagina web pegada en el mensaje (clonar/consultar una URL) ──────────────
+    // Si el ultimo mensaje trae URLs http(s), se descargan server-side y su HTML/CSS
+    // real entra al contexto como fuente de verdad. Asi "clona https://ejemplo.com"
+    // funciona con CUALQUIER modelo, incluso sin tool-calling; en los loops agenticos
+    // el modelo ademas puede bajar mas recursos con la herramienta fetch_url.
+    $webPages = [];
+    $webUrls  = web_extract_urls($lastUser);
+    if (!empty($webUrls)) {
+        $wb = web_context_block($webUrls);
+        if ($wb['block'] !== '') $systemBlock .= "\n\n" . $wb['block'] . "\n";
+        $webPages = $wb['fetched'];
+    }
+
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
-    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode];
+    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages];
 }
 
 /**
@@ -587,7 +603,7 @@ function coffeeia_inject_sample_rows(array $messages, $schema, $maxTables = 3, $
  * @return array{final: string, usage: array, rounds: int}
  */
 function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable $onStatus = null, $maxRounds = 6) {
-    $tools = fs_tool_specs();
+    $tools = array_merge(fs_tool_specs(), [web_tool_spec()]);
     $usage = [];
     $final = '';
     $rounds = 0;
@@ -631,8 +647,8 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
             $raw = $tc['function']['arguments'] ?? '{}';
             $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
             if (!is_array($args)) $args = [];
-            if ($onStatus) $onStatus(fs_tool_label($fn, $args));
-            $result = fs_run_tool($fn, $args, $root);
+            if ($onStatus) $onStatus($fn === 'fetch_url' ? web_tool_label($args) : fs_tool_label($fn, $args));
+            $result = $fn === 'fetch_url' ? web_run_tool($args) : fs_run_tool($fn, $args, $root);
             $messages[] = [
                 'role'         => 'tool',
                 'tool_call_id' => $tc['id'] ?? '',
@@ -674,7 +690,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
  * @return array{final: string, usage: array, rounds: int}
  */
 function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $root, callable $onStatus = null, $maxRounds = 8) {
-    $tools   = array_merge(fs_tool_specs(), db_tool_specs());
+    $tools   = array_merge(fs_tool_specs(), db_tool_specs(), [web_tool_spec()]);
     $fsNames = ['list_dir', 'read_file', 'grep_files'];
     $usage = [];
     $final = '';
@@ -719,9 +735,10 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
             $raw = $tc['function']['arguments'] ?? '{}';
             $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
             if (!is_array($args)) $args = [];
-            $isFs = in_array($fn, $fsNames, true);
-            if ($onStatus) $onStatus($isFs ? fs_tool_label($fn, $args) : ('consultando ' . ($args['sql'] ?? $fn)));
-            $result = $isFs ? fs_run_tool($fn, $args, $root) : db_run_tool($fn, $args, $schema);
+            $isFs  = in_array($fn, $fsNames, true);
+            $isWeb = $fn === 'fetch_url';
+            if ($onStatus) $onStatus($isWeb ? web_tool_label($args) : ($isFs ? fs_tool_label($fn, $args) : ('consultando ' . ($args['sql'] ?? $fn))));
+            $result = $isWeb ? web_run_tool($args) : ($isFs ? fs_run_tool($fn, $args, $root) : db_run_tool($fn, $args, $schema));
             $messages[] = [
                 'role'         => 'tool',
                 'tool_call_id' => $tc['id'] ?? '',
