@@ -72,7 +72,7 @@
             callback: window.handleGoogleCredential
         });
         window.google.accounts.id.renderButton(document.getElementById('gsiButton'), {
-            theme: 'filled_black',
+            theme: 'outline',
             size: 'large',
             width: 320,
             text: 'continue_with'

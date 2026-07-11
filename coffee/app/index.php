@@ -10,7 +10,7 @@ if (auth_current_user()) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -30,7 +30,7 @@ if (auth_current_user()) {
         <div class="auth-card">
             <div class="auth-brand">
                 <span class="auth-brand-mark"><?php include __DIR__ . '/visor/brand-mark.php'; ?></span>
-                <span class="auth-brand-name">CoffeeSoft</span>
+                <span class="auth-brand-name"><span class="auth-brand-coffee">Coffee</span><span class="auth-brand-soft">Soft</span></span>
             </div>
 
             <div class="auth-tabs" role="tablist">
