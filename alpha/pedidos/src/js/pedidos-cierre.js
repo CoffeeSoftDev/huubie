@@ -372,7 +372,7 @@ class Cierre {
         $('head').append(`<style id="pdf-cierre-styles">${this.pdfBaseCss()} @media print { ${this.pdfPrintCss()} }</style>`);
     }
 
-    renderExecutiveSummary(res) {
+    renderExecutiveSummary(res, containerId = 'ticketContainer') {
         this.injectPdfStyles();
 
         const c      = res.closure;
@@ -881,7 +881,7 @@ class Cierre {
             </div>
         `;
 
-        $('#ticketContainer').html(html);
+        $('#' + containerId).html(html);
     }
 
 

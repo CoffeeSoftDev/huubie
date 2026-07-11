@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Visor de Agentes -2 (Excalidraw) — CoffeeSoft</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
         /* ── Lienzo Excalidraw (copia -2) ── */
         .excalidraw-stage { width: 100%; height: 100%; min-height: 480px; display: flex; flex-direction: column; background: var(--vsr-bg-base, #0E1521); border-radius: 10px; overflow: hidden; }

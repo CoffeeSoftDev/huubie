@@ -472,6 +472,14 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 .cpop-bell { flex: 0 0 auto; width: 13px; height: 13px; color: var(--vsr-accent-soft); }
 .cpop-item { display: flex; flex-direction: column; }
 .cpop-edit { display: flex; flex-direction: column; gap: 6px; padding: 2px 8px 8px; }
+.cpop-quick { display: flex; gap: 5px; }
+.cpop-chip { flex: 1; font-size: 10.5px; font-weight: 600; padding: 3px 0; border-radius: 6px; cursor: pointer;
+    color: var(--vsr-text-soft); background: var(--vsr-bg-card); border: 1px solid var(--vsr-border-soft); }
+.cpop-chip:hover { color: var(--vsr-accent-soft); border-color: var(--vsr-accent-soft); }
+.cpop-when-row { display: flex; gap: 6px; align-items: stretch; }
+.cpop-when-row .cpop-rem-time { flex: 1; }
+.cpop-date-toggle { display: inline-flex; align-items: center; padding: 4px 8px; }
+.cpop-rem-input[hidden] { display: none; }
 .cpop-rem-input { width: 100%; font-size: 12px; color: var(--vsr-text); background: var(--vsr-bg-card);
     border: 1px solid var(--vsr-border-input); border-radius: 8px; padding: 6px 8px; }
 .cpop-rem-input:focus { outline: none; border-color: var(--vsr-accent-soft); }
@@ -488,8 +496,7 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
     border: 0; border-top: 1px solid var(--vsr-border-soft); background: transparent;
     color: var(--vsr-text-soft); font-size: 11.5px; font-weight: 600; cursor: pointer; }
 .credit-pop-all:hover { color: var(--vsr-accent-soft); }
-/* Reloj del rail: solo visible cuando alguna cuenta vence ≤ 1 día; color por urgencia */
-.rail-clock.is-off { display: none; }
+/* Reloj del rail: siempre visible; el badge y el color marcan la urgencia */
 .rail-clock.lvl-red { color: #E5484D; }
 .rail-clock-badge.lvl-red { background: #E5484D; }
 .rail-clock-badge.is-urgent { animation: railPulse 1.2s ease-in-out infinite; }

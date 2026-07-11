@@ -62,6 +62,14 @@ $toolsFallback = null;
 $t0       = microtime(true);
 $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
 
+// URLs pegadas en el mensaje: ya se descargaron e inyectaron al contexto en
+// coffeeia_build_context (clonar paginas web). Se avisa para que el usuario
+// sepa que el modelo trabaja con el HTML/CSS real de la pagina.
+$webPages = isset($ctx['web']) && is_array($ctx['web']) ? $ctx['web'] : [];
+if (!empty($webPages)) {
+    $send('thinking', ['t' => "\n[página web consultada: " . implode(', ', $webPages) . "]\n"]);
+}
+
 // Tope de rondas de herramientas POR PROVEEDOR. Ollama Cloud es tarifa plana:
 // se le da margen amplio para que explore la base/carpeta lo que haga falta y
 // SIEMPRE llegue a una respuesta. OpenRouter cobra por token (y el prompt crece

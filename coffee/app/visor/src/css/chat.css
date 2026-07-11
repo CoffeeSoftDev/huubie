@@ -214,6 +214,30 @@
     flex-shrink: 0;
 }
 
+/* Eliminar desde el sidebar: la ✕ sustituye al meta al hacer hover en el item.
+   El margen vertical negativo compensa su alto (20px > texto del meta) para que
+   el row NO crezca al pasar el mouse o seleccionar. */
+.chat-sidebar-item .item-del {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin: -4px 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--vsr-text-mute2);
+    cursor: pointer;
+}
+.chat-sidebar-item:hover .item-del { display: inline-flex; }
+.chat-sidebar-item:hover .item-meta { display: none; }
+.chat-sidebar-item .item-del:hover {
+    background: var(--vsr-accent-tint);
+    color: var(--vsr-accent);
+}
+
 .chat-sidebar-empty {
     padding: 24px 16px;
     text-align: center;
@@ -317,11 +341,18 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    animation: chat-msg-in .2s ease-out;
+}
+
+/* Entrada suave solo de la burbuja nueva y del indicador de typing: el
+   historial se re-renderiza completo tras cada respuesta y animarlo entero
+   haría parpadear toda la conversación. */
+.chat-body-inner .chat-msg:last-child,
+.chat-typing {
+    animation: chat-msg-in .22s ease-out;
 }
 
 @keyframes chat-msg-in {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -424,23 +455,50 @@
     text-underline-offset: 2px;
 }
 
+/* Tablas markdown: tarjeta redondeada con scroll horizontal si es ancha,
+   header en versalitas, separadores finos, zebra y hover — sin cuadrícula. */
 .chat-msg.assistant .chat-msg-text table {
-    border-collapse: collapse;
+    display: block;
+    overflow-x: auto;
+    width: max-content;
+    max-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
     margin: 0 0 12px;
-    width: 100%;
     font-size: 12.5px;
+    border: 1px solid var(--vsr-border);
+    border-radius: 10px;
+    background: var(--vsr-bg-card);
 }
 .chat-msg.assistant .chat-msg-text th,
 .chat-msg.assistant .chat-msg-text td {
-    border: 1px solid var(--vsr-border);
-    padding: 6px 10px;
+    padding: 8px 12px;
     text-align: left;
+    border: none;
+    border-bottom: 1px solid var(--vsr-border-soft);
 }
 .chat-msg.assistant .chat-msg-text th {
     background: var(--vsr-bg-chrome);
+    color: var(--vsr-text-muted);
     font-weight: 600;
-    color: var(--vsr-text);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--vsr-border);
 }
+.chat-msg.assistant .chat-msg-text td { color: var(--vsr-text-soft); }
+.chat-msg.assistant .chat-msg-text tbody tr:nth-child(even) td {
+    background: color-mix(in srgb, var(--vsr-bg-chrome) 45%, transparent);
+}
+.chat-msg.assistant .chat-msg-text tbody tr:hover td {
+    background: var(--vsr-accent-tint);
+}
+.chat-msg.assistant .chat-msg-text tbody tr:last-child td { border-bottom: none; }
+.chat-msg.assistant .chat-msg-text thead th:first-child { border-top-left-radius: 9px; }
+.chat-msg.assistant .chat-msg-text thead th:last-child  { border-top-right-radius: 9px; }
+.chat-msg.assistant .chat-msg-text tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+.chat-msg.assistant .chat-msg-text tbody tr:last-child td:last-child  { border-bottom-right-radius: 9px; }
 
 .chat-msg.assistant .chat-msg-text hr {
     border: none;
@@ -539,11 +597,11 @@
     padding: 6px 0 0;
 }
 
-/* Typing indicator */
+/* Typing indicator — mismo loader "quantum" que Visor/Lab (estilos base del
+   orbe + puntos "…" animados en .ia-typing-loader de visor.css). */
 .chat-typing {
     display: flex;
     align-items: center;
-    gap: 5px;
     padding: 10px 14px;
     background: var(--vsr-bg-card);
     border: 1px solid var(--vsr-border-soft);
@@ -551,20 +609,25 @@
     width: fit-content;
 }
 
-.chat-typing span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--vsr-text-mute2);
-    animation: chat-typing-bounce 1.4s infinite;
+.chat-typing .ia-typing-loader { padding-left: 0; }
+
+/* Cerebro pulsante del estado "Razonando…" (modelos thinking), como en Lab. */
+.chat-think-brain {
+    width: 15px;
+    height: 15px;
+    color: #ec4899;
+    animation: chatBrainPulse 1.6s ease-in-out infinite;
 }
 
-.chat-typing span:nth-child(2) { animation-delay: .2s; }
-.chat-typing span:nth-child(3) { animation-delay: .4s; }
+.chat-think-txt {
+    color: var(--vsr-text-mute2);
+    font-weight: 500;
+    font-size: 12px;
+}
 
-@keyframes chat-typing-bounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: .4; }
-    30% { transform: translateY(-4px); opacity: 1; }
+@keyframes chatBrainPulse {
+    0%, 100% { opacity: .55; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.15); }
 }
 
 /* Empty state + suggestions */
@@ -582,19 +645,27 @@
     max-width: 560px;
 }
 
-.chat-empty i {
-    width: 56px;
-    height: 56px;
-    color: var(--vsr-text-mute2);
-    opacity: .55;
-    margin-bottom: 4px;
+.chat-empty-brand {
+    width: 84px;
+    height: 84px;
+    color: var(--vsr-text-muted);
 }
 
-.chat-empty-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--vsr-text-soft);
-    margin-top: 6px;
+.chat-empty-brand svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.chat-empty-wordmark {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--vsr-text);
+}
+
+.chat-empty-wordmark span {
+    color: var(--vsr-accent);
 }
 
 .chat-empty-sub {
@@ -633,6 +704,7 @@
 
 /* ---------- Composer (reusa clases .ia-*) ---------- */
 .chat-input {
+    position: relative;   /* ancla del botón flotante "bajar al final" */
     flex-shrink: 0;
     padding: 14px 18px 16px;
     border-top: 1px solid var(--vsr-border);
@@ -853,16 +925,6 @@
 }
 .chat-msg.user .chat-msg-doc-chip i { color: var(--vsr-accent-soft); }
 
-/* Indicador de razonamiento ("thinking") en el typing */
-.chat-typing-phase {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11.5px;
-    color: var(--vsr-text-muted);
-}
-.chat-typing-phase i { color: var(--vsr-accent-soft); }
-
 /* Visores ricos (mermaid/chart/html/diagramas) dentro de una respuesta */
 .chat-msg.assistant .chat-msg-text .ia-render-block {
     margin: 0 0 12px;
@@ -911,10 +973,11 @@
     }
     .chat-header-right.is-open { display: flex; }
     .chat-header-right .chat-select-wrap,
-    .chat-header-right .ia-model-pill,
     .chat-header-right #chatNewBtn { width: 100%; }
-    .chat-header-right .ia-model-pill { max-width: 100%; justify-content: flex-start; }
     .chat-header-right #chatNewBtn { justify-content: center; }
+
+    /* El pill del modelo vive en la barra del input: en móvil se encoge. */
+    .chat-input-hint .ia-model-pill { max-width: 46vw; }
 
     /* Conmutador Conversaciones/Chat visible. */
     .chat-mobile-switch {

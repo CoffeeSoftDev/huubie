@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat con Agentes — CoffeeSoft</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -48,30 +49,6 @@
                 <i data-lucide="bot" class="w-4 h-4"></i>
                 <select id="chatAgentSelect" class="chat-select"></select>
             </div>
-
-            <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo">
-                <optgroup label="Ollama Cloud">
-                    <option value="glm-5.2:cloud">GLM 5.2 (código)</option>
-                    <option value="glm-5.1:cloud">GLM 5.1 (código)</option>
-                    <option value="qwen3-coder-next:cloud">Qwen3 Coder Next (código)</option>
-                    <option value="minimax-m3:cloud">MiniMax M3 (código, vision)</option>
-                    <option value="gemma4:31b-cloud">Gemma4 31B (vision)</option>
-                    <option value="deepseek-v4-pro:cloud">DeepSeek V4 Pro (razonamiento)</option>
-                    <option value="kimi-k2.6:cloud">Kimi K2.6 (agéntico, vision)</option>
-                    <option value="kimi-k2.7-code:cloud">Kimi K2.7 Code (código)</option>
-                </optgroup>
-                <optgroup label="OpenRouter (free)">
-                    <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (free)</option>
-                    <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
-                    <option value="nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super 120B (free)</option>
-                    <option value="google/gemma-4-31b-it:free">Gemma 4 31B (free, vision)</option>
-                    <option value="nvidia/nemotron-nano-12b-v2-vl:free">Nemotron Nano 12B VL (free, vision)</option>
-                </optgroup>
-                <optgroup label="OpenRouter (de pago)">
-                    <option value="qwen/qwen3.7-max">Qwen3.7 Max (pago)</option>
-                    <option value="qwen/qwen3.6-27b">Qwen3.6 27B (pago)</option>
-                </optgroup>
-            </select>
 
             <button id="chatNewBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Nueva conversación">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -156,7 +133,7 @@
                 <div id="chatSidebarEmpty" class="chat-sidebar-empty">
                     <i data-lucide="message-square-dashed" class="w-8 h-8 inline-block" style="color:var(--vsr-text-mute2);margin-bottom:8px;"></i>
                     <div>Aún no hay conversaciones guardadas.</div>
-                    <div style="margin-top:4px;">Inicia una nueva y se guardará al cerrar.</div>
+                    <div style="margin-top:4px;">Escribe y la conversación se guarda sola.</div>
                 </div>
             </div>
         </aside>
@@ -171,7 +148,7 @@
                     <button id="chatRenameBtn" class="chat-iconbtn" title="Renombrar">
                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="chatSaveBtn" class="chat-iconbtn" title="Guardar (.md en documents/Chats/)">
+                    <button id="chatSaveBtn" class="chat-iconbtn" title="Guardar ahora (también se guarda sola al conversar)">
                         <i data-lucide="save" class="w-3.5 h-3.5"></i>
                     </button>
                     <button id="chatDownloadBtn" class="chat-iconbtn" title="Descargar .md">
@@ -186,6 +163,13 @@
             <div id="chatBody" class="chat-body"></div>
 
             <div class="ia-drawer-input chat-input">
+                <!-- Bajar al final: aparece al subir a leer mientras la IA escribe. -->
+                <button id="chatScrollDownBtn" class="ia-scrolldown-btn" title="Bajar al final" style="display:none;">
+                    <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                </button>
+                <!-- Chips de conexión pegajosa (base y carpeta), gemelos de Lab/Visor. -->
+                <div id="chatDbChip" class="ia-db-chip" style="display:none;"></div>
+                <div id="chatFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
                 <div id="chatImageStrip" class="ia-image-strip" style="display:none;"></div>
                 <div class="ia-input-wrap">
                     <textarea id="chatInput" class="ia-input-textarea" rows="1"
@@ -230,9 +214,32 @@
                             </button>
                         </div>
                     </div>
+                    <!-- Tools del agente (BD y archivos), mismo patrón que Lab. -->
+                    <div class="ia-tools-wrap" style="position:relative;">
+                        <button id="chatToolsBtn" class="ia-attach-btn" title="Tools del agente: base de datos y archivos">
+                            <i data-lucide="wrench" class="w-3 h-3"></i>
+                        </button>
+                        <div id="chatToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
+                            <button type="button" class="graph-menu-item" data-cht="db" title="Tools de base de datos (run_select y conexión automática al nombrar una base)">
+                                <i data-lucide="database" class="w-4 h-4"></i>
+                                <span class="graph-menu-info">
+                                    <span class="graph-menu-name">Base de datos</span>
+                                    <span class="graph-menu-desc">run_select al nombrar una base</span>
+                                </span>
+                            </button>
+                            <button type="button" class="graph-menu-item" data-cht="fs" title="Tools de archivos (list_dir/read_file/grep_files y conexión automática al nombrar una carpeta)">
+                                <i data-lucide="folder-search" class="w-4 h-4"></i>
+                                <span class="graph-menu-info">
+                                    <span class="graph-menu-name">Archivos</span>
+                                    <span class="graph-menu-desc">Lee una carpeta local (solo lectura)</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
                     <span id="chatContextInfo" class="chat-context-info"></span>
                     <span class="chat-spacer"></span>
                     <span id="chatStatusInfo" class="chat-status">Listo</span>
+                    <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo"></select>
                 </div>
             </div>
         </main>
@@ -284,7 +291,7 @@
                 <p id="chatDeleteText" class="pg-hint" style="margin:0;font-size:13px;">Vas a eliminar esta conversación. Esta acción no se puede deshacer.</p>
             </div>
             <footer class="pg-modal-foot chat-modal-foot">
-                <span class="pg-hint">Se borrará el archivo .md asociado.</span>
+                <span class="pg-hint">Se borrará de las conversaciones guardadas.</span>
                 <div class="flex gap-2">
                     <button id="chatDeleteCancel2" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
                     <button id="chatDeleteConfirm" class="cs-btn cs-btn-sm flex items-center gap-1.5" style="background:var(--vsr-accent);color:#fff;">

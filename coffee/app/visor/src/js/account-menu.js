@@ -248,7 +248,8 @@
     let _upView   = 'list'; // 'list' | 'form'
     let _upEditId = null;
     let _upTimer  = null;
-    let _cpopEditId = null;  // cuenta con el editor de recordatorio abierto en el popover
+    let _cpopEditId = null;    // cuenta con el editor de recordatorio abierto en el popover
+    let _cpopShowDate = false; // editor con el selector de fecha visible (por defecto la fecha es HOY)
 
     function planLabel(v) {
         const o = PLAN_OPTS.filter(function (p) { return p.value === v; })[0];
@@ -571,14 +572,13 @@
         if (!$clock.length || !$b.length) return;
         const infos = loadAccounts().map(resetInfo).filter(function (i) { return i.state !== 'none'; });
         const soon  = infos.filter(function (i) { return i.days <= 1; });   // hoy o ≤1 día
-        // El reloj solo aparece cuando alguna cuenta vence en ≤ 1 día.
-        $clock.toggleClass('is-off', soon.length === 0);
-        if (soon.length === 0) { if (clockPopOpen()) closeClockPop(); return; }
+        // El reloj vive SIEMPRE en el rail; el badge solo cuenta lo que vence en ≤ 1 día.
         // El rail queda neutro (como los demás íconos); solo se pone ROJO + pulso cuando falta ≤15 min.
         const imminent = soon.some(function (i) { return i.urgent; });
-        $clock.removeClass('lvl-green lvl-red');
+        $clock.removeClass('is-off lvl-green lvl-red');
         $b.removeClass('lvl-green lvl-red is-urgent');
         if (imminent) { $clock.addClass('lvl-red'); $b.addClass('lvl-red is-urgent'); }
+        if (soon.length === 0) { $b.prop('hidden', true); return; }
         $b.text(soon.length).prop('hidden', false);
     }
 
@@ -592,6 +592,10 @@
         global.jQuery('body').append(html);
         if (global.lucide) global.lucide.createIcons();
     }
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    function fmtDateLocal(d) { return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()); }
+    function fmtTimeLocal(d) { return two(d.getHours()) + ':' + two(d.getMinutes()); }
+
     function renderClockPop() {
         const rows = accountsSorted();
         let body;
@@ -611,8 +615,24 @@
                     +   '<span class="cpop-when">' + escHtml(when) + '</span>'
                     + '</button>';
                 if (_cpopEditId === r.acc.id) {
+                    // Hora protagonista (rápida) con la fecha implícita HOY; la fecha solo se
+                    // despliega con el botón de calendario o si el recordatorio ya es de otro día.
+                    const rem      = r.acc.reminderAt || '';
+                    const remTime  = rem.slice(11, 16) || fmtTimeLocal(new Date());
+                    const today    = fmtDateLocal(new Date());
+                    const remDate  = rem.slice(0, 10) || today;
+                    const showDate = _cpopShowDate || remDate !== today;
                     h += '<div class="cpop-edit">'
-                       +   '<input type="datetime-local" class="cpop-rem-input" value="' + escAttr(r.acc.reminderAt || '') + '">'
+                       +   '<div class="cpop-quick">'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="1">En 1 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="3">En 3 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="5">En 5 h</button>'
+                       +   '</div>'
+                       +   '<div class="cpop-when-row">'
+                       +     '<input type="time" class="cpop-rem-input cpop-rem-time" value="' + escAttr(remTime) + '">'
+                       +     '<button type="button" class="cpop-mini cpop-date-toggle" title="Elegir otra fecha (por defecto hoy)"><i data-lucide="calendar" class="w-3.5 h-3.5"></i></button>'
+                       +   '</div>'
+                       +   '<input type="date" class="cpop-rem-input cpop-rem-date" value="' + escAttr(remDate) + '"' + (showDate ? '' : ' hidden') + '>'
                        +   '<div class="cpop-edit-actions">'
                        +     (hasRem ? '<button type="button" class="cpop-mini cpop-rem-clear">Quitar</button>' : '')
                        +     '<button type="button" class="cpop-mini cpop-rem-save">Guardar</button>'
@@ -736,14 +756,35 @@
             e.stopPropagation();
             const id = $(this).closest('.cpop-item').data('id');
             _cpopEditId = (_cpopEditId === id) ? null : id;
+            _cpopShowDate = false;
             renderClockPop(); positionClockPop();
+        });
+        // Chips rápidos: fijan la hora a ahora+N; si el resultado cae mañana, muestran la fecha.
+        $(document).on('click', '#creditPop .cpop-chip', function (e) {
+            e.stopPropagation();
+            const hrs = parseInt($(this).data('quick-h'), 10) || 0;
+            const d = new Date(Date.now() + hrs * 3600000);
+            const $item = $(this).closest('.cpop-item');
+            $item.find('.cpop-rem-time').val(fmtTimeLocal(d));
+            const dv = fmtDateLocal(d);
+            const $date = $item.find('.cpop-rem-date').val(dv);
+            if (dv !== fmtDateLocal(new Date())) { _cpopShowDate = true; $date.prop('hidden', false); }
+        });
+        $(document).on('click', '#creditPop .cpop-date-toggle', function (e) {
+            e.stopPropagation();
+            const $date = $(this).closest('.cpop-edit').find('.cpop-rem-date');
+            _cpopShowDate = $date.prop('hidden');
+            $date.prop('hidden', !_cpopShowDate);
+            positionClockPop();
         });
         $(document).on('click', '#creditPop .cpop-rem-save', function (e) {
             e.stopPropagation();
             const $item = $(this).closest('.cpop-item');
-            const val = $item.find('.cpop-rem-input').val() || '';
-            if (!val) { toast('Elige fecha y hora', 'warn'); return; }
-            setAccountReminder($item.data('id'), val);
+            const time = $item.find('.cpop-rem-time').val() || '';
+            if (!time) { toast('Elige una hora', 'warn'); return; }
+            // Sin fecha elegida se asume HOY (el selector de fecha es opcional).
+            const date = $item.find('.cpop-rem-date').val() || fmtDateLocal(new Date());
+            setAccountReminder($item.data('id'), date + 'T' + time);
             _cpopEditId = null;
             renderClockPop(); positionClockPop(); refreshClockBadge();
             toast('Recordatorio guardado', 'ok');

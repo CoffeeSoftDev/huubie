@@ -9,29 +9,38 @@
 (function (global) {
     'use strict';
 
-    // Catálogo canónico — espejo de los <select> de cada superficie y de
-    // CHAT_MODEL_OPTIONS en chat.js. Si se agrega un modelo, se agrega aquí.
+    // Catálogo canónico — fuente única de los modelos de todas las superficies
+    // (los <select> de Visor/Lab lo espejan; el Chat se puebla directo de aquí).
+    // Si se agrega un modelo, se agrega aquí. `tools: true` = soporta tool-calling
+    // (run_select / lectura de carpeta); las superficies lo vuelcan a data-tools.
     const CATALOG = [
         { group: 'Ollama Cloud', options: [
-            { value: 'glm-5.2:cloud',          label: 'GLM 5.2 (código)' },
-            { value: 'glm-5.1:cloud',          label: 'GLM 5.1 (código)' },
-            { value: 'qwen3-coder-next:cloud', label: 'Qwen3 Coder Next (código)' },
-            { value: 'minimax-m3:cloud',       label: 'MiniMax M3 (código, vision)' },
-            { value: 'gemma4:31b-cloud',       label: 'Gemma4 31B (vision)' },
-            { value: 'deepseek-v4-pro:cloud',  label: 'DeepSeek V4 Pro (razonamiento)' },
-            { value: 'kimi-k2.6:cloud',        label: 'Kimi K2.6 (agéntico, vision)' },
-            { value: 'kimi-k2.7-code:cloud',   label: 'Kimi K2.7 Code (código)' }
+            { value: 'qwen3-coder:480b-cloud',       label: 'Qwen3 Coder 480B (código · módulos ⭐)', tools: true },
+            { value: 'glm-5.2:cloud',                label: 'GLM 5.2 (código)', tools: true },
+            { value: 'glm-5:cloud',                  label: 'GLM 5 (flagship)', tools: true },
+            { value: 'glm-5.1:cloud',                label: 'GLM 5.1 (código)', tools: true },
+            { value: 'glm-4.7:cloud',                label: 'GLM 4.7 (código)', tools: true },
+            { value: 'qwen3-coder-next:cloud',       label: 'Qwen3 Coder Next (código)', tools: true },
+            { value: 'deepseek-v4-pro:cloud',        label: 'DeepSeek V4 Pro (razonamiento)' },
+            { value: 'deepseek-v4-flash:cloud',      label: 'DeepSeek V4 Flash (razonamiento rápido)' },
+            { value: 'gpt-oss:120b-cloud',           label: 'GPT-OSS 120B (razonamiento)', tools: true },
+            { value: 'kimi-k2.7-code:cloud',         label: 'Kimi K2.7 Code (código · vision)', tools: true },
+            { value: 'kimi-k2.6:cloud',              label: 'Kimi K2.6 (agéntico · vision)', tools: true },
+            { value: 'kimi-k2.5:cloud',              label: 'Kimi K2.5 (agéntico · vision)', tools: true },
+            { value: 'gemma4:31b-cloud',             label: 'Gemma4 31B (vision)' },
+            { value: 'gemini-3-flash-preview:cloud', label: 'Gemini 3 Flash (rápido · vision)' },
+            { value: 'minimax-m3:cloud',             label: 'MiniMax M3 (vision · débil en módulos)', tools: true }
         ] },
         { group: 'OpenRouter (free)', options: [
-            { value: 'openai/gpt-oss-120b:free',               label: 'GPT-OSS 120B (free)' },
-            { value: 'z-ai/glm-4.5-air:free',                  label: 'GLM 4.5 Air (free)' },
+            { value: 'openai/gpt-oss-120b:free',               label: 'GPT-OSS 120B (free)', tools: true },
+            { value: 'z-ai/glm-4.5-air:free',                  label: 'GLM 4.5 Air (free)', tools: true },
             { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super 120B (free)' },
             { value: 'google/gemma-4-31b-it:free',             label: 'Gemma 4 31B (free, vision)' },
             { value: 'nvidia/nemotron-nano-12b-v2-vl:free',    label: 'Nemotron Nano 12B VL (free, vision)' }
         ] },
         { group: 'OpenRouter (de pago)', options: [
-            { value: 'qwen/qwen3.7-max', label: 'Qwen3.7 Max (pago)' },
-            { value: 'qwen/qwen3.6-27b', label: 'Qwen3.6 27B (pago)' }
+            { value: 'qwen/qwen3.7-max', label: 'Qwen3.7 Max (pago)', tools: true },
+            { value: 'qwen/qwen3.6-27b', label: 'Qwen3.6 27B (pago)', tools: true }
         ] }
     ];
 

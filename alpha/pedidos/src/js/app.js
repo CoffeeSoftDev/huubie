@@ -246,10 +246,11 @@ class App extends Templates {
         return isOwnSubsidiary ? `${selectedName} (Mi sucursal)` : selectedName;
     }
 
-    // Sucursal con la que se FILTRA la lista (solo consulta). Admin, cajero (rol 2)
-    // y vendedor (rol 3) filtran por el selector de navbar (incluye "0" = todas).
-    // Otros roles => null => el backend usa su sesion. Es solo filtro de vista: las
-    // escrituras siempre usan la sucursal de sesion del usuario.
+    // Sucursal con la que se FILTRA la lista. Admin, cajero (rol 2) y vendedor
+    // (rol 3) filtran por el selector de navbar (incluye "0" = todas). Otros roles
+    // => null => el backend usa su sesion. Tambien alimenta el default del selector
+    // de sucursal del formulario de pedido; la escritura final la decide ese
+    // selector mas el candado de turno abierto del backend.
     getListFilterSubsidiary() {
         const $sel = $('#subsidiaries_id');
         if (!$sel.length) return null;
@@ -264,31 +265,11 @@ class App extends Templates {
     }
 
     async checkAndUpdateDailyClosure() {
-        // Cajero (rol 2) y vendedor (rol 3): el selector de navbar es SOLO filtro de
-        // vista. Operan SIEMPRE en su sucursal de sesion (udn): el estado de turno/cierre
-        // y el boton "Nuevo pedido" se evaluan contra udn sin importar que sucursal filtren.
-        // Los pedidos nuevos nacen en su sucursal (el backend usa $_SESSION['SUB']).
-        if (rol == 2 || rol == 3) {
-            const req = await useFetch({
-                url: this._link,
-                data: { opc: "checkDailyClosure", subsidiaries_id: udn }
-            });
-            dailyClosure = req || { is_closed: false };
-            openShift = req.open_shift ? req.open_shift : { has_open_shift: false };
-            this.updateDailyClosureStatus();
-
-            // Aviso NO bloqueante cuando consulta otra sucursal o "Todas": aclara que
-            // el pedido nuevo se registra en su sucursal, no en la que esta viendo.
-            const $sel = $('#subsidiaries_id');
-            const filtered = $sel.length ? $sel.val() : null;
-            if (filtered !== null && filtered != udn) {
-                this.showForeignBranchNote();
-            }
-
-            this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
-            return;
-        }
-
+        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3): el estado de
+        // turno/cierre y el boton "Nuevo pedido" se evaluan contra la sucursal
+        // seleccionada en el navbar (personal rotativo: abre turno donde esta parado
+        // y opera esa sucursal). El pedido nuevo nace en la sucursal elegida en el
+        // selector del formulario, cuyo default es esta misma.
         let subsidiaries_id = this.getListFilterSubsidiary();
 
         if (subsidiaries_id === '0') {
@@ -332,7 +313,7 @@ class App extends Templates {
         const btn = $('#btnNuevoPedido');
 
         // Limpiar todas las alertas previas antes de evaluar el nuevo estado
-        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert, #foreignBranchNote').remove();
+        $('#dailyClosureAlert, #shiftAlert, #shiftOldAlert').remove();
 
         if (dailyClosure.is_closed) {
             btn.prop('disabled', true)
@@ -405,19 +386,6 @@ class App extends Templates {
         $('#dailyClosureAlert').remove();
         $('#shiftAlert').remove();
         $('#shiftOldAlert').remove();
-        $('#foreignBranchNote').remove();
-    }
-
-    // Cajero consultando otra sucursal o "Todas": aviso NO bloqueante de que los
-    // pedidos nuevos se registran en su sucursal de sesion (las escrituras van a
-    // $_SESSION['SUB'], nunca a la sucursal filtrada en el navbar).
-    showForeignBranchNote() {
-        if (document.getElementById('foreignBranchNote')) return;
-        $('#containerHours').after(`
-            <div id="foreignBranchNote" class="flex items-center gap-2 mb-3 pl-1">
-                <span class="w-1.5 h-1.5 bg-sky-400 rounded-full flex-shrink-0"></span>
-                <p class="text-[11px] text-gray-500">Vista de consulta — los pedidos nuevos se registran en tu sucursal (${sub_name})</p>
-            </div>`);
     }
 
     showTypePedido() {
@@ -624,8 +592,9 @@ class App extends Templates {
             }
         });
 
-        // Estado inicial del boton segun el turno de la sucursal por defecto (admin).
-        if (rol == 1) this.validateOrderSubsidiary();
+        // Estado inicial del boton segun el turno de la sucursal por defecto
+        // (no-op para roles sin selector).
+        this.validateOrderSubsidiary();
 
     }
 
@@ -1223,12 +1192,12 @@ class App extends Templates {
 
 
 
-    if (rol == 1) {
-        // Selector de sucursal del pedido (solo admin). Durante crear/editar el
-        // selector de sucursal del navbar se oculta, y ESTE es la fuente de la
-        // sucursal del pedido: su input #subsidiaries_id se envia al guardar y lo
-        // consumen el candado de submit + validateOrderSubsidiary() (crear) y
-        // lockSubsidiarySelector() (editar).
+    if (rol == 1 || rol == 2 || rol == 3) {
+        // Selector de sucursal del pedido (roles con filtro de navbar: admin,
+        // cajero y vendedor rotativo). Durante crear/editar el selector de sucursal
+        // del navbar se oculta, y ESTE es la fuente de la sucursal del pedido: su
+        // input #subsidiaries_id se envia al guardar y lo consumen el candado de
+        // submit + validateOrderSubsidiary() (crear) y lockSubsidiarySelector() (editar).
         orderFields.push({
             opc: "div",
             id: "subsidiaryFilter",
@@ -1237,7 +1206,7 @@ class App extends Templates {
             html: this.renderSubsidiarySelector()
         });
     } else {
-        // Cajero/vendedor: el pedido se registra SIEMPRE en su sucursal de sesion
+        // Otros roles: el pedido se registra SIEMPRE en su sucursal de sesion
         // (el backend usa $_SESSION['SUB']). Badge informativo, no editable, para
         // dejar claro en que sucursal se esta vendiendo, sin importar el filtro del navbar.
         orderFields.push({
@@ -1404,7 +1373,7 @@ class App extends Templates {
     }
 
     // Habilita/bloquea "Guardar Pedido" segun el turno de la sucursal seleccionada.
-    // Solo aplica cuando existe el selector (admin); si no, no toca el boton.
+    // Solo aplica cuando existe el selector (roles 1/2/3); si no, no toca el boton.
     validateOrderSubsidiary() {
         const el = $('#formPedido #subsidiaries_id');
         if (!el.length) return;
@@ -1419,12 +1388,13 @@ class App extends Templates {
         }
     }
 
-    // Selector de sucursal del formulario (solo admin): card con avatar + panel
-    // desplegable con radios. El value real vive en el input hidden #subsidiaries_id
-    // (name para el submit) y lo consumen validateOrderSubsidiary() y el candado de submit.
+    // Selector de sucursal del formulario (roles con filtro de navbar: admin, cajero
+    // y vendedor): card con avatar + panel desplegable con radios. El value real vive
+    // en el input hidden #subsidiaries_id (name para el submit) y lo consumen
+    // validateOrderSubsidiary() y el candado de submit.
 
     renderSubsidiarySelector() {
-        const current = subsidiaries.find(s => String(s.id) === String(dailyClosure.subsidiary_id))
+        const current = subsidiaries.find(s => String(s.id) === String(dailyClosure.subsidiary_id ?? udn))
             || subsidiaries[0] || { id: '', valor: '', ubication: '' };
 
         const chevron = `<svg id="subsidiaryChevron" class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
@@ -1451,7 +1421,7 @@ class App extends Templates {
                     class="w-full flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-left hover:border-violet-500/60 transition-colors">
                     <span id="subsidiaryTriggerAvatar" class="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold">${this.subsidiaryInitials(current.valor)}</span>
                     <span class="flex-1 min-w-0">
-                        <span class="block text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Sucursal</span>
+                        <span class="block text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Esta sucursal vende como</span>
                         <span id="subsidiaryTriggerName" class="block text-sm font-bold text-white truncate">${current.valor}</span>
                         <span id="subsidiaryTriggerStatus" class="flex items-center gap-1.5 text-xs text-gray-400 truncate mt-0.5">${this.subsidiaryStatusLine(current)}</span>
                     </span>
@@ -1459,7 +1429,7 @@ class App extends Templates {
                 </button>
                 <input type="hidden" id="subsidiaries_id" name="subsidiaries_id" value="${current.id}">
                 <div id="subsidiaryPanel" class="hidden fixed z-[9999] bg-[#161d29] border border-[#2a3444] rounded-xl shadow-2xl overflow-hidden py-1">
-                    <p class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Sucursal</p>
+                    <p class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Vender como</p>
                     ${rows}
                 </div>
             </div>`;
@@ -1610,10 +1580,11 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
-        // Sucursal de cobro (cobro cruzado): la eligen admin y cajero. Default = sucursal
-        // activa: admin -> filtro de la navbar (si "Todas"/0, la del pedido); cajero -> su
-        // sucursal de sesion (udn). Fallback final: la sucursal del pedido.
-        const navbarSub = (rol == 1) ? ($('#subsidiaries_id').val() || '') : '';
+        // Sucursal de cobro (cobro cruzado). Default = sucursal activa: roles con
+        // filtro de navbar (admin 1, cajero 2, vendedor 3) -> filtro de la navbar
+        // (si "Todas"/0, cae a su sesion udn o a la del pedido). Fallback final:
+        // la sucursal del pedido.
+        const navbarSub = (rol == 1 || rol == 2 || rol == 3) ? ($('#subsidiaries_id').val() || '') : '';
         const defaultCobroSub = (navbarSub && navbarSub !== '0')
             ? navbarSub
             : ((rol != 1 && udn) ? udn : (order.subsidiaries_id ?? ''));
