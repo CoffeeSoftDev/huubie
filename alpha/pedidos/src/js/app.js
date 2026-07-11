@@ -59,6 +59,22 @@ class App extends Templates {
         this.updateDailyClosureStatus();
     }
 
+    // Reportes: vista de SOLO CONSULTA (ventas, productos, clientes y reportes de
+    // cierre). Se monta sobre la vista de pedidos y se regresa con "Volver a Pedidos".
+    // No requiere turno abierto: es consulta, disponible para todos los roles.
+    openReports() {
+        $('#navbarBranchControl').removeClass('hidden');
+        $('#root').html(`
+            <div class="flex items-center gap-2 mx-2 mb-2">
+                <button onclick="app.render()" class="inline-flex items-center gap-1.5 text-sm text-gray-300 hover:text-white bg-[#1F2A37] border border-gray-700 rounded-lg px-3 py-2 transition-colors">
+                    &larr; Volver a Pedidos
+                </button>
+            </div>
+            <div id="container-reportes" class="mx-2"></div>
+        `);
+        reports.render();
+    }
+
     layout() {
         this.createLayout({
             parent: "root",
@@ -146,6 +162,16 @@ class App extends Templates {
                     if (!this.requireOpenShift()) return;
                     window.location.href = '../pedidos/calendario/index.php'
                 }
+            },
+            {
+                opc: "button",
+                className: "w-100",
+                class: "col-12 col-md-3 col-lg-2",
+                color_btn: "info",
+                id: "btnReportes",
+                text: "Reportes",
+                icon: "icon-doc-text",
+                onClick: () => this.openReports()
             }
         );
 
