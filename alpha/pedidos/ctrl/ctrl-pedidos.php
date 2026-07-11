@@ -1622,6 +1622,19 @@ class Pedidos extends MPedidos{
             ];
         }
 
+        // El turno siempre nace hoy (opened_at = NOW): no hay forma de abrir turnos
+        // de dias pasados. Por eso basta verificar el cierre de HOY: si el dia ya se
+        // cerro, los pedidos del turno nuevo quedarian fuera del corte Z (addCierre
+        // ya no vuelve a correr para esa fecha y nacerian sin daily_closure_id).
+        $today   = date('Y-m-d');
+        $closure = $this->getDailyClosureByClosureDate([$today, $subsidiaries_id]);
+        if ($closure) {
+            return [
+                'status'  => 423,
+                'message' => 'El día de hoy ya fue cerrado en esta sucursal por ' . ($closure['closed_by_name'] ?: 'un administrador') . '. Un administrador debe reabrir el cierre antes de abrir un turno nuevo.'
+            ];
+        }
+
         $shift_name     = $_POST['shift_name'] ?? null;
         $opening_amount = floatval($_POST['opening_amount'] ?? 0);
 

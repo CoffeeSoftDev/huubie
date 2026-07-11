@@ -1340,6 +1340,21 @@ class MPedidos extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
+    // Cierre de la jornada indicada (closure_date), no del dia en que se ejecuto
+    // el cierre (created_at): un dia se puede cerrar a la mañana siguiente.
+    // Mismo criterio que MCierre::getDailyClosureByDate. status = 0 -> no reabierto.
+    function getDailyClosureByClosureDate($array) {
+        $query = "
+            SELECT dc.*, u.fullname AS closed_by_name
+            FROM {$this->bd}daily_closure dc
+            LEFT JOIN fayxzvov_alpha.usr_users u ON u.id = dc.employee_id
+            WHERE dc.closure_date = ? AND dc.subsidiary_id = ? AND dc.is_legacy = 0 AND dc.status = 0 AND dc.active = 1
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) && !empty($result) ? $result[0] : null;
+    }
+
     function createDailyClosure($array) {
         return $this->_Insert([
             'table'  => "{$this->bd}daily_closure",

@@ -1,0 +1,163 @@
+:root {
+    --auth-bg-base:     #F3F4F6;
+    --auth-bg-card:     #FFFFFF;
+    --auth-text:        #111827;
+    --auth-text-mid:    #374151;
+    --auth-text-muted:  #6B7280;
+    --auth-border:      #E5E7EB;
+    --auth-border-input:#E5E7EB;
+    --auth-accent:      #C05A40;
+    --auth-accent-soft: #A84A33;
+    --auth-accent-tint: rgba(192,90,64,0.10);
+    --auth-danger:      #F24444;
+}
+
+* { box-sizing: border-box; }
+
+.auth-body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--auth-bg-base);
+    color: var(--auth-text);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.auth-shell { width: 100%; max-width: 400px; }
+
+.auth-card {
+    background: var(--auth-bg-card);
+    border: 1px solid var(--auth-border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 60px rgba(17,24,39,.08);
+}
+
+.auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+}
+.auth-brand-mark {
+    width: 46px; height: 46px;
+    color: #000000;
+}
+.auth-brand-mark svg { width: 100%; height: 100%; }
+.auth-brand-name { font-size: 19px; font-weight: 700; letter-spacing: .01em; }
+.auth-brand-coffee { color: var(--auth-text); }
+.auth-brand-soft { color: var(--auth-accent); }
+
+.auth-tabs {
+    display: flex;
+    background: #F3F4F6;
+    border: 1px solid var(--auth-border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+}
+.auth-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--auth-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 0;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.auth-tab.active {
+    background: var(--auth-accent);
+    color: #fff;
+}
+
+.auth-error {
+    background: rgba(242,68,68,.08);
+    border: 1px solid rgba(242,68,68,.25);
+    color: var(--auth-danger);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 16px;
+}
+
+.auth-google-wrap { margin-bottom: 18px; }
+#gsiButton { display: flex; justify-content: center; }
+
+.auth-google-unavailable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--auth-text-muted);
+    font-size: 12px;
+    background: #F9FAFB;
+    border: 1px solid var(--auth-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 18px;
+}
+
+.auth-sep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--auth-text-muted);
+    font-size: 12px;
+    margin-top: 14px;
+}
+.auth-sep::before, .auth-sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--auth-border);
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-label { font-size: 12px; font-weight: 600; color: var(--auth-text-mid); }
+.auth-input {
+    background: #F9FAFB;
+    border: 1px solid var(--auth-border-input);
+    color: var(--auth-text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.auth-input::placeholder { color: #6B7280; }
+.auth-input:focus {
+    border-color: var(--auth-accent);
+    box-shadow: 0 0 0 3px var(--auth-accent-tint);
+}
+
+.auth-btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--auth-accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 11px 0;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background .15s, transform .1s;
+}
+.auth-btn-primary:hover { background: #A84A33; }
+.auth-btn-primary:active { transform: scale(.98); }
+.auth-btn-primary:disabled { opacity: .7; cursor: not-allowed; }
+
+.auth-spin { animation: authSpin .8s linear infinite; }
+@keyframes authSpin { to { transform: rotate(360deg); } }
