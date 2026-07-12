@@ -2252,6 +2252,7 @@ function pgAppendTemplateCard($msg, tpl) {
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-view" title="Ver en el sandbox"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-pin${pinned ? ' is-pinned' : ''}" title="${pinned ? 'Fijado como referencia' : 'Fijar este template como referencia: el próximo mensaje pedirá modificarlo'}"><i data-lucide="pin" class="w-3.5 h-3.5"></i></button>
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-fork" title="Bifurcar: abrir un hilo nuevo heredando este sandbox como contexto"><i data-lucide="git-branch" class="w-3.5 h-3.5"></i></button>
+                    <button type="button" class="pg-tpl-ico pg-chat-tpl-newchat" title="Clonar a un chat nuevo con contexto LIMPIO (sin historial); queda fijada para modificarla"><i data-lucide="message-square-plus" class="w-3.5 h-3.5"></i></button>
                     <button type="button" class="pg-tpl-ico pg-chat-tpl-del" title="Quitar este render del chat"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                 </span>
             </div>
@@ -2263,6 +2264,7 @@ function pgAppendTemplateCard($msg, tpl) {
     $card.find('.pg-chat-tpl-view').on('click', e => { e.stopPropagation(); pgRestoreTemplate(tpl.id); });
     $card.find('.pg-chat-tpl-pin').on('click', e => { e.stopPropagation(); pgTogglePinTemplate(tpl.id); });
     $card.find('.pg-chat-tpl-thread, .pg-chat-tpl-fork').on('click', e => { e.stopPropagation(); pgForkFromTemplate(tpl.id); });
+    $card.find('.pg-chat-tpl-newchat').on('click', e => { e.stopPropagation(); pgCloneToCleanChat(tpl.id); });
     $card.find('.pg-chat-tpl-del').on('click', e => { e.stopPropagation(); pgDeleteTemplate(tpl.id); });
     if (window.lucide) lucide.createIcons();
     pgScroll();
@@ -2363,6 +2365,61 @@ function pgForkFromTemplate(id) {
     }
     $('#pgInput').trigger('focus');
     pgToast('Hilo bifurcado desde este sandbox — sigue iterando', 'success');
+}
+
+/* ── Clonar a un chat nuevo con contexto LIMPIO ──
+ * Abre un chat NUEVO y VACÍO (no hereda NADA de la conversación) partiendo solo de
+ * este sandbox: lo renderiza, lo registra como template del hilo nuevo y lo FIJA
+ * como referencia, de modo que el próximo mensaje lo modifique sin arrastrar el
+ * historial viejo. Es "me gustó esto, empiezo de cero sobre ello".
+ * A diferencia de "Bifurcar" (que hereda el historial hasta el template), aquí el
+ * ÚNICO contexto que viaja al agente es el HTML fijado. El chat actual no se pierde:
+ * ya se autoguardó como hilo y se reabre desde el modal de hilos. */
+function pgCloneToCleanChat(id) {
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+    const t = pg.templates.find(x => x.id === id);
+    if (!t) return;
+
+    // Restaurar el tema con el que se generó el sandbox.
+    if (t.theme && PG_THEMES[t.theme] && t.theme !== pg.theme) {
+        pg.theme = t.theme;
+        $('#pgThemeSelect').val(t.theme);
+        $('#pgSandboxTheme').text((PG_THEMES[t.theme] || {}).label || t.theme);
+        pgSaveSettings();
+    }
+    // Restaurar agente si difiere (keepHistory=true: aún no hay historial que perder).
+    if (t.agentKey && PG_AGENTS[t.agentKey] && t.agentKey !== pg.agentKey) {
+        $('#pgAgentSelect').val(t.agentKey);
+        pgApplyAgent(t.agentKey, true);
+    }
+
+    // Chat nuevo y VACÍO: sin heredar historial (a diferencia de Bifurcar).
+    pgClearChat();
+    pg._lastUserText = t.title || '';
+
+    // Pinta el sandbox heredado y lo registra como template del hilo nuevo.
+    pgRenderSandbox(t.html, !!t.isDoc);
+    const tpl = pgPushTemplate(t.html, !!t.isDoc);
+
+    // Burbuja "semilla" (SOLO visual: no entra a pg.history, no viaja al modelo).
+    // Deja el punto de partida a la vista con su tarjeta clicable.
+    $('#pgChatBody .pg-empty').remove();
+    const $seed = $(`<div class="ia-msg ai"><div class="ia-msg-role"><span class="dot"></span><span>${pgAgentLabel()}</span></div><div class="ia-msg-text">${pgMarkdown('🪄 Contexto nuevo — partiendo de esta plantilla. Escribe cómo quieres modificarla.')}</div></div>`);
+    $('#pgChatBody').append($seed);
+    if (window.lucide) lucide.createIcons();
+
+    if (tpl) {
+        tpl.title = t.title || tpl.title;
+        // Fijar como referencia ANTES de pintar la tarjeta para que salga con el pin
+        // activo; el pin inyecta su HTML como "TEMPLATE A MODIFICAR" en el próximo turno.
+        pg.pinnedTplId = tpl.id;
+        pgAppendTemplateCard($seed, tpl);
+        pgRefreshPinUI();   // marca el botón + muestra el chip "Modificando…" sobre el input
+    }
+
+    pgSaveSession();   // el chat limpio pasa a ser la sesión activa
+    $('#pgInput').trigger('focus');
+    pgToast('Plantilla clonada a un chat limpio — el próximo mensaje la modificará', 'success');
 }
 
 /* ── Fijar template como referencia ──

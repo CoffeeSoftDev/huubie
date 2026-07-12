@@ -3751,6 +3751,10 @@ class CoffeeIA {
             currentFileContent: currentFileObj?.raw || '',
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
+            // Modo lienzo activo: se lo decimos al backend para que inyecte
+            // lienzo-mode.md y suba las rondas de tools (paridad con el Lab). Sin
+            // esto, el modelo corria con el alma por defecto y la UI salia imprecisa.
+            canvasMode:         !!this.layoutMode,
             graphMode:          this.graphMode || '',
             graphTemplate:      this.graphMode === 'excalidraw' ? (this.excaliMode || 'libre') : '',
             dbConnect:          this.activeDb || '',       // base conectada (conexion pegajosa)
