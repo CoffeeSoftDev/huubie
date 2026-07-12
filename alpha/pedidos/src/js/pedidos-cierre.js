@@ -11,7 +11,7 @@ class Cierre {
     async initCierre() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
-        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3) ? $('#subsidiariesDailyClose').val() : null;
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? $('#subsidiariesDailyClose').val() : null;
 
         $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
         $('#ticketModeBar').addClass('hidden');
@@ -951,7 +951,7 @@ class Cierre {
     async showCorteCaja() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
-        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3) ? $('#subsidiariesDailyClose').val() : null;
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? $('#subsidiariesDailyClose').val() : null;
 
         $('#ticketModeBar').addClass('hidden');
         $('#ticketContainer').html(`
@@ -1138,7 +1138,7 @@ class Cierre {
     async showCorteCajaDetail() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
-        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3) ? $('#subsidiariesDailyClose').val() : null;
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? $('#subsidiariesDailyClose').val() : null;
 
         $('#corteCajaDetailContainer').html(`
             <div class="text-center text-gray-400 py-4">

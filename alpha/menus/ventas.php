@@ -27,16 +27,19 @@
 <body class="bg-[#111928]">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
+    <!-- ModuleCard renderiza aqui su propio wrapper (saludo + buscador + grid),
+         por eso ya no existe el #grid-card ni el layout flex de antes. -->
     <div id="mainContainer"
-        class="w-full h-[calc(100vh-3rem)]  bg-[#111928] mt-5 pt-5 transition-all duration-500  text-white p-6 flex flex-col md:flex-row gap-x-4">
-        <div id="grid-card" class="w-full grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5  gap-2"></div>
-    </div>
+        class="w-full h-[calc(100vh-3rem)] bg-[#111928] mt-5 pt-5 transition-all duration-500 text-white p-6"></div>
     <script src="<?= PATH_BASE ?>access/src/js/session.js?t=<?= time(); ?>"></script>
     <!-- Hub de menus: la navbar no debe mostrar el selector de sucursal -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
-    <script src="<?=PATH_MENU?>src/js/cards.js?t=<?= time() ?>"></script>
+
+    <!-- Coffee Component (mismo patron que app/menus) -->
+    <script src="<?=PATH_BASE?>src/js/components/moduleCard.js?t=<?= time() ?>"></script>
+
     <script src="<?=PATH_MENU?>src/js/ventas.js?t=<?= time() ?>"></script>
 </body>
 <script>

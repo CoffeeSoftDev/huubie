@@ -1,14 +1,4 @@
-// === Visor de Cierre del Día (modulo independiente order-visor) ===
-//
-// SOLO CONSULTA. Panel izquierdo: lista columnar de los cortes/turnos del periodo.
-// Panel derecho: vista previa del reporte.
-//
-// NO reimplementa el formato de los reportes. Reutiliza las fuentes unicas de alpha/pedidos
-// (cargadas desde index.php):
-//   - Corte X (turno) -> renderShiftTicket()               [shift-ticket.js]
-//   - Corte Z (dia)   -> cierre.renderExecutiveSummary()   [pedidos-cierre.js]
-// Imprimir delega en cierre.printDaily(): ambos reportes montan su ticket con el mismo
-// id #ticketDailyClose y printDaily aplica los estilos correctos segun el tipo.
+
 
 // El backend se reutiliza tal cual (no se duplica SQL): los endpoints viven en pedidos.
 const API_PEDIDOS = '/alpha/pedidos/ctrl/ctrl-pedidos.php';
@@ -54,7 +44,7 @@ async function loadSubsidiaries() {
 class OrderVisor extends Templates {
     // Ancho compartido: el panel izquierdo (lista de folios) y el control
     // "Período de consulta" miden lo mismo, por eso el valor vive en un solo lugar.
-    static LIST_WIDTH = 440;
+    static LIST_WIDTH = 560;
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
@@ -115,17 +105,10 @@ class OrderVisor extends Templates {
     }
 
     // === Filter bar (componente del framework) ===
-    // "Período de consulta" es un control compuesto (radios Fecha/Rango + su calendario
-    // inline) que el filterBar no trae de fabrica: se declara con `opc: "div"`, que cae en
-    // el `default` de content_json_form y crea el elemento con los atributos del objeto.
-    createFilterBar() {
+     createFilterBar() {
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
-            // Orden: que (Tipo de Reporte) -> cuando (Periodo) -> donde (Sucursal) -> accion.
-            // Tipo de Reporte va primero porque no es un filtro: cambia el modo completo del
-            // visor (endpoint, columnas de la lista y reporte del preview). Imprimir se ancla
-            // a la derecha con ms-auto (la .row de Bootstrap es flex).
-            data: [
+              data: [
                 {
                     opc: "select",
                     id: "reportType",
@@ -155,7 +138,6 @@ class OrderVisor extends Templates {
                     opc: "button",
                     id: "btnPrintReport",
                     text: "Imprimir",
-                    icon: "icon-print",
                     class: "col-12 col-md-3 col-lg-2 ms-auto",
                     className: "w-100",
                     color_btn: "primary",
@@ -163,6 +145,11 @@ class OrderVisor extends Templates {
                 },
             ],
         });
+
+        // El framework solo acepta `icon` como clase Fontello; el SVG Lucide se inyecta tras el render.
+        $("#btnPrintReport")
+            .addClass("d-inline-flex align-items-center justify-content-center gap-2")
+            .html(`${lucideIcon('printer', 'w-4 h-4')} Imprimir`);
 
         // El `default` de content_json_form copia los atributos del objeto al elemento, asi
         // que #periodGroup nace con las clases de columna duplicadas: se limpian y se pinta
@@ -245,12 +232,12 @@ class OrderVisor extends Templates {
                 <div style="width: ${OrderVisor.LIST_WIDTH}px" class="flex-shrink-0 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
                     <div class="p-3 border-b border-gray-700">
                         <div class="flex items-center gap-2 mb-2">
-                            <i class="icon-doc-text text-blue-400"></i>
+                            <span class="text-blue-400 d-flex">${lucideIcon('file-text', 'w-4 h-4')}</span>
                             <span id="reportListTitle" class="text-sm font-bold text-white flex-1">Cortes Z</span>
                             <span id="reportListCount" class="text-[11px] text-gray-400">0 resultados</span>
                         </div>
                         <div class="relative">
-                            <i class="icon-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 d-flex">${lucideIcon('search', 'w-4 h-4')}</span>
                             <input type="text" id="reportSearch" placeholder="Buscar por folio o fecha..."
                                 class="w-full bg-[#111827] border border-gray-700 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none" />
                         </div>
@@ -350,8 +337,10 @@ class OrderVisor extends Templates {
         const items = [];
         results.forEach(({ date, shifts }) => {
             shifts.forEach(s => {
-                const caja = parseFloat(s.total_sales || 0)
-                    || (parseFloat(s.cash || 0) + parseFloat(s.card || 0) + parseFloat(s.transfer || 0));
+                // TOTAL = dinero real en caja (cash+card+transfer), igual que el TOTAL CAJA
+                // del ticket: incluye abonos de pedidos anteriores y cobros cruzados recibidos
+                // en esta sucursal. total_sales es venta facturada del turno, NO caja.
+                const caja = parseFloat(s.cash || 0) + parseFloat(s.card || 0) + parseFloat(s.transfer || 0);
                 items.push({
                     key: `turno:${s.id}`,
                     type: "turno",
@@ -369,7 +358,10 @@ class OrderVisor extends Templates {
                 });
             });
         });
-        items.sort((a, b) => moment(b.raw.opened_at) - moment(a.raw.opened_at));
+        // Dias recientes primero; dentro del dia los turnos van de la mañana a la tarde.
+        items.sort((a, b) => a.date !== b.date
+            ? moment(b.date) - moment(a.date)
+            : moment(a.raw.opened_at) - moment(b.raw.opened_at));
         return items;
     }
 
@@ -556,7 +548,7 @@ class OrderVisor extends Templates {
     emptyPreview(msg) {
         $("#reportPreview").html(`
             <div class="flex flex-col items-center justify-center h-full text-gray-500 py-16">
-                <i class="icon-doc-text text-5xl mb-3"></i>
+                ${lucideIcon('file-text', 'w-12 h-12 mb-3')}
                 <p class="text-sm">${msg}</p>
             </div>
         `);

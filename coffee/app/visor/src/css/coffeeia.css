@@ -1,0 +1,29 @@
+/* ============================================================
+   coffeeia.css — Piezas propias del chat CoffeeIA (se carga
+   DESPUÉS de chat.css; todo lo demás lo heredan visor/chat.css)
+   ============================================================ */
+
+/* Cronómetro vivo del tiempo de espera, junto al loader "Analizando…". */
+.chat-typing {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.chat-typing-timer {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-mute2, #6b7280);
+    min-width: 24px;
+}
+.chat-typing-timer:empty { display: none; }
+
+/* Chip persistente cuando el tool-calling no funcionó (patrón Lab):
+   el template/respuesta salió SIN datos en vivo de la base o carpeta. */
+.chat-msg-meta .meta-fallback {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #d97706;
+}
+.chat-msg-meta .meta-fallback svg { width: 12px; height: 12px; }

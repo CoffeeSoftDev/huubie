@@ -146,18 +146,17 @@ function renderShiftTicket(options) {
 
         const totalPayments = parseFloat(d.cash_sales || 0) + parseFloat(d.card_sales || 0) + parseFloat(d.transfer_sales || 0);
 
-        // Actividad de pedidos del turno = creados en el turno + cobrados de turnos anteriores
+        // Contadores SOLO de pedidos creados en el turno. Los abonos a pedidos de turnos
+        // anteriores suman en caja (el dinero sí entró aquí) pero NO en el conteo: el
+        // pedido ya se contó en su turno de origen. Se reportan aparte, informativos.
         const createdOrders  = parseInt(d.total_orders)    || 0;
         const createdQuot    = parseInt(d.quotation_count) || 0;
         const createdCancel  = parseInt(d.cancelled_count) || 0;
         const createdPending = parseInt(d.pending_count)   || 0;
         const createdPaid    = createdOrders - createdQuot - createdCancel - createdPending;
-        const prevCount      = parseInt(d.prev_count)   || 0; // pedidos anteriores cobrados en el turno
-        const prevPaid       = parseInt(d.prev_paid)    || 0; // de esos, los que quedaron liquidados
-        const prevPending    = parseInt(d.prev_pending) || 0; // de esos, los que aun tienen saldo
-        const ordersTurno    = createdOrders  + prevCount;
-        const paidTurno      = createdPaid    + prevPaid;
-        const pendingTurno   = createdPending + prevPending;
+        const prevCount      = parseInt(d.prev_count)   || 0; // pedidos anteriores abonados en el turno
+        const prevPaid       = parseInt(d.prev_paid)    || 0; // de esos, quedaron liquidados
+        const prevPending    = parseInt(d.prev_pending) || 0; // de esos, aun con saldo
 
         const ticketHtml = `
             <div id="layoutPrintCloseTicket" class="flex justify-center p-4">
@@ -215,16 +214,16 @@ function renderShiftTicket(options) {
 
                         <div class="flex justify-between items-center font-semibold">
                             <div>NÚMERO DE PEDIDOS DEL TURNO:</div>
-                            <div>${ordersTurno || '-'}</div>
+                            <div>${createdOrders || '-'}</div>
                         </div>
                         <div class="mt-2"></div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>PAGADOS:</div>
-                            <div>${paidTurno || '-'}</div>
+                            <div>${createdPaid || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>PENDIENTES:</div>
-                            <div>${pendingTurno || '-'}</div>
+                            <div>${createdPending || '-'}</div>
                         </div>
                         <div class="flex justify-between items-center font-semibold">
                             <div>COTIZACIONES:</div>
@@ -234,6 +233,16 @@ function renderShiftTicket(options) {
                             <div>CANCELADOS:</div>
                             <div>${createdCancel || '-'}</div>
                         </div>
+                        ${prevCount ? `
+                        <hr class="border-dashed border-t my-1" />
+                        <div class="flex justify-between items-center font-semibold">
+                            <div>ABONOS DE PED. ANTERIORES:</div>
+                            <div>${prevCount}</div>
+                        </div>
+                        <div class="text-[10px] text-gray-500 text-right">
+                            ${prevPaid} liquidado${prevPaid === 1 ? '' : 's'} · ${prevPending} con saldo
+                        </div>
+                        ` : ''}
                     </div>
 
                     <!-- Footer -->
