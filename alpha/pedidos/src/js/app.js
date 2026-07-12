@@ -3507,8 +3507,12 @@ class App extends Templates {
             </div>
         `;
 
-        $('#ticketContainer').html(ticketHtml);
-        $('#ticketModeBar').removeClass('hidden');
+        // containerId opcional: por defecto la vista de Cierre de Dia (#ticketContainer).
+        // El visor de reportes (order-reports.js) lo reusa pasando su propio contenedor;
+        // en ese caso no tocamos #ticketModeBar (el visor tiene su propia barra de modo).
+        const containerId = options.containerId || 'ticketContainer';
+        $('#' + containerId).html(ticketHtml);
+        if (containerId === 'ticketContainer') $('#ticketModeBar').removeClass('hidden');
     }
 
     toggleReportMode(mode) {

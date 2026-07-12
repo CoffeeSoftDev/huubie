@@ -183,6 +183,12 @@
         };
 
         overlay.on('mousedown', (e) => { if (e.target === overlay[0]) userCancel(); });
+        // Respaldo del focus-trap (ver nota del punto de montaje mas abajo): listener
+        // NATIVO en captura. Ojo: desde jQuery 3.5 el focusin se delega en document, por
+        // lo que un overlay.on('focusin', e => e.stopPropagation()) NO frena el listener
+        // nativo que Bootstrap pone aparte en document. Por eso se usa addEventListener
+        // con capture=true y stopPropagation() sobre el evento nativo real.
+        overlay[0].addEventListener('focusin', (e) => e.stopPropagation(), true);
         overlay.find('.cf-close, .cf-cancel').on('click', userCancel);
         overlay.find('.cf-confirm').on('click', () => {
             if (!validate()) return;
@@ -190,7 +196,16 @@
             if (ret === true) close();
         });
 
-        $('body').append(overlay);
+        // Punto de montaje: si este overlay se abre encima de un modal de Bootstrap
+        // (bootbox), su focus-trap (listener focusin en document) devuelve el foco a su
+        // .modal en cuanto cae fuera, impidiendo escribir en nuestros inputs. Si montamos
+        // el overlay DENTRO del .modal.show activo, el trap lo considera contenido propio
+        // (trapElement.contains(target) === true) y ya no roba el foco. El overlay es
+        // position:fixed, asi que sigue cubriendo el viewport igual. Si no hay modal
+        // Bootstrap abierto, se monta en <body> como siempre.
+        const bsModals = document.querySelectorAll('.modal.show');
+        const mountPoint = bsModals.length ? bsModals[bsModals.length - 1] : document.body;
+        $(mountPoint).append(overlay);
         // animacion de entrada
         requestAnimationFrame(() => {
             overlay.css('opacity', 1);
