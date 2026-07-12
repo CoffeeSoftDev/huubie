@@ -23,7 +23,7 @@ class Sidebar {
         this.parent = $(this.settings.parent);
 
         const sidebarHtml =
-            `<div id="sidebar" class="mt-14 fixed top-0 left-0 h-[calc(100vh-3.5rem)] bg-[#1F2A37] w-full md:w-72 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto" style="transform: translateX(-100%);">
+            `<div id="sidebar" class="mt-12 fixed top-0 left-0 h-[calc(100vh-3rem)] bg-[#1F2A37] w-full md:w-72 transform -translate-x-full transition-transform duration-500 ease-in-out z-40 overflow-y-auto" style="transform: translateX(-100%);">
                 <h5 class="text-white pt-4 font-semibold ps-7">Huubie</h5>
                 <ul class="space-y-4 p-6" id="menuSidebar">
                     ${this.createMenuItems(this.settings.menuItems)}
