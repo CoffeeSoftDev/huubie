@@ -27,11 +27,18 @@ $(async () => {
     if (data['level'] == '1') {
         tarjetas.push({
             titulo: "Reportes",
-            descripcion: "Genera reportes detallados de ventas y turnos.",
+            descripcion: "Consulta cortes Z y cierres de turno por sucursal.",
             imagen: "/alpha/src/img/reportes.svg",
-            enlace: "/alpha/pedidos-reportes/",
+            enlace: "/alpha/order-visor/",
             padding: ""
         });
+        // tarjetas.push({
+        //     titulo: "Reportes",
+        //     descripcion: "Genera reportes detallados de ventas y turnos.",
+        //     imagen: "/alpha/src/img/reportes.svg",
+        //     enlace: "/alpha/pedidos-reportes/",
+        //     padding: ""
+        // });
         // tarjetas.push({
         //     titulo: "Inventario",
         //     descripcion: "Administra tu inventario de productos.",

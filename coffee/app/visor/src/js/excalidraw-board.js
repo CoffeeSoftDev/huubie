@@ -277,6 +277,8 @@ class ExcalidrawBoard {
     // Muestra el lienzo en split (documento izq + Excalidraw der), igual que el
     // modo diagrama de draw.io. El documento NO se oculta: queda como referencia.
     _showStage(show) {
+        // El panel derecho es uno solo: si habia un template renderizado, cede el sitio.
+        if (show && typeof htmlStage !== 'undefined' && htmlStage && htmlStage.active) htmlStage.close();
         $('body').toggleClass('sketch-mode', show);
         $('#' + this.stageId).toggleClass('hidden', !show);
         $('.cs-tabs-inline, #btnEdit, #btnCopyPath, #docStyleSelect, .doc-zoom, .doc-toolbar-sep')

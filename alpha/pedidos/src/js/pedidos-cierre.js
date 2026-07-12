@@ -777,12 +777,16 @@ class Cierre {
         // igual que el subtotal del desglose de pedidos.
         const ticketProm  = salesOrders.length > 0 ? ventasTotales.importe / salesOrders.length : 0;
 
+        // "Venta Bruta (teórica)": todo lo vendido en productos hoy (con descuentos ya
+        // aplicados), se haya cobrado o no. Lleva el mismo highlight gris que la columna
+        // Importe del desglose porque es la suma de esa columna. "EN CAJA" es lo contrario:
+        // solo el dinero que entró hoy.
         const rTotales = `
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">Totales</div>
-                <div class="cz-subhead">Venta del día y dinero recibido</div>
+                <div class="cz-subhead">Venta teórica (lo vendido hoy, cobrado o no) vs dinero recibido</div>
                 <div class="pdf-section-body">
-                    ${kv('Venta Bruta', money(ventaBruta))}
+                    ${kv('Venta Bruta (teórica)', money(ventaBruta), { highlight: true })}
                     ${kv('Pendiente', money(pendiente))}
                     ${kv('Pedidos del día', money(cobrado))}
                     ${kv('Abonos ant.', money(cruzadosMonto))}

@@ -240,6 +240,10 @@
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         Cerrar boceto
                     </button>
+                    <button id="btnCloseHtml" class="cs-btn cs-btn-ghost cs-btn-sm flex items-center gap-1.5 hidden" title="Cerrar vista previa">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        Cerrar vista previa
+                    </button>
                     <button id="btnEdit" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Editar en el visor" disabled>
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                         Editar
@@ -360,6 +364,10 @@
 
                 <!-- Tablero de GitHub Projects (panel derecho). Oculto salvo modo github. -->
                 <div id="githubStage" class="github-stage hidden"></div>
+
+                <!-- Template HTML de CoffeeIA renderizado (panel derecho). Se abre con
+                     doble clic sobre el bloque HTML del chat. Oculto salvo modo html. -->
+                <div id="htmlStage" class="html-stage hidden"></div>
             </div>
 
             </div><!-- /.visor-main-col -->
@@ -655,6 +663,7 @@
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/html-stage.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>

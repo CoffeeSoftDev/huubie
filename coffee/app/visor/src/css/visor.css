@@ -1125,6 +1125,51 @@ body.diagram-mode #drawioStage {
 /* Sin Frontmatter/TOC en split: todo el ancho de la mitad izquierda al documento. */
 body.diagram-mode .doc-meta { display: none; }
 
+/* ── Modo template HTML: el render de CoffeeIA en el panel derecho (split) ──
+   Doble clic sobre el bloque HTML del chat y el template se abre aqui, con el
+   documento a la izquierda como referencia. Mismo reparto que el lienzo. */
+body.html-mode .main-content {
+    display: flex; flex-direction: row; align-items: stretch; gap: 20px; overflow: hidden;
+}
+body.html-mode .doc-layout { flex: 1 1 0; min-width: 0; height: 100%; overflow-y: auto; }
+body.html-mode #htmlStage  { flex: 1 1 0; min-width: 0; height: 100%; }
+body.html-mode .doc-meta   { display: none; }
+@media (max-width: 1100px) {
+    body.html-mode .main-content { flex-direction: column; overflow-y: auto; }
+    body.html-mode .doc-layout   { height: auto; overflow-y: visible; }
+    body.html-mode #htmlStage    { height: 70vh; }
+}
+
+.html-stage {
+    background: var(--vsr-bg-base);
+    border: 1px solid var(--vsr-border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.html-stage.hidden { display: none; }
+
+.hst-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--vsr-border);
+    background: var(--vsr-bg-chrome); flex-shrink: 0;
+}
+.hst-bar-left  { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hst-bar-left > i { width: 16px; height: 16px; color: var(--vsr-text-muted); flex-shrink: 0; }
+.hst-bar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.hst-title {
+    font-size: 13px; font-weight: 600; color: var(--vsr-text-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.hst-body  { flex: 1 1 auto; min-height: 0; display: flex; }
+.hst-frame { flex: 1 1 auto; width: 100%; height: 100%; border: 0; background: transparent; }
+.hst-code  {
+    flex: 1 1 auto; margin: 0; padding: 14px; overflow: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6;
+    background: var(--vsr-bg-chrome);
+}
+
 /* ── Modo GitHub Projects: tablero en el panel derecho (split, como el lienzo) ── */
 body.github-mode .main-content {
     display: flex; flex-direction: row; align-items: stretch; gap: 20px; overflow: hidden;

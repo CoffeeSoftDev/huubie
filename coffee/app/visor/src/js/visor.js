@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-visor.php';
 let apiIA = 'ctrl/ctrl-coffeeia.php';
-let visor, visorView, app, coffeeIA, drawioBoard, githubBoard;
+let visor, visorView, app, coffeeIA, drawioBoard, githubBoard, htmlStage;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
@@ -22,6 +22,7 @@ $(async () => {
     visor       = new Visor(api, 'root');
     app         = new App(api, 'root');
     drawioBoard = new DrawioBoard(app, api);
+    htmlStage   = new HtmlStage();
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
     githubBoard = new GithubBoard(app, apiIA.replace('ctrl-coffeeia.php', 'ctrl-github.php'));
@@ -568,6 +569,7 @@ class App {
         $('#btnCopyPath').off('click').on('click', () => this.copyPath());
         $('#btnOpenEditor').off('click').on('click', () => this.openInEditor());
         $('#btnCloseDiagram').off('click').on('click', () => this.exitDiagram());
+        $('#btnCloseHtml').off('click').on('click', () => { if (htmlStage) htmlStage.close(); });
         $('#btnEdit').off('click').on('click', () => this.enterEditMode());
         $('#btnSave').off('click').on('click', () => this.saveFile());
         $('#btnCancel').off('click').on('click', () => this.exitEditMode(false));
@@ -5469,30 +5471,14 @@ class CoffeeIA {
 
     _renderHtmlPreview($pre, code) {
         const id = 'htm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
-        const safeCode = (typeof DOMPurify !== 'undefined')
-            ? DOMPurify.sanitize(code, { ADD_TAGS: ['svg', 'path', 'use'], ADD_ATTR: ['data-lucide'] })
-            : code;
-        const isDark = this._getTheme() === 'dark';
-        const bg     = isDark ? '#0F172A' : '#FFFFFF';
-        const fg     = isDark ? '#E2E8F0' : '#1F2937';
-        // El grimorio Huubie obliga clases .cs-* (ui-kit.css). Como el iframe usa
-        // srcdoc (sin base URL), resolvemos la ruta del kit a URL absoluta para
-        // que el preview renderice con el mismo estilo institucional del visor.
-        const uiKitHref = new URL('src/css/ui-kit.css', document.baseURI).href;
-        const srcdoc = `<!doctype html><html data-theme="${isDark ? 'dark' : 'light'}"><head><meta charset="utf-8">
-            <script src="https://cdn.tailwindcss.com"><\/script>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="${uiKitHref}">
-            <script src="https://unpkg.com/lucide@latest"><\/script>
-            <style>
-                html,body{margin:0;padding:0;}
-                body{padding:8px;background:${bg};color:${fg};font-family:Inter,system-ui,sans-serif;font-size:13px;}
-                *{box-sizing:border-box;}
-            </style></head>
-            <body>${safeCode}<script>if(window.lucide)lucide.createIcons();<\/script></body></html>`;
+        // El iframe va sandboxeado (origen opaco): el doble clic no burbujea hasta
+        // aqui. buildSrcdoc inyecta un puente que lo reenvia por postMessage con
+        // este id; _bindHtmlStageBridge lo recibe y abre el template a la derecha.
+        const srcdoc = HtmlStage.buildSrcdoc(code, { theme: this._getTheme(), bridgeId: id });
+        this._bindHtmlStageBridge();
 
         const $wrap = $(`
-            <div class="ia-render-block ia-render-html" data-render-type="html">
+            <div class="ia-render-block ia-render-html" data-render-type="html" data-html-id="${id}">
                 <div class="ia-render-toolbar">
                     <span><i data-lucide="layout" class="w-3 h-3"></i>HTML</span>
                     <span class="ia-render-tabs">
@@ -5503,12 +5489,15 @@ class CoffeeIA {
                         </button>
                     </span>
                 </div>
-                <div class="ia-render-view"><iframe id="${id}-iframe" class="ia-render-iframe" sandbox="allow-scripts" loading="lazy"></iframe></div>
+                <div class="ia-render-view" title="Doble clic para verlo a la derecha"><iframe id="${id}-iframe" class="ia-render-iframe" sandbox="allow-scripts" loading="lazy"></iframe></div>
                 <pre id="${id}-code" class="ia-render-source" style="display:none;"></pre>
             </div>
         `);
         $wrap.find('.ia-render-source').text(code);
         $pre.replaceWith($wrap);
+
+        // Doble clic fuera del iframe (toolbar, margenes, pestana de codigo).
+        $wrap.on('dblclick', () => this._openHtmlStage(id));
 
         const $iframe = $('#' + id + '-iframe');
         $iframe.attr('srcdoc', srcdoc);
@@ -5530,10 +5519,29 @@ class CoffeeIA {
         });
 
         $wrap.find('.ia-render-expand').on('click', () => {
-            this._openHtmlModal(srcdoc);
+            // Sin bridge: dentro del modal el doble clic no debe abrir el panel.
+            this._openHtmlModal(HtmlStage.buildSrcdoc(code, { theme: this._getTheme() }));
         });
 
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Escucha (una sola vez) los dobles clics reenviados desde los iframes de preview.
+    _bindHtmlStageBridge() {
+        if (CoffeeIA._htmlBridgeBound) return;
+        CoffeeIA._htmlBridgeBound = true;
+        window.addEventListener('message', (e) => {
+            const d = e.data;
+            if (!d || d.visorHtmlStage !== 'open' || !d.id) return;
+            this._openHtmlStage(d.id);
+        });
+    }
+
+    // Manda al panel derecho el template del bloque `id`.
+    _openHtmlStage(id) {
+        if (typeof htmlStage === 'undefined' || !htmlStage) return;
+        const code = $(`.ia-render-html[data-html-id="${id}"] .ia-render-source`).text();
+        if (code) htmlStage.open(code);
     }
 
     _openHtmlModal(srcdoc) {
@@ -5582,6 +5590,8 @@ class CoffeeIA {
             else if (type === 'excalidraw') this._renderExcalidraw($stub, src);
             // Charts no dependen del tema del visor, los dejamos como estan
         });
+        // El template abierto a la derecha tambien sigue el tema del visor.
+        if (typeof htmlStage !== 'undefined' && htmlStage && htmlStage.active) htmlStage._render();
     }
 
     _appendTyping() {

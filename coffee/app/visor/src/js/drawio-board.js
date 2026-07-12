@@ -77,6 +77,8 @@ class DrawioBoard {
 
     // Muestra el lienzo en split: documento a la izquierda, draw.io a la derecha.
     _showStage(show) {
+        // El panel derecho es uno solo: si habia un template renderizado, cede el sitio.
+        if (show && typeof htmlStage !== 'undefined' && htmlStage && htmlStage.active) htmlStage.close();
         $('body').toggleClass('diagram-mode', show);
         $('#' + this.stageId).toggleClass('hidden', !show);
         // El documento queda visible a la izquierda como referencia (no se oculta).
