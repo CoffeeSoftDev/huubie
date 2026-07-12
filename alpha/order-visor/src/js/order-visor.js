@@ -242,7 +242,7 @@ class OrderVisor extends Templates {
                                 class="w-full bg-[#111827] border border-gray-700 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none" />
                         </div>
                     </div>
-                    <div id="reportListHead" class="grid grid-cols-[1fr_62px_66px_104px] gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
+                    <div id="reportListHead" class="grid gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
                     <div id="reportList" class="flex-1 overflow-y-auto"></div>
                 </div>
 
@@ -291,16 +291,25 @@ class OrderVisor extends Templates {
 
     columnsFor() {
         return this.reportType === "turno"
-            ? ["FOLIO", "TURNO", "PEDIDOS", "TOTAL"]
+            ? ["FOLIO", "HORARIO", "PEDIDOS", "TOTAL EN CAJA"]
             : ["FOLIO", "TURNOS", "PEDIDOS", "TOTAL CAJA"];
+    }
+
+    // En turnos la columna HORARIO muestra "08:30 → 14:15" y necesita mas ancho.
+    gridColsFor() {
+        return this.reportType === "turno"
+            ? "1fr 112px 52px 104px"
+            : "1fr 62px 66px 104px";
     }
 
     async loadList() {
         const dates = this.getReportDates();
         const subsidiaries_id = this.getSubsidiaryId();
 
-        $("#reportListHead").html(this.columnsFor().map((c, i) =>
-            `<span class="${i === 0 ? "" : "text-right"}">${c}</span>`).join(""));
+        $("#reportListHead")
+            .css("grid-template-columns", this.gridColsFor())
+            .html(this.columnsFor().map((c, i) =>
+                `<span class="${i === 0 ? "" : "text-right"}">${c}</span>`).join(""));
 
         $("#reportList").html(`<div class="text-center text-gray-500 py-8 text-sm">Cargando...</div>`);
         this.selectedKey = null;
@@ -347,10 +356,11 @@ class OrderVisor extends Templates {
                     id: s.id,
                     date,
                     folio: "TN-" + String(s.id).padStart(5, "0"),
-                    hora: moment(s.opened_at).format("hh:mm A"),
+                    hora: "", // el horario completo va en su propia columna (col2/col2Sub)
                     sub1: s.employee_name || "Sin vendedor",
                     sub2: moment(s.opened_at).format("DD/MM/YYYY") + " · " + subName,
-                    col2: moment(s.opened_at).format("HH:mm"),
+                    col2: this.formatHorario(s),
+                    col2Sub: this.formatDuracion(s),
                     col3: parseInt(s.total_orders || 0),
                     col4: caja,
                     status: s.status,
@@ -401,6 +411,21 @@ class OrderVisor extends Templates {
         return items;
     }
 
+    // Horario del turno: "08:30 → 14:15"; si sigue abierto, "08:30 → —".
+    formatHorario(s) {
+        const cierre = s.status === "closed" && s.closed_at
+            ? moment(s.closed_at).format("HH:mm")
+            : "—";
+        return moment(s.opened_at).format("HH:mm") + " → " + cierre;
+    }
+
+    // Sublinea del horario: duracion del turno cerrado ("5h 45m") o "ABIERTO".
+    formatDuracion(s) {
+        if (s.status !== "closed" || !s.closed_at) return "ABIERTO";
+        const mins = moment(s.closed_at).diff(moment(s.opened_at), "minutes");
+        return Math.floor(mins / 60) + "h " + String(mins % 60).padStart(2, "0") + "m";
+    }
+
     // === Render de la lista columnar ===
     renderList() {
         const q = ($("#reportSearch").val() || "").toLowerCase().trim();
@@ -424,8 +449,8 @@ class OrderVisor extends Templates {
         const rowHtml = (i) => {
             const active = i.key === this.selectedKey;
             return `
-                <button type="button"
-                    class="w-full text-left grid grid-cols-[1fr_62px_66px_104px] gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
+                <button type="button" style="grid-template-columns: ${this.gridColsFor()}"
+                    class="w-full text-left grid gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
                     onclick="visor.selectItem('${i.key}')">
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
@@ -436,8 +461,8 @@ class OrderVisor extends Templates {
                         <div class="text-[10px] text-gray-400 truncate mt-0.5">${i.sub1 ? i.sub1 + " · " : ""}${i.sub2}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm font-semibold text-white leading-none">${i.col2}</div>
-                        <div class="text-[9px] text-gray-500 uppercase">${unitFor}</div>
+                        <div class="text-sm font-semibold text-white leading-none whitespace-nowrap">${i.col2}</div>
+                        <div class="text-[9px] ${i.col2Sub === "ABIERTO" ? "text-orange-400 font-bold" : "text-gray-500"}">${i.col2Sub || unitFor}</div>
                     </div>
                     <div class="text-right">
                         <div class="text-sm font-semibold text-white leading-none">${i.col3}</div>

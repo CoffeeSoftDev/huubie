@@ -65,6 +65,10 @@
                     <i data-lucide="message-circle"></i>
                     <span class="app-rail-label">Chat</span>
                 </a>
+                <a href="coffeeia.php" class="app-rail-item" title="CoffeeIA — Chat unificado">
+                    <i data-lucide="sparkles"></i>
+                    <span class="app-rail-label">CoffeeIA</span>
+                </a>
                 <a href="documents-admin.php" class="app-rail-item active" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
                     <span class="app-rail-label">Admin</span>

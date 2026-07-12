@@ -1084,7 +1084,7 @@ async function chatSubmit() {
     // OMITEN del payload (siguen en el chat y en el history por si luego se
     // cambia a un modelo con visión). Mismo patrón que el Lab.
     const dropImages = !!chat.model && !chatModelHasVision(chat.model);
-    if (dropImages && userMsg.images.length) {
+    if (dropImages && (userMsg.images || []).length) {
         chatToast('Este modelo no tiene visión: la imagen no se enviará. Elige uno con visión (los marcados con “vision”).', 'warn');
     }
 
