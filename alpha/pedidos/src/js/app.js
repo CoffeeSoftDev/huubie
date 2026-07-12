@@ -59,19 +59,12 @@ class App extends Templates {
         this.updateDailyClosureStatus();
     }
 
-    // Reportes: vista de SOLO CONSULTA (ventas, productos, clientes y reportes de
-    // cierre). Se monta sobre la vista de pedidos y se regresa con "Volver a Pedidos".
+    // Reportes: vista de SOLO CONSULTA (visor de cierre: cortes Z y turnos).
+    // Se monta sobre la vista de pedidos; el regreso lo da la flecha del propio visor.
     // No requiere turno abierto: es consulta, disponible para todos los roles.
     openReports() {
         $('#navbarBranchControl').removeClass('hidden');
-        $('#root').html(`
-            <div class="flex items-center gap-2 mx-2 mb-2">
-                <button onclick="app.render()" class="inline-flex items-center gap-1.5 text-sm text-gray-300 hover:text-white bg-[#1F2A37] border border-gray-700 rounded-lg px-3 py-2 transition-colors">
-                    &larr; Volver a Pedidos
-                </button>
-            </div>
-            <div id="container-reportes" class="mx-2"></div>
-        `);
+        $('#root').html(`<div id="container-reportes" class="mx-2"></div>`);
         reports.render();
     }
 
@@ -535,6 +528,18 @@ class App extends Templates {
                     // 🔒 Bloquear todos los campos después de guardar
                     $("#formPedido :input, #formPedido textarea").prop("disabled", true);
                     $("#subsidiaryFilter").prop("disabled", true);
+
+                    // 🙈 Ocultar "Guardar Pedido" y "Salir": el pedido ya existe, ahora
+                    // toca seleccionar productos en la pestaña Catálogo. Se oculta el
+                    // botón y su columna contenedora para no dejar hueco en el grid.
+                    const ocultarBotonesPedido = () => {
+                        $("#btnGuardarPedido, #btnRegresar")
+                            .hide()
+                            .closest('[class*="col-"]').hide();
+                    };
+                    ocultarBotonesPedido();
+                    // Refuerzo tras el cambio de pestaña, por si algo re-renderiza.
+                    setTimeout(ocultarBotonesPedido, 350);
 
 
                 } else {

@@ -13,12 +13,16 @@ $(async () => {
 // El ticket interno de ambos lleva id #ticketDailyClose, por eso Imprimir delega en
 // cierre.printDaily() sin distinguir el tipo.
 class OrderReports extends Templates {
+    // Ancho compartido: el panel izquierdo (lista de folios) y el control
+    // "Período de consulta" miden lo mismo, por eso el valor vive en un solo lugar.
+    static LIST_WIDTH = 440;
+
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = "OrderReports";
         this.reportType = "cierre";  // 'turno' | 'cierre'
         this.reportMode = "summary"; // 'summary' | 'detailed' (solo Turno)
-        this.periodMode = "rango";   // 'rango' | 'fecha'  (rango por defecto -> lista poblada)
+        this.periodMode = "fecha";   // 'fecha' | 'rango'
         this.items = [];
         this.selectedKey = null;
     }
@@ -28,102 +32,175 @@ class OrderReports extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
+        this.createLayout({
             parent: "container-reportes",
-            id: this.PROJECT_NAME,
-            class: "w-full",
-            card: {
-                filterBar: { class: "w-full", id: "filterBar" + this.PROJECT_NAME },
-                container: { class: "w-full h-full", id: "container" + this.PROJECT_NAME },
-            },
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'flex',
+                container: [
+                    {
+                        type: "div",
+                        id: "singleLayout" + this.PROJECT_NAME,
+                        class: "flex flex-col col-12",
+                        children: [
+                            { type: "div", class: 'w-full', id: 'header' + this.PROJECT_NAME },
+                            { type: "div", class: 'w-full  mb-4', id: 'filterBar' + this.PROJECT_NAME },
+                            { type: "div", class: 'w-full', id: 'container' + this.PROJECT_NAME }
+                        ]
+                    }
+                ]
+            }
         });
 
-        this.renderToolbar();
+        this.renderHeader();
+        this.createFilterBar();
         this.renderBody();
         this.bindEvents();
         this.loadList();
     }
 
-    // === Barra superior ===
-    renderToolbar() {
-        const hoy = moment().format("YYYY-MM-DD");
-        const sucursalOptions = (lsSucursales || [])
-            .map(s => `<option value="${s.id}">${s.valor}</option>`)
-            .join("");
-
-        $(`#filterBar${this.PROJECT_NAME}`).html(`
+    // Titulo del visor: div propio dentro del createLayout, separado del filterBar.
+    renderHeader() {
+        $(`#header${this.PROJECT_NAME}`).html(`
             <div class="flex items-center gap-3 px-1 pt-2 pb-3">
-                <button onclick="app.render()" class="text-gray-400 hover:text-white text-xl leading-none">&larr;</button>
+                <button onclick="app.render()" title="Volver a Pedidos"
+                    class="flex items-center justify-center w-9 h-9 rounded-full border border-gray-700 bg-[#1F2A37] text-gray-400 hover:text-white hover:border-gray-500 transition-colors flex-shrink-0">
+                    ${lucideIcon('arrow-left', 'w-4 h-4')}
+                </button>
                 <div>
                     <h2 class="text-xl font-bold text-white leading-tight">Visor de Cierre del Día</h2>
                     <p class="text-gray-500 text-xs">Cortes Z, turnos y recepciones por sucursal.</p>
                 </div>
             </div>
+        `);
+    }
 
-            <div class="flex flex-wrap items-end gap-3 border-b border-gray-700/60 pb-3 mb-3">
-                <!-- Periodo -->
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Período de consulta</label>
-                    <div class="flex items-center gap-2 bg-[#111827] border border-gray-700 rounded-lg px-3 py-2 h-[42px]">
-                        <label class="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
-                            <input type="radio" name="reportPeriodMode" value="rango" class="accent-blue-500" checked> Rango
-                        </label>
-                        <label class="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
-                            <input type="radio" name="reportPeriodMode" value="fecha" class="accent-blue-500"> Fecha
-                        </label>
-                        <span class="w-px h-5 bg-gray-700"></span>
-                        <i class="icon-calendar text-gray-500 text-sm"></i>
-                        <input type="date" id="reportFecha" value="${hoy}"
-                            class="hidden bg-transparent text-white text-sm outline-none" />
-                        <input type="text" id="reportRango" placeholder="Rango"
-                            class="bg-transparent text-white text-sm outline-none min-w-[180px]" />
-                    </div>
-                </div>
+    // === Filter bar (componente del framework) ===
+    // "Período de consulta" es un control compuesto (radios Fecha/Rango + su calendario
+    // inline) que el filterBar no trae de fabrica. Se declara con `opc: "div"`, que cae en
+    // el `default` de content_json_form y crea el elemento con los atributos del objeto.
+    createFilterBar() {
+        this.createfilterBar({
+            parent: `filterBar${this.PROJECT_NAME}`,
+            data: [
+                {
+                    opc: "div",
+                    id: "periodGroup",
+                    lbl: "Período de consulta",
+                    // col-auto: la columna se ajusta al pill, que va fijo al ancho del
+                    // panel "Cortes Z" (OrderReports.LIST_WIDTH).
+                    class: "col-auto",
+                },
+                {
+                    opc: "select",
+                    id: "reportSucursal",
+                    lbl: "Sucursal",
+                    class: "col-12 col-md-3 col-lg-2",
+                    data: lsSucursales,
+                    onchange: "reports.loadList()",
+                },
+                {
+                    opc: "select",
+                    id: "reportType",
+                    lbl: "Tipo de Reporte",
+                    class: "col-12 col-md-3 col-lg-2",
+                    data: [
+                        { id: "cierre", valor: "Cierre diario — Corte Z" },
+                        { id: "turno", valor: "Cierre de turno — Corte X" },
+                    ],
+                    onchange: "reports.changeReportType()",
+                },
+                {
+                    opc: "button",
+                    id: "btnPrintReport",
+                    text: "Imprimir",
+                    icon: "icon-print",
+                    class: "col-12 col-md-3 col-lg-2",
+                    className: "w-100",
+                    color_btn: "primary",
+                    onClick: () => this.printReport(),
+                },
+            ],
+        });
 
-                <!-- Sucursal -->
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Sucursal</label>
-                    <select id="reportSucursal"
-                        class="bg-[#111827] border border-gray-700 text-white rounded-lg px-3 h-[42px] text-sm min-w-[220px]">
-                        ${sucursalOptions}
-                    </select>
-                </div>
+        // El `default` de content_json_form copia los atributos del objeto al elemento, asi
+        // que #periodGroup nace con las clases de columna duplicadas: se limpian y se pinta
+        // el control compuesto dentro (los ids reportFecha/reportRango los toma dataPicker).
+        //
+        // El wrapper reusa las MISMAS clases que el framework da a sus campos
+        // (`form-control input-sm bg-[#1F2A37]`), asi hereda padding, borde, radio, alto y
+        // ancho (100% de la columna) => alinea exacto con Sucursal / Tipo de Reporte.
+        // Altura EXACTA del .form-select/.form-control de Bootstrap:
+        //   line-height 1.5 * 1rem + padding .375rem*2 + borde 1px*2  ->  calc(1.5em + .75rem + 2px)
+        // Se anula el padding vertical y se fija la altura para que los radios/inputs internos
+        // no empujen la caja; el ancho lo da el 100% de la columna, igual que Sucursal.
+        const periodBoxStyle = `height: calc(1.5em + 0.75rem + 2px); padding-top: 0; padding-bottom: 0; width: ${OrderReports.LIST_WIDTH}px;`;
+        const innerReset = "height: 100%; line-height: 1;";
 
-                <!-- Tipo de reporte -->
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Tipo de Reporte</label>
-                    <select id="reportType"
-                        class="bg-[#111827] border border-gray-700 text-white rounded-lg px-3 h-[42px] text-sm min-w-[180px]">
-                        <option value="cierre">Corte Z</option>
-                        <option value="turno">Turno</option>
-                    </select>
-                </div>
-
-                <div class="flex-1"></div>
-
-                <button id="btnPrintReport"
-                    class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 h-[42px] rounded-lg flex items-center gap-2">
-                    <i class="icon-print"></i> Imprimir
-                </button>
+        $("#periodGroup").attr("class", "").html(`
+            <div class="form-control input-sm bg-[#1F2A37] d-flex align-items-center gap-2" style="${periodBoxStyle}">
+                <label class="d-flex align-items-center gap-1 text-sm text-gray-200 cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
+                    <input type="radio" name="reportPeriodMode" value="fecha" class="accent-blue-500 m-0" checked
+                        onchange="reports.setPeriodMode('fecha')"> Fecha
+                </label>
+                <label class="d-flex align-items-center gap-1 text-sm text-gray-200 cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
+                    <input type="radio" name="reportPeriodMode" value="rango" class="accent-blue-500 m-0"
+                        onchange="reports.setPeriodMode('rango')"> Rango
+                </label>
+                <span class="w-px bg-gray-600 flex-shrink-0" style="height: 16px;"></span>
+                <input type="text" id="reportFecha"
+                    class="period-fecha flex-1 min-w-0 bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset}" />
+                <input type="text" id="reportRango"
+                    class="period-rango flex-1 min-w-0 bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset}" />
+                <span class="text-gray-400 flex-shrink-0 d-flex align-items-center">${lucideIcon('calendar', 'w-4 h-4')}</span>
             </div>
         `);
 
-        this.initRangePicker();
+        // type 'simple' => singleDatePicker + autoApply (sin botones Aplicar/Cancelar).
+        dataPicker({
+            parent: "reportFecha",
+            type: "simple",
+            onSelect: () => this.loadList(),
+        });
+
+        dataPicker({
+            parent: "reportRango",
+            type: "all",
+            rangepicker: {
+                startDate: moment().subtract(6, "days"),
+                endDate: moment(),
+                showDropdowns: true,
+                ranges: {
+                    "Hoy": [moment(), moment()],
+                    "Últimos 7 días": [moment().subtract(6, "days"), moment()],
+                    "Mes actual": [moment().startOf("month"), moment()],
+                    "Mes anterior": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")],
+                },
+                locale: { format: "DD-MM-YYYY" },
+            },
+            onSelect: () => this.loadList(),
+        });
+
+        this.applyPeriodMode();
     }
 
-    initRangePicker() {
-        $("#reportRango").daterangepicker({
-            startDate: moment().subtract(6, "days"),
-            endDate: moment(),
-            locale: {
-                format: "DD/MM/YYYY",
-                separator: " — ",
-                applyLabel: "Aplicar",
-                cancelLabel: "Cancelar",
-                daysOfWeek: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"],
-                monthNames: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
-            },
-        }, () => this.loadList());
+    // Muestra el calendario que corresponde al modo de periodo activo.
+    applyPeriodMode() {
+        $(".period-fecha").toggle(this.periodMode === "fecha");
+        $(".period-rango").toggle(this.periodMode === "rango");
+    }
+
+    setPeriodMode(mode) {
+        this.periodMode = mode;
+        this.applyPeriodMode();
+        this.loadList();
+    }
+
+    changeReportType() {
+        this.reportType = $("#reportType").val();
+        $("#reportListTitle").text(this.reportType === "turno" ? "Turnos" : "Cortes Z");
+        this.loadList();
     }
 
     // === Cuerpo: lista (izq) + preview (der) ===
@@ -131,7 +208,7 @@ class OrderReports extends Templates {
         $(`#container${this.PROJECT_NAME}`).html(`
             <div class="flex gap-4" style="height: calc(100vh - 190px)">
                 <!-- Panel izquierdo -->
-                <div class="w-[340px] flex-shrink-0 bg-[#1F2A37] border border-gray-700 rounded-xl flex flex-col overflow-hidden">
+                <div style="width: ${OrderReports.LIST_WIDTH}px" class="flex-shrink-0 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
                     <div class="p-3 border-b border-gray-700">
                         <div class="flex items-center gap-2 mb-2">
                             <i class="icon-doc-text text-blue-400"></i>
@@ -145,12 +222,12 @@ class OrderReports extends Templates {
                         </div>
                     </div>
                     <!-- Encabezado de columnas -->
-                    <div id="reportListHead" class="grid grid-cols-[1fr_50px_54px_86px] gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
+                    <div id="reportListHead" class="grid grid-cols-[1fr_62px_66px_104px] gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
                     <div id="reportList" class="flex-1 overflow-y-auto"></div>
                 </div>
 
                 <!-- Panel derecho -->
-                <div class="flex-1 bg-[#1F2A37] border border-gray-700 rounded-xl flex flex-col overflow-hidden">
+                <div class="flex-1 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between p-3 border-b border-gray-700">
                         <span class="text-sm text-gray-400">Vista previa de impresión</span>
                         <div id="reportModeBar" class="inline-flex bg-[#111827] rounded-lg p-0.5">
@@ -166,35 +243,23 @@ class OrderReports extends Templates {
         this.emptyPreview("Selecciona un elemento de la lista para ver su reporte.");
     }
 
+    // Los controles del filterBar (radios, calendarios, selects, boton) ya enganchan
+    // sus handlers via createfilterBar/dataPicker; aqui solo queda el buscador de la lista.
     bindEvents() {
-        $(`input[name="reportPeriodMode"]`).off("change").on("change", (e) => {
-            this.periodMode = e.target.value;
-            $("#reportFecha").toggleClass("hidden", this.periodMode === "rango");
-            $("#reportRango").toggleClass("hidden", this.periodMode === "fecha");
-            this.loadList();
-        });
-
-        $("#reportFecha").off("change").on("change", () => this.loadList());
-        $("#reportSucursal").off("change").on("change", () => this.loadList());
-        $("#reportType").off("change").on("change", (e) => {
-            this.reportType = e.target.value;
-            $("#reportListTitle").text(this.reportType === "turno" ? "Turnos" : "Cortes Z");
-            this.loadList();
-        });
         $("#reportSearch").off("input").on("input", () => this.renderList());
-        $("#btnPrintReport").off("click").on("click", () => this.printReport());
     }
 
+    // Fechas del periodo (array de YYYY-MM-DD). En modo 'fecha' el picker es
+    // singleDatePicker, asi que fi === ff y devuelve un solo dia.
     getReportDates() {
-        if (this.periodMode === "fecha") {
-            const d = $("#reportFecha").val();
-            return d ? [d] : [];
-        }
-        const rp = $("#reportRango").data("daterangepicker");
-        if (!rp) return [];
+        const id = this.periodMode === "fecha" ? "reportFecha" : "reportRango";
+        if (!$("#" + id).data("daterangepicker")) return [];
+
+        const { fi, ff } = getDataRangePicker(id);
         const dates = [];
-        const cursor = rp.startDate.clone();
-        while (cursor.isSameOrBefore(rp.endDate, "day") && dates.length < 92) {
+        const cursor = moment(fi);
+        const end = moment(ff);
+        while (cursor.isSameOrBefore(end, "day") && dates.length < 92) {
             dates.push(cursor.format("YYYY-MM-DD"));
             cursor.add(1, "day");
         }
@@ -341,11 +406,11 @@ class OrderReports extends Templates {
 
         const unitFor = this.reportType === "turno" ? "" : "TURN";
 
-        const html = filtered.map(i => {
+        const rowHtml = (i) => {
             const active = i.key === this.selectedKey;
             return `
                 <button type="button"
-                    class="w-full text-left grid grid-cols-[1fr_50px_54px_86px] gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
+                    class="w-full text-left grid grid-cols-[1fr_62px_66px_104px] gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
                     onclick="reports.selectItem('${i.key}')">
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
@@ -369,9 +434,35 @@ class OrderReports extends Templates {
                     </div>
                 </button>
             `;
-        }).join("");
+        };
+
+        // En modo Rango la lista se separa por dia (los items ya vienen ordenados desc,
+        // asi que basta con agruparlos en el orden en que aparecen).
+        const html = this.periodMode === "rango"
+            ? this.groupByDate(filtered).map(g => `
+                <div class="sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-[#161f2b] border-b border-gray-800">
+                    <span class="text-gray-500 flex-shrink-0 d-flex">${lucideIcon('calendar', 'w-3 h-3')}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                        ${moment(g.date).locale("es").format("dddd DD [de] MMMM [de] YYYY")}
+                    </span>
+                    <span class="ml-auto text-[10px] text-gray-500">${g.items.length}</span>
+                </div>
+                ${g.items.map(rowHtml).join("")}
+            `).join("")
+            : filtered.map(rowHtml).join("");
 
         $("#reportList").html(html);
+    }
+
+    // Agrupa los items por su fecha respetando el orden de entrada.
+    groupByDate(items) {
+        const groups = [];
+        items.forEach(i => {
+            const g = groups.find(x => x.date === i.date);
+            if (g) g.items.push(i);
+            else groups.push({ date: i.date, items: [i] });
+        });
+        return groups;
     }
 
     // === Seleccion -> render del reporte ===
