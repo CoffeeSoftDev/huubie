@@ -4,24 +4,23 @@ $(async () => {
     reports = new OrderReports(api, "root");
 });
 
-// Visor de Reportes de Cierre (SOLO CONSULTA).
-// Layout tipo visor: panel izquierdo con la lista de turnos/cierres del periodo y
-// panel derecho con la vista previa del reporte. NO reimplementa el formato de los
-// reportes: reutiliza los renderers ya probados de alpha/pedidos:
-//   - Turno         -> app.ticketShiftClose({..., containerId})   (Cierre x Turno)
-//   - Cierre del Dia -> cierre.renderExecutiveSummary(res, containerId)  (Corte Z)
-// El ticket interno de ambos lleva el id #ticketDailyClose, por eso Imprimir delega
-// en cierre.printDaily() sin distinguir el tipo.
+// Visor de Cierre del Día (SOLO CONSULTA).
+// Layout tipo visor: panel izquierdo = lista columnar (FOLIO · TURNOS/HORA · PEDIDOS · TOTAL)
+// de los turnos/cierres del periodo; panel derecho = vista previa del reporte.
+// NO reimplementa el formato de los reportes: reutiliza los renderers ya probados:
+//   - Turno          -> app.ticketShiftClose({..., containerId})        (Cierre x Turno)
+//   - Corte Z (dia)  -> cierre.renderExecutiveSummary(res, containerId)  (Corte Z)
+// El ticket interno de ambos lleva id #ticketDailyClose, por eso Imprimir delega en
+// cierre.printDaily() sin distinguir el tipo.
 class OrderReports extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = "OrderReports";
-        this.reportType = "turno";   // 'turno' | 'cierre'
-        this.reportMode = "summary"; // 'summary' | 'detailed' (solo aplica a Turno)
-        this.periodMode = "fecha";   // 'fecha' | 'rango'
-        this.items = [];             // items de la lista actual
-        this.selectedKey = null;     // id de turno o fecha de cierre seleccionado
-        this._cierreCache = {};      // date -> respuesta getCierre (para no re-consultar)
+        this.reportType = "cierre";  // 'turno' | 'cierre'
+        this.reportMode = "summary"; // 'summary' | 'detailed' (solo Turno)
+        this.periodMode = "rango";   // 'rango' | 'fecha'  (rango por defecto -> lista poblada)
+        this.items = [];
+        this.selectedKey = null;
     }
 
     render() {
@@ -45,7 +44,7 @@ class OrderReports extends Templates {
         this.loadList();
     }
 
-    // === Barra superior: titulo + periodo + sucursal + tipo de reporte + imprimir ===
+    // === Barra superior ===
     renderToolbar() {
         const hoy = moment().format("YYYY-MM-DD");
         const sucursalOptions = (lsSucursales || [])
@@ -53,53 +52,57 @@ class OrderReports extends Templates {
             .join("");
 
         $(`#filterBar${this.PROJECT_NAME}`).html(`
-            <div class="px-1 pt-2 pb-3">
-                <h2 class="text-2xl font-semibold text-white">Visor de Cierre del Día</h2>
-                <p class="text-gray-400 text-sm">Cortes Z, turnos y recepciones por sucursal.</p>
+            <div class="flex items-center gap-3 px-1 pt-2 pb-3">
+                <button onclick="app.render()" class="text-gray-400 hover:text-white text-xl leading-none">&larr;</button>
+                <div>
+                    <h2 class="text-xl font-bold text-white leading-tight">Visor de Cierre del Día</h2>
+                    <p class="text-gray-500 text-xs">Cortes Z, turnos y recepciones por sucursal.</p>
+                </div>
             </div>
 
-            <div class="flex flex-wrap items-end gap-3 border-b border-gray-700 pb-3 mb-3">
+            <div class="flex flex-wrap items-end gap-3 border-b border-gray-700/60 pb-3 mb-3">
                 <!-- Periodo -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Período de consulta</label>
-                    <div class="flex items-center gap-2 bg-[#1F2A37] border border-gray-700 rounded-lg px-3 py-2">
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Período de consulta</label>
+                    <div class="flex items-center gap-2 bg-[#111827] border border-gray-700 rounded-lg px-3 py-2 h-[42px]">
                         <label class="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
-                            <input type="radio" name="reportPeriodMode" value="rango" class="accent-blue-500"> Rango
+                            <input type="radio" name="reportPeriodMode" value="rango" class="accent-blue-500" checked> Rango
                         </label>
                         <label class="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
-                            <input type="radio" name="reportPeriodMode" value="fecha" class="accent-blue-500" checked> Fecha
+                            <input type="radio" name="reportPeriodMode" value="fecha" class="accent-blue-500"> Fecha
                         </label>
                         <span class="w-px h-5 bg-gray-700"></span>
+                        <i class="icon-calendar text-gray-500 text-sm"></i>
                         <input type="date" id="reportFecha" value="${hoy}"
-                            class="bg-transparent text-white text-sm outline-none" />
+                            class="hidden bg-transparent text-white text-sm outline-none" />
                         <input type="text" id="reportRango" placeholder="Rango"
-                            class="hidden bg-transparent text-white text-sm outline-none min-w-[190px]" />
+                            class="bg-transparent text-white text-sm outline-none min-w-[180px]" />
                     </div>
                 </div>
 
                 <!-- Sucursal -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Sucursal</label>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Sucursal</label>
                     <select id="reportSucursal"
-                        class="bg-[#1F2A37] border border-gray-700 text-white rounded-lg px-3 py-2 text-sm min-w-[200px]">
+                        class="bg-[#111827] border border-gray-700 text-white rounded-lg px-3 h-[42px] text-sm min-w-[220px]">
                         ${sucursalOptions}
                     </select>
                 </div>
 
                 <!-- Tipo de reporte -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1">Tipo de Reporte</label>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Tipo de Reporte</label>
                     <select id="reportType"
-                        class="bg-[#1F2A37] border border-gray-700 text-white rounded-lg px-3 py-2 text-sm min-w-[180px]">
+                        class="bg-[#111827] border border-gray-700 text-white rounded-lg px-3 h-[42px] text-sm min-w-[180px]">
+                        <option value="cierre">Corte Z</option>
                         <option value="turno">Turno</option>
-                        <option value="cierre">Cierre del Día</option>
                     </select>
                 </div>
 
                 <div class="flex-1"></div>
 
                 <button id="btnPrintReport"
-                    class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-lg flex items-center gap-2">
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 h-[42px] rounded-lg flex items-center gap-2">
                     <i class="icon-print"></i> Imprimir
                 </button>
             </div>
@@ -123,27 +126,30 @@ class OrderReports extends Templates {
         }, () => this.loadList());
     }
 
-    // === Cuerpo: lista (izquierda) + vista previa (derecha) ===
+    // === Cuerpo: lista (izq) + preview (der) ===
     renderBody() {
         $(`#container${this.PROJECT_NAME}`).html(`
-            <div class="flex gap-4 h-full">
-                <!-- Panel izquierdo: lista -->
-                <div class="w-[320px] flex-shrink-0 bg-[#1F2A37] border border-gray-700 rounded-xl flex flex-col overflow-hidden">
+            <div class="flex gap-4" style="height: calc(100vh - 190px)">
+                <!-- Panel izquierdo -->
+                <div class="w-[340px] flex-shrink-0 bg-[#1F2A37] border border-gray-700 rounded-xl flex flex-col overflow-hidden">
                     <div class="p-3 border-b border-gray-700">
-                        <div class="flex items-center justify-between mb-2">
-                            <span id="reportListTitle" class="text-sm font-bold text-white">Turnos</span>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="icon-doc-text text-blue-400"></i>
+                            <span id="reportListTitle" class="text-sm font-bold text-white flex-1">Cortes Z</span>
                             <span id="reportListCount" class="text-[11px] text-gray-400">0 resultados</span>
                         </div>
                         <div class="relative">
-                            <i class="icon-search absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+                            <i class="icon-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
                             <input type="text" id="reportSearch" placeholder="Buscar por folio o fecha..."
                                 class="w-full bg-[#111827] border border-gray-700 text-white text-sm rounded-lg pl-8 pr-3 py-2 outline-none" />
                         </div>
                     </div>
-                    <div id="reportList" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+                    <!-- Encabezado de columnas -->
+                    <div id="reportListHead" class="grid grid-cols-[1fr_50px_54px_86px] gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
+                    <div id="reportList" class="flex-1 overflow-y-auto"></div>
                 </div>
 
-                <!-- Panel derecho: preview -->
+                <!-- Panel derecho -->
                 <div class="flex-1 bg-[#1F2A37] border border-gray-700 rounded-xl flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between p-3 border-b border-gray-700">
                         <span class="text-sm text-gray-400">Vista previa de impresión</span>
@@ -157,7 +163,7 @@ class OrderReports extends Templates {
             </div>
         `);
 
-        this.emptyPreview("Selecciona un turno de la lista para ver su reporte.");
+        this.emptyPreview("Selecciona un elemento de la lista para ver su reporte.");
     }
 
     bindEvents() {
@@ -172,14 +178,13 @@ class OrderReports extends Templates {
         $("#reportSucursal").off("change").on("change", () => this.loadList());
         $("#reportType").off("change").on("change", (e) => {
             this.reportType = e.target.value;
-            $("#reportListTitle").text(this.reportType === "turno" ? "Turnos" : "Cierres del Día");
+            $("#reportListTitle").text(this.reportType === "turno" ? "Turnos" : "Cortes Z");
             this.loadList();
         });
         $("#reportSearch").off("input").on("input", () => this.renderList());
         $("#btnPrintReport").off("click").on("click", () => this.printReport());
     }
 
-    // Fechas del periodo seleccionado (array de YYYY-MM-DD).
     getReportDates() {
         if (this.periodMode === "fecha") {
             const d = $("#reportFecha").val();
@@ -189,7 +194,6 @@ class OrderReports extends Templates {
         if (!rp) return [];
         const dates = [];
         const cursor = rp.startDate.clone();
-        // Tope de seguridad: 92 dias, para no disparar cientos de peticiones.
         while (cursor.isSameOrBefore(rp.endDate, "day") && dates.length < 92) {
             dates.push(cursor.format("YYYY-MM-DD"));
             cursor.add(1, "day");
@@ -201,10 +205,25 @@ class OrderReports extends Templates {
         return $("#reportSucursal").val() || null;
     }
 
-    // === Carga de la lista segun tipo de reporte ===
+    getSubsidiaryName() {
+        return $("#reportSucursal option:selected").text() || "";
+    }
+
+    // Columnas del encabezado segun tipo de reporte.
+    columnsFor() {
+        return this.reportType === "turno"
+            ? ["FOLIO", "TURNO", "PEDIDOS", "TOTAL"]
+            : ["FOLIO", "TURNOS", "PEDIDOS", "TOTAL CAJA"];
+    }
+
+    // === Carga de la lista ===
     async loadList() {
         const dates = this.getReportDates();
         const subsidiaries_id = this.getSubsidiaryId();
+
+        // Encabezado de columnas.
+        $("#reportListHead").html(this.columnsFor().map((c, i) =>
+            `<span class="${i === 0 ? "" : "text-right"}">${c}</span>`).join(""));
 
         $("#reportList").html(`<div class="text-center text-gray-500 py-8 text-sm">Cargando...</div>`);
         this.selectedKey = null;
@@ -227,11 +246,12 @@ class OrderReports extends Templates {
         } else {
             this.emptyPreview(this.reportType === "turno"
                 ? "No hay turnos en este período."
-                : "No hay cierres de día en este período.");
+                : "No hay cortes Z en este período.");
         }
     }
 
     async fetchTurnos(dates, subsidiaries_id) {
+        const subName = this.getSubsidiaryName();
         const results = await Promise.all(dates.map(date =>
             useFetch({ url: api, data: { opc: "getShiftsByDate", date, subsidiaries_id } })
                 .then(r => ({ date, shifts: r.shifts || [] }))
@@ -239,23 +259,32 @@ class OrderReports extends Templates {
 
         const items = [];
         results.forEach(({ date, shifts }) => {
-            shifts.forEach(s => items.push({
-                key: `turno:${s.id}`,
-                type: "turno",
-                id: s.id,
-                date,
-                title: moment(s.opened_at).format("hh:mm A"),
-                subtitle: moment(s.opened_at).locale("es").format("DD [de] MMMM YYYY"),
-                status: s.status,
-                raw: s,
-            }));
+            shifts.forEach(s => {
+                const caja = parseFloat(s.total_sales || 0)
+                    || (parseFloat(s.cash || 0) + parseFloat(s.card || 0) + parseFloat(s.transfer || 0));
+                items.push({
+                    key: `turno:${s.id}`,
+                    type: "turno",
+                    id: s.id,
+                    date,
+                    folio: "TN-" + String(s.id).padStart(5, "0"),
+                    hora: moment(s.opened_at).format("hh:mm A"),
+                    sub1: s.employee_name || "Sin vendedor",
+                    sub2: moment(s.opened_at).locale("es").format("DD/MM/YYYY") + " · " + subName,
+                    col2: moment(s.opened_at).format("HH:mm"),  // TURNO (hora inicio)
+                    col3: parseInt(s.total_orders || 0),        // PEDIDOS
+                    col4: caja,                                 // TOTAL
+                    status: s.status,
+                    raw: s,
+                });
+            });
         });
-        // Mas reciente primero.
         items.sort((a, b) => moment(b.raw.opened_at) - moment(a.raw.opened_at));
         return items;
     }
 
     async fetchCierres(dates, subsidiaries_id) {
+        const subName = this.getSubsidiaryName();
         const results = await Promise.all(dates.map(date =>
             useFetch({ url: apiCierre, data: { opc: "getCierre", date, subsidiaries_id } })
                 .then(res => ({ date, res }))
@@ -264,15 +293,25 @@ class OrderReports extends Templates {
         const items = [];
         results.forEach(({ date, res }) => {
             if (res.status === 200 && res.closure) {
-                this._cierreCache[date] = res;
                 const c = res.closure;
+                const rShifts = (res.report && res.report.shifts) || res.shifts || [];
+                const totalCaja = rShifts.reduce((t, s) =>
+                    t + parseFloat(s.efectivo || 0) + parseFloat(s.tarjeta || 0) + parseFloat(s.transferencia || 0), 0);
+                const pedidos = (res.orders || []).length;
+                const horaCierre = c.created_at ? moment(c.created_at).format("hh:mm A") : "";
+
                 items.push({
                     key: `cierre:${date}`,
                     type: "cierre",
                     id: c.id,
                     date,
-                    title: c.id ? "CZ-" + String(c.id).padStart(5, "0") : "Cierre",
-                    subtitle: moment(date).locale("es").format("ddd DD MMM"),
+                    folio: "#" + String(c.id || 0).padStart(3, "0"),
+                    hora: horaCierre,
+                    sub1: "",
+                    sub2: moment(date).format("DD/MM/YYYY") + " · " + subName,
+                    col2: rShifts.length,   // TURNOS
+                    col3: pedidos,          // PEDIDOS
+                    col4: totalCaja,        // TOTAL CAJA
                     status: "closed",
                     raw: res,
                 });
@@ -282,11 +321,11 @@ class OrderReports extends Templates {
         return items;
     }
 
-    // === Render de la lista (aplica filtro de busqueda) ===
+    // === Render de la lista columnar ===
     renderList() {
         const q = ($("#reportSearch").val() || "").toLowerCase().trim();
         const filtered = q
-            ? this.items.filter(i => (i.title + " " + i.subtitle).toLowerCase().includes(q))
+            ? this.items.filter(i => (i.folio + " " + i.sub1 + " " + i.sub2).toLowerCase().includes(q))
             : this.items;
 
         $("#reportListCount").text(`${filtered.length} resultado${filtered.length === 1 ? "" : "s"}`);
@@ -296,21 +335,38 @@ class OrderReports extends Templates {
             return;
         }
 
-        const statusDot = (st) => st === "open"
-            ? `<span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></span>`
-            : `<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>`;
+        const dot = (st) => st === "open"
+            ? `<span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse flex-shrink-0"></span>`
+            : `<span class="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>`;
+
+        const unitFor = this.reportType === "turno" ? "" : "TURN";
 
         const html = filtered.map(i => {
             const active = i.key === this.selectedKey;
             return `
                 <button type="button"
-                    class="w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${active ? "bg-blue-600/20 border-blue-500" : "bg-transparent border-transparent hover:bg-[#111827]"}"
+                    class="w-full text-left grid grid-cols-[1fr_50px_54px_86px] gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
                     onclick="reports.selectItem('${i.key}')">
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-bold text-white">${i.title}</span>
-                        ${statusDot(i.status)}
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            ${dot(i.status)}
+                            <span class="text-sm font-bold text-white">${i.folio}</span>
+                            <span class="text-[10px] text-gray-500">${i.hora}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-400 truncate mt-0.5">${i.sub1 ? i.sub1 + " · " : ""}${i.sub2}</div>
                     </div>
-                    <div class="text-[11px] text-gray-400 mt-0.5">${i.subtitle}</div>
+                    <div class="text-right">
+                        <div class="text-sm font-semibold text-white leading-none">${i.col2}</div>
+                        <div class="text-[9px] text-gray-500 uppercase">${unitFor}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-semibold text-white leading-none">${i.col3}</div>
+                        <div class="text-[9px] text-gray-500 uppercase">PED</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-semibold ${i.col4 ? "text-green-400" : "text-gray-500"} leading-none">${formatPrice(i.col4)}</div>
+                        <div class="text-[9px] text-gray-500 uppercase">MXN</div>
+                    </div>
                 </button>
             `;
         }).join("");
@@ -318,7 +374,7 @@ class OrderReports extends Templates {
         $("#reportList").html(html);
     }
 
-    // === Seleccion de un item -> render del reporte en #reportPreview ===
+    // === Seleccion -> render del reporte ===
     selectItem(key) {
         this.selectedKey = key;
         this.renderList();
@@ -326,18 +382,13 @@ class OrderReports extends Templates {
         const item = this.items.find(i => i.key === key);
         if (!item) return;
 
-        if (item.type === "turno") {
-            this.renderTurnoReport(item);
-        } else {
-            this.renderCierreReport(item);
-        }
+        if (item.type === "turno") this.renderTurnoReport(item);
+        else this.renderCierreReport(item);
     }
 
     async renderTurnoReport(item) {
-        // El modo Resumido/Detallado del ticket lo lee app.reportMode; lo sincronizamos.
         $("#reportModeBar").show();
-        app.reportMode = this.reportMode;
-
+        app.reportMode = this.reportMode; // ticketShiftClose lee app.reportMode
         this.loadingPreview("Cargando ticket del turno...");
 
         const metricsRes = await useFetch({ url: api, data: { opc: "getShiftMetrics", shift_id: item.id } });
@@ -354,7 +405,6 @@ class OrderReports extends Templates {
             crossPayments    = ordersRes.cross_payments || [];
         }
 
-        // Reutiliza el render del ticket de turno de app.js, apuntado a nuestro contenedor.
         app.ticketShiftClose({
             data: metricsRes.data,
             shift: metricsRes.shift,
@@ -369,9 +419,7 @@ class OrderReports extends Templates {
     }
 
     renderCierreReport(item) {
-        // El Corte Z siempre es completo; el modo Resumido/Detallado no aplica aqui.
-        $("#reportModeBar").hide();
-        // item.raw es la respuesta de getCierre ya cacheada.
+        $("#reportModeBar").hide(); // el Corte Z siempre es completo
         cierre.renderExecutiveSummary(item.raw, "reportPreview");
     }
 
@@ -380,14 +428,11 @@ class OrderReports extends Templates {
         $("#btnRepSummary").toggleClass("bg-purple-600 text-white", mode === "summary").toggleClass("text-gray-400 hover:text-gray-200", mode !== "summary");
         $("#btnRepDetailed").toggleClass("bg-purple-600 text-white", mode === "detailed").toggleClass("text-gray-400 hover:text-gray-200", mode !== "detailed");
 
-        // Solo re-renderiza si hay un turno seleccionado (el cierre no cambia con el modo).
         const item = this.items.find(i => i.key === this.selectedKey);
         if (item && item.type === "turno") this.renderTurnoReport(item);
     }
 
     printReport() {
-        // Ambos reportes montan su ticket con id #ticketDailyClose; printDaily lo detecta
-        // y aplica los estilos correctos (Corte Z hoja carta / ticket de turno hoja angosta).
         if (!document.getElementById("ticketDailyClose")) {
             alert({ icon: "warning", title: "Sin contenido", text: "Selecciona un reporte antes de imprimir.", btn1: true, btn1Text: "Aceptar" });
             return;
@@ -395,7 +440,6 @@ class OrderReports extends Templates {
         cierre.printDaily();
     }
 
-    // === Estados del preview ===
     emptyPreview(msg) {
         $("#reportPreview").html(`
             <div class="flex flex-col items-center justify-center h-full text-gray-500 py-16">
