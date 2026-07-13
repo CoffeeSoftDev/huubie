@@ -733,6 +733,11 @@ class Pos extends Templates {
         const opts = Object.assign({}, defaults, options);
         console.log(opts.data)
 
+        // Lineas "bloqueadas": en edicion de pedido, las lineas originales no se
+        // pueden reducir, incrementar ni eliminar (se ocultan sus controles).
+        const isLocked = (item) => opts.getMinQuantity ? opts.getMinQuantity(item.id) !== null : false;
+        const hasLockedLines = (opts.data || []).some(isLocked);
+
         const isDark = opts.theme === "dark";
         const textColor = isDark ? "text-white" : "text-gray-800";
         const subColor = isDark ? "text-blue-300" : "text-blue-600";
@@ -754,7 +759,7 @@ class Pos extends Templates {
                     html: '<i class="icon-user-1"></i> ' + opts.customName || "Cliente no definido"
                 },)
             ),
-            $("<button>", {
+            hasLockedLines ? null : $("<button>", {
                 id: "clearOrder",
                 class: "text-red-400 border border-[#C53030] px-2 py-1 rounded hover:bg-red-700",
                 html: "🗑 Limpiar"
@@ -873,52 +878,59 @@ class Pos extends Templates {
             const actions = $("<div>", { class: "flex flex-col items-end gap-2" });
             const quantityRow = $("<div>", { class: "flex items-center gap-2" });
 
+            const locked = isLocked(item);
+
             const quantityInput = $("<input>", {
                 type: "number",
-                class: `${textColor} bg-transparent border border-gray-600 rounded text-center w-16 focus:outline-none focus:border-blue-500`,
+                class: `${textColor} bg-transparent border border-gray-600 rounded text-center w-16 focus:outline-none focus:border-blue-500${locked ? ' opacity-60 cursor-not-allowed' : ''}`,
                 value: item.quantity,
-                min: 1
+                min: 1,
+                readonly: locked
             });
 
             const self = this;
 
-            quantityInput.on("focus", function() {
-                $(this).select();
-            });
+            if (!locked) {
 
-            quantityInput.on("keyup", function(e) {
-                const $input = $(this);
-                const val = $input.val().replace(/[^0-9]/g, '');
-                
-                if ($input.val() !== val) {
-                    $input.val(val);
-                }
-                
-                let newQty = parseInt(val, 10);
-                if (!isNaN(newQty) && newQty >= 1) {
-                    item.quantity = newQty;
-                    
-                    const lineTotal = (item.price || 0) * newQty;
-                    $input.closest('.shadow-sm').find('p').last().text(`Total: ${formatPrice(lineTotal)}`);
-                    
-                    let total = 0;
-                    data.forEach(i => total += (i.price || 0) * (i.quantity || 0));
-                    if (opts.totalSelector) $(opts.totalSelector).text(formatPrice(total));
-                }
-            });
-            
-            quantityInput.on("focusout", function() {
-                const $input = $(this);
-                let newQty = parseInt($input.val(), 10);
-                if (isNaN(newQty) || newQty < 1) {
-                    newQty = 1;
-                    $input.val(1);
-                    item.quantity = 1;
-                }
-                opts.onQuanty(item.id, 1, item.quantity);
-            });
+                quantityInput.on("focus", function() {
+                    $(this).select();
+                });
 
-            const buttons = [
+                quantityInput.on("keyup", function(e) {
+                    const $input = $(this);
+                    const val = $input.val().replace(/[^0-9]/g, '');
+
+                    if ($input.val() !== val) {
+                        $input.val(val);
+                    }
+
+                    let newQty = parseInt(val, 10);
+                    if (!isNaN(newQty) && newQty >= 1) {
+                        item.quantity = newQty;
+
+                        const lineTotal = (item.price || 0) * newQty;
+                        $input.closest('.shadow-sm').find('p').last().text(`Total: ${formatPrice(lineTotal)}`);
+
+                        let total = 0;
+                        data.forEach(i => total += (i.price || 0) * (i.quantity || 0));
+                        if (opts.totalSelector) $(opts.totalSelector).text(formatPrice(total));
+                    }
+                });
+
+                quantityInput.on("focusout", function() {
+                    const $input = $(this);
+                    let newQty = parseInt($input.val(), 10);
+                    if (isNaN(newQty) || newQty < 1) {
+                        newQty = 1;
+                        $input.val(1);
+                        item.quantity = 1;
+                    }
+                    opts.onQuanty(item.id, 1, item.quantity);
+                });
+            }
+
+            // Linea original en edicion: cantidad fija, solo input de lectura (sin −/+).
+            const buttons = locked ? [quantityInput] : [
                 $("<button>", {
                     class: "bg-gray-700 text-white rounded px-2",
                     html: "−",
@@ -956,18 +968,24 @@ class Pos extends Templates {
                             opts.onEdit(item.id);
                         }
                     }
-                }),
-                $("<button>", {
-                    class: "text-gray-400 hover:text-red-400",
-                    html: `<i class="icon-trash"></i>`,
-                    click: () => {
-                        data.splice(index, 1);
-                        opts.onRemove(item.id);
-                        opts.data = data;
-                        this.orderPanelComponent(opts);
-                    }
                 })
             );
+
+            // Las lineas originales del pedido no se eliminan en edicion.
+            if (!locked) {
+                buttons.push(
+                    $("<button>", {
+                        class: "text-gray-400 hover:text-red-400",
+                        html: `<i class="icon-trash"></i>`,
+                        click: () => {
+                            data.splice(index, 1);
+                            opts.onRemove(item.id);
+                            opts.data = data;
+                            this.orderPanelComponent(opts);
+                        }
+                    })
+                );
+            }
 
             quantityRow.append(...buttons);
 
@@ -1069,6 +1087,9 @@ class CatalogProduct extends Pos {
         this.name_client = '';
         this.discount  = '';
         this.layoutEdit = false;
+        // Snapshot de cantidades originales por linea (order_package.id -> quantity)
+        // al abrir la edicion de un pedido; en edicion no se permite bajar de ahi.
+        this.originalQuantities = null;
     }
 
     init() {
@@ -1193,6 +1214,14 @@ class CatalogProduct extends Pos {
         this.payments = pos.payments ?? [];
         this.total_paid = pos.total_paid ?? 0;
 
+        // Solo la primera carga en edicion: initPos vuelve a correr tras guardar el
+        // formulario y no debe pisar el snapshot con cantidades ya modificadas.
+        if (this.layoutEdit && !this.originalQuantities) {
+            this.originalQuantities = new Map(
+                (pos.list || []).map(i => [i.id, parseInt(i.quantity, 10)])
+            );
+        }
+
         this.createProductTabs({
             data: pos.modifier || [],
             onChange: (category) => {
@@ -1211,6 +1240,13 @@ class CatalogProduct extends Pos {
 
 
         this.showOrder(pos.list || [])
+    }
+
+    // Cantidad minima permitida para una linea en edicion (null = sin restriccion:
+    // linea agregada durante la edicion o modo creacion).
+    getMinQuantity(id) {
+        if (!this.layoutEdit || !this.originalQuantities) return null;
+        return this.originalQuantities.get(id) ?? null;
     }
 
     showOrder(list) {
@@ -1237,6 +1273,9 @@ class CatalogProduct extends Pos {
             onQuanty: (id, action, newQuantity) => {
                 this.quantityProduct(id, newQuantity);
             },
+            getMinQuantity: (id) => {
+                return this.getMinQuantity(id);
+            },
             onPrint: () => {
                 this.printOrder(idFolio);
             },
@@ -1246,6 +1285,8 @@ class CatalogProduct extends Pos {
             },
 
             onClear: () => {
+                // Un pedido existente no se vacia (el boton Limpiar va oculto en edicion).
+                if (this.layoutEdit && this.originalQuantities?.size) return;
                 this.confirmClearOrder(idFolio);
             },
 
