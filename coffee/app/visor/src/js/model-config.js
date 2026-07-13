@@ -65,9 +65,17 @@
         } catch (e) { return allValues(); }
     }
 
+    // Espeja la preferencia en SQLite (prefs-store.js). Si no está cargado, se opera
+    // solo con localStorage, como antes.
+    function persist(key, raw) {
+        if (global.CoffeePrefs) global.CoffeePrefs.push(key, raw);
+    }
+
     function setEnabled(values) {
         const clean = (values || []).filter(isCatalog);
-        try { localStorage.setItem(ENABLED_KEY, JSON.stringify(clean.length ? clean : _allValues)); } catch (e) {}
+        const raw   = JSON.stringify(clean.length ? clean : _allValues);
+        try { localStorage.setItem(ENABLED_KEY, raw); } catch (e) {}
+        persist(ENABLED_KEY, raw);
         broadcast();
     }
 
@@ -82,7 +90,10 @@
      * demás selectores enganchados (misma pestaña al instante; otras pestañas/vistas
      * al recargar vía localStorage). Así "la selección de modelo aplica para todos". */
     function getActive() { try { return localStorage.getItem(ACTIVE_KEY) || ''; } catch (e) { return ''; } }
-    function setActive(v) { try { localStorage.setItem(ACTIVE_KEY, v || ''); } catch (e) {} }
+    function setActive(v) {
+        try { localStorage.setItem(ACTIVE_KEY, v || ''); } catch (e) {}
+        persist(ACTIVE_KEY, v || '');
+    }
 
     function optionExists(el, v) {
         return Array.prototype.some.call(el.options, function (o) { return o.value === v; });
@@ -189,6 +200,12 @@
     global.addEventListener('storage', function (e) {
         if (e.key === ENABLED_KEY) broadcast();
         else if (e.key === ACTIVE_KEY) _bound.forEach(applySelectActive);
+    });
+    // La preferencia guardada en SQLite llegó y pisó a la local: re-aplicar lo del servidor.
+    global.addEventListener('coffeeia:prefs-synced', function (e) {
+        const keys = (e.detail && e.detail.keys) || [];
+        if (keys.indexOf(ENABLED_KEY) !== -1) broadcast();
+        if (keys.indexOf(ACTIVE_KEY)  !== -1) _bound.forEach(applySelectActive);
     });
     // Tras la carga completa re-aplica el modelo activo: gana la carrera contra la
     // restauración por-superficie que hace cada app en su init (DOM ready).

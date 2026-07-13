@@ -64,18 +64,20 @@ class OrderVisor extends Templates {
         this.createLayout({
             parent: "root",
             design: false,
+            // Cadena flex de altura: cada eslabon lleva flex-1 min-h-0 para que
+            // #container llene el viewport y el scroll quede DENTRO de los paneles.
             data: {
                 id: this.PROJECT_NAME,
-                class: 'flex mx-2',
+                class: 'flex mx-2 flex-1 min-h-0',
                 container: [
                     {
                         type: "div",
                         id: "singleLayout" + this.PROJECT_NAME,
-                        class: "flex flex-col col-12",
+                        class: "flex flex-col col-12 min-h-0",
                         children: [
                             { type: "div", class: 'w-full', id: 'header' + this.PROJECT_NAME },
                             { type: "div", class: 'w-full mb-4', id: 'filterBar' + this.PROJECT_NAME },
-                            { type: "div", class: 'w-full', id: 'container' + this.PROJECT_NAME }
+                            { type: "div", class: 'w-full flex-1 min-h-0', id: 'container' + this.PROJECT_NAME }
                         ]
                     }
                 ]
@@ -228,7 +230,7 @@ class OrderVisor extends Templates {
     // === Cuerpo: lista (izq) + preview (der) ===
     renderBody() {
         $(`#container${this.PROJECT_NAME}`).html(`
-            <div class="flex gap-4" style="height: calc(100vh - 190px)">
+            <div class="flex gap-4 h-full min-h-0">
                 <div style="width: ${OrderVisor.LIST_WIDTH}px" class="flex-shrink-0 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
                     <div class="p-3 border-b border-gray-700">
                         <div class="flex items-center gap-2 mb-2">
@@ -244,6 +246,7 @@ class OrderVisor extends Templates {
                     </div>
                     <div id="reportListHead" class="grid gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
                     <div id="reportList" class="flex-1 overflow-y-auto"></div>
+                    <div id="reportListFoot" class="flex items-center justify-between px-3 py-2.5 border-t border-gray-700 bg-[#161f2b]"></div>
                 </div>
 
                 <div class="flex-1 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
@@ -434,6 +437,15 @@ class OrderVisor extends Templates {
             : this.items;
 
         $("#reportListCount").text(`${filtered.length} resultado${filtered.length === 1 ? "" : "s"}`);
+
+        // Total general en caja de todo lo listado (se recalcula si el buscador filtra).
+        const grandTotal = filtered.reduce((t, it) => t + (parseFloat(it.col4) || 0), 0);
+        $("#reportListFoot").html(`
+            <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                Total en caja ${this.periodMode === "rango" ? "del período" : "del día"}
+            </span>
+            <span class="text-base font-bold text-green-400">${formatPrice(grandTotal)}</span>
+        `);
 
         if (!filtered.length) {
             $("#reportList").html(`<div class="text-center text-gray-500 py-8 text-sm">Sin resultados</div>`);

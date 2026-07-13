@@ -4,15 +4,18 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CoffeeIA — Chat unificado — CoffeeSoft</title>
+    <title>CoffeeIA — Chat</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
+    <!-- visor.css es obligatorio: de aqui salen .ia-msg, el loader quantum con sus
+         puntos animados, el cerebro de "Razonando...", la card "Conjurando..." y
+         el cursor del typewriter. Son las MISMAS animaciones del Visor. -->
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
-    <link rel="stylesheet" href="src/css/chat.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/coffeeia.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -22,57 +25,57 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://unpkg.com/@viz-js/viz@3.2.4/lib/viz-standalone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script>
-        if (window.mermaid) {
-            mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
-        }
+        if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
     </script>
 </head>
 
-<body class="chat-body-root" data-theme="dark">
+<body class="cia-root" data-theme="dark">
 
-    <header class="chat-header">
-        <div class="chat-header-left">
-            <div class="chat-logo"><span class="cs-brand-mark cs-brand-lg"><?php include __DIR__ . '/brand-mark.php'; ?></span></div>
+    <header class="cia-header">
+        <div class="cia-header-left">
+            <!-- El grano CoffeeSoft va dentro de un badge propio: el SVG usa
+                 fill=currentColor, asi que necesita un contenedor que le fije
+                 color y tamano (en chat.php eso lo hacia .chat-logo, de chat.css,
+                 que esta pagina ya no carga: por eso el logo no se veia). -->
+            <div class="cia-logo">
+                <span class="cs-brand-mark cs-brand-lg"><?php include __DIR__ . '/brand-mark.php'; ?></span>
+            </div>
             <div class="flex flex-col leading-tight">
-                <span class="chat-title">CoffeeIA</span>
-                <span class="chat-subtitle">Chat unificado — lo mejor del Visor y el Lab</span>
+                <span class="cia-title">CoffeeIA</span>
+                <span class="cia-subtitle">Chat de agentes · lienzo · datos en vivo</span>
             </div>
         </div>
 
-        <button id="chatHeaderToggle" class="chat-header-toggle" title="Ajustes" aria-expanded="false">
+        <button id="ciaHeaderToggle" class="cia-header-toggle" title="Ajustes">
             <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
         </button>
 
-        <div class="chat-header-right" id="chatHeaderRight">
-            <div class="chat-select-wrap" title="Agente activo">
+        <div class="cia-header-right" id="ciaHeaderRight">
+            <div class="cia-select-wrap" title="Agente activo">
                 <i data-lucide="bot" class="w-4 h-4"></i>
-                <select id="chatAgentSelect" class="chat-select"></select>
+                <select id="ciaAgentSelect" class="cia-select"></select>
             </div>
-
-            <button id="chatNewBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Nueva conversación">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                <span>Nueva</span>
+            <button id="ciaNewBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Nueva conversación">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Nueva</span>
             </button>
-
-            <button id="chatThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
+            <button id="ciaThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="sun" class="w-4 h-4"></i>
             </button>
         </div>
     </header>
 
-    <!-- Conmutador Conversaciones/Chat (solo movil): ambos paneles no caben apilados. -->
-    <div class="chat-mobile-switch" role="tablist" aria-label="Vista">
-        <button class="chat-mswitch" data-mview="list" role="tab">
+    <!-- Conmutador Conversaciones/Chat (solo movil): los dos paneles no caben apilados. -->
+    <div class="cia-mobile-switch" role="tablist" aria-label="Vista">
+        <button class="cia-mswitch" data-mview="list" role="tab">
             <i data-lucide="messages-square" class="w-4 h-4"></i> Conversaciones
         </button>
-        <button class="chat-mswitch active" data-mview="chat" role="tab">
+        <button class="cia-mswitch active" data-mview="chat" role="tab">
             <i data-lucide="message-circle" class="w-4 h-4"></i> Chat
         </button>
     </div>
 
-    <div class="chat-workspace" data-mview="chat">
+    <div class="cia-workspace" data-mview="chat">
 
         <nav class="app-rail" aria-label="Modulos">
             <div class="app-rail-nav">
@@ -84,19 +87,15 @@
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="studio.php" class="app-rail-item" title="Coffee Studio - Templates multi-archivo">
+                <a href="studio.php" class="app-rail-item" title="Coffee Studio">
                     <i data-lucide="clapperboard"></i>
                     <span class="app-rail-label">Studio</span>
                 </a>
-<a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
+                <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
-                <a href="chat.php" class="app-rail-item" title="Chat con Agentes">
-                    <i data-lucide="message-circle"></i>
-                    <span class="app-rail-label">Chat</span>
-                </a>
-                <a href="coffeeia.php" class="app-rail-item active" title="CoffeeIA — Chat unificado">
+                <a href="coffeeia.php" class="app-rail-item active" title="CoffeeIA — Chat">
                     <i data-lucide="sparkles"></i>
                     <span class="app-rail-label">CoffeeIA</span>
                 </a>
@@ -105,174 +104,207 @@
                     <span class="app-rail-label">Admin</span>
                 </a>
             </div>
-
             <button id="accountBtn" class="app-rail-account" type="button" title="Cuenta y configuración">
                 <span class="account-avatar">CD</span>
             </button>
         </nav>
 
-        <aside class="chat-sidebar">
-            <div class="chat-sidebar-head">
-                <input id="chatSearchInput" type="text" class="cs-input" placeholder="Buscar chats…">
-                <button id="chatNewSidebarBtn" class="cs-btn cs-btn-outline cs-btn-sm" title="Nueva conversación">
+        <aside class="cia-sidebar">
+            <div class="cia-sidebar-head">
+                <input id="ciaSearchInput" type="text" class="cs-input" placeholder="Buscar conversaciones…">
+                <button id="ciaNewSidebarBtn" class="cs-btn cs-btn-outline cs-btn-sm" title="Nueva conversación">
                     <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
-            <div class="chat-sidebar-body cs-scroll">
-                <div class="chat-sidebar-group" data-group="today" style="display:none;">
-                    <h4>Hoy</h4>
-                    <ul id="chatListToday"></ul>
+            <div class="cia-sidebar-body cs-scroll">
+                <div class="cia-sidebar-group" data-group="today" style="display:none;">
+                    <h4>Hoy</h4><ul></ul>
                 </div>
-                <div class="chat-sidebar-group" data-group="yesterday" style="display:none;">
-                    <h4>Ayer</h4>
-                    <ul id="chatListYesterday"></ul>
+                <div class="cia-sidebar-group" data-group="yesterday" style="display:none;">
+                    <h4>Ayer</h4><ul></ul>
                 </div>
-                <div class="chat-sidebar-group" data-group="week" style="display:none;">
-                    <h4>Esta semana</h4>
-                    <ul id="chatListWeek"></ul>
+                <div class="cia-sidebar-group" data-group="week" style="display:none;">
+                    <h4>Esta semana</h4><ul></ul>
                 </div>
-                <div class="chat-sidebar-group" data-group="older" style="display:none;">
-                    <h4>Más antiguos</h4>
-                    <ul id="chatListOlder"></ul>
+                <div class="cia-sidebar-group" data-group="older" style="display:none;">
+                    <h4>Más antiguos</h4><ul></ul>
                 </div>
-                <div id="chatSidebarEmpty" class="chat-sidebar-empty">
-                    <i data-lucide="message-square-dashed" class="w-8 h-8 inline-block" style="color:var(--vsr-text-mute2);margin-bottom:8px;"></i>
-                    <div>Aún no hay conversaciones guardadas.</div>
-                    <div style="margin-top:4px;">Escribe y la conversación se guarda sola.</div>
+                <div id="ciaSidebarEmpty" class="cia-sidebar-empty">
+                    <i data-lucide="message-square-dashed" class="w-8 h-8"></i>
+                    <div>Aún no hay conversaciones.</div>
+                    <div class="cia-sidebar-empty-hint">Escribe y se guarda sola.</div>
                 </div>
             </div>
         </aside>
 
-        <main class="chat-main">
-            <header class="chat-pane-head">
-                <div class="chat-pane-title">
+        <main class="cia-main">
+            <header class="cia-pane-head">
+                <div class="cia-pane-title">
                     <i data-lucide="message-circle" class="w-4 h-4"></i>
-                    <span id="chatCurrentTitle">Nueva conversación</span>
+                    <span id="ciaCurrentTitle">Nueva conversación</span>
                 </div>
-                <div class="chat-pane-actions">
-                    <button id="chatRenameBtn" class="chat-iconbtn" title="Renombrar">
+                <div class="cia-pane-actions">
+                    <button id="ciaRenameBtn" class="cia-iconbtn" title="Renombrar">
                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="chatSaveBtn" class="chat-iconbtn" title="Guardar ahora (también se guarda sola al conversar)">
+                    <button id="ciaSaveBtn" class="cia-iconbtn" title="Guardar ahora (también se guarda sola)">
                         <i data-lucide="save" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="chatDownloadBtn" class="chat-iconbtn" title="Descargar .md">
+                    <button id="ciaDownloadBtn" class="cia-iconbtn" title="Descargar .md">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="chatDeleteBtn" class="chat-iconbtn is-danger" title="Eliminar">
+                    <button id="ciaDeleteBtn" class="cia-iconbtn is-danger" title="Eliminar">
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
             </header>
 
-            <div id="chatBody" class="chat-body"></div>
+            <!-- .ia-drawer-body: MISMO contenedor de mensajes que el Visor (flex column,
+                 gap 22px, scroll propio). Dentro van .ia-msg / .ia-typing-msg. -->
+            <div id="ciaBody" class="ia-drawer-body cia-body"></div>
 
-            <div class="ia-drawer-input chat-input">
-                <!-- Bajar al final: aparece al subir a leer mientras la IA escribe. -->
-                <button id="chatScrollDownBtn" class="ia-scrolldown-btn" title="Bajar al final" style="display:none;">
+            <div class="ia-drawer-input cia-composer">
+                <button id="ciaScrollDownBtn" class="ia-scrolldown-btn" title="Bajar al final" style="display:none;">
                     <i data-lucide="arrow-down" class="w-4 h-4"></i>
                 </button>
-                <!-- Chips de conexión pegajosa (base y carpeta), gemelos de Lab/Visor. -->
-                <div id="chatDbChip" class="ia-db-chip" style="display:none;"></div>
-                <div id="chatFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
-                <div id="chatImageStrip" class="ia-image-strip" style="display:none;"></div>
-                <div class="ia-input-wrap">
-                    <textarea id="chatInput" class="ia-input-textarea" rows="1"
-                        placeholder="Pregunta lo que quieras… (Enter para enviar, Shift+Enter para nueva línea)"></textarea>
-                    <button id="chatSendBtn" class="ia-send-btn" title="Enviar (Enter)">
+
+                <!-- Chips de conexion pegajosa (base y carpeta), gemelos de Visor/Lab. -->
+                <div id="ciaDbChip" class="ia-db-chip" style="display:none;"></div>
+                <div id="ciaFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
+                <div id="ciaImageStrip" class="ia-image-strip" style="display:none;"></div>
+
+                <!-- Menu de menciones "@": elegir base de datos o carpeta y conectarla.
+                     Se posiciona fixed sobre el input desde el JS. -->
+                <div id="ciaMentionMenu" class="cia-mention-menu" style="display:none;"></div>
+
+                <input id="ciaFileInput" type="file" multiple hidden>
+
+                <!-- La CAJA del chat: el texto arriba y, dentro de la misma caja, la barra
+                     de controles abajo (+ · modelo · enviar), como en Claude. -->
+                <div class="ia-input-wrap cia-inputbox">
+                    <textarea id="ciaInput" class="ia-input-textarea" rows="1"
+                        placeholder="Pregunta lo que quieras…  (@ para conectar una base o carpeta · Enter envía)"></textarea>
+
+                    <div class="cia-inputbar">
+                    <!-- Todas las herramientas viven detras de un unico "+" (patron Claude):
+                         adjuntar, lienzo, graficas y tools de datos. El menu se posiciona
+                         fixed desde el JS para que la caja no lo recorte. -->
+                    <button id="ciaPlusBtn" class="cia-plus-btn" title="Herramientas y adjuntos" aria-haspopup="true" aria-expanded="false">
+                        <i data-lucide="plus"></i>
+                    </button>
+
+                    <div id="ciaPlusMenu" class="cia-menu" style="display:none;" role="menu">
+                        <button type="button" class="cia-menu-item" data-act="attach" role="menuitem">
+                            <i data-lucide="paperclip"></i>
+                            <span class="cia-menu-label">Añadir archivos o fotos</span>
+                            <span class="cia-menu-kbd">Ctrl+U</span>
+                        </button>
+
+                        <div class="cia-menu-sep"></div>
+
+                        <button type="button" class="cia-menu-item" data-act="canvas" role="menuitemcheckbox">
+                            <i data-lucide="layout-template"></i>
+                            <span class="cia-menu-label">
+                                Modo lienzo
+                                <span class="cia-menu-desc">La IA genera componentes HTML</span>
+                            </span>
+                            <i data-lucide="check" class="cia-menu-check"></i>
+                        </button>
+
+                        <div class="cia-menu-item has-sub" data-sub="graph" role="menuitem" tabindex="0">
+                            <i data-lucide="feather"></i>
+                            <span class="cia-menu-label">
+                                Gráficas
+                                <span class="cia-menu-desc" id="ciaGraphDesc">Mermaid · draw.io · Excalidraw</span>
+                            </span>
+                            <i data-lucide="chevron-right" class="cia-menu-chev"></i>
+
+                            <div class="cia-submenu" id="ciaGraphSub">
+                                <button type="button" class="cia-menu-item" data-graph="mermaid" role="menuitemcheckbox">
+                                    <i data-lucide="git-graph"></i>
+                                    <span class="cia-menu-label">
+                                        Mermaid
+                                        <span class="cia-menu-desc">Diagrama desde texto</span>
+                                    </span>
+                                    <i data-lucide="check" class="cia-menu-check"></i>
+                                </button>
+                                <button type="button" class="cia-menu-item" data-graph="drawio" role="menuitemcheckbox">
+                                    <i data-lucide="pen-tool"></i>
+                                    <span class="cia-menu-label">
+                                        draw.io
+                                        <span class="cia-menu-desc">Lienzo de diagramas</span>
+                                    </span>
+                                    <i data-lucide="check" class="cia-menu-check"></i>
+                                </button>
+                                <button type="button" class="cia-menu-item" data-graph="excalidraw" role="menuitemcheckbox">
+                                    <i data-lucide="pencil-ruler"></i>
+                                    <span class="cia-menu-label">
+                                        Excalidraw
+                                        <span class="cia-menu-desc">Boceto a mano alzada</span>
+                                    </span>
+                                    <i data-lucide="check" class="cia-menu-check"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cia-menu-sep"></div>
+
+                        <button type="button" class="cia-menu-item" data-act="db" role="menuitemcheckbox">
+                            <i data-lucide="database"></i>
+                            <span class="cia-menu-label">
+                                Base de datos
+                                <span class="cia-menu-desc">Consulta datos reales (@ para elegirla)</span>
+                            </span>
+                            <i data-lucide="check" class="cia-menu-check"></i>
+                        </button>
+                        <button type="button" class="cia-menu-item" data-act="fs" role="menuitemcheckbox">
+                            <i data-lucide="folder-search"></i>
+                            <span class="cia-menu-label">
+                                Archivos
+                                <span class="cia-menu-desc">Lee una carpeta local (@ para elegirla)</span>
+                            </span>
+                            <i data-lucide="check" class="cia-menu-check"></i>
+                        </button>
+                    </div>
+
+                    <span id="ciaContextInfo" class="cia-context-info"></span>
+                    <span class="cia-spacer"></span>
+                    <span id="ciaStatusInfo" class="cia-status">Listo</span>
+                    <select id="ciaModelSelect" class="ia-model-pill" title="Modelo activo"></select>
+
+                    <!-- Enviar: ya no flota sobre el textarea, vive en la barra. -->
+                    <button id="ciaSendBtn" class="ia-send-btn" title="Enviar (Enter)">
                         <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                     </button>
-                </div>
-                <input id="chatFileInput" type="file" multiple hidden>
-                <div class="ia-input-hint chat-input-hint">
-                    <button id="chatAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (también Ctrl+V)">
-                        <i data-lucide="paperclip" class="w-3 h-3"></i>
-                    </button>
-                    <button id="chatCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo (la IA genera componentes HTML renderizables)">
-                        <i data-lucide="layout-template" class="w-3 h-3"></i>
-                    </button>
-                    <div class="ia-graph-wrap" style="position:relative;">
-                        <button id="chatGraphBtn" class="ia-attach-btn" title="Lienzos de gráficas (Mermaid / draw.io / Excalidraw)">
-                            <i data-lucide="feather" class="w-3 h-3"></i>
-                        </button>
-                        <div id="chatGraphMenu" class="graph-menu graph-menu-up" style="display:none;">
-                            <button type="button" class="graph-menu-item" data-graph="mermaid">
-                                <i data-lucide="git-graph" class="w-4 h-4"></i>
-                                <span class="graph-menu-info">
-                                    <span class="graph-menu-name">Mermaid</span>
-                                    <span class="graph-menu-desc">Diagrama desde texto</span>
-                                </span>
-                            </button>
-                            <button type="button" class="graph-menu-item" data-graph="drawio">
-                                <i data-lucide="pen-tool" class="w-4 h-4"></i>
-                                <span class="graph-menu-info">
-                                    <span class="graph-menu-name">draw.io</span>
-                                    <span class="graph-menu-desc">Lienzo de diagramas</span>
-                                </span>
-                            </button>
-                            <button type="button" class="graph-menu-item" data-graph="excalidraw">
-                                <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
-                                <span class="graph-menu-info">
-                                    <span class="graph-menu-name">Excalidraw</span>
-                                    <span class="graph-menu-desc">Boceto a mano alzada</span>
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    <!-- Tools del agente (BD y archivos), mismo patrón que Lab. -->
-                    <div class="ia-tools-wrap" style="position:relative;">
-                        <button id="chatToolsBtn" class="ia-attach-btn" title="Tools del agente: base de datos y archivos">
-                            <i data-lucide="wrench" class="w-3 h-3"></i>
-                        </button>
-                        <div id="chatToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
-                            <button type="button" class="graph-menu-item" data-cht="db" title="Tools de base de datos (run_select y conexión automática al nombrar una base)">
-                                <i data-lucide="database" class="w-4 h-4"></i>
-                                <span class="graph-menu-info">
-                                    <span class="graph-menu-name">Base de datos</span>
-                                    <span class="graph-menu-desc">run_select al nombrar una base</span>
-                                </span>
-                            </button>
-                            <button type="button" class="graph-menu-item" data-cht="fs" title="Tools de archivos (list_dir/read_file/grep_files y conexión automática al nombrar una carpeta)">
-                                <i data-lucide="folder-search" class="w-4 h-4"></i>
-                                <span class="graph-menu-info">
-                                    <span class="graph-menu-name">Archivos</span>
-                                    <span class="graph-menu-desc">Lee una carpeta local (solo lectura)</span>
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    <span id="chatContextInfo" class="chat-context-info"></span>
-                    <span class="chat-spacer"></span>
-                    <span id="chatStatusInfo" class="chat-status">Listo</span>
-                    <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo"></select>
-                </div>
+                    </div><!-- /.cia-inputbar -->
+                </div><!-- /.cia-inputbox -->
             </div>
         </main>
     </div>
 
-    <div id="chatRenameModal" class="pg-modal hidden" aria-hidden="true">
-        <div id="chatRenameBackdrop" class="pg-modal-backdrop"></div>
-        <div class="pg-modal-dialog chat-modal-dialog" role="dialog">
+    <div id="ciaRenameModal" class="pg-modal hidden" aria-hidden="true">
+        <div id="ciaRenameBackdrop" class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog cia-modal-dialog" role="dialog">
             <header class="pg-modal-head">
                 <div class="flex items-center gap-2">
                     <i data-lucide="edit-3" class="w-4 h-4"></i>
                     <h3>Renombrar conversación</h3>
                 </div>
-                <button id="chatRenameCancel" class="chat-iconbtn" title="Cerrar">
+                <button id="ciaRenameCancel" class="cia-iconbtn" title="Cerrar">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </header>
-            <div class="pg-modal-body chat-modal-body">
-                <div class="chat-modal-field">
-                    <label for="chatRenameInput">Título</label>
-                    <input id="chatRenameInput" type="text" class="chat-modal-input" placeholder="Ej. Consulta sobre mermas">
+            <div class="pg-modal-body cia-modal-body">
+                <div class="cia-modal-field">
+                    <label for="ciaRenameInput">Título</label>
+                    <input id="ciaRenameInput" type="text" class="cia-modal-input" placeholder="Ej. Consulta sobre mermas">
                 </div>
             </div>
-            <footer class="pg-modal-foot chat-modal-foot">
-                <span class="pg-hint">El cambio se aplica al guardar.</span>
+            <footer class="pg-modal-foot cia-modal-foot">
+                <span class="pg-hint">El cambio se guarda solo.</span>
                 <div class="flex gap-2">
-                    <button id="chatRenameCancel2" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
-                    <button id="chatRenameSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                    <button id="ciaRenameCancel2" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="ciaRenameSave" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
                         <i data-lucide="check" class="w-3.5 h-3.5"></i> Guardar título
                     </button>
                 </div>
@@ -280,26 +312,26 @@
         </div>
     </div>
 
-    <div id="chatDeleteModal" class="pg-modal hidden" aria-hidden="true">
-        <div id="chatDeleteBackdrop" class="pg-modal-backdrop"></div>
-        <div class="pg-modal-dialog chat-modal-dialog" role="dialog">
+    <div id="ciaDeleteModal" class="pg-modal hidden" aria-hidden="true">
+        <div id="ciaDeleteBackdrop" class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog cia-modal-dialog" role="dialog">
             <header class="pg-modal-head">
                 <div class="flex items-center gap-2">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                     <h3>Eliminar conversación</h3>
                 </div>
-                <button id="chatDeleteCancel" class="chat-iconbtn" title="Cerrar">
+                <button id="ciaDeleteCancel" class="cia-iconbtn" title="Cerrar">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </header>
-            <div class="pg-modal-body chat-modal-body">
-                <p id="chatDeleteText" class="pg-hint" style="margin:0;font-size:13px;">Vas a eliminar esta conversación. Esta acción no se puede deshacer.</p>
+            <div class="pg-modal-body cia-modal-body">
+                <p id="ciaDeleteText" class="pg-hint" style="margin:0;font-size:13px;">Vas a eliminar esta conversación.</p>
             </div>
-            <footer class="pg-modal-foot chat-modal-foot">
+            <footer class="pg-modal-foot cia-modal-foot">
                 <span class="pg-hint">Se borrará de las conversaciones guardadas.</span>
                 <div class="flex gap-2">
-                    <button id="chatDeleteCancel2" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
-                    <button id="chatDeleteConfirm" class="cs-btn cs-btn-sm flex items-center gap-1.5" style="background:var(--vsr-accent);color:#fff;">
+                    <button id="ciaDeleteCancel2" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="ciaDeleteConfirm" class="cs-btn cs-btn-sm flex items-center gap-1.5" style="background:var(--vsr-accent);color:#fff;">
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Eliminar
                     </button>
                 </div>
@@ -307,9 +339,14 @@
         </div>
     </div>
 
-    <div id="chatToast" class="visor-toast"></div>
+    <div id="ciaToast" class="visor-toast"></div>
 
+    <!-- coffeeSoft.js: de aqui sale Templates.loader({type:'quantum'}), el loader
+         REAL del Visor. Sin el, el indicador seria una imitacion (era el defecto
+         del chat anterior). -->
+    <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/coffeeia.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>

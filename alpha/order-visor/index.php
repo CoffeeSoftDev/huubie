@@ -44,14 +44,22 @@
     <style>
         ::-webkit-scrollbar { width: 0px !important; background: transparent !important; }
         * { scrollbar-width: none !important; }
+
+        /* Los paneles del visor SI muestran scrollbar vertical (delgada, tema dark);
+           gana a las reglas globales de arriba por especificidad de id. */
+        #reportList, #reportPreview { scrollbar-width: thin !important; scrollbar-color: #4B5563 transparent !important; }
+        #reportList::-webkit-scrollbar, #reportPreview::-webkit-scrollbar { width: 6px !important; }
+        #reportList::-webkit-scrollbar-thumb, #reportPreview::-webkit-scrollbar-thumb { background: #4B5563 !important; border-radius: 3px; }
     </style>
 </head>
 
 <body class="bg-[#111928] text-white" data-bs-theme="dark">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
-    <div id="mainContainer" class="w-full flex flex-col text-white mt-12 p-3 overflow-x-hidden">
-        <div style="background-color:#111827;" class="w-full max-w-full" id="root"></div>
+    <!-- h-[calc(100vh-3rem)] = viewport menos la navbar (mt-12); overflow-hidden evita el
+         scroll de pagina: el scroll vertical vive DENTRO de cada panel del visor. -->
+    <div id="mainContainer" class="w-full flex flex-col text-white mt-12 p-3 overflow-hidden h-[calc(100vh-3rem)]">
+        <div style="background-color:#111827;" class="w-full max-w-full flex-1 min-h-0 flex flex-col" id="root"></div>
     </div>
 
     <!--

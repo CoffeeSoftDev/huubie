@@ -22,6 +22,12 @@ class App extends Templates {
         this.subsidiaries = data.subsidiaries;
         this.subsidiariesCobro = data.subsidiariesCobro || [];
         this.isAdmin = data.isAdmin;
+        // Supervisores (rol 6 y 7): perfil de consulta -> se les ocultan acciones de
+        // operacion (Volver a Lista, Entregar, Pagar). El 7 (restringido) ademas no
+        // puede aplicar descuentos.
+        this.rolId = data.rolId || 0;
+        this.isSupervisor = this.rolId == 6 || this.rolId == 7;
+        this.canDiscount = this.rolId != 7;
         this.subsidiaryName = data.subsidiaryName || '';
         this.subsidiaryId = data.subsidiaryId || null;
         this.render();
@@ -58,11 +64,12 @@ class App extends Templates {
 
         $(`#container${this.PROJECT_NAME}`).html(`
             <div class="p-2 flex flex-wrap items-center justify-between gap-3">
+                ${this.isSupervisor ? '<div></div>' : `
                 <button title="Regresar" type="button"
                     class="btn bg-gray-700 hover:bg-purple-950 text-white px-4 py-2 rounded w-full sm:w-auto"
                     onclick="window.location.href = '/alpha/pedidos/'">
                     <small><i class="icon-reply"></i> Volver a Lista</small>
-                </button>
+                </button>`}
 
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="relative">
@@ -565,22 +572,24 @@ class App extends Templates {
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
                         ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4') ? `
-                            <div class="grid grid-cols-3 gap-2 mb-3">
+                            <div class="grid ${this.actionGridCols()} gap-2 mb-3">
+                                ${this.isSupervisor ? '' : `
                                 <button onclick="app.historyPay(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                                     ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
-                                </button>
+                                </button>`}
                                 <button onclick="app.printOrder(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                                     ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
                                 </button>
+                                ${this.canDiscount ? `
                                 <button onclick="app.addDiscount(${orderId})"
                                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                                     ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
-                                </button>
+                                </button>` : ''}
                             </div>
                         ` : ''}
-                        ${(orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4') ? `
+                        ${!this.isSupervisor && (orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4') ? `
                             <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
                                     class="w-full mb-3 flex items-center justify-center gap-1.5
                                         text-white text-[11px] font-medium px-2 py-2 rounded-md
@@ -660,6 +669,14 @@ class App extends Templates {
                 ${this.infoSales(orderData, paymentMethods)}
             </div>
         `;
+    }
+
+    // Columnas del grid de acciones del pedido segun los botones visibles por rol:
+    // normal = Pagar+Imprimir+Descuento (3), supervisor = Imprimir+Descuento (2),
+    // supervisor restringido = solo Imprimir (1).
+    actionGridCols() {
+        const visibles = 1 + (this.isSupervisor ? 0 : 1) + (this.canDiscount ? 1 : 0);
+        return ['grid-cols-1', 'grid-cols-2', 'grid-cols-3'][visibles - 1];
     }
 
     handleDeliveryClick(orderId, currentStatus, folio) {
@@ -1123,19 +1140,21 @@ class App extends Templates {
         const orderData = response.data.order || {};
         const paymentMethods = response.data.paymentMethods || [];
         $('#orderInfoPanel .lg\\:sticky').html(`
-            <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="grid ${this.actionGridCols()} gap-2 mb-3">
+                ${this.isSupervisor ? '' : `
                 <button onclick="app.historyPay(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                     ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
-                </button>
+                </button>`}
                 <button onclick="app.printOrder(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                     ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
                 </button>
+                ${this.canDiscount ? `
                 <button onclick="app.addDiscount(${orderId})"
                     class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                     ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
-                </button>
+                </button>` : ''}
             </div>
             ${this.detailsCard(orderData, paymentMethods)}
         `);

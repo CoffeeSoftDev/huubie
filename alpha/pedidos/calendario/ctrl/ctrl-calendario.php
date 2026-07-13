@@ -22,6 +22,8 @@ class ctrlCalendario extends MCalendarioPedidos{
             'subsidiaries'    => $this->getSubsidiariesByCompany([$company]),
             'subsidiariesCobro' => $this->getSubsidiariesByCompany([$company]),
             'isAdmin'         => $rolId == 1,
+            // El front condiciona botones por perfil (ej. Supervisor 6 no opera).
+            'rolId'           => $rolId,
             'subsidiaryName'  => $_SESSION['SUBSIDIARIE_NAME'] ?? '',
             'subsidiaryId'    => $_SESSION['SUB'] ?? null
         ];

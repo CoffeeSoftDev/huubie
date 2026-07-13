@@ -260,14 +260,25 @@
         catch (e) { return []; }
     }
     function saveAccounts(list) {
-        try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list || [])); } catch (e) {}
+        const raw = JSON.stringify(list || []);
+        try { localStorage.setItem(ACCOUNTS_KEY, raw); } catch (e) {}
+        persist(ACCOUNTS_KEY, raw);
+    }
+    // Espeja la preferencia en SQLite (prefs-store.js). Sin él, todo sigue funcionando
+    // contra localStorage, igual que antes.
+    function persist(key, raw) {
+        if (global.CoffeePrefs) global.CoffeePrefs.push(key, raw);
     }
     function uid() { return 'acc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
     // Recordatorios ya disparados hoy (id -> 'YYYY-M-D'), para no repetir la notificación.
     const REMINDER_KEY = 'coffeeia:claude:reminderFired';
     function loadReminderFired() { try { return JSON.parse(localStorage.getItem(REMINDER_KEY)) || {}; } catch (e) { return {}; } }
-    function saveReminderFired(m) { try { localStorage.setItem(REMINDER_KEY, JSON.stringify(m || {})); } catch (e) {} }
+    function saveReminderFired(m) {
+        const raw = JSON.stringify(m || {});
+        try { localStorage.setItem(REMINDER_KEY, raw); } catch (e) {}
+        persist(REMINDER_KEY, raw);
+    }
     // Fija/limpia el recordatorio (datetime) de una cuenta; reactiva el aviso si cambió.
     function setAccountReminder(id, val) {
         const list = loadAccounts();
@@ -740,6 +751,17 @@
         startClockTick();
         if (global.lucide) global.lucide.createIcons();
         // Los <select> de modelo los engancha model-config.js (bindAll sobre .ia-model-pill).
+
+        // Las cuentas guardadas en SQLite llegaron (prefs-store.js) y pisaron a las locales:
+        // repintar el reloj y lo que esté abierto en pantalla.
+        global.addEventListener('coffeeia:prefs-synced', function (e) {
+            const keys = (e.detail && e.detail.keys) || [];
+            if (keys.indexOf(ACCOUNTS_KEY) === -1) return;
+            refreshClockBadge();
+            checkReminders();
+            if (clockPopOpen()) { renderClockPop(); positionClockPop(); }
+            if ($('#accountUpgrade').hasClass('is-open') && _upView === 'list') renderUpgrade();
+        });
 
         $('#accountBtn').on('click', function (e) {
             e.stopPropagation();

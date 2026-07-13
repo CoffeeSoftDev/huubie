@@ -518,6 +518,7 @@
     <div id="pgToast" class="visor-toast"></div>
 
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/studio.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>

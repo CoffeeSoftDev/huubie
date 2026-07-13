@@ -26,6 +26,9 @@ $(async () => {
     await app.init();
     coffeeIA = new CoffeeIA(apiIA, app);
     githubBoard = new GithubBoard(app, apiIA.replace('ctrl-coffeeia.php', 'ctrl-github.php'));
+    // Retoma la ultima conversacion del chat tras recargar (autoguardado + uid en
+    // localStorage). Reconstruye las burbujas sin abrir el drawer.
+    coffeeIA.restoreLastConversation();
 });
 
 // Divisor arrastrable entre el documento (izq) y el lienzo (der) en modo split.
@@ -3727,6 +3730,10 @@ class CoffeeIA {
         this.history.push(userMsg);
         this._appendUserMessage(text, userMsg.imagesPreview, userMsg.docsMeta);
 
+        // Guarda ya, al enviar (no solo al recibir): si se recarga durante la
+        // generacion, la pregunta no se pierde y la conversacion queda restaurable.
+        this._autoSaveChat();
+
         // Typing indicator
         const $typing = this._appendTyping();
         this._scrollBottom(true);   // nuevo turno: baja al fondo y reactiva el pegado
@@ -3951,6 +3958,9 @@ class CoffeeIA {
 
         // Sonido al terminar de responder (solo en respuestas exitosas).
         this._playPopSound();
+
+        // Autoguardado silencioso: la conversacion queda persistida sin pedir nombre.
+        this._autoSaveChat();
 
         finish();
     }
@@ -5659,9 +5669,11 @@ class CoffeeIA {
     /* ── Clear conversation ── */
 
     clearConversation() {
+        clearTimeout(this._autoSaveTimer);   // que no guarde la conversacion recien limpiada
         this.history = [];
         this._currentChatUid = null;
         this._currentChatTitle = null;
+        this._rememberActiveChat(null);       // sin conversacion activa que restaurar
         this._chipsRendered = false;
         this._setActiveDb(null);   // al limpiar, se suelta la conexion a la base
         this._stickBottom = true;
@@ -5742,39 +5754,80 @@ class CoffeeIA {
         return t.slice(0, 80);
     }
 
+    // Nucleo del guardado (upsert por uid). No pide titulo ni abre prompt: eso lo
+    // hace saveConversation(). silent:true calla los toasts (autoguardado).
+    async _persistChat(title, silent) {
+        if (!this.history.length) return false;
+        const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
+        try {
+            const form = new FormData();
+            form.append('action',   'save');
+            if (this._currentChatUid) form.append('uid', this._currentChatUid);
+            form.append('title',    title);
+            form.append('user_id',  userId);
+            form.append('model',    this.model || '');
+            form.append('doc',      (this._app && this._app.currentFile) || '');
+            form.append('app',      'visor');   // historial propio: no se mezcla con CoffeeIA
+            form.append('messages', JSON.stringify(this.history));
+
+            const res  = await fetch(this._apiChats, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { if (!silent) this._toast(data.message || 'No se pudo guardar el chat', 'error'); return false; }
+
+            this._currentChatUid   = data.uid;
+            this._currentChatTitle = data.title;
+            this._rememberActiveChat(data.uid);   // restaurable tras recargar
+            return true;
+        } catch (e) {
+            if (!silent) this._toast('Error de red al guardar el chat', 'error');
+            return false;
+        }
+    }
+
     // Guarda la conversacion actual en el servidor. Si ya tiene uid, la actualiza.
     async saveConversation() {
         if (!this.history.length) {
             this._toast('No hay conversación que guardar', 'warn');
             return;
         }
-
         const suggested = this._currentChatTitle || this._suggestChatTitle();
         const title = window.prompt('Nombre para guardar esta conversación:', suggested);
         if (title === null) return;   // cancelado
-
-        const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
-
-        try {
-            const form = new FormData();
-            form.append('action',   'save');
-            if (this._currentChatUid) form.append('uid', this._currentChatUid);
-            form.append('title',    title.trim());
-            form.append('user_id',  userId);
-            form.append('model',    this.model || '');
-            form.append('doc',      (this._app && this._app.currentFile) || '');
-            form.append('messages', JSON.stringify(this.history));
-
-            const res  = await fetch(this._apiChats, { method: 'POST', body: form });
-            const data = await res.json();
-            if (!data.success) { this._toast(data.message || 'No se pudo guardar el chat', 'error'); return; }
-
-            this._currentChatUid   = data.uid;
-            this._currentChatTitle = data.title;
-            this._toast('Chat guardado: ' + data.title, 'success');
-        } catch (e) {
-            this._toast('Error de red al guardar el chat', 'error');
+        if (await this._persistChat(title.trim(), false)) {
+            this._toast('Chat guardado: ' + this._currentChatTitle, 'success');
         }
+    }
+
+    // Autoguardado silencioso (debounced). Se dispara al enviar y al recibir cada
+    // respuesta: la conversacion queda persistida sin pedir nombre y, con el uid
+    // recordado en localStorage, se restaura al recargar el modulo. Igual que en
+    // CoffeeIA (coffeeia.js). El titulo, si aun no hay uno, sale del 1er mensaje.
+    _autoSaveChat() {
+        if (!this.history.length) return;
+        clearTimeout(this._autoSaveTimer);
+        this._autoSaveTimer = setTimeout(() => {
+            this._persistChat(this._currentChatTitle || this._suggestChatTitle(), true);
+        }, 700);
+    }
+
+    // Recuerda (o limpia, con null) el uid de la conversacion activa para poder
+    // retomarla al recargar. Se llama al guardar, cargar y limpiar el chat.
+    _rememberActiveChat(uid) {
+        try {
+            const v = uid !== undefined ? uid : this._currentChatUid;
+            if (v) localStorage.setItem('visor:lastChatUid', v);
+            else   localStorage.removeItem('visor:lastChatUid');
+        } catch (_) { /* noop */ }
+    }
+
+    // Restaura al recargar la ultima conversacion activa. Reconstruye las burbujas
+    // en el chat SIN abrir el drawer: cuando el usuario lo abra, su conversacion ya
+    // esta ahi. El contenido vive en SQLite (autoguardado); aqui solo se reabre.
+    async restoreLastConversation() {
+        let uid = '';
+        try { uid = localStorage.getItem('visor:lastChatUid') || ''; } catch (_) { /* noop */ }
+        if (!uid) return;
+        await this.loadConversation(uid, true);
     }
 
     /* ── Modal de chats guardados ── */
@@ -5819,7 +5872,7 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
 
         try {
-            const url  = this._apiChats + '?action=list';
+            const url  = this._apiChats + '?action=list&app=visor';   // solo los chats del Visor
             const res  = await fetch(url, { cache: 'no-store' });
             const data = await res.json();
             if (!data.success) { $('#iaSavedList').html('<div class="ia-saved-empty">' + (data.message || 'Error al listar') + '</div>'); return; }
@@ -5857,17 +5910,25 @@ class CoffeeIA {
     }
 
     // Trae una conversacion del servidor y reconstruye las burbujas en el chat.
-    async loadConversation(uid) {
+    // silent:true (restauracion al recargar) reconstruye SIN abrir el drawer ni
+    // mostrar toasts; el usuario ve su chat en cuanto lo abre.
+    async loadConversation(uid, silent) {
         try {
             const url  = this._apiChats + '?action=get&uid=' + encodeURIComponent(uid);
             const res  = await fetch(url, { cache: 'no-store' });
             const data = await res.json();
-            if (!data.success || !data.chat) { this._toast(data.message || 'No se pudo abrir la conversación', 'error'); return; }
+            if (!data.success || !data.chat) {
+                // La conversacion recordada ya no existe (borrada): limpiar el puntero.
+                if (silent) { this._rememberActiveChat(null); return; }
+                this._toast(data.message || 'No se pudo abrir la conversación', 'error');
+                return;
+            }
 
             const chat = data.chat;
             this.history = Array.isArray(chat.messages) ? chat.messages : [];
             this._currentChatUid   = chat.uid;
             this._currentChatTitle = chat.title;
+            this._rememberActiveChat(chat.uid);
             if (chat.model) { this.model = chat.model; this._saveModel(); this._applyModelUI(); }
 
             // Reconstruir la UID del chat desde el historial.
@@ -5885,11 +5946,12 @@ class CoffeeIA {
             });
             this._scrollBottom();
 
+            if (silent) return;   // restauracion: no abrir el drawer ni notificar
             this._closeSavedChatsModal();
             if (!this.isOpen) this.open();
             this._toast('Conversación cargada: ' + chat.title, 'success');
         } catch (e) {
-            this._toast('Error de red al abrir la conversación', 'error');
+            if (!silent) this._toast('Error de red al abrir la conversación', 'error');
         }
     }
 
@@ -5902,7 +5964,7 @@ class CoffeeIA {
             const res  = await fetch(this._apiChats, { method: 'POST', body: form });
             const data = await res.json();
             if (!data.success) { this._toast(data.message || 'No se pudo eliminar', 'error'); return; }
-            if (this._currentChatUid === uid) this._currentChatUid = null;
+            if (this._currentChatUid === uid) { this._currentChatUid = null; this._rememberActiveChat(null); }
             this.openSavedChatsModal();   // refrescar lista
             this._toast('Conversación eliminada', 'success');
         } catch (e) {

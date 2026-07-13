@@ -275,7 +275,7 @@ class App extends Templates {
         if (!$sel.length) return null;
         const v = $sel.val();
         if (v === '0') return '0';
-        return (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? (v || '0') : null;
+        return (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) ? (v || '0') : null;
     }
 
     async onSubsidiaryChange() {
@@ -1223,7 +1223,7 @@ class App extends Templates {
 
 
 
-    if (rol == 1 || rol == 2 || rol == 3 || rol == 6) {
+    if (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) {
         // Selector de sucursal del pedido (roles con filtro de navbar: admin,
         // cajero y vendedor rotativo). Durante crear/editar el selector de sucursal
         // del navbar se oculta, y ESTE es la fuente de la sucursal del pedido: su
@@ -1615,7 +1615,7 @@ class App extends Templates {
         // filtro de navbar (admin 1, cajero 2, vendedor 3) -> filtro de la navbar
         // (si "Todas"/0, cae a su sesion udn o a la del pedido). Fallback final:
         // la sucursal del pedido.
-        const navbarSub = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? ($('#subsidiaries_id').val() || '') : '';
+        const navbarSub = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) ? ($('#subsidiaries_id').val() || '') : '';
         const defaultCobroSub = (navbarSub && navbarSub !== '0')
             ? navbarSub
             : ((rol != 1 && udn) ? udn : (order.subsidiaries_id ?? ''));
@@ -2915,7 +2915,7 @@ class App extends Templates {
 
         // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) eligen la sucursal
         // del cierre en el modal; arranca en la seleccionada en el navbar (activeSub).
-        const subsidiarySelect = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? `
+        const subsidiarySelect = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) ? `
             <div>
                 <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Sucursal</label>
                 <select id="subsidiariesDailyClose" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.onDailyCloseFilterChange()">
@@ -3051,7 +3051,7 @@ class App extends Templates {
     async loadShifts() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
-        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? $('#subsidiariesDailyClose').val() : null;
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) ? $('#subsidiariesDailyClose').val() : null;
 
         // Limpiar badge de cierre (opcion C) y restaurar boton Cerrar Dia
         $('.closure-badge').remove();
@@ -3297,8 +3297,8 @@ class App extends Templates {
     }
 
     openShift() {
-        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6) ? ($('#subsidiariesDailyClose').val() || null) : null;
-        const subName = (rol == 1 || rol == 2 || rol == 3 || rol == 6)
+        let subsidiaries_id = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) ? ($('#subsidiariesDailyClose').val() || null) : null;
+        const subName = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7)
             ? $('#subsidiariesDailyClose option:selected').text()
             : sub_name;
 

@@ -57,9 +57,10 @@ class Ventas extends Templates {
             padding:     '',
         };
 
-        // Supervisor (rol 6): perfil de consulta. Solo ve Calendario (de las rutas
-        // de BD) y Reportes; nada de operacion ni configuracion.
-        if (level == '6') {
+        // Supervisores (rol 6 y 7): perfil de consulta. Solo ven Calendario (de las
+        // rutas de BD) y Reportes; nada de operacion ni configuracion. El 7 ademas
+        // tiene bloqueado descuento/cancelacion dentro del calendario.
+        if (level == '6' || level == '7') {
             const soloCalendario = cards.filter(c => /calendario/i.test(c.titulo || ''));
             return [...soloCalendario, reportes];
         }

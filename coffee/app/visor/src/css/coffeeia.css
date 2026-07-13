@@ -1,29 +1,547 @@
 /* ============================================================
-   coffeeia.css — Piezas propias del chat CoffeeIA (se carga
-   DESPUÉS de chat.css; todo lo demás lo heredan visor/chat.css)
+   coffeeia.css — SOLO el marco de CoffeeIA (header, sidebar,
+   composer, estado vacío, modales).
+
+   Los mensajes y TODAS sus animaciones (loader quantum + puntos,
+   cerebro de "Razonando…", card "Conjurando…", cursor del
+   typewriter, pie de metadatos) los pinta visor.css sobre el
+   markup .ia-msg / .ia-typing-* / .ia-conjuring. Aquí no se
+   redefine ni una: son las mismas del Visor, no una copia.
    ============================================================ */
 
-/* Cronómetro vivo del tiempo de espera, junto al loader "Analizando…". */
-.chat-typing {
+.cia-root {
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--vsr-bg-base);
+    color: var(--vsr-text);
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Header ── */
+.cia-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    background: var(--vsr-bg-chrome);
+    border-bottom: 1px solid var(--vsr-border);
+    box-shadow: var(--vsr-shadow-chrome);
+    z-index: 20;
+}
+.cia-header-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.cia-title    { font-size: 14px; font-weight: 700; color: var(--vsr-text); letter-spacing: -.01em; }
+.cia-subtitle { font-size: 11px; color: var(--vsr-text-mute2); }
+
+/* Badge del logo: el grano hereda currentColor, así que aquí se le fija el blanco
+   sobre el degradado terracota de la marca (mismo look que el resto del ecosistema). */
+.cia-logo {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+}
+
+.cia-header-right { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.cia-header-toggle { display: none; }
+
+.cia-select-wrap {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--vsr-border);
+    border-radius: 8px;
+    background: var(--vsr-bg-input);
+}
+.cia-select-wrap > i { width: 15px; height: 15px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.cia-select {
+    background: transparent; border: none; outline: none; cursor: pointer;
+    color: var(--vsr-text-soft); font-size: 12px; font-weight: 600;
+    font-family: inherit; padding-right: 2px;
+}
+.cia-select option { background: var(--vsr-bg-card); color: var(--vsr-text-soft); }
+
+/* ── Workspace: rail | sidebar | chat ── */
+.cia-workspace { flex: 1 1 auto; display: flex; min-height: 0; }
+
+.cia-sidebar {
+    flex: 0 0 262px;
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--vsr-bg-chrome);
+    border-right: 1px solid var(--vsr-border);
+}
+.cia-sidebar-head {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 7px;
+    padding: 12px; border-bottom: 1px solid var(--vsr-border);
+}
+.cia-sidebar-head .cs-input { flex: 1; min-width: 0; font-size: 12px; }
+.cia-sidebar-body { flex: 1 1 auto; overflow-y: auto; padding: 10px 8px 18px; min-height: 0; }
+
+.cia-sidebar-group { margin-bottom: 14px; }
+.cia-sidebar-group h4 {
+    margin: 0 0 5px; padding: 0 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--vsr-text-mute2);
+}
+.cia-sidebar-group ul { list-style: none; margin: 0; padding: 0; }
+
+.cia-sidebar-item {
+    position: relative;            /* ancla del botón eliminar (ver abajo) */
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 9px; border-radius: 8px; cursor: pointer;
+    color: var(--vsr-text-mid); font-size: 12.5px;
+    border: 1px solid transparent;
+    overflow: hidden;
+}
+.cia-sidebar-item:hover { background: var(--vsr-bg-hover); }
+.cia-sidebar-item.active {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-divider);
+    color: var(--vsr-text-soft);
+}
+.cia-sidebar-item > i { flex-shrink: 0; color: var(--vsr-text-mute2); }
+.cia-sidebar-item.active > i { color: var(--vsr-accent-soft); }
+.cia-sidebar-item .item-title {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cia-sidebar-item .item-meta {
+    flex-shrink: 0; font-size: 10px; color: var(--vsr-text-mute2);
+    font-variant-numeric: tabular-nums;
+    transition: opacity .12s ease;
+}
+
+/* El botón eliminar va FUERA DEL FLUJO (absolute) y solo se desvanece al entrar.
+   Si entrara al flujo en hover (display:none → inline-flex) empujaría al título y
+   este cambiaría de ancho: ese era el salto molesto al pasar el ratón. Así el
+   layout es idéntico con y sin hover; solo cambia la opacidad. */
+.cia-sidebar-item .item-del {
+    position: absolute;
+    top: 50%;
+    right: 7px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    color: var(--vsr-text-mute2);
+    opacity: 0;
+    pointer-events: none;          /* invisible = no clicable */
+    transition: opacity .12s ease, color .12s ease, background-color .12s ease;
+}
+.cia-sidebar-item:hover .item-del { opacity: 1; pointer-events: auto; }
+.cia-sidebar-item:hover .item-meta { opacity: 0; }   /* cede su sitio al botón */
+.cia-sidebar-item .item-del:hover { color: var(--vsr-accent); background: var(--vsr-bg-hover); }
+
+.cia-sidebar-empty {
+    text-align: center; padding: 34px 16px;
+    color: var(--vsr-text-muted); font-size: 12px; line-height: 1.6;
+}
+.cia-sidebar-empty i { color: var(--vsr-text-mute2); margin-bottom: 8px; display: inline-block; }
+.cia-sidebar-empty-hint { margin-top: 3px; color: var(--vsr-text-mute2); font-size: 11px; }
+
+/* ── Panel del chat ── */
+.cia-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.cia-pane-head {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--vsr-border);
+    background: var(--vsr-bg-chrome);
+}
+.cia-pane-title {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+    font-size: 13px; font-weight: 600; color: var(--vsr-text-soft);
+}
+.cia-pane-title > i { color: var(--vsr-accent-soft); flex-shrink: 0; }
+.cia-pane-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cia-pane-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+
+.cia-iconbtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+    background: transparent; border: 1px solid transparent;
+    color: var(--vsr-text-mute2);
+}
+.cia-iconbtn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); border-color: var(--vsr-border); }
+.cia-iconbtn.is-danger:hover { color: var(--vsr-accent); border-color: var(--vsr-divider); }
+
+/* Hilo centrado (el ancho de lectura de un chat, no el del drawer del Visor).
+   El contenedor #ciaBody ya es .ia-drawer-body: scroll, flex column, gap. */
+.cia-body { padding: 24px 18px 8px; }
+.cia-thread {
+    width: 100%; max-width: 820px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 22px;
+}
+
+/* Cronómetro de espera: único añadido al indicador del Visor. Vive fuera del
+   loader, por eso sobrevive al cambio de fase (Analizando → Razonando → tool). */
+.cia-wait {
+    padding-left: 12px; margin-top: 2px;
+    font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-mute2); font-variant-numeric: tabular-nums;
+}
+.cia-wait:empty { display: none; }
+
+/* Aviso en el pie: el tool-calling no corrió y la respuesta salió sin datos vivos. */
+.ia-msg-meta-footer .cia-meta-warn { color: #D97706; gap: 4px; }
+.ia-msg-meta-footer .cia-meta-warn i,
+.ia-msg-meta-footer .cia-meta-warn svg { width: 12px; height: 12px; }
+
+/* ── Estado vacío ── */
+.cia-empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; gap: 14px; padding: 28px 20px;
+}
+/* La taza sola: sin fondo ni pastilla. El SVG hereda currentColor, así que va en
+   el color de primer plano (negro en tema claro, blanco en oscuro). */
+.cia-empty-orb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--vsr-text);
+}
+.cia-empty-orb svg { width: 76px; height: 76px; display: block; }
+/* Lockup de la marca: "Coffee" en primer plano, "IA" en el naranja del acento
+   (mismo criterio que .cs-agent-coffee / .cs-agent-suffix de visor.css). */
+.cia-empty-wordmark {
+    font-size: 26px; font-weight: 800; letter-spacing: -.02em;
+    color: var(--vsr-text);
+}
+.cia-empty-wordmark span { color: var(--vsr-accent); }
+.cia-empty-sub {
+    max-width: 480px; font-size: 12.5px; line-height: 1.65;
+    color: var(--vsr-text-muted);
+}
+.cia-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.cia-suggestion {
+    padding: 7px 13px; border-radius: 9999px; cursor: pointer;
+    font-size: 12px; font-weight: 500;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border);
+    color: var(--vsr-text-mid);
+}
+.cia-suggestion:hover {
+    border-color: var(--vsr-divider);
+    color: var(--vsr-accent-soft);
+    background: var(--vsr-bg-hover);
+}
+
+/* ── Composer (reusa .ia-drawer-input y sus hijos de visor.css) ── */
+.cia-composer { position: relative; }
+.cia-composer .ia-input-wrap,
+.cia-composer .ia-image-strip,
+.cia-composer .ia-db-chip { max-width: 820px; margin-left: auto; margin-right: auto; }
+
+/* La CAJA del chat contiene todo: texto arriba, controles abajo (patrón Claude).
+   En visor.css el botón de enviar flota (absolute) y por eso la caja reservaba
+   42px a la derecha; aquí ya no hace falta: enviar vive en la barra inferior. */
+.cia-inputbox {
+    padding: 10px 10px 8px;
+    border-radius: 14px;
+}
+.cia-inputbox .ia-input-textarea {
+    min-height: 42px;
+    padding: 2px 4px;
+}
+.cia-inputbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    min-width: 0;
+}
+/* Enviar deja de flotar: es un elemento más de la barra, al final. */
+.cia-inputbox .ia-send-btn {
+    position: static;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+}
+/* El selector de modelo cede espacio antes de desbordar la caja. */
+.cia-inputbar .ia-model-pill {
+    min-width: 0;
+    flex-shrink: 1;
+    max-width: 210px;
+}
+
+.cia-context-info { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+.cia-spacer { flex: 1; min-width: 0; }
+.cia-status { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
+
+/* En pantallas estrechas el "Listo/Generando…" sobra: manda el espacio para el modelo. */
+@media (max-width: 560px) {
+    .cia-status { display: none; }
+}
+
+/* ── Botón "+" : una sola puerta a todas las herramientas (patrón Claude) ── */
+.cia-plus-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--vsr-border);
+    color: var(--vsr-text-muted);
+    transition: background .12s, color .12s, border-color .12s, transform .12s;
+}
+.cia-plus-btn i, .cia-plus-btn svg { width: 15px; height: 15px; }
+.cia-plus-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.cia-plus-btn.is-open { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.cia-plus-btn.is-open i, .cia-plus-btn.is-open svg { transform: rotate(45deg); }   /* + → × */
+/* Con alguna herramienta encendida el botón queda marcado, aunque el menú esté cerrado. */
+.cia-plus-btn.is-active {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-divider);
+    color: var(--vsr-accent-soft);
+}
+
+/* ── Menú del "+" ── */
+.cia-menu {
+    z-index: 70;
+    min-width: 292px;
+    padding: 6px;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+}
+.cia-menu-sep {
+    height: 1px;
+    margin: 5px 8px;
+    background: var(--vsr-border);
+}
+.cia-menu-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--vsr-text-mid);
+    font-family: inherit;
+    font-size: 13px;
 }
-.chat-typing-timer {
-    font-size: 11px;
-    font-weight: 500;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--vsr-text-mute2, #6b7280);
-    min-width: 24px;
+.cia-menu-item:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.cia-menu-item > i,
+.cia-menu-item > svg {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    color: var(--vsr-text-mute2);
 }
-.chat-typing-timer:empty { display: none; }
+.cia-menu-item:hover > i,
+.cia-menu-item:hover > svg { color: var(--vsr-text-soft); }
+/* Encendido: icono y check en el tono de la marca. */
+.cia-menu-item.is-on > i:first-child,
+.cia-menu-item.is-on > svg:first-child { color: var(--vsr-accent-soft); }
 
-/* Chip persistente cuando el tool-calling no funcionó (patrón Lab):
-   el template/respuesta salió SIN datos en vivo de la base o carpeta. */
-.chat-msg-meta .meta-fallback {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: #d97706;
+.cia-menu-label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-weight: 500;
 }
-.chat-msg-meta .meta-fallback svg { width: 12px; height: 12px; }
+.cia-menu-desc {
+    font-size: 10.5px;
+    font-weight: 400;
+    color: var(--vsr-text-mute2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cia-menu-kbd {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-mute2);
+}
+.cia-menu-chev { flex-shrink: 0; width: 14px !important; height: 14px !important; }
+
+/* El check solo aparece cuando el item está encendido. */
+.cia-menu-check {
+    flex-shrink: 0;
+    width: 15px !important; height: 15px !important;
+    color: var(--vsr-accent) !important;
+    display: none !important;
+}
+.cia-menu-item.is-on .cia-menu-check { display: block !important; }
+
+/* ── Submenú (Gráficas) ── */
+.cia-submenu {
+    display: none;
+    position: absolute;
+    left: calc(100% + 4px);
+    bottom: -6px;
+    min-width: 244px;
+    padding: 6px;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+}
+/* Se despliega al pasar el ratón; en táctil, al pulsar el item padre (is-open). */
+.cia-menu-item.has-sub:hover .cia-submenu,
+.cia-menu-item.has-sub.is-open .cia-submenu { display: block; }
+/* Si no cabe a la derecha, cae hacia la izquierda. */
+@media (max-width: 620px) {
+    .cia-submenu { left: auto; right: calc(100% + 4px); }
+}
+
+/* ── Menú de menciones "@" (bases y carpetas) ── */
+.cia-mention-menu {
+    z-index: 60;
+    max-height: 288px;
+    overflow-y: auto;
+    padding: 5px;
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border);
+    border-radius: 11px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .42);
+}
+.cia-mention-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 9px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--vsr-text-mid);
+    font-family: inherit;
+    font-size: 12.5px;
+}
+.cia-mention-item:hover { background: var(--vsr-bg-hover); }
+.cia-mention-item.is-active { background: var(--vsr-accent-tint); color: var(--vsr-text-soft); }
+.cia-mention-item > i,
+.cia-mention-item > svg {
+    flex-shrink: 0;
+    width: 15px; height: 15px;
+    color: var(--vsr-text-mute2);
+}
+.cia-mention-item.is-active > i,
+.cia-mention-item.is-active > svg { color: var(--vsr-accent-soft); }
+.cia-mention-name { flex-shrink: 0; font-weight: 600; color: var(--vsr-text-soft); }
+/* La ruta relativa: es lo que distingue a las carpetas homónimas. */
+.cia-mention-hint {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    font-size: 10.5px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-mute2);
+}
+
+/* ── Modales (pg-modal no vive en visor.css: se define aquí) ── */
+.pg-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+.pg-modal.hidden { display: none; }
+.pg-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .55); backdrop-filter: blur(2px); }
+.pg-modal-dialog {
+    position: relative; z-index: 1;
+    width: min(440px, calc(100vw - 32px));
+    background: var(--vsr-bg-card);
+    border: 1px solid var(--vsr-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .45);
+    overflow: hidden;
+}
+.pg-modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 13px 16px; border-bottom: 1px solid var(--vsr-border);
+}
+.pg-modal-head h3 { margin: 0; font-size: 13.5px; font-weight: 700; color: var(--vsr-text); }
+.pg-modal-head > div > i { color: var(--vsr-accent-soft); }
+.pg-modal-body { padding: 16px; }
+.pg-modal-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; border-top: 1px solid var(--vsr-border);
+    background: var(--vsr-bg-chrome);
+}
+.pg-hint { font-size: 11px; color: var(--vsr-text-mute2); }
+
+.cia-modal-field { display: flex; flex-direction: column; gap: 6px; }
+.cia-modal-field label { font-size: 11px; font-weight: 600; color: var(--vsr-text-muted); }
+.cia-modal-input {
+    width: 100%; padding: 9px 11px; border-radius: 8px; outline: none;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-soft); font-size: 13px; font-family: inherit;
+}
+.cia-modal-input:focus { border-color: var(--vsr-accent); }
+
+/* ── Móvil: sidebar y chat no caben apilados ── */
+.cia-mobile-switch { display: none; }
+
+@media (max-width: 900px) {
+    .cia-header { padding: 9px 12px; }
+    .cia-subtitle { display: none; }
+
+    .cia-header-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; margin-left: auto; border-radius: 8px; cursor: pointer;
+        background: var(--vsr-bg-input); border: 1px solid var(--vsr-border);
+        color: var(--vsr-text-soft);
+    }
+    .cia-header-right {
+        display: none; position: absolute; top: 54px; right: 12px; z-index: 30;
+        flex-direction: column; align-items: stretch; gap: 8px;
+        padding: 10px; min-width: 210px;
+        background: var(--vsr-bg-card);
+        border: 1px solid var(--vsr-border);
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .4);
+    }
+    .cia-header-right.is-open { display: flex; }
+
+    .cia-mobile-switch {
+        display: flex; flex: 0 0 auto;
+        border-bottom: 1px solid var(--vsr-border);
+        background: var(--vsr-bg-chrome);
+    }
+    .cia-mswitch {
+        flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 9px 8px; cursor: pointer;
+        background: none; border: none; border-bottom: 2px solid transparent;
+        color: var(--vsr-text-mute2); font-size: 12px; font-weight: 600;
+    }
+    .cia-mswitch.active { color: var(--vsr-accent-soft); border-bottom-color: var(--vsr-accent); }
+
+    .cia-workspace[data-mview="chat"] .cia-sidebar { display: none; }
+    .cia-workspace[data-mview="list"] .cia-main { display: none; }
+    .cia-sidebar { flex: 1 1 auto; border-right: none; }
+
+    .cia-body { padding: 16px 12px 8px; }
+}

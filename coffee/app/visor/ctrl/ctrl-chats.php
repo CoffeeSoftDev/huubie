@@ -36,12 +36,21 @@ try {
             user_id    TEXT NOT NULL DEFAULT "",
             model      TEXT NOT NULL DEFAULT "",
             doc        TEXT NOT NULL DEFAULT "",
+            app        TEXT NOT NULL DEFAULT "",
             messages   TEXT NOT NULL DEFAULT "[]",
             msg_count  INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
     ');
+
+    // `app` = modulo de origen ("visor" | "coffeeia"). El Visor y CoffeeIA comparten
+    // esta tabla pero sus conversaciones son SEPARADAS: cada uno lista solo las
+    // suyas. Migracion suave para bases creadas antes de que existiera la columna.
+    $cols = $pdo->query('PRAGMA table_info(chats)')->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('app', $cols, true)) {
+        $pdo->exec('ALTER TABLE chats ADD COLUMN app TEXT NOT NULL DEFAULT ""');
+    }
 } catch (Throwable $e) {
     chats_fail('No se pudo abrir la base de datos: ' . $e->getMessage(), 500);
 }
@@ -65,6 +74,7 @@ try {
             $userId = trim($_POST['user_id'] ?? '');
             $model  = trim($_POST['model'] ?? '');
             $doc    = trim($_POST['doc'] ?? '');
+            $app    = trim($_POST['app'] ?? '');   // modulo de origen: visor | coffeeia
             $count  = count($decoded);
             $now    = date('Y-m-d H:i:s');
 
@@ -80,20 +90,23 @@ try {
             }
 
             if ($exists) {
-                $st = $pdo->prepare('
+                // Si el cliente no manda `app`, se conserva el que ya tiene la fila
+                // (no se pierde el origen al re-guardar desde un cliente antiguo).
+                $st = $pdo->prepare("
                     UPDATE chats
                        SET title = ?, user_id = ?, model = ?, doc = ?,
+                           app = CASE WHEN ? = '' THEN app ELSE ? END,
                            messages = ?, msg_count = ?, updated_at = ?
                      WHERE uid = ?
-                ');
-                $st->execute([$title, $userId, $model, $doc, $messages, $count, $now, $uid]);
+                ");
+                $st->execute([$title, $userId, $model, $doc, $app, $app, $messages, $count, $now, $uid]);
             } else {
                 if ($uid === '') $uid = 'chat_' . bin2hex(random_bytes(8));
                 $st = $pdo->prepare('
-                    INSERT INTO chats (uid, title, user_id, model, doc, messages, msg_count, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chats (uid, title, user_id, model, doc, app, messages, msg_count, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ');
-                $st->execute([$uid, $title, $userId, $model, $doc, $messages, $count, $now, $now]);
+                $st->execute([$uid, $title, $userId, $model, $doc, $app, $messages, $count, $now, $now]);
             }
 
             echo json_encode([
@@ -106,19 +119,22 @@ try {
         }
 
         case 'list': {
+            // Cada modulo lista SOLO sus conversaciones: el Visor y CoffeeIA comparten
+            // la tabla pero no el historial. Sin `app` se devuelve todo (compatibilidad).
             $userId = trim($_POST['user_id'] ?? $_GET['user_id'] ?? '');
-            if ($userId !== '') {
-                $st = $pdo->prepare('
-                    SELECT uid, title, user_id, model, doc, msg_count, created_at, updated_at
-                      FROM chats WHERE user_id = ? ORDER BY updated_at DESC LIMIT 200
-                ');
-                $st->execute([$userId]);
-            } else {
-                $st = $pdo->query('
-                    SELECT uid, title, user_id, model, doc, msg_count, created_at, updated_at
-                      FROM chats ORDER BY updated_at DESC LIMIT 200
-                ');
-            }
+            $app    = trim($_POST['app']     ?? $_GET['app']     ?? '');
+
+            $where  = [];
+            $params = [];
+            if ($userId !== '') { $where[] = 'user_id = ?'; $params[] = $userId; }
+            if ($app    !== '') { $where[] = 'app = ?';     $params[] = $app; }
+            $sql = 'SELECT uid, title, user_id, model, doc, app, msg_count, created_at, updated_at
+                      FROM chats'
+                 . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
+                 . ' ORDER BY updated_at DESC LIMIT 200';
+
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
             echo json_encode([
                 'success' => true,
                 'rows'    => $st->fetchAll(PDO::FETCH_ASSOC)
