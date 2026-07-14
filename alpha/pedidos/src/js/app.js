@@ -438,6 +438,9 @@ class App extends Templates {
             });
             return;
         }
+        // Entrada al flujo de CREACION: sin modo edicion ni snapshot de cantidades.
+        normal.layoutEdit = false;
+        normal.originalQuantities = null;
         normal.render();
     }
 
@@ -479,10 +482,10 @@ class App extends Templates {
     }
 
     addOrder() {
-
-      
-
-        normal.layoutEdit = false;
+        // OJO: no resetear normal.layoutEdit aqui. formCreateOrder() llama a addOrder()
+        // tambien durante el render de EDICION (editOrder), y apagar el flag ahi
+        // desactiva la validacion de cantidades. El modo lo fija cada punto de
+        // entrada: showTypePedido() (crear) y editOrder() (editar).
         // Host <div> (no <form>): coffeeForm crea su propio <form id="formPedido">,
         // asi se evita el anidamiento de formularios.
         $("#container-pedido").html(`<div id="formCreatePedido"></div>`);
@@ -647,6 +650,8 @@ class App extends Templates {
         if (!this.requireOpenShift()) return;
         idFolio = id;
         normal.layoutEdit = true;
+        // Snapshot fresco por sesion de edicion: initPos lo captura en la primera carga.
+        normal.originalQuantities = null;
         normal.render();
 
         $("#container-pedido").html(`<form id="formEditPedido" novalidate></form>`);
