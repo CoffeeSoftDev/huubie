@@ -56,7 +56,12 @@ if (auth_current_user()) {
                 </label>
                 <label class="auth-field">
                     <span class="auth-label">Contraseña</span>
-                    <input type="password" name="password" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+                    <span class="auth-pass">
+                        <input type="password" name="password" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
                 </label>
                 <button type="submit" class="auth-btn-primary">
                     <span>Iniciar sesión</span>
@@ -75,11 +80,21 @@ if (auth_current_user()) {
                 </label>
                 <label class="auth-field">
                     <span class="auth-label">Contraseña</span>
-                    <input type="password" name="password" class="auth-input" placeholder="Mínimo 8 caracteres" required autocomplete="new-password">
+                    <span class="auth-pass">
+                        <input type="password" name="password" class="auth-input" placeholder="Mínimo 8 caracteres" required autocomplete="new-password">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
                 </label>
                 <label class="auth-field">
                     <span class="auth-label">Confirmar contraseña</span>
-                    <input type="password" name="password_confirm" class="auth-input" placeholder="Repite tu contraseña" required autocomplete="new-password">
+                    <span class="auth-pass">
+                        <input type="password" name="password_confirm" class="auth-input" placeholder="Repite tu contraseña" required autocomplete="new-password">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
                 </label>
                 <button type="submit" class="auth-btn-primary">
                     <span>Crear cuenta</span>

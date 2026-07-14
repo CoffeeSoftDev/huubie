@@ -33,6 +33,11 @@ const CIA_DEFAULT_AGENT = 'CoffeeIA.md';
 const CIA_GRAPH_TYPES  = ['mermaid', 'drawio', 'excalidraw'];
 const CIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
 
+// Panel de conversaciones: ancho ajustable arrastrando su borde (como en el Visor).
+const CIA_SIDEBAR_DEFAULT = 262;
+const CIA_SIDEBAR_MIN     = 200;
+const CIA_SIDEBAR_MAX     = 680;
+
 // Catálogo de modelos: fuente única en model-config.js, igual que Visor y Lab.
 function ciaModelCatalog() {
     return (window.CoffeeModelConfig && window.CoffeeModelConfig.CATALOG) || [];
@@ -47,6 +52,8 @@ const CIA = {
     graphMode:      '',        // '' | 'mermaid' | 'drawio' | 'excalidraw'
     dbToolsOn:      false,     // tools de base de datos (run_select)
     fsToolsOn:      false,     // tools de archivos (list_dir/read_file/grep_files)
+    sidebarWidth:   CIA_SIDEBAR_DEFAULT,   // ancho ajustable del panel de conversaciones
+    sidebarOpen:    true,                  // panel visible (solo se recuerda en escritorio)
     activeDb:       null,      // base conectada (pegajosa por conversación)
     activeFolder:   null,      // carpeta conectada (pegajosa por conversación)
     history:        [],
@@ -76,6 +83,7 @@ const CIA = {
 $(async () => {
     ciaLoadSettings();
     ciaApplyUiTheme(CIA.uiTheme);
+    ciaApplySidebarWidth(CIA.sidebarWidth);   // restaura el ancho guardado
     ciaPopulateAgentSelect();
     ciaPopulateModelSelect();
     ciaBind();
@@ -132,6 +140,10 @@ function ciaLoadSettings() {
         CIA.graphMode  = CIA_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
         CIA.dbToolsOn  = !!s.dbToolsOn;
         CIA.fsToolsOn  = !!s.fsToolsOn;
+        // Ancho del panel de conversaciones (se descarta si viene fuera de rango).
+        const w = Number(s.sidebarWidth);
+        CIA.sidebarWidth = (isFinite(w) && w >= CIA_SIDEBAR_MIN && w <= CIA_SIDEBAR_MAX) ? w : CIA_SIDEBAR_DEFAULT;
+        CIA.sidebarOpen  = (s.sidebarOpen === undefined) ? true : !!s.sidebarOpen;
     } catch (_) { /* noop */ }
 }
 
@@ -139,8 +151,56 @@ function ciaSaveSettings() {
     localStorage.setItem('coffeeia:settings:v1', JSON.stringify({
         agentKey: CIA.agentKey, model: CIA.model, uiTheme: CIA.uiTheme,
         canvasMode: CIA.canvasMode, graphMode: CIA.graphMode,
-        dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn
+        dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn,
+        sidebarWidth: CIA.sidebarWidth, sidebarOpen: CIA.sidebarOpen
     }));
+}
+
+/* ── Ancho del panel de conversaciones (ajustable, como el sidebar del Visor) ── */
+function ciaApplySidebarWidth(px) {
+    const w = Math.min(CIA_SIDEBAR_MAX, Math.max(CIA_SIDEBAR_MIN, Number(px) || CIA_SIDEBAR_DEFAULT));
+    const sb = document.querySelector('.cia-sidebar');
+    if (sb) sb.style.setProperty('--cia-sidebar-w', w + 'px');
+    CIA.sidebarWidth = w;
+    return w;
+}
+
+// Arrastre del borde derecho. El ancho se aplica en vivo y solo se PERSISTE al
+// soltar (no en cada mousemove, que dispararía escrituras a localStorage a 60fps).
+function ciaBindSidebarResize() {
+    const $handle = $('#ciaSidebarResize');
+    const $sb     = $('.cia-sidebar');
+    if (!$handle.length || !$sb.length) return;
+
+    let dragging = false, startX = 0, startW = CIA.sidebarWidth;
+
+    $handle.on('mousedown', e => {
+        e.preventDefault();          // sin esto el arrastre selecciona texto
+        dragging = true;
+        startX = e.clientX;
+        startW = CIA.sidebarWidth;
+        $sb.addClass('is-resizing');
+        document.body.classList.add('cia-sidebar-resizing');
+    });
+
+    $(document).on('mousemove.ciaSbResize', e => {
+        if (!dragging) return;
+        ciaApplySidebarWidth(startW + (e.clientX - startX));   // crece hacia la derecha
+    });
+
+    $(document).on('mouseup.ciaSbResize', () => {
+        if (!dragging) return;
+        dragging = false;
+        $sb.removeClass('is-resizing');
+        document.body.classList.remove('cia-sidebar-resizing');
+        ciaSaveSettings();
+    });
+
+    // Doble clic en el borde: vuelve al ancho por defecto.
+    $handle.on('dblclick', () => {
+        ciaApplySidebarWidth(CIA_SIDEBAR_DEFAULT);
+        ciaSaveSettings();
+    });
 }
 
 function ciaApplyUiTheme(theme) {
@@ -296,7 +356,8 @@ function ciaBind() {
     $('#ciaDeleteCancel, #ciaDeleteCancel2, #ciaDeleteBackdrop').on('click', () => $('#ciaDeleteModal').addClass('hidden'));
 
     ciaBindAttachments();
-    ciaBindMobile();
+    ciaBindSidebarResize();
+    ciaBindResponsive();
 }
 
 /* ═══════════════════════ Modos (lienzo / gráfica / tools) ═══════════════════════
@@ -1671,28 +1732,74 @@ function ciaDownloadConversation() {
 }
 
 /* ═══════════════════════ Móvil ═══════════════════════ */
-function ciaBindMobile() {
-    const isMobile = () => window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
-    $('.cia-mswitch').on('click', function () {
-        $('.cia-mswitch').removeClass('active');
-        $(this).addClass('active');
-        $('.cia-workspace').attr('data-mview', $(this).data('mview'));
-    });
+function ciaIsMobile() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+}
+
+/* Abre/cierra el panel de conversaciones. Un solo control para dos comportamientos
+ * (patrón ChatGPT): en escritorio COLAPSA el panel y el chat gana el ancho; en móvil
+ * el panel es un CAJÓN que se desliza por encima, con fondo oscuro.
+ * La preferencia solo se recuerda en escritorio: en móvil siempre arranca cerrado. */
+function ciaSetSidebarOpen(open, persist) {
+    $('.cia-workspace').toggleClass('is-sb-open', !!open);
+    $('body').toggleClass('cia-sb-open', !!open);
+    $('#ciaSidebarToggle')
+        .toggleClass('is-active', !!open)
+        .attr('aria-expanded', open ? 'true' : 'false');
+
+    if (persist && !ciaIsMobile()) {
+        CIA.sidebarOpen = !!open;
+        ciaSaveSettings();
+    }
+}
+
+function ciaToggleSidebar() {
+    ciaSetSidebarOpen(!$('.cia-workspace').hasClass('is-sb-open'), true);
+}
+
+function ciaBindResponsive() {
+    // Estado inicial: en móvil el cajón arranca cerrado; en escritorio, como se dejó.
+    ciaSetSidebarOpen(ciaIsMobile() ? false : CIA.sidebarOpen, false);
+
+    $('#ciaSidebarToggle').on('click', e => { e.stopPropagation(); ciaToggleSidebar(); });
+    $('#ciaSidebarBackdrop').on('click', () => ciaSetSidebarOpen(false, false));
+
+    // En móvil, elegir una conversación cierra el cajón y deja ver el chat.
     $(document).on('click', '.cia-sidebar-item', () => {
-        if (!isMobile()) return;
-        $('.cia-mswitch').removeClass('active').filter('[data-mview="chat"]').addClass('active');
-        $('.cia-workspace').attr('data-mview', 'chat');
+        if (ciaIsMobile()) ciaSetSidebarOpen(false, false);
+    });
+    // Y "Nueva conversación" desde el cajón, igual.
+    $('#ciaNewSidebarBtn').on('click', () => {
+        if (ciaIsMobile()) ciaSetSidebarOpen(false, false);
     });
 
-    const closeHeader = () => $('#ciaHeaderRight').removeClass('is-open');
+    // Esc cierra el cajón (en escritorio no molesta: solo actúa si está abierto).
+    $(document).on('keydown.ciaSb', e => {
+        if (e.key === 'Escape' && ciaIsMobile()) ciaSetSidebarOpen(false, false);
+    });
+
+    // Al cruzar el umbral móvil/escritorio, reajusta: si vuelve a escritorio,
+    // restaura la preferencia; si pasa a móvil, cierra el cajón.
+    let wasMobile = ciaIsMobile();
+    $(window).on('resize.ciaSb', () => {
+        const now = ciaIsMobile();
+        if (now === wasMobile) return;
+        wasMobile = now;
+        ciaSetSidebarOpen(now ? false : CIA.sidebarOpen, false);
+    });
+
+    // Ajustes del header (agente / nueva / tema) en un desplegable cuando no caben.
     $('#ciaHeaderToggle').on('click', e => {
         e.stopPropagation();
         $('#ciaHeaderRight').toggleClass('is-open');
     });
+    $('#ciaHeaderRight').on('change', 'select', () => {
+        if (ciaIsMobile()) $('#ciaHeaderRight').removeClass('is-open');
+    });
     $(document).on('click.ciaHeader', e => {
         if (!$('#ciaHeaderRight').hasClass('is-open')) return;
         if ($(e.target).closest('#ciaHeaderRight, #ciaHeaderToggle').length) return;
-        closeHeader();
+        $('#ciaHeaderRight').removeClass('is-open');
     });
 }
 

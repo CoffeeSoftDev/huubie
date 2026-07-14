@@ -65,6 +65,12 @@ function pgMetaItems(meta) {
 
 const PG_STORE_KEY  = 'playground:settings:v1';
 
+// Revision del valor por DEFECTO del lienzo. Los ajustes guardados antes de que el
+// lienzo pasara a venir encendido traen canvasMode:false por el default viejo, no
+// porque el usuario lo apagara: se descartan una vez y se adopta el default nuevo.
+// Subir este numero si el default vuelve a cambiar.
+const PG_CANVAS_REV  = 2;
+
 // Agentes que el playground sabe presentar. `render` define como interpretar
 // la salida en el sandbox: 'html' (renderiza), 'code' (modulo), 'markdown' (doc).
 const PG_AGENTS = {
@@ -150,7 +156,7 @@ const pg = {
     model:     '',
     prompt:    '',           // prompt vivo (puede estar editado sin guardar)
     knowledge: new Set(),    // grimorios seleccionados como contexto
-    canvasMode: false,       // modo lienzo (genera HTML renderizable)
+    canvasMode: true,        // modo lienzo (genera HTML renderizable): ENCENDIDO por defecto
     planMode:   false,       // planear primero: propone un plan y espera OK antes de construir
     dbToolsOn:  false,       // tools de base de datos (run_select + conexión automática al nombrar una base) — apagadas hasta activarlas con clic
     fsToolsOn:  false,       // tools de archivos (list_dir/read_file/grep_files + conexión automática de carpeta) — apagadas hasta activarlas con clic
@@ -256,7 +262,9 @@ function pgLoadSettings() {
         if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
-        if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
+        // Solo se respeta el lienzo guardado si viene de la revision actual del default
+        // (ver PG_CANVAS_REV); si no, gana el default y el usuario puede volver a apagarlo.
+        if (typeof s.canvasMode === 'boolean' && s.canvasRev === PG_CANVAS_REV) pg.canvasMode = s.canvasMode;
         if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
         // Las tools NO se restauran a propósito: arrancan siempre apagadas en cada
         // carga y solo se habilitan al darles clic (dbToolsOn/fsToolsOn se quedan en false).
@@ -269,7 +277,7 @@ function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
             agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
-            canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
+            canvasMode: pg.canvasMode, canvasRev: PG_CANVAS_REV, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
             dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, threadsView: pg.threadsView,
             knowledge: Array.from(pg.knowledge)
         }));

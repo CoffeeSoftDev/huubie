@@ -207,9 +207,7 @@
     <nav class="app-rail" aria-label="Módulos">
       <a href="index.php" class="app-rail-item" title="Visor"><i data-lucide="layout-dashboard"></i><span>Visor</span></a>
       <a href="playground.php" class="app-rail-item" title="Playground"><i data-lucide="flask-conical"></i><span>Lab</span></a>
-      <a href="studio.php" class="app-rail-item" title="Coffee Studio"><i data-lucide="clapperboard"></i><span>Studio</span></a>
       <a href="forge.php" class="app-rail-item" title="Forge"><i data-lucide="hammer"></i><span>Forge</span></a>
-      <a href="chat.php" class="app-rail-item" title="Chat con Agentes"><i data-lucide="message-circle"></i><span>Chat</span></a>
       <a href="costsys-ia.php" class="app-rail-item active" title="Costsys IA"><i data-lucide="sparkles"></i><span>Costsys</span></a>
     </nav>
 

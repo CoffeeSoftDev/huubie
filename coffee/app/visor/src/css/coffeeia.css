@@ -32,23 +32,38 @@
     box-shadow: var(--vsr-shadow-chrome);
     z-index: 20;
 }
-.cia-header-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.cia-title    { font-size: 14px; font-weight: 700; color: var(--vsr-text); letter-spacing: -.01em; }
-.cia-subtitle { font-size: 11px; color: var(--vsr-text-mute2); }
+.cia-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-/* Badge del logo: el grano hereda currentColor, así que aquí se le fija el blanco
-   sobre el degradado terracota de la marca (mismo look que el resto del ecosistema). */
-.cia-logo {
-    width: 38px;
-    height: 38px;
-    flex-shrink: 0;
-    border-radius: 9px;
-    display: grid;
-    place-items: center;
-    color: #fff;
-    background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+/* Marca: taza + "CoffeeIA" en una línea, centrados entre sí (sin subtítulo). */
+.cia-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
+
+/* Lockup: "Coffee" en primer plano (negro en claro) y "IA" en naranja, igual que
+   en el estado vacío y que .cs-agent-coffee / .cs-agent-suffix de visor.css. */
+.cia-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+    color: var(--vsr-text);
+}
+.cia-title-ia { color: var(--vsr-accent); }
+
+/* La taza sola, sin pastilla de fondo: hereda currentColor, así que va en negro
+   sobre el tema claro y en blanco sobre el oscuro. */
+.cia-logo {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--vsr-text);
+}
+/* Especificidad por encima de `.cs-brand-mark.cs-brand-lg svg` (28px) de visor.css. */
+.cia-logo .cs-brand-mark.cs-brand-lg svg { width: 32px; height: 32px; }
 
 .cia-header-right { display: flex; align-items: center; gap: 9px; margin-left: auto; }
 .cia-header-toggle { display: none; }
@@ -71,12 +86,33 @@
 /* ── Workspace: rail | sidebar | chat ── */
 .cia-workspace { flex: 1 1 auto; display: flex; min-height: 0; }
 
+/* Ancho ajustable: lo fija la variable --cia-sidebar-w (la escribe el JS y se
+   recuerda entre sesiones). `overflow: visible` deja que el handle sobresalga del
+   borde; el recorte del contenido lo hace .cia-sidebar-body, que es quien scrollea. */
 .cia-sidebar {
-    flex: 0 0 262px;
+    width: var(--cia-sidebar-w, 262px);
+    flex: 0 0 auto;
+    position: relative;
+    overflow: visible;
     display: flex; flex-direction: column; min-height: 0;
     background: var(--vsr-bg-chrome);
     border-right: 1px solid var(--vsr-border);
 }
+
+/* Handle: franja invisible sobre el borde derecho; se tiñe al pasar el ratón. */
+.cia-sidebar-resize {
+    position: absolute;
+    top: 0; right: -3px; bottom: 0;
+    width: 7px;
+    z-index: 6;
+    cursor: col-resize;
+    background: transparent;
+    transition: background .15s;
+}
+.cia-sidebar-resize:hover,
+.cia-sidebar.is-resizing .cia-sidebar-resize { background: var(--vsr-accent); }
+/* Mientras se arrastra: sin cursor de texto ni selección accidental por la página. */
+body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
 .cia-sidebar-head {
     flex: 0 0 auto;
     display: flex; align-items: center; gap: 7px;
@@ -157,20 +193,52 @@
 /* ── Panel del chat ── */
 .cia-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
+/* Conversación abierta + acciones. Vive en el panel IZQUIERDO (no sobre el chat),
+   así que es estrecho: el título envuelve a dos líneas en vez de recortarse. */
 .cia-pane-head {
     flex: 0 0 auto;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 10px 18px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 11px 12px;
     border-bottom: 1px solid var(--vsr-border);
-    background: var(--vsr-bg-chrome);
 }
 .cia-pane-title {
-    display: flex; align-items: center; gap: 8px; min-width: 0;
-    font-size: 13px; font-weight: 600; color: var(--vsr-text-soft);
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--vsr-text-soft);
 }
-.cia-pane-title > i { color: var(--vsr-accent-soft); flex-shrink: 0; }
-.cia-pane-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cia-pane-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.cia-pane-title > i,
+.cia-pane-title > svg {
+    flex-shrink: 0;
+    width: 15px; height: 15px;
+    margin-top: 1px;
+    color: var(--vsr-text-mute2);
+}
+/* Máx. 2 líneas; a partir de ahí, puntos suspensivos. */
+.cia-pane-title span {
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+.cia-pane-actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    flex-shrink: 0;
+}
+.cia-pane-actions .cia-iconbtn { width: 25px; height: 25px; }
+.cia-pane-actions .cia-iconbtn i,
+.cia-pane-actions .cia-iconbtn svg { width: 13px; height: 13px; }
 
 .cia-iconbtn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -286,10 +354,6 @@
 .cia-spacer { flex: 1; min-width: 0; }
 .cia-status { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
 
-/* En pantallas estrechas el "Listo/Generando…" sobra: manda el espacio para el modelo. */
-@media (max-width: 560px) {
-    .cia-status { display: none; }
-}
 
 /* ── Botón "+" : una sola puerta a todas las herramientas (patrón Claude) ── */
 .cia-plus-btn {
@@ -502,13 +566,33 @@
 }
 .cia-modal-input:focus { border-color: var(--vsr-accent); }
 
-/* ── Móvil: sidebar y chat no caben apilados ── */
-.cia-mobile-switch { display: none; }
+/* ══════════════ Responsive (patrón ChatGPT) ══════════════
+   Un solo control (#ciaSidebarToggle) para las dos cosas:
+   · Escritorio → colapsa el panel de conversaciones (el chat gana el ancho).
+   · Móvil      → el panel se vuelve un CAJÓN que se desliza sobre el chat,
+                  con fondo oscuro; se cierra al tocar fuera o al elegir un chat.
+   El estado lo lleva .is-sb-open en el .cia-workspace.                          */
+
+/* ── Escritorio: colapsar ── */
+.cia-sb-toggle { flex-shrink: 0; }
+
+.cia-workspace:not(.is-sb-open) .cia-sidebar {
+    width: 0;
+    min-width: 0;
+    border-right-color: transparent;
+    overflow: hidden;          /* recorta el contenido mientras se cierra */
+}
+.cia-workspace:not(.is-sb-open) .cia-sidebar-resize { display: none; }
+.cia-sidebar { transition: width .22s cubic-bezier(.4, 0, .2, 1); }
+.cia-sidebar.is-resizing { transition: none; }   /* sin lag al arrastrar */
+
+/* Fondo del cajón: solo existe en móvil (ver más abajo). */
+.cia-sidebar-backdrop { display: none; }
 
 @media (max-width: 900px) {
-    .cia-header { padding: 9px 12px; }
-    .cia-subtitle { display: none; }
+    .cia-header { padding: 9px 12px; gap: 10px; }
 
+    /* Ajustes del header (agente/nueva/tema) pasan a un desplegable. */
     .cia-header-toggle {
         display: inline-flex; align-items: center; justify-content: center;
         width: 32px; height: 32px; margin-left: auto; border-radius: 8px; cursor: pointer;
@@ -516,7 +600,7 @@
         color: var(--vsr-text-soft);
     }
     .cia-header-right {
-        display: none; position: absolute; top: 54px; right: 12px; z-index: 30;
+        display: none; position: absolute; top: 54px; right: 12px; z-index: 95;
         flex-direction: column; align-items: stretch; gap: 8px;
         padding: 10px; min-width: 210px;
         background: var(--vsr-bg-card);
@@ -526,22 +610,57 @@
     }
     .cia-header-right.is-open { display: flex; }
 
-    .cia-mobile-switch {
-        display: flex; flex: 0 0 auto;
-        border-bottom: 1px solid var(--vsr-border);
-        background: var(--vsr-bg-chrome);
+    /* ── El panel de conversaciones se vuelve un CAJÓN ── */
+    .cia-sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 90;
+        width: min(300px, 84vw) !important;   /* manda sobre el ancho ajustable */
+        border-right: 1px solid var(--vsr-border);
+        box-shadow: 0 0 40px rgba(0, 0, 0, .5);
+        transform: translateX(-100%);
+        transition: transform .24s cubic-bezier(.4, 0, .2, 1);
     }
-    .cia-mswitch {
-        flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-        padding: 9px 8px; cursor: pointer;
-        background: none; border: none; border-bottom: 2px solid transparent;
-        color: var(--vsr-text-mute2); font-size: 12px; font-weight: 600;
+    .cia-workspace.is-sb-open .cia-sidebar { transform: translateX(0); }
+    .cia-sidebar-resize { display: none; }    /* en un cajón no se redimensiona */
+
+    .cia-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 85;
+        background: rgba(0, 0, 0, .5);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .24s ease;
     }
-    .cia-mswitch.active { color: var(--vsr-accent-soft); border-bottom-color: var(--vsr-accent); }
+    /* El estado también vive en <body> porque el backdrop está fuera del workspace. */
+    body.cia-sb-open .cia-sidebar-backdrop { opacity: 1; pointer-events: auto; }
 
-    .cia-workspace[data-mview="chat"] .cia-sidebar { display: none; }
-    .cia-workspace[data-mview="list"] .cia-main { display: none; }
-    .cia-sidebar { flex: 1 1 auto; border-right: none; }
-
+    /* El chat ocupa todo: el cajón se superpone, no le roba ancho. */
+    .cia-main { width: 100%; }
     .cia-body { padding: 16px 12px 8px; }
+    .cia-pane-head { padding: 9px 12px; }
+    .cia-composer { padding: 10px 12px; }
+}
+
+/* Pantallas muy estrechas: el rail de módulos estorba más de lo que aporta. */
+@media (max-width: 560px) {
+    .app-rail { display: none; }
+    /* El "Listo/Generando…" sobra: el espacio manda para el selector de modelo. */
+    .cia-status { display: none; }
+    .cia-empty-wordmark { font-size: 22px; }
+    .cia-empty-orb svg { width: 60px; height: 60px; }
+    .cia-menu { min-width: 0; width: calc(100vw - 24px); max-width: 320px; }
+    /* El submenú no cabe al lado: se despliega debajo, dentro del propio menú. */
+    .cia-submenu {
+        position: static;
+        left: auto; right: auto; bottom: auto;
+        width: 100%;
+        margin-top: 4px;
+        border: none;
+        box-shadow: none;
+        background: var(--vsr-bg-hover);
+    }
+    .cia-menu-item.has-sub { flex-wrap: wrap; }
 }

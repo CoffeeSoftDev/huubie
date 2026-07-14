@@ -34,16 +34,20 @@
 
     <header class="cia-header">
         <div class="cia-header-left">
-            <!-- El grano CoffeeSoft va dentro de un badge propio: el SVG usa
-                 fill=currentColor, asi que necesita un contenedor que le fije
-                 color y tamano (en chat.php eso lo hacia .chat-logo, de chat.css,
-                 que esta pagina ya no carga: por eso el logo no se veia). -->
-            <div class="cia-logo">
-                <span class="cs-brand-mark cs-brand-lg"><?php include __DIR__ . '/brand-mark.php'; ?></span>
-            </div>
-            <div class="flex flex-col leading-tight">
-                <span class="cia-title">CoffeeIA</span>
-                <span class="cia-subtitle">Chat de agentes · lienzo · datos en vivo</span>
+            <!-- Mostrar/ocultar el panel de conversaciones (patron ChatGPT): en
+                 escritorio lo colapsa; en movil lo abre como cajon sobre el chat. -->
+            <button id="ciaSidebarToggle" class="cia-iconbtn cia-sb-toggle" title="Mostrar u ocultar conversaciones" aria-label="Conversaciones">
+                <i data-lucide="panel-left"></i>
+            </button>
+
+            <!-- Marca: la taza y el lockup "Coffee"+"IA" en una sola linea, centrados
+                 entre si. El SVG usa fill=currentColor, asi que el color lo pone el
+                 contenedor .cia-logo: primer plano (negro en claro, blanco en oscuro). -->
+            <div class="cia-brand">
+                <div class="cia-logo">
+                    <span class="cs-brand-mark cs-brand-lg"><?php include __DIR__ . '/brand-mark.php'; ?></span>
+                </div>
+                <span class="cia-title">Coffee<span class="cia-title-ia">IA</span></span>
             </div>
         </div>
 
@@ -65,17 +69,10 @@
         </div>
     </header>
 
-    <!-- Conmutador Conversaciones/Chat (solo movil): los dos paneles no caben apilados. -->
-    <div class="cia-mobile-switch" role="tablist" aria-label="Vista">
-        <button class="cia-mswitch" data-mview="list" role="tab">
-            <i data-lucide="messages-square" class="w-4 h-4"></i> Conversaciones
-        </button>
-        <button class="cia-mswitch active" data-mview="chat" role="tab">
-            <i data-lucide="message-circle" class="w-4 h-4"></i> Chat
-        </button>
-    </div>
+    <!-- Fondo oscuro del cajon de conversaciones (solo movil): al tocarlo, se cierra. -->
+    <div id="ciaSidebarBackdrop" class="cia-sidebar-backdrop"></div>
 
-    <div class="cia-workspace" data-mview="chat">
+    <div class="cia-workspace is-sb-open">
 
         <nav class="app-rail" aria-label="Modulos">
             <div class="app-rail-nav">
@@ -86,10 +83,6 @@
                 <a href="playground.php" class="app-rail-item" title="Playground de Agentes">
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
-                </a>
-                <a href="studio.php" class="app-rail-item" title="Coffee Studio">
-                    <i data-lucide="clapperboard"></i>
-                    <span class="app-rail-label">Studio</span>
                 </a>
                 <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
@@ -110,6 +103,33 @@
         </nav>
 
         <aside class="cia-sidebar">
+            <!-- Handle para redimensionar arrastrando el borde derecho (mismo patron
+                 que el sidebar del Visor). Doble clic = vuelve al ancho por defecto. -->
+            <div id="ciaSidebarResize" class="cia-sidebar-resize" title="Arrastra para redimensionar (doble clic: restablecer)"></div>
+
+            <!-- Conversacion abierta + sus acciones. Vive AQUI (no sobre el chat):
+                 el panel del chat queda limpio, solo mensajes y composer. -->
+            <header class="cia-pane-head">
+                <div class="cia-pane-title">
+                    <i data-lucide="message-circle"></i>
+                    <span id="ciaCurrentTitle">Nueva conversación</span>
+                </div>
+                <div class="cia-pane-actions">
+                    <button id="ciaRenameBtn" class="cia-iconbtn" title="Renombrar">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="ciaSaveBtn" class="cia-iconbtn" title="Guardar ahora (también se guarda sola)">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="ciaDownloadBtn" class="cia-iconbtn" title="Descargar .md">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="ciaDeleteBtn" class="cia-iconbtn is-danger" title="Eliminar">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </header>
+
             <div class="cia-sidebar-head">
                 <input id="ciaSearchInput" type="text" class="cs-input" placeholder="Buscar conversaciones…">
                 <button id="ciaNewSidebarBtn" class="cs-btn cs-btn-outline cs-btn-sm" title="Nueva conversación">
@@ -138,28 +158,10 @@
         </aside>
 
         <main class="cia-main">
-            <header class="cia-pane-head">
-                <div class="cia-pane-title">
-                    <i data-lucide="message-circle" class="w-4 h-4"></i>
-                    <span id="ciaCurrentTitle">Nueva conversación</span>
-                </div>
-                <div class="cia-pane-actions">
-                    <button id="ciaRenameBtn" class="cia-iconbtn" title="Renombrar">
-                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaSaveBtn" class="cia-iconbtn" title="Guardar ahora (también se guarda sola)">
-                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaDownloadBtn" class="cia-iconbtn" title="Descargar .md">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaDeleteBtn" class="cia-iconbtn is-danger" title="Eliminar">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
-                </div>
-            </header>
+            <!-- Sin barra de titulo: las acciones de la conversacion viven en el
+                 panel izquierdo. Aqui solo hay mensajes y composer.
 
-            <!-- .ia-drawer-body: MISMO contenedor de mensajes que el Visor (flex column,
+                 .ia-drawer-body: MISMO contenedor de mensajes que el Visor (flex column,
                  gap 22px, scroll propio). Dentro van .ia-msg / .ia-typing-msg. -->
             <div id="ciaBody" class="ia-drawer-body cia-body"></div>
 

@@ -44,11 +44,13 @@
     margin-bottom: 24px;
 }
 .auth-brand-mark {
-    width: 46px; height: 46px;
+    width: 60px; height: 60px;
+    flex-shrink: 0;
     color: #000000;
 }
 .auth-brand-mark svg { width: 100%; height: 100%; }
-.auth-brand-name { font-size: 19px; font-weight: 700; letter-spacing: .01em; }
+/* El texto sube con la taza: si no, el lockup queda descompensado. */
+.auth-brand-name { font-size: 24px; font-weight: 700; letter-spacing: .01em; }
 .auth-brand-coffee { color: var(--auth-text); }
 .auth-brand-soft { color: var(--auth-accent); }
 
@@ -138,6 +140,43 @@
     border-color: var(--auth-accent);
     box-shadow: 0 0 0 3px var(--auth-accent-tint);
 }
+
+/* ── Contraseña con botón de "ver" ──
+   El input va dentro de un envoltorio relativo; el ojo flota sobre su borde
+   derecho y el input reserva ese hueco para que el texto no pase por debajo. */
+.auth-pass {
+    position: relative;
+    display: flex;
+}
+.auth-pass .auth-input {
+    width: 100%;
+    padding-right: 40px;
+}
+.auth-pass-toggle {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #6B7280;
+    cursor: pointer;
+    transition: color .15s, background-color .15s;
+}
+.auth-pass-toggle:hover { color: var(--auth-text); background: rgba(0, 0, 0, .05); }
+.auth-pass-toggle:focus-visible {
+    outline: 2px solid var(--auth-accent);
+    outline-offset: 1px;
+}
+.auth-pass-toggle i,
+.auth-pass-toggle svg { width: 17px; height: 17px; }
 
 .auth-btn-primary {
     display: flex;

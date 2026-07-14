@@ -129,17 +129,9 @@
                     <i data-lucide="flask-conical"></i>
                     <span class="app-rail-label">Lab</span>
                 </a>
-                <a href="studio.php" class="app-rail-item" title="Coffee Studio - Templates multi-archivo">
-                    <i data-lucide="clapperboard"></i>
-                    <span class="app-rail-label">Studio</span>
-                </a>
 <a href="forge.php" class="app-rail-item" title="Forge — Fábrica de Módulos">
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
-                </a>
-                <a href="chat.php" class="app-rail-item" title="Chat con Agentes">
-                    <i data-lucide="message-circle"></i>
-                    <span class="app-rail-label">Chat</span>
                 </a>
                 <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
