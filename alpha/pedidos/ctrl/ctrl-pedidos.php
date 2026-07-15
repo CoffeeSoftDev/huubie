@@ -172,9 +172,6 @@ class Pedidos extends MPedidos{
             $saldo         = $total - $discount - $totalPagado;
             $hasDiscount   = $discount > 0;
 
-            $Sucursal = $this->getSucursalByID([$order['subsidiaries_id']]);
-            if (!$Sucursal) $Sucursal = ['name' => '', 'sucursal' => ''];
-
             $htmlTotal = $hasDiscount
                 ? "<div class='text-end'>
                         <p title='Con descuento aplicado' class='text-green-400 cursor-pointer font-semibold'>" . evaluar($totalGral) . "</p>
@@ -243,6 +240,57 @@ class Pedidos extends MPedidos{
          $subsidiaries_id
         ];
 
+    }
+
+    // Listado ligero para el Reporte por tickets del order-visor: a diferencia de
+    // listOrders() no arma HTML para createTable, solo orquesta getOrders() +
+    // getTotalPaidByOrder() y devuelve JSON crudo por pedido. Es solo lectura
+    // (no exige turno abierto ni valida canWriteOrder).
+    public function listOrdersTicket() {
+        $sessionSub = $_SESSION['SUB'];
+
+        // Misma normalizacion que listOrders: "0" = todas las sucursales, sin
+        // valor util cae a la sucursal de sesion.
+        $postSub = $_POST['subsidiaries_id'] ?? null;
+        $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null' || $postSub === 'undefined')
+            ? $sessionSub
+            : $postSub;
+
+        $orders = $this->getOrders([
+            'fi'              => $_POST['fi'] ?? '',
+            'ff'              => $_POST['ff'] ?? '',
+            'subsidiaries_id' => $subsidiaries_id
+        ]) ?? [];
+
+        $rows = [];
+        foreach ($orders as $order) {
+            $discount    = $order['discount'] ?? 0;
+            $total       = $order['total_pay'] ?? 0;
+            $totalPagado = $this->getTotalPaidByOrder([$order['id']]);
+
+            $rows[] = [
+                'id'              => $order['id'],
+                'folio'           => formatSucursal($order['subsidiaries_id'], $order['id']),
+                'date_creation'   => $order['date_creation'],
+                'date_order'      => $order['date_order'],
+                'time_order'      => $order['time_order'],
+                'name_client'     => $order['name_client'],
+                'phone'           => $order['phone'],
+                'status'          => (int) $order['idStatus'],
+                'status_label'    => $order['status_label'],
+                'total_pay'       => (float) $total,
+                'discount'        => (float) $discount,
+                'total_paid'      => (float) $totalPagado,
+                'balance'         => (float) ($total - $discount - $totalPagado),
+                'subsidiaries_id' => $order['subsidiaries_id'],
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Pedidos obtenidos correctamente',
+            'data'    => $rows
+        ];
     }
 
     public function addOrder(){
@@ -332,6 +380,9 @@ class Pedidos extends MPedidos{
 
             $folio  = $this->getMaxOrder();
 
+            $entrega = trim(($_POST['date_order'] ?? '') . ' ' . ($_POST['time_order'] ?? ''));
+            $this->logOrderHistory($folio['id'], 'Pedido creado' . ($entrega !== '' ? " — entrega {$entrega}" : ''), 'creation');
+
             return [
                 'status'  => 200,
                 'message' => 'Pedido registrado correctamente.',
@@ -375,6 +426,12 @@ class Pedidos extends MPedidos{
         $status  = 500;
         $message = 'No se pudo actualizar el pedido';
         $statusQuery = false;
+
+        // Estado previo para la bitacora (diff antes -> despues). Se lee ANTES de tocar
+        // cliente y pedido; getOrderID trae fecha/hora ya formateadas y el nombre/telefono
+        // del cliente actual del pedido.
+        $prevOrder = $this->getOrderID([$_POST['id']]);
+        $prevOrder = is_array($prevOrder) && isset($prevOrder[0]) ? $prevOrder[0] : [];
 
         if ($_SESSION['ROLID'] == 1) {
             $subsidiaries_id = $_POST['subsidiaries_id'];
@@ -437,6 +494,7 @@ class Pedidos extends MPedidos{
         if ($update) {
             $status  = 200;
             $message = 'Pedido actualizado correctamente';
+            $this->logOrderEditionDiff($prevOrder);
         }
 
         return [
@@ -444,6 +502,51 @@ class Pedidos extends MPedidos{
             'message' => $message,
             'clients' => $statusQuery
         ];
+    }
+
+    // Registra en la bitacora los campos de cabecera que cambiaron en una edicion.
+    // Compara el estado previo (getOrderID, con fecha/hora ya formateadas) contra el
+    // $_POST entrante, normalizando fecha/hora al MISMO formato para no marcar como
+    // cambio lo que solo difiere en representacion. No registra nada si nada cambio.
+    private function logOrderEditionDiff($prev) {
+        if (empty($prev)) return;
+
+        $fmtDate = function ($ymd) {
+            $d = DateTime::createFromFormat('Y-m-d', (string) $ymd);
+            return $d ? $d->format('d/m/Y') : (string) $ymd;
+        };
+        $fmtTime = function ($hm) {
+            $d = DateTime::createFromFormat('H:i', (string) $hm)
+                ?: DateTime::createFromFormat('H:i:s', (string) $hm);
+            return $d ? $d->format('h:i A') : (string) $hm;
+        };
+        $deliveryLabel = function ($v) {
+            $map = ['0' => 'Local', '1' => 'A domicilio'];
+            return isset($map[(string) $v]) ? $map[(string) $v] : "Tipo {$v}";
+        };
+
+        // [etiqueta, valor previo, valor nuevo] ya normalizados al mismo formato.
+        $campos = [
+            ['Cliente',  trim((string) ($prev['name']  ?? '')),          trim((string) ($_POST['name']  ?? ''))],
+            ['Teléfono', trim((string) ($prev['phone'] ?? '')),          trim((string) ($_POST['phone'] ?? ''))],
+            ['Entrega',  (string) ($prev['date_order'] ?? ''),           $fmtDate($_POST['date_order'] ?? '')],
+            ['Hora',     (string) ($prev['time_order'] ?? ''),           $fmtTime($_POST['time_order'] ?? '')],
+            ['Tipo',     $deliveryLabel($prev['delivery_type'] ?? ''),   $deliveryLabel($_POST['delivery_type'] ?? '')],
+            ['Nota',     trim((string) ($prev['note'] ?? '')),           trim((string) ($_POST['note'] ?? ''))],
+        ];
+
+        $cambios = [];
+        foreach ($campos as $c) {
+            if ($c[1] !== $c[2]) {
+                $antes   = $c[1] === '' ? '—' : $c[1];
+                $despues = $c[2] === '' ? '—' : $c[2];
+                $cambios[] = "{$c[0]}: {$antes} → {$despues}";
+            }
+        }
+
+        if (!$cambios) return;
+
+        $this->logHistory(implode(' · ', $cambios), 'edition', 'Pedido editado');
     }
 
     // Permite mutar un pedido si el usuario es admin, si el pedido pertenece a su
@@ -472,6 +575,7 @@ class Pedidos extends MPedidos{
         if ($update) {
             $status  = 200;
             $message = 'Evento cancelado correctamente.';
+            $this->logHistory('Pedido cancelado', 'cancellation');
         }
 
         return [
@@ -526,6 +630,13 @@ class Pedidos extends MPedidos{
             if ($paymentMethods === null || !is_array($paymentMethods)) {
                 $paymentMethods = [];
             }
+
+            // Historial de pagos: cada abono con fecha/metodo/sucursal de cobro.
+            // paymentMethods solo trae totales agrupados por metodo, no sirve como historial.
+            $payments = $this->getListPayment([$orderId]);
+            if (!is_array($payments)) {
+                $payments = [];
+            }
             
             $data = [
                 
@@ -540,6 +651,7 @@ class Pedidos extends MPedidos{
 
                 'products'       => $products,
                 'paymentMethods' => $paymentMethods,
+                'payments'       => $payments,
                 'clausules'      => $this->listClausules([1, $_SESSION['COM']]),
 
                 'summary' => [
@@ -1312,18 +1424,10 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Wrapper de logOrderHistory (mdl-pedidos) para las llamadas existentes que
+    // toman el pedido de $_POST['id'].
     function logHistory($message, $type = 'general', $title = 'Registro de actividad') {
-        $history = [
-            'title'         => $title,
-            'order_id'      => $_POST['id'],
-            'comment'       => $message,
-            'action'        => $message,
-            'date_action'   => date('Y-m-d H:i:s'),
-            'type'          => $type,
-            'usr_users_id'  => $_SESSION['USR'] ?? 1,
-        ];
-
-        return $this->addHistories($this->util->sql($history));
+        return $this->logOrderHistory($_POST['id'] ?? null, $message, $type, $title);
     }
 
     function updateDeliveryStatus() {
@@ -1357,10 +1461,16 @@ class Pedidos extends MPedidos{
         
         if ($update) {
             $status     = 200;
-            $statusText = $is_delivered == 1 ? 'entregado' : 'no entregado';
+            // is_delivered tiene 3 estados: 0 = no entregado, 1 = entregado, 2 = para
+            // producir (ver handleDeliveryClick en app.js).
+            $deliveryLabels = [0 => 'no entregado', 1 => 'entregado', 2 => 'para producir'];
+            $statusText = $deliveryLabels[(int) $is_delivered] ?? "estado {$is_delivered}";
             $message    = "El pedido fue marcado como {$statusText}";
+            // Bitacora: queda registrado quien marco la entrega y cuando (logHistory
+            // toma el id de $_POST['id'], ya presente en este request).
+            $this->logHistory("Pedido marcado como {$statusText}", 'delivery', 'Entrega');
         }
-        
+
         return [
             'status' => $status,
             'message' => $message,

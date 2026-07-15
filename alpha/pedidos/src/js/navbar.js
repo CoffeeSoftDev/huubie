@@ -32,8 +32,8 @@ class Navbar {
             branches:      [],
 
             navbar: {
-                bg:     '#141d2b',
-                border: '#1C64F2',
+                bg:     '#0F172A',
+                border: '#334155',
             },
             header: {
                 bg:           '#1F2A37',
@@ -87,8 +87,8 @@ class Navbar {
             && this.settings.imgPerfil.trim() !== ''
             && !/df-user\.png$/.test(this.settings.imgPerfil);
         const navbarAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full border-2 border-white object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
-            : `<div class="w-8 h-8 rounded-full border-2 border-white bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#F97316] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
+            : `<div class="w-8 h-8 rounded-full bg-[#F97316] flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
 
         const dropdownAvatar = hasPhoto
             ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
@@ -100,24 +100,36 @@ class Navbar {
 
         const navbarHtml = `
             ${branchStyles}
-            <nav class="fixed top-0 left-0 w-full text-white px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
-                <div class="flex items-center space-x-2">
+            <style id="navbarLayoutStyles">
+                /* El sidebar compartido (menus/src/js/sidebar.js) asume una navbar de 48px;
+                   la de pedidos mide 64px, asi que aqui se corrige su offset y altura. */
+                #sidebar { margin-top: 4rem !important; height: calc(100vh - 4rem) !important; }
+            </style>
+            <nav class="fixed top-0 left-0 w-full text-white px-4 lg:px-6 h-16 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}80;">
+                <div class="flex items-center gap-2">
                     <img src="${this.settings.logo}" alt="Logo" class="w-8 h-8" />
-                    <button id="toggleSidebar" class="text-white text-xl leading-none">☰</button>
+                    <button id="toggleSidebar" aria-label="Abrir menú" class="group p-2 rounded-lg hover:bg-slate-800 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-slate-300 group-hover:text-white">
+                            <path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="flex items-center gap-3">
                     <div id="navbarBranchControl">${branchControl}</div>
                     ${hiddenSelect}
-                    <button id="btnReloadApp" class="flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Recargar (limpia caché)">
-                        <svg class="w-[18px] h-[18px] text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                    <button id="btnReloadApp" aria-label="Recargar" class="group p-2 rounded-lg hover:bg-slate-800 transition-colors" title="Recargar (limpia caché)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-slate-300 group-hover:text-white">
                             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
                             <path d="M21 3v5h-5"/>
                             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
                             <path d="M3 21v-5h5"/>
                         </svg>
                     </button>
-                    <a href="/alpha/menu/" class="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/5 transition" title="Menus">
-                        <i class="icon-th-large-3 text-gray-300 text-base"></i>
+                    <a href="/alpha/menu/" aria-label="Aplicaciones" class="group hidden md:block p-2 rounded-lg hover:bg-slate-800 transition-colors" title="Menus">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-slate-300 group-hover:text-white">
+                            <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+                            <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+                        </svg>
                     </a>
                     <button id="btnUserMenu" class="ml-1 flex items-center gap-2 border-l border-gray-700 pl-3">
                         ${navbarAvatar}
@@ -128,7 +140,7 @@ class Navbar {
                     </button>
                 </div>
             </nav>
-            <div class="relative mt-12 z-50">
+            <div class="relative mt-16 z-50">
                 <div id="userMenuDropdown" class="absolute right-0 w-72 rounded-2xl shadow-lg opacity-0 scale-95 invisible transition-all duration-500 ease-out" style="background-color: ${dropdown.bg};">
                     <div class="relative flex items-center justify-center h-20 rounded-t-2xl" style="background-color: ${header.bg};">
                         <button id="btnCloseUserMenu" class="btn btn-sm p-1 absolute top-2 right-3 text-gray-400 hover:text-white focus:outline-none">

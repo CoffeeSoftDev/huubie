@@ -134,7 +134,7 @@ class Cierre extends MCierre {
         }
 
         $metrics  = $this->getConsolidatedMetrics([$date, $subsidiaries_id]);
-        $payments = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
+        $payments = $this->getConsolidatedPayments([$date, $subsidiaries_id, $date, $subsidiaries_id]);
         $statuses = $this->getConsolidatedStatuses([$date, $subsidiaries_id]);
         $discount = $this->getDiscountTotal([$date, $subsidiaries_id]);
 
@@ -210,20 +210,25 @@ class Cierre extends MCierre {
         $date            = $_POST['date'];
         $subsidiaries_id = $this->resolveSubsidiary();
 
-        $closure = $this->getDailyClosureByDate([$date, $subsidiaries_id]);
-        if (!$closure) {
+        $closure   = $this->getDailyClosureByDate([$date, $subsidiaries_id]);
+        $isPending = !$closure;
+
+        // Vista previa del Corte Z sin cierre (reportes manda preview=1): solo el admin
+        // puede consultar el dia aunque falte el cierre diario; el reporte se arma con
+        // los datos en vivo y viaja marcado como pendiente. El resto sigue viendo 404.
+        if ($isPending && ($_SESSION['ROLID'] != 1 || empty($_POST['preview']))) {
             return ['status' => 404, 'message' => 'No hay cierre para esta fecha'];
         }
 
         $shifts   = $this->listShiftsDetail([$date, $subsidiaries_id]);
         $statuses = $this->getConsolidatedStatuses([$date, $subsidiaries_id]);
-        $paymentTx = $this->getPaymentTransactions([$date, $subsidiaries_id]);
+        $paymentTx = $this->getPaymentTransactions([$date, $subsidiaries_id, $date, $subsidiaries_id]);
         $ordersRaw = $this->getOrdersBreakdown([$date, $subsidiaries_id]);
 
         $summary    = $this->getOrdersSummary([$date, $subsidiaries_id]);
         $categories = $this->getSalesByCategory([$date, $subsidiaries_id]);
         $cashShifts = $this->getCashShiftsSummary([$date, $subsidiaries_id]);
-        $livePays   = $this->getConsolidatedPayments([$date, $subsidiaries_id]);
+        $livePays   = $this->getConsolidatedPayments([$date, $subsidiaries_id, $date, $subsidiaries_id]);
         $prevRaw    = $this->getDailyPrevPayments([$date . ' 23:59:59', $date, $date, $subsidiaries_id]);
         $prevByTx   = $this->getDailyPrevPaymentsByMethod([$date, $date, $subsidiaries_id]);
         $crossRaw   = $this->getDailyCrossPayments([$date, $subsidiaries_id, $subsidiaries_id]);
@@ -286,7 +291,8 @@ class Cierre extends MCierre {
             ];
         }
 
-        // Cobranza real del dia (fecha de pago + sucursal de cobro), para el corte Z.
+        // Cobranza real de pedidos del dia: solo pagos con fecha de pago de ese dia
+        // y cobrados en esta sucursal. Los abonos a pedidos anteriores van en prev_*.
         $liveCash = 0; $liveCard = 0; $liveTransfer = 0;
         foreach ($livePays as $pay) {
             switch (intval($pay['method_pay_id'])) {
@@ -311,6 +317,7 @@ class Cierre extends MCierre {
             $prevPayments[] = [
                 'id'                => intval($p['id']),
                 'folio'             => formatFolioCierre($p['origin_subsidiary_id'], $p['id']),
+                'pay_time'          => $p['pay_time'],
                 'client_name'       => $p['client_name'],
                 'origin_subsidiary' => $p['origin_subsidiary'],
                 'is_cross'          => intval($p['origin_subsidiary_id']) != intval($subsidiaries_id),
@@ -338,8 +345,32 @@ class Cierre extends MCierre {
         $totalCuentas = intval($summary['total_cuentas']);
         $canceladas   = intval($summary['canceladas']);
 
+        $openShiftsCount = 0;
+        if ($isPending) {
+            // Cierre sintetico con el mismo criterio que usaria addCierre al cerrar:
+            // metodos = lo cobrado hoy de pedidos del dia; venta/turnos de los cerrados.
+            $metrics = $this->getConsolidatedMetrics([$date, $subsidiaries_id]);
+            $closure = [
+                'id'             => null,
+                'closure_date'   => $date,
+                'created_at'     => null,
+                'closed_by_name' => null,
+                'total'          => floatval($metrics['total_sales']),
+                'total_orders'   => intval($metrics['total_orders']),
+                'total_shifts'   => intval($metrics['total_shifts']),
+                'total_cash'     => $liveCash,
+                'total_card'     => $liveCard,
+                'total_transfer' => $liveTransfer,
+                'total_discount' => $this->getDiscountTotal([$date, $subsidiaries_id]),
+                'status'         => 'pending'
+            ];
+            $openShiftsCount = count($this->listOpenShifts([$date, $subsidiaries_id]));
+        }
+
         return [
             'status'  => 200,
+            'pending' => $isPending,
+            'open_shifts' => $openShiftsCount,
             'closure' => [
                 'id'              => $closure['id'],
                 'closure_date'    => $closure['closure_date'],

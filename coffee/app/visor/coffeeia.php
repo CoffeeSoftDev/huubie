@@ -49,6 +49,12 @@
                 </div>
                 <span class="cia-title">Coffee<span class="cia-title-ia">IA</span></span>
             </div>
+
+            <!-- Reabrir el visor de templates. Solo existe cuando la conversacion
+                 ya produjo algun template (lo muestra/oculta el JS). -->
+            <button id="ciaViewerBtn" class="cia-iconbtn cia-sb-toggle" title="Mostrar el visor de templates" style="display:none;">
+                <i data-lucide="panel-right"></i>
+            </button>
         </div>
 
         <button id="ciaHeaderToggle" class="cia-header-toggle" title="Ajustes">
@@ -282,6 +288,66 @@
                 </div><!-- /.cia-inputbox -->
             </div>
         </main>
+
+        <!-- Visor de templates (patron Artifacts). Es UNA sola pieza de markup:
+             en escritorio el CSS la pinta como panel a la DERECHA (y el chat le
+             cede ancho); en movil, como VENTANA FLOTANTE sobre el chat. El JS no
+             sabe de la diferencia: solo abre y cierra. -->
+        <aside id="ciaViewer" class="cia-viewer" aria-hidden="true">
+            <!-- Ancho ajustable arrastrando el borde izquierdo (gemelo del sidebar). -->
+            <div id="ciaViewerResize" class="cia-viewer-resize" title="Arrastra para redimensionar (doble clic: restablecer)"></div>
+
+            <header class="cia-viewer-head">
+                <div class="cia-viewer-title">
+                    <i data-lucide="layout-template"></i>
+                    <span id="ciaViewerName">Componente</span>
+                </div>
+                <div class="cia-viewer-actions">
+                    <!-- Historial de versiones: cada template nuevo de la conversacion
+                         es una version; asi se puede volver a la anterior. -->
+                    <div id="ciaViewerVersions" class="cia-viewer-versions" style="display:none;">
+                        <button id="ciaViewerPrev" class="cia-iconbtn" title="Versión anterior">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <span id="ciaViewerVer">1/1</span>
+                        <button id="ciaViewerNext" class="cia-iconbtn" title="Versión siguiente">
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <button id="ciaViewerMax" class="cia-iconbtn" title="Maximizar">
+                        <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button id="ciaViewerClose" class="cia-iconbtn" title="Cerrar (Esc)">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="cia-viewer-bar">
+                <span class="cia-viewer-tabs">
+                    <button class="cia-viewer-tab is-active" data-tab="preview">Vista previa</button>
+                    <button class="cia-viewer-tab" data-tab="code">Código</button>
+                </span>
+                <span class="cia-spacer"></span>
+                <button id="ciaViewerReload" class="cia-iconbtn" title="Recargar la vista previa">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="ciaViewerNewTab" class="cia-iconbtn" title="Abrir en otra pestaña">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="ciaViewerCopy" class="cia-iconbtn" title="Copiar el HTML">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="ciaViewerDownload" class="cia-iconbtn" title="Descargar .html">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <div class="cia-viewer-body">
+                <iframe id="ciaViewerFrame" class="cia-viewer-frame" sandbox="allow-scripts"></iframe>
+                <pre id="ciaViewerCode" class="cia-viewer-code cs-scroll" style="display:none;"><code class="language-html"></code></pre>
+            </div>
+        </aside>
     </div>
 
     <div id="ciaRenameModal" class="pg-modal hidden" aria-hidden="true">

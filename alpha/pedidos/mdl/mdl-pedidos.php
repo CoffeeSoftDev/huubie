@@ -429,6 +429,22 @@ class MPedidos extends CRUD {
         ]);
     }
 
+    // Bitacora del pedido con order_id EXPLICITO (no depende de $_POST['id']), para
+    // que cualquier ctrl que extienda MPedidos (pedidos, catalogo) registre igual.
+    // Nunca debe bloquear: el resultado no condiciona la operacion principal.
+    function logOrderHistory($orderId, $message, $type = 'general', $title = 'Registro de actividad') {
+        if (empty($orderId)) return false;
+        return $this->addHistories($this->util->sql([
+            'title'        => $title,
+            'order_id'     => $orderId,
+            'comment'      => $message,
+            'action'       => $message,
+            'date_action'  => date('Y-m-d H:i:s'),
+            'type'         => $type,
+            'usr_users_id' => $_SESSION['USR'] ?? ($_SESSION['ID'] ?? 1),
+        ]));
+    }
+
     
 
 

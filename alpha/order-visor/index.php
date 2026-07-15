@@ -63,15 +63,18 @@
     </div>
 
     <!--
-        El visor NO reimplementa el formato de los reportes: reutiliza las dos fuentes
+        El visor NO reimplementa el formato de los reportes: reutiliza las fuentes
         unicas que ya viven en alpha/pedidos.
-          - shift-ticket.js   -> renderShiftTicket()  (Cierre x Turno / Corte X)
-          - pedidos-cierre.js -> Cierre.renderExecutiveSummary() (Corte Z) + printDaily()
+          - shift-ticket.js    -> renderShiftTicket()  (Cierre x Turno / Corte X)
+          - pedidos-cierre.js  -> Cierre.renderExecutiveSummary() (Corte Z) + printDaily()
+          - pedidos-catalogo.js -> CatalogProduct.ticketPasteleria() (Reporte por tickets),
+            mismo patron de reuso que alpha/pedidos/calendario/index.php.
         Por eso se cargan desde PATH_PEDIDOS y no se duplican aqui.
     -->
     <script src="<?=PATH_PEDIDOS?>src/js/lucide-icons.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/shift-ticket.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-cierre.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/pedidos-catalogo.js?t=<?php echo time(); ?>"></script>
 
     <script src="src/js/order-visor.js?t=<?php echo time(); ?>"></script>
 </body>

@@ -141,7 +141,7 @@
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
     <div id="mainContainer"
-        class="w-full min-h-screen flex flex-col text-white mt-12 p-3  overflow-x-hidden">
+        class="w-full min-h-screen flex flex-col text-white mt-16 p-3  overflow-x-hidden">
         <div style="background-color:#111827;" class="w-full max-w-full overflow-x-auto " id="root"></div>
     </div>
 
@@ -156,9 +156,6 @@
     <script src="<?=PATH_PEDIDOS?>src/js/order-reports.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/dashboard-pedidos.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_PEDIDOS?>src/js/pedidos-cierre.js?t=<?php echo time(); ?>"></script>
-
-    <!-- Badge de nueva actualización -->
-    <script src="<?=PATH_PEDIDOS?>src/js/version-badge.js?t=<?php echo time(); ?>"></script>
 
     <!-- TEMPORAL: timer que fuerza reinicio de sesión una vez (retirar cuando ya no se necesite) -->
     <script src="<?=PATH_PEDIDOS?>src/js/session-reset-timer.js?t=<?php echo time(); ?>"></script>

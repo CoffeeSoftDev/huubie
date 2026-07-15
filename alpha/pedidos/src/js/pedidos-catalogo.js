@@ -1837,28 +1837,34 @@ class CatalogProduct extends Pos {
                 ${data.status == 1 ? `<div class="text-xs font-bold text-red-600 uppercase">COTIZACIÓN</div>` : ""}
             </div>
             <div class="text-sm space-y-2">
-                ${data.folio ? `
+                <!-- La ENTREGA no depende del folio: es el dato critico del pedido
+                     y se imprime siempre, haya folio o no. -->
                 <div class="flex justify-between">
+                    ${data.folio ? `
                     <div>
                         <div class="font-semibold">FOLIO:</div>
                         <div class="uppercase">${data.folio}</div>
-                    </div>
+                    </div>` : `<div></div>`}
                     <div>
                         <div class="font-semibold">FECHA Y HORA DE ENTREGA:</div>
                         <div id="lblFecha" class="uppercase text-end">${data.date_order} ${data.time_order}</div>
                     </div>
-                </div>` : ""}
-                
+                </div>
+
                 <div>
                     <div class="font-semibold">NOMBRE:</div>
                     <div class="uppercase">${data.name}</div>
+                    ${data.phone ? `<div class="uppercase">TEL: ${data.phone}</div>` : ""}
                 </div>
 
-                ${data.notes ? `
+                ${(data.notes || data.note) ? `
                 <div>
                     <div class="font-semibold">NOTA:</div>
-                    <div>${data.notes}</div>
+                    <div>${data.notes || data.note}</div>
                 </div>` : ""}
+
+                ${data.date_creation ? `
+                <div class="text-xs text-gray-600">Creado: ${moment(data.date_creation).format("DD/MM/YYYY hh:mm A")}</div>` : ""}
                 <hr class="border-dashed border-t my-2" />
             </div> `;
 
@@ -1867,7 +1873,7 @@ class CatalogProduct extends Pos {
         let listaProductos = "";
         if (productos.length > 0) {
             listaProductos += `
-                <div class="text-xs mt-3">
+                <div class="text-sm mt-3">
                     <div class="text-center font-bold mb-2">PRODUCTOS</div>
                     <div class="flex justify-between pb-2 font-semibold ">
                     <div class="w-1/6">CANT.</div>
@@ -1882,24 +1888,30 @@ class CatalogProduct extends Pos {
                 const price = parseFloat(product.price || 0);
                 const subtotal = quantity * price;
 
-                let descriptionHtml = `<div class="capitalize font-bold">${product.name}${product.custom_id ? ' (Personalizado)' : ''}</div>`;
+                // El detalle (porcion, modificadores, dedicatoria) va DEBAJO del renglon
+                // del producto ocupando todo el ancho de la fila: confinado a la columna
+                // DESCRIPCION se partia en lineas muy cortas y era ilegible.
+                let detailsHtml = "";
 
                 if (product.customer_products && Array.isArray(product.customer_products) && product.customer_products.length > 0) {
-                    descriptionHtml += `<div class="capitalize">Porción: ${product.portion_qty || 1}</div>`;
+                    detailsHtml += `<div class="capitalize">Porción: ${product.portion_qty || 1}</div>`;
                     product.customer_products.forEach(cp => {
-                        descriptionHtml += `<div class="text-[10px]  ml-1">-${cp.modifier_name}: ${cp.name} x ${cp.quantity || 1}</div>`;
+                        detailsHtml += `<div class="text-xs ml-1">-${cp.modifier_name}: ${cp.name} x ${cp.quantity || 1}</div>`;
                     });
                 }
 
                 if (product.dedication) {
-                    descriptionHtml += `<div class="text-[10px] font-semibold ml-1">Dedicatoria: ${product.dedication}</div>`;
+                    detailsHtml += `<div class="text-xs font-semibold ml-1">Dedicatoria: ${product.dedication}</div>`;
                 }
 
                 return `
-                <div class="flex justify-between py-1 pb-2">
-                    <div class="w-1/6">${quantity}</div>
-                    <div class="w-3/6">${descriptionHtml}</div>
-                    <div class="w-2/6 text-right">${formatPrice(subtotal)}</div>
+                <div class="py-1 pb-2">
+                    <div class="flex justify-between">
+                        <div class="w-1/6">${quantity}</div>
+                        <div class="w-3/6 capitalize font-bold">${product.name}${product.custom_id ? ' (Personalizado)' : ''}</div>
+                        <div class="w-2/6 text-right">${formatPrice(subtotal)}</div>
+                    </div>
+                    ${detailsHtml ? `<div class="mt-0.5 pl-2">${detailsHtml}</div>` : ""}
                 </div>
             `;
             }).join("");
@@ -1952,8 +1964,10 @@ class CatalogProduct extends Pos {
             return `
     <hr class="border-dashed border-t my-2" />
     <div class="text-right text-sm mt-4 space-y-1">
+        ${hasDiscount ? `
         <div class="text-base">Subtotal: <span class="font-semibold">${formatPrice(total)}</span></div>
-        ${hasDiscount ? `<div class="">Descuento: <span class="font-semibold">-${formatPrice(discount)}</span></div>` : ''}
+        <div class="">Descuento: <span class="font-semibold">-${formatPrice(discount)}</span></div>` : ''}
+        <div class="text-base font-bold">TOTAL: ${formatPrice(totalConDescuento)}</div>
         ${desglosePagos.join("")}
         <div class="text-xl font-bold mt-2">RESTANTE: ${formatPrice(restante)}</div>
     </div>`;
@@ -1981,11 +1995,12 @@ class CatalogProduct extends Pos {
         </div>
     `;
 
+        // Las recomendaciones van ANTES del footer: la despedida (GRACIAS...) cierra el ticket.
         container.append(header);
         container.append(listaProductos);
         container.append(totales);
-        container.append(footer);
         container.append(clausulesSection);
+        container.append(footer);
 
         layout.append(container)
 

@@ -155,16 +155,6 @@ class App extends Templates {
                     if (!this.requireOpenShift()) return;
                     window.location.href = '../pedidos/calendario/index.php'
                 }
-            },
-            {
-                opc: "button",
-                className: "w-100",
-                class: "col-12 col-md-3 col-lg-2",
-                color_btn: "info",
-                id: "btnReportes",
-                text: "Reportes",
-                icon: "icon-doc-text",
-                onClick: () => this.openReports()
             }
         );
 

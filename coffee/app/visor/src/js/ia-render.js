@@ -245,23 +245,32 @@
         lucide();
     }
 
-    /* ── HTML preview (iframe sandbox) ── */
-    function renderHtmlPreview($pre, code) {
-        const id = 'htm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    /* ── Documento del preview HTML (el srcdoc del iframe) ──
+       Lo usan el visor inline de aqui y el panel de templates de CoffeeIA: un
+       solo sitio donde viven el saneado, el tema y las libs del sandbox. ── */
+    function buildHtmlSrcdoc(code, opts) {
+        opts = opts || {};
         const safeCode = (typeof DOMPurify !== 'undefined')
             ? DOMPurify.sanitize(code, { ADD_TAGS: ['svg', 'path', 'use'], ADD_ATTR: ['data-lucide'] })
             : code;
         const isDark = getTheme() === 'dark';
         const bg = isDark ? '#0F172A' : '#FFFFFF';
         const fg = isDark ? '#E2E8F0' : '#1F2937';
+        const pad = opts.padding != null ? opts.padding : 8;
         const uiKitHref = new URL('src/css/ui-kit.css', document.baseURI).href;
-        const srcdoc = `<!doctype html><html data-theme="${isDark ? 'dark' : 'light'}"><head><meta charset="utf-8">
+        return `<!doctype html><html data-theme="${isDark ? 'dark' : 'light'}"><head><meta charset="utf-8">
             <script src="https://cdn.tailwindcss.com"><\/script>
             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
             <link rel="stylesheet" href="${uiKitHref}">
             <script src="https://unpkg.com/lucide@latest"><\/script>
-            <style>html,body{margin:0;padding:0;}body{padding:8px;background:${bg};color:${fg};font-family:Inter,system-ui,sans-serif;font-size:13px;}*{box-sizing:border-box;}</style>
+            <style>html,body{margin:0;padding:0;}body{padding:${pad}px;background:${bg};color:${fg};font-family:Inter,system-ui,sans-serif;font-size:13px;}*{box-sizing:border-box;}</style>
             </head><body>${safeCode}<script>if(window.lucide)lucide.createIcons();<\/script></body></html>`;
+    }
+
+    /* ── HTML preview (iframe sandbox) ── */
+    function renderHtmlPreview($pre, code) {
+        const id = 'htm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const srcdoc = buildHtmlSrcdoc(code);
 
         const $wrap = $(`
             <div class="ia-render-block ia-render-html" data-render-type="html">
@@ -533,7 +542,7 @@
 
     global.IARender = {
         escape, getTheme, markdownToHtml, postProcess, downloadText,
-        openDiagramInTab, openDiagramModal, openHtmlModal,
+        openDiagramInTab, openDiagramModal, openHtmlModal, buildHtmlSrcdoc,
         renderMermaid, renderGraphviz, renderChart, renderHtmlPreview,
         renderDrawio, renderExcalidraw,
         normalizeCanvasHtml, normalizeDrawioXml, normalizeExcalidrawJson

@@ -566,6 +566,144 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
 }
 .cia-modal-input:focus { border-color: var(--vsr-accent); }
 
+/* ══════════════ Visor de templates (patrón Artifacts) ══════════════
+   La miniatura del bloque HTML en el chat NO cambia: la sigue montando
+   IARender (visor.css). Esto solo añade una salida más — el botón "Visor" de
+   su barra — hacia #ciaViewer, que es UNA sola pieza de markup en dos formas,
+   y las decide el CSS:
+   · Escritorio → panel a la DERECHA del chat, con ancho ajustable.
+   · Móvil      → VENTANA FLOTANTE sobre el chat (ver el @media de abajo).
+   El JS solo abre/cierra: no sabe en cuál de las dos está.                */
+
+/* Botón "Visor" en la barra de la miniatura (el resto lo estiliza .ia-render-btn). */
+.cia-render-side.ia-render-btn { color: var(--vsr-accent-soft); }
+
+/* Botón del header: solo aparece cuando la conversación tiene algún template. */
+#ciaViewerBtn.is-active {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-divider);
+    color: var(--vsr-accent-soft);
+}
+
+/* ── El panel ── */
+.cia-viewer {
+    display: none;                 /* solo existe con .is-viewer-open */
+    position: relative;
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-height: 0;
+    width: var(--cia-viewer-w, 560px);
+    background: var(--vsr-bg-chrome);
+    border-left: 1px solid var(--vsr-border);
+}
+.cia-workspace.is-viewer-open .cia-viewer { display: flex; }
+
+/* Handle: franja invisible sobre el borde izquierdo (el panel crece hacia allá). */
+.cia-viewer-resize {
+    position: absolute;
+    top: 0; left: -3px; bottom: 0;
+    width: 7px;
+    z-index: 6;
+    cursor: col-resize;
+    background: transparent;
+    transition: background .15s;
+}
+.cia-viewer-resize:hover,
+.cia-viewer.is-resizing .cia-viewer-resize { background: var(--vsr-accent); }
+
+.cia-viewer-head {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--vsr-border);
+}
+.cia-viewer-title {
+    display: flex; align-items: center; gap: 7px;
+    min-width: 0;
+    font-size: 13px; font-weight: 700; color: var(--vsr-text-soft);
+}
+.cia-viewer-title > i, .cia-viewer-title > svg {
+    flex-shrink: 0; width: 15px; height: 15px; color: var(--vsr-accent-soft);
+}
+.cia-viewer-title span {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cia-viewer-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+/* Versiones: cada template nuevo de la conversación es una. */
+.cia-viewer-versions {
+    display: flex; align-items: center; gap: 1px;
+    margin-right: 4px; padding-right: 6px;
+    border-right: 1px solid var(--vsr-border);
+    font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-mute2); font-variant-numeric: tabular-nums;
+}
+.cia-viewer-versions .cia-iconbtn { width: 22px; height: 22px; }
+.cia-viewer-versions .cia-iconbtn:disabled { opacity: .35; cursor: default; }
+.cia-viewer-versions .cia-iconbtn:disabled:hover { background: none; border-color: transparent; }
+
+/* Barra: pestañas Vista/Código + acciones del template. */
+.cia-viewer-bar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 3px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--vsr-border);
+    background: var(--vsr-bg-base);
+}
+.cia-viewer-tabs { display: inline-flex; gap: 2px; }
+.cia-viewer-tab {
+    padding: 5px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    background: none;
+    color: var(--vsr-text-mute2);
+    font-family: inherit; font-size: 11.5px; font-weight: 600;
+}
+.cia-viewer-tab:hover { color: var(--vsr-text-soft); background: var(--vsr-bg-hover); }
+.cia-viewer-tab.is-active {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-divider);
+    color: var(--vsr-accent-soft);
+}
+.cia-viewer-bar .cia-iconbtn { width: 26px; height: 26px; }
+
+.cia-viewer-body { flex: 1 1 auto; display: flex; min-height: 0; }
+.cia-viewer-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    border: 0;
+    background: var(--vsr-bg-base);
+}
+.cia-viewer-code {
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    min-height: 0;
+    background: var(--vsr-bg-base);
+}
+.cia-viewer-code code {
+    display: block;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.65;
+}
+
+/* Maximizar: el panel se despega y cubre la ventana (mismo botón en móvil). */
+.cia-workspace.is-viewer-max .cia-viewer {
+    position: fixed;
+    inset: 64px 16px 16px;
+    width: auto !important;
+    z-index: 95;
+    border: 1px solid var(--vsr-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+}
+.cia-workspace.is-viewer-max .cia-viewer-resize { display: none; }
+
 /* ══════════════ Responsive (patrón ChatGPT) ══════════════
    Un solo control (#ciaSidebarToggle) para las dos cosas:
    · Escritorio → colapsa el panel de conversaciones (el chat gana el ancho).
@@ -642,6 +780,38 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     .cia-body { padding: 16px 12px 8px; }
     .cia-pane-head { padding: 9px 12px; }
     .cia-composer { padding: 10px 12px; }
+
+    /* ── El visor deja de ser panel: aquí es una VENTANA FLOTANTE ──
+       Un panel lateral en un móvil dejaría el chat en una rendija inservible, así
+       que la misma pieza se despega y flota sobre él, anclada abajo (a mano) y
+       dejando ver el hilo por encima. Se cierra con la × o con Esc. */
+    .cia-viewer {
+        position: fixed;
+        top: auto;
+        left: 10px; right: 10px; bottom: 10px;
+        z-index: 96;
+        width: auto !important;      /* manda sobre el ancho ajustable */
+        height: 72vh;
+        border: 1px solid var(--vsr-border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--vsr-bg-chrome);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, .55);
+        animation: cia-viewer-in .22s cubic-bezier(.4, 0, .2, 1);
+    }
+    .cia-viewer-resize { display: none; }   /* flotante: no se redimensiona a mano */
+
+    /* Maximizada: casi pantalla completa, sin tapar el header. */
+    .cia-workspace.is-viewer-max .cia-viewer {
+        inset: 56px 6px 6px;
+        height: auto;
+        border-radius: 14px;
+    }
+}
+
+@keyframes cia-viewer-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Pantallas muy estrechas: el rail de módulos estorba más de lo que aporta. */
@@ -663,4 +833,10 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
         background: var(--vsr-bg-hover);
     }
     .cia-menu-item.has-sub { flex-wrap: wrap; }
+
+    /* La barra del visor va justa de ancho: recargar es prescindible (cambiar de
+       pestaña ya repinta) y las tabs se estrechan. */
+    #ciaViewerReload { display: none; }
+    .cia-viewer-tab { padding: 5px 8px; font-size: 11px; }
+    .cia-viewer-bar { padding: 6px 8px; }
 }

@@ -264,6 +264,13 @@ class ctrl extends MPedidos{
         $quantity   = intval($_POST['quantity']);
         $pedidos_id = $_POST['pedidos_id'];
 
+        // Estado previo del producto (nombre, precio unitario y cantidad) ANTES de
+        // actualizar, para registrar en la bitacora el impacto en el precio de linea.
+        $prevProd = null;
+        foreach ((array) $this->getOrderById([$pedidos_id]) as $p) {
+            if ($p['id'] == $id) { $prevProd = $p; break; }
+        }
+
         // Validar que la cantidad sea mayor a 0
         if ($quantity <= 0) {
             $status = 400;
@@ -279,9 +286,23 @@ class ctrl extends MPedidos{
             if ($update) {
                 $status = 200;
                 $message = 'Cantidad actualizada correctamente';
-                
+
                 // Actualizar el total de la orden
                 $this->updateTotalOrder($pedidos_id);
+
+                // Bitacora: el cambio de cantidad sube o baja el precio de linea.
+                if ($prevProd) {
+                    $prevQty   = intval($prevProd['quantity'] ?? 0);
+                    $unit      = floatval($prevProd['price'] ?? 0);
+                    $prevTotal = $unit * $prevQty;
+                    $newTotal  = $unit * $quantity;
+                    if ($prevQty !== $quantity) {
+                        $title = $newTotal >= $prevTotal ? 'Aumento de precio' : 'Reducción de precio';
+                        $msg   = "{$prevProd['name']}: {$prevQty} → {$quantity} uds ("
+                               . evaluar($prevTotal) . ' → ' . evaluar($newTotal) . ')';
+                        $this->logOrderHistory($pedidos_id, $msg, 'price', $title);
+                    }
+                }
             }
         }
 
@@ -303,6 +324,18 @@ class ctrl extends MPedidos{
         $message = 'No se pudo eliminar el producto del pedido';
         $pedidos_id = $_POST['pedidos_id'] ?? null;
 
+        // Nombre/precio del producto ANTES de borrarlo, para la bitacora.
+        $productName = null; $productPrice = 0;
+        if ($pedidos_id) {
+            foreach ((array) $this->getOrderById([$pedidos_id]) as $p) {
+                if ($p['id'] == $_POST['id']) {
+                    $productName  = $p['name'];
+                    $productPrice = $p['price'];
+                    break;
+                }
+            }
+        }
+
         $values = $this->util->sql([
             'id' => $_POST['id']
         ], 1);
@@ -312,9 +345,12 @@ class ctrl extends MPedidos{
         if ($delete && $pedidos_id) {
             $status = 200;
             $message = 'Producto eliminado del pedido correctamente';
-            
+
             // Actualizar el total de la orden
             $this->updateTotalOrder($pedidos_id);
+
+            $etiqueta = $productName !== null ? $productName : '#' . $_POST['id'];
+            $this->logOrderHistory($pedidos_id, "Se eliminó el producto {$etiqueta} (" . evaluar($productPrice) . ')', 'edition');
         }
 
         return [
@@ -337,9 +373,11 @@ class ctrl extends MPedidos{
         if ($delete) {
             $status  = 200;
             $message = 'Se eliminaron todos los productos del pedido correctamente.';
-            
+
             // Actualizar el total de la orden (será 0 si no hay productos)
             $this->updateTotalOrder($pedidos_id);
+
+            $this->logOrderHistory($pedidos_id, 'Se eliminaron todos los productos del pedido', 'edition');
         }
 
         $orderProducts = $this->getOrderById([$pedidos_id]);
@@ -398,12 +436,18 @@ class ctrl extends MPedidos{
             $type_id = 2; // Abono parcial
         }
 
+        // Estado previo del pedido para la bitacora (antes -> despues).
+        $prev    = $this->getOrderID([$id]);
+        $prevRow = (is_array($prev) && !empty($prev)) ? $prev[0] : null;
+
+        // OJO: no reescribir date_creation aqui. Este update corre en cada pago o
+        // confirmacion y pisaba la fecha del pedido con la del dia, "mudando" el
+        // pedido de corte (mismo pisado que se quito de ctrl-pedidos.php en c3a5622).
         $post = [
             'total_pay'     => $total_pay,
             'discount'      => $discount,
             'type_id'       => $type_id,
             'status'        => $type_id,
-            'date_creation' => date('Y-m-d'),
             'id'            => $id
         ];
 
@@ -411,7 +455,7 @@ class ctrl extends MPedidos{
         $insert = $this->updateOrder($values);
         $this->updateTotalOrder($id);
         // // Registrar método de pago solo si hay abono
-        
+
         if ($pay > 0) {
             $values_pay = [
                 'pay'           => $pay,
@@ -422,12 +466,30 @@ class ctrl extends MPedidos{
             ];
 
             $addPay = $this->addMethodPay($this->util->sql($values_pay));
-             
+
         }
 
         if ($insert) {
             $status  = 200;
             $message = 'Pago registrado correctamente';
+
+            // Bitacora: el guardado SIN cobro tambien deja rastro (la operacion que
+            // fue invisible en el caso del pedido 774; ver docs/estrategia-bitacora.md).
+            if ($pay > 0) {
+                $methodNames = [1 => 'Efectivo', 2 => 'Tarjeta', 3 => 'Transferencia'];
+                $methodName  = $methodNames[intval($_POST['method_pay_id'] ?? 0)] ?? 'Otro método';
+                $this->logOrderHistory($id, 'Se registró un pago de ' . evaluar($pay) . " ({$methodName})", 'payment');
+            } else {
+                $targetLabel = ($type_id === 1) ? 'Cotización' : 'Pendiente';
+                $msg = "Pedido guardado como {$targetLabel} sin cobro — total " . evaluar($total_pay);
+                if ($prevRow && floatval($prevRow['total_pay']) != $total_pay) {
+                    $msg .= ' (total ' . evaluar($prevRow['total_pay']) . ' → ' . evaluar($total_pay) . ')';
+                }
+                if ($prevRow && floatval($prevRow['discount'] ?? 0) != $discount) {
+                    $msg .= ' (descuento ' . evaluar($prevRow['discount'] ?? 0) . ' → ' . evaluar($discount) . ')';
+                }
+                $this->logOrderHistory($id, $msg, 'edition');
+            }
         }
 
         return [

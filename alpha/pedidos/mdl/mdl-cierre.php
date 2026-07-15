@@ -96,6 +96,12 @@ class MCierre extends CRUD {
         return is_array($result) ? $result : [];
     }
 
+    // Dinero de pedidos del dia por metodo: solo pagos COBRADOS ese dia y en ESTA
+    // sucursal (mismo criterio que payment_real del desglose). Sin el filtro de
+    // date_pay, un pago de otra fecha (p.ej. anticipo cobrado dias antes) inflaba
+    // el total del cierre sin respaldo en los turnos. Los abonos a pedidos de dias
+    // anteriores van aparte (getDailyPrevPaymentsByMethod).
+    // Params: [date_creation, subsidiaria del pedido, date_pay, sucursal de cobro].
     function getConsolidatedPayments($array) {
         $query = "
             SELECT
@@ -104,6 +110,8 @@ class MCierre extends CRUD {
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
             WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND DATE(pp.date_pay) = ?
+              AND COALESCE(pp.subsidiaries_id, o.subsidiaries_id) = ?
               AND o.status != 4 AND o.is_legacy = 0
             GROUP BY pp.method_pay_id
         ";
@@ -175,6 +183,9 @@ class MCierre extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Conteo de transacciones con el mismo criterio que getConsolidatedPayments,
+    // para que el numero de operaciones corresponda al dinero reportado.
+    // Params: [date_creation, subsidiaria del pedido, date_pay, sucursal de cobro].
     function getPaymentTransactions($array) {
         $query = "
             SELECT
@@ -184,6 +195,8 @@ class MCierre extends CRUD {
             FROM {$this->bd}order_payments pp
             INNER JOIN {$this->bd}`order` o ON pp.order_id = o.id
             WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND DATE(pp.date_pay) = ?
+              AND COALESCE(pp.subsidiaries_id, o.subsidiaries_id) = ?
               AND o.status != 4 AND o.is_legacy = 0
             GROUP BY pp.method_pay_id
         ";
@@ -270,6 +283,7 @@ class MCierre extends CRUD {
                 cs.id AS shift_id,
                 cs.opened_at AS shift_opened_at,
                 SUM(op.pay) AS payment_real,
+                MAX(op.date_pay) AS pay_time,
                 (SELECT COALESCE(SUM(op2.pay), 0)
                    FROM {$this->bd}order_payments op2
                   WHERE op2.order_id = o.id

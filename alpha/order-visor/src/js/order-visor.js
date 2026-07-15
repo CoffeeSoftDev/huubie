@@ -42,8 +42,7 @@ async function loadSubsidiaries() {
 }
 
 class OrderVisor extends Templates {
-    // Ancho compartido: el panel izquierdo (lista de folios) y el control
-    // "Período de consulta" miden lo mismo, por eso el valor vive en un solo lugar.
+    // Ancho del panel izquierdo (lista de folios).
     static LIST_WIDTH = 560;
 
     constructor(link, div_modulo) {
@@ -54,6 +53,11 @@ class OrderVisor extends Templates {
         this.periodMode = "fecha";   // 'fecha' | 'rango'
         this.items = [];
         this.selectedKey = null;
+        // Ancho ajustable del panel de lista (splitter): la vista previa toma el resto
+        // via flex-1. Persiste entre sesiones; se acota por si quedo guardado un ancho
+        // mayor que la pantalla actual. LIST_WIDTH queda como default (doble clic).
+        const saved = parseInt(localStorage.getItem("orderVisorListWidth"), 10);
+        this.listWidth = Math.min(Math.max(saved || OrderVisor.LIST_WIDTH, 380), 1000);
     }
 
     render() {
@@ -119,6 +123,7 @@ class OrderVisor extends Templates {
                     data: [
                         { id: "cierre", valor: "Cierre diario — Corte Z" },
                         { id: "turno", valor: "Cierre de turno — Corte X" },
+                        { id: "tickets", valor: "Reporte por tickets" },
                     ],
                     onchange: "visor.changeReportType()",
                 },
@@ -160,7 +165,9 @@ class OrderVisor extends Templates {
         // El wrapper reusa las MISMAS clases del framework (`form-control input-sm`) y la
         // altura exacta de Bootstrap -> alinea con Sucursal / Tipo de Reporte:
         //   line-height 1.5 + padding .375rem*2 + borde 1px*2 = calc(1.5em + .75rem + 2px)
-        const periodBoxStyle = `height: calc(1.5em + 0.75rem + 2px); padding-top: 0; padding-bottom: 0; width: ${OrderVisor.LIST_WIDTH}px;`;
+        // Sin width fijo: el control mide lo que ocupa su contenido (los inputs de fecha
+        // llevan ancho propio segun su formato, asi el box no se estira de mas).
+        const periodBoxStyle = `height: calc(1.5em + 0.75rem + 2px); padding-top: 0; padding-bottom: 0; width: auto;`;
         const innerReset = "height: 100%; line-height: 1;";
 
         $("#periodGroup").attr("class", "").html(`
@@ -175,9 +182,9 @@ class OrderVisor extends Templates {
                 </label>
                 <span class="w-px bg-gray-600 flex-shrink-0" style="height: 16px;"></span>
                 <input type="text" id="reportFecha"
-                    class="period-fecha flex-1 min-w-0 bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset}" />
+                    class="period-fecha bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset} width: 92px;" />
                 <input type="text" id="reportRango"
-                    class="period-rango flex-1 min-w-0 bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset}" />
+                    class="period-rango bg-transparent text-white text-sm border-0 outline-none p-0 m-0" style="${innerReset} width: 188px;" />
                 <span class="text-gray-400 flex-shrink-0 d-flex align-items-center">${lucideIcon('calendar', 'w-4 h-4')}</span>
             </div>
         `);
@@ -223,15 +230,16 @@ class OrderVisor extends Templates {
 
     changeReportType() {
         this.reportType = $("#reportType").val();
-        $("#reportListTitle").text(this.reportType === "turno" ? "Turnos" : "Cortes Z");
+        const titles = { turno: "Turnos", cierre: "Cortes Z", tickets: "Tickets" };
+        $("#reportListTitle").text(titles[this.reportType] || "Cortes Z");
         this.loadList();
     }
 
     // === Cuerpo: lista (izq) + preview (der) ===
     renderBody() {
         $(`#container${this.PROJECT_NAME}`).html(`
-            <div class="flex gap-4 h-full min-h-0">
-                <div style="width: ${OrderVisor.LIST_WIDTH}px" class="flex-shrink-0 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
+            <div class="flex h-full min-h-0">
+                <div id="reportListPanel" style="width: ${this.listWidth}px" class="flex-shrink-0 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
                     <div class="p-3 border-b border-gray-700">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="text-blue-400 d-flex">${lucideIcon('file-text', 'w-4 h-4')}</span>
@@ -247,6 +255,12 @@ class OrderVisor extends Templates {
                     <div id="reportListHead" class="grid gap-1 px-3 py-2 border-b border-gray-700/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></div>
                     <div id="reportList" class="flex-1 overflow-y-auto"></div>
                     <div id="reportListFoot" class="flex items-center justify-between px-3 py-2.5 border-t border-gray-700 bg-[#161f2b]"></div>
+                </div>
+
+                <!-- Splitter: mismo ancho (16px) que el gap-4 que separaba los paneles,
+                     asi el diseño no se mueve; solo se vuelve arrastrable. -->
+                <div id="reportSplitter" class="flex-shrink-0 flex items-center justify-center group" style="width: 16px; cursor: col-resize;" title="Arrastrar para ajustar la vista previa · doble clic restablece">
+                    <div class="w-1 h-12 rounded-full bg-gray-700 group-hover:bg-gray-500 transition-colors"></div>
                 </div>
 
                 <div class="flex-1 bg-[#1F2A37] rounded-xl flex flex-col overflow-hidden">
@@ -267,6 +281,46 @@ class OrderVisor extends Templates {
 
     bindEvents() {
         $("#reportSearch").off("input").on("input", () => this.renderList());
+        this.initSplitter();
+    }
+
+    // Splitter lista/vista previa: arrastrar ajusta el ancho del panel izquierdo y la
+    // vista previa absorbe el resto (flex-1). Vive solo en este modulo: no toca nada
+    // de CoffeeSoft ni el layout del framework. Doble clic vuelve al ancho default.
+    initSplitter() {
+        const MIN_LIST    = 380; // que la lista no colapse
+        const MIN_PREVIEW = 420; // que el reporte siga legible
+
+        const apply = (w) => {
+            this.listWidth = w;
+            $("#reportListPanel").css("width", w + "px");
+        };
+
+        $("#reportSplitter")
+            .off("mousedown dblclick")
+            .on("dblclick", () => {
+                apply(OrderVisor.LIST_WIDTH);
+                localStorage.setItem("orderVisorListWidth", OrderVisor.LIST_WIDTH);
+            })
+            .on("mousedown", (e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = $("#reportListPanel").outerWidth();
+                const maxW   = Math.max($(`#container${this.PROJECT_NAME}`).width() - MIN_PREVIEW, MIN_LIST);
+
+                // Sin user-select:none el arrastre va seleccionando el texto de los paneles.
+                $("body").css({ "user-select": "none", cursor: "col-resize" });
+
+                $(document)
+                    .on("mousemove.visorSplitter", (ev) => {
+                        apply(Math.min(Math.max(startW + (ev.clientX - startX), MIN_LIST), maxW));
+                    })
+                    .on("mouseup.visorSplitter", () => {
+                        $(document).off(".visorSplitter");
+                        $("body").css({ "user-select": "", cursor: "" });
+                        localStorage.setItem("orderVisorListWidth", Math.round(this.listWidth));
+                    });
+            });
     }
 
     getReportDates() {
@@ -288,21 +342,28 @@ class OrderVisor extends Templates {
         return $("#reportSucursal").val() || null;
     }
 
-    getSubsidiaryName() {
+    // Con id: resuelve el nombre desde lsSucursales (necesario en tickets cuando el
+    // filtro es "Todas" y cada fila puede pertenecer a una sucursal distinta).
+    // Sin id: nombre de la sucursal actualmente seleccionada en el filtro.
+    getSubsidiaryName(subsidiaries_id) {
+        if (subsidiaries_id !== undefined && subsidiaries_id !== null) {
+            const found = lsSucursales.find(s => String(s.id) === String(subsidiaries_id));
+            if (found) return found.valor;
+        }
         return $("#reportSucursal option:selected").text() || "";
     }
 
     columnsFor() {
-        return this.reportType === "turno"
-            ? ["FOLIO", "HORARIO", "PEDIDOS", "TOTAL EN CAJA"]
-            : ["FOLIO", "TURNOS", "PEDIDOS", "TOTAL CAJA"];
+        if (this.reportType === "turno") return ["FOLIO", "HORARIO", "PEDIDOS", "TOTAL EN CAJA"];
+        if (this.reportType === "tickets") return ["FOLIO", "HORA", "PAGADO", "TOTAL"];
+        return ["FOLIO", "TURNOS", "PEDIDOS", "TOTAL CAJA"];
     }
 
     // En turnos la columna HORARIO muestra "08:30 → 14:15" y necesita mas ancho.
     gridColsFor() {
-        return this.reportType === "turno"
-            ? "1fr 112px 52px 104px"
-            : "1fr 62px 66px 104px";
+        if (this.reportType === "turno") return "1fr 112px 52px 104px";
+        if (this.reportType === "tickets") return "1fr 70px 78px 104px";
+        return "1fr 62px 66px 104px";
     }
 
     async loadList() {
@@ -324,18 +385,24 @@ class OrderVisor extends Templates {
             return;
         }
 
-        this.items = this.reportType === "turno"
-            ? await this.fetchTurnos(dates, subsidiaries_id)
-            : await this.fetchCierres(dates, subsidiaries_id);
+        if (this.reportType === "turno") {
+            this.items = await this.fetchTurnos(dates, subsidiaries_id);
+        } else if (this.reportType === "tickets") {
+            this.items = await this.fetchTickets(dates, subsidiaries_id);
+        } else {
+            this.items = await this.fetchCierres(dates, subsidiaries_id);
+        }
 
         this.renderList();
 
         if (this.items.length) {
             this.selectItem(this.items[0].key);
         } else {
-            this.emptyPreview(this.reportType === "turno"
-                ? "No hay turnos en este período."
-                : "No hay cortes Z en este período.");
+            const emptyMsg = {
+                turno: "No hay turnos en este período.",
+                tickets: "No hay tickets en este período.",
+            };
+            this.emptyPreview(emptyMsg[this.reportType] || "No hay cortes Z en este período.");
         }
     }
 
@@ -380,8 +447,11 @@ class OrderVisor extends Templates {
 
     async fetchCierres(dates, subsidiaries_id) {
         const subName = this.getSubsidiaryName();
+        // preview: 1 -> si el dia aun no tiene cierre diario, el backend (SOLO admin)
+        // responde el Corte Z armado con datos en vivo y marcado con res.pending;
+        // para el resto de roles el flag se ignora y siguen recibiendo 404.
         const results = await Promise.all(dates.map(date =>
-            useFetch({ url: API_CIERRE, data: { opc: "getCierre", date, subsidiaries_id } })
+            useFetch({ url: API_CIERRE, data: { opc: "getCierre", date, subsidiaries_id, preview: 1 } })
                 .then(res => ({ date, res }))
         ));
 
@@ -389,27 +459,65 @@ class OrderVisor extends Templates {
         results.forEach(({ date, res }) => {
             if (res.status === 200 && res.closure) {
                 const c = res.closure;
+                const pending = !!res.pending;
                 const rShifts = (res.report && res.report.shifts) || res.shifts || [];
                 const totalCaja = rShifts.reduce((t, s) =>
                     t + parseFloat(s.efectivo || 0) + parseFloat(s.tarjeta || 0) + parseFloat(s.transferencia || 0), 0);
+
+                // Dia pendiente SIN actividad (sin turnos ni pedidos): no aporta nada y en
+                // modo rango inundaria la lista con filas vacias de dias no laborados.
+                if (pending && !rShifts.length && !(res.orders || []).length) return;
 
                 items.push({
                     key: `cierre:${date}`,
                     type: "cierre",
                     id: c.id,
                     date,
-                    folio: "#" + String(c.id || 0).padStart(3, "0"),
+                    folio: pending ? "SIN CIERRE" : "#" + String(c.id || 0).padStart(3, "0"),
                     hora: c.created_at ? moment(c.created_at).format("hh:mm A") : "",
-                    sub1: "",
+                    sub1: pending ? "Pendiente cierre" : "",
                     sub2: moment(date).format("DD/MM/YYYY") + " · " + subName,
                     col2: rShifts.length,
                     col3: (res.orders || []).length,
                     col4: totalCaja,
-                    status: "closed",
+                    // "open" reusa el punto naranja pulsante de turnos abiertos.
+                    status: pending ? "open" : "closed",
                     raw: res,
                 });
             }
         });
+        items.sort((a, b) => moment(b.date) - moment(a.date));
+        return items;
+    }
+
+    // A diferencia de turnos/cierres (un fetch por dia), aqui basta UNA llamada con
+    // fi = primera fecha del rango y ff = ultima: listOrdersTicket ya acepta rango
+    // (reusa getOrders() del modelo, igual que listOrders).
+    async fetchTickets(dates, subsidiaries_id) {
+        const fi = dates[0];
+        const ff = dates[dates.length - 1];
+
+        const res = await useFetch({ url: API_PEDIDOS, data: { opc: "listOrdersTicket", fi, ff, subsidiaries_id } });
+        const orders = (res && res.data) || [];
+
+        const items = orders.map(o => ({
+            key: `ticket:${o.id}`,
+            type: "ticket",
+            id: o.id,
+            date: o.date_creation,
+            folio: o.folio,
+            hora: "", // el horario de entrega va en su propia columna (col2), igual que turno
+            sub1: o.name_client || "Sin cliente",
+            sub2: moment(o.date_creation).format("DD/MM/YYYY") + " · " + this.getSubsidiaryName(o.subsidiaries_id),
+            col2: o.time_order || "—",
+            col3: parseFloat(o.total_paid || 0),
+            col4: parseFloat(o.total_pay || 0) - parseFloat(o.discount || 0),
+            status: o.status,
+            raw: o,
+        }));
+
+        // Dentro del mismo dia, getOrders() ya ordena por date_creation DESC; el sort
+        // por dia es estable, asi que ese orden fino se conserva.
         items.sort((a, b) => moment(b.date) - moment(a.date));
         return items;
     }
@@ -438,11 +546,14 @@ class OrderVisor extends Templates {
 
         $("#reportListCount").text(`${filtered.length} resultado${filtered.length === 1 ? "" : "s"}`);
 
-        // Total general en caja de todo lo listado (se recalcula si el buscador filtra).
+        // Total general de todo lo listado (se recalcula si el buscador filtra).
+        // En tickets col4 ya es el total con descuento aplicado -> "vendido", no "en caja"
+        // (un ticket puede seguir con saldo pendiente, a diferencia del dinero en caja).
         const grandTotal = filtered.reduce((t, it) => t + (parseFloat(it.col4) || 0), 0);
+        const footLabel = this.reportType === "tickets" ? "Total vendido" : "Total en caja";
         $("#reportListFoot").html(`
             <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                Total en caja ${this.periodMode === "rango" ? "del período" : "del día"}
+                ${footLabel} ${this.periodMode === "rango" ? "del período" : "del día"}
             </span>
             <span class="text-base font-bold text-green-400">${formatPrice(grandTotal)}</span>
         `);
@@ -452,11 +563,19 @@ class OrderVisor extends Templates {
             return;
         }
 
-        const dot = (st) => st === "open"
-            ? `<span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse flex-shrink-0"></span>`
-            : `<span class="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>`;
+        // status_process: 1=cotizacion, 2=pendiente, 3=pagado, 4=cancelado.
+        const TICKET_STATUS_DOT = { 1: "bg-gray-400", 2: "bg-orange-400", 3: "bg-green-400", 4: "bg-red-400" };
+        const dot = (st) => {
+            if (this.reportType === "tickets") {
+                return `<span class="w-1.5 h-1.5 rounded-full ${TICKET_STATUS_DOT[st] || "bg-gray-400"} flex-shrink-0"></span>`;
+            }
+            return st === "open"
+                ? `<span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse flex-shrink-0"></span>`
+                : `<span class="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"></span>`;
+        };
 
-        const unitFor = this.reportType === "turno" ? "" : "TURN";
+        const unitFor = this.reportType === "cierre" ? "TURN" : "";
+        const col3Label = this.reportType === "tickets" ? "ABONO" : "PED";
 
         const rowHtml = (i) => {
             const active = i.key === this.selectedKey;
@@ -477,8 +596,8 @@ class OrderVisor extends Templates {
                         <div class="text-[9px] ${i.col2Sub === "ABIERTO" ? "text-orange-400 font-bold" : "text-gray-500"}">${i.col2Sub || unitFor}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-sm font-semibold text-white leading-none">${i.col3}</div>
-                        <div class="text-[9px] text-gray-500 uppercase">PED</div>
+                        <div class="text-sm font-semibold text-white leading-none">${this.reportType === "tickets" ? formatPrice(i.col3) : i.col3}</div>
+                        <div class="text-[9px] text-gray-500 uppercase">${col3Label}</div>
                     </div>
                     <div class="text-right">
                         <div class="text-sm font-semibold ${i.col4 ? "text-green-400" : "text-gray-500"} leading-none">${formatPrice(i.col4)}</div>
@@ -524,6 +643,7 @@ class OrderVisor extends Templates {
         if (!item) return;
 
         if (item.type === "turno") this.renderTurnoReport(item);
+        else if (item.type === "ticket") this.renderTicketReport(item);
         else this.renderCierreReport(item);
     }
 
@@ -565,6 +685,173 @@ class OrderVisor extends Templates {
         cierre.renderExecutiveSummary(item.raw, "reportPreview");
     }
 
+    // Instancia unica y perezosa de CatalogProduct (pedidos-catalogo.js), fuente unica
+    // del formato del ticket de pedido. Mismo patron de reuso que calendario-pedidos.js
+    // (printOrder) y app.js (printOrder): `new CatalogProduct(link, div).ticketPasteleria(...)`.
+    get ticketPrinter() {
+        if (!this._ticketPrinter) this._ticketPrinter = new CatalogProduct(API_PEDIDOS, "root");
+        return this._ticketPrinter;
+    }
+
+    async renderTicketReport(item) {
+        $("#reportModeBar").hide(); // el ticket de un pedido no tiene modo resumido/detallado
+        this.loadingPreview("Cargando ticket...");
+
+        const res = await useFetch({ url: API_PEDIDOS, data: { opc: "getOrderDetails", id: item.id } });
+        if (res.status !== 200) {
+            this.emptyPreview(res.message || "Error al obtener el pedido.");
+            return;
+        }
+
+        // ticketPasteleria llena el 100% de su parent; se le da un wrapper angosto
+        // (mismo ancho que el ticket del Corte X en shift-ticket.js) para que la vista
+        // previa se vea en formato ticket. A su derecha va una columna con el historial
+        // de pagos arriba y la bitacora del pedido (order_histories) debajo; con
+        // flex-wrap esa columna baja debajo del ticket si el panel se queda angosto.
+        $("#reportPreview").html(`
+            <div class="flex flex-wrap justify-center items-start gap-4">
+                <div id="ticketPreviewWrap" class="flex-shrink-0" style="width: 320px;"></div>
+                <div class="flex-shrink-0 flex flex-col gap-4" style="width: 340px;">
+                    <div id="ticketPaymentsWrap"></div>
+                    <div id="ticketHistoryWrap"></div>
+                </div>
+            </div>
+        `);
+
+        this.ticketPrinter.ticketPasteleria({
+            parent: "ticketPreviewWrap",
+            data: {
+                head: res.data.order,
+                products: res.data.products,
+                paymentMethods: res.data.paymentMethods || [],
+                clausules: res.data.clausules || []
+            }
+        });
+
+        // Se oculta (no se elimina) el boton de imprimir propio del ticket: el "Imprimir"
+        // del filterBar lo sigue disparando via click programatico en printReport().
+        $("#ticketPreviewWrap .no-print").hide();
+
+        this.renderPaymentHistory(res.data);
+        this.renderOrderHistory(item.id);
+    }
+
+    // Panel de historial de pagos junto al ticket (tema dark del visor: no forma parte
+    // del ticket imprimible, por eso vive fuera de #ticketPreviewWrap).
+    renderPaymentHistory(data) {
+        const payments = data.payments || [];
+        const summary  = data.summary || {};
+        const orderSub = data.order ? data.order.subsidiaries_id : null;
+
+        const METHOD_ICON = { "Efectivo": "banknote", "Transferencia": "arrow-right-left" };
+
+        const rows = payments.map(p => {
+            // Cobro cruzado: el pago se recibio en una sucursal distinta a la del pedido.
+            const esCruzado = p.subsidiaries_id && String(p.subsidiaries_id) !== String(orderSub);
+            const subBadge = esCruzado
+                ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 text-[9px]" title="Cobrado en sucursal distinta a la del pedido">${p.subsidiary_name || "—"}</span>`
+                : "";
+            return `
+                <div class="flex items-center gap-3 px-3 py-2.5 border-b border-gray-800">
+                    <span class="text-gray-400 d-flex flex-shrink-0">${lucideIcon(METHOD_ICON[p.method_pay] || "credit-card", "w-4 h-4")}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-sm text-white">${p.method_pay}${subBadge}</div>
+                        <div class="text-[10px] text-gray-500">${moment(p.date_pay).format("DD/MM/YYYY hh:mm A")}</div>
+                    </div>
+                    <span class="text-sm font-semibold text-green-400 flex-shrink-0">${formatPrice(p.pay)}</span>
+                </div>
+            `;
+        }).join("");
+
+        const body = payments.length
+            ? rows
+            : `<div class="text-center text-gray-500 py-8 text-sm">Sin pagos registrados.</div>`;
+
+        const balance = parseFloat(summary.balance || 0);
+
+        $("#ticketPaymentsWrap").html(`
+            <div class="bg-[#161f2b] rounded-xl overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-2.5 border-b border-gray-700">
+                    <span class="text-blue-400 d-flex">${lucideIcon('wallet', 'w-4 h-4')}</span>
+                    <span class="text-sm font-bold text-white flex-1">Historial de pagos</span>
+                    <span class="text-[11px] text-gray-400">${payments.length} pago${payments.length === 1 ? "" : "s"}</span>
+                </div>
+                ${body}
+                <div class="px-3 py-2.5 bg-black/20 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Total pagado</span>
+                        <span class="text-sm font-bold text-green-400">${formatPrice(summary.paid || 0)}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Saldo</span>
+                        <span class="text-sm font-bold ${balance > 0 ? "text-red-400" : "text-gray-400"}">${formatPrice(balance)}</span>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    // Bitacora del pedido (order_histories) debajo del historial de pagos. Reusa el
+    // mismo endpoint que alpha/pedidos (opc 'getHistory' -> listHistories); aqui es
+    // solo lectura, timeline dark, sin caja de comentario.
+    async renderOrderHistory(id) {
+        $("#ticketHistoryWrap").html(`
+            <div class="bg-[#161f2b] rounded-xl px-3 py-4 text-center text-gray-500 text-sm">
+                Cargando historial...
+            </div>
+        `);
+
+        const res = await useFetch({ url: API_PEDIDOS, data: { opc: "getHistory", id } });
+        const history = (res && res.history) || [];
+
+        // Icono y color del punto segun el tipo de evento registrado por logOrderHistory.
+        const TYPE_META = {
+            creation:     { icon: "circle-plus",      dot: "bg-blue-400" },
+            payment:      { icon: "banknote",         dot: "bg-green-400" },
+            edition:      { icon: "pencil",           dot: "bg-amber-400" },
+            price:        { icon: "dollar-sign",      dot: "bg-emerald-400" },
+            delivery:     { icon: "truck",            dot: "bg-cyan-400" },
+            discount:     { icon: "percent",          dot: "bg-pink-400" },
+            cancellation: { icon: "circle-x",         dot: "bg-red-400" },
+            comment:      { icon: "message-circle",   dot: "bg-purple-400" },
+            general:      { icon: "info",             dot: "bg-gray-400" },
+        };
+
+        const rows = history.map(h => {
+            const meta = TYPE_META[h.type] || TYPE_META.general;
+            return `
+                <div class="flex items-start gap-3 px-3 py-2.5 border-b border-gray-800">
+                    <span class="mt-1 w-2 h-2 rounded-full ${meta.dot} flex-shrink-0"></span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-gray-400 d-flex flex-shrink-0">${lucideIcon(meta.icon, "w-3.5 h-3.5")}</span>
+                            <span class="text-sm text-white truncate">${h.valor || "Actividad"}</span>
+                        </div>
+                        <div class="text-[11px] text-gray-300 mt-0.5">${h.message || ""}</div>
+                        <div class="text-[10px] text-gray-500 mt-0.5">
+                            ${h.date}${h.author ? " · " + h.author : ""}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        const body = history.length
+            ? rows
+            : `<div class="text-center text-gray-500 py-8 text-sm">Sin actividad registrada.</div>`;
+
+        $("#ticketHistoryWrap").html(`
+            <div class="bg-[#161f2b] rounded-xl overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-2.5 border-b border-gray-700">
+                    <span class="text-purple-400 d-flex">${lucideIcon('history', 'w-4 h-4')}</span>
+                    <span class="text-sm font-bold text-white flex-1">Historial de actividad</span>
+                    <span class="text-[11px] text-gray-400">${history.length} evento${history.length === 1 ? "" : "s"}</span>
+                </div>
+                ${body}
+            </div>
+        `);
+    }
+
     setReportMode(mode) {
         this.reportMode = mode;
         $("#btnRepSummary").toggleClass("bg-purple-600 text-white", mode === "summary").toggleClass("text-gray-400 hover:text-gray-200", mode !== "summary");
@@ -575,6 +862,15 @@ class OrderVisor extends Templates {
     }
 
     printReport() {
+        if (this.reportType === "tickets") {
+            // ticketPasteleria trae su propio boton de impresion (abre ventana + window.print());
+            // el boton "Imprimir" del filterBar solo lo dispara por consistencia de UI.
+            const btnPrintTicket = document.getElementById("btnPrintTicket");
+            if (btnPrintTicket) { btnPrintTicket.click(); return; }
+            alert({ icon: "warning", title: "Sin contenido", text: "Selecciona un ticket antes de imprimir.", btn1: true, btn1Text: "Aceptar" });
+            return;
+        }
+
         if (!document.getElementById("ticketDailyClose")) {
             alert({ icon: "warning", title: "Sin contenido", text: "Selecciona un reporte antes de imprimir.", btn1: true, btn1Text: "Aceptar" });
             return;

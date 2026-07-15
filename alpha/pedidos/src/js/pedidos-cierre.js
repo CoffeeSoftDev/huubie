@@ -376,6 +376,9 @@ class Cierre {
         this.injectPdfStyles();
 
         const c      = res.closure;
+        // Dia consultado sin cierre diario (vista previa de admin, backend preview=1):
+        // el corte se pinta completo con datos en vivo pero marcado como pendiente.
+        const pending = !!res.pending;
         const r      = res.report || {};
         const cta    = r.cuentas || {};
         const caja   = r.caja || {};
@@ -414,6 +417,10 @@ class Cierre {
             return { total, abono, quedo, debia: quedo + abono };
         };
 
+        // Hora del abono = ultimo pago del dia a ese pedido (backend: pay_time). El pedido
+        // en si es de un dia anterior, asi que la hora util aqui es la del cobro.
+        const horaAbono = (o) => o.pay_time ? moment(o.pay_time).format('hh:mm a') : '&mdash;';
+
         const filaAbonoPrev = (o) => {
             const { total, abono, quedo, debia } = saldoPrevio(o);
             const liquidado = quedo <= 0.005;
@@ -425,6 +432,7 @@ class Cierre {
             return `
                     <tr>
                         <td class="cz-folio">${o.folio || '#' + o.id}</td>
+                        <td>${horaAbono(o)}</td>
                         <td>${o.client_name || 'Sin cliente'}${origen}</td>
                         <td>${o.method || '&mdash;'}</td>
                         <td class="text-right col-importe">${importeCell}</td>
@@ -444,8 +452,8 @@ class Cierre {
         };
 
         // Divisores de sub-bloque dentro de un turno (banda gris clara).
-        const dividerPedidos = `<tr class="cz-divider"><td colspan="7">Pedidos del turno</td></tr>`;
-        const dividerAbonos  = `<tr class="cz-divider"><td colspan="7">Abonos de pedidos anteriores</td></tr>`;
+        const dividerPedidos = `<tr class="cz-divider"><td colspan="8">Pedidos del turno</td></tr>`;
+        const dividerAbonos  = `<tr class="cz-divider"><td colspan="8">Abonos de pedidos anteriores</td></tr>`;
 
         // === CORTE DE CAJA X (Cierre x Turno) ===
         // Dinero en caja por turno = efectivo + tarjeta + transferencia COBRADOS en el turno.
@@ -548,6 +556,7 @@ class Cierre {
             return `
                     <tr>
                         <td class="cz-folio">${o.folio}</td>
+                        <td>${horaPedido(o)}</td>
                         <td>${o.client || '&mdash;'}${descLine}</td>
                         <td>${o.method || '&mdash;'}</td>
                         <td class="text-right col-importe col-venta-neta">${importeCell}</td>
@@ -576,7 +585,7 @@ class Cierre {
         // importeClass permite resaltar el importe cuando alimenta la Venta Bruta.
         const subtotalRow = (label, s, importeClass = '') => `
                 <tr class="cz-shift-subtotal">
-                    <td colspan="3">${label}</td>
+                    <td colspan="4">${label}</td>
                     <td class="text-right col-importe ${importeClass}">${money(s.importe)}</td>
                     <td class="text-right">${money(s.abono)}</td>
                     <td class="text-right">${money(s.quedo)}</td>
@@ -601,7 +610,7 @@ class Cierre {
                 filas += dividerAbonos + abonosLista.map(filaAbonoPrev).join('') + subtotalRow('Subtotal abonos anteriores', subAbonos);
             }
             if (!ventasLista.length && !abonosLista.length) {
-                filas = `<tr><td colspan="7" style="text-align:center;padding:9px;font-style:italic">Sin movimientos en este turno</td></tr>`;
+                filas = `<tr><td colspan="8" style="text-align:center;padding:9px;font-style:italic">Sin movimientos en este turno</td></tr>`;
             }
 
             const totalTurno = (ventasLista.length && abonosLista.length)
@@ -615,7 +624,7 @@ class Cierre {
             const cuentas = ventasLista.length + abonosLista.length;
             return `
                 <tr class="cz-shift-row">
-                    <td colspan="7">${titulo} <span class="cz-shift-count">${cuentas} cuenta(s)</span></td>
+                    <td colspan="8">${titulo} <span class="cz-shift-count">${cuentas} cuenta(s)</span></td>
                 </tr>
                 ${filas}
                 ${totalTurno}
@@ -641,7 +650,7 @@ class Cierre {
 
         const ventasBody = (salesOrders.length > 0 || prevPayments.length > 0 || cierreShifts.length > 0)
             ? ventasGroupsHtml
-            : `<tr><td colspan="7" style="text-align:center;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
+            : `<tr><td colspan="8" style="text-align:center;padding:16px;font-style:italic">Sin ventas registradas</td></tr>`;
 
         const desgloseSectionHtml = `
             <div class="pdf-section" style="margin-top:0">
@@ -650,6 +659,7 @@ class Cierre {
                         <thead>
                             <tr>
                                 <th>Pedido</th>
+                                <th>Hora</th>
                                 <th>Cuenta</th>
                                 <th>Método</th>
                                 <th class="text-right">Importe</th>
@@ -683,7 +693,9 @@ class Cierre {
             `;
         }).join('');
 
-        const cobrosCruzadosHtml = `
+        // Solo se imprime cuando hay cobros cruzados: es informativa (no suma a caja)
+        // y vacia solo alarga el ticket (mismo criterio que Cotizaciones).
+        const cobrosCruzadosHtml = crossPayments.length > 0 ? `
             <div class="pdf-section">
                 <div class="pdf-section-title cz-title">
                     <span>*** Cobros Cruzados ***</span>
@@ -702,11 +714,11 @@ class Cierre {
                                 <th class="text-right">Quedó</th>
                             </tr>
                         </thead>
-                        <tbody>${crossPayments.length > 0 ? crossRows : `<tr><td colspan="6" style="text-align:center;padding:12px;font-style:italic">Sin cobros cruzados en esta fecha</td></tr>`}</tbody>
+                        <tbody>${crossRows}</tbody>
                     </table>
                 </div>
             </div>
-        `;
+        ` : '';
 
         // === COTIZACIONES (no suman a la venta) ===
         const quotesTotal = quoteOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
@@ -853,6 +865,13 @@ class Cierre {
             </div>
         `;
 
+        // Banda de advertencia (monocroma, imprime igual que en pantalla): el dia aun
+        // no tiene cierre diario, las cifras pueden moverse hasta que se cierre.
+        const pendingBanner = pending ? `
+                <div style="border:2px dashed #000;padding:6px 10px;margin-bottom:12px;text-align:center;font-weight:700;font-size:10px;letter-spacing:0.6px;text-transform:uppercase;">
+                    Pendiente de cierre &mdash; cifras preliminares${res.open_shifts ? ` &middot; ${res.open_shifts} turno(s) abierto(s)` : ''}
+                </div>` : '';
+
         const html = `
             ${this.reportToolbar()}
             <div id="reportZoomWrap" style="zoom:${this._reportZoom / 100}">
@@ -866,10 +885,13 @@ class Cierre {
                     </div>
                     <div style="text-align:right">
                         <div class="meta">Fecha: <span>${moment(c.closure_date).format('DD/MM/YYYY')}</span></div>
-                        <div class="meta">Cerrado por: <span>${c.closed_by || 'Admin'} &mdash; ${moment(c.created_at).format('hh:mm A')}</span></div>
+                        ${pending
+                            ? `<div class="meta">Estado: <span>PENDIENTE DE CIERRE</span></div>`
+                            : `<div class="meta">Cerrado por: <span>${c.closed_by || 'Admin'} &mdash; ${moment(c.created_at).format('hh:mm A')}</span></div>`}
                         <div class="meta">Generado: <span>${moment().format('DD/MM/YYYY hh:mm A')}</span></div>
                     </div>
                 </div>
+                ${pendingBanner}
 
                 ${desgloseSectionHtml}
                 ${cobrosCruzadosHtml}

@@ -38,6 +38,11 @@ const CIA_SIDEBAR_DEFAULT = 262;
 const CIA_SIDEBAR_MIN     = 200;
 const CIA_SIDEBAR_MAX     = 680;
 
+// Visor de templates (derecha en escritorio, ventana flotante en móvil).
+const CIA_VIEWER_DEFAULT = 560;
+const CIA_VIEWER_MIN     = 380;
+const CIA_VIEWER_MAX     = 1100;
+
 // Catálogo de modelos: fuente única en model-config.js, igual que Visor y Lab.
 function ciaModelCatalog() {
     return (window.CoffeeModelConfig && window.CoffeeModelConfig.CATALOG) || [];
@@ -54,6 +59,13 @@ const CIA = {
     fsToolsOn:      false,     // tools de archivos (list_dir/read_file/grep_files)
     sidebarWidth:   CIA_SIDEBAR_DEFAULT,   // ancho ajustable del panel de conversaciones
     sidebarOpen:    true,                  // panel visible (solo se recuerda en escritorio)
+    // Visor de templates: los ```html de la conversación, en orden (cada uno es
+    // una versión). El panel muestra uno; la burbuja solo deja una tarjeta.
+    templates:      [],
+    viewerOpen:     false,
+    viewerIdx:      -1,
+    viewerTab:      'preview',             // 'preview' | 'code'
+    viewerWidth:    CIA_VIEWER_DEFAULT,
     activeDb:       null,      // base conectada (pegajosa por conversación)
     activeFolder:   null,      // carpeta conectada (pegajosa por conversación)
     history:        [],
@@ -84,6 +96,7 @@ $(async () => {
     ciaLoadSettings();
     ciaApplyUiTheme(CIA.uiTheme);
     ciaApplySidebarWidth(CIA.sidebarWidth);   // restaura el ancho guardado
+    ciaApplyViewerWidth(CIA.viewerWidth);
     ciaPopulateAgentSelect();
     ciaPopulateModelSelect();
     ciaBind();
@@ -144,6 +157,8 @@ function ciaLoadSettings() {
         const w = Number(s.sidebarWidth);
         CIA.sidebarWidth = (isFinite(w) && w >= CIA_SIDEBAR_MIN && w <= CIA_SIDEBAR_MAX) ? w : CIA_SIDEBAR_DEFAULT;
         CIA.sidebarOpen  = (s.sidebarOpen === undefined) ? true : !!s.sidebarOpen;
+        const vw = Number(s.viewerWidth);
+        CIA.viewerWidth = (isFinite(vw) && vw >= CIA_VIEWER_MIN && vw <= CIA_VIEWER_MAX) ? vw : CIA_VIEWER_DEFAULT;
     } catch (_) { /* noop */ }
 }
 
@@ -152,7 +167,8 @@ function ciaSaveSettings() {
         agentKey: CIA.agentKey, model: CIA.model, uiTheme: CIA.uiTheme,
         canvasMode: CIA.canvasMode, graphMode: CIA.graphMode,
         dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn,
-        sidebarWidth: CIA.sidebarWidth, sidebarOpen: CIA.sidebarOpen
+        sidebarWidth: CIA.sidebarWidth, sidebarOpen: CIA.sidebarOpen,
+        viewerWidth: CIA.viewerWidth
     }));
 }
 
@@ -357,6 +373,7 @@ function ciaBind() {
 
     ciaBindAttachments();
     ciaBindSidebarResize();
+    ciaBindViewer();
     ciaBindResponsive();
 }
 
@@ -885,6 +902,14 @@ function ciaThread() {
 // sitio, como en el Visor, sin repintar todo (eso rompía la animación).
 function ciaRenderThread() {
     $('#ciaCurrentTitle').text(CIA.currentTitle);
+
+    // Los templates se re-registran al repintar los mensajes (cada burbuja los
+    // vuelve a extraer), así que aquí se parte de cero: si no, cambiar de tema
+    // duplicaría todas las versiones del visor.
+    const wasOpen = CIA.viewerOpen;
+    const prevIdx = CIA.viewerIdx;
+    CIA.templates = [];
+
     const $body = $('#ciaBody').empty();
     if (!CIA.history.length) {
         $body.append(ciaEmptyHtml());
@@ -893,6 +918,7 @@ function ciaRenderThread() {
         $('.cia-suggestion').on('click', function () {
             $('#ciaInput').val($(this).data('prompt') || $(this).text()).trigger('input').trigger('focus');
         });
+        ciaSyncViewer(wasOpen, prevIdx);
         if (window.lucide) lucide.createIcons();
         return;
     }
@@ -903,6 +929,7 @@ function ciaRenderThread() {
         if (m.role === 'user') ciaAppendUserMessage(m.displayText != null ? m.displayText : m.content, m.imagesPreview, m.docsMeta);
         else                   ciaAppendAIMessage(m.content, m.meta, i);
     });
+    ciaSyncViewer(wasOpen, prevIdx);
     if (window.lucide) lucide.createIcons();
     ciaScrollBottom(true);
     return $t;
@@ -956,6 +983,7 @@ function ciaAppendAIMessage(text, meta, idx) {
     ciaThread().append($msg);
     if (meta) ciaAttachMetaFooter($msg, meta, text || '', idx);
     IARender.postProcess($msg.find('.ia-msg-text'));
+    ciaHookTemplates($msg.find('.ia-msg-text'), { msgIdx: idx });
     if (window.lucide) lucide.createIcons();
     return $msg;
 }
@@ -1004,6 +1032,255 @@ function ciaAttachMetaFooter($msg, meta, copyText, idx) {
     });
     $footer.find('.cia-regen-btn').on('click', () => ciaRegenerate(idx != null ? idx : CIA.history.length - 1));
     $msg.append($footer);
+}
+
+/* ═══════════════════════ Visor de templates (patrón Artifacts) ═══════════════════════
+ * La miniatura inline del bloque ```html se queda EXACTAMENTE como estaba (la
+ * monta IARender.postProcess: vista previa en iframe, código y expandir). Esto
+ * solo AÑADE una salida más: el botón "Visor" de su barra abre el template en
+ * grande —panel a la derecha en escritorio, ventana flotante en móvil— sin
+ * quitarle nada a la burbuja.
+ *
+ * Cada template de la conversación queda registrado como una VERSIÓN, así que
+ * desde el visor se puede volver a la anterior sin rebuscar en el hilo. */
+
+// Título del template: lo que el propio HTML declare (<title>, primer <h1> o un
+// comentario de cabecera). Sin nada de eso, un nombre genérico.
+function ciaTemplateTitle(code) {
+    const html = String(code || '');
+    const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (t && t[1].trim()) return t[1].trim().slice(0, 60);
+    const h = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (h) {
+        const txt = h[1].replace(/<[^>]+>/g, '').trim();
+        if (txt) return txt.slice(0, 60);
+    }
+    const c = html.match(/^\s*<!--\s*([^\n-]{3,60}?)\s*-->/);
+    if (c) return c[1].trim();
+    return 'Componente HTML';
+}
+
+// Registra una versión. Si el HTML es idéntico al último (repintado del hilo,
+// regeneración que devuelve lo mismo), reutiliza esa versión en vez de duplicarla.
+function ciaRegisterTemplate(code, msgIdx) {
+    const clean = String(code || '').trim();
+    if (!clean) return -1;
+    const last = CIA.templates[CIA.templates.length - 1];
+    if (last && last.code === clean) return CIA.templates.length - 1;
+    CIA.templates.push({ code: clean, title: ciaTemplateTitle(clean), msgIdx: msgIdx });
+    return CIA.templates.length - 1;
+}
+
+// Engancha las miniaturas ya renderizadas. Se llama DESPUÉS de postProcess: los
+// bloques .ia-render-html ya existen con su vista previa, y aquí solo se les suma
+// el botón que los manda al visor. La miniatura no se toca.
+function ciaHookTemplates($text, opts) {
+    opts = opts || {};
+    let lastIdx = -1;
+    $text.find('.ia-render-block[data-render-type="html"]').each(function () {
+        const $block = $(this);
+        if ($block.data('cia-hooked')) return;      // repintado: no duplicar el botón
+        $block.data('cia-hooked', true);
+
+        const idx = ciaRegisterTemplate($block.find('.ia-render-source').text(), opts.msgIdx);
+        if (idx < 0) return;
+        lastIdx = idx;
+
+        const $btn = $(`
+            <button class="ia-render-btn cia-render-side" title="Verlo en grande (a la derecha)">
+                <i data-lucide="panel-right" class="w-3 h-3"></i>Visor
+            </button>`);
+        $btn.on('click', () => ciaOpenViewer(idx));
+
+        // Antes de "Expandir": las dos son formas de verlo en grande, juntas.
+        const $expand = $block.find('.ia-render-expand');
+        if ($expand.length) $expand.before($btn);
+        else                $block.find('.ia-render-tabs').append($btn);
+    });
+    ciaUpdateViewerBtn();
+    if (window.lucide) lucide.createIcons();
+    return lastIdx;
+}
+
+/* ── Abrir / cerrar ── */
+function ciaOpenViewer(idx) {
+    if (!CIA.templates.length) return;
+    const n = CIA.templates.length;
+    CIA.viewerIdx  = Math.max(0, Math.min(n - 1, idx == null ? n - 1 : idx));
+    CIA.viewerOpen = true;
+    $('.cia-workspace').addClass('is-viewer-open');
+    $('#ciaViewer').attr('aria-hidden', 'false');
+    ciaRenderViewer();
+    ciaUpdateViewerBtn();
+}
+
+function ciaCloseViewer() {
+    CIA.viewerOpen = false;
+    $('.cia-workspace').removeClass('is-viewer-open is-viewer-max');
+    $('#ciaViewer').attr('aria-hidden', 'true');
+    $('#ciaViewerFrame').removeAttr('srcdoc');   // suelta el sandbox al cerrar
+    ciaSetViewerMaxIcon(false);
+    ciaUpdateViewerBtn();
+}
+
+function ciaToggleViewer() {
+    if (CIA.viewerOpen) ciaCloseViewer();
+    else                ciaOpenViewer(CIA.viewerIdx);
+}
+
+// Tras repintar el hilo: si ya no quedan templates, el visor se cierra; si estaba
+// abierto, se reabre en la misma versión (acotada, por si el hilo se cortó).
+function ciaSyncViewer(wasOpen, prevIdx) {
+    if (!CIA.templates.length) {
+        if (wasOpen) ciaCloseViewer();
+        else         ciaUpdateViewerBtn();
+        CIA.viewerIdx = -1;
+        return;
+    }
+    if (wasOpen) ciaOpenViewer(Math.min(prevIdx < 0 ? CIA.templates.length - 1 : prevIdx, CIA.templates.length - 1));
+    else         ciaUpdateViewerBtn();
+}
+
+function ciaUpdateViewerBtn() {
+    $('#ciaViewerBtn')
+        .toggle(CIA.templates.length > 0)
+        .toggleClass('is-active', CIA.viewerOpen)
+        .attr('title', CIA.viewerOpen ? 'Ocultar el visor de templates' : 'Mostrar el visor de templates');
+}
+
+/* ── Pintado del visor ── */
+function ciaRenderViewer() {
+    const t = CIA.templates[CIA.viewerIdx];
+    if (!t) return;
+
+    $('#ciaViewerName').text(t.title).attr('title', t.title);
+
+    // El sandbox del iframe lo arma IARender: mismo saneado, mismo tema y mismas
+    // libs (Tailwind, ui-kit, Lucide) que la vista previa del Visor.
+    $('#ciaViewerFrame').attr('srcdoc', window.IARender && IARender.buildHtmlSrcdoc
+        ? IARender.buildHtmlSrcdoc(t.code, { padding: 16 })
+        : t.code);
+
+    const el = document.querySelector('#ciaViewerCode code');
+    if (el) {
+        el.textContent = t.code;
+        el.className = 'language-html';
+        delete el.dataset.highlighted;   // sin esto hljs 11 se niega a repintar
+        if (window.hljs) { try { hljs.highlightElement(el); } catch (_) { /* noop */ } }
+    }
+
+    const n = CIA.templates.length;
+    $('#ciaViewerVersions').toggle(n > 1);
+    $('#ciaViewerVer').text((CIA.viewerIdx + 1) + '/' + n);
+    $('#ciaViewerPrev').prop('disabled', CIA.viewerIdx === 0);
+    $('#ciaViewerNext').prop('disabled', CIA.viewerIdx === n - 1);
+
+    ciaSetViewerTab(CIA.viewerTab);
+    if (window.lucide) lucide.createIcons();
+}
+
+function ciaSetViewerTab(tab) {
+    CIA.viewerTab = tab === 'code' ? 'code' : 'preview';
+    $('.cia-viewer-tab').removeClass('is-active')
+        .filter(`[data-tab="${CIA.viewerTab}"]`).addClass('is-active');
+    $('#ciaViewerFrame').toggle(CIA.viewerTab === 'preview');
+    $('#ciaViewerCode').toggle(CIA.viewerTab === 'code');
+}
+
+function ciaViewerStep(delta) {
+    if (!CIA.templates.length) return;
+    const next = CIA.viewerIdx + delta;
+    if (next < 0 || next >= CIA.templates.length) return;
+    CIA.viewerIdx = next;
+    ciaRenderViewer();
+}
+
+function ciaSetViewerMaxIcon(on) {
+    $('#ciaViewerMax')
+        .attr('title', on ? 'Restaurar' : 'Maximizar')
+        .html(`<i data-lucide="${on ? 'minimize-2' : 'maximize-2'}" class="w-3.5 h-3.5"></i>`);
+    if (window.lucide) lucide.createIcons();
+}
+
+// Abrir en pestaña: el mismo documento del sandbox, servido como blob.
+function ciaViewerOpenTab() {
+    const t = CIA.templates[CIA.viewerIdx];
+    if (!t) return;
+    const doc = window.IARender && IARender.buildHtmlSrcdoc
+        ? IARender.buildHtmlSrcdoc(t.code, { padding: 16 })
+        : t.code;
+    const url = URL.createObjectURL(new Blob([doc], { type: 'text/html' }));
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ── Ancho ajustable (solo escritorio: en móvil es una ventana flotante) ── */
+function ciaApplyViewerWidth(px) {
+    const w = Math.min(CIA_VIEWER_MAX, Math.max(CIA_VIEWER_MIN, Number(px) || CIA_VIEWER_DEFAULT));
+    const el = document.querySelector('.cia-viewer');
+    if (el) el.style.setProperty('--cia-viewer-w', w + 'px');
+    CIA.viewerWidth = w;
+    return w;
+}
+
+function ciaBindViewer() {
+    $('#ciaViewerBtn').on('click', e => { e.stopPropagation(); ciaToggleViewer(); });
+    $('#ciaViewerClose').on('click', () => ciaCloseViewer());
+    $('#ciaViewerPrev').on('click', () => ciaViewerStep(-1));
+    $('#ciaViewerNext').on('click', () => ciaViewerStep(1));
+    $('#ciaViewer').on('click', '.cia-viewer-tab', function () { ciaSetViewerTab($(this).data('tab')); });
+
+    $('#ciaViewerMax').on('click', () => {
+        const on = !$('.cia-workspace').hasClass('is-viewer-max');
+        $('.cia-workspace').toggleClass('is-viewer-max', on);
+        ciaSetViewerMaxIcon(on);
+    });
+
+    $('#ciaViewerReload').on('click', () => { ciaRenderViewer(); ciaToast('Vista previa recargada', 'info'); });
+    $('#ciaViewerNewTab').on('click', () => ciaViewerOpenTab());
+    $('#ciaViewerCopy').on('click', () => {
+        const t = CIA.templates[CIA.viewerIdx];
+        if (!t) return;
+        if (navigator.clipboard) navigator.clipboard.writeText(t.code);
+        ciaToast('HTML copiado', 'success');
+    });
+    $('#ciaViewerDownload').on('click', () => {
+        const t = CIA.templates[CIA.viewerIdx];
+        if (!t) return;
+        IARender.downloadText((ciaSlugify(t.title) || 'template') + '.html', t.code);
+        ciaToast('Template descargado', 'success');
+    });
+
+    $(document).on('keydown.ciaViewer', e => {
+        if (e.key === 'Escape' && CIA.viewerOpen) ciaCloseViewer();
+    });
+
+    // Arrastre del borde IZQUIERDO: el panel crece hacia la izquierda, así que el
+    // ancho sube cuando el ratón baja en X. Solo se persiste al soltar.
+    const $handle = $('#ciaViewerResize');
+    let dragging = false, startX = 0, startW = CIA.viewerWidth;
+
+    $handle.on('mousedown', e => {
+        if (ciaIsMobile()) return;
+        e.preventDefault();
+        dragging = true;
+        startX = e.clientX;
+        startW = CIA.viewerWidth;
+        $('#ciaViewer').addClass('is-resizing');
+        document.body.classList.add('cia-sidebar-resizing');
+    });
+    $(document).on('mousemove.ciaViewerResize', e => {
+        if (!dragging) return;
+        ciaApplyViewerWidth(startW - (e.clientX - startX));
+    });
+    $(document).on('mouseup.ciaViewerResize', () => {
+        if (!dragging) return;
+        dragging = false;
+        $('#ciaViewer').removeClass('is-resizing');
+        document.body.classList.remove('cia-sidebar-resizing');
+        ciaSaveSettings();
+    });
+    $handle.on('dblclick', () => { ciaApplyViewerWidth(CIA_VIEWER_DEFAULT); ciaSaveSettings(); });
 }
 
 /* ═══════════════════════ Indicador de espera (motor del Visor) ═══════════════════════ */
@@ -1186,6 +1463,7 @@ function ciaCreateAIStream() {
             }
             $text.html(IARender.markdownToHtml(out));
             IARender.postProcess($text);
+            ciaHookTemplates($text, { msgIdx: idx });
             if (meta) ciaAttachMetaFooter($msg, meta, copyText != null ? copyText : out, idx);
             if (window.lucide) lucide.createIcons();
             ciaScrollBottom();

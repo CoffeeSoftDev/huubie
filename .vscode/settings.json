@@ -27,6 +27,9 @@
 
 {
   "workbench.colorTheme": "Photon High Contrast",
+  "workbench.colorCustomizations": {
+    "activityBar.border": "#41207e"
+  },
   // "editor.fontFamily": "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
   "editor.fontSize": 14,
   "editor.lineHeight": 1.6,
