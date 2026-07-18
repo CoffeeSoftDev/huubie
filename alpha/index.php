@@ -32,7 +32,7 @@ if (isset($_SESSION['USR'])) {
     <script src="src/plugins/jquery/jquery-3.7.0.js"></script>
     <script src="src/js/complementos.js?t=<?= time() ?>"></script>
     <script src="src/js/plugins.js?t=<?= time() ?>"></script>
-    <script src="src/js/coffeSoft.js?t=<?= time() ?>"></script>
+    <script src="src/js/coffeeSoft.js?t=<?= time() ?>"></script>
 </head>
 
 <body class="bg-[#111928] flex items-center justify-center min-h-screen">

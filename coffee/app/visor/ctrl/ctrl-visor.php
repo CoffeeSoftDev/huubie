@@ -221,6 +221,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         exit;
     }
 
+    // Salvaguarda anti-sobrescritura: al CREAR un archivo nuevo (p. ej. un todo.json)
+    // el cliente manda failIfExists=1. Si el archivo ya existe NO se pisa; se devuelve
+    // exists=true para que el cliente abra el que ya estaba. Las ediciones normales
+    // (guardado del documento) no mandan la bandera y sobrescriben como siempre.
+    if (($_POST['failIfExists'] ?? '') === '1' && is_file($target)) {
+        echo json_encode(['success' => false, 'exists' => true, 'message' => 'El archivo ya existe', 'fullPath' => $target]);
+        exit;
+    }
+
     $bytes = @file_put_contents($target, $content);
     if ($bytes === false) {
         $err = error_get_last();
@@ -531,6 +540,72 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// Endpoint para RENOMBRAR un archivo dentro del sandbox (POST renamefile).
+// Si el nombre nuevo no trae extensión se conserva la original; la extensión
+// resultante se valida con la misma lista blanca de 'save' y NUNCA se pisa un
+// archivo existente en el destino.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'renamefile') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+    $newName    = coffee_visor_safe_name($_POST['newName'] ?? '');
+
+    if ($fullPath === '' || $newName === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Nombre inválido']);
+        exit;
+    }
+
+    $fileReal = realpath(str_replace('\\', '/', $fullPath));
+    if ($fileReal === false || !is_file($fileReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'El archivo no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($fileReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $allowedExts = [
+        'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+        'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+        'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
+    ];
+    $origExt = strtolower(pathinfo($fileReal, PATHINFO_EXTENSION));
+    $newExt  = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
+    if ($newExt === '' && $origExt !== '') {
+        $newName .= '.' . $origExt;   // "notas" -> "notas.md"
+        $newExt   = $origExt;
+    }
+    if (!in_array($newExt, $allowedExts, true)) {
+        echo json_encode(['success' => false, 'message' => "Extensión no permitida: .$newExt"]);
+        exit;
+    }
+
+    $parent = rtrim(str_replace('\\', '/', dirname($fileReal)), '/');
+    $target = $parent . '/' . $newName;
+    if (str_replace('\\', '/', $fileReal) === $target) {
+        echo json_encode(['success' => true, 'message' => 'Sin cambios', 'name' => $newName, 'fullPath' => $target]);
+        exit;
+    }
+    if (file_exists($target)) {
+        echo json_encode(['success' => false, 'message' => 'Ya existe un archivo con ese nombre']);
+        exit;
+    }
+    if (!@rename($fileReal, $target)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo renombrar: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Archivo renombrado', 'name' => $newName, 'fullPath' => $target]);
+    exit;
+}
+
 // Endpoint para MOVER una carpeta dentro de otra (POST movedir). Mismo sandbox.
 // No permite mover una carpeta dentro de sí misma o de un descendiente (bucle).
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'movedir') {
@@ -708,6 +783,9 @@ if (($_GET['action'] ?? '') === 'listtemplates') {
                 'prompt'     => $metaArr['prompt']      ?? '',
                 'userText'   => $metaArr['userText']    ?? '',
                 'isDoc'      => !empty($metaArr['isDoc']),
+                // Parametros de transmutacion (modulo/entidad/pivote) que dejo el
+                // Playground al mandar la plantilla al Studio. Null si nunca se transmuto.
+                'transmute'  => is_array($metaArr['transmute'] ?? null) ? $metaArr['transmute'] : null,
                 'history'    => is_array($metaArr['history'] ?? null) ? $metaArr['history'] : [],
                 'savedAt'    => $metaArr['savedAt'] ?? (is_file($htmlFile) ? date('Y-m-d H:i:s', filemtime($htmlFile)) : ''),
                 'size'       => fmtSize(strlen((string)$html)),
@@ -1141,12 +1219,14 @@ function readDocumentsTree($baseDir, $relPrefix) {
                 if ($files === false) continue;
                 $typeItems = [];
                 foreach ($files as $f) {
-                    if (substr($f, -3) !== '.md') continue;
+                    // TODO dinamico (panel): todo.json o cualquier todo*.json (renombrado).
+                    $isTodo = (bool) preg_match('/^todo.*\.json$/', strtolower($f));
+                    if (substr($f, -3) !== '.md' && !$isTodo) continue;
                     $full = $entryPath . '/' . $f;
                     if (!is_file($full)) continue;
                     $raw = file_get_contents($full);
                     if ($raw === false) continue;
-                    $name = preg_replace('/\.md$/', '', $f);
+                    $name = strtolower($f) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $f);
                     $typeItems[] = [
                         'name'        => $name,
                         'file'        => $f,
@@ -1168,12 +1248,12 @@ function readDocumentsTree($baseDir, $relPrefix) {
                 // Incluimos la sub-carpeta aunque esté vacía (explorador tipo Windows:
                 // las carpetas recién creadas deben verse aunque no tengan archivos aún).
                 $types[$entry] = $typeItems;
-            } else if (substr($entry, -3) === '.md') {
+            } else if (substr($entry, -3) === '.md' || preg_match('/^todo.*\.json$/', strtolower($entry))) {
                 $full = $entryPath;
                 if (!is_file($full)) continue;
                 $raw = file_get_contents($full);
                 if ($raw === false) continue;
-                $name = preg_replace('/\.md$/', '', $entry);
+                $name = strtolower($entry) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $entry);
                 $uncategorized[] = [
                     'name'        => $name,
                     'file'        => $entry,

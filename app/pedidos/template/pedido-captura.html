@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Captura (POS Catalogo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 5px; height: 5px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 7px 10px; font-size: 12px; color: #d1d5db; width: 100%; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        .input-modal::placeholder { color: #6b7280; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .product-card { transition: all .15s ease; cursor: pointer; border: 1px solid rgba(55,65,81,.5); }
+        .product-card:hover { border-color: #1C64F2; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(28,100,242,.12); }
+        .product-card:active { transform: scale(.97); }
+        .cat-btn.active { background: #1C64F2; color: #fff; border-color: #1C64F2; box-shadow: 0 2px 8px rgba(28,100,242,.3); }
+        .cart-item { animation: slideIn .15s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-input { background:#1a2332!important; border:1px solid #374151!important; color:#fff!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link active">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[rgba(63,193,137,0.12)] border border-[rgba(63,193,137,0.3)]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#3FC189] pulse-dot"></span>
+                <span class="text-[10px] font-semibold text-[#3FC189]">TURNO ABIERTO</span>
+            </div>
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+
+        <!-- ============ PANEL CATALOGO (60%) ============ -->
+        <div class="flex flex-col flex-1 min-w-0" style="max-width:60%;">
+            <!-- Subheader -->
+            <div class="flex items-center gap-3 px-4 py-2.5 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+                <a href="pedidos-listado.html" class="text-[#9CA3AF] hover:text-white"><i data-lucide="arrow-left" class="w-4 h-4"></i></a>
+                <h1 class="text-sm font-bold flex items-center gap-2"><i data-lucide="shopping-cart" class="w-4 h-4 text-[#3FC189]"></i> Captura de Pedido — Catalogo</h1>
+                <span class="ml-auto text-[10px] text-[#6B7280]">Selecciona productos del catalogo para armar el ticket</span>
+            </div>
+
+            <!-- Busqueda + Categorias -->
+            <div class="px-4 pt-3 pb-2 space-y-2 flex-shrink-0">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]"></i>
+                    <input id="inputSearch" type="text" placeholder="Buscar producto..." class="input-modal pl-9">
+                </div>
+                <div id="catContainer" class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin"></div>
+            </div>
+
+            <!-- Grid productos -->
+            <div class="flex-1 overflow-y-auto px-4 pb-3 scrollbar-thin">
+                <div id="productGrid" class="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3"></div>
+                <div id="productEmpty" class="hidden flex-col items-center justify-center py-10 text-center">
+                    <i data-lucide="search-x" class="w-10 h-10 text-[#374151] mb-2"></i>
+                    <p class="text-[11px] text-[#6B7280]">Sin productos para esta busqueda</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ PANEL TICKET (40%) ============ -->
+        <div class="flex flex-col bg-[#141d2b] border-l border-[#374151]" style="width:40%;">
+
+            <!-- Info del pedido -->
+            <div class="px-4 py-3 border-b border-[#374151] flex-shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-white">Nuevo Pedido</h2>
+                        <span class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-[rgba(59,193,137,.15)] text-[#3FC189] border border-[rgba(63,193,137,.35)]">COTIZACION</span>
+                    </div>
+                    <button id="btnClear" class="hidden w-7 h-7 rounded-lg bg-[#1a2332] border border-[rgba(234,2,52,.35)] flex items-center justify-center text-[#EA0234] hover:bg-[#EA0234] hover:text-white transition-colors" title="Vaciar ticket">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <!-- Cliente -->
+                <div class="flex items-center gap-2 bg-[#1a2332] rounded-lg px-2.5 py-1.5 border border-[#374151] focus-within:border-[#1C64F2] transition-colors">
+                    <i data-lucide="user" class="w-3.5 h-3.5 text-[#6B7280] flex-shrink-0"></i>
+                    <input id="inputCliente" type="text" placeholder="Nombre del cliente..." class="flex-1 bg-transparent text-xs text-white placeholder-[#6B7280] focus:outline-none">
+                    <input id="inputTel" type="text" placeholder="Telefono" class="w-24 bg-transparent text-xs text-white placeholder-[#6B7280] focus:outline-none border-l border-[#374151] pl-2">
+                </div>
+                <!-- Fecha entrega -->
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                        <label class="text-[9px] uppercase tracking-wider text-[#6B7280] font-semibold">Fecha entrega</label>
+                        <input id="inputFecha" type="date" class="input-modal mt-0.5">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase tracking-wider text-[#6B7280] font-semibold">Hora</label>
+                        <input id="inputHora" type="time" value="17:00" class="input-modal mt-0.5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div id="cartCont" class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 scrollbar-thin hidden"></div>
+            <div id="cartEmpty" class="flex-1 flex flex-col items-center justify-center text-center px-4">
+                <div class="w-14 h-14 rounded-full bg-[#1a2332] border border-[#374151] flex items-center justify-center mb-2">
+                    <i data-lucide="shopping-cart" class="w-6 h-6 text-[#374151]"></i>
+                </div>
+                <p class="text-[11px] text-[#6B7280]">El ticket esta vacio</p>
+                <p class="text-[10px] text-[#4B5563] mt-1">Agrega productos del catalogo</p>
+            </div>
+
+            <!-- Operaciones -->
+            <div class="border-t border-[#374151] px-4 py-3 flex-shrink-0">
+                <div class="grid grid-cols-2 gap-1.5 mb-2">
+                    <button onclick="aplicarDescuento()" class="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-[#1a2332] border border-[#374151] text-[11px] text-[#9CA3AF] hover:text-[#FBBF24] hover:border-[rgba(251,191,36,.4)] transition-colors">
+                        <i data-lucide="percent" class="w-3.5 h-3.5"></i> Descuento
+                    </button>
+                    <a href="pedido-personalizado.html" class="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-[#1a2332] border border-[#374151] text-[11px] text-[#9CA3AF] hover:text-[#F472B6] hover:border-[rgba(236,72,153,.4)] transition-colors">
+                        <i data-lucide="cake-slice" class="w-3.5 h-3.5"></i> Personalizado
+                    </a>
+                </div>
+                <!-- Totales -->
+                <div class="space-y-1 mb-2">
+                    <div class="flex justify-between text-[11px] text-[#9CA3AF]"><span>Subtotal</span><span id="lblSubtotal">$0.00</span></div>
+                    <div id="rowDesc" class="flex justify-between text-[11px] text-[#FBBF24] hidden"><span>Descuento</span><span id="lblDesc">-$0.00</span></div>
+                    <div class="flex justify-between text-base font-extrabold pt-1.5 border-t border-[#374151]"><span>TOTAL</span><span id="lblTotal" class="text-[#3FC189]">$0.00</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="guardarCotizacion()" class="py-2.5 rounded-lg text-xs font-bold bg-[#1a2332] border border-[#374151] text-[#d1d5db] hover:bg-[#273343] transition-colors">Guardar cotizacion</button>
+                    <button onclick="terminar()" class="py-2.5 rounded-lg text-xs font-extrabold bg-[#1C64F2] text-white shadow-lg shadow-[rgba(28,100,242,.25)] hover:bg-[#1a53d4] active:scale-[.98] transition-all">Terminar y cobrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ CATALOGO MOCK ============
+        const products = [
+            { id: 'p01', name: '3 Leches Chocolate', category: 'Pasteles', price: 700, icon: 'cake' },
+            { id: 'p02', name: 'Carlos V', category: 'Pasteles', price: 390, icon: 'cake' },
+            { id: 'p03', name: 'Pay de Fresas', category: 'Pasteles', price: 350, icon: 'pie-chart' },
+            { id: 'p04', name: 'Chocoflan', category: 'Pasteles', price: 620, icon: 'cake' },
+            { id: 'p05', name: 'Selva Negra', category: 'Premium', price: 780, icon: 'cake-slice' },
+            { id: 'p06', name: 'Red Velvet', category: 'Premium', price: 850, icon: 'cake-slice' },
+            { id: 'p07', name: 'Cheesecake Zarzamora', category: 'Premium', price: 720, icon: 'cake-slice' },
+            { id: 'p08', name: 'Cupcake Vainilla', category: 'Cupcakes', price: 45, icon: 'cookie' },
+            { id: 'p09', name: 'Cupcake Chocolate', category: 'Cupcakes', price: 45, icon: 'cookie' },
+            { id: 'p10', name: 'Cupcake Fresa', category: 'Cupcakes', price: 48, icon: 'cookie' },
+            { id: 'p11', name: 'Galleta Avena', category: 'Galletas', price: 22, icon: 'cookie' },
+            { id: 'p12', name: 'Galleta Chispas', category: 'Galletas', price: 25, icon: 'cookie' },
+            { id: 'p13', name: 'Concha', category: 'Reposteria', price: 18, icon: 'croissant' },
+            { id: 'p14', name: 'Cuernito', category: 'Reposteria', price: 20, icon: 'croissant' },
+            { id: 'p15', name: 'Empanada Cajeta', category: 'Reposteria', price: 24, icon: 'croissant' },
+            { id: 'p16', name: 'Latte Vainilla', category: 'Cafes', price: 65, icon: 'coffee' },
+            { id: 'p17', name: 'Capuccino', category: 'Cafes', price: 60, icon: 'coffee' },
+            { id: 'p18', name: 'Frappe Moka', category: 'Cafes', price: 78, icon: 'coffee' },
+        ];
+
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmt0 = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        const byId = (id) => products.find(p => p.id === id);
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        const cart = [];
+        let activeCat = 'Todos';
+        let search = '';
+        let descuento = 0;
+
+        const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
+
+        function renderCats() {
+            $('catContainer').innerHTML = categories.map(c => {
+                const a = c === activeCat;
+                return `<button onclick="setCat('${c}')" class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-[#374151] ${a ? 'active' : 'bg-[#1a2332] text-[#9CA3AF]'}">${esc(c)}</button>`;
+            }).join('');
+        }
+        function setCat(c) { activeCat = c; renderCats(); renderProducts(); }
+
+        function renderProducts() {
+            const q = search.trim().toLowerCase();
+            const list = products.filter(p => (activeCat === 'Todos' || p.category === activeCat) && (!q || p.name.toLowerCase().includes(q)));
+            const grid = $('productGrid'), empty = $('productEmpty');
+            if (!list.length) { grid.innerHTML = ''; empty.classList.remove('hidden'); empty.classList.add('flex'); return; }
+            empty.classList.add('hidden'); empty.classList.remove('flex');
+            grid.innerHTML = list.map(p => `
+                <div class="product-card bg-[#1F2A37] rounded-lg overflow-hidden" onclick="addCart('${p.id}')">
+                    <div class="h-16 flex items-center justify-center bg-[#141d2b]"><i data-lucide="${p.icon}" class="w-6 h-6 text-[#9CA3AF]"></i></div>
+                    <div class="p-2.5">
+                        <p class="text-[10px] font-semibold truncate leading-tight text-white">${esc(p.name)}</p>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-xs font-bold text-[#76A9FA]">${fmt0(p.price)}</p>
+                            <span class="w-5 h-5 rounded bg-[#1C64F2] flex items-center justify-center"><i data-lucide="plus" class="w-3 h-3 text-white"></i></span>
+                        </div>
+                    </div>
+                </div>`).join('');
+            lucide.createIcons();
+        }
+
+        function addCart(id) {
+            const it = cart.find(x => x.id === id);
+            if (it) it.qty++; else cart.push({ id, qty: 1 });
+            renderCart(); totals();
+        }
+        function changeQty(id, d) {
+            const it = cart.find(x => x.id === id); if (!it) return;
+            it.qty += d; if (it.qty <= 0) { const i = cart.findIndex(x => x.id === id); cart.splice(i, 1); }
+            renderCart(); totals();
+        }
+        function removeItem(id) { const i = cart.findIndex(x => x.id === id); if (i > -1) cart.splice(i, 1); renderCart(); totals(); }
+
+        function renderCart() {
+            const cont = $('cartCont'), empty = $('cartEmpty'), btn = $('btnClear');
+            if (!cart.length) { cont.innerHTML = ''; cont.classList.add('hidden'); empty.classList.remove('hidden'); btn.classList.add('hidden'); return; }
+            cont.classList.remove('hidden'); empty.classList.add('hidden'); btn.classList.remove('hidden');
+            cont.innerHTML = cart.map(it => {
+                const p = byId(it.id);
+                return `
+                    <div class="cart-item bg-[#1a2332] rounded-lg p-2.5 border border-[rgba(55,65,81,.5)]">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-md flex items-center justify-center bg-[#141d2b] border border-[#374151] flex-shrink-0"><i data-lucide="${p.icon}" class="w-4 h-4 text-[#9CA3AF]"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] font-semibold truncate text-white">${esc(p.name)}</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <button onclick="changeQty('${p.id}',-1)" class="w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold text-white hover:bg-[#4B5563]">-</button>
+                                    <span class="w-6 text-center text-[10px] font-bold text-white">${it.qty}</span>
+                                    <button onclick="changeQty('${p.id}',1)" class="w-5 h-5 rounded bg-[#374151] flex items-center justify-center text-[10px] font-bold text-white hover:bg-[#4B5563]">+</button>
+                                    <span class="text-[9px] text-[#6B7280]">x ${fmt0(p.price)}</span>
+                                </div>
+                            </div>
+                            <div class="text-right flex flex-col items-end gap-1">
+                                <p class="text-xs font-bold text-white">${fmt0(p.price * it.qty)}</p>
+                                <button onclick="removeItem('${p.id}')" class="w-5 h-5 rounded bg-[rgba(234,2,52,.12)] border border-[rgba(234,2,52,.3)] flex items-center justify-center text-[#EA0234] hover:bg-[rgba(234,2,52,.25)]"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function totals() {
+            const sub = cart.reduce((s, it) => s + byId(it.id).price * it.qty, 0);
+            const desc = Math.min(descuento, sub);
+            $('lblSubtotal').textContent = fmt(sub);
+            $('lblDesc').textContent = '-' + fmt(desc);
+            $('lblTotal').textContent = fmt(sub - desc);
+            $('rowDesc').classList.toggle('hidden', desc <= 0);
+        }
+
+        async function aplicarDescuento() {
+            if (!cart.length) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Ticket vacio', text: 'Agrega productos antes de aplicar descuento.' });
+            const { value } = await Swal.fire({ ...SWAL, title: 'Descuento del pedido', input: 'number', inputLabel: 'Monto en pesos (MXN)', inputValue: descuento || '', showCancelButton: true, confirmButtonText: 'Aplicar', cancelButtonText: 'Cancelar' });
+            if (value !== undefined) { descuento = parseFloat(value) || 0; totals(); }
+        }
+        function guardarCotizacion() {
+            if (!cart.length) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Ticket vacio', text: 'Agrega al menos un producto.' });
+            if (!$('inputCliente').value.trim()) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Falta el cliente', text: 'Captura el nombre del cliente.' });
+            Swal.fire({ ...SWAL, icon: 'success', title: 'Cotizacion guardada', html: 'El pedido queda en estado <strong class="text-[#76A9FA]">Cotizacion</strong>.', confirmButtonText: 'Ir al listado' }).then(r => { if (r.isConfirmed) window.location.href = 'pedidos-listado.html'; });
+        }
+        function terminar() {
+            if (!cart.length) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Ticket vacio', text: 'Agrega al menos un producto.' });
+            if (!$('inputCliente').value.trim()) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Falta el cliente', text: 'Captura el nombre del cliente.' });
+            window.location.href = 'pedido-pagos.html';
+        }
+
+        $('inputSearch').addEventListener('input', e => { search = e.target.value; renderProducts(); });
+        $('btnClear').addEventListener('click', () => { cart.length = 0; descuento = 0; renderCart(); totals(); });
+
+        // Sucursal + fecha default
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+        (function () { const t = new Date(); t.setDate(t.getDate() + 1); $('inputFecha').value = t.toISOString().slice(0, 10); })();
+
+        renderCats(); renderProducts(); renderCart(); totals();
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -626,24 +626,22 @@
                     +   '<span class="cpop-when">' + escHtml(when) + '</span>'
                     + '</button>';
                 if (_cpopEditId === r.acc.id) {
-                    // Hora protagonista (rápida) con la fecha implícita HOY; la fecha solo se
-                    // despliega con el botón de calendario o si el recordatorio ya es de otro día.
+                    // El recordatorio se fija solo con los chips rápidos (en N horas);
+                    // la hora/fecha se calculan solas y viajan en campos ocultos.
                     const rem      = r.acc.reminderAt || '';
                     const remTime  = rem.slice(11, 16) || fmtTimeLocal(new Date());
                     const today    = fmtDateLocal(new Date());
                     const remDate  = rem.slice(0, 10) || today;
-                    const showDate = _cpopShowDate || remDate !== today;
                     h += '<div class="cpop-edit">'
                        +   '<div class="cpop-quick">'
-                       +     '<button type="button" class="cpop-chip" data-quick-h="1">En 1 h</button>'
-                       +     '<button type="button" class="cpop-chip" data-quick-h="3">En 3 h</button>'
-                       +     '<button type="button" class="cpop-chip" data-quick-h="5">En 5 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="1">1 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="2">2 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="3">3 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="4">4 h</button>'
+                       +     '<button type="button" class="cpop-chip" data-quick-h="5">5 h</button>'
                        +   '</div>'
-                       +   '<div class="cpop-when-row">'
-                       +     '<input type="time" class="cpop-rem-input cpop-rem-time" value="' + escAttr(remTime) + '">'
-                       +     '<button type="button" class="cpop-mini cpop-date-toggle" title="Elegir otra fecha (por defecto hoy)"><i data-lucide="calendar" class="w-3.5 h-3.5"></i></button>'
-                       +   '</div>'
-                       +   '<input type="date" class="cpop-rem-input cpop-rem-date" value="' + escAttr(remDate) + '"' + (showDate ? '' : ' hidden') + '>'
+                       +   '<input type="hidden" class="cpop-rem-time" value="' + escAttr(remTime) + '">'
+                       +   '<input type="hidden" class="cpop-rem-date" value="' + escAttr(remDate) + '">'
                        +   '<div class="cpop-edit-actions">'
                        +     (hasRem ? '<button type="button" class="cpop-mini cpop-rem-clear">Quitar</button>' : '')
                        +     '<button type="button" class="cpop-mini cpop-rem-save">Guardar</button>'
@@ -662,7 +660,7 @@
         if (!$btn.length || !$pop.length) return;
         const r = $btn[0].getBoundingClientRect();
         // A la derecha del relojito, alineado al fondo (crece hacia arriba), como el menú de cuenta.
-        $pop.css({ left: (r.right + 8) + 'px', width: '238px', top: 'auto',
+        $pop.css({ left: (r.right + 8) + 'px', width: '320px', top: 'auto',
                    bottom: Math.max(8, global.innerHeight - r.bottom) + 'px' });
     }
     function clockPopOpen() { return global.jQuery('#creditPop').hasClass('is-open'); }
@@ -698,6 +696,56 @@
         );
         if (global.lucide) global.lucide.createIcons();
     }
+    // Constructor genérico de nota flotante (con X para cerrar), identificada por cuenta.
+    // `cls` distingue el tipo (timer / reinicio); `key` marca la ocurrencia; `ttl` (ms) la auto-cierra.
+    function pinNote(cls, accId, key, icon, title, msg, ttl) {
+        buildNotes();
+        const inner =
+              '<span class="credit-note-ico"><i data-lucide="' + icon + '" class="w-5 h-5"></i></span>'
+            + '<div class="credit-note-body">'
+            +   '<div class="credit-note-title">' + escHtml(title) + '</div>'
+            +   '<div class="credit-note-msg">' + escHtml(msg) + '</div>'
+            + '</div>'
+            + '<button type="button" class="credit-note-x" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>';
+        const $notes = global.jQuery('#creditNotes');
+        const $ex    = $notes.find('.' + cls + '[data-note-acc="' + accId + '"]');
+        const keyAt  = (key == null) ? '' : ' data-note-key="' + escAttr(key) + '"';
+        if ($ex.length) { $ex.html(inner); if (key != null) $ex.attr('data-note-key', key); }
+        else { $notes.append('<div class="credit-note ' + cls + '" data-note-acc="' + escAttr(accId) + '"' + keyAt + ' role="status">' + inner + '</div>'); }
+        if (global.lucide) global.lucide.createIcons();
+        if (ttl) {   // aviso temporal: desaparece solo tras `ttl` ms
+            const sel = '.' + cls + '[data-note-acc="' + accId + '"]';
+            global.setTimeout(function () { global.jQuery('#creditNotes').find(sel).remove(); }, ttl);
+        }
+    }
+    // (A) Timer de horas: cuenta regresiva al recordatorio que puso el usuario (los chips 1h–5h).
+    function showTimerPin(acc) {
+        if (!acc.reminderAt) return;
+        const ms = new Date(acc.reminderAt).getTime() - Date.now();
+        if (isNaN(ms)) return;
+        const msg = ms > 0 ? 'Falta ' + fmtHM(ms) + ' para tu recordatorio' : 'Se cumplió tu recordatorio';
+        pinNote('credit-note-timer', acc.id, null, 'timer', acc.alias, msg);
+    }
+    // Reconstruye las notas de timer de los recordatorios aún vigentes: quedan fijas
+    // aunque se recargue la página (el reminderAt persiste en las cuentas).
+    function restoreTimerPins() {
+        loadAccounts().forEach(function (a) {
+            if (!a.reminderAt) return;
+            const ms = new Date(a.reminderAt).getTime() - Date.now();
+            if (isNaN(ms) || ms <= 0) return;   // solo recordatorios que aún no vencen
+            showTimerPin(a);
+        });
+    }
+    // (B) Reinicio de créditos. El día del reinicio queda FIJO; el día antes ("Mañana…")
+    // es un aviso que desaparece solo (autoHide = true) y dice a qué hora se reinician.
+    function showResetPin(acc, key, autoHide) {
+        const info  = resetInfo(acc);
+        const reset = nextWeeklyReset(Number(acc.resetDow), acc.resetTime);
+        const hora  = fmt12(reset.getHours(), reset.getMinutes());
+        const msg   = info.days <= 0 ? 'Se reinician hoy a las ' + hora
+                                     : 'Se reinician mañana a las ' + hora;
+        pinNote('credit-note-reset', acc.id, key, 'alarm-clock', acc.alias, msg, autoHide ? 15000 : 0);
+    }
     // El día del reinicio, al llegar la hora del recordatorio, muestra la notificación fija (una vez).
     function checkReminders() {
         const now = Date.now();
@@ -716,12 +764,34 @@
     }
 
     let _clockTimer = null;
-    let _alerted = {};   // ids ya avisados en su ventana inminente actual (evita repetir el toast)
+    let _alerted = {};             // ids ya avisados en su ventana inminente actual (evita repetir el toast)
+    let _resetPinDismissed = {};   // ocurrencia de reinicio (día del) que el usuario cerró con la X (id -> key)
+    let _resetTomorrowShown = {};  // ocurrencia cuyo aviso "Mañana…" ya se mostró (id -> key), para no repetir
     function clockTick() {
         refreshClockBadge();
         checkReminders();
-        loadAccounts().forEach(function (a) {
+        const accs = loadAccounts();
+        // (A) Refrescar el timer de horas de las notas que sigan visibles (no las recrea si se cerraron).
+        global.jQuery('#creditNotes .credit-note-timer').each(function () {
+            const $n  = global.jQuery(this);
+            const acc = accs.filter(function (a) { return String(a.id) === String($n.attr('data-note-acc')); })[0];
+            if (acc && acc.reminderAt) showTimerPin(acc); else $n.remove();
+        });
+        accs.forEach(function (a) {
             const info = resetInfo(a);
+            // (B) Aviso del reinicio de créditos.
+            if (info.state !== 'none') {
+                if (info.days <= 0) {
+                    // Día del reinicio: pop-up FIJO (se cierra con la X).
+                    if (_resetPinDismissed[a.id] !== info.secondary) showResetPin(a, info.secondary, false);
+                } else if (info.days === 1) {
+                    // Un día antes: aviso "Mañana…" que desaparece solo, una sola vez por ocurrencia.
+                    if (_resetTomorrowShown[a.id] !== info.secondary) {
+                        _resetTomorrowShown[a.id] = info.secondary;
+                        showResetPin(a, info.secondary, true);
+                    }
+                }
+            }
             if (info.urgent) {
                 if (!_alerted[a.id]) {
                     _alerted[a.id] = true;
@@ -748,6 +818,7 @@
         injectClock($);
         refreshClockBadge();
         checkReminders();
+        restoreTimerPins();
         startClockTick();
         if (global.lucide) global.lucide.createIcons();
         // Los <select> de modelo los engancha model-config.js (bindAll sobre .ia-model-pill).
@@ -759,6 +830,7 @@
             if (keys.indexOf(ACCOUNTS_KEY) === -1) return;
             refreshClockBadge();
             checkReminders();
+            restoreTimerPins();
             if (clockPopOpen()) { renderClockPop(); positionClockPop(); }
             if ($('#accountUpgrade').hasClass('is-open') && _upView === 'list') renderUpgrade();
         });
@@ -781,16 +853,16 @@
             _cpopShowDate = false;
             renderClockPop(); positionClockPop();
         });
-        // Chips rápidos: fijan la hora a ahora+N; si el resultado cae mañana, muestran la fecha.
+        // Chips rápidos: fijan la hora/fecha a ahora+N y marcan el chip elegido.
         $(document).on('click', '#creditPop .cpop-chip', function (e) {
             e.stopPropagation();
             const hrs = parseInt($(this).data('quick-h'), 10) || 0;
             const d = new Date(Date.now() + hrs * 3600000);
             const $item = $(this).closest('.cpop-item');
             $item.find('.cpop-rem-time').val(fmtTimeLocal(d));
-            const dv = fmtDateLocal(d);
-            const $date = $item.find('.cpop-rem-date').val(dv);
-            if (dv !== fmtDateLocal(new Date())) { _cpopShowDate = true; $date.prop('hidden', false); }
+            $item.find('.cpop-rem-date').val(fmtDateLocal(d));
+            $item.find('.cpop-chip').removeClass('is-active');
+            $(this).addClass('is-active');
         });
         $(document).on('click', '#creditPop .cpop-date-toggle', function (e) {
             e.stopPropagation();
@@ -806,15 +878,21 @@
             if (!time) { toast('Elige una hora', 'warn'); return; }
             // Sin fecha elegida se asume HOY (el selector de fecha es opcional).
             const date = $item.find('.cpop-rem-date').val() || fmtDateLocal(new Date());
-            setAccountReminder($item.data('id'), date + 'T' + time);
+            const id   = $item.data('id');
+            setAccountReminder(id, date + 'T' + time);
             _cpopEditId = null;
             renderClockPop(); positionClockPop(); refreshClockBadge();
+            // Nota flotante fija con la cuenta regresiva del timer de horas (se cierra con la X).
+            const acc = loadAccounts().filter(function (a) { return String(a.id) === String(id); })[0];
+            if (acc) showTimerPin(acc);
             toast('Recordatorio guardado', 'ok');
         });
         $(document).on('click', '#creditPop .cpop-rem-clear', function (e) {
             e.stopPropagation();
             const $item = $(this).closest('.cpop-item');
-            setAccountReminder($item.data('id'), '');
+            const id = $item.data('id');
+            setAccountReminder(id, '');
+            $('#creditNotes .credit-note-timer[data-note-acc="' + id + '"]').remove();
             _cpopEditId = null;
             renderClockPop(); positionClockPop();
             toast('Recordatorio quitado', 'info');
@@ -824,8 +902,15 @@
             closeClockPop();
             openUpgrade();
         });
-        // Cerrar una notificación flotante de recordatorio.
-        $(document).on('click', '.credit-note-x', function () { $(this).closest('.credit-note').remove(); });
+        // Cerrar una notificación flotante. Si es el pop-up de reinicio, recordar que se cerró
+        // para no volver a mostrarlo hasta la siguiente ocurrencia del reinicio.
+        $(document).on('click', '.credit-note-x', function () {
+            const $n = $(this).closest('.credit-note');
+            if ($n.hasClass('credit-note-reset')) {
+                _resetPinDismissed[$n.attr('data-note-acc')] = $n.attr('data-note-key') || '1';
+            }
+            $n.remove();
+        });
         $(document).on('click', '.account-menu-item', function (e) {
             e.stopPropagation();
             onMenuAct($(this).data('act'));

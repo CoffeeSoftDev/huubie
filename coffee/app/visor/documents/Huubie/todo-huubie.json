@@ -1,0 +1,68 @@
+{
+  "title": "Huubie",
+  "sections": [
+    {
+      "id": "si2nvttf",
+      "title": "Lista de pedidos",
+      "tasks": [
+        {
+          "id": "tjvih2wq",
+          "text": "Cierre del dia - el numero 1 debe aparecer parpadeante",
+          "done": true
+        },
+        {
+          "id": "tmsunv1a",
+          "text": "Cierre del dia - Si estas en el dia actual y no se cerro el dia Debe aparecer una nota que indique que es necesario cerrar el dia , asi como aparece con cerrar turno",
+          "done": true
+        },
+        {
+          "id": "tzz87wkz",
+          "text": "No deberia poder abrir turno, si el dia de ayer no lo cerre",
+          "done": true
+        },
+        {
+          "id": "td7newt8",
+          "text": "Cambiar el mensaje de la api de whats, y que sea en cerrar turno, el conteo que hizo el ticket que me lo mande en un mensaje",
+          "done": false
+        },
+        {
+          "id": "tk04avno",
+          "text": "Si anteriormente existia un dia sin cerrar, y se cerro ese dia, la info de dias sin cerrar debe desaparecer",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "s83nf573",
+      "title": "Visor de cierre del día",
+      "tasks": [
+        {
+          "id": "tlh63sdt",
+          "text": "Agregar un apartado inteligente ( sugerencia con coffee-ia) que detecte porque esta marcando ese error en el reporte",
+          "done": false
+        },
+        {
+          "id": "tdb561tz",
+          "text": "Revisar si se cumpleten todos los eventos de pedidos",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sqrbc72c",
+      "title": "Detalles del pedido",
+      "tasks": [
+        {
+          "id": "tlb5jzvm",
+          "text": "Mejorar la interfaz de detalles del pedido",
+          "done": false
+        },
+        {
+          "id": "t9vno2um",
+          "text": "en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

@@ -32,13 +32,14 @@
 
     <script src="<?=PATH_ACCESS?>src/js/session.js"></script>
     <!--
+        Misma navbar que alpha/pedidos (mide 64px, de ahi el mt-16 del mainContainer).
         El visor ya trae su propio selector de sucursal en el filterBar, asi que se oculta
-        el de la navbar para no tener dos controles compitiendo. La navbar lo respeta via
-        `showSubsidiary: !window.HIDE_SUBSIDIARY_SWITCH` (menus/src/js/navbar.js).
-        Debe declararse ANTES de cargar navbar.js.
+        el control de sucursal de la navbar para no tener dos compitiendo: la navbar lo
+        respeta via `showSubsidiary: !window.HIDE_SUBSIDIARY_SWITCH`.
+        El flag debe declararse ANTES de cargar navbar.js.
     -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
 
     <style>
@@ -56,9 +57,9 @@
 <body class="bg-[#111928] text-white" data-bs-theme="dark">
     <div id="menu-navbar"></div>
     <div id="menu-sidebar"></div>
-    <!-- h-[calc(100vh-3rem)] = viewport menos la navbar (mt-12); overflow-hidden evita el
+    <!-- h-[calc(100vh-4rem)] = viewport menos la navbar (mt-16); overflow-hidden evita el
          scroll de pagina: el scroll vertical vive DENTRO de cada panel del visor. -->
-    <div id="mainContainer" class="w-full flex flex-col text-white mt-12 p-3 overflow-hidden h-[calc(100vh-3rem)]">
+    <div id="mainContainer" class="w-full flex flex-col text-white mt-16 p-3 overflow-hidden h-[calc(100vh-4rem)]">
         <div style="background-color:#111827;" class="w-full max-w-full flex-1 min-h-0 flex flex-col" id="root"></div>
     </div>
 

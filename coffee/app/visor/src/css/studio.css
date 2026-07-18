@@ -272,21 +272,82 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: var(--vsr-bg-base); }
 .pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--vsr-text); white-space: pre; }
 
+/* ── Consola del preview ──
+   Ocupa el lienzo entero (como la pestaña Código) y lista lo que el módulo emite
+   dentro del iframe. El error va en rojo porque es lo único accionable. */
+.pg-console-panel {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    background: var(--vsr-bg-base);
+}
+.pg-console-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 12px; flex-shrink: 0;
+    border-bottom: 1px solid var(--vsr-border);
+    background: var(--vsr-bg-chrome);
+}
+.pg-console-title {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; color: var(--vsr-text-soft);
+}
+.pg-console-title i { color: var(--vsr-accent-soft); }
+.pg-console-body { flex: 1; overflow: auto; padding: 6px 0; }
+
+.pg-console-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--vsr-border-soft);
+    font-size: 12px;
+}
+.pg-console-ico { flex: 0 0 auto; margin-top: 1px; }
+.pg-console-row.is-error .pg-console-ico { color: #f87171; }
+.pg-console-row.is-warn  .pg-console-ico { color: #fbbf24; }
+.pg-console-row.is-info  .pg-console-ico { color: var(--vsr-text-muted); }
+.pg-console-row.is-error { background: rgba(248, 113, 113, .06); }
+
+.pg-console-text {
+    flex: 1; min-width: 0; margin: 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.5;
+    color: var(--vsr-text-soft);
+    white-space: pre-wrap; word-break: break-word;
+}
+.pg-console-row.is-error .pg-console-text { color: #fca5a5; }
+.pg-console-src { flex: 0 0 auto; font-size: 10px; color: var(--vsr-text-muted); }
+
+.pg-console-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; height: 100%; padding: 32px;
+    text-align: center; color: var(--vsr-text-muted);
+}
+.pg-console-empty i { width: 30px; height: 30px; opacity: .5; }
+.pg-console-empty p { font-size: 12.5px; max-width: 380px; line-height: 1.55; }
+
+/* Contador de errores sin ver, sobre la propia pestaña Consola. */
+.pg-console-badge {
+    display: inline-grid; place-items: center;
+    min-width: 15px; height: 15px; padding: 0 4px; margin-left: 4px;
+    border-radius: 8px; font-size: 9px; font-weight: 800;
+    background: #dc2626; color: #fff;
+}
+
 /* ── Scrollbars finas del playground (acordes al sistema del visor) ── */
-.pg-chat-body, .pg-sandbox-code, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
+.pg-chat-body, .pg-sandbox-code, .pg-console-body, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
     scrollbar-width: thin;
     scrollbar-color: var(--vsr-scrollbar) transparent;
 }
 .pg-chat-body::-webkit-scrollbar,
 .pg-sandbox-code::-webkit-scrollbar,
+.pg-console-body::-webkit-scrollbar,
 .pg-styles-panel::-webkit-scrollbar,
 .pg-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
 .pg-chat-body::-webkit-scrollbar-track,
 .pg-sandbox-code::-webkit-scrollbar-track,
+.pg-console-body::-webkit-scrollbar-track,
 .pg-styles-panel::-webkit-scrollbar-track,
 .pg-modal-body::-webkit-scrollbar-track { background: transparent; }
 .pg-chat-body::-webkit-scrollbar-thumb,
 .pg-sandbox-code::-webkit-scrollbar-thumb,
+.pg-console-body::-webkit-scrollbar-thumb,
 .pg-styles-panel::-webkit-scrollbar-thumb,
 .pg-modal-body::-webkit-scrollbar-thumb {
     background: var(--vsr-scrollbar); border-radius: 6px;

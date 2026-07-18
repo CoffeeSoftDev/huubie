@@ -1,0 +1,24 @@
+{
+  "title": "Tablero de Requerimientos",
+  "theme": "dark",
+  "themeLabel": "Huubie Dark",
+  "agentKey": "CoffeeMagic.md",
+  "agentLabel": "CoffeeMagic",
+  "model": "claude-opus-4-8",
+  "prompt": "",
+  "userText": "Ejemplo (Fase 2): tablero que agrupa los requerimientos .md por su frontmatter `status` (idea, en-progreso, en-revision, terminado).",
+  "isDoc": false,
+  "history": [
+    {
+      "role": "user",
+      "content": "Quiero ver cómo sería un tablero de seguimiento de requerimientos que lea el frontmatter (status, created, owner, tags) de mis .md y los agrupe por estado."
+    },
+    {
+      "role": "assistant",
+      "content": "Este es el tablero (Fase 2): un kanban de 4 columnas (Idea, En progreso, En revisión, Terminado) con KPIs, filtro por módulo y búsqueda. Cada tarjeta = un .md; el estado vive en su frontmatter, así que mover de columna solo reescribe `status:` en el archivo. Datos de ejemplo tomados de los módulos reales de Huubie (pedidos, alpha, inventory, inventarios, visor)."
+    }
+  ],
+  "name": "Tablero de Requerimientos",
+  "slug": "tablero-requerimientos",
+  "savedAt": "2026-07-17 09:15:00"
+}

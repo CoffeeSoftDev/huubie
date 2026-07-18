@@ -290,8 +290,9 @@ class ctrl extends MPedidos{
                 // Actualizar el total de la orden
                 $this->updateTotalOrder($pedidos_id);
 
-                // Bitacora: el cambio de cantidad sube o baja el precio de linea.
-                if ($prevProd) {
+                // Bitacora: el cambio de cantidad sube o baja el precio de linea. Solo
+                // en EDICION; al armar un pedido nuevo (isEdit=0) no se registra.
+                if (!empty($_POST['isEdit']) && $prevProd) {
                     $prevQty   = intval($prevProd['quantity'] ?? 0);
                     $unit      = floatval($prevProd['price'] ?? 0);
                     $prevTotal = $unit * $prevQty;
@@ -349,8 +350,13 @@ class ctrl extends MPedidos{
             // Actualizar el total de la orden
             $this->updateTotalOrder($pedidos_id);
 
-            $etiqueta = $productName !== null ? $productName : '#' . $_POST['id'];
-            $this->logOrderHistory($pedidos_id, "Se eliminó el producto {$etiqueta} (" . evaluar($productPrice) . ')', 'edition');
+            // Solo se registra en la bitacora si es EDICION de un pedido existente.
+            // Al crear (armado inicial en el catalogo) no se loguea cada producto: el
+            // front manda isEdit=0 y el resumen se registra al crear el pedido.
+            if (!empty($_POST['isEdit'])) {
+                $etiqueta = $productName !== null ? $productName : '#' . $_POST['id'];
+                $this->logOrderHistory($pedidos_id, "Se eliminó el producto {$etiqueta} (" . evaluar($productPrice) . ')', 'edition');
+            }
         }
 
         return [
@@ -377,7 +383,9 @@ class ctrl extends MPedidos{
             // Actualizar el total de la orden (será 0 si no hay productos)
             $this->updateTotalOrder($pedidos_id);
 
-            $this->logOrderHistory($pedidos_id, 'Se eliminaron todos los productos del pedido', 'edition');
+            if (!empty($_POST['isEdit'])) {
+                $this->logOrderHistory($pedidos_id, 'Se eliminaron todos los productos del pedido', 'edition');
+            }
         }
 
         $orderProducts = $this->getOrderById([$pedidos_id]);
@@ -481,12 +489,17 @@ class ctrl extends MPedidos{
                 $this->logOrderHistory($id, 'Se registró un pago de ' . evaluar($pay) . " ({$methodName})", 'payment');
             } else {
                 $targetLabel = ($type_id === 1) ? 'Cotización' : 'Pendiente';
-                $msg = "Pedido guardado como {$targetLabel} sin cobro — total " . evaluar($total_pay);
+                // Nº de productos del pedido, para el resumen junto al total.
+                $n = count((array) $this->getOrderById([$id]));
+                $msg = "Pedido guardado como {$targetLabel} sin cobro — total " . evaluar($total_pay)
+                     . ", {$n} producto" . ($n === 1 ? '' : 's');
+                // El descuento se INDICA explicitamente (con el neto), no se resta en silencio.
+                if ($discount > 0) {
+                    $msg .= '. Descuento ' . evaluar($discount) . ', neto ' . evaluar($total_pay - $discount);
+                }
+                // Diff de total respecto al estado previo (util al re-guardar una edicion).
                 if ($prevRow && floatval($prevRow['total_pay']) != $total_pay) {
                     $msg .= ' (total ' . evaluar($prevRow['total_pay']) . ' → ' . evaluar($total_pay) . ')';
-                }
-                if ($prevRow && floatval($prevRow['discount'] ?? 0) != $discount) {
-                    $msg .= ' (descuento ' . evaluar($prevRow['discount'] ?? 0) . ' → ' . evaluar($discount) . ')';
                 }
                 $this->logOrderHistory($id, $msg, 'edition');
             }

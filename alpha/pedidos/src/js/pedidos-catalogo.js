@@ -1337,7 +1337,9 @@ class CatalogProduct extends Pos {
             data: {
                 opc: "removeProduct",
                 pedidos_id: idFolio,
-                id: id
+                id: id,
+                // Solo se registra en bitacora si es edicion; al crear no (armado inicial).
+                isEdit: this.layoutEdit ? 1 : 0
             }
         });
 
@@ -1353,7 +1355,9 @@ class CatalogProduct extends Pos {
             },
             data: {
                 opc: "deleteAllProducts",
-                pedidos_id: idFolio
+                pedidos_id: idFolio,
+                // Solo se registra en bitacora si es edicion; al crear no (armado inicial).
+                isEdit: this.layoutEdit ? 1 : 0
             },
             methods: {
                 send: (response) => {
@@ -1511,7 +1515,9 @@ class CatalogProduct extends Pos {
                 opc: "quantityProduct",
                 id: packageId,
                 quantity: newQuantity,
-                pedidos_id: idFolio
+                pedidos_id: idFolio,
+                // Solo se registra en bitacora si es edicion; al crear no (armado inicial).
+                isEdit: this.layoutEdit ? 1 : 0
             }
         });
         this.showOrder(response.list)

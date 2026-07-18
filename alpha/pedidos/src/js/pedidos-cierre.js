@@ -309,6 +309,10 @@ class Cierre {
             table.pdf-table .col-efectivo, table.pdf-table .col-tarjeta { color: #000; font-weight: 400; }
             .cz-folio { font-weight: 600; color: #000; }
             .cz-origen { font-size: 8px; color: #000; line-height: 1; margin-top: 0; }
+            .cz-fecha-orig { font-size: 8px; color: #9ca3af; font-weight: 400; line-height: 1; margin-top: 1px; }
+            /* Fila de pedido clicable (solo en el visor de cierre; ver rowClick()). */
+            .cz-order-row { cursor: pointer; }
+            .cz-order-row:hover { background: #eef2ff; }
             .cz-de { color: #9ca3af; font-weight: 400; font-size: 8px; }
             .cz-tachado { text-decoration: line-through; color: #9ca3af; font-weight: 400; font-size: 8px; }
             .cz-desc { font-size: 8px; color: #000; font-weight: 700; line-height: 1; margin-top: 1px; }
@@ -399,6 +403,13 @@ class Cierre {
 
         const money = (v) => parseFloat(v || 0) ? formatPrice(v) : '&mdash;';
 
+        // Clic a ticket: la fila de un pedido abre su ticket SOLO cuando el consumidor
+        // (visor de cierre) registra this.onOrderClick. En alpha/pedidos no se activa,
+        // asi que la fila no lleva la clase ni el data-order-id y sigue igual que hoy.
+        const rowClick = (id) => (typeof this.onOrderClick === 'function' && id)
+            ? ` class="cz-order-row" data-order-id="${id}"`
+            : '';
+
         // === ABONOS DE PEDIDOS ANTERIORES ===
         // Pagos recibidos hoy a pedidos creados en días previos (misma sucursal o cruzados de otra).
         // Este dinero SÍ entró a esta caja; el backend atribuye cada abono al turno (shift_id) en que
@@ -429,9 +440,13 @@ class Cierre {
                 : '';
             // Formato del ticket detallado: "Debía $X de $Total" (X = saldo antes del abono de hoy).
             const importeCell = `${money(debia)} <span class="cz-de">de ${money(total)}</span>`;
+            // El pedido es de un dia anterior: su fecha va bajo el folio para ubicarlo en el tiempo.
+            const fechaOrig = o.order_date
+                ? `<div class="cz-fecha-orig">${moment(o.order_date).format('DD/MM/YYYY')}</div>`
+                : '';
             return `
-                    <tr>
-                        <td class="cz-folio">${o.folio || '#' + o.id}</td>
+                    <tr${rowClick(o.id)}>
+                        <td class="cz-folio">${o.folio || '#' + o.id}${fechaOrig}</td>
                         <td>${horaAbono(o)}</td>
                         <td>${o.client_name || 'Sin cliente'}${origen}</td>
                         <td>${o.method || '&mdash;'}</td>
@@ -554,7 +569,7 @@ class Cierre {
                 ? `<div class="cz-desc">Descuento: -${money(descuento)}</div>`
                 : '';
             return `
-                    <tr>
+                    <tr${rowClick(o.id)}>
                         <td class="cz-folio">${o.folio}</td>
                         <td>${horaPedido(o)}</td>
                         <td>${o.client || '&mdash;'}${descLine}</td>
@@ -682,7 +697,7 @@ class Cierre {
             const abono = parseFloat(o.payment_cross || 0);
             const quedo = Math.max(total - abono, 0);
             return `
-                    <tr>
+                    <tr${rowClick(o.id)}>
                         <td class="cz-folio">${o.folio || '#' + o.id}</td>
                         <td>${o.client_name || 'Sin cliente'}</td>
                         <td>${o.charged_subsidiary || 'Otra sucursal'}</td>
@@ -723,7 +738,7 @@ class Cierre {
         // === COTIZACIONES (no suman a la venta) ===
         const quotesTotal = quoteOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
         const quotesRows = quoteOrders.map(o => `
-            <tr>
+            <tr${rowClick(o.id)}>
                 <td>${o.folio}</td>
                 <td>${horaPedido(o)}</td>
                 <td>${o.client || '&mdash;'}</td>
@@ -908,6 +923,15 @@ class Cierre {
         `;
 
         $('#' + containerId).html(html);
+
+        // Filas de pedido clicables: solo cuando el consumidor registro onOrderClick
+        // (visor de cierre). Delegado para cubrir todas las tablas del reporte.
+        if (typeof this.onOrderClick === 'function') {
+            $('#' + containerId).off('click.czOrder').on('click.czOrder', '.cz-order-row', (e) => {
+                const id = $(e.currentTarget).data('order-id');
+                if (id) this.onOrderClick(id);
+            });
+        }
     }
 
 

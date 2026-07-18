@@ -1,5 +1,25 @@
 # Huubie
 
+## Reglas del framework CoffeeSoft: donde viven
+
+La fuente unica de las convenciones (JS, ctrl, mdl) es **`~/.claude/steering/`**
+(`%USERPROFILE%\.claude\steering\`). Antes de aplicar cualquier regla de estilo o
+generar codigo CoffeeSoft, leer de ahi.
+
+- Indice con `offset`/`limit` por seccion: el **embebido al final de `~/.claude/agents/CoffeeIA.md`**
+  (17 archivos / 474 secciones, incluye `steering/grimorios/`). Leer solo la seccion necesaria
+  con `Read(file, offset, limit)`, no el archivo completo. Se regenera con
+  `python ~/.claude/steering/regenerar_indice.py` tras editar cualquier steering file.
+  (El viejo `steering/INDICE-STEERING.md` era un huerfano sin mantenimiento y fue eliminado.)
+- Frontend JS -> `steering/FRONT-JS.md` (incluye nomenclatura, ciclo de vida
+  `init/render/layout/filterBar/ls[Entidad]` y el formato de comentarios separadores `// -- Nombre --`).
+- Controlador -> `steering/CTRL.md` · Modelo -> `steering/MDL.md`
+- Que se puede comentar -> `steering/CoffeeIA.md` seccion "Reglas de Comentarios".
+
+**No usar `~/.claude/agents/*.md` como fuente de reglas:** son definiciones de
+subagentes, y sus copias de FRONT-JS/CTRL/MDL quedaron desactualizadas y recortadas
+frente al steering. Hoy son stubs que remiten aqui.
+
 ## Layout canonico de modulos
 
 Todos los modulos Huubie deben usar la misma configuracion de `primaryLayout` que define `App.layout()` en [alpha/pedidos/src/js/app.js](alpha/pedidos/src/js/app.js) (lineas 54-71). Es el patron de referencia para cualquier clase que extienda `Templates`.

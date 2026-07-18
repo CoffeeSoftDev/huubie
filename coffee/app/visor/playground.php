@@ -280,6 +280,10 @@
                                 <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
                                 <span class="pg-actionbtn-label">Guardar plantilla</span>
                             </button>
+                            <button id="pgTransmuteBtn" class="pg-iconbtn pg-actionbtn" title="Diseño aprobado: transmutarlo a módulo coffeeSoft en Coffee Studio">
+                                <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Mover a Coffee Studio</span>
+                            </button>
                             <button id="pgSandboxDownload" class="pg-iconbtn pg-actionbtn" title="Descargar HTML">
                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                 <span class="pg-actionbtn-label">Descargar HTML</span>
@@ -403,6 +407,62 @@
                     </button>
                     <button id="pgSaveTplConfirm" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
                         <i data-lucide="copy-plus" class="w-3.5 h-3.5"></i> <span id="pgSaveTplConfirmLabel">Guardar</span>
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ── Modal: Transmutación (Playground → Coffee Studio) ──
+         Recoge el YAML del spell `transmute` de CoffeeMagic. El diseño aprobado se
+         guarda como plantilla (documents/template/<slug>/) y el Studio lo recoge por
+         slug para convertirlo en módulo coffeeSoft (App + Entidad + View). -->
+    <div id="pgTransmuteModal" class="pg-modal hidden" aria-hidden="true">
+        <div class="pg-modal-backdrop"></div>
+        <div class="pg-modal-dialog" role="dialog" style="max-width:560px;">
+            <header class="pg-modal-head">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                    <h3>Transmutar a módulo coffeeSoft</h3>
+                </div>
+                <button id="pgTransmuteClose" class="pg-iconbtn" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </header>
+            <div class="pg-modal-body">
+                <p class="pg-hint">El diseño aprobado se guarda como plantilla y se abre en <strong>Coffee Studio</strong>, donde <strong>CoffeeMagic</strong> lo transmuta en módulo coffeeSoft: <code>sample_&lt;modulo&gt;.js</code> + <code>&lt;modulo&gt;.js</code> (App&nbsp;+&nbsp;Entidad&nbsp;+&nbsp;View) + <code>&lt;modulo&gt;.php</code>. El tema visual se hereda del HTML, no se cambia.</p>
+
+                <label class="pg-tm-label">Módulo <span class="pg-tm-req">·  kebab-case</span></label>
+                <input id="pgTmModulo" type="text" class="pg-tm-input" placeholder="ej. traspasos" autocomplete="off">
+
+                <label class="pg-tm-label">Entidad <span class="pg-tm-opt">· PascalCase, se infiere del módulo</span></label>
+                <input id="pgTmEntidad" type="text" class="pg-tm-input" placeholder="ej. Traspasos" autocomplete="off">
+
+                <label class="pg-tm-label">Carpeta destino</label>
+                <input id="pgTmDir" type="text" class="pg-tm-input" placeholder="app/inventarios" autocomplete="off">
+
+                <label class="pg-tm-label">Pivote de referencia <span class="pg-tm-opt">· vacío = grimorio-fuente.md</span></label>
+                <input id="pgTmRef" type="text" class="pg-tm-input" placeholder="app/inventarios/src/js/pos-entradas.js" autocomplete="off">
+
+                <div id="pgTmTheme" class="pg-savetpl-active" style="margin-top:12px;">
+                    <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+                    <span>Tema detectado del HTML: <strong id="pgTmThemeName">—</strong>. La transmutación lo conserva.</span>
+                </div>
+
+                <details class="pg-tm-more">
+                    <summary>Card en hub <span class="pg-tm-opt">· opcional</span></summary>
+                    <label class="pg-tm-label">HTML del hub</label>
+                    <input id="pgTmHub" type="text" class="pg-tm-input" placeholder="app/inventarios/inventarios-index-navegacion.html" autocomplete="off">
+                    <label class="pg-tm-label">Texto de la card</label>
+                    <input id="pgTmCardLabel" type="text" class="pg-tm-input" placeholder="ej. Traspasos" autocomplete="off">
+                    <label class="pg-tm-label">Icono Lucide</label>
+                    <input id="pgTmCardIcon" type="text" class="pg-tm-input" placeholder="ej. arrow-left-right" autocomplete="off">
+                </details>
+            </div>
+            <footer class="pg-modal-foot">
+                <span id="pgTmSlug" class="pg-hint"></span>
+                <div class="flex gap-2">
+                    <button id="pgTransmuteCancel" class="cs-btn cs-btn-ghost cs-btn-sm">Cancelar</button>
+                    <button id="pgTransmuteConfirm" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">
+                        <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i> Transmutar en Studio
                     </button>
                 </div>
             </footer>

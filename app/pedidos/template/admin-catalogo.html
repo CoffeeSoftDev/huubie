@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Administracion de Catalogo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #d1d5db; width: 100%; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        .input-modal::placeholder { color: #6b7280; }
+        select.input-modal { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .tab-pill { background: #1a2332; border: 1px solid #374151; color: #9ca3af; padding: 7px 16px; border-radius: 9999px; font-size: 12px; font-weight: 600; cursor: pointer; transition: .15s; display: inline-flex; align-items: center; gap: 6px; }
+        .tab-pill:hover { border-color: #1C64F2; color: #fff; }
+        .tab-pill.active { background: #1C64F2; color: #fff; border-color: #1C64F2; }
+        .badge-base { font-size: 10px; padding: 2px 9px; border-radius: 9999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .act-btn { width: 28px; height: 28px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; background: #1a2332; border: 1px solid #374151; color: #9CA3AF; transition: .15s; }
+        .act-btn:hover { color: #fff; }
+        .act-btn.edit:hover { color: #76A9FA; border-color: rgba(28,100,242,.4); }
+        .act-btn.del:hover { color: #EA0234; border-color: rgba(234,2,52,.4); }
+        .act-btn.move:hover { color: #c4b5fd; border-color: rgba(124,58,237,.4); }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background:#EA0234!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link active">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+
+        <!-- Titulo -->
+        <div class="flex items-center justify-between px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div>
+                <h1 class="text-base font-bold flex items-center gap-2"><i data-lucide="settings-2" class="w-5 h-5 text-[#9CA3AF]"></i> Administracion de Catalogo</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-0.5">Categorias, productos, modificadores, clientes y folios.</p>
+            </div>
+            <button id="btnNuevo" onclick="openModal()" class="bg-[#1C64F2] hover:bg-[#1a53d4] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> <span id="btnNuevoLbl">Nuevo</span>
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="px-5 py-3 bg-[#111928] border-b border-[#374151] flex-shrink-0 flex gap-2 overflow-x-auto scrollbar-thin">
+            <button class="tab-pill active" data-tab="categorias" onclick="setTab('categorias')"><i data-lucide="tags" class="w-3.5 h-3.5"></i> Categorias</button>
+            <button class="tab-pill" data-tab="productos" onclick="setTab('productos')"><i data-lucide="cake" class="w-3.5 h-3.5"></i> Productos</button>
+            <button class="tab-pill" data-tab="modificadores" onclick="setTab('modificadores')"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i> Modificadores</button>
+            <button class="tab-pill" data-tab="clientes" onclick="setTab('clientes')"><i data-lucide="users" class="w-3.5 h-3.5"></i> Clientes</button>
+            <button class="tab-pill" data-tab="folios" onclick="setTab('folios')"><i data-lucide="hash" class="w-3.5 h-3.5"></i> Folios</button>
+        </div>
+
+        <!-- Buscador -->
+        <div class="px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div class="relative max-w-sm">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]"></i>
+                <input id="buscar" oninput="render()" type="text" placeholder="Buscar..." class="input-modal w-full pl-9">
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="flex-1 overflow-auto scrollbar-thin px-5 py-4">
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-[#141d2b] sticky top-0 z-10"><tr id="thead" class="text-[10px] text-[#6B7280] uppercase tracking-wider border-b border-[#374151]"></tr></thead>
+                    <tbody id="tbody" class="text-xs"></tbody>
+                </table>
+                <div id="empty" class="hidden flex-col items-center justify-center py-12 text-center">
+                    <i data-lucide="inbox" class="w-10 h-10 text-[#374151] mb-2"></i>
+                    <p class="text-xs text-[#6B7280]">Sin registros</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CRUD -->
+    <div id="modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,.7);">
+        <div class="w-[460px] max-w-full bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#374151] flex items-center justify-between">
+                <h3 id="modalTitle" class="text-base font-bold text-white">Nuevo</h3>
+                <button onclick="closeModal()" class="text-[#9CA3AF] hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="modalBody" class="p-5 space-y-3"></div>
+            <div class="px-5 py-4 border-t border-[#374151] flex justify-end gap-2">
+                <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-[#1a2332] border border-[#374151] text-[#d1d5db] hover:bg-[#273343]">Cancelar</button>
+                <button onclick="saveModal()" class="px-5 py-2 rounded-lg text-xs font-bold bg-[#1C64F2] text-white hover:bg-[#1a53d4]">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        const fmt0 = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        // ============ DATA MOCK ============
+        const DB = {
+            categorias: [
+                { id: 1, nombre: 'Pasteles', color: 'blue', prod: 8, activo: true },
+                { id: 2, nombre: 'Premium', color: 'purple', prod: 5, activo: true },
+                { id: 3, nombre: 'Cupcakes', color: 'pink', prod: 6, activo: true },
+                { id: 4, nombre: 'Galletas', color: 'orange', prod: 4, activo: true },
+                { id: 5, nombre: 'Reposteria', color: 'blue', prod: 9, activo: true },
+                { id: 6, nombre: 'Cafes', color: 'orange', prod: 7, activo: false },
+            ],
+            productos: [
+                { id: 1, nombre: '3 Leches Chocolate', cat: 'Pasteles', precio: 700, activo: true },
+                { id: 2, nombre: 'Red Velvet', cat: 'Premium', precio: 850, activo: true },
+                { id: 3, nombre: 'Cupcake Vainilla', cat: 'Cupcakes', precio: 45, activo: true },
+                { id: 4, nombre: 'Cheesecake Zarzamora', cat: 'Premium', precio: 720, activo: true },
+                { id: 5, nombre: 'Concha', cat: 'Reposteria', precio: 18, activo: true },
+                { id: 6, nombre: 'Latte Vainilla', cat: 'Cafes', precio: 65, activo: false },
+            ],
+            modificadores: [
+                { id: 1, nombre: 'Fondant', precio: 350, activo: true },
+                { id: 2, nombre: 'Fotopastel', precio: 250, activo: true },
+                { id: 3, nombre: 'Figura 3D', precio: 120, activo: true },
+                { id: 4, nombre: 'Frutos rojos', precio: 80, activo: true },
+                { id: 5, nombre: 'Mensaje chocolate', precio: 40, activo: false },
+            ],
+            clientes: [
+                { id: 1, nombre: 'Andrea Martinez', tel: '961 123 4567', email: 'andrea.m@example.com', suc: 'Centro' },
+                { id: 2, nombre: 'Carlos Ramirez', tel: '961 234 5678', email: 'carlos.r@example.com', suc: 'Centro' },
+                { id: 3, nombre: 'Maria Gonzalez', tel: '961 345 6789', email: '', suc: 'Norte' },
+                { id: 4, nombre: 'Sofia Hernandez', tel: '961 567 8901', email: 'sofia.h@example.com', suc: 'Sur' },
+            ],
+            folios: [
+                { id: 341, cliente: 'Andrea Martinez', suc: 'Centro' },
+                { id: 337, cliente: 'Sofia Hernandez', suc: 'Norte' },
+                { id: 328, cliente: 'Publico general', suc: '' },
+                { id: 319, cliente: 'Cliente mostrador', suc: '' },
+                { id: 312, cliente: 'Diego Morales', suc: 'Sur' },
+            ],
+        };
+
+        const catColor = (c) => ({ blue: 'bg-blue-500/15 text-blue-400', purple: 'bg-purple-500/15 text-purple-400', pink: 'bg-pink-500/15 text-pink-400', orange: 'bg-orange-500/15 text-orange-400' }[c] || 'bg-gray-500/15 text-gray-400');
+        const estadoBadge = (a) => a
+            ? '<span class="badge-base" style="color:#3FC189;background:rgba(63,193,137,.15);border:1px solid rgba(63,193,137,.3)">Activo</span>'
+            : '<span class="badge-base" style="color:#9CA3AF;background:rgba(156,163,175,.15);border:1px solid rgba(156,163,175,.3)">Inactivo</span>';
+
+        let tab = 'categorias';
+        let seq = 1000;
+
+        const COLS = {
+            categorias: ['Categoria', 'Color', 'Productos', 'Estado', ''],
+            productos: ['Producto', 'Categoria', 'Precio', 'Estado', ''],
+            modificadores: ['Modificador', 'Precio extra', 'Estado', ''],
+            clientes: ['Cliente', 'Telefono', 'Correo', 'Sucursal', ''],
+            folios: ['Folio', 'Cliente', 'Sucursal', ''],
+        };
+        const LABELS = { categorias: 'Categoria', productos: 'Producto', modificadores: 'Modificador', clientes: 'Cliente', folios: 'Folio' };
+
+        function setTab(t) {
+            tab = t;
+            document.querySelectorAll('.tab-pill').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+            $('buscar').value = '';
+            $('btnNuevoLbl').textContent = 'Nuevo ' + LABELS[t];
+            $('btnNuevo').classList.toggle('hidden', t === 'folios'); // folios no se crean aqui
+            render();
+        }
+
+        function filtered() {
+            const q = $('buscar').value.trim().toLowerCase();
+            return DB[tab].filter(r => !q || JSON.stringify(Object.values(r)).toLowerCase().includes(q));
+        }
+
+        function render() {
+            $('thead').innerHTML = COLS[tab].map((c, i) => `<th class="px-4 py-3 font-semibold ${i === COLS[tab].length - 1 ? 'text-right' : ''}">${c}</th>`).join('');
+            const data = filtered();
+            const body = $('tbody'), empty = $('empty');
+            if (!data.length) { body.innerHTML = ''; empty.classList.remove('hidden'); empty.classList.add('flex'); lucide.createIcons(); return; }
+            empty.classList.add('hidden'); empty.classList.remove('flex');
+
+            const rowActions = (id, extraMove) => `
+                <div class="flex items-center justify-end gap-1.5">
+                    ${extraMove ? `<button onclick="moverFolio(${id})" class="act-btn move" title="Mover sucursal"><i data-lucide="git-branch" class="w-3.5 h-3.5"></i></button>` : `<button onclick="openModal(${id})" class="act-btn edit" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>`}
+                    <button onclick="del(${id})" class="act-btn del" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>`;
+
+            let html = '';
+            if (tab === 'categorias') html = data.map(r => `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40"><td class="px-4 py-3 font-medium text-white">${esc(r.nombre)}</td><td class="px-4 py-3"><span class="badge-base ${catColor(r.color)}">${esc(r.color)}</span></td><td class="px-4 py-3 text-[#9CA3AF]">${r.prod}</td><td class="px-4 py-3">${estadoBadge(r.activo)}</td><td class="px-4 py-3">${rowActions(r.id)}</td></tr>`).join('');
+            else if (tab === 'productos') html = data.map(r => `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40"><td class="px-4 py-3 font-medium text-white">${esc(r.nombre)}</td><td class="px-4 py-3"><span class="text-[#9CA3AF]">${esc(r.cat)}</span></td><td class="px-4 py-3 font-semibold text-[#76A9FA]">${fmt0(r.precio)}</td><td class="px-4 py-3">${estadoBadge(r.activo)}</td><td class="px-4 py-3">${rowActions(r.id)}</td></tr>`).join('');
+            else if (tab === 'modificadores') html = data.map(r => `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40"><td class="px-4 py-3 font-medium text-white">${esc(r.nombre)}</td><td class="px-4 py-3 font-semibold text-[#76A9FA]">+${fmt0(r.precio)}</td><td class="px-4 py-3">${estadoBadge(r.activo)}</td><td class="px-4 py-3">${rowActions(r.id)}</td></tr>`).join('');
+            else if (tab === 'clientes') html = data.map(r => `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40"><td class="px-4 py-3 font-medium text-white">${esc(r.nombre)}</td><td class="px-4 py-3 text-[#9CA3AF]">${r.tel ? esc(r.tel) : '<span class="italic text-[#6B7280]">-</span>'}</td><td class="px-4 py-3 text-[#9CA3AF]">${r.email ? esc(r.email) : '<span class="italic text-[#6B7280]">-</span>'}</td><td class="px-4 py-3"><span class="badge-base bg-blue-500/15 text-blue-400">${esc(r.suc)}</span></td><td class="px-4 py-3">${rowActions(r.id)}</td></tr>`).join('');
+            else if (tab === 'folios') html = data.map(r => `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40"><td class="px-4 py-3 font-bold text-white">P-${String(r.id).padStart(4, '0')}</td><td class="px-4 py-3 text-[#d1d5db]">${esc(r.cliente)}</td><td class="px-4 py-3">${r.suc ? `<span class="badge-base bg-blue-500/15 text-blue-400">${esc(r.suc)}</span>` : '<span class="badge-base" style="color:#F87171;background:rgba(234,2,52,.15);border:1px solid rgba(234,2,52,.35)">Sin sucursal</span>'}</td><td class="px-4 py-3">${rowActions(r.id, true)}</td></tr>`).join('');
+            body.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // ============ MODAL ============
+        let editingId = null;
+        const FIELDS = {
+            categorias: [{ k: 'nombre', label: 'Nombre', type: 'text' }, { k: 'color', label: 'Color', type: 'select', opts: ['blue', 'purple', 'pink', 'orange'] }, { k: 'activo', label: 'Activo', type: 'check' }],
+            productos: [{ k: 'nombre', label: 'Nombre', type: 'text' }, { k: 'cat', label: 'Categoria', type: 'select', opts: ['Pasteles', 'Premium', 'Cupcakes', 'Galletas', 'Reposteria', 'Cafes'] }, { k: 'precio', label: 'Precio (MXN)', type: 'number' }, { k: 'activo', label: 'Activo', type: 'check' }],
+            modificadores: [{ k: 'nombre', label: 'Nombre', type: 'text' }, { k: 'precio', label: 'Precio extra (MXN)', type: 'number' }, { k: 'activo', label: 'Activo', type: 'check' }],
+            clientes: [{ k: 'nombre', label: 'Nombre', type: 'text' }, { k: 'tel', label: 'Telefono', type: 'text' }, { k: 'email', label: 'Correo', type: 'text' }, { k: 'suc', label: 'Sucursal', type: 'select', opts: ['Centro', 'Norte', 'Sur'] }],
+        };
+
+        function openModal(id) {
+            if (tab === 'folios') return;
+            editingId = id ?? null;
+            const rec = id ? DB[tab].find(r => r.id === id) : {};
+            $('modalTitle').textContent = (id ? 'Editar ' : 'Nuevo ') + LABELS[tab];
+            $('modalBody').innerHTML = FIELDS[tab].map(f => {
+                const val = rec[f.k];
+                if (f.type === 'check') return `<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="f_${f.k}" ${val !== false ? 'checked' : ''} class="w-4 h-4 accent-[#1C64F2]"><span class="text-xs text-[#d1d5db]">${f.label}</span></label>`;
+                if (f.type === 'select') return `<div><label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${f.label}</label><select id="f_${f.k}" class="input-modal">${f.opts.map(o => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+                return `<div><label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">${f.label}</label><input id="f_${f.k}" type="${f.type}" value="${val != null ? esc(val) : ''}" class="input-modal" placeholder="${f.label}..."></div>`;
+            }).join('');
+            $('modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeModal() { $('modal').classList.add('hidden'); }
+        function saveModal() {
+            const rec = editingId ? DB[tab].find(r => r.id === editingId) : { id: ++seq };
+            FIELDS[tab].forEach(f => {
+                const el = $('f_' + f.k);
+                if (!el) return;
+                rec[f.k] = f.type === 'check' ? el.checked : (f.type === 'number' ? parseFloat(el.value) || 0 : el.value.trim());
+            });
+            if (FIELDS[tab].some(f => f.k === 'nombre') && !rec.nombre) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Falta el nombre', text: 'Captura un nombre valido.' });
+            if (tab === 'categorias' && !editingId) rec.prod = 0;
+            if (!editingId) DB[tab].push(rec);
+            closeModal(); render();
+            Swal.fire({ ...SWAL, icon: 'success', title: editingId ? 'Cambios guardados' : 'Registro creado', timer: 1400, showConfirmButton: false });
+        }
+
+        async function del(id) {
+            const r = await Swal.fire({ ...SWAL, icon: 'warning', title: '¿Eliminar registro?', text: 'Esta accion no se puede deshacer.', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }, focusCancel: true });
+            if (r.isConfirmed) { const i = DB[tab].findIndex(x => x.id === id); if (i > -1) DB[tab].splice(i, 1); render(); Swal.fire({ ...SWAL, icon: 'success', title: 'Eliminado', timer: 1200, showConfirmButton: false }); }
+        }
+
+        async function moverFolio(id) {
+            const f = DB.folios.find(x => x.id === id);
+            const { value } = await Swal.fire({ ...SWAL, title: 'Mover folio de sucursal', html: `Folio <strong class="text-white">P-${String(id).padStart(4, '0')}</strong> &middot; ${esc(f.cliente)}`, input: 'select', inputOptions: { Centro: 'Centro', Norte: 'Norte', Sur: 'Sur' }, inputValue: f.suc || 'Centro', showCancelButton: true, confirmButtonText: 'Mover', cancelButtonText: 'Cancelar' });
+            if (value) { f.suc = value; render(); Swal.fire({ ...SWAL, icon: 'success', title: 'Folio reasignado', html: `Ahora pertenece a <strong class="text-[#76A9FA]">${value}</strong>. Queda en bitacora.`, timer: 1800, showConfirmButton: false }); }
+        }
+
+        // Modal click-outside
+        $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+        setTab('categorias');
+        lucide.createIcons();
+    </script>
+</body>
+</html>

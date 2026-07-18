@@ -19,16 +19,21 @@ let excalidrawBoard = null;
     if (typeof App === 'undefined' || !App.prototype) return;
     const _origLoadFile = App.prototype.loadFile;
 
-    App.prototype.loadFile = async function (fileName) {
-        const file = visor.getFile(this.allFiles, fileName);
+    // OJO: conservar la firma (fileName, fileObj). fileObj es el archivo ya resuelto
+    // por fullPath (p. ej. cuál de los varios todo.json); si el wrapper lo tira,
+    // el visor vuelve a resolver por nombre y abre el primero que coincida.
+    App.prototype.loadFile = async function (fileName, fileObj) {
+        const file = fileObj || visor.getFile(this.allFiles, fileName);
         const ext  = (file && file.file ? file.file : '').split('.').pop().toLowerCase();
 
         const isSketch = file && ext === 'excalidraw' && !file.lazyDrive && excalidrawBoard;
         if (isSketch) {
+            fileName = file.file;
             // Descartar edición de texto en curso, si la había.
             if (this.isEditing && fileName !== this.currentFile) this.exitEditMode(false);
 
-            this.currentFile = fileName;
+            this.currentFile    = fileName;
+            this.currentFileObj = file;
             $('#sidebarList .sidebar-item').each(function () {
                 $(this).toggleClass('active', $(this).data('file') === fileName);
             });
@@ -51,7 +56,7 @@ let excalidrawBoard = null;
         if (excalidrawBoard && excalidrawBoard.active && ext !== 'excalidraw') {
             excalidrawBoard.close();
         }
-        return _origLoadFile.call(this, fileName);
+        return _origLoadFile.call(this, fileName, fileObj);
     };
 })();
 
@@ -65,7 +70,9 @@ $(() => {
     $('#btnCloseSketch').off('click').on('click', () => {
         if (!excalidrawBoard) return;
         excalidrawBoard.close();
-        const file = visor.getFile(app.allFiles, app.currentFile);
+        // currentFileRef resuelve por fullPath (no por nombre): con varios todo.json
+        // hay que volver a pintar el archivo realmente abierto.
+        const file = app.currentFileRef ? app.currentFileRef() : visor.getFile(app.allFiles, app.currentFile);
         if (file) visorView.renderContent(file);
         if (window.lucide) lucide.createIcons();
     });

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pedidos — Spec &amp; Auditoría · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #141d2b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .alert-pulse { animation: alertPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes alertPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(234, 2, 52, 0.4); } 50% { box-shadow: 0 0 0 8px rgba(234, 2, 52, 0); } }
+        html { scroll-behavior: smooth; }
+        section[id] { scroll-margin-top: 1.5rem; }
+        /* Badges de prioridad (self-contained, sin depender de ui-kit.css) */
+        .prio { font-size: 10px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; }
+        .prio-p0 { background: rgba(234,2,52,.15); color: #ff5a76; border: 1px solid rgba(234,2,52,.3); }
+        .prio-p1 { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+        .prio-p2 { background: rgba(28,100,242,.15); color: #6ea0ff; border: 1px solid rgba(28,100,242,.3); }
+        .prio-p3 { background: rgba(107,114,128,.18); color: #9ca3af; border: 1px solid rgba(107,114,128,.35); }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-[#0f172a] border-r border-gray-800 flex flex-col">
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-gray-800">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center">
+                    <i data-lucide="cake" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide">Pedidos</span>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">Spec · Huubie</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Documento</p>
+                </div>
+                <a href="#resumen" class="flex items-center gap-3 px-4 py-2.5 text-sm text-white bg-[#1F2A37] border-l-2 border-[#1C64F2] transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Resumen
+                </a>
+
+                <div class="px-4 mt-5 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Apartados</p>
+                </div>
+
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="log-in" class="w-4 h-4"></i> <span class="truncate">01 · Arranque y listado</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="clipboard-list" class="w-4 h-4"></i> <span class="truncate">02 · Captura de pedido</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="hand-coins" class="w-4 h-4"></i> <span class="truncate">03 · Pagos y descuentos</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="wallet" class="w-4 h-4"></i> <span class="truncate">04 · Turno de caja</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="lock" class="w-4 h-4"></i> <span class="truncate">05 · Cierre del día</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i> <span class="truncate">06 · Dashboard y reportes</span>
+                </a>
+                <a href="#apartados" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="settings" class="w-4 h-4"></i> <span class="truncate">07 · Administración</span>
+                </a>
+
+                <div class="px-4 mt-5 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Prioridades</p>
+                </div>
+                <a href="#deuda" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="alert-octagon" class="w-4 h-4 text-[#EA0234]"></i> 08 · Deuda técnica
+                </a>
+                <a href="#secuencia" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="list-ordered" class="w-4 h-4"></i> Secuencia sugerida
+                </a>
+            </nav>
+
+            <div class="border-t border-gray-800 p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center text-xs font-bold">CS</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate">CoffeeSoft · Huubie</p>
+                    <p class="text-[10px] text-green-400 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
+                        Spec-driven
+                    </p>
+                </div>
+                <a href="README.md" title="Índice del spec" class="text-gray-500 hover:text-white">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                </a>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-[#141d2b] border-b border-gray-800 flex items-center px-6 gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-gray-500"></i>
+                    <span class="text-gray-500">Pedidos</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-gray-500">docs</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-white font-medium">Spec &amp; Auditoría</span>
+                </nav>
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="git-commit-horizontal" class="w-4 h-4 text-[#7C3AED]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Validado</span>
+                        <span class="text-xs font-semibold">2026-07-17</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#1C64F2]"></i>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Hora actual</span>
+                        <span id="liveClock" class="text-xs font-semibold tabular-nums">--:--:--</span>
+                    </div>
+                </div>
+                <span class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#EA0234]/10 border border-[#EA0234]/30 text-[#ff5a76] text-xs font-semibold">
+                    <i data-lucide="triangle-alert" class="w-4 h-4"></i> 12 hallazgos P0
+                </span>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+
+                <!-- ==================== RESUMEN / HERO ==================== -->
+                <section id="resumen" class="bg-[#1F2A37] rounded-xl p-6 border border-gray-700/60">
+                    <div class="flex items-start justify-between gap-6 flex-wrap">
+                        <div class="max-w-2xl">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="px-2.5 py-1 rounded-md bg-[#1C64F2]/15 text-[#1C64F2] text-[10px] font-bold uppercase tracking-wider border border-[#1C64F2]/30">
+                                    POS · Pastelería multi-sucursal
+                                </span>
+                                <span class="text-xs text-gray-500">alpha/pedidos</span>
+                            </div>
+                            <h1 class="text-2xl font-bold tracking-tight">Especificación funcional del módulo Pedidos</h1>
+                            <p class="text-sm text-gray-400 mt-1">
+                                Cómo funciona hoy cada apartado (catálogo, pasteles personalizados, pagos/abonos,
+                                descuentos, turnos de caja y cierre del día) y qué hay que revisar.
+                                Derivado del código el <span class="text-gray-300">2026-07-17</span>.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <a href="README.md" class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1a2332] border border-gray-700 text-sm text-gray-300 hover:border-gray-500 transition">
+                                <i data-lucide="book-open" class="w-4 h-4"></i> Índice (README)
+                            </a>
+                            <a href="08-deuda-tecnica-consolidada.md" class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition">
+                                <i data-lucide="list-checks" class="w-4 h-4"></i> Ver deuda técnica
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Alertas críticas (los 3 problemas de fondo P0) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+                        <div class="bg-[#EA0234]/10 border border-[#EA0234]/30 rounded-lg p-4 flex items-start gap-3 alert-pulse">
+                            <div class="w-10 h-10 rounded-lg bg-[#EA0234]/20 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="scale" class="w-5 h-5 text-[#EA0234]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Venta ≠ cobro</p>
+                                <p class="text-[11px] text-gray-400"><code>total_sales</code> vs <code>cash+card+transfer</code> se presentan juntos: los cortes no cuadran por diseño.</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#fbbf24]/10 border border-[#fbbf24]/30 rounded-lg p-4 flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#fbbf24]/20 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="unlock" class="w-5 h-5 text-[#fbbf24]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Pagos editables tras cerrar</p>
+                                <p class="text-[11px] text-gray-400">El snapshot del cierre envejece; el visor recalcula en vivo → dos verdades para el mismo día.</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#7C3AED]/10 border border-[#7C3AED]/30 rounded-lg p-4 flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#7C3AED]/20 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="shuffle" class="w-5 h-5 text-[#a78bfa]"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-white">Dinero sin candado</p>
+                                <p class="text-[11px] text-gray-400"><code>moveFolio</code> y dos vías de cobro distintas mueven dinero entre cortes sin control.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== KPI CARDS ==================== -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Apartados</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                <i data-lucide="layers" class="w-4 h-4 text-[#1C64F2]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">8</p>
+                        <p class="text-xs text-gray-500 mt-1">documentos del spec</p>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Hallazgos</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#fbbf24]/15 flex items-center justify-center">
+                                <i data-lucide="search-check" class="w-4 h-4 text-[#fbbf24]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">43</p>
+                        <p class="text-xs text-gray-500 mt-1">notas críticas priorizadas</p>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Dinero (P0)</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                <i data-lucide="alert-octagon" class="w-4 h-4 text-[#EA0234]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">12</p>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#EA0234] bg-[#EA0234]/15 px-2 py-0.5 rounded-full border border-[#EA0234]/30">Urgente</span>
+                            <span class="text-[11px] text-gray-500">cuadre de cortes</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Seguridad (P1)</p>
+                            <div class="w-8 h-8 rounded-lg bg-[#3FC189]/15 flex items-center justify-center">
+                                <i data-lucide="shield-alert" class="w-4 h-4 text-[#3FC189]"></i>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white">8</p>
+                        <p class="text-xs text-gray-500 mt-1">autorización / uploads / CORS</p>
+                    </div>
+                </section>
+
+                <!-- ==================== CHART + LEYENDA ==================== -->
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <h2 class="text-sm font-bold text-white mb-1">Hallazgos por prioridad</h2>
+                        <p class="text-xs text-gray-500 mb-4">Distribución de las notas críticas</p>
+                        <div class="h-[200px] mb-4">
+                            <canvas id="prioChart"></canvas>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-gray-300"><span class="w-2 h-2 rounded-full bg-[#EA0234]"></span>P0 · Dinero</span>
+                                <span class="font-bold text-white">12</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-gray-300"><span class="w-2 h-2 rounded-full bg-[#fbbf24]"></span>P1 · Seguridad</span>
+                                <span class="font-bold text-white">8</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-gray-300"><span class="w-2 h-2 rounded-full bg-[#1C64F2]"></span>P2 · Arquitectura</span>
+                                <span class="font-bold text-white">16</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-2 text-gray-300"><span class="w-2 h-2 rounded-full bg-[#6b7280]"></span>P3 · Limpieza</span>
+                                <span class="font-bold text-white">7</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- El problema contable en 6 puntos -->
+                    <div class="lg:col-span-2 bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i data-lucide="scale" class="w-4 h-4 text-[#EA0234]"></i>
+                            <h2 class="text-sm font-bold text-white">El descuadre no es un bug: es un modelo sin cerrar</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">1 · Dos <code>addPayment</code></p>
+                                <p class="text-[11px] text-gray-400">Escriben <code>order_payments</code> distinto (con/sin sucursal de cobro).</p>
+                            </div>
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">2 · Venta vs cobro</p>
+                                <p class="text-[11px] text-gray-400"><code>total_sales</code> ≠ <code>cash+card+transfer</code> presentados como lo mismo.</p>
+                            </div>
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">3 · Doble vinculación</p>
+                                <p class="text-[11px] text-gray-400">Pedido↔turno por <code>cash_shift_id</code> y por ventana de tiempo.</p>
+                            </div>
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">4 · Snapshot vs vivo</p>
+                                <p class="text-[11px] text-gray-400"><code>daily_closure</code> congelado vs <code>getCierre</code> recalculado.</p>
+                            </div>
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">5 · Pagos post-cierre</p>
+                                <p class="text-[11px] text-gray-400">Editables/borrables tras cerrar el día, sin candado.</p>
+                            </div>
+                            <div class="bg-[#141d2b] rounded-lg p-3.5 border border-gray-700/60">
+                                <p class="text-xs font-semibold text-white mb-0.5">6 · Cruzado + previos</p>
+                                <p class="text-[11px] text-gray-400">Reglas correctas, pero en 15 queries frágiles y solo en una vía.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== APARTADOS ==================== -->
+                <section id="apartados" class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="folder-open" class="w-4 h-4 text-[#1C64F2]"></i>
+                        <h2 class="text-sm font-bold text-white">Apartados del spec</h2>
+                        <span class="text-[10px] text-gray-500 ml-2">Cada tarjeta abre su documento con el detalle y la nota crítica</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+                        <!-- 01 -->
+                        <a href="01-arranque-sesion-listado.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#1C64F2] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                    <i data-lucide="log-in" class="w-4 h-4 text-[#1C64F2]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p1">P1</span><span class="prio prio-p2">P2</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">01 · Arranque, sesión y listado</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Bootstrap, roles, navbar de sucursal, tabla de pedidos y filtros.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#1C64F2] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> HTML crudo en el ctrl · N+1 de pagos</p>
+                        </a>
+
+                        <!-- 02 -->
+                        <a href="02-captura-de-pedido.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#1C64F2] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                    <i data-lucide="clipboard-list" class="w-4 h-4 text-[#1C64F2]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p1">P1</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">02 · Captura de pedido</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Tipo, alta/edición, POS catálogo, pastel personalizado, imágenes, ticket.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#1C64F2] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Sin <code>canWriteOrder</code> · upload sin validar</p>
+                        </a>
+
+                        <!-- 03 -->
+                        <a href="03-pagos-descuentos-entrega.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#EA0234] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                    <i data-lucide="hand-coins" class="w-4 h-4 text-[#EA0234]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p0">P0</span><span class="prio prio-p1">P1</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">03 · Pagos, descuentos y entrega</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Abonos, descuento a nivel pedido, semáforo de entrega, cobro cruzado.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#ff5a76] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Dos <code>addPayment</code> · descuento sin tope</p>
+                        </a>
+
+                        <!-- 04 -->
+                        <a href="04-turno-de-caja.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#EA0234] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                    <i data-lucide="wallet" class="w-4 h-4 text-[#EA0234]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p0">P0</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">04 · Turno de caja</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Apertura y corte de turno; métricas y desglose por método.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#ff5a76] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Núcleo del descuadre · sin transacción</p>
+                        </a>
+
+                        <!-- 05 -->
+                        <a href="05-cierre-del-dia.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#EA0234] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                    <i data-lucide="lock" class="w-4 h-4 text-[#EA0234]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p0">P0</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">05 · Cierre del día (corte Z)</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Checklist, cierre, reapertura, recálculo de turno, días pendientes.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#ff5a76] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> <code>getCierre</code> 470 líneas · snapshot vs vivo</p>
+                        </a>
+
+                        <!-- 06 -->
+                        <a href="06-dashboard-reportes.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#1C64F2] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center">
+                                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-[#1C64F2]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p2">P2</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">06 · Dashboard y reportes</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">KPIs (Chart.js) y visor de cierre de solo consulta.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#1C64F2] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Lógica de dinero duplicada · CDN offline</p>
+                        </a>
+
+                        <!-- 07 -->
+                        <a href="07-administracion.md" class="group bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60 hover:border-[#EA0234] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#EA0234]/15 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4 text-[#EA0234]"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="prio prio-p0">P0</span><span class="prio prio-p1">P1</span>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">07 · Administración</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Catálogo, admin-folios, calendario y bitácora del pedido.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#ff5a76] transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> <code>moveFolio</code> sin candado · CORS <code>*</code></p>
+                        </a>
+
+                        <!-- 08 -->
+                        <a href="08-deuda-tecnica-consolidada.md" class="group bg-gradient-to-br from-[#1F2A37] to-[#20182a] rounded-xl p-5 border border-[#7C3AED]/40 hover:border-[#7C3AED] transition block">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-9 h-9 rounded-lg bg-[#7C3AED]/20 flex items-center justify-center">
+                                    <i data-lucide="list-checks" class="w-4 h-4 text-[#a78bfa]"></i>
+                                </div>
+                                <span class="prio" style="background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.4)">Índice</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">08 · Deuda técnica consolidada</h3>
+                            <p class="text-[12px] text-gray-400 mt-1">Todos los hallazgos priorizados P0–P3 con acción propuesta.</p>
+                            <p class="text-[11px] text-gray-500 mt-3 flex items-center gap-1.5 group-hover:text-[#a78bfa] transition"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i> Ver secuencia sugerida abajo</p>
+                        </a>
+                    </div>
+                </section>
+
+                <!-- ==================== DEUDA TÉCNICA P0 ==================== -->
+                <section id="deuda" class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i data-lucide="alert-octagon" class="w-4 h-4 text-[#EA0234]"></i>
+                        <h2 class="text-sm font-bold text-white">P0 · Dinero y cuadre de cortes</h2>
+                        <span class="text-[10px] text-gray-500 ml-2">Lo más urgente — un solo problema de fondo</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mb-4">Detalle completo en <a href="08-deuda-tecnica-consolidada.md" class="text-[#1C64F2] hover:underline">08-deuda-tecnica-consolidada.md</a></p>
+
+                    <div class="overflow-hidden rounded-lg border border-gray-700/60">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-[#374151] text-gray-300">
+                                    <th class="text-left font-semibold px-4 py-2.5" style="font-size:12px">#</th>
+                                    <th class="text-left font-semibold px-4 py-2.5" style="font-size:12px">Problema</th>
+                                    <th class="text-left font-semibold px-4 py-2.5" style="font-size:12px">Apartado</th>
+                                    <th class="text-left font-semibold px-4 py-2.5" style="font-size:12px">Acción propuesta</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700/60" style="font-size:12px">
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-1</td><td class="px-4 py-2.5 text-white">Dos <code>addPayment</code> escriben el pago distinto</td><td class="px-4 py-2.5"><span class="prio prio-p0">03</span></td><td class="px-4 py-2.5 text-gray-400">Una sola vía de cobro que grabe sucursal</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-2</td><td class="px-4 py-2.5 text-white">Venta (<code>total_sales</code>) ≠ cobro presentados juntos</td><td class="px-4 py-2.5"><span class="prio prio-p0">04·05</span></td><td class="px-4 py-2.5 text-gray-400">Separar <code>total_ordered</code> vs <code>total_collected</code></td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-3</td><td class="px-4 py-2.5 text-white">Doble vinculación pedido↔turno</td><td class="px-4 py-2.5"><span class="prio prio-p0">04</span></td><td class="px-4 py-2.5 text-gray-400">Una sola fuente (<code>cash_shift_id</code>)</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-4</td><td class="px-4 py-2.5 text-white">Snapshot congelado vs recálculo en vivo</td><td class="px-4 py-2.5"><span class="prio prio-p0">05</span></td><td class="px-4 py-2.5 text-gray-400">Snapshot inmutable + prohibir editar pagos cerrados</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-5</td><td class="px-4 py-2.5 text-white">Pagos editables/borrables tras cerrar</td><td class="px-4 py-2.5"><span class="prio prio-p0">05</span></td><td class="px-4 py-2.5 text-gray-400">Bloquear mutaciones sobre día/turno cerrado</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-7</td><td class="px-4 py-2.5 text-white"><code>addDiscount</code> sin validar descuento ≤ total</td><td class="px-4 py-2.5"><span class="prio prio-p0">03</span></td><td class="px-4 py-2.5 text-gray-400">Reactivar la validación (saldo negativo)</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-9</td><td class="px-4 py-2.5 text-white"><code>moveFolio</code> mueve dinero entre cortes sin candado</td><td class="px-4 py-2.5"><span class="prio prio-p0">07</span></td><td class="px-4 py-2.5 text-gray-400">Solo admin, bloquear si cerrado, bitácora</td></tr>
+                                <tr class="hover:bg-[#1a2332]/60 transition"><td class="px-4 py-2.5 text-gray-500">P0-12</td><td class="px-4 py-2.5 text-white">Datos históricos: 45 pedidos movidos + 8 cierres</td><td class="px-4 py-2.5"><span class="prio prio-p0">audit</span></td><td class="px-4 py-2.5 text-gray-400">Restaurar fecha del turno y recalcular cierres</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-3">Tabla resumida (8 de 12). La lista completa P0–P3 (43 ítems) está en el documento 08.</p>
+                </section>
+
+                <!-- ==================== SECUENCIA SUGERIDA ==================== -->
+                <section id="secuencia" class="bg-[#1F2A37] rounded-xl p-5 border border-gray-700/60">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="list-ordered" class="w-4 h-4 text-[#3FC189]"></i>
+                        <h2 class="text-sm font-bold text-white">Secuencia sugerida</h2>
+                        <span class="text-[10px] text-gray-500 ml-2">Mínimo para que los cortes cuadren, sin rediseñar</span>
+                    </div>
+                    <ol class="space-y-3">
+                        <li class="flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[#EA0234]/15 text-[#ff5a76] text-xs font-bold flex items-center justify-center flex-shrink-0 border border-[#EA0234]/30">1</span>
+                            <div><p class="text-sm text-white font-semibold">Congelar el pasado</p><p class="text-[12px] text-gray-400">Prohibir editar pagos de días cerrados (P0-4/P0-5). Frena que el descuadre siga creciendo.</p></div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[#EA0234]/15 text-[#ff5a76] text-xs font-bold flex items-center justify-center flex-shrink-0 border border-[#EA0234]/30">2</span>
+                            <div><p class="text-sm text-white font-semibold">Unificar el cobro</p><p class="text-[12px] text-gray-400">Una sola vía que grabe sucursal + un solo criterio de vinculación (P0-1/2/3).</p></div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[#fbbf24]/15 text-[#fbbf24] text-xs font-bold flex items-center justify-center flex-shrink-0 border border-[#fbbf24]/30">3</span>
+                            <div><p class="text-sm text-white font-semibold">Cerrar huecos de dinero</p><p class="text-[12px] text-gray-400"><code>addDiscount</code>, <code>moveFolio</code>, huérfanos, igualdad float (P0-7/8/9/10).</p></div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[#fbbf24]/15 text-[#fbbf24] text-xs font-bold flex items-center justify-center flex-shrink-0 border border-[#fbbf24]/30">4</span>
+                            <div><p class="text-sm text-white font-semibold">Reparar datos históricos</p><p class="text-[12px] text-gray-400">Una vez que el código ya no los rompe (P0-12).</p></div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full bg-[#3FC189]/15 text-[#3FC189] text-xs font-bold flex items-center justify-center flex-shrink-0 border border-[#3FC189]/30">5</span>
+                            <div><p class="text-sm text-white font-semibold">Seguridad y refactor</p><p class="text-[12px] text-gray-400"><code>canWriteOrder</code> universal, uploads, CORS (P1) y servicio único de ventas/cobros (P2).</p></div>
+                        </li>
+                    </ol>
+                </section>
+
+                <footer class="pt-2 pb-6 text-center">
+                    <p class="text-[11px] text-gray-600">Spec-driven · Módulo Pedidos · Huubie · generado 2026-07-17 — mockup de referencia (Fase 1), estética tomada de <code>app/inventarios</code>.</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Reloj en vivo (igual que los dashboards de inventarios)
+        function tick() {
+            const d = new Date();
+            const el = document.getElementById('liveClock');
+            if (el) el.textContent = d.toLocaleTimeString('es-MX', { hour12: false });
+        }
+        tick(); setInterval(tick, 1000);
+
+        // Doughnut de prioridades
+        const ctx = document.getElementById('prioChart');
+        if (ctx && window.Chart) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['P0 · Dinero', 'P1 · Seguridad', 'P2 · Arquitectura', 'P3 · Limpieza'],
+                    datasets: [{
+                        data: [12, 8, 16, 7],
+                        backgroundColor: ['#EA0234', '#fbbf24', '#1C64F2', '#6b7280'],
+                        borderColor: '#1F2A37',
+                        borderWidth: 3,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

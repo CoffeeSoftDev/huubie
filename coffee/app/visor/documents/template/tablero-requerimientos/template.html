@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero de Requerimientos — Huubie Docs</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#111928; --chrome:#141d2b; --card:#1F2A37; --hover:#1a2332;
+    --txt:#fff; --soft:#E5E7EB; --mid:#D1D5DB; --muted:#9CA3AF; --mute2:#6B7280;
+    --border:rgba(55,65,81,.6); --border-soft:rgba(55,65,81,.4);
+    --accent:#C05A40; --accent-soft:#E8A68F;
+    --idea:#6B7280; --prog:#E08B2F; --rev:#4B93E6; --done:#35B37E;
+  }
+  *{ box-sizing:border-box; }
+  body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; -webkit-font-smoothing:antialiased; background:var(--bg); color:var(--soft); margin:0; }
+  .num{ font-variant-numeric:tabular-nums; }
+  /* Scrollbars */
+  .scroll::-webkit-scrollbar{ width:8px; height:8px; }
+  .scroll::-webkit-scrollbar-thumb{ background:#2b3648; border-radius:6px; }
+  .scroll::-webkit-scrollbar-thumb:hover{ background:#3a4860; }
+  .scroll::-webkit-scrollbar-track{ background:transparent; }
+  /* Card */
+  .card{ background:var(--card); border:1px solid var(--border-soft); border-left-width:3px; border-radius:10px; padding:12px 13px; cursor:grab; transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+  .card:hover{ transform:translateY(-2px); box-shadow:0 10px 26px rgba(0,0,0,.35); border-color:var(--border); }
+  .chip{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; background:var(--hover); color:var(--mid); border:1px solid var(--border-soft); }
+  .tag{ font-size:10px; font-weight:600; padding:1px 7px; border-radius:999px; background:rgba(75,147,230,.12); color:#9cc4f5; }
+  .col-body{ min-height:80px; }
+  .avatar{ width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:700; color:#fff; }
+  .fade{ animation:fade .3s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .kpi{ background:var(--chrome); border:1px solid var(--border-soft); border-radius:12px; padding:14px 16px; }
+  input,select{ outline:none; }
+  input:focus,select:focus{ border-color:var(--accent-soft) !important; }
+  .seg{ background:var(--chrome); border:1px solid var(--border-soft); border-radius:9px; padding:3px; display:inline-flex; }
+  .seg button{ font-size:12px; font-weight:600; padding:5px 12px; border-radius:6px; border:0; background:transparent; color:var(--muted); cursor:pointer; }
+  .seg button.active{ background:var(--card); color:#fff; }
+</style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Header -->
+  <header style="background:var(--chrome); border-bottom:1px solid var(--border);" class="sticky top-0 z-20">
+    <div class="max-w-[1500px] mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-none" style="background:var(--accent-tint,rgba(192,90,64,.18));">
+          <svg class="w-4.5 h-4.5" style="color:var(--accent-soft);" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 text-[11px]" style="color:var(--mute2);">
+            <span>Documentos</span>
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <span style="color:var(--muted);">Seguimiento</span>
+          </div>
+          <h1 class="text-[15px] font-bold leading-tight" style="color:#fff;">Tablero de Requerimientos</h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-none">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:var(--card); border:1px solid var(--border-soft);">
+          <span class="w-1.5 h-1.5 rounded-full" style="background:var(--done);"></span>
+          <span class="text-[11px]" style="color:var(--muted);">Sincronizado <span class="num" id="clock">09:12</span></span>
+        </div>
+        <button class="flex items-center gap-1.5 text-[12.5px] font-semibold px-3.5 py-2 rounded-lg text-white" style="background:var(--accent);">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          Nuevo requerimiento
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1500px] mx-auto px-6 py-5">
+
+    <!-- KPIs -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div class="kpi">
+        <div class="text-[11px] font-medium mb-1" style="color:var(--mute2);">Requerimientos</div>
+        <div class="text-2xl font-extrabold num" style="color:#fff;">15</div>
+        <div class="text-[10.5px] mt-0.5" style="color:var(--muted);">en 5 módulos</div>
+      </div>
+      <div class="kpi">
+        <div class="text-[11px] font-medium mb-1" style="color:var(--mute2);">En progreso</div>
+        <div class="text-2xl font-extrabold num" style="color:var(--prog);">4</div>
+        <div class="text-[10.5px] mt-0.5" style="color:var(--muted);">1 con bug abierto</div>
+      </div>
+      <div class="kpi">
+        <div class="text-[11px] font-medium mb-1" style="color:var(--mute2);">En revisión</div>
+        <div class="text-2xl font-extrabold num" style="color:var(--rev);">3</div>
+        <div class="text-[10.5px] mt-0.5" style="color:var(--muted);">esperando tu OK</div>
+      </div>
+      <div class="kpi">
+        <div class="text-[11px] font-medium mb-1" style="color:var(--mute2);">Terminados</div>
+        <div class="text-2xl font-extrabold num" style="color:var(--done);">4</div>
+        <div class="text-[10.5px] mt-0.5" style="color:var(--muted);">este mes</div>
+      </div>
+    </section>
+
+    <!-- Filter bar -->
+    <section class="flex flex-wrap items-center gap-2.5 mb-5">
+      <div class="relative flex-1 min-w-[200px]">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="color:var(--mute2);"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="q" type="text" placeholder="Buscar requerimiento, módulo o etiqueta…" class="w-full text-[12.5px] pl-9 pr-3 py-2.5 rounded-lg" style="background:var(--card); border:1px solid var(--border-soft); color:var(--soft);">
+      </div>
+      <select id="proj" class="text-[12.5px] px-3 py-2.5 rounded-lg" style="background:var(--card); border:1px solid var(--border-soft); color:var(--soft);">
+        <option value="">Todos los módulos</option>
+        <option value="pedidos">pedidos</option>
+        <option value="alpha">alpha</option>
+        <option value="inventory">inventory</option>
+        <option value="inventarios">inventarios</option>
+        <option value="visor">visor</option>
+      </select>
+      <div class="seg">
+        <button class="active">Tablero</button>
+        <button>Lista</button>
+      </div>
+    </section>
+
+    <!-- Kanban -->
+    <section class="overflow-x-auto scroll pb-3">
+      <div class="grid gap-4" style="grid-template-columns:repeat(4,minmax(275px,1fr)); min-width:1120px;" id="board">
+
+        <!-- ========== IDEA ========== -->
+        <div class="col" data-status="idea">
+          <div class="flex items-center justify-between mb-2.5 px-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--idea);"></span>
+              <span class="text-[12.5px] font-bold" style="color:var(--soft);">Idea</span>
+              <span class="text-[11px] font-semibold px-1.5 rounded num" style="background:var(--hover); color:var(--muted);">4</span>
+            </div>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="color:var(--mute2);"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v.01M12 12v.01M12 18v.01"/></svg>
+          </div>
+          <div class="col-body space-y-2.5">
+            <article class="card" style="border-left-color:var(--idea);" data-text="bitacora pedidos historias auditoria">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Bitácora de pedidos</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Patrón <span class="font-mono">*_histories</span>; activar <span class="font-mono">order_histories</span> por fases.</p>
+              <div class="flex items-center gap-1.5 mb-2.5">
+                <span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>pedidos / docs</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">pedidos</span><span class="tag">auditoría</span></div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px]" style="color:var(--mute2);">hace 1 d</span>
+                  <span class="avatar" style="background:#3f6ad8;" title="Dev">D</span>
+                </div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--idea);" data-text="visor openrouter ia ollama modelos">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Visor + OpenRouter</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Enrutar por id de modelo; coexistir con Ollama sin romper CoffeeIA.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>visor / planes</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">visor</span><span class="tag">IA</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 3 d</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--idea);" data-text="chat unificado coffeeia loader iarender">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Chat unificado CoffeeIA</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Reusar el motor del Visor (loader + IARender), no imitarlo.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>visor / planes</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">visor</span><span class="tag">chat</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 5 d</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--accent); box-shadow:0 0 0 1px var(--accent-tint,rgba(192,90,64,.18));" data-text="tablero requerimientos frontmatter status seguimiento">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <h3 class="text-[13px] font-semibold" style="color:#fff;">Tablero de requerimientos</h3>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="background:var(--accent); color:#fff;">ESTE</span>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Leer <span class="font-mono">status</span> del frontmatter de cada .md y agruparlos aquí.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>visor / planes</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">docs</span><span class="tag">meta</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hoy</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- ========== EN PROGRESO ========== -->
+        <div class="col" data-status="progreso">
+          <div class="flex items-center justify-between mb-2.5 px-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--prog);"></span>
+              <span class="text-[12.5px] font-bold" style="color:var(--soft);">En progreso</span>
+              <span class="text-[11px] font-semibold px-1.5 rounded num" style="background:var(--hover); color:var(--muted);">4</span>
+            </div>
+          </div>
+          <div class="col-body space-y-2.5">
+            <article class="card" style="border-left-color:var(--prog);" data-text="corte anticipos futuros addpayment date_creation descuadre bug">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <h3 class="text-[13px] font-semibold" style="color:#fff;">Corte: anticipos a futuro</h3>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1" style="background:rgba(229,72,77,.16); color:#f0787c;">
+                  <svg width="9" height="9" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 6l7 12H5l7-12zm-1 3v4h2v-4h-2zm0 5v2h2v-2h-2z"/></svg>BUG
+                </span>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);"><span class="font-mono">addPayment</span> pisa <span class="font-mono">date_creation</span> → el pedido se muda de corte (−$683).</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>pedidos / bugs</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">corte</span><span class="tag">urgente</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 4 h</span><span class="avatar" style="background:#b8467a;" title="Rosi">R</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--prog);" data-text="rol supervisor roles calendario reportes permisos">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Rol Supervisor</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Roles 6 y 7 (Restringido sin descuento); solo Calendario + Reportes.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>alpha / roles</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">alpha</span><span class="tag">permisos</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 2 d</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--prog);" data-text="lucide fontello migracion iconos ui inventory">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Migración Fontello → Lucide</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Fase 1 (login/acceso) hecha; ~38 archivos pendientes en Fase 2.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>inventory / ui</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">inventory</span><span class="tag">ui</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 6 d</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--prog);" data-text="admin tenant saas super-admin empresas planes suscripciones">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Admin del Tenant</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Panel super-admin SaaS global; Fase 1 lista, Fases 2-3 pendientes.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>inventory / tenant</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">saas</span><span class="tag">tenant</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 1 sem</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- ========== EN REVISIÓN ========== -->
+        <div class="col" data-status="revision">
+          <div class="flex items-center justify-between mb-2.5 px-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--rev);"></span>
+              <span class="text-[12.5px] font-bold" style="color:var(--soft);">En revisión</span>
+              <span class="text-[11px] font-semibold px-1.5 rounded num" style="background:var(--hover); color:var(--muted);">3</span>
+            </div>
+          </div>
+          <div class="col-body space-y-2.5">
+            <article class="card" style="border-left-color:var(--rev);" data-text="recalcular corte turno idempotente cash card transfer">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Recalcular corte de turno</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">Recomputa cash/card/transfer + shift_payment desde los pagos. Idempotente.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>pedidos / features</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">corte</span><span class="tag">admin</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 1 d</span><span class="avatar" style="background:#b8467a;" title="Rosi">R</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--rev);" data-text="dashboards mermas resumen analisis historico">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Dashboards de mermas</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);">3 templates: resumen, análisis y control diario/histórico.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>inventarios / ui</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">mermas</span><span class="tag">dashboard</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 2 d</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--rev);" data-text="cobro cruzado subsidiaries sucursal order_payments">
+              <h3 class="text-[13px] font-semibold mb-1.5" style="color:#fff;">Cobro cruzado por sucursal</h3>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--muted);"><span class="font-mono">order_payments.subsidiaries_id</span>; aplicado en local, falta prod.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>pedidos / sql</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">pedidos</span><span class="tag">sql</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 3 d</span><span class="avatar" style="background:#b8467a;" title="Rosi">R</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- ========== TERMINADO ========== -->
+        <div class="col" data-status="terminado">
+          <div class="flex items-center justify-between mb-2.5 px-0.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:var(--done);"></span>
+              <span class="text-[12.5px] font-bold" style="color:var(--soft);">Terminado</span>
+              <span class="text-[11px] font-semibold px-1.5 rounded num" style="background:var(--hover); color:var(--muted);">4</span>
+            </div>
+          </div>
+          <div class="col-body space-y-2.5">
+            <article class="card" style="border-left-color:var(--done); opacity:.92;" data-text="ordenes compra requisicion recepciones parciales entradas">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <svg width="14" height="14" fill="none" stroke="var(--done)" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <h3 class="text-[13px] font-semibold" style="color:var(--soft);">Órdenes de compra</h3>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--mute2);">Requisición → recepciones parciales → entradas. Fases 1-3 completas.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>inventory / almacén</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">compras</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 1 sem</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--done); opacity:.92;" data-text="navbar sucursal hibrido filtro switch cajero todas">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <svg width="14" height="14" fill="none" stroke="var(--done)" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <h3 class="text-[13px] font-semibold" style="color:var(--soft);">Navbar sucursal híbrido</h3>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--mute2);">Filtro (admin) vs switch de sesión (cajero) + "Todas" de consulta.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>alpha / navbar</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">alpha</span><span class="tag">navbar</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 2 sem</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--done); opacity:.92;" data-text="prefs sqlite creditos modelos llm persistencia">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <svg width="14" height="14" fill="none" stroke="var(--done)" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <h3 class="text-[13px] font-semibold" style="color:var(--soft);">Prefs en SQLite</h3>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--mute2);">Créditos y modelos LLM en <span class="font-mono">prefs.sqlite</span>; localStorage como caché.</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>visor / infra</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">visor</span><span class="tag">sqlite</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 2 sem</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+            <article class="card" style="border-left-color:var(--done); opacity:.92;" data-text="almacen categoria warehouse item_category migracion">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <svg width="14" height="14" fill="none" stroke="var(--done)" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <h3 class="text-[13px] font-semibold" style="color:var(--soft);">Almacén ↔ categoría</h3>
+              </div>
+              <p class="text-[11.5px] leading-snug mb-2.5" style="color:var(--mute2);">Regla 1:N categoría→almacén (<span class="font-mono">item_category.warehouse_id</span>).</p>
+              <div class="flex items-center gap-1.5 mb-2.5"><span class="chip"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>inventory / sql</span></div>
+              <div class="flex items-center justify-between">
+                <div class="flex gap-1"><span class="tag">inventory</span><span class="tag">sql</span></div>
+                <div class="flex items-center gap-2"><span class="text-[10px]" style="color:var(--mute2);">hace 3 sem</span><span class="avatar" style="background:#3f6ad8;" title="Dev">D</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Nota de origen -->
+    <div class="mt-5 flex items-start gap-2.5 text-[11.5px] rounded-lg px-4 py-3" style="background:var(--chrome); border:1px solid var(--border-soft); color:var(--muted);">
+      <svg width="16" height="16" fill="none" stroke="var(--accent-soft)" viewBox="0 0 24 24" stroke-width="2" class="flex-none mt-0.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p>Cada tarjeta se arma leyendo el <span class="font-semibold" style="color:var(--soft);">frontmatter</span> del propio <span class="font-mono">.md</span> (<span class="font-mono">status</span>, <span class="font-mono">created</span>, <span class="font-mono">owner</span>, <span class="font-mono">tags</span>). Mover una tarjeta de columna solo reescribe <span class="font-mono">status:</span> en el archivo — el estado vive en el documento, no en una base aparte.</p>
+    </div>
+
+  </main>
+
+<script>
+  // Reloj del header
+  (function(){
+    const el = document.getElementById('clock');
+    function tick(){ const d=new Date(); el.textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+    tick(); setInterval(tick, 30000);
+  })();
+
+  // Filtro por texto + módulo (recuenta columnas)
+  (function(){
+    const q = document.getElementById('q');
+    const proj = document.getElementById('proj');
+    const cards = Array.from(document.querySelectorAll('.card'));
+    function apply(){
+      const term = q.value.trim().toLowerCase();
+      const p = proj.value;
+      cards.forEach(c=>{
+        const t = (c.getAttribute('data-text')||'') + ' ' + c.textContent.toLowerCase();
+        const okText = !term || t.toLowerCase().includes(term);
+        const okProj = !p || t.toLowerCase().includes(p);
+        c.style.display = (okText && okProj) ? '' : 'none';
+      });
+      document.querySelectorAll('.col').forEach(col=>{
+        const n = col.querySelectorAll('.card:not([style*="display: none"])').length;
+        const badge = col.querySelector('.num');
+        if(badge) badge.textContent = n;
+      });
+    }
+    q.addEventListener('input', apply);
+    proj.addEventListener('change', apply);
+  })();
+
+  // Toggle Tablero / Lista (solo visual)
+  (function(){
+    document.querySelectorAll('.seg button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+      });
+    });
+  })();
+</script>
+</body>
+</html>

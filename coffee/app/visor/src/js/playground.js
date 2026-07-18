@@ -173,6 +173,7 @@ const pg = {
     pinnedTplId: null,       // template FIJADO como referencia: el próximo mensaje pedirá modificarlo
     targetFrag: null,        // componente ANCLADO desde el preview: {html, label} — el próximo mensaje edita solo ese fragmento
     _lastUserText: '',       // último prompt del usuario (titula los templates)
+    _transmute: null,        // parámetros del último transmute del diseño activo (modulo/entidad/dir/pivote)
     splitW:    '',           // ancho del panel de chat (px) — splitter
     zoom:      100,          // zoom del preview (%) — escala el contenido del iframe
     _popSound: null,
@@ -570,6 +571,19 @@ function pgBind() {
         $('#pgSaveTplSlug').text(this.value.trim() ? 'Carpeta: documents/template/' + pgSlugify(this.value) + '/' : '');
     }).on('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pgConfirmSaveTemplate(); } });
 
+    // Transmutación: diseño aprobado -> módulo coffeeSoft en Coffee Studio
+    $('#pgTransmuteBtn').on('click', () => pgOpenTransmute());
+    $('#pgTransmuteClose, #pgTransmuteCancel').on('click', () => pgCloseTransmute());
+    $('#pgTransmuteModal .pg-modal-backdrop').on('click', () => pgCloseTransmute());
+    $('#pgTransmuteConfirm').on('click', () => pgConfirmTransmute());
+    // El módulo dicta entidad y carpeta sugeridas mientras no se toquen a mano.
+    $('#pgTmModulo').on('input', function () {
+        const mod = pgSlugify(this.value);
+        $('#pgTmSlug').text(this.value.trim() ? 'Plantilla: documents/template/' + mod + '/' : '');
+        if (!$('#pgTmEntidad').data('touched')) $('#pgTmEntidad').val(pgPascalize(this.value));
+    });
+    $('#pgTmEntidad').on('input', function () { $(this).data('touched', true); });
+
     // Plantillas guardadas
     $('#pgTemplatesBtn').on('click', () => pgOpenTemplates());
     $('#pgTemplatesClose, #pgTemplatesDone').on('click', () => pgCloseTemplates());
@@ -857,6 +871,7 @@ function pgClearChat() {
     pg.threadTitle = '';
     pg._loadedSlug = null;
     pg._loadedName = '';
+    pg._transmute = null;
     pg.activeDb = null;    // limpiar el chat suelta la conexión a la base (como el Visor)
     pgRenderDbChip();
     pg.activeFolder = null; // ...y también la conexión a la carpeta
@@ -981,6 +996,7 @@ function pgSnapshotSession() {
         lastTheme:    pg.lastTheme,
         loadedSlug:   pg._loadedSlug || null,
         loadedName:   pg._loadedName || '',
+        transmute:    pg._transmute || null,
         agentKey:     pg.agentKey,
         theme:        pg.theme,
         activeDb:     pg.activeDb || null,
@@ -1063,6 +1079,7 @@ function pgRestoreSession() {
     pg.lastTheme     = s.lastTheme || s.theme;
     pg._loadedSlug   = s.loadedSlug || null;
     pg._loadedName   = s.loadedName || '';
+    pg._transmute    = s.transmute || null;
     pg.activeDb      = s.activeDb || null;
     pgRenderDbChip();
     pg.activeFolder  = s.activeFolder || null;
@@ -1622,6 +1639,45 @@ function pgModelSupportsTools(model) {
     return !opt || opt.getAttribute('data-tools') === '1';
 }
 
+// Heurística: ¿el texto del usuario nombra una RUTA/carpeta/archivo local? Se usa
+// para explicar respuestas vacías cuando las tools de archivos están apagadas (el
+// agente narra que "va a explorar" pero el backend no resuelve la carpeta).
+function pgTextMentionsPath(text) {
+    const t = String(text || '');
+    return /[A-Za-z]:[\\/]/.test(t)                        // ruta Windows (C:\... o C:/...)
+        || /(^|\s)\/[\w.-]+\/[\w.-]+/.test(t)              // ruta unix (/foo/bar)
+        || /[\w.-]+[\\/][\w.-]+[\\/]/.test(t)              // dos o más segmentos con separador
+        || /\b(carpeta|m[oó]dulo|directorio|archivo|fichero|ruta)\b/i.test(t);
+}
+
+// Detección ESTRICTA de una ruta real del disco (C:\..., /a/b, a\b\c). A diferencia
+// de pgTextMentionsPath, NO se dispara con la palabra suelta "módulo/carpeta", así
+// que es segura para BLOQUEAR el envío antes de gastar el turno.
+function pgTextHasRealPath(text) {
+    // Una URL no es una carpeta del disco: fuera antes de evaluar, si no
+    // "https://sitio.com/img/foo.png" se leería como ruta local.
+    const t = String(text || '').replace(/\b[a-z][\w+.-]*:\/\/\S+/gi, ' ');
+    return /(^|[\s"'(<[])[A-Za-z]:[\\/]/.test(t)         // Windows: C:\ o C:/ — la letra sola, no el "s:" de https://
+        || /[\w.-]+\\[\w.-]+/.test(t)                    // separador backslash: no aparece en prosa
+        || /(^|\s)\.{0,2}\/[\w.-]+\/[\w.-]+/.test(t)     // Unix: /a/b, ./a/b, ../a/b
+        || /[\w.-]+\/[\w-]+\.[a-z0-9]{1,4}\b/i.test(t);  // a/b.js — segmento + archivo con extensión
+}
+
+// Intención EXPLÍCITA de conectar a datos: "conecta a reginas", "conéctate a la
+// carpeta X", "conecta con la base". Exige el verbo + preposición (a/al/con) para
+// no confundir con pedidos de UI ("un botón que conecta los puntos"). Como desde
+// el front no se sabe si el destino es base o carpeta, se usa solo cuando NINGUNA
+// tool está encendida (ahí, con seguridad, no hay forma de conectar a nada).
+function pgTextIsConnectIntent(text) {
+    return /\bcon[eé]ct\w*\s+(a|al|con)\b/i.test(String(text || ""));
+}
+
+// Heurística gemela para las tools de BASE DE DATOS: ¿el texto nombra una base,
+// tabla o consulta? Mismo fin (explicar el vacío cuando run_select está apagado).
+function pgTextMentionsDb(text) {
+    return /\b(base de datos|bases de datos|bd|tabla|tablas|select|consulta|query|esquema|schema)\b/i.test(String(text || ''));
+}
+
 // Aviso suave cuando el modelo activo puede no soportar consultas en vivo: sin
 // tools, la base/carpeta conectada no se lee y el template sale sin datos reales.
 function pgWarnModelTools() {
@@ -1700,6 +1756,27 @@ async function pgSend(text, images, docs) {
     // La referencia es de un solo uso: liberar y limpiar el chip del input.
     if (pg.pinnedTplId) { pg.pinnedTplId = null; pgRefreshPinUI(); }
     if (pg.targetFrag) { pg.targetFrag = null; pgRenderTargetBanner(); }
+
+    // Guarda proactiva: si nombraste una carpeta del disco pero las Tools de
+    // archivos están apagadas, el agente no podría leerla (solo "narraría" que va a
+    // explorar). Te lo decimos de una vez y no gastamos el turno con el modelo.
+    if (pgTextHasRealPath(text) && !pg.fsToolsOn) {
+        pgAppendAI('📁 Nombraste una carpeta del disco, pero las **Tools de archivos** están apagadas, '
+            + 'así que no puedo leerla. Enciéndelas en el menú **«Tools»** (abajo, junto a «Limpiar») y vuelve a enviar tu mensaje.');
+        pgFinish();
+        return;
+    }
+
+    // Guarda gemela para "conéctate a X": si pides conectar a datos pero NINGUNA
+    // tool está encendida, no hay forma de conectar (ni base ni carpeta). Como no
+    // sabemos si X es base o carpeta, ofrecemos las dos opciones.
+    if (pgTextIsConnectIntent(text) && !pg.dbToolsOn && !pg.fsToolsOn) {
+        pgAppendAI('🔌 Para conectarme a datos primero enciende las **Tools** (abajo, junto a «Limpiar»): '
+            + 'usa **Tools de base de datos** si es una base (p. ej. reginas), o **Tools de archivos** si es una carpeta. '
+            + 'Enciende la que necesites y vuelve a enviar tu mensaje.');
+        pgFinish();
+        return;
+    }
 
     const $typing = pgAppendTyping();
     pgScroll();
@@ -1910,7 +1987,27 @@ async function pgSend(text, images, docs) {
         if (stream) { await stream.drain(); stream.fail(m); } else { pgAppendAI(m); }
         pgFinish(); return;
     }
-    if (!firstToken) { $typing.remove(); pgAppendAI('⚠️ El agente no devolvió respuesta. El modelo actual puede no soportar esta tarea (minimax suele quedarse vacío en respuestas largas). Prueba con **glm-5.2** para código, o **kimi-k2.7-code** si necesitas visión.'); pgFinish(); return; }
+    if (!firstToken) {
+        $typing.remove();
+        // Respuesta vacía: antes de culpar al modelo, revisar si el usuario nombró
+        // una carpeta/base con las tools correspondientes APAGADAS. En ese caso el
+        // backend no resuelve nada al nombrarla y el agente se queda sin qué leer.
+        const needFs = !pg.fsToolsOn && pgTextMentionsPath(text);
+        const needDb = !pg.dbToolsOn && pgTextMentionsDb(text);
+        if (needFs || needDb) {
+            const que = needFs && needDb ? 'esa carpeta ni esa base de datos'
+                      : needFs           ? 'esa carpeta'
+                      :                    'esa base de datos';
+            const cual = needFs && needDb ? '**Tools de archivos** y **Tools de base de datos**'
+                       : needFs           ? '**Tools de archivos**'
+                       :                    '**Tools de base de datos**';
+            pgAppendAI('📁 No pude leer ' + que + ' porque las ' + cual + ' están apagadas. '
+                + 'Enciéndelas en el menú **«Tools»** (abajo, junto a «Limpiar») y vuelve a enviar tu mensaje.');
+        } else {
+            pgAppendAI('⚠️ El agente no devolvió respuesta. El modelo actual puede no soportar esta tarea (minimax suele quedarse vacío en respuestas largas). Prueba con **glm-5.2** para código, o **kimi-k2.7-code** si necesitas visión.');
+        }
+        pgFinish(); return;
+    }
 
     await stream.drain();
     // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
@@ -2191,12 +2288,26 @@ function pgPlayPopSound() {
     } catch (e) {}
 }
 
+/* Ajuste incremental sobre el template ya renderizado: al pedir "agrégale eventos"
+ * el modelo suele contestar SOLO con el <script>/CSS del cambio, sin repetir el
+ * markup. Sin esto pgExtractHtml devolvía vacío y el render se reemplazaba por el
+ * texto en markdown: el template desaparecía y el ajuste se perdía. */
+function pgPatchLastHtml(received) {
+    if (!pg.lastHtml) return '';
+    // Un parche sustituye al anterior: si se acumularan, cada ajuste volvería a
+    // enganchar los mismos listeners sobre el template.
+    const base    = pg.lastHtml.replace(/\n?<(script|style) data-pg-merged>[\s\S]*?<\/\1>/gi, '');
+    const patched = pgMergeSideBlocks(received, base);
+    return patched === base ? '' : patched;
+}
+
 /* ── Render al sandbox ── */
 function pgRenderToSandbox(received) {
     const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
 
     if (cfg.render === 'html') {
-        const html = pgExtractHtml(received);   // tolerante: fence o crudo
+        const html = pgExtractHtml(received)    // tolerante: fence o crudo
+                  || pgPatchLastHtml(received); // ...o solo el script del ajuste
         pgRenderSandbox(html || pgMarkdown(received), !html);
         return html ? pgPushTemplate(html, false) : null;   // solo componentes reales al historial
     }
@@ -3394,6 +3505,124 @@ async function pgConfirmSaveTemplate(updateSlug) {
     $btn.prop('disabled', false);
 }
 
+/* ── Transmutación: diseño aprobado → módulo coffeeSoft (Coffee Studio) ──
+ * El Playground solo aprueba el diseño; quien transmuta es CoffeeMagic dentro del
+ * Studio, con el spell `transmute` (ver coffee/docs/coffee-magic-guia.md). Aquí se
+ * recogen los parámetros del YAML, el render se persiste como plantilla y el Studio
+ * la recoge por slug — así el HTML viaja por disco y no por la URL. */
+
+// Pivote y carpeta por defecto del spell transmute (los del propio grimorio-fuente).
+const PG_TM_DIR = 'app/inventarios';
+const PG_TM_REF = 'app/inventarios/src/js/pos-entradas.js';
+
+// Tema visual que entiende `transmute` (huubie|varoch|dark). Los temas del
+// Playground sin equivalente devuelven '' para que CoffeeMagic lo detecte del HTML.
+const PG_TM_THEME = {
+    'huubie-ui': 'huubie',
+    'coffee-varoch-light': 'varoch',
+    'coffee-varoch-dark': 'varoch'
+};
+
+function pgPascalize(name) {
+    return pgSlugify(name).split('-').filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+}
+
+function pgOpenTransmute() {
+    if (!pg.lastHtml) { pgToast('Aún no hay diseño que transmutar', 'warn'); return; }
+
+    // Si la plantilla ya se transmutó antes, reproponemos sus mismos parámetros.
+    const prev = pg._transmute || {};
+    const seed = prev.modulo || pgSlugify(pg._loadedName || pg._lastUserText || '');
+    $('#pgTmModulo').val(seed);
+    $('#pgTmEntidad').val(prev.entidad || pgPascalize(seed)).data('touched', !!prev.entidad);
+    $('#pgTmDir').val(prev.dir || PG_TM_DIR);
+    $('#pgTmRef').val(prev.referencia || PG_TM_REF);
+    $('#pgTmHub').val(prev.hub || '');
+    $('#pgTmCardLabel').val(prev.cardLabel || '');
+    $('#pgTmCardIcon').val(prev.cardIcon || '');
+    $('#pgTmSlug').text(seed ? 'Plantilla: documents/template/' + pgSlugify(seed) + '/' : '');
+
+    const themeKey = pg.lastTheme || pg.theme;
+    const t = PG_THEMES[themeKey] || {};
+    $('#pgTmThemeName').text(t.label || themeKey);
+
+    $('#pgTransmuteModal').removeClass('hidden').attr('aria-hidden', 'false');
+    setTimeout(() => $('#pgTmModulo').trigger('focus'), 30);
+    if (window.lucide) lucide.createIcons();
+}
+function pgCloseTransmute() {
+    $('#pgTransmuteModal').addClass('hidden').attr('aria-hidden', 'true');
+}
+
+/* Persiste el diseño como plantilla (con sus parámetros de transmutación en el
+ * meta) y abre el Studio apuntando a ese slug. El Studio hace el resto: monta el
+ * hilo con CoffeeMagic y deja listo el prompt del spell. */
+async function pgConfirmTransmute() {
+    const modulo = pgSlugify($('#pgTmModulo').val());
+    if (!$('#pgTmModulo').val().trim()) { pgToast('Escribe el nombre del módulo', 'warn'); return; }
+    if (!pg.lastHtml) { pgToast('No hay diseño que transmutar', 'warn'); return; }
+
+    const themeKey = pg.lastTheme || pg.theme;
+    const params = {
+        modulo:     modulo,
+        entidad:    $('#pgTmEntidad').val().trim() || pgPascalize(modulo),
+        dir:        $('#pgTmDir').val().trim() || PG_TM_DIR,
+        referencia: $('#pgTmRef').val().trim(),
+        tema:       PG_TM_THEME[themeKey] || '',
+        themeKey:   themeKey,
+        hub:        $('#pgTmHub').val().trim(),
+        cardLabel:  $('#pgTmCardLabel').val().trim(),
+        cardIcon:   $('#pgTmCardIcon').val().trim()
+    };
+
+    const t = PG_THEMES[themeKey] || {};
+    const cleanHistory = (pg.history || []).map(m => {
+        const { images, imagesPreview, ...rest } = m;
+        return rest;
+    });
+    const meta = {
+        title:      (pg._lastUserText || modulo).slice(0, 120),
+        theme:      themeKey,
+        themeLabel: t.label || themeKey,
+        agentKey:   pg.agentKey,
+        agentLabel: pgAgentLabel(),
+        model:      pg.model || '',
+        prompt:     pg.prompt || '',
+        userText:   pg._lastUserText || '',
+        isDoc:      !!pg._lastIsDoc,
+        transmute:  params,
+        history:    cleanHistory
+    };
+
+    const $btn = $('#pgTransmuteConfirm').prop('disabled', true);
+    try {
+        const form = new FormData();
+        form.append('action', 'savetemplate');
+        form.append('name', modulo);
+        form.append('html', pg.lastHtml);
+        form.append('meta', JSON.stringify(meta));
+        // Iterar sobre la misma plantilla reescribe su carpeta en vez de duplicarla.
+        if (pg._loadedSlug === modulo) form.append('slug', modulo);
+        const res  = await fetch(PG_API, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!data.success) { pgToast(data.message || 'No se pudo guardar el diseño', 'error'); }
+        else {
+            const slug = data.slug || modulo;
+            pg._loadedSlug = slug;
+            pg._loadedName = data.name || modulo;
+            pg._transmute  = params;
+            pgSaveSession();
+            pgCloseTransmute();
+            pgToast('Diseño enviado a Coffee Studio', 'success');
+            window.open('studio.php?transmute=' + encodeURIComponent(slug), '_blank');
+        }
+    } catch (e) {
+        pgToast('Error de red al enviar el diseño al Studio', 'error');
+    }
+    $btn.prop('disabled', false);
+}
+
 async function pgOpenTemplates() {
     $('#pgTemplatesModal').removeClass('hidden').attr('aria-hidden', 'false');
     $('#pgTemplatesList').html('<p class="pg-hint">Cargando plantillas…</p>');
@@ -3487,6 +3716,7 @@ function pgLoadSavedTemplate(t) {
     // (Tras pgClearChat, que limpia estos campos.)
     pg._loadedSlug = t.slug || null;
     pg._loadedName = t.name || t.title || t.slug || '';
+    pg._transmute  = t.transmute || null;   // si ya se transmutó, reproponer sus parámetros
     pg._lastUserText = t.userText || t.title || t.name || '';
     if (Array.isArray(t.history) && t.history.length) {
         pg.history = t.history.slice();
@@ -3574,16 +3804,44 @@ function pgExtractCode(text, lang) {
 function pgLooksLikeHtml(text) {
     return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(text || '');
 }
+/* Fusiona el JS/CSS que el modelo dejó en bloques HERMANOS (```js / ```css, fuera
+ * del ```html) dentro del propio HTML. Sin esto el template se renderiza mudo: el
+ * prompt pide todo en un solo bloque, pero al pedir "agrégale eventos" el modelo
+ * suele contestar con el markup y el script separados y la interacción se perdía. */
+function pgMergeSideBlocks(src, html) {
+    if (!html) return html;
+    const rest = String(src || '').split(html).join(' ');   // solo lo que quedó FUERA del html
+    const grab = re => {
+        const out = [];
+        let m;
+        while ((m = re.exec(rest))) if (m[1].trim()) out.push(m[1].trim());
+        return out;
+    };
+    const css = grab(/```[ \t]*css[ \t]*\r?\n?([\s\S]*?)```/gi);
+    const js  = grab(/```[ \t]*(?:javascript|js)[ \t]*\r?\n?([\s\S]*?)```/gi);
+    if (!css.length && !js.length) return html;
+
+    // data-pg-merged marca lo inyectado por nosotros: pgPatchLastHtml lo usa para
+    // que un parche SUSTITUYA al anterior en vez de acumularse.
+    let add = '';
+    if (css.length) add += '\n<style data-pg-merged>\n' + css.join('\n') + '\n</style>';
+    if (js.length)  add += '\n<script data-pg-merged>\n' + js.join('\n\n') + '\n<\/script>';
+    // Documento completo: el script va DENTRO del body, no colgando tras </html>.
+    return /<\/body>/i.test(html)
+        ? html.replace(/<\/body>/i, add + '\n</body>')
+        : html + add;
+}
+
 // Extrae HTML renderizable de la respuesta, tolerante a fences mal formados o
 // HTML crudo sin fence (causa frecuente de "no renderiza").
 function pgExtractHtml(text) {
     const s = text || '';
     // 1) bloque ```html cerrado (con/sin salto, espacios, mayúsculas)
     let m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/i);
-    if (m && m[1].trim()) return m[1].trim();
+    if (m && m[1].trim()) return pgMergeSideBlocks(s, m[1].trim());
     // 2) cualquier fence cerrado cuyo contenido parezca HTML
     m = s.match(/```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i);
-    if (m && pgLooksLikeHtml(m[1])) return m[1].trim();
+    if (m && pgLooksLikeHtml(m[1])) return pgMergeSideBlocks(s, m[1].trim());
     // 3) fence ```html ABIERTO pero sin cerrar (respuesta truncada): tomamos
     //    todo lo que sigue al fence — sin arrastrar el preámbulo de texto.
     m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*)$/i);

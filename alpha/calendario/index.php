@@ -23,7 +23,7 @@
     <script src="src/plugins/bootbox.min.js"></script>
     <script src="src/js/complementos.js"></script>
     <script src="src/js/plugins.js?t=<?php echo time(); ?>"></script>
-    <script src="src/js/coffeSoft.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 
     <!-- datables -->
     <link rel="stylesheet" href="https://15-92.com/ERP3/src/plugin/datatables/1.13.6/css/dataTables.bootstrap5.min.css">

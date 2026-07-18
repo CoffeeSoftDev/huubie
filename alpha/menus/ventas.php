@@ -19,7 +19,7 @@
     <script src="<?=PATH_BASE?>src/plugins/bootstrap-5/js/bootstrap.bundle.js"></script>
     <script src="<?=PATH_BASE?>src/js/complementos.js"></script>
     <script src="<?=PATH_BASE?>src/js/plugins.js"></script>
-    <script src="<?=PATH_BASE?>src/js/coffeSoft.js"></script>
+    <script src="<?=PATH_BASE?>src/js/coffeeSoft.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>

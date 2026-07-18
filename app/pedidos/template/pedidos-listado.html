@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Listado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 7px 12px; font-size: 12px; color: #d1d5db; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        .input-modal::placeholder { color: #6b7280; }
+        select.input-modal { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+        .badge-base { font-size: 10px; padding: 2px 9px; border-radius: 9999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; transition: .15s; }
+        .branch-pill:hover { border-color: #1C64F2; }
+        .branch-opt { cursor: pointer; }
+        .branch-opt.sel { background: rgba(28,100,242,.12); }
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .act-btn { width: 28px; height: 28px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; background: #1a2332; border: 1px solid #374151; color: #9CA3AF; transition: .15s; }
+        .act-btn:hover { color: #fff; }
+        .act-btn.pay:hover { color: #3FC189; border-color: rgba(63,193,137,.4); }
+        .act-btn.edit:hover { color: #76A9FA; border-color: rgba(28,100,242,.4); }
+        .act-btn.cancel:hover { color: #EA0234; border-color: rgba(234,2,52,.4); }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background:#EA0234!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- ==================== NAVBAR ==================== -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151] flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link active">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Turno -->
+            <div id="turnoBadge" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[rgba(63,193,137,0.12)] border border-[rgba(63,193,137,0.3)]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#3FC189] pulse-dot"></span>
+                <span class="text-[10px] font-semibold text-[#3FC189]">TURNO ABIERTO</span>
+            </div>
+            <!-- Branch pill -->
+            <div class="relative">
+                <button onclick="toggleBranch()" class="branch-pill flex items-center gap-2">
+                    <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                    <div class="flex flex-col items-start leading-none">
+                        <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                        <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                    </div>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-[#6B7280]"></i>
+                </button>
+                <div id="branchDropdown" class="hidden absolute right-0 mt-2 w-52 bg-[#1F2A37] border border-[#374151] rounded-xl shadow-2xl overflow-hidden z-50">
+                    <p class="px-3 pt-3 pb-1 text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Cambiar sucursal</p>
+                    <div data-branch="centro" onclick="setBranch('centro')" class="branch-opt flex items-center justify-between px-3 py-2 text-xs text-[#d1d5db] hover:bg-[#273343]"><span>Centro</span><i data-lucide="check" class="w-3.5 h-3.5 text-[#3FC189] mark hidden"></i></div>
+                    <div data-branch="norte" onclick="setBranch('norte')" class="branch-opt flex items-center justify-between px-3 py-2 text-xs text-[#d1d5db] hover:bg-[#273343]"><span>Norte</span><i data-lucide="check" class="w-3.5 h-3.5 text-[#3FC189] mark hidden"></i></div>
+                    <div data-branch="sur" onclick="setBranch('sur')" class="branch-opt flex items-center justify-between px-3 py-2 text-xs text-[#d1d5db] hover:bg-[#273343]"><span>Sur</span><i data-lucide="check" class="w-3.5 h-3.5 text-[#3FC189] mark hidden"></i></div>
+                    <div data-branch="0" onclick="setBranch('0')" class="branch-opt flex items-center justify-between px-3 py-2 text-xs text-[#d1d5db] hover:bg-[#273343] border-t border-[#374151]"><span>Todas <span class="text-[9px] text-[#6B7280]">(consulta)</span></span><i data-lucide="check" class="w-3.5 h-3.5 text-[#3FC189] mark hidden"></i></div>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <!-- ==================== CONTENIDO ==================== -->
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+
+        <!-- Titulo -->
+        <div class="flex items-center justify-between px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div>
+                <h1 class="text-base font-bold flex items-center gap-2"><i data-lucide="clipboard-list" class="w-5 h-5 text-[#76A9FA]"></i> Pedidos</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-0.5">Consulta y gestiona los pedidos por fecha, sucursal y estado.</p>
+            </div>
+            <button onclick="openTipoModal()" class="bg-[#1C64F2] hover:bg-[#1a53d4] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Pedido
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div class="flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">Periodo</label>
+                    <select id="fPeriodo" class="input-modal w-40" onchange="render()">
+                        <option value="hoy">Hoy</option>
+                        <option value="semana" selected>Esta semana</option>
+                        <option value="mes">Este mes</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">Estado</label>
+                    <select id="fEstado" class="input-modal w-44" onchange="render()">
+                        <option value="">Todos los estados</option>
+                        <option value="1">Cotizacion</option>
+                        <option value="2">Pendiente / Abono</option>
+                        <option value="3">Pagado</option>
+                        <option value="4">Cancelado</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1">Busqueda</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]"></i>
+                        <input id="fBuscar" type="text" oninput="render()" placeholder="Folio, cliente o telefono..." class="input-modal w-full pl-9">
+                    </div>
+                </div>
+                <button onclick="resetFiltros()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1a2332] border border-[#374151] text-[11px] text-[#9CA3AF] hover:text-[#EA0234] hover:border-[rgba(234,2,52,.4)] transition-colors">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Limpiar
+                </button>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 px-5 py-3 bg-[#111928] border-b border-[#374151] flex-shrink-0">
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl px-3 py-2.5">
+                <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Pedidos</p>
+                <p id="kpiTotal" class="text-lg font-bold text-white">0</p>
+            </div>
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl px-3 py-2.5">
+                <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Cotizaciones</p>
+                <p id="kpiCotiz" class="text-lg font-bold text-[#76A9FA]">0</p>
+            </div>
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl px-3 py-2.5">
+                <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Pendientes</p>
+                <p id="kpiPend" class="text-lg font-bold text-[#FBBF24]">0</p>
+            </div>
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl px-3 py-2.5">
+                <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Pagados</p>
+                <p id="kpiPag" class="text-lg font-bold text-[#3FC189]">0</p>
+            </div>
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl px-3 py-2.5">
+                <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Cobrado</p>
+                <p id="kpiCobrado" class="text-lg font-bold text-[#3FC189]">$0</p>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="flex-1 overflow-auto scrollbar-thin px-5 py-3">
+            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-[#141d2b] sticky top-0 z-10">
+                        <tr class="text-[10px] text-[#6B7280] uppercase tracking-wider border-b border-[#374151]">
+                            <th class="px-4 py-3 font-semibold">Folio</th>
+                            <th class="px-4 py-3 font-semibold">Cliente</th>
+                            <th class="px-4 py-3 font-semibold">Entrega</th>
+                            <th class="px-4 py-3 font-semibold text-right">Total</th>
+                            <th class="px-4 py-3 font-semibold text-right">Abonado</th>
+                            <th class="px-4 py-3 font-semibold text-right">Saldo</th>
+                            <th class="px-4 py-3 font-semibold">Estado</th>
+                            <th class="px-4 py-3 font-semibold">Prod./Entrega</th>
+                            <th class="px-4 py-3 font-semibold text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody" class="text-xs"></tbody>
+                </table>
+                <div id="emptyState" class="hidden flex-col items-center justify-center py-12 text-center">
+                    <i data-lucide="package-open" class="w-10 h-10 text-[#374151] mb-2"></i>
+                    <p class="text-xs text-[#6B7280]">No hay pedidos con los filtros aplicados</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-2 bg-[#141d2b] border-t border-[#374151] flex items-center justify-between flex-shrink-0">
+            <p id="footerInfo" class="text-[10px] text-[#6B7280]">Mostrando 0 de 0 pedidos</p>
+            <div class="flex items-center gap-3 text-[10px] text-[#6B7280]">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#3FC189]"></span>Turno actual</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#6B7280]"></span>Otro turno</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: Tipo de pedido ==================== -->
+    <div id="tipoModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,.7);">
+        <div class="w-[520px] max-w-full bg-[#1F2A37] border border-[#374151] rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="text-base font-bold text-white">Nuevo Pedido</h3>
+                <button onclick="closeTipoModal()" class="text-[#9CA3AF] hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <p class="text-[11px] text-[#9CA3AF] mb-5">Selecciona el tipo de pedido que deseas capturar.</p>
+            <div class="grid grid-cols-2 gap-3">
+                <a href="pedido-captura.html" class="group bg-[#1a2332] border border-[#374151] rounded-xl p-5 flex flex-col items-center gap-3 hover:border-[#3FC189] transition-colors">
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center bg-[#3FC189]/15 border border-[#3FC189]/25">
+                        <i data-lucide="shopping-cart" class="w-7 h-7 text-[#3FC189]"></i>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm font-semibold text-white">Catalogo</p>
+                        <p class="text-[10px] text-[#6B7280] mt-1">Productos de venta directa</p>
+                    </div>
+                </a>
+                <a href="pedido-personalizado.html" class="group bg-[#1a2332] border border-[#374151] rounded-xl p-5 flex flex-col items-center gap-3 hover:border-[#EC4899] transition-colors">
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center bg-[#EC4899]/15 border border-[#EC4899]/25">
+                        <i data-lucide="cake-slice" class="w-7 h-7 text-[#F472B6]"></i>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm font-semibold text-white">Personalizado</p>
+                        <p class="text-[10px] text-[#6B7280] mt-1">Pastel a medida con imagenes</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  DATOS MOCK
+        // ============================================================
+        const HOY = new Date();
+        const d = (offset, h = 12, m = 0) => { const x = new Date(HOY); x.setDate(x.getDate() + offset); x.setHours(h, m, 0, 0); return x; };
+        const orders = [
+            { id: 341, cliente: 'Andrea Martinez', tel: '961 123 4567', entrega: d(1, 17, 0), total: 850, discount: 0, abonado: 300, sucursal: 'centro', turnoActual: true, estado: 2, delivery: 2 },
+            { id: 340, cliente: 'Carlos Ramirez', tel: '961 234 5678', entrega: d(0, 13, 30), total: 390, discount: 0, abonado: 390, sucursal: 'centro', turnoActual: true, estado: 3, delivery: 1 },
+            { id: 339, cliente: 'Maria Gonzalez', tel: '961 345 6789', entrega: d(2, 11, 0), total: 1250, discount: 125, abonado: 0, sucursal: 'centro', turnoActual: true, estado: 1, delivery: 2 },
+            { id: 338, cliente: 'Juan Lopez', tel: '', entrega: d(0, 18, 0), total: 700, discount: 0, abonado: 700, sucursal: 'norte', turnoActual: false, estado: 3, delivery: 1 },
+            { id: 337, cliente: 'Sofia Hernandez', tel: '961 567 8901', entrega: d(3, 16, 0), total: 1600, discount: 0, abonado: 800, sucursal: 'norte', turnoActual: true, estado: 2, delivery: 2 },
+            { id: 336, cliente: 'Roberto Dominguez', tel: '961 678 9012', entrega: d(-1, 12, 0), total: 450, discount: 0, abonado: 0, sucursal: 'sur', turnoActual: false, estado: 4, delivery: 0 },
+            { id: 335, cliente: 'Valeria Cruz', tel: '961 789 0123', entrega: d(1, 14, 0), total: 980, discount: 80, abonado: 900, sucursal: 'centro', turnoActual: true, estado: 3, delivery: 0 },
+            { id: 334, cliente: 'Diego Morales', tel: '', entrega: d(4, 10, 30), total: 2100, discount: 0, abonado: 500, sucursal: 'sur', turnoActual: true, estado: 2, delivery: 2 },
+            { id: 333, cliente: 'Lucia Fernandez', tel: '961 890 1234', entrega: d(0, 19, 0), total: 320, discount: 0, abonado: 0, sucursal: 'norte', turnoActual: true, estado: 1, delivery: 0 },
+            { id: 332, cliente: 'Pedro Sanchez', tel: '961 901 2345', entrega: d(2, 15, 0), total: 750, discount: 0, abonado: 750, sucursal: 'centro', turnoActual: false, estado: 3, delivery: 1 },
+        ];
+
+        // ============================================================
+        //  HELPERS
+        // ============================================================
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmt0 = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        const prefijo = { centro: 'C', norte: 'N', sur: 'S' };
+        const folio = (o) => 'P-' + (prefijo[o.sucursal] || 'X') + String(o.id).padStart(4, '0');
+        const fFecha = (dt) => { const dd = String(dt.getDate()).padStart(2,'0'), mm = String(dt.getMonth()+1).padStart(2,'0'), hh = String(dt.getHours()).padStart(2,'0'), mi = String(dt.getMinutes()).padStart(2,'0'); return `${dd}/${mm} ${hh}:${mi}`; };
+        const saldo = (o) => Math.max(0, o.total - o.discount - o.abonado);
+
+        const estadoBadge = (e) => {
+            const map = {
+                1: ['Cotizacion', '#76A9FA', 'rgba(28,100,242,.15)', 'rgba(28,100,242,.3)'],
+                2: ['Pendiente', '#FBBF24', 'rgba(251,191,36,.15)', 'rgba(251,191,36,.3)'],
+                3: ['Pagado', '#3FC189', 'rgba(63,193,137,.15)', 'rgba(63,193,137,.3)'],
+                4: ['Cancelado', '#F87171', 'rgba(234,2,52,.15)', 'rgba(234,2,52,.35)'],
+            };
+            const [t, fg, bg, bd] = map[e] || map[1];
+            return `<span class="badge-base" style="color:${fg};background:${bg};border:1px solid ${bd}">${t}</span>`;
+        };
+        const deliveryBadge = (v) => {
+            const map = {
+                0: ['No entregado', '#9CA3AF', 'rgba(156,163,175,.12)'],
+                1: ['Entregado', '#3FC189', 'rgba(63,193,137,.12)'],
+                2: ['Para producir', '#c4b5fd', 'rgba(124,58,237,.15)'],
+            };
+            const [t, fg, bg] = map[v] || map[0];
+            return `<span class="badge-base" style="color:${fg};background:${bg}">${t}</span>`;
+        };
+
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        // ============================================================
+        //  SUCURSAL (persistente) + TURNO
+        // ============================================================
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        const getBranch = () => localStorage.getItem('pedidos_branch') || 'centro';
+        function toggleBranch() { $('branchDropdown').classList.toggle('hidden'); }
+        function setBranch(b) {
+            localStorage.setItem('pedidos_branch', b);
+            $('branchDropdown').classList.add('hidden');
+            renderChrome();
+            render();
+        }
+        function renderChrome() {
+            const b = getBranch();
+            $('branchName').textContent = BRANCHES[b] || 'Centro';
+            document.querySelectorAll('.branch-opt').forEach(o => {
+                const sel = o.dataset.branch === b;
+                o.classList.toggle('sel', sel);
+                const mark = o.querySelector('.mark');
+                if (mark) mark.classList.toggle('hidden', !sel);
+            });
+            // Turno: "Todas" es solo consulta -> sin turno de escritura
+            const turno = $('turnoBadge');
+            if (b === '0') {
+                turno.innerHTML = '<i data-lucide="eye" class="w-3 h-3 text-[#9CA3AF]"></i><span class="text-[10px] font-semibold text-[#9CA3AF]">SOLO CONSULTA</span>';
+                turno.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-[#374151]';
+            } else {
+                turno.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-[#3FC189] pulse-dot"></span><span class="text-[10px] font-semibold text-[#3FC189]">TURNO ABIERTO</span>';
+                turno.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[rgba(63,193,137,0.12)] border border-[rgba(63,193,137,0.3)]';
+            }
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        //  RENDER
+        // ============================================================
+        function filtrados() {
+            const b = getBranch();
+            const est = $('fEstado').value;
+            const q = $('fBuscar').value.trim().toLowerCase();
+            return orders.filter(o => {
+                if (b !== '0' && o.sucursal !== b) return false;
+                if (est && String(o.estado) !== est) return false;
+                if (q && !(o.cliente.toLowerCase().includes(q) || folio(o).toLowerCase().includes(q) || (o.tel || '').includes(q))) return false;
+                return true;
+            });
+        }
+
+        function render() {
+            const data = filtrados();
+            const body = $('tbody');
+            const empty = $('emptyState');
+
+            if (data.length === 0) {
+                body.innerHTML = '';
+                empty.classList.remove('hidden'); empty.classList.add('flex');
+            } else {
+                empty.classList.add('hidden'); empty.classList.remove('flex');
+                body.innerHTML = data.map(o => {
+                    const s = saldo(o);
+                    const neto = o.total - o.discount;
+                    const cancelada = o.estado === 4;
+                    const totalCell = o.discount > 0
+                        ? `<div class="leading-tight"><span class="text-[10px] text-[#6B7280] line-through">${fmt0(o.total)}</span> <span class="text-white font-semibold">${fmt0(neto)}</span><span class="ml-1 text-[9px] text-[#FBBF24]">-${fmt0(o.discount)}</span></div>`
+                        : `<span class="text-white font-semibold">${fmt0(neto)}</span>`;
+                    const saldoCell = s > 0
+                        ? `<span class="text-[#FBBF24] font-semibold">${fmt0(s)}</span>`
+                        : `<span class="text-[#3FC189] font-semibold">${fmt0(0)}</span>`;
+                    const dot = o.turnoActual ? '#3FC189' : '#6B7280';
+                    return `
+                        <tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40 transition-colors ${cancelada ? 'opacity-55' : ''}">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${dot}" title="${o.turnoActual ? 'Turno actual' : 'Otro turno'}"></span>
+                                    <span class="font-bold text-white ${cancelada ? 'line-through' : ''}">${folio(o)}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <p class="text-white font-medium">${esc(o.cliente)}</p>
+                                ${o.tel ? `<p class="text-[10px] text-[#6B7280]">${esc(o.tel)}</p>` : '<p class="text-[10px] text-[#6B7280] italic">Sin telefono</p>'}
+                            </td>
+                            <td class="px-4 py-3"><span class="text-[#d1d5db]">${fFecha(o.entrega)}</span></td>
+                            <td class="px-4 py-3 text-right">${totalCell}</td>
+                            <td class="px-4 py-3 text-right text-[#9CA3AF]">${fmt0(o.abonado)}</td>
+                            <td class="px-4 py-3 text-right">${saldoCell}</td>
+                            <td class="px-4 py-3">${estadoBadge(o.estado)}</td>
+                            <td class="px-4 py-3">${deliveryBadge(o.delivery)}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <a href="pedido-pagos.html" class="act-btn pay" title="Ver / Pagos"><i data-lucide="wallet" class="w-3.5 h-3.5"></i></a>
+                                    <a href="pedido-captura.html" class="act-btn edit ${cancelada ? 'pointer-events-none opacity-40' : ''}" title="Editar"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></a>
+                                    <button onclick="cancelar(${o.id})" class="act-btn cancel ${cancelada ? 'pointer-events-none opacity-40' : ''}" title="Cancelar"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                                </div>
+                            </td>
+                        </tr>`;
+                }).join('');
+            }
+
+            // KPIs
+            $('kpiTotal').textContent = data.length;
+            $('kpiCotiz').textContent = data.filter(o => o.estado === 1).length;
+            $('kpiPend').textContent = data.filter(o => o.estado === 2).length;
+            $('kpiPag').textContent = data.filter(o => o.estado === 3).length;
+            const cobrado = data.filter(o => o.estado !== 4).reduce((s, o) => s + o.abonado, 0);
+            $('kpiCobrado').textContent = fmt0(cobrado);
+            $('footerInfo').textContent = `Mostrando ${data.length} de ${orders.length} pedidos`;
+            lucide.createIcons();
+        }
+
+        function resetFiltros() {
+            $('fPeriodo').value = 'semana';
+            $('fEstado').value = '';
+            $('fBuscar').value = '';
+            render();
+        }
+
+        async function cancelar(id) {
+            const o = orders.find(x => x.id === id);
+            if (!o) return;
+            const r = await Swal.fire({ ...SWAL, icon: 'warning', title: '¿Cancelar pedido?', html: `Se cancelara el folio <strong class="text-white">${folio(o)}</strong> de <strong class="text-white">${esc(o.cliente)}</strong>.`, showCancelButton: true, confirmButtonText: 'Si, cancelar', cancelButtonText: 'Volver', customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }, focusCancel: true });
+            if (r.isConfirmed) { o.estado = 4; o.delivery = 0; render(); Swal.fire({ ...SWAL, icon: 'success', title: 'Pedido cancelado', timer: 1500, showConfirmButton: false }); }
+        }
+
+        // Modal tipo de pedido
+        function openTipoModal() { $('tipoModal').classList.remove('hidden'); lucide.createIcons(); }
+        function closeTipoModal() { $('tipoModal').classList.add('hidden'); }
+
+        // Cerrar dropdowns al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.branch-pill') && !e.target.closest('#branchDropdown')) $('branchDropdown').classList.add('hidden');
+        });
+        $('tipoModal').addEventListener('click', (e) => { if (e.target.id === 'tipoModal') closeTipoModal(); });
+
+        // Init
+        renderChrome();
+        render();
+        lucide.createIcons();
+    </script>
+</body>
+</html>

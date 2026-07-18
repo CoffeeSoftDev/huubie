@@ -313,9 +313,37 @@ class App extends Templates {
     // checkAndUpdateDailyClosure ya consulta la sucursal que corresponde a cada rol.
     async syncShiftState() {
         await this.checkAndUpdateDailyClosure();
+        await this.refreshSubsidiariesShift();
         if (window.navbar && typeof navbar.refreshShiftStates === 'function') {
             await navbar.refreshShiftStates();
         }
+    }
+
+    // Reabre el snapshot `subsidiaries` (shift_opened_at) tras abrir/cerrar un turno:
+    // el estado que pinta la tarjeta "Esta sucursal vende como" se carga una sola vez
+    // en el init y quedaba desincronizado hasta recargar. Solo roles con selector.
+    async refreshSubsidiariesShift() {
+        if (!(rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7)) return;
+
+        const res = await useFetch({ url: this._link, data: { opc: "getSubsidiariesShift" } });
+        if (!res || !Array.isArray(res.data) || res.data.length === 0) return;
+
+        subsidiaries = res.data;
+
+        // Si el selector del formulario esta montado, refrescar en vivo el estado del
+        // trigger (sucursal elegida) y de cada fila del panel, y revalidar "Guardar".
+        if (!$('#subsidiarySelectorWrap').length) return;
+
+        const selId = $('#formPedido #subsidiaries_id').val();
+        const selSub = subsidiaries.find(s => String(s.id) === String(selId));
+        if (selSub) $('#subsidiaryTriggerStatus').html(this.subsidiaryStatusLine(selSub));
+
+        $('#subsidiaryPanel .sub-option').each((_, el) => {
+            const sub = subsidiaries.find(s => String(s.id) === String($(el).data('sub-id')));
+            if (sub) $(el).find('.sub-option-status').html(this.subsidiaryStatusLine(sub));
+        });
+
+        this.validateOrderSubsidiary();
     }
 
     updateDailyClosureStatus() {
@@ -1433,7 +1461,7 @@ class App extends Templates {
                     <span class="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold">${this.subsidiaryInitials(sub.valor)}</span>
                     <span class="flex-1 min-w-0">
                         <span class="block text-sm font-medium text-white truncate">${sub.valor}</span>
-                        <span class="flex items-center gap-1.5 text-xs text-gray-400 truncate mt-0.5">${this.subsidiaryStatusLine(sub)}</span>
+                        <span class="sub-option-status flex items-center gap-1.5 text-xs text-gray-400 truncate mt-0.5">${this.subsidiaryStatusLine(sub)}</span>
                     </span>
                     <span class="sub-radio flex-shrink-0 w-4 h-4 rounded-full border-2 ${isSel ? 'border-violet-500' : 'border-gray-500'} flex items-center justify-center">
                         <span class="w-2 h-2 rounded-full bg-violet-500 ${isSel ? '' : 'hidden'}"></span>
@@ -1571,15 +1599,24 @@ class App extends Templates {
             message: '<div id="containerChat"></div>'
         });
 
-        $('#modalAdvance .modal-dialog').css('max-width', '600px');
+        // El ancho lo manda el tab: el formulario de pago se descuadra si el modal se
+        // estira, y el historial son 6 columnas (fecha, metodo, monto, sucursal,
+        // observacion y acciones) que no caben en el ancho del formulario. El tope
+        // por vw evita que el modal se salga en pantallas chicas.
+        const WIDTH_PAY     = '600px';
+        const WIDTH_HISTORY = 'min(820px, 95vw)';
+        const setModalWidth = width => $('#modalAdvance .modal-dialog').css('max-width', width);
+
+        $('#modalAdvance .modal-dialog').css('transition', 'max-width .2s ease');
+        setModalWidth(WIDTH_PAY);
 
         this.tabLayout({
             parent: 'containerChat',
             theme: 'dark',
             class: '',
             json: [
-                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true },
-                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { } },
+                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true, onClick: () => setModalWidth(WIDTH_PAY) },
+                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => setModalWidth(WIDTH_HISTORY) },
             ]
         });
 
@@ -2944,6 +2981,7 @@ class App extends Templates {
                         </div>
                     </div>
                     <div id="openShiftsAlert" class="hidden"></div>
+                    <div id="closeDayAlert" class="hidden"></div>
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 block">Seleccionar turno</label>
                         <select id="shiftSelector" class="w-full bg-[#1F2A37] border border-[rgba(51,65,85,0.6)] text-[#F1F5F9] rounded-lg px-3 py-2 text-sm font-normal" onchange="app.viewShiftPreview()">
@@ -3070,13 +3108,16 @@ class App extends Templates {
             `);
         }
 
-        const [response, openRes] = await Promise.all([
+        const [response, openRes, pendingRes] = await Promise.all([
             useFetch({ url: this._link, data: { opc: "getShiftsByDate", date: date, subsidiaries_id: subsidiaries_id } }),
-            useFetch({ url: this._link, data: { opc: "getOpenShifts", subsidiaries_id: subsidiaries_id } })
+            useFetch({ url: this._link, data: { opc: "getOpenShifts", subsidiaries_id: subsidiaries_id } }),
+            useFetch({ url: cierre.api, data: { opc: "getPendingDays", subsidiaries_id: subsidiaries_id } })
         ]);
 
         const shifts = response.shifts || [];
         const today = moment().format('YYYY-MM-DD');
+        // Fechas pasadas (rango 15 días) con turnos y sin cierre diario: bloquean operar hoy.
+        const pendingDays = pendingRes.days || [];
         const allOpenShifts = openRes.shifts || [];
         const openShifts = allOpenShifts.filter(s => !moment(s.opened_at).isSame(today, 'day'));
         const hasAnyOpenShift = allOpenShifts.length > 0;
@@ -3109,7 +3150,7 @@ class App extends Templates {
                             </div>
                         </div>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30">
-                            <span class="w-1 h-1 bg-orange-400 rounded-full animate-pulse"></span>
+                            <span class="w-1 h-1 bg-orange-400 rounded-full"></span>
                             <span class="text-[10px] font-semibold text-orange-400">Abierto</span>
                         </span>
                     </div>
@@ -3135,6 +3176,10 @@ class App extends Templates {
         // invitar a abrir turno de ese dia. Ademas se deshabilita si ya hay un turno abierto
         // en la sucursal (cualquier dia, que hay que cerrar antes).
         const isToday = date === today;
+        // Bloqueo de operar hoy: si hay una fecha pasada sin cerrar (rango 15 días) no se
+        // puede abrir/cerrar turno ni cerrar el día de hoy. Se fija aquí (antes de
+        // viewShiftPreview) para que esa función lo respete al habilitar "Cerrar Turno".
+        this._operationBlocked = isToday && pendingDays.length > 0;
         if (isToday && !hasAnyOpenShift) {
             $('#btnOpenShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').attr('title', '');
         } else {
@@ -3168,8 +3213,60 @@ class App extends Templates {
 
         // Habilitar botón Cerrar Día solo si hay al menos un turno cerrado (y el día no está cerrado)
         const hasClosedShifts = shifts.some(s => s.status === 'closed');
+
+        // Nota "Día sin cerrar": solo si hay una fecha PASADA (u otra) con turnos y sin
+        // cierre diario. NO aplica a hoy (hoy todavía se opera). Cada fila lleva a esa
+        // fecha para cerrarla. Mientras exista un pendiente se bloquea operar hoy.
+        const closeDayAlert = $('#closeDayAlert');
+        if (pendingDays.length > 0) {
+            const dayItems = pendingDays.map(d => {
+                const isViewing = d.date === date;
+                const label = moment(d.date).locale('es').format('DD/MM/YYYY');
+                const weekday = moment(d.date).locale('es').format('dddd');
+                const openTag = d.open_shifts > 0
+                    ? `<span class="text-[10px] font-semibold text-orange-300">${d.open_shifts} turno(s) abierto(s)</span>`
+                    : `<span class="text-[10px] font-semibold text-orange-300/70">${d.shifts} turno(s)</span>`;
+                return `
+                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors ${isViewing ? 'bg-orange-500/20 ring-1 ring-orange-500/40' : 'bg-slate-800/40 hover:bg-slate-800/70'}" onclick="app.goToPendingDay('${d.date}')">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-sm font-bold text-white leading-none capitalize">${weekday} ${label}</span>
+                            ${openTag}
+                        </div>
+                        <span class="inline-flex items-center gap-1 text-orange-400">
+                            ${lucideIcon('chevron-right', 'w-4 h-4')}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            closeDayAlert.html(`
+                <div class="rounded-lg border border-orange-500/40 bg-orange-500/10 p-2.5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="relative inline-flex items-center justify-center w-[18px] h-[18px]">
+                            <span class="relative inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-orange-500 text-white">
+                                ${lucideIcon('alert-triangle', 'w-3 h-3')}
+                            </span>
+                        </span>
+                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Días sin cerrar</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-tight mb-2">Cierra estas fechas antes de operar hoy.</p>
+                    <div class="space-y-1.5">${dayItems}</div>
+                </div>
+            `).removeClass('hidden');
+        } else {
+            closeDayAlert.addClass('hidden').html('');
+        }
+
+        // Refuerza el bloqueo visual de "operar hoy" (el flag se fijó arriba). En la
+        // propia fecha pendiente (isToday=false) no se bloquea, para poder cerrarla.
+        if (this._operationBlocked) {
+            const blockTitle = 'Cierra primero los días pendientes';
+            $('#btnOpenShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').attr('title', blockTitle);
+            $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').attr('title', blockTitle);
+        }
+
         if (!isDayClosed) {
-            if (hasClosedShifts) {
+            if (hasClosedShifts && !this._operationBlocked) {
                 $('#btnCerrarDia').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
             } else {
                 $('#btnCerrarDia').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
@@ -3190,6 +3287,16 @@ class App extends Templates {
         picker.setEndDate(momentDate);
         await this.loadShifts();
         $('#shiftSelector').val(shiftId).trigger('change');
+    }
+
+    // Navega el modal a una fecha pendiente de cierre (desde la nota "Días sin cerrar").
+    // En esa fecha el bloqueo de "operar hoy" no aplica, así que se puede cerrar.
+    async goToPendingDay(date) {
+        const picker = $('#calendarDailyClose').data('daterangepicker');
+        const momentDate = moment(date);
+        picker.setStartDate(momentDate);
+        picker.setEndDate(momentDate);
+        await this.loadShifts();
     }
 
     async viewShiftPreview() {
@@ -3259,8 +3366,9 @@ class App extends Templates {
         // Habilitar botón imprimir
         $('#btnPrintTicket').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
 
-        // Botón cerrar caja: solo si turno está abierto
-        if (shiftStatus === 'open') {
+        // Botón cerrar caja: solo si turno está abierto y no hay días pendientes que
+        // bloqueen operar hoy (this._operationBlocked lo fija loadShifts).
+        if (shiftStatus === 'open' && !this._operationBlocked) {
             $('#btnCloseShift').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
         } else {
             $('#btnCloseShift').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
@@ -3368,9 +3476,14 @@ class App extends Templates {
         });
         const orderCount = (ordersRes.orders || []).length;
 
+        // Sucursal del turno a cerrar: la del selector del modal (admin) o la de sesión.
+        const subName = (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7)
+            ? $('#subsidiariesDailyClose option:selected').text()
+            : sub_name;
+
         Swal.fire({
             title: '¿Cerrar ticket de turno?',
-            html: `<p>Se procederá a realizar el corte de caja. Se cerrarán <strong><u>${orderCount}</u></strong> tickets de venta con la información actual.</p>`,
+            html: `<p>Se procederá a realizar el corte de caja en <strong>${subName}</strong>. Se cerrarán <strong><u>${orderCount}</u></strong> tickets de venta con la información actual.</p>`,
             icon: 'question',
             iconColor: '#8b5cf6',
             showCancelButton: true,

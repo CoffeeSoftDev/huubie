@@ -34,6 +34,34 @@ class MCierre extends CRUD {
         return is_array($result) && !empty($result) ? $result[0] : null;
     }
 
+    // Dias con actividad (turnos) anteriores a hoy que aun NO tienen cierre diario.
+    // Se usa para avisar/bloquear: no se puede operar hoy mientras quede una fecha
+    // pasada sin cerrar. Limitado a un rango (p.ej. 15 dias) para no arrastrar
+    // historial viejo o legacy. Params: [subsidiary_id, hoy, desde].
+    function listPendingDays($array) {
+        $query = "
+            SELECT
+                DATE(cs.opened_at) AS pending_date,
+                COUNT(*) AS shifts,
+                SUM(CASE WHEN cs.status = 'open' THEN 1 ELSE 0 END) AS open_shifts
+            FROM {$this->bd}cash_shift cs
+            WHERE cs.subsidiary_id = ?
+              AND cs.active = 1
+              AND DATE(cs.opened_at) < ?
+              AND DATE(cs.opened_at) >= ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM {$this->bd}daily_closure dc
+                  WHERE dc.closure_date = DATE(cs.opened_at)
+                    AND dc.subsidiary_id = cs.subsidiary_id
+                    AND dc.is_legacy = 0 AND dc.status = 0 AND dc.active = 1
+              )
+            GROUP BY DATE(cs.opened_at)
+            ORDER BY pending_date ASC
+        ";
+        $result = $this->_Read($query, $array);
+        return is_array($result) ? $result : [];
+    }
+
     function getConsolidatedMetrics($array) {
         $query = "
             SELECT

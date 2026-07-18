@@ -28,7 +28,7 @@
     <script src="/alpha/src/plugins/jquery/jquery-3.7.0.js"></script>
     <script src="/alpha/src/js/complementos.js?t=<?php echo time(); ?>"></script>
     <script src="/alpha/src/js/plugins.js?t=<?php echo time(); ?>"></script>
-    <script src="/alpha/src/js/coffeSoft.js?t=<?php echo time(); ?>"></script>
+    <script src="/alpha/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="/alpha/access/src/js/logout.js"></script>
 </body>
 </html>

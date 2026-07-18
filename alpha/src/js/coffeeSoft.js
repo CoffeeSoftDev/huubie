@@ -1,5 +1,56 @@
 // Coffeesoft rev. 1.0.0 
 
+const CF_REGEX = {
+    texto: /^[a-zA-ZÀ-ÖØ-öø-ÿ\s]+$/,
+    texto_clean: /[^a-zA-ZÀ-ÖØ-öø-ÿ\s]+/g,
+    numero: /^\d+$/,
+    numero_clean: /[^0-9]/g,
+    cifra: /^-?\d+(\.\d+)?$/,
+    email: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/,
+    tel: /^[0-9+\-() ]+$/,
+    tel_clean: /[^0-9+\-() ]/g,
+};
+
+// Clases que pintan un control inválido. 'is-invalid' se conserva por compatibilidad,
+// pero el borde rojo real lo dan las utilidades Tailwind con '!' (vencen al border-gray
+// de CF_CSS.input/select/textarea, que de otro modo gana sobre el color del borde).
+const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
+
+const CF_CSS = {
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
+    error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
+    btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInfo: 'tw-btn w-full rounded-lg bg-[#0078D7]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#0078D7] active:bg-[#0078D7] focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnWarning: 'tw-btn w-full rounded-lg bg-[#FFC107] px-4 py-2 text-sm font-semibold text-[#003360] hover:bg-[#FFC107]/80 active:bg-[#FFC107]/80 focus:outline-none focus:ring-2 focus:ring-[#FFC107] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnOutline: 'tw-btn w-full rounded-lg border border-[#003360] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#003360] dark:text-gray-200 hover:bg-[#003360] hover:text-white active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
+    radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
+    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+};
+
+const CF_BTN_COLORS = {
+    primary: 'btnPrimary',
+    secondary: 'btnSecondary',
+    success: 'btnSuccess',
+    danger: 'btnDanger',
+    warning: 'btnWarning',
+    info: 'btnInfo',
+    light: 'btnLight',
+    dark: 'btnDark',
+    link: 'btnLink',
+    outline: 'btnOutline',
+};
+
 class Complements {
 
     constructor(link, div_modulo) {
@@ -45,7 +96,7 @@ class Complements {
         let opts = options != undefined ? options : defaults;
 
         const $ul = $("<ul>", { class: "dropdown-menu", "aria-labelledby": "dropdownMenu" });
-        //Hago una iteraciÃƒÂ³n sobre el array de etiquetas li
+        //Hago una iteraciÃ³n sobre el array de etiquetas li
         opts.forEach((m) => {
             let html = m.icon != "" ? `<i class="text-info ${m.icon}"></i>` : "<i class='icon-minus'></i>";
             html += m.text != "" ? m.text : "";
@@ -66,10 +117,10 @@ class Complements {
             html: '<i class="icon-dot-3 text-info"></i>',
         });
 
-        //Se puede hacer un return aquÃƒÂ­ y retorna el objeto jQuery
+        //Se puede hacer un return aquÃ­ y retorna el objeto jQuery
         const $container = $("<div>", { class: "dropdown" });
         $container.append($button, $ul);
-        //Yo hago el return aquÃƒÂ­ porque convierto el objeto a un string.
+        //Yo hago el return aquÃ­ porque convierto el objeto a un string.
         return $container.prop("outerHTML");
     }
 
@@ -80,19 +131,19 @@ class Complements {
             method: 'POST',
             data: { opc: 'ls' },
             url: this._link, // La URL debe ser especificada en las opciones
-            success: () => { } // FunciÃƒÂ³n vacÃƒÂ­a por defecto
+            success: () => { } // FunciÃ³n vacÃ­a por defecto
         };
 
         // Mezclar los valores predeterminados con las opciones proporcionadas
         let opts = Object.assign({}, defaults, options);
 
-        // Validar que la URL estÃƒÂ© definida
+        // Validar que la URL estÃ© definida
         if (!opts.url) {
             console.error('URL es obligatoria.');
             return;
         }
 
-        // Realizar la peticiÃƒÂ³n fetch
+        // Realizar la peticiÃ³n fetch
         fetch(opts.url, {
             method: opts.method,
             headers: {
@@ -102,13 +153,13 @@ class Complements {
         })
             .then((response) => response.json())
             .then((data) => {
-                // Llamar a la funciÃƒÂ³n success si se proporciona
+                // Llamar a la funciÃ³n success si se proporciona
                 if (typeof opts.success === 'function') {
                     opts.success(data);
                 }
             })
             .catch((error) => {
-                console.error('Error en la peticiÃƒÂ³n:', error);
+                console.error('Error en la peticiÃ³n:', error);
             });
     }
 
@@ -144,18 +195,18 @@ class Components extends Complements {
 
         let opts = Object.assign({}, defaults, options);
 
-        // ðŸ“œ TÃ­tulo principal del grupo de tarjetas
+        // 📜 Título principal del grupo de tarjetas
         let title = $('<h3>', {
             class: 'text-lg font-semibold text-white mb-2 px-4',
             text: opts.title || ''
         });
 
-        // ðŸ“œ Contenedor principal del grid de tarjetas
+        // 📜 Contenedor principal del grid de tarjetas
         let container = $('<div>', {
             class: 'w-full flex gap-4 justify-start p-4'
         });
 
-        // ðŸ”„ Generar cada tarjeta a partir de la data
+        // 🔄 Generar cada tarjeta a partir de la data
         opts.json.forEach(item => {
             let imgContent = '';
 
@@ -191,7 +242,7 @@ class Components extends Complements {
             container.append(card);
         });
 
-        // ðŸŽ¯ Insertar el grid en el DOM
+        // 🎯 Insertar el grid en el DOM
         $('#' + opts.parent).append(title, container);
     }
 
@@ -258,7 +309,7 @@ class Components extends Complements {
                             window[opts.fn]();
 
                         } else if (opts.methods) {
-                            // Obtener las llaves de los mÃƒÂ©todos
+                            // Obtener las llaves de los mÃ©todos
                             let methodKeys = Object.keys(opts.methods);
                             methodKeys.forEach((key) => {
                                 const method = opts.methods[key];
@@ -334,34 +385,34 @@ class Components extends Complements {
                     extendsAjax.then((data) => {
 
 
-                        let attr_table_filter = {
-                            data: data,
-                            f_size: '14',
-                            id: 'tbSearch'
-                        };
+                            let attr_table_filter = {
+                                data: data,
+                                f_size: '14',
+                                id: 'tbSearch'
+                            };
 
-                        attr_table_filter = Object.assign(attr_table_filter, opts.attr);
+                            attr_table_filter = Object.assign(attr_table_filter, opts.attr);
 
-                        opts.methods.send(data);
+                            opts.methods.send(data);
 
-                        if (opts.success)
-                            opts.success(data);
+                            if (opts.success)
+                                opts.success(data);
 
 
-                        if (opts.coffeesoft) {
+                            if (opts.coffeesoft) {
 
-                            attr_table_filter.parent = opts.parent;
+                                attr_table_filter.parent = opts.parent;
 
-                            this.createCoffeTable(attr_table_filter);
+                                this.createCoffeTable(attr_table_filter);
 
-                        } else {
+                            } else {
 
-                            $('#' + options.parent).rpt_json_table2(attr_table_filter);
-                        }
+                                $('#' + options.parent).rpt_json_table2(attr_table_filter);
+                            }
 
-                        if (dataConfig.datatable) {
-                            window[dataConfig.fn_datatable]('#' + attr_table_filter.id, dataConfig.pag);
-                        }
+                            if (dataConfig.datatable) {
+                                window[dataConfig.fn_datatable]('#' + attr_table_filter.id, dataConfig.pag);
+                            }
 
 
 
@@ -423,6 +474,766 @@ class Components extends Complements {
 
     }
 
+    cfBindLiveValidation(container) {
+        container.find('input, textarea').on('input', function () {
+            let el = $(this);
+            let tipo = el.attr('data-tipo');
+            let val = el.val();
+
+            if (tipo === 'texto' && !CF_REGEX.texto.test(val))
+                el.val(val.replace(CF_REGEX.texto_clean, ''));
+
+            if (tipo === 'numero' && !CF_REGEX.numero.test(val))
+                el.val(val.replace(CF_REGEX.numero_clean, ''));
+
+            if (tipo === 'cifra' && !CF_REGEX.cifra.test(val))
+                el.val(val.replace('--', '-').replace('..', '.').replace('.-', '.').replace('-.', '-0.')
+                    .replace(/^\./, '0.').replace(/[^0-9.\-]/g, '')
+                    .replace(/(\.[^.]+)\./g, '$1').replace(/(\d)\-/g, '$1'));
+
+            if (tipo === 'tel' && !CF_REGEX.tel.test(val))
+                el.val(val.replace(CF_REGEX.tel_clean, ''));
+
+            if (tipo === 'email') {
+                el.removeClass(CF_INVALID);
+                let errSpan = el.parent().find('.tw-error');
+                if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
+                    el.addClass(CF_INVALID);
+                    if (errSpan.length) errSpan.text('Ingrese un correo valido').removeClass('hidden');
+                } else if (errSpan.length) {
+                    errSpan.addClass('hidden');
+                }
+            }
+
+            if (el.val().trim() !== '') {
+                el.removeClass(CF_INVALID);
+                el.parent().find('.tw-error').addClass('hidden');
+            }
+        });
+
+        container.find('input, textarea').on('blur', function () {
+            $(this).val($(this).val().trim());
+        });
+
+        container.find('select').on('change', function () {
+            let el = $(this);
+            if (el.val() && el.val() !== '0') {
+                el.removeClass(CF_INVALID);
+                el.closest('div').parent().find('.tw-error').addClass('hidden');
+            }
+        });
+    }
+
+    cfValidateForm(container) {
+        let valid = true;
+
+        container.find('[required]').each(function () {
+            let el = $(this);
+            let val = el.val() ? el.val().trim() : '';
+            let isEmpty = val === '' || val === '0';
+
+            let parent = el.is('select') ? el.closest('div').parent() : el.parent();
+            let errSpan = parent.find('.tw-error');
+
+            if (isEmpty) {
+                valid = false;
+                el.addClass(CF_INVALID);
+                // Si el campo vive en una pestaña oculta (opc:'tabs'), revelarla antes del focus.
+                let panel = el.closest('[data-cf-panel]');
+                if (panel.length && panel.hasClass('hidden')) {
+                    container.find(`.cf-tab-btn[data-cf-tab="${panel.attr('data-cf-panel')}"]`).trigger('click');
+                }
+                el.focus();
+                if (errSpan.length) errSpan.text('El campo es requerido').removeClass('hidden');
+            } else {
+                el.removeClass(CF_INVALID);
+                if (errSpan.length) errSpan.addClass('hidden');
+            }
+        });
+
+        container.find('[data-tipo="email"]').each(function () {
+            let el = $(this);
+            if (el.val().trim() !== '' && !CF_REGEX.email.test(el.val())) {
+                valid = false;
+                el.addClass(CF_INVALID);
+            }
+        });
+
+        return valid;
+    }
+
+    cfAutofill(containerId, data) {
+        let container = $('#' + containerId);
+        if (!container.length) return;
+
+        for (let key in data) {
+            let el = container.find(`[name="${key}"]`);
+            if (!el.length) continue;
+            el.val(data[key]);
+            if (el.is('select')) el.trigger('change');
+        }
+    }
+
+    cfToTailwindGrid(bsClass) {
+        let result = bsClass;
+        result = result.replace(/\bcol-(sm|md|lg|xl)-(\d{1,2})\b/g, (_, bp, n) => `${bp}:col-span-${n}`);
+        result = result.replace(/\bcol-(\d{1,2})\b/g, (_, n) => `col-span-${n}`);
+        result = result.replace(/\boffset-(sm|md|lg|xl)-(\d{1,2})\b/g, (_, bp, n) => `${bp}:col-start-${Number(n) + 1}`);
+        result = result.replace(/\boffset-(\d{1,2})\b/g, (_, n) => `col-start-${Number(n) + 1}`);
+        result = result.replace(/\b(mb-\d|mt-\d|p-\d|fw-bold|text-lg|text-uppercase|line|hidex|resize|text-end)\b/g, '').trim();
+        return result;
+    }
+
+    cfThemedClass(str, theme) {
+        if (!str) return str;
+        const tokens = str.split(/\s+/).filter(Boolean);
+        if (theme !== 'dark') {
+            return tokens.filter(t => !t.startsWith('dark:')).join(' ');
+        }
+        const darkTokens = tokens.filter(t => t.startsWith('dark:')).map(t => t.slice(5));
+        const isColorVal = (v) => /^(white|black|transparent|current|inherit|[a-z]+-\d{2,3})(\/\d+)?$/.test(v);
+        const propPrefix = (t) => {
+            let base = t.replace(/-\[[^\]]*\]/g, '');
+            const m = base.match(/^((?:[a-z]+:)*(?:bg|text|border|ring|placeholder|fill|stroke|accent|outline|caret|divide|from|to|via|decoration))-(.+)$/);
+            if (m && isColorVal(m[2])) return m[1] + '-COLOR';
+            return base.replace(/-\d+(\.\d+)?(\/\d+)?$/, '');
+        };
+        const darkProps = new Set(darkTokens.map(propPrefix));
+        const lightFiltered = tokens.filter(t => {
+            if (t.startsWith('dark:')) return false;
+            return !darkProps.has(propPrefix(t));
+        });
+        return [...lightFiltered, ...darkTokens].join(' ');
+    }
+
+    coffeeForm(options) {
+        const self = this;
+
+        const defaults = {
+            parent: 'root',
+            id: 'coffeeForm',
+            class: 'grid grid-cols-12 gap-x-4 gap-y-1',
+            type: 'default',
+            Element: 'div',
+            json: [],
+            data: {},
+            autofill: false,
+            prefijo: '',
+            color: 'primary',
+            color_default: 'primary',
+            theme: 'light',
+            card: false,
+            showRequired: true,
+            onSave: () => { },
+            onAdd: () => { },
+            onUpdate: () => { },
+            onDelete: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const css = {};
+        for (const k in CF_CSS) css[k] = self.cfThemedClass(CF_CSS[k], opts.theme);
+
+        const makeLabel = (text, forId, required) => {
+            let lbl = $('<label>', {
+                class: css.label,
+                for: forId
+            });
+            lbl.html(text + (opts.showRequired && required ? '<span class="text-red-400 ml-0.5">*</span>' : ''));
+            return lbl;
+        };
+
+        let themeWrap = $('<div>', {
+            class: opts.theme === 'dark' ? 'dark' : ''
+        });
+        let card = $('<div>', {
+            class: opts.card
+                ? self.cfThemedClass('bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-6 fade-in', opts.theme)
+                : 'fade-in',
+        });
+        themeWrap.append(card);
+
+        let container;
+        if (opts.Element === 'form') {
+            container = $('<form>', {
+                id: opts.id,
+                class: opts.class
+            });
+            container.attr('novalidate', true);
+        } else {
+            container = $('<div>', {
+                id: opts.id,
+                class: opts.class
+            });
+        }
+
+        const buildField = (x) => {
+            let div_col = self.cfToTailwindGrid(x.class || 'col-sm-4') + ' mt-1';
+            let div_hijo = $('<div>', {
+                class: div_col
+            });
+
+            let required = x.required === false ? false : true;
+            let aux_name = x.name ? x.name : x.id;
+
+            if (x.showLabel !== false && x.lbl) {
+                div_hijo.append(makeLabel(x.lbl, opts.prefijo + x.id, required));
+            }
+
+            let attr_default = {
+                id: opts.prefijo + x.id,
+                'data-tipo': x.tipo,
+                name: aux_name,
+                value: x.value,
+                placeholder: x.placeholder,
+            };
+
+            if (required) attr_default.required = '';
+            if (x.disabled) attr_default.disabled = '';
+
+            let color;
+
+            switch (x.opc) {
+
+                case 'tabs':
+                    return buildTabs(x);
+
+                case 'code':
+                    div_hijo.empty();
+                    let codeText = JSON.stringify(x.json, null, 2);
+                    div_hijo.addClass('rounded-lg bg-gray-900 dark:bg-gray-950 p-4 overflow-x-auto');
+                    let pre = $('<pre>', {
+                        class: 'text-xs text-gray-200 font-mono whitespace-pre'
+                    }).text(codeText);
+                    div_hijo.append(pre);
+                    break;
+
+                case 'radio':
+                    if (x.data) {
+                        let radioGroup = $('<div>', {
+                            class: 'flex flex-wrap gap-4 mt-1'
+                        });
+                        $.each(x.data, function (_, item) {
+                            let radioLabel = $('<label>', {
+                                class: 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                                for: item.id,
+                            });
+                            let rd = $('<input>', {
+                                type: 'radio',
+                                class: x.className || 'w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-500 accent-blue-600',
+                                name: x.name || x.id,
+                                value: item.id,
+                                id: item.id,
+                            });
+                            if (item.checked) rd.prop('checked', true);
+                            if (x.onchange) rd.attr('onchange', x.onchange);
+                            radioLabel.append(rd, document.createTextNode(item.valor));
+                            radioGroup.append(radioLabel);
+                        });
+                        div_hijo.append(radioGroup);
+                    } else {
+                        let rdSingle = $('<input>', {
+                            type: 'radio',
+                            class: x.className || css.radio,
+                            name: x.name || x.id,
+                            value: x.value,
+                            id: opts.prefijo + x.id,
+                        });
+                        if (x.checked) rdSingle.prop('checked', true);
+                        if (x.onchange) rdSingle.attr('onchange', x.onchange);
+
+                        let rdLabel = $('<label>', {
+                            class: 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                            text: x.text || x.valor,
+                            for: opts.prefijo + x.id,
+                        });
+                        div_hijo.append(rdSingle, rdLabel);
+                    }
+                    break;
+
+                case 'checkbox':
+                    if (x.data) {
+                        let cbGroup = $('<div>', {
+                            class: 'flex flex-wrap gap-4 mt-1'
+                        });
+                        $.each(x.data, function (_, item) {
+                            let cbLabel = $('<label>', {
+                                class: x.classLabel || 'inline-flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300',
+                                for: item.id,
+                            });
+                            let cb = $('<input>', {
+                                type: 'checkbox',
+                                class: x.className || 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 accent-blue-600',
+                                name: item.id,
+                                value: 'true',
+                                id: item.id,
+                            });
+                            if (item.checked) cb.prop('checked', true);
+                            if (x.onchange) cb.attr('onchange', x.onchange);
+                            cbLabel.append(cb, document.createTextNode(item.valor));
+                            cbGroup.append(cbLabel);
+                        });
+                        div_hijo.append(cbGroup);
+                    } else {
+                        div_hijo.empty();
+                        let cbId = opts.prefijo + x.id;
+                        let cbSingle = $('<input>', {
+                            type: 'checkbox',
+                            class: x.className || css.checkbox,
+                            name: x.name || x.id,
+                            value: true,
+                            id: cbId,
+                        });
+                        if (x.onchange) cbSingle.attr('onchange', x.onchange);
+
+                        let cbLbl = $('<label>', {
+                            class: x.classLabel || 'inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300',
+                            text: x.text || x.valor,
+                            for: cbId,
+                        });
+                        div_hijo.append(cbSingle, cbLbl);
+                    }
+                    break;
+
+                case 'list-group':
+                    let divGroup = $('<div>', {
+                        class: 'flex flex-col gap-1'
+                    });
+                    x.data.forEach(function (item) {
+                        let a = $('<a>', {
+                            class: 'flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors'
+                        });
+                        let iconText = $('<span>', {
+                            class: 'text-sm text-gray-600 dark:text-gray-300'
+                        });
+                        if (item.ico) iconText.prepend($('<i>', { class: item.ico + ' mr-2' }));
+                        iconText.append(item.text);
+
+                        let badge = $('<span>', {
+                            class: 'text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+                            text: item.notifications,
+                        });
+                        a.append(iconText, badge);
+                        divGroup.append(a);
+                    });
+                    div_hijo.append(divGroup);
+                    break;
+
+                case 'input':
+                    let align = '';
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') align = ' text-right';
+
+                    let htmlType = x.type || 'text';
+                    if (x.tipo === 'email') htmlType = 'email';
+                    if (x.tipo === 'tel') htmlType = 'tel';
+
+                    let attrInput = Object.assign({}, attr_default, {
+                        class: css.input + align,
+                        type: htmlType,
+                        onkeyup: x.onkeyup || '',
+                    });
+                    if (x.onchange) attrInput.onchange = x.onchange;
+                    if (x.readonly) attrInput.readonly = '';
+
+                    div_hijo.append($('<input>', attrInput));
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-group':
+                    let inputGroup = $('<div>', {
+                        class: 'flex'
+                    });
+
+                    let valType = x.type || 'text';
+                    let alignGrp = '';
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') alignGrp = ' text-right';
+
+                    if (x.tipo === 'cifra' || x.tipo === 'numero') {
+                        let iconPre = $('<span>', {
+                            class: css.groupAddon
+                        });
+                        if (x.icon) iconPre.html(`<i class="${x.icon}"></i>`);
+                        inputGroup.append(iconPre);
+                    }
+
+                    let attrGrp = Object.assign({}, attr_default, {
+                        class: css.input + ' rounded-l-none' + alignGrp,
+                        type: valType,
+                        onkeyup: x.onkeyup || '',
+                    });
+                    if (x.cat) attrGrp.cat = x.cat;
+                    if (x.readonly) attrGrp.readonly = '';
+                    if (x.onchange) attrGrp.onchange = x.onchange;
+
+                    inputGroup.append($('<input>', attrGrp));
+
+                    if (x.tipo !== 'cifra' && x.tipo !== 'numero') {
+                        let iconApp = $('<span>', {
+                            class: 'inline-flex items-center justify-center px-3 rounded-r-lg border border-l-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+                        });
+                        if (x.icon) iconApp.html(`<i class="${x.icon}"></i>`);
+                        inputGroup.append(iconApp);
+                    }
+
+                    div_hijo.append(inputGroup);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'textarea':
+                    div_hijo.append($('<textarea>', {
+                        class: css.textarea,
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        text: x.value,
+                        placeholder: x.placeholder,
+                        cols: x.cols,
+                        rows: x.rows || 3,
+                        required: x.required || false,
+                    }));
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-file-btn':
+                    div_hijo.append($('<input>', {
+                        class: css.file,
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        type: 'file',
+                    }));
+                    break;
+
+                case 'input-file':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyFile = CF_BTN_COLORS[color] || 'btnOutline';
+
+                    let iptFile = $('<input>', {
+                        class: 'hidden',
+                        type: 'file',
+                        accept: x.accept || '.xlsx, .xls',
+                        id: opts.prefijo + x.id,
+                        onchange: x.fn,
+                    });
+
+                    let lblBtn = $('<label>', {
+                        class: css[cssKeyFile] + ' mt-4 cursor-pointer text-center',
+                        html: `  ${x.text} `,
+                        for: opts.prefijo + x.id,
+                    });
+
+                    div_hijo.append(iptFile, lblBtn);
+                    break;
+
+                case 'btn':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyBtn = CF_BTN_COLORS[color] || 'btnOutline';
+                    let iconBtn = x.icon ? `<i class="${x.icon}"></i>` : '';
+                    let textBtn = x.text || '';
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeyBtn] + ' w-full ' + (x.className || ''),
+                        html: `${iconBtn}  ${textBtn} `,
+                        type: 'button',
+                        id: opts.prefijo + x.id,
+                        onclick: x.fn,
+                    }));
+                    break;
+
+                case 'btn-submit':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeySub = CF_BTN_COLORS[color] || 'btnPrimary';
+                    let iconSub = (x.icon || x.icono) ? `<i class="${x.icon || x.icono} mr-1"></i> ` : '';
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeySub] + ' ' + (x.className || ''),
+                        html: iconSub + (x.text || 'Enviar'),
+                        type: 'submit',
+                        id: opts.prefijo + x.id,
+                        onclick: x.fn,
+                    }));
+                    break;
+
+                case 'button':
+                    color = x.color_btn || opts.color_default;
+                    let cssKeyButton = CF_BTN_COLORS[color] || 'btnPrimary';
+                    let iconButton = x.icon ? `<i class="${x.icon}"></i>` : '';
+                    let textButton = x.text || '';
+
+                    let buttonEvents = {};
+                    if (x.fn) buttonEvents.onclick = x.fn;
+                    if (x.onClick) buttonEvents.click = x.onClick;
+
+                    if (!x.lbl) {
+                        div_hijo.append($('<label>', {
+                            class: css.label,
+                            html: '&nbsp;',
+                            'aria-hidden': 'true'
+                        }));
+                    }
+
+                    div_hijo.append($('<button>', {
+                        class: css[cssKeyButton] + ' ' + (x.className || ''),
+                        html: `${iconButton} ${textButton} `,
+                        id: opts.prefijo + x.id,
+                        type: 'button',
+                        ...buttonEvents,
+                    }));
+                    break;
+
+                case 'select':
+                    let selectWrap = $('<div>', {
+                        class: 'relative'
+                    });
+
+                    let select = $('<select>', {
+                        class: css.select + ' pr-8',
+                        id: opts.prefijo + x.id,
+                        name: x.name || x.id,
+                        onchange: x.onchange,
+                        placeholder: x.placeholder,
+                    });
+
+                    if (x.selected) {
+                        select.html(`<option value="0"> ${x.selected} </option>`);
+                    }
+
+                    if (x.data) {
+                        $.each(x.data, function (_, item) {
+                            let bandera = false;
+                            if (String(item.id) == String(x.value)) bandera = true;
+                            select.append($('<option>', {
+                                value: item.id,
+                                text: item.valor,
+                                selected: bandera,
+                            }));
+                        });
+                    }
+
+                    let chevron = $('<div>', {
+                        class: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5',
+                        html: '<svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>',
+                    });
+
+                    selectWrap.append(select, chevron);
+                    div_hijo.append(selectWrap);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'input-calendar':
+                    let calWrap = $('<div>', {
+                        class: 'relative'
+                    });
+
+                    let calInput = $('<input>', {
+                        class: css.input + ' pr-10 cursor-pointer',
+                        id: opts.prefijo + x.id,
+                        'data-tipo': x.tipo,
+                        name: x.name || x.id,
+                        value: x.value,
+                        placeholder: x.placeholder || 'dd/mm/aaaa',
+                    });
+
+                    if (required) calInput.attr('required', '');
+                    if (x.disabled) calInput.attr('disabled', '');
+                    if (x.readonly) calInput.attr('readonly', '');
+                    if (x.onchange) calInput.attr('onchange', x.onchange);
+
+                    let calIcon = $('<div>', {
+                        class: self.cfThemedClass('pointer-events-none absolute inset-y-px right-px flex items-center pl-2 pr-3 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 rounded-r-lg', opts.theme),
+                        html: '<i class="icon-calendar-2 text-base"></i>',
+                    });
+
+                    calWrap.append(calInput, calIcon);
+                    div_hijo.append(calWrap);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                case 'btn-select':
+                    let bsGroup = $('<div>', {
+                        class: 'flex'
+                    });
+
+                    let bsSelect = $('<select>', {
+                        class: css.select + ' rounded-r-none pr-8',
+                        id: opts.prefijo + x.id,
+                        name: x.name || x.id,
+                        onchange: x.onchange,
+                    });
+                    if (required) bsSelect.attr('required', '');
+
+                    if (x.selected) {
+                        bsSelect.html(`<option value="0"> ${x.selected} </option>`);
+                    }
+
+                    if (x.data) {
+                        $.each(x.data, function (_, item) {
+                            let bandera = String(item.id) == String(x.value);
+                            bsSelect.append($('<option>', {
+                                value: item.id,
+                                text: item.valor,
+                                selected: bandera,
+                            }));
+                        });
+                    }
+
+                    let bsBtn = $('<button>', {
+                        type: 'button',
+                        id: x.btnId || (opts.prefijo + x.id + '_btn'),
+                        class: 'px-3 rounded-r-lg border border-l-0 border-gray-300 dark:border-gray-600 bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium transition-colors',
+                        html: x.btnIcon ? `<i class="${x.btnIcon}"></i>` : (x.btnText || '+'),
+                    });
+                    if (x.fn) bsBtn.attr('onclick', x.fn);
+                    if (x.btnFn) bsBtn.attr('onclick', x.btnFn);
+                    if (x.btnOnClick) bsBtn.on('click', x.btnOnClick);
+
+                    let bsBtnIcon = x.icon ? $('<i>', { class: x.icon }) : null;
+                    if (bsBtnIcon) bsBtn.append(bsBtnIcon);
+
+                    bsGroup.append(bsSelect, bsBtn);
+                    div_hijo.append(bsGroup);
+                    div_hijo.append($('<span>', { class: css.error }));
+                    break;
+
+                default:
+                    if (x.opc) {
+                        const { class: _, ...xWithoutClass } = x;
+                        div_hijo.append($('<' + x.opc + '>', xWithoutClass));
+                    }
+                    break;
+            }
+
+            return div_hijo;
+        };
+
+        // Renderiza un grupo de pestañas (opc:'tabs'). Cada tab declara su propio
+        // json y se construye con buildField, por lo que todo el motor de campos
+        // (inputs, selects, validación, temas) funciona dentro de los paneles.
+        // Los inputs siguen colgando del mismo <form>, así que FormData, cfAutofill
+        // y cfValidateForm operan igual sin importar la pestaña.
+        const buildTabs = (cfg) => {
+            // ObjectMerge (usado al construir el modal) convierte los arrays anidados
+            // en objetos {0:..,1:..}; normalizamos a array real antes de iterar.
+            const toArray = (v) => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+
+            // Estilo nativo de tabLayout: nav redondeado tematizado, pildora activa azul
+            // y soporte de lucideIcon. Los paneles siguen colgando del mismo <form>.
+            const isDark   = opts.theme === 'dark';
+            const navBase  = isDark ? 'bg-[#19232D] text-white' : 'bg-gray-200 text-black';
+            const onClass  = 'bg-blue-600 text-white';
+            const offClass = isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-white';
+            const btnBase  = 'cf-tab-btn transition text-sm font-medium rounded px-3 py-2 whitespace-nowrap flex-shrink-0 ';
+            const offIcon  = isDark ? 'text-gray-400' : 'text-gray-800';
+
+            const wrap = $('<div>', { class: self.cfToTailwindGrid(cfg.class || 'col-12') });
+            const nav  = $('<div>', { class: `${navBase} rounded-lg flex flex-wrap gap-1 px-1 py-1 text-sm mb-3` });
+            const body = $('<div>', { class: 'w-full' });
+
+            const tabsArr   = toArray(cfg.tabs);
+            const anyActive = tabsArr.some(t => t.active);
+
+            tabsArr.forEach((tab, i) => {
+                const isActive = tab.active || (i === 0 && !anyActive);
+
+                let iconHtml = '';
+                const iconColor = isActive ? 'text-white' : offIcon;
+                if (tab.lucideIcon) {
+                    const base = 'w-4 h-4 inline-block mr-2';
+                    iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${base} ${iconColor}"></i>`;
+                } else if (tab.icon) {
+                    const base = `${tab.icon} mr-2 text-sm`;
+                    iconHtml = `<i class="${base} ${iconColor}"></i>`;
+                }
+
+                nav.append($('<button>', {
+                    type: 'button',
+                    'data-cf-tab': tab.id,
+                    class: btnBase + (isActive ? onClass : offClass),
+                    html: iconHtml + (tab.tab || tab.label || '')
+                }));
+
+                const panel = $('<div>', {
+                    'data-cf-panel': tab.id,
+                    class: 'grid grid-cols-12 gap-x-4 gap-y-1' + (isActive ? '' : ' hidden')
+                });
+                toArray(tab.json).forEach(f => panel.append(buildField(f)));
+                body.append(panel);
+            });
+
+            nav.on('click', '.cf-tab-btn', function () {
+                const id = $(this).attr('data-cf-tab');
+                nav.find('.cf-tab-btn').each(function () {
+                    $(this).removeClass(onClass).addClass(offClass)
+                        .find('i, svg').removeClass('text-white').addClass(offIcon);
+                });
+                $(this).addClass(onClass).removeClass(offClass)
+                    .find('i, svg').removeClass(offIcon).addClass('text-white');
+                body.find('[data-cf-panel]').addClass('hidden');
+                body.find(`[data-cf-panel="${id}"]`).removeClass('hidden');
+            });
+
+            wrap.append(nav, body);
+            if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 0);
+            return wrap;
+        };
+
+        for (const x of opts.json) container.append(buildField(x));
+
+        if (opts.type === 'btn') {
+            let cssKeyAuto = CF_BTN_COLORS[opts.color] || 'btnPrimary';
+            let divBtn = $('<div>', {
+                class: 'mt-3 col-span-12 flex justify-center'
+            });
+            let btnSubmit = $('<button>', {
+                class: css[cssKeyAuto] + ' sm:w-1/3',
+                text: 'Aceptar',
+                id: 'btnAceptar',
+                type: 'submit',
+            });
+            divBtn.append(btnSubmit);
+            container.append(divBtn);
+        }
+
+        card.append(container);
+        $(`#${opts.parent}`).html(themeWrap);
+
+        if (opts.autofill) self.cfAutofill(opts.id, opts.autofill);
+
+        self.cfBindLiveValidation(container);
+
+        if (opts.Element === 'form') {
+            container.on('submit', function (e) {
+                e.preventDefault();
+                if (!self.cfValidateForm(container)) return;
+
+                let formData = new FormData(container[0]);
+                let result = Object.assign({}, opts.data);
+                formData.forEach(function (val, key) { result[key] = val; });
+
+                opts.onSave(result);
+            });
+        }
+
+        return container;
+    }
+
     createForm(options) {
         // Conf:
         let defaults = {
@@ -463,7 +1274,37 @@ class Components extends Complements {
         const jsonForm = options.json || formulario;
         // Fusionar opciones con valores por defecto
         const opts = Object.assign(defaults, options);
-        opts.methods = Object.assign({}, defaults.methods, options.methods);  // Asegurar que los mÃƒÂ©todos personalizados se fusionen correctamente
+        opts.methods = Object.assign({}, defaults.methods, options.methods);  // Asegurar que los mÃ©todos personalizados se fusionen correctamente
+
+        // Ruta CoffeeForm (coffeesoft:true): render Tailwind + theme light/dark con
+        // validacion propia. coffeeForm entrega la data por onSave; aqui se puentea a
+        // useFetch para conservar el contrato de createForm (success / methods.send).
+        // El else mantiene intacta la ruta legacy content_json_form + validation_form.
+        if (opts.coffeesoft) {
+            return this.coffeeForm({
+                parent: opts.parent,
+                id: opts.id,
+                Element: 'form',
+                json: jsonForm,
+                theme: opts.theme || 'light',
+                card: opts.card === true,
+                prefijo: opts.prefijo || '',
+                autofill: opts.autofill,
+                showRequired: opts.showRequired !== false,
+                data: opts.data,
+                onSave: (formData) => {
+                    if (options.beforeSend) options.beforeSend();
+                    useFetch({
+                        url: this._link,
+                        data: formData,
+                        success: (req) => {
+                            if (opts.success) opts.success(req);
+                            if (opts.methods.send) opts.methods.send(req);
+                        }
+                    });
+                }
+            });
+        }
 
         $('#' + opts.parent)[opts.plugin]({ data: jsonForm, class: opts.class, type: 'default', id: opts.id, Element: opts.type });
 
@@ -478,7 +1319,7 @@ class Components extends Complements {
                 if ($element.length > 0) {
                     // Establecer valor dependiendo del tipo de elemento
                     if ($element.is('select')) {
-                        // Seleccionar la opciÃƒÂ³n correcta en el select
+                        // Seleccionar la opciÃ³n correcta en el select
                         $element.val(opts.autofill[frm]).trigger('change');
                     } else {
                         // Para otros elementos como input o textarea
@@ -592,7 +1433,7 @@ class Components extends Complements {
             const htmlElements = item.opc ? item.opc : item.element;
             switch (htmlElements) {
                 case "input":
-                    // Agregar clase de alineaciÃƒÂ³n segÃƒÂºn el tipo de `item`
+                    // Agregar clase de alineaciÃ³n segÃºn el tipo de `item`
                     if (item.tipo === "cifra" || item.tipo === "numero") {
                         attr.class += " text-end";
                     }
@@ -667,7 +1508,7 @@ class Components extends Complements {
                     opts.forEach((dropdownItem) => {
                         const $li = $("<li>");
 
-                        // Construir el contenido dinÃƒÂ¡mico con ÃƒÂ­conos y texto
+                        // Construir el contenido dinÃ¡mico con Ã­conos y texto
                         let html = dropdownItem.icon && dropdownItem.icon !== ""
                             ? `<i class="text-info ${dropdownItem.icon}"></i>`
                             : "<i class='icon-minus'></i>";
@@ -679,7 +1520,7 @@ class Components extends Complements {
                             class: "dropdown-item",
                             id: dropdownItem.id,
                             href: dropdownItem.href || "#",
-                            html: html, // Usar el HTML construido con ÃƒÂ­conos y texto
+                            html: html, // Usar el HTML construido con Ã­conos y texto
                         });
 
                         if (dropdownItem.onClick) {
@@ -707,7 +1548,7 @@ class Components extends Complements {
 
     ModalForm(options) {
 
-        // ConfiguraciÃƒÂ³n para formularios.
+        // ConfiguraciÃ³n para formularios.
         const idFormulario = options.id ? options.id : 'modalForm';
         const components = options.components
             ? options.components
@@ -831,7 +1672,7 @@ class Components extends Complements {
                     let formData = new FormData($('#' + conf.id)[0]);
                     const datos = {};
                     formData.forEach((value, key) => (datos[key] = value));
-                    // Agregar datos dinÃƒÂ¡micos
+                    // Agregar datos dinÃ¡micos
                     const dynamicData = {};
                     if (conf.dynamicValues)
                         Object.keys(conf.dynamicValues).forEach((key) => {
@@ -896,7 +1737,7 @@ class Components extends Complements {
                 if ($element.length > 0) {
                     // Establecer valor dependiendo del tipo de elemento
                     if ($element.is('select')) {
-                        // Seleccionar la opciÃƒÂ³n correcta en el select
+                        // Seleccionar la opciÃ³n correcta en el select
                         $element.val(conf.autofill[frm]).trigger('change');
                     } else {
                         // Para otros elementos como input o textarea
@@ -961,7 +1802,7 @@ class Components extends Complements {
         //         });
 
         //         // fetch(this._link, {
-        //         //     method: 'POST', // MÃƒÂ©todo HTTP
+        //         //     method: 'POST', // MÃ©todo HTTP
         //         //     body: datos, // FormData como cuerpo de la solicitud
 
         //         // }).then(response => { }).then(data => {
@@ -1306,7 +2147,7 @@ class Components extends Complements {
 
     createTableForm2(options) {
 
-        // ðŸ“œ ** DefiniciÃ³n de configuraciÃ³n por defecto **
+        // 📜 ** Definición de configuración por defecto **
 
         let defaults = {
             id: options.id || 'root', // Identificador de referencia
@@ -1337,7 +2178,7 @@ class Components extends Complements {
                 json: [
                     { opc: "input", lbl: "Nombre", id: "nombre", class: "col-12", tipo: "texto", required: true },
                     {
-                        opc: "select", lbl: "CategorÃ­a", id: "categoria", class: "col-12", data: [
+                        opc: "select", lbl: "Categoría", id: "categoria", class: "col-12", data: [
 
                             { id: "1", valor: "Platillo" },
                             { id: "2", valor: "Bebida" },
@@ -1362,7 +2203,7 @@ class Components extends Complements {
         let opts = this.ObjectMerge(defaults, options);
         let opts_table = Object.assign({}, defaults.table, options.table);
 
-        // ðŸ”µ CorrecciÃ³n del error en la asignaciÃ³n de `success`
+        // 🔵 Corrección del error en la asignación de `success`
         opts.form.success = (data) => {
             this.createTable(opts_table);
             opts.success(data);
@@ -1370,7 +2211,7 @@ class Components extends Complements {
 
         };
 
-        // ðŸ“œ **Funciones para abrir y cerrar el formulario**
+        // 📜 **Funciones para abrir y cerrar el formulario**
         const OpenForm = (form, tb, btn) => {
             $(tb).removeClass("col-md-12").addClass("col-md-8");
             $(form).parent().removeClass("d-none");
@@ -1384,7 +2225,7 @@ class Components extends Complements {
         };
 
 
-        // ðŸ”µ **GeneraciÃ³n del Layout sin usar primaryLayout**
+        // 🔵 **Generación del Layout sin usar primaryLayout**
 
 
         let layout = `
@@ -1425,7 +2266,7 @@ class Components extends Complements {
 
         $("#" + opts.parent).append(layout);
 
-        // ðŸ“œ **Asignar eventos despuÃ©s de agregar el layout**
+        // 📜 **Asignar eventos después de agregar el layout**
         $("#btnClose").on("click", function () {
             closeForm(`#${opts.form.id}`, "#layoutTable", "#addRecetasSub");
         });
@@ -1442,7 +2283,7 @@ class Components extends Complements {
     createTableForm(options) {
         let name = options.id ? options.id : 'tableForm';
 
-        // ðŸ“œ ** DefiniciÃ³n de configuraciÃ³n por defecto **
+        // 📜 ** Definición de configuración por defecto **
 
 
         let defaults = {
@@ -1490,7 +2331,7 @@ class Components extends Complements {
         let opts = this.ObjectMerge(defaults, options);
         let opts_table = Object.assign({}, defaults.table, options.table);
 
-        // ðŸ”µ CorrecciÃ³n del error en la asignaciÃ³n de `success`
+        // 🔵 Corrección del error en la asignación de `success`
         opts.form.success = (data) => {
             this.createTable(opts_table);
             opts.success(data);
@@ -1498,7 +2339,7 @@ class Components extends Complements {
 
         };
 
-        // ðŸ“œ **Funciones para abrir y cerrar el formulario**
+        // 📜 **Funciones para abrir y cerrar el formulario**
         const OpenForm = (form, tb, btn) => {
             $(tb).removeClass("col-md-12").addClass("col-md-8");
             $(form).parent().removeClass("d-none");
@@ -1512,7 +2353,7 @@ class Components extends Complements {
         };
 
 
-        // ðŸ”µ **GeneraciÃ³n del Layout sin usar primaryLayout**
+        // 🔵 **Generación del Layout sin usar primaryLayout**
 
 
         let layout = `
@@ -1545,7 +2386,7 @@ class Components extends Complements {
 
         $("#" + opts.parent).append(layout);
 
-        // ðŸ“œ **Asignar eventos despuÃ©s de agregar el layout**
+        // 📜 **Asignar eventos después de agregar el layout**
         $("#btnClose").on("click", function () {
             closeForm(`#${opts.id}`, "#layoutTable", "#addRecetasSub");
         });
@@ -1711,7 +2552,7 @@ class Components extends Complements {
 
 
 
-                // Si opts.extends estÃ¡ activo y data[key] es objeto, sobrescribe atributos
+                // Si opts.extends está activo y data[key] es objeto, sobrescribe atributos
                 if (opts.extends && typeof data[key] === 'object' && data[key] !== null) {
                     cellAttributes = Object.assign(cellAttributes, data[key]);
                     cellAttributes.class += ` ${opts.border_row} ${colorBg}`;
@@ -1745,7 +2586,7 @@ class Components extends Complements {
                     class: "icon-dot-3 text-gray-200 hover:text-gray-600",
                     click: function (e) {
                         e.stopPropagation();
-                        $("ul.dropdown-menu").hide(); // cerrar todos los menÃºs antes
+                        $("ul.dropdown-menu").hide(); // cerrar todos los menús antes
                         $(this).next("ul").toggle();  // abrir solo el actual
                     }
                 });
@@ -1788,6 +2629,752 @@ class Components extends Complements {
         #${opts.id} tr:last-child td:last-child { border-bottom-right-radius: 0.5rem; }
         `).appendTo("head");
     }
+
+    tabLayout(options) {
+        const defaults = {
+            parent: "root",
+            id: "tabComponent",
+            type: "large", // 'short' | 'large'
+            theme: "light", // 'dark' | 'light'
+            class: "",
+            tab: {
+                size: 'px-3 py-2',
+            },
+            content: { class:'',id:''},
+            renderContainer: true,
+
+            json: [
+                { id: "TAB1", tab: "TAB1", icon: "", active: true, onClick: () => { } },
+                { id: "TAB2", tab: "TAB2", icon: "", onClick: () => { } },
+            ]
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const themes = {
+            dark: {
+                base: "bg-[#19232D] text-white",
+                active: "bg-blue-600 text-white",
+                inactive: "text-gray-300 hover:bg-gray-700"
+            },
+            light: {
+                base: "bg-gray-200 text-black",
+                active: "bg-white text-black",
+                inactive: "text-gray-600 hover:bg-white"
+            }
+        };
+
+        const sizes = {
+            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm ",
+            short: "rounded-lg flex  gap-1 p-1  px-1 py-1 text-sm "
+        };
+
+        const container = $("<div>", {
+            id: opts.id,
+            class: `${themes[opts.theme].base} ${sizes[opts.type]} ${opts.class}`
+        });
+
+        const equalWidth = opts.type === "short" ? `` : `flex-1`;
+
+        opts.json.forEach(tab => {
+            const isActive = tab.active || false;
+
+            const tabButton = $("<button>", {
+                id: `tab-${tab.id}`,
+                html: tab.icon ? `<i class='${tab.icon} mr-2 h-4 w-4'></i>${tab.tab}` : tab.tab,
+                class: `${opts.type === "short" ? "" : "flex-1"} flex items-center justify-center gap-2 ${opts.tab.size} rounded-lg text-sm font-medium transition
+                 data-[state=active]:${themes[opts.theme].active} ${themes[opts.theme].inactive}`,
+                "data-state": isActive ? "active" : "inactive",
+                click: () => {
+                    $(`#${opts.id} button`).each(function () {
+                        $(this).attr("data-state", "inactive").removeClass(themes[opts.theme].active).addClass(themes[opts.theme].inactive);
+                    });
+
+                    tabButton.attr("data-state", "active").removeClass(themes[opts.theme].inactive).addClass(themes[opts.theme].active);
+
+                    if (opts.renderContainer) {
+                        $(`#content-${opts.id} > div`).addClass("hidden");
+                        $(`#container-${tab.id}`).removeClass("hidden");
+                    }
+
+                    if (typeof tab.onClick === "function") tab.onClick(tab.id);
+                }
+            });
+
+            container.append(tabButton);
+        });
+
+        $(`#${opts.parent}`).html(container);
+
+        if (opts.renderContainer) {
+            const contentContainer = $("<div>", {
+                id: `content-${opts.id}`,
+                class: `mt-2 ${opts.content.class}`,
+            });
+
+            opts.json.forEach(tab => {
+                const contentView = $("<div>", {
+                    id: `container-${tab.id}`,
+                    class: `hidden  p-3 h-full rounded-lg`,
+                    html: tab.content || ""
+                });
+                contentContainer.append(contentView);
+            });
+
+            $(`#${opts.parent}`).append(contentContainer);
+
+            const activeTab = opts.json.find(t => t.active);
+            if (activeTab) {
+                $(`#container-${activeTab.id}`).removeClass("hidden");
+            }
+        }
+    }
+
+    navBar(options) {
+        const defaults = {
+            id: "navBar",
+            theme: "light", // "light" | "dark" (Huubie)
+            class: "h-[56px] px-4 shadow-md",
+            logoFull: "https://erp-varoch.com/ERP24/src/img/logos/logo_row_wh.png",
+            logoMini: "https://erp-varoch.com/ERP24/src/img/logos/logo_icon_wh.png",
+            user: {
+                name: "Sergio Osorio",
+                photo: "https://huubie.com.mx/alpha/src/img/perfil/fotoUser26_20250803_120920.png",
+                onProfile: () => redireccion('perfil/perfil.php'),
+                onLogout: () => cerrar_sesion()
+            },
+            apps: [
+                { icon: "icon-calculator", name: "Contabilidad", color: "text-indigo-400" },
+                { icon: "icon-box", name: "Inventario", color: "text-blue-600" },
+                { icon: "icon-cart", name: "Ventas", color: "text-green-600" },
+                { icon: "icon-bag", name: "Compras", color: "text-yellow-600" },
+                { icon: "icon-users", name: "Recursos", color: "text-pink-600" },
+                { icon: "icon-chart", name: "Reportes", color: "text-purple-600" },
+                { icon: "icon-handshake", name: "CRM", color: "text-red-600" },
+                { icon: "icon-industry", name: "Producción", color: "text-orange-600" },
+                { icon: "icon-cog", name: "Configuración", color: "text-gray-600" }
+            ]
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // ===== THEME: Huubie Dark =====
+        const isDark = String(opts.theme).toLowerCase() === "dark";
+        const colors = {
+            navbar: isDark ? "bg-[#5C3DA9] text-white" : "bg-[#5C3DA9] text-white", // Huubie dark slate-900 / Light azul prof.
+            dropdownBg: isDark ? "bg-[#1E293B] text-white" : "bg-white text-gray-800",
+            hoverText: isDark ? "hover:text-blue-400" : "hover:text-blue-200",
+            userHover: isDark ? "hover:bg-slate-700" : "hover:bg-blue-100",
+            userBg: isDark ? "bg-[#1E293B]" : "bg-white",
+            border: isDark ? "border border-slate-600" : "border border-gray-200",
+            chipBg: isDark ? "bg-slate-700" : "bg-gray-100"
+        };
+
+        // NAVBAR
+        const header = $("<header>", {
+            id: opts.id,
+            class: `${colors.navbar} ${opts.class} flex justify-between items-center w-full fixed top-0 left-0 z-40`
+        });
+
+        const left = $("<div>", { class: "flex items-center gap-4" }).append(
+            $("<span>", {
+                id: "btnSidebar",
+                html: `<i class="icon-menu text-2xl cursor-pointer ${colors.hoverText}"></i>`
+            }),
+            $("<img>", {
+                src: opts.logoFull,
+                class: "h-8 hidden sm:block cursor-pointer",
+                click: () => location.reload()
+            }),
+            $("<img>", {
+                src: opts.logoMini,
+                class: "h-8 block sm:hidden cursor-pointer",
+                click: () => location.reload()
+            })
+        );
+
+        const launcherButton = $("<div>", {
+            id: "launcherBtn",
+            class: `relative ${colors.hoverText} text-xl cursor-pointer`,
+            html: `<i class="icon-th-3"></i>`,
+            click: (e) => {
+                e.stopPropagation();
+                $("#appsLauncher").toggleClass("hidden");
+            }
+        });
+
+        // USER (click para abrir menú)
+        const user = $("<div>", {
+            class: "flex items-center gap-2 ml-4 cursor-pointer relative",
+            id: "userDropdown"
+        }).append(
+            $("<img>", {
+                src: opts.user.photo,
+                class: "w-9 h-9 rounded-full border-2 border-white shadow"
+            }),
+            $("<span>", {
+                class: "hidden sm:block font-medium text-sm",
+                text: opts.user.name
+            }),
+            $("<ul>", {
+                id: "userMenu",
+                class: `hidden fixed top-16 right-4 w-[280px] ${colors.dropdownBg} rounded-lg ${colors.border} shadow p-2 z-50`
+            }).append(
+                $("<li>", {
+                    class: `px-3 py-2 rounded ${colors.userHover} cursor-pointer flex items-center gap-2`,
+                    html: `<i class="icon-user"></i><span>Mi perfil</span>`,
+                    click: opts.user.onProfile
+                }),
+                $("<li>", { class: `my-1 ${colors.border}` }),
+                $("<li>", {
+                    class: `px-3 py-2 rounded ${colors.userHover} cursor-pointer flex items-center gap-2`,
+                    html: `<i class="icon-off"></i><span>Cerrar sesión</span>`,
+                    click: opts.user.onLogout
+                })
+            )
+        );
+
+        const right = $("<div>", {
+            class: "flex items-center gap-3 relative"
+        }).append(launcherButton, user);
+
+        header.append(left, right);
+        $("body").prepend(header);
+
+        // APPS LAUNCHER (Huubie dark)
+        const launcher = $("<div>", {
+            id: "appsLauncher",
+            class: `hidden fixed top-16 right-4 w-[320px] ${colors.dropdownBg} rounded-lg ${colors.border} shadow p-4 z-50`
+        }).append(
+            $("<div>", { class: "mb-3 flex items-center justify-between" }).append(
+                $("<h3>", { class: "text-sm font-semibold", text: "Módulos ERP" }),
+                $("<span>", { class: `text-[10px] px-2 py-1 rounded ${colors.chipBg} opacity-80`, text: "Huubie UI" })
+            ),
+            $("<div>", { class: "grid grid-cols-3 gap-3" }).append(
+                ...opts.apps.map(app =>
+                    $("<button>", {
+                        type: "button",
+                        class: `flex flex-col items-center gap-2 text-xs px-2 pt-2 pb-3 rounded hover:scale-105 transition ${colors.userHover}`
+                    }).append(
+                        $("<div>", {
+                            class: `w-12 h-12 rounded-lg flex items-center justify-center text-xl ${app.color} ${colors.chipBg}`
+                        }).append($("<i>", { class: app.icon })),
+                        $("<span>", { class: "opacity-90", text: app.name })
+                    )
+                )
+            )
+        );
+
+        $("body").append(launcher);
+
+        // Eventos de toggle/cierre (user & launcher)
+        $("#userDropdown").on("click", function (e) {
+            e.stopPropagation();
+            $("#userMenu").toggleClass("hidden");
+            $("#appsLauncher").addClass("hidden");
+        });
+
+        $(document).on("click", (e) => {
+            if (!$(e.target).closest("#launcherBtn").length && !$(e.target).closest("#appsLauncher").length) {
+                $("#appsLauncher").addClass("hidden");
+            }
+            if (!$(e.target).closest("#userDropdown").length && !$(e.target).closest("#userMenu").length) {
+                $("#userMenu").addClass("hidden");
+            }
+        });
+    }
+
+    // Graficos.
+    dashboardComponent(options) {
+        const defaults = {
+            parent: "root",
+            id: "dashboardComponent",
+            title: "📊 Huubie · Dashboard de Eventos",
+            subtitle: "Resumen mensual · Cotizaciones · Pagados · Cancelados",
+            json: [
+                { type: "card", id: "infoCards", class: '' },
+                { type: "grafico", id: "barChartContainer", title: "Eventos por sucursal" },
+                { type: "tabla", id: "tableSucursal", title: "Tabla de sucursales" },
+                { type: "grafico", id: "donutChartContainer", title: "Ventas vs Entrada de dinero" },
+                { type: "grafico", id: "topClientsChartContainer", title: "Top 10 clientes" },
+                { type: "tabla", id: "tableClientes", title: "Tabla de clientes" }
+            ]
+        };
+
+        const opts = Object.assign(defaults, options);
+
+        const container = $(`
+        <div id="${opts.id}" class="w-full bg-[#111928] text-white">
+            <!-- Header -->
+            <header class="bg-[#0F172A] p-6 border-b border-[#1E293B] ">
+                <div class="max-w-7xl mx-auto">
+                    <h1 class="text-2xl font-semibold text-white">${opts.title}</h1>
+                    <p class="text-sm text-slate-300">${opts.subtitle}</p>
+                </div>
+            </header>
+
+            <!-- FilterBar -->
+            <div id="filterBarDashboard" class="max-w-7xl mx-auto px-4 py-4  ">
+          
+            </div>
+
+             <section id="cardDashboard" class="max-w-7xl mx-auto px-4 py-4 ">
+              
+            </section>
+
+            <!-- Content -->
+            <section id="content-${opts.id}" class="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2"></section>
+        </div>`);
+
+        // Renderizar contenedores desde JSON
+        opts.json.forEach(item => {
+            let block = $("<div>", {
+                id: item.id,
+                class: "bg-slate-800 p-4 rounded-xl shadow min-h-[200px]"
+            });
+
+            if (item.title) {
+                // Emojis por defecto según el tipo
+                const defaultEmojis = {
+                    'grafico': '📊',
+                    'tabla': '📋',
+                    'doc': '📄',
+                    'filterBar': '🔍'
+                };
+
+                // Usar emoji personalizado o por defecto
+                const emoji = item.emoji || defaultEmojis[item.type] || '';
+
+                // Usar icono si está definido
+                const iconHtml = item.icon ? `<i class="${item.icon}"></i> ` : '';
+
+                // Construir el título con emoji e icono
+                const titleContent = `${emoji} ${iconHtml}${item.title}`;
+
+                block.prepend(`<h3 class="text-sm font-semibold mb-3">${titleContent}</h3>`);
+            }
+
+            // Procesar contenido personalizado antes de agregar el bloque
+            if (item.content && Array.isArray(item.content)) {
+                item.content.forEach(contentItem => {
+                    const element = $(`<${contentItem.type}>`, {
+                        id: contentItem.id || '',
+                        class: contentItem.class || '',
+                        text: contentItem.text || ''
+                    });
+
+                    // Agregar atributos adicionales si existen
+                    if (contentItem.attributes) {
+                        Object.keys(contentItem.attributes).forEach(attr => {
+                            element.attr(attr, contentItem.attributes[attr]);
+                        });
+                    }
+
+                    // Agregar HTML interno si existe
+                    if (contentItem.html) {
+                        element.html(contentItem.html);
+                    }
+
+                    // Agregar el contenido directamente al bloque
+                    block.append(element);
+                });
+            }
+
+            $(`#content-${opts.id}`, container).append(block);
+        });
+
+        $(`#${opts.parent}`).html(container);
+    }
+
+    cardsDashboard(options) {
+        const defaults = {
+            parent: "root",
+            id: "infoCardKPI",
+            class: "",
+            theme: "light", // light | dark
+            json: [],
+            data: {
+                value: "0",
+                description: "",
+                color: "text-gray-800"
+            },
+            onClick: () => { }
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const isDark = opts.theme === "dark";
+
+        const cardBase = isDark
+            ? "bg-[#1F2A37] text-white rounded-xl shadow"
+            : "bg-white text-gray-800 rounded-xl shadow";
+
+        const titleColor = isDark ? "text-gray-300" : "text-gray-600";
+        const descColor = isDark ? "text-gray-400" : "text-gray-500";
+
+        const renderCard = (card, i = "") => {
+            const box = $("<div>", {
+                id: `${opts.id}_${i}`,
+                class: `${cardBase} p-4`
+            });
+
+            const title = $("<p>", {
+                class: `text-sm ${titleColor}`,
+                text: card.title
+            });
+
+            const value = $("<p>", {
+                id: card.id || "",
+                class: `text-2xl font-bold ${card.data?.color || "text-white"}`,
+                text: card.data?.value
+            });
+
+            const description = $("<p>", {
+                class: `text-xs mt-1 ${card.data?.color || descColor}`,
+                text: card.data?.description
+            });
+
+            box.append(title, value, description);
+            return box;
+        };
+
+        const container = $("<div>", {
+            id: opts.id,
+            class: `grid grid-cols-2 md:grid-cols-4 gap-4 ${opts.class}`
+        });
+
+        if (opts.json.length > 0) {
+            opts.json.forEach((item, i) => {
+                container.append(renderCard(item, i));
+            });
+        } else {
+            container.append(renderCard(opts));
+        }
+
+        $(`#${opts.parent}`).html(container);
+    }
+
+    barChart(options) {
+        const defaults = {
+            parent: "containerChequePro",
+            id: "chart",
+            title: "",
+            class: "border p-4 rounded-xl",
+            data: {},
+            json: [],
+            onShow: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        // 🔹 Eliminar instancia previa de Chart.js si existe
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+            delete window._charts[opts.id];
+        }
+
+        // 🔹 Crear nuevo contenedor
+        const newContainer = $("<div>", {
+            id: opts.id + "-container",
+            class: opts.class
+        });
+
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-3",
+            text: opts.title
+        });
+
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[150px]"
+        });
+
+        newContainer.append(title, canvas);
+
+        // 🔹 Si el contenedor ya existe → reemplazar, si no → append
+        const existing = $("#" + opts.id + "-container");
+        if (existing.length) {
+            existing.replaceWith(newContainer);
+        } else {
+            $("#" + opts.parent).append(newContainer);
+        }
+
+        // 🔹 Crear gráfico
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "bar",
+            data: opts.data,
+            options: {
+                responsive: true,
+                aspectRatio: 3,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => formatPrice(v) }
+                    }
+                }
+            }
+        });
+    }
+
+
+    linearChart(options) {
+        const defaults = {
+            parent: "containerLineChart",
+            id: "linearChart",
+            title: "",
+            class: "border p-3 rounded-xl",
+            data: {},   // <- puede contener { labels: [], datasets: [], tooltip: [] }
+            json: [],
+            onShow: () => { },
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const container = $("<div>", { class: opts.class });
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-2",
+            text: opts.title
+        });
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[150px]"
+        });
+
+        container.append(title, canvas);
+        $('#' + opts.parent).append(container);
+
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+        }
+
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "line",
+            data: opts.data,
+            options: {
+                responsive: true,
+                aspectRatio: 3,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => {
+                                const index = items[0].dataIndex;
+                                const tooltips = opts.data.tooltip || opts.data.labels;
+                                return tooltips[index];
+                            },
+                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        align: 'top',
+                        anchor: 'end',
+                        color: '#1E3A8A',
+                        font: {
+                            weight: 'bold',
+                            size: 12
+                        },
+                        formatter: (value) => value
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (v) => v
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+    }
+
+    payChart(options) {
+        const defaults = {
+            parent: "containerPayChart",
+            id: "payChart",
+            title: "",
+            class: "border p-3 rounded-xl",
+            data: {},
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const container = $("<div>", { class: opts.class });
+        const title = $("<h2>", {
+            class: "text-lg font-bold mb-2",
+            text: opts.title
+        });
+        const canvas = $("<canvas>", {
+            id: opts.id,
+            class: "w-full h-[200px]"
+        });
+
+        container.append(title, canvas);
+        $("#" + opts.parent).append(container);
+
+        const ctx = document.getElementById(opts.id).getContext("2d");
+        if (!window._charts) window._charts = {};
+        if (window._charts[opts.id]) {
+            window._charts[opts.id].destroy();
+        }
+
+        window._charts[opts.id] = new Chart(ctx, {
+            type: "doughnut",
+            data: opts.data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.label}: ${formatPrice(ctx.parsed)}`
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createTimelineChat(options) {
+        let defaults = {
+            parent: "",
+            id: "historial",
+            data: [],
+            success: () => { console.log('addLine') },
+            input_id: "iptHistorial",
+            class: "p-3 bg-gray-900 text-white rounded-lg h-[500px] overflow-y-auto",
+            user_photo: "https://w7.pngwing.com/pngs/81/570/png-transparent-profile-logo-computer-icons-user-user-blue-heroes-logo-thumbnail.png",
+            icons: {
+                payment: "💵",
+                comment: "💬",
+                event: "📅",
+                default: "🔹"
+            }
+        };
+
+        let opts = Object.assign(defaults, options);
+
+        $('#' + opts.parent).empty();
+
+        let historialContainer = $('<div>', { class: opts.class + " flex flex-col h-full", id: opts.id });
+
+        // 📜 **Contenedor de línea de tiempo**
+        let timeline = $('<div>', { class: "relative flex flex-col gap-4 flex-grow overflow-y-auto p-3" });
+
+        // 📜 **Generar los elementos del historial**
+        opts.data.forEach((item, index) => {
+            let entry = $('<div>', { class: "flex items-start gap-3 relative" });
+
+            // 🔵 **Seleccionar el icono basado en el `type`**
+            let iconType = opts.icons[item.type] || opts.icons.default;
+
+            // 🔵 **Columna de iconos y líneas**
+            let iconContainer = $('<div>', { class: "flex flex-col items-center relative" }).append(
+                // Icono del evento
+                $('<div>', {
+                    class: "w-8 h-8 flex items-center justify-center bg-gray-700 text-white rounded-full",
+                    html: iconType
+                }),
+                // 📏 Línea de tiempo (solo si no es el último elemento)
+                index !== opts.data.length - 1
+                    ? $('<div>', { class: "w-[2px] min-h-[28px] bg-gray-600 flex-1 mt-2" })
+                    : ""
+            );
+            // 📝 **Fila con título y fecha alineados**
+            let titleRow = $('<div>', { class: "flex justify-between items-center w-full" }).append(
+                $('<span>', { class: "font-semibold text-gray-200", text: item.valor }), // Título
+                $('<small>', { class: "text-gray-400 text-xs", text: item.date }) // Fecha
+            );
+
+            // 👤 **Nombre del responsable**
+            let authorRow = $('<div>', { class: "text-gray-400 text-xs mt-1 italic" }).text(`Realizado por: ${item.author || 'Desconocido'}`);
+
+            // 💬 **Mensaje o descripción del evento**
+            let details = $('<div>', { class: "text-sm bg-gray-800 p-2 rounded-md shadow-md w-full" })
+                .append(titleRow)
+                .append(authorRow);
+
+
+            if (item.message) {
+                let messageBox = $('<div>', { class: " text-gray-300 text-xs p-2 rounded-md mt-1", text: item.message });
+                details.append(messageBox);
+            }
+
+            entry.append(iconContainer, details);
+            timeline.append(entry);
+        });
+
+        historialContainer.append(timeline);
+
+        // 📝 **Barra de entrada de mensaje (oscura)**
+        let messageBar = $('<div>', { class: "bg-gray-800 rounded-lg flex items-center p-2 border-t border-gray-700 mt-auto" }).append(
+            $('<input>', {
+                id: opts.input_id,
+                class: "w-full px-3 py-2 border-none outline-none bg-gray-700 text-white placeholder-gray-400 text-sm",
+                placeholder: "Escribe aquí..."
+            }),
+            $('<button>', {
+                class: "bg-blue-700 hover:bg-blue-600 text-white p-2 rounded-sm ml-2 flex items-center justify-center transition",
+                click: opts.success
+            }).append(
+                $('<i>', { class: "icon-direction-outline" }) // Icono de envío
+            )
+        );
+
+        historialContainer.append(messageBar);
+
+        // Renderizar el componente
+        $('#' + opts.parent).empty().append(historialContainer);
+    }
+
+    createTitleModal(options = {}) {
+        const defaults = {
+            parent: "root",
+            class: "",
+            icon: "icon-trophy",
+            title: "",
+            subtitle: "",
+            color: "bg-purple-600",
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+
+        const card = $(`
+        <div class="flex items-center space-x-3  ${opts.class}">
+            <div class="w-12 h-12 ${opts.color} rounded flex items-center justify-center flex-shrink-0">
+                <i class="${opts.icon} text-white text-xl"></i>
+            </div>
+            <div class="flex-1 min-w-0 flex flex-col justify-center">
+                <h3 class="text-lg font-bold text-white mb-0 leading-tight">${opts.title}</h3>
+                <p class="text-xs text-gray-400 mb-0 mt-1">${opts.subtitle}</p>
+            </div>
+        </div>
+    `);
+
+        return card;
+    }
+
+
+
+    
+
+
+
 
     createCoffeeTable3(options) {
         const defaults = {
@@ -2512,751 +4099,6 @@ class Components extends Complements {
         `).appendTo("head");
     }
 
-    tabLayout(options) {
-        const defaults = {
-            parent: "root",
-            id: "tabComponent",
-            type: "large", // 'short' | 'large'
-            theme: "light", // 'dark' | 'light'
-            class: "",
-            tab: {
-                size: 'px-3 py-2',
-            },
-            content: { class: '', id: '' },
-            renderContainer: true,
-
-            json: [
-                { id: "TAB1", tab: "TAB1", icon: "", active: true, onClick: () => { } },
-                { id: "TAB2", tab: "TAB2", icon: "", onClick: () => { } },
-            ]
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const themes = {
-            dark: {
-                base: "bg-[#19232D] text-white",
-                active: "bg-blue-600 text-white",
-                inactive: "text-gray-300 hover:bg-gray-700"
-            },
-            light: {
-                base: "bg-gray-200 text-black",
-                active: "bg-white text-black",
-                inactive: "text-gray-600 hover:bg-white"
-            }
-        };
-
-        const sizes = {
-            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm ",
-            short: "rounded-lg flex  gap-1 p-1  px-1 py-1 text-sm "
-        };
-
-        const container = $("<div>", {
-            id: opts.id,
-            class: `${themes[opts.theme].base} ${sizes[opts.type]} ${opts.class}`
-        });
-
-        const equalWidth = opts.type === "short" ? `` : `flex-1`;
-
-        opts.json.forEach(tab => {
-            const isActive = tab.active || false;
-
-            const tabButton = $("<button>", {
-                id: `tab-${tab.id}`,
-                html: tab.icon ? `<i class='${tab.icon} mr-2 h-4 w-4'></i>${tab.tab}` : tab.tab,
-                class: `${opts.type === "short" ? "" : "flex-1"} flex items-center justify-center gap-2 ${opts.tab.size} rounded-lg text-sm font-medium transition
-                 data-[state=active]:${themes[opts.theme].active} ${themes[opts.theme].inactive}`,
-                "data-state": isActive ? "active" : "inactive",
-                click: () => {
-                    $(`#${opts.id} button`).each(function () {
-                        $(this).attr("data-state", "inactive").removeClass(themes[opts.theme].active).addClass(themes[opts.theme].inactive);
-                    });
-
-                    tabButton.attr("data-state", "active").removeClass(themes[opts.theme].inactive).addClass(themes[opts.theme].active);
-
-                    if (opts.renderContainer) {
-                        $(`#content-${opts.id} > div`).addClass("hidden");
-                        $(`#container-${tab.id}`).removeClass("hidden");
-                    }
-
-                    if (typeof tab.onClick === "function") tab.onClick(tab.id);
-                }
-            });
-
-            container.append(tabButton);
-        });
-
-        $(`#${opts.parent}`).html(container);
-
-        if (opts.renderContainer) {
-            const contentContainer = $("<div>", {
-                id: `content-${opts.id}`,
-                class: `mt-2 ${opts.content.class}`,
-            });
-
-            opts.json.forEach(tab => {
-                const contentView = $("<div>", {
-                    id: `container-${tab.id}`,
-                    class: `hidden  p-3 h-full rounded-lg`,
-                    html: tab.content || ""
-                });
-                contentContainer.append(contentView);
-            });
-
-            $(`#${opts.parent}`).append(contentContainer);
-
-            const activeTab = opts.json.find(t => t.active);
-            if (activeTab) {
-                $(`#container-${activeTab.id}`).removeClass("hidden");
-            }
-        }
-    }
-
-    navBar(options) {
-        const defaults = {
-            id: "navBar",
-            theme: "light", // "light" | "dark" (Huubie)
-            class: "h-[56px] px-4 shadow-md",
-            logoFull: "https://erp-varoch.com/ERP24/src/img/logos/logo_row_wh.png",
-            logoMini: "https://erp-varoch.com/ERP24/src/img/logos/logo_icon_wh.png",
-            user: {
-                name: "Sergio Osorio",
-                photo: "https://huubie.com.mx/alpha/src/img/perfil/fotoUser26_20250803_120920.png",
-                onProfile: () => redireccion('perfil/perfil.php'),
-                onLogout: () => cerrar_sesion()
-            },
-            apps: [
-                { icon: "icon-calculator", name: "Contabilidad", color: "text-indigo-400" },
-                { icon: "icon-box", name: "Inventario", color: "text-blue-600" },
-                { icon: "icon-cart", name: "Ventas", color: "text-green-600" },
-                { icon: "icon-bag", name: "Compras", color: "text-yellow-600" },
-                { icon: "icon-users", name: "Recursos", color: "text-pink-600" },
-                { icon: "icon-chart", name: "Reportes", color: "text-purple-600" },
-                { icon: "icon-handshake", name: "CRM", color: "text-red-600" },
-                { icon: "icon-industry", name: "ProducciÃ³n", color: "text-orange-600" },
-                { icon: "icon-cog", name: "ConfiguraciÃ³n", color: "text-gray-600" }
-            ]
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        // ===== THEME: Huubie Dark =====
-        const isDark = String(opts.theme).toLowerCase() === "dark";
-        const colors = {
-            navbar: isDark ? "bg-[#5C3DA9] text-white" : "bg-[#5C3DA9] text-white", // Huubie dark slate-900 / Light azul prof.
-            dropdownBg: isDark ? "bg-[#1E293B] text-white" : "bg-white text-gray-800",
-            hoverText: isDark ? "hover:text-blue-400" : "hover:text-blue-200",
-            userHover: isDark ? "hover:bg-slate-700" : "hover:bg-blue-100",
-            userBg: isDark ? "bg-[#1E293B]" : "bg-white",
-            border: isDark ? "border border-slate-600" : "border border-gray-200",
-            chipBg: isDark ? "bg-slate-700" : "bg-gray-100"
-        };
-
-        // NAVBAR
-        const header = $("<header>", {
-            id: opts.id,
-            class: `${colors.navbar} ${opts.class} flex justify-between items-center w-full fixed top-0 left-0 z-40`
-        });
-
-        const left = $("<div>", { class: "flex items-center gap-4" }).append(
-            $("<span>", {
-                id: "btnSidebar",
-                html: `<i class="icon-menu text-2xl cursor-pointer ${colors.hoverText}"></i>`
-            }),
-            $("<img>", {
-                src: opts.logoFull,
-                class: "h-8 hidden sm:block cursor-pointer",
-                click: () => location.reload()
-            }),
-            $("<img>", {
-                src: opts.logoMini,
-                class: "h-8 block sm:hidden cursor-pointer",
-                click: () => location.reload()
-            })
-        );
-
-        const launcherButton = $("<div>", {
-            id: "launcherBtn",
-            class: `relative ${colors.hoverText} text-xl cursor-pointer`,
-            html: `<i class="icon-th-3"></i>`,
-            click: (e) => {
-                e.stopPropagation();
-                $("#appsLauncher").toggleClass("hidden");
-            }
-        });
-
-        // USER (click para abrir menÃº)
-        const user = $("<div>", {
-            class: "flex items-center gap-2 ml-4 cursor-pointer relative",
-            id: "userDropdown"
-        }).append(
-            $("<img>", {
-                src: opts.user.photo,
-                class: "w-9 h-9 rounded-full border-2 border-white shadow"
-            }),
-            $("<span>", {
-                class: "hidden sm:block font-medium text-sm",
-                text: opts.user.name
-            }),
-            $("<ul>", {
-                id: "userMenu",
-                class: `hidden fixed top-16 right-4 w-[280px] ${colors.dropdownBg} rounded-lg ${colors.border} shadow p-2 z-50`
-            }).append(
-                $("<li>", {
-                    class: `px-3 py-2 rounded ${colors.userHover} cursor-pointer flex items-center gap-2`,
-                    html: `<i class="icon-user"></i><span>Mi perfil</span>`,
-                    click: opts.user.onProfile
-                }),
-                $("<li>", { class: `my-1 ${colors.border}` }),
-                $("<li>", {
-                    class: `px-3 py-2 rounded ${colors.userHover} cursor-pointer flex items-center gap-2`,
-                    html: `<i class="icon-off"></i><span>Cerrar sesiÃ³n</span>`,
-                    click: opts.user.onLogout
-                })
-            )
-        );
-
-        const right = $("<div>", {
-            class: "flex items-center gap-3 relative"
-        }).append(launcherButton, user);
-
-        header.append(left, right);
-        $("body").prepend(header);
-
-        // APPS LAUNCHER (Huubie dark)
-        const launcher = $("<div>", {
-            id: "appsLauncher",
-            class: `hidden fixed top-16 right-4 w-[320px] ${colors.dropdownBg} rounded-lg ${colors.border} shadow p-4 z-50`
-        }).append(
-            $("<div>", { class: "mb-3 flex items-center justify-between" }).append(
-                $("<h3>", { class: "text-sm font-semibold", text: "MÃ³dulos ERP" }),
-                $("<span>", { class: `text-[10px] px-2 py-1 rounded ${colors.chipBg} opacity-80`, text: "Huubie UI" })
-            ),
-            $("<div>", { class: "grid grid-cols-3 gap-3" }).append(
-                ...opts.apps.map(app =>
-                    $("<button>", {
-                        type: "button",
-                        class: `flex flex-col items-center gap-2 text-xs px-2 pt-2 pb-3 rounded hover:scale-105 transition ${colors.userHover}`
-                    }).append(
-                        $("<div>", {
-                            class: `w-12 h-12 rounded-lg flex items-center justify-center text-xl ${app.color} ${colors.chipBg}`
-                        }).append($("<i>", { class: app.icon })),
-                        $("<span>", { class: "opacity-90", text: app.name })
-                    )
-                )
-            )
-        );
-
-        $("body").append(launcher);
-
-        // Eventos de toggle/cierre (user & launcher)
-        $("#userDropdown").on("click", function (e) {
-            e.stopPropagation();
-            $("#userMenu").toggleClass("hidden");
-            $("#appsLauncher").addClass("hidden");
-        });
-
-        $(document).on("click", (e) => {
-            if (!$(e.target).closest("#launcherBtn").length && !$(e.target).closest("#appsLauncher").length) {
-                $("#appsLauncher").addClass("hidden");
-            }
-            if (!$(e.target).closest("#userDropdown").length && !$(e.target).closest("#userMenu").length) {
-                $("#userMenu").addClass("hidden");
-            }
-        });
-    }
-
-    // Graficos.
-    dashboardComponent(options) {
-        const defaults = {
-            parent: "root",
-            id: "dashboardComponent",
-            title: "ðŸ“Š Huubie Â· Dashboard de Eventos",
-            subtitle: "Resumen mensual Â· Cotizaciones Â· Pagados Â· Cancelados",
-            json: [
-                { type: "card", id: "infoCards", class: '' },
-                { type: "grafico", id: "barChartContainer", title: "Eventos por sucursal" },
-                { type: "tabla", id: "tableSucursal", title: "Tabla de sucursales" },
-                { type: "grafico", id: "donutChartContainer", title: "Ventas vs Entrada de dinero" },
-                { type: "grafico", id: "topClientsChartContainer", title: "Top 10 clientes" },
-                { type: "tabla", id: "tableClientes", title: "Tabla de clientes" }
-            ]
-        };
-
-        const opts = Object.assign(defaults, options);
-
-        const container = $(`
-        <div id="${opts.id}" class="w-full bg-[#111928] text-white">
-            <!-- Header -->
-            <header class="bg-[#0F172A] p-6 border-b border-[#1E293B] ">
-                <div class="max-w-7xl mx-auto">
-                    <h1 class="text-2xl font-semibold text-white">${opts.title}</h1>
-                    <p class="text-sm text-slate-300">${opts.subtitle}</p>
-                </div>
-            </header>
-
-            <!-- FilterBar -->
-            <div id="filterBarDashboard" class="max-w-7xl mx-auto px-4 py-4  ">
-          
-            </div>
-
-             <section id="cardDashboard" class="max-w-7xl mx-auto px-4 py-4 ">
-              
-            </section>
-
-            <!-- Content -->
-            <section id="content-${opts.id}" class="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2"></section>
-        </div>`);
-
-        // Renderizar contenedores desde JSON
-        opts.json.forEach(item => {
-            let block = $("<div>", {
-                id: item.id,
-                class: "bg-slate-800 p-4 rounded-xl shadow min-h-[200px]"
-            });
-
-            if (item.title) {
-                // Emojis por defecto segÃºn el tipo
-                const defaultEmojis = {
-                    'grafico': 'ðŸ“Š',
-                    'tabla': 'ðŸ“‹',
-                    'doc': 'ðŸ“„',
-                    'filterBar': 'ðŸ”'
-                };
-
-                // Usar emoji personalizado o por defecto
-                const emoji = item.emoji || defaultEmojis[item.type] || '';
-
-                // Usar icono si estÃ¡ definido
-                const iconHtml = item.icon ? `<i class="${item.icon}"></i> ` : '';
-
-                // Construir el tÃ­tulo con emoji e icono
-                const titleContent = `${emoji} ${iconHtml}${item.title}`;
-
-                block.prepend(`<h3 class="text-sm font-semibold mb-3">${titleContent}</h3>`);
-            }
-
-            // Procesar contenido personalizado antes de agregar el bloque
-            if (item.content && Array.isArray(item.content)) {
-                item.content.forEach(contentItem => {
-                    const element = $(`<${contentItem.type}>`, {
-                        id: contentItem.id || '',
-                        class: contentItem.class || '',
-                        text: contentItem.text || ''
-                    });
-
-                    // Agregar atributos adicionales si existen
-                    if (contentItem.attributes) {
-                        Object.keys(contentItem.attributes).forEach(attr => {
-                            element.attr(attr, contentItem.attributes[attr]);
-                        });
-                    }
-
-                    // Agregar HTML interno si existe
-                    if (contentItem.html) {
-                        element.html(contentItem.html);
-                    }
-
-                    // Agregar el contenido directamente al bloque
-                    block.append(element);
-                });
-            }
-
-            $(`#content-${opts.id}`, container).append(block);
-        });
-
-        $(`#${opts.parent}`).html(container);
-    }
-
-    cardsDashboard(options) {
-        const defaults = {
-            parent: "root",
-            id: "infoCardKPI",
-            class: "",
-            theme: "light", // light | dark
-            json: [],
-            data: {
-                value: "0",
-                description: "",
-                color: "text-gray-800"
-            },
-            onClick: () => { }
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const isDark = opts.theme === "dark";
-
-        const cardBase = isDark
-            ? "bg-[#1F2A37] text-white rounded-xl shadow"
-            : "bg-white text-gray-800 rounded-xl shadow";
-
-        const titleColor = isDark ? "text-gray-300" : "text-gray-600";
-        const descColor = isDark ? "text-gray-400" : "text-gray-500";
-
-        const renderCard = (card, i = "") => {
-            const box = $("<div>", {
-                id: `${opts.id}_${i}`,
-                class: `${cardBase} p-4`
-            });
-
-            const title = $("<p>", {
-                class: `text-sm ${titleColor}`,
-                text: card.title
-            });
-
-            const value = $("<p>", {
-                id: card.id || "",
-                class: `text-2xl font-bold ${card.data?.color || "text-white"}`,
-                text: card.data?.value
-            });
-
-            const description = $("<p>", {
-                class: `text-xs mt-1 ${card.data?.color || descColor}`,
-                text: card.data?.description
-            });
-
-            box.append(title, value, description);
-            return box;
-        };
-
-        const container = $("<div>", {
-            id: opts.id,
-            class: `grid grid-cols-2 md:grid-cols-4 gap-4 ${opts.class}`
-        });
-
-        if (opts.json.length > 0) {
-            opts.json.forEach((item, i) => {
-                container.append(renderCard(item, i));
-            });
-        } else {
-            container.append(renderCard(opts));
-        }
-
-        $(`#${opts.parent}`).html(container);
-    }
-
-    barChart(options) {
-        const defaults = {
-            parent: "containerChequePro",
-            id: "chart",
-            title: "",
-            class: "border p-4 rounded-xl",
-            data: {},
-            json: [],
-            onShow: () => { },
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        // ðŸ”¹ Eliminar instancia previa de Chart.js si existe
-        if (!window._charts) window._charts = {};
-        if (window._charts[opts.id]) {
-            window._charts[opts.id].destroy();
-            delete window._charts[opts.id];
-        }
-
-        // ðŸ”¹ Crear nuevo contenedor
-        const newContainer = $("<div>", {
-            id: opts.id + "-container",
-            class: opts.class
-        });
-
-        const title = $("<h2>", {
-            class: "text-lg font-bold mb-3",
-            text: opts.title
-        });
-
-        const canvas = $("<canvas>", {
-            id: opts.id,
-            class: "w-full h-[150px]"
-        });
-
-        newContainer.append(title, canvas);
-
-        // ðŸ”¹ Si el contenedor ya existe â†’ reemplazar, si no â†’ append
-        const existing = $("#" + opts.id + "-container");
-        if (existing.length) {
-            existing.replaceWith(newContainer);
-        } else {
-            $("#" + opts.parent).append(newContainer);
-        }
-
-        // ðŸ”¹ Crear grÃ¡fico
-        const ctx = document.getElementById(opts.id).getContext("2d");
-        window._charts[opts.id] = new Chart(ctx, {
-            type: "bar",
-            data: opts.data,
-            options: {
-                responsive: true,
-                aspectRatio: 3,
-                plugins: {
-                    legend: { position: "bottom" },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: (v) => formatPrice(v) }
-                    }
-                }
-            }
-        });
-    }
-
-
-    linearChart(options) {
-        const defaults = {
-            parent: "containerLineChart",
-            id: "linearChart",
-            title: "",
-            class: "border p-3 rounded-xl",
-            data: {},   // <- puede contener { labels: [], datasets: [], tooltip: [] }
-            json: [],
-            onShow: () => { },
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const container = $("<div>", { class: opts.class });
-        const title = $("<h2>", {
-            class: "text-lg font-bold mb-2",
-            text: opts.title
-        });
-        const canvas = $("<canvas>", {
-            id: opts.id,
-            class: "w-full h-[150px]"
-        });
-
-        container.append(title, canvas);
-        $('#' + opts.parent).append(container);
-
-        const ctx = document.getElementById(opts.id).getContext("2d");
-        if (!window._charts) window._charts = {};
-        if (window._charts[opts.id]) {
-            window._charts[opts.id].destroy();
-        }
-
-        window._charts[opts.id] = new Chart(ctx, {
-            type: "line",
-            data: opts.data,
-            options: {
-                responsive: true,
-                aspectRatio: 3,
-                plugins: {
-                    legend: { position: "bottom" },
-                    tooltip: {
-                        callbacks: {
-                            title: (items) => {
-                                const index = items[0].dataIndex;
-                                const tooltips = opts.data.tooltip || opts.data.labels;
-                                return tooltips[index];
-                            },
-                            label: (ctx) => `${ctx.dataset.label}: ${formatPrice(ctx.parsed.y)}`
-                        }
-                    },
-                    datalabels: {
-                        display: true,
-                        align: 'top',
-                        anchor: 'end',
-                        color: '#1E3A8A',
-                        font: {
-                            weight: 'bold',
-                            size: 12
-                        },
-                        formatter: (value) => value
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: (v) => v
-                        }
-                    }
-                }
-            },
-            plugins: [ChartDataLabels]
-        });
-    }
-
-    payChart(options) {
-        const defaults = {
-            parent: "containerPayChart",
-            id: "payChart",
-            title: "",
-            class: "border p-3 rounded-xl",
-            data: {},
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-        const container = $("<div>", { class: opts.class });
-        const title = $("<h2>", {
-            class: "text-lg font-bold mb-2",
-            text: opts.title
-        });
-        const canvas = $("<canvas>", {
-            id: opts.id,
-            class: "w-full h-[200px]"
-        });
-
-        container.append(title, canvas);
-        $("#" + opts.parent).append(container);
-
-        const ctx = document.getElementById(opts.id).getContext("2d");
-        if (!window._charts) window._charts = {};
-        if (window._charts[opts.id]) {
-            window._charts[opts.id].destroy();
-        }
-
-        window._charts[opts.id] = new Chart(ctx, {
-            type: "doughnut",
-            data: opts.data,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: "bottom" },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => `${ctx.label}: ${formatPrice(ctx.parsed)}`
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    createTimelineChat(options) {
-        let defaults = {
-            parent: "",
-            id: "historial",
-            data: [],
-            success: () => { console.log('addLine') },
-            input_id: "iptHistorial",
-            class: "p-3 bg-gray-900 text-white rounded-lg h-[500px] overflow-y-auto",
-            user_photo: "https://w7.pngwing.com/pngs/81/570/png-transparent-profile-logo-computer-icons-user-user-blue-heroes-logo-thumbnail.png",
-            icons: {
-                payment: "ðŸ’µ",
-                comment: "ðŸ’¬",
-                event: "ðŸ“…",
-                default: "ðŸ”¹"
-            }
-        };
-
-        let opts = Object.assign(defaults, options);
-
-        $('#' + opts.parent).empty();
-
-        let historialContainer = $('<div>', { class: opts.class + " flex flex-col h-full", id: opts.id });
-
-        // ðŸ“œ **Contenedor de lÃ­nea de tiempo**
-        let timeline = $('<div>', { class: "relative flex flex-col gap-4 flex-grow overflow-y-auto p-3" });
-
-        // ðŸ“œ **Generar los elementos del historial**
-        opts.data.forEach((item, index) => {
-            let entry = $('<div>', { class: "flex items-start gap-3 relative" });
-
-            // ðŸ”µ **Seleccionar el icono basado en el `type`**
-            let iconType = opts.icons[item.type] || opts.icons.default;
-
-            // ðŸ”µ **Columna de iconos y lÃ­neas**
-            let iconContainer = $('<div>', { class: "flex flex-col items-center relative" }).append(
-                // Icono del evento
-                $('<div>', {
-                    class: "w-8 h-8 flex items-center justify-center bg-gray-700 text-white rounded-full",
-                    html: iconType
-                }),
-                // ðŸ“ LÃ­nea de tiempo (solo si no es el Ãºltimo elemento)
-                index !== opts.data.length - 1
-                    ? $('<div>', { class: "w-[2px] min-h-[28px] bg-gray-600 flex-1 mt-2" })
-                    : ""
-            );
-            // ðŸ“ **Fila con tÃ­tulo y fecha alineados**
-            let titleRow = $('<div>', { class: "flex justify-between items-center w-full" }).append(
-                $('<span>', { class: "font-semibold text-gray-200", text: item.valor }), // TÃ­tulo
-                $('<small>', { class: "text-gray-400 text-xs", text: item.date }) // Fecha
-            );
-
-            // ðŸ‘¤ **Nombre del responsable**
-            let authorRow = $('<div>', { class: "text-gray-400 text-xs mt-1 italic" }).text(`Realizado por: ${item.author || 'Desconocido'}`);
-
-            // ðŸ’¬ **Mensaje o descripciÃ³n del evento**
-            let details = $('<div>', { class: "text-sm bg-gray-800 p-2 rounded-md shadow-md w-full" })
-                .append(titleRow)
-                .append(authorRow);
-
-
-            if (item.message) {
-                let messageBox = $('<div>', { class: " text-gray-300 text-xs p-2 rounded-md mt-1", text: item.message });
-                details.append(messageBox);
-            }
-
-            entry.append(iconContainer, details);
-            timeline.append(entry);
-        });
-
-        historialContainer.append(timeline);
-
-        // ðŸ“ **Barra de entrada de mensaje (oscura)**
-        let messageBar = $('<div>', { class: "bg-gray-800 rounded-lg flex items-center p-2 border-t border-gray-700 mt-auto" }).append(
-            $('<input>', {
-                id: opts.input_id,
-                class: "w-full px-3 py-2 border-none outline-none bg-gray-700 text-white placeholder-gray-400 text-sm",
-                placeholder: "Escribe aquÃ­..."
-            }),
-            $('<button>', {
-                class: "bg-blue-700 hover:bg-blue-600 text-white p-2 rounded-sm ml-2 flex items-center justify-center transition",
-                click: opts.success
-            }).append(
-                $('<i>', { class: "icon-direction-outline" }) // Icono de envÃ­o
-            )
-        );
-
-        historialContainer.append(messageBar);
-
-        // Renderizar el componente
-        $('#' + opts.parent).empty().append(historialContainer);
-    }
-
-    createTitleModal(options = {}) {
-        const defaults = {
-            parent: "root",
-            class: "",
-            icon: "icon-trophy",
-            title: "",
-            subtitle: "",
-            color: "bg-purple-600",
-        };
-
-        const opts = Object.assign({}, defaults, options);
-
-
-        const card = $(`
-        <div class="flex items-center space-x-3  ${opts.class}">
-            <div class="w-12 h-12 ${opts.color} rounded flex items-center justify-center flex-shrink-0">
-                <i class="${opts.icon} text-white text-xl"></i>
-            </div>
-            <div class="flex-1 min-w-0 flex flex-col justify-center">
-                <h3 class="text-lg font-bold text-white mb-0 leading-tight">${opts.title}</h3>
-                <p class="text-xs text-gray-400 mb-0 mt-1">${opts.subtitle}</p>
-            </div>
-        </div>
-    `);
-
-        return card;
-    }
-
-
-
-
-
-
-
 }
 
 class Templates extends Components {
@@ -3451,7 +4293,7 @@ class Templates extends Components {
 
     splitLayout(options) {
         let name = options.id ? options.id : 'splitLayout';
-        // ConfiguraciÃƒÂ³n por defecto
+        // ConfiguraciÃ³n por defecto
         let defaults = {
             id: name,
             parent: this._div_modulo,
@@ -3505,7 +4347,7 @@ class Templates extends Components {
                 },
                 {
                     type: 'div',
-                    ...opts.footer, // Pie de pÃƒÂ¡gina
+                    ...opts.footer, // Pie de pÃ¡gina
                 },
             ],
         };
@@ -3521,7 +4363,7 @@ class Templates extends Components {
     primaryLayout(options) {
         const name = options.id ? options.id : 'primaryLayout';
 
-        // ðŸŽ¯ Presets de altura para diferentes layouts
+        // 🎯 Presets de altura para diferentes layouts
         const heightPresets = {
             'full': 'min-h-screen',
             'viewport': 'h-[calc(100vh-120px)]',
@@ -3530,7 +4372,7 @@ class Templates extends Components {
         };
 
         // Determinar la altura basada en el preset o usar la clase personalizada
-        const heightClass = options.heightPreset
+        const heightClass = options.heightPreset 
             ? heightPresets[options.heightPreset] || heightPresets['viewport']
             : (options.class?.includes('h-') ? '' : heightPresets['viewport']);
 
@@ -3543,7 +4385,7 @@ class Templates extends Components {
                 name: "singleLayout",
                 class: "flex flex-col col-12",
                 filterBar: { class: 'w-full my-3 ', id: 'filterBar' + name },
-                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg h-[calc(100vh-20rem)] overflow-auto ', id: 'container' + name }
+                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg h-[calc(100vh-20rem)] ', id: 'container' + name }
             }
         };
 
@@ -3551,7 +4393,7 @@ class Templates extends Components {
         // Mezclar opciones con valores predeterminados
         const opts = this.ObjectMerge(defaults, options);
 
-        // ðŸ”§ Aplicar preset de altura si no se especifica clase personalizada
+        // 🔧 Aplicar preset de altura si no se especifica clase personalizada
         if (opts.heightPreset && !opts.class.includes('h-')) {
             const presetHeight = heightPresets[opts.heightPreset] || heightPresets['viewport'];
             opts.class = opts.class.replace(/h-\S+/g, '').trim() + ` ${presetHeight}`;
@@ -3709,14 +4551,14 @@ async function useFetch(options = {}) {
     // Mezclar los valores predeterminados con las opciones proporcionadas
     let opts = Object.assign({}, defaults, options);
 
-    // Validar que la URL estÃƒÂ© definida
+    // Validar que la URL estÃ© definida
     if (!opts.url) {
         console.error('URL es obligatoria.');
         return null;
     }
 
     try {
-        // Realizar la peticiÃƒÂ³n fetch
+        // Realizar la peticiÃ³n fetch
         let response = await fetch(opts.url, {
             method: opts.method,
             headers: {
@@ -3728,15 +4570,15 @@ async function useFetch(options = {}) {
         // Procesar la respuesta como JSON
         let data = await response.json();
 
-        // Si se proporciona el mÃƒÂ©todo success, lo ejecutamos con los datos obtenidos
+        // Si se proporciona el mÃ©todo success, lo ejecutamos con los datos obtenidos
         if (typeof opts.success === 'function') {
             opts.success(data);
         }
 
-        // Retornar los datos por si se quieren usar fuera de la funciÃƒÂ³n success
+        // Retornar los datos por si se quieren usar fuera de la funciÃ³n success
         return data;
     } catch (error) {
-        console.error('Error en la peticiÃ³n:', error);
+        console.error('Error en la petición:', error);
         return null;
     }
 }
@@ -3758,3 +4600,4 @@ function formDataToJson(formData) {
     });
     return obj;
 }
+

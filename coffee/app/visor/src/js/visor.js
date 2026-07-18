@@ -6,6 +6,19 @@ const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
 const VISOR_USER_KEY    = 'visor:user:v1';
 
+// Acceso rapido del sidebar (accesos directos + recientes). Las 3 primeras se
+// espejan en prefs.sqlite (ver PREFS_ALLOWED / prefs-store.js KEYS) para seguir
+// al usuario entre equipos; la de UI es cosmetica y vive solo en este navegador.
+const VISOR_SHORTCUTS_KEY      = 'visor:shortcuts:v1';       // [{id,name,url,icon,newTab}]
+const VISOR_RECENT_VIEWS_KEY   = 'visor:recentViews:v1';    // [{file,project,type,ts}]
+const VISOR_RECENT_CREATED_KEY = 'visor:recentCreated:v1';  // [{file,project,type,ts}]
+const VISOR_QA_UI_KEY          = 'visor:qa:ui:v1';          // colapsado + pestaña activa (local)
+const QA_RECENT_MAX  = 25;
+// Iconos (claves lucide) ofrecidos al crear un acceso directo.
+const SHORTCUT_ICONS = ['link','globe','external-link','kanban-square','database','table','folder','github','layout-dashboard','book-open','file-text','server'];
+// Colores del icono de un acceso directo (el primero, terracota, es el default).
+const SHORTCUT_COLORS = ['#C05A40','#E8A68F','#38bdf8','#34d399','#f59e0b','#c084fc','#ef4444','#2dd4bf','#94a3b8'];
+
 const VISOR_USERS = [
     { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1' },
     { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e' },
@@ -87,11 +100,19 @@ class App {
         this._link        = link;
         this.rootId       = rootId;
         this.PROJECT_NAME = 'Visor';
-        this.currentFile  = null;
-        this.isEditing    = false;
+        this.currentFile    = null;
+        this.currentFileObj = null;
+        this.isEditing      = false;
         this.settings     = this.loadSettings();
         this.pinnedFiles  = this.loadPinned();
         this.currentUser  = this.loadUser();
+
+        // Acceso rapido: se lee de localStorage (cache sincrona); si prefs.sqlite
+        // trae algo mas nuevo, el listener de 'coffeeia:prefs-synced' lo repinta.
+        this.shortcuts     = this._qaLoadJSON(VISOR_SHORTCUTS_KEY, []);
+        this.recentViews   = this._qaLoadJSON(VISOR_RECENT_VIEWS_KEY, []);
+        this.recentCreated = this._qaLoadJSON(VISOR_RECENT_CREATED_KEY, []);
+        this.qaUI          = this._loadQaUI();
     }
 
     loadUser() {
@@ -224,6 +245,309 @@ class App {
             });
         });
         return out;
+    }
+
+    // ── Acceso rapido del sidebar: accesos directos + recientes ──────────────
+    // Persistencia: localStorage (lectura sincrona) espejado en prefs.sqlite via
+    // CoffeePrefs.push, igual que creditos/modelos. El estado de colapso es local.
+
+    _qaLoadJSON(key, fallback) {
+        try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+        catch (e) { return fallback; }
+    }
+
+    _qaSaveJSON(key, val) {
+        const raw = JSON.stringify(val);
+        try { localStorage.setItem(key, raw); } catch (e) {}
+        try { if (window.CoffeePrefs) window.CoffeePrefs.push(key, raw); } catch (e) {}
+    }
+
+    _loadQaUI() {
+        const def = { openAccesos: true, openRecientes: true, openFijados: false, recentTab: 'edited' };
+        try { return Object.assign(def, JSON.parse(localStorage.getItem(VISOR_QA_UI_KEY) || '{}')); }
+        catch (e) { return def; }
+    }
+    _saveQaUI() { try { localStorage.setItem(VISOR_QA_UI_KEY, JSON.stringify(this.qaUI)); } catch (e) {} }
+
+    // Deriva proyecto/tipo de una ruta destino comparandola con la raiz de la
+    // biblioteca (header.currentPath). Fuera del arbol de documentos van vacios.
+    _deriveDocMeta(dir) {
+        const openDir = (this.dataInit && this.dataInit.header ? this.dataInit.header.currentPath : '') || '';
+        const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '');
+        const base = norm(openDir), d = norm(dir);
+        if (base && (d + '/').indexOf(base + '/') === 0) {
+            const rest = d.slice(base.length + 1).split('/').filter(Boolean);
+            return { project: rest[0] || '', type: rest[1] || '(sin clasificar)' };
+        }
+        return { project: '', type: '' };
+    }
+
+    // Empuja un registro al frente de una lista de recientes, sin duplicar el mismo
+    // archivo/ruta y recortando al maximo. Persiste y repinta.
+    _pushRecent(list, key, file, extra) {
+        if (!file || !file.file) return;
+        const rec = Object.assign({ file: file.file, project: file.project || '', type: file.type || '', fullPath: file.fullPath || '', ts: Date.now() }, extra || {});
+        // Dedup por ruta completa cuando la hay (única); si no, por nombre+proyecto+tipo.
+        const same = (r) => rec.fullPath && r.fullPath ? r.fullPath === rec.fullPath
+            : (r.file === rec.file && r.project === rec.project && r.type === rec.type);
+        const dedup = list.filter(r => !same(r));
+        const next  = [rec, ...dedup].slice(0, QA_RECENT_MAX);
+        this._qaSaveJSON(key, next);
+        return next;
+    }
+
+    recordView(file) {
+        if (!file || !file.file) return;
+        // Si ya es el mas reciente, no re-guardar (evita un POST a prefs por cada
+        // re-apertura del mismo archivo o re-render).
+        const top = this.recentViews[0];
+        if (top && top.file === file.file && top.project === (file.project || '') && top.type === (file.type || '')) return;
+        this.recentViews = this._pushRecent(this.recentViews, VISOR_RECENT_VIEWS_KEY, file);
+        this._refreshQuickAccess();
+    }
+
+    recordCreated(fileName, dir, meta) {
+        const m = meta || this._deriveDocMeta(dir);
+        const fullPath = String(dir || '').replace(/[\\/]+$/, '') + '/' + fileName;
+        this.recentCreated = this._pushRecent(this.recentCreated, VISOR_RECENT_CREATED_KEY,
+            { file: fileName, project: m.project, type: m.type, fullPath });
+        // Un archivo recien creado tambien cuenta como "editado/visto" pero eso ya lo
+        // cubre mtime y el loadFile posterior; aqui solo alimenta la pestaña "Creados".
+        this._refreshQuickAccess();
+    }
+
+    // Busca el objeto file real (para icono/relPath vigentes). Prioriza coincidencia
+    // exacta por proyecto+tipo; cae a coincidencia por nombre si se movio de carpeta.
+    _findRecentFile(rec) {
+        const all  = this.allFiles || [];
+        const norm = s => String(s || '').replace(/\\/g, '/');
+        // 1) Por ruta completa (única): distingue varios archivos con el mismo nombre
+        //    (p. ej. varios todo.json). 2) Por nombre+proyecto+tipo (registros viejos
+        //    sin fullPath). 3) Último recurso por nombre.
+        return (rec.fullPath ? all.find(x => norm(x.fullPath) === norm(rec.fullPath)) : null)
+            || all.find(x => x.file === rec.file && (x.project || '') === (rec.project || '') && (x.type || '') === (rec.type || ''))
+            || all.find(x => x.file === rec.file)
+            || null;
+    }
+
+    openRecent(rec) {
+        const f = this._findRecentFile(rec);
+        if (!f) { visorView.toast('Ese documento ya no está disponible', 'warn'); return; }
+        this.loadFile(f.file, f);
+    }
+
+    // ── Accesos directos (URLs configurables) ──
+    addShortcut(sc) {
+        const item = {
+            id:     'sc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name:   (sc.name || '').trim(),
+            url:    (sc.url  || '').trim(),
+            icon:   sc.icon  || 'link',
+            color:  sc.color || SHORTCUT_COLORS[0],
+            newTab: sc.newTab !== false
+        };
+        this.shortcuts = [...this.shortcuts, item];
+        this._qaSaveJSON(VISOR_SHORTCUTS_KEY, this.shortcuts);
+        this._refreshQuickAccess();
+    }
+    updateShortcut(id, patch) {
+        this.shortcuts = this.shortcuts.map(s => s.id === id ? Object.assign({}, s, patch) : s);
+        this._qaSaveJSON(VISOR_SHORTCUTS_KEY, this.shortcuts);
+        this._refreshQuickAccess();
+    }
+    removeShortcut(id) {
+        this.shortcuts = this.shortcuts.filter(s => s.id !== id);
+        this._qaSaveJSON(VISOR_SHORTCUTS_KEY, this.shortcuts);
+        this._refreshQuickAccess();
+    }
+    openShortcut(id) {
+        const s = this.shortcuts.find(x => x.id === id);
+        if (!s || !s.url) return;
+        let url = s.url;
+        if (!/^(https?:)?\/\//i.test(url) && !/^\//.test(url)) url = 'https://' + url;   // tolera "erp-varoch.com"
+        if (s.newTab === false) window.location.href = url;
+        else window.open(url, '_blank', 'noopener');
+    }
+
+    // Repinta solo el bloque de acceso rapido y reenlaza sus eventos.
+    _refreshQuickAccess() {
+        if (typeof visorView === 'undefined' || !visorView) return;
+        visorView.renderQuickAccess(this);
+        this.bindQuickAccess();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Modal "Agregar/Editar acceso directo". Se construye una vez y se reutiliza
+    // (mismo patron que el modal de chats guardados de CoffeeIA).
+    ensureShortcutModal() {
+        if (document.getElementById('scModal')) return;
+        const iconsHtml = SHORTCUT_ICONS.map(ic =>
+            `<button type="button" class="sc-icon" data-icon="${ic}" title="${ic}"><i data-lucide="${ic}"></i></button>`
+        ).join('');
+        const colorsHtml = SHORTCUT_COLORS.map(c =>
+            `<button type="button" class="sc-color" data-color="${c}" style="background:${c}" title="${c}"></button>`
+        ).join('');
+        const $m = $(`
+            <div id="scModal" class="sc-modal hidden" aria-hidden="true">
+                <div class="sc-modal-backdrop"></div>
+                <div class="sc-modal-dialog" role="dialog" aria-label="Acceso directo">
+                    <div class="sc-modal-head">
+                        <span class="sc-modal-title"><i data-lucide="link" class="w-4 h-4"></i> <span id="scModalTitle">Agregar acceso directo</span></span>
+                        <button id="scModalClose" class="sc-modal-close" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="sc-modal-body">
+                        <div class="sc-fld">
+                            <label for="scName">Nombre</label>
+                            <input id="scName" type="text" maxlength="60" placeholder="Jira · Tablero GV" autocomplete="off">
+                        </div>
+                        <div class="sc-fld">
+                            <label for="scUrl">URL</label>
+                            <input id="scUrl" type="text" placeholder="https://…" autocomplete="off">
+                            <div class="sc-hint">Vale cualquier http(s), incluso local (localhost/phpmyadmin).</div>
+                        </div>
+                        <div class="sc-fld">
+                            <label>Icono</label>
+                            <div class="sc-icons" id="scIcons">${iconsHtml}</div>
+                        </div>
+                        <div class="sc-fld">
+                            <label>Color</label>
+                            <div class="sc-colors" id="scColors">${colorsHtml}</div>
+                        </div>
+                        <label class="sc-switch">
+                            <input id="scNewTab" type="checkbox" checked>
+                            <span>Abrir en pestaña nueva</span>
+                        </label>
+                    </div>
+                    <div class="sc-modal-foot">
+                        <button id="scCancel" class="cs-btn cs-btn-ghost">Cancelar</button>
+                        <button id="scSave" class="cs-btn cs-btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        `);
+        $('body').append($m);
+
+        const close = () => this.closeShortcutModal();
+        $m.find('.sc-modal-backdrop, #scModalClose, #scCancel').on('click', close);
+        $(document).on('keydown.scModal', (e) => { if (e.key === 'Escape' && !$m.hasClass('hidden')) close(); });
+        $m.find('#scIcons').on('click', '.sc-icon', function () {
+            $m.find('.sc-icon').removeClass('sel');
+            $(this).addClass('sel');
+            // Refleja el color elegido en los iconos del picker (vista previa).
+            $m.find('.sc-icon').css('color', '');
+        });
+        $m.find('#scColors').on('click', '.sc-color', function () {
+            $m.find('.sc-color').removeClass('sel');
+            $(this).addClass('sel');
+            // Previsualiza el color en el icono seleccionado del picker.
+            $m.find('#scIcons .sc-icon.sel').css('color', $(this).data('color'));
+        });
+        $m.find('#scSave').on('click', () => this.saveShortcutModal());
+        $m.find('#scName, #scUrl').on('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.saveShortcutModal(); }
+        });
+    }
+
+    openShortcutModal(id) {
+        this.ensureShortcutModal();
+        const editing = id ? this.shortcuts.find(s => s.id === id) : null;
+        this._editingShortcut = editing ? editing.id : null;
+        $('#scModalTitle').text(editing ? 'Editar acceso directo' : 'Agregar acceso directo');
+        $('#scName').val(editing ? editing.name : '');
+        $('#scUrl').val(editing ? editing.url : '');
+        $('#scNewTab').prop('checked', editing ? editing.newTab !== false : true);
+        const icon = editing ? (editing.icon || 'link') : 'link';
+        $('#scIcons .sc-icon').removeClass('sel');
+        $('#scIcons .sc-icon[data-icon="' + icon + '"]').addClass('sel');
+        const color = editing ? (editing.color || SHORTCUT_COLORS[0]) : SHORTCUT_COLORS[0];
+        $('#scColors .sc-color').removeClass('sel');
+        $('#scColors .sc-color[data-color="' + color + '"]').addClass('sel');
+        $('#scIcons .sc-icon').css('color', '');
+        $('#scIcons .sc-icon.sel').css('color', color);
+        $('#scModal').removeClass('hidden').attr('aria-hidden', 'false');
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => $('#scName').trigger('focus'), 30);
+    }
+
+    closeShortcutModal() {
+        $('#scModal').addClass('hidden').attr('aria-hidden', 'true');
+        this._editingShortcut = null;
+    }
+
+    saveShortcutModal() {
+        const name   = ($('#scName').val() || '').trim();
+        const url    = ($('#scUrl').val()  || '').trim();
+        const icon   = $('#scIcons .sc-icon.sel').data('icon') || 'link';
+        const color  = $('#scColors .sc-color.sel').data('color') || SHORTCUT_COLORS[0];
+        const newTab = $('#scNewTab').is(':checked');
+        if (!name) { visorView.toast('Ponle un nombre al acceso', 'warn'); $('#scName').trigger('focus'); return; }
+        if (!url)  { visorView.toast('Falta la URL', 'warn'); $('#scUrl').trigger('focus'); return; }
+        const wasEditing = !!this._editingShortcut;
+        if (wasEditing) this.updateShortcut(this._editingShortcut, { name, url, icon, color, newTab });
+        else            this.addShortcut({ name, url, icon, color, newTab });
+        this.closeShortcutModal();
+        visorView.toast(wasEditing ? 'Acceso actualizado' : 'Acceso agregado', 'success');
+    }
+
+    // Eventos del bloque de acceso rapido. Se re-enlaza tras cada render porque
+    // #quickAccess se reconstruye (mismo criterio que bindSidebarClicks).
+    bindQuickAccess() {
+        const $qa = $('#quickAccess');
+        if (!$qa.length) return;
+
+        $qa.find('.qa-head').off('click').on('click', (e) => {
+            if ($(e.target).closest('.qa-head-btn').length) return;   // el "+" no colapsa
+            const key = $(e.currentTarget).data('sec');
+            this.qaUI[key] = !this.qaUI[key];
+            this._saveQaUI();
+            this._refreshQuickAccess();
+        });
+
+        $qa.find('.qa-add-shortcut').off('click').on('click', (e) => {
+            e.stopPropagation();
+            this.openShortcutModal();
+        });
+
+        $qa.find('.qa-subtab').off('click').on('click', (e) => {
+            this.qaUI.recentTab = $(e.currentTarget).data('tab');
+            this._saveQaUI();
+            this._refreshQuickAccess();
+        });
+
+        $qa.find('.qa-shortcut').off('click').on('click', (e) => {
+            if ($(e.target).closest('.qa-row-actions').length) return;
+            this.openShortcut($(e.currentTarget).data('id'));
+        });
+        $qa.find('.qa-sc-edit').off('click').on('click', (e) => {
+            e.stopPropagation();
+            this.openShortcutModal($(e.currentTarget).data('id'));
+        });
+        $qa.find('.qa-sc-del').off('click').on('click', (e) => {
+            e.stopPropagation();
+            const id = String($(e.currentTarget).data('id'));
+            const s  = this.shortcuts.find(x => x.id === id);
+            if (s && confirm('¿Quitar el acceso directo "' + s.name + '"?')) this.removeShortcut(id);
+        });
+
+        $qa.find('.qa-recent').off('click').on('click', (e) => {
+            const $r = $(e.currentTarget);
+            this.openRecent({
+                file:     String($r.attr('data-file') || ''),
+                project:  String($r.attr('data-project') || ''),
+                type:     String($r.attr('data-type') || ''),
+                fullPath: String($r.attr('data-fullpath') || '')
+            });
+        });
+
+        $qa.find('.qa-pinned').off('click').on('click', (e) => {
+            if ($(e.target).closest('.qa-row-actions').length) return;
+            const f = (this.allFiles || []).find(x => x.file === String($(e.currentTarget).data('file')));
+            if (f) this.loadFile(f.file, f);
+        });
+        $qa.find('.qa-unpin').off('click').on('click', (e) => {
+            e.stopPropagation();
+            this.togglePin(String($(e.currentTarget).data('file')));
+        });
     }
 
     isDriveFolder(folder) {
@@ -397,6 +721,19 @@ class App {
         this.bindSidebarResize();
         this.bindUserMenu();
         this.bindNewFileModal();
+
+        // Si prefs.sqlite trae accesos/recientes mas nuevos (otro equipo), repintar.
+        if (window.CoffeePrefs) {
+            window.addEventListener(window.CoffeePrefs.EVENT, (e) => {
+                const keys = (e.detail && e.detail.keys) || [];
+                const mine = [VISOR_SHORTCUTS_KEY, VISOR_RECENT_VIEWS_KEY, VISOR_RECENT_CREATED_KEY];
+                if (!keys.some(k => mine.indexOf(k) !== -1)) return;
+                this.shortcuts     = this._qaLoadJSON(VISOR_SHORTCUTS_KEY, []);
+                this.recentViews   = this._qaLoadJSON(VISOR_RECENT_VIEWS_KEY, []);
+                this.recentCreated = this._qaLoadJSON(VISOR_RECENT_CREATED_KEY, []);
+                this._refreshQuickAccess();
+            });
+        }
     }
 
     bindMobileSidebar() {
@@ -644,7 +981,7 @@ class App {
     }
 
     updateEditButton() {
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         const can  = this.canEdit(file);
         $('#btnEdit').prop('disabled', !can)
                      .attr('title', can ? 'Editar en el visor' : 'Archivo no editable en el visor');
@@ -680,7 +1017,7 @@ class App {
     }
 
     enterEditMode() {
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
         this.isEditing = true;
@@ -748,7 +1085,7 @@ class App {
 
         if (!saved) {
             // descartar: re-render desde file.raw original
-            const file = visor.getFile(this.allFiles, this.currentFile);
+            const file = this.currentFileRef();
             if (file) visorView.renderContent(file);
         }
         this._editMode = null;
@@ -946,7 +1283,7 @@ class App {
     }
 
     async saveFile() {
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         if (!this.canEdit(file)) { visorView.toast('Archivo no editable', 'warn'); return; }
 
         // Sin ruta absoluta no hay a donde escribir (archivo SAMPLE o cargado sin
@@ -1275,8 +1612,9 @@ class App {
             this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
             this.allFiles = [...data.agents, ...data.grimoires];
         }
-        this.currentFile = null;
-        this.pinnedFiles = this.loadPinned();
+        this.currentFile    = null;
+        this.currentFileObj = null;
+        this.pinnedFiles    = this.loadPinned();
         if (coffeeIA) coffeeIA._renderPinnedChips();
         const target = (this._pendingOpen && this.allFiles.find(f => f.file === this._pendingOpen))
             ? this._pendingOpen
@@ -1317,15 +1655,17 @@ class App {
                 this.dataInit = { agents: data.agents, grimoires: data.grimoires, header: data.header };
                 this.allFiles = [...data.agents, ...data.grimoires];
             }
-            const stillExists = this.allFiles.find(f => f.file === this.currentFile);
-            const target      = stillExists ? this.currentFile : this.allFiles[0]?.file;
+            // Reabrir el archivo actual por su RUTA (no por nombre): con varios
+            // todo.json el nombre solo reabriría el primero que coincida.
+            const stillExists = this.currentFileRef();
+            const target      = stillExists ? stillExists.file : this.allFiles[0]?.file;
 
             visorView.renderHeader(this.dataInit.header, this.allFiles.length);
             visorView.renderFooter(this.dataInit);
             visorView.renderSidebar(this.dataInit, this.currentFile, '');
             this.updateNewFileButton();
             this.bindSidebarClicks();
-            if (target) this.loadFile(target);
+            if (target) this.loadFile(target, stillExists || undefined);
             visorView.toast('Biblioteca actualizada (' + this.allFiles.length + ' archivos)', 'success');
         } else {
             visorView.toast('Backend no disponible — sin cambios', 'warn');
@@ -1338,7 +1678,7 @@ class App {
     }
 
     copyPath() {
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         if (!file) { visorView.toast('Sin archivo seleccionado', 'warn'); return; }
         const text = file.relPath || ('.claude/agents/' + file.file);
 
@@ -1355,7 +1695,7 @@ class App {
     }
 
     openInEditor() {
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         if (!file)            { visorView.toast('Sin archivo seleccionado', 'warn'); return; }
         if (!file.fullPath)   { visorView.toast('Ruta absoluta no disponible (modo SAMPLE)', 'warn'); return; }
         window.location.href = 'vscode://file/' + file.fullPath;
@@ -1527,6 +1867,7 @@ class App {
 
             this.closeNewFileModal();
             visorView.toast('Archivo creado: ' + name, 'success');
+            this.recordCreated(name, dir);
 
             // Si cae en la carpeta abierta —o en cualquier subcarpeta del arbol de
             // documentos— recargar y abrirlo automaticamente.
@@ -1578,7 +1919,7 @@ class App {
             visorView.toast('Eliminado: ' + file.file, 'success');
             // Soltar del contexto CoffeeIA y de la seleccion si correspondia.
             if (this.pinnedFiles.has(file.file)) { this.pinnedFiles.delete(file.file); this.savePinned(); }
-            if (this.currentFile === file.file)  this.currentFile = null;
+            if (this.currentFile === file.file)  { this.currentFile = null; this.currentFileObj = null; }
             await this.reloadLibrary();
         } catch (e) {
             visorView.toast('Error de red al eliminar', 'error');
@@ -1650,6 +1991,45 @@ class App {
         }
     }
 
+    // Crea (o abre si ya existe) un todo.json en `dir` y lo abre como panel TODO.
+    async createTodo(dir) {
+        if (!dir) return;
+        // Normalizar separadores: en Windows header.currentPath puede traer '\' y el
+        // backend devuelve fullPath con '/'. Comparar sin normalizar hacía que un
+        // todo.json existente NO se reconociera y se sobrescribiera con un seed vacío.
+        const norm   = s => String(s || '').replace(/\\/g, '/');
+        const target = norm(dir).replace(/\/+$/, '') + '/todo.json';
+        const existing = (this.allFiles || []).find(f => norm(f.fullPath) === target);
+        if (existing) { this.loadFile(existing.file, existing); return; }
+        const seed = { title: (norm(dir).split('/').filter(Boolean).pop() || 'TODO'), sections: [] };
+        try {
+            const form = new FormData();
+            form.append('action',       'save');
+            form.append('fullPath',     target);
+            form.append('customPath',   this.settings.customPath || '');
+            form.append('content',      JSON.stringify(seed, null, 2));
+            form.append('failIfExists', '1');   // NUNCA pisar un todo.json que ya exista
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            // El backend rechazó sobrescribir: ya había un todo.json aquí. Abrir el existente.
+            if (data && data.exists) {
+                await this.reloadLibrary();
+                const found = (this.allFiles || []).find(f => norm(f.fullPath) === target);
+                if (found) this.loadFile(found.file, found);
+                visorView.toast('Ese TODO ya existía: lo abrí', 'info');
+                return;
+            }
+            if (!data.success) { visorView.toast(data.message || 'No se pudo crear el TODO', 'error'); return; }
+            visorView.toast('TODO creado', 'success');
+            this.recordCreated('todo.json', dir);
+            await this.reloadLibrary();
+            const created = (this.allFiles || []).find(f => norm(f.fullPath) === target);
+            if (created) this.loadFile(created.file, created);
+        } catch (e) {
+            visorView.toast('Error de red al crear el TODO', 'error');
+        }
+    }
+
     // Renombra la carpeta (por su fullPath) y recarga. Devuelve true si tuvo éxito.
     async renameFolder(fullPath, newName) {
         if (!fullPath || !newName) return false;
@@ -1664,6 +2044,46 @@ class App {
             if (!data.success) { visorView.toast(data.message || 'No se pudo renombrar', 'error'); return false; }
             visorView.toast('Carpeta renombrada', 'success');
             await this.reloadLibrary();
+            return true;
+        } catch (e) {
+            visorView.toast('Error de red al renombrar', 'error');
+            return false;
+        }
+    }
+
+    // Renombra un archivo (doble clic a su nombre en el explorador) y recarga.
+    // Si era el archivo abierto, lo reabre por su ruta nueva. Devuelve true si
+    // tuvo éxito (el input inline se cierra solo con el re-render).
+    async renameFile(fullPath, newName) {
+        if (!fullPath || !newName) return false;
+        const norm = s => String(s || '').replace(/\\/g, '/');
+        const wasCurrent = !!(this.currentFileObj && norm(this.currentFileObj.fullPath) === norm(fullPath));
+        try {
+            const form = new FormData();
+            form.append('action',     'renamefile');
+            form.append('fullPath',   fullPath);
+            form.append('newName',    newName);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { visorView.toast(data.message || 'No se pudo renombrar', 'error'); return false; }
+
+            // Actualizar los recientes que apuntaban a la ruta vieja (evita filas
+            // tachadas como "ya no disponible" tras renombrar).
+            const fix = list => (list || []).map(r => norm(r.fullPath) === norm(fullPath)
+                ? Object.assign({}, r, { file: data.name, fullPath: data.fullPath }) : r);
+            this.recentViews   = fix(this.recentViews);
+            this.recentCreated = fix(this.recentCreated);
+            this._qaSaveJSON(VISOR_RECENT_VIEWS_KEY, this.recentViews);
+            this._qaSaveJSON(VISOR_RECENT_CREATED_KEY, this.recentCreated);
+
+            visorView.toast('Renombrado: ' + data.name, 'success');
+            if (wasCurrent) this._pendingOpen = data.name;
+            await this.reloadLibrary();
+            if (wasCurrent && data.fullPath) {
+                const f = (this.allFiles || []).find(x => norm(x.fullPath) === norm(data.fullPath));
+                if (f) this.loadFile(f.file, f);
+            }
             return true;
         } catch (e) {
             visorView.toast('Error de red al renombrar', 'error');
@@ -1698,7 +2118,7 @@ class App {
     // Cierra el lienzo y muestra el .drawio activo como fuente (XML), sin reabrir.
     exitDiagram() {
         if (drawioBoard) drawioBoard.close();
-        const file = visor.getFile(this.allFiles, this.currentFile);
+        const file = this.currentFileRef();
         if (file) visorView.renderContent(file);
         if (window.lucide) lucide.createIcons();
     }
@@ -1726,13 +2146,19 @@ class App {
             const $el = $(e.currentTarget);
             if ($el.hasClass('tree-folder-toggle')) return; // las carpetas lazy las maneja toggleFolderNode
             const fileName = $el.data('file');
-            if (fileName) this.loadFile(fileName);
+            if (!fileName) return;
+            const fullPath = $el.attr('data-fullpath') || '';
+            const obj = fullPath ? (this.allFiles || []).find(f => (f.fullPath || '') === fullPath) : null;
+            this.loadFile(fileName, obj || undefined);
         });
 
         // El boton "Nuevo archivo" vive en la cabecera de la seccion DOCS, que se
         // re-renderiza en cada filtro/recarga: hay que reenlazarlo aqui.
         $('#btnNewFile').off('click').on('click', () => this.openNewFileModal());
         this.updateNewFileButton();
+
+        // El bloque de acceso rapido se re-renderiza con el sidebar: reenlazarlo aqui.
+        this.bindQuickAccess();
     }
 
     // Expande/colapsa un nodo de carpeta del arbol. Al expandir por primera vez,
@@ -1797,19 +2223,38 @@ class App {
         });
     }
 
-    async loadFile(fileName) {
-        const file = visor.getFile(this.allFiles, fileName);
+    // Objeto del archivo ACTUALMENTE abierto, resuelto por su ruta (fullPath) y no
+    // por nombre. Es imprescindible porque varios archivos comparten nombre (p. ej.
+    // un todo.json en cada carpeta); getFile(nombre) devolvería siempre el primero,
+    // por eso editar un todo.json se veía reflejado en otro. Re-resuelve contra
+    // allFiles por si la biblioteca se recargó (objetos nuevos).
+    currentFileRef() {
+        const norm = s => String(s || '').replace(/\\/g, '/');
+        const fp = this.currentFileObj && this.currentFileObj.fullPath;
+        if (fp) {
+            const found = (this.allFiles || []).find(f => norm(f.fullPath) === norm(fp));
+            if (found) return found;
+        }
+        return this.currentFileRef();
+    }
+
+    async loadFile(fileName, fileObj) {
+        // fileObj (opcional) se pasa cuando el sidebar ya resolvió el archivo por
+        // fullPath — así no colisionan dos archivos con el mismo nombre (p. ej. varios todo.json).
+        const file = fileObj || visor.getFile(this.allFiles, fileName);
         if (!file) return;
+        fileName = file.file;
 
         // Si estoy editando otro archivo, confirmar antes de cambiar
         if (this.isEditing && fileName !== this.currentFile) {
             const current = $('#md-edit').val();
-            const orig    = (visor.getFile(this.allFiles, this.currentFile) || {}).raw || '';
+            const orig    = (this.currentFileRef() || {}).raw || '';
             if (current !== orig && !confirm('Tienes cambios sin guardar. ¿Descartar y cambiar de archivo?')) return;
             this.exitEditMode(false);
         }
 
-        this.currentFile = fileName;
+        this.currentFile    = fileName;
+        this.currentFileObj = file;   // el objeto REAL abierto (con su fullPath único)
 
         $('#sidebarList .sidebar-item').each(function () {
             $(this).toggleClass('active', $(this).data('file') === fileName);
@@ -1851,6 +2296,9 @@ class App {
 
         visorView.renderFooterSelection(file);
         this.updateEditButton();
+
+        // Registrar la apertura para la pestaña "Vistos" del acceso rapido.
+        this.recordView(file);
 
         // Mantener sincronizado el contexto de CoffeeIA con el archivo abierto.
         if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._syncContext) {
@@ -2098,6 +2546,9 @@ class Visor {
 
         if (file.isBackup) return { icon: 'archive', cls: 'fmt-backup' };
 
+        // TODO dinámico (todo*.json): icono propio (lista con checks) y color terracota.
+        if (/^todo.*\.json$/.test((file.file || '').toLowerCase())) return { icon: 'list-checks', cls: 'fmt-todo' };
+
         const mime  = (file.mimeType || '').toLowerCase();
         const parts = (file.file || '').split('.');
         const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
@@ -2266,7 +2717,9 @@ class VisorView {
 
     renderSidebar(data, currentFile, filter) {
         if (data.documents && typeof data.documents === 'object') {
-            return this.renderSidebarTree(data.documents, currentFile, filter, data.header);
+            this.renderSidebarTree(data.documents, currentFile, filter, data.header);
+            this.renderQuickAccess(app);   // acceso rapido debajo del arbol
+            return;
         }
 
         // Solo el arbol de documentos lleva el acento rojo "carpeta de archivos".
@@ -2323,6 +2776,156 @@ class VisorView {
             ${subLabel ? buildSection(subLabel, grimoiresFiltered, false) : ''}
             ${empty}
         `);
+
+        this.renderQuickAccess(app);   // acceso rapido debajo de la lista
+    }
+
+    // ── Bloque de acceso rapido del sidebar (Accesos directos / Recientes / Fijados) ──
+    // Vive en #quickAccess, un contenedor FIJO del HTML anclado al fondo del panel
+    // (entre la lista y el footer). Solo se muestra en la RAIZ del explorador de
+    // Documentos; en subcarpetas o en agentes/grimorios se oculta. Los eventos los
+    // enlaza App.bindQuickAccess().
+    renderQuickAccess(appRef) {
+        const a   = appRef || (typeof app !== 'undefined' ? app : null);
+        const $qa = $('#quickAccess');
+        if (!$qa.length || !a) return;
+
+        const docs   = (a.dataInit && a.dataInit.documents) || null;
+        let crumb = [];
+        try { crumb = JSON.parse(localStorage.getItem('visor:docs:crumb') || '[]'); } catch (e) { crumb = []; }
+        if (!Array.isArray(crumb)) crumb = [];
+        // Mismo saneo que renderSidebarTree: un crumb hacia una carpeta que ya no
+        // existe equivale a estar en la raiz.
+        if (crumb[0] && docs && !docs[crumb[0]]) crumb = [];
+        const atRoot = crumb.length === 0;
+
+        if (!docs || !atRoot) { $qa.addClass('is-hidden').empty(); return; }
+        $qa.removeClass('is-hidden').html(this._qaSectionsHtml(a));
+    }
+
+    _qaEsc(s) { return visor.escapeHtml(s == null ? '' : String(s)); }
+
+    _qaHead(secKey, icon, title, count, extraBtn) {
+        return `
+            <div class="qa-head" data-sec="${secKey}">
+                <i data-lucide="chevron-down" class="qa-chev"></i>
+                <i data-lucide="${icon}" class="qa-head-ic"></i>
+                <span class="qa-head-title">${title}</span>
+                <span class="qa-count">${count}</span>
+                ${extraBtn || ''}
+            </div>`;
+    }
+
+    _qaSectionsHtml(a) {
+        // ── Accesos directos ──
+        const scRows = a.shortcuts.length
+            ? a.shortcuts.map(s => this._qaShortcutRow(s)).join('')
+            : `<div class="qa-empty">Sin accesos. Usa <b>+</b> para guardar una URL.</div>`;
+        const addBtn = `<span class="qa-head-btn qa-add-shortcut" title="Agregar acceso directo"><i data-lucide="plus"></i></span>`;
+        const secAccesos = `
+            <div class="qa-sec ${a.qaUI.openAccesos ? '' : 'is-collapsed'}">
+                ${this._qaHead('openAccesos', 'link', 'Accesos directos', a.shortcuts.length, addBtn)}
+                <div class="qa-body">${scRows}</div>
+            </div>`;
+
+        // ── Recientes (Editados / Vistos / Creados) ──
+        const tab      = a.qaUI.recentTab || 'edited';
+        // Editados: solo los 3 más recientes (Vistos/Creados conservan el historial).
+        const lists    = { edited: this._qaEdited(a).slice(0, 3), viewed: a.recentViews || [], created: a.recentCreated || [] };
+        const active   = lists[tab] || [];
+        const subtabs  = `
+            <div class="qa-subtabs">
+                <button class="qa-subtab ${tab === 'edited'  ? 'is-active' : ''}" data-tab="edited">Editados</button>
+                <button class="qa-subtab ${tab === 'viewed'  ? 'is-active' : ''}" data-tab="viewed">Vistos</button>
+                <button class="qa-subtab ${tab === 'created' ? 'is-active' : ''}" data-tab="created">Creados</button>
+            </div>`;
+        const emptyMsg = tab === 'edited'
+            ? 'Aún no hay documentos.'
+            : (tab === 'viewed' ? 'Abre un documento y aparecerá aquí.' : 'Crea un documento y aparecerá aquí.');
+        const recRows = active.length
+            ? active.slice(0, 12).map(rec => this._qaRecentRow(a, rec, tab)).join('')
+            : `<div class="qa-empty">${emptyMsg}</div>`;
+        const secRecientes = `
+            <div class="qa-sec ${a.qaUI.openRecientes ? '' : 'is-collapsed'}">
+                ${this._qaHead('openRecientes', 'clock', 'Recientes', active.length, '')}
+                <div class="qa-body">${subtabs}${recRows}</div>
+            </div>`;
+
+        // ── Fijados (reusa app.pinnedFiles) ──
+        const pinned = Array.from(a.pinnedFiles || []);
+        const pnRows = pinned.length
+            ? pinned.map(name => {
+                const f   = (a.allFiles || []).find(x => x.file === name);
+                const fmt = f ? visor.fileFormat(f) : { icon: 'file', cls: '' };
+                return `
+                    <div class="qa-row qa-pinned" data-file="${this._qaEsc(name)}" title="${this._qaEsc(name)}">
+                        <i data-lucide="${fmt.icon}" class="qa-ic ${fmt.cls}"></i>
+                        <div class="qa-meta"><div class="qa-name">${this._qaEsc(f ? (f.name || name) : name)}</div></div>
+                        <div class="qa-row-actions"><button class="qa-unpin" data-file="${this._qaEsc(name)}" title="Quitar de fijados"><i data-lucide="star-off"></i></button></div>
+                    </div>`;
+            }).join('')
+            : `<div class="qa-empty">Fija un documento (★) para tenerlo a mano.</div>`;
+        const secFijados = `
+            <div class="qa-sec ${a.qaUI.openFijados ? '' : 'is-collapsed'}">
+                ${this._qaHead('openFijados', 'star', 'Fijados', pinned.length, '')}
+                <div class="qa-body">${pnRows}</div>
+            </div>`;
+
+        return `${secAccesos}${secRecientes}${secFijados}`;
+    }
+
+    _qaShortcutRow(s) {
+        const col = s.color || 'var(--vsr-accent-soft)';
+        return `
+            <div class="qa-row qa-shortcut" data-id="${this._qaEsc(s.id)}" title="${this._qaEsc(s.url)}">
+                <i data-lucide="${s.icon || 'link'}" class="qa-ic" style="color:${this._qaEsc(col)}"></i>
+                <div class="qa-meta"><div class="qa-name">${this._qaEsc(s.name)}</div></div>
+                <div class="qa-row-actions">
+                    <button class="qa-sc-edit" data-id="${this._qaEsc(s.id)}" title="Editar"><i data-lucide="pencil"></i></button>
+                    <button class="qa-sc-del"  data-id="${this._qaEsc(s.id)}" title="Quitar"><i data-lucide="x"></i></button>
+                </div>
+            </div>`;
+    }
+
+    // "Editados" = allFiles ordenados por mtime (hora local del server WAMP). No
+    // persiste: se recalcula en cada render.
+    _qaEdited(a) {
+        return (a.allFiles || [])
+            .filter(f => f && f.file && f.mtime)
+            .map(f => ({ file: f.file, project: f.project || '', type: f.type || '', fullPath: f.fullPath || '', ts: Date.parse(String(f.mtime).replace(' ', 'T')) || 0 }))
+            .sort((x, y) => y.ts - x.ts);
+    }
+
+    _qaRecentRow(a, rec, tab) {
+        const f    = a._findRecentFile(rec);
+        const fmt  = f ? visor.fileFormat(f) : { icon: 'file-x', cls: 'qa-ic-missing' };
+        const path = [rec.project, rec.type].filter(p => p && p !== '(sin clasificar)').join(' / ');
+        const when = (tab === 'created' && rec.ts ? 'creado ' : '') + this._qaRelTime(rec.ts);
+        const sub  = [path, when].filter(Boolean).join(' · ');
+        const name = f ? (f.name || rec.file) : rec.file;
+        return `
+            <div class="qa-row qa-recent${f ? '' : ' qa-row-missing'}" data-file="${this._qaEsc(rec.file)}" data-project="${this._qaEsc(rec.project)}" data-type="${this._qaEsc(rec.type)}" data-fullpath="${this._qaEsc(rec.fullPath || '')}" title="${this._qaEsc(rec.file)}">
+                <i data-lucide="${fmt.icon}" class="qa-ic ${fmt.cls}"></i>
+                <div class="qa-meta">
+                    <div class="qa-name">${this._qaEsc(name)}</div>
+                    ${sub ? `<div class="qa-sub">${this._qaEsc(sub)}</div>` : ''}
+                </div>
+            </div>`;
+    }
+
+    _qaRelTime(ms) {
+        if (!ms) return '';
+        const diff = Date.now() - ms;
+        if (diff < 0) return 'hace un momento';
+        const min = Math.floor(diff / 60000);
+        if (min < 1)  return 'hace un momento';
+        if (min < 60) return 'hace ' + min + ' min';
+        const h = Math.floor(min / 60);
+        if (h < 24)   return 'hace ' + h + ' h';
+        const d = Math.floor(h / 24);
+        if (d === 1)  return 'ayer';
+        if (d < 7)    return 'hace ' + d + ' días';
+        try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
     }
 
     // Menu de clic derecho para elegir el icono de un archivo: los 10 tipos de
@@ -2474,6 +3077,7 @@ class VisorView {
                 <div class="docx-bar-actions">
                     ${viewToggle}
                     ${(canCreate && crumb.length <= 1) ? `<button type="button" class="tree-new-btn docx-newfolder-btn" title="Nueva carpeta"><i data-lucide="folder-plus" class="w-4 h-4"></i></button>` : ''}
+                    ${(canCreate && crumb.length >= 1) ? `<button type="button" class="tree-new-btn tree-new-todo" title="Nuevo TODO en esta carpeta"><i data-lucide="list-checks" class="w-4 h-4"></i></button>` : ''}
                     ${canCreate ? `<button type="button" class="tree-new-btn tree-root-new" title="Nuevo archivo — elige la carpeta destino"><i data-lucide="file-plus" class="w-4 h-4"></i></button>` : ''}
                 </div>
             </div>`;
@@ -2497,7 +3101,7 @@ class VisorView {
             return `
                 <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" data-relpath="${item.relPath || ''}" draggable="true" title="${item.file}">
                     <i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>
-                    <span class="docx-name">${item.file}</span>
+                    <span class="docx-name" title="Doble clic para renombrar">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                     <span class="docx-size">${item.size || ''}</span>
                     ${this.delBtnHtml(item)}
@@ -2528,6 +3132,12 @@ class VisorView {
         $('#sidebarList .tree-root-new').off('click').on('click', (e) => {
             e.stopPropagation();
             if (typeof app !== 'undefined' && app && app.openNewFileModal) app.openNewFileModal();
+        });
+
+        // Boton "Nuevo TODO": crea/abre un todo.json en la carpeta del nivel actual.
+        $('#sidebarList .tree-new-todo').off('click').on('click', (e) => {
+            e.stopPropagation();
+            if (typeof app !== 'undefined' && app && app.createTodo) app.createTodo(levelDir(crumb));
         });
 
         // Toggle de presentación: alterna lista / carpetas y re-renderiza.
@@ -2575,6 +3185,39 @@ class VisorView {
                 e.stopPropagation();
                 clearTimeout(folderNavTimer);
                 startRenameFolder($(this).closest('.docx-folder'));
+            });
+
+        // ── Renombrar ARCHIVO inline: doble clic al nombre (mismo patrón que las
+        //    carpetas). El archivo se resuelve por su fullPath (único). ──
+        const startRenameFile = ($card) => {
+            const fp   = $card.attr('data-fullpath') || '';
+            const item = files.find(f => (f.fullPath || '') === fp);
+            if (!item || $card.find('.docx-rename-input').length) return;
+            const $input = $('<input type="text" class="docx-rename-input" maxlength="120">').val(item.file);
+            $card.find('.docx-name').replaceWith($input);
+            $input.trigger('focus');
+            // Seleccionar solo el nombre, sin la extensión (estilo Windows).
+            const dot = item.file.lastIndexOf('.');
+            if ($input[0].setSelectionRange && dot > 0) $input[0].setSelectionRange(0, dot);
+            else $input.trigger('select');
+            let done = false;
+            const finish = async (save) => {
+                if (done) return; done = true;
+                const val = ($input.val() || '').trim();
+                if (save && val && val !== item.file && app.renameFile) {
+                    if (await app.renameFile(item.fullPath, val)) return;   // reloadLibrary re-renderiza
+                }
+                reRender();
+            };
+            $input.on('click', ev => ev.stopPropagation())
+                  .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
+                  .on('blur', () => finish(true));
+        };
+        $('#sidebarList .docx-file').off('dblclick')
+            .on('dblclick', '.docx-name', function (e) {
+                e.stopPropagation();
+                e.preventDefault();
+                startRenameFile($(this).closest('.docx-file'));
             });
 
         // ── Crear carpeta nueva en el nivel actual (tarjeta temporal con input). ──
@@ -2748,6 +3391,13 @@ class VisorView {
     }
 
     renderContent(file) {
+        // Limpiar estado del panel TODO por si el archivo anterior era un todo.json.
+        $('#md-rendered').off('.td').removeClass('is-todo');
+        $('#btnEdit, #btnOpenEditor').removeClass('hidden');
+        $('body').removeClass('todo-mode');   // restaura el aside (Frontmatter + TOC)
+        // Los todo.json se pintan como panel dinámico (CRUD), no como markdown.
+        if (this._isTodoJson(file)) { this._renderTodoPanel(file); return; }
+
         const parts = (file.file || '').split('.');
         const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
         // Google Docs nativos exportan como markdown — tratar como md aunque
@@ -2831,6 +3481,135 @@ class VisorView {
 
         const $main = $('.main-content');
         if ($main.length) $main.scrollTop(0);
+    }
+
+    // ── TODO dinámico (todo.json): panel CRUD con el look del documento ──
+    // todo.json o cualquier todo*.json (renombrado): todos abren el panel TODO.
+    _isTodoJson(file) { return !!file && /^todo.*\.json$/.test((file.file || '').toLowerCase()); }
+
+    _todoPersist(file, content) {
+        if (!file || !file.fullPath) return;
+        const form = new FormData();
+        form.append('action', 'save');
+        form.append('fullPath', file.fullPath);
+        form.append('customPath', (app && app.settings && app.settings.customPath) || '');
+        form.append('content', content);
+        fetch((app && app._link) || 'ctrl/ctrl-visor.php', { method: 'POST', body: form })
+            .then(r => r.json())
+            .then(d => { if (d && d.success) { file.raw = content; if (d.mtime) file.mtime = d.mtime; if (d.size) file.size = d.size; } })
+            .catch(() => {});
+    }
+
+    _renderTodoPanel(file) {
+        const view = this;
+        const $root = $('#md-rendered').addClass('is-todo');
+        const uid = p => p + Math.random().toString(36).slice(2, 9);
+        const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+
+        let data;
+        try { data = JSON.parse(file.raw || ''); } catch (e) { data = null; }
+        if (!data || typeof data !== 'object') data = {};
+        if (!Array.isArray(data.sections)) data.sections = [];
+        if (!data.title) data.title = file.project || 'TODO';
+        data.sections.forEach(s => { if (!s.id) s.id = uid('s'); if (!Array.isArray(s.tasks)) s.tasks = []; s.tasks.forEach(t => { if (!t.id) t.id = uid('t'); }); });
+
+        const XSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
+        function secBlock(s) {
+            return '<section class="td-sec" data-id="' + s.id + '"><div class="td-sechead">' +
+                   '<h2 class="td-sectitle" contenteditable="true" spellcheck="false">' + esc(s.title || 'Sección') + '</h2>' +
+                   '<button class="td-secdel" title="Eliminar sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
+                   '<ul class="td-list">' + s.tasks.map(taskRow).join('') + '</ul>' +
+                   '<div class="td-add"><span class="td-adddot"></span><input type="text" class="td-addinput" data-sec="' + s.id + '" placeholder="Añadir tarea…" maxlength="240" autocomplete="off"></div></section>';
+        }
+        function paint() {
+            const secs = data.sections.length ? data.sections.map(secBlock).join('') : '<div class="td-empty">Sin secciones. Crea una con “Nueva sección”.</div>';
+            $root.html(
+                '<div class="td-head"><h1 class="td-title" contenteditable="true" spellcheck="false">' + esc(data.title) + '</h1>' +
+                  '<div class="td-count"><div class="td-count-n"><b class="td-done">0</b> / <span class="td-total">0</span></div><div class="td-bar"><span></span></div></div></div>' +
+                '<div class="td-secs">' + secs + '</div>' +
+                '<button class="td-newsec"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Nueva sección</button>' +
+                '<div class="td-foot"><div class="td-foot-l"><span class="td-pend">0 pendientes</span><span> · </span><span>guardado en <code>todo.json</code></span></div>' +
+                  '<div class="td-foot-r"><button class="td-clear" hidden>Limpiar completadas</button><button class="td-copy">Copiar</button></div></div>'
+            );
+            stats();
+        }
+        function stats() {
+            const all = data.sections.flatMap(s => s.tasks), total = all.length, done = all.filter(t => t.done).length;
+            $root.find('.td-done').text(done); $root.find('.td-total').text(total);
+            $root.find('.td-bar span').css('width', total ? Math.round(done / total * 100) + '%' : '0%');
+            const pend = total - done;
+            $root.find('.td-pend').text(pend === 1 ? '1 pendiente' : pend + ' pendientes');
+            $root.find('.td-clear').prop('hidden', done === 0);
+            $('#lineCountChip').text('TODO · ' + total + (total === 1 ? ' tarea' : ' tareas'));
+            $('#md-raw').text(JSON.stringify(data, null, 2));
+        }
+        function locate(id) { for (const s of data.sections) { const t = s.tasks.find(x => x.id === id); if (t) return { sec: s, task: t }; } return null; }
+        function selectAll(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+        let saveTimer = null;
+        function persist(now) {
+            clearTimeout(saveTimer);
+            const doIt = () => view._todoPersist(file, JSON.stringify(data, null, 2));
+            if (now) doIt(); else saveTimer = setTimeout(doIt, 500);
+        }
+        function drop($el, after) { $el.addClass('td-leaving').one('animationend', after); }
+
+        paint();
+
+        $root.on('keydown.td', '.td-addinput', function (e) {
+            if (e.key !== 'Enter') return; e.preventDefault();
+            const v = this.value.trim(); if (!v) return;
+            const sec = data.sections.find(s => s.id === this.dataset.sec); if (!sec) return;
+            const t = { id: uid('t'), text: v, done: false }; sec.tasks.push(t);
+            $(this).closest('.td-sec').find('.td-list').append(taskRow(t));
+            this.value = ''; stats(); persist(true);
+        });
+        $root.on('keydown.td', '.td-txt,.td-sectitle,.td-title', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+        $root.on('change.td', '.td-chk', function () {
+            const r = locate($(this).closest('.td-task').data('id')); if (!r) return;
+            r.task.done = this.checked; $(this).closest('.td-task').toggleClass('done', this.checked); stats(); persist(true);
+        });
+        $root.on('click.td', '.td-del', function () {
+            const li = $(this).closest('.td-task'); const r = locate(li.data('id')); if (!r) return;
+            r.sec.tasks = r.sec.tasks.filter(x => x.id !== r.task.id); drop(li, () => { li.remove(); stats(); }); persist(true);
+        });
+        $root.on('click.td', '.td-secdel', function () {
+            const el = $(this).closest('.td-sec'); const sid = el.data('id'); const sec = data.sections.find(s => s.id === sid);
+            if (sec && sec.tasks.length && !confirm('Eliminar la sección “' + sec.title + '” y sus ' + sec.tasks.length + ' tarea(s)?')) return;
+            data.sections = data.sections.filter(s => s.id !== sid);
+            drop(el, () => { if (!data.sections.length) paint(); else { el.remove(); stats(); } }); persist(true);
+        });
+        $root.on('blur.td', '.td-txt', function () {
+            const li = $(this).closest('.td-task'); const r = locate(li.data('id')); if (!r) return;
+            const v = this.textContent.trim();
+            if (!v) { r.sec.tasks = r.sec.tasks.filter(x => x.id !== r.task.id); drop(li, () => { li.remove(); stats(); }); persist(true); return; }
+            if (v !== r.task.text) { r.task.text = v; persist(); }
+        });
+        $root.on('blur.td', '.td-sectitle', function () {
+            const sec = data.sections.find(s => s.id === $(this).closest('.td-sec').data('id')); if (!sec) return;
+            const v = this.textContent.trim() || 'Sección'; this.textContent = v; if (v !== sec.title) { sec.title = v; persist(); }
+        });
+        $root.on('blur.td', '.td-title', function () {
+            const v = this.textContent.trim() || 'TODO'; this.textContent = v; if (v !== data.title) { data.title = v; persist(); }
+        });
+        $root.on('click.td', '.td-newsec', function () {
+            const s = { id: uid('s'), title: 'Nueva sección', tasks: [] }; data.sections.push(s); paint();
+            const h = $root.find('.td-sec[data-id="' + s.id + '"] .td-sectitle').get(0); if (h) { h.focus(); selectAll(h); } persist(true);
+        });
+        $root.on('click.td', '.td-clear', function () {
+            data.sections.forEach(s => s.tasks = s.tasks.filter(t => !t.done)); paint(); persist(true); visorView.toast('Completadas eliminadas', 'success');
+        });
+        $root.on('click.td', '.td-copy', function () {
+            let md = '# ' + (data.title || 'TODO') + '\n';
+            data.sections.forEach(s => { md += '\n## ' + s.title + '\n' + s.tasks.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n'; });
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(md).then(() => visorView.toast('Copiado como Markdown', 'success'), () => visorView.toast('No se pudo copiar', 'error'));
+        });
+
+        // El panel ya es editable en sitio: no hay modo edición WYSIWYG.
+        $('#btnEdit, #btnOpenEditor').addClass('hidden');
+        $('body').addClass('todo-mode');   // oculta el aside y da todo el ancho al TODO
+        const $main = $('.main-content'); if ($main.length) $main.scrollTop(0);
     }
 
     buildTocHtml(items) {
@@ -3745,8 +4524,10 @@ class CoffeeIA {
         this._layoutPending = this.layoutMode && !(this._app && this._app.isEditing);
         if (this._layoutPending) this._showLayoutLoading();
 
+        // Por fullPath (currentFileRef), no por nombre: si hay varios todo.json el
+        // contexto de la IA debe ser el archivo realmente abierto, no el primero.
         const currentFileObj = this._app.currentFile
-            ? (this._app.allFiles || []).find(f => f.file === this._app.currentFile)
+            ? (this._app.currentFileRef ? this._app.currentFileRef() : (this._app.allFiles || []).find(f => f.file === this._app.currentFile))
             : null;
 
         const payload = {
@@ -4567,7 +5348,7 @@ class CoffeeIA {
             const $greet = $(`
                 <div class="ia-msg ai" id="iaGreetMsg">
                     <div class="ia-msg-role"><span class="dot"></span><span>CoffeeIA</span></div>
-                    <div class="ia-msg-text"><p>Hola. Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. ¿En que te puedo ayudar hoy?</p></div>
+                    <div class="ia-msg-text"><p>¡Hola! 👋 Soy <strong>CoffeeIA</strong>, tu asistente del framework CoffeeSoft. Cuéntame en qué estás trabajando y lo resolvemos juntos.</p></div>
                 </div>
             `);
             $('#iaBodyChat').append($greet);

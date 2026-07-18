@@ -1,31 +1,31 @@
 
 
-// El backend se reutiliza tal cual (no se duplica SQL): los endpoints viven en pedidos.
+// Backend reutilizado: los endpoints viven en pedidos.
 const API_PEDIDOS = '/alpha/pedidos/ctrl/ctrl-pedidos.php';
 const API_CIERRE  = '/alpha/pedidos/ctrl/ctrl-cierre.php';
 const API_ACCESS  = '/alpha/access/ctrl/ctrl-access.php';
 
 const HOME_URL = '/alpha/menus/ventas.php';
 
-let visor, cierre;
+let orderVisor, cierre;
 let lsSucursales = [];
 
 $(async () => {
-    // pedidos-cierre.js declara `apiCierre` con ruta RELATIVA ('ctrl/ctrl-cierre.php'),
-    // que desde este modulo apuntaria a /alpha/order-visor/ctrl/... (inexistente).
+    // pedidos-cierre.js lo declara con ruta relativa.
     apiCierre = API_CIERRE;
     cierre = new Cierre(apiCierre);
 
     lsSucursales = await loadSubsidiaries();
 
-    visor = new OrderVisor(API_PEDIDOS, 'root');
-    visor.render();
+    orderVisor = new OrderVisor(API_PEDIDOS, 'root');
+    orderVisor.init();
+
+    // Clic en un pedido del Corte Z -> abre su ticket en la vista previa con "Volver".
+    // Solo el visor de cierre registra este callback; en alpha/pedidos las filas no son clicables.
+    cierre.onOrderClick = (id) => orderVisor.renderTicketReport({ id }, orderVisor.selectedKey);
 });
 
-// Sucursales del selector. Fuente principal: ctrl-access (opc 'company'), la MISMA que
-// alimenta la navbar y que NO filtra por rol. Si por lo que sea llega vacia, se cae al
-// `init` de pedidos (cuyo lsSubsidiaries() responde 403 + lista vacia si el ROLID no
-// es 1/2/3, por eso no se usa como fuente principal).
+// ctrl-access no filtra por rol; el init de pedidos si.
 async function loadSubsidiaries() {
     const access = await useFetch({ url: API_ACCESS, data: { opc: 'company' } });
     let list = (access && access.subsidiaries) || [];
@@ -42,34 +42,36 @@ async function loadSubsidiaries() {
 }
 
 class OrderVisor extends Templates {
-    // Ancho del panel izquierdo (lista de folios).
     static LIST_WIDTH = 560;
 
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = "OrderVisor";
-        this.reportType = "cierre";  // 'turno' | 'cierre'
-        this.reportMode = "summary"; // 'summary' | 'detailed' (solo Turno)
-        this.periodMode = "fecha";   // 'fecha' | 'rango'
+        this.reportType = "cierre";
+        this.reportMode = "summary";
+        this.periodMode = "fecha";
         this.items = [];
         this.selectedKey = null;
-        // Ancho ajustable del panel de lista (splitter): la vista previa toma el resto
-        // via flex-1. Persiste entre sesiones; se acota por si quedo guardado un ancho
-        // mayor que la pantalla actual. LIST_WIDTH queda como default (doble clic).
         const saved = parseInt(localStorage.getItem("orderVisorListWidth"), 10);
         this.listWidth = Math.min(Math.max(saved || OrderVisor.LIST_WIDTH, 380), 1000);
     }
 
+    init() {
+        this.render();
+    }
+
     render() {
         this.layout();
+        this.createFilterBar();
+        this.renderBody();
+        this.bindEvents();
+        this.loadList();
     }
 
     layout() {
         this.createLayout({
             parent: "root",
             design: false,
-            // Cadena flex de altura: cada eslabon lleva flex-1 min-h-0 para que
-            // #container llene el viewport y el scroll quede DENTRO de los paneles.
             data: {
                 id: this.PROJECT_NAME,
                 class: 'flex mx-2 flex-1 min-h-0',
@@ -89,10 +91,6 @@ class OrderVisor extends Templates {
         });
 
         this.renderHeader();
-        this.createFilterBar();
-        this.renderBody();
-        this.bindEvents();
-        this.loadList();
     }
 
     renderHeader() {
@@ -110,7 +108,7 @@ class OrderVisor extends Templates {
         `);
     }
 
-    // === Filter bar (componente del framework) ===
+    // -- Filter bar --
      createFilterBar() {
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
@@ -125,7 +123,7 @@ class OrderVisor extends Templates {
                         { id: "turno", valor: "Cierre de turno — Corte X" },
                         { id: "tickets", valor: "Reporte por tickets" },
                     ],
-                    onchange: "visor.changeReportType()",
+                    onchange: "orderVisor.changeReportType()",
                 },
                 {
                     opc: "div",
@@ -139,7 +137,7 @@ class OrderVisor extends Templates {
                     lbl: "Sucursal",
                     class: "col-12 col-md-3 col-lg-2",
                     data: lsSucursales,
-                    onchange: "visor.loadList()",
+                    onchange: "orderVisor.loadList()",
                 },
                 {
                     opc: "button",
@@ -153,20 +151,11 @@ class OrderVisor extends Templates {
             ],
         });
 
-        // El framework solo acepta `icon` como clase Fontello; el SVG Lucide se inyecta tras el render.
         $("#btnPrintReport")
             .addClass("d-inline-flex align-items-center justify-content-center gap-2")
             .html(`${lucideIcon('printer', 'w-4 h-4')} Imprimir`);
 
-        // El `default` de content_json_form copia los atributos del objeto al elemento, asi
-        // que #periodGroup nace con las clases de columna duplicadas: se limpian y se pinta
-        // el control compuesto dentro (los ids reportFecha/reportRango los toma dataPicker).
-        //
-        // El wrapper reusa las MISMAS clases del framework (`form-control input-sm`) y la
-        // altura exacta de Bootstrap -> alinea con Sucursal / Tipo de Reporte:
-        //   line-height 1.5 + padding .375rem*2 + borde 1px*2 = calc(1.5em + .75rem + 2px)
-        // Sin width fijo: el control mide lo que ocupa su contenido (los inputs de fecha
-        // llevan ancho propio segun su formato, asi el box no se estira de mas).
+        // Altura Bootstrap: alinea con los demas controles.
         const periodBoxStyle = `height: calc(1.5em + 0.75rem + 2px); padding-top: 0; padding-bottom: 0; width: auto;`;
         const innerReset = "height: 100%; line-height: 1;";
 
@@ -174,11 +163,11 @@ class OrderVisor extends Templates {
             <div class="form-control input-sm bg-[#1F2A37] d-flex align-items-center gap-2" style="${periodBoxStyle}">
                 <label class="d-flex align-items-center gap-1 text-sm text-gray-200 cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
                     <input type="radio" name="reportPeriodMode" value="fecha" class="accent-blue-500 m-0" checked
-                        onchange="visor.setPeriodMode('fecha')"> Fecha
+                        onchange="orderVisor.setPeriodMode('fecha')"> Fecha
                 </label>
                 <label class="d-flex align-items-center gap-1 text-sm text-gray-200 cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
                     <input type="radio" name="reportPeriodMode" value="rango" class="accent-blue-500 m-0"
-                        onchange="visor.setPeriodMode('rango')"> Rango
+                        onchange="orderVisor.setPeriodMode('rango')"> Rango
                 </label>
                 <span class="w-px bg-gray-600 flex-shrink-0" style="height: 16px;"></span>
                 <input type="text" id="reportFecha"
@@ -189,7 +178,6 @@ class OrderVisor extends Templates {
             </div>
         `);
 
-        // type 'simple' => singleDatePicker + autoApply (sin botones Aplicar/Cancelar).
         dataPicker({
             parent: "reportFecha",
             type: "simple",
@@ -235,7 +223,7 @@ class OrderVisor extends Templates {
         this.loadList();
     }
 
-    // === Cuerpo: lista (izq) + preview (der) ===
+    // -- Cuerpo --
     renderBody() {
         $(`#container${this.PROJECT_NAME}`).html(`
             <div class="flex h-full min-h-0">
@@ -257,8 +245,6 @@ class OrderVisor extends Templates {
                     <div id="reportListFoot" class="flex items-center justify-between px-3 py-2.5 border-t border-gray-700 bg-[#161f2b]"></div>
                 </div>
 
-                <!-- Splitter: mismo ancho (16px) que el gap-4 que separaba los paneles,
-                     asi el diseño no se mueve; solo se vuelve arrastrable. -->
                 <div id="reportSplitter" class="flex-shrink-0 flex items-center justify-center group" style="width: 16px; cursor: col-resize;" title="Arrastrar para ajustar la vista previa · doble clic restablece">
                     <div class="w-1 h-12 rounded-full bg-gray-700 group-hover:bg-gray-500 transition-colors"></div>
                 </div>
@@ -267,8 +253,8 @@ class OrderVisor extends Templates {
                     <div class="flex items-center justify-between p-3 border-b border-gray-700">
                         <span class="text-sm text-gray-400">Vista previa de impresión</span>
                         <div id="reportModeBar" class="inline-flex bg-[#111827] rounded-lg p-0.5">
-                            <button id="btnRepSummary" class="px-3 py-1 rounded-md text-sm font-semibold bg-purple-600 text-white" onclick="visor.setReportMode('summary')">Resumido</button>
-                            <button id="btnRepDetailed" class="px-3 py-1 rounded-md text-sm font-semibold text-gray-400 hover:text-gray-200" onclick="visor.setReportMode('detailed')">Detallado</button>
+                            <button id="btnRepSummary" class="px-3 py-1 rounded-md text-sm font-semibold bg-purple-600 text-white" onclick="orderVisor.setReportMode('summary')">Resumido</button>
+                            <button id="btnRepDetailed" class="px-3 py-1 rounded-md text-sm font-semibold text-gray-400 hover:text-gray-200" onclick="orderVisor.setReportMode('detailed')">Detallado</button>
                         </div>
                     </div>
                     <div id="reportPreview" class="flex-1 overflow-y-auto p-4"></div>
@@ -284,12 +270,9 @@ class OrderVisor extends Templates {
         this.initSplitter();
     }
 
-    // Splitter lista/vista previa: arrastrar ajusta el ancho del panel izquierdo y la
-    // vista previa absorbe el resto (flex-1). Vive solo en este modulo: no toca nada
-    // de CoffeeSoft ni el layout del framework. Doble clic vuelve al ancho default.
     initSplitter() {
-        const MIN_LIST    = 380; // que la lista no colapse
-        const MIN_PREVIEW = 420; // que el reporte siga legible
+        const MIN_LIST    = 380;
+        const MIN_PREVIEW = 420;
 
         const apply = (w) => {
             this.listWidth = w;
@@ -308,7 +291,7 @@ class OrderVisor extends Templates {
                 const startW = $("#reportListPanel").outerWidth();
                 const maxW   = Math.max($(`#container${this.PROJECT_NAME}`).width() - MIN_PREVIEW, MIN_LIST);
 
-                // Sin user-select:none el arrastre va seleccionando el texto de los paneles.
+                // Evita seleccionar texto al arrastrar.
                 $("body").css({ "user-select": "none", cursor: "col-resize" });
 
                 $(document)
@@ -342,9 +325,6 @@ class OrderVisor extends Templates {
         return $("#reportSucursal").val() || null;
     }
 
-    // Con id: resuelve el nombre desde lsSucursales (necesario en tickets cuando el
-    // filtro es "Todas" y cada fila puede pertenecer a una sucursal distinta).
-    // Sin id: nombre de la sucursal actualmente seleccionada en el filtro.
     getSubsidiaryName(subsidiaries_id) {
         if (subsidiaries_id !== undefined && subsidiaries_id !== null) {
             const found = lsSucursales.find(s => String(s.id) === String(subsidiaries_id));
@@ -359,7 +339,6 @@ class OrderVisor extends Templates {
         return ["FOLIO", "TURNOS", "PEDIDOS", "TOTAL CAJA"];
     }
 
-    // En turnos la columna HORARIO muestra "08:30 → 14:15" y necesita mas ancho.
     gridColsFor() {
         if (this.reportType === "turno") return "1fr 112px 52px 104px";
         if (this.reportType === "tickets") return "1fr 70px 78px 104px";
@@ -416,9 +395,7 @@ class OrderVisor extends Templates {
         const items = [];
         results.forEach(({ date, shifts }) => {
             shifts.forEach(s => {
-                // TOTAL = dinero real en caja (cash+card+transfer), igual que el TOTAL CAJA
-                // del ticket: incluye abonos de pedidos anteriores y cobros cruzados recibidos
-                // en esta sucursal. total_sales es venta facturada del turno, NO caja.
+                // Caja real; total_sales es venta, no caja.
                 const caja = parseFloat(s.cash || 0) + parseFloat(s.card || 0) + parseFloat(s.transfer || 0);
                 items.push({
                     key: `turno:${s.id}`,
@@ -426,7 +403,7 @@ class OrderVisor extends Templates {
                     id: s.id,
                     date,
                     folio: "TN-" + String(s.id).padStart(5, "0"),
-                    hora: "", // el horario completo va en su propia columna (col2/col2Sub)
+                    hora: "",
                     sub1: s.employee_name || "Sin vendedor",
                     sub2: moment(s.opened_at).format("DD/MM/YYYY") + " · " + subName,
                     col2: this.formatHorario(s),
@@ -438,7 +415,6 @@ class OrderVisor extends Templates {
                 });
             });
         });
-        // Dias recientes primero; dentro del dia los turnos van de la mañana a la tarde.
         items.sort((a, b) => a.date !== b.date
             ? moment(b.date) - moment(a.date)
             : moment(a.raw.opened_at) - moment(b.raw.opened_at));
@@ -447,9 +423,7 @@ class OrderVisor extends Templates {
 
     async fetchCierres(dates, subsidiaries_id) {
         const subName = this.getSubsidiaryName();
-        // preview: 1 -> si el dia aun no tiene cierre diario, el backend (SOLO admin)
-        // responde el Corte Z armado con datos en vivo y marcado con res.pending;
-        // para el resto de roles el flag se ignora y siguen recibiendo 404.
+        // preview:1 -> Corte Z en vivo (solo admin).
         const results = await Promise.all(dates.map(date =>
             useFetch({ url: API_CIERRE, data: { opc: "getCierre", date, subsidiaries_id, preview: 1 } })
                 .then(res => ({ date, res }))
@@ -464,8 +438,7 @@ class OrderVisor extends Templates {
                 const totalCaja = rShifts.reduce((t, s) =>
                     t + parseFloat(s.efectivo || 0) + parseFloat(s.tarjeta || 0) + parseFloat(s.transferencia || 0), 0);
 
-                // Dia pendiente SIN actividad (sin turnos ni pedidos): no aporta nada y en
-                // modo rango inundaria la lista con filas vacias de dias no laborados.
+                // Dia sin actividad: ensuciaria el rango.
                 if (pending && !rShifts.length && !(res.orders || []).length) return;
 
                 items.push({
@@ -480,7 +453,6 @@ class OrderVisor extends Templates {
                     col2: rShifts.length,
                     col3: (res.orders || []).length,
                     col4: totalCaja,
-                    // "open" reusa el punto naranja pulsante de turnos abiertos.
                     status: pending ? "open" : "closed",
                     raw: res,
                 });
@@ -490,9 +462,6 @@ class OrderVisor extends Templates {
         return items;
     }
 
-    // A diferencia de turnos/cierres (un fetch por dia), aqui basta UNA llamada con
-    // fi = primera fecha del rango y ff = ultima: listOrdersTicket ya acepta rango
-    // (reusa getOrders() del modelo, igual que listOrders).
     async fetchTickets(dates, subsidiaries_id) {
         const fi = dates[0];
         const ff = dates[dates.length - 1];
@@ -506,7 +475,7 @@ class OrderVisor extends Templates {
             id: o.id,
             date: o.date_creation,
             folio: o.folio,
-            hora: "", // el horario de entrega va en su propia columna (col2), igual que turno
+            hora: "",
             sub1: o.name_client || "Sin cliente",
             sub2: moment(o.date_creation).format("DD/MM/YYYY") + " · " + this.getSubsidiaryName(o.subsidiaries_id),
             col2: o.time_order || "—",
@@ -516,13 +485,10 @@ class OrderVisor extends Templates {
             raw: o,
         }));
 
-        // Dentro del mismo dia, getOrders() ya ordena por date_creation DESC; el sort
-        // por dia es estable, asi que ese orden fino se conserva.
         items.sort((a, b) => moment(b.date) - moment(a.date));
         return items;
     }
 
-    // Horario del turno: "08:30 → 14:15"; si sigue abierto, "08:30 → —".
     formatHorario(s) {
         const cierre = s.status === "closed" && s.closed_at
             ? moment(s.closed_at).format("HH:mm")
@@ -530,14 +496,13 @@ class OrderVisor extends Templates {
         return moment(s.opened_at).format("HH:mm") + " → " + cierre;
     }
 
-    // Sublinea del horario: duracion del turno cerrado ("5h 45m") o "ABIERTO".
     formatDuracion(s) {
         if (s.status !== "closed" || !s.closed_at) return "ABIERTO";
         const mins = moment(s.closed_at).diff(moment(s.opened_at), "minutes");
         return Math.floor(mins / 60) + "h " + String(mins % 60).padStart(2, "0") + "m";
     }
 
-    // === Render de la lista columnar ===
+    // -- Lista --
     renderList() {
         const q = ($("#reportSearch").val() || "").toLowerCase().trim();
         const filtered = q
@@ -546,9 +511,6 @@ class OrderVisor extends Templates {
 
         $("#reportListCount").text(`${filtered.length} resultado${filtered.length === 1 ? "" : "s"}`);
 
-        // Total general de todo lo listado (se recalcula si el buscador filtra).
-        // En tickets col4 ya es el total con descuento aplicado -> "vendido", no "en caja"
-        // (un ticket puede seguir con saldo pendiente, a diferencia del dinero en caja).
         const grandTotal = filtered.reduce((t, it) => t + (parseFloat(it.col4) || 0), 0);
         const footLabel = this.reportType === "tickets" ? "Total vendido" : "Total en caja";
         $("#reportListFoot").html(`
@@ -582,7 +544,7 @@ class OrderVisor extends Templates {
             return `
                 <button type="button" style="grid-template-columns: ${this.gridColsFor()}"
                     class="w-full text-left grid gap-1 items-center px-3 py-2.5 border-l-2 border-b border-gray-800 transition-colors ${active ? "border-l-purple-500 bg-purple-600/10" : "border-l-transparent hover:bg-[#111827]"}"
-                    onclick="visor.selectItem('${i.key}')">
+                    onclick="orderVisor.selectItem('${i.key}')">
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5">
                             ${dot(i.status)}
@@ -607,7 +569,6 @@ class OrderVisor extends Templates {
             `;
         };
 
-        // En modo Rango la lista se separa por dia (los items ya vienen ordenados desc).
         const html = this.periodMode === "rango"
             ? this.groupByDate(filtered).map(g => `
                 <div class="sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-[#161f2b] border-b border-gray-800">
@@ -634,7 +595,7 @@ class OrderVisor extends Templates {
         return groups;
     }
 
-    // === Seleccion -> render del reporte ===
+    // -- Reportes --
     selectItem(key) {
         this.selectedKey = key;
         this.renderList();
@@ -665,7 +626,6 @@ class OrderVisor extends Templates {
             crossPayments    = ordersRes.cross_payments || [];
         }
 
-        // Fuente unica del formato (shift-ticket.js), la misma que usa alpha/pedidos.
         renderShiftTicket({
             data: metricsRes.data,
             shift: metricsRes.shift,
@@ -681,20 +641,19 @@ class OrderVisor extends Templates {
     }
 
     renderCierreReport(item) {
-        $("#reportModeBar").hide(); // el Corte Z siempre es completo
+        $("#reportModeBar").hide();
         cierre.renderExecutiveSummary(item.raw, "reportPreview");
     }
 
-    // Instancia unica y perezosa de CatalogProduct (pedidos-catalogo.js), fuente unica
-    // del formato del ticket de pedido. Mismo patron de reuso que calendario-pedidos.js
-    // (printOrder) y app.js (printOrder): `new CatalogProduct(link, div).ticketPasteleria(...)`.
     get ticketPrinter() {
         if (!this._ticketPrinter) this._ticketPrinter = new CatalogProduct(API_PEDIDOS, "root");
         return this._ticketPrinter;
     }
 
-    async renderTicketReport(item) {
-        $("#reportModeBar").hide(); // el ticket de un pedido no tiene modo resumido/detallado
+    // backKey: si viene (clic desde un Corte Z), muestra "Volver al Corte Z" y al
+    // pulsarlo regresa a ese cierre con selectItem. Sin backKey se comporta igual que antes.
+    async renderTicketReport(item, backKey = null) {
+        $("#reportModeBar").hide();
         this.loadingPreview("Cargando ticket...");
 
         const res = await useFetch({ url: API_PEDIDOS, data: { opc: "getOrderDetails", id: item.id } });
@@ -703,12 +662,17 @@ class OrderVisor extends Templates {
             return;
         }
 
-        // ticketPasteleria llena el 100% de su parent; se le da un wrapper angosto
-        // (mismo ancho que el ticket del Corte X en shift-ticket.js) para que la vista
-        // previa se vea en formato ticket. A su derecha va una columna con el historial
-        // de pagos arriba y la bitacora del pedido (order_histories) debajo; con
-        // flex-wrap esa columna baja debajo del ticket si el panel se queda angosto.
+        const backBar = backKey
+            ? `<div class="w-full mb-3">
+                    <button type="button" onclick="orderVisor.selectItem('${backKey}')"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700 bg-[#1F2A37] text-gray-300 hover:text-white hover:border-gray-500 transition-colors text-sm">
+                        ${lucideIcon('arrow-left', 'w-4 h-4')} Volver al Corte Z
+                    </button>
+                </div>`
+            : "";
+
         $("#reportPreview").html(`
+            ${backBar}
             <div class="flex flex-wrap justify-center items-start gap-4">
                 <div id="ticketPreviewWrap" class="flex-shrink-0" style="width: 320px;"></div>
                 <div class="flex-shrink-0 flex flex-col gap-4" style="width: 340px;">
@@ -728,16 +692,13 @@ class OrderVisor extends Templates {
             }
         });
 
-        // Se oculta (no se elimina) el boton de imprimir propio del ticket: el "Imprimir"
-        // del filterBar lo sigue disparando via click programatico en printReport().
+        // Se oculta, no se elimina: printReport() lo clickea.
         $("#ticketPreviewWrap .no-print").hide();
 
         this.renderPaymentHistory(res.data);
         this.renderOrderHistory(item.id);
     }
 
-    // Panel de historial de pagos junto al ticket (tema dark del visor: no forma parte
-    // del ticket imprimible, por eso vive fuera de #ticketPreviewWrap).
     renderPaymentHistory(data) {
         const payments = data.payments || [];
         const summary  = data.summary || {};
@@ -746,7 +707,6 @@ class OrderVisor extends Templates {
         const METHOD_ICON = { "Efectivo": "banknote", "Transferencia": "arrow-right-left" };
 
         const rows = payments.map(p => {
-            // Cobro cruzado: el pago se recibio en una sucursal distinta a la del pedido.
             const esCruzado = p.subsidiaries_id && String(p.subsidiaries_id) !== String(orderSub);
             const subBadge = esCruzado
                 ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 text-[9px]" title="Cobrado en sucursal distinta a la del pedido">${p.subsidiary_name || "—"}</span>`
@@ -767,7 +727,10 @@ class OrderVisor extends Templates {
             ? rows
             : `<div class="text-center text-gray-500 py-8 text-sm">Sin pagos registrados.</div>`;
 
-        const balance = parseFloat(summary.balance || 0);
+        const balance  = parseFloat(summary.balance || 0);
+        // summary.total viene SIN descuento.
+        const discount = parseFloat(summary.discount || 0);
+        const importe  = parseFloat(summary.total || 0) - discount;
 
         $("#ticketPaymentsWrap").html(`
             <div class="bg-[#161f2b] rounded-xl overflow-hidden">
@@ -778,6 +741,15 @@ class OrderVisor extends Templates {
                 </div>
                 ${body}
                 <div class="px-3 py-2.5 bg-black/20 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Importe del pedido</span>
+                        <span class="text-sm font-bold text-white">${formatPrice(importe)}</span>
+                    </div>
+                    ${discount ? `
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Descuento</span>
+                        <span class="text-sm font-bold text-amber-400">-${formatPrice(discount)}</span>
+                    </div>` : ""}
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Total pagado</span>
                         <span class="text-sm font-bold text-green-400">${formatPrice(summary.paid || 0)}</span>
@@ -791,9 +763,6 @@ class OrderVisor extends Templates {
         `);
     }
 
-    // Bitacora del pedido (order_histories) debajo del historial de pagos. Reusa el
-    // mismo endpoint que alpha/pedidos (opc 'getHistory' -> listHistories); aqui es
-    // solo lectura, timeline dark, sin caja de comentario.
     async renderOrderHistory(id) {
         $("#ticketHistoryWrap").html(`
             <div class="bg-[#161f2b] rounded-xl px-3 py-4 text-center text-gray-500 text-sm">
@@ -804,7 +773,6 @@ class OrderVisor extends Templates {
         const res = await useFetch({ url: API_PEDIDOS, data: { opc: "getHistory", id } });
         const history = (res && res.history) || [];
 
-        // Icono y color del punto segun el tipo de evento registrado por logOrderHistory.
         const TYPE_META = {
             creation:     { icon: "circle-plus",      dot: "bg-blue-400" },
             payment:      { icon: "banknote",         dot: "bg-green-400" },
@@ -817,6 +785,11 @@ class OrderVisor extends Templates {
             general:      { icon: "info",             dot: "bg-gray-400" },
         };
 
+        // evaluar() (PHP) devuelve los importes como "$ 240.00": con espacio normal el
+        // navegador parte el simbolo del numero al final del renglon. El espacio duro
+        // mantiene el importe completo en una sola linea.
+        const keepMoneyInline = txt => String(txt || "").replace(/\$ (?=\d)/g, () => "$&nbsp;");
+
         const rows = history.map(h => {
             const meta = TYPE_META[h.type] || TYPE_META.general;
             return `
@@ -827,7 +800,7 @@ class OrderVisor extends Templates {
                             <span class="text-gray-400 d-flex flex-shrink-0">${lucideIcon(meta.icon, "w-3.5 h-3.5")}</span>
                             <span class="text-sm text-white truncate">${h.valor || "Actividad"}</span>
                         </div>
-                        <div class="text-[11px] text-gray-300 mt-0.5">${h.message || ""}</div>
+                        <div class="text-[11px] text-gray-300 mt-0.5">${keepMoneyInline(h.message)}</div>
                         <div class="text-[10px] text-gray-500 mt-0.5">
                             ${h.date}${h.author ? " · " + h.author : ""}
                         </div>
@@ -863,8 +836,6 @@ class OrderVisor extends Templates {
 
     printReport() {
         if (this.reportType === "tickets") {
-            // ticketPasteleria trae su propio boton de impresion (abre ventana + window.print());
-            // el boton "Imprimir" del filterBar solo lo dispara por consistencia de UI.
             const btnPrintTicket = document.getElementById("btnPrintTicket");
             if (btnPrintTicket) { btnPrintTicket.click(); return; }
             alert({ icon: "warning", title: "Sin contenido", text: "Selecciona un ticket antes de imprimir.", btn1: true, btn1Text: "Aceptar" });

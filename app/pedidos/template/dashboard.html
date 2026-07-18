@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 7px 12px; font-size: 12px; color: #d1d5db; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        select.input-modal { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .kpi { background: #1F2A37; border: 1px solid #374151; border-radius: 14px; padding: 16px; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link active">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+
+        <!-- Titulo + filtros -->
+        <div class="flex items-center justify-between px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div>
+                <h1 class="text-base font-bold flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-[#22D3EE]"></i> Dashboard</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-0.5">Indicadores de ventas, pedidos y productos.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <select class="input-modal"><option>Julio 2026</option><option>Junio 2026</option><option>Mayo 2026</option></select>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
+            <div class="max-w-6xl mx-auto space-y-4">
+
+                <!-- KPIs -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="kpi">
+                        <div class="flex items-start justify-between"><p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">Ventas del dia</p><div class="w-8 h-8 rounded-lg bg-[#3FC189]/15 flex items-center justify-center"><i data-lucide="trending-up" class="w-4 h-4 text-[#3FC189]"></i></div></div>
+                        <p class="text-2xl font-bold text-white mt-2">$12,340</p>
+                        <p class="text-[10px] text-[#3FC189] mt-1">+8.2% vs ayer</p>
+                    </div>
+                    <div class="kpi">
+                        <div class="flex items-start justify-between"><p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">Ventas del mes</p><div class="w-8 h-8 rounded-lg bg-[#1C64F2]/15 flex items-center justify-center"><i data-lucide="dollar-sign" class="w-4 h-4 text-[#76A9FA]"></i></div></div>
+                        <p class="text-2xl font-bold text-white mt-2">$284,910</p>
+                        <p class="text-[10px] text-[#3FC189] mt-1">+12.4% vs mes anterior</p>
+                    </div>
+                    <div class="kpi">
+                        <div class="flex items-start justify-between"><p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">Pedidos del mes</p><div class="w-8 h-8 rounded-lg bg-[#c4b5fd]/15 flex items-center justify-center"><i data-lucide="shopping-bag" class="w-4 h-4 text-[#c4b5fd]"></i></div></div>
+                        <p class="text-2xl font-bold text-white mt-2">642</p>
+                        <p class="text-[10px] text-[#9CA3AF] mt-1">21 promedio por dia</p>
+                    </div>
+                    <div class="kpi">
+                        <div class="flex items-start justify-between"><p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">Ticket promedio</p><div class="w-8 h-8 rounded-lg bg-[#FBBF24]/15 flex items-center justify-center"><i data-lucide="receipt" class="w-4 h-4 text-[#FBBF24]"></i></div></div>
+                        <p class="text-2xl font-bold text-white mt-2">$443</p>
+                        <p class="text-[10px] text-[#EA0234] mt-1">-2.1% vs mes anterior</p>
+                    </div>
+                </div>
+
+                <!-- Charts row 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="lg:col-span-2 bg-[#1F2A37] border border-[#374151] rounded-2xl p-5">
+                        <h2 class="text-sm font-bold text-white mb-1">Ventas por dia</h2>
+                        <p class="text-[10px] text-[#6B7280] mb-3">Ultimos 14 dias (MXN)</p>
+                        <div class="h-[260px]"><canvas id="chartVentas"></canvas></div>
+                    </div>
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl p-5">
+                        <h2 class="text-sm font-bold text-white mb-1">Pedidos por estado</h2>
+                        <p class="text-[10px] text-[#6B7280] mb-3">Distribucion del mes</p>
+                        <div class="h-[200px]"><canvas id="chartEstados"></canvas></div>
+                        <div class="grid grid-cols-2 gap-2 mt-3 text-[10px]">
+                            <span class="flex items-center gap-1.5 text-[#9CA3AF]"><span class="w-2 h-2 rounded-full bg-[#76A9FA]"></span>Cotizacion</span>
+                            <span class="flex items-center gap-1.5 text-[#9CA3AF]"><span class="w-2 h-2 rounded-full bg-[#FBBF24]"></span>Pendiente</span>
+                            <span class="flex items-center gap-1.5 text-[#9CA3AF]"><span class="w-2 h-2 rounded-full bg-[#3FC189]"></span>Pagado</span>
+                            <span class="flex items-center gap-1.5 text-[#9CA3AF]"><span class="w-2 h-2 rounded-full bg-[#EA0234]"></span>Cancelado</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts row 2 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl p-5">
+                        <h2 class="text-sm font-bold text-white mb-3">Top productos del mes</h2>
+                        <div class="h-[240px]"><canvas id="chartTop"></canvas></div>
+                    </div>
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden">
+                        <div class="px-5 py-3 border-b border-[#374151]"><h2 class="text-sm font-bold text-white">Top clientes</h2></div>
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#141d2b]"><tr class="text-[10px] text-[#6B7280] uppercase tracking-wider border-b border-[#374151]"><th class="px-5 py-2.5 font-semibold">Cliente</th><th class="px-5 py-2.5 font-semibold text-right">Pedidos</th><th class="px-5 py-2.5 font-semibold text-right">Total</th></tr></thead>
+                            <tbody id="topClientes"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+
+        // Top clientes
+        const clientes = [
+            { n: 'Andrea Martinez', p: 12, t: 8940 },
+            { n: 'Carlos Ramirez', p: 9, t: 6230 },
+            { n: 'Maria Gonzalez', p: 7, t: 5410 },
+            { n: 'Sofia Hernandez', p: 6, t: 4120 },
+            { n: 'Diego Morales', p: 5, t: 3980 },
+        ];
+        $('topClientes').innerHTML = clientes.map((c, i) => `
+            <tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40">
+                <td class="px-5 py-2.5"><div class="flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#1a2332] border border-[#374151] flex items-center justify-center text-[9px] font-bold text-[#9CA3AF]">${i + 1}</span><span class="text-white font-medium">${c.n}</span></div></td>
+                <td class="px-5 py-2.5 text-right text-[#9CA3AF]">${c.p}</td>
+                <td class="px-5 py-2.5 text-right font-bold text-[#3FC189]">$${c.t.toLocaleString('es-MX')}</td>
+            </tr>`).join('');
+
+        // Chart.js defaults
+        Chart.defaults.color = '#9CA3AF';
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.font.size = 11;
+        const grid = { color: 'rgba(55,65,81,0.35)' };
+
+        // Ventas por dia
+        new Chart($('chartVentas'), {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 14 }, (_, i) => (i + 4) + '/07'),
+                datasets: [{
+                    label: 'Ventas',
+                    data: [7800, 8200, 9100, 8600, 11200, 13400, 6900, 8100, 9600, 10400, 12100, 14200, 7300, 12340],
+                    borderColor: '#1C64F2', backgroundColor: 'rgba(28,100,242,0.12)',
+                    fill: true, tension: 0.35, borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#1C64F2'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid, ticks: { callback: v => '$' + (v / 1000) + 'k' } } } }
+        });
+
+        // Pedidos por estado
+        new Chart($('chartEstados'), {
+            type: 'doughnut',
+            data: { labels: ['Cotizacion', 'Pendiente', 'Pagado', 'Cancelado'], datasets: [{ data: [82, 145, 388, 27], backgroundColor: ['#76A9FA', '#FBBF24', '#3FC189', '#EA0234'], borderColor: '#1F2A37', borderWidth: 3 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } } }
+        });
+
+        // Top productos
+        new Chart($('chartTop'), {
+            type: 'bar',
+            data: {
+                labels: ['3 Leches Choco', 'Red Velvet', 'Cupcakes', 'Cheesecake', 'Selva Negra', 'Latte Vainilla'],
+                datasets: [{ label: 'Vendidos', data: [142, 118, 96, 74, 61, 58], backgroundColor: ['#1C64F2', '#3FC189', '#c4b5fd', '#FBBF24', '#22D3EE', '#F472B6'], borderRadius: 6, barThickness: 20 }]
+            },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid, ticks: { precision: 0 } }, y: { grid: { display: false } } } }
+        });
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>

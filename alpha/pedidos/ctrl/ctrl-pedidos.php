@@ -7,8 +7,13 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitid
 header("Access-Control-Allow-Headers: Content-Type"); // Encabezados permitidos
 
 require_once '../mdl/mdl-pedidos.php';
+require_once '../../conf/_Message.php';
 
 class Pedidos extends MPedidos{
+
+    // Destinatario del aviso de apertura de turno. Acepta un telefono de 10
+    // digitos, un id de grupo ('...@g.us') o un array de varios. Vacio = no envia.
+    const WHATSAPP_TURNO = '9621501886';
 
     function init(){
         $subsidiaries = $this->lsSubsidiaries();
@@ -106,6 +111,20 @@ class Pedidos extends MPedidos{
             'status'  => $status,
             'message' => $message,
             'data'    => $data
+        ];
+    }
+
+    // Snapshot fresco de sucursales con su shift_opened_at, para resincronizar la
+    // tarjeta "Esta sucursal vende como" tras abrir/cerrar un turno sin recargar la
+    // pagina (misma fuente que el init: getSubsidiariesByCompany).
+    function getSubsidiariesShift() {
+        $data = in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])
+            ? $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']])
+            : [];
+
+        return [
+            'status' => 200,
+            'data'   => is_array($data) ? $data : []
         ];
     }
 
@@ -380,8 +399,9 @@ class Pedidos extends MPedidos{
 
             $folio  = $this->getMaxOrder();
 
-            $entrega = trim(($_POST['date_order'] ?? '') . ' ' . ($_POST['time_order'] ?? ''));
-            $this->logOrderHistory($folio['id'], 'Pedido creado' . ($entrega !== '' ? " — entrega {$entrega}" : ''), 'creation');
+            // La bitacora de creacion NO se registra aqui (el pedido nace sin productos):
+            // el resumen "Pedido guardado como {estado} sin cobro — total $X, N productos"
+            // lo escribe addPayment() (ctrl-pedidos-catalogo.php) al Terminar el pedido.
 
             return [
                 'status'  => 200,
@@ -733,8 +753,13 @@ class Pedidos extends MPedidos{
         if ($addPay) {
             $status  = 200;
             $message = 'Pago registrado correctamente';
-            
-          $success =  $this->logHistory("Se registró un pago de " . evaluar($pay), 'payment');
+
+            $msg = "Se registró un pago de " . evaluar($pay);
+            // Cobro cruzado: el pago se cobro en una sucursal distinta a la del pedido.
+            // Se deja en la bitacora porque el dinero entra a un corte que no es el de
+            // la sucursal duena del pedido (ver docs/estrategia-bitacora.md).
+            $msg .= $this->crossPaymentNote($id, $sucursalCobro);
+            $success = $this->logHistory($msg, 'payment');
         }
 
         return [
@@ -830,8 +855,10 @@ class Pedidos extends MPedidos{
 
             if ($_SESSION['ROLID'] == 1) {
                 $a[] = [
-                    'class'   => 'pointer text-red-200 hover:text-red-900 p-2',
-                    'html'    => '<i class="icon-trash"></i>',
+                    // El hover a red-900 (casi negro) desaparecia sobre el fondo oscuro
+                    // del modal: el estado activo debe aclarar, no oscurecer.
+                    'class'   => 'pointer text-red-400 hover:text-red-300 p-2',
+                    'html'    => '<i class="icon-trash" title="Eliminar pago"></i>',
                     'onClick' => "app.deletePay({$key['id']},{$_POST['id']})"
                 ];
             }else{
@@ -939,7 +966,6 @@ class Pedidos extends MPedidos{
             'data'    => $data
         ];
     }
-
 
     // Estos son los modificadores
     function getModifiers() {
@@ -1430,6 +1456,23 @@ class Pedidos extends MPedidos{
         return $this->logOrderHistory($_POST['id'] ?? null, $message, $type, $title);
     }
 
+    // Sufijo para la bitacora cuando el pago se cobra en una sucursal distinta a la
+    // del pedido. Devuelve '' si el cobro es en la misma sucursal o si falta el dato:
+    // el mensaje base nunca debe perderse por no poder resolver el nombre.
+    private function crossPaymentNote($orderId, $sucursalCobro) {
+        if (empty($sucursalCobro)) return '';
+
+        $order = $this->getOrderID([$orderId]);
+        $subOrder = $order[0]['subsidiaries_id'] ?? null;
+        if (empty($subOrder) || intval($subOrder) === intval($sucursalCobro)) return '';
+
+        $cobro  = $this->getSucursalByID([$sucursalCobro]);
+        $pedido = $this->getSucursalByID([$subOrder]);
+
+        return ' — cobro cruzado: cobrado en ' . ($cobro['sucursal'] ?? "sucursal {$sucursalCobro}")
+             . ', pedido de ' . ($pedido['sucursal'] ?? "sucursal {$subOrder}");
+    }
+
     function updateDeliveryStatus() {
         $status = 500;
         $message = 'Error al actualizar el estado de entrega';
@@ -1464,11 +1507,15 @@ class Pedidos extends MPedidos{
             // is_delivered tiene 3 estados: 0 = no entregado, 1 = entregado, 2 = para
             // producir (ver handleDeliveryClick en app.js).
             $deliveryLabels = [0 => 'no entregado', 1 => 'entregado', 2 => 'para producir'];
+            // El titulo del historial nombra el estado alcanzado: "Entrega" a secas se
+            // leia como "ya se entrego" incluso al pasar el pedido a produccion.
+            $deliveryTitles = [0 => 'Entrega pendiente', 1 => 'Entregado', 2 => 'En producción'];
             $statusText = $deliveryLabels[(int) $is_delivered] ?? "estado {$is_delivered}";
+            $title      = $deliveryTitles[(int) $is_delivered] ?? 'Cambio de entrega';
             $message    = "El pedido fue marcado como {$statusText}";
             // Bitacora: queda registrado quien marco la entrega y cuando (logHistory
             // toma el id de $_POST['id'], ya presente en este request).
-            $this->logHistory("Pedido marcado como {$statusText}", 'delivery', 'Entrega');
+            $this->logHistory("Pedido marcado como {$statusText}", 'delivery', $title);
         }
 
         return [
@@ -1580,6 +1627,31 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Aviso de cierre de turno por WhatsApp con el corte resumido. Nunca debe tumbar
+    // el cierre: el turno ya quedo cerrado y el envio depende de una API externa.
+    private function notifyShiftClosed($shift, $metrics, $subsidiary_id) {
+        if (self::WHATSAPP_TURNO === '' || self::WHATSAPP_TURNO === []) return;
+
+        try {
+            $sucursal  = $this->getSucursalByID([$subsidiary_id]);
+            $nombreSuc = $sucursal['sucursal'] ?? 'Sucursal';
+            $cajero    = $shift['employee_name'] ?: 'un usuario';
+
+            $mensaje = "*CORTE DE TURNO*\n"
+                     . $nombreSuc . ' - ' . $cajero . "\n\n"
+                     . '*Ventas:* $' . number_format(floatval($metrics['total_sales']), 2) . "\n"
+                     . 'Efectivo: $' . number_format(floatval($metrics['cash_sales']), 2) . "\n"
+                     . 'Tarjeta: $' . number_format(floatval($metrics['card_sales']), 2) . "\n"
+                     . 'Transferencia: $' . number_format(floatval($metrics['transfer_sales']), 2) . "\n"
+                     . 'Pedidos: ' . intval($metrics['total_orders']);
+
+            $msg = new Message();
+            $msg->whatsapp(self::WHATSAPP_TURNO, $mensaje);
+        } catch (Exception $e) {
+            error_log('[ WHATSAPP closeShift ] :: ' . $e->getMessage() . PHP_EOL, 3, 'error.log');
+        }
+    }
+
     function closeShift() {
         $shift_id = $_POST['shift_id'];
 
@@ -1638,6 +1710,9 @@ class Pedidos extends MPedidos{
 
         // Vincular órdenes al turno
         $this->updateOrdersCashShift([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
+
+        // Aviso del corte por WhatsApp (resumido). No debe afectar el cierre si falla.
+        $this->notifyShiftClosed($shift, $metrics, $subsidiary_id);
 
         // Retornar datos actualizados
         $updatedShift = $this->getCashShiftById($shift_id);

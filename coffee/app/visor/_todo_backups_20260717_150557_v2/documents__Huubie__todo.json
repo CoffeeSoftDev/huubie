@@ -1,0 +1,47 @@
+{
+  "title": "Huubie",
+  "sections": [
+    {
+      "id": "si2nvttf",
+      "title": "Lista de pedidos",
+      "tasks": [
+        {
+          "id": "tjvih2wq",
+          "text": "Cierre del dia - el numero 1 debe aparecer parpadeante",
+          "done": false
+        },
+        {
+          "id": "tmsunv1a",
+          "text": "Cierre del dia - Debe aparecer una nota que indique que es necesario cerrar el dia , igual si se consulta el dia siguiente debe aparecer algo que diga cerrar dia",
+          "done": false
+        },
+        {
+          "id": "tzz87wkz",
+          "text": "No deberia poder abrir turno, si el dia de ayer no lo cerre",
+          "done": false
+        },
+        {
+          "id": "td7newt8",
+          "text": "Cambiar el mensaje de la api de whats, y que sea en cerrar turno, el conteo que hizo el ticket que me lo mande en un mensaje",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "s83nf573",
+      "title": "Visor de cierre del día",
+      "tasks": [
+        {
+          "id": "tlh63sdt",
+          "text": "Agregar un apartado inteligente ( sugerencia con coffee-ia) que detecte porque esta marcando ese error en el reporte",
+          "done": false
+        },
+        {
+          "id": "tdb561tz",
+          "text": "Revisar si se cumpleten todos los eventos de pedidos",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

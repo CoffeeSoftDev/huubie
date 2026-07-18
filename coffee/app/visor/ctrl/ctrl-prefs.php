@@ -24,7 +24,10 @@ const PREFS_ALLOWED = [
     'coffeeia:claude:accounts',       // creditos: cuentas Claude registradas
     'coffeeia:claude:reminderFired',  // creditos: recordatorios ya disparados
     'coffeeia:global:enabledModels',  // LLM: modelos habilitados
-    'coffeeia:global:activeModel'     // LLM: modelo activo
+    'coffeeia:global:activeModel',    // LLM: modelo activo
+    'visor:shortcuts:v1',             // sidebar: accesos directos (URLs configurables)
+    'visor:recentViews:v1',           // sidebar: documentos vistos recientemente
+    'visor:recentCreated:v1'          // sidebar: documentos creados recientemente
 ];
 const PREFS_MAX_BYTES = 262144;   // 256 KB por preferencia
 

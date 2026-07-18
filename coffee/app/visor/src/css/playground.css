@@ -262,6 +262,36 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 }
 .pg-savetpl-active i { flex: 0 0 auto; margin-top: 1px; color: var(--vsr-accent-soft); }
 
+/* Formulario de transmutación (Playground → Coffee Studio): campos del YAML del
+   spell `transmute`. Etiqueta + input apilados, con marcas de obligatorio/opcional. */
+.pg-tm-label {
+    display: block; margin: 12px 0 5px;
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+    color: var(--vsr-text-soft);
+}
+.pg-tm-label:first-of-type { margin-top: 0; }
+.pg-tm-req { color: var(--vsr-accent-soft); font-weight: 500; }
+.pg-tm-opt { color: var(--vsr-text-muted); font-weight: 400; }
+.pg-tm-input {
+    width: 100%; padding: 8px 11px; border-radius: 7px;
+    font-size: 13px; font-family: var(--vsr-font-mono, ui-monospace, monospace);
+    color: var(--vsr-text); background: var(--vsr-bg-soft);
+    border: 1px solid var(--vsr-border);
+    outline: none; transition: border-color .12s ease, box-shadow .12s ease;
+}
+.pg-tm-input:focus { border-color: var(--vsr-accent-soft); box-shadow: 0 0 0 3px var(--vsr-accent-tint); }
+.pg-tm-input::placeholder { color: var(--vsr-text-muted); }
+
+.pg-tm-more { margin-top: 14px; border-top: 1px solid var(--vsr-border); padding-top: 10px; }
+.pg-tm-more > summary {
+    cursor: pointer; list-style: none;
+    font-size: 12px; font-weight: 600; color: var(--vsr-text-soft);
+}
+.pg-tm-more > summary::-webkit-details-marker { display: none; }
+.pg-tm-more > summary::before { content: '▸ '; color: var(--vsr-text-muted); }
+.pg-tm-more[open] > summary::before { content: '▾ '; }
+.pg-tm-more > summary:hover { color: var(--vsr-text); }
+
 /* Selector de viewport: grupo de iconos con el activo en acento. */
 .pg-viewport { display: inline-flex; align-items: center; gap: 1px; }
 .pg-vp-btn {

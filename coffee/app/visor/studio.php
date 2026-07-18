@@ -249,6 +249,10 @@
                     <button class="pg-tab" data-sbtab="styles" title="Inspeccionar estilos de cada elemento">
                         <i data-lucide="palette" class="w-3.5 h-3.5"></i> Estilos
                     </button>
+                    <button class="pg-tab" data-sbtab="console" title="Errores y logs del módulo en el preview">
+                        <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Consola
+                        <span id="pgConsoleBadge" class="pg-console-badge hidden">0</span>
+                    </button>
                 </div>
                 <div class="pg-sandbox-actions">
                     <button id="pgTargetBtn" class="pg-iconbtn" title="Seleccionar un componente del preview para editarlo con el agente">
@@ -343,6 +347,34 @@
                     </div>
                 </div>
                 <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
+
+                <!-- Consola del preview: errores y logs que el módulo emite DENTRO del
+                     iframe. Sin esto el módulo falla en silencio (el iframe se los traga)
+                     y no hay forma de saber qué método reventó. -->
+                <div id="pgConsolePanel" class="pg-console-panel hidden">
+                    <div class="pg-console-head">
+                        <span class="pg-console-title">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Consola del preview
+                        </span>
+                        <div class="flex items-center gap-1">
+                            <button id="pgConsoleCopy" class="pg-iconbtn" title="Copiar todo el log">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button id="pgConsoleAsk" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Mandar los errores al agente para que los corrija">
+                                <i data-lucide="wand-sparkles" class="w-3.5 h-3.5"></i> Corregir con el agente
+                            </button>
+                            <button id="pgConsoleClear" class="pg-iconbtn" title="Limpiar">
+                                <i data-lucide="ban" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pgConsoleBody" class="pg-console-body">
+                        <div class="pg-console-empty">
+                            <i data-lucide="check-circle"></i>
+                            <p>Sin errores. Aquí aparece lo que el módulo escribe en consola y cualquier excepción que lance al renderizarse.</p>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Inspector de estilos: panel lateral que muestra el CSS resuelto
                      (color, borde, tipografía, hover…) del elemento clicado en el preview. -->

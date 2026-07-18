@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pedidos — POS · Huubie</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #141d2b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .badge { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 9999px; border-width: 1px; }
+        [data-menu] { display: none; }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
+
+    <div class="flex flex-1 min-h-0">
+
+        <!-- ====================== SIDEBAR ====================== -->
+        <aside class="w-56 shrink-0 bg-[#0f172a] border-r border-gray-800 flex flex-col">
+            <div class="h-16 flex items-center gap-2 px-4 border-b border-gray-800">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center">
+                    <i data-lucide="cake" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-sm font-bold tracking-wide">Pedidos</span>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">POS · Huubie</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto scrollbar-thin py-4 space-y-1">
+                <div class="px-4 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Operación</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-white bg-[#1F2A37] border-l-2 border-[#1C64F2]">
+                    <i data-lucide="clipboard-list" class="w-4 h-4"></i> Pedidos
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="calendar-days" class="w-4 h-4"></i> Calendario
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="lock" class="w-4 h-4"></i> Cierre del día
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Análisis</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Dashboard
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="receipt-text" class="w-4 h-4"></i> Reportes
+                </a>
+
+                <div class="px-4 mt-6 mb-2">
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Administración</p>
+                </div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="package" class="w-4 h-4"></i> Catálogo
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1F2A37] hover:text-white transition">
+                    <i data-lucide="hash" class="w-4 h-4"></i> Folios
+                </a>
+            </nav>
+
+            <div class="border-t border-gray-800 p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#1C64F2] to-[#7C3AED] flex items-center justify-center text-xs font-bold">RM</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold truncate">Rosy Martínez</p>
+                    <p class="text-[10px] text-green-400 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span> Cajero
+                    </p>
+                </div>
+                <button class="text-gray-500 hover:text-white"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+            </div>
+        </aside>
+
+        <!-- ====================== MAIN ====================== -->
+        <main class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- HEADER -->
+            <header class="h-16 shrink-0 bg-[#141d2b] border-b border-gray-800 flex items-center px-6 gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <i data-lucide="home" class="w-4 h-4 text-gray-500"></i>
+                    <span class="text-gray-500">Pedidos</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-gray-600"></i>
+                    <span class="text-white font-medium">Listado</span>
+                </nav>
+                <div class="flex-1"></div>
+
+                <!-- Selector de sucursal (navbar, solo admin) -->
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="store" class="w-4 h-4 text-[#1C64F2]"></i>
+                    <select class="bg-transparent text-xs font-semibold focus:outline-none">
+                        <option>Sucursal Centro (Mi sucursal)</option>
+                        <option>Sucursal Norte</option>
+                        <option>Todas las sucursales</option>
+                    </select>
+                </div>
+
+                <!-- Indicador de turno abierto -->
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#3FC189]/10 rounded-lg border border-[#3FC189]/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#3FC189] pulse-dot"></span>
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-[10px] text-gray-500 uppercase tracking-wider">Turno</span>
+                        <span class="text-xs font-semibold text-[#3FC189]">Abierto · 08:15 AM</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-[#1F2A37] rounded-lg border border-gray-700">
+                    <i data-lucide="clock" class="w-4 h-4 text-[#1C64F2]"></i>
+                    <span id="liveClock" class="text-xs font-semibold tabular-nums">--:--:--</span>
+                </div>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-5">
+
+                <!-- Línea sucursal + fecha (equivalente a actualizarFechaHora) -->
+                <div class="flex items-center justify-between border-b border-gray-700/60 pb-3">
+                    <p class="text-sm text-gray-300 flex items-center gap-2">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-gray-500"></i>
+                        Sucursal: <span class="font-semibold text-white">Centro</span>
+                        <span class="text-gray-700">|</span>
+                        <span class="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
+                            <span class="w-1.5 h-1.5 bg-green-400 rounded-full pulse-dot"></span> Turno desde las 08:15 AM
+                        </span>
+                    </p>
+                    <p class="text-xs text-gray-400 uppercase font-semibold">Viernes, 17 de julio de 2026</p>
+                </div>
+
+                <!-- ==================== FILTER BAR ==================== -->
+                <section class="bg-[#1F2A37] rounded-xl p-4 border border-gray-700/60">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] text-gray-500">Consultar fecha</label>
+                            <div class="flex items-center gap-2 bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300">
+                                <i data-lucide="calendar" class="w-4 h-4 text-gray-500"></i>
+                                <span>01 jul 2026 – 31 jul 2026</span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[11px] text-gray-500">Seleccionar estados</label>
+                            <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-[#7C3AED]">
+                                <option>Todos los estados</option>
+                                <option>Cotización</option>
+                                <option>Pendiente</option>
+                                <option>Pagado</option>
+                                <option>Cancelado</option>
+                            </select>
+                        </div>
+
+                        <div class="flex-1"></div>
+
+                        <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Pedido
+                        </button>
+                        <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#3FC189] hover:bg-[#36a878] text-sm font-semibold text-white transition">
+                            <i data-lucide="receipt" class="w-4 h-4"></i> Cierre del día
+                        </button>
+                        <button class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1a2332] border border-gray-700 text-sm text-gray-300 hover:border-gray-500 transition">
+                            <i data-lucide="calendar-days" class="w-4 h-4"></i> Calendario
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ==================== TABLA DE PEDIDOS ==================== -->
+                <section class="bg-[#1F2A37] rounded-xl border border-gray-700/60 overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-700/60">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-[#1C64F2]"></i>
+                            <h2 class="text-sm font-bold text-white">Pedidos</h2>
+                            <span class="text-[11px] text-gray-500 ml-1">· punto verde = turno actual</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500"></i>
+                            <input placeholder="Buscar cliente o folio…" class="bg-transparent text-xs text-gray-300 focus:outline-none w-44" />
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto scrollbar-thin">
+                        <table class="w-full border-collapse" style="font-size:12px">
+                            <thead>
+                                <tr class="bg-[#374151] text-gray-300 text-left">
+                                    <th class="px-4 py-3 font-semibold">Folio</th>
+                                    <th class="px-4 py-3 font-semibold">Creación</th>
+                                    <th class="px-4 py-3 font-semibold">Cliente</th>
+                                    <th class="px-4 py-3 font-semibold text-right">Abono</th>
+                                    <th class="px-4 py-3 font-semibold text-right">Total</th>
+                                    <th class="px-4 py-3 font-semibold text-right">Saldo</th>
+                                    <th class="px-4 py-3 font-semibold">Entrega</th>
+                                    <th class="px-4 py-3 font-semibold text-center">Estado</th>
+                                    <th class="px-4 py-3 font-semibold text-center">Entregado</th>
+                                    <th class="px-4 py-3 font-semibold text-center">Tipo</th>
+                                    <th class="px-4 py-3 font-semibold text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700/60 text-gray-300">
+
+                                <!-- Fila: Pagado, con turno actual -->
+                                <tr class="hover:bg-[#1a2332]/50 transition">
+                                    <td class="px-4 py-3"><span class="flex items-center"><span class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>CEN-0784</span></td>
+                                    <td class="px-4 py-3 text-gray-400">17 jul 2026</td>
+                                    <td class="px-4 py-3"><p class="text-gray-200">Laura Méndez</p><p class="text-gray-500 text-[11px]"><i data-lucide="phone" class="inline w-3 h-3"></i> 55 1234 5678</p></td>
+                                    <td class="px-4 py-3 text-right text-[#3FC189]">$1,250.00</td>
+                                    <td class="px-4 py-3 text-right">$1,250.00</td>
+                                    <td class="px-4 py-3 text-right text-[#E05562]">$0.00</td>
+                                    <td class="px-4 py-3 text-gray-400">18 jul · 12:00</td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-green-500/15 text-green-400 border-green-500/30">Pagado</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-blue-500/15 text-blue-400 border-blue-500/30">Para producir</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400">Tienda</td>
+                                    <td class="px-4 py-3 text-center"><button class="w-7 h-7 rounded-md hover:bg-[#1a2332] text-gray-400"><i data-lucide="ellipsis-vertical" class="w-4 h-4"></i></button></td>
+                                </tr>
+
+                                <!-- Fila: Pendiente / abono parcial, con descuento -->
+                                <tr class="hover:bg-[#1a2332]/50 transition">
+                                    <td class="px-4 py-3"><span class="flex items-center"><span class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>CEN-0783</span></td>
+                                    <td class="px-4 py-3 text-gray-400">17 jul 2026</td>
+                                    <td class="px-4 py-3"><p class="text-gray-200">Carlos Ruiz</p><p class="text-gray-500 text-[11px]"><i data-lucide="phone" class="inline w-3 h-3"></i> 55 8765 4321</p></td>
+                                    <td class="px-4 py-3 text-right text-[#3FC189]">$500.00</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <p class="text-green-400 font-semibold">$1,530.00</p>
+                                        <p class="line-through text-gray-500 text-[10px]">$1,800.00</p>
+                                        <p class="text-gray-500 text-[10px]"><i data-lucide="tag" class="inline w-3 h-3"></i> Descuento: $270.00</p>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-[#E05562]">$1,030.00</td>
+                                    <td class="px-4 py-3 text-gray-400">19 jul · 17:30</td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-yellow-500/15 text-yellow-400 border-yellow-500/30">Pendiente</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-gray-500/15 text-gray-400 border-gray-500/30">No entregado</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400">Domicilio</td>
+                                    <td class="px-4 py-3 text-center"><button class="w-7 h-7 rounded-md hover:bg-[#1a2332] text-gray-400"><i data-lucide="ellipsis-vertical" class="w-4 h-4"></i></button></td>
+                                </tr>
+
+                                <!-- Fila: Cotización sin abono -->
+                                <tr class="hover:bg-[#1a2332]/50 transition">
+                                    <td class="px-4 py-3"><span class="flex items-center"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5"></span>CEN-0781</span></td>
+                                    <td class="px-4 py-3 text-gray-400">16 jul 2026</td>
+                                    <td class="px-4 py-3"><p class="text-gray-200">Ana Torres</p><p class="text-gray-500 text-[11px]"><i data-lucide="phone" class="inline w-3 h-3"></i> 55 2468 1357</p></td>
+                                    <td class="px-4 py-3 text-right text-[#3FC189]">$0.00</td>
+                                    <td class="px-4 py-3 text-right">$680.00</td>
+                                    <td class="px-4 py-3 text-right text-[#E05562]">$680.00</td>
+                                    <td class="px-4 py-3 text-gray-400">20 jul · 10:00</td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-[#6E95C0]/15 text-[#8fb3d9] border-[#6E95C0]/30">Cotización</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-gray-500/15 text-gray-400 border-gray-500/30">No entregado</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400">Tienda</td>
+                                    <td class="px-4 py-3 text-center"><button class="w-7 h-7 rounded-md hover:bg-[#1a2332] text-gray-400"><i data-lucide="ellipsis-vertical" class="w-4 h-4"></i></button></td>
+                                </tr>
+
+                                <!-- Fila: Pagado y entregado -->
+                                <tr class="hover:bg-[#1a2332]/50 transition">
+                                    <td class="px-4 py-3"><span class="flex items-center"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5"></span>CEN-0778</span></td>
+                                    <td class="px-4 py-3 text-gray-400">15 jul 2026</td>
+                                    <td class="px-4 py-3"><p class="text-gray-200">Miguel Ángel Soto</p><p class="text-gray-500 text-[11px]"><i data-lucide="phone" class="inline w-3 h-3"></i> 55 9080 7060</p></td>
+                                    <td class="px-4 py-3 text-right text-[#3FC189]">$920.00</td>
+                                    <td class="px-4 py-3 text-right">$920.00</td>
+                                    <td class="px-4 py-3 text-right text-[#E05562]">$0.00</td>
+                                    <td class="px-4 py-3 text-gray-400">16 jul · 14:00</td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-green-500/15 text-green-400 border-green-500/30">Pagado</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-green-500/15 text-green-400 border-green-500/30">Entregado</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400">Domicilio</td>
+                                    <td class="px-4 py-3 text-center"><button class="w-7 h-7 rounded-md hover:bg-[#1a2332] text-gray-400"><i data-lucide="ellipsis-vertical" class="w-4 h-4"></i></button></td>
+                                </tr>
+
+                                <!-- Fila: Cancelado -->
+                                <tr class="hover:bg-[#1a2332]/50 transition opacity-70">
+                                    <td class="px-4 py-3"><span class="flex items-center"><span class="w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5"></span>CEN-0776</span></td>
+                                    <td class="px-4 py-3 text-gray-400">14 jul 2026</td>
+                                    <td class="px-4 py-3"><p class="text-gray-200">Sofía Herrera</p><p class="text-gray-500 text-[11px]"><i data-lucide="phone" class="inline w-3 h-3"></i> 55 3131 2020</p></td>
+                                    <td class="px-4 py-3 text-right text-[#3FC189]">$0.00</td>
+                                    <td class="px-4 py-3 text-right line-through text-gray-500">$450.00</td>
+                                    <td class="px-4 py-3 text-right text-gray-500">—</td>
+                                    <td class="px-4 py-3 text-gray-400">15 jul · 11:00</td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-red-500/15 text-red-400 border-red-500/30">Cancelado</span></td>
+                                    <td class="px-4 py-3 text-center"><span class="badge bg-gray-500/15 text-gray-400 border-gray-500/30">No entregado</span></td>
+                                    <td class="px-4 py-3 text-center text-gray-400">Tienda</td>
+                                    <td class="px-4 py-3 text-center"><button class="w-7 h-7 rounded-md hover:bg-[#1a2332] text-gray-400"><i data-lucide="ellipsis-vertical" class="w-4 h-4"></i></button></td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pie / paginación -->
+                    <div class="flex items-center justify-between px-5 py-3.5 border-t border-gray-700/60">
+                        <p class="text-[11px] text-gray-500">Mostrando 1–5 de 84 pedidos</p>
+                        <div class="flex items-center gap-1">
+                            <button class="w-8 h-8 rounded-md bg-[#1a2332] border border-gray-700 text-gray-400 hover:border-gray-500 flex items-center justify-center"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                            <button class="w-8 h-8 rounded-md bg-[#1C64F2] text-white text-xs font-semibold">1</button>
+                            <button class="w-8 h-8 rounded-md bg-[#1a2332] border border-gray-700 text-gray-400 hover:border-gray-500 text-xs">2</button>
+                            <button class="w-8 h-8 rounded-md bg-[#1a2332] border border-gray-700 text-gray-400 hover:border-gray-500 text-xs">3</button>
+                            <button class="w-8 h-8 rounded-md bg-[#1a2332] border border-gray-700 text-gray-400 hover:border-gray-500 flex items-center justify-center"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </section>
+
+                <footer class="pt-1 pb-4 text-center">
+                    <p class="text-[11px] text-gray-600">Mockup Fase 1 · pantalla Pedidos (listado) · estructura tomada de <code>app/inventarios</code>, contenido según el spec del módulo. Datos de ejemplo.</p>
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        function tick() {
+            const el = document.getElementById('liveClock');
+            if (el) el.textContent = new Date().toLocaleTimeString('es-MX', { hour12: false });
+        }
+        tick(); setInterval(tick, 1000);
+    </script>
+</body>
+</html>

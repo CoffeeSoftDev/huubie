@@ -182,6 +182,10 @@
 
                 <div id="sidebarList" class="sidebar-list"></div>
 
+                <!-- Acceso rapido: anclado al fondo del panel, solo visible en la
+                     raiz del explorador de Documentos. Lo llena VisorView.renderQuickAccess(). -->
+                <div id="quickAccess" class="qa-wrap is-hidden"></div>
+
                 <div class="sidebar-footer">
                     <span id="footerSource">Local</span>
                     <span id="footerPath">.claude/agents</span>
@@ -403,7 +407,7 @@
                     <div class="ia-empty">
                         <span class="cs-brand-mark cs-brand-lg cs-brand-ink"><?php include __DIR__ . '/brand-mark.php'; ?></span>
                         <div class="ia-empty-title"><span class="cs-agent-coffee">Coffee</span><span class="cs-agent-suffix">IA</span></div>
-                        <div class="ia-empty-subtitle">Pregunta cualquier cosa sobre el documento o elige una sugerencia.</div>
+                        <div class="ia-empty-subtitle">¡Hola! 👋 Soy tu asistente de CoffeeSoft. Cuéntame en qué estás trabajando y lo resolvemos juntos, o empieza con una de estas sugerencias.</div>
                         <div class="ia-empty-suggestions">
                             <button class="ia-suggestion" data-prompt="Resume este documento">Resume este documento</button>
                             <button class="ia-suggestion" data-prompt="Encuentra inconsistencias">Encuentra inconsistencias</button>

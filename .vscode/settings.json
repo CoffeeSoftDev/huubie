@@ -26,7 +26,7 @@
 
 
 {
-  "workbench.colorTheme": "Photon High Contrast",
+  "workbench.colorTheme": "Dracula ShuzzyOS",
   "workbench.colorCustomizations": {
     "activityBar.border": "#41207e"
   },

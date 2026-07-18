@@ -1,0 +1,926 @@
+<div class="w-full h-screen flex overflow-hidden" style="font-family:'Inter',system-ui,sans-serif;background:#0f1723;color:#fff">
+  <style>
+    .scrollbar-thin::-webkit-scrollbar{width:4px}
+    .scrollbar-thin::-webkit-scrollbar-track{background:transparent}
+    .scrollbar-thin::-webkit-scrollbar-thumb{background:#374151;border-radius:4px}
+    .product-card{transition:all .12s ease}
+    .product-card:hover{border-color:#7c3aed;transform:translateY(-1px)}
+    .product-card:active{transform:scale(.97)}
+    .cat-btn.active{background:#7c3aed;color:#fff;border-color:#7c3aed}
+    .nav-item.active{color:#7c3aed;border-color:#7c3aed}
+    .nav-item.active .nav-dot{background:#7c3aed}
+    .tab-btn.active{color:#7c3aed;border-bottom:2px solid #7c3aed}
+    .cart-item{animation:slideIn .15s ease}
+    @keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+    .range-slider{-webkit-appearance:none;width:100%;height:6px;background:#1e293b;border-radius:3px;outline:none}
+    .range-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;background:#7c3aed;border-radius:50%;cursor:pointer;box-shadow:0 0 0 4px rgba(124,58,237,.2)}
+    .metodo-btn.active{border-color:#2563eb;color:#60a5fa;background:rgba(37,99,235,.1)}
+    .pct-btn.active{background:#7c3aed;border-color:#7c3aed;color:#fff}
+  </style>
+
+  <!-- NAV LATERAL -->
+  <div class="w-[56px] bg-[#111928] border-r border-gray-800 flex flex-col items-center py-3 gap-1 flex-shrink-0">
+    <div class="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-[10px] mb-3">RK</div>
+    <button data-screen="pos" class="nav-item active w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-purple-400" title="Cobrar">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+      <div class="nav-dot w-1 h-1 rounded-full bg-purple-400"></div>
+    </button>
+    <button data-screen="pedidos" class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Pedidos">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <div class="nav-dot w-1 h-1 rounded-full"></div>
+    </button>
+    <button data-screen="inventario" class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Inventario">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      <div class="nav-dot w-1 h-1 rounded-full"></div>
+    </button>
+    <button data-screen="reportes" class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Reportes">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <div class="nav-dot w-1 h-1 rounded-full"></div>
+    </button>
+    <button data-screen="merma" class="nav-item w-10 h-10 rounded-lg border border-transparent flex flex-col items-center justify-center gap-0.5 text-gray-500 hover:text-gray-300" title="Merma">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+      <div class="nav-dot w-1 h-1 rounded-full"></div>
+    </button>
+    <div class="mt-auto space-y-1">
+      <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-gray-500 hover:text-orange-400" title="Cierre del dia">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      </button>
+      <button class="nav-item w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-gray-500 hover:text-gray-300" title="Configuracion">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN: POS (Cobrar) ====== -->
+  <div data-screen-content="pos" class="flex flex-1 min-w-0">
+    <!-- Panel catalogo 60% -->
+    <div class="flex flex-col flex-1 min-w-0" style="max-width:60%">
+      <div class="flex items-center justify-between px-4 py-2 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 px-2.5 py-1 bg-green-900/30 border border-green-700/40 rounded-lg">
+            <div class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+            <span class="text-[10px] font-semibold text-green-400">TURNO MANANA</span>
+          </div>
+          <span class="text-[10px] text-gray-500">Reginas Kafeto — Andrea M.</span>
+        </div>
+        <div class="flex items-center gap-2 text-[10px] text-gray-500">
+          <span>Ventas: <strong class="text-green-400">$4,850</strong></span>
+          <span class="text-gray-700">|</span>
+          <span>Ordenes: <strong class="text-white">12</strong></span>
+        </div>
+      </div>
+      <div class="px-4 pt-3 pb-2 space-y-2 flex-shrink-0">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="posSearch" type="text" placeholder="Buscar producto o escanear..." class="w-full bg-[#1a2332] border border-gray-700 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500">
+        </div>
+        <div id="posCats" class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          <button class="cat-btn active flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700" data-cat="Todos">Todos</button>
+          <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Tradicional">Pasteles Tradicional</button>
+          <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Cafes">Cafes</button>
+          <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Premium">Premium</button>
+          <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Cupcakes">Cupcakes</button>
+          <button class="cat-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-gray-700 bg-[#1a2332] text-gray-400" data-cat="Galletas">Galletas</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto px-4 pb-3 scrollbar-thin">
+        <div id="posGrid" class="grid grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2"></div>
+      </div>
+    </div>
+    <!-- Panel carrito 40% -->
+    <div class="flex flex-col bg-[#141d2b] border-l border-gray-800" style="width:40%">
+      <div class="px-4 py-2.5 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-bold">Venta #1043</h2>
+            <span class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-600/30 text-blue-400">POS</span>
+          </div>
+          <p class="text-[10px] text-gray-500" id="cartCount">0 items — Venta directa</p>
+        </div>
+        <div class="flex gap-1.5">
+          <select id="tipoVenta" class="bg-[#1a2332] border border-gray-700 rounded-lg px-2 py-1 text-[10px] text-gray-300 focus:outline-none">
+            <option>Venta directa</option>
+            <option>Pedido (fecha entrega)</option>
+          </select>
+          <button id="vaciarCart" class="w-7 h-7 rounded-lg bg-[#1a2332] border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-600 hover:text-white" title="Vaciar">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="px-4 py-2 border-b border-gray-800/50 flex-shrink-0">
+        <div class="flex gap-2">
+          <div class="flex-1 flex items-center gap-2 bg-[#1a2332] rounded-lg px-2.5 py-1.5 border border-gray-700">
+            <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <input type="text" placeholder="Cliente (opcional)" class="flex-1 bg-transparent text-[10px] text-white placeholder-gray-500 focus:outline-none">
+          </div>
+          <button class="px-2 bg-[#1a2332] border border-gray-700 rounded-lg text-gray-400 hover:text-purple-400 text-[10px]">+Nuevo</button>
+        </div>
+      </div>
+      <div id="cartItems" class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 scrollbar-thin"></div>
+      <div class="border-t border-gray-800 px-4 py-3 space-y-2.5 flex-shrink-0">
+        <div class="flex gap-1.5">
+          <button id="btnDescuento" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-orange-400 hover:border-orange-500/40">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            Descuento
+          </button>
+          <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-blue-400 hover:border-blue-500/40">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Nota
+          </button>
+          <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-green-400 hover:border-green-500/40">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Imprimir
+          </button>
+          <button class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-[10px] text-gray-400 hover:text-yellow-400 hover:border-yellow-500/40 ml-auto">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Devolucion
+          </button>
+        </div>
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-gray-500">
+            <span id="lblItemsResumen">Subtotal (0 items)</span>
+            <span id="lblSubtotal">$0.00</span>
+          </div>
+          <div id="rowDescuento" class="hidden flex justify-between text-[11px] text-orange-400">
+            <span id="lblDescuentoTexto">Descuento (0%)</span>
+            <span id="lblDescuentoMonto">-$0.00</span>
+          </div>
+          <div class="flex justify-between text-base font-extrabold pt-1.5 border-t border-gray-700">
+            <span>TOTAL</span>
+            <span class="text-green-400" id="lblTotal">$0.00</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button data-pago="efectivo" class="pay-method py-2 rounded-lg text-[10px] font-bold bg-green-600 text-white text-center hover:bg-green-500 active:scale-95 transition-all">Efectivo</button>
+          <button data-pago="tarjeta" class="pay-method py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-300 text-center hover:border-blue-500/50 active:scale-95">Tarjeta</button>
+          <button data-pago="transferencia" class="pay-method py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-300 text-center hover:border-purple-500/50 active:scale-95">Transferencia</button>
+        </div>
+        <div class="flex gap-2">
+          <button class="py-2.5 px-4 rounded-lg text-[11px] font-bold bg-[#1a2332] border border-blue-500/40 text-blue-400 hover:bg-blue-600 hover:text-white active:scale-95 transition-all">Cotizar</button>
+          <button id="btnAnticipo" class="py-2.5 px-4 rounded-lg text-[11px] font-bold bg-[#1a2332] border border-orange-500/40 text-orange-400 hover:bg-orange-600 hover:text-white active:scale-95 transition-all">Anticipo</button>
+          <button id="btnCobrar" class="flex-1 py-2.5 rounded-lg text-sm font-extrabold bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-600/20 hover:from-green-500 hover:to-emerald-400 active:scale-[0.98] transition-all">COBRAR $0.00</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN: PEDIDOS ====== -->
+  <div data-screen-content="pedidos" class="hidden flex-1 flex flex-col min-w-0">
+    <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+      <div><h1 class="text-lg font-bold">Pedidos</h1><p class="text-[11px] text-gray-500">Ordenes programadas, cotizaciones y ventas</p></div>
+      <div class="flex items-center gap-3">
+        <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Reginas Kafeto</option><option>Todas</option></select>
+        <select id="filtroEstadoPedidos" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Todos los estados</option><option>Cotizacion</option><option>Pendiente</option><option>Pagado</option><option>Cancelado</option></select>
+        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-xs font-semibold text-white hover:bg-purple-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>Nuevo Pedido</button>
+      </div>
+    </div>
+    <div class="flex border-b border-gray-800 px-6 flex-shrink-0">
+      <button class="tab-btn active px-4 py-2.5 text-xs font-semibold border-b-2" data-ped-tab="todos">Todos (67)</button>
+      <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent" data-ped-tab="hoy">Hoy (24)</button>
+      <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent" data-ped-tab="pendientes">Pendientes (8)</button>
+      <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent" data-ped-tab="cotizaciones">Cotizaciones (5)</button>
+      <button class="tab-btn px-4 py-2.5 text-xs font-semibold text-gray-500 border-b-2 border-transparent" data-ped-tab="cancelados">Cancelados (2)</button>
+    </div>
+    <div class="flex-1 overflow-y-auto scrollbar-thin">
+      <table class="w-full">
+        <thead class="sticky top-0 bg-[#111928] z-10">
+          <tr class="text-[10px] text-gray-500 uppercase tracking-wider">
+            <th class="text-left py-2.5 px-6 font-medium">Folio</th><th class="text-left py-2.5 px-3 font-medium">Tipo</th><th class="text-left py-2.5 px-3 font-medium">Cliente</th><th class="text-left py-2.5 px-3 font-medium">Productos</th><th class="text-right py-2.5 px-3 font-medium">Total</th><th class="text-right py-2.5 px-3 font-medium">Pagado</th><th class="text-right py-2.5 px-3 font-medium">Saldo</th><th class="text-left py-2.5 px-3 font-medium">Entrega</th><th class="text-left py-2.5 px-3 font-medium">Estado</th><th class="text-center py-2.5 px-6 font-medium">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="pedidosBody" class="divide-y divide-gray-800/50"></tbody>
+      </table>
+    </div>
+    <!-- Panel detalle -->
+    <div id="pedidoDetalle" class="w-[360px] bg-[#141d2b] border-l border-gray-800 flex-col flex-shrink-0 hidden flex"></div>
+  </div>
+
+  <!-- ====== SCREEN: INVENTARIO ====== -->
+  <div data-screen-content="inventario" class="hidden flex-1 flex flex-col min-w-0">
+    <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+      <div><h1 class="text-lg font-bold">Inventario</h1><p class="text-[11px] text-gray-500">Control de stock por sucursal</p></div>
+      <div class="flex items-center gap-3">
+        <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Reginas Kafeto (Sucursal 4)</option><option>Todas las sucursales</option></select>
+        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-xs font-semibold text-white hover:bg-purple-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>Entrada de Stock</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-3 px-6 py-4 flex-shrink-0">
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Total Productos</p><p class="text-xl font-extrabold mt-1">48</p><p class="text-[10px] text-gray-500 mt-0.5">En catalogo activo</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-green-700/30"><p class="text-[10px] text-green-500 uppercase tracking-wider">Stock OK</p><p class="text-xl font-extrabold text-green-400 mt-1">35</p><p class="text-[10px] text-gray-500 mt-0.5">Nivel normal</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-orange-700/30"><p class="text-[10px] text-orange-500 uppercase tracking-wider">Stock Bajo</p><p class="text-xl font-extrabold text-orange-400 mt-1">9</p><p class="text-[10px] text-gray-500 mt-0.5">Requiere reposicion</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-red-700/30"><p class="text-[10px] text-red-500 uppercase tracking-wider">Agotado</p><p class="text-xl font-extrabold text-red-400 mt-1">4</p><p class="text-[10px] text-gray-500 mt-0.5">Sin stock</p></div>
+    </div>
+    <div class="flex items-center gap-3 px-6 pb-3 flex-shrink-0">
+      <div class="relative flex-1 max-w-sm">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="invSearch" type="text" placeholder="Buscar producto..." class="w-full bg-[#1a2332] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500">
+      </div>
+      <select id="invCatFilter" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300"><option>Todas las categorias</option><option>Tradicional</option><option>Premium</option><option>Cupcakes</option><option>Galletas</option></select>
+      <select id="invStockFilter" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300"><option>Todos los niveles</option><option>Stock OK</option><option>Stock Bajo</option><option>Agotado</option></select>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 scrollbar-thin">
+      <table class="w-full">
+        <thead class="sticky top-0 bg-[#111928] z-10">
+          <tr class="text-[10px] text-gray-500 uppercase tracking-wider">
+            <th class="text-left py-2 px-3 font-medium">Producto</th><th class="text-left py-2 px-3 font-medium w-28">Categoria</th><th class="text-center py-2 px-3 font-medium w-20">Stock</th><th class="text-center py-2 px-3 font-medium w-20">Min</th><th class="text-center py-2 px-3 font-medium w-20">Max</th><th class="text-right py-2 px-3 font-medium w-24">Precio</th><th class="text-right py-2 px-3 font-medium w-24">Costo</th><th class="text-center py-2 px-3 font-medium w-24">Estado</th><th class="text-center py-2 px-3 font-medium w-20">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="invBody" class="divide-y divide-gray-800/50"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN: REPORTES ====== -->
+  <div data-screen-content="reportes" class="hidden flex-1 flex flex-col min-w-0 overflow-y-auto scrollbar-thin">
+    <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+      <div><h1 class="text-lg font-bold">Reportes</h1><p class="text-[11px] text-gray-500">Dashboard de ventas y rendimiento</p></div>
+      <div class="flex items-center gap-3">
+        <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Todas las sucursales</option><option>Reginas Kafeto</option></select>
+        <input type="date" value="2026-04-04" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+        <span class="text-gray-600">—</span>
+        <input type="date" value="2026-04-04" class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300">
+        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a2332] border border-gray-700 text-xs text-gray-400 hover:text-green-400"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Exportar</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-5 gap-3 px-6 py-4 flex-shrink-0">
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-green-700/30"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Ventas Totales</p><p class="text-xl font-extrabold text-green-400 mt-1">$48,520</p><p class="text-[10px] text-green-500 mt-0.5">+8% vs ayer</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Ordenes</p><p class="text-xl font-extrabold mt-1">67</p><p class="text-[10px] text-gray-500 mt-0.5">Ticket promedio: $724</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Pedidos Programados</p><p class="text-xl font-extrabold text-blue-400 mt-1">12</p><p class="text-[10px] text-gray-500 mt-0.5">Para entrega futura</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Descuentos</p><p class="text-xl font-extrabold text-orange-400 mt-1">$2,340</p><p class="text-[10px] text-gray-500 mt-0.5">4.8% sobre venta</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-red-700/30"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Merma</p><p class="text-xl font-extrabold text-red-400 mt-1">$1,240</p><p class="text-[10px] text-gray-500 mt-0.5">2.5% sobre venta</p></div>
+    </div>
+    <div class="grid grid-cols-3 gap-4 px-6 flex-shrink-0">
+      <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+        <h3 class="text-xs font-bold mb-3">Ventas por Metodo de Pago</h3>
+        <div class="space-y-2.5">
+          <div><div class="flex justify-between text-[10px] mb-1"><span class="text-gray-400">Efectivo</span><span class="font-bold text-green-400">$28,200 (58%)</span></div><div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-green-500" style="width:58%"></div></div></div>
+          <div><div class="flex justify-between text-[10px] mb-1"><span class="text-gray-400">Tarjeta</span><span class="font-bold text-blue-400">$14,100 (29%)</span></div><div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-blue-500" style="width:29%"></div></div></div>
+          <div><div class="flex justify-between text-[10px] mb-1"><span class="text-gray-400">Transferencia</span><span class="font-bold text-purple-400">$6,220 (13%)</span></div><div class="w-full h-2 rounded-full bg-gray-700"><div class="h-2 rounded-full bg-purple-500" style="width:13%"></div></div></div>
+        </div>
+      </div>
+      <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+        <h3 class="text-xs font-bold mb-3">Ventas por Hora</h3>
+        <div class="flex items-end gap-1.5 h-28" id="chartHoras"></div>
+      </div>
+      <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700/50">
+        <h3 class="text-xs font-bold mb-3">Top Productos</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-yellow-600/30 flex items-center justify-center text-[9px] font-bold text-yellow-400">1</span><p class="text-[11px] flex-1 truncate">Pastel 3 Leches</p><span class="text-[10px] font-bold">18 uds</span><span class="text-[10px] text-green-400 font-bold">$12,600</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-gray-600/30 flex items-center justify-center text-[9px] font-bold text-gray-300">2</span><p class="text-[11px] flex-1 truncate">Pay de Fresas</p><span class="text-[10px] font-bold">14 uds</span><span class="text-[10px] text-green-400 font-bold">$4,900</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-amber-800/30 flex items-center justify-center text-[9px] font-bold text-amber-400">3</span><p class="text-[11px] flex-1 truncate">Choco Aleman</p><span class="text-[10px] font-bold">11 uds</span><span class="text-[10px] text-green-400 font-bold">$6,600</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-gray-700/30 flex items-center justify-center text-[9px] font-bold text-gray-500">4</span><p class="text-[11px] flex-1 truncate">Cupcake Decorado</p><span class="text-[10px] font-bold">32 uds</span><span class="text-[10px] text-green-400 font-bold">$1,760</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-gray-700/30 flex items-center justify-center text-[9px] font-bold text-gray-500">5</span><p class="text-[11px] flex-1 truncate">Tres Leches Fresa</p><span class="text-[10px] font-bold">9 uds</span><span class="text-[10px] text-green-400 font-bold">$5,850</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 flex-shrink-0">
+      <div class="bg-[#1a2332] rounded-xl border border-gray-700/50 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+          <h3 class="text-xs font-bold">Detalle de Ventas y Pedidos</h3>
+          <div class="flex gap-1.5">
+            <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-purple-600 text-white">Todas</button>
+            <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Ventas POS</button>
+            <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Pedidos</button>
+            <button class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#111928] text-gray-400 border border-gray-700">Cotizaciones</button>
+          </div>
+        </div>
+        <table class="w-full">
+          <thead class="bg-[#111928]"><tr class="text-[10px] text-gray-500 uppercase tracking-wider"><th class="text-left py-2 px-4 font-medium">Folio</th><th class="text-left py-2 px-3 font-medium">Tipo</th><th class="text-left py-2 px-3 font-medium">Cliente</th><th class="text-center py-2 px-3 font-medium">Items</th><th class="text-right py-2 px-3 font-medium">Total</th><th class="text-right py-2 px-3 font-medium">Pagado</th><th class="text-left py-2 px-3 font-medium">Metodo</th><th class="text-left py-2 px-3 font-medium">Status</th><th class="text-left py-2 px-3 font-medium">Hora</th></tr></thead>
+          <tbody class="divide-y divide-gray-800/50">
+            <tr class="hover:bg-[#111928]/50"><td class="py-2 px-4 text-xs font-medium">#1043</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-900/30 text-green-400">POS</span></td><td class="py-2 px-3 text-xs text-gray-300">Maria Lopez</td><td class="py-2 px-3 text-center text-xs">4</td><td class="py-2 px-3 text-right text-xs font-bold">$2,626</td><td class="py-2 px-3 text-right text-xs text-green-400">$2,626</td><td class="py-2 px-3 text-[10px] text-gray-400">Efectivo</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-900/30 text-green-400">Pagado</span></td><td class="py-2 px-3 text-[10px] text-gray-500">10:45</td></tr>
+            <tr class="hover:bg-[#111928]/50"><td class="py-2 px-4 text-xs font-medium">#1042</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-900/30 text-blue-400">PEDIDO</span></td><td class="py-2 px-3 text-xs text-gray-300">Juan Perez</td><td class="py-2 px-3 text-center text-xs">2</td><td class="py-2 px-3 text-right text-xs font-bold">$1,400</td><td class="py-2 px-3 text-right text-xs text-orange-400">$700</td><td class="py-2 px-3 text-[10px] text-gray-400">Tarjeta</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-orange-900/30 text-orange-400">Pendiente</span></td><td class="py-2 px-3 text-[10px] text-gray-500">10:20</td></tr>
+            <tr class="hover:bg-[#111928]/50"><td class="py-2 px-4 text-xs font-medium">#1041</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-900/30 text-green-400">POS</span></td><td class="py-2 px-3 text-xs text-gray-500">Sin cliente</td><td class="py-2 px-3 text-center text-xs">1</td><td class="py-2 px-3 text-right text-xs font-bold">$55</td><td class="py-2 px-3 text-right text-xs text-green-400">$55</td><td class="py-2 px-3 text-[10px] text-gray-400">Efectivo</td><td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-900/30 text-green-400">Pagado</span></td><td class="py-2 px-3 text-[10px] text-gray-500">09:50</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN: MERMA ====== -->
+  <div data-screen-content="merma" class="hidden flex-1 flex flex-col min-w-0">
+    <div class="flex items-center justify-between px-6 py-3 bg-[#141d2b] border-b border-gray-800 flex-shrink-0">
+      <div><h1 class="text-lg font-bold">Merma y Desperdicios</h1><p class="text-[11px] text-gray-500">Control de perdidas por sucursal</p></div>
+      <div class="flex items-center gap-3">
+        <select class="bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option>Reginas Kafeto</option><option>Todas las sucursales</option></select>
+        <div class="flex gap-1 bg-[#1a2332] border border-gray-700 rounded-lg p-0.5">
+          <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-purple-600 text-white">Hoy</button>
+          <button class="px-2.5 py-1 rounded text-[10px] font-semibold text-gray-400">Semana</button>
+          <button class="px-2.5 py-1 rounded text-[10px] font-semibold text-gray-400">Mes</button>
+        </div>
+        <button id="btnRegistrarMerma" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>Registrar Merma</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-3 px-6 py-4 flex-shrink-0">
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-red-700/30"><p class="text-[10px] text-red-500 uppercase tracking-wider">Merma Total Hoy</p><p class="text-xl font-extrabold text-red-400 mt-1">$1,240</p><p class="text-[10px] text-gray-500 mt-0.5">5 productos afectados</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Merma Semana</p><p class="text-xl font-extrabold mt-1">$4,580</p><p class="text-[10px] text-red-400 mt-0.5">+12% vs semana anterior</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">% sobre Ventas</p><p class="text-xl font-extrabold text-orange-400 mt-1">3.2%</p><p class="text-[10px] text-gray-500 mt-0.5">Meta: menos de 2%</p></div>
+      <div class="bg-[#1a2332] rounded-xl p-3 border border-gray-700/50"><p class="text-[10px] text-gray-500 uppercase tracking-wider">Motivo Principal</p><p class="text-lg font-extrabold text-yellow-400 mt-1">Caducidad</p><p class="text-[10px] text-gray-500 mt-0.5">60% de la merma</p></div>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 scrollbar-thin">
+      <table class="w-full">
+        <thead class="sticky top-0 bg-[#111928] z-10"><tr class="text-[10px] text-gray-500 uppercase tracking-wider"><th class="text-left py-2 px-3 font-medium">Producto</th><th class="text-center py-2 px-3 font-medium w-16">Cant</th><th class="text-right py-2 px-3 font-medium w-24">Costo</th><th class="text-left py-2 px-3 font-medium w-32">Motivo</th><th class="text-left py-2 px-3 font-medium w-32">Sucursal</th><th class="text-left py-2 px-3 font-medium w-28">Registrado por</th><th class="text-left py-2 px-3 font-medium w-28">Fecha/Hora</th></tr></thead>
+        <tbody class="divide-y divide-gray-800/50">
+          <tr class="hover:bg-[#1a2332]"><td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded bg-amber-900/30 flex items-center justify-center text-sm">🎂</div><p class="text-xs font-medium">Pastel 3 Leches</p></div></td><td class="py-2.5 px-3 text-center"><span class="text-xs font-bold text-red-400">2</span></td><td class="py-2.5 px-3 text-right text-xs font-semibold text-red-400">-$560</td><td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded bg-yellow-900/20 text-yellow-400 text-[9px] font-semibold">Caducidad</span></td><td class="py-2.5 px-3 text-xs text-gray-400">Reginas Kafeto</td><td class="py-2.5 px-3 text-xs text-gray-400">Andrea M.</td><td class="py-2.5 px-3 text-[10px] text-gray-500">04 Abr 09:15</td></tr>
+          <tr class="hover:bg-[#1a2332]"><td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded bg-orange-900/30 flex items-center justify-center text-sm">🧁</div><p class="text-xs font-medium">Cupcake Decorado</p></div></td><td class="py-2.5 px-3 text-center"><span class="text-xs font-bold text-red-400">5</span></td><td class="py-2.5 px-3 text-right text-xs font-semibold text-red-400">-$110</td><td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded bg-red-900/20 text-red-400 text-[9px] font-semibold">Dañado</span></td><td class="py-2.5 px-3 text-xs text-gray-400">Reginas Kafeto</td><td class="py-2.5 px-3 text-xs text-gray-400">Carlos G.</td><td class="py-2.5 px-3 text-[10px] text-gray-500">04 Abr 10:30</td></tr>
+          <tr class="hover:bg-[#1a2332]"><td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded bg-red-900/30 flex items-center justify-center text-sm">🍓</div><p class="text-xs font-medium">Pay de Fresas</p></div></td><td class="py-2.5 px-3 text-center"><span class="text-xs font-bold text-red-400">1</span></td><td class="py-2.5 px-3 text-right text-xs font-semibold text-red-400">-$140</td><td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded bg-blue-900/20 text-blue-400 text-[9px] font-semibold">Error produccion</span></td><td class="py-2.5 px-3 text-xs text-gray-400">Reginas Kafeto</td><td class="py-2.5 px-3 text-xs text-gray-400">Andrea M.</td><td class="py-2.5 px-3 text-[10px] text-gray-500">04 Abr 11:45</td></tr>
+          <tr class="hover:bg-[#1a2332]"><td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded bg-teal-900/30 flex items-center justify-center text-sm">🍪</div><p class="text-xs font-medium">Galleta Chocolate</p></div></td><td class="py-2.5 px-3 text-center"><span class="text-xs font-bold text-red-400">8</span></td><td class="py-2.5 px-3 text-right text-xs font-semibold text-red-400">-$160</td><td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded bg-yellow-900/20 text-yellow-400 text-[9px] font-semibold">Caducidad</span></td><td class="py-2.5 px-3 text-xs text-gray-400">Reginas Kafeto</td><td class="py-2.5 px-3 text-xs text-gray-400">Carlos G.</td><td class="py-2.5 px-3 text-[10px] text-gray-500">04 Abr 14:00</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: Descuento ====== -->
+  <div id="modalDescuento" class="hidden fixed inset-0 bg-black/60 overflow-y-auto z-50">
+    <div class="flex items-center justify-center min-h-full p-4">
+      <div class="w-full max-w-md my-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg></div>
+          <div><h2 class="text-lg font-bold text-white">Descuento</h2><p class="text-xs text-gray-400">Selecciona el tipo de descuento</p></div>
+        </div>
+        <div class="bg-[#141d2b] border border-gray-800 rounded-2xl p-5 space-y-5">
+          <div class="flex gap-2">
+            <button class="desc-tab active flex-1 py-2.5 px-4 rounded-lg text-sm font-bold border border-gray-700 bg-[#1a2332] text-white" data-tab="monto" style="border-color:#7c3aed">💰 Monto fijo</button>
+            <button class="desc-tab flex-1 py-2.5 px-4 rounded-lg text-sm font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-tab="porcentaje">📊 Porcentaje</button>
+          </div>
+          <div class="bg-[#1a2332] rounded-xl p-4 border border-gray-700">
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs"><span class="text-gray-400">Subtotal</span><span class="text-white font-semibold" id="dSubtotal">$0.00</span></div>
+              <div class="flex justify-between text-xs"><span class="text-gray-400">Descuento</span><span class="text-orange-400 font-semibold" id="dDescuento">-$0.00</span></div>
+              <div class="border-t border-gray-700 pt-2 flex justify-between"><span class="text-sm font-bold text-white">Total a pagar</span><span class="text-lg font-extrabold text-green-400" id="dTotal">$0.00</span></div>
+            </div>
+          </div>
+          <div id="descPanelMonto" class="space-y-3">
+            <label class="text-sm font-semibold text-gray-300">Monto del descuento</label>
+            <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">$</span><input type="number" id="dInputMonto" min="0" step="0.01" placeholder="0.00" class="w-full bg-[#1a2332] border border-gray-700 rounded-lg py-3 pl-8 pr-4 text-lg text-white font-bold focus:outline-none focus:border-emerald-500"></div>
+            <p class="text-[10px] text-gray-500">Maximo: <span class="text-emerald-400 font-semibold" id="dMaxMonto">$0.00</span></p>
+          </div>
+          <div id="descPanelPct" class="hidden space-y-3">
+            <div class="flex justify-between items-center"><label class="text-sm font-semibold text-gray-300">Porcentaje</label><div class="px-3 py-1.5 bg-purple-600/20 border border-purple-500/30 rounded-lg"><span class="text-lg font-bold text-purple-400" id="dPctLabel">0%</span></div></div>
+            <input type="range" id="dRange" min="0" max="50" value="0" class="range-slider">
+            <div class="grid grid-cols-5 gap-2">
+              <button class="pct-btn py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-pct="5">5%</button>
+              <button class="pct-btn py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-pct="10">10%</button>
+              <button class="pct-btn py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-pct="15">15%</button>
+              <button class="pct-btn py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-pct="20">20%</button>
+              <button class="pct-btn py-2 px-3 rounded-lg text-xs font-bold border border-gray-700 bg-[#1a2332] text-gray-300" data-pct="25">25%</button>
+            </div>
+          </div>
+          <div class="bg-green-600/10 border border-green-500/30 rounded-xl p-3"><div class="flex items-center gap-2"><svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg><div><p class="text-[10px] text-green-400/80">Ahorro con este descuento</p><p class="text-sm font-bold text-green-400" id="dAhorro">$0.00</p></div></div></div>
+          <div class="flex gap-2 pt-2">
+            <button id="dCancel" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-[#1a2332] border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancelar</button>
+            <button id="dApply" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-gradient-to-r from-purple-600 to-violet-600 text-white shadow-lg shadow-purple-600/20 hover:from-purple-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Aplicar Descuento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: Registrar Pago ====== -->
+  <div id="modalPago" class="hidden fixed inset-0 bg-black/60 overflow-y-auto z-50">
+    <div class="flex items-center justify-center min-h-full p-4">
+      <div class="w-full max-w-md my-8">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          <div><h2 class="text-lg font-bold text-white">Registrar Pago</h2><p class="text-xs text-gray-400">Folio <span id="pFolio" class="text-blue-400 font-semibold">#1043</span></p></div>
+        </div>
+        <div class="bg-[#141d2b] border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div class="p-4 rounded-xl bg-[#1E293B] text-white space-y-3 border border-slate-700">
+            <p class="text-sm opacity-80 text-center">Monto a pagar</p>
+            <p id="pSaldo" class="text-3xl font-bold mt-1 text-center">$0.00</p>
+          </div>
+          <div class="flex items-center justify-between text-white p-3 rounded-lg border border-gray-700 bg-[#1F2937]">
+            <div class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg><label class="text-sm cursor-pointer" for="pToggle">Dejar abono</label></div>
+            <label class="inline-flex items-center cursor-pointer relative">
+              <input type="checkbox" id="pToggle" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-700 peer-checked:bg-blue-600 rounded-full transition-colors duration-300"></div>
+              <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></div>
+            </label>
+          </div>
+          <div id="pWrapAbono" class="hidden space-y-3">
+            <div class="relative"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span><input type="number" id="pInputMonto" min="0" step="0.01" placeholder="0.00" class="w-full bg-[#1E293B] border border-gray-700 rounded-lg py-3 pl-8 pr-4 text-lg text-white font-bold focus:outline-none focus:border-blue-500"></div>
+            <p class="text-[10px] text-gray-500">Maximo: <span class="text-blue-400 font-semibold" id="pMaxMonto">$0.00</span></p>
+          </div>
+          <div id="pWrapMetodo" class="hidden space-y-2">
+            <label class="text-xs font-semibold text-gray-400">Metodo de pago del anticipo</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300" data-metodo="1">Efectivo</button>
+              <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300" data-metodo="2">Tarjeta</button>
+              <button class="metodo-btn py-2.5 px-2 rounded-lg text-xs font-bold border border-gray-700 bg-[#1E293B] text-gray-300" data-metodo="3">Transferencia</button>
+            </div>
+          </div>
+          <div id="pCotizacion" class="bg-yellow-600/10 border border-yellow-500/30 rounded-xl p-3"><div class="flex items-center gap-2"><svg class="w-4 h-4 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div><p class="text-[10px] text-yellow-400/80">Sin abono registrado</p><p class="text-xs font-bold text-yellow-400">El pedido se guardara como cotizacion</p></div></div></div>
+          <div class="flex gap-2 pt-1">
+            <button id="pCancel" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-[#1E293B] border border-gray-700 text-gray-300 hover:bg-slate-700 hover:text-white">Cancelar</button>
+            <button id="pConfirm" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/20 hover:from-blue-500 hover:to-blue-400">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: Registrar Merma ====== -->
+  <div id="modalMerma" class="hidden fixed inset-0 bg-black/60 overflow-y-auto z-50">
+    <div class="flex items-center justify-center min-h-full p-4">
+      <div class="w-full max-w-md my-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div>
+          <div><h2 class="text-lg font-bold text-white">Registrar Merma</h2><p class="text-xs text-gray-400">Reportar producto dañado o perdido</p></div>
+        </div>
+        <div class="bg-[#141d2b] border border-gray-800 rounded-2xl p-5 space-y-3">
+          <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Producto</label><select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-red-500"><option>Seleccionar producto...</option><option>Pastel 3 Leches Chocolate</option><option>Pay de Fresas</option><option>Cupcake Decorado</option></select></div>
+          <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Cantidad</label><input type="number" value="1" class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500"></div>
+          <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Motivo de merma</label><select class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-red-500"><option>Caducidad / Vencimiento</option><option>Producto dañado</option><option>Error de produccion</option><option>Robo / Faltante</option><option>Devolucion de cliente</option></select></div>
+          <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Observaciones</label><textarea rows="2" placeholder="Detalle adicional..." class="w-full bg-[#1a2332] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500 resize-none"></textarea></div>
+          <div class="bg-red-900/10 border border-red-700/30 rounded-lg p-3"><div class="flex justify-between text-xs"><span class="text-gray-400">Costo perdida estimada</span><span class="text-red-400 font-bold">-$280.00</span></div></div>
+          <div class="flex gap-2 pt-2">
+            <button id="mCancel" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-[#1a2332] border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancelar</button>
+            <button id="mConfirm" class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold bg-red-600 text-white hover:bg-red-500">Registrar Merma</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ── DATA ──────────────────────────────────────────────
+  const PRODUCTS = [
+    {id:'p1',name:'3 Leches Choco',price:700,cat:'Tradicional',emoji:'🎂',grad:'amber',stock:3,min:5,max:20,cost:280,sku:'PAS-3LC-001'},
+    {id:'p2',name:'Carlos V',price:390,cat:'Tradicional',emoji:'🍰',grad:'pink',stock:7,min:3,max:15,cost:156,sku:'PAS-CV-002'},
+    {id:'p3',name:'Pay de Fresas',price:350,cat:'Premium',emoji:'🍓',grad:'red',stock:12,min:5,max:25,cost:140,sku:'PAY-FRS-001'},
+    {id:'p4',name:'Choco Aleman',price:600,cat:'Premium',emoji:'🍫',grad:'yellow',stock:8,min:3,max:15,cost:240,sku:'PAS-CHA-001'},
+    {id:'p5',name:'Choco Forest',price:600,cat:'Premium',emoji:'🌲',grad:'emerald',stock:6,min:3,max:15,cost:240,sku:'PAS-CF-003'},
+    {id:'p6',name:'Cupcake',price:55,cat:'Cupcakes',emoji:'🧁',grad:'orange',stock:0,min:10,max:50,cost:22,sku:'CUP-DEC-001'},
+    {id:'p7',name:'3 Leches Fresa',price:650,cat:'Tradicional',emoji:'🍰',grad:'rose',stock:5,min:3,max:15,cost:260,sku:'PAS-3LF-004'},
+    {id:'p8',name:'Choco Roll',price:700,cat:'Cafes',emoji:'☕',grad:'yellow',stock:10,min:3,max:20,cost:280,sku:'CAF-CR-001'},
+    {id:'p9',name:'Decorated',price:650,cat:'Premium',emoji:'🎀',grad:'pink',stock:4,min:2,max:10,cost:260,sku:'PAS-DEC-005'},
+    {id:'p10',name:'Sponge Cake',price:600,cat:'Tradicional',emoji:'🧽',grad:'amber',stock:9,min:3,max:15,cost:240,sku:'PAS-SC-006'},
+    {id:'p11',name:'Strawberry Pie',price:600,cat:'Premium',emoji:'🍓',grad:'red',stock:7,min:3,max:15,cost:240,sku:'PAY-SP-002'},
+    {id:'p12',name:'Galleta Choco',price:45,cat:'Galletas',emoji:'🍪',grad:'teal',stock:40,min:15,max:80,cost:18,sku:'GAL-CH-001'},
+    {id:'p13',name:'Blueberry Cake',price:580,cat:'Premium',emoji:'🫐',grad:'indigo',stock:6,min:3,max:15,cost:232,sku:'PAS-BB-007'},
+    {id:'p14',name:'Limon Cake',price:520,cat:'Tradicional',emoji:'🍋',grad:'lime',stock:8,min:3,max:15,cost:208,sku:'PAS-LC-008'},
+  ];
+
+  const PEDIDOS = [
+    {folio:1042,tipo:'PEDIDO',cliente:'Juan Perez',tel:'55 9876 5432',productos:'Pastel 3 Leches, Pay Fresas',items:2,total:1400,pagado:700,saldo:700,entrega:'06 Abr 14:00',entregaRel:'En 2 dias',estado:'Pendiente',dedicatoria:'Feliz cumple papas',tipoEntrega:'Recoger en sucursal'},
+    {folio:1041,tipo:'POS',cliente:'Sin cliente',tel:'',productos:'Cupcake Decorado x3',items:1,total:165,pagado:165,saldo:0,entrega:'Hoy',entregaRel:'',estado:'Pagado'},
+    {folio:1040,tipo:'COTIZACION',cliente:'Ana Garcia',tel:'55 1111 2222',productos:'Personalizado 30 porc',items:1,total:1200,pagado:0,saldo:1200,entrega:'10 Abr 16:00',entregaRel:'En 6 dias',estado:'Cotizacion'},
+    {folio:1039,tipo:'POS',cliente:'Maria Lopez',tel:'55 2222 3333',productos:'Choco Aleman, Galleta x4',items:2,total:780,pagado:780,saldo:0,entrega:'Hoy',entregaRel:'',estado:'Pagado'},
+    {folio:1038,tipo:'PEDIDO',cliente:'Carlos Ruiz',tel:'55 4444 5555',productos:'3 Leches Fresa x2',items:1,total:1300,pagado:650,saldo:650,entrega:'07 Abr 12:00',entregaRel:'En 3 dias',estado:'Pendiente'},
+    {folio:1037,tipo:'POS',cliente:'Sin cliente',tel:'',productos:'Cupcake x5',items:1,total:275,pagado:275,saldo:0,entrega:'Hoy',entregaRel:'',estado:'Pagado'},
+    {folio:1036,tipo:'COTIZACION',cliente:'Sofia Martinez',tel:'55 6666 7777',productos:'Choco Forest, Pay Fresas',items:2,total:950,pagado:0,saldo:950,entrega:'12 Abr 15:00',entregaRel:'En 8 dias',estado:'Cotizacion'},
+    {folio:1035,tipo:'PEDIDO',cliente:'Pedro Hernandez',tel:'55 8888 9999',productos:'Carlos V x3',items:1,total:1170,pagado:1170,saldo:0,entrega:'05 Abr 10:00',entregaRel:'En 1 dia',estado:'Pagado'},
+  ];
+
+  // ── STATE ─────────────────────────────────────────────
+  let cart = [];
+  let descuento = {tipo:null, valor:0, monto:0};
+  let currentCat = 'Todos';
+  let currentSearch = '';
+  let pedFiltro = 'todos';
+  let selectedPedido = null;
+
+  // ── HELPERS ───────────────────────────────────────────
+  const fmt = v => '$'+parseFloat(v||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  // ── NAV ───────────────────────────────────────────────
+  $$('.nav-item[data-screen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const screen = btn.dataset.screen;
+      $$('.nav-item[data-screen]').forEach(b => b.classList.remove('active','text-purple-400','border-purple-500/30'));
+      $$('.nav-item[data-screen]').forEach(b => b.classList.add('text-gray-500'));
+      btn.classList.add('active','text-purple-400');
+      btn.classList.remove('text-gray-500');
+      $$('[data-screen-content]').forEach(c => c.classList.add('hidden'));
+      const target = document.querySelector(`[data-screen-content="${screen}"]`);
+      target.classList.remove('hidden');
+      target.classList.add('flex');
+    });
+  });
+
+  // ── POS: Product Grid ─────────────────────────────────
+  function renderProducts() {
+    const grid = $('#posGrid');
+    const filtered = PRODUCTS.filter(p => {
+      const matchCat = currentCat === 'Todos' || p.cat === currentCat;
+      const matchSearch = !currentSearch || p.name.toLowerCase().includes(currentSearch.toLowerCase());
+      return matchCat && matchSearch;
+    });
+    grid.innerHTML = filtered.map(p => `
+      <div class="product-card bg-[#1a2332] border border-gray-700/50 rounded-lg overflow-hidden cursor-pointer" data-pid="${p.id}">
+        <div class="h-16 bg-gradient-to-br from-${p.grad}-900/30 to-${p.grad}-800/10 flex items-center justify-center relative">
+          <span class="text-2xl">${p.emoji}</span>
+          ${p.stock <= p.min ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full ${p.stock===0?'bg-red-500':'bg-orange-500'} text-[8px] font-bold flex items-center justify-center">${p.stock}</span>`:''}
+        </div>
+        <div class="p-2">
+          <p class="text-[10px] font-semibold truncate leading-tight">${p.name}</p>
+          <p class="text-xs font-bold text-purple-400 mt-0.5">$${p.price}</p>
+        </div>
+      </div>
+    `).join('') + `
+      <div class="product-card bg-purple-900/20 border border-dashed border-purple-500/40 rounded-lg overflow-hidden cursor-pointer flex flex-col items-center justify-center" style="min-height:106px">
+        <svg class="w-5 h-5 text-purple-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        <p class="text-[9px] font-bold text-purple-400">PERSONALIZADO</p>
+      </div>
+    `;
+    grid.querySelectorAll('[data-pid]').forEach(card => {
+      card.addEventListener('click', () => addToCart(card.dataset.pid));
+    });
+  }
+
+  // ── POS: Categories ───────────────────────────────────
+  $$('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.cat-btn').forEach(b => { b.classList.remove('active'); b.classList.add('bg-[#1a2332]','text-gray-400'); });
+      btn.classList.add('active'); btn.classList.remove('bg-[#1a2332]','text-gray-400');
+      currentCat = btn.dataset.cat;
+      renderProducts();
+    });
+  });
+
+  // ── POS: Search ───────────────────────────────────────
+  $('#posSearch').addEventListener('input', e => { currentSearch = e.target.value; renderProducts(); });
+
+  // ── CART ──────────────────────────────────────────────
+  function addToCart(pid) {
+    const p = PRODUCTS.find(x => x.id === pid);
+    if (!p) return;
+    const existing = cart.find(i => i.id === pid);
+    if (existing) { existing.qty++; } else { cart.push({...p, qty:1}); }
+    renderCart();
+  }
+
+  function removeFromCart(pid) {
+    cart = cart.filter(i => i.id !== pid);
+    renderCart();
+  }
+
+  function changeQty(pid, delta) {
+    const item = cart.find(i => i.id === pid);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty <= 0) { removeFromCart(pid); return; }
+    renderCart();
+  }
+
+  function renderCart() {
+    const container = $('#cartItems');
+    if (cart.length === 0) {
+      container.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-gray-600"><svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg><p class="text-xs">Carrito vacio</p><p class="text-[10px] text-gray-700">Toca un producto para agregarlo</p></div>';
+    } else {
+      container.innerHTML = cart.map(item => `
+        <div class="cart-item bg-[#1a2332] rounded-lg p-2.5 border border-gray-700/50 group">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-${item.grad}-900/30 flex items-center justify-center flex-shrink-0"><span class="text-sm">${item.emoji}</span></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-[11px] font-semibold truncate">${item.name}</p>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="flex items-center gap-0.5">
+                  <button class="w-5 h-5 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold hover:bg-gray-600" data-dec="${item.id}">-</button>
+                  <span class="w-6 text-center text-[10px] font-bold">${item.qty}</span>
+                  <button class="w-5 h-5 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold hover:bg-gray-600" data-inc="${item.id}">+</button>
+                </div>
+                <span class="text-[9px] text-gray-500">x $${item.price}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-bold">$${(item.price * item.qty).toLocaleString('es-MX')}</p>
+              <button class="text-gray-600 hover:text-red-400 mt-0.5" data-rm="${item.id}"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      container.querySelectorAll('[data-inc]').forEach(b => b.addEventListener('click', () => changeQty(b.dataset.inc, 1)));
+      container.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => changeQty(b.dataset.dec, -1)));
+      container.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => removeFromCart(b.dataset.rm)));
+    }
+    updateTotals();
+  }
+
+  function updateTotals() {
+    const itemCount = cart.length;
+    const piezas = cart.reduce((s,i) => s+i.qty, 0);
+    const subtotal = cart.reduce((s,i) => s + (i.price * i.qty), 0);
+    const descMonto = descuento.monto || 0;
+    const total = Math.max(0, subtotal - descMonto);
+
+    $('#cartCount').textContent = `${itemCount} items — Venta directa`;
+    $('#lblItemsResumen').textContent = `Subtotal (${itemCount} items, ${piezas} pzas)`;
+    $('#lblSubtotal').textContent = fmt(subtotal);
+
+    if (descMonto > 0) {
+      $('#rowDescuento').classList.remove('hidden');
+      $('#rowDescuento').classList.add('flex');
+      $('#lblDescuentoTexto').textContent = descuento.tipo === 'porcentaje' ? `Descuento (${descuento.valor}%)` : 'Descuento';
+      $('#lblDescuentoMonto').textContent = '-'+fmt(descMonto);
+    } else {
+      $('#rowDescuento').classList.add('hidden');
+      $('#rowDescuento').classList.remove('flex');
+    }
+
+    $('#lblTotal').textContent = fmt(total);
+    $('#btnCobrar').textContent = `COBRAR ${fmt(total)}`;
+  }
+
+  // ── Vaciar carrito ────────────────────────────────────
+  $('#vaciarCart').addEventListener('click', () => { cart = []; descuento = {tipo:null,valor:0,monto:0}; renderCart(); });
+
+  // ── Payment method selection ──────────────────────────
+  $$('.pay-method').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.pay-method').forEach(b => { b.classList.remove('bg-green-600','text-white'); b.classList.add('bg-[#1a2332]','border','border-gray-700','text-gray-300'); });
+      btn.classList.add('bg-green-600','text-white');
+      btn.classList.remove('bg-[#1a2332]','text-gray-300');
+    });
+  });
+
+  // ── Cobrar → abrir modal pago ─────────────────────────
+  $('#btnCobrar').addEventListener('click', () => {
+    const total = cart.reduce((s,i) => s + (i.price * i.qty), 0) - (descuento.monto || 0);
+    if (total <= 0) return;
+    $('#pSaldo').textContent = fmt(total);
+    $('#pMaxMonto').textContent = fmt(total);
+    $('#pInputMonto').value = '';
+    $('#pToggle').checked = false;
+    $('#pWrapAbono').classList.add('hidden');
+    $('#pWrapMetodo').classList.add('hidden');
+    $('#pCotizacion').classList.remove('hidden');
+    $('#modalPago').classList.remove('hidden');
+  });
+
+  $('#pToggle').addEventListener('change', e => {
+    const show = e.target.checked;
+    $('#pWrapAbono').classList.toggle('hidden', !show);
+    $('#pWrapMetodo').classList.toggle('hidden', !show);
+    $('#pCotizacion').classList.toggle('hidden', show);
+  });
+
+  $('#pInputMonto').addEventListener('input', () => {
+    const max = parseFloat($('#pSaldo').textContent.replace(/[^0-9.]/g,''));
+    let val = parseFloat($('#pInputMonto').value) || 0;
+    if (val > max) { val = max; $('#pInputMonto').value = max; }
+    $('#pSaldo').textContent = fmt(max - val);
+  });
+
+  $$('.metodo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.metodo-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  $('#pCancel').addEventListener('click', () => $('#modalPago').classList.add('hidden'));
+  $('#pConfirm').addEventListener('click', () => {
+    $('#modalPago').classList.add('hidden');
+    cart = []; descuento = {tipo:null,valor:0,monto:0}; renderCart();
+  });
+
+  // ── Anticipo → same modal ──────────────────────────────
+  $('#btnAnticipo').addEventListener('click', () => $('#btnCobrar').click());
+
+  // ── MODAL DESCUENTO ───────────────────────────────────
+  let descTab = 'monto';
+  $('#btnDescuento').addEventListener('click', () => {
+    const subtotal = cart.reduce((s,i) => s + (i.price * i.qty), 0);
+    if (subtotal <= 0) return;
+    $('#dSubtotal').textContent = fmt(subtotal);
+    $('#dMaxMonto').textContent = fmt(subtotal);
+    $('#dInputMonto').value = '';
+    $('#dRange').value = 0;
+    $('#dPctLabel').textContent = '0%';
+    $('#dDescuento').textContent = '-$0.00';
+    $('#dTotal').textContent = fmt(subtotal);
+    $('#dAhorro').textContent = '$0.00';
+    $('#dApply').disabled = true;
+    descTab = 'monto';
+    $('#descPanelMonto').classList.remove('hidden');
+    $('#descPanelPct').classList.add('hidden');
+    $$('.desc-tab').forEach(b => { b.classList.remove('active','text-white'); b.classList.add('text-gray-300'); b.style.borderColor=''; });
+    const montoTab = document.querySelector('.desc-tab[data-tab="monto"]');
+    montoTab.classList.add('active','text-white'); montoTab.classList.remove('text-gray-300'); montoTab.style.borderColor='#7c3aed';
+    $('#modalDescuento').classList.remove('hidden');
+  });
+
+  $$('.desc-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      descTab = btn.dataset.tab;
+      $$('.desc-tab').forEach(b => { b.classList.remove('active','text-white'); b.classList.add('text-gray-300'); b.style.borderColor=''; });
+      btn.classList.add('active','text-white'); btn.classList.remove('text-gray-300'); btn.style.borderColor='#7c3aed';
+      $('#descPanelMonto').classList.toggle('hidden', descTab !== 'monto');
+      $('#descPanelPct').classList.toggle('hidden', descTab !== 'porcentaje');
+      updateDescPreview();
+    });
+  });
+
+  $('#dInputMonto').addEventListener('input', () => updateDescPreview());
+  $('#dRange').addEventListener('input', e => {
+    const pct = parseFloat(e.target.value);
+    $('#dPctLabel').textContent = pct.toFixed(0)+'%';
+    $$('.pct-btn').forEach(b => b.classList.remove('active'));
+    updateDescPreview(pct);
+  });
+  $$('.pct-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.pct-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const pct = parseFloat(btn.dataset.pct);
+      $('#dRange').value = pct;
+      $('#dPctLabel').textContent = pct+'%';
+      updateDescPreview(pct);
+    });
+  });
+
+  function updateDescPreview(forcedPct) {
+    const subtotal = cart.reduce((s,i) => s + (i.price * i.qty), 0);
+    let descMonto = 0;
+    let pct = 0;
+    if (descTab === 'monto') {
+      descMonto = Math.min(parseFloat($('#dInputMonto').value) || 0, subtotal);
+      pct = subtotal > 0 ? (descMonto / subtotal * 100) : 0;
+    } else {
+      pct = forcedPct !== undefined ? forcedPct : parseFloat($('#dRange').value);
+      descMonto = subtotal * (pct / 100);
+    }
+    $('#dDescuento').textContent = '-'+fmt(descMonto);
+    $('#dTotal').textContent = fmt(subtotal - descMonto);
+    $('#dAhorro').textContent = fmt(descMonto);
+    $('#dApply').disabled = descMonto <= 0;
+  }
+
+  $('#dCancel').addEventListener('click', () => $('#modalDescuento').classList.add('hidden'));
+  $('#dApply').addEventListener('click', () => {
+    const subtotal = cart.reduce((s,i) => s + (i.price * i.qty), 0);
+    let descMonto = 0;
+    let valor = 0;
+    if (descTab === 'monto') {
+      descMonto = Math.min(parseFloat($('#dInputMonto').value) || 0, subtotal);
+      valor = descMonto;
+    } else {
+      valor = parseFloat($('#dRange').value);
+      descMonto = subtotal * (valor / 100);
+    }
+    descuento = { tipo: descTab, valor: valor, monto: descMonto };
+    $('#modalDescuento').classList.add('hidden');
+    updateTotals();
+  });
+
+  // ── PEDIDOS ───────────────────────────────────────────
+  function renderPedidos() {
+    const body = $('#pedidosBody');
+    let filtered = PEDIDOS;
+    if (pedFiltro === 'hoy') filtered = PEDIDOS.filter(p => p.entrega === 'Hoy');
+    else if (pedFiltro === 'pendientes') filtered = PEDIDOS.filter(p => p.estado === 'Pendiente');
+    else if (pedFiltro === 'cotizaciones') filtered = PEDIDOS.filter(p => p.estado === 'Cotizacion');
+    else if (pedFiltro === 'cancelados') filtered = PEDIDOS.filter(p => p.estado === 'Cancelado');
+
+    const estadoFilter = $('#filtroEstadoPedidos').value;
+    if (estadoFilter !== 'Todos los estados') filtered = filtered.filter(p => p.estado === estadoFilter);
+
+    body.innerHTML = filtered.map(p => {
+      const tipoBadge = p.tipo === 'POS' ? 'bg-green-900/30 text-green-400' : p.tipo === 'PEDIDO' ? 'bg-blue-900/30 text-blue-400' : 'bg-gray-700/50 text-gray-300';
+      const estadoBadge = p.estado === 'Pagado' ? 'bg-green-900/30 text-green-400 border-green-700/30' : p.estado === 'Pendiente' ? 'bg-orange-900/30 text-orange-400 border-orange-700/30' : p.estado === 'Cotizacion' ? 'bg-blue-900/30 text-blue-400 border-blue-700/30' : 'bg-red-900/30 text-red-400 border-red-700/30';
+      return `
+        <tr class="hover:bg-[#1a2332] cursor-pointer" data-folio="${p.folio}">
+          <td class="py-3 px-6"><span class="text-xs font-bold">#${p.folio}</span></td>
+          <td class="py-3 px-3"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${tipoBadge}">${p.tipo}</span></td>
+          <td class="py-3 px-3"><div><p class="text-xs font-medium">${p.cliente}</p>${p.tel ? `<p class="text-[9px] text-gray-500">${p.tel}</p>`:''}</div></td>
+          <td class="py-3 px-3"><p class="text-[10px] text-gray-300">${p.productos}</p><p class="text-[9px] text-gray-500">${p.items} items</p></td>
+          <td class="py-3 px-3 text-right text-xs font-bold">$${p.total.toLocaleString('es-MX')}</td>
+          <td class="py-3 px-3 text-right text-xs ${p.pagado>0?'text-green-400':'text-gray-500'}">$${p.pagado.toLocaleString('es-MX')}</td>
+          <td class="py-3 px-3 text-right text-xs ${p.saldo>0?'text-orange-400 font-bold':'text-gray-500'}">$${p.saldo.toLocaleString('es-MX')}</td>
+          <td class="py-3 px-3"><div><p class="text-[10px] ${p.entregaRel?'font-medium text-yellow-400':'text-gray-400'}">${p.entrega}</p>${p.entregaRel?`<p class="text-[9px] text-gray-500">${p.entregaRel}</p>`:''}</div></td>
+          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded-full text-[9px] font-bold border ${estadoBadge}">${p.estado}</span></td>
+          <td class="py-3 px-6 text-center"><div class="flex justify-center gap-1">
+            <button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-green-400" title="Cobrar"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+            <button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-blue-400" title="Ver detalle"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+          </div></td>
+        </tr>
+      `;
+    }).join('');
+
+    body.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => showPedidoDetail(parseInt(tr.dataset.folio)));
+    });
+  }
+
+  function showPedidoDetail(folio) {
+    const p = PEDIDOS.find(x => x.folio === folio);
+    if (!p) return;
+    selectedPedido = p;
+    const panel = $('#pedidoDetalle');
+    panel.classList.remove('hidden');
+    panel.classList.add('flex');
+    const estadoBadge = p.estado === 'Pagado' ? 'bg-green-900/30 text-green-400 border-green-700/30' : p.estado === 'Pendiente' ? 'bg-orange-900/30 text-orange-400 border-orange-700/30' : 'bg-blue-900/30 text-blue-400 border-blue-700/30';
+    panel.innerHTML = `
+      <div class="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+        <div><h3 class="text-sm font-bold">Pedido #${p.folio}</h3><p class="text-[10px] text-gray-500">Creado 04 Abr 10:20 AM</p></div>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold border ${estadoBadge}">${p.estado}</span>
+      </div>
+      <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-thin">
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700/50">
+          <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Cliente</p>
+          <p class="text-xs font-bold">${p.cliente}</p>
+          ${p.tel?`<p class="text-[10px] text-gray-400">${p.tel}</p>`:''}
+        </div>
+        ${p.entregaRel ? `<div class="bg-[#1a2332] rounded-lg p-3 border border-yellow-700/30">
+          <p class="text-[9px] text-yellow-500 uppercase tracking-wider mb-1">Entrega programada</p>
+          <p class="text-xs font-bold text-yellow-400">${p.entrega} hrs</p>
+          <p class="text-[10px] text-gray-400">${p.tipoEntrega || 'Recoger en sucursal'}</p>
+          ${p.dedicatoria?`<p class="text-[10px] text-gray-500 mt-1">Dedicatoria: "${p.dedicatoria}"</p>`:''}
+        </div>`:''}
+        <div><p class="text-[9px] text-gray-500 uppercase tracking-wider mb-2">Productos (${p.items})</p>
+          <div class="space-y-1.5"><div class="flex items-center gap-2 bg-[#1a2332] rounded-lg p-2 border border-gray-700/50"><div class="flex-1"><p class="text-[11px] font-medium">${p.productos}</p></div><p class="text-xs font-bold">$${p.total.toLocaleString('es-MX')}</p></div></div>
+        </div>
+        <div class="bg-[#1a2332] rounded-lg p-3 border border-gray-700/50 space-y-1">
+          <div class="flex justify-between text-[11px]"><span class="text-gray-500">Total</span><span class="font-bold">$${p.total.toLocaleString('es-MX')}</span></div>
+          <div class="flex justify-between text-[11px]"><span class="text-gray-500">Pagado</span><span class="text-green-400">$${p.pagado.toLocaleString('es-MX')}</span></div>
+          <div class="flex justify-between text-[11px] font-bold pt-1 border-t border-gray-700"><span class="text-orange-400">Saldo pendiente</span><span class="text-orange-400">$${p.saldo.toLocaleString('es-MX')}</span></div>
+        </div>
+      </div>
+      <div class="px-4 py-3 border-t border-gray-800 space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <button class="py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-400 hover:text-purple-400 hover:border-purple-500/40">Imprimir Ticket</button>
+          <button class="py-2 rounded-lg text-[10px] font-bold bg-[#1a2332] border border-gray-700 text-gray-400 hover:text-blue-400 hover:border-blue-500/40">Editar Pedido</button>
+        </div>
+        ${p.saldo > 0 ? `<button class="w-full py-2.5 rounded-lg text-xs font-bold bg-green-600 text-white hover:bg-green-500">Cobrar Saldo $${p.saldo.toLocaleString('es-MX')}</button>`:''}
+      </div>
+    `;
+  }
+
+  $$('.tab-btn[data-ped-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab-btn[data-ped-tab]').forEach(b => { b.classList.remove('active','text-purple-400'); b.classList.add('text-gray-500','border-transparent'); });
+      btn.classList.add('active','text-purple-400'); btn.classList.remove('text-gray-500','border-transparent');
+      pedFiltro = btn.dataset.pedTab;
+      renderPedidos();
+    });
+  });
+
+  $('#filtroEstadoPedidos').addEventListener('change', renderPedidos);
+
+  // ── INVENTARIO ────────────────────────────────────────
+  function renderInventario() {
+    const body = $('#invBody');
+    const search = $('#invSearch').value.toLowerCase();
+    const catF = $('#invCatFilter').value;
+    const stockF = $('#invStockFilter').value;
+
+    let filtered = PRODUCTS.filter(p => {
+      const matchSearch = !search || p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search);
+      const matchCat = catF === 'Todas las categorias' || p.cat === catF;
+      let matchStock = true;
+      if (stockF === 'Stock OK') matchStock = p.stock > p.min;
+      else if (stockF === 'Stock Bajo') matchStock = p.stock > 0 && p.stock <= p.min;
+      else if (stockF === 'Agotado') matchStock = p.stock === 0;
+      return matchSearch && matchCat && matchStock;
+    });
+
+    body.innerHTML = filtered.map(p => {
+      const estado = p.stock === 0 ? {cls:'bg-red-900/30 text-red-400 border-red-700/30',txt:'AGOTADO'} : p.stock <= p.min ? {cls:'bg-orange-900/30 text-orange-400 border-orange-700/30',txt:'BAJO'} : {cls:'bg-green-900/30 text-green-400 border-green-700/30',txt:'OK'};
+      const stockColor = p.stock === 0 ? 'text-red-400' : p.stock <= p.min ? 'text-orange-400' : 'text-green-400';
+      const catBadge = p.cat === 'Premium' ? 'bg-purple-900/20 text-purple-400' : p.cat === 'Tradicional' ? 'bg-amber-900/20 text-amber-400' : p.cat === 'Cupcakes' ? 'bg-orange-900/20 text-orange-400' : 'bg-teal-900/20 text-teal-400';
+      return `
+        <tr class="hover:bg-[#1a2332] transition-colors">
+          <td class="py-2.5 px-3"><div class="flex items-center gap-2"><div class="w-7 h-7 rounded bg-${p.grad}-900/30 flex items-center justify-center text-sm">${p.emoji}</div><div><p class="text-xs font-medium">${p.name}</p><p class="text-[9px] text-gray-500">SKU: ${p.sku}</p></div></div></td>
+          <td class="py-2.5 px-3"><span class="px-1.5 py-0.5 rounded ${catBadge} text-[9px] font-semibold">${p.cat}</span></td>
+          <td class="py-2.5 px-3 text-center"><span class="text-xs font-bold ${stockColor}">${p.stock}</span></td>
+          <td class="py-2.5 px-3 text-center text-[10px] text-gray-500">${p.min}</td>
+          <td class="py-2.5 px-3 text-center text-[10px] text-gray-500">${p.max}</td>
+          <td class="py-2.5 px-3 text-right text-xs font-semibold">$${p.price}</td>
+          <td class="py-2.5 px-3 text-right text-xs text-gray-400">$${p.cost}</td>
+          <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded-full text-[9px] font-bold border ${estado.cls}">${estado.txt}</span></td>
+          <td class="py-2.5 px-3 text-center"><div class="flex justify-center gap-1">
+            <button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-green-400 hover:border-green-500/40"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg></button>
+            <button class="w-6 h-6 rounded bg-[#1a2332] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-blue-400 hover:border-blue-500/40"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+          </div></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  $('#invSearch').addEventListener('input', renderInventario);
+  $('#invCatFilter').addEventListener('change', renderInventario);
+  $('#invStockFilter').addEventListener('change', renderInventario);
+
+  // ── REPORTES: Chart bars ──────────────────────────────
+  const horas = [{h:'8',v:20},{h:'9',v:35},{h:'10',v:80},{h:'11',v:95},{h:'12',v:100},{h:'13',v:70},{h:'14',v:45},{h:'15',v:55},{h:'16',v:75},{h:'17',v:40}];
+  $('#chartHoras').innerHTML = horas.map((bar,i) => {
+    const isPeak = bar.v >= 70;
+    return `<div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t ${isPeak?'bg-purple-600':'bg-purple-600/60'}" style="height:${bar.v}%"></div><span class="text-[8px] text-gray-500">${bar.h}</span></div>`;
+  }).join('');
+
+  // ── MODAL MERMA ───────────────────────────────────────
+  $('#btnRegistrarMerma').addEventListener('click', () => $('#modalMerma').classList.remove('hidden'));
+  $('#mCancel').addEventListener('click', () => $('#modalMerma').classList.add('hidden'));
+  $('#mConfirm').addEventListener('click', () => $('#modalMerma').classList.add('hidden'));
+
+  // ── INIT ──────────────────────────────────────────────
+  renderProducts();
+  renderCart();
+  renderPedidos();
+  renderInventario();
+})();
+</script>
+</div>

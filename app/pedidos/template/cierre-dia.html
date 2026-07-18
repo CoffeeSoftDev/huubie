@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Cierre del Dia (Corte Z)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .demo-toggle { padding: 4px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; background: #1a2332; border: 1px solid #374151; color: #9CA3AF; cursor: pointer; transition: .15s; }
+        .demo-toggle.active { background: #1C64F2; border-color: #1C64F2; color: #fff; }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-input, .swal2-popup.huubie-swal .swal2-textarea { background:#1a2332!important; border:1px solid #374151!important; color:#fff!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background:#EA0234!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link active">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+
+        <!-- Titulo + demo -->
+        <div class="flex items-center justify-between px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div>
+                <h1 class="text-base font-bold flex items-center gap-2"><i data-lucide="lock" class="w-5 h-5 text-[#c4b5fd]"></i> Cierre del Dia — Corte Z</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-0.5">Consolida todos los turnos del dia en un corte contable.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] text-[#6B7280] uppercase tracking-wider font-bold">Estado demo:</span>
+                <button id="tgBloq" class="demo-toggle" onclick="setDemo('bloqueado')">Con turno abierto</button>
+                <button id="tgListo" class="demo-toggle active" onclick="setDemo('listo')">Listo para cerrar</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
+            <div class="max-w-5xl mx-auto space-y-4">
+
+                <!-- Dias pendientes -->
+                <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-[rgba(251,191,36,.08)] border border-[rgba(251,191,36,.3)]">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-[#FBBF24] flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <p class="text-xs font-semibold text-[#FBBF24]">1 dia pendiente de cerrar</p>
+                        <p class="text-[11px] text-[#9CA3AF] mt-0.5">El <strong class="text-white">14/07/2026</strong> tiene turnos sin cierre. Cierra los dias pasados antes de operar el de hoy.</p>
+                    </div>
+                    <button class="ml-auto text-[10px] text-[#76A9FA] hover:text-white font-semibold whitespace-nowrap">Ver dia</button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                    <!-- Checklist -->
+                    <div class="lg:col-span-1 bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden self-start">
+                        <div class="px-5 py-3 border-b border-[#374151]"><h2 class="text-sm font-bold text-white">Checklist de cierre</h2><p class="text-[11px] text-[#9CA3AF]">Fecha: <strong class="text-white" id="fechaCierre">Hoy</strong></p></div>
+                        <div id="checklist" class="divide-y divide-[#374151]/50"></div>
+                        <div id="canCloseBox" class="px-5 py-3 border-t border-[#374151]"></div>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <!-- KPIs -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Turnos</p><p class="text-2xl font-bold text-white">2</p></div>
+                            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Pedidos</p><p class="text-2xl font-bold text-white">27</p></div>
+                            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Venta</p><p class="text-2xl font-bold text-white">$16,180</p></div>
+                            <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Total en caja</p><p class="text-2xl font-bold text-[#3FC189]">$12,340</p></div>
+                        </div>
+
+                        <!-- Totales por metodo -->
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl p-5">
+                            <h2 class="text-sm font-bold text-white mb-3">Total en caja por metodo de pago</h2>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-[#1a2332] border border-[#374151] rounded-xl p-4 text-center">
+                                    <div class="w-9 h-9 mx-auto rounded-lg bg-[rgba(63,193,137,.15)] flex items-center justify-center mb-2"><i data-lucide="banknote" class="w-5 h-5 text-[#3FC189]"></i></div>
+                                    <p class="text-[10px] text-[#6B7280] uppercase tracking-wider font-bold">Efectivo</p>
+                                    <p class="text-lg font-bold text-white">$8,720</p>
+                                </div>
+                                <div class="bg-[#1a2332] border border-[#374151] rounded-xl p-4 text-center">
+                                    <div class="w-9 h-9 mx-auto rounded-lg bg-[rgba(28,100,242,.15)] flex items-center justify-center mb-2"><i data-lucide="credit-card" class="w-5 h-5 text-[#76A9FA]"></i></div>
+                                    <p class="text-[10px] text-[#6B7280] uppercase tracking-wider font-bold">Tarjeta</p>
+                                    <p class="text-lg font-bold text-white">$2,650</p>
+                                </div>
+                                <div class="bg-[#1a2332] border border-[#374151] rounded-xl p-4 text-center">
+                                    <div class="w-9 h-9 mx-auto rounded-lg bg-[rgba(124,58,237,.15)] flex items-center justify-center mb-2"><i data-lucide="arrow-left-right" class="w-5 h-5 text-[#c4b5fd]"></i></div>
+                                    <p class="text-[10px] text-[#6B7280] uppercase tracking-wider font-bold">Transferencia</p>
+                                    <p class="text-lg font-bold text-white">$970</p>
+                                </div>
+                            </div>
+                            <!-- Cubetas de dinero -->
+                            <div class="grid grid-cols-3 gap-3 mt-3 text-center">
+                                <div class="px-3 py-2 rounded-lg bg-[#141d2b] border border-[#374151]"><p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Cobros del dia</p><p class="text-sm font-bold text-[#3FC189]">$11,190</p></div>
+                                <div class="px-3 py-2 rounded-lg bg-[#141d2b] border border-[#374151]"><p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Abonos previos</p><p class="text-sm font-bold text-[#76A9FA]">$850</p></div>
+                                <div class="px-3 py-2 rounded-lg bg-[#141d2b] border border-[#374151]"><p class="text-[9px] text-[#6B7280] uppercase tracking-wider">Cobros cruzados</p><p class="text-sm font-bold text-[#c4b5fd]">$300</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen por turnos -->
+                <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden">
+                    <div class="px-5 py-3 border-b border-[#374151]"><h2 class="text-sm font-bold text-white">Resumen por turnos</h2></div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#141d2b]">
+                                <tr class="text-[10px] text-[#6B7280] uppercase tracking-wider border-b border-[#374151]">
+                                    <th class="px-5 py-3 font-semibold">Turno</th>
+                                    <th class="px-5 py-3 font-semibold">Cajero</th>
+                                    <th class="px-5 py-3 font-semibold">Horario</th>
+                                    <th class="px-5 py-3 font-semibold text-right">Pedidos</th>
+                                    <th class="px-5 py-3 font-semibold text-right">Efectivo</th>
+                                    <th class="px-5 py-3 font-semibold text-right">Tarjeta</th>
+                                    <th class="px-5 py-3 font-semibold text-right">Transf.</th>
+                                    <th class="px-5 py-3 font-semibold text-right">Total</th>
+                                    <th class="px-5 py-3 font-semibold">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="turnosBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="flex items-center justify-between gap-2 pb-2">
+                    <button onclick="reabrir()" class="px-5 py-2.5 rounded-lg text-xs font-semibold bg-[#1a2332] border border-[rgba(124,58,237,.35)] text-[#c4b5fd] hover:bg-[rgba(124,58,237,.12)] transition-colors flex items-center gap-2"><i data-lucide="unlock" class="w-4 h-4"></i> Reabrir cierre (admin)</button>
+                    <div class="flex gap-2">
+                        <button class="px-5 py-2.5 rounded-lg text-xs font-semibold bg-[#1a2332] border border-[#374151] text-[#d1d5db] hover:bg-[#273343] flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir corte</button>
+                        <button id="btnCerrar" onclick="cerrarDia()" class="px-6 py-2.5 rounded-lg text-xs font-extrabold bg-[#1C64F2] text-white hover:bg-[#1a53d4] transition-all flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4"></i> Cerrar dia</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        const turnos = [
+            { t: 'Manana', cajero: 'Andrea M.', hora: '08:15 - 14:30', pedidos: 14, efe: 4620, tdc: 1350, trf: 450, estado: 'cerrado' },
+            { t: 'Tarde', cajero: 'Luis G.', hora: '14:30 - 20:00', pedidos: 13, efe: 4100, tdc: 1300, trf: 520, estado: 'cerrado' },
+        ];
+
+        function renderTurnos() {
+            $('turnosBody').innerHTML = turnos.map(t => {
+                const total = t.efe + t.tdc + t.trf;
+                const est = t.estado === 'cerrado'
+                    ? '<span class="badge px-2 py-0.5 rounded-full text-[10px] font-semibold" style="color:#3FC189;background:rgba(63,193,137,.15);border:1px solid rgba(63,193,137,.3)">Cerrado</span>'
+                    : '<span class="badge px-2 py-0.5 rounded-full text-[10px] font-semibold" style="color:#FBBF24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3)">Abierto</span>';
+                return `<tr class="border-b border-[#374151]/50 hover:bg-[#1a2332]/40">
+                    <td class="px-5 py-3 font-semibold text-white">${t.t}</td>
+                    <td class="px-5 py-3 text-[#d1d5db]">${t.cajero}</td>
+                    <td class="px-5 py-3 text-[#9CA3AF]">${t.hora}</td>
+                    <td class="px-5 py-3 text-right text-[#d1d5db]">${t.pedidos}</td>
+                    <td class="px-5 py-3 text-right text-[#9CA3AF]">$${t.efe.toLocaleString('es-MX')}</td>
+                    <td class="px-5 py-3 text-right text-[#9CA3AF]">$${t.tdc.toLocaleString('es-MX')}</td>
+                    <td class="px-5 py-3 text-right text-[#9CA3AF]">$${t.trf.toLocaleString('es-MX')}</td>
+                    <td class="px-5 py-3 text-right font-bold text-white">$${total.toLocaleString('es-MX')}</td>
+                    <td class="px-5 py-3">${est}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        const CHECKS = {
+            listo: [
+                { ok: true, block: true, label: 'Sin cierre previo del dia', detail: 'No existe un corte Z para hoy.' },
+                { ok: true, block: true, label: 'Todos los turnos cerrados', detail: '2 de 2 turnos con corte.' },
+                { ok: true, block: false, label: 'Sin pedidos huerfanos', detail: 'Todos los pedidos tienen turno asignado.' },
+                { ok: false, block: false, label: 'Pedidos con saldo pendiente', detail: '3 pedidos con saldo (advertencia, no bloquea).' },
+                { ok: true, block: false, label: 'Formas de pago cuadradas', detail: 'Efectivo, tarjeta y transferencia conciliados.' },
+            ],
+            bloqueado: [
+                { ok: true, block: true, label: 'Sin cierre previo del dia', detail: 'No existe un corte Z para hoy.' },
+                { ok: false, block: true, label: 'Turnos abiertos', detail: '1 turno sigue abierto. Cierralo antes de continuar.' },
+                { ok: false, block: false, label: 'Pedidos huerfanos', detail: '2 pedidos sin turno asignado (advertencia).' },
+                { ok: false, block: false, label: 'Pedidos con saldo pendiente', detail: '3 pedidos con saldo (advertencia, no bloquea).' },
+                { ok: true, block: false, label: 'Formas de pago cuadradas', detail: 'Sin diferencias detectadas.' },
+            ]
+        };
+
+        function renderChecklist(mode) {
+            const list = CHECKS[mode];
+            $('checklist').innerHTML = list.map(c => {
+                const icon = c.ok ? 'check-circle-2' : (c.block ? 'x-circle' : 'alert-triangle');
+                const color = c.ok ? '#3FC189' : (c.block ? '#EA0234' : '#FBBF24');
+                return `<div class="flex items-start gap-3 px-5 py-3">
+                    <i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:${color}"></i>
+                    <div><p class="text-xs font-semibold text-white">${c.label}</p><p class="text-[10px] text-[#6B7280] mt-0.5">${c.detail}</p></div>
+                </div>`;
+            }).join('');
+            const canClose = !list.some(c => c.block && !c.ok);
+            const box = $('canCloseBox');
+            box.innerHTML = canClose
+                ? '<div class="flex items-center gap-2 text-[11px] text-[#3FC189] font-semibold"><i data-lucide="shield-check" class="w-4 h-4"></i> Listo para cerrar el dia</div>'
+                : '<div class="flex items-center gap-2 text-[11px] text-[#EA0234] font-semibold"><i data-lucide="shield-alert" class="w-4 h-4"></i> Resuelve los bloqueantes primero</div>';
+            const btn = $('btnCerrar');
+            btn.disabled = !canClose;
+            btn.classList.toggle('opacity-40', !canClose);
+            btn.classList.toggle('pointer-events-none', !canClose);
+            lucide.createIcons();
+        }
+
+        function setDemo(mode) {
+            $('tgListo').classList.toggle('active', mode === 'listo');
+            $('tgBloq').classList.toggle('active', mode === 'bloqueado');
+            turnos[1].estado = mode === 'listo' ? 'cerrado' : 'abierto';
+            renderTurnos();
+            renderChecklist(mode);
+        }
+
+        function cerrarDia() {
+            Swal.fire({ ...SWAL, icon: 'warning', title: '¿Cerrar el dia?', html: 'Se creara el corte Z. No podras abrir turnos ni crear pedidos para hoy en <strong class="text-white">Sucursal Centro</strong>.', showCancelButton: true, confirmButtonText: 'Cerrar dia', cancelButtonText: 'Cancelar', focusCancel: true })
+                .then(r => { if (r.isConfirmed) Swal.fire({ ...SWAL, icon: 'success', title: 'Dia cerrado', html: 'Corte Z generado correctamente.<br>Total en caja: <strong class="text-[#3FC189]">$12,340</strong>', timer: 2200, showConfirmButton: false }); });
+        }
+        async function reabrir() {
+            const { value: reason } = await Swal.fire({ ...SWAL, title: 'Reabrir cierre', input: 'textarea', inputPlaceholder: 'Motivo de la reapertura (obligatorio)...', showCancelButton: true, confirmButtonText: 'Reabrir', cancelButtonText: 'Cancelar', customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }, inputValidator: (v) => !v && 'El motivo es obligatorio' });
+            if (reason) Swal.fire({ ...SWAL, icon: 'success', title: 'Cierre reabierto', html: 'Los pedidos del dia quedaron desligados del corte. Recuerda volver a cerrar al terminar.', timer: 2200, showConfirmButton: false });
+        }
+
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+        renderTurnos();
+        setDemo('listo');
+        lucide.createIcons();
+    </script>
+</body>
+</html>

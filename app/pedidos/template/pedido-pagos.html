@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Pagos y Abonos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #d1d5db; width: 100%; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        .input-modal::placeholder { color: #6b7280; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .badge-base { font-size: 10px; padding: 2px 9px; border-radius: 9999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .pay-method { border: 1px solid #374151; background: #1a2332; border-radius: 10px; cursor: pointer; transition: .15s; }
+        .pay-method:hover { border-color: #4B5563; }
+        .pay-method.sel { border-color: #1C64F2; background: rgba(28,100,242,.1); box-shadow: 0 0 0 1px rgba(28,100,242,.3); }
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-input { background:#1a2332!important; border:1px solid #374151!important; color:#fff!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background:#EA0234!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link active">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[rgba(63,193,137,0.12)] border border-[rgba(63,193,137,0.3)]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#3FC189] pulse-dot"></span>
+                <span class="text-[10px] font-semibold text-[#3FC189]">TURNO ABIERTO</span>
+            </div>
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex overflow-hidden">
+
+        <!-- ======= DETALLE DEL PEDIDO ======= -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div class="flex items-center gap-3 px-5 py-2.5 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+                <a href="pedidos-listado.html" class="text-[#9CA3AF] hover:text-white"><i data-lucide="arrow-left" class="w-4 h-4"></i></a>
+                <h1 class="text-sm font-bold flex items-center gap-2"><i data-lucide="wallet" class="w-4 h-4 text-[#3FC189]"></i> Detalle y Pagos</h1>
+                <span id="hdrFolio" class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-[#1a2332] border border-[#374151] text-[#d1d5db]">P-C0341</span>
+                <span id="hdrEstado" class="ml-auto"></span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
+
+                <!-- Info cliente / entrega -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4">
+                        <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold mb-2">Cliente</p>
+                        <p class="text-sm font-bold text-white">Andrea Martinez</p>
+                        <p class="text-[11px] text-[#9CA3AF]">961 123 4567</p>
+                    </div>
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4">
+                        <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold mb-2">Entrega</p>
+                        <p class="text-sm font-bold text-white">Manana, 5:00 PM</p>
+                        <p class="text-[11px] text-[#9CA3AF]">Sucursal Centro</p>
+                    </div>
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4">
+                        <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold mb-2">Produccion / Entrega</p>
+                        <div id="deliveryBadge" class="mb-2"></div>
+                        <div class="flex gap-1.5">
+                            <button onclick="setDelivery(2)" class="flex-1 text-[9px] py-1 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:text-[#c4b5fd]">Producir</button>
+                            <button onclick="setDelivery(1)" class="flex-1 text-[9px] py-1 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:text-[#3FC189]">Entregado</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items -->
+                <div class="bg-[#1F2A37] border border-[#374151] rounded-xl overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-[#374151] flex items-center justify-between">
+                        <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Productos del pedido</p>
+                        <span class="text-[9px] text-[#6B7280]">3 items</span>
+                    </div>
+                    <table class="w-full text-left text-xs">
+                        <tbody>
+                            <tr class="border-b border-[#374151]/50"><td class="px-4 py-2.5 text-white">3 Leches Chocolate <span class="text-[#6B7280]">x1</span></td><td class="px-4 py-2.5 text-right text-[#d1d5db]">$700</td></tr>
+                            <tr class="border-b border-[#374151]/50"><td class="px-4 py-2.5 text-white">Cupcake Vainilla <span class="text-[#6B7280]">x2</span></td><td class="px-4 py-2.5 text-right text-[#d1d5db]">$90</td></tr>
+                            <tr><td class="px-4 py-2.5 text-white">Latte Vainilla <span class="text-[#6B7280]">x1</span></td><td class="px-4 py-2.5 text-right text-[#d1d5db]">$60</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Historial de abonos -->
+                <div class="bg-[#1F2A37] border border-[#374151] rounded-xl overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-[#374151] flex items-center justify-between">
+                        <p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Historial de abonos</p>
+                        <button onclick="aplicarDescuento()" class="text-[10px] text-[#FBBF24] hover:text-[#fcd34d] flex items-center gap-1"><i data-lucide="percent" class="w-3 h-3"></i> Aplicar descuento</button>
+                    </div>
+                    <div id="historial"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======= PANEL REGISTRAR PAGO ======= -->
+        <aside class="w-[360px] flex-shrink-0 bg-[#141d2b] border-l border-[#374151] flex flex-col overflow-hidden">
+            <div class="px-4 py-3 border-b border-[#374151] flex-shrink-0">
+                <h2 class="text-sm font-bold text-white flex items-center gap-2"><i data-lucide="banknote" class="w-4 h-4 text-[#3FC189]"></i> Registrar pago</h2>
+            </div>
+            <div class="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 space-y-4">
+                <!-- Totales -->
+                <div class="bg-[#1a2332] border border-[#374151] rounded-xl p-4 space-y-1.5">
+                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">Total del pedido</span><span id="lblTotal" class="text-white font-semibold">$850.00</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">Descuento</span><span id="lblDesc" class="text-[#FBBF24] font-semibold">-$0.00</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-[#9CA3AF]">Abonado</span><span id="lblAbonado" class="text-[#3FC189] font-semibold">$300.00</span></div>
+                    <div class="flex justify-between text-sm font-extrabold pt-1.5 border-t border-[#374151]"><span>Saldo</span><span id="lblSaldo" class="text-[#FBBF24]">$550.00</span></div>
+                </div>
+
+                <!-- Metodo de pago -->
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold mb-2">Metodo de pago</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="pay-method sel p-2.5 flex flex-col items-center gap-1" data-method="EFE" onclick="setMethod('EFE')"><i data-lucide="banknote" class="w-5 h-5 text-[#3FC189]"></i><span class="text-[10px] font-semibold">Efectivo</span></div>
+                        <div class="pay-method p-2.5 flex flex-col items-center gap-1" data-method="TDC" onclick="setMethod('TDC')"><i data-lucide="credit-card" class="w-5 h-5 text-[#76A9FA]"></i><span class="text-[10px] font-semibold">Tarjeta</span></div>
+                        <div class="pay-method p-2.5 flex flex-col items-center gap-1" data-method="TRANSF" onclick="setMethod('TRANSF')"><i data-lucide="arrow-left-right" class="w-5 h-5 text-[#c4b5fd]"></i><span class="text-[10px] font-semibold">Transf.</span></div>
+                    </div>
+                </div>
+
+                <!-- Monto -->
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold mb-2">Monto del abono</p>
+                    <input id="inputMonto" type="number" class="input-modal text-right text-base font-bold" placeholder="0.00">
+                    <div class="grid grid-cols-3 gap-1.5 mt-2">
+                        <button onclick="quick(0.5)" class="text-[10px] py-1.5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:text-white">50%</button>
+                        <button onclick="quick(1)" class="text-[10px] py-1.5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:text-white">Saldo total</button>
+                        <button onclick="quick(0)" class="text-[10px] py-1.5 rounded bg-[#1a2332] border border-[#374151] text-[#9CA3AF] hover:text-white">Limpiar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="px-4 py-3 border-t border-[#374151] flex-shrink-0">
+                <button onclick="registrar()" class="w-full py-2.5 rounded-lg text-xs font-extrabold bg-[#1C64F2] text-white shadow-lg shadow-[rgba(28,100,242,.25)] hover:bg-[#1a53d4] active:scale-[.98] transition-all">Registrar abono</button>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        const pedido = {
+            folio: 'P-C0341', total: 850, discount: 0, delivery: 2,
+            abonos: [{ metodo: 'EFE', monto: 300, fecha: 'Hoy 10:24' }]
+        };
+        let method = 'EFE';
+
+        const METODOS = { EFE: ['Efectivo', '#3FC189', 'rgba(63,193,137,.12)'], TDC: ['Tarjeta', '#76A9FA', 'rgba(28,100,242,.12)'], TRANSF: ['Transferencia', '#c4b5fd', 'rgba(124,58,237,.15)'] };
+        const abonado = () => pedido.abonos.reduce((s, a) => s + a.monto, 0);
+        const saldo = () => Math.max(0, pedido.total - pedido.discount - abonado());
+        const estado = () => saldo() <= 0 ? 3 : (abonado() > 0 ? 2 : 1);
+
+        function estadoBadge() {
+            const map = { 1: ['Cotizacion', '#76A9FA', 'rgba(28,100,242,.15)', 'rgba(28,100,242,.3)'], 2: ['Pendiente', '#FBBF24', 'rgba(251,191,36,.15)', 'rgba(251,191,36,.3)'], 3: ['Pagado', '#3FC189', 'rgba(63,193,137,.15)', 'rgba(63,193,137,.3)'] };
+            const [t, fg, bg, bd] = map[estado()];
+            return `<span class="badge-base" style="color:${fg};background:${bg};border:1px solid ${bd}">${t}</span>`;
+        }
+        function deliveryBadge() {
+            const map = { 0: ['No entregado', '#9CA3AF', 'rgba(156,163,175,.12)'], 1: ['Entregado', '#3FC189', 'rgba(63,193,137,.12)'], 2: ['Para producir', '#c4b5fd', 'rgba(124,58,237,.15)'] };
+            const [t, fg, bg] = map[pedido.delivery];
+            return `<span class="badge-base" style="color:${fg};background:${bg}">${t}</span>`;
+        }
+
+        function render() {
+            $('hdrFolio').textContent = pedido.folio;
+            $('hdrEstado').innerHTML = estadoBadge();
+            $('deliveryBadge').innerHTML = deliveryBadge();
+            $('lblTotal').textContent = fmt(pedido.total);
+            $('lblDesc').textContent = '-' + fmt(pedido.discount);
+            $('lblAbonado').textContent = fmt(abonado());
+            $('lblSaldo').textContent = fmt(saldo());
+            $('lblSaldo').style.color = saldo() <= 0 ? '#3FC189' : '#FBBF24';
+
+            $('historial').innerHTML = pedido.abonos.length ? pedido.abonos.map((a, i) => {
+                const [nom, fg, bg] = METODOS[a.metodo];
+                return `<div class="flex items-center justify-between px-4 py-2.5 border-b border-[#374151]/50">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:${bg}"><i data-lucide="${a.metodo === 'EFE' ? 'banknote' : a.metodo === 'TDC' ? 'credit-card' : 'arrow-left-right'}" class="w-4 h-4" style="color:${fg}"></i></span>
+                        <div><p class="text-xs font-semibold text-white">${nom}</p><p class="text-[10px] text-[#6B7280]">${esc(a.fecha)}</p></div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-[#3FC189]">${fmt(a.monto)}</span>
+                        <button onclick="delAbono(${i})" class="text-[#6B7280] hover:text-[#EA0234]"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                </div>`;
+            }).join('') : '<p class="px-4 py-6 text-center text-[11px] text-[#6B7280]">Sin abonos registrados</p>';
+            lucide.createIcons();
+        }
+
+        function setMethod(m) { method = m; document.querySelectorAll('.pay-method').forEach(el => el.classList.toggle('sel', el.dataset.method === m)); }
+        function setDelivery(v) { pedido.delivery = v; render(); }
+        function quick(f) { $('inputMonto').value = f === 0 ? '' : Math.round(saldo() * f); }
+
+        async function registrar() {
+            const monto = parseFloat($('inputMonto').value) || 0;
+            if (monto <= 0) return Swal.fire({ ...SWAL, icon: 'warning', title: 'Monto invalido', text: 'Captura un monto mayor a cero.' });
+            if (monto > saldo() + 0.005) {
+                const r = await Swal.fire({ ...SWAL, icon: 'warning', title: 'Monto mayor al saldo', html: `El abono (${fmt(monto)}) supera el saldo (${fmt(saldo())}). ¿Continuar?`, showCancelButton: true, confirmButtonText: 'Registrar', cancelButtonText: 'Cancelar' });
+                if (!r.isConfirmed) return;
+            }
+            pedido.abonos.push({ metodo: method, monto, fecha: 'Hoy ' + new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) });
+            $('inputMonto').value = '';
+            render();
+            const pagado = saldo() <= 0;
+            Swal.fire({ ...SWAL, icon: 'success', title: 'Abono registrado', html: pagado ? 'El pedido queda <strong class="text-[#3FC189]">Pagado</strong>.' : `Saldo restante: <strong class="text-[#FBBF24]">${fmt(saldo())}</strong>`, timer: 1800, showConfirmButton: false });
+        }
+        async function delAbono(i) {
+            const r = await Swal.fire({ ...SWAL, icon: 'warning', title: '¿Eliminar abono?', text: 'Se recalculara el saldo del pedido.', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', customClass: { popup: 'huubie-swal', confirmButton: 'swal-danger' }, focusCancel: true });
+            if (r.isConfirmed) { pedido.abonos.splice(i, 1); render(); }
+        }
+        async function aplicarDescuento() {
+            const { value } = await Swal.fire({ ...SWAL, title: 'Descuento del pedido', input: 'number', inputLabel: 'Monto en pesos (MXN)', inputValue: pedido.discount || '', showCancelButton: true, confirmButtonText: 'Aplicar', cancelButtonText: 'Cancelar' });
+            if (value !== undefined) { pedido.discount = Math.min(parseFloat(value) || 0, pedido.total); render(); }
+        }
+
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+        render(); lucide.createIcons();
+    </script>
+</body>
+</html>

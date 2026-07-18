@@ -87,16 +87,20 @@ class Navbar {
             && this.settings.imgPerfil.trim() !== ''
             && !/df-user\.png$/.test(this.settings.imgPerfil);
         const navbarAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#F97316] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
-            : `<div class="w-8 h-8 rounded-full bg-[#F97316] flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#7C3AED] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
+            : `<div class="w-8 h-8 rounded-full bg-[#7C3AED] flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
 
         const dropdownAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
-            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#7C3AED] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
+            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#7C3AED] flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
 
-        const branchStyles   = this.branchStylesHtml();
-        const branchControl  = this.branchControlHtml();
-        const hiddenSelect   = this.hiddenSelectHtml();
+        // showSubsidiary:false -> se omite todo el control de sucursal (pill, select
+        // oculto y toast). Lo usan las paginas que ya traen su propio selector, como
+        // el visor de cierre, para no tener dos controles compitiendo.
+        const showBranch     = this.settings.showSubsidiary !== false;
+        const branchStyles   = showBranch ? this.branchStylesHtml()  : '';
+        const branchControl  = showBranch ? this.branchControlHtml() : '';
+        const hiddenSelect   = showBranch ? this.hiddenSelectHtml()  : '';
 
         const navbarHtml = `
             ${branchStyles}
@@ -212,7 +216,7 @@ class Navbar {
                     </div>
                 </div>
             </div>
-            ${this.branchToastHtml()}
+            ${showBranch ? this.branchToastHtml() : ''}
         `;
         this.parent.prepend(navbarHtml);
     }
@@ -431,6 +435,8 @@ class Navbar {
     // repintar el pill y las tarjetas sin recargar. El click de .branch-card esta
     // delegado en document, por eso reemplazar el HTML de la lista no lo rompe.
     async refreshShiftStates() {
+        if (this.settings.showSubsidiary === false) return;
+
         const info = await useFetch({
             url: "../access/ctrl/ctrl-access.php",
             data: { opc: 'branches' }
@@ -679,5 +685,6 @@ $(async () => {
         subsidiaryId:    data['subsidiary_id'],
         subsidiaryShift: current.shift_state || 'none',
         branches:        branches,
+        showSubsidiary:  !window.HIDE_SUBSIDIARY_SWITCH,
     });
 });

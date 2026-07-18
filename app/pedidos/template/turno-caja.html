@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos — Turno de Caja</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #111928; font-family: 'Inter', system-ui, sans-serif; color: #fff; height: 100vh; overflow: hidden; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .input-modal { background: #1a2332; border: 1px solid #374151; border-radius: 8px; padding: 9px 12px; font-size: 13px; color: #d1d5db; width: 100%; transition: border-color .15s; }
+        .input-modal:focus { outline: none; border-color: #1C64F2; }
+        .input-modal::placeholder { color: #6b7280; }
+        select.input-modal { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+        .nav-link { font-size: 12px; color: #9CA3AF; padding: 5px 10px; border-radius: 8px; transition: .15s; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,.05); }
+        .nav-link.active { color: #fff; background: rgba(28,100,242,.15); border: 1px solid rgba(28,100,242,.3); }
+        .branch-pill { background: #1a2332; border: 1px solid #374151; border-radius: 10px; padding: 5px 10px; }
+        .demo-toggle { padding: 4px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; background: #1a2332; border: 1px solid #374151; color: #9CA3AF; cursor: pointer; transition: .15s; }
+        .demo-toggle.active { background: #1C64F2; border-color: #1C64F2; color: #fff; }
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .swal2-popup.huubie-swal { background:#1F2A37!important; border:1px solid #374151!important; border-radius:16px!important; color:#fff!important; font-family:'Inter',sans-serif!important; }
+        .swal2-popup.huubie-swal .swal2-title { color:#fff!important; font-size:1rem!important; font-weight:700!important; }
+        .swal2-popup.huubie-swal .swal2-html-container { color:#9CA3AF!important; font-size:.82rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm { background:#1C64F2!important; color:#fff!important; font-size:.75rem!important; font-weight:700!important; padding:.5rem 1.25rem!important; border-radius:.5rem!important; }
+        .swal2-popup.huubie-swal .swal2-confirm.swal-danger { background:#EA0234!important; }
+        .swal2-popup.huubie-swal .swal2-cancel { background:transparent!important; color:#9CA3AF!important; font-size:.75rem!important; font-weight:600!important; padding:.5rem 1rem!important; border:1px solid #374151!important; border-radius:.5rem!important; }
+        .swal2-container.swal2-backdrop-show { background:rgba(0,0,0,.7)!important; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- NAVBAR -->
+    <nav class="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-[#0f172a] border-b border-[#374151]">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="text-xl font-bold tracking-wide">hb<span class="text-[#1C64F2]">&#9679;</span></a>
+            <span class="hidden md:block text-[11px] text-[#6B7280] border-l border-[#374151] pl-3">Dulce Encanto</span>
+            <div class="hidden lg:flex items-center gap-1 ml-2">
+                <a href="pedidos-listado.html" class="nav-link">Pedidos</a>
+                <a href="turno-caja.html" class="nav-link active">Caja</a>
+                <a href="cierre-dia.html" class="nav-link">Cierre</a>
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="admin-catalogo.html" class="nav-link">Catalogo</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="branch-pill flex items-center gap-2">
+                <i data-lucide="store" class="w-4 h-4 text-[#9CA3AF]"></i>
+                <div class="flex flex-col items-start leading-none">
+                    <span class="text-[8px] uppercase tracking-wider text-[#6B7280] font-semibold">Sucursal</span>
+                    <span id="branchName" class="text-xs font-semibold text-white">Centro</span>
+                </div>
+            </div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-[10px] bg-gradient-to-br from-purple-500 to-pink-500 text-white">AU</div>
+        </div>
+    </nav>
+
+    <div class="mt-14 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+
+        <!-- Titulo + demo toggle -->
+        <div class="flex items-center justify-between px-5 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0">
+            <div>
+                <h1 class="text-base font-bold flex items-center gap-2"><i data-lucide="calculator" class="w-5 h-5 text-[#FBBF24]"></i> Turno de Caja</h1>
+                <p class="text-[11px] text-[#9CA3AF] mt-0.5">Apertura de turno con fondo de caja y corte de turno.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] text-[#6B7280] uppercase tracking-wider font-bold">Estado demo:</span>
+                <button id="tgCerrado" class="demo-toggle" onclick="setEstado('cerrado')">Sin turno</button>
+                <button id="tgAbierto" class="demo-toggle active" onclick="setEstado('abierto')">Turno abierto</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto scrollbar-thin px-5 py-5">
+            <div class="max-w-4xl mx-auto">
+
+                <!-- ============ APERTURA ============ -->
+                <div id="viewApertura" class="hidden">
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden">
+                        <div class="px-6 py-4 border-b border-[#374151] flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-[#3FC189]/15 border border-[#3FC189]/25 flex items-center justify-center"><i data-lucide="door-open" class="w-5 h-5 text-[#3FC189]"></i></div>
+                            <div><h2 class="text-base font-bold text-white">Abrir turno</h2><p class="text-[11px] text-[#9CA3AF]">No hay un turno abierto en Sucursal Centro. Abre uno para capturar y cobrar.</p></div>
+                        </div>
+                        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Turno</label>
+                                <select class="input-modal"><option>Manana</option><option>Tarde</option><option>Noche</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Cajero</label>
+                                <input type="text" class="input-modal" value="Andrea M." readonly>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280] mb-1.5">Fondo de caja inicial (MXN)</label>
+                                <input id="inputFondo" type="number" class="input-modal text-lg font-bold" placeholder="0.00" value="1000">
+                                <p class="text-[10px] text-[#6B7280] mt-1">Monto de efectivo con el que inicia la caja.</p>
+                            </div>
+                        </div>
+                        <div class="px-6 py-4 border-t border-[#374151] flex justify-end">
+                            <button onclick="abrirTurno()" class="px-6 py-2.5 rounded-lg text-xs font-extrabold bg-[#3FC189] text-[#0b1f16] hover:brightness-110 transition-all flex items-center gap-2"><i data-lucide="door-open" class="w-4 h-4"></i> Abrir turno</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============ CORTE ============ -->
+                <div id="viewCorte">
+                    <!-- Info turno -->
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[rgba(63,193,137,0.12)] border border-[rgba(63,193,137,0.3)]">
+                            <span class="w-2 h-2 rounded-full bg-[#3FC189] pulse-dot"></span>
+                            <span class="text-xs font-semibold text-[#3FC189]">TURNO MANANA ABIERTO</span>
+                        </div>
+                        <span class="text-[11px] text-[#9CA3AF]">Abierto: <strong class="text-white">Hoy 08:15</strong></span>
+                        <span class="text-[11px] text-[#9CA3AF]">Cajero: <strong class="text-white">Andrea M.</strong></span>
+                        <span class="text-[11px] text-[#9CA3AF]">Fondo: <strong class="text-white">$1,000</strong></span>
+                    </div>
+
+                    <!-- Resumen ventas -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Pedidos</p><p class="text-2xl font-bold text-white">14</p></div>
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Venta facturada</p><p class="text-2xl font-bold text-white">$8,940</p></div>
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Cobrado (caja)</p><p class="text-2xl font-bold text-[#3FC189]">$6,420</p></div>
+                        <div class="bg-[#1F2A37] border border-[#374151] rounded-xl p-4"><p class="text-[9px] uppercase tracking-wider text-[#6B7280] font-bold">Descuentos</p><p class="text-2xl font-bold text-[#FBBF24]">$285</p></div>
+                    </div>
+
+                    <!-- Arqueo por metodo -->
+                    <div class="bg-[#1F2A37] border border-[#374151] rounded-2xl overflow-hidden mb-4">
+                        <div class="px-5 py-3 border-b border-[#374151]"><h2 class="text-sm font-bold text-white">Corte de turno — Contado vs Sistema</h2><p class="text-[11px] text-[#9CA3AF]">Captura lo contado por metodo. La diferencia se calcula sola.</p></div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-[#141d2b]">
+                                    <tr class="text-[10px] text-[#6B7280] uppercase tracking-wider border-b border-[#374151]">
+                                        <th class="px-5 py-3 font-semibold">Metodo</th>
+                                        <th class="px-5 py-3 font-semibold text-right">Sistema</th>
+                                        <th class="px-5 py-3 font-semibold text-right">Contado</th>
+                                        <th class="px-5 py-3 font-semibold text-right">Diferencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="arqueoBody"></tbody>
+                                <tfoot>
+                                    <tr class="border-t border-[#374151] bg-[#141d2b]">
+                                        <td class="px-5 py-3 font-bold text-white">Total en caja</td>
+                                        <td id="totSistema" class="px-5 py-3 text-right font-bold text-white">$0</td>
+                                        <td id="totContado" class="px-5 py-3 text-right font-bold text-white">$0</td>
+                                        <td id="totDif" class="px-5 py-3 text-right font-bold">$0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="px-5 py-3 border-t border-[#374151] text-[10px] text-[#6B7280] flex items-center gap-2">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i> El efectivo esperado en cajon incluye el fondo de caja ($1,000).
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <a href="pedidos-listado.html" class="px-5 py-2.5 rounded-lg text-xs font-semibold bg-[#1a2332] border border-[#374151] text-[#d1d5db] hover:bg-[#273343]">Seguir vendiendo</a>
+                        <button onclick="cerrarTurno()" class="px-6 py-2.5 rounded-lg text-xs font-extrabold bg-[#1C64F2] text-white hover:bg-[#1a53d4] transition-all flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4"></i> Cerrar turno</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const fmt0 = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+        const SWAL = { customClass: { popup: 'huubie-swal' }, buttonsStyling: false };
+
+        // Metodos con sistema (esperado). Efectivo incluye fondo.
+        const arqueo = [
+            { m: 'Efectivo', icon: 'banknote', fg: '#3FC189', sistema: 4620, contado: 4620 },
+            { m: 'Tarjeta', icon: 'credit-card', fg: '#76A9FA', sistema: 1350, contado: 1350 },
+            { m: 'Transferencia', icon: 'arrow-left-right', fg: '#c4b5fd', sistema: 450, contado: 450 },
+        ];
+
+        function renderArqueo() {
+            $('arqueoBody').innerHTML = arqueo.map((r, i) => `
+                <tr class="border-b border-[#374151]/50">
+                    <td class="px-5 py-3"><div class="flex items-center gap-2"><i data-lucide="${r.icon}" class="w-4 h-4" style="color:${r.fg}"></i><span class="font-medium text-white">${r.m}</span></div></td>
+                    <td class="px-5 py-3 text-right text-[#9CA3AF]">${fmt0(r.sistema)}</td>
+                    <td class="px-5 py-3 text-right"><input type="number" value="${r.contado}" oninput="setContado(${i}, this.value)" class="input-modal text-right w-28 ml-auto" style="padding:5px 8px;font-size:12px;"></td>
+                    <td class="px-5 py-3 text-right" id="dif${i}"></td>
+                </tr>`).join('');
+            calc();
+            lucide.createIcons();
+        }
+        function setContado(i, v) { arqueo[i].contado = parseFloat(v) || 0; calc(); }
+        function difBadge(d) {
+            if (Math.abs(d) < 0.005) return `<span class="text-[#3FC189] font-semibold">$0</span>`;
+            const fg = d > 0 ? '#FBBF24' : '#EA0234';
+            return `<span style="color:${fg}" class="font-semibold">${d > 0 ? '+' : ''}${fmt0(d)}</span>`;
+        }
+        function calc() {
+            let ts = 0, tc = 0;
+            arqueo.forEach((r, i) => { ts += r.sistema; tc += r.contado; const el = $('dif' + i); if (el) el.innerHTML = difBadge(r.contado - r.sistema); });
+            $('totSistema').textContent = fmt0(ts);
+            $('totContado').textContent = fmt0(tc);
+            $('totDif').innerHTML = difBadge(tc - ts);
+        }
+
+        function setEstado(e) {
+            localStorage.setItem('pedidos_turno', e);
+            $('tgAbierto').classList.toggle('active', e === 'abierto');
+            $('tgCerrado').classList.toggle('active', e === 'cerrado');
+            $('viewApertura').classList.toggle('hidden', e !== 'cerrado');
+            $('viewCorte').classList.toggle('hidden', e !== 'abierto');
+            lucide.createIcons();
+        }
+
+        function abrirTurno() {
+            const fondo = parseFloat($('inputFondo').value) || 0;
+            Swal.fire({ ...SWAL, icon: 'success', title: 'Turno abierto', html: `Fondo de caja: <strong class="text-white">${fmt0(fondo)}</strong><br>Ya puedes capturar y cobrar pedidos.`, confirmButtonText: 'Entendido' }).then(() => setEstado('abierto'));
+        }
+        async function cerrarTurno() {
+            const dif = arqueo.reduce((s, r) => s + (r.contado - r.sistema), 0);
+            const difTxt = Math.abs(dif) < 0.005 ? 'Sin diferencia. La caja cuadra.' : `Diferencia total: <strong style="color:${dif > 0 ? '#FBBF24' : '#EA0234'}">${dif > 0 ? '+' : ''}${fmt0(dif)}</strong>`;
+            const r = await Swal.fire({ ...SWAL, icon: 'warning', title: '¿Cerrar turno?', html: difTxt + '<br>Una vez cerrado no podras capturar en este turno.', showCancelButton: true, confirmButtonText: 'Cerrar turno', cancelButtonText: 'Cancelar', focusCancel: true });
+            if (r.isConfirmed) Swal.fire({ ...SWAL, icon: 'success', title: 'Turno cerrado', html: 'El desglose quedo guardado. Recuerda hacer el <strong class="text-[#c4b5fd]">cierre del dia</strong> al terminar.', confirmButtonText: 'Ir al cierre' }).then(res => { if (res.isConfirmed) window.location.href = 'cierre-dia.html'; else setEstado('cerrado'); });
+        }
+
+        const BRANCHES = { centro: 'Centro', norte: 'Norte', sur: 'Sur', '0': 'Todas' };
+        $('branchName').textContent = BRANCHES[localStorage.getItem('pedidos_branch') || 'centro'] || 'Centro';
+        renderArqueo();
+        setEstado(localStorage.getItem('pedidos_turno') || 'abierto');
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -189,6 +189,67 @@ const PG_COFFEESOFT_NOTE =
     + `- El theme de \`tabLayout\`/\`createTable\`/\`createModalForm\` sigue el sistema de diseño activo (light por defecto; dark solo Huubie).\n`
     + `Puedes añadir más archivos (p.ej. \`src/js/mdl-<entidad>.js\` para clases CRUD adicionales) con el mismo marcador @file y cargarlos en el index antes de \`app.js\`. No mezcles archivos en un mismo bloque.`;
 
+/**
+ * Contrato del spell `transmute` (CoffeeMagic): el diseño aprobado en el Playground
+ * llega como HTML fuente y sale como módulo coffeeSoft tripartita. Sustituye a
+ * PG_MODULE_NOTE/PG_COFFEESOFT_NOTE mientras hay una transmutación en curso: el
+ * entregable no es un template vanilla sino los 3 archivos canónicos del spell
+ * (sample + módulo + entry-point .php), más un index.html que solo existe para que
+ * el sandbox pueda previsualizarlo. Reglas completas: grimorio-fuente.md (contexto).
+ * Las rutas @file van RELATIVAS a la carpeta del módulo; `dir` dice dónde aterrizan.
+ */
+function pgTransmuteNote(p) {
+    const modulo  = p.modulo || 'modulo';
+    const entidad = p.entidad || 'Entidad';
+    const dir     = p.dir || 'app/inventarios';
+    const ref     = p.referencia
+        ? `el pivote \`${p.referencia}\` (si no lo tienes a la vista, cae al grimorio)`
+        : '`grimorio-fuente.md` (incluido en el contexto, es autocontenido)';
+
+    return `\n\n## Transmutación (spell \`transmute\`) — entrega obligatoria\n`
+        + `El HTML de este mensaje es un diseño **ya aprobado**. NO lo rediseñes ni cambies su tema visual: `
+        + `extrae su estructura y transmútala en un módulo coffeeSoft siguiendo ${ref}.\n\n`
+        + `**Parámetros:** módulo \`${modulo}\` · entidad \`${entidad}\` · destino \`${dir}/\``
+        + (p.tema ? ` · tema \`${p.tema}\` (heredado del HTML, no lo alteres)` : ` · tema heredado del HTML, no lo alteres`) + `\n\n`
+        + `### Arquitectura tripartita (innegociable)\n`
+        + `- \`class App extends Templates\` — orquesta: \`init\`/\`render\`/\`layout\`/\`createfilterBar\`, handlers y facade pública.\n`
+        + `- \`class ${entidad} extends Templates\` — datos: \`ls${entidad}()\`, \`lsKpis()\`, \`save${entidad}()\`, \`toggle${entidad}()\`. En el sandbox lee los \`SAMPLE_*\`, NO \`useFetch\`.\n`
+        + `- \`class ${entidad}View extends Templates\` — vistas: \`render*\` + los componentes locales (\`viewHeader\`, \`viewFooter\`, \`tabsBar\`, \`kpisRow\`…) portados 1:1 del pivote.\n`
+        + `Los componentes locales NO viven en \`Templates\`: nunca asumas herencia — si no está en el framework, pórtalo desde el pivote.\n\n`
+        + `### Fidelidad visual (el diseño ya está aprobado)\n`
+        + `El look del HTML fuente se CONSERVA: mismas clases, colores, tipografía, espaciados y estructura visual. `
+        + `Tradúcelo a los componentes del framework pasándoles esas mismas clases (\`class\`, \`theme\`, etc.), no rediseñes con tu propio criterio. `
+        + `Si el HTML fuente trae un \`<style>\` propio (scrollbars, animaciones, utilidades a medida), pórtalo íntegro a \`src/css/${modulo}.css\` `
+        + `y cárgalo tanto en el \`.php\` como en el \`index.html\` — si lo descartas, el módulo deja de verse como el diseño aprobado.\n\n`
+        + `### Archivos (cada uno en su propio bloque cercado, primera línea con @file)\n`
+        + `**Rutas RELATIVAS a la carpeta del módulo** (\`src/js/x.js\`, \`${modulo}.php\`). NO antepongas \`${dir}\` a las rutas ni entregues el mismo archivo dos veces (con y sin prefijo): \`${dir}\` solo indica dónde se copiarán después. `
+        + `El marcador lleva la ruta y NADA más — \`<!-- @file: index.html -->\`, nunca \`index.html (preview)\` ni la ruta seguida de una descripción.\n`
+        + `1. \`src/js/sample_${modulo}.js\` — datos en frío con el formato del pivote: \`SAMPLE_VIEW_HEADER_*\`/\`SAMPLE_VIEW_FOOTER_*\`, helpers sueltos con prefijo \`_\` (\`_fmtMoney\`, \`_badgeStatus\`), \`SAMPLE_${entidad.toUpperCase()}_DB\` keyed por folio, builder \`_${modulo.replace(/-/g, '')}Row(e)\`, \`SAMPLE_*_TABLE\` y catálogos \`{ id, valor }[]\`. Los \`SAMPLE_*\` al top del archivo.\n`
+        + `2. \`src/js/${modulo}.js\` — el módulo tripartita. Cero HTML crudo en \`.html()\` para layouts/tablas/forms/tabs/filtros: van con componentes del framework.\n`
+        + `3. \`${modulo}.php\` — entry-point real, réplica del \`.php\` del pivote: requires de layout, \`#root\`, y los scripts en orden \`sample_${modulo}.js\` → \`${modulo}.js\` con \`?t=<?php echo time(); ?>\`. Es el archivo que se copia a \`${dir}/\`.\n`
+        + `4. \`index.html\` — SOLO para previsualizar en este sandbox (no se copia al proyecto): gemelo del \`.php\` con las libs por CDN y el framework real, que el sandbox resuelve. Estructura exacta:\n`
+        + "```html\n<!-- @file: index.html -->\n<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n"
+        + "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.css\">\n"
+        + "<script src=\"https://code.jquery.com/jquery-3.6.0.min.js\"><\/script>\n<script src=\"https://cdn.tailwindcss.com\"><\/script>\n"
+        + "<script src=\"https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js\"><\/script>\n<script src=\"https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.min.js\"><\/script>\n"
+        + "<script src=\"https://cdn.jsdelivr.net/npm/sweetalert2@11\"><\/script>\n<script src=\"https://unpkg.com/lucide@latest\"><\/script>\n</head>\n"
+        + "<body>\n<div id=\"root\"></div>\n<script src=\"complementos.js\"><\/script>\n<script src=\"plugins.js\"><\/script>\n<script src=\"coffeSoft.js\"><\/script>\n"
+        + `<script src="src/js/sample_${modulo}.js"><\/script>\n<script src="src/js/${modulo}.js"><\/script>\n</body>\n</html>\n\`\`\`\n`
+        + `(Si portaste el \`<style>\` del diseño, añade su \`<link rel="stylesheet" href="src/css/${modulo}.css">\` en el head de este index y en el \`.php\`.)\n\n`
+        + `### Componentes disponibles (API real del framework que carga ESTE sandbox)\n`
+        + `\`Templates\` sale de \`coffee/app/src/coffee/coffeeSoft.js\` — la misma copia que usan los módulos reales. Métodos que EXISTEN (no invoques ninguno fuera de esta lista):\n`
+        + `- **Tablas:** \`createTable\`, \`createCoffeTable\`, \`createCoffeTable2\`, \`createCoffeeTable3\`, \`createTableForm\`, \`createTableForm2\`, \`createExcel\`\n`
+        + `- **Layouts:** \`primaryLayout\`, \`secondaryLayout\`, \`createLayout\`, \`splitLayout\`, \`verticalLinearLayout\`, \`tabLayout\`, \`tabsLayout\`, \`createTab\`\n`
+        + `- **Formularios y modales:** \`createForm\`, \`coffeeForm\`, \`createModalForm\`, \`createCoffeeModalForm\`, \`createModal\`, \`cfModal\`, \`createTitleModal\`, \`ModalForm\`\n`
+        + `- **Cards y piezas:** \`infoCard\`, \`detailCard\`, \`summaryCard\`, \`inlineCards\`, \`createItemCard\`, \`kpisRow\`, \`dashboardComponent\`, \`alertBox\`, \`dropdown\`, \`createfilterBar\`, \`sideBar\`, \`navBar\`, \`createNavBar\`, \`loader\`, \`coffeeLoader\`, \`swalQuestion\`, \`useFetch\`\n`
+        + `**Cuidado con el nombre:** el de la tabla 3 es \`createCoffeeTable3\` con doble "e" ("Coffee"). \`createCoffeTable3\` con una sola "e" es de OTRO proyecto y aquí NO existe.\n`
+        + `Invocar un método inexistente lanza TypeError y el módulo NO se renderiza: si dudas de un componente, pórtalo como método local de \`${entidad}View\` en vez de asumir que lo heredas.\n\n`
+        + `### Estilo del codebase\n`
+        + `Sin banners decorativos \`// ═════\` ni descriptores \`// Clase: X hace Y\`. Sin tildes dentro de strings. `
+        + `Object literals en vertical (una propiedad por línea). Variable global = PROJECT_NAME en minúsculas, instanciada en \`$(function(){ ... })\`, para que los \`fn: "${modulo.replace(/-/g, '')}.ls()"\` del filterBar resuelvan.\n`
+        + `Entrega los archivos directamente, sin plan previo ni explicaciones largas.`;
+}
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
@@ -204,6 +265,10 @@ const pg = {
     dbToolsOn:  true,        // tools de base de datos (run_select + conexión automática al nombrar una base)
     fsToolsOn:  true,        // tools de archivos (list_dir/read_file/grep_files + conexión automática de carpeta)
     moduleMode: true,        // módulo carpeta: exige entrega multi-archivo (@file) index + src/css + src/js
+    transmute:  null,        // transmutación en curso: params del spell (modulo/entidad/dir/pivote) o null
+    consoleLog: [],          // log del preview: [{level, text, src, line, ts}] — lo emite el bridge del iframe
+    consoleUnread: 0,        // errores sin ver (badge de la pestaña Consola)
+    _consoleTimer: null,     // debounce del repintado de la consola
     _moduleFiles: [],        // archivos del módulo renderizado (pestaña Código con tabs por archivo)
     pendingImages: [],       // [{ dataUrl, base64, mime, name }]
     pendingDocs: [],         // [{ name, content, size }] documentos de texto adjuntos
@@ -243,6 +308,12 @@ $(async () => {
     pgApplyModuleUI();
     pgApplyViewport();
     pgRestoreSession();   // retoma la última sesión (chat + render) si la había
+
+    // Diseño aprobado que llega del Playground: monta el hilo de transmutación
+    // encima (descarta la sesión anterior a propósito, ver pgStartTransmute).
+    const tmSlug = new URLSearchParams(location.search).get('transmute');
+    if (tmSlug) await pgStartTransmute(tmSlug);
+
     if (window.lucide) lucide.createIcons();
 });
 
@@ -545,11 +616,24 @@ function pgBind() {
         // En "Estilos" el iframe sigue visible (es lo que se inspecciona); solo
         // se oculta en "Código".
         const hasModule = (pg._moduleFiles || []).length > 0;
-        $('#pgSandboxFrame').toggleClass('hidden', tab === 'code');
+        $('#pgSandboxFrame').toggleClass('hidden', tab === 'code' || tab === 'console');
         // Módulo multi-archivo → vista VS Code (árbol + editor); si no, <pre> plano.
         $('#pgSandboxCode').toggleClass('hidden', tab !== 'code' || hasModule);
         $('#stCodeView').toggleClass('hidden', tab !== 'code' || !hasModule);
+        $('#pgConsolePanel').toggleClass('hidden', tab !== 'console');
+        // Al abrirla se pinta lo acumulado mientras estaba oculta (ver pgConsoleReceive).
+        if (tab === 'console') { pgRenderConsole(); pgMarkConsoleRead(); }
         if (tab === 'styles') pgEnterInspect(); else pgExitInspect();
+    });
+
+    // Consola del preview
+    $('#pgConsoleClear').on('click', () => pgClearConsole());
+    $('#pgConsoleCopy').on('click', () => pgCopyConsole());
+    $('#pgConsoleAsk').on('click', () => pgAskAgentToFix());
+    // Log que emite el bridge desde dentro del iframe (ver PG_BRIDGE_JS).
+    window.addEventListener('message', e => {
+        const d = e.data || {};
+        if (d.pgLog) pgConsoleReceive(d.pgLog);
     });
 
     // Editor del módulo: editar el archivo activo, guardar+ejecutar o cancelar.
@@ -714,6 +798,13 @@ function pgCloseActionsMenu() {
 function pgMobileShowSandbox() {
     if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
         $('.pg-mswitch[data-mview="sandbox"]').trigger('click');
+    }
+}
+/* Inverso del anterior: al cargar algo en el input (p.ej. los errores que manda la
+ * consola al agente) hay que devolver al usuario al chat para que lo vea. */
+function pgMobileShowChat() {
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+        $('.pg-mswitch[data-mview="chat"]').trigger('click');
     }
 }
 
@@ -943,6 +1034,7 @@ function pgClearChat() {
     pg.threadTitle = '';
     pg._loadedSlug = null;
     pg._loadedName = '';
+    pg.transmute = null;   // hilo nuevo = fin de la transmutación (pgStartTransmute la re-arma después)
     pg.activeDb = null;    // limpiar el chat suelta la conexión a la base (como el Visor)
     pgRenderDbChip();
     pg.activeFolder = null; // ...y también la conexión a la carpeta
@@ -1065,6 +1157,9 @@ function pgSnapshotSession() {
         lastIsDoc:    pg._lastIsDoc,
         lastHtml:     pg.lastHtml,
         lastTheme:    pg.lastTheme,
+        // La transmutación sobrevive al recargar para que el hilo siga bajo su
+        // contrato. Sin el HTML fuente: ya viajó en el primer mensaje del history.
+        transmute:    pg.transmute ? Object.assign({}, pg.transmute, { html: '' }) : null,
         loadedSlug:   pg._loadedSlug || null,
         loadedName:   pg._loadedName || '',
         agentKey:     pg.agentKey,
@@ -1149,13 +1244,24 @@ function pgRestoreSession() {
     pg.lastTheme     = s.lastTheme || s.theme;
     pg._loadedSlug   = s.loadedSlug || null;
     pg._loadedName   = s.loadedName || '';
+    pg.transmute     = s.transmute || null;
     pg.activeDb      = s.activeDb || null;
     pgRenderDbChip();
     pg.activeFolder  = s.activeFolder || null;
     pgRenderFolderChip();
 
+    pgRepairModuleTemplates();
     pgRebuildChat();
-    if (pg.lastHtml) pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);
+
+    // Si la reparación reensambló el módulo, el render vigente es el suyo:
+    // `lastHtml` venía de la sesión con el index crudo (preview vacío).
+    const lastTpl = pg.templates[pg.templates.length - 1];
+    if (lastTpl && lastTpl.files && lastTpl.files.length) {
+        pgRenderSandbox(lastTpl.html, false);
+        pgShowModuleFiles(lastTpl.files);
+    } else if (pg.lastHtml) {
+        pgRenderSandbox(pg.lastHtml, pg._lastIsDoc);
+    }
     pgRefreshPinUI();
     return true;
 }
@@ -1194,6 +1300,25 @@ function pgRegenerateForTheme() {
     pgSend(`Adapta ${what} anterior ${sys}. Conserva la misma estructura y funcionalidad; cambia solo clases, tokens y estilos para respetar ese sistema de diseño.`, []);
 }
 
+/* Bloques que pgSend inyecta al `content` para el modelo (docs adjuntos, template
+ * fijado, HTML fuente a transmutar…). Viajan en el history, pero NO se muestran en
+ * la burbuja: son contexto, no lo que el usuario escribió. Al reconstruir el chat o
+ * titular el hilo hay que recortarlos — si no, la burbuja vuelca el HTML entero. */
+const PG_INJECTED_BLOCKS = [
+    'DOCUMENTOS ADJUNTOS',
+    'HTML FUENTE',
+    'TEMPLATE A MODIFICAR',
+    'TEMPLATE VIGENTE',
+    'COMPONENTE OBJETIVO'
+];
+function pgStripInjectedBlocks(text) {
+    let t = String(text || '');
+    PG_INJECTED_BLOCKS.forEach(name => {
+        t = t.replace(new RegExp('\\n*===\\s*' + name + '[\\s\\S]*$', 'i'), '');
+    });
+    return t.trim();
+}
+
 /* ── Hilos de conversación (persistencia SQLite vía ctrl-pg-threads.php) ──
  * Cada hilo guarda el historial + los templates del sandbox + meta (tema/agente/
  * modelo). Se autoguarda tras cada respuesta del agente; el usuario puede crear
@@ -1216,12 +1341,7 @@ function pgUpdateThreadChip() {
 function pgThreadTitle() {
     if (pg.threadTitle) return pg.threadTitle;
     const first = pg.history.find(m => m.role === 'user');
-    let t = first && first.content ? String(first.content) : '';
-    t = t.replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '')
-         .replace(/\n*===\s*TEMPLATE A MODIFICAR[\s\S]*$/i, '')
-         .replace(/\n*===\s*TEMPLATE VIGENTE[\s\S]*$/i, '')
-         .replace(/\n*===\s*COMPONENTE OBJETIVO[\s\S]*$/i, '')
-         .replace(/\s+/g, ' ').trim();
+    let t = pgStripInjectedBlocks(first && first.content).replace(/\s+/g, ' ').trim();
     return t ? t.slice(0, 80) : ('Hilo ' + new Date().toLocaleString());
 }
 
@@ -1239,6 +1359,74 @@ function pgNewThread() {
     pgClearChat();        // ya resetea threadUid/título/templates/historial
     pgResetSandbox();
     pgToast('Nuevo hilo', 'info');
+}
+
+/* ── Transmutación entrante (studio.php?transmute=<slug>) ──
+ * El Playground aprueba el diseño, lo guarda como plantilla con sus parámetros de
+ * transmutación en el meta, y nos manda su slug. Aquí se monta el hilo: CoffeeMagic
+ * como conjurador, el tema del diseño y el prompt del spell listo en el input. NO se
+ * envía solo — el usuario revisa los parámetros y decide cuándo conjurar. */
+async function pgStartTransmute(slug) {
+    let t;
+    try {
+        const res  = await fetch(`${PG_API}?action=listtemplates`, { cache: 'no-store' });
+        const data = await res.json();
+        t = (data.templates || []).find(x => x.slug === slug);
+    } catch (e) { /* red caída: se reporta abajo como plantilla no encontrada */ }
+
+    if (!t || !t.html) { pgToast('No se encontró el diseño "' + slug + '" para transmutar', 'error'); return; }
+
+    // Hilo limpio: la transmutación arranca de cero, sin arrastrar la conversación
+    // que hubiera abierta en el Studio.
+    pgClearChat();
+    pgResetSandbox();
+
+    const params = Object.assign({ modulo: slug, entidad: '', dir: '', referencia: '', tema: '' }, t.transmute || {});
+    params.html = t.html;
+    pg.transmute = params;
+
+    // CoffeeMagic es el dueño del spell `transmute`.
+    if (PG_AGENTS['CoffeeMagic.md']) {
+        $('#pgAgentSelect').val('CoffeeMagic.md');
+        pgApplyAgent('CoffeeMagic.md', true);
+    }
+    // El tema viaja solo para que el preview pinte igual que el diseño aprobado: la
+    // transmutación no lo cambia, lo hereda del HTML.
+    const themeKey = params.themeKey || t.theme;
+    if (themeKey && PG_THEMES[themeKey]) {
+        pg.theme = themeKey;
+        $('#pgThemeSelect').val(themeKey);
+        $('#pgSandboxTheme').text((PG_THEMES[themeKey] || {}).label || themeKey);
+    }
+    if (!pg.moduleMode) { pg.moduleMode = true; pgApplyModuleUI(); }
+    pgSaveSettings();
+
+    // El diseño aprobado se pinta en el sandbox: es el "antes" contra el que
+    // comparar el módulo transmutado.
+    pgRenderSandbox(t.html, false);
+
+    $('#pgInput').val(pgTransmutePrompt(params)).trigger('input').trigger('focus');
+    pgToast('Diseño "' + (t.name || slug) + '" listo para transmutar — revisa y envía', 'info');
+
+    // Quitar el parámetro de la URL: sin esto, recargar la página volvería a montar
+    // el hilo desde cero y se perdería lo transmutado. La sesión ya conserva el estado.
+    try { history.replaceState({}, '', location.pathname); } catch (e) {}
+}
+
+/* El YAML del spell tal como lo documenta CoffeeMagic. Va en el input (no en el
+ * system) a propósito: es lo que el usuario revisa y puede ajustar antes de enviar. */
+function pgTransmutePrompt(p) {
+    const line = (k, v) => v ? `${k.padEnd(12)} ${v}\n` : '';
+    return '/coffee-magic transmute\n'
+        + line('fuente:', 'HTML adjunto en este mensaje (diseño aprobado en el Playground)')
+        + line('modulo:', p.modulo)
+        + line('project:', p.entidad)
+        + line('dir:', p.dir)
+        + line('referencia:', p.referencia)
+        + line('tema:', p.tema)
+        + line('hub:', p.hub)
+        + line('card_label:', p.cardLabel)
+        + line('card_icon:', p.cardIcon);
 }
 
 // Empuja un guardado del hilo con debounce, para no saturar al iterar rápido.
@@ -1523,11 +1711,16 @@ async function pgLoadThread(uid) {
         if (th.model) { pg.model = th.model; $('#pgModelSelect').val(th.model); }
         pgSaveSettings();
 
+        pgRepairModuleTemplates();
         pgRebuildChat();
 
         // Restaurar el último render al sandbox para seguir iterando sobre él.
         const lastTpl = pg.templates[pg.templates.length - 1];
-        if (lastTpl && lastTpl.html) { pg._activeTplId = lastTpl.id; pgRenderSandbox(lastTpl.html, lastTpl.isDoc); }
+        if (lastTpl && lastTpl.html) {
+            pg._activeTplId = lastTpl.id;
+            pgRenderSandbox(lastTpl.html, lastTpl.isDoc);
+            if (lastTpl.files && lastTpl.files.length) pgShowModuleFiles(lastTpl.files);
+        }
         else pgResetSandbox();
 
         pgUpdateThreadChip();
@@ -1538,18 +1731,32 @@ async function pgLoadThread(uid) {
     }
 }
 
+/* Recupera módulos que se guardaron sin ensamblar: si el agente anotó la ruta del
+ * marcador ("@file: index.html (preview)"), el index no se reconocía y el hilo
+ * guardó el index crudo — un preview vacío — en vez del módulo. La respuesta vive
+ * íntegra en el history, así que se re-parsea al abrir el hilo y el módulo vuelve
+ * sin tener que generarlo otra vez. El autosave persiste la reparación. */
+function pgRepairModuleTemplates() {
+    pg.templates.forEach(tpl => {
+        if (tpl.files && tpl.files.length) return;
+        const msg = pg.history[tpl.histLen - 1];
+        if (!msg || msg.role !== 'assistant') return;
+        const files = pgParseModule(msg.content || '');
+        if (files.length < 2 || !pgModuleIndex(files)) return;
+        const assembled = pgAssembleModule(files);
+        if (!assembled) return;
+        tpl.html  = assembled;
+        tpl.files = files;
+    });
+}
+
 // Reconstruye las burbujas del chat desde pg.history, re-anclando las tarjetas
 // de template a la respuesta del agente que las generó (por su histLen).
 function pgRebuildChat() {
     $('#pgChatBody').empty();
     pg.history.forEach((m, i) => {
         if (m.role === 'user') {
-            const text = String(m.content || '')
-                .replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '')
-                .replace(/\n*===\s*TEMPLATE A MODIFICAR[\s\S]*$/i, '')
-                .replace(/\n*===\s*TEMPLATE VIGENTE[\s\S]*$/i, '')
-                .replace(/\n*===\s*COMPONENTE OBJETIVO[\s\S]*$/i, '').trim();
-            pgAppendUser(text, m.imagesPreview, m.docsMeta);
+            pgAppendUser(pgStripInjectedBlocks(m.content), m.imagesPreview, m.docsMeta);
         } else {
             const tpl = pg.templates.find(t => t.histLen === i + 1);
             if (tpl) {
@@ -1745,6 +1952,17 @@ async function pgSend(text, images, docs) {
         contentForModel = (text ? text + '\n\n' : '') +
             '=== DOCUMENTOS ADJUNTOS POR EL USUARIO ===\n' + blocks;
     }
+    // Transmutación: el diseño aprobado en el Playground viaja como HTML fuente en
+    // el PRIMER mensaje del hilo. Después ya vive en el history, así que no se
+    // reinyecta (duplicarlo en cada turno solo quemaría contexto).
+    if (pg.transmute && pg.transmute.html && !pg.history.length) {
+        contentForModel = (contentForModel ? contentForModel + '\n\n' : '') +
+            '=== HTML FUENTE (diseño aprobado a transmutar) ===\n' +
+            'Este es el diseño aprobado. Transmútalo a módulo coffeeSoft según el contrato del sistema; ' +
+            'NO lo rediseñes ni cambies su tema visual.\n' +
+            '```html\n' + pg.transmute.html + '\n```';
+    }
+
     if (pinnedTpl && pinnedTpl.html) {
         contentForModel = (contentForModel ? contentForModel + '\n\n' : '') +
             '=== TEMPLATE A MODIFICAR (referencia fijada por el usuario) ===\n' +
@@ -1802,15 +2020,21 @@ async function pgSend(text, images, docs) {
     if (usesDesignSystem && themeCfg.grimoire && pg.grimoires[themeCfg.grimoire]) {
         ctxNames.add(themeCfg.grimoire);
     }
+    // Transmutación: grimorio-fuente.md es OBLIGATORIO para el spell — trae los tres
+    // pivotes canónicos (tripartita, sample_*.js, entry-point) transcritos completos.
+    if (pg.transmute && pg.grimoires['grimorio-fuente.md']) ctxNames.add('grimorio-fuente.md');
+
     const pinned = Array.from(ctxNames).map(name => {
         const f = pg.grimoires[name];
         return f ? { file: f.file, fullPath: f.fullPath || '', content: f.raw || '' } : null;
     }).filter(Boolean);
 
     // Módulo CoffeeSoft: agente de código + módulo carpeta => las reglas REALES
-    // del framework (FRONT-JS.md de .claude/steering) viajan como contexto.
+    // del framework (FRONT-JS.md de .claude/steering) viajan como contexto. Al
+    // transmutar también aplican: la salida es un módulo del framework, aunque el
+    // conjurador sea CoffeeMagic (agente de UI).
     const coffeeModule = pg.moduleMode && cfgAgent.render === 'code';
-    if (coffeeModule && pg.rules['FRONT-JS.md']) {
+    if ((coffeeModule || pg.transmute) && pg.rules['FRONT-JS.md']) {
         pinned.push({
             file: 'FRONT-JS.md',
             fullPath: pg.rules['FRONT-JS.md'].fullPath || '',
@@ -1821,7 +2045,12 @@ async function pgSend(text, images, docs) {
     // Directiva de render: le indica al agente qué sistema de diseño usar. En
     // modo libre (sin grimorio) no se impone paleta: conjura con su conocimiento.
     let systemOverride = pg.prompt || '';
-    if (cfgAgent.render === 'html') {
+    // Al transmutar se salta la directiva de render: pide "UN solo bloque html con
+    // el componente", que contradice la entrega multi-archivo del spell. El estilo
+    // no hace falta imponerlo — se hereda del HTML fuente aprobado.
+    if (pg.transmute) {
+        /* el contrato lo pone pgTransmuteNote más abajo */
+    } else if (cfgAgent.render === 'html') {
         systemOverride += themeCfg.grimoire
             ? `\n\n## Render en Playground\n`
               + `Genera EXCLUSIVAMENTE el componente solicitado siguiendo el grimorio **${themeCfg.label}** incluido en el contexto. ${themeCfg.note}\n`
@@ -1871,10 +2100,13 @@ async function pgSend(text, images, docs) {
     }
 
     // Módulo carpeta (corazón del Studio): exigir entrega multi-archivo @file.
-    // Con agente de código (CoffeeIA) el contrato es el módulo CoffeeSoft (framework
-    // real: Templates + componentes, reglas FRONT-JS en contexto); con agentes de UI
-    // se mantiene el módulo vanilla (html + css + js sin dependencias).
-    if (coffeeModule) {
+    // La transmutación manda sobre los otros dos contratos: aunque la conjure
+    // CoffeeMagic (agente de UI), el entregable son los archivos canónicos del
+    // spell, no un template vanilla. Con agente de código (CoffeeIA) el contrato es
+    // el módulo CoffeeSoft; con agentes de UI, el módulo vanilla (html + css + js).
+    if (pg.transmute) {
+        systemOverride += pgTransmuteNote(pg.transmute);
+    } else if (coffeeModule) {
         systemOverride += PG_COFFEESOFT_NOTE;
     } else if (pg.moduleMode && (usesDesignSystem || pg.canvasMode)) {
         systemOverride += PG_MODULE_NOTE;
@@ -2349,11 +2581,24 @@ function pgParseModule(text) {
             path = before.length ? pgFileMarkerPath(before[before.length - 1]) : null;
         }
         if (path) {
-            path = path.replace(/^["'`]+|["'`]+$/g, '').replace(/^\.\//, '');
+            path = pgCleanFilePath(path);
             files.push({ path, lang, content: body.replace(/\s+$/, '') });
         }
     }
     return files;
+}
+
+/** Normaliza la ruta rotulada por el agente a una ruta limpia.
+ *  Los modelos suelen anotar el marcador ("@file: index.html (sandbox preview)",
+ *  "// src/js/app.js — módulo principal"): sin recortar esa coletilla la ruta deja
+ *  de terminar en su extensión, pgModuleIndex no reconoce el index y el módulo NO
+ *  se ensambla (el preview queda vacío aunque los archivos hayan llegado bien). */
+function pgCleanFilePath(path) {
+    let p = String(path || '').trim().replace(/^["'`]+|["'`]+$/g, '');
+    // Cortar todo lo que siga a la extensión conocida (paréntesis, guiones, prosa).
+    const m = p.match(/^\s*([\w][\w./-]*\.(?:html?|php|jsx?|mjs|ts|tsx|css|scss|less|json|sql|py|rb|vue|md))\b/i);
+    if (m) p = m[1];
+    return p.replace(/^\.\//, '').replace(/^\//, '');
 }
 
 /** Archivo de entrada del módulo: index.html (o el primer .html). */
@@ -2364,20 +2609,22 @@ function pgModuleIndex(files) {
 }
 
 // Archivos del framework CoffeeSoft que un módulo referencia pero NO incluye
-// (jQuery ya va por CDN en el módulo). Se resuelven al framework PROPIO de Huubie
-// (alpha/src/js — el mismo que cargan los módulos reales vía PATH_BASE=/alpha/),
-// para que el preview cargue Templates y el módulo se renderice de verdad. El
-// <base> del wrap apunta al dir del visor, así que las rutas relativas resuelven.
+// (jQuery ya va por CDN en el módulo). Se resuelven a la copia propia del visor
+// (coffee/app/src/coffee — ver su README), para que el preview cargue Templates y el
+// módulo se renderice de verdad. El <base> del wrap apunta al dir del visor, así que
+// las rutas relativas resuelven.
+//
+// Antes apuntaban a alpha/src/js: 46 métodos frente a los 56 del framework real de
+// los módulos. El preview corría contra una API más pobre que la del destino, y todo
+// módulo que usara createCoffeeTable3/infoCard/summaryCard… moría con TypeError.
 const PG_FRAMEWORK_FILES = {
-    // Framework PROPIO de Huubie (alpha/src/js): la misma tríada que cargan los
-    // módulos reales vía PATH_BASE=/alpha/ y en el mismo orden — complementos.js
-    // (getCookies/createForm/alert/swal helpers) → plugins.js (dataPicker, que usa
-    // el daterangepicker del CDN del contrato) → coffeSoft.js (Templates + useFetch
-    // + componentes core).
-    'complementos.js': '../../../alpha/src/js/complementos.js',
-    'coffesoft.js':    '../../../alpha/src/js/coffeSoft.js',
-    'coffeesoft.js':   '../../../alpha/src/js/coffeSoft.js',
-    'plugins.js':      '../../../alpha/src/js/plugins.js'
+    // La tríada en su orden obligatorio — complementos.js (getCookies/createForm/
+    // alert/swal helpers) → plugins.js (dataPicker, que usa el daterangepicker del
+    // CDN del contrato) → coffeeSoft.js (Templates + useFetch + componentes core).
+    'complementos.js': '../src/coffee/complementos.js',
+    'coffesoft.js':    '../src/coffee/coffeeSoft.js',
+    'coffeesoft.js':   '../src/coffee/coffeeSoft.js',
+    'plugins.js':      '../src/coffee/plugins.js'
 };
 
 /** Ensambla el módulo en UN html renderizable: el <link>/<script src> del index
@@ -2921,6 +3168,7 @@ function pgRenderPinBanner() {
 function pgRenderSandbox(htmlBody, isDoc) {
     $('#pgSandboxEmpty').hide();
     pgHideModuleFiles();   // un render simple limpia los tabs de archivos; el flujo módulo los repone después
+    pgClearConsole();      // el log es de ESTE render: mezclarlo con el anterior confunde más que ayuda
     pg.lastHtml = htmlBody; pg.lastTheme = pg.theme; pg._lastIsDoc = !!isDoc;
     // El iframe es transparente: si el contenido (sobre todo un documento
     // completo) no pinta su propio fondo, se vería el blanco del contenedor.
@@ -2946,6 +3194,106 @@ function pgShowSandboxCode(code) {
     if (window.hljs) hljs.highlightElement($code[0]);
     $('.pg-tab[data-sbtab="code"]').click();
     pgMobileShowSandbox();
+}
+
+/* ── Consola del preview ──
+ * Lo que el módulo emite dentro del iframe (excepciones, promesas rechazadas,
+ * console.*) llega aquí por postMessage desde PG_BRIDGE_JS. Sin esto un módulo que
+ * revienta se ve igual que uno vacío: el iframe se traga el error y no hay forma de
+ * saber qué método falló. El botón "Corregir con el agente" cierra el ciclo: manda
+ * los errores al chat para que los arregle sin reenviar el diseño entero. */
+
+const PG_LOG_MAX = 200;   // tope del buffer: un módulo en bucle puede escupir miles
+
+function pgConsoleReceive(entry) {
+    pg.consoleLog.push(entry);
+    if (pg.consoleLog.length > PG_LOG_MAX) pg.consoleLog.shift();
+    // El badge cuenta solo lo GRAVE (errores): los warns no deben gritar.
+    if (entry.level === 'error') pg.consoleUnread++;
+    pgUpdateConsoleBadge();
+    // Repintar con debounce y solo si el panel se ve: un módulo en bucle puede
+    // emitir miles de mensajes, y repintar la lista entera en cada uno cuelga la
+    // pestaña. El buffer ya está acotado a PG_LOG_MAX.
+    if ($('#pgConsolePanel').hasClass('hidden')) return;
+    clearTimeout(pg._consoleTimer);
+    pg._consoleTimer = setTimeout(pgRenderConsole, 80);
+}
+
+function pgUpdateConsoleBadge() {
+    const $b = $('#pgConsoleBadge');
+    if (!pg.consoleUnread) { $b.addClass('hidden'); return; }
+    $b.removeClass('hidden').text(pg.consoleUnread > 99 ? '99+' : pg.consoleUnread);
+}
+function pgMarkConsoleRead() {
+    pg.consoleUnread = 0;
+    pgUpdateConsoleBadge();
+}
+
+function pgRenderConsole() {
+    const $b = $('#pgConsoleBody');
+    if (!pg.consoleLog.length) {
+        $b.html(`
+            <div class="pg-console-empty">
+                <i data-lucide="check-circle"></i>
+                <p>Sin errores. Aquí aparece lo que el módulo escribe en consola y cualquier excepción que lance al renderizarse.</p>
+            </div>`);
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
+    const icon = { error: 'x-circle', warn: 'alert-triangle', info: 'info' };
+    $b.html(pg.consoleLog.map(e => {
+        // El origen solo se muestra si aporta: los errores del propio módulo traen
+        // el srcdoc del iframe como filename, que no le dice nada a nadie.
+        const src = e.src && !/srcdoc|about:blank/.test(e.src)
+            ? `<span class="pg-console-src">${pgEscape(e.src.split('/').pop())}${e.line ? ':' + e.line : ''}</span>`
+            : '';
+        return `
+            <div class="pg-console-row is-${e.level}">
+                <span class="pg-console-ico">${lucideIconTag(icon[e.level] || 'info')}</span>
+                <pre class="pg-console-text">${pgEscape(e.text)}</pre>
+                ${src}
+            </div>`;
+    }).join(''));
+    if (window.lucide) lucide.createIcons();
+    $b.scrollTop($b[0].scrollHeight);
+}
+function lucideIconTag(name) { return `<i data-lucide="${name}" class="w-3.5 h-3.5"></i>`; }
+
+function pgClearConsole() {
+    pg.consoleLog = [];
+    pgMarkConsoleRead();
+    pgRenderConsole();
+}
+function pgConsoleAsText() {
+    return pg.consoleLog
+        .map(e => `[${e.level}] ${e.text}` + (e.src ? ` (${e.src}${e.line ? ':' + e.line : ''})` : ''))
+        .join('\n');
+}
+function pgCopyConsole() {
+    if (!pg.consoleLog.length) { pgToast('La consola está vacía', 'warn'); return; }
+    navigator.clipboard.writeText(pgConsoleAsText())
+        .then(() => pgToast('Log copiado', 'success'))
+        .catch(() => pgToast('No se pudo copiar', 'error'));
+}
+
+/* Manda los errores al agente para que corrija el módulo. Solo van los errores
+ * (no los logs informativos) y sin el HTML fuente: el agente ya lo tiene en el
+ * historial, reenviarlo solo quemaría contexto. */
+function pgAskAgentToFix() {
+    const errs = pg.consoleLog.filter(e => e.level === 'error');
+    if (!errs.length) { pgToast('No hay errores que corregir', 'info'); return; }
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+
+    const files = (pg._moduleFiles || []).map(f => f.path).join(', ');
+    const texto = errs.map(e => '- ' + e.text.split('\n')[0]).join('\n');
+    $('#pgInput').val(
+        `El módulo falla al renderizarse en el sandbox. Errores de la consola:\n\n${texto}\n\n` +
+        (files ? `Archivos del módulo: ${files}\n\n` : '') +
+        `Corrige la causa y devuelve COMPLETOS solo los archivos que cambien, cada uno en su bloque con su marcador @file. ` +
+        `No reescribas el módulo entero ni cambies el diseño.`
+    ).trigger('input').trigger('focus');
+    pgMobileShowChat();
+    pgToast('Errores cargados en el chat — revisa y envía', 'info');
 }
 
 /* ── Inspector de estilos ──
@@ -3599,11 +3947,28 @@ function pgSetFrameSandbox(on) {
     if (fr.getAttribute('srcdoc')) fr.srcdoc = fr.getAttribute('srcdoc');
 }
 
-/* Bridge inyectado en el <head> de cada preview: con el iframe sandboxeado el
- * padre no puede tocar el documento, así que el zoom y el modo edge llegan por
- * postMessage. Se registra en el <head> para existir antes del load. */
+/* Bridge inyectado en el <head> de cada preview. Con el iframe sandboxeado el padre
+ * no puede tocar el documento, así que la comunicación va por postMessage en ambos
+ * sentidos: el padre manda zoom y modo edge; el iframe REPORTA lo que le pasa dentro
+ * (excepciones, promesas rechazadas, console.*) para que la pestaña Consola lo
+ * muestre. Sin ese reporte un módulo que revienta se ve igual que uno vacío: el
+ * sandbox se traga el error y no hay forma de saber qué método falló.
+ * Va lo primero del <head> para capturar también los fallos del framework. */
 const PG_BRIDGE_JS =
-      `<script>(function(){window.addEventListener('message',function(e){var d=e.data||{};`
+      `<script>(function(){`
+    + `function send(level,text,src,line){try{parent.postMessage({pgLog:{level:level,text:String(text),src:src||'',line:line||0,ts:Date.now()}},'*');}catch(_){}}`
+    + `window.addEventListener('error',function(e){`
+    + `if(e.target&&e.target!==window&&e.target.src){send('error','No se pudo cargar: '+e.target.src,'',0);return;}`
+    + `send('error',(e.message||'Error')+(e.error&&e.error.stack?'\\n'+e.error.stack:''),e.filename,e.lineno);`
+    + `},true);`
+    + `window.addEventListener('unhandledrejection',function(e){var r=e.reason;send('error','Promesa rechazada: '+((r&&(r.stack||r.message))||r));});`
+    + `['error','warn','log'].forEach(function(m){var o=console[m];console[m]=function(){`
+    + `try{send(m==='log'?'info':m,Array.prototype.map.call(arguments,function(a){`
+    + `if(a instanceof Error)return a.stack||a.message;`
+    + `if(typeof a==='object'&&a!==null){try{return JSON.stringify(a);}catch(_){return String(a);}}`
+    + `return String(a);}).join(' '));}catch(_){}`
+    + `return o&&o.apply(console,arguments);};});`
+    + `window.addEventListener('message',function(e){var d=e.data||{};`
     + `if(d.pgZoom!=null)document.documentElement.style.zoom=d.pgZoom;`
     + `if(d.pgEdge!=null&&document.body)document.body.classList.toggle('pg-vp-edge',!!d.pgEdge);`
     + `});})();<\/script>`;

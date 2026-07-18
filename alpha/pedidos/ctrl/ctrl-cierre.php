@@ -206,6 +206,32 @@ class Cierre extends MCierre {
         ];
     }
 
+    // Lista de fechas pasadas (dentro de un rango) con turnos y sin cierre diario,
+    // de la sucursal activa. El frontend la usa para mostrar la nota "Dia sin cerrar"
+    // y bloquear la operacion de hoy hasta que se cierren.
+    function getPendingDays() {
+        $subsidiaries_id = $this->resolveSubsidiary();
+
+        if ($subsidiaries_id == 0 || $subsidiaries_id == '0') {
+            return ['status' => 200, 'days' => []];
+        }
+
+        $today = date('Y-m-d');
+        $from  = date('Y-m-d', strtotime('-15 days'));
+
+        $rows = $this->listPendingDays([$subsidiaries_id, $today, $from]);
+        $days = [];
+        foreach ($rows as $r) {
+            $days[] = [
+                'date'        => $r['pending_date'],
+                'shifts'      => intval($r['shifts']),
+                'open_shifts' => intval($r['open_shifts'])
+            ];
+        }
+
+        return ['status' => 200, 'days' => $days];
+    }
+
     function getCierre() {
         $date            = $_POST['date'];
         $subsidiaries_id = $this->resolveSubsidiary();
@@ -277,6 +303,9 @@ class Cierre extends MCierre {
         $orders = [];
         foreach ($ordersRaw as $o) {
             $orders[] = [
+                // id crudo del pedido (getOrdersBreakdown lo devuelve como 'folio' antes de formatear);
+                // lo usa el visor de cierre para abrir el ticket al hacer clic en la fila.
+                'id'              => intval($o['folio']),
                 'folio'           => formatFolioCierre($subsidiaries_id, $o['folio']),
                 'date'            => $o['date_creation'],
                 'time'            => $o['order_time'],
@@ -317,6 +346,7 @@ class Cierre extends MCierre {
             $prevPayments[] = [
                 'id'                => intval($p['id']),
                 'folio'             => formatFolioCierre($p['origin_subsidiary_id'], $p['id']),
+                'order_date'        => $p['date_creation'],
                 'pay_time'          => $p['pay_time'],
                 'client_name'       => $p['client_name'],
                 'origin_subsidiary' => $p['origin_subsidiary'],
@@ -395,10 +425,14 @@ class Cierre extends MCierre {
                 'cancelled'  => $cancelled_count
             ],
             // amount/count = pedidos creados hoy; prev_* = abonos cobrados hoy de pedidos anteriores.
+            // Se usa el cobro EN VIVO ($liveCash/Card/Transfer), no el snapshot guardado en daily_closure:
+            // si un pago se edita o elimina despues de cerrar el dia, el snapshot queda congelado y
+            // descuadra el desglose por metodo contra los turnos (que ya se listan en vivo). En un dia
+            // sin ediciones ambos coinciden, y el cierre pendiente ya calculaba asi.
             'payments'          => [
-                'cash'     => ['amount' => floatval($closure['total_cash']),     'count' => $countCash,     'prev_amount' => $prevCash,     'prev_count' => $prevCountCash],
-                'card'     => ['amount' => floatval($closure['total_card']),     'count' => $countCard,     'prev_amount' => $prevCard,     'prev_count' => $prevCountCard],
-                'transfer' => ['amount' => floatval($closure['total_transfer']), 'count' => $countTransfer, 'prev_amount' => $prevTransfer, 'prev_count' => $prevCountTransfer]
+                'cash'     => ['amount' => $liveCash,     'count' => $countCash,     'prev_amount' => $prevCash,     'prev_count' => $prevCountCash],
+                'card'     => ['amount' => $liveCard,     'count' => $countCard,     'prev_amount' => $prevCard,     'prev_count' => $prevCountCard],
+                'transfer' => ['amount' => $liveTransfer, 'count' => $countTransfer, 'prev_amount' => $prevTransfer, 'prev_count' => $prevCountTransfer]
             ],
             'orders'            => $orders,
             'prev_payments'     => $prevPayments,

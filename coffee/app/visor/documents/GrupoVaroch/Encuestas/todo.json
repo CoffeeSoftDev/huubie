@@ -1,0 +1,63 @@
+{
+  "title": "Encuestas **",
+  "sections": [
+    {
+      "id": "skccafq9",
+      "title": "Encuestas realizadas",
+      "tasks": [
+        {
+          "id": "ttgsvsm3",
+          "text": "Crear encuestas de ejemplo en la 1 y segunda semana",
+          "done": false
+        },
+        {
+          "id": "t0m60e68",
+          "text": "Revisar que todas las encuestas esten completadas",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sm7hyft8",
+      "title": "Reportes - General",
+      "tasks": [
+        {
+          "id": "t2vmtksp",
+          "text": "Añadir la columna que indique si el reporte es camarista o general",
+          "done": false
+        },
+        {
+          "id": "t2jy9gc0",
+          "text": "Revisar el orden de las columnas",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "sw3r8vre",
+      "title": "Reportes - Por camarista",
+      "tasks": [
+        {
+          "id": "tg2ui64u",
+          "text": "Alinear la filterbar del selector para que no de un salto",
+          "done": false
+        },
+        {
+          "id": "t34r9ayn",
+          "text": "Revisar la estrategia de temporadas en camaristas",
+          "done": false
+        },
+        {
+          "id": "tvh83rvh",
+          "text": "Verificar que los datos sean correctos",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sb55q32e",
+      "title": "Reportes -Por puesto",
+      "tasks": []
+    }
+  ]
+}

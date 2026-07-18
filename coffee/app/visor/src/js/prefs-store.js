@@ -20,7 +20,10 @@
         'coffeeia:claude:accounts',
         'coffeeia:claude:reminderFired',
         'coffeeia:global:enabledModels',
-        'coffeeia:global:activeModel'
+        'coffeeia:global:activeModel',
+        'visor:shortcuts:v1',
+        'visor:recentViews:v1',
+        'visor:recentCreated:v1'
     ];
 
     let _ready  = false;          // ya terminó la primera sincronización
