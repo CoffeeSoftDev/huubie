@@ -199,6 +199,14 @@
                         </div>
                     </div>
 
+                    <select id="pgEffortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
+                        <option value="">Esfuerzo: Auto</option>
+                        <option value="off">Esfuerzo: Rapido (sin razonar)</option>
+                        <option value="low">Esfuerzo: Bajo</option>
+                        <option value="medium">Esfuerzo: Medio</option>
+                        <option value="high">Esfuerzo: Alto</option>
+                        <option value="max">Esfuerzo: Maximo</option>
+                    </select>
                     <select id="pgModelSelect" class="ia-model-pill" title="Modelo activo">
                         <!-- data-tools="1" = soporta tool-calling (run_select / lectura de
                              carpeta); sin el atributo, pgWarnModelTools avisa al elegirlo. -->

@@ -23,6 +23,9 @@ class OpenRouterClient {
     private $apiKey;
     private $baseUrl;
     private $defaultModel;
+    // Esfuerzo de razonamiento -> se mapea al parametro 'reasoning' de OpenRouter.
+    // null = no se envia (default del modelo).
+    private $reasoning = null;
 
     public function __construct() {
         if (!defined('OPENROUTER_API_KEY') || OPENROUTER_API_KEY === '') {
@@ -31,6 +34,23 @@ class OpenRouterClient {
         $this->apiKey       = OPENROUTER_API_KEY;
         $this->baseUrl      = rtrim(OPENROUTER_BASE_URL, '/');
         $this->defaultModel = OPENROUTER_DEFAULT_MODEL;
+    }
+
+    /**
+     * Fija el ESFUERZO DE RAZONAMIENTO. Misma firma que OllamaClient::setThink()
+     * para que el endpoint no distinga proveedor; aqui se traduce al parametro
+     * 'reasoning' de OpenRouter (OpenAI-compatible):
+     *  - null / '' / 'auto'  -> no se envia (default del modelo)
+     *  - 'off' / false       -> reasoning:{enabled:false}
+     *  - 'low'|'medium'|'high' -> reasoning:{effort:<nivel>}   ('max' se trata como 'high')
+     *  - true                -> reasoning:{enabled:true}
+     */
+    public function setThink($level) {
+        if ($level === null || $level === '' || $level === 'auto') { $this->reasoning = null; return; }
+        if ($level === false || $level === 'off' || $level === 'false') { $this->reasoning = ['enabled' => false]; return; }
+        if ($level === true || $level === 'true') { $this->reasoning = ['enabled' => true]; return; }
+        $effort = ($level === 'max') ? 'high' : (string) $level; // OpenRouter no tiene 'max'
+        $this->reasoning = ['effort' => $effort];
     }
 
     /* ── Endpoints ───────────────────────────────────────── */
@@ -53,6 +73,8 @@ class OpenRouterClient {
         // Tool-calling (function calling): el modelo puede pedir ejecutar herramientas.
         if (!empty($opts['tools']))      $payload['tools']       = $opts['tools'];
         if (isset($opts['tool_choice'])) $payload['tool_choice'] = $opts['tool_choice'];
+        // Esfuerzo de razonamiento fijado con setThink() (mapeado a 'reasoning').
+        if ($this->reasoning !== null)   $payload['reasoning']   = $this->reasoning;
 
         $data = $this->request('POST', '/chat/completions', $payload);
 
@@ -89,6 +111,8 @@ class OpenRouterClient {
         if (isset($opts['top_p']))       $payload['top_p']       = $opts['top_p'];
         if (isset($opts['num_predict'])) $payload['max_tokens']  = (int) $opts['num_predict'];
         if (isset($opts['max_tokens']))  $payload['max_tokens']  = (int) $opts['max_tokens'];
+        // Esfuerzo de razonamiento fijado con setThink() (mapeado a 'reasoning').
+        if ($this->reasoning !== null)   $payload['reasoning']   = $this->reasoning;
 
         return $this->requestStream('/chat/completions', $payload, $onChunk);
     }

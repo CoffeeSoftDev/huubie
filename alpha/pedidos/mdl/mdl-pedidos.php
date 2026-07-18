@@ -376,6 +376,59 @@ class MPedidos extends CRUD {
         return $this->_Read($query,$array);
     }
 
+    // Un solo pago por id (monto, metodo, fecha, sucursal, pedido) — para editar/validar.
+    // Nombre distinto a getPaymentByID (existente, de eventos): PHP no distingue mayus/minus.
+    function getOrderPaymentById($array) {
+        $query = "
+            SELECT
+                op.id,
+                op.pay,
+                op.date_pay,
+                op.method_pay_id,
+                op.order_id,
+                op.subsidiaries_id,
+                mp.method_pay
+            FROM {$this->bd}order_payments op
+            INNER JOIN {$this->bd}method_pay mp ON mp.id = op.method_pay_id
+            WHERE op.id = ?
+        ";
+        $res = $this->_Read($query, $array);
+        return is_array($res) && !empty($res) ? $res[0] : null;
+    }
+
+    // Turno CERRADO que cubre ese pago (por sucursal de cobro + ventana [opened_at,
+    // closed_at] que contiene la fecha del pago — mismo criterio que el cierre). Si
+    // existe, el corte de ese pago ya se hizo y su metodo NO debe editarse (el
+    // desglose del turno quedaria descuadrado). Devuelve la fila o null.
+    function getClosedShiftForPayment($array) {
+        $query = "
+            SELECT cs.id, cs.status, cs.closed_at, cs.daily_closure_id
+            FROM {$this->bd}order_payments op
+            INNER JOIN {$this->bd}`order` o ON o.id = op.order_id
+            INNER JOIN {$this->bd}cash_shift cs
+                    ON cs.subsidiary_id = COALESCE(op.subsidiaries_id, o.subsidiaries_id)
+                   AND cs.active = 1
+                   AND op.date_pay >= cs.opened_at
+                   AND (cs.closed_at IS NULL OR op.date_pay <= cs.closed_at)
+            WHERE op.id = ?
+              AND cs.status = 'closed'
+            LIMIT 1
+        ";
+        $res = $this->_Read($query, $array);
+        return is_array($res) && !empty($res) ? $res[0] : null;
+    }
+
+    // Cambia el metodo de un abono. $array viene de util->sql([...,'id'=>x], 1),
+    // asi que trae values=['method_pay_id'], where=['id'] y data=[metodo, id].
+    function updatePaymentMethod($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}order_payments",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data'],
+        ]);
+    }
+
 
     // Clausules.
     function listClausules($array){

@@ -27,6 +27,10 @@ if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ 
 function coffeeia_build_context(array $body) {
     $messages = isset($body['messages']) && is_array($body['messages']) ? $body['messages'] : [];
     $model    = isset($body['model']) && $body['model'] !== '' ? $body['model'] : null;
+    // Esfuerzo de razonamiento elegido en la UI (selector). Se valida contra la
+    // lista permitida; cualquier otro valor equivale a 'auto' (default del modelo).
+    $effort   = isset($body['effort']) ? trim((string) $body['effort']) : '';
+    if (!in_array($effort, ['off', 'low', 'medium', 'high', 'max'], true)) $effort = '';
 
     // Normaliza cada mensaje a {role, content, images?} (descarta el preview dataUrl).
     $messages = array_map(function ($m) {
@@ -383,7 +387,7 @@ function coffeeia_build_context(array $body) {
     }
 
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
-    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages];
+    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'effort' => $effort, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages];
 }
 
 /**

@@ -703,6 +703,7 @@ class OrderVisor extends Templates {
         const payments = data.payments || [];
         const summary  = data.summary || {};
         const orderSub = data.order ? data.order.subsidiaries_id : null;
+        const orderId  = data.order ? data.order.id : null;
 
         const METHOD_ICON = { "Efectivo": "banknote", "Transferencia": "arrow-right-left" };
 
@@ -711,11 +712,21 @@ class OrderVisor extends Templates {
             const subBadge = esCruzado
                 ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 text-[9px]" title="Cobrado en sucursal distinta a la del pedido">${p.subsidiary_name || "—"}</span>`
                 : "";
+            // Lapiz de editar metodo, JUNTO al nombre del metodo: solo en pagos que el
+            // backend marco editable (admin + corte de ese pago aun abierto). El
+            // backend revalida al guardar.
+            const editBtn = p.editable
+                ? `<button type="button" title="Cambiar método de pago"
+                        onclick="orderVisor.editPaymentMethodPrompt(${p.id}, ${orderId}, ${p.method_pay_id})"
+                        class="flex-shrink-0 text-blue-400/70 hover:text-blue-400 transition-colors">
+                        ${lucideIcon("pencil", "w-3.5 h-3.5")}
+                   </button>`
+                : "";
             return `
                 <div class="flex items-center gap-3 px-3 py-2.5 border-b border-gray-800">
                     <span class="text-gray-400 d-flex flex-shrink-0">${lucideIcon(METHOD_ICON[p.method_pay] || "credit-card", "w-4 h-4")}</span>
                     <div class="min-w-0 flex-1">
-                        <div class="text-sm text-white">${p.method_pay}${subBadge}</div>
+                        <div class="text-sm text-white flex items-center gap-1.5">${p.method_pay}${subBadge}${editBtn}</div>
                         <div class="text-[10px] text-gray-500">${moment(p.date_pay).format("DD/MM/YYYY hh:mm A")}</div>
                     </div>
                     <span class="text-sm font-semibold text-green-400 flex-shrink-0">${formatPrice(p.pay)}</span>
@@ -761,6 +772,57 @@ class OrderVisor extends Templates {
                 </div>
             </div>
         `);
+    }
+
+    // Cambiar el metodo de un pago desde el panel (solo admin y solo si el corte de
+    // ese pago sigue abierto; el backend revalida ambas cosas). Abre un selector,
+    // guarda y refresca el historial de pagos + la bitacora con los datos nuevos.
+    async editPaymentMethodPrompt(payId, orderId, currentMethodId) {
+        const { value: methodId } = await Swal.fire({
+            title: "Cambiar método de pago",
+            input: "select",
+            inputOptions: { 1: "Efectivo", 2: "Tarjeta", 3: "Transferencia" },
+            inputValue: String(currentMethodId),
+            showCancelButton: true,
+            confirmButtonText: "Guardar",
+            cancelButtonText: "Cancelar",
+            confirmButtonColor: "#2563eb",
+            background: "#1F2A37",
+            color: "#e5e7eb"
+        });
+        if (!methodId || String(methodId) === String(currentMethodId)) return;
+
+        const res = await useFetch({
+            url: API_PEDIDOS,
+            data: { opc: "editPaymentMethod", idPay: payId, method_pay_id: methodId, id: orderId }
+        });
+
+        if (!res || res.status !== 200) {
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo cambiar",
+                text: (res && res.message) || "Error al actualizar el pago.",
+                background: "#1F2A37",
+                color: "#e5e7eb"
+            });
+            return;
+        }
+
+        // Refrescar con datos ya actualizados (getOrderDetails recalcula editable).
+        const det = await useFetch({ url: API_PEDIDOS, data: { opc: "getOrderDetails", id: orderId } });
+        if (det && det.status === 200) {
+            this.renderPaymentHistory(det.data);
+            this.renderOrderHistory(orderId);
+        }
+
+        Swal.fire({
+            icon: "success",
+            title: "Método actualizado",
+            timer: 1400,
+            showConfirmButton: false,
+            background: "#1F2A37",
+            color: "#e5e7eb"
+        });
     }
 
     async renderOrderHistory(id) {

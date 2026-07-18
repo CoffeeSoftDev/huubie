@@ -7,8 +7,11 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
 require_once '../mdl/mdl-cierre.php';
+require_once '../../conf/_Message.php';
 
 class Cierre extends MCierre {
+
+    const WHATSAPP_CIERRE = '9621501886';
 
     private function resolveSubsidiary() {
         // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan el cierre
@@ -199,11 +202,43 @@ class Cierre extends MCierre {
 
         $this->updateOrdersClosure([$closure_id, $date, $subsidiaries_id]);
 
+        // Aviso del cierre diario por WhatsApp (resumido). No debe afectar el cierre si falla.
+        $this->notifyDailyClosed($subsidiaries_id, $date, $metrics, $cash, $card, $transfer, $discount);
+
         return [
             'status'     => 200,
             'message'    => 'Cierre diario realizado correctamente',
             'closure_id' => $closure_id
         ];
+    }
+
+    // Aviso de cierre del dia por WhatsApp con el corte consolidado. Nunca debe tumbar
+    // el cierre: el dia ya quedo cerrado y el envio depende de una API externa.
+    private function notifyDailyClosed($subsidiaries_id, $date, $metrics, $cash, $card, $transfer, $discount) {
+        if (self::WHATSAPP_CIERRE === '' || self::WHATSAPP_CIERRE === []) return;
+
+        try {
+            $sub       = $this->getSubsidiaryName([$subsidiaries_id]);
+            $nombreSuc = $sub ? $sub['sucursal'] : 'Sucursal';
+            $fecha     = date('d/m/Y', strtotime($date));
+            $cajero    = $_SESSION['USER'] ?? 'un usuario';
+
+            $mensaje = "*CIERRE DEL DIA*\n"
+                     . $nombreSuc . ' - ' . $fecha . "\n"
+                     . 'Cerro: ' . $cajero . "\n\n"
+                     . '*Ventas:* $' . number_format(floatval($metrics['total_sales']), 2) . "\n"
+                     . 'Efectivo: $' . number_format(floatval($cash), 2) . "\n"
+                     . 'Tarjeta: $' . number_format(floatval($card), 2) . "\n"
+                     . 'Transferencia: $' . number_format(floatval($transfer), 2) . "\n"
+                     . 'Descuentos: $' . number_format(floatval($discount), 2) . "\n"
+                     . 'Pedidos: ' . intval($metrics['total_orders']) . "\n"
+                     . 'Turnos: ' . intval($metrics['total_shifts']);
+
+            $msg = new Message();
+            $msg->whatsapp(self::WHATSAPP_CIERRE, $mensaje);
+        } catch (Exception $e) {
+            error_log('[ WHATSAPP addCierre ] :: ' . $e->getMessage() . PHP_EOL, 3, 'error.log');
+        }
     }
 
     // Lista de fechas pasadas (dentro de un rango) con turnos y sin cierre diario,

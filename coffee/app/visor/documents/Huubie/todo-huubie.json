@@ -23,12 +23,12 @@
         {
           "id": "td7newt8",
           "text": "Cambiar el mensaje de la api de whats, y que sea en cerrar turno, el conteo que hizo el ticket que me lo mande en un mensaje",
-          "done": false
+          "done": true
         },
         {
           "id": "tk04avno",
-          "text": "Si anteriormente existia un dia sin cerrar, y se cerro ese dia, la info de dias sin cerrar debe desaparecer",
-          "done": false
+          "text": "Cuando se cierra un dia el cual no se ha cerrado ( por ejemplo el dia anterior ) el sistema debe quita la alerta de dias sin cerrar de la ventana cierre del dia",
+          "done": true
         }
       ]
     },
@@ -60,6 +60,22 @@
         {
           "id": "t9vno2um",
           "text": "en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "seknbr2o",
+      "title": "Editar producto",
+      "tasks": [
+        {
+          "id": "t9zckkm4",
+          "text": "Información del pedido:  El selector de sucursal no se visualiza correctamente aparece contraido",
+          "done": true
+        },
+        {
+          "id": "t9e89xwa",
+          "text": "Cuando editas un pedido, si ya existe un producto que no fue agregado hoy , se debe bloquear, si el producto es de hoy debe poder editar",
           "done": false
         }
       ]

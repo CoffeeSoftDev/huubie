@@ -3896,10 +3896,12 @@ body.ia-drawer-resizing * {
     min-width: 0;
 }
 .ia-input-hint .ia-model-pill {
-    margin-left: auto;
     min-width: 0;        /* permite que el flex item encoja por debajo de su contenido */
     flex-shrink: 1;      /* el selector cede espacio antes de desbordar el drawer */
 }
+/* El grupo de la derecha (esfuerzo + modelo) arranca con UN solo margin-left:auto
+   en el primer pill; asi ambos quedan juntos pegados a la derecha, no separados. */
+.ia-input-hint #iaEffortSelect { margin-left: auto; }
 /* Botones de accion compactos (solo icono) */
 .ia-editor-toggle.is-icon-only {
     padding: 3px;

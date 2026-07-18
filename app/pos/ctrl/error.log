@@ -1,3 +1,151 @@
+[ 2026-07-18 13:01:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                o.id,
+                o.status,
+                o.total_pay,
+                IFNULL(o.discount, 0) AS discount,
+                o.info_discount,
+                o.note,
+                o.date_order,
+                o.time_order,
+                DATE_FORMAT(CONCAT(o.date_order, ' ', o.time_order), '%d/%m/%Y %h:%i %p') AS fecha_formatted,
+                o.order_type,
+                o.cancelled_at,
+                o.client_id,
+                o.cash_shift_id,
+                oc.name  AS client_name,
+                oc.phone AS client_phone,
+                GROUP_CONCAT(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ', ') AS payment_methods,
+                GROUP_CONCAT(DISTINCT mp.code ORDER BY mp.code SEPARATOR ',') AS payment_codes
+            FROM fayxzvov_reginas.order o
+            LEFT JOIN fayxzvov_reginas.order_clients oc ON o.client_id = oc.id
+            LEFT JOIN fayxzvov_reginas.order_payments op ON o.id = op.order_id
+            LEFT JOIN fayxzvov_reginas.method_pay mp ON op.method_pay_id = mp.id
+            WHERE 1=1 AND o.subsidiaries_id = ? AND o.cash_shift_id = ?
+            GROUP BY o.id
+            ORDER BY o.date_order DESC, o.time_order DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'mp.code' in 'field list'
+
+
+[ 2026-07-18 13:01:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                o.id,
+                o.status,
+                o.total_pay,
+                IFNULL(o.discount, 0) AS discount,
+                o.info_discount,
+                o.note,
+                o.date_order,
+                o.time_order,
+                DATE_FORMAT(CONCAT(o.date_order, ' ', o.time_order), '%d/%m/%Y %h:%i %p') AS fecha_formatted,
+                o.order_type,
+                o.cancelled_at,
+                o.client_id,
+                o.cash_shift_id,
+                oc.name  AS client_name,
+                oc.phone AS client_phone,
+                GROUP_CONCAT(DISTINCT mp.method_pay ORDER BY mp.method_pay SEPARATOR ', ') AS payment_methods,
+                GROUP_CONCAT(DISTINCT mp.code ORDER BY mp.code SEPARATOR ',') AS payment_codes
+            FROM fayxzvov_reginas.order o
+            LEFT JOIN fayxzvov_reginas.order_clients oc ON o.client_id = oc.id
+            LEFT JOIN fayxzvov_reginas.order_payments op ON o.id = op.order_id
+            LEFT JOIN fayxzvov_reginas.method_pay mp ON op.method_pay_id = mp.id
+            WHERE 1=1 AND o.subsidiaries_id = ? AND o.cash_shift_id = ?
+            GROUP BY o.id
+            ORDER BY o.date_order DESC, o.time_order DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'mp.code' in 'field list'
+
+
+[ 2026-07-18 13:01:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_alpha.subsidiaries
+            WHERE active = 1
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
+[ 2026-07-18 13:01:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                p.id,
+                p.name,
+                p.price,
+                p.description,
+                p.image,
+                oc.classification          AS category,
+                COALESCE(st.quantity, 0)   AS stock,
+                COALESCE(pa.stock_min, 0)  AS stock_min
+            FROM fayxzvov_reginas.order_products p
+            LEFT JOIN fayxzvov_reginas.order_category oc ON p.category_id = oc.id
+            LEFT JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN (
+                SELECT s.product_id, SUM(s.quantity) AS quantity
+                FROM fayxzvov_reginas.stock s
+                INNER JOIN fayxzvov_reginas.warehouse w ON s.warehouse_id = w.id AND w.active = 1 AND w.subsidiaries_id = ?
+                WHERE s.active = 1
+                GROUP BY s.product_id
+            ) st ON st.product_id = p.id
+            WHERE p.active = 1
+              AND (
+                  p.companies_id = ?
+                  OR (p.companies_id IS NULL AND p.subsidiaries_id IN (
+                      SELECT id FROM fayxzvov_alpha.subsidiaries WHERE companies_id = ?
+                  ))
+              )
+            ORDER BY oc.id, p.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.product_attribute' doesn't exist
+
+
+[ 2026-07-18 12:55:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                p.id,
+                p.name,
+                p.price,
+                p.description,
+                p.image,
+                oc.classification          AS category,
+                COALESCE(st.quantity, 0)   AS stock,
+                COALESCE(pa.stock_min, 0)  AS stock_min
+            FROM fayxzvov_reginas.order_products p
+            LEFT JOIN fayxzvov_reginas.order_category oc ON p.category_id = oc.id
+            LEFT JOIN fayxzvov_reginas.product_attribute pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN (
+                SELECT s.product_id, SUM(s.quantity) AS quantity
+                FROM fayxzvov_reginas.stock s
+                INNER JOIN fayxzvov_reginas.warehouse w ON s.warehouse_id = w.id AND w.active = 1 AND w.subsidiaries_id = ?
+                WHERE s.active = 1
+                GROUP BY s.product_id
+            ) st ON st.product_id = p.id
+            WHERE p.active = 1
+              AND (
+                  p.companies_id = ?
+                  OR (p.companies_id IS NULL AND p.subsidiaries_id IN (
+                      SELECT id FROM fayxzvov_alpha.subsidiaries WHERE companies_id = ?
+                  ))
+              )
+            ORDER BY oc.id, p.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.product_attribute' doesn't exist
+
+
 [ 2026-07-07 21:53:51 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

@@ -377,6 +377,7 @@ function pgLoadSettings() {
         if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
+        if (['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1) pg.effort = s.effort;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (typeof s.planMode === 'boolean')     pg.planMode   = s.planMode;
         if (typeof s.dbToolsOn === 'boolean')    pg.dbToolsOn  = s.dbToolsOn;
@@ -390,7 +391,7 @@ function pgLoadSettings() {
 function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
-            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
+            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model, effort: pg.effort,
             canvasMode: pg.canvasMode, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
             dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, moduleMode: pg.moduleMode, threadsView: pg.threadsView,
             knowledge: Array.from(pg.knowledge)
@@ -440,6 +441,7 @@ async function pgLoadLibrary() {
     $('#pgThemeSelect').val(pg.theme);
     if (pg.model) $('#pgModelSelect').val(pg.model);
     else pg.model = $('#pgModelSelect').val() || '';
+    $('#pgEffortSelect').val(pg.effort || '');
 
     pgRenderContextList();
 }
@@ -486,6 +488,7 @@ function pgBind() {
     $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
 
     $('#pgModelSelect').on('change', e => { pg.model = e.target.value || ''; pgSaveSettings(); pgWarnModelTools(); });
+    $('#pgEffortSelect').on('change', e => { pg.effort = e.target.value || ''; pgSaveSettings(); });
 
     $('#pgThemeToggle').on('click', () => {
         pgApplyUiTheme(pg.uiTheme === 'dark' ? 'light' : 'dark');
@@ -2173,7 +2176,8 @@ async function pgSend(text, images, docs) {
         // que establece la conexión— también evita el conflicto de cajas. Inocuo cuando
         // no hay base (el backend solo lo usa si resuelve un esquema).
         dbMode:         (usesDesignSystem || pg.canvasMode) ? 'data' : '',
-        model:          pg.model || ''
+        model:          pg.model || '',
+        effort:         pg.effort || ''
     };
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
@@ -2286,11 +2290,15 @@ async function pgSend(text, images, docs) {
  * su contenido tal cual en el chat. `interrupted` marca respuestas cortadas. */
 function pgFinalizeResponse(stream, received, meta, interrupted) {
     const cfg    = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
-    const usesUI = pg.canvasMode || cfg.render === 'html' || cfg.render === 'code';
+
+    // ¿La respuesta trae un ENTREGABLE renderizable (módulo/plantilla)? Solo en ese
+    // caso se vuelca al sandbox. Antes bastaba con cualquier ``` o etiqueta HTML
+    // suelta, así que una PREGUNTA cuya respuesta traía un snippet de ejemplo pisaba
+    // el layout. Ahora exige módulo @file real o documento HTML completo.
+    const renderable = pgHasRenderable(received);
 
     let displayText = received;
-    const hadCode = /```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/i.test(received) || pgLooksLikeHtml(received);
-    if (usesUI && hadCode) {
+    if (renderable) {
         // Quitar TODO bloque ```...``` (html/js/php/...) y cualquier HTML crudo
         // suelto: en el chat solo debe quedar la explicación en prosa.
         let rest = received.replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi, '').trim();
@@ -2305,12 +2313,43 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     }
 
     stream.complete(displayText, meta, received);
-    // Solo se vuelca al sandbox si la respuesta trajo codigo: una respuesta en
-    // prosa (p.ej. el plan del modo planeacion) no debe pisar el render actual.
-    if (usesUI && hadCode) {
+    // Solo se vuelca al sandbox si la respuesta trajo un entregable: una respuesta en
+    // prosa (una pregunta contestada, el plan del modo planeación, un snippet de
+    // ejemplo) no debe pisar el render actual.
+    if (renderable) {
         const tpl = pgRenderToSandbox(received);
         if (tpl) pgAppendTemplateCard(stream.$msg, tpl);   // miniatura clicable dentro del chat
     }
+}
+
+/* Decide si la respuesta trae un ENTREGABLE renderizable y no solo prosa con algún
+ * snippet o etiqueta suelta. Umbral por tipo de agente/modo:
+ *  - Módulo multi-archivo real: ≥2 bloques @file con un index (contrato del Studio).
+ *  - Agente/modo HTML (CoffeeMagic o lienzo): doc HTML completo o un fence ```html.
+ *  - Agente de código (CoffeeIA) sin módulo: solo un doc HTML completo.
+ *  - Resto (CoffeeIntelligence/markdown): nunca vuelca al sandbox por esta vía. */
+function pgHasRenderable(received) {
+    const s   = received || '';
+    const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
+
+    // Módulo multi-archivo (contrato @file): el entregable canónico del Studio.
+    const modFiles = pgParseModule(s);
+    if (modFiles.length >= 2 && pgModuleIndex(modFiles)) return true;
+
+    // Documento HTML completo, venga crudo o dentro de un fence.
+    const isFullDoc = /<!doctype html|<html[\s>]/i.test(s);
+
+    if (pg.canvasMode || cfg.render === 'html') {
+        // CoffeeMagic / lienzo: acepta doc completo o un bloque ```html explícito
+        // (un <div> suelto en prosa NO cuenta como componente a renderizar).
+        return isFullDoc || /```[ \t]*html[ \t]*\r?\n[\s\S]*?```/i.test(s);
+    }
+    if (cfg.render === 'code') {
+        // CoffeeIA sin módulo multi-archivo: solo si trae un doc HTML completo;
+        // un ```js/```php de ejemplo en la explicación NO es una plantilla.
+        return isFullDoc;
+    }
+    return false;
 }
 
 /* Rescata el contenido parcial cuando el stream se corta a media generación.

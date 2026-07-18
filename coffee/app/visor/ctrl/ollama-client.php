@@ -18,6 +18,9 @@ class OllamaClient {
     private $apiKey;
     private $baseUrl;
     private $defaultModel;
+    // Nivel de razonamiento a enviar en TODAS las llamadas (chat/chatStream).
+    // null = no se envia 'think' -> el modelo usa su comportamiento por defecto.
+    private $think = null;
 
     public function __construct() {
         if (!defined('OLLAMA_API_KEY') || OLLAMA_API_KEY === '') {
@@ -26,6 +29,23 @@ class OllamaClient {
         $this->apiKey       = OLLAMA_API_KEY;
         $this->baseUrl      = rtrim(OLLAMA_BASE_URL, '/');
         $this->defaultModel = OLLAMA_DEFAULT_MODEL;
+    }
+
+    /**
+     * Fija el ESFUERZO DE RAZONAMIENTO para las siguientes llamadas. Ollama lo
+     * recibe en el parametro 'think' (en la RAIZ del payload, no en 'options'):
+     *  - null / '' / 'auto'  -> no se envia (default del modelo)
+     *  - 'off' / false       -> think:false (apaga el pensamiento)
+     *  - 'low'|'medium'|'high'|'max' -> nivel de esfuerzo (gpt-oss solo acepta low/medium/high)
+     *  - true                -> think:true (pensar, sin nivel)
+     * Solo aplica a modelos con capacidad de thinking; enviarlo a un modelo que no
+     * la soporta hace que Ollama responda HTTP 400.
+     */
+    public function setThink($level) {
+        if ($level === null || $level === '' || $level === 'auto') { $this->think = null; return; }
+        if ($level === false || $level === 'off' || $level === 'false') { $this->think = false; return; }
+        if ($level === true || $level === 'true') { $this->think = true; return; }
+        $this->think = (string) $level; // 'low' | 'medium' | 'high' | 'max'
     }
 
     /* ── Endpoints ───────────────────────────────────────── */
@@ -40,6 +60,11 @@ class OllamaClient {
         // 'options', que es solo para sampling). tool_choice no aplica en Ollama.
         if (!empty($opts['tools'])) { $payload['tools'] = $opts['tools']; }
         unset($opts['tools'], $opts['tool_choice']);
+        // Esfuerzo de razonamiento: TAMBIEN va en la raiz. Un 'think' explicito en
+        // $opts manda; si no, se usa el fijado con setThink().
+        $think = array_key_exists('think', $opts) ? $opts['think'] : $this->think;
+        unset($opts['think']);
+        if ($think !== null) { $payload['think'] = $think; }
         if (!empty($opts)) { $payload['options'] = $opts; }
 
         $data = $this->request('POST', '/api/chat', $payload);
@@ -97,6 +122,11 @@ class OllamaClient {
             'messages' => $messages,
             'stream'   => true,
         ];
+        // Esfuerzo de razonamiento en la raiz (ver chat()): explicito de $opts o el
+        // fijado con setThink(). El razonamiento streamea en message.thinking.
+        $think = array_key_exists('think', $opts) ? $opts['think'] : $this->think;
+        unset($opts['think']);
+        if ($think !== null) { $payload['think'] = $think; }
         if (!empty($opts)) {
             $payload['options'] = $opts;
         }

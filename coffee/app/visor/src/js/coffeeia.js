@@ -148,6 +148,7 @@ function ciaLoadSettings() {
         const s = JSON.parse(localStorage.getItem('coffeeia:settings:v1') || '{}');
         CIA.agentKey   = CIA_AGENTS[s.agentKey] ? s.agentKey : CIA_DEFAULT_AGENT;
         CIA.model      = s.model || '';
+        CIA.effort     = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : '';
         CIA.uiTheme    = s.uiTheme === 'light' ? 'light' : 'dark';
         CIA.canvasMode = !!s.canvasMode;
         CIA.graphMode  = CIA_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
@@ -164,7 +165,7 @@ function ciaLoadSettings() {
 
 function ciaSaveSettings() {
     localStorage.setItem('coffeeia:settings:v1', JSON.stringify({
-        agentKey: CIA.agentKey, model: CIA.model, uiTheme: CIA.uiTheme,
+        agentKey: CIA.agentKey, model: CIA.model, effort: CIA.effort, uiTheme: CIA.uiTheme,
         canvasMode: CIA.canvasMode, graphMode: CIA.graphMode,
         dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn,
         sidebarWidth: CIA.sidebarWidth, sidebarOpen: CIA.sidebarOpen,
@@ -275,6 +276,7 @@ function ciaAgentLabel() {
 function ciaBind() {
     $('#ciaAgentSelect').on('change', e => ciaApplyAgent(e.target.value, false));
     $('#ciaModelSelect').on('change', e => { CIA.model = e.target.value || ''; ciaSaveSettings(); ciaWarnModelTools(); });
+    $('#ciaEffortSelect').val(CIA.effort || '').on('change', e => { CIA.effort = e.target.value || ''; ciaSaveSettings(); });
     $('#ciaThemeToggle').on('click', () => ciaApplyUiTheme(CIA.uiTheme === 'dark' ? 'light' : 'dark'));
 
     /* ── Menú "+" : todas las herramientas en un solo sitio (patrón Claude) ── */
@@ -1566,6 +1568,7 @@ async function ciaSubmit() {
         }),
         systemOverride: CIA.systemOverride || '',
         model:          CIA.model || '',
+        effort:         CIA.effort || '',
         canvasMode:     !!CIA.canvasMode,
         graphMode:      CIA.graphMode || '',
         dbConnect:      (CIA.dbToolsOn && CIA.activeDb) || '',

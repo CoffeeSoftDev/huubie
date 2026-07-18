@@ -263,6 +263,7 @@ function pgLoadSettings() {
         if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (typeof s.model === 'string')         pg.model    = s.model;
+        if (['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1) pg.effort = s.effort;
         // Solo se respeta el lienzo guardado si viene de la revision actual del default
         // (ver PG_CANVAS_REV); si no, gana el default y el usuario puede volver a apagarlo.
         if (typeof s.canvasMode === 'boolean' && s.canvasRev === PG_CANVAS_REV) pg.canvasMode = s.canvasMode;
@@ -277,7 +278,7 @@ function pgLoadSettings() {
 function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
-            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
+            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model, effort: pg.effort,
             canvasMode: pg.canvasMode, canvasRev: PG_CANVAS_REV, planMode: pg.planMode, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport,
             dbToolsOn: pg.dbToolsOn, fsToolsOn: pg.fsToolsOn, threadsView: pg.threadsView,
             knowledge: Array.from(pg.knowledge)
@@ -316,6 +317,7 @@ async function pgLoadLibrary() {
     $('#pgThemeSelect').val(pg.theme);
     if (pg.model) $('#pgModelSelect').val(pg.model);
     else pg.model = $('#pgModelSelect').val() || '';
+    $('#pgEffortSelect').val(pg.effort || '');
 
     pgRenderContextList();
 }
@@ -368,6 +370,7 @@ function pgBind() {
     $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
 
     $('#pgModelSelect').on('change', e => { pg.model = e.target.value || ''; pgSaveSettings(); pgWarnModelTools(); });
+    $('#pgEffortSelect').on('change', e => { pg.effort = e.target.value || ''; pgSaveSettings(); });
 
     $('#pgThemeToggle').on('click', () => {
         pgApplyUiTheme(pg.uiTheme === 'dark' ? 'light' : 'dark');
@@ -1908,7 +1911,8 @@ async function pgSend(text, images, docs) {
         // que establece la conexión— también evita el conflicto de cajas. Inocuo cuando
         // no hay base (el backend solo lo usa si resuelve un esquema).
         dbMode:         (usesDesignSystem || pg.canvasMode) ? 'data' : '',
-        model:          pg.model || ''
+        model:          pg.model || '',
+        effort:         pg.effort || ''
     };
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
@@ -2042,10 +2046,19 @@ async function pgSend(text, images, docs) {
 function pgFinalizeResponse(stream, received, meta, interrupted) {
     const cfg    = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
     const usesUI = pg.canvasMode || cfg.render === 'html' || cfg.render === 'code';
+    const isDesignAgent = cfg.render === 'html' || cfg.render === 'code';
+
+    // ¿Esta respuesta debe REFRESCAR el preview? Para los agentes de UI/código
+    // (CoffeeMagic/CoffeeIA) solo si trae un template renderable DE VERDAD: un plan
+    // en prosa o una revisión de datos —aunque incluyan un fence ```sql o mencionen
+    // un <tag>— NO deben pisar el diseño vigente; el preview se conserva hasta que
+    // el agente construya el template. Los demás (documento markdown / lienzo sobre
+    // markdown) mantienen el criterio previo "trajo algún bloque de código".
+    const hadCode    = /```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/i.test(received) || pgLooksLikeHtml(received);
+    const willRender = isDesignAgent ? !!pgRenderableHtml(received) : (usesUI && hadCode);
 
     let displayText = received;
-    const hadCode = /```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/i.test(received) || pgLooksLikeHtml(received);
-    if (usesUI && hadCode) {
+    if (usesUI && willRender) {
         // Quitar TODO bloque ```...``` (html/js/php/...) y cualquier HTML crudo
         // suelto: en el chat solo debe quedar la explicación en prosa.
         let rest = received.replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi, '').trim();
@@ -2060,9 +2073,9 @@ function pgFinalizeResponse(stream, received, meta, interrupted) {
     }
 
     stream.complete(displayText, meta, received);
-    // Solo se vuelca al sandbox si la respuesta trajo codigo: una respuesta en
-    // prosa (p.ej. el plan del modo planeacion) no debe pisar el render actual.
-    if (usesUI && hadCode) {
+    // Solo se vuelca al sandbox si hay template renderable: una respuesta en prosa
+    // (el plan del modo planeación o una revisión de datos) NO pisa el render actual.
+    if (usesUI && willRender) {
         const tpl = pgRenderToSandbox(received);
         if (tpl) pgAppendTemplateCard(stream.$msg, tpl);   // miniatura clicable dentro del chat
     }
@@ -2299,6 +2312,57 @@ function pgPatchLastHtml(received) {
     const base    = pg.lastHtml.replace(/\n?<(script|style) data-pg-merged>[\s\S]*?<\/\1>/gi, '');
     const patched = pgMergeSideBlocks(received, base);
     return patched === base ? '' : patched;
+}
+
+/* ¿La respuesta trae un TEMPLATE renderable de verdad? — detector SIN efectos
+ * secundarios que decide si se refresca el preview. Distingue un build real
+ * (componente/módulo) de un plan en prosa o una revisión de datos: devuelve el
+ * HTML/código a renderizar, o '' si NO hay nada que deba pisar el diseño vigente. */
+function pgRenderableHtml(received) {
+    const cfg = PG_AGENTS[pg.agentKey] || { render: 'markdown' };
+    const s   = String(received || '');
+    const fenced  = pgHasFencedHtml(s) ? pgExtractHtml(s) : '';
+    // HTML crudo (sin fence) que EMPIEZA por un tag o es mayoritariamente markup:
+    // un componente suelto. NO cuenta la prosa que apenas menciona un <tag>.
+    const rawHtml = (pgStartsWithHtml(s) || pgIsMostlyHtml(s)) ? pgExtractHtml(s) : '';
+
+    if (cfg.render === 'html') {
+        // Fence, o un parche (```js/```css) del template vigente —ajuste real—, o
+        // HTML crudo que sea un componente. Un plan/revisión de datos → '' .
+        return fenced || pgPatchLastHtml(s) || rawHtml;
+    }
+    if (cfg.render === 'code') {
+        // El módulo puede traer un preview HTML o venir como código en fence.
+        return fenced || pgExtractCode(s) || rawHtml;
+    }
+    // Markdown (documento): solo desvía al sandbox si vino HTML en fence explícito.
+    return pgExtractCode(s, 'html');
+}
+
+/* ¿Hay un bloque ```html (o cualquier fence cuyo contenido sea HTML)? Señal fiable
+ * de "componente construido" frente a un fence ```sql/```json de una revisión. */
+function pgHasFencedHtml(s) {
+    if (/```[ \t]*html[ \t]*\r?\n/i.test(s || '')) return true;
+    const m = /```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i.exec(s || '');
+    return !!(m && pgLooksLikeHtml(m[1]));
+}
+
+/* ¿La respuesta EMPIEZA por HTML (tag estructural o doctype, ignorando un fence de
+ * apertura)? Acepta un componente crudo sin fence y descarta la prosa que solo
+ * menciona un <tag> en medio de una explicación. */
+function pgStartsWithHtml(s) {
+    const t = String(s || '')
+        .replace(/^﻿/, '')
+        .replace(/^```[a-z0-9+-]*[ \t]*\r?\n/i, '')
+        .trim();
+    return /^(<!doctype html\b|<html[\s>]|<(?:div|section|main|header|nav|article|aside|footer|form|table|ul|ol|button|h[1-6]|img|svg)[\s>])/i.test(t);
+}
+
+/* ¿El texto es MAYORITARIAMENTE markup (varios tags estructurales)? Un componente
+ * crudo trae muchos tags; un plan en prosa que menciona uno o dos <tag> no. */
+function pgIsMostlyHtml(s) {
+    const tags = (String(s || '').match(/<(?:div|section|main|header|nav|article|aside|footer|form|table|tr|td|th|ul|ol|li|button|h[1-6]|img|svg|input|label|span|p|a)\b/gi) || []).length;
+    return tags >= 4;
 }
 
 /* ── Render al sandbox ── */

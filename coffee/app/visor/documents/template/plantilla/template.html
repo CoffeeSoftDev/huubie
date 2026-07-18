@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TODO dinámico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  /* Valores COPIADOS de .md-rendered (visor.css). Únicas desviaciones pedidas:
+     papel blanco (real #FAF7F2) y sin la línea naranja (::before). */
+  :root{
+    --paper:#FFFFFF; --page:#E9EAEC;
+    --ink:#2C2416; --ink-strong:#1A1208; --ink-h3:#3A2D17; --ink-em:#6B5A30; --ink-faint:#A99C82;
+    --rule:#E8DFCA; --rule-strong:#D4C9B3; --code-bg:#F1E9D6; --code-bd:#E0D3B0;
+    --accent:#C05A40; --accent-soft:#E8A68F; --danger:#B5462F;
+    --serif:'Lora','Source Serif Pro','Georgia','Times New Roman',serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    font-family:var(--serif); background:var(--page); color:var(--ink);
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+    display:flex; justify-content:center; align-items:flex-start; padding:min(6vh,54px) 20px 70px;
+  }
+  .num{ font-family:var(--sans); font-variant-numeric:tabular-nums; }
+
+  /* .doc = .md-rendered */
+  .doc{
+    width:100%; max-width:680px; background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:16px; line-height:1.85;
+    border:1px solid var(--rule); border-radius:10px;
+    box-shadow:0 8px 32px rgba(17,24,39,.10), 0 1px 0 rgba(255,255,255,.6) inset;
+    padding:46px 56px 34px;
+  }
+
+  /* Header (title = h1 del doc; la regla 2px es el border-bottom del h1) */
+  .head{ display:flex; align-items:flex-end; justify-content:space-between; gap:18px;
+    margin:4px 0 4px; padding-bottom:12px; border-bottom:2px solid var(--rule-strong); }
+  .title{ font-family:var(--sans); font-size:1.875em; font-weight:800; color:var(--ink-strong);
+    letter-spacing:-.01em; margin:0; outline:none; border-radius:5px; }
+  .title:focus-visible{ box-shadow:0 0 0 2px rgba(192,90,64,.18); }
+  .count{ flex:none; text-align:right; }
+  .count-n{ font-family:var(--sans); font-size:13px; font-weight:600; color:var(--ink-em); }
+  .count-n b{ color:var(--ink-strong); }
+  .bar{ width:110px; height:5px; margin-top:7px; border-radius:999px; background:var(--code-bg); overflow:hidden; border:1px solid var(--rule); }
+  .bar span{ display:block; height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .35s cubic-bezier(.2,.7,.3,1); }
+
+  /* Sección = h2 del doc */
+  .sec{ margin-top:30px; }
+  .sec-head{ display:flex; align-items:center; gap:8px; margin:0 0 6px; padding-bottom:6px; border-bottom:1px solid var(--rule); }
+  .sec-title{ flex:1; min-width:0; font-family:var(--sans); font-size:1.375em; font-weight:700; color:var(--ink-strong);
+    margin:0; outline:none; border-radius:5px; padding:1px 4px; }
+  .sec-title:focus-visible{ box-shadow:0 0 0 2px rgba(192,90,64,.18); }
+  .sec-del{ flex:none; width:24px; height:24px; border:0; background:transparent; color:var(--ink-faint); cursor:pointer;
+    border-radius:6px; display:grid; place-items:center; opacity:0; transition:.15s; }
+  .sec:hover .sec-del{ opacity:1; }
+  .sec-del:hover{ color:var(--danger); background:rgba(181,70,47,.10); }
+
+  /* Tareas = li.task-list-item del doc (checkbox nativo accent terracota, texto serif) */
+  .list{ list-style:none; margin:12px 0 6px; padding-left:4px; }
+  .task{ list-style:none; display:flex; align-items:flex-start; gap:9px; margin:6px 0; padding:3px 6px; border-radius:7px; margin-left:-6px; transition:background .14s; }
+  .task:hover{ background:#F7F3EA; }
+  .chk{ flex:0 0 auto; width:16px; height:16px; margin:0; margin-top:6px; accent-color:var(--accent); cursor:pointer; }
+  .txt{ flex:1; min-width:0; font-family:var(--serif); font-size:16px; line-height:1.7; color:var(--ink); outline:none;
+    border-radius:4px; padding:0 3px; margin:0 -3px; word-break:break-word; }
+  .txt:focus-visible{ box-shadow:0 0 0 2px rgba(192,90,64,.18); background:#FBFAF7; }
+  .task.done .txt{ color:var(--ink-faint); text-decoration:line-through; text-decoration-color:var(--rule-strong); }
+  .del{ flex:0 0 auto; width:24px; height:24px; border:0; background:transparent; cursor:pointer; border-radius:6px;
+    color:var(--ink-faint); display:grid; place-items:center; opacity:0; transition:.15s; margin-top:3px; }
+  .task:hover .del{ opacity:1; }
+  .del:hover{ color:var(--danger); background:rgba(181,70,47,.10); }
+
+  /* Añadir tarea */
+  .add{ display:flex; align-items:center; gap:9px; padding:3px 6px; margin:2px 0 0 -6px; }
+  .add-dot{ flex:0 0 auto; width:16px; height:16px; border-radius:4px; border:1.4px dashed var(--rule-strong); }
+  .add:focus-within .add-dot{ border-color:var(--accent); border-style:solid; }
+  .add input{ flex:1; border:0; background:transparent; color:var(--ink); font-family:var(--serif); font-size:16px; padding:2px 0; outline:none; }
+  .add input::placeholder{ color:var(--ink-faint); font-style:italic; }
+
+  /* Nueva sección */
+  .new-sec{ display:inline-flex; align-items:center; gap:7px; margin-top:22px; padding:8px 13px; border-radius:8px; cursor:pointer;
+    background:transparent; border:1px dashed var(--rule-strong); color:var(--ink-em); font-family:var(--sans); font-size:12.5px; font-weight:600; transition:.15s; }
+  .new-sec:hover{ color:var(--accent); border-color:var(--accent); }
+
+  /* Footer */
+  .foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:26px; padding-top:14px; border-top:1px solid var(--rule); }
+  .foot-l{ display:flex; align-items:center; gap:7px; font-family:var(--sans); font-size:11.5px; color:var(--ink-faint); }
+  .foot-l code{ font-family:'JetBrains Mono',Consolas,monospace; font-size:11px; color:#6B21A8; background:var(--code-bg); padding:1.5px 6px; border-radius:4px; border:1px solid var(--code-bd); }
+  .foot-r{ display:flex; gap:4px; }
+  .fbtn{ border:0; background:transparent; color:var(--ink-em); font-family:var(--sans); font-size:12px; font-weight:600; padding:6px 9px; border-radius:7px; cursor:pointer; transition:.15s; }
+  .fbtn:hover{ color:var(--accent); background:rgba(192,90,64,.10); }
+  .fbtn.hidden{ display:none; }
+
+  .empty{ text-align:center; color:var(--ink-faint); font-family:var(--sans); font-size:13px; padding:24px 10px; }
+  .enter{ animation:enter .22s ease; }
+  @keyframes enter{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:none; } }
+  .leaving{ animation:leave .18s ease forwards; overflow:hidden; }
+  @keyframes leave{ to{ opacity:0; transform:translateX(8px); height:0; padding-top:0; padding-bottom:0; margin-top:0; margin-bottom:0; } }
+  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(10px); opacity:0;
+    background:var(--ink-strong); color:#fff; font-family:var(--sans); font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:9px;
+    box-shadow:0 12px 32px rgba(44,36,22,.3); transition:.2s; pointer-events:none; z-index:9; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+</style>
+
+<main class="doc" role="application" aria-label="Lista de tareas">
+  <div class="head">
+    <h1 class="title" id="title" contenteditable="true" spellcheck="false">Playground</h1>
+    <div class="count">
+      <div class="count-n num"><b id="cDone">0</b> / <span id="cTotal">0</span></div>
+      <div class="bar"><span id="bar"></span></div>
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <button class="new-sec" id="newSec">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Nueva sección
+  </button>
+
+  <div class="foot">
+    <div class="foot-l">
+      <span id="pendLbl" class="num">0 pendientes</span>
+      <span aria-hidden="true">·</span>
+      <span>guardado en <code>todo.json</code></span>
+    </div>
+    <div class="foot-r">
+      <button class="fbtn hidden" id="clearBtn">Limpiar completadas</button>
+      <button class="fbtn" id="copyBtn">Copiar</button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const KEY='todo-mockup:v4';
+  const $=s=>document.querySelector(s);
+  const secBox=$('#sections');
+  const uid=p=>p+Math.random().toString(36).slice(2,9);
+
+  const seed={ title:'Playground', sections:[
+    { id:uid('s'), title:'Ventana del chat', tasks:[
+      { id:uid('t'), text:'Mostrar el consumo de tokens (cuánto gasta por respuesta)', done:false } ]},
+    { id:uid('s'), title:'Container del sandbox', tasks:[
+      { id:uid('t'), text:'Modo laptop: imagen que simule una laptop alrededor del preview', done:false },
+      { id:uid('t'), text:'Migrar el chat al motor del Visor (loader + IARender)', done:true } ]}
+  ]};
+
+  let state=load(), focusAfter=null;
+  function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s&&Array.isArray(s.sections)) return s; }catch(e){} return JSON.parse(JSON.stringify(seed)); }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+  function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  const DEL='<button class="del" aria-label="Eliminar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+  function taskRow(t){ return '<li class="task'+(t.done?' done':'')+'" data-id="'+t.id+'"><input type="checkbox" class="chk"'+(t.done?' checked':'')+'><span class="txt" contenteditable="true" spellcheck="false">'+esc(t.text)+'</span>'+DEL+'</li>'; }
+
+  function render(){
+    if(!state.sections.length){
+      secBox.innerHTML='<div class="empty">Sin secciones. Crea una con “Nueva sección”.</div>';
+    } else {
+      secBox.innerHTML=state.sections.map(sec=>(
+        '<section class="sec" data-id="'+sec.id+'">'+
+          '<div class="sec-head">'+
+            '<h2 class="sec-title" contenteditable="true" spellcheck="false">'+esc(sec.title)+'</h2>'+
+            '<button class="sec-del" aria-label="Eliminar sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'+
+          '</div>'+
+          '<ul class="list">'+sec.tasks.map(taskRow).join('')+'</ul>'+
+          '<div class="add"><span class="add-dot" aria-hidden="true"></span>'+
+            '<input type="text" class="add-input" data-sec="'+sec.id+'" placeholder="Añadir tarea…" maxlength="240" autocomplete="off"></div>'+
+        '</section>'
+      )).join('');
+    }
+    stats(); applyFocus();
+  }
+
+  function applyFocus(){
+    if(!focusAfter) return; let el=null;
+    if(focusAfter.t==='secTitle'){ const s=secBox.querySelector('.sec[data-id="'+focusAfter.id+'"] .sec-title'); if(s){ el=s; selectAll(s); } }
+    if(el) el.focus(); focusAfter=null;
+  }
+  function selectAll(el){ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+  function allTasks(){ return state.sections.flatMap(s=>s.tasks); }
+  function locate(id){ for(const s of state.sections){ const t=s.tasks.find(x=>x.id===id); if(t) return {sec:s,task:t}; } return null; }
+
+  function stats(){
+    const all=allTasks(), total=all.length, done=all.filter(t=>t.done).length;
+    $('#cDone').textContent=done; $('#cTotal').textContent=total;
+    $('#bar').style.width=total?Math.round(done/total*100)+'%':'0%';
+    const pend=total-done; $('#pendLbl').textContent=(pend===1?'1 pendiente':pend+' pendientes');
+    $('#clearBtn').classList.toggle('hidden', done===0);
+  }
+
+  secBox.addEventListener('keydown', e=>{
+    if(e.target.classList.contains('add-input') && e.key==='Enter'){
+      e.preventDefault(); const v=e.target.value.trim(); if(!v) return;
+      const sec=state.sections.find(s=>s.id===e.target.dataset.sec); if(!sec) return;
+      const t={id:uid('t'),text:v,done:false}; sec.tasks.push(t); save();
+      const ul=e.target.closest('.sec').querySelector('.list');
+      const li=document.createElement('li'); li.className='task enter'; li.dataset.id=t.id;
+      li.innerHTML='<input type="checkbox" class="chk"><span class="txt" contenteditable="true" spellcheck="false">'+esc(v)+'</span>'+DEL;
+      ul.appendChild(li); e.target.value=''; stats();
+    }
+    if((e.target.classList.contains('txt')||e.target.classList.contains('sec-title')) && e.key==='Enter'){ e.preventDefault(); e.target.blur(); }
+  });
+
+  secBox.addEventListener('change', e=>{
+    if(!e.target.classList.contains('chk')) return;
+    const li=e.target.closest('.task'); const r=locate(li.dataset.id); if(!r) return;
+    r.task.done=e.target.checked; save(); li.classList.toggle('done', r.task.done); stats();
+  });
+
+  secBox.addEventListener('click', e=>{
+    const del=e.target.closest('.del');
+    if(del){ const li=del.closest('.task'); const r=locate(li.dataset.id); if(!r) return; r.sec.tasks=r.sec.tasks.filter(x=>x.id!==r.task.id); save();
+      li.classList.add('leaving'); li.addEventListener('animationend',()=>{ li.remove(); stats(); },{once:true}); return; }
+    const sdel=e.target.closest('.sec-del');
+    if(sdel){ const secEl=sdel.closest('.sec'); const sid=secEl.dataset.id; const sec=state.sections.find(s=>s.id===sid);
+      if(sec && sec.tasks.length && !confirm('Eliminar la sección “'+sec.title+'” y sus '+sec.tasks.length+' tarea(s)?')) return;
+      state.sections=state.sections.filter(s=>s.id!==sid); save();
+      secEl.classList.add('leaving'); secEl.addEventListener('animationend',()=>{ if(!state.sections.length) render(); else { secEl.remove(); stats(); } },{once:true}); }
+  });
+
+  secBox.addEventListener('blur', e=>{
+    if(e.target.classList.contains('txt')){
+      const li=e.target.closest('.task'); const r=locate(li.dataset.id); if(!r) return;
+      const v=e.target.textContent.trim();
+      if(!v){ r.sec.tasks=r.sec.tasks.filter(x=>x.id!==r.task.id); save(); li.classList.add('leaving'); li.addEventListener('animationend',()=>{ li.remove(); stats(); },{once:true}); return; }
+      if(v!==r.task.text){ r.task.text=v; save(); }
+    }
+    if(e.target.classList.contains('sec-title')){
+      const sid=e.target.closest('.sec').dataset.id; const sec=state.sections.find(s=>s.id===sid); if(!sec) return;
+      const v=e.target.textContent.trim()||'Sección'; if(v!==sec.title){ sec.title=v; save(); } e.target.textContent=v;
+    }
+  }, true);
+
+  $('#newSec').addEventListener('click', ()=>{ const s={id:uid('s'),title:'Nueva sección',tasks:[]}; state.sections.push(s); save(); focusAfter={t:'secTitle',id:s.id}; render(); });
+
+  const titleEl=$('#title'); titleEl.textContent=state.title||'Sin título';
+  titleEl.addEventListener('blur', ()=>{ state.title=titleEl.textContent.trim()||'Sin título'; titleEl.textContent=state.title; save(); });
+  titleEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); titleEl.blur(); } });
+
+  $('#clearBtn').addEventListener('click', ()=>{ state.sections.forEach(s=>s.tasks=s.tasks.filter(t=>!t.done)); save(); render(); toast('Completadas eliminadas'); });
+
+  $('#copyBtn').addEventListener('click', ()=>{
+    let md='# '+(state.title||'TODO')+'\n';
+    state.sections.forEach(s=>{ md+='\n## '+s.title+'\n'+s.tasks.map(t=>'- ['+(t.done?'x':' ')+'] '+t.text).join('\n')+'\n'; });
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(md).then(()=>toast('Copiado como Markdown'),()=>toast('No se pudo copiar'));
+    else toast('No se pudo copiar');
+  });
+
+  let tt; function toast(m){ const el=$('#toast'); el.textContent=m; el.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('show'),1600); }
+
+  render();
+})();
+</script>
+
+</body>
+</html>

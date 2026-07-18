@@ -45,7 +45,7 @@
 /* Lockup: "Coffee" en primer plano (negro en claro) y "IA" en naranja, igual que
    en el estado vacío y que .cs-agent-coffee / .cs-agent-suffix de visor.css. */
 .cia-title {
-    font-size: 17px;
+    font-size: 22px;
     font-weight: 800;
     letter-spacing: -.02em;
     line-height: 1;
@@ -63,7 +63,7 @@
     color: var(--vsr-text);
 }
 /* Especificidad por encima de `.cs-brand-mark.cs-brand-lg svg` (28px) de visor.css. */
-.cia-logo .cs-brand-mark.cs-brand-lg svg { width: 32px; height: 32px; }
+.cia-logo .cs-brand-mark.cs-brand-lg svg { width: 44px; height: 44px; }
 
 .cia-header-right { display: flex; align-items: center; gap: 9px; margin-left: auto; }
 .cia-header-toggle { display: none; }

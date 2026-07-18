@@ -150,7 +150,7 @@ class Cierre {
                 if (res.status === 200) {
                     Swal.fire({ title: 'Cierre realizado', text: res.message, icon: 'success', background: '#1F2A37', color: '#fff', confirmButtonColor: '#2563eb' });
                     dailyClosure = { is_closed: true, closure_id: res.closure_id };
-                    await this.loadClosedView(date, subsidiariesId);
+                    await app.loadShifts();
                 } else {
                     Swal.fire({ title: 'Error', text: res.message || 'Error al realizar el cierre', icon: 'error', background: '#1F2A37', color: '#fff' });
                     this.resetCierreView();

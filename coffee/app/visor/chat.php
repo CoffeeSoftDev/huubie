@@ -235,6 +235,14 @@
                     <span id="chatContextInfo" class="chat-context-info"></span>
                     <span class="chat-spacer"></span>
                     <span id="chatStatusInfo" class="chat-status">Listo</span>
+                    <select id="chatEffortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
+                        <option value="">Esfuerzo: Auto</option>
+                        <option value="off">Esfuerzo: Rapido (sin razonar)</option>
+                        <option value="low">Esfuerzo: Bajo</option>
+                        <option value="medium">Esfuerzo: Medio</option>
+                        <option value="high">Esfuerzo: Alto</option>
+                        <option value="max">Esfuerzo: Maximo</option>
+                    </select>
                     <select id="chatModelSelect" class="ia-model-pill" title="Modelo activo"></select>
                 </div>
             </div>

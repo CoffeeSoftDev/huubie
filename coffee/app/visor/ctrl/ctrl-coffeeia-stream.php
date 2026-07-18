@@ -47,6 +47,7 @@ if (!is_array($body)) {
 
 $ctx         = coffeeia_build_context($body);
 $model       = $ctx['model'];
+$effort      = $ctx['effort'] ?? '';   // esfuerzo de razonamiento elegido en la UI
 $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
@@ -87,6 +88,7 @@ $hybridRounds = $isOR ? ($canvasMode ? 12 : 8)  : ($canvasMode ? 16 : 12);
 if ($dbSchema && $fsRoot) {
     try {
         $client = llm_client_for($model);
+        if ($effort !== '') $client->setThink($effort);
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
@@ -210,6 +212,7 @@ if ($dbSchema && !$fsRoot) {
 if ($fsRoot && !$dbSchema) {
     try {
         $client = llm_client_for($model);
+        if ($effort !== '') $client->setThink($effort);
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
@@ -256,6 +259,7 @@ if ($fsRoot && !$dbSchema) {
 
 try {
     $client = llm_client_for($model);
+    if ($effort !== '') $client->setThink($effort);
     if (!method_exists($client, 'chatStream')) {
         throw new Exception('El proveedor no soporta streaming.');
     }

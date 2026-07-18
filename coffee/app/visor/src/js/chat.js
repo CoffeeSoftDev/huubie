@@ -85,6 +85,7 @@ function chatLoadSettings() {
         const s = JSON.parse(localStorage.getItem('chat:settings:v1') || '{}');
         chat.agentKey   = s.agentKey || CHAT_DEFAULT_AGENT;
         chat.model      = s.model || '';
+        chat.effort     = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : '';
         chat.uiTheme    = s.uiTheme || 'dark';
         chat.canvasMode = !!s.canvasMode;
         chat.graphMode  = CHAT_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
@@ -97,6 +98,7 @@ function chatSaveSettings() {
     localStorage.setItem('chat:settings:v1', JSON.stringify({
         agentKey: chat.agentKey,
         model: chat.model,
+        effort: chat.effort,
         uiTheme: chat.uiTheme,
         canvasMode: chat.canvasMode,
         graphMode: chat.graphMode,
@@ -148,6 +150,7 @@ function chatPopulateModelSelect() {
 function chatBind() {
     $('#chatAgentSelect').on('change', e => chatApplyAgent(e.target.value, false));
     $('#chatModelSelect').on('change', e => { chat.model = e.target.value || ''; chatSaveSettings(); chatWarnModelTools(); });
+    $('#chatEffortSelect').val(chat.effort || '').on('change', e => { chat.effort = e.target.value || ''; chatSaveSettings(); });
     $('#chatThemeToggle').on('click', () => chatApplyUiTheme(chat.uiTheme === 'dark' ? 'light' : 'dark'));
 
     // Modo lienzo (HTML renderizable).
@@ -1047,6 +1050,7 @@ async function chatSubmit() {
             }),
             systemOverride: chat.systemOverride,
             model: chat.model || '',
+            effort: chat.effort || '',
             canvasMode: !!chat.canvasMode,
             graphMode: chat.graphMode || '',
             dbConnect:     (chat.dbToolsOn && chat.activeDb) || '',     // base conectada (conexión pegajosa)

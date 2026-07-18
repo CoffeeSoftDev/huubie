@@ -657,7 +657,15 @@ class Pedidos extends MPedidos{
             if (!is_array($payments)) {
                 $payments = [];
             }
-            
+
+            // Cada pago se marca "editable": solo un administrador y solo si el corte
+            // que cubre ese pago sigue ABIERTO (turno no cerrado). El frontend usa
+            // esta bandera para mostrar el lapiz de "cambiar metodo" solo donde aplica.
+            $isAdmin = (($_SESSION['ROLID'] ?? 0) == 1);
+            foreach ($payments as $i => $p) {
+                $payments[$i]['editable'] = $isAdmin && !$this->getClosedShiftForPayment([$p['id']]);
+            }
+
             $data = [
                 
                 'order' => array_merge($orderData, [
@@ -900,6 +908,68 @@ class Pedidos extends MPedidos{
         return [
             'row' => $__row,
             $data
+        ];
+    }
+
+    // Editar el metodo de un pago (Efectivo/Tarjeta/Transferencia) desde el visor.
+    // Reglas (revalidadas aqui, no solo en el front):
+    //   - Solo administrador (ROLID 1).
+    //   - Solo si el corte que cubre ese pago sigue ABIERTO; si el turno ya se
+    //     cerro, se bloquea para no descuadrar el desglose (shift_payment/cash_shift).
+    function editPaymentMethod() {
+        if (($_SESSION['ROLID'] ?? 0) != 1) {
+            return ['status' => 403, 'message' => 'Solo un administrador puede editar el método de un pago.'];
+        }
+
+        $payId    = $_POST['idPay'] ?? null;
+        $methodId = intval($_POST['method_pay_id'] ?? 0);
+        $orderId  = $_POST['id'] ?? null;
+
+        if (empty($payId) || !in_array($methodId, [1, 2, 3], true)) {
+            return ['status' => 400, 'message' => 'Datos incompletos o método inválido.'];
+        }
+
+        $pay = $this->getOrderPaymentById([$payId]);
+        if (!$pay) {
+            return ['status' => 404, 'message' => 'No se encontró el pago.'];
+        }
+        if (empty($orderId)) $orderId = $pay['order_id'];
+
+        // Sin cambios reales: mismo metodo.
+        if (intval($pay['method_pay_id']) === $methodId) {
+            return [
+                'status'  => 200,
+                'message' => 'El pago ya estaba en ese método.',
+                'data'    => $this->getListPayment([$orderId])
+            ];
+        }
+
+        // Candado: el corte de ese pago ya se cerro.
+        if ($this->getClosedShiftForPayment([$payId])) {
+            return ['status' => 409, 'message' => 'El corte de ese pago ya fue cerrado; no se puede cambiar el método.'];
+        }
+
+        // Actualizar el metodo (el ultimo campo, 'id', es el WHERE).
+        $values = $this->util->sql([
+            'method_pay_id' => $methodId,
+            'id'            => $payId
+        ], 1);
+        $ok = $this->updatePaymentMethod($values);
+
+        if (!$ok) {
+            return ['status' => 500, 'message' => 'No se pudo actualizar el método del pago.'];
+        }
+
+        // Bitacora del pedido.
+        $newName = $this->getMethodPay([$methodId]) ?? 'otro método';
+        $msg = "Se cambió el método de un pago de " . evaluar($pay['pay'])
+             . " de {$pay['method_pay']} a {$newName}";
+        $this->logHistory($msg, 'payment', 'Editar método de pago');
+
+        return [
+            'status'  => 200,
+            'message' => 'Método de pago actualizado.',
+            'data'    => $this->getListPayment([$orderId])
         ];
     }
 

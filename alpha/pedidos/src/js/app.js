@@ -576,7 +576,7 @@ class App extends Templates {
 
         // render.
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
-        $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
+        $('#subsidiaryFilter').removeClass('col-12 col-lg-3').addClass('w-full');
         $('#subsidiaryFilter').prev('label').remove();
 
         // Candado en el submit de "Guardar Pedido" (fase de captura: corre antes del
@@ -733,7 +733,7 @@ class App extends Templates {
         });
 
         $('#radioDeliveryType').removeClass('col-12 col-lg-6');
-        $('#subsidiaryFilter').removeClass('col-12 offset-10 col-lg-2 mb-1');
+        $('#subsidiaryFilter').removeClass('col-12 col-lg-3').addClass('w-full');
         $('#subsidiaryFilter').prev('label').remove();
 
         // En edición la sucursal del pedido es fija: mostrar la real y bloquear el cambio.
@@ -3081,6 +3081,49 @@ class App extends Templates {
         this.loadShifts();
     }
 
+    // -- renderPendingDaysAlert --
+    renderPendingDaysAlert(pendingDays, currentDate) {
+        const closeDayAlert = $('#closeDayAlert');
+        if (pendingDays.length > 0) {
+            const dayItems = pendingDays.map(d => {
+                const isViewing = d.date === currentDate;
+                const label = moment(d.date).locale('es').format('DD/MM/YYYY');
+                const weekday = moment(d.date).locale('es').format('dddd');
+                const openTag = d.open_shifts > 0
+                    ? `<span class="text-[10px] font-semibold text-orange-300">${d.open_shifts} turno(s) abierto(s)</span>`
+                    : `<span class="text-[10px] font-semibold text-orange-300/70">${d.shifts} turno(s)</span>`;
+                return `
+                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors ${isViewing ? 'bg-orange-500/20 ring-1 ring-orange-500/40' : 'bg-slate-800/40 hover:bg-slate-800/70'}" onclick="app.goToPendingDay('${d.date}')">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-bold text-white leading-none capitalize">${weekday} ${label}</span>
+                            ${openTag}
+                        </div>
+                        <span class="inline-flex items-center gap-1 text-orange-400">
+                            ${lucideIcon('chevron-right', 'w-4 h-4')}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            closeDayAlert.html(`
+                <div class="rounded-lg border border-orange-500/40 bg-orange-500/10 p-2.5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="relative inline-flex items-center justify-center w-[18px] h-[18px]">
+                            <span class="relative inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-orange-500 text-white">
+                                ${lucideIcon('alert-triangle', 'w-3 h-3')}
+                            </span>
+                        </span>
+                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Días sin cerrar</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-tight mb-2">Cierra estas fechas antes de operar hoy.</p>
+                    <div class="space-y-1.5">${dayItems}</div>
+                </div>
+            `).removeClass('hidden');
+        } else {
+            closeDayAlert.addClass('hidden').html('');
+        }
+    }
+
     async loadShifts() {
         let rangePicker     = getDataRangePicker("calendarDailyClose");
         let date            = rangePicker.fi;
@@ -3141,7 +3184,7 @@ class App extends Templates {
                     <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-800/40 rounded-md cursor-pointer hover:bg-slate-800/70 transition-colors" onclick="app.selectOpenShift('${s.id}', '${moment(s.opened_at).format('YYYY-MM-DD')}')">
                         <div class="flex flex-col gap-0.5">
                             <div class="flex items-baseline gap-1">
-                                <span class="text-sm font-bold text-white leading-none">${time}</span>
+                                <span class="text-xs font-bold text-white leading-none">${time}</span>
                                 <span class="text-[10px] font-semibold text-slate-400">${meridiem}</span>
                             </div>
                             <div class="flex items-center gap-1 text-[10px] text-slate-400">
@@ -3217,45 +3260,7 @@ class App extends Templates {
         // Nota "Día sin cerrar": solo si hay una fecha PASADA (u otra) con turnos y sin
         // cierre diario. NO aplica a hoy (hoy todavía se opera). Cada fila lleva a esa
         // fecha para cerrarla. Mientras exista un pendiente se bloquea operar hoy.
-        const closeDayAlert = $('#closeDayAlert');
-        if (pendingDays.length > 0) {
-            const dayItems = pendingDays.map(d => {
-                const isViewing = d.date === date;
-                const label = moment(d.date).locale('es').format('DD/MM/YYYY');
-                const weekday = moment(d.date).locale('es').format('dddd');
-                const openTag = d.open_shifts > 0
-                    ? `<span class="text-[10px] font-semibold text-orange-300">${d.open_shifts} turno(s) abierto(s)</span>`
-                    : `<span class="text-[10px] font-semibold text-orange-300/70">${d.shifts} turno(s)</span>`;
-                return `
-                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors ${isViewing ? 'bg-orange-500/20 ring-1 ring-orange-500/40' : 'bg-slate-800/40 hover:bg-slate-800/70'}" onclick="app.goToPendingDay('${d.date}')">
-                        <div class="flex flex-col gap-0.5">
-                            <span class="text-sm font-bold text-white leading-none capitalize">${weekday} ${label}</span>
-                            ${openTag}
-                        </div>
-                        <span class="inline-flex items-center gap-1 text-orange-400">
-                            ${lucideIcon('chevron-right', 'w-4 h-4')}
-                        </span>
-                    </div>
-                `;
-            }).join('');
-
-            closeDayAlert.html(`
-                <div class="rounded-lg border border-orange-500/40 bg-orange-500/10 p-2.5">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="relative inline-flex items-center justify-center w-[18px] h-[18px]">
-                            <span class="relative inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-orange-500 text-white">
-                                ${lucideIcon('alert-triangle', 'w-3 h-3')}
-                            </span>
-                        </span>
-                        <span class="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Días sin cerrar</span>
-                    </div>
-                    <p class="text-[11px] text-slate-300 leading-tight mb-2">Cierra estas fechas antes de operar hoy.</p>
-                    <div class="space-y-1.5">${dayItems}</div>
-                </div>
-            `).removeClass('hidden');
-        } else {
-            closeDayAlert.addClass('hidden').html('');
-        }
+        this.renderPendingDaysAlert(pendingDays, date);
 
         // Refuerza el bloqueo visual de "operar hoy" (el flag se fijó arriba). En la
         // propia fecha pendiente (isToday=false) no se bloquea, para poder cerrarla.

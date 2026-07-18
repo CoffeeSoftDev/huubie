@@ -3728,6 +3728,7 @@ const COFFEEIA_LAYOUT_KEY = 'visor:coffeeia:layoutMode';
 const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
 const COFFEEIA_EXCALI_KEY = 'visor:coffeeia:excaliMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
+const COFFEEIA_EFFORT_KEY = 'visor:coffeeia:effort';   // esfuerzo de razonamiento
 
 // Tipos de grafica que el modo grafica puede instruir a la IA a generar.
 const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
@@ -3813,6 +3814,7 @@ class CoffeeIA {
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
         this.model         = this._loadModel();
+        this.effort        = this._loadEffort();   // '' (auto) | off | low | medium | high | max
         // "Stick to bottom": el auto-scroll durante el streaming solo se mantiene
         // si el usuario esta pegado al fondo. Si sube a leer, se pausa (ver _scrollBottom).
         this._stickBottom  = true;
@@ -3823,6 +3825,7 @@ class CoffeeIA {
         this._applyLayoutModeUI();
         this._applyGraphModeUI();
         this._applyModelUI();
+        this._applyEffortUI();
     }
 
     _loadModel() {
@@ -3844,6 +3847,25 @@ class CoffeeIA {
             this.model = $sel.val() || '';
             this._saveModel();
         }
+    }
+
+    /* ── Esfuerzo de razonamiento (parametro 'think' de Ollama / 'reasoning' de
+     *    OpenRouter). '' = Auto: no se envia, el modelo usa su default. ────────── */
+
+    _loadEffort() {
+        try { return localStorage.getItem(COFFEEIA_EFFORT_KEY) || ''; }
+        catch (e) { return ''; }
+    }
+
+    _saveEffort() {
+        try { localStorage.setItem(COFFEEIA_EFFORT_KEY, this.effort || ''); }
+        catch (e) {}
+    }
+
+    _applyEffortUI() {
+        const $sel = $('#iaEffortSelect');
+        if (!$sel.length) return;
+        $sel.val(this.effort || '');
     }
 
     _loadEditorMode() {
@@ -4143,6 +4165,11 @@ class CoffeeIA {
         $('#iaModelSelect').on('change', (e) => {
             this.model = $(e.currentTarget).val() || '';
             this._saveModel();
+        });
+
+        $('#iaEffortSelect').on('change', (e) => {
+            this.effort = $(e.currentTarget).val() || '';
+            this._saveEffort();
         });
 
         $('#iaSendBtn').on('click', () => { if (this.isBusy) this._stop(); else this._submit(); });
@@ -4550,7 +4577,8 @@ class CoffeeIA {
             dbConnect:          this.activeDb || '',       // base conectada (conexion pegajosa)
             folderConnect:      this.activeFolder || '',   // carpeta conectada (conexion pegajosa)
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
-            model:              this.model || ''
+            model:              this.model || '',
+            effort:             this.effort || ''   // esfuerzo de razonamiento (think)
         };
 
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---

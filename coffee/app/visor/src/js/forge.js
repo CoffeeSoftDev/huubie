@@ -264,6 +264,7 @@ function pgLoadSettings() {
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;
         if (typeof s.model === 'string')         pg.model    = s.model;
+        if (['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1) pg.effort = s.effort;
         if (typeof s.canvasMode === 'boolean')   pg.canvasMode = s.canvasMode;
         if (typeof s.liveContext === 'boolean')  pg.liveContext = s.liveContext;
         if (typeof s.project === 'string')       pg.project  = s.project;
@@ -276,7 +277,7 @@ function pgLoadSettings() {
 function pgSaveSettings() {
     try {
         localStorage.setItem(PG_STORE_KEY, JSON.stringify({
-            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model,
+            agentKey: pg.agentKey, theme: pg.theme, uiTheme: pg.uiTheme, model: pg.model, effort: pg.effort,
             canvasMode: pg.canvasMode, liveContext: pg.liveContext, splitW: pg.splitW, zoom: pg.zoom, viewport: pg.viewport, project: pg.project,
             threadSlug: pg.threadSlug || '', threadName: pg.threadName || '', sandboxTab: pg.sandboxTab || 'preview',
             knowledge: Array.from(pg.knowledge)
@@ -315,6 +316,7 @@ async function pgLoadLibrary() {
     $('#pgThemeSelect').val(pg.theme);
     if (pg.model) $('#pgModelSelect').val(pg.model);
     else pg.model = $('#pgModelSelect').val() || '';
+    $('#pgEffortSelect').val(pg.effort || '');
 
     pgRenderContextList();
 }
@@ -361,6 +363,7 @@ function pgBind() {
     $('#pgSandboxTheme').text(PG_THEMES[pg.theme]?.label || pg.theme);
 
     $('#pgModelSelect').on('change', e => { pg.model = e.target.value || ''; pgSaveSettings(); });
+    $('#pgEffortSelect').on('change', e => { pg.effort = e.target.value || ''; pgSaveSettings(); });
 
     $('#pgThemeToggle').on('click', () => {
         pgApplyUiTheme(pg.uiTheme === 'dark' ? 'light' : 'dark');
@@ -885,7 +888,8 @@ async function pgSend(text, images, docs) {
     Object.assign(payload, {
         pinnedFiles:    pinned,
         canvasMode:     !!pg.canvasMode,
-        model:          pg.model || ''
+        model:          pg.model || '',
+        effort:         pg.effort || ''
     });
 
     let stream = null, received = '', meta = {}, firstToken = false, streamErr = null;
@@ -3156,6 +3160,7 @@ function fgApplySession(s) {
     pg.theme = s.theme; $('#pgThemeSelect').val(s.theme);
     $('#pgSandboxTheme').text((PG_THEMES[s.theme] || {}).label || s.theme);
     pg.model = s.model || ''; if (s.model) $('#pgModelSelect').val(s.model);
+    pg.effort = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : ''; $('#pgEffortSelect').val(pg.effort);
     pg.knowledge = new Set(s.knowledge || []);
     pg.canvasMode = !!s.canvasMode; pgApplyCanvasUI();
 
