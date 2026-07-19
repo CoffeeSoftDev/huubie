@@ -123,6 +123,7 @@ if ($dbSchema && $fsRoot) {
             'db'                => $dbSchema,
             'fs'                => $fsRoot,
             'tool_rounds'       => $r['rounds'],
+            'truncated'         => $r['truncated'] ?? false,
             // rounds<=1 = el modelo respondio a la primera SIN invocar herramienta alguna.
             'tools_fallback'    => ($r['rounds'] <= 1 && $dbMode === 'data')
                                     ? 'El modelo respondió sin consultar la base ni la carpeta: los datos del template pueden no ser reales.'
@@ -186,6 +187,7 @@ if ($dbSchema && !$fsRoot) {
             'model'             => $model ?: '',
             'db'                => $dbSchema,
             'tool_rounds'       => $r['rounds'],
+            'truncated'         => $r['truncated'] ?? false,
             // rounds<=1 = el modelo respondio a la primera SIN ejecutar ningun SELECT.
             'tools_fallback'    => ($r['rounds'] <= 1 && $dbMode === 'data')
                                     ? 'El modelo respondió sin ejecutar consultas a la base: los datos del template pueden no ser reales.'
@@ -247,6 +249,7 @@ if ($fsRoot && !$dbSchema) {
             'model'             => $model ?: '',
             'fs'                => $fsRoot,
             'tool_rounds'       => $r['rounds'],
+            'truncated'         => $r['truncated'] ?? false,
         ]);
         exit;
     } catch (Throwable $e) {
@@ -281,6 +284,13 @@ try {
     $costUsd    = isset($usage['cost']) ? (float) $usage['cost'] : null;
     $credits    = $tokensUsed > 0 ? round($tokensUsed / 1000, 4) : 0;
 
+    // Corte por LIMITE DE TOKENS: Ollama lo marca en done_reason='length', OpenRouter
+    // en finish_reason='length'. Es la causa de "template grande: el HTML se pinta pero
+    // el <script> queda a la mitad y no reacciona". El frontend usa este flag para
+    // auto-continuar la generacion hasta cerrar el template.
+    $doneReason = $meta['done_reason'] ?? ($meta['finish_reason'] ?? '');
+    $truncated  = ($doneReason === 'length');
+
     $send('done', [
         'ok'                => true,
         'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
@@ -293,6 +303,7 @@ try {
         'db'                => $dbSchema,
         'fs'                => $fsRoot,
         'tools_fallback'    => $toolsFallback,
+        'truncated'         => $truncated,
     ]);
 } catch (Throwable $e) {
     $send('error', ['error' => "Error al conectar con $provider: " . $e->getMessage()]);

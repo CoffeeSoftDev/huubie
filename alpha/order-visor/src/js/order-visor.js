@@ -774,54 +774,60 @@ class OrderVisor extends Templates {
         `);
     }
 
-    // Cambiar el metodo de un pago desde el panel (solo admin y solo si el corte de
-    // ese pago sigue abierto; el backend revalida ambas cosas). Abre un selector,
-    // guarda y refresca el historial de pagos + la bitacora con los datos nuevos.
-    async editPaymentMethodPrompt(payId, orderId, currentMethodId) {
-        const { value: methodId } = await Swal.fire({
+    // Cambiar el metodo de un pago desde el panel, con nuestro modal propio Huubie
+    // (createCoffeeModalForm, el mismo de apertura/cierre de turno). Solo admin y solo
+    // si el corte de ese pago sigue abierto; el backend revalida ambas cosas. Al
+    // confirmar envia opc:editPaymentMethod y refresca el historial de pagos + bitacora.
+    editPaymentMethodPrompt(payId, orderId, currentMethodId) {
+        createCoffeeModalForm({
+            id: "frmEditPayMethod",
             title: "Cambiar método de pago",
-            input: "select",
-            inputOptions: { 1: "Efectivo", 2: "Tarjeta", 3: "Transferencia" },
-            inputValue: String(currentMethodId),
-            showCancelButton: true,
-            confirmButtonText: "Guardar",
-            cancelButtonText: "Cancelar",
-            confirmButtonColor: "#2563eb",
-            background: "#1F2A37",
-            color: "#e5e7eb"
-        });
-        if (!methodId || String(methodId) === String(currentMethodId)) return;
+            iconSvg: lucideIcon("banknote", "w-5 h-5"),
+            iconBg: "bg-blue-600",
+            theme: "dark",
+            width: 380,
+            confirmText: "Guardar",
+            confirmBg: "bg-blue-600 hover:bg-blue-700",
+            cancelText: "Cancelar",
+            json: [
+                {
+                    opc: "select",
+                    id: "method_pay_id",
+                    lbl: "Método de pago",
+                    value: currentMethodId,
+                    required: true,
+                    data: [
+                        { id: 1, valor: "Efectivo" },
+                        { id: 2, valor: "Tarjeta" },
+                        { id: 3, valor: "Transferencia" }
+                    ]
+                }
+            ],
+            onConfirm: async (data, m) => {
+                m.el.find(".cf-confirm").prop("disabled", true).addClass("opacity-60 cursor-not-allowed");
 
-        const res = await useFetch({
-            url: API_PEDIDOS,
-            data: { opc: "editPaymentMethod", idPay: payId, method_pay_id: methodId, id: orderId }
-        });
+                const res = await useFetch({
+                    url: this._link,
+                    data: { opc: "editPaymentMethod", idPay: payId, id: orderId, method_pay_id: data.method_pay_id }
+                });
+                m.close();
 
-        if (!res || res.status !== 200) {
-            Swal.fire({
-                icon: "error",
-                title: "No se pudo cambiar",
-                text: (res && res.message) || "Error al actualizar el pago.",
-                background: "#1F2A37",
-                color: "#e5e7eb"
-            });
-            return;
-        }
-
-        // Refrescar con datos ya actualizados (getOrderDetails recalcula editable).
-        const det = await useFetch({ url: API_PEDIDOS, data: { opc: "getOrderDetails", id: orderId } });
-        if (det && det.status === 200) {
-            this.renderPaymentHistory(det.data);
-            this.renderOrderHistory(orderId);
-        }
-
-        Swal.fire({
-            icon: "success",
-            title: "Método actualizado",
-            timer: 1400,
-            showConfirmButton: false,
-            background: "#1F2A37",
-            color: "#e5e7eb"
+                if (!res || res.status !== 200) {
+                    Swal.fire({
+                        icon: "warning",
+                        title: "No se pudo cambiar",
+                        text: (res && res.message) || "Error al actualizar el pago.",
+                        background: "#1F2A37", color: "#e5e7eb", confirmButtonColor: "#2563eb"
+                    });
+                    return;
+                }
+                // Refrescar el panel de pagos + la bitacora con los datos ya actualizados.
+                const det = await useFetch({ url: this._link, data: { opc: "getOrderDetails", id: orderId } });
+                if (det && det.status === 200) {
+                    this.renderPaymentHistory(det.data);
+                    this.renderOrderHistory(orderId);
+                }
+            }
         });
     }
 

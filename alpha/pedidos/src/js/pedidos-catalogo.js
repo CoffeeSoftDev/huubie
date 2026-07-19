@@ -243,30 +243,33 @@ class Pos extends Templates {
         const opts = Object.assign(defaults, options);
 
         const isDark = opts.theme === "dark";
-        const cardBg = isDark ? "bg-[#111827]" : "bg-white";
-        const borderColor = isDark ? "border-gray-700" : "border-gray-300";
+        const cardBg = isDark ? "bg-[#1F2A37]" : "bg-white";
+        const borderColor = isDark ? "border-[rgba(55,65,81,0.5)]" : "border-gray-300";
+        const imageBg = isDark ? "bg-[#141d2b]" : "bg-gray-100";
         const textColor = isDark ? "text-white" : "text-gray-800";
-        const priceColor = isDark ? "text-blue-300" : "text-blue-600";
-        const buttonColor = "bg-blue-600 hover:bg-blue-700";
+        const priceColor = isDark ? "text-[#76A9FA]" : "text-blue-600";
 
         const container = $(`#${opts.parent}`).empty();
         const baseUrl = "https://huubie.com.mx/";
 
         opts.data.forEach(item => {
+            // Card estilo POS (ref. app/inventarios/templates/pos-main.html): cabecera
+            // de imagen + cuerpo con nombre, precio y accion. Se conservan la clase
+            // .card y el <h3> del nombre porque searchFilter() los usa para filtrar.
             const card = $("<div>", {
-                class: `${cardBg} border ${borderColor} rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all duration-200 card`,
+                class: `card ${cardBg} border ${borderColor} rounded-lg overflow-hidden cursor-pointer transition-all duration-150 hover:border-[#7C3AED] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(124,58,237,0.12)] active:scale-[0.97]`,
                 click: () => opts.onClick(item)
             });
 
             const imageWrap = $("<div>", {
-                class: "bg-gray-800 h-28 flex items-center justify-center"
+                class: `h-24 flex items-center justify-center relative ${imageBg}`
             });
 
             if (item.image && item.image.trim() !== "") {
                 imageWrap.append(
                     $("<img>", {
                         src: baseUrl + item.image,
-                        alt: item.name,
+                        alt: item.name ?? item.valor,
                         class: "object-cover h-full w-full"
                     })
                 );
@@ -278,19 +281,20 @@ class Pos extends Templates {
                 );
             }
 
-            const body = $("<div>", { class: "p-2" }).append(
+            const body = $("<div>", { class: "p-2.5" }).append(
                 $("<h3>", {
-                    class: `${textColor} text-sm font-medium truncate`,
+                    class: `${textColor} text-[11px] font-semibold truncate leading-tight`,
                     text: item.name ?? item.valor
                 }),
-                $("<p>", {
-                    class: `${priceColor} font-semibold text-sm mt-1`,
-                    text: `${formatPrice(item.price)}`
-                }),
-                $("<div>", { class: "text-right mt-1" }).append(
+                $("<div>", { class: "flex items-center justify-between mt-1" }).append(
+                    $("<p>", {
+                        class: `${priceColor} text-xs font-bold`,
+                        text: `${formatPrice(item.price)}`
+                    }),
                     $("<button>", {
-                        class: `inline-block ${buttonColor} text-white rounded px-2 py-1 text-xs`,
-                        html: `<i class="icon-eye"></i>`,
+                        class: "w-5 h-5 rounded bg-[#1C64F2] hover:bg-[#1A56DB] flex items-center justify-center flex-shrink-0",
+                        title: "Ver detalles",
+                        html: `<i class="icon-eye text-white text-[10px]"></i>`,
                         click: (e) => {
                             e.stopPropagation();
                             this.showProductDetails(item.id);
@@ -726,17 +730,18 @@ class Pos extends Templates {
             onFinish: () => { },
             onBuildCake: () => { armarPastel(); },
             payments: [],
-            totalPaid: 0
+            totalPaid: 0,
+            isEdit: false
         };
 
         
         const opts = Object.assign({}, defaults, options);
         console.log(opts.data)
 
-        // Lineas "bloqueadas": en edicion de pedido, las lineas originales no se
-        // pueden reducir, incrementar ni eliminar (se ocultan sus controles).
-        const isLocked = (item) => opts.getMinQuantity ? opts.getMinQuantity(item.id) !== null : false;
-        const hasLockedLines = (opts.data || []).some(isLocked);
+        // Lineas "bloqueadas": en edicion, un producto solo es editable si se agrego
+        // HOY (item.is_today lo marca el backend). Las lineas de dias anteriores van
+        // de solo lectura: sin −/+, sin editar y sin eliminar.
+        const isLocked = (item) => opts.isEdit && item.is_today === false;
 
         const isDark = opts.theme === "dark";
         const textColor = isDark ? "text-white" : "text-gray-800";
@@ -759,7 +764,7 @@ class Pos extends Templates {
                     html: '<i class="icon-user-1"></i> ' + opts.customName || "Cliente no definido"
                 },)
             ),
-            hasLockedLines ? null : $("<button>", {
+            opts.isEdit ? null : $("<button>", {
                 id: "clearOrder",
                 class: "text-red-400 border border-[#C53030] px-2 py-1 rounded hover:bg-red-700",
                 html: "🗑 Limpiar"
@@ -929,7 +934,7 @@ class Pos extends Templates {
                 });
             }
 
-            // Linea original en edicion: cantidad fija, solo input de lectura (sin −/+).
+            // Linea de un dia anterior: cantidad fija, solo input de lectura (sin −/+).
             const buttons = locked ? [quantityInput] : [
                 $("<button>", {
                     class: "bg-gray-700 text-white rounded px-2",
@@ -956,6 +961,8 @@ class Pos extends Templates {
                 })
             ];
 
+            // Editar (dedicatoria / observaciones): disponible tambien en lineas
+            // bloqueadas; ahi lo unico que queda fijo es la cantidad.
             buttons.push(
                 $("<button>", {
                     class: "text-blue-400 hover:text-blue-600",
@@ -971,7 +978,7 @@ class Pos extends Templates {
                 })
             );
 
-            // Las lineas originales del pedido no se eliminan en edicion.
+            // Eliminar: solo en lineas de hoy (las de dias anteriores no se borran).
             if (!locked) {
                 buttons.push(
                     $("<button>", {
@@ -1242,13 +1249,6 @@ class CatalogProduct extends Pos {
         this.showOrder(pos.list || [])
     }
 
-    // Cantidad minima permitida para una linea en edicion (null = sin restriccion:
-    // linea agregada durante la edicion o modo creacion).
-    getMinQuantity(id) {
-        if (!this.layoutEdit || !this.originalQuantities) return null;
-        return this.originalQuantities.get(id) ?? null;
-    }
-
     showOrder(list) {
 
         this.orderPanelComponent({
@@ -1273,9 +1273,7 @@ class CatalogProduct extends Pos {
             onQuanty: (id, action, newQuantity) => {
                 this.quantityProduct(id, newQuantity);
             },
-            getMinQuantity: (id) => {
-                return this.getMinQuantity(id);
-            },
+            isEdit: this.layoutEdit,
             onPrint: () => {
                 this.printOrder(idFolio);
             },

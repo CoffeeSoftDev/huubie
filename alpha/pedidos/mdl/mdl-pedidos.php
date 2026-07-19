@@ -694,6 +694,7 @@ class MPedidos extends CRUD {
                 order_package.dedication,
                 order_package.product_id,
                 order_package.custom_id,
+                order_package.date_creation,
                 order_custom.portion_qty,
 
                 -- 🔹 Descripción e imagen, solo si existe en el producto o en el personalizado
@@ -713,7 +714,13 @@ class MPedidos extends CRUD {
         foreach ($products as &$product) {
 
             $product['images'] = $this->getOrderImages([$product['id']]);
-            
+
+            // Editable solo si la linea se agrego HOY (misma zona horaria que la
+            // insercion en addProduct). Las lineas de dias anteriores se bloquean en
+            // la edicion del pedido: solo lectura, sin editar ni eliminar.
+            $product['is_today'] = !empty($product['date_creation'])
+                && substr($product['date_creation'], 0, 10) === date('Y-m-d');
+
             if (!empty($product['custom_id'])) {
 
                 $product['is_custom'] = true;

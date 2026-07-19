@@ -18,6 +18,8 @@
 
     <script src="<?=PATH_BASE?>src/plugins/jquery/jquery-3.7.0.js"></script>
     <script src="<?=PATH_BASE?>src/plugins/moment.js"></script>
+    <!-- bootbox: lo usa createModalForm de CoffeeSoft (editar método de pago). -->
+    <script src="<?=PATH_BASE?>src/plugins/bootbox.min.js"></script>
 
     <script src="<?=PATH_BASE?>src/js/complementos.js"></script>
     <script src="<?=PATH_BASE?>src/js/plugins.js?t=<?php echo time(); ?>"></script>

@@ -49,7 +49,9 @@
     margin-right: -4px;             /* acerca el grano al texto (compensa el gap del título) */
     color: var(--vsr-text);         /* grano en negro / primer plano */
 }
-.pg-brand-mark svg { width: 20px; height: 20px; display: block; }
+.pg-brand-mark svg { width: 26px; height: 26px; display: block; }
+
+#pgChatAgentName { font-size: 17px; }
 
 .pg-agent-coffee { color: var(--vsr-text); }     /* "Coffee" en negro */
 .pg-agent-suffix { color: var(--vsr-accent); }   /* "IA" en el tono del tema */

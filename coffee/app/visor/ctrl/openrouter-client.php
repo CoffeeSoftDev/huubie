@@ -248,10 +248,11 @@ class OpenRouterClient {
             $headers[] = 'HTTP-Referer: ' . OPENROUTER_APP_REFERER;
         }
 
-        $buffer    = '';
-        $full      = '';
-        $usage     = [];
-        $modelSeen = '';
+        $buffer       = '';
+        $full         = '';
+        $usage        = [];
+        $modelSeen    = '';
+        $finishReason = '';   // 'stop' | 'length' (corte por limite de tokens) | ...
 
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => 'POST',
@@ -263,7 +264,7 @@ class OpenRouterClient {
             CURLOPT_LOW_SPEED_LIMIT => 1,
             CURLOPT_LOW_SPEED_TIME  => OPENROUTER_TIMEOUT,
             CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
-            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, $onChunk) {
+            CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, &$finishReason, $onChunk) {
                 $buffer .= $data;
                 while (($pos = strpos($buffer, "\n")) !== false) {
                     $line   = trim(substr($buffer, 0, $pos));
@@ -276,6 +277,8 @@ class OpenRouterClient {
                     if (!is_array($obj)) continue;
                     if (isset($obj['model'])) $modelSeen = $obj['model'];
                     if (isset($obj['usage']) && is_array($obj['usage'])) $usage = $obj['usage'];
+                    // finish_reason del chunk final: 'length' = corte por tope de tokens.
+                    if (!empty($obj['choices'][0]['finish_reason'])) $finishReason = $obj['choices'][0]['finish_reason'];
                     $delta  = $obj['choices'][0]['delta'] ?? [];
                     // Modelos de razonamiento exponen el pensamiento en delta.reasoning
                     // (o reasoning_content). Lo reenviamos como 'thinking'.
@@ -305,6 +308,6 @@ class OpenRouterClient {
         if ($code >= 400) {
             throw new OpenRouterException("HTTP $code");
         }
-        return ['content' => $full, 'meta' => ['model' => $modelSeen, 'usage' => $usage]];
+        return ['content' => $full, 'meta' => ['model' => $modelSeen, 'usage' => $usage, 'finish_reason' => $finishReason]];
     }
 }

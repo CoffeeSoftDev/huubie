@@ -61,6 +61,11 @@
           "id": "t9vno2um",
           "text": "en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento",
           "done": false
+        },
+        {
+          "id": "tw74jlsl",
+          "text": "Quiero ver del desgloce de los pagos si son del mismo no lo agrupes quiero ver un historial",
+          "done": false
         }
       ]
     },
@@ -76,6 +81,21 @@
         {
           "id": "t9e89xwa",
           "text": "Cuando editas un pedido, si ya existe un producto que no fue agregado hoy , se debe bloquear, si el producto es de hoy debe poder editar",
+          "done": true
+        },
+        {
+          "id": "t9l7flmp",
+          "text": "Mejorar las cards y el diseño del catalogo de productos",
+          "done": false
+        },
+        {
+          "id": "tjv4m2zj",
+          "text": "Mejora el diseño de la orden actual de pedidos",
+          "done": false
+        },
+        {
+          "id": "te556n3w",
+          "text": "Mejorar los espacios para los contenedores",
           "done": false
         }
       ]

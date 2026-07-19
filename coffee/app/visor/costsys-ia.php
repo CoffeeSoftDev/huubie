@@ -187,6 +187,14 @@
       <span class="conn-pill" id="connPill"><span class="conn-dot"></span> Ollama</span>
     </div>
     <div class="vsr-header-right">
+      <select id="effortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
+        <option value="">Auto</option>
+        <option value="off">R&aacute;pido</option>
+        <option value="low">Bajo</option>
+        <option value="medium">Medio</option>
+        <option value="high">Alto</option>
+        <option value="max">M&aacute;ximo</option>
+      </select>
       <select id="modelSelect" class="ia-model-pill" title="Modelo activo">
         <option value="">Automático (servidor)</option>
         <optgroup label="Ollama Cloud">
@@ -295,6 +303,7 @@
   const $input = document.getElementById('chatInput');
   const $sendBtn = document.getElementById('sendBtn');
   const $modelSelect = document.getElementById('modelSelect');
+  const $effortSelect = document.getElementById('effortSelect');
   const $modelHint = document.getElementById('modelHint');
   const $toast = document.getElementById('toast');
 
@@ -428,6 +437,7 @@
         messages: c.history.map(m => ({ role:m.role, content:m.content || '' })),
         systemOverride: SYSTEM_PROMPT,
         model: $modelSelect.value || '',
+        effort: $effortSelect.value || '',
         canvasMode: false, graphMode:'', currentFile:'', currentFileContent:''
       };
       const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), signal:abortCtrl.signal });

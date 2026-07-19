@@ -147,6 +147,16 @@ const PG_INTERACTIVITY_NOTE =
     + `- NO agregues un toggle de tema claro/oscuro.\n`
     + `- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable haciendo clic.`;
 
+// Auto-continuación: cuando el modelo corta la salida por límite de tokens (templates
+// grandes), el <script> queda a la mitad y el componente "se dibuja pero no reacciona".
+// Reenviamos pidiendo continuar EXACTO donde quedó y concatenamos, hasta cerrar (tope).
+const PG_MAX_CONTINUE = 3;
+const PG_CONTINUE_PROMPT =
+    'La respuesta anterior se cortó por LÍMITE DE LONGITUD a media generación. '
+    + 'CONTINÚA EXACTAMENTE desde el último carácter que enviaste, sin repetir NADA de lo ya escrito '
+    + 'y SIN reabrir el bloque ```html: emite solo la continuación literal (lo que falte del <script> '
+    + 'o del markup) hasta terminar y cerrar el componente. No agregues explicaciones ni comentarios.';
+
 const pg = {
     agents:    {},   // file -> {file, raw, fullPath, frontmatter}
     grimoires: {},   // file -> {file, raw, fullPath}
@@ -2013,27 +2023,112 @@ async function pgSend(text, images, docs) {
         pgFinish(); return;
     }
 
-    await stream.drain();
-    // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
-    // la reenviada en dbConnect), la recordamos para los siguientes turnos.
-    if (meta && meta.db) pgSetActiveDb(meta.db);
-    // Igual para la carpeta local conectada (list_dir/read_file/grep_files).
-    if (meta && meta.fs) pgSetActiveFolder(meta.fs);
-    // El backend avisa cuando el tool-calling no funcionó (modelo sin tools o que
-    // no consultó): toast inmediato + chip persistente en el pie del mensaje.
-    if (meta && meta.tools_fallback) pgToast('⚠ ' + meta.tools_fallback, 'warn');
-    pg.history.push({ role: 'assistant', content: received });
-    pgFinalizeResponse(stream, received, {
-        credits:          meta.credits_estimate,
-        cost:             meta.cost_usd,            // costo real USD (OpenRouter) o null (Ollama)
-        promptTokens:     meta.prompt_tokens,
-        completionTokens: meta.completion_tokens,
-        elapsed_ms:       meta.elapsed_ms,
-        toolsFallback:    meta.tools_fallback || null
-    }, false);
-    pgPlayPopSound();
-    pgAutoSaveThread();
-    pgFinish();
+    // BLINDAJE: todo lo que sigue (drain, auto-continuación, render y autoguardado) puede
+    // lanzar. Si lo hace SIN liberar `isBusy`, pgSubmit queda mudo para siempre (hace
+    // `if (pg.isBusy) return`) y el Playground "deja de responder" a los siguientes envíos.
+    // El finally garantiza que pgFinish() SIEMPRE corra y devuelva el control al usuario.
+    try {
+        await stream.drain();
+        // Conexión pegajosa: si el backend resolvió una base (la nombrada en el mensaje o
+        // la reenviada en dbConnect), la recordamos para los siguientes turnos.
+        if (meta && meta.db) pgSetActiveDb(meta.db);
+        // Igual para la carpeta local conectada (list_dir/read_file/grep_files).
+        if (meta && meta.fs) pgSetActiveFolder(meta.fs);
+        // El backend avisa cuando el tool-calling no funcionó (modelo sin tools o que
+        // no consultó): toast inmediato + chip persistente en el pie del mensaje.
+        if (meta && meta.tools_fallback) pgToast('⚠ ' + meta.tools_fallback, 'warn');
+
+        // AUTO-CONTINUACIÓN: el modelo cortó por límite de tokens (truncated) y el template
+        // quedó a medias (típico <script> sin cerrar → el componente no reacciona). Pedimos
+        // que continúe EXACTO donde quedó y concatenamos, hasta que cierre o se agote el tope.
+        // El meta de contadores (tokens/costo/tools) se conserva de la PRIMERA ronda.
+        const firstMeta = meta || {};
+        let truncated = !!(meta && meta.truncated);
+        let contRounds = 0;
+        while (truncated && contRounds < PG_MAX_CONTINUE && stream) {
+            contRounds++;
+            if (contRounds === 1) pgToast('Template largo: completando la generación…', 'info');
+            const contPayload = Object.assign({}, payload, {
+                messages: payload.messages.concat([
+                    { role: 'assistant', content: received },
+                    { role: 'user', content: PG_CONTINUE_PROMPT }
+                ])
+            });
+            const r = await pgContinueRound(contPayload, stream);
+            if (r.received) received += r.received;
+            truncated = !!(r.meta && r.meta.truncated);
+            if (r.streamErr || r.aborted) break;   // si la continuación falla/aborta, cerramos con lo acumulado
+        }
+
+        pg.history.push({ role: 'assistant', content: received });
+        pgFinalizeResponse(stream, received, {
+            credits:          firstMeta.credits_estimate,
+            cost:             firstMeta.cost_usd,       // costo real USD (OpenRouter) o null (Ollama)
+            promptTokens:     firstMeta.prompt_tokens,
+            completionTokens: firstMeta.completion_tokens,
+            elapsed_ms:       firstMeta.elapsed_ms,
+            toolsFallback:    firstMeta.tools_fallback || null
+        }, truncated);   // truncated=true solo si tras el tope de continuaciones aún quedó cortado
+        pgPlayPopSound();
+        pgAutoSaveThread();
+    } catch (e) {
+        // No dejar el Playground "ocupado" para siempre por un fallo al procesar/renderizar.
+        console.error('pgSend: fallo al finalizar la respuesta', e);
+        pgToast('No se pudo procesar la respuesta: ' + (e && e.message ? e.message : e), 'warn');
+        // No perder lo generado: si llegó texto, ciérralo en el chat con lo que haya.
+        try { if (stream && received) stream.complete(received, {}, received); } catch (_) {}
+    } finally {
+        pgFinish();   // SIEMPRE libera isBusy — sin esto el Playground quedaría mudo
+    }
+}
+
+/* Una ronda de CONTINUACIÓN del stream para auto-completar un template cortado por
+ * límite de tokens. Apila los chunks al stream ya existente (no crea uno nuevo ni
+ * toca el indicador de "escribiendo": el primer token ya pasó en la ronda inicial).
+ * Devuelve el texto de ESTA ronda + su meta (incluye truncated si volvió a cortarse). */
+async function pgContinueRound(payload, stream) {
+    let received = '', meta = {}, streamErr = null, aborted = false;
+    const ac = new AbortController();
+    pg._abort = ac;
+    try {
+        const res = await fetch(PG_API_STREAM, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), signal: ac.signal
+        });
+        if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let idx;
+            while ((idx = buf.indexOf('\n\n')) !== -1) {
+                const rawEvent = buf.slice(0, idx);
+                buf = buf.slice(idx + 2);
+                let ev = 'message', dataStr = '';
+                rawEvent.split('\n').forEach(l => {
+                    if (l.startsWith('event:')) ev = l.slice(6).trim();
+                    else if (l.startsWith('data:')) dataStr += l.slice(5).trim();
+                });
+                let obj = {};
+                try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
+                if (ev === 'chunk') {
+                    received += obj.t || '';
+                    if (stream) stream.push(obj.t || '');
+                } else if (ev === 'done') {
+                    meta = obj;
+                } else if (ev === 'error') {
+                    streamErr = obj.error || 'Error';
+                }
+            }
+        }
+    } catch (err) {
+        aborted = err && err.name === 'AbortError';
+        streamErr = streamErr || (err.message || 'error');
+    }
+    return { received, meta, streamErr, aborted };
 }
 
 /* ── Cierre de respuesta ──

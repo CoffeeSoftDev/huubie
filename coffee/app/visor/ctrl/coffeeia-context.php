@@ -465,6 +465,7 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
     $final = '';
     $rounds = 0;
     $rescued = false;
+    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
     $messages[] = coffeeia_tool_discipline_msg();
 
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
@@ -481,6 +482,7 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
             // Ronda de RESCATE (una sola vez): anuncio una consulta en prosa sin
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
@@ -530,9 +532,10 @@ function coffeeia_run_db_tools($client, array $messages, $model, $schema, callab
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
+        $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
     }
 
-    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds, 'truncated' => $trunc];
 }
 
 /**
@@ -612,6 +615,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
     $final = '';
     $rounds = 0;
     $rescued = false;
+    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
     $messages[] = coffeeia_tool_discipline_msg();
 
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
@@ -626,6 +630,7 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
             // Ronda de RESCATE (una sola vez): anuncio una lectura en prosa sin
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
@@ -673,9 +678,10 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
+        $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
     }
 
-    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds, 'truncated' => $trunc];
 }
 
 /**
@@ -700,6 +706,7 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
     $final = '';
     $rounds = 0;
     $rescued = false;
+    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
     $messages[] = coffeeia_tool_discipline_msg();
 
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
@@ -714,6 +721,7 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
         $toolCalls = $res['tool_calls'] ?? [];
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
+            $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
             // Ronda de RESCATE (una sola vez): anuncio una accion en prosa sin
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
@@ -763,7 +771,8 @@ function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $r
         $res = $client->chat($messages, $model, []);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
         $final = (string)($res['content'] ?? '');
+        $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
     }
 
-    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds];
+    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds, 'truncated' => $trunc];
 }

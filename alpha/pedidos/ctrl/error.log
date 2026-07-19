@@ -1,3 +1,21 @@
+[ 2026-07-19 06:43:10 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                pp.method_pay_id,
+                SUM(pp.pay) as total_paid
+            FROM fayxzvov_reginas.order_payments pp
+            INNER JOIN fayxzvov_reginas.`order` o ON pp.order_id = o.id
+            WHERE DATE(o.date_creation) = ? AND o.subsidiaries_id = ?
+              AND DATE(pp.date_pay) = ?
+              AND COALESCE(pp.subsidiaries_id, o.subsidiaries_id) = ?
+              AND o.status != 4 AND o.is_legacy = 0
+            GROUP BY pp.method_pay_id
+        
+[ ERROR READ] :: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens
+
+
 [ 2026-07-18 09:22:49 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

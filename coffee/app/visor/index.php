@@ -519,12 +519,12 @@
                             </div>
                         </div>
                         <select id="iaEffortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
-                            <option value="">Esfuerzo: Auto</option>
-                            <option value="off">Esfuerzo: Rapido (sin razonar)</option>
-                            <option value="low">Esfuerzo: Bajo</option>
-                            <option value="medium">Esfuerzo: Medio</option>
-                            <option value="high">Esfuerzo: Alto</option>
-                            <option value="max">Esfuerzo: Maximo</option>
+                            <option value="">Auto</option>
+                            <option value="off">R&aacute;pido</option>
+                            <option value="low">Bajo</option>
+                            <option value="medium">Medio</option>
+                            <option value="high">Alto</option>
+                            <option value="max">M&aacute;ximo</option>
                         </select>
                         <select id="iaModelSelect" class="ia-model-pill" title="Modelo activo">
                             <optgroup label="Ollama Cloud">
