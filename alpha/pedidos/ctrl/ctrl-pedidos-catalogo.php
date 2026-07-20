@@ -42,7 +42,7 @@ class ctrl extends MPedidos{
 
         $__row[] =[
             'id'     => 0,
-            'text'   => '🎂 '.'Pastel',
+            'text'   => 'Pastel',
             'active' => 'true'
         ];
 
@@ -50,7 +50,7 @@ class ctrl extends MPedidos{
 
             $__row[] = [
                 'id'   =>  $key['id'],
-                'text' =>  '📦 '.$key['text'],
+                'text' =>  $key['text'],
             ];
 
         }
@@ -65,17 +65,23 @@ class ctrl extends MPedidos{
         $ls = $this->getAllCategory([1]);
         $__row = [];
 
+        $totalGeneral = array_sum(array_map(function ($c) {
+            return intval($c['total'] ?? 0);
+        }, $ls));
+
         $__row[] =[
             'id'     => 0,
-            'text'   => '🎂 '.'Todos los Productos',
+            'text'   => 'Todos los Productos',
+            'total'  => $totalGeneral,
             'active' => 'true'
         ];
 
         foreach ($ls as $key ) {
 
             $__row[] = [
-                'id'   =>  $key['id'],
-                'text' =>  '🧁 '.$key['text'],
+                'id'    =>  $key['id'],
+                'text'  =>  $key['text'],
+                'total' =>  intval($key['total'] ?? 0),
             ];
 
         }

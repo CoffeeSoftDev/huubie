@@ -115,8 +115,8 @@ class Pos extends Templates {
         const opts = Object.assign({
             parent: "categoryTabs",
             data: [
-                { text: "Chocolate", id: "chocolate", icon: "icon-cake" },
-                { text: "Frutas", id: "frutas", emoji: "🍓" },
+                { text: "Chocolate", id: "chocolate" },
+                { text: "Frutas", id: "frutas" },
                 { text: "Queso", id: "queso" },
                 { text: "Merengue", id: "merengue" },
                 { text: "Todos", id: "todos" }
@@ -144,27 +144,33 @@ class Pos extends Templates {
         opts.data.forEach((cat, index) => {
             const isActive = cat.id === defaultActiveId;
 
-            // Icono o emoji opcional
-            let iconHtml = "";
-            if (cat.icon) iconHtml = `<i class="${cat.icon}"></i>`;
-            else if (cat.emoji) iconHtml = `<span>${cat.emoji}</span>`;
-
             const formattedText = cat.text.charAt(0).toUpperCase() + cat.text.slice(1).toLowerCase();
+
+            // Contador de productos por grupo (si el backend lo envia).
+            const countHtml = (cat.total !== undefined && cat.total !== null)
+                ? `<span class="count-badge ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none ${isActive ? 'bg-white/25 text-white' : 'bg-white/10 text-gray-300'}">${cat.total}</span>`
+                : '';
 
             const btn = $("<button>", {
                 class: `tab-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border ${isActive ? `${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]` : `${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`}`,
-                html: `${iconHtml}<span>${formattedText}</span>`,
+                html: `<span>${formattedText}</span>${countHtml}`,
                 "data-category": cat.id,
                 click: function () {
                     container.find(".tab-btn").each(function () {
                         $(this)
                             .removeClass(`${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]`)
                             .addClass(`${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`);
+                        $(this).find(".count-badge")
+                            .removeClass("bg-white/25 text-white")
+                            .addClass("bg-white/10 text-gray-300");
                     });
 
                     $(this)
                         .removeClass(`${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`)
                         .addClass(`${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]`);
+                    $(this).find(".count-badge")
+                        .removeClass("bg-white/10 text-gray-300")
+                        .addClass("bg-white/25 text-white");
 
                     // Callback general
                     opts.onChange(cat.id);

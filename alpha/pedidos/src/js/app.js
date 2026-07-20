@@ -672,7 +672,7 @@ class App extends Templates {
         normal.originalQuantities = null;
         normal.render();
 
-        $("#container-pedido").html(`<form id="formEditPedido" novalidate></form>`);
+        $("#container-pedido").html(`<div id="formEditPedido"></div>`);
 
         const request = await useFetch({
             url: this._link,
@@ -685,6 +685,8 @@ class App extends Templates {
         this.createForm({
             parent: "formEditPedido",
             id: "formPedido",
+            coffeesoft: true,
+            theme: 'dark',
             data: { opc: "editOrder", id },
             autofill: order,
             json: this.jsonOrder(),
@@ -1256,7 +1258,7 @@ class App extends Templates {
             opc: "div",
             id: "subsidiaryFilter",
             lbl: "",
-            class: "col-12 col-lg-3 mb-3",
+            class: "col-12 col-lg-3 mb-1",
             html: this.renderSubsidiarySelector()
         });
     } else {
@@ -1267,7 +1269,7 @@ class App extends Templates {
             opc: "div",
             id: "subsidiarySellBadge",
             lbl: "",
-            class: "col-12 mb-2",
+            class: "col-12 mb-1",
             html: `
                 <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
                     <i class="icon-shop text-amber-400"></i>
@@ -1281,8 +1283,8 @@ class App extends Templates {
         {
             opc: "div",
             id: "lblCliente",
-            class: "col-12 mb-2",
-            html: `<h3 class="text-base font-bold text-white border-b border-gray-600/60 pb-1.5 pt-1">Información del cliente</h3>`
+            class: "col-12 mb-1",
+            html: `<h3 class="text-base font-bold text-white border-b border-gray-600/60 pb-1.5">Información del cliente</h3>`
         },
         {
             opc: "input",
@@ -2390,12 +2392,13 @@ class App extends Templates {
             const orderData = response.data.order || {};
             const products = response.data.products || [];
             const paymentMethods = response.data.paymentMethods || [];
+            const payments = response.data.payments || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${this.detailsCard(orderData, paymentMethods)}
+                        ${this.detailsCard(orderData, paymentMethods, payments)}
                     </div>
                 </div>
 
@@ -2460,11 +2463,11 @@ class App extends Templates {
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData, paymentMethods = []) {
+    detailsCard(orderData, paymentMethods = [], payments = []) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData, paymentMethods)}
+                ${this.infoSales(orderData, paymentMethods, payments)}
             </div>
         `;
     }
@@ -2511,14 +2514,69 @@ class App extends Templates {
         `;
     }
 
-    infoSales(orderData, paymentMethods = []) {
+    formatPaymentDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return dateStr;
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+    }
+
+    paymentMethodStyle(method) {
+        const m = String(method || '').toLowerCase();
+        if (m.includes('efect')) return { icon: 'banknote', bg: 'bg-green-500/15', text: 'text-green-400', dot: 'bg-green-400' };
+        if (m.includes('tarj') || m.includes('tdc') || m.includes('tarjeta')) return { icon: 'credit-card', bg: 'bg-blue-500/15', text: 'text-blue-400', dot: 'bg-blue-400' };
+        if (m.includes('transf')) return { icon: 'arrow-right-left', bg: 'bg-purple-500/15', text: 'text-purple-400', dot: 'bg-purple-400' };
+        return { icon: 'wallet', bg: 'bg-gray-500/15', text: 'text-gray-300', dot: 'bg-gray-400' };
+    }
+
+    infoSales(orderData, paymentMethods = [], payments = []) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
 
-        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
+        // Historial detallado: cada abono con su fecha y metodo, sin agrupar.
+        // Si no llega el historial, se cae al resumen agrupado por metodo.
+        const methodsHtml = (Array.isArray(payments) && payments.length > 0) ? `
+                    <div class="space-y-1">
+                        <span class="text-gray-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                            ${lucideIcon('history', 'w-3.5 h-3.5 text-gray-400')}
+                            Abonos (${payments.length})
+                        </span>
+                        <div>
+                            ${payments.map((p, idx) => {
+                                const st = this.paymentMethodStyle(p.method_pay);
+                                const isLast = idx === payments.length - 1;
+                                return `
+                            <div class="flex gap-2.5">
+                                <div class="flex flex-col items-center w-3 shrink-0">
+                                    <span class="w-3 h-3 mt-1 rounded-full ${st.bg} border-2 border-[#2C3E50] flex items-center justify-center shrink-0">
+                                        <span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>
+                                    </span>
+                                    ${!isLast ? `<span class="w-px grow bg-gray-600/70 my-1"></span>` : ''}
+                                </div>
+                                <div class="flex-1 flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
+                                    <div class="flex flex-col min-w-0">
+                                        <span class="text-white text-xs font-medium flex items-center gap-1.5">
+                                            ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
+                                            ${p.method_pay || 'Sin método'}
+                                        </span>
+                                        <span class="text-gray-500 text-[11px]">${this.formatPaymentDate(p.date_pay)}</span>
+                                    </div>
+                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">$${parseFloat(p.pay || 0).toFixed(2)}</span>
+                                </div>
+                            </div>
+                            `;
+                            }).join('')}
+                        </div>
+                    </div>
+        ` : (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
                     <div class="pl-2 space-y-1 border-l-2 border-gray-600">
                         ${paymentMethods.map(m => `
                         <div class="flex items-center justify-between">

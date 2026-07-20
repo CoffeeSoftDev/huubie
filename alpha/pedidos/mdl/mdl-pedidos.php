@@ -549,9 +549,15 @@ class MPedidos extends CRUD {
 
     public function getAllCategory($array) {
         $sql = "
-            SELECT id, classification as text, description
-            FROM {$this->bd}order_category
-            WHERE active = ?
+            SELECT
+                c.id,
+                c.classification as text,
+                c.description,
+                (SELECT COUNT(*)
+                   FROM {$this->bd}order_products p
+                  WHERE p.category_id = c.id AND p.active = 1) as total
+            FROM {$this->bd}order_category c
+            WHERE c.active = ?
         ";
         return $this->_Read($sql, $array);
     }
