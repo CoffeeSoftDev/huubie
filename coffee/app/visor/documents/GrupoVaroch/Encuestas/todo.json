@@ -24,7 +24,7 @@
         {
           "id": "t2vmtksp",
           "text": "Añadir la columna que indique si el reporte es camarista o general",
-          "done": false
+          "done": true
         },
         {
           "id": "t2jy9gc0",
@@ -40,7 +40,7 @@
         {
           "id": "tg2ui64u",
           "text": "Alinear la filterbar del selector para que no de un salto",
-          "done": false
+          "done": true
         },
         {
           "id": "t34r9ayn",

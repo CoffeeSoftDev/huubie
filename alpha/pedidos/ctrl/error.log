@@ -1,3 +1,73 @@
+[ 2026-07-19 11:24:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 2 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 11:24:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 3 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 11:24:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 2 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 8 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 7 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:04 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 6 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 5 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 4 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 3 ...' for column 'comment' at row 1
+
+
+[ 2026-07-19 08:35:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_reginas.order_histories (title,order_id,comment,action,date_action,type,usr_users_id) VALUES (?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xE2\x86\x92 2 ...' for column 'comment' at row 1
+
+
 [ 2026-07-19 06:43:10 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

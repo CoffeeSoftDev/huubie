@@ -146,6 +146,13 @@
     }
 
     /* ---------- Modal de Configuración (modelos) ---------- */
+    // Vista del panel de modelos: 'list' (habilitar + CRUD) o 'form' (editor del modelo).
+    let _modelView = 'list';
+    let _modelEditId = null;
+    let _mfTags = [];       // etiquetas en edición (chips)
+    let _mfEffort = [];     // niveles reasoning_effort en edición (chips)
+    const EFFORT_ALL = ['low', 'medium', 'high', 'max'];
+
     function buildSettings() {
         if (global.jQuery('#accountSettings').length) return;
         const html = '<div id="accountSettings" class="acct-modal" hidden>'
@@ -155,19 +162,7 @@
                    +       '<div class="acct-modal-title"><i data-lucide="settings" class="w-4 h-4"></i> Configuración</div>'
                    +       '<button type="button" class="acct-modal-x" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>'
                    +     '</div>'
-                   +     '<div class="acct-modal-body">'
-                   +       '<div class="acct-sec-head">'
-                   +         '<div>'
-                   +           '<div class="acct-sec-title">Modelos disponibles</div>'
-                   +           '<div class="acct-sec-sub">Elige qué modelos aparecen en los selectores de todos los chats.</div>'
-                   +         '</div>'
-                   +         '<div class="acct-sec-actions">'
-                   +           '<button type="button" class="acct-mini" data-bulk="all">Todos</button>'
-                   +           '<button type="button" class="acct-mini" data-bulk="none">Ninguno</button>'
-                   +         '</div>'
-                   +       '</div>'
-                   +       '<div id="acctModelList" class="acct-model-list"></div>'
-                   +     '</div>'
+                   +     '<div class="acct-modal-body"><div id="acctModelPanel"></div></div>'
                    +     '<div class="acct-modal-foot">'
                    +       '<span id="acctModelCount" class="acct-foot-count"></span>'
                    +       '<button type="button" class="acct-btn acct-btn-primary" data-close="1">Listo</button>'
@@ -175,10 +170,18 @@
                    +   '</div>'
                    + '</div>';
         global.jQuery('body').append(html);
-        renderModelList();
+        renderModelPanel();
         if (global.lucide) global.lucide.createIcons();
     }
 
+    function renderModelPanel() {
+        if (_modelView === 'form') renderModelForm();
+        else renderModelList();
+        global.jQuery('#accountSettings').toggleClass('is-editing', _modelView === 'form');
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    // ── Vista LISTA: habilitar/deshabilitar + editar/eliminar + agregar ───────────
     function renderModelList() {
         const MC = global.CoffeeModelConfig;
         if (!MC) return;
@@ -186,18 +189,44 @@
         const groups = MC.CATALOG.map(function (g) {
             const items = g.options.map(function (o) {
                 const on = enabled.indexOf(o.value) !== -1;
-                return '<label class="acct-model-item' + (on ? ' is-on' : '') + '">'
+                const m = o.model || {};
+                const caps = []
+                    .concat(m.vision ? ['vision'] : [])
+                    .concat(m.tools ? ['tools'] : [])
+                    .concat((m.effortLevels && m.effortLevels.length) ? ['thinking'] : (m.thinking ? ['thinking'] : []))
+                    .map(function (c) { return '<span class="acct-cap acct-cap-' + c + '">' + c + '</span>'; })
+                    .join('');
+                return '<div class="acct-model-item' + (on ? ' is-on' : '') + '" data-id="' + escAttr(o.value) + '">'
                      +   '<input type="checkbox" class="acct-model-cb" value="' + escAttr(o.value) + '"' + (on ? ' checked' : '') + '>'
-                     +   '<span class="acct-model-name">' + escHtml(o.label) + '</span>'
+                     +   '<span class="acct-model-main">'
+                     +     '<span class="acct-model-name">' + escHtml(o.label) + '</span>'
+                     +     '<span class="acct-model-caps">' + caps + '</span>'
+                     +   '</span>'
                      +   '<span class="acct-model-val">' + escHtml(o.value) + '</span>'
-                     + '</label>';
+                     +   '<span class="acct-model-row-actions">'
+                     +     '<button type="button" class="acct-icon-btn" data-model-edit title="Editar modelo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>'
+                     +     '<button type="button" class="acct-icon-btn acct-icon-danger" data-model-del title="Eliminar modelo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>'
+                     +   '</span>'
+                     + '</div>';
             }).join('');
             return '<div class="acct-model-group">'
                  +   '<div class="acct-model-group-label">' + escHtml(g.group) + '</div>'
                  +   items
                  + '</div>';
         }).join('');
-        global.jQuery('#acctModelList').html(groups);
+
+        const head = '<div class="acct-sec-head">'
+                   +   '<div>'
+                   +     '<div class="acct-sec-title">Modelos disponibles</div>'
+                   +     '<div class="acct-sec-sub">Elige qué modelos aparecen en los selectores de todos los chats. Edita sus capacidades o registra uno nuevo.</div>'
+                   +   '</div>'
+                   +   '<div class="acct-sec-actions">'
+                   +     '<button type="button" class="acct-mini" data-bulk="all">Todos</button>'
+                   +     '<button type="button" class="acct-mini" data-bulk="none">Ninguno</button>'
+                   +     '<button type="button" class="acct-mini acct-mini-primary" data-model-add><i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar</button>'
+                   +   '</div>'
+                   + '</div>';
+        global.jQuery('#acctModelPanel').html(head + '<div id="acctModelList" class="acct-model-list">' + groups + '</div>');
         updateCount();
     }
 
@@ -209,7 +238,6 @@
         const total = global.CoffeeModelConfig ? global.CoffeeModelConfig.allValues().length : 0;
         global.jQuery('#acctModelCount').text(n + ' de ' + total + ' modelos habilitados');
     }
-    // Aplica la selección actual a la preferencia global (propaga a todos los chats).
     function commitModels() {
         const MC = global.CoffeeModelConfig;
         if (!MC) return;
@@ -217,9 +245,152 @@
         updateCount();
     }
 
+    // ── Vista FORMULARIO: editor completo del modelo (el mockup) ──────────────────
+    function fieldRow(label, inner, hint) {
+        return '<label class="acct-f">'
+             +   '<span class="acct-f-label">' + label + '</span>' + inner
+             +   (hint ? '<span class="acct-f-hint">' + hint + '</span>' : '')
+             + '</label>';
+    }
+    function renderTagChips() {
+        return _mfTags.map(function (t, i) {
+            return '<span class="acct-chip" data-tag-i="' + i + '">' + escHtml(t) + ' <i data-lucide="x" class="w-3 h-3" data-tag-del="' + i + '"></i></span>';
+        }).join('');
+    }
+    function renderEffortChips() {
+        return EFFORT_ALL.map(function (lv) {
+            const on = _mfEffort.indexOf(lv) !== -1;
+            return '<button type="button" class="acct-effort-chip' + (on ? ' is-on' : '') + '" data-effort="' + lv + '">' + lv + '</button>';
+        }).join('');
+    }
+    function effortDefaultOptions(sel) {
+        let out = '<option value="">— sin definir —</option>';
+        _mfEffort.forEach(function (lv) {
+            out += '<option value="' + lv + '"' + (sel === lv ? ' selected' : '') + '>' + lv + '</option>';
+        });
+        return out;
+    }
+
+    function renderModelForm() {
+        const MC = global.CoffeeModelConfig;
+        const editing = !!_modelEditId;
+        const m = (editing && MC) ? (MC.getModel(_modelEditId) || {}) : {};
+        _mfTags   = Array.isArray(m.tags) ? m.tags.slice() : [];
+        _mfEffort = Array.isArray(m.effortLevels) ? m.effortLevels.slice() : [];
+
+        const identity =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="info" class="w-4 h-4"></i> Identidad</div>'
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Nombre <span class="req">*</span>', '<input type="text" class="acct-input" id="mfName" value="' + escAttr(m.name || '') + '" placeholder="Ej. Gemma 4">')
+          +     fieldRow('Identificador del modelo <span class="req">*</span>', '<input type="text" class="acct-input mono" id="mfId" value="' + escAttr(m.id || '') + '" placeholder="gemma4:31b-cloud"' + (editing ? ' readonly' : '') + '>', 'Es el id que se manda al proveedor')
+          +   '</div>'
+          +   fieldRow('Descripción', '<textarea class="acct-input" id="mfDesc" rows="2" placeholder="Fortalezas, uso recomendado...">' + escHtml(m.desc || '') + '</textarea>')
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Proveedor', '<select class="acct-input" id="mfProvider">'
+                  + '<option value="ollama"' + (m.provider === 'openrouter' ? '' : ' selected') + '>ollama</option>'
+                  + '<option value="openrouter"' + (m.provider === 'openrouter' ? ' selected' : '') + '>openrouter</option>'
+                  + '</select>')
+          +     fieldRow('Grupo', '<input type="text" class="acct-input" id="mfGroup" value="' + escAttr(m.group || '') + '" placeholder="Ollama Cloud">', 'Encabezado bajo el que aparece en los selectores')
+          +   '</div>'
+          +   fieldRow('Etiquetas', '<div class="acct-tags"><span id="mfTagChips">' + renderTagChips() + '</span><input type="text" class="acct-tag-input" id="mfTagInput" placeholder="Escribe una etiqueta y presiona Enter..."></div>')
+          + '</div>';
+
+        const caps =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="sparkles" class="w-4 h-4"></i> Capacidades</div>'
+          +   '<div class="acct-checks">'
+          +     '<label class="acct-check"><input type="checkbox" id="mfVision"' + (m.vision ? ' checked' : '') + '> Visión (imágenes)</label>'
+          +     '<label class="acct-check"><input type="checkbox" id="mfTools"' + (m.tools ? ' checked' : '') + '> Tools (tool-calling: run_select / lectura de carpeta)</label>'
+          +   '</div>'
+          + '</div>';
+
+        const params =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Parámetros</div>'
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Máx. tokens', '<input type="number" class="acct-input" id="mfMaxTokens" value="' + (m.maxTokens != null ? m.maxTokens : '') + '" placeholder="p.ej. 256000">')
+          +     fieldRow('Temp. mínima', '<input type="number" step="0.1" class="acct-input" id="mfTempMin" value="' + (m.tempMin != null ? m.tempMin : '') + '" placeholder="vacío = sin mínimo">')
+          +   '</div>'
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Precio entrada ($/M)', '<input type="number" step="0.01" class="acct-input" id="mfPriceIn" value="' + (m.priceIn || 0) + '">')
+          +     fieldRow('Precio salida ($/M)', '<input type="number" step="0.01" class="acct-input" id="mfPriceOut" value="' + (m.priceOut || 0) + '">')
+          +   '</div>'
+          + '</div>';
+
+        const reasoning =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="brain" class="w-4 h-4"></i> Razonamiento</div>'
+          +   '<div class="acct-checks">'
+          +     '<label class="acct-check"><input type="checkbox" id="mfThinking"' + (m.thinking ? ' checked' : '') + '> Muestra razonamiento (thinking)</label>'
+          +     '<label class="acct-check"><input type="checkbox" id="mfThinkObj"' + (m.thinkingObject ? ' checked' : '') + '> Requiere objeto thinking <code>{"type":"enabled"}</code></label>'
+          +   '</div>'
+          +   '<div class="acct-f-label" style="margin-top:10px">Niveles de <code>reasoning_effort</code> aceptados</div>'
+          +   '<div class="acct-effort-chips" id="mfEffortChips">' + renderEffortChips() + '</div>'
+          +   '<div class="acct-f-hint">Vacío = el modelo no acepta reasoning_effort (el selector de Esfuerzo se ocultará para él).</div>'
+          +   fieldRow('Nivel por defecto', '<select class="acct-input" id="mfEffortDefault">' + effortDefaultOptions(m.effortDefault || '') + '</select>')
+          + '</div>';
+
+        const foot =
+            '<div class="acct-form-foot">'
+          +   (editing ? '<button type="button" class="acct-btn acct-btn-danger" data-model-del-form>Eliminar</button>' : '<span></span>')
+          +   '<span class="acct-form-foot-r">'
+          +     '<button type="button" class="acct-btn" data-model-cancel>Cancelar</button>'
+          +     '<button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save" class="w-4 h-4"></i> Guardar modelo</button>'
+          +   '</span>'
+          + '</div>';
+
+        global.jQuery('#acctModelPanel').html('<form id="acctModelForm" class="acct-model-form">' + identity + caps + params + reasoning + foot + '</form>');
+    }
+
+    function openModelForm(id) { _modelView = 'form'; _modelEditId = id || null; renderModelPanel(); }
+    function backToModelList() { _modelView = 'list'; _modelEditId = null; renderModelPanel(); }
+
+    function saveModelForm() {
+        const MC = global.CoffeeModelConfig;
+        if (!MC) return;
+        const $ = global.jQuery;
+        const id = ($('#mfId').val() || '').trim();
+        const name = ($('#mfName').val() || '').trim();
+        if (!id)   { toast('El identificador del modelo es obligatorio', 'warn'); return; }
+        if (!name) { toast('El nombre es obligatorio', 'warn'); return; }
+        // Alta (no edición) con id ya existente: evitar duplicado silencioso.
+        if (!_modelEditId && MC.getModel(id)) { toast('Ya existe un modelo con ese identificador', 'warn'); return; }
+
+        const numOrNull = function (sel) { const v = $(sel).val(); return v === '' || v == null ? null : Number(v); };
+        MC.upsertModel({
+            id: id,
+            name: name,
+            desc: ($('#mfDesc').val() || '').trim(),
+            provider: $('#mfProvider').val() || 'ollama',
+            group: ($('#mfGroup').val() || '').trim(),
+            tags: _mfTags.slice(),
+            vision: $('#mfVision').prop('checked'),
+            tools: $('#mfTools').prop('checked'),
+            thinking: $('#mfThinking').prop('checked'),
+            thinkingObject: $('#mfThinkObj').prop('checked'),
+            effortLevels: _mfEffort.slice(),
+            effortDefault: $('#mfEffortDefault').val() || '',
+            maxTokens: numOrNull('#mfMaxTokens'),
+            tempMin: numOrNull('#mfTempMin'),
+            priceIn: Number($('#mfPriceIn').val()) || 0,
+            priceOut: Number($('#mfPriceOut').val()) || 0,
+            builtin: _modelEditId ? (MC.getModel(_modelEditId) || {}).builtin : false
+        });
+        toast('Modelo guardado', 'ok');
+        backToModelList();
+    }
+
+    function deleteModelFromList(id) {
+        const MC = global.CoffeeModelConfig;
+        if (!MC || !id) return;
+        if (MC.getModels().length <= 1) { toast('Debe quedar al menos un modelo', 'warn'); return; }
+        if (!global.confirm('¿Eliminar el modelo "' + id + '" del catálogo?')) return;
+        MC.deleteModel(id);
+        toast('Modelo eliminado', 'info');
+        if (_modelView === 'form') backToModelList(); else renderModelPanel();
+    }
+
     function openSettings() {
         buildSettings();
-        renderModelList();
+        _modelView = 'list'; _modelEditId = null;
+        renderModelPanel();
         global.jQuery('#accountSettings').prop('hidden', false).addClass('is-open');
     }
     function closeSettings() {
@@ -943,6 +1114,42 @@
             if (!all) { $('#acctModelList .acct-model-cb').first().prop('checked', true); }
             $('#acctModelList .acct-model-item').each(function () { $(this).toggleClass('is-on', $(this).find('.acct-model-cb').prop('checked')); });
             commitModels();
+        });
+
+        // ── Editor de modelos (CRUD) ──
+        $(document).on('click', '#accountSettings [data-model-add]', function () { openModelForm(null); });
+        $(document).on('click', '#accountSettings [data-model-edit]', function (e) { e.stopPropagation(); openModelForm($(this).closest('.acct-model-item').data('id')); });
+        $(document).on('click', '#accountSettings [data-model-del]', function (e) { e.stopPropagation(); deleteModelFromList($(this).closest('.acct-model-item').data('id')); });
+        $(document).on('click', '#accountSettings [data-model-del-form]', function () { deleteModelFromList(_modelEditId); });
+        $(document).on('click', '#accountSettings [data-model-cancel]', function () { backToModelList(); });
+        $(document).on('submit', '#acctModelForm', function (e) { e.preventDefault(); saveModelForm(); });
+        // Fila: clic en el nombre marca/desmarca el habilitado (recupera la comodidad del label).
+        $(document).on('click', '#acctModelList .acct-model-main', function () {
+            const $cb = $(this).closest('.acct-model-item').find('.acct-model-cb');
+            $cb.prop('checked', !$cb.prop('checked')).trigger('change');
+        });
+        // Etiquetas (chips): Enter agrega, clic en la x quita.
+        $(document).on('keydown', '#mfTagInput', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const v = ($(this).val() || '').trim().toLowerCase();
+            if (v && _mfTags.indexOf(v) === -1) { _mfTags.push(v); $('#mfTagChips').html(renderTagChips()); if (global.lucide) global.lucide.createIcons(); }
+            $(this).val('');
+        });
+        $(document).on('click', '#mfTagChips [data-tag-del]', function () {
+            const i = parseInt($(this).attr('data-tag-del'), 10);
+            if (i >= 0) { _mfTags.splice(i, 1); $('#mfTagChips').html(renderTagChips()); if (global.lucide) global.lucide.createIcons(); }
+        });
+        // Niveles de esfuerzo (chips toggle): sincroniza el select "Nivel por defecto".
+        $(document).on('click', '#accountSettings [data-effort]', function () {
+            const lv = $(this).attr('data-effort');
+            const i = _mfEffort.indexOf(lv);
+            if (i === -1) _mfEffort.push(lv); else _mfEffort.splice(i, 1);
+            _mfEffort = EFFORT_ALL.filter(function (x) { return _mfEffort.indexOf(x) !== -1; });
+            $('#mfEffortChips').html(renderEffortChips());
+            const $def = $('#mfEffortDefault');
+            const cur = $def.val();
+            $def.html(effortDefaultOptions(_mfEffort.indexOf(cur) !== -1 ? cur : ''));
         });
 
         // Modal "Mejorar plan" (registro manual de cuentas Claude; nodo creado al abrir).

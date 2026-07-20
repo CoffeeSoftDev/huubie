@@ -22,9 +22,10 @@ class Pos extends Templates {
         const colors = {
             containerBg: isDark ? "" : "bg-white",
             textColor: isDark ? "text-white" : "text-gray-600",
-            leftPaneBg: isDark ? "bg-[#1F2A37]" : "bg-gray-100",
+            leftPaneBg: isDark ? "bg-[#111928]" : "bg-gray-100",
+            orderPaneBg: isDark ? "bg-[#141d2b]" : "bg-white",
             inputBg: isDark ? "bg-[#111827]" : "bg-white",
-            borderColor: isDark ? "border-gray-700" : "border-gray-300",
+            borderColor: isDark ? "border-[#374151]" : "border-gray-300",
             cardGridBg: isDark ? "" : "bg-white",
             tabBg: isDark ? "bg-[#151D2B]" : "bg-gray-100"
         };
@@ -53,8 +54,8 @@ class Pos extends Templates {
         const inputSearch = $("<input>", {
             id: "searchProduct",
             type: "text",
-            placeholder: "Buscar productos...",
-            class: `pl-10 py-2 pr-3 rounded-md border ${colors.borderColor} ${colors.inputBg} ${colors.textColor} w-full focus:outline-none focus:ring-2 focus:ring-blue-500`
+            placeholder: "Buscar producto o escanear...",
+            class: `pl-10 py-2 pr-3 rounded-lg border ${colors.borderColor} ${isDark ? 'bg-[#1a2332]' : 'bg-white'} ${colors.textColor} w-full focus:outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[rgba(124,58,237,0.15)]`
         }).on("input", function () {
             const keyword = $(this).val().toLowerCase();
             opts.onChange(keyword);
@@ -68,49 +69,24 @@ class Pos extends Templates {
 
         const buildCakeBtn = $("<button>", {
             id: "buildCakeBtn",
-            class: "bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md whitespace-nowrap transition-colors duration-200",
+            class: "bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold px-4 py-2 rounded-lg whitespace-nowrap transition-colors duration-200 shadow-lg shadow-[rgba(124,58,237,0.25)]",
             html: "¡Arma tu pastel! 🎂",
             click: () => opts.onBuildCake()
         });
 
         topRow.append(searchInputWrap, buildCakeBtn);
 
+        // Chips estilo POS: scroll horizontal simple, sin flechas de desplazamiento.
         const categoryWrapper = $("<div>", {
-            class: "relative flex items-center gap-1 mb-3"
-        });
-
-        const scrollLeftBtn = $("<button>", {
-            id: "scrollCategoryLeft",
-            class: `${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-200 hover:bg-gray-300'} ${colors.textColor} w-9 h-9 rounded-full transition-colors duration-200 flex-shrink-0 flex items-center justify-center text-base hidden`,
-            html: '<i class="icon-left-open"></i>',
-            click: () => {
-                const tabsContainer = $('#categoryTabs');
-                tabsContainer.animate({
-                    scrollLeft: tabsContainer.scrollLeft() - 200
-                }, 300, () => this.updateScrollButtons());
-            }
+            class: "flex items-center mb-3"
         });
 
         const categoryTabs = $("<div>", {
             id: "categoryTabs",
             class: `${colors.textColor} flex-1 overflow-x-auto scrollbar-hide`
-        }).on("scroll", () => this.updateScrollButtons());
-
-        new ResizeObserver(() => this.updateScrollButtons()).observe(categoryTabs[0]);
-
-        const scrollRightBtn = $("<button>", {
-            id: "scrollCategoryRight",
-            class: `${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-200 hover:bg-gray-300'} ${colors.textColor} w-9 h-9 rounded-full transition-colors duration-200 flex-shrink-0 flex items-center justify-center text-base hidden`,
-            html: '<i class="icon-right-open"></i>',
-            click: () => {
-                const tabsContainer = $('#categoryTabs');
-                tabsContainer.animate({
-                    scrollLeft: tabsContainer.scrollLeft() + 200
-                }, 300, () => this.updateScrollButtons());
-            }
         });
 
-        categoryWrapper.append(scrollLeftBtn, categoryTabs, scrollRightBtn);
+        categoryWrapper.append(categoryTabs);
 
         const productGridContainer = $("<div>", {
             class: "flex-1 overflow-auto"
@@ -118,44 +94,21 @@ class Pos extends Templates {
 
         const grid = $("<div>", {
             id: "productGrid",
-            class: `grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 rounded ${colors.cardGridBg}`
+            class: `grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 rounded ${colors.cardGridBg}`
         });
 
-        const showMoreBtn = $("<button>", {
-            id: "showMoreProducts",
-            class: `w-full mt-3 py-2 rounded-md border ${colors.borderColor} ${isDark ? 'bg-[#374151] hover:bg-[#4B5563]' : 'bg-gray-100 hover:bg-gray-200'} ${colors.textColor} font-medium transition-colors duration-200 hidden`,
-            html: '<i class="icon-down-open"></i> Ver más productos',
-            click: function() {
-                const gridEl = $('#productGrid');
-                gridEl.toggleClass('max-h-[400px]');
-                const isExpanded = !gridEl.hasClass('max-h-[400px]');
-                $(this).html(isExpanded ? '<i class="icon-up-open"></i> Ver menos' : '<i class="icon-down-open"></i> Ver más productos');
-            }
-        });
-
-        productGridContainer.append(grid, showMoreBtn);
+        productGridContainer.append(grid);
 
         mainContent.append(topRow, categoryWrapper, productGridContainer);
         leftPane.append(mainContent);
 
         const rightPane = $("<div>", {
             id: "orderPanel",
-            class: `w-full md:w-[25rem] max-w-full flex flex-col border-l ${colors.leftPaneBg} ${colors.borderColor}`
+            class: `w-full md:w-[28rem] xl:w-[34rem] max-w-full flex flex-col border-l ${colors.orderPaneBg} ${colors.borderColor}`
         });
 
         container.append(leftPane, rightPane);
         $(`#${opts.parent}`).html(container);
-    }
-
-    updateScrollButtons() {
-        const tabs = document.getElementById('categoryTabs');
-        if (!tabs) return;
-        const scrollLeft = tabs.scrollLeft;
-        const maxScroll = tabs.scrollWidth - tabs.clientWidth;
-        const needsScroll = tabs.scrollWidth > tabs.clientWidth;
-
-        $('#scrollCategoryLeft').toggleClass('hidden', !needsScroll || scrollLeft <= 0);
-        $('#scrollCategoryRight').toggleClass('hidden', !needsScroll || scrollLeft >= maxScroll - 1);
     }
 
     createProductTabs(options) {
@@ -169,7 +122,7 @@ class Pos extends Templates {
                 { text: "Todos", id: "todos" }
             ],
             active: null, // Si es null, se activa el primero
-            activeColor: "bg-blue-600",
+            activeColor: "bg-[#7C3AED]",
             inactiveColor: "", // auto-definido por tema
             hoverColor: "",
             theme: "dark",
@@ -178,10 +131,8 @@ class Pos extends Templates {
 
         const isDark = opts.theme === "dark";
         const activeClass = opts.activeColor;
-        const inactiveClass = opts.inactiveColor || "bg-[#283143]";
-        const inactiveBorder = isDark ? "borderx border-gray-600x" : "borderx border-gray-300x";
+        const inactiveClass = opts.inactiveColor || "bg-[#1a2332]";
         const hoverClass = opts.hoverColor || (isDark ? "hover:bg-white/10" : "hover:bg-gray-300");
-        const textColor = isDark ? "text-white" : "text-gray-800";
         const containerBorder = isDark ? "border-gray-600x" : "border-gray-300x";
         const containerBg = isDark ? "xbg-[#151D2B]" : "bg-gray-100";
 
@@ -201,19 +152,19 @@ class Pos extends Templates {
             const formattedText = cat.text.charAt(0).toUpperCase() + cat.text.slice(1).toLowerCase();
 
             const btn = $("<button>", {
-                class: `tab-btn ${textColor} flex-shrink-0 px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${isActive ? `${activeClass} border border-transparent` : `${inactiveClass} ${inactiveBorder} ${hoverClass}`}`,
+                class: `tab-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border ${isActive ? `${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]` : `${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`}`,
                 html: `${iconHtml}<span>${formattedText}</span>`,
                 "data-category": cat.id,
                 click: function () {
                     container.find(".tab-btn").each(function () {
                         $(this)
-                            .removeClass(`${activeClass} border-transparent`)
-                            .addClass(`${inactiveClass} ${inactiveBorder} ${hoverClass}`);
+                            .removeClass(`${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]`)
+                            .addClass(`${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`);
                     });
 
                     $(this)
-                        .removeClass(`${inactiveClass} ${inactiveBorder} ${hoverClass}`)
-                        .addClass(`${activeClass} border border-transparent`);
+                        .removeClass(`${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`)
+                        .addClass(`${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]`);
 
                     // Callback general
                     opts.onChange(cat.id);
@@ -227,8 +178,6 @@ class Pos extends Templates {
 
             container.append(btn);
         });
-
-        setTimeout(() => this.updateScrollButtons(), 50);
     }
 
     createProductGrid(options) {
@@ -251,13 +200,16 @@ class Pos extends Templates {
 
         const container = $(`#${opts.parent}`).empty();
         const baseUrl = "https://huubie.com.mx/";
+        // Se arma el grid en un fragmento y se inserta de una sola vez: con ~180
+        // productos, insertar card por card forzaba un reflow por iteracion.
+        const frag = document.createDocumentFragment();
 
         opts.data.forEach(item => {
             // Card estilo POS (ref. app/inventarios/templates/pos-main.html): cabecera
             // de imagen + cuerpo con nombre, precio y accion. Se conservan la clase
             // .card y el <h3> del nombre porque searchFilter() los usa para filtrar.
             const card = $("<div>", {
-                class: `card ${cardBg} border ${borderColor} rounded-lg overflow-hidden cursor-pointer transition-all duration-150 hover:border-[#7C3AED] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(124,58,237,0.12)] active:scale-[0.97]`,
+                class: `card ${cardBg} border ${borderColor} rounded-lg overflow-hidden cursor-pointer hover:border-[#7C3AED]`,
                 click: () => opts.onClick(item)
             });
 
@@ -270,6 +222,10 @@ class Pos extends Templates {
                     $("<img>", {
                         src: baseUrl + item.image,
                         alt: item.name ?? item.valor,
+                        // Remotas (huubie.com.mx): lazy para no descargarlas todas al
+                        // montar; solo cargan las visibles y el resto al hacer scroll.
+                        loading: "lazy",
+                        decoding: "async",
                         class: "object-cover h-full w-full"
                     })
                 );
@@ -304,8 +260,10 @@ class Pos extends Templates {
             );
 
             card.append(imageWrap, body);
-            container.append(card);
+            frag.appendChild(card[0]);
         });
+
+        container[0].appendChild(frag);
     }
 
     createOrderPanel(options) {
@@ -500,7 +458,7 @@ class Pos extends Templates {
             console.log('olaaaaa',item);
             quantityRow.append(
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "−",
                     click: () => {
                         if (item.quantity > 1) {
@@ -513,7 +471,7 @@ class Pos extends Templates {
                 }),
                 $("<span>", { class: `${textColor}`, text: item.quantity }),
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "+",
                     click: () => {
                         item.quantity++;
@@ -645,7 +603,7 @@ class Pos extends Templates {
 
             quantityRow.append(
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "−",
                     click: () => {
                         if (item.quantity > 1) {
@@ -658,7 +616,7 @@ class Pos extends Templates {
                 }),
                 $("<span>", { class: `${textColor}`, text: item.quantity }),
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "+",
                     click: () => {
                         item.quantity++;
@@ -731,12 +689,21 @@ class Pos extends Templates {
             onBuildCake: () => { armarPastel(); },
             payments: [],
             totalPaid: 0,
-            isEdit: false
+            isEdit: false,
+            animateId: null
         };
 
         
         const opts = Object.assign({}, defaults, options);
-        console.log(opts.data)
+
+        // Animacion de aparicion de la linea nueva, identica al cart de la plantilla
+        // (pos-main.html): slideIn 0.15s desde la derecha. Guard por id.
+        if (opts.animateId != null && !document.getElementById('pos-cart-anim-style')) {
+            const st = document.createElement('style');
+            st.id = 'pos-cart-anim-style';
+            st.textContent = '@keyframes posCartSlideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}.pos-cart-in{animation:posCartSlideIn .15s ease}';
+            document.head.appendChild(st);
+        }
 
         // Lineas "bloqueadas": en edicion, un producto solo es editable si se agrego
         // HOY (item.is_today lo marca el backend). Las lineas de dias anteriores van
@@ -745,28 +712,28 @@ class Pos extends Templates {
 
         const isDark = opts.theme === "dark";
         const textColor = isDark ? "text-white" : "text-gray-800";
-        const subColor = isDark ? "text-blue-300" : "text-blue-600";
-        const borderColor = isDark ? "border-gray-700" : "border-gray-300";
-        const bgCard = isDark ? "bg-[#1E293B]" : "bg-white";
-        const mutedColor = isDark ? "text-gray-300" : "text-gray-600";
+        const subColor = isDark ? "text-[#76A9FA]" : "text-blue-600";
+        const borderColor = isDark ? "border-[rgba(55,65,81,0.5)]" : "border-gray-300";
+        const bgCard = isDark ? "bg-[#1a2332]" : "bg-white";
+        const mutedColor = isDark ? "text-gray-400" : "text-gray-600";
         const emptyTitle = isDark ? "text-gray-300" : "text-gray-700";
         const emptySub = isDark ? "text-gray-400" : "text-gray-500";
 
         const container = $(`#${opts.parent}`).empty();
 
         const header = $("<div>", {
-            class: "p-4 border-b border-gray-700 flex justify-between items-center"
+            class: "px-4 py-3 border-b border-[#374151] flex justify-between items-center flex-shrink-0"
         }).append(
-            $("<div>", { class: "flex flex-col" }).append(
-                $("<h2>", { class: "text-lg font-semibold text-white", text: opts.title }),
+            $("<div>", { class: "flex flex-col min-w-0" }).append(
+                $("<h2>", { class: "text-sm font-bold text-white truncate", text: opts.title }),
                 $("<h3>", {
-                    class: "text-sm text-gray-400",
+                    class: "text-[10px] text-[#6B7280] mt-0.5 truncate",
                     html: '<i class="icon-user-1"></i> ' + opts.customName || "Cliente no definido"
                 },)
             ),
             opts.isEdit ? null : $("<button>", {
                 id: "clearOrder",
-                class: "text-red-400 border border-[#C53030] px-2 py-1 rounded hover:bg-red-700",
+                class: "flex-shrink-0 text-[#EA0234] border border-[rgba(234,2,52,0.35)] bg-[#1a2332] px-2 py-1 rounded-lg text-xs hover:bg-[#EA0234] hover:text-white transition-colors",
                 html: "🗑 Limpiar"
             })
         );
@@ -777,7 +744,7 @@ class Pos extends Templates {
         });
 
         const footer = $("<div>", {
-            class: "px-3 py-2 border-t border-gray-700 bg-[#333D4C]"
+            class: "px-4 py-3 border-t border-[#374151] flex-shrink-0"
         }).append(
             $("<div>", { class: "space-y-1 text-xs text-gray-300" }).append(
                 $("<div>", { class: "flex items-center gap-1 mb-1" }).append(
@@ -808,26 +775,26 @@ class Pos extends Templates {
                 ),
                 $("<div>", {
                     id: "saldoRow",
-                    class: "flex justify-between pt-1 mt-1 border-t border-gray-600"
+                    class: "flex justify-between pt-1 mt-1 border-t border-[#374151]"
                 }).append(
                     $("<span>", { class: "font-semibold" }).text("Saldo:"),
                     $("<span>", { id: "saldo", class: "text-red-500 font-bold", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-3 gap-2 mt-2" }).append(
+            $("<div>", { class: "grid grid-cols-3 gap-2 mt-3" }).append(
                 $("<button>", {
                     id: "printOrder",
-                    class: "border border-gray-600 text-white rounded px-2 py-1.5 text-xs",
+                    class: "border border-[#374151] text-white rounded-lg px-2 py-1.5 text-xs hover:bg-[#1a2332] transition-colors",
                     html: "🖨 Imprimir"
                 }),
                 $("<button>", {
                     id: "finishOrder",
-                    class: "bg-blue-700 text-white rounded px-2 py-1.5 text-xs hover:bg-blue-800",
+                    class: "bg-[#1C64F2] text-white font-bold rounded-lg px-2 py-1.5 text-xs hover:bg-[#1a53d4] shadow-lg shadow-[rgba(28,100,242,0.25)] transition-colors",
                     html: "Terminar"
                 }),
                 $("<button>", {
                     id: "exitOrder",
-                    class: "border bg-red-700 text-white rounded px-2 py-1.5 text-xs hover:bg-red-800 hover:text-white",
+                    class: "border border-[rgba(234,2,52,0.35)] bg-[#1a2332] text-[#EA0234] rounded-lg px-2 py-1.5 text-xs hover:bg-[#EA0234] hover:text-white transition-colors",
                     html: "Salir"
                 })
             )
@@ -861,7 +828,7 @@ class Pos extends Templates {
 
 
             const card = $("<div>", {
-                class: `flex justify-between items-center ${bgCard} border ${borderColor} rounded-xl p-3 shadow-sm`
+                class: `order-line flex justify-between items-center gap-2 ${bgCard} rounded-lg p-2.5${String(opts.animateId) === String(item.id) ? ' pos-cart-in' : ''}`
             });
 
             const infoElements = [
@@ -887,7 +854,7 @@ class Pos extends Templates {
 
             const quantityInput = $("<input>", {
                 type: "number",
-                class: `${textColor} bg-transparent border border-gray-600 rounded text-center w-16 focus:outline-none focus:border-blue-500${locked ? ' opacity-60 cursor-not-allowed' : ''}`,
+                class: `${textColor} bg-transparent border border-[#374151] rounded text-center w-12 focus:outline-none focus:border-[#7C3AED]${locked ? ' opacity-60 cursor-not-allowed' : ''}`,
                 value: item.quantity,
                 min: 1,
                 readonly: locked
@@ -914,7 +881,7 @@ class Pos extends Templates {
                         item.quantity = newQty;
 
                         const lineTotal = (item.price || 0) * newQty;
-                        $input.closest('.shadow-sm').find('p').last().text(`Total: ${formatPrice(lineTotal)}`);
+                        $input.closest('.order-line').find('p').last().text(`Total: ${formatPrice(lineTotal)}`);
 
                         let total = 0;
                         data.forEach(i => total += (i.price || 0) * (i.quantity || 0));
@@ -937,7 +904,7 @@ class Pos extends Templates {
             // Linea de un dia anterior: cantidad fija, solo input de lectura (sin −/+).
             const buttons = locked ? [quantityInput] : [
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "−",
                     click: () => {
                         if (item.quantity > 1) {
@@ -950,7 +917,7 @@ class Pos extends Templates {
                 }),
                 quantityInput,
                 $("<button>", {
-                    class: "bg-gray-700 text-white rounded px-2",
+                    class: "w-6 h-6 rounded bg-[#374151] hover:bg-[#4B5563] text-white flex items-center justify-center transition-colors",
                     html: "+",
                     click: () => {
                         item.quantity++;
@@ -965,7 +932,7 @@ class Pos extends Templates {
             // bloqueadas; ahi lo unico que queda fijo es la cantidad.
             buttons.push(
                 $("<button>", {
-                    class: "text-blue-400 hover:text-blue-600",
+                    class: "text-[#c4b5fd] hover:text-white transition-colors",
                     html: `<i class="icon-pencil"></i>`,
                     click: () => {
                         // Detectar si es pedido personalizado o normal
@@ -982,7 +949,7 @@ class Pos extends Templates {
             if (!locked) {
                 buttons.push(
                     $("<button>", {
-                        class: "text-gray-400 hover:text-red-400",
+                        class: "text-gray-400 hover:text-[#EA0234] transition-colors",
                         html: `<i class="icon-trash"></i>`,
                         click: () => {
                             data.splice(index, 1);
@@ -1008,6 +975,10 @@ class Pos extends Templates {
             card.append(info, actions);
             orderItems.append(card);
         });
+
+        // Solo la linea nueva se anima; los re-render internos de los +/- reutilizan
+        // este opts, asi que se apaga tras pintar para no re-animarla al cambiarla.
+        opts.animateId = null;
 
         if (opts.totalSelector) {
             const subtotal = totalAcc;
@@ -1114,22 +1085,16 @@ class CatalogProduct extends Pos {
     }
 
     layout() {
-
-        this.primaryLayout({
-            parent: "root",
-            id: this.PROJECT_NAME,
-            class: "flex mx-2 ",
-            heightPreset: 'viewport', // Usa el preset estándar
-            card: {
-                filterBar: {
-                    id: "filterBar" + this.PROJECT_NAME,
-                    class: "w-full"
-                },
-                container: {
-                    class: "w-full my-3  bg-[#1F2A37] rounded-lg p-3",
-                },
-            },
-        });
+        // Shell POS full-viewport (ref. app/inventarios/templates/pos-main.html):
+        // sin primaryLayout (filterBar/card). Altura = viewport menos el mt-16 del
+        // navbar y el p-3 de #mainContainer (64 + 24 px = 5.5rem). La cadena
+        // flex-1/min-h-0 baja hasta el POS para que sus paneles llenen y scrolleen
+        // internamente, sin scroll de pagina.
+        $('#root').html(`
+            <div id="${this.PROJECT_NAME}" class="flex flex-col h-[calc(100vh-5.5rem)] overflow-hidden">
+                <div id="container${this.PROJECT_NAME}" class="flex-1 min-h-0 flex flex-col overflow-hidden"></div>
+            </div>
+        `);
     }
 
     formCreateOrder() {
@@ -1143,7 +1108,9 @@ class CatalogProduct extends Pos {
             id: "tabsPedido",
             theme: "dark",
             type: 'short',
-            content: { class: "h-[calc(100vh-200px)] overflow-y-auto" },
+            // Continua la cadena flex del shell: el contenido llena el alto restante
+            // y cada tab decide su propio scroll (form: auto; POS: paneles internos).
+            content: { class: "flex-1 min-h-0 overflow-hidden" },
             json: [
                 {
                     id: "pedido",
@@ -1158,10 +1125,12 @@ class CatalogProduct extends Pos {
             ]
         });
 
-        // Agregar select de sucursales antes del tabLayout
-
-
-
+        // El tab del formulario scrollea por si mismo (sin fondo: hereda el de la
+        // pagina) y con padding horizontal mas amplio que el p-3 del tabLayout.
+        // El del POS va full-bleed (sin el p-3 del tabLayout, sus paneles ya
+        // manejan su overflow interno).
+        $('#container-pedido').addClass('overflow-y-auto px-12');
+        $('#container-package').removeClass('p-3').addClass('overflow-hidden');
 
         app.addOrder();
     }
@@ -1172,20 +1141,27 @@ class CatalogProduct extends Pos {
 
 
         if (!idFolio) {
+            // Placeholder sin orden activa: sin fondo (hereda el de la pagina),
+            // centrado en el alto disponible del tab e iconos Lucide (helper
+            // lucideIcon de lucide-icons.js). El CTA lleva al tab del formulario.
             $("#container-package").html(`
-             <div class="w-full p-6 bg-[#1F2A37] text-center rounded-lg">
-                <div class="flex justify-center mb-4">
-                    <div class="w-16 h-16 rounded-full flex items-center justify-center bg-purple-500 ">
-                        <i class="icon-birthday text-white text-2xl"></i>
+             <div class="w-full h-full flex items-center justify-center">
+                <div class="text-center max-w-sm px-4">
+                    <div class="mx-auto mb-4 w-24 h-24 rounded-full flex items-center justify-center bg-[rgba(124,58,237,0.12)] text-[#c4b5fd]">
+                        ${lucideIcon('cake', 'w-10 h-10')}
                     </div>
+                    <h2 class="text-base font-bold text-white">Sin órdenes activas</h2>
+                    <p class="text-xs text-[#9CA3AF] mt-2 leading-relaxed">
+                        Para agregar productos al carrito primero necesitas iniciar una nueva orden.
+                    </p>
+                    <button id="btnNuevaOrden"
+                        class="mt-5 inline-flex items-center gap-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-bold px-4 py-2 rounded-lg shadow-lg shadow-[rgba(124,58,237,0.25)] transition-colors">
+                        ${lucideIcon('circle-plus', 'w-4 h-4')} Iniciar nueva orden
+                    </button>
                 </div>
-                <h2 class="text-lg font-bold text-purple-400">Sin Órdenes Activas</h2>
-                <p class="text-gray-300 mt-2">
-                    Para comenzar a agregar productos a tu carrito, primero necesitas
-                    <a href="#" id="btnNuevaOrden" class="text-blue-400 ">iniciar una nueva orden</a>.
-                </p>
             </div>
             `);
+            $('#btnNuevaOrden').on('click', () => $('#tab-pedido').trigger('click'));
             return;
         }
 
@@ -1249,11 +1225,12 @@ class CatalogProduct extends Pos {
         this.showOrder(pos.list || [])
     }
 
-    showOrder(list) {
+    showOrder(list, animateId = null) {
 
         this.orderPanelComponent({
             title: `Orden Actual #P-00${idFolio}`,
             parent: "orderPanel",
+            animateId: animateId,
             discount: this.discount,
             customName: this.name_client,
             data: list,
@@ -1324,9 +1301,11 @@ class CatalogProduct extends Pos {
             }
         });
 
-        this.showOrder(pos.list)
-
-
+        // Solo la linea recien agregada se anima: es la de mayor id (autoincrement
+        // del INSERT que hace addProduct en el backend).
+        const list = pos.list || [];
+        const newId = list.length ? Math.max(...list.map(i => parseInt(i.id, 10))) : null;
+        this.showOrder(list, newId);
     }
 
     async removeProduct(id) {

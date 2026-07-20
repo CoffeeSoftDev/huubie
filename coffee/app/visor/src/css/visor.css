@@ -393,9 +393,59 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 .acct-model-val { font-size: 10.5px; font-family: 'JetBrains Mono', monospace; color: var(--vsr-text-mute2); }
 .acct-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--vsr-border-soft); }
 .acct-foot-count { font-size: 11.5px; color: var(--vsr-text-muted); }
-.acct-btn { font-size: 12.5px; font-weight: 600; padding: 8px 16px; border-radius: 9px; cursor: pointer; border: 1px solid var(--vsr-border); background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.acct-btn { font-size: 12.5px; font-weight: 600; padding: 8px 16px; border-radius: 9px; cursor: pointer; border: 1px solid var(--vsr-border); background: var(--vsr-bg-hover); color: var(--vsr-text-soft); display: inline-flex; align-items: center; gap: 6px; }
 .acct-btn-primary { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
 .acct-btn-primary:hover { filter: brightness(1.08); }
+.acct-btn-danger { background: transparent; border-color: rgba(248,113,113,.4); color: #F87171; }
+.acct-btn-danger:hover { background: rgba(248,113,113,.1); }
+
+/* ── Editor de modelos (CRUD sobre el catálogo) ── */
+.acct-modal.is-editing .acct-modal-card { width: min(920px, 95vw); }
+.acct-modal.is-editing .acct-modal-foot { display: none; }
+.acct-mini-primary { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; display: inline-flex; align-items: center; gap: 4px; }
+.acct-mini-primary:hover { filter: brightness(1.08); color: #fff; }
+.acct-model-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+.acct-model-caps { display: flex; gap: 4px; flex-wrap: wrap; }
+.acct-cap { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 6px; background: var(--vsr-bg-hover); color: var(--vsr-text-mute2); border: 1px solid var(--vsr-border-soft); }
+.acct-cap-vision { color: #A855F7; border-color: rgba(168,85,247,.35); }
+.acct-cap-tools { color: #34D399; border-color: rgba(52,211,153,.35); }
+.acct-cap-thinking { color: #60A5FA; border-color: rgba(96,165,250,.35); }
+.acct-model-row-actions { display: flex; gap: 2px; flex: 0 0 auto; }
+.acct-icon-btn { display: inline-flex; padding: 5px; border-radius: 7px; border: 0; background: transparent; color: var(--vsr-text-mute2); cursor: pointer; }
+.acct-icon-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+.acct-icon-danger:hover { color: #F87171; }
+
+.acct-model-form { display: flex; flex-direction: column; gap: 14px; }
+.acct-card { border: 1px solid var(--vsr-border-soft); border-radius: 12px; padding: 14px 16px; background: var(--vsr-bg-card); }
+.acct-card-title { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--vsr-text); margin-bottom: 12px; }
+.acct-card-title i { color: var(--vsr-accent-soft); }
+.acct-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .acct-grid2 { grid-template-columns: 1fr; } }
+.acct-f { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.acct-f:last-child { margin-bottom: 0; }
+.acct-f-label { font-size: 11.5px; font-weight: 600; color: var(--vsr-text-soft); }
+.acct-f-label .req { color: #F87171; }
+.acct-f-hint { font-size: 10.5px; color: var(--vsr-text-mute2); }
+.acct-input { width: 100%; font-size: 12.5px; padding: 8px 11px; border-radius: 8px; border: 1px solid var(--vsr-border-input); background: var(--vsr-bg-input); color: var(--vsr-text-soft); outline: none; font-family: inherit; }
+.acct-input:focus { border-color: var(--vsr-accent); box-shadow: 0 0 0 3px var(--vsr-accent-tint); }
+.acct-input.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.acct-input[readonly] { opacity: .7; cursor: not-allowed; }
+textarea.acct-input { resize: vertical; }
+.acct-checks { display: flex; flex-direction: column; gap: 9px; }
+.acct-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--vsr-text-soft); cursor: pointer; }
+.acct-check input { width: 15px; height: 15px; accent-color: var(--vsr-accent); }
+.acct-check code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--vsr-accent-soft); background: var(--vsr-accent-tint); padding: 1px 5px; border-radius: 5px; }
+.acct-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--vsr-border-input); background: var(--vsr-bg-input); }
+.acct-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 9999px; background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.acct-chip i { cursor: pointer; opacity: .7; }
+.acct-chip i:hover { opacity: 1; }
+.acct-tag-input { flex: 1 1 120px; min-width: 120px; border: 0; background: transparent; outline: none; color: var(--vsr-text-soft); font-size: 12px; font-family: inherit; }
+.acct-effort-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.acct-effort-chip { font-size: 11.5px; font-weight: 600; padding: 5px 14px; border-radius: 8px; cursor: pointer; border: 1px solid var(--vsr-border-input); background: var(--vsr-bg-input); color: var(--vsr-text-muted); font-family: 'JetBrains Mono', monospace; }
+.acct-effort-chip.is-on { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+.acct-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 4px; }
+.acct-form-foot-r { display: flex; gap: 8px; }
+.acct-model-form code { font-family: 'JetBrains Mono', monospace; }
 
 /* ── Modal "Mejorar plan" (registro manual de cuentas Claude) ── */
 .up-note { font-size: 11.5px; line-height: 1.5; color: var(--vsr-text-muted); background: var(--vsr-bg-card);
