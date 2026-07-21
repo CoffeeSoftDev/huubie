@@ -45,7 +45,7 @@
         {
           "id": "t34r9ayn",
           "text": "Revisar la estrategia de temporadas en camaristas",
-          "done": false
+          "done": true
         },
         {
           "id": "tvh83rvh",
@@ -57,7 +57,13 @@
     {
       "id": "sb55q32e",
       "title": "Reportes -Por puesto",
-      "tasks": []
+      "tasks": [
+        {
+          "id": "tavdzwwj",
+          "text": "Revisar si las evaluaciones corresponden al promedio",
+          "done": false
+        }
+      ]
     }
   ]
 }
