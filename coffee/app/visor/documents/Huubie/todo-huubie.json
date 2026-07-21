@@ -6,29 +6,9 @@
       "title": "Lista de pedidos",
       "tasks": [
         {
-          "id": "tjvih2wq",
-          "text": "Cierre del dia - el numero 1 debe aparecer parpadeante",
-          "done": true
-        },
-        {
-          "id": "tmsunv1a",
-          "text": "Cierre del dia - Si estas en el dia actual y no se cerro el dia Debe aparecer una nota que indique que es necesario cerrar el dia , asi como aparece con cerrar turno",
-          "done": true
-        },
-        {
-          "id": "tzz87wkz",
-          "text": "No deberia poder abrir turno, si el dia de ayer no lo cerre",
-          "done": true
-        },
-        {
-          "id": "td7newt8",
-          "text": "Cambiar el mensaje de la api de whats, y que sea en cerrar turno, el conteo que hizo el ticket que me lo mande en un mensaje",
-          "done": true
-        },
-        {
-          "id": "tk04avno",
-          "text": "Cuando se cierra un dia el cual no se ha cerrado ( por ejemplo el dia anterior ) el sistema debe quita la alerta de dias sin cerrar de la ventana cierre del dia",
-          "done": true
+          "id": "tci0r2gn",
+          "text": "Forzar al usuario a abrir turno para ver los pedidos",
+          "done": false
         }
       ]
     },
@@ -61,11 +41,6 @@
           "id": "t9vno2um",
           "text": "en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento",
           "done": false
-        },
-        {
-          "id": "tw74jlsl",
-          "text": "Quiero ver del desgloce de los pagos si son del mismo no lo agrupes quiero ver un historial",
-          "done": false
         }
       ]
     },
@@ -74,28 +49,24 @@
       "title": "Editar producto",
       "tasks": [
         {
-          "id": "t9zckkm4",
-          "text": "Información del pedido:  El selector de sucursal no se visualiza correctamente aparece contraido",
-          "done": true
-        },
-        {
-          "id": "t9e89xwa",
-          "text": "Cuando editas un pedido, si ya existe un producto que no fue agregado hoy , se debe bloquear, si el producto es de hoy debe poder editar",
-          "done": true
-        },
-        {
-          "id": "t9l7flmp",
-          "text": "Mejorar las cards y el diseño del catalogo de productos",
-          "done": false
-        },
-        {
-          "id": "tjv4m2zj",
-          "text": "Mejora el diseño de la orden actual de pedidos",
-          "done": false
-        },
-        {
           "id": "te556n3w",
           "text": "Mejorar los espacios para los contenedores",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "surmihcc",
+      "title": "Interfaz **",
+      "tasks": [
+        {
+          "id": "tix4myn2",
+          "text": "la navbar del menu inicial debe ser igual a las demas, no debe existe diferentes tipos de navbar",
+          "done": false
+        },
+        {
+          "id": "thya4q0l",
+          "text": "Revisar los permisos de administrador",
           "done": false
         }
       ]
