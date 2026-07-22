@@ -111,17 +111,7 @@
                 <i data-lucide="moon" class="w-4 h-4"></i>
             </button>
 
-            <div class="vsr-user-block-wrap">
-                <button id="userBlockBtn" class="vsr-user-block" type="button" title="Cambiar usuario">
-                    <div id="userInitials" class="user-avatar">RV</div>
-                    <div class="col">
-                        <span id="userName">Rosy V.</span>
-                        <span id="userRole">Guardiana</span>
-                    </div>
-                    <i data-lucide="chevron-down" class="user-block-chev w-3 h-3"></i>
-                </button>
-                <div id="userMenu" class="user-menu" style="display:none;"></div>
-            </div>
+
         </div>
     </header>
 

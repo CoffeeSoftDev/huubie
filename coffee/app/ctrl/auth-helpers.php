@@ -29,5 +29,21 @@ function auth_public_user(array $u): array
         'email'      => $u['email'],
         'avatar_url' => $u['avatar_url'],
         'initials'   => coffee_auth_initials($u['name']),
+        'has_password' => !empty($u['password_hash']),
+    ];
+}
+
+function auth_public_profile(array $profile): array
+{
+    return [
+        'id'          => (int)$profile['id'],
+        'name'        => $profile['name'],
+        'role'        => $profile['role'],
+        'description' => $profile['description'],
+        'color'       => $profile['color'],
+        'is_active'   => (int)$profile['is_active'] === 1,
+        'initials'    => coffee_auth_initials($profile['name']),
+        'created_at'  => $profile['created_at'],
+        'updated_at'  => $profile['updated_at'],
     ];
 }

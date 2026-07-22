@@ -4,7 +4,6 @@ let visor, visorView, app, coffeeIA, drawioBoard, githubBoard, htmlStage;
 
 const VISOR_STORAGE_KEY = 'visor:settings:v1';
 const VISOR_PINNED_KEY  = 'visor:pinned:v1';
-const VISOR_USER_KEY    = 'visor:user:v1';
 
 // Acceso rapido del sidebar (accesos directos + recientes). Las 3 primeras se
 // espejan en prefs.sqlite (ver PREFS_ALLOWED / prefs-store.js KEYS) para seguir
@@ -19,11 +18,6 @@ const SHORTCUT_ICONS = ['link','globe','external-link','kanban-square','database
 // Colores del icono de un acceso directo (el primero, terracota, es el default).
 const SHORTCUT_COLORS = ['#C05A40','#E8A68F','#38bdf8','#34d399','#f59e0b','#c084fc','#ef4444','#2dd4bf','#94a3b8'];
 
-const VISOR_USERS = [
-    { id: 'rosy',     name: 'Rosy V.',  role: 'Guardiana',     initials: 'RV', color: '#6366f1' },
-    { id: 'somx',     name: 'Somx',     role: 'Desarrollador', initials: 'SO', color: '#22c55e' },
-    { id: 'invitado', name: 'Invitado', role: 'Visitante',     initials: 'IN', color: '#94a3b8' }
-];
 const EDITABLE_EXTS = [
     'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
     'html','htm','css','scss','js','ts','php','py','rb','go','rs',
@@ -42,6 +36,12 @@ $(async () => {
     // Retoma la ultima conversacion del chat tras recargar (autoguardado + uid en
     // localStorage). Reconstruye las burbujas sin abrir el drawer.
     coffeeIA.restoreLastConversation();
+});
+
+window.addEventListener('coffeeia:identity-changed', (event) => {
+    if (!app || !event.detail || !event.detail.user) return;
+    app.currentUser = event.detail.user;
+    app.currentProfile = event.detail.profile || null;
 });
 
 // Divisor arrastrable entre el documento (izq) y el lienzo (der) en modo split.
@@ -105,7 +105,8 @@ class App {
         this.isEditing      = false;
         this.settings     = this.loadSettings();
         this.pinnedFiles  = this.loadPinned();
-        this.currentUser  = this.loadUser();
+        this.currentUser  = { id: '', name: '', email: '', initials: '' };
+        this.currentProfile = null;
 
         // Acceso rapido: se lee de localStorage (cache sincrona); si prefs.sqlite
         // trae algo mas nuevo, el listener de 'coffeeia:prefs-synced' lo repinta.
@@ -113,72 +114,6 @@ class App {
         this.recentViews   = this._qaLoadJSON(VISOR_RECENT_VIEWS_KEY, []);
         this.recentCreated = this._qaLoadJSON(VISOR_RECENT_CREATED_KEY, []);
         this.qaUI          = this._loadQaUI();
-    }
-
-    loadUser() {
-        try {
-            const id = localStorage.getItem(VISOR_USER_KEY);
-            return VISOR_USERS.find(u => u.id === id) || VISOR_USERS[0];
-        } catch (e) {
-            return VISOR_USERS[0];
-        }
-    }
-
-    saveUser() {
-        try { localStorage.setItem(VISOR_USER_KEY, this.currentUser.id); }
-        catch (e) {}
-    }
-
-    applyUser(user) {
-        if (!user) return;
-        this.currentUser = user;
-        this.saveUser();
-
-        $('#userInitials').text(user.initials).css('background', user.color);
-        $('#userName').text(user.name);
-        $('#userRole').text(user.role);
-    }
-
-    renderUserMenu() {
-        const html = VISOR_USERS.map(u => `
-            <button type="button" class="user-menu-item ${u.id === this.currentUser.id ? 'is-active' : ''}" data-user-id="${u.id}">
-                <span class="user-menu-avatar" style="background:${u.color};">${u.initials}</span>
-                <span class="user-menu-info">
-                    <span class="user-menu-name">${u.name}</span>
-                    <span class="user-menu-role">${u.role}</span>
-                </span>
-                ${u.id === this.currentUser.id ? '<i data-lucide="check" class="w-3.5 h-3.5 user-menu-check"></i>' : ''}
-            </button>
-        `).join('');
-        $('#userMenu').html(html);
-        if (window.lucide) lucide.createIcons();
-    }
-
-    bindUserMenu() {
-        $('#userBlockBtn').off('click').on('click', (e) => {
-            e.stopPropagation();
-            const $menu = $('#userMenu');
-            if ($menu.is(':visible')) {
-                $menu.hide();
-            } else {
-                this.renderUserMenu();
-                $menu.show();
-            }
-        });
-
-        $(document).off('click.userMenu').on('click.userMenu', (e) => {
-            if (!$(e.target).closest('#userMenu, #userBlockBtn').length) {
-                $('#userMenu').hide();
-            }
-        });
-
-        $('#userMenu').off('click', '.user-menu-item').on('click', '.user-menu-item', (e) => {
-            const id = $(e.currentTarget).data('user-id');
-            const user = VISOR_USERS.find(u => u.id === id);
-            if (!user) return;
-            this.applyUser(user);
-            $('#userMenu').hide();
-        });
     }
 
     workspaceId() {
@@ -605,7 +540,6 @@ class App {
         this.applySidebarCollapsed(this.settings.sidebarCollapsed, false);
         this.applyIaDrawerWidth(this.settings.iaDrawerWidth);
         this.applySidebarWidth(this.settings.sidebarWidth);
-        this.applyUser(this.currentUser);
 
         // En paralelo con la biblioteca: ninguno depende del otro y el primer
         // render necesita los dos (fileFormat consulta los overrides).
@@ -719,7 +653,6 @@ class App {
         this.bindMobileSidebar();
         this.bindIaDrawerResize();
         this.bindSidebarResize();
-        this.bindUserMenu();
         this.bindNewFileModal();
 
         // Si prefs.sqlite trae accesos/recientes mas nuevos (otro equipo), repintar.
@@ -2670,9 +2603,6 @@ class VisorView {
     renderHeader(header, totalCount) {
         $('#headerTitle').text(header.title);
         $('#headerSubtitle').text(header.currentLabel || header.subtitle);
-        $('#userInitials').text(header.user.initials);
-        $('#userName').text(header.user.name);
-        $('#userRole').text(header.user.role);
         $('#totalCountChip').text(totalCount);
     }
 
@@ -6681,7 +6611,8 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
 
         try {
-            const url  = this._apiChats + '?action=list&app=visor';   // solo los chats del Visor
+            const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
+            const url = this._apiChats + '?action=list&app=visor&user_id=' + encodeURIComponent(userId);
             const res  = await fetch(url, { cache: 'no-store' });
             const data = await res.json();
             if (!data.success) { $('#iaSavedList').html('<div class="ia-saved-empty">' + (data.message || 'Error al listar') + '</div>'); return; }

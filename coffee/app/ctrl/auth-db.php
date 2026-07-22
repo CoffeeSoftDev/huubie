@@ -18,6 +18,7 @@ function auth_pdo(): PDO
     $pdo = new PDO('sqlite:' . $dataDir . '/auth.sqlite');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('PRAGMA journal_mode = WAL');
+    $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS users (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +34,22 @@ function auth_pdo(): PDO
     ");
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL');
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS profiles (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL,
+            name        TEXT NOT NULL COLLATE NOCASE,
+            role        TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            color       TEXT NOT NULL DEFAULT '#6366F1',
+            is_active   INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
+            created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ");
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user_name ON profiles(user_id, name)');
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_one_active ON profiles(user_id) WHERE is_active = 1');
 
     return $pdo;
 }
@@ -59,4 +76,27 @@ function auth_find_by_google_id(string $googleId): ?array
     $st->execute([$googleId]);
     $r = $st->fetch(PDO::FETCH_ASSOC);
     return $r ?: null;
+}
+
+function auth_list_profiles(int $userId): array
+{
+    $st = auth_pdo()->prepare('SELECT * FROM profiles WHERE user_id = ? ORDER BY is_active DESC, name ASC');
+    $st->execute([$userId]);
+    return $st->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function auth_find_profile(int $id, int $userId): ?array
+{
+    $st = auth_pdo()->prepare('SELECT * FROM profiles WHERE id = ? AND user_id = ?');
+    $st->execute([$id, $userId]);
+    $profile = $st->fetch(PDO::FETCH_ASSOC);
+    return $profile ?: null;
+}
+
+function auth_active_profile(int $userId): ?array
+{
+    $st = auth_pdo()->prepare('SELECT * FROM profiles WHERE user_id = ? AND is_active = 1 LIMIT 1');
+    $st->execute([$userId]);
+    $profile = $st->fetch(PDO::FETCH_ASSOC);
+    return $profile ?: null;
 }

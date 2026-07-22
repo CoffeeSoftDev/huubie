@@ -447,6 +447,42 @@ textarea.acct-input { resize: vertical; }
 .acct-form-foot-r { display: flex; gap: 8px; }
 .acct-model-form code { font-family: 'JetBrains Mono', monospace; }
 
+/* ── Configuración de cuenta y perfiles ── */
+.acct-settings-modal .acct-modal-card { width: min(900px, 95vw); min-height: min(620px, 86vh); }
+.acct-settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 0; flex: 1 1 auto; }
+.acct-settings-nav { padding: 14px 10px; border-right: 1px solid var(--vsr-border-soft); background: var(--vsr-bg-card); display: flex; flex-direction: column; gap: 4px; }
+.acct-settings-nav button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--vsr-text-muted); font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.acct-settings-nav button:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
+.acct-settings-nav button.is-active { color: var(--vsr-accent-soft); background: var(--vsr-accent-tint); }
+.acct-settings-nav svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.acct-settings-content { min-width: 0; }
+.acct-user-summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--vsr-border-soft); border-radius: 11px; background: var(--vsr-bg-card); }
+.acct-user-summary > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acct-user-summary strong { color: var(--vsr-text); font-size: 13px; }
+.acct-user-summary span:not(.acct-profile-avatar) { color: var(--vsr-text-muted); font-size: 11.5px; }
+.acct-profile-list { display: flex; flex-direction: column; gap: 8px; }
+.acct-profile-card { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border: 1px solid var(--vsr-border-soft); border-radius: 10px; background: var(--vsr-bg-card); }
+.acct-profile-card.is-active { border-color: var(--vsr-accent-tint); box-shadow: inset 3px 0 0 var(--vsr-accent); }
+.acct-profile-avatar { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+.acct-profile-info { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.acct-profile-info strong { color: var(--vsr-text); font-size: 12.5px; }
+.acct-profile-info > span { color: var(--vsr-accent-soft); font-size: 10.5px; font-weight: 600; }
+.acct-profile-info small { color: var(--vsr-text-muted); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-active-badge { display: inline-flex; align-items: center; gap: 4px; color: #34D399; background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.25); padding: 3px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+.acct-active-badge svg, .acct-profile-card .acct-icon-btn svg, .acct-mini svg, .acct-form-foot svg, .acct-card-title svg { width: 14px; height: 14px; }
+.acct-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 24px; color: var(--vsr-text-muted); text-align: center; border: 1px dashed var(--vsr-border); border-radius: 12px; }
+.acct-empty svg { width: 28px; height: 28px; color: var(--vsr-text-mute2); }
+.acct-empty strong { color: var(--vsr-text-soft); font-size: 13px; }
+.acct-empty span { font-size: 11.5px; }
+.acct-color-input { width: 54px; height: 36px; padding: 3px; border: 1px solid var(--vsr-border-input); border-radius: 8px; background: var(--vsr-bg-input); cursor: pointer; }
+@media (max-width: 680px) {
+    .acct-settings-modal .acct-modal-card { min-height: 90vh; }
+    .acct-settings-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+    .acct-settings-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--vsr-border-soft); }
+    .acct-settings-nav button { width: auto; white-space: nowrap; }
+    .acct-profile-card { flex-wrap: wrap; }
+}
+
 /* ── Modal "Mejorar plan" (registro manual de cuentas Claude) ── */
 .up-note { font-size: 11.5px; line-height: 1.5; color: var(--vsr-text-muted); background: var(--vsr-bg-card);
     border: 1px solid var(--vsr-border-soft); border-radius: 9px; padding: 9px 11px; margin: 0 0 14px; }

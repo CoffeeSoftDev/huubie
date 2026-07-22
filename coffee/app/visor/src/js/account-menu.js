@@ -12,18 +12,28 @@
     // Usuario real de la sesion (cargado via AJAX en init). Si la llamada falla
     // o aun no responde, se cae al nombre guardado en localStorage.
     let _currentUser = null;
+    let _activeProfile = null;
+    let _profiles = [];
 
     function profileName() {
         if (_currentUser && _currentUser.name) return _currentUser.name;
         try { return localStorage.getItem(PROFILE_KEY) || DEFAULT_NAME; }
         catch (e) { return DEFAULT_NAME; }
     }
-    function loadCurrentUser() {
+    function notifyIdentity() {
+        global.dispatchEvent(new CustomEvent('coffeeia:identity-changed', {
+            detail: { user: _currentUser, profile: _activeProfile }
+        }));
+    }
+    function loadCurrentUser(done) {
         global.jQuery.get('../ctrl/ctrl-auth.php', { action: 'me' })
             .done(function (res) {
                 if (res && res.success && res.user) {
                     _currentUser = res.user;
+                    _activeProfile = res.active_profile || null;
                     refreshAccountBar();
+                    notifyIdentity();
+                    if (typeof done === 'function') done(res);
                 }
             });
     }
@@ -106,7 +116,7 @@
         const name = profileName();
         global.jQuery('#accountMenu .account-avatar-sm').text(initials(name));
         global.jQuery('#accountMenu .account-menu-head-name').text(name);
-        global.jQuery('#accountMenu .account-menu-head-plan').text(PLAN_LABEL);
+        global.jQuery('#accountMenu .account-menu-head-plan').text(_activeProfile ? _activeProfile.name : PLAN_LABEL);
         positionMenu();
         global.jQuery('#accountMenu').prop('hidden', false).addClass('is-open');
         global.jQuery('#accountBtn').addClass('is-active');
@@ -120,8 +130,8 @@
     function onMenuAct(act) {
         closeMenu();
         switch (act) {
-            case 'settings': openSettings(); break;
-            case 'profile':  editProfile();  break;
+            case 'settings': openSettings('account'); break;
+            case 'profile':  openSettings('profiles'); break;
             case 'logout':   doLogout();     break;
             case 'upgrade': openUpgrade(); break;
             case 'custom':
@@ -133,10 +143,6 @@
     function labelFor(id) {
         const it = MENU_ITEMS.filter(function (m) { return m.id === id; })[0];
         return it ? it.label : id;
-    }
-
-    function editProfile() {
-        toast('Sección "Perfil" próximamente', 'info');
     }
 
     function doLogout() {
@@ -155,14 +161,25 @@
 
     function buildSettings() {
         if (global.jQuery('#accountSettings').length) return;
-        const html = '<div id="accountSettings" class="acct-modal" hidden>'
+        const html = '<div id="accountSettings" class="acct-modal acct-settings-modal" hidden>'
                    +   '<div class="acct-modal-backdrop"></div>'
                    +   '<div class="acct-modal-card" role="dialog" aria-modal="true" aria-label="Configuración">'
                    +     '<div class="acct-modal-head">'
                    +       '<div class="acct-modal-title"><i data-lucide="settings" class="w-4 h-4"></i> Configuración</div>'
                    +       '<button type="button" class="acct-modal-x" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>'
                    +     '</div>'
-                   +     '<div class="acct-modal-body"><div id="acctModelPanel"></div></div>'
+                   +     '<div class="acct-settings-layout">'
+                   +       '<nav class="acct-settings-nav" aria-label="Secciones de configuración">'
+                   +         '<button type="button" data-settings-section="account"><i data-lucide="user-round"></i><span>Mi cuenta</span></button>'
+                   +         '<button type="button" data-settings-section="profiles"><i data-lucide="users-round"></i><span>Perfiles</span></button>'
+                   +         '<button type="button" data-settings-section="models"><i data-lucide="bot"></i><span>Modelos</span></button>'
+                   +       '</nav>'
+                   +       '<div class="acct-modal-body acct-settings-content">'
+                   +         '<div id="acctUserPanel"></div>'
+                   +         '<div id="acctProfilesPanel" hidden></div>'
+                   +         '<div id="acctModelPanel" hidden></div>'
+                   +       '</div>'
+                   +     '</div>'
                    +     '<div class="acct-modal-foot">'
                    +       '<span id="acctModelCount" class="acct-foot-count"></span>'
                    +       '<button type="button" class="acct-btn acct-btn-primary" data-close="1">Listo</button>'
@@ -170,7 +187,25 @@
                    +   '</div>'
                    + '</div>';
         global.jQuery('body').append(html);
-        renderModelPanel();
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function renderSettingsSection(section) {
+        const valid = ['account', 'profiles', 'models'];
+        const active = valid.indexOf(section) !== -1 ? section : 'account';
+        const panels = { account: '#acctUserPanel', profiles: '#acctProfilesPanel', models: '#acctModelPanel' };
+
+        global.jQuery('#accountSettings [data-settings-section]').each(function () {
+            global.jQuery(this).toggleClass('is-active', global.jQuery(this).data('settings-section') === active);
+        });
+        Object.keys(panels).forEach(function (key) {
+            global.jQuery(panels[key]).prop('hidden', key !== active);
+        });
+
+        if (active === 'account') renderUserPanel();
+        if (active === 'profiles') loadProfiles();
+        if (active === 'models') renderModelPanel();
+        if (active !== 'models') global.jQuery('#accountSettings').removeClass('is-editing');
         if (global.lucide) global.lucide.createIcons();
     }
 
@@ -387,14 +422,169 @@
         if (_modelView === 'form') backToModelList(); else renderModelPanel();
     }
 
-    function openSettings() {
+    function renderUserPanel() {
+        if (!_currentUser) {
+            global.jQuery('#acctUserPanel').html('<div class="acct-empty">Cargando cuenta...</div>');
+            loadCurrentUser(function () { renderUserPanel(); });
+            return;
+        }
+
+        const passwordFields = _currentUser.has_password
+            ? fieldRow('Contraseña actual', '<input type="password" class="acct-input" id="accountCurrentPassword" autocomplete="current-password">', 'Requerida únicamente si cambias la contraseña.')
+            : '';
+        const html = '<div class="acct-sec-head">'
+                   +   '<div><div class="acct-sec-title">Mi cuenta</div><div class="acct-sec-sub">Actualiza los datos usados para iniciar sesión en CoffeeSoft.</div></div>'
+                   + '</div>'
+                   + '<div class="acct-user-summary">'
+                   +   '<span class="acct-profile-avatar" style="background:var(--vsr-accent)">' + escHtml(_currentUser.initials || initials(_currentUser.name)) + '</span>'
+                   +   '<div><strong>' + escHtml(_currentUser.name) + '</strong><span>' + escHtml(_currentUser.email) + '</span></div>'
+                   + '</div>'
+                   + '<form id="acctUserForm" class="acct-model-form">'
+                   +   '<div class="acct-card"><div class="acct-card-title"><i data-lucide="contact"></i> Datos personales</div>'
+                   +     '<div class="acct-grid2">'
+                   +       fieldRow('Nombre <span class="req">*</span>', '<input type="text" class="acct-input" id="accountName" value="' + escAttr(_currentUser.name) + '" autocomplete="name">')
+                   +       fieldRow('Correo <span class="req">*</span>', '<input type="email" class="acct-input" id="accountEmail" value="' + escAttr(_currentUser.email) + '" autocomplete="email">')
+                   +     '</div>'
+                   +   '</div>'
+                   +   '<div class="acct-card"><div class="acct-card-title"><i data-lucide="key-round"></i> Seguridad</div>'
+                   +     passwordFields
+                   +     '<div class="acct-grid2">'
+                   +       fieldRow('Nueva contraseña', '<input type="password" class="acct-input" id="accountNewPassword" minlength="8" autocomplete="new-password">', 'Déjala vacía para conservar la actual.')
+                   +       fieldRow('Confirmar contraseña', '<input type="password" class="acct-input" id="accountPasswordConfirm" minlength="8" autocomplete="new-password">')
+                   +     '</div>'
+                   +   '</div>'
+                   +   '<div class="acct-form-foot"><span></span><button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save"></i> Guardar cuenta</button></div>'
+                   + '</form>';
+        global.jQuery('#acctUserPanel').html(html);
+        global.jQuery('#acctModelCount').text('Usuario #' + _currentUser.id);
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function saveUser() {
+        global.jQuery.post('../ctrl/ctrl-auth.php', {
+            action: 'update_me',
+            name: global.jQuery('#accountName').val(),
+            email: global.jQuery('#accountEmail').val(),
+            current_password: global.jQuery('#accountCurrentPassword').val() || '',
+            new_password: global.jQuery('#accountNewPassword').val() || '',
+            password_confirm: global.jQuery('#accountPasswordConfirm').val() || ''
+        }).done(function (res) {
+            if (!res || !res.success) { toast((res && res.message) || 'No se pudo actualizar la cuenta', 'warn'); return; }
+            _currentUser = res.user;
+            try { localStorage.setItem(PROFILE_KEY, _currentUser.name); } catch (e) {}
+            refreshAccountBar();
+            notifyIdentity();
+            renderUserPanel();
+            toast(res.message, 'ok');
+        }).fail(function (xhr) {
+            toast((xhr.responseJSON && xhr.responseJSON.message) || 'No se pudo actualizar la cuenta', 'warn');
+        });
+    }
+
+    function loadProfiles() {
+        global.jQuery('#acctProfilesPanel').html('<div class="acct-empty">Cargando perfiles...</div>');
+        global.jQuery.get('../ctrl/ctrl-auth.php', { action: 'profiles' })
+            .done(function (res) {
+                if (!res || !res.success) { toast((res && res.message) || 'No se pudieron cargar los perfiles', 'warn'); return; }
+                _profiles = res.profiles || [];
+                _activeProfile = _profiles.filter(function (profile) { return profile.is_active; })[0] || null;
+                renderProfiles();
+            })
+            .fail(function () {
+                global.jQuery('#acctProfilesPanel').html('<div class="acct-empty">No se pudieron cargar los perfiles.</div>');
+            });
+    }
+
+    function renderProfiles() {
+        const rows = _profiles.map(function (profile) {
+            return '<div class="acct-profile-card' + (profile.is_active ? ' is-active' : '') + '" data-profile-id="' + profile.id + '">'
+                 +   '<span class="acct-profile-avatar" style="background:' + escAttr(profile.color) + '">' + escHtml(profile.initials) + '</span>'
+                 +   '<span class="acct-profile-info"><strong>' + escHtml(profile.name) + '</strong><span>' + escHtml(profile.role || 'Sin rol') + '</span>'
+                 +     (profile.description ? '<small>' + escHtml(profile.description) + '</small>' : '') + '</span>'
+                 +   (profile.is_active ? '<span class="acct-active-badge"><i data-lucide="check"></i> Activo</span>' : '<button type="button" class="acct-mini" data-profile-activate>Usar</button>')
+                 +   '<span class="acct-model-row-actions">'
+                 +     '<button type="button" class="acct-icon-btn" data-profile-edit title="Editar"><i data-lucide="pencil"></i></button>'
+                 +     '<button type="button" class="acct-icon-btn acct-icon-danger" data-profile-delete title="Eliminar"><i data-lucide="trash-2"></i></button>'
+                 +   '</span>'
+                 + '</div>';
+        }).join('');
+        const html = '<div class="acct-sec-head">'
+                   +   '<div><div class="acct-sec-title">Perfiles</div><div class="acct-sec-sub">Crea identidades de trabajo y elige cuál estará activa en el visor.</div></div>'
+                   +   '<div class="acct-sec-actions"><button type="button" class="acct-mini acct-mini-primary" data-profile-add><i data-lucide="plus"></i> Nuevo perfil</button></div>'
+                   + '</div>'
+                   + (rows ? '<div class="acct-profile-list">' + rows + '</div>' : '<div class="acct-empty"><i data-lucide="users-round"></i><strong>Aún no tienes perfiles</strong><span>Crea uno para separar tus identidades de trabajo.</span></div>');
+        global.jQuery('#acctProfilesPanel').html(html);
+        global.jQuery('#acctModelCount').text(_profiles.length + (_profiles.length === 1 ? ' perfil' : ' perfiles'));
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function openProfileForm(id) {
+        const profile = _profiles.filter(function (item) { return Number(item.id) === Number(id); })[0] || null;
+        const html = '<div class="acct-sec-head"><div><div class="acct-sec-title">' + (profile ? 'Editar perfil' : 'Nuevo perfil') + '</div><div class="acct-sec-sub">Define cómo se mostrará esta identidad dentro del visor.</div></div></div>'
+                   + '<form id="acctProfileForm" class="acct-model-form" data-profile-id="' + (profile ? profile.id : '') + '">'
+                   +   '<div class="acct-card"><div class="acct-card-title"><i data-lucide="badge-check"></i> Identidad</div>'
+                   +     '<div class="acct-grid2">'
+                   +       fieldRow('Nombre <span class="req">*</span>', '<input type="text" class="acct-input" id="profileName" value="' + escAttr(profile ? profile.name : '') + '" maxlength="80">')
+                   +       fieldRow('Rol', '<input type="text" class="acct-input" id="profileRole" value="' + escAttr(profile ? profile.role : '') + '" placeholder="Desarrollador, Analista..." maxlength="80">')
+                   +     '</div>'
+                   +     fieldRow('Descripción', '<textarea class="acct-input" id="profileDescription" rows="3" maxlength="280">' + escHtml(profile ? profile.description : '') + '</textarea>')
+                   +     fieldRow('Color', '<input type="color" class="acct-color-input" id="profileColor" value="' + escAttr(profile ? profile.color : '#6366F1') + '">')
+                   +   '</div>'
+                   +   '<div class="acct-form-foot"><button type="button" class="acct-btn" data-profile-cancel>Cancelar</button><button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save"></i> Guardar perfil</button></div>'
+                   + '</form>';
+        global.jQuery('#acctProfilesPanel').html(html);
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function saveProfile() {
+        global.jQuery.post('../ctrl/ctrl-auth.php', {
+            action: 'save_profile',
+            id: global.jQuery('#acctProfileForm').data('profile-id') || '',
+            name: global.jQuery('#profileName').val(),
+            role: global.jQuery('#profileRole').val(),
+            description: global.jQuery('#profileDescription').val(),
+            color: global.jQuery('#profileColor').val()
+        }).done(function (res) {
+            if (!res || !res.success) { toast((res && res.message) || 'No se pudo guardar el perfil', 'warn'); return; }
+            toast(res.message, 'ok');
+            loadProfiles();
+        }).fail(function (xhr) {
+            toast((xhr.responseJSON && xhr.responseJSON.message) || 'No se pudo guardar el perfil', 'warn');
+        });
+    }
+
+    function activateProfile(id) {
+        global.jQuery.post('../ctrl/ctrl-auth.php', { action: 'activate_profile', id: id })
+            .done(function (res) {
+                if (!res || !res.success) { toast((res && res.message) || 'No se pudo activar el perfil', 'warn'); return; }
+                _activeProfile = res.profile;
+                notifyIdentity();
+                toast(res.message, 'ok');
+                loadProfiles();
+            });
+    }
+
+    function deleteProfile(id) {
+        const profile = _profiles.filter(function (item) { return Number(item.id) === Number(id); })[0];
+        if (!profile || !global.confirm('¿Eliminar el perfil "' + profile.name + '"? Esta acción no se puede deshacer.')) return;
+        global.jQuery.post('../ctrl/ctrl-auth.php', { action: 'delete_profile', id: id })
+            .done(function (res) {
+                if (!res || !res.success) { toast((res && res.message) || 'No se pudo eliminar el perfil', 'warn'); return; }
+                toast(res.message, 'info');
+                loadProfiles();
+                loadCurrentUser();
+            });
+    }
+
+    function openSettings(section) {
         buildSettings();
-        _modelView = 'list'; _modelEditId = null;
-        renderModelPanel();
+        _modelView = 'list';
+        _modelEditId = null;
         global.jQuery('#accountSettings').prop('hidden', false).addClass('is-open');
+        renderSettingsSection(section || 'account');
     }
     function closeSettings() {
-        global.jQuery('#accountSettings').prop('hidden', true).removeClass('is-open');
+        global.jQuery('#accountSettings').prop('hidden', true).removeClass('is-open is-editing');
     }
 
     function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -1099,6 +1289,14 @@
         // Modal de configuración (delegado, el nodo se crea al abrir).
         $(document).on('click', '#accountSettings .acct-modal-x, #accountSettings [data-close], #accountSettings .acct-modal-backdrop', function () { closeSettings(); });
         $(document).on('click', '#accountSettings .acct-modal-card', function (e) { e.stopPropagation(); });
+        $(document).on('click', '#accountSettings [data-settings-section]', function () { renderSettingsSection($(this).data('settings-section')); });
+        $(document).on('submit', '#acctUserForm', function (e) { e.preventDefault(); saveUser(); });
+        $(document).on('click', '#accountSettings [data-profile-add]', function () { openProfileForm(null); });
+        $(document).on('click', '#accountSettings [data-profile-edit]', function () { openProfileForm($(this).closest('.acct-profile-card').data('profile-id')); });
+        $(document).on('click', '#accountSettings [data-profile-cancel]', function () { renderProfiles(); });
+        $(document).on('submit', '#acctProfileForm', function (e) { e.preventDefault(); saveProfile(); });
+        $(document).on('click', '#accountSettings [data-profile-activate]', function () { activateProfile($(this).closest('.acct-profile-card').data('profile-id')); });
+        $(document).on('click', '#accountSettings [data-profile-delete]', function () { deleteProfile($(this).closest('.acct-profile-card').data('profile-id')); });
         $(document).on('change', '#acctModelList .acct-model-cb', function () {
             // Evita dejar cero modelos: revertir el último desmarcado.
             if (currentChecked().length === 0) {
