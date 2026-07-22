@@ -3660,6 +3660,17 @@ const COFFEEIA_EXCALI_KEY = 'visor:coffeeia:excaliMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 const COFFEEIA_EFFORT_KEY = 'visor:coffeeia:effort';   // esfuerzo de razonamiento
 
+// Auto-continuacion (paridad con el Playground): cuando el modelo corta la salida
+// por limite de tokens (templates grandes), el <script> queda a la mitad y el
+// componente "se dibuja pero no reacciona". Reenviamos pidiendo continuar EXACTO
+// donde quedo y concatenamos, hasta cerrar (tope de rondas).
+const COFFEEIA_MAX_CONTINUE = 3;
+const COFFEEIA_CONTINUE_PROMPT =
+    'La respuesta anterior se cortó por LÍMITE DE LONGITUD a media generación. '
+    + 'CONTINÚA EXACTAMENTE desde el último carácter que enviaste, sin repetir NADA de lo ya escrito '
+    + 'y SIN reabrir el bloque ```html: emite solo la continuación literal (lo que falte del <script> '
+    + 'o del markup) hasta terminar y cerrar el componente. No agregues explicaciones ni comentarios.';
+
 // Tipos de grafica que el modo grafica puede instruir a la IA a generar.
 const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
 const COFFEEIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
@@ -4487,9 +4498,50 @@ class CoffeeIA {
             ? (this._app.currentFileRef ? this._app.currentFileRef() : (this._app.allFiles || []).find(f => f.file === this._app.currentFile))
             : null;
 
+        // Directivas de lienzo (paridad con el Playground): bloque ADITIVO que el
+        // backend anexa al alma (systemExtra), sin sustituirla como systemOverride.
+        let systemExtra = '';
+        if (this.layoutMode) {
+            // Si el usuario adjunto imagen(es) de vision, exigir fidelidad visual: el
+            // render debe reproducir colores, tono (claro/oscuro), tipografia y
+            // composicion de la imagen, no una interpretacion libre del modelo.
+            if (images.length && images.some(i => !i.forModule)) {
+                systemExtra += `\n\n## Fidelidad a la imagen de referencia\n`
+                    + `El usuario adjuntó imagen(es). Analízalas y REPRODUCE fielmente su estilo visual: `
+                    + `paleta de colores exacta, tono (si la imagen es CLARA, el componente va claro; si es OSCURA, oscuro), `
+                    + `tipografía, espaciados y composición. No cambies el tema de la imagen ni impongas un estilo propio.`;
+            }
+            // Base conectada + lienzo: el componente debe poblarse con datos REALES
+            // (run_select), no con datos de muestra.
+            if (this.activeDb) {
+                systemExtra += `\n\n## Datos reales de la base conectada\n`
+                    + `Hay una base de datos MySQL conectada ("${this.activeDb}") y su esquema está en el contexto. `
+                    + `Si el componente muestra datos (tablas, listas, tarjetas, KPIs, gráficas, selects…), DEBES poblarlo con datos REALES: `
+                    + `ejecuta consultas \`SELECT\` de SOLO LECTURA con la herramienta \`run_select\` usando los nombres reales de tablas y columnas del esquema, `
+                    + `y escribe esos valores directamente en el HTML que devuelves. `
+                    + `NO inventes datos de muestra cuando hay una base conectada. `
+                    + `Si una consulta no devuelve filas, refléjalo con un estado vacío en el componente.`;
+            }
+        }
+
+        // Poda del PAYLOAD (this.history no se toca: chat y autoguardado conservan todo).
+        // Cada iteracion de lienzo deja un template HTML completo en el historial y todo
+        // viajaba en cada turno, asi que el modelo releia miles de tokens de versiones
+        // obsoletas. Solo el ULTIMO bloque ```html viaja completo (es la version vigente,
+        // la que se modifica); los anteriores se sustituyen por una marca.
+        let lastHtmlIdx = -1;
+        this.history.forEach((m, i) => {
+            if (/```html/i.test(m.content || '')) lastHtmlIdx = i;
+        });
+
         const payload = {
-            messages:           this.history.map(m => {
-                const out = { role: m.role, content: m.content };
+            messages:           this.history.map((m, i) => {
+                let content = m.content;
+                if (i !== lastHtmlIdx && /```html/i.test(content || '')) {
+                    content = content.replace(/```html[\s\S]*?```/gi,
+                        '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque ```html de la conversación]');
+                }
+                const out = { role: m.role, content };
                 if (m.images && m.images.length) out.images = m.images;
                 return out;
             }),
@@ -4502,6 +4554,11 @@ class CoffeeIA {
             // lienzo-mode.md y suba las rondas de tools (paridad con el Lab). Sin
             // esto, el modelo corria con el alma por defecto y la UI salia imprecisa.
             canvasMode:         !!this.layoutMode,
+            systemExtra:        systemExtra,
+            // 'data' en lienzo: la UI se puebla con datos reales (run_select) y el
+            // backend NO inyecta el formato de cajas ASCII (conflicto con generar HTML).
+            // Vacio fuera del lienzo: comportamiento clasico del Visor (cajas/diagramas).
+            dbMode:             this.layoutMode ? 'data' : '',
             graphMode:          this.graphMode || '',
             graphTemplate:      this.graphMode === 'excalidraw' ? (this.excaliMode || 'libre') : '',
             dbConnect:          this.activeDb || '',       // base conectada (conexion pegajosa)
@@ -4659,6 +4716,31 @@ class CoffeeIA {
             }
         }
 
+        // El backend avisa cuando el tool-calling no funciono (modelo sin tools o que
+        // no consulto): antes el fallback era silencioso y el template salia sin datos.
+        if (meta && meta.tools_fallback) this._toast('⚠ ' + meta.tools_fallback, 'warn');
+
+        // AUTO-CONTINUACION: el modelo corto por limite de tokens (truncated) y el
+        // template quedo a medias (tipico <script> sin cerrar → el componente no
+        // reacciona). Pedimos que continue EXACTO donde quedo y concatenamos, hasta
+        // que cierre o se agote el tope. El meta de contadores queda el de la 1a ronda.
+        let truncated  = !!(meta && meta.truncated);
+        let contRounds = 0;
+        while (truncated && contRounds < COFFEEIA_MAX_CONTINUE && stream) {
+            contRounds++;
+            if (contRounds === 1) this._toast('Respuesta larga: completando la generación…', 'info');
+            const contPayload = Object.assign({}, payload, {
+                messages: payload.messages.concat([
+                    { role: 'assistant', content: received },
+                    { role: 'user', content: COFFEEIA_CONTINUE_PROMPT }
+                ])
+            });
+            const r = await this._continueRound(contPayload, stream);
+            if (r.received) received += r.received;
+            truncated = !!(r.meta && r.meta.truncated);
+            if (r.streamErr || r.aborted) break;   // si la continuacion falla/aborta, cerramos con lo acumulado
+        }
+
         this.history.push({ role: 'assistant', content: received });
 
         // Modo editor: extraer propuestas <edit-replace> del texto completo.
@@ -4702,6 +4784,58 @@ class CoffeeIA {
         this._autoSaveChat();
 
         finish();
+    }
+
+    // Una ronda de CONTINUACION del stream para auto-completar una respuesta cortada
+    // por limite de tokens. Apila los chunks al stream ya existente (no crea burbuja
+    // nueva ni toca el indicador de "escribiendo": el primer token ya paso en la ronda
+    // inicial). Devuelve el texto de ESTA ronda + su meta (incluye truncated si volvio
+    // a cortarse).
+    async _continueRound(payload, stream) {
+        let received = '', meta = {}, streamErr = null, aborted = false;
+        const ac = new AbortController();
+        this._abort = ac;
+        try {
+            const res = await fetch(this._apiStream, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+                signal:  ac.signal
+            });
+            if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+            const reader = res.body.getReader();
+            const dec    = new TextDecoder();
+            let buf = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buf += dec.decode(value, { stream: true });
+                let idx;
+                while ((idx = buf.indexOf('\n\n')) !== -1) {
+                    const rawEvent = buf.slice(0, idx);
+                    buf = buf.slice(idx + 2);
+                    let ev = 'message', dataStr = '';
+                    rawEvent.split('\n').forEach(l => {
+                        if (l.startsWith('event:')) ev = l.slice(6).trim();
+                        else if (l.startsWith('data:')) dataStr += l.slice(5).trim();
+                    });
+                    let obj = {};
+                    try { obj = dataStr ? JSON.parse(dataStr) : {}; } catch (_) { continue; }
+                    if (ev === 'chunk') {
+                        received += obj.t || '';
+                        if (stream) stream.push(obj.t || '');
+                    } else if (ev === 'done') {
+                        meta = obj;
+                    } else if (ev === 'error') {
+                        streamErr = obj.error || 'Error';
+                    }
+                }
+            }
+        } catch (err) {
+            aborted   = err && err.name === 'AbortError';
+            streamErr = streamErr || (err && err.message ? err.message : 'error');
+        }
+        return { received, meta, streamErr, aborted };
     }
 
     /* ── Burbuja de IA en streaming: typewriter por palabras (estilo Claude) ── */
@@ -5599,6 +5733,12 @@ class CoffeeIA {
     /* ── Post-procesador: mermaid / chart / html-preview ── */
 
     _postProcessMessage($msg) {
+        // Fusion de bloques hermanos: si el mensaje trae un ```html Y ademas el JS/CSS
+        // en bloques ```js/```css SEPARADOS (tipico al pedir "agregale eventos"), el
+        // <script> se pintaba como codigo suelto y el template quedaba MUDO. Los unimos
+        // dentro del html y quitamos esos bloques del render (paridad con el Playground).
+        this._mergeSideBlocksInMsg($msg);
+
         const $codes = $msg.find('pre > code');
         $codes.each((_, codeEl) => {
             const $code = $(codeEl);
@@ -5625,6 +5765,40 @@ class CoffeeIA {
                 this._renderHtmlPreview($pre, raw);
             }
         });
+    }
+
+    // Si el mensaje tiene un bloque HTML y, aparte, bloques ```js/```css hermanos,
+    // inyecta ese JS/CSS DENTRO del html (como <script>/<style>) y elimina los bloques
+    // sueltos del DOM. Sin esto el template se renderiza sin su interactividad.
+    _mergeSideBlocksInMsg($msg) {
+        const $codes = $msg.find('pre > code');
+        let $htmlCode = null;
+        const sideJs = [], sideCss = [], $sidePres = [];
+        $codes.each((_, codeEl) => {
+            const $code = $(codeEl);
+            const cls   = ($code.attr('class') || '').toLowerCase();
+            if (/\blanguage-(html|html-preview)\b/.test(cls)) {
+                if (!$htmlCode) $htmlCode = $code;   // el primer (y normalmente unico) bloque html
+            } else if (/\blanguage-(js|javascript)\b/.test(cls)) {
+                const t = $code.text().trim();
+                if (t) { sideJs.push(t); $sidePres.push($code.parent()); }
+            } else if (/\blanguage-css\b/.test(cls)) {
+                const t = $code.text().trim();
+                if (t) { sideCss.push(t); $sidePres.push($code.parent()); }
+            }
+        });
+        if (!$htmlCode || (!sideJs.length && !sideCss.length)) return;
+
+        let html = $htmlCode.text();
+        let add = '';
+        if (sideCss.length) add += '\n<style>\n' + sideCss.join('\n') + '\n</style>';
+        if (sideJs.length)  add += '\n<script>\n' + sideJs.join('\n\n') + '\n<\/script>';
+        html = /<\/body>/i.test(html)
+            ? html.replace(/<\/body>/i, add + '\n</body>')
+            : html + add;
+
+        $htmlCode.text(html);
+        $sidePres.forEach($p => $p.remove());
     }
 
     _getTheme() {

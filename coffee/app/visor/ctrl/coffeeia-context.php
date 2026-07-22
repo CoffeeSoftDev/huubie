@@ -111,6 +111,13 @@ function coffeeia_build_context(array $body) {
             }
         }
     }
+    // Directivas adicionales del frontend (p.ej. fidelidad a la imagen de referencia
+    // o datos reales de la base en modo lienzo). ADITIVO: se anexa al alma y a los
+    // bloques de modo, a diferencia de systemOverride que la sustituye por completo.
+    $systemExtra = isset($body['systemExtra']) ? trim((string) $body['systemExtra']) : '';
+    if ($systemExtra !== '') {
+        $systemPrompt .= "\n\n" . $systemExtra . "\n";
+    }
 
     // Contenido del archivo actual: enviado por el front, o leido de disco.
     $fileContent = '';

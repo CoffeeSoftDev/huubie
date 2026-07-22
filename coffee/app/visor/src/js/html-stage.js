@@ -38,9 +38,12 @@ class HtmlStage {
         const bg     = isDark ? '#0F172A' : '#FFFFFF';
         const fg     = isDark ? '#E2E8F0' : '#1F2937';
 
-        const safeCode = (typeof DOMPurify !== 'undefined')
-            ? DOMPurify.sanitize(code, { ADD_TAGS: ['svg', 'path', 'use'], ADD_ATTR: ['data-lucide'] })
-            : code;
+        // El template se inyecta CRUDO, sin DOMPurify: sanitizar aqui eliminaba los
+        // <script> y los handlers inline (onclick, etc.) del componente y lo dejaba
+        // MUDO ("se ve pero no reacciona"). La barrera de seguridad real es el iframe
+        // sandbox="allow-scripts" de origen opaco: el script corre aislado (no accede a
+        // cookies, localStorage ni al DOM del padre), mismo modelo que usa el Playground.
+        const safeCode = code;
 
         // El grimorio Huubie obliga clases .cs-* (ui-kit.css). Como el iframe usa
         // srcdoc (sin base URL), resolvemos la ruta del kit a URL absoluta.
