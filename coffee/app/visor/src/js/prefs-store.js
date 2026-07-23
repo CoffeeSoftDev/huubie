@@ -21,6 +21,7 @@
         'coffeeia:claude:reminderFired',
         'coffeeia:global:enabledModels',
         'coffeeia:global:activeModel',
+        'coffeeia:global:modelCatalog',
         'visor:shortcuts:v1',
         'visor:recentViews:v1',
         'visor:recentCreated:v1'

@@ -38,16 +38,32 @@ function auth_pdo(): PDO
         CREATE TABLE IF NOT EXISTS profiles (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER NOT NULL,
-            name        TEXT NOT NULL COLLATE NOCASE,
-            role        TEXT NOT NULL DEFAULT '',
-            description TEXT NOT NULL DEFAULT '',
-            color       TEXT NOT NULL DEFAULT '#6366F1',
+            name         TEXT NOT NULL COLLATE NOCASE,
+            short_name   TEXT NOT NULL DEFAULT '',
+            role         TEXT NOT NULL DEFAULT '',
+            specialty    TEXT NOT NULL DEFAULT '',
+            description  TEXT NOT NULL DEFAULT '',
+            color        TEXT NOT NULL DEFAULT '#6366F1',
+            avatar_type  TEXT NOT NULL DEFAULT 'initials',
+            avatar_value TEXT NOT NULL DEFAULT '',
             is_active   INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
             created_at  TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     ");
+
+    $profileColumns = array_column($pdo->query('PRAGMA table_info(profiles)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $profileMigrations = [
+        'short_name'   => "ALTER TABLE profiles ADD COLUMN short_name TEXT NOT NULL DEFAULT ''",
+        'specialty'    => "ALTER TABLE profiles ADD COLUMN specialty TEXT NOT NULL DEFAULT ''",
+        'avatar_type'  => "ALTER TABLE profiles ADD COLUMN avatar_type TEXT NOT NULL DEFAULT 'initials'",
+        'avatar_value' => "ALTER TABLE profiles ADD COLUMN avatar_value TEXT NOT NULL DEFAULT ''"
+    ];
+    foreach ($profileMigrations as $column => $query) {
+        if (!in_array($column, $profileColumns, true)) $pdo->exec($query);
+    }
+
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user_name ON profiles(user_id, name)');
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_one_active ON profiles(user_id) WHERE is_active = 1');
 

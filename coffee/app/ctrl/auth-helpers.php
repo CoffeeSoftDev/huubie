@@ -35,15 +35,23 @@ function auth_public_user(array $u): array
 
 function auth_public_profile(array $profile): array
 {
+    $shortName = $profile['short_name'] ?? '';
+    $displayName = $shortName !== '' ? $shortName : $profile['name'];
+
     return [
-        'id'          => (int)$profile['id'],
-        'name'        => $profile['name'],
-        'role'        => $profile['role'],
-        'description' => $profile['description'],
-        'color'       => $profile['color'],
-        'is_active'   => (int)$profile['is_active'] === 1,
-        'initials'    => coffee_auth_initials($profile['name']),
-        'created_at'  => $profile['created_at'],
-        'updated_at'  => $profile['updated_at'],
+        'id'           => (int)$profile['id'],
+        'name'         => $profile['name'],
+        'short_name'   => $shortName,
+        'display_name' => $displayName,
+        'role'         => $profile['role'],
+        'specialty'    => $profile['specialty'] ?? '',
+        'description'  => $profile['description'],
+        'color'        => $profile['color'],
+        'avatar_type'  => $profile['avatar_type'] ?? 'initials',
+        'avatar_value' => $profile['avatar_value'] ?? '',
+        'is_active'    => (int)$profile['is_active'] === 1,
+        'initials'     => coffee_auth_initials($displayName),
+        'created_at'   => $profile['created_at'],
+        'updated_at'   => $profile['updated_at'],
     ];
 }

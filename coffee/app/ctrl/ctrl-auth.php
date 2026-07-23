@@ -247,24 +247,47 @@ function auth_action_profiles()
     echo json_encode(['success' => true, 'profiles' => $profiles]);
 }
 
+function auth_delete_profile_avatar(string $path): void
+{
+    if (!preg_match('#^uploads/avatars/[a-zA-Z0-9._-]+$#', $path)) return;
+    $file = __DIR__ . '/../' . $path;
+    if (is_file($file)) @unlink($file);
+}
+
 function auth_action_save_profile()
 {
     $user        = auth_require_current_user();
     $id          = (int)$_POST['id'];
     $name        = trim($_POST['name']);
+    $shortName   = trim($_POST['short_name']);
     $role        = trim($_POST['role']);
+    $specialty   = trim($_POST['specialty']);
     $description = trim($_POST['description']);
     $color       = strtoupper(trim($_POST['color']));
+    $avatarType  = trim($_POST['avatar_type']);
+    $avatarValue = trim($_POST['avatar_value']);
     $userId      = (int)$user['id'];
+    $profile     = $id > 0 ? auth_find_profile($id, $userId) : null;
 
+    if ($id > 0 && !$profile) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Perfil no encontrado']);
+        return;
+    }
     if ($name === '') {
         echo json_encode(['success' => false, 'message' => 'El nombre del perfil es obligatorio']);
         return;
     }
-    if (mb_strlen($name) > 80 || mb_strlen($role) > 80 || mb_strlen($description) > 280) {
+    if (mb_strlen($name) > 80 || mb_strlen($shortName) > 40 || mb_strlen($role) > 80 || mb_strlen($description) > 280) {
         echo json_encode(['success' => false, 'message' => 'Los datos del perfil exceden la longitud permitida']);
         return;
     }
+
+    $specialties = ['', 'frontend', 'backend', 'design', 'analysis', 'qa', 'administration'];
+    $avatarTypes = ['initials', 'emoji', 'icon', 'image'];
+    $avatarIcons = ['user-round', 'code-2', 'palette', 'chart-no-axes-combined', 'bug', 'shield-check', 'briefcase-business', 'coffee'];
+    if (!in_array($specialty, $specialties, true)) $specialty = '';
+    if (!in_array($avatarType, $avatarTypes, true)) $avatarType = 'initials';
     if (!preg_match('/^#[0-9A-F]{6}$/', $color)) $color = '#6366F1';
 
     $st = auth_pdo()->prepare('SELECT id FROM profiles WHERE user_id = ? AND name = ? AND id <> ?');
@@ -274,24 +297,76 @@ function auth_action_save_profile()
         return;
     }
 
-    $now = date('Y-m-d H:i:s');
-    if ($id > 0) {
-        if (!auth_find_profile($id, $userId)) {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'message' => 'Perfil no encontrado']);
+    if ($avatarType === 'initials') {
+        $avatarValue = '';
+    } elseif ($avatarType === 'emoji') {
+        if ($avatarValue === '' || mb_strlen($avatarValue) > 8) {
+            echo json_encode(['success' => false, 'message' => 'Selecciona un emoji valido']);
             return;
         }
-        $st = auth_pdo()->prepare('UPDATE profiles SET name = ?, role = ?, description = ?, color = ?, updated_at = ? WHERE id = ? AND user_id = ?');
-        $st->execute([$name, $role, $description, $color, $now, $id, $userId]);
+    } elseif ($avatarType === 'icon') {
+        if (!in_array($avatarValue, $avatarIcons, true)) $avatarValue = 'user-round';
+    } elseif ($avatarType === 'image') {
+        $hasUpload = !empty($_FILES['avatar_file']) && $_FILES['avatar_file']['error'] !== UPLOAD_ERR_NO_FILE;
+        if ($hasUpload) {
+            $file = $_FILES['avatar_file'];
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                echo json_encode(['success' => false, 'message' => 'No se pudo recibir la imagen']);
+                return;
+            }
+            if ((int)$file['size'] > 2097152) {
+                echo json_encode(['success' => false, 'message' => 'La imagen no debe superar 2 MB']);
+                return;
+            }
+
+            $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $fileInfo->file($file['tmp_name']);
+            $extensions = [
+                'image/jpeg' => 'jpg',
+                'image/png'  => 'png',
+                'image/webp' => 'webp'
+            ];
+            if (!array_key_exists($mime, $extensions) || @getimagesize($file['tmp_name']) === false) {
+                echo json_encode(['success' => false, 'message' => 'Usa una imagen JPG, PNG o WebP valida']);
+                return;
+            }
+
+            $uploadDir = __DIR__ . '/../uploads/avatars';
+            if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0775, true)) {
+                echo json_encode(['success' => false, 'message' => 'No se pudo preparar la carpeta de avatares']);
+                return;
+            }
+            $fileName = 'profile-' . $userId . '-' . bin2hex(random_bytes(8)) . '.' . $extensions[$mime];
+            if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $fileName)) {
+                echo json_encode(['success' => false, 'message' => 'No se pudo guardar la imagen']);
+                return;
+            }
+            $avatarValue = 'uploads/avatars/' . $fileName;
+        } elseif ($profile && $profile['avatar_type'] === 'image' && $profile['avatar_value'] !== '') {
+            $avatarValue = $profile['avatar_value'];
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Selecciona una imagen para el avatar']);
+            return;
+        }
+    }
+
+    $now = date('Y-m-d H:i:s');
+    if ($id > 0) {
+        $st = auth_pdo()->prepare('UPDATE profiles SET name = ?, short_name = ?, role = ?, specialty = ?, description = ?, color = ?, avatar_type = ?, avatar_value = ?, updated_at = ? WHERE id = ? AND user_id = ?');
+        $st->execute([$name, $shortName, $role, $specialty, $description, $color, $avatarType, $avatarValue, $now, $id, $userId]);
         $message = 'Perfil actualizado correctamente';
     } else {
         $st = auth_pdo()->prepare('SELECT COUNT(*) FROM profiles WHERE user_id = ?');
         $st->execute([$userId]);
         $count = (int)$st->fetchColumn();
-        $st = auth_pdo()->prepare('INSERT INTO profiles (user_id, name, role, description, color, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        $st->execute([$userId, $name, $role, $description, $color, $count === 0 ? 1 : 0, $now, $now]);
+        $st = auth_pdo()->prepare('INSERT INTO profiles (user_id, name, short_name, role, specialty, description, color, avatar_type, avatar_value, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $st->execute([$userId, $name, $shortName, $role, $specialty, $description, $color, $avatarType, $avatarValue, $count === 0 ? 1 : 0, $now, $now]);
         $id = (int)auth_pdo()->lastInsertId();
         $message = 'Perfil creado correctamente';
+    }
+
+    if ($profile && $profile['avatar_type'] === 'image' && $profile['avatar_value'] !== $avatarValue) {
+        auth_delete_profile_avatar($profile['avatar_value']);
     }
 
     echo json_encode([
@@ -357,6 +432,10 @@ function auth_action_delete_profile()
         }
     }
     $pdo->commit();
+
+    if ($profile['avatar_type'] === 'image' && $profile['avatar_value'] !== '') {
+        auth_delete_profile_avatar($profile['avatar_value']);
+    }
 
     echo json_encode(['success' => true, 'message' => 'Perfil eliminado correctamente']);
 }

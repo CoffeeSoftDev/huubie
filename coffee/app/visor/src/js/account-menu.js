@@ -16,9 +16,40 @@
     let _profiles = [];
 
     function profileName() {
+        if (_activeProfile) return profileDisplayName(_activeProfile);
         if (_currentUser && _currentUser.name) return _currentUser.name;
         try { return localStorage.getItem(PROFILE_KEY) || DEFAULT_NAME; }
         catch (e) { return DEFAULT_NAME; }
+    }
+    function profileDisplayName(profile) {
+        if (!profile) return '';
+        return profile.short_name || profile.display_name || profile.name || '';
+    }
+    function specialtyLabel(value) {
+        const labels = {
+            frontend: 'Frontend',
+            backend: 'Backend',
+            design: 'Diseño',
+            analysis: 'Análisis',
+            qa: 'QA',
+            administration: 'Administración'
+        };
+        return labels[value] || '';
+    }
+    function profileAvatar(profile, className) {
+        const item = profile || {};
+        const name = profileDisplayName(item) || item.name || DEFAULT_NAME;
+        const type = item.avatar_type || (item.avatar_url ? 'image' : 'initials');
+        const value = item.avatar_value || item.avatar_url || '';
+        const color = item.color || 'var(--vsr-accent)';
+        let content = escHtml(item.initials || initials(name));
+        if (type === 'emoji' && value) content = '<span aria-hidden="true">' + escHtml(value) + '</span>';
+        if (type === 'icon' && value) content = '<i data-lucide="' + escAttr(value) + '"></i>';
+        if (type === 'image' && value) {
+            const source = /^(https?:\/\/|data:|blob:|\/)/i.test(value) ? value : '../' + value.replace(/^\.\//, '');
+            content = '<img src="' + escAttr(source) + '" alt="">';
+        }
+        return '<span class="' + escAttr(className) + '" style="background:' + escAttr(color) + '">' + content + '</span>';
     }
     function notifyIdentity() {
         global.dispatchEvent(new CustomEvent('coffeeia:identity-changed', {
@@ -58,9 +89,12 @@
 
     /* ---------- Botón de cuenta (rail) ---------- */
     function refreshAccountBar() {
-        const $btn = global.jQuery('#accountBtn');
-        if (!$btn.length) return;
-        $btn.find('.account-avatar').text(initials(profileName()));
+        const accountButton = global.jQuery('#accountBtn');
+        if (!accountButton.length) return;
+        const identity = _activeProfile || _currentUser || { name: profileName() };
+        accountButton.find('.account-avatar').replaceWith(profileAvatar(identity, 'account-avatar'));
+        accountButton.attr('title', profileName() + ' · Cuenta y configuración');
+        if (global.lucide) global.lucide.createIcons();
     }
 
     /* ---------- Menú emergente ---------- */
@@ -113,13 +147,15 @@
 
     function openMenu() {
         buildMenu();
-        const name = profileName();
-        global.jQuery('#accountMenu .account-avatar-sm').text(initials(name));
+        const identity = _activeProfile || _currentUser || { name: profileName() };
+        const name = profileDisplayName(identity) || profileName();
+        global.jQuery('#accountMenu .account-avatar-sm').replaceWith(profileAvatar(identity, 'account-avatar account-avatar-sm'));
         global.jQuery('#accountMenu .account-menu-head-name').text(name);
-        global.jQuery('#accountMenu .account-menu-head-plan').text(_activeProfile ? _activeProfile.name : PLAN_LABEL);
+        global.jQuery('#accountMenu .account-menu-head-plan').text(_activeProfile ? (specialtyLabel(_activeProfile.specialty) || _activeProfile.role || PLAN_LABEL) : PLAN_LABEL);
         positionMenu();
         global.jQuery('#accountMenu').prop('hidden', false).addClass('is-open');
         global.jQuery('#accountBtn').addClass('is-active');
+        if (global.lucide) global.lucide.createIcons();
     }
     function closeMenu() {
         global.jQuery('#accountMenu').prop('hidden', true).removeClass('is-open');
@@ -220,48 +256,131 @@
     function renderModelList() {
         const MC = global.CoffeeModelConfig;
         if (!MC) return;
+
         const enabled = MC.getEnabled();
-        const groups = MC.CATALOG.map(function (g) {
-            const items = g.options.map(function (o) {
-                const on = enabled.indexOf(o.value) !== -1;
-                const m = o.model || {};
-                const caps = []
-                    .concat(m.vision ? ['vision'] : [])
-                    .concat(m.tools ? ['tools'] : [])
-                    .concat((m.effortLevels && m.effortLevels.length) ? ['thinking'] : (m.thinking ? ['thinking'] : []))
-                    .map(function (c) { return '<span class="acct-cap acct-cap-' + c + '">' + c + '</span>'; })
-                    .join('');
-                return '<div class="acct-model-item' + (on ? ' is-on' : '') + '" data-id="' + escAttr(o.value) + '">'
-                     +   '<input type="checkbox" class="acct-model-cb" value="' + escAttr(o.value) + '"' + (on ? ' checked' : '') + '>'
+        const models = MC.getModels();
+        const formatTokens = function (value) {
+            const amount = Number(value);
+            if (!amount) return '';
+            if (amount >= 1000000) return (amount / 1000000).toFixed(amount % 1000000 ? 1 : 0) + 'M';
+            if (amount >= 1000) return (amount / 1000).toFixed(amount % 1000 ? 1 : 0) + 'k';
+            return String(amount);
+        };
+        const providers = [];
+        models.forEach(function (model) {
+            const provider = model.provider || 'ollama';
+            if (providers.indexOf(provider) === -1) providers.push(provider);
+        });
+
+        const groups = MC.CATALOG.map(function (group) {
+            let activeInGroup = 0;
+            const items = group.options.map(function (option) {
+                const model = option.model || {};
+                const on = enabled.indexOf(option.value) !== -1;
+                if (on) activeInGroup++;
+
+                const provider = model.provider || 'ollama';
+                const providerName = provider === 'openrouter' ? 'OpenRouter' : 'Ollama';
+                const providerMark = provider === 'openrouter' ? 'OR' : 'OL';
+                const capabilities = []
+                    .concat(model.vision ? [{ key: 'vision', icon: 'eye', label: 'Visión' }] : [])
+                    .concat(model.tools ? [{ key: 'tools', icon: 'wrench', label: 'Tools' }] : [])
+                    .concat((model.effortLevels && model.effortLevels.length) || model.thinking
+                        ? [{ key: 'thinking', icon: 'brain', label: 'Razonamiento' }]
+                        : [])
+                    .map(function (capability) {
+                        return '<span class="acct-cap acct-cap-' + capability.key + '"><i data-lucide="' + capability.icon + '"></i>' + capability.label + '</span>';
+                    }).join('');
+                const tags = (model.tags || []).slice(0, 2).map(function (tag) {
+                    return '<span class="acct-model-tag">' + escHtml(tag) + '</span>';
+                }).join('');
+                const context = formatTokens(model.maxTokens);
+                const pricing = Number(model.priceIn) || Number(model.priceOut)
+                    ? '<span><i data-lucide="circle-dollar-sign"></i>$' + Number(model.priceIn || 0).toFixed(2) + ' / $' + Number(model.priceOut || 0).toFixed(2) + ' por M</span>'
+                    : '';
+                const searchValue = [option.label, option.value, providerName, group.group].concat(model.tags || []).join(' ').toLowerCase();
+
+                return '<div class="acct-model-item' + (on ? ' is-on' : '') + '" data-id="' + escAttr(option.value) + '" data-provider="' + escAttr(provider) + '" data-search="' + escAttr(searchValue) + '">'
+                     +   '<span class="acct-provider-avatar acct-provider-' + escAttr(provider) + '">' + providerMark + '</span>'
                      +   '<span class="acct-model-main">'
-                     +     '<span class="acct-model-name">' + escHtml(o.label) + '</span>'
-                     +     '<span class="acct-model-caps">' + caps + '</span>'
+                     +     '<span class="acct-model-title-row"><span class="acct-model-name">' + escHtml(option.label) + '</span>' + (model.builtin ? '<span class="acct-model-base">Base</span>' : '') + '</span>'
+                     +     '<span class="acct-model-val">' + escHtml(option.value) + '</span>'
+                     +     (model.desc ? '<span class="acct-model-desc">' + escHtml(model.desc) + '</span>' : '')
+                     +     '<span class="acct-model-caps">' + capabilities + tags + '</span>'
+                     +     '<span class="acct-model-meta">'
+                     +       '<span><i data-lucide="cloud"></i>' + providerName + '</span>'
+                     +       (context ? '<span><i data-lucide="braces"></i>' + context + ' tokens</span>' : '')
+                     +       pricing
+                     +     '</span>'
                      +   '</span>'
-                     +   '<span class="acct-model-val">' + escHtml(o.value) + '</span>'
-                     +   '<span class="acct-model-row-actions">'
-                     +     '<button type="button" class="acct-icon-btn" data-model-edit title="Editar modelo"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>'
-                     +     '<button type="button" class="acct-icon-btn acct-icon-danger" data-model-del title="Eliminar modelo"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>'
-                     +   '</span>'
+                     +   '<label class="acct-model-switch" title="Habilitar o deshabilitar modelo">'
+                     +     '<input type="checkbox" class="acct-model-cb" value="' + escAttr(option.value) + '"' + (on ? ' checked' : '') + '>'
+                     +     '<span class="acct-switch-track"><span></span></span>'
+                     +     '<span class="acct-model-state acct-state-on">Activo</span><span class="acct-model-state acct-state-off">Inactivo</span>'
+                     +   '</label>'
+                     +   '<details class="acct-model-menu">'
+                     +     '<summary title="Acciones"><i data-lucide="more-horizontal"></i></summary>'
+                     +     '<span class="acct-model-menu-pop">'
+                     +       '<button type="button" data-model-edit><i data-lucide="pencil"></i>Editar</button>'
+                     +       '<button type="button" class="is-danger" data-model-del><i data-lucide="trash-2"></i>Eliminar</button>'
+                     +     '</span>'
+                     +   '</details>'
                      + '</div>';
             }).join('');
-            return '<div class="acct-model-group">'
-                 +   '<div class="acct-model-group-label">' + escHtml(g.group) + '</div>'
-                 +   items
-                 + '</div>';
+
+            return '<section class="acct-model-group" data-group="' + escAttr(group.group) + '">'
+                 +   '<header class="acct-model-group-head">'
+                 +     '<span><i data-lucide="layers-3"></i><strong>' + escHtml(group.group) + '</strong></span>'
+                 +     '<span>' + activeInGroup + ' activos de ' + group.options.length + '</span>'
+                 +   '</header>'
+                 +   '<div class="acct-model-group-body">' + items + '</div>'
+                 + '</section>';
         }).join('');
 
-        const head = '<div class="acct-sec-head">'
-                   +   '<div>'
-                   +     '<div class="acct-sec-title">Modelos disponibles</div>'
-                   +     '<div class="acct-sec-sub">Elige qué modelos aparecen en los selectores de todos los chats. Edita sus capacidades o registra uno nuevo.</div>'
-                   +   '</div>'
-                   +   '<div class="acct-sec-actions">'
-                   +     '<button type="button" class="acct-mini" data-bulk="all">Todos</button>'
-                   +     '<button type="button" class="acct-mini" data-bulk="none">Ninguno</button>'
-                   +     '<button type="button" class="acct-mini acct-mini-primary" data-model-add><i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar</button>'
-                   +   '</div>'
+        const providerButtons = providers.map(function (provider) {
+            const label = provider === 'openrouter' ? 'OpenRouter' : 'Ollama';
+            return '<button type="button" class="acct-provider-chip" data-provider-filter="' + escAttr(provider) + '">' + label + '</button>';
+        }).join('');
+        const head = '<div class="acct-model-hero">'
+                   +   '<div><div class="acct-sec-title">Modelos de CoffeeIA</div><div class="acct-sec-sub">Configura los modelos disponibles en todas las conversaciones.</div></div>'
+                   +   '<button type="button" class="acct-mini acct-mini-primary" data-model-add><i data-lucide="plus"></i>Nuevo modelo</button>'
                    + '</div>';
-        global.jQuery('#acctModelPanel').html(head + '<div id="acctModelList" class="acct-model-list">' + groups + '</div>');
+        const toolbar = '<div class="acct-model-toolbar">'
+                      +   '<label class="acct-model-search"><i data-lucide="search"></i><input id="acctModelSearch" type="search" placeholder="Buscar modelos..."></label>'
+                      +   '<div class="acct-provider-filters"><button type="button" class="acct-provider-chip is-active" data-provider-filter="">Todos</button>' + providerButtons + '</div>'
+                      + '</div>';
+        const empty = '<div id="acctModelEmpty" class="acct-model-empty" hidden><i data-lucide="search-x"></i><strong>Sin coincidencias</strong><span>Prueba con otro nombre, proveedor o estado.</span></div>';
+        const panel = global.jQuery('#acctModelPanel');
+        panel.html(head + toolbar + '<div class="acct-model-results"><span id="acctModelVisible"></span></div><div id="acctModelList" class="acct-model-list">' + groups + '</div>' + empty);
+
+        const applyFilters = function () {
+            const term = String(panel.find('#acctModelSearch').val() || '').trim().toLowerCase();
+            const provider = String(panel.find('.acct-provider-chip.is-active').data('provider-filter') || '');
+            let visible = 0;
+
+            panel.find('.acct-model-item').each(function () {
+                const card = global.jQuery(this);
+                const matchesTerm = !term || String(card.data('search') || '').indexOf(term) !== -1;
+                const matchesProvider = !provider || card.data('provider') === provider;
+                const show = matchesTerm && matchesProvider;
+                this.hidden = !show;
+                if (show) visible++;
+            });
+            panel.find('.acct-model-group').each(function () {
+                this.hidden = global.jQuery(this).find('.acct-model-item').filter(function () { return !this.hidden; }).length === 0;
+            });
+            panel.find('#acctModelVisible').text(visible + (visible === 1 ? ' modelo' : ' modelos'));
+            panel.find('#acctModelEmpty').prop('hidden', visible !== 0);
+        };
+
+        panel.off('.modelFilters')
+            .on('input.modelFilters', '#acctModelSearch', applyFilters)
+            .on('click.modelFilters', '.acct-provider-chip', function () {
+                panel.find('.acct-provider-chip').removeClass('is-active');
+                global.jQuery(this).addClass('is-active');
+                applyFilters();
+            });
+        applyFilters();
         updateCount();
     }
 
@@ -489,6 +608,8 @@
                 _profiles = res.profiles || [];
                 _activeProfile = _profiles.filter(function (profile) { return profile.is_active; })[0] || null;
                 renderProfiles();
+                refreshAccountBar();
+                notifyIdentity();
             })
             .fail(function () {
                 global.jQuery('#acctProfilesPanel').html('<div class="acct-empty">No se pudieron cargar los perfiles.</div>');
@@ -497,10 +618,14 @@
 
     function renderProfiles() {
         const rows = _profiles.map(function (profile) {
+            const displayName = profileDisplayName(profile);
+            const specialty = specialtyLabel(profile.specialty);
+            const meta = [specialty, profile.role].filter(Boolean).join(' · ') || 'Sin especialidad';
+            const detail = profile.short_name && profile.short_name !== profile.name ? profile.name : profile.description;
             return '<div class="acct-profile-card' + (profile.is_active ? ' is-active' : '') + '" data-profile-id="' + profile.id + '">'
-                 +   '<span class="acct-profile-avatar" style="background:' + escAttr(profile.color) + '">' + escHtml(profile.initials) + '</span>'
-                 +   '<span class="acct-profile-info"><strong>' + escHtml(profile.name) + '</strong><span>' + escHtml(profile.role || 'Sin rol') + '</span>'
-                 +     (profile.description ? '<small>' + escHtml(profile.description) + '</small>' : '') + '</span>'
+                 +   profileAvatar(profile, 'acct-profile-avatar')
+                 +   '<span class="acct-profile-info"><strong>' + escHtml(displayName) + '</strong><span class="acct-profile-specialty">' + escHtml(meta) + '</span>'
+                 +     (detail ? '<small>' + escHtml(detail) + '</small>' : '') + '</span>'
                  +   (profile.is_active ? '<span class="acct-active-badge"><i data-lucide="check"></i> Activo</span>' : '<button type="button" class="acct-mini" data-profile-activate>Usar</button>')
                  +   '<span class="acct-model-row-actions">'
                  +     '<button type="button" class="acct-icon-btn" data-profile-edit title="Editar"><i data-lucide="pencil"></i></button>'
@@ -518,14 +643,83 @@
         if (global.lucide) global.lucide.createIcons();
     }
 
+    function updateProfileAvatarPreview(imageSource) {
+        const form = global.jQuery('#acctProfileForm');
+        if (!form.length) return;
+        const avatarType = form.find('#profileAvatarType').val() || 'initials';
+        if (imageSource) form.attr('data-avatar-preview', imageSource);
+        let avatarValue = '';
+        if (avatarType === 'emoji') avatarValue = form.find('#profileAvatarEmoji').val() || '🙂';
+        if (avatarType === 'icon') avatarValue = form.find('#profileAvatarIcon').val() || 'user-round';
+        if (avatarType === 'image') avatarValue = form.attr('data-avatar-preview') || form.attr('data-avatar-value') || '';
+        const preview = {
+            name: form.find('#profileName').val() || 'Perfil',
+            short_name: form.find('#profileShortName').val() || '',
+            color: form.find('#profileColor').val() || '#6366F1',
+            avatar_type: avatarType,
+            avatar_value: avatarValue
+        };
+        form.find('#profileAvatarPreviewWrap').html(profileAvatar(preview, 'acct-avatar-preview'));
+        form.find('[data-avatar-type]').toggleClass('is-active', false).filter('[data-avatar-type="' + avatarType + '"]').addClass('is-active');
+        form.find('[data-avatar-panel]').prop('hidden', true).filter('[data-avatar-panel="' + avatarType + '"]').prop('hidden', false);
+        if (global.lucide) global.lucide.createIcons();
+    }
+
     function openProfileForm(id) {
         const profile = _profiles.filter(function (item) { return Number(item.id) === Number(id); })[0] || null;
-        const html = '<div class="acct-sec-head"><div><div class="acct-sec-title">' + (profile ? 'Editar perfil' : 'Nuevo perfil') + '</div><div class="acct-sec-sub">Define cómo se mostrará esta identidad dentro del visor.</div></div></div>'
-                   + '<form id="acctProfileForm" class="acct-model-form" data-profile-id="' + (profile ? profile.id : '') + '">'
+        const avatarType = profile ? profile.avatar_type : 'initials';
+        const avatarValue = profile ? profile.avatar_value : '';
+        const specialties = [
+            ['', 'Seleccionar especialidad'],
+            ['frontend', 'Frontend'],
+            ['backend', 'Backend'],
+            ['design', 'Diseño'],
+            ['analysis', 'Análisis'],
+            ['qa', 'QA'],
+            ['administration', 'Administración']
+        ].map(function (option) {
+            return '<option value="' + option[0] + '"' + (profile && profile.specialty === option[0] ? ' selected' : '') + '>' + option[1] + '</option>';
+        }).join('');
+        const icons = [
+            ['user-round', 'Usuario'],
+            ['code-2', 'Código'],
+            ['palette', 'Diseño'],
+            ['chart-no-axes-combined', 'Análisis'],
+            ['bug', 'QA'],
+            ['shield-check', 'Administración'],
+            ['briefcase-business', 'Trabajo'],
+            ['coffee', 'CoffeeSoft']
+        ].map(function (option) {
+            return '<option value="' + option[0] + '"' + (avatarValue === option[0] ? ' selected' : '') + '>' + option[1] + '</option>';
+        }).join('');
+        const avatarButtons = [
+            ['image', 'Imagen'],
+            ['initials', 'Iniciales'],
+            ['emoji', 'Emoji'],
+            ['icon', 'Icono']
+        ].map(function (option) {
+            return '<button type="button" class="acct-avatar-type' + (avatarType === option[0] ? ' is-active' : '') + '" data-avatar-type="' + option[0] + '">' + option[1] + '</button>';
+        }).join('');
+        const html = '<div class="acct-sec-head"><div><div class="acct-sec-title">' + (profile ? 'Editar perfil' : 'Nuevo perfil') + '</div><div class="acct-sec-sub">Configura la identidad que usarás dentro de CoffeeIA.</div></div></div>'
+                   + '<form id="acctProfileForm" class="acct-model-form" data-profile-id="' + (profile ? profile.id : '') + '" data-avatar-value="' + escAttr(avatarValue) + '">'
+                   +   '<input type="hidden" id="profileAvatarType" value="' + escAttr(avatarType) + '">'
                    +   '<div class="acct-card"><div class="acct-card-title"><i data-lucide="badge-check"></i> Identidad</div>'
+                   +     '<div class="acct-avatar-editor">'
+                   +       '<div id="profileAvatarPreviewWrap">' + profileAvatar(profile || { name: 'Perfil', color: '#6366F1' }, 'acct-avatar-preview') + '</div>'
+                   +       '<div class="acct-avatar-controls"><div class="acct-avatar-types">' + avatarButtons + '</div>'
+                   +         '<div class="acct-avatar-panel" data-avatar-panel="image"' + (avatarType === 'image' ? '' : ' hidden') + '><input type="file" class="acct-avatar-file" id="profileAvatarFile" accept="image/jpeg,image/png,image/webp"><div class="acct-avatar-note">JPG, PNG o WebP · máximo 2 MB.</div></div>'
+                   +         '<div class="acct-avatar-panel acct-avatar-note" data-avatar-panel="initials"' + (avatarType === 'initials' ? '' : ' hidden') + '>Se generan automáticamente desde el nombre corto.</div>'
+                   +         '<div class="acct-avatar-panel" data-avatar-panel="emoji"' + (avatarType === 'emoji' ? '' : ' hidden') + '><input type="text" class="acct-input" id="profileAvatarEmoji" value="' + escAttr(avatarType === 'emoji' ? avatarValue : '🙂') + '" maxlength="8" placeholder="🙂"></div>'
+                   +         '<div class="acct-avatar-panel" data-avatar-panel="icon"' + (avatarType === 'icon' ? '' : ' hidden') + '><select class="acct-input" id="profileAvatarIcon">' + icons + '</select></div>'
+                   +       '</div>'
+                   +     '</div>'
                    +     '<div class="acct-grid2">'
                    +       fieldRow('Nombre <span class="req">*</span>', '<input type="text" class="acct-input" id="profileName" value="' + escAttr(profile ? profile.name : '') + '" maxlength="80">')
+                   +       fieldRow('Nombre corto', '<input type="text" class="acct-input" id="profileShortName" value="' + escAttr(profile ? profile.short_name : '') + '" maxlength="40" placeholder="Alias visible en CoffeeIA">')
+                   +     '</div>'
+                   +     '<div class="acct-grid2">'
                    +       fieldRow('Rol', '<input type="text" class="acct-input" id="profileRole" value="' + escAttr(profile ? profile.role : '') + '" placeholder="Desarrollador, Analista..." maxlength="80">')
+                   +       fieldRow('Especialidad', '<select class="acct-input" id="profileSpecialty">' + specialties + '</select>')
                    +     '</div>'
                    +     fieldRow('Descripción', '<textarea class="acct-input" id="profileDescription" rows="3" maxlength="280">' + escHtml(profile ? profile.description : '') + '</textarea>')
                    +     fieldRow('Color', '<input type="color" class="acct-color-input" id="profileColor" value="' + escAttr(profile ? profile.color : '#6366F1') + '">')
@@ -533,17 +727,33 @@
                    +   '<div class="acct-form-foot"><button type="button" class="acct-btn" data-profile-cancel>Cancelar</button><button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save"></i> Guardar perfil</button></div>'
                    + '</form>';
         global.jQuery('#acctProfilesPanel').html(html);
-        if (global.lucide) global.lucide.createIcons();
+        updateProfileAvatarPreview();
     }
 
     function saveProfile() {
-        global.jQuery.post('../ctrl/ctrl-auth.php', {
-            action: 'save_profile',
-            id: global.jQuery('#acctProfileForm').data('profile-id') || '',
-            name: global.jQuery('#profileName').val(),
-            role: global.jQuery('#profileRole').val(),
-            description: global.jQuery('#profileDescription').val(),
-            color: global.jQuery('#profileColor').val()
+        const form = global.jQuery('#acctProfileForm');
+        const avatarType = form.find('#profileAvatarType').val() || 'initials';
+        const data = new FormData();
+        data.append('action', 'save_profile');
+        data.append('id', form.data('profile-id') || '');
+        data.append('name', form.find('#profileName').val());
+        data.append('short_name', form.find('#profileShortName').val());
+        data.append('role', form.find('#profileRole').val());
+        data.append('specialty', form.find('#profileSpecialty').val());
+        data.append('description', form.find('#profileDescription').val());
+        data.append('color', form.find('#profileColor').val());
+        data.append('avatar_type', avatarType);
+        data.append('avatar_value', avatarType === 'emoji' ? form.find('#profileAvatarEmoji').val() : (avatarType === 'icon' ? form.find('#profileAvatarIcon').val() : ''));
+
+        const fileInput = form.find('#profileAvatarFile')[0];
+        if (avatarType === 'image' && fileInput && fileInput.files.length) data.append('avatar_file', fileInput.files[0]);
+
+        global.jQuery.ajax({
+            url: '../ctrl/ctrl-auth.php',
+            method: 'POST',
+            data: data,
+            processData: false,
+            contentType: false
         }).done(function (res) {
             if (!res || !res.success) { toast((res && res.message) || 'No se pudo guardar el perfil', 'warn'); return; }
             toast(res.message, 'ok');
@@ -1295,6 +1505,30 @@
         $(document).on('click', '#accountSettings [data-profile-edit]', function () { openProfileForm($(this).closest('.acct-profile-card').data('profile-id')); });
         $(document).on('click', '#accountSettings [data-profile-cancel]', function () { renderProfiles(); });
         $(document).on('submit', '#acctProfileForm', function (e) { e.preventDefault(); saveProfile(); });
+        $(document).on('click', '#acctProfileForm [data-avatar-type]', function () {
+            global.jQuery('#profileAvatarType').val(global.jQuery(this).data('avatar-type'));
+            updateProfileAvatarPreview();
+        });
+        $(document).on('input change', '#profileName, #profileShortName, #profileAvatarEmoji, #profileAvatarIcon, #profileColor', function () {
+            updateProfileAvatarPreview();
+        });
+        $(document).on('change', '#profileAvatarFile', function () {
+            const file = this.files && this.files[0];
+            if (!file) { updateProfileAvatarPreview(); return; }
+            if (file.size > 2097152) {
+                this.value = '';
+                toast('La imagen no debe superar 2 MB', 'warn');
+                return;
+            }
+            if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) === -1) {
+                this.value = '';
+                toast('Usa una imagen JPG, PNG o WebP', 'warn');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function (event) { updateProfileAvatarPreview(event.target.result); };
+            reader.readAsDataURL(file);
+        });
         $(document).on('click', '#accountSettings [data-profile-activate]', function () { activateProfile($(this).closest('.acct-profile-card').data('profile-id')); });
         $(document).on('click', '#accountSettings [data-profile-delete]', function () { deleteProfile($(this).closest('.acct-profile-card').data('profile-id')); });
         $(document).on('change', '#acctModelList .acct-model-cb', function () {
