@@ -133,10 +133,12 @@
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
+                <!-- Apartado Admin oculto a petición del usuario (el acceso directo por URL sigue disponible).
                 <a href="documents-admin.php" class="app-rail-item" title="Admin de Documentos">
                     <i data-lucide="folder-cog"></i>
                     <span class="app-rail-label">Admin</span>
                 </a>
+                -->
             </div>
         </nav>
 

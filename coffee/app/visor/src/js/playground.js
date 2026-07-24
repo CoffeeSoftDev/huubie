@@ -1138,6 +1138,46 @@ function pgRegenerateForTheme() {
     pgSend(`Adapta ${what} anterior ${sys}. Conserva la misma estructura y funcionalidad; cambia solo clases, tokens y estilos para respetar ese sistema de diseño.`, []);
 }
 
+// Regenerar una respuesta (gemelo de ciaRegenerate del Visor): descarta la
+// respuesta elegida y todo lo posterior, deja el hilo en el mensaje del usuario
+// que la originó y vuelve a pedirla al modelo con el MISMO contenido.
+function pgRegenerate(assistantIdx) {
+    if (pg.isBusy) { pgToast('Espera a que termine la generación en curso', 'warn'); return; }
+    if (assistantIdx == null || assistantIdx < 0 || assistantIdx >= pg.history.length) return;
+
+    // El mensaje de usuario que originó la respuesta: el 'user' inmediatamente anterior.
+    let userIdx = assistantIdx;
+    while (userIdx >= 0 && pg.history[userIdx].role !== 'user') userIdx--;
+    if (userIdx < 0) { pgToast('No hay un mensaje que reenviar', 'warn'); return; }
+
+    const userMsg = pg.history[userIdx];
+    // Texto visible para la burbuja: se despoja de los bloques embebidos (docs,
+    // template, componente objetivo) igual que hace pgRebuildChat.
+    const dispText = String(userMsg.content || '')
+        .replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '')
+        .replace(/\n*===\s*TEMPLATE A MODIFICAR[\s\S]*$/i, '')
+        .replace(/\n*===\s*TEMPLATE VIGENTE[\s\S]*$/i, '')
+        .replace(/\n*===\s*COMPONENTE OBJETIVO[\s\S]*$/i, '').trim();
+    // Imágenes del turno: se reconstituyen para que vuelvan a viajar y a exigir fidelidad.
+    const imgs = (userMsg.images || []).map((b64, i) => ({
+        base64: b64, dataUrl: (userMsg.imagesPreview || [])[i] || ''
+    }));
+
+    // Cortar desde el user (incluido) y descartar los templates de esos turnos.
+    pg.history = pg.history.slice(0, userIdx);
+    pg.templates = pg.templates.filter(tpl => !(typeof tpl.histLen === 'number' && tpl.histLen > userIdx));
+    pgRebuildChat();
+
+    // Reponer el turno del usuario (mismo content cocinado) y volver a generar.
+    pg.history.push(userMsg);
+    pgAppendUser(dispText, userMsg.imagesPreview, userMsg.docsMeta);
+    pgScroll();
+
+    const dropImages = !!pg.model && !pgModelHasVision(pg.model);
+    pgSetBusy(true);
+    pgRunModel(dispText, imgs, dropImages);
+}
+
 /* ── Hilos de conversación (persistencia SQLite vía ctrl-pg-threads.php) ──
  * Cada hilo guarda el historial + los templates del sandbox + meta (tema/agente/
  * modelo). Se autoguarda tras cada respuesta del agente; el usuario puede crear
@@ -1791,6 +1831,14 @@ async function pgSend(text, images, docs) {
         return;
     }
 
+    await pgRunModel(text, images, dropImages);
+}
+
+// Llama al modelo con el pg.history vigente y streamea la respuesta en una nueva
+// burbuja. Se separó de pgSend para poder REGENERAR una respuesta: reenviar el
+// último turno del usuario sin volver a empujarlo ni recocinar su contenido.
+async function pgRunModel(text, images, dropImages) {
+    images = Array.isArray(images) ? images : [];
     const $typing = pgAppendTyping();
     pgScroll();
 
@@ -2353,18 +2401,23 @@ function pgCreateAIStream() {
         },
         complete(displayedText, meta, copyText) {
             if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
+            // El assistant recién generado es el último del history: ese índice es
+            // el que regenerará este mensaje (descarta su respuesta y la repite).
+            const regenIdx = pg.history.length - 1;
             let metaHtml = '';
             if (meta) {
                 metaHtml = `
                     <div class="ia-msg-meta-footer">
                         ${pgMetaItems(meta)}
                         <span class="meta-actions">
+                            <button class="meta-iconbtn ia-regen-btn" title="Regenerar respuesta"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
                             <button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>
                         </span>
                     </div>`;
             }
             $text.html(pgMarkdown(displayedText));
             $(metaHtml).appendTo($msg);
+            $msg.find('.ia-regen-btn').on('click', () => pgRegenerate(regenIdx));
             $msg.find('.ia-copy-btn').on('click', () => {
                 const t = copyText != null ? copyText : displayedText;
                 if (navigator.clipboard) navigator.clipboard.writeText(t);

@@ -406,6 +406,14 @@
              +   (hint ? '<span class="acct-f-hint">' + hint + '</span>' : '')
              + '</label>';
     }
+    // Input de contraseña/PIN con botón de "ver" (ojo). El botón vive junto al
+    // input dentro de un envoltorio relativo; el toggle está delegado más abajo.
+    function passField(id, attrs) {
+        return '<span class="acct-pass">'
+             +   '<input type="password" class="acct-input" id="' + id + '"' + (attrs ? ' ' + attrs : '') + '>'
+             +   '<button type="button" class="acct-pass-toggle" aria-label="Mostrar" title="Mostrar"><i data-lucide="eye"></i></button>'
+             + '</span>';
+    }
     function renderTagChips() {
         return _mfTags.map(function (t, i) {
             return '<span class="acct-chip" data-tag-i="' + i + '">' + escHtml(t) + ' <i data-lucide="x" class="w-3 h-3" data-tag-del="' + i + '"></i></span>';
@@ -549,7 +557,7 @@
         }
 
         const passwordFields = _currentUser.has_password
-            ? fieldRow('Contraseña actual', '<input type="password" class="acct-input" id="accountCurrentPassword" autocomplete="current-password">', 'Requerida si cambias la contraseña o el PIN.')
+            ? fieldRow('Contraseña actual', passField('accountCurrentPassword', 'autocomplete="current-password"'), 'Requerida si cambias la contraseña o el PIN.')
             : '';
 
         const pinStatus = _currentUser.has_pin
@@ -558,8 +566,8 @@
         const pinCard = '<div class="acct-card"><div class="acct-card-title"><i data-lucide="lock-keyhole"></i> PIN de acceso rápido</div>'
                       +   pinStatus
                       +   '<div class="acct-grid2">'
-                      +     fieldRow(_currentUser.has_pin ? 'Nuevo PIN' : 'PIN (4-6 dígitos)', '<input type="password" class="acct-input" id="accountNewPin" inputmode="numeric" maxlength="6" autocomplete="off">', _currentUser.has_pin ? 'Déjalo vacío para conservar el actual.' : 'Solo números, de 4 a 6 dígitos.')
-                      +     fieldRow('Confirmar PIN', '<input type="password" class="acct-input" id="accountPinConfirm" inputmode="numeric" maxlength="6" autocomplete="off">')
+                      +     fieldRow(_currentUser.has_pin ? 'Nuevo PIN' : 'PIN (4-6 dígitos)', passField('accountNewPin', 'inputmode="numeric" maxlength="6" autocomplete="off"'), _currentUser.has_pin ? 'Déjalo vacío para conservar el actual.' : 'Solo números, de 4 a 6 dígitos.')
+                      +     fieldRow('Confirmar PIN', passField('accountPinConfirm', 'inputmode="numeric" maxlength="6" autocomplete="off"'))
                       +   '</div>'
                       +   (_currentUser.has_pin ? '<label class="acct-check" style="margin-top:8px"><input type="checkbox" id="accountRemovePin"> Quitar mi PIN de acceso</label>' : '')
                       + '</div>';
@@ -580,8 +588,8 @@
                    +   '<div class="acct-card"><div class="acct-card-title"><i data-lucide="key-round"></i> Seguridad</div>'
                    +     passwordFields
                    +     '<div class="acct-grid2">'
-                   +       fieldRow('Nueva contraseña', '<input type="password" class="acct-input" id="accountNewPassword" minlength="8" autocomplete="new-password">', 'Déjala vacía para conservar la actual.')
-                   +       fieldRow('Confirmar contraseña', '<input type="password" class="acct-input" id="accountPasswordConfirm" minlength="8" autocomplete="new-password">')
+                   +       fieldRow('Nueva contraseña', passField('accountNewPassword', 'minlength="8" autocomplete="new-password"'), 'Déjala vacía para conservar la actual.')
+                   +       fieldRow('Confirmar contraseña', passField('accountPasswordConfirm', 'minlength="8" autocomplete="new-password"'))
                    +     '</div>'
                    +   '</div>'
                    +   pinCard
@@ -1598,6 +1606,18 @@
         $(document).on('click', '#accountSettings .acct-modal-card', function (e) { e.stopPropagation(); });
         $(document).on('click', '#accountSettings [data-settings-section]', function () { renderSettingsSection($(this).data('settings-section')); });
         $(document).on('submit', '#acctUserForm', function (e) { e.preventDefault(); saveUser(); });
+        $(document).on('click', '#accountSettings .acct-pass-toggle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $input = global.jQuery(this).siblings('.acct-input');
+            if (!$input.length) return;
+            const show = $input.attr('type') === 'password';
+            $input.attr('type', show ? 'text' : 'password');
+            global.jQuery(this)
+                .attr({ 'aria-label': show ? 'Ocultar' : 'Mostrar', title: show ? 'Ocultar' : 'Mostrar' })
+                .html('<i data-lucide="' + (show ? 'eye-off' : 'eye') + '"></i>');
+            if (global.lucide) global.lucide.createIcons();
+        });
         $(document).on('click', '#accountSettings [data-profile-add]', function () { openProfileForm(null); });
         $(document).on('click', '#accountSettings [data-profile-edit]', function () { openProfileForm($(this).closest('.acct-profile-card').data('profile-id')); });
         $(document).on('click', '#accountSettings [data-profile-cancel]', function () { renderProfiles(); });

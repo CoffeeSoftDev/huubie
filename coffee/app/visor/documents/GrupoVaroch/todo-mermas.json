@@ -8,17 +8,17 @@
         {
           "id": "txahu9ot",
           "text": "Cambiar el formato de grafica por grafica lineal en gris que se vea la produccion y en rojo la merma",
-          "done": false
+          "done": true
         },
         {
           "id": "tfqrvjhx",
           "text": "debe tener puntos intermedios con las cantidades producidas",
-          "done": false
+          "done": true
         },
         {
           "id": "t2vdpxw3",
           "text": "un switch para ver en cantidades / montos",
-          "done": false
+          "done": true
         }
       ]
     },
@@ -34,7 +34,7 @@
         {
           "id": "tyuuwbcb",
           "text": "Agregar a lado de cantidades un boton para calcular los desplazamientos",
-          "done": false
+          "done": true
         },
         {
           "id": "tuoe1i4d",
@@ -44,7 +44,7 @@
         {
           "id": "tndn631y",
           "text": "El indice de merma es 3 para todos los productos",
-          "done": false
+          "done": true
         }
       ]
     }
