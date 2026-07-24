@@ -549,8 +549,20 @@
         }
 
         const passwordFields = _currentUser.has_password
-            ? fieldRow('Contraseña actual', '<input type="password" class="acct-input" id="accountCurrentPassword" autocomplete="current-password">', 'Requerida únicamente si cambias la contraseña.')
+            ? fieldRow('Contraseña actual', '<input type="password" class="acct-input" id="accountCurrentPassword" autocomplete="current-password">', 'Requerida si cambias la contraseña o el PIN.')
             : '';
+
+        const pinStatus = _currentUser.has_pin
+            ? '<div class="acct-f-hint" style="margin:2px 0 10px"><i data-lucide="shield-check"></i> Tienes un PIN de acceso rápido configurado.</div>'
+            : '<div class="acct-f-hint" style="margin:2px 0 10px">Configura un PIN de 4 a 6 dígitos para iniciar sesión rápido, sin escribir tu contraseña.</div>';
+        const pinCard = '<div class="acct-card"><div class="acct-card-title"><i data-lucide="lock-keyhole"></i> PIN de acceso rápido</div>'
+                      +   pinStatus
+                      +   '<div class="acct-grid2">'
+                      +     fieldRow(_currentUser.has_pin ? 'Nuevo PIN' : 'PIN (4-6 dígitos)', '<input type="password" class="acct-input" id="accountNewPin" inputmode="numeric" maxlength="6" autocomplete="off">', _currentUser.has_pin ? 'Déjalo vacío para conservar el actual.' : 'Solo números, de 4 a 6 dígitos.')
+                      +     fieldRow('Confirmar PIN', '<input type="password" class="acct-input" id="accountPinConfirm" inputmode="numeric" maxlength="6" autocomplete="off">')
+                      +   '</div>'
+                      +   (_currentUser.has_pin ? '<label class="acct-check" style="margin-top:8px"><input type="checkbox" id="accountRemovePin"> Quitar mi PIN de acceso</label>' : '')
+                      + '</div>';
         const html = '<div class="acct-sec-head">'
                    +   '<div><div class="acct-sec-title">Mi cuenta</div><div class="acct-sec-sub">Actualiza los datos usados para iniciar sesión en CoffeeSoft.</div></div>'
                    + '</div>'
@@ -572,6 +584,7 @@
                    +       fieldRow('Confirmar contraseña', '<input type="password" class="acct-input" id="accountPasswordConfirm" minlength="8" autocomplete="new-password">')
                    +     '</div>'
                    +   '</div>'
+                   +   pinCard
                    +   '<div class="acct-form-foot"><span></span><button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save"></i> Guardar cuenta</button></div>'
                    + '</form>';
         global.jQuery('#acctUserPanel').html(html);
@@ -586,7 +599,10 @@
             email: global.jQuery('#accountEmail').val(),
             current_password: global.jQuery('#accountCurrentPassword').val() || '',
             new_password: global.jQuery('#accountNewPassword').val() || '',
-            password_confirm: global.jQuery('#accountPasswordConfirm').val() || ''
+            password_confirm: global.jQuery('#accountPasswordConfirm').val() || '',
+            new_pin: global.jQuery('#accountNewPin').val() || '',
+            pin_confirm: global.jQuery('#accountPinConfirm').val() || '',
+            remove_pin: global.jQuery('#accountRemovePin').prop('checked') ? '1' : ''
         }).done(function (res) {
             if (!res || !res.success) { toast((res && res.message) || 'No se pudo actualizar la cuenta', 'warn'); return; }
             _currentUser = res.user;

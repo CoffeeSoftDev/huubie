@@ -79,6 +79,35 @@
     color: #fff;
 }
 
+/* ── Selector de método de acceso (Contraseña / PIN) ──
+   Segmento compacto dentro del formulario de login; reusa el lenguaje visual
+   de .auth-tabs pero a menor escala. */
+.auth-method {
+    display: flex;
+    gap: 4px;
+    background: #F3F4F6;
+    border: 1px solid var(--auth-border);
+    border-radius: 9px;
+    padding: 3px;
+}
+.auth-method-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--auth-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.auth-method-btn.active {
+    background: #fff;
+    color: var(--auth-accent);
+    box-shadow: 0 1px 2px rgba(17,24,39,.08);
+}
+
 .auth-error {
     background: rgba(242,68,68,.08);
     border: 1px solid rgba(242,68,68,.25);
@@ -125,6 +154,7 @@
 
 .auth-field { display: flex; flex-direction: column; gap: 6px; }
 .auth-label { font-size: 12px; font-weight: 600; color: var(--auth-text-mid); }
+.auth-optional { font-weight: 500; color: var(--auth-text-muted); }
 .auth-input {
     background: #F9FAFB;
     border: 1px solid var(--auth-border-input);

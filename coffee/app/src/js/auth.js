@@ -27,6 +27,20 @@
         $('.auth-tab').removeClass('active').filter('[data-tab="' + tab + '"]').addClass('active');
         $('#loginForm').prop('hidden', tab !== 'login');
         $('#registerForm').prop('hidden', tab !== 'register');
+        if (tab === 'login') switchMethod('password');   // el login siempre vuelve a contraseña
+    }
+
+    // Alterna el metodo de acceso del login: 'password' o 'pin'. Solo cambia que
+    // campo se muestra; el correo es comun a ambos.
+    function switchMethod(method) {
+        clearError();
+        hidePasswords();
+        $('.auth-method-btn').removeClass('active').filter('[data-method="' + method + '"]').addClass('active');
+        $('[data-method-field]').prop('hidden', true).filter('[data-method-field="' + method + '"]').prop('hidden', false);
+        $('[data-method-field="' + method + '"]').find('.auth-input').trigger('focus');
+    }
+    function activeMethod() {
+        return $('#loginForm .auth-method-btn.active').data('method') || 'password';
     }
 
     function submitForm($form, action) {
@@ -127,9 +141,18 @@
             switchTab($(this).data('tab'));
         });
 
+        $('.auth-method-btn').on('click', function () {
+            switchMethod($(this).data('method'));
+        });
+
+        // Registro: el campo "Confirmar PIN" solo aparece cuando se escribe un PIN.
+        $('#registerForm input[name="pin"]').on('input', function () {
+            $('#registerForm [data-pin-confirm]').prop('hidden', $(this).val().length === 0);
+        });
+
         $('#loginForm').on('submit', function (e) {
             e.preventDefault();
-            submitForm($(this), 'login');
+            submitForm($(this), activeMethod() === 'pin' ? 'login_pin' : 'login');
         });
 
         $('#registerForm').on('submit', function (e) {

@@ -13,6 +13,8 @@ function auth_action_register()
     $email           = trim($_POST['email'] ?? '');
     $password        = (string)($_POST['password'] ?? '');
     $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
+    $pin             = trim($_POST['pin'] ?? '');
+    $pinConfirm      = trim($_POST['pin_confirm'] ?? '');
 
     if ($name === '' || $email === '') {
         echo json_encode(['success' => false, 'message' => 'Nombre y correo son obligatorios']);
@@ -35,11 +37,24 @@ function auth_action_register()
         return;
     }
 
+    $pinHash = null;
+    if ($pin !== '') {
+        if (!preg_match('/^\d{4,6}$/', $pin)) {
+            echo json_encode(['success' => false, 'message' => 'El PIN debe tener entre 4 y 6 digitos numericos']);
+            return;
+        }
+        if ($pin !== $pinConfirm) {
+            echo json_encode(['success' => false, 'message' => 'Los PIN no coinciden']);
+            return;
+        }
+        $pinHash = password_hash($pin, PASSWORD_BCRYPT);
+    }
+
     $hash = password_hash($password, PASSWORD_BCRYPT);
     $now  = date('Y-m-d H:i:s');
 
-    $st = auth_pdo()->prepare('INSERT INTO users (email, name, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)');
-    $st->execute([$email, $name, $hash, $now, $now]);
+    $st = auth_pdo()->prepare('INSERT INTO users (email, name, password_hash, pin_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+    $st->execute([$email, $name, $hash, $pinHash, $now, $now]);
 
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)auth_pdo()->lastInsertId();
@@ -60,6 +75,34 @@ function auth_action_login()
         return;
     }
     if (!password_verify($password, $u['password_hash'])) {
+        echo json_encode(['success' => false, 'message' => $genericError]);
+        return;
+    }
+
+    session_regenerate_id(true);
+    $_SESSION['user_id'] = (int)$u['id'];
+
+    echo json_encode(['success' => true, 'redirect' => 'visor/index.php']);
+}
+
+function auth_action_login_pin()
+{
+    $email = trim($_POST['email'] ?? '');
+    $pin   = trim($_POST['pin'] ?? '');
+
+    $genericError = 'Correo y/o PIN incorrectos';
+
+    if (!preg_match('/^\d{4,6}$/', $pin)) {
+        echo json_encode(['success' => false, 'message' => $genericError]);
+        return;
+    }
+
+    $u = auth_find_by_email($email);
+    if (!$u || empty($u['pin_hash'])) {
+        echo json_encode(['success' => false, 'message' => $genericError]);
+        return;
+    }
+    if (!password_verify($pin, $u['pin_hash'])) {
         echo json_encode(['success' => false, 'message' => $genericError]);
         return;
     }
@@ -190,6 +233,9 @@ function auth_action_update_me()
     $currentPassword = (string)$_POST['current_password'];
     $newPassword     = (string)$_POST['new_password'];
     $passwordConfirm = (string)$_POST['password_confirm'];
+    $newPin          = trim($_POST['new_pin'] ?? '');
+    $pinConfirm      = trim($_POST['pin_confirm'] ?? '');
+    $removePin       = ($_POST['remove_pin'] ?? '') === '1';
 
     if ($name === '' || $email === '') {
         echo json_encode(['success' => false, 'message' => 'Nombre y correo son obligatorios']);
@@ -228,8 +274,27 @@ function auth_action_update_me()
         $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
     }
 
-    $st = auth_pdo()->prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, updated_at = ? WHERE id = ?');
-    $st->execute([$name, $email, $passwordHash, date('Y-m-d H:i:s'), $user['id']]);
+    $pinHash = $user['pin_hash'];
+    if ($removePin) {
+        $pinHash = null;
+    } elseif ($newPin !== '') {
+        if (!preg_match('/^\d{4,6}$/', $newPin)) {
+            echo json_encode(['success' => false, 'message' => 'El PIN debe tener entre 4 y 6 digitos numericos']);
+            return;
+        }
+        if ($newPin !== $pinConfirm) {
+            echo json_encode(['success' => false, 'message' => 'Los PIN no coinciden']);
+            return;
+        }
+        if ($user['password_hash'] !== null && !password_verify($currentPassword, $user['password_hash'])) {
+            echo json_encode(['success' => false, 'message' => 'La contrasena actual no es correcta']);
+            return;
+        }
+        $pinHash = password_hash($newPin, PASSWORD_BCRYPT);
+    }
+
+    $st = auth_pdo()->prepare('UPDATE users SET name = ?, email = ?, password_hash = ?, pin_hash = ?, updated_at = ? WHERE id = ?');
+    $st->execute([$name, $email, $passwordHash, $pinHash, date('Y-m-d H:i:s'), $user['id']]);
     $updated = auth_find_by_id((int)$user['id']);
 
     echo json_encode([
@@ -448,6 +513,9 @@ switch ($action) {
         break;
     case 'login':
         auth_action_login();
+        break;
+    case 'login_pin':
+        auth_action_login_pin();
         break;
     case 'google':
         auth_action_google();

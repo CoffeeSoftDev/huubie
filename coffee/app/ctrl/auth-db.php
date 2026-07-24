@@ -34,6 +34,12 @@ function auth_pdo(): PDO
     ");
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)');
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL');
+
+    $userColumns = array_column($pdo->query('PRAGMA table_info(users)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    if (!in_array('pin_hash', $userColumns, true)) {
+        $pdo->exec('ALTER TABLE users ADD COLUMN pin_hash TEXT');
+    }
+
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS profiles (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,

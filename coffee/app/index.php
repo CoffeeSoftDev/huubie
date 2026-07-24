@@ -54,15 +54,32 @@ if (auth_current_user()) {
                     <span class="auth-label">Correo</span>
                     <input type="email" name="email" class="auth-input" placeholder="tu@correo.com" required autocomplete="username">
                 </label>
-                <label class="auth-field">
+
+                <div class="auth-method" role="tablist" aria-label="Método de acceso">
+                    <button type="button" class="auth-method-btn active" data-method="password" role="tab">Contraseña</button>
+                    <button type="button" class="auth-method-btn" data-method="pin" role="tab">PIN</button>
+                </div>
+
+                <label class="auth-field" data-method-field="password">
                     <span class="auth-label">Contraseña</span>
                     <span class="auth-pass">
-                        <input type="password" name="password" class="auth-input" placeholder="••••••••" required autocomplete="current-password">
+                        <input type="password" name="password" class="auth-input" placeholder="••••••••" autocomplete="current-password">
                         <button type="button" class="auth-pass-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña">
                             <i data-lucide="eye"></i>
                         </button>
                     </span>
                 </label>
+
+                <label class="auth-field" data-method-field="pin" hidden>
+                    <span class="auth-label">PIN</span>
+                    <span class="auth-pass">
+                        <input type="password" name="pin" class="auth-input" inputmode="numeric" maxlength="6" placeholder="4 a 6 dígitos" autocomplete="off">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar PIN" title="Mostrar PIN">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
+                </label>
+
                 <button type="submit" class="auth-btn-primary">
                     <span>Iniciar sesión</span>
                     <i data-lucide="loader-2" class="w-4 h-4 auth-spin" hidden></i>
@@ -92,6 +109,24 @@ if (auth_current_user()) {
                     <span class="auth-pass">
                         <input type="password" name="password_confirm" class="auth-input" placeholder="Repite tu contraseña" required autocomplete="new-password">
                         <button type="button" class="auth-pass-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
+                </label>
+                <label class="auth-field">
+                    <span class="auth-label">PIN de acceso rápido <span class="auth-optional">(opcional)</span></span>
+                    <span class="auth-pass">
+                        <input type="password" name="pin" class="auth-input" inputmode="numeric" maxlength="6" placeholder="4 a 6 dígitos" autocomplete="off">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar PIN" title="Mostrar PIN">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </span>
+                </label>
+                <label class="auth-field" data-pin-confirm hidden>
+                    <span class="auth-label">Confirmar PIN</span>
+                    <span class="auth-pass">
+                        <input type="password" name="pin_confirm" class="auth-input" inputmode="numeric" maxlength="6" placeholder="Repite el PIN" autocomplete="off">
+                        <button type="button" class="auth-pass-toggle" aria-label="Mostrar PIN" title="Mostrar PIN">
                             <i data-lucide="eye"></i>
                         </button>
                     </span>

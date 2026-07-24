@@ -30,6 +30,7 @@ function auth_public_user(array $u): array
         'avatar_url' => $u['avatar_url'],
         'initials'   => coffee_auth_initials($u['name']),
         'has_password' => !empty($u['password_hash']),
+        'has_pin'    => !empty($u['pin_hash']),
     ];
 }
 
