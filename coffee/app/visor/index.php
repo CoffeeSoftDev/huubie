@@ -102,10 +102,32 @@
                 </button>
             </div>
 
-<button id="btnRefresh" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Refrescar lista">
+            <button id="btnRefresh" class="cs-btn cs-btn-outline cs-btn-sm flex items-center gap-1.5" title="Refrescar lista">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span class="btn-label">Refrescar</span>
             </button>
+
+            <div class="vsr-notifications">
+                <button id="btnCreditNotifications" class="vsr-notification-trigger" type="button" title="Reinicios de créditos" aria-label="Cuentas próximas a reiniciar créditos" aria-haspopup="dialog" aria-expanded="false">
+                    <i data-lucide="bell" class="w-4 h-4"></i>
+                    <span class="vsr-notification-label">Reinicios de créditos</span>
+                    <span id="creditNotificationBadge" class="vsr-notification-badge" hidden>0</span>
+                </button>
+                <section id="creditNotificationPanel" class="vsr-notification-panel" aria-label="Cuentas próximas a reiniciar créditos" hidden>
+                    <header class="vsr-notification-header">
+                        <div>
+                            <h2>Reinicios de créditos</h2>
+                            <p>Próximas renovaciones por cuenta</p>
+                        </div>
+                        <button id="btnCreditOpenAccounts" type="button">Administrar</button>
+                    </header>
+                    <div class="vsr-credit-summary">
+                        <span>Cuentas próximas (hoy o mañana)</span>
+                        <strong id="creditNotificationsTotal">0</strong>
+                    </div>
+                    <div id="creditNotificationsList" class="vsr-notification-list"></div>
+                </section>
+            </div>
 
             <button id="btnThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="moon" class="w-4 h-4"></i>

@@ -1,4 +1,52 @@
 {
   "title": "GrupoVaroch",
-  "sections": []
+  "sections": [
+    {
+      "id": "sod6jm3j",
+      "title": "Modal de visualización",
+      "tasks": [
+        {
+          "id": "txahu9ot",
+          "text": "Cambiar el formato de grafica por grafica lineal en gris que se vea la produccion y en rojo la merma",
+          "done": false
+        },
+        {
+          "id": "tfqrvjhx",
+          "text": "debe tener puntos intermedios con las cantidades producidas",
+          "done": false
+        },
+        {
+          "id": "t2vdpxw3",
+          "text": "un switch para ver en cantidades / montos",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "svhs5cfc",
+      "title": "Tabla comportamiento por producto",
+      "tasks": [
+        {
+          "id": "tev4qvsg",
+          "text": "En la tabla de mermas diarias en montos agregar el formato de moneda.",
+          "done": true
+        },
+        {
+          "id": "tyuuwbcb",
+          "text": "Agregar a lado de cantidades un boton para calcular los desplazamientos",
+          "done": false
+        },
+        {
+          "id": "tuoe1i4d",
+          "text": "Agreges una columna especifica para agregar el margen",
+          "done": false
+        },
+        {
+          "id": "tndn631y",
+          "text": "El indice de merma es 3 para todos los productos",
+          "done": false
+        }
+      ]
+    }
+  ]
 }

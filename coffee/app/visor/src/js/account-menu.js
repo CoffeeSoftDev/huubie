@@ -1148,7 +1148,87 @@
                 return mx - my;
             });
     }
+
+    function renderNavbarCreditNotifications() {
+        const rows = accountsSorted();
+        const soon = rows.filter(function (row) {
+            return row.info.state !== 'none' && row.info.days <= 1;
+        });
+        const $badge = global.jQuery('#creditNotificationBadge');
+        $badge.text(soon.length > 9 ? '9+' : soon.length).prop('hidden', soon.length === 0);
+        global.jQuery('#creditNotificationsTotal').text(soon.length);
+
+        let html;
+        if (!soon.length) {
+            html = '<div class="vsr-notification-empty">'
+                 +   '<i data-lucide="calendar-check"></i>'
+                 +   '<p>No hay reinicios para hoy o mañana.</p>'
+                 + '</div>';
+        } else {
+            html = soon.map(function (row) {
+                const info = row.info;
+                const stateClass = info.state === 'none' ? 'is-none'
+                    : info.days <= 0 ? 'is-today'
+                    : info.days === 1 ? 'is-soon'
+                    : '';
+                const icon = info.state === 'none' ? 'circle-help'
+                    : info.days <= 0 ? 'alarm-clock'
+                    : 'calendar-clock';
+                const when = info.state === 'none' ? 'Sin reinicio' : info.primary;
+                const detail = info.state === 'none'
+                    ? planLabel(row.acc.plan)
+                    : planLabel(row.acc.plan) + ' · ' + info.secondary;
+
+                return '<article class="vsr-notification-item ' + stateClass + '">'
+                     +   '<span class="vsr-notification-icon"><i data-lucide="' + icon + '"></i></span>'
+                     +   '<div class="vsr-notification-copy">'
+                     +     '<strong>' + escHtml(row.acc.alias) + '</strong>'
+                     +     '<span>' + escHtml(detail) + '</span>'
+                     +   '</div>'
+                     +   '<span class="vsr-notification-time">' + escHtml(when) + '</span>'
+                     + '</article>';
+            }).join('');
+        }
+
+        global.jQuery('#creditNotificationsList').html(html);
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function closeNavbarCreditNotifications() {
+        global.jQuery('#creditNotificationPanel').prop('hidden', true);
+        global.jQuery('#btnCreditNotifications').attr('aria-expanded', 'false').removeClass('is-open');
+    }
+
+    function bindNavbarCreditNotifications($) {
+        try { global.localStorage.removeItem('visor:creditNotifications:v1'); } catch (e) {}
+        $('#btnCreditNotifications').off('click.creditNavbar').on('click.creditNavbar', function (e) {
+            e.stopPropagation();
+            const open = $('#creditNotificationPanel').prop('hidden');
+            closeNavbarCreditNotifications();
+            if (open) {
+                renderNavbarCreditNotifications();
+                $('#creditNotificationPanel').prop('hidden', false);
+                $(this).attr('aria-expanded', 'true').addClass('is-open');
+            }
+        });
+        $('#creditNotificationPanel').off('click.creditNavbar').on('click.creditNavbar', function (e) { e.stopPropagation(); });
+        $('#btnCreditOpenAccounts').off('click.creditNavbar').on('click.creditNavbar', function () {
+            closeNavbarCreditNotifications();
+            openUpgrade();
+        });
+        $(document).off('click.creditNavbar keydown.creditNavbar')
+            .on('click.creditNavbar', closeNavbarCreditNotifications)
+            .on('keydown.creditNavbar', function (e) {
+                if (e.key === 'Escape') closeNavbarCreditNotifications();
+            });
+        $(global).off('storage.creditNavbar').on('storage.creditNavbar', function (e) {
+            const original = e.originalEvent;
+            if (original && original.key === ACCOUNTS_KEY) renderNavbarCreditNotifications();
+        });
+    }
+
     function refreshClockBadge() {
+        renderNavbarCreditNotifications();
         const $clock = global.jQuery('#creditClock');
         const $b = global.jQuery('#creditClockBadge');
         if (!$clock.length || !$b.length) return;
@@ -1387,6 +1467,7 @@
         refreshAccountBar();
         loadCurrentUser();
         injectClock($);
+        bindNavbarCreditNotifications($);
         refreshClockBadge();
         checkReminders();
         restoreTimerPins();

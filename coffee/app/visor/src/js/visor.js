@@ -2995,20 +2995,28 @@ class VisorView {
             .concat(crumb.map((seg, i) =>
                 `<span class="docx-crumb-sep">/</span><button type="button" class="docx-crumb" data-crumb-to="${i + 1}" title="${seg}">${seg}</button>`
             )).join('');
-        // Toggle de presentación: lista (filas) / carpetas (iconos).
         const viewToggle = `
             <div class="docx-view" role="group" aria-label="Vista">
                 <button type="button" class="docx-viewbtn ${docsView === 'list' ? 'is-active' : ''}" data-docview="list" title="Ver en lista"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
                 <button type="button" class="docx-viewbtn ${docsView === 'grid' ? 'is-active' : ''}" data-docview="grid" title="Ver en carpetas"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
             </div>`;
+        const createMenu = canCreate ? `
+            <div class="docx-create">
+                <button type="button" class="docx-create-trigger" title="Más opciones" aria-label="Opciones para crear" aria-haspopup="menu" aria-expanded="false">
+                    <i data-lucide="ellipsis" class="w-4 h-4"></i>
+                </button>
+                <div class="docx-create-menu" role="menu" aria-label="Opciones de creación" hidden>
+                    ${crumb.length <= 1 ? `<button type="button" class="docx-create-item docx-newfolder-btn" role="menuitem"><i data-lucide="folder-plus"></i><span>Nueva carpeta</span></button>` : ''}
+                    <button type="button" class="docx-create-item tree-root-new" role="menuitem"><i data-lucide="file-plus"></i><span>Nuevo archivo</span></button>
+                    ${crumb.length >= 1 ? `<button type="button" class="docx-create-item tree-new-todo" role="menuitem"><i data-lucide="list-checks"></i><span>Nuevo TODO</span></button>` : ''}
+                </div>
+            </div>` : '';
         const bar = `
             <div class="docx-bar">
                 <div class="docx-crumbs">${crumbBtns}</div>
                 <div class="docx-bar-actions">
+                    ${createMenu}
                     ${viewToggle}
-                    ${(canCreate && crumb.length <= 1) ? `<button type="button" class="tree-new-btn docx-newfolder-btn" title="Nueva carpeta"><i data-lucide="folder-plus" class="w-4 h-4"></i></button>` : ''}
-                    ${(canCreate && crumb.length >= 1) ? `<button type="button" class="tree-new-btn tree-new-todo" title="Nuevo TODO en esta carpeta"><i data-lucide="list-checks" class="w-4 h-4"></i></button>` : ''}
-                    ${canCreate ? `<button type="button" class="tree-new-btn tree-root-new" title="Nuevo archivo — elige la carpeta destino"><i data-lucide="file-plus" class="w-4 h-4"></i></button>` : ''}
                 </div>
             </div>`;
 
@@ -3052,25 +3060,52 @@ class VisorView {
             if (window.lucide) lucide.createIcons();
         };
 
-        // Navegar por el breadcrumb: recorta el crumb a N segmentos.
         $('#sidebarList .docx-crumb').off('click').on('click', function () {
             setCrumb(crumb.slice(0, Number($(this).data('crumb-to')) || 0));
             reRender();
         });
 
-        // Boton "+": abre el modal "Nuevo archivo" (la carpeta destino se elige ahi).
-        $('#sidebarList .tree-root-new').off('click').on('click', (e) => {
-            e.stopPropagation();
+        const createContainer = $('#sidebarList .docx-create');
+        const createTrigger = createContainer.find('.docx-create-trigger');
+        const createDropdown = createContainer.find('.docx-create-menu');
+        const closeCreateMenu = (restoreFocus = false) => {
+            createDropdown.prop('hidden', true);
+            createTrigger.attr('aria-expanded', 'false').removeClass('is-open');
+            if (restoreFocus) createTrigger.trigger('focus');
+        };
+
+        createTrigger.off('click').on('click', (event) => {
+            event.stopPropagation();
+            const willOpen = createDropdown.prop('hidden');
+            closeCreateMenu();
+            if (willOpen) {
+                createDropdown.prop('hidden', false);
+                createTrigger.attr('aria-expanded', 'true').addClass('is-open');
+                createDropdown.find('.docx-create-item').first().trigger('focus');
+            }
+        });
+        createDropdown.off('click').on('click', event => event.stopPropagation());
+        if (createDropdown[0]) {
+            createDropdown[0].addEventListener('click', (event) => {
+                if ($(event.target).closest('.docx-create-item').length) closeCreateMenu();
+            }, true);
+        }
+        $(document).off('click.docxCreate keydown.docxCreate')
+            .on('click.docxCreate', () => closeCreateMenu())
+            .on('keydown.docxCreate', (event) => {
+                if (event.key === 'Escape' && !createDropdown.prop('hidden')) closeCreateMenu(true);
+            });
+
+        $('#sidebarList .tree-root-new').off('click').on('click', (event) => {
+            event.stopPropagation();
             if (typeof app !== 'undefined' && app && app.openNewFileModal) app.openNewFileModal();
         });
 
-        // Boton "Nuevo TODO": crea/abre un todo.json en la carpeta del nivel actual.
-        $('#sidebarList .tree-new-todo').off('click').on('click', (e) => {
-            e.stopPropagation();
+        $('#sidebarList .tree-new-todo').off('click').on('click', (event) => {
+            event.stopPropagation();
             if (typeof app !== 'undefined' && app && app.createTodo) app.createTodo(levelDir(crumb));
         });
 
-        // Toggle de presentación: alterna lista / carpetas y re-renderiza.
         $('#sidebarList .docx-viewbtn').off('click').on('click', function () {
             setDocsView($(this).data('docview'));
             reRender();
