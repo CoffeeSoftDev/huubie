@@ -447,9 +447,9 @@
                             <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
-                    <input id="iaImageInput" type="file" accept="image/*,text/*,.md,.markdown,.csv,.tsv,.html,.htm,.xml,.svg,.json,.yaml,.yml,.toml,.ini,.env,.conf,.log,.js,.mjs,.ts,.jsx,.tsx,.css,.scss,.less,.php,.py,.rb,.go,.rs,.java,.kt,.c,.h,.cpp,.cs,.sql,.sh,.bash,.ps1,.bat,.vue,.astro" multiple style="display:none;">
+                    <input id="iaImageInput" type="file" accept="image/*,text/*,.md,.markdown,.csv,.tsv,.html,.htm,.xml,.svg,.json,.yaml,.yml,.toml,.ini,.env,.conf,.log,.js,.mjs,.ts,.jsx,.tsx,.css,.scss,.less,.php,.py,.rb,.go,.rs,.java,.kt,.c,.h,.cpp,.cs,.sql,.sh,.bash,.ps1,.bat,.vue,.astro,.xlsx,.xlsm,.xlsb,.xls,.ods" multiple style="display:none;">
                     <div class="ia-input-hint">
-                        <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen o documento de texto (tambien Ctrl+V para pegar)">
+                        <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen, documento de texto o Excel (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
                         <button id="iaEditorToggle" class="ia-editor-toggle is-icon-only" title="Activar modo editor">

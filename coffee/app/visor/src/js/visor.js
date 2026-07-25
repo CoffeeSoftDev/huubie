@@ -180,7 +180,7 @@ class App {
             out.push({
                 file:     f.file,
                 fullPath: f.fullPath || '',
-                content:  f.raw || ''
+                content:  iaFileTextForModel(f)
             });
         });
         return out;
@@ -3962,6 +3962,70 @@ function iaIsTextFile(file) {
     return IA_TEXT_MIME_RE.test(file.type || '');
 }
 
+// Hojas de calculo: binarias, pero SheetJS (ya cargado para el visor) las pasa a
+// CSV en el navegador, asi que llegan al modelo como cualquier otro adjunto de
+// texto. csv/tsv NO entran aqui: ya son texto y los lee iaIsTextFile.
+const IA_SHEET_EXTS      = ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'];
+const IA_SHEET_MAX_BYTES = 15 * 1024 * 1024;
+const IA_SHEET_MAX_CHARS = 120000;   // tope del texto embebido: cuida el context window
+
+function iaIsSheetFile(file) {
+    if (!file) return false;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    return IA_SHEET_EXTS.indexOf(ext) !== -1;
+}
+
+/**
+ * Convierte un libro completo a texto: una seccion CSV por hoja. Al pasar el tope
+ * corta y marca el resto como omitido — un Excel mediano puede generar mas texto
+ * del que cabe en el contexto del modelo.
+ * @returns {{text: string, sheets: number, truncated: boolean}}
+ */
+function iaSheetToText(arrayBuffer) {
+    const wb    = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+    const parts = [];
+    let total = 0, truncated = false;
+
+    for (const name of wb.SheetNames) {
+        if (truncated) {
+            parts.push(`## Hoja: ${name}\n[omitida: se alcanzo el limite de tamano]`);
+            continue;
+        }
+        // Si los bytes no eran una hoja real, SheetJS no falla: devuelve los bytes
+        // crudos como celdas. Quitamos los caracteres de control para no mandarle
+        // ruido binario al modelo (\t, \n y \r se conservan).
+        let csv = XLSX.utils.sheet_to_csv(wb.Sheets[name], { blankrows: false })
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+            .trim();
+        if (!csv) { parts.push(`## Hoja: ${name}\n[vacia]`); continue; }
+        if (total + csv.length > IA_SHEET_MAX_CHARS) {
+            csv = csv.slice(0, Math.max(0, IA_SHEET_MAX_CHARS - total)) + '\n[... contenido truncado]';
+            truncated = true;
+        }
+        total += csv.length;
+        parts.push(`## Hoja: ${name}\n${csv}`);
+    }
+    return { text: parts.join('\n\n'), sheets: wb.SheetNames.length, truncated };
+}
+
+/**
+ * Texto de un archivo YA ABIERTO en el visor para mandarlo al modelo. Las hojas de
+ * calculo no tienen `raw` (sus bytes viven en `_binary`): se convierten a CSV y se
+ * cachea el resultado en el propio objeto, que si no se reconvierte en cada turno.
+ */
+function iaFileTextForModel(file) {
+    if (!file) return '';
+    if (file.raw) return file.raw;
+    if (file._binary && typeof XLSX !== 'undefined') {
+        if (file._sheetText === undefined) {
+            try { file._sheetText = iaSheetToText(file._binary).text; }
+            catch (e) { file._sheetText = ''; }
+        }
+        return file._sheetText;
+    }
+    return '';
+}
+
 /**
  * Construye los <span> del footer de metadatos de un mensaje IA.
  * Prioriza el COSTO REAL en USD (lo trae OpenRouter via usage.cost); si no hay
@@ -4425,7 +4489,7 @@ class CoffeeIA {
             for (const it of cd.items) {
                 if (it.kind !== 'file') continue;
                 const f = it.getAsFile();
-                if (f && (/^image\//.test(it.type) || iaIsTextFile(f))) { this._addFile(f); pasted++; }
+                if (f && (/^image\//.test(it.type) || iaIsTextFile(f) || iaIsSheetFile(f))) { this._addFile(f); pasted++; }
             }
             if (pasted) {
                 e.preventDefault();
@@ -4524,9 +4588,10 @@ class CoffeeIA {
     _addFile(file) {
         if (!file) return;
         if (/^image\//.test(file.type)) { this._addImageFile(file); return; }
+        if (iaIsSheetFile(file))        { this._addSheetFile(file); return; }
         if (iaIsTextFile(file))         { this._addDocFile(file);   return; }
         if (typeof visorView !== 'undefined' && visorView) {
-            visorView.toast('Formato no soportado: ' + (file.name || 'archivo') + ' (solo imagenes y texto)', 'warn');
+            visorView.toast('Formato no soportado: ' + (file.name || 'archivo') + ' (imagenes, texto y hojas de calculo)', 'warn');
         }
     }
 
@@ -4589,6 +4654,44 @@ class CoffeeIA {
         this._renderImageStrip();
     }
 
+    /* ── Hojas de calculo adjuntas: se convierten a CSV y viajan como documento ── */
+
+    _addSheetFile(file) {
+        if (!file) return;
+        const warn = (msg, kind) => {
+            if (typeof visorView !== 'undefined' && visorView) visorView.toast(msg, kind || 'warn');
+        };
+        if (typeof XLSX === 'undefined') {
+            warn('No se pudo leer la hoja: SheetJS no esta cargado, refresca la pagina');
+            return;
+        }
+        if (file.size > IA_SHEET_MAX_BYTES) {
+            warn('Hoja demasiado grande (max 15 MB)');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            let out;
+            try {
+                out = iaSheetToText(ev.target.result);
+            } catch (err) {
+                warn('No se pudo leer la hoja: ' + (err.message || err), 'error');
+                return;
+            }
+            if (!out.text) { warn('La hoja no tiene datos'); return; }
+            this.pendingDocs.push({
+                name:    file.name || 'hoja',
+                content: out.text,
+                size:    file.size || 0,
+                icon:    'file-spreadsheet'
+            });
+            this._renderImageStrip();
+            if (out.truncated) warn('La hoja se recorto para caber en el contexto del modelo');
+        };
+        reader.onerror = () => warn('No se pudo leer el archivo', 'error');
+        reader.readAsArrayBuffer(file);
+    }
+
     /* ── Render unificado del strip de adjuntos (imagenes + documentos) ── */
 
     _renderImageStrip() {
@@ -4615,7 +4718,7 @@ class CoffeeIA {
         const fmtKb  = (b) => b >= 1024 ? (b / 1024).toFixed(b >= 10240 ? 0 : 1) + ' KB' : b + ' B';
         const docHtml = this.pendingDocs.map((doc, i) => `
             <div class="ia-doc-chip" title="${this._escape(doc.name)} (${fmtKb(doc.size)})">
-                <i data-lucide="file-text" class="ia-doc-chip-icon"></i>
+                <i data-lucide="${doc.icon || 'file-text'}" class="ia-doc-chip-icon"></i>
                 <span class="ia-doc-chip-name">${this._escape(doc.name)}</span>
                 <button type="button" class="ia-doc-chip-remove" data-doc-idx="${i}" title="Quitar">
                     <i data-lucide="x"></i>
@@ -4812,7 +4915,7 @@ class CoffeeIA {
             }),
             currentFile:        this._app.currentFile || '',
             currentFilePath:    currentFileObj?.fullPath || '',
-            currentFileContent: currentFileObj?.raw || '',
+            currentFileContent: iaFileTextForModel(currentFileObj),
             pinnedFiles:        (this._app.getPinnedFilesPayload ? this._app.getPinnedFilesPayload() : []),
             editorMode:         !!this.editorMode,
             // Modo lienzo activo: se lo decimos al backend para que inyecte

@@ -811,6 +811,46 @@ function ciaIsTextFile(file) {
     return /^(text\/|application\/(json|xml|javascript|x-yaml|x-sh|sql)|image\/svg)/i.test(file.type || '');
 }
 
+// Hojas de calculo: binarias, pero SheetJS las pasa a CSV aqui en el navegador y
+// entran al chat como un adjunto de texto mas. csv/tsv ya los cubre ciaIsTextFile.
+const CIA_SHEET_EXTS      = ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'];
+const CIA_SHEET_MAX_CHARS = 120000;   // tope del texto embebido: cuida el context window
+
+function ciaIsSheetFile(file) {
+    if (!file) return false;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    return CIA_SHEET_EXTS.indexOf(ext) !== -1;
+}
+
+// Un libro -> una seccion CSV por hoja. Corta al llegar al tope porque un Excel
+// mediano genera mas texto del que cabe en el contexto del modelo.
+function ciaSheetToText(arrayBuffer) {
+    const wb    = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+    const parts = [];
+    let total = 0, truncated = false;
+
+    for (const name of wb.SheetNames) {
+        if (truncated) {
+            parts.push(`## Hoja: ${name}\n[omitida: se alcanzó el límite de tamaño]`);
+            continue;
+        }
+        // Si los bytes no eran una hoja real, SheetJS no falla: devuelve los bytes
+        // crudos como celdas. Quitamos los caracteres de control para no mandarle
+        // ruido binario al modelo (\t, \n y \r se conservan).
+        let csv = XLSX.utils.sheet_to_csv(wb.Sheets[name], { blankrows: false })
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+            .trim();
+        if (!csv) { parts.push(`## Hoja: ${name}\n[vacía]`); continue; }
+        if (total + csv.length > CIA_SHEET_MAX_CHARS) {
+            csv = csv.slice(0, Math.max(0, CIA_SHEET_MAX_CHARS - total)) + '\n[... contenido truncado]';
+            truncated = true;
+        }
+        total += csv.length;
+        parts.push(`## Hoja: ${name}\n${csv}`);
+    }
+    return { text: parts.join('\n\n'), truncated };
+}
+
 function ciaBindAttachments() {
     // Adjuntar se dispara desde el menú "+" (o con Ctrl+V / arrastrar / Ctrl+U).
     $('#ciaFileInput').on('change', e => {
@@ -859,12 +899,32 @@ function ciaAddFile(file) {
         const reader = new FileReader();
         reader.onload = ev => { CIA.pendingImages.push({ name: file.name, dataUrl: ev.target.result }); ciaRenderAttachments(); };
         reader.readAsDataURL(file);
+    } else if (ciaIsSheetFile(file)) {
+        if (typeof XLSX === 'undefined') {
+            ciaToast('No se pudo leer la hoja: SheetJS no está cargado, refresca la página', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = ev => {
+            let out;
+            try {
+                out = ciaSheetToText(ev.target.result);
+            } catch (err) {
+                ciaToast('No se pudo leer la hoja: ' + (err.message || err), 'error');
+                return;
+            }
+            if (!out.text) { ciaToast('La hoja no tiene datos', 'error'); return; }
+            CIA.pendingDocs.push({ name: file.name, size: file.size, content: out.text, icon: 'file-spreadsheet' });
+            ciaRenderAttachments();
+            if (out.truncated) ciaToast('La hoja se recortó para caber en el contexto del modelo', 'error');
+        };
+        reader.readAsArrayBuffer(file);
     } else if (ciaIsTextFile(file)) {
         const reader = new FileReader();
         reader.onload = ev => { CIA.pendingDocs.push({ name: file.name, size: file.size, content: ev.target.result }); ciaRenderAttachments(); };
         reader.readAsText(file);
     } else {
-        ciaToast('Formato no soportado: ' + (file.name || 'archivo') + ' (solo imágenes y texto)', 'error');
+        ciaToast('Formato no soportado: ' + (file.name || 'archivo') + ' (imágenes, texto y hojas de cálculo)', 'error');
     }
 }
 
@@ -876,7 +936,7 @@ function ciaRenderAttachments() {
         $strip.append($chip);
     });
     CIA.pendingDocs.forEach((doc, i) => {
-        const $chip = $(`<div class="ia-img-chip"><i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>${ciaEscape(doc.name)}</span><i data-lucide="x" class="cursor-pointer"></i></div>`);
+        const $chip = $(`<div class="ia-img-chip"><i data-lucide="${doc.icon || 'file-text'}" class="w-3.5 h-3.5"></i><span>${ciaEscape(doc.name)}</span><i data-lucide="x" class="cursor-pointer"></i></div>`);
         $chip.find('i[data-lucide="x"]').on('click', () => { CIA.pendingDocs.splice(i, 1); ciaRenderAttachments(); });
         $strip.append($chip);
     });
