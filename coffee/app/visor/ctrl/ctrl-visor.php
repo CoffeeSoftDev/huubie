@@ -12,6 +12,21 @@ function coffee_visor_header_user() {
     return ['initials' => coffee_auth_initials($u['name']), 'name' => $u['name'], 'role' => 'Miembro'];
 }
 
+// Hojas de calculo que el visor renderiza con SheetJS. Son BINARIAS (salvo csv/tsv),
+// asi que no pasan por 'save' ni por el editor de texto: entran por 'upload' y se
+// leen por 'readbin'.
+function coffee_visor_sheet_exts() {
+    return ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'csv', 'tsv'];
+}
+
+// Hoja REALMENTE binaria: csv/tsv son texto y se siguen tratando como tal (se
+// editan y viajan en el JSON del arbol); el resto solo se lee por readbin.
+function coffee_visor_is_binary_sheet($fileName) {
+    $ext = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+    return in_array($ext, coffee_visor_sheet_exts(), true)
+        && !in_array($ext, ['csv', 'tsv'], true);
+}
+
 // Endpoint lazy-read para archivos de Drive (no devuelve JSON, devuelve el contenido raw)
 if (($_GET['action'] ?? '') === 'driveread') {
     require_once __DIR__ . '/drive-client.php';
@@ -265,11 +280,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         exit;
     }
 
-    $allowedExts = [
+    $allowedExts = array_merge([
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ];
+    ], coffee_visor_sheet_exts());
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
         echo json_encode(['success' => false, 'message' => "Extension no eliminable: .$ext"]);
@@ -335,11 +350,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         exit;
     }
 
-    $allowedExts = [
+    $allowedExts = array_merge([
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ];
+    ], coffee_visor_sheet_exts());
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
         echo json_encode(['success' => false, 'message' => "Extension no movible: .$ext"]);
@@ -569,11 +584,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         exit;
     }
 
-    $allowedExts = [
+    $allowedExts = array_merge([
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ];
+    ], coffee_visor_sheet_exts());
     $origExt = strtolower(pathinfo($fileReal, PATHINFO_EXTENSION));
     $newExt  = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
     if ($newExt === '' && $origExt !== '') {
@@ -665,6 +680,126 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 
     echo json_encode(['success' => true, 'moved' => true, 'message' => 'Carpeta movida', 'fullPath' => $target]);
+    exit;
+}
+
+// Endpoint para SUBIR una hoja de calculo al sandbox (POST upload, multipart).
+// A diferencia de 'save' el contenido llega en $_FILES —no en $_POST— porque son
+// bytes binarios que no sobreviven a un campo de texto.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'upload') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $destDir    = trim($_POST['destDir']    ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+    $overwrite  = ($_POST['overwrite'] ?? '') === '1';
+
+    if ($destDir === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'destDir requerido']);
+        exit;
+    }
+
+    $up = isset($_FILES['file']) && is_array($_FILES['file']) ? $_FILES['file'] : null;
+    if ($up === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'No se recibió ningún archivo']);
+        exit;
+    }
+
+    // php.ini puede rechazar el archivo antes de que llegue aqui (upload_max_filesize,
+    // post_max_size): traducimos el codigo a un mensaje accionable.
+    $upErr = isset($up['error']) ? (int) $up['error'] : UPLOAD_ERR_NO_FILE;
+    if ($upErr !== UPLOAD_ERR_OK) {
+        $errMap = [
+            UPLOAD_ERR_INI_SIZE   => 'El archivo excede upload_max_filesize de php.ini',
+            UPLOAD_ERR_FORM_SIZE  => 'El archivo excede el límite del formulario',
+            UPLOAD_ERR_PARTIAL    => 'La subida quedó incompleta, vuelve a intentar',
+            UPLOAD_ERR_NO_FILE    => 'No se recibió ningún archivo',
+            UPLOAD_ERR_NO_TMP_DIR => 'Falta la carpeta temporal de PHP',
+            UPLOAD_ERR_CANT_WRITE => 'PHP no pudo escribir el archivo temporal',
+            UPLOAD_ERR_EXTENSION  => 'Una extensión de PHP bloqueó la subida'
+        ];
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => $errMap[$upErr] ?? 'Error de subida']);
+        exit;
+    }
+    if (!is_uploaded_file($up['tmp_name'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Origen inválido']);
+        exit;
+    }
+
+    $name = coffee_visor_safe_name(basename(str_replace('\\', '/', $up['name'] ?? '')));
+    if ($name === '') {
+        echo json_encode(['success' => false, 'message' => 'Nombre de archivo inválido']);
+        exit;
+    }
+
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if (!in_array($ext, coffee_visor_sheet_exts(), true)) {
+        echo json_encode(['success' => false, 'message' => "Solo se pueden subir hojas de cálculo (.xlsx, .xls, .ods, .csv). Recibido: .$ext"]);
+        exit;
+    }
+
+    $maxBytes = 25 * 1024 * 1024;
+    if ((int) ($up['size'] ?? 0) > $maxBytes) {
+        echo json_encode(['success' => false, 'message' => 'El archivo pesa más de 25 MB']);
+        exit;
+    }
+
+    // Los formatos xlsx/xlsm/xlsb/ods son ZIP: validamos la firma para no guardar
+    // un ejecutable renombrado a .xlsx. .xls (BIFF) y csv/tsv se dejan pasar.
+    if (in_array($ext, ['xlsx', 'xlsm', 'xlsb', 'ods'], true)) {
+        $fh = @fopen($up['tmp_name'], 'rb');
+        $sig = $fh ? fread($fh, 2) : '';
+        if ($fh) fclose($fh);
+        if ($sig !== 'PK') {
+            echo json_encode(['success' => false, 'message' => "El archivo no es un .$ext válido (no tiene formato ZIP)"]);
+            exit;
+        }
+    }
+
+    $dirReal = realpath(str_replace('\\', '/', $destDir));
+    if ($dirReal === false || !is_dir($dirReal)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'La carpeta destino no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($dirReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Carpeta destino fuera del sandbox del visor']);
+        exit;
+    }
+
+    $dirReal = rtrim(str_replace('\\', '/', $dirReal), '/');
+    $target  = $dirReal . '/' . $name;
+
+    // Sin overwrite explicito no se pisa nada: el cliente pregunta y reintenta.
+    if (is_file($target) && !$overwrite) {
+        echo json_encode([
+            'success' => false,
+            'exists'  => true,
+            'message' => 'Ya existe un archivo con ese nombre en la carpeta destino',
+            'name'    => $name
+        ]);
+        exit;
+    }
+
+    if (!@move_uploaded_file($up['tmp_name'], $target)) {
+        $err = error_get_last();
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'No se pudo guardar: ' . ($err['message'] ?? 'IO error')]);
+        exit;
+    }
+
+    echo json_encode([
+        'success'  => true,
+        'message'  => 'Archivo subido',
+        'name'     => $name,
+        'fullPath' => $target,
+        'size'     => fmtSize(filesize($target)),
+        'mtime'    => date('Y-m-d H:i:s', filemtime($target))
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -960,6 +1095,36 @@ if (($_GET['action'] ?? '') === 'read') {
     exit;
 }
 
+// Endpoint lazy-read BINARIO para hojas locales (.xlsx/.xls/.ods). No devuelve JSON:
+// los bytes crudos van al frontend para que SheetJS los renderice, igual que hace
+// 'driveread' con las hojas de Drive (mismo header X-Visor-Format).
+if (($_GET['action'] ?? '') === 'readbin') {
+    $fp         = isset($_GET['fullPath'])   ? trim($_GET['fullPath'])   : '';
+    $customPath = isset($_GET['customPath']) ? trim($_GET['customPath']) : '';
+
+    $fail = function ($msg, $code) {
+        http_response_code($code);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo '> ' . $msg;
+        exit;
+    };
+
+    if ($fp === '') $fail('fullPath requerido', 400);
+
+    $target = realpath(str_replace('\\', '/', $fp));
+    if ($target === false || !is_file($target)) $fail('Archivo no encontrado', 404);
+    if (!coffee_visor_inside_sandbox($target, $customPath)) $fail('Ruta fuera del sandbox del visor', 403);
+
+    $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+    if (!in_array($ext, coffee_visor_sheet_exts(), true)) $fail("Extensión no soportada: .$ext", 400);
+
+    header('Content-Type: application/octet-stream');
+    header('X-Visor-Format: spreadsheet-binary');
+    header('Content-Length: ' . filesize($target));
+    readfile($target);
+    exit;
+}
+
 // Endpoint para navegar el filesystem (modal "Examinar..." del custom picker)
 if (($_GET['action'] ?? '') === 'listdir') {
     header('Content-Type: application/json; charset=utf-8');
@@ -1158,7 +1323,9 @@ function readSection($dir, $section, $relPrefix, $exts = ['md']) {
         $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
         if (!in_array($ext, $exts, true)) continue;
 
-        $raw = file_get_contents($full);
+        // Los binarios (hojas de calculo) no viajan en el JSON: se leen por readbin.
+        $isBin = coffee_visor_is_binary_sheet($f);
+        $raw   = $isBin ? '' : file_get_contents($full);
         if ($raw === false) continue;
 
         // Solo .md/.markdown ocultan la extension en el display name
@@ -1174,6 +1341,7 @@ function readSection($dir, $section, $relPrefix, $exts = ['md']) {
             'isBackup'    => (stripos($name, 'backup') !== false),
             'frontmatter' => parseFrontmatter($raw),
             'raw'         => $raw,
+            'lazyBinary'  => $isBin,
             'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
             'fullPath'    => str_replace('\\', '/', $full),
             'relPath'     => $relPrefix . '/' . $f
@@ -1220,13 +1388,19 @@ function readDocumentsTree($baseDir, $relPrefix) {
                 $typeItems = [];
                 foreach ($files as $f) {
                     // TODO dinamico (panel): todo.json o cualquier todo*.json (renombrado).
-                    $isTodo = (bool) preg_match('/^todo.*\.json$/', strtolower($f));
-                    if (substr($f, -3) !== '.md' && !$isTodo) continue;
+                    $isTodo  = (bool) preg_match('/^todo.*\.json$/', strtolower($f));
+                    $isSheet = in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true);
+                    if (substr($f, -3) !== '.md' && !$isTodo && !$isSheet) continue;
                     $full = $entryPath . '/' . $f;
                     if (!is_file($full)) continue;
-                    $raw = file_get_contents($full);
+                    // Los binarios no caben en el JSON del arbol (romperian json_encode):
+                    // el frontend pide sus bytes aparte con ?action=readbin.
+                    $isBin = coffee_visor_is_binary_sheet($f);
+                    $raw   = $isBin ? '' : file_get_contents($full);
                     if ($raw === false) continue;
-                    $name = strtolower($f) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $f);
+                    $name = $isSheet
+                        ? $f
+                        : (strtolower($f) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $f));
                     $typeItems[] = [
                         'name'        => $name,
                         'file'        => $f,
@@ -1235,6 +1409,7 @@ function readDocumentsTree($baseDir, $relPrefix) {
                         'isBackup'    => (stripos($name, 'backup') !== false),
                         'frontmatter' => parseFrontmatter($raw),
                         'raw'         => $raw,
+                        'lazyBinary'  => $isBin,
                         'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
                         'fullPath'    => str_replace('\\', '/', $full),
                         'relPath'     => $relPrefix . '/' . $proj . '/' . $entry . '/' . $f,
@@ -1248,12 +1423,18 @@ function readDocumentsTree($baseDir, $relPrefix) {
                 // Incluimos la sub-carpeta aunque esté vacía (explorador tipo Windows:
                 // las carpetas recién creadas deben verse aunque no tengan archivos aún).
                 $types[$entry] = $typeItems;
-            } else if (substr($entry, -3) === '.md' || preg_match('/^todo.*\.json$/', strtolower($entry))) {
+            } else if (substr($entry, -3) === '.md'
+                       || preg_match('/^todo.*\.json$/', strtolower($entry))
+                       || in_array(strtolower(pathinfo($entry, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true)) {
                 $full = $entryPath;
                 if (!is_file($full)) continue;
-                $raw = file_get_contents($full);
+                $isSheet = in_array(strtolower(pathinfo($entry, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true);
+                $isBin   = coffee_visor_is_binary_sheet($entry);
+                $raw     = $isBin ? '' : file_get_contents($full);
                 if ($raw === false) continue;
-                $name = strtolower($entry) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $entry);
+                $name = $isSheet
+                    ? $entry
+                    : (strtolower($entry) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $entry));
                 $uncategorized[] = [
                     'name'        => $name,
                     'file'        => $entry,
@@ -1262,6 +1443,7 @@ function readDocumentsTree($baseDir, $relPrefix) {
                     'isBackup'    => (stripos($name, 'backup') !== false),
                     'frontmatter' => parseFrontmatter($raw),
                     'raw'         => $raw,
+                    'lazyBinary'  => $isBin,
                     'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
                     'fullPath'    => str_replace('\\', '/', $full),
                     'relPath'     => $relPrefix . '/' . $proj . '/' . $entry,
@@ -1469,9 +1651,12 @@ if ($mode === 'drive') {
     // En modo custom: aceptar todas las extensiones editables.
     // En presets (.claude/agents/commands/etc): solo .md como siempre.
     $sectionExts = ($folderKey === 'custom')
-        ? ['md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
-           'html','htm','css','scss','js','ts','php','py','rb','go','rs',
-           'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw']
+        ? array_merge(
+            ['md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
+             'html','htm','css','scss','js','ts','php','py','rb','go','rs',
+             'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'],
+            coffee_visor_sheet_exts()
+          )
         : ['md','drawio','excalidraw'];
 
     $agents    = readSection($rootDir, 'agentes', $relPrefix, $sectionExts);

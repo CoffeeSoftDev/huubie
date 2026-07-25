@@ -24,6 +24,10 @@ const EDITABLE_EXTS = [
     'java','c','cpp','cs','sh','sql','ini','conf','log','env'
 ];
 
+// Hojas de calculo que acepta el modal de subida (las pinta SheetJS).
+const SHEET_EXTS     = ['xlsx','xlsm','xlsb','xls','ods','csv','tsv'];
+const SHEET_MAX_BYTES = 25 * 1024 * 1024;
+
 $(async () => {
     visorView   = new VisorView('root');
     visor       = new Visor(api, 'root');
@@ -654,6 +658,7 @@ class App {
         this.bindIaDrawerResize();
         this.bindSidebarResize();
         this.bindNewFileModal();
+        this.bindUploadModal();
 
         // Si prefs.sqlite trae accesos/recientes mas nuevos (otro equipo), repintar.
         if (window.CoffeePrefs) {
@@ -1661,6 +1666,10 @@ class App {
             .attr('title', can
                 ? 'Crear un archivo nuevo en esta carpeta'
                 : 'Crear archivos no disponible en este origen (selecciona una carpeta local o Custom)');
+        $('#btnUploadSheet').prop('disabled', !can)
+            .attr('title', can
+                ? 'Subir una hoja de cálculo (.xlsx, .csv) a esta carpeta'
+                : 'Subir archivos no disponible en este origen (selecciona una carpeta local o Custom)');
     }
 
     _samePath(a, b) {
@@ -1826,6 +1835,193 @@ class App {
             visorView.toast('Error de red al crear el archivo', 'error');
         }
         $btn.prop('disabled', false);
+    }
+
+    // ── Subir hojas de calculo ──────────────────────────────────────
+    // Un .xlsx no puede pasar por 'save' (manda el contenido en un campo POST de
+    // texto): sus bytes van en multipart a ?action=upload y se leen luego con
+    // ?action=readbin. Aceptamos tambien .csv/.ods por comodidad del usuario.
+
+    // destDir: carpeta fija (la que muestra el explorador). Sin ella el usuario
+    // elige el destino con el mismo selector que el modal de nuevo archivo.
+    openUploadModal(destDir) {
+        if (!this.canCreateFiles()) {
+            visorView.toast('Selecciona una carpeta local (o Custom) para subir archivos', 'warn');
+            return;
+        }
+
+        const treeMode     = !!(this.dataInit && this.dataInit.documents);
+        const chooseFolder = treeMode && !destDir;
+
+        if (chooseFolder) {
+            const baseDir = (this.dataInit.header && this.dataInit.header.currentPath
+                ? String(this.dataInit.header.currentPath) : '').replace(/\/+$/, '');
+            const opts = this._buildFolderOptions(baseDir);
+            $('#uploadSheetFolderSelect').html(
+                opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('')
+            );
+            $('#uploadSheetPathInput').addClass('hidden');
+            $('#uploadSheetFolderSelect').removeClass('hidden');
+        } else {
+            let dir = destDir || this.newFileTargetDir();
+            if (/^drive:/i.test(dir)) dir = this.settings.customPath || '';
+            $('#uploadSheetPathInput').val(dir).prop('readonly', true).attr('title', dir).removeClass('hidden');
+            $('#uploadSheetFolderSelect').addClass('hidden');
+        }
+
+        this.setUploadPick(null);
+        $('#uploadSheetModal').removeClass('hidden').attr('aria-hidden', 'false');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    closeUploadModal() {
+        $('#uploadSheetModal').addClass('hidden').attr('aria-hidden', 'true');
+        this.setUploadPick(null);
+    }
+
+    // Pinta el archivo elegido (o limpia la seleccion) y habilita el boton Subir.
+    setUploadPick(file) {
+        this._uploadPick = file || null;
+        const $picked = $('#uploadSheetPicked');
+        if (!file) {
+            $picked.addClass('hidden').empty();
+            $('#uploadSheetInput').val('');
+            $('#uploadSheetBtn').prop('disabled', true);
+            return;
+        }
+        const size = file.size < 1024 * 1024
+            ? Math.round(file.size / 1024) + ' KB'
+            : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        $picked.removeClass('hidden').html(`
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span class="upload-picked-name" title="${file.name}">${file.name}</span>
+            <span class="upload-picked-size">${size}</span>
+            <button type="button" id="uploadSheetClear" class="upload-picked-clear" title="Quitar archivo">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        `);
+        $('#uploadSheetBtn').prop('disabled', false);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    _validSheetFile(file) {
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        if (!SHEET_EXTS.includes(ext)) {
+            visorView.toast('Solo hojas de cálculo: ' + SHEET_EXTS.map(e => '.' + e).join(', '), 'warn');
+            return false;
+        }
+        if (file.size > SHEET_MAX_BYTES) {
+            visorView.toast('El archivo pesa más de 25 MB', 'warn');
+            return false;
+        }
+        return true;
+    }
+
+    bindUploadModal() {
+        const $modal = $('#uploadSheetModal');
+        if (!$modal.length || $modal.data('bound')) return;
+        $modal.data('bound', true);
+
+        const close = () => this.closeUploadModal();
+        $('#uploadSheetClose, #uploadSheetCancel').on('click', close);
+        $modal.find('[data-upload-close]').on('click', close);
+        $('#uploadSheetBtn').on('click', () => this.uploadSheet());
+
+        const $drop  = $('#uploadSheetDrop');
+        const $input = $('#uploadSheetInput');
+
+        $drop.on('click', () => $input.trigger('click'));
+        $drop.on('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $input.trigger('click'); }
+        });
+        $input.on('change', (e) => {
+            const f = e.target.files && e.target.files[0];
+            this.setUploadPick(f && this._validSheetFile(f) ? f : null);
+        });
+
+        // dragover/dragleave solo pintan el estado; el drop toma el primer archivo.
+        $drop.on('dragover dragenter', (e) => { e.preventDefault(); $drop.addClass('is-over'); });
+        $drop.on('dragleave dragend', () => $drop.removeClass('is-over'));
+        $drop.on('drop', (e) => {
+            e.preventDefault();
+            $drop.removeClass('is-over');
+            const f = e.originalEvent?.dataTransfer?.files?.[0];
+            if (f && this._validSheetFile(f)) this.setUploadPick(f);
+        });
+
+        $modal.on('click', '#uploadSheetClear', (e) => { e.stopPropagation(); this.setUploadPick(null); });
+
+        $(document).on('keydown.uploadSheetModal', (e) => {
+            if (e.key === 'Escape' && !$modal.hasClass('hidden')) close();
+        });
+    }
+
+    async uploadSheet(overwrite) {
+        const pick = this._uploadPick;
+        if (!pick) { visorView.toast('Elige un archivo primero', 'warn'); return; }
+
+        const usingSelect = !$('#uploadSheetFolderSelect').hasClass('hidden');
+        const dir = (usingSelect
+            ? ($('#uploadSheetFolderSelect').val() || '')
+            : ($('#uploadSheetPathInput').val() || '')
+        ).trim().replace(/[\\/]+$/, '');
+        if (!dir) { visorView.toast('Indica la carpeta destino', 'warn'); return; }
+
+        const $btn = $('#uploadSheetBtn');
+        $btn.prop('disabled', true);
+
+        try {
+            const form = new FormData();
+            form.append('action',     'upload');
+            form.append('destDir',    dir);
+            // El sandbox del backend son documents/ + la carpeta conectada. NO mandamos
+            // `dir` aqui: eso dejaria que el cliente autorizara cualquier destino.
+            form.append('customPath', this.settings.customPath || '');
+            form.append('file',       pick, pick.name);
+            if (overwrite) form.append('overwrite', '1');
+
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+
+            // El backend nunca pisa un archivo sin permiso: preguntamos y reintentamos.
+            if (!data.success && data.exists) {
+                $btn.prop('disabled', false);
+                if (confirm(`Ya existe "${data.name}" en esa carpeta.\n¿Reemplazarlo?`)) {
+                    return this.uploadSheet(true);
+                }
+                return;
+            }
+            if (!data.success) {
+                visorView.toast(data.message || 'No se pudo subir el archivo', 'error');
+                $btn.prop('disabled', false);
+                return;
+            }
+
+            this.closeUploadModal();
+            visorView.toast('Archivo subido: ' + data.name, 'success');
+            this.recordCreated(data.name, dir);
+
+            // Dejar el explorador parado en la carpeta destino para que la hoja
+            // recien subida quede a la vista, y abrirla.
+            this._setDocsCrumbFor(dir);
+            this._pendingOpen = data.name;
+            await this.reloadLibrary();
+        } catch (e) {
+            visorView.toast('Error de red al subir el archivo', 'error');
+        }
+        $btn.prop('disabled', false);
+    }
+
+    // Posiciona el explorador de documentos en `dir`: su crumb es [proyecto, tipo]
+    // relativo a la raiz de la biblioteca.
+    _setDocsCrumbFor(dir) {
+        if (!(this.dataInit && this.dataInit.documents)) return;
+        const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '');
+        const base = norm(this.dataInit.header && this.dataInit.header.currentPath);
+        const full = norm(dir);
+        if (!base || full.toLowerCase().indexOf(base.toLowerCase() + '/') !== 0) return;
+        const segs = full.slice(base.length + 1).split('/').filter(Boolean).slice(0, 2);
+        try { localStorage.setItem('visor:docs:crumb', JSON.stringify(segs)); } catch (e) {}
     }
 
     async deleteFile(fileName) {
@@ -2088,6 +2284,7 @@ class App {
         // El boton "Nuevo archivo" vive en la cabecera de la seccion DOCS, que se
         // re-renderiza en cada filtro/recarga: hay que reenlazarlo aqui.
         $('#btnNewFile').off('click').on('click', () => this.openNewFileModal());
+        $('#btnUploadSheet').off('click').on('click', () => this.openUploadModal());
         this.updateNewFileButton();
 
         // El bloque de acceso rapido se re-renderiza con el sidebar: reenlazarlo aqui.
@@ -2210,6 +2407,26 @@ class App {
                 file._loaded = true;
             } catch (e) {
                 file.raw = `> Error al leer desde Drive: ${e.message || e}`;
+            } finally {
+                visorView.hideDriveLoader();
+            }
+        }
+
+        // Lazy-load BINARIO para hojas locales (.xlsx/.xls/.ods): sus bytes no caben
+        // en el JSON del arbol, se piden aparte y los pinta SheetJS igual que Drive.
+        if (file.lazyBinary && file.fullPath && !file._loaded) {
+            visorView.showDriveLoader(file);
+            try {
+                const url = `${api}?action=readbin&fullPath=${encodeURIComponent(file.fullPath)}`
+                          + `&customPath=${encodeURIComponent(this.settings.customPath || '')}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) throw new Error(await res.text());
+                file._binary = await res.arrayBuffer();
+                file.raw     = '';
+                file._loaded = true;
+            } catch (e) {
+                file._binary = null;
+                file.raw     = `> Error al leer la hoja de cálculo: ${e.message || e}`;
             } finally {
                 visorView.hideDriveLoader();
             }
@@ -2663,7 +2880,8 @@ class VisorView {
         // Crear archivos solo aplica a origenes locales validos (no Drive).
         const canCreate = !!(data.header && data.header.source !== 'Drive'
             && data.header.currentPath && data.header.valid !== false);
-        const newBtnHtml = `<button id="btnNewFile" class="section-new-btn" title="Crear un archivo nuevo en esta carpeta"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>`;
+        const newBtnHtml = `<button id="btnNewFile" class="section-new-btn" title="Crear un archivo nuevo en esta carpeta"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>`
+            + `<button id="btnUploadSheet" class="section-new-btn" title="Subir una hoja de cálculo (.xlsx, .csv) a esta carpeta"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i></button>`;
 
         // Header de seccion sin icono decorativo: solo titulo, contador y el boton "+".
         const sectionHeader = (title, count, withNew) => `
@@ -3009,6 +3227,7 @@ class VisorView {
                     ${crumb.length <= 1 ? `<button type="button" class="docx-create-item docx-newfolder-btn" role="menuitem"><i data-lucide="folder-plus"></i><span>Nueva carpeta</span></button>` : ''}
                     <button type="button" class="docx-create-item tree-root-new" role="menuitem"><i data-lucide="file-plus"></i><span>Nuevo archivo</span></button>
                     ${crumb.length >= 1 ? `<button type="button" class="docx-create-item tree-new-todo" role="menuitem"><i data-lucide="list-checks"></i><span>Nuevo TODO</span></button>` : ''}
+                    ${crumb.length >= 1 ? `<button type="button" class="docx-create-item tree-upload-sheet" role="menuitem"><i data-lucide="file-spreadsheet"></i><span>Subir Excel</span></button>` : ''}
                 </div>
             </div>` : '';
         const bar = `
@@ -3104,6 +3323,11 @@ class VisorView {
         $('#sidebarList .tree-new-todo').off('click').on('click', (event) => {
             event.stopPropagation();
             if (typeof app !== 'undefined' && app && app.createTodo) app.createTodo(levelDir(crumb));
+        });
+
+        $('#sidebarList .tree-upload-sheet').off('click').on('click', (event) => {
+            event.stopPropagation();
+            if (typeof app !== 'undefined' && app && app.openUploadModal) app.openUploadModal(levelDir(crumb));
         });
 
         $('#sidebarList .docx-viewbtn').off('click').on('click', function () {
@@ -3370,9 +3594,9 @@ class VisorView {
         const isMd  = ext === 'md' || ext === 'markdown' || ext === ''
                       || file.mimeType === 'application/vnd.google-apps.document';
         const hasXlsxBinary = !!file._binary && typeof XLSX !== 'undefined';
-        const isSheetCsv    = !hasXlsxBinary && (
-                                ['csv','tsv'].includes(ext) && file.lazyDrive
-                              );
+        // csv/tsv son texto: se pintan como tabla desde su raw, vengan de Drive o
+        // del disco (el editor sigue trabajando sobre el raw, no sobre la tabla).
+        const isSheetCsv    = !hasXlsxBinary && ['csv','tsv'].includes(ext);
         const isSheet = hasXlsxBinary || isSheetCsv;
 
         // Modo hoja de calculo: el contenedor padre tiene que romper el max-width y padding
@@ -3382,6 +3606,12 @@ class VisorView {
         let rendered;
         if (hasXlsxBinary) {
             rendered = visor.renderXlsxWorkbook(file._binary);
+        } else if (file.lazyBinary) {
+            // Hoja binaria que no se pudo cargar: el motivo viene en raw como blockquote.
+            const msg = file.raw || '> No se pudo cargar la hoja de cálculo.';
+            rendered = (typeof marked !== 'undefined' && marked.parse)
+                ? marked.parse(msg)
+                : `<pre style="white-space:pre-wrap;">${msg}</pre>`;
         } else if (isSheetCsv) {
             rendered = visor.renderCsvAsTable(file.raw, ext === 'tsv' ? '\t' : ',');
         } else if (isMd) {

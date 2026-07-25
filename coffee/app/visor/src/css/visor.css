@@ -2834,6 +2834,73 @@ body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Front
     box-shadow: 0 0 0 2px var(--vsr-accent-tint);
 }
 
+/* ── Modal "Subir hoja de cálculo": dropzone + archivo elegido ── */
+
+.upload-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 26px 18px;
+    border-radius: 10px;
+    border: 1.5px dashed var(--vsr-border-input);
+    background: var(--vsr-bg-input);
+    color: var(--vsr-text-muted);
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.upload-drop:hover,
+.upload-drop:focus-visible,
+.upload-drop.is-over {
+    border-color: var(--vsr-accent);
+    background: var(--vsr-accent-tint);
+    color: var(--vsr-text-soft);
+}
+.upload-drop.is-over { border-style: solid; }
+.upload-drop-icon { width: 26px; height: 26px; }
+.upload-drop-text { font-size: 12.5px; }
+.upload-drop-text strong { color: var(--vsr-accent); }
+.upload-drop-hint { font-size: 10.5px; opacity: .8; }
+
+.upload-picked {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: var(--vsr-bg-input);
+    border: 1px solid var(--vsr-border-input);
+    color: var(--vsr-text-soft);
+    font-size: 12.5px;
+}
+.upload-picked-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+.upload-picked-size { flex-shrink: 0; font-size: 11px; color: var(--vsr-text-muted); }
+.upload-picked-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+}
+.upload-picked-clear:hover { background: var(--vsr-bg-hover); color: var(--vsr-text-soft); }
+
 /* ── Notificaciones de créditos ───────────────────────────── */
 
 .vsr-notifications { position: relative; flex-shrink: 0; }

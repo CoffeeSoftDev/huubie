@@ -682,6 +682,47 @@
         </div>
     </div>
 
+    <!-- Modal: subir una hoja de calculo (.xlsx/.xls/.ods/.csv) a una carpeta del sandbox -->
+    <div id="uploadSheetModal" class="folder-browse-modal new-file-modal hidden" aria-hidden="true">
+        <div class="folder-browse-backdrop" data-upload-close></div>
+        <div class="folder-browse-dialog new-file-dialog" role="dialog" aria-labelledby="uploadSheetTitle">
+            <header class="folder-browse-header">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    <h3 id="uploadSheetTitle">Subir hoja de c&aacute;lculo</h3>
+                </div>
+                <button id="uploadSheetClose" class="folder-browse-close" title="Cerrar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </header>
+            <div class="new-file-body">
+                <label class="new-file-label" for="uploadSheetPathInput">Carpeta destino</label>
+                <input id="uploadSheetPathInput" type="text" class="folder-browse-path new-file-input" placeholder="C:/ruta/destino" spellcheck="false" readonly>
+                <select id="uploadSheetFolderSelect" class="folder-browse-path new-file-input hidden"></select>
+
+                <label class="new-file-label">Archivo</label>
+                <div id="uploadSheetDrop" class="upload-drop" tabindex="0" role="button" aria-label="Elegir archivo">
+                    <i data-lucide="upload-cloud" class="upload-drop-icon"></i>
+                    <p class="upload-drop-text">Arrastra el Excel aqu&iacute; o <strong>haz clic para elegirlo</strong></p>
+                    <span class="upload-drop-hint">.xlsx &middot; .xlsm &middot; .xls &middot; .ods &middot; .csv &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
+                </div>
+                <input id="uploadSheetInput" type="file" class="hidden" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv">
+                <div id="uploadSheetPicked" class="upload-picked hidden"></div>
+                <span class="new-file-hint">Se guarda tal cual y se abre en el visor con todas sus hojas. No se puede editar desde aqu&iacute;.</span>
+            </div>
+            <footer class="folder-browse-footer">
+                <span class="folder-browse-selected">Se guardar&aacute; dentro del sandbox del visor.</span>
+                <div class="flex gap-2">
+                    <button id="uploadSheetCancel" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
+                    <button id="uploadSheetBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" disabled>
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                        Subir
+                    </button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
