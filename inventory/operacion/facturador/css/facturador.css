@@ -1,0 +1,99 @@
+/* Facturador SAT — complementos visuales que el ERP no trae.
+   Solo lo que no existe en src/css (buttons.css, table.css, colors.css) ni en
+   Tailwind: badges de pildora, barra de progreso, zona de carga y ticket de papel.
+   Todo scopeado bajo #root para no pisar navbar, sidebar ni Bootstrap. */
+
+/* -- Scroll fino en paneles internos -- */
+#root .scroll-thin::-webkit-scrollbar { width: 6px; height: 8px; }
+#root .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+#root .scroll-thin::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+#root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* -- Badges de pildora -- */
+#root .badge-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+#root .b-green  { background: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
+#root .b-red    { background: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
+#root .b-yellow { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
+#root .b-terra  { background: #F5E3DC; color: #A84A33; border-color: #F0C4B5; }
+#root .b-gray   { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
+#root .b-blue   { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
+
+/* -- Celdas -- */
+#root .cell-null { color: #9CA3AF; font-style: italic; font-size: 10px; }
+
+/* -- Barra de progreso de la meta -- */
+#root .prog-track { height: 10px; border-radius: 9999px; background: #E5E7EB; overflow: hidden; }
+#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #C05A40, #E08A70); transition: width .5s ease; }
+
+/* -- Zona de carga de Excel -- */
+#root .upload-zone {
+    border: 1px dashed #D1D5DB;
+    border-radius: 12px;
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: .15s;
+    background: #fff;
+}
+
+#root .upload-zone:hover { border-color: #C05A40; background: #FBF1ED; }
+#root .upload-zone.pending:hover { border-color: #F59E0B; background: #FFFBEB; }
+
+#root .excel-badge {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+#root .excel-badge.xls { background: #1D6F42; color: #fff; }
+#root .excel-badge:not(.xls) { background: #217346; color: #fff; }
+
+/* -- Ticket virtual (papel termico) -- */
+#root .ticket-paper {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(17, 25, 40, .08);
+    font-family: 'Courier New', ui-monospace, monospace;
+    font-size: 11px;
+    color: #1F2937;
+    padding: 22px 20px;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+#root .ticket-paper * { font-family: 'Courier New', ui-monospace, monospace; }
+#root .ticket-paper .tk-sep { border-top: 1px dashed #9CA3AF; margin: 8px 0; }
+#root .ticket-paper table { width: 100%; }
+#root .ticket-paper td { padding: 2px 0; font-size: 11px; color: #1F2937; white-space: normal; }
+#root .ticket-paper tr,
+#root .ticket-paper tr:hover { border: none; background: transparent; }
+
+@media print {
+    body * { visibility: hidden; }
+    #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
+    #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
+    #root .ticket-paper { border: none; box-shadow: none; }
+}

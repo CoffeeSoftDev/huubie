@@ -22,7 +22,8 @@ function prefs_fail($msg, $code = 400) {
 // Solo estas claves se persisten. Cualquier otra se rechaza (el cliente no dicta el esquema).
 const PREFS_ALLOWED = [
     'coffeeia:claude:accounts',       // creditos: cuentas Claude registradas
-    'coffeeia:claude:reminderFired',  // creditos: recordatorios ya disparados
+    'coffeeia:claude:reminderFired',     // creditos: recordatorios ya disparados
+    'coffeeia:claude:resetPinDismissed', // creditos: notas de reinicio cerradas con la X
     'coffeeia:global:enabledModels',  // LLM: modelos habilitados
     'coffeeia:global:activeModel',    // LLM: modelo activo
     'coffeeia:global:modelCatalog',   // LLM: catalogo editable de modelos (CRUD del admin)

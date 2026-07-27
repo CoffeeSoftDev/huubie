@@ -2612,6 +2612,18 @@ body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Front
 }
 .empty-state svg { color: var(--vsr-text-mute2); margin-bottom: 12px; opacity: .6; }
 .empty-state p { font-size: 13px; }
+.empty-state-btn {
+    margin-top: 16px;
+    padding: 6px 14px;
+    font-size: 12px;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent-soft);
+    border-radius: 6px;
+    color: var(--vsr-accent-soft);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+}
+.empty-state-btn:hover { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
 
 #lineCountChip { font-size: 11.5px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; }
 

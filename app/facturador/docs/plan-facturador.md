@@ -22,22 +22,25 @@ no se escribe DDL"):
 | `SHOW DATABASES LIKE 'fayxzvov_facturacion'` | **no existe** → se crea desde cero |
 | Versión del servidor local (WAMP) | **8.0.31** ⚠️ tú indicaste **5.7.36** como destino — ver §6.11 |
 | `SHOW COLLATION LIKE 'utf8mb4_general_ci'` | disponible · **PAD SPACE** |
-| `fayxzvov_alpha.subsidiaries` | existe · `id INT PK`, `name`, `companies_id`, `active` |
-| `fayxzvov_alpha.usr_users` | existe · `id INT PK`, `fullname`, `subsidiaries_id`, `active` |
-| `companies` en `fayxzvov_alpha` | **no existe ahí** → vive en **`fayxzvov_admin.companies`** |
-| Collation de los maestros | `latin1_swedish_ci` (legacy) |
+| `innodb_default_row_format` | **`compact`** → tope de índice **767 bytes** (ver nota abajo) |
+| `innodb_large_prefix` / `innodb_file_format` | `ON` / `Barracuda` |
 
-Dos consecuencias directas:
+Tres consecuencias directas:
 
 1. **`utf8mb4_general_ci` es la elección correcta y además la segura.** Existe en 5.7 y en 8.0; el
    `utf8mb4_0900_ai_ci` que pide db-rules §1.2 **no existe en 5.7**. Se documenta como desviación
    consciente de la regla, no como descuido.
-2. **Los maestros son `latin1_swedish_ci` y no se tocan.** Las FK cross-schema van `INT → INT`, y la
-   collation no interviene en comparaciones numéricas. La regla operativa que sí importa:
-   **nunca hacer `JOIN` por texto contra `alpha` o `admin`** — solo por `id`.
+2. **El módulo es autónomo: cero FK cross-schema.** La jerarquía corporativa vive **dentro** del
+   esquema — `company` → `branch` — y no depende de `fayxzvov_alpha` ni de `fayxzvov_admin`. El
+   esquema se crea, se respalda y se mueve entero sin arrastrar maestros ajenos.
+3. **Los `UNIQUE` sobre `business_name` llevan prefijo `(150)`.** Con `ROW_FORMAT=COMPACT` el índice
+   tope en 767 bytes y `VARCHAR(200)` en utf8mb4 son 800. El prefijo de 150 caracteres (600 bytes)
+   resuelve el límite **sin recortar el dato** y funciona en cualquier configuración del servidor —
+   a diferencia de `ROW_FORMAT=DYNAMIC`, que depende de variables globales que el hosting puede tener
+   en otro valor.
 
-> El precedente ya existe en el servidor: `fayxzvov_alpha.evt_clausules.companies_id` referencia
-> `fayxzvov_admin.companies(id)` cross-schema. No estoy inventando un patrón.
+> **El DDL de `sql/ddl-facturacion.sql` se ejecutó completo contra este 5.7.36** en una base temporal
+> de prueba: 12 tablas, collation única, 19 FK creadas y seeds cargados. La base de prueba se eliminó.
 
 ---
 
@@ -52,11 +55,12 @@ Dos consecuencias directas:
 - **Evento raíz:** el **ticket** (`sale`). Su llave natural es `Folio` = `foliocuenta`, cruce
   **1 802 / 1 802** sin huérfanos.
 - **Catálogos detectados:** `sale_status` (columna `Estado`), `payment_method` (`Método de pago`),
-  `product` (`claveproducto` + `descripcion`), `waiter` (`mesero`), `branch` (membrete del Excel).
+  `product` (`claveproducto` + `descripcion`), `waiter` (`mesero`), `company` + `branch` (membrete del Excel).
 - **Detalles:** `detail_sale` (comandas), `detail_sale_payment` (Pagos).
 - **Pivotes N:M:** **ninguno.** No hay relación muchos-a-muchos en este dominio.
-- **Maestro corporativo:** `fayxzvov_alpha.subsidiaries`, **la única referencia cross-schema**. El módulo
-  no se liga a usuarios ni a `companies` — la empresa se llega por `subsidiaries.companies_id`.
+- **Jerarquía corporativa propia:** `company` (membrete f1, la empresa) → `branch` (membrete f2, la
+  sucursal). Ambas viven en el esquema del módulo: **no hay ninguna FK cross-schema**. El módulo no se
+  liga a usuarios.
 - **Flujo / estados:** 2 valores fijos (`VENCIDO` 3 565 / `FACTURADO` 256) → catálogo + FK, nunca `ENUM`.
 
 ### 1.1 Trampas del origen que el modelo tiene que respetar
@@ -121,21 +125,21 @@ Traducir a FK no es descartar.
 
 | # | Tabla | Clase | Estado | Origen |
 |---|---|---|---|---|
-| 1 | `branch` | catálogo | **[NUEVO]** | ER del usuario (antes `issuer`) |
-| 2 | `sale_status` | catálogo | **[NUEVO]** | ER del usuario |
-| 3 | `payment_method` | catálogo | **[NUEVO]** | ER del usuario |
-| 4 | `product` | catálogo | **[NUEVO]** | ER del usuario |
-| 5 | `waiter` | catálogo | **[NUEVO]** ★ | **añadido** — ver §5.3 |
-| 6 | `import_batch` | catálogo técnico | **[NUEVO]** ★ | **añadido** — ver §5.4 |
-| 7 | `sale` | transacción raíz | **[NUEVO]** | ER del usuario |
-| 8 | `virtual_ticket` | transacción raíz | **[NUEVO]** ★ | **añadido** — ver §5.5 |
-| 9 | `detail_sale` | detalle | **[NUEVO]** | ER del usuario |
-| 10 | `detail_sale_payment` | detalle | **[NUEVO]** | ER del usuario |
-| 11 | `detail_virtual_ticket` | detalle | **[NUEVO]** ★ | **añadido** — ver §5.5 |
-| — | `subsidiaries` | maestro | **[REUSO]** | cross-schema · **única** FK externa · no se toca |
+| 1 | `company` | catálogo | **[NUEVO]** ★ | **añadido** — la empresa emisora, ver §5.6 |
+| 2 | `branch` | catálogo | **[NUEVO]** | ER del usuario (antes `issuer`) · **ahora cuelga de `company`** |
+| 3 | `sale_status` | catálogo | **[NUEVO]** | ER del usuario |
+| 4 | `payment_method` | catálogo | **[NUEVO]** | ER del usuario |
+| 5 | `product` | catálogo | **[NUEVO]** | ER del usuario |
+| 6 | `waiter` | catálogo | **[NUEVO]** ★ | **añadido** — ver §5.3 |
+| 7 | `import_batch` | catálogo técnico | **[NUEVO]** ★ | **añadido** — ver §5.4 |
+| 8 | `sale` | transacción raíz | **[NUEVO]** | ER del usuario |
+| 9 | `virtual_ticket` | transacción raíz | **[NUEVO]** ★ | **añadido** — ver §5.5 |
+| 10 | `detail_sale` | detalle | **[NUEVO]** | ER del usuario |
+| 11 | `detail_sale_payment` | detalle | **[NUEVO]** | ER del usuario |
+| 12 | `detail_virtual_ticket` | detalle | **[NUEVO]** ★ | **añadido** — ver §5.5 |
 
-**11 tablas nuevas, 0 pivotes.** La tabla `invoice` del modelo anterior **desapareció** — colapsada en
-`sale.invoice_series`, tal como lo decidiste.
+**12 tablas nuevas, 0 pivotes, 0 FK cross-schema.** La tabla `invoice` del modelo anterior
+**desapareció** — colapsada en `sale.invoice_series`, tal como lo decidiste.
 
 ### 3.2 Renombres respecto a tu dibujo (véta el que no te guste)
 
@@ -145,7 +149,7 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 | Tu dibujo | Propuesta | Por qué |
 |---|---|---|
 | `sale.create_at` | `created_at` **+ `updated_at`** | typo, y §2.3 exige ambos |
-| `sale.subsidiarie_id` | `subsidiaries_id` | la tabla destino se llama `subsidiaries` |
+| `sale.subsidiarie_id` | `branch_id` | la sucursal ahora es una tabla del módulo: `branch` |
 | `sale.employed_id` | *(eliminado)* | el Excel de ventas no trae ninguna columna de persona, y el mesero ya vive en `detail_sale.waiter_code` |
 | `detail_sale.orden` | `table_number` | inglés; `orden` se lee como "pedido" y el dato es **el número de mesa** (12, 19, 33…) |
 | `detail_sale.descripcion` | `description` | inglés |
@@ -157,23 +161,29 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ### 3.3 🗺️ Diagrama de relaciones
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  MAESTROS CORPORATIVOS  ·  cross-schema  ·  NO se duplican  ·  latin1_swedish_ci (legacy)        │
-│                                                                                                  │
-│   fayxzvov_admin          fayxzvov_alpha            fayxzvov_alpha                               │
-│   ┌──────────────────┐    ┌──────────────────┐      ┌──────────────────┐                         │
-│   │ companies        │    │ subsidiaries     │      │ usr_users        │                         │
-│   │ • id         PK  │◀───│ • id         PK  │◀─────│ • id         PK  │                         │
-│   │ • social_name    │    │ • name           │      │ • fullname       │                         │
-│   │ • rfc            │    │ • companies_id   │      │ • subsidiaries_id│                         │
-│   └──────────────────┘    └────────┬─────────┘      └──────────────────┘                         │
-│    la empresa se llega             │                  el módulo NO referencia                    │
-│    por aquí, no baja               │                  usuarios: no se liga a personas            │
-└────────────────────────────────────┼─────────────────────────────────────────────────────────────┘
-                                     │ subsidiaries_id   ← la ÚNICA FK cross-schema del módulo
-                                     ▼
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  fayxzvov_facturacion   ·   [ESQUEMA NUEVO]   ·   InnoDB · utf8mb4 · utf8mb4_general_ci          ║
+║  ESQUEMA AUTÓNOMO: 0 FK cross-schema · no depende de fayxzvov_alpha ni de fayxzvov_admin         ║
+║                                                                                                  ║
+║  ── JERARQUÍA CORPORATIVA  (propia del módulo) ────────────────────────────────────────────────  ║
+║                                                                                                  ║
+║   ┌──────────────────┐                    ┌──────────────────┐                                   ║
+║   │ company  [NUEVO] │──── 1:N ──────────▶│ branch           │                                   ║
+║   │ • id         PK  │                    │ • id         PK  │                                   ║
+║   │ • business_name  │  V·mem f1          │ • business_name  │  V·mem f2                         ║
+║   │   COMIENDO EN    │                    │  CAFE DE CHIAPAS │                                   ║
+║   │   CHIAPAS        │                    │  SUC. POLIFORUM  │                                   ║
+║   │ • rfc            │                    │ • rfc            │  captura manual                   ║
+║   │ • fiscal_address │                    │ • fiscal_address │  V·mem f3                         ║
+║   │ • phone          │                    │ • phone          │  captura manual                   ║
+║   └──────────────────┘                    │ • company_id  FK │  NOT NULL · RESTRICT              ║
+║    la empresa emisora                     └────────▲─────────┘                                   ║
+║                                                    │ branch_id                                   ║
+║      ┌─────────────────────────────────────────────┴──────────────────────────────────────┐      ║
+║      │  LA DIMENSIÓN DE AISLAMIENTO DE TODO EL MÓDULO                                     │      ║
+║      │  la llevan: sale · virtual_ticket · product · waiter · payment_method ·            │      ║
+║      │             import_batch     (los detalles la heredan por sale_id)                 │      ║
+║      └────────────────────────────────────────────────────────────────────────────────────┘      ║
 ║                                                                                                  ║
 ║  ── CATÁLOGOS ─────────────────────────────────────────────────────────────────────────────────  ║
 ║                                                                                                  ║
@@ -182,9 +192,10 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • id         PK  │  │ • id         PK  │  │ • id         PK  │  │ • id         PK  │         ║
 ║   │ • name           │  │ • name           │  │ • code           │  │ • code           │         ║
 ║   │   VENCIDO /      │  │ • is_cash        │  │ • name           │  │ • name  (manual) │         ║
-║   │   FACTURADO      │  │                  │  │ • is_bridge   ★  │  │                  │         ║
+║   │   FACTURADO      │  │ • branch_id   FK │  │ • is_bridge   ★  │  │ • branch_id   FK │         ║
 ║   │                  │  │                  │  │ • is_modifier ★  │  │                  │         ║
-║   │                  │  │                  │  │ • price      ⚠   │  │                  │         ║
+║   │  (global: sin    │  │                  │  │ • price      ⚠   │  │                  │         ║
+║   │   branch_id)     │  │                  │  │ • branch_id   FK │  │                  │         ║
 ║   └────────▲─────────┘  └────────▲─────────┘  └────────▲─────────┘  └────────▲─────────┘         ║
 ║            │ N:1                 │ N:1                 │ N:1                 │ N:1               ║
 ║          sale         detail_sale_payment       detail_sale  +          detail_sale              ║
@@ -196,15 +207,7 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • sheet_name     │           trazabilidad de carga: qué archivo trajo cada renglón           ║
 ║   │ • row_count      │                                                                           ║
 ║   │ • control_total  │                                                                           ║
-║   └──────────────────┘                                                                           ║
-║                                                                                                  ║
-║   ┌──────────────────┐                                                                           ║
-║   │ branch   [NUEVO] │──── 1:1 ────▶ alpha.subsidiaries   (de ahí sale companies_id)             ║
-║   │ • id         PK  │                                                                           ║
-║   │ • business_name  │           cabecera impresa del ticket virtual                             ║
-║   │ • rfc            │           (RFC y teléfono = captura manual, no vienen en el export)       ║
-║   │ • fiscal_address │                                                                           ║
-║   │ • phone          │◀─── la referencia el ticket por virtual_ticket.branch_id                  ║
+║   │ • branch_id   FK │                                                                           ║
 ║   └──────────────────┘                                                                           ║
 ║                                                                                                  ║
 ║  ── TRANSACCIONES RAÍZ  Y  DETALLES ───────────────────────────────────────────────────────────  ║
@@ -220,7 +223,7 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • operation_date           │            │ • quantity             ★     │                     ║
 ║   │ • expires_at               │            │ • discount_percent     ★     │                     ║
 ║   │ • sale_status_id      FK   │            │ • amount                     │                     ║
-║   │ • subsidiaries_id  ─→alpha │            │ • opened_at · closed_at      │                     ║
+║   │ • branch_id           FK   │            │ • opened_at · closed_at      │                     ║
 ║   │ • import_batch_id     FK   │            │ • captured_at                │                     ║
 ║   │ • source_row               │            │ • sale_id · product_id  FK   │                     ║
 ║   │                            │            │ • waiter_id            FK ★  │                     ║
@@ -247,13 +250,13 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • subtotal·discount·total  │            │ • quantity                   │                     ║
 ║   │ • issue_date               │            │ • unit_price    (snapshot)   │                     ║
 ║   │ • sale_id             FK   │            │ • amount                     │                     ║
-║   │ • branch_id           FK   │            │ • virtual_ticket_id     FK   │                     ║
-║   │ • subsidiaries_id  ─→alpha │            │ • product_id            FK   │                     ║
+║   │ • branch_id       FK NOT   │            │ • virtual_ticket_id     FK   │                     ║
+║   │   NULL: membrete + folio   │            │ • product_id            FK   │                     ║
 ║   │                            │            └──────────────────────────────┘                     ║
 ║   └────────────────────────────┘                                                                 ║
 ║                                                                                                  ║
 ║   ★ campo que el dibujo omitía y se añade      ┄ llave de cruce por texto (no es FK)             ║
-║   ⚠ punto a confirmar — ver §6                 ─→ FK cross-schema                                ║
+║   ⚠ punto a confirmar — ver §6                 ── todas las FK son LOCALES al esquema            ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -261,11 +264,12 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 
 | Origen | → | Destino | Cardinalidad | ON DELETE |
 |---|---|---|---|---|
+| `company` | → | `branch` | 1 : N | **RESTRICT** |
 | `sale` | → | `detail_sale` | 1 : N | CASCADE |
 | `sale` | → | `detail_sale_payment` | 1 : N | CASCADE |
 | `sale` | → | `virtual_ticket` | 1 : N (1 activa) | CASCADE |
 | `virtual_ticket` | → | `detail_virtual_ticket` | 1 : N | CASCADE |
-| `branch` | → | `virtual_ticket` | 1 : N | SET NULL |
+| `branch` | → | `virtual_ticket` | 1 : N | **RESTRICT** |
 | `sale` | → | `sale_status` | N : 1 | SET NULL |
 | `sale` | → | `import_batch` | N : 1 | SET NULL |
 | `detail_sale` | → | `product` | N : 1 | SET NULL |
@@ -274,15 +278,23 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 | `detail_sale_payment` | → | `payment_method` | N : 1 | SET NULL |
 | `detail_sale_payment` | → | `import_batch` | N : 1 | SET NULL |
 | `detail_virtual_ticket` | → | `product` | N : 1 | SET NULL |
-| `branch` | → | `alpha.subsidiaries` | **1 : 1** | SET NULL |
-| `sale` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
-| `virtual_ticket` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
-| `import_batch` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
-| `product` · `waiter` · `payment_method` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
+| `branch` | → | `sale` | 1 : N | SET NULL |
+| `branch` | → | `import_batch` | 1 : N | SET NULL |
+| `branch` | → | `product` · `waiter` · `payment_method` | 1 : N | SET NULL |
 
-> **Ninguna tabla del módulo referencia `admin.companies`.** El aislamiento es **por sucursal**: toda tabla
-> que se puebla con datos del POS lleva `subsidiaries_id`. La empresa, cuando se necesite para un reporte
-> corporativo, se obtiene con un salto — `subsidiaries.companies_id`.
+> **El aislamiento es por sucursal:** toda tabla que se puebla con datos del POS lleva `branch_id`. La
+> empresa se obtiene con un salto — `branch.company_id` — igual que antes se obtenía por
+> `subsidiaries.companies_id`, solo que ahora sin salir del esquema.
+
+**Los dos `RESTRICT` son deliberados** y se apartan de la política "→ maestro/catálogo `SET NULL`":
+
+| FK | Por qué RESTRICT y no SET NULL |
+|---|---|
+| `branch.company_id` | va `NOT NULL`: una sucursal sin empresa no significa nada, y `SET NULL` sobre una columna `NOT NULL` haría fallar el borrado con un error confuso en vez de con uno claro |
+| `virtual_ticket.branch_id` | va `NOT NULL` porque el `UNIQUE` del consecutivo diario se ancla ahí — y en MySQL un `UNIQUE` con `NULL` **deja de bloquear duplicados**. Borrar la sucursal dejaría las notas sin membrete y sin talonario |
+
+En la práctica ninguno se dispara: el módulo es soft-delete (`active = 0`), no hace `DELETE` físico
+salvo dentro de la recarga por batch, que no toca `company` ni `branch`.
 
 **Cardinalidades medidas en los datos reales** (lo que el modelo tiene que soportar hoy):
 
@@ -324,7 +336,32 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ branch  (catálogo — emisor fiscal · 1:1 con la sucursal)                                         │
+│ company  (catálogo — la empresa emisora · raíz corporativa)   [AÑADIDO]                          │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  id                 INT PK                [SISTEMA]                                              │
+│                                                                                                  │
+│  ── Negocio ──                                                                                   │
+│  business_name      VARCHAR(200)          V·mem f1 «COMIENDO EN CHIAPAS»                         │
+│  rfc                VARCHAR(13)           [SISTEMA] captura manual                               │
+│  fiscal_address     VARCHAR(255)          [SISTEMA] captura manual                               │
+│  phone              VARCHAR(20)           [SISTEMA] captura manual                               │
+│                                                                                                  │
+│  ── Timestamps ──                                                                                │
+│  created_at         DATETIME              [SISTEMA]                                              │
+│  updated_at         DATETIME              [SISTEMA]                                              │
+│                                                                                                  │
+│  ── Soft-delete ──                                                                               │
+│  active             TINYINT               [SISTEMA]                                              │
+│                                                                                                  │
+│  ── Índices ──                                                                                   │
+│  UNIQUE  uk_company_name (business_name(150))   ← prefijo: 767 bytes de tope en ROW_FORMAT       │
+│                                                   COMPACT y utf8mb4 gasta 4 bytes/char           │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ branch  (catálogo — la sucursal emisora · dimensión de aislamiento del módulo)                   │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │  id                 INT PK                [SISTEMA]                                              │
 │                                                                                                  │
@@ -338,14 +375,15 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]  AÑADIDO · §2.3 lo exige                     │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA]  la sucursal que emite       SET NULL        │
+│  ── FK locales ──                                                                                │
+│  company_id         → company             [SISTEMA]  NOT NULL · la empresa      RESTRICT         │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_branch_subsidiary (subsidiaries_id)   ← fuerza el 1:1                                │
+│  UNIQUE  uk_branch_name (business_name(150), company_id)                                         │
+│  KEY     idx_branch_company (company_id)                                                         │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -383,15 +421,16 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]  AÑADIDO · §2.3 lo exige                     │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA]  AÑADIDO · sucursal   SET NULL               │
+│  ── FK locales ──                                                                                │
+│  branch_id          → branch              [SISTEMA]  AÑADIDO · sucursal   SET NULL               │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_payment_method_name (name, subsidiaries_id)                                          │
+│  UNIQUE  uk_payment_method_name (name, branch_id)                                                │
 │  KEY     idx_payment_method_cash (is_cash, active)                                               │
+│  KEY     idx_payment_method_branch (branch_id)                                                   │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -414,15 +453,16 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]                                              │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA]  AÑADIDO · sucursal   SET NULL               │
+│  ── FK locales ──                                                                                │
+│  branch_id          → branch              [SISTEMA]  AÑADIDO · sucursal   SET NULL               │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_product_code (code, subsidiaries_id) ← get-or-create                                 │
+│  UNIQUE  uk_product_code (code, branch_id)  ← get-or-create                                      │
 │  KEY     idx_product_generator (is_bridge, is_modifier, active)                                  │
+│  KEY     idx_product_branch (branch_id)                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -441,14 +481,15 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]                                              │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA] sucursal              SET NULL               │
+│  ── FK locales ──                                                                                │
+│  branch_id          → branch              [SISTEMA] sucursal              SET NULL               │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_waiter_code (code, subsidiaries_id)  ← get-or-create                                 │
+│  UNIQUE  uk_waiter_code (code, branch_id)  ← get-or-create                                       │
+│  KEY     idx_waiter_branch (branch_id)                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -472,15 +513,15 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA] = momento de la carga                        │
 │  updated_at         DATETIME              [SISTEMA]                                              │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA] sucursal de la carga  SET NULL               │
+│  ── FK locales ──                                                                                │
+│  branch_id          → branch              [SISTEMA] sucursal de la carga  SET NULL               │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
 │  KEY     idx_import_period (period_year, period_month, sheet_name)                               │
-│  KEY     subsidiaries_id                                                                         │
+│  KEY     idx_import_branch (branch_id)                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -513,20 +554,18 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  ── Status ──                                                                                    │
 │  sale_status_id     → sale_status         V·I «Estado» resuelto por name    SET NULL             │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [SISTEMA] (dibujo: subsidiarie_id)  SET NULL           │
-│                                                                                                  │
 │  ── FK locales ──                                                                                │
+│  branch_id          → branch              [SISTEMA] (dibujo: subsidiarie_id)  SET NULL           │
 │  import_batch_id    → import_batch        [SISTEMA]  AÑADIDO · trazabilidad  SET NULL            │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_sale_folio (folio, subsidiaries_id)                                                  │
-│  UNIQUE  uk_sale_billing_code (billing_code, subsidiaries_id)                                    │
+│  UNIQUE  uk_sale_folio (folio, branch_id)                                                        │
+│  UNIQUE  uk_sale_billing_code (billing_code, branch_id)                                          │
 │  KEY     idx_sale_operation (operation_date, sale_status_id)  ← tablero del día por RANGO        │
-│  KEY     sale_status_id · subsidiaries_id · import_batch_id                                      │
+│  KEY     sale_status_id · branch_id · import_batch_id                                            │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -549,24 +588,22 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]                                              │
 │                                                                                                  │
-│  ── FK cross-schema ──                                                                           │
-│  subsidiaries_id    → alpha.subsidiaries  [DERIVADO] = sale.subsidiaries_id · SUCURSAL emisora   │
-│                                           de la nota. El consecutivo vive aquí.   SET NULL       │
-│                                                                                                  │
 │  ── FK locales ──                                                                                │
 │  sale_id            → sale                [DERIVADO] ticket que respalda      CASCADE            │
 │                                           sin venta no hay nota: se borra con ella               │
-│  branch_id          → branch              [DERIVADO] EMISOR del membrete impreso: razon social,  │
-│                                           domicilio, RFC, telefono            SET NULL           │
+│  branch_id          → branch              [DERIVADO] = sale.branch_id · NOT NULL. Hace las dos   │
+│                                           cosas: EMISORA del membrete impreso (razon social,     │
+│                                           domicilio, RFC, telefono) y ancla del  RESTRICT        │
+│                                           consecutivo diario                                     │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA] regenerar = active=0 + nota nueva            │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
-│  UNIQUE  uk_virtual_ticket_note (issue_date, note_number, subsidiaries_id)                       │
+│  UNIQUE  uk_virtual_ticket_note (issue_date, note_number, branch_id)                             │
 │          ↑ el consecutivo diario es POR SUCURSAL: dos sucursales pueden emitir su                │
 │            «Nota #12» el mismo día sin chocar                                                    │
-│  KEY     sale_id · branch_id · subsidiaries_id                                                   │
+│  KEY     sale_id · branch_id                                                                     │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -713,7 +750,7 @@ La misma información del §4 leída al revés: **cada columna de los tres archi
 | H | `Fecha de expiración` | `sale.expires_at` | fin de mes 23:59:59 |
 | I | `Estado` | `sale.sale_status_id` → `sale_status.name` | texto verbatim conservado en el catálogo |
 | J | `Folio factura` | `sale.invoice_series` | `'C2482'` literal · vacío en 3 565 |
-| f1 | *(membrete)* `COMIENDO EN CHIAPAS` | `admin.companies.social_name` | **maestro cross-schema, no se duplica** |
+| f1 | *(membrete)* `COMIENDO EN CHIAPAS` | `company.business_name` | la empresa emisora, tabla propia del módulo |
 | f2 | *(membrete)* `CAFE DE CHIAPAS SUC. POLIFORUM` | `branch.business_name` | |
 | f3 | *(membrete)* `CALLE BRASIL, NUM 572…` | `branch.fiscal_address` | |
 
@@ -837,7 +874,7 @@ Lo que necesita, tomado del template `facturador.html` (tab 5):
 
 | Elemento del ticket impreso | Campo |
 |---|---|
-| `NOTA: #12` — consecutivo que **se reinicia cada día** (ERS §Observaciones) | `virtual_ticket.note_number` + `UNIQUE (issue_date, note_number, subsidiaries_id)` |
+| `NOTA: #12` — consecutivo que **se reinicia cada día** (ERS §Observaciones) | `virtual_ticket.note_number` + `UNIQUE (issue_date, note_number, branch_id)` |
 | `SUBTOTAL: $3,050.00` | `virtual_ticket.subtotal` |
 | `DESCUENTO: -$15.10` — el ajuste de cuadre | `virtual_ticket.discount` |
 | `TOTAL: $3,034.90` — debe igualar el ticket real | `virtual_ticket.total` = `sale.total` |
@@ -846,30 +883,31 @@ Lo que necesita, tomado del template `facturador.html` (tab 5):
 | `MESA: 9` / `MESERO: 03` | `detail_sale.table_number` / `waiter.name` (por defecto = el código) |
 | Botón *"Regenerar productos"* | `active = 0` en la nota anterior + nota nueva |
 
-**Por qué `virtual_ticket` lleva `subsidiaries_id` propio y no lo hereda de `sale`:**
+**Por qué `virtual_ticket` lleva `branch_id` propio y no lo hereda de `sale`:**
 
 1. **La nota la emite una sucursal, no una empresa.** El membrete impreso (`CAFE DE CHIAPAS SUC.
-   POLIFORUM`, domicilio, teléfono) sale de `branch`, y `branch` cuelga de `subsidiaries` con
-   `UNIQUE (subsidiaries_id)`. Sin la sucursal en la nota no hay forma de resolver qué membrete imprimir
-   salvo dando un rodeo por `sale`.
+   POLIFORUM`, domicilio, teléfono) sale de `branch`. Sin la FK en la nota, cada impresión tendría que
+   rodear `virtual_ticket → sale → branch` para saber qué membrete poner.
 2. **El consecutivo diario es por sucursal.** El «Nota #12» de hoy pertenece a un talonario, y el talonario
    es de la sucursal que lo emite. Anclado a cualquier cosa más amplia, dos sucursales que generen su
    «Nota #12» el mismo día **chocan**: la segunda falla al insertar.
-3. **`sale` ya lleva `subsidiaries_id`**, así que el generador solo lo copia. Es redundancia deliberada,
+3. **`sale` ya lleva `branch_id`**, así que el generador solo lo copia. Es redundancia deliberada,
    igual que en `import_batch`: una raíz que se consulta y se imprime por sucursal debe poder filtrarse
    sin `JOIN`.
 
-**Y `branch_id` como FK directa al emisor.** Los dos campos parecen redundantes — `branch` es 1:1 con
-`subsidiaries` — pero cada uno tiene un consumidor distinto y ninguno sustituye a otro:
+**Un solo campo hace las dos cosas.** En el modelo anterior eran dos (`branch_id` para el membrete,
+`subsidiaries_id` para el folio). Ahora que la sucursal **es** `branch`, se colapsan:
 
-| Campo | Para qué | Si falta |
-|---|---|---|
-| `branch_id` | **imprimir el membrete**: razón social, domicilio, RFC, teléfono | hay que rodear `virtual_ticket → sale → subsidiaries → branch` en cada impresión |
-| `subsidiaries_id` | el `UNIQUE` del consecutivo diario y el filtro por sucursal | el folio choca entre sucursales |
+| Consumidor | Qué usa |
+|---|---|
+| Impresión del ticket | `branch_id → branch`: razón social, domicilio, RFC, teléfono |
+| `UNIQUE` del consecutivo diario | `(issue_date, note_number, branch_id)` |
 
-El `UNIQUE` **no** se mueve a `branch_id`: una sucursal puede existir sin tener su `branch` capturado
-todavía, y en ese caso `branch_id` quedaría `NULL` — un `UNIQUE` con `NULL` deja de bloquear duplicados en
-MySQL. El consecutivo se ancla a `subsidiaries_id`, que siempre está.
+**Por eso `virtual_ticket.branch_id` va `NOT NULL`** — y es el único cambio de fondo que trae el rediseño.
+Un `UNIQUE` que incluye una columna `NULL` **deja de bloquear duplicados en MySQL**: dos notas con
+`branch_id NULL`, la misma fecha y el mismo número entrarían las dos. Con la columna obligatoria, el
+talonario está garantizado. El `ON DELETE` es `RESTRICT` por la misma razón: no se puede borrar una
+sucursal que ya emitió notas.
 
 > **Punto a decidir (§9.6).** `branch_id` apunta al emisor **actual**. Si se corrige el domicilio o el RFC
 > en el catálogo, la reimpresión de una nota vieja saldrá con los datos nuevos. Para congelar el membrete
@@ -895,14 +933,21 @@ un puntero al catálogo.
 6. Cuadra:                    discount = Σ(líneas) − sale.total
 ```
 
-### 5.6 `subsidiaries_id` — el aislamiento es por SUCURSAL
+### 5.6 ★ `company` → `branch` — el aislamiento es por SUCURSAL, dentro del propio esquema
 
-**Regla:** lleva `subsidiaries_id` toda tabla que se puebla con datos del POS. **Ninguna tabla del módulo
-referencia `admin.companies`.**
+**La jerarquía corporativa es del módulo, no prestada.** El export ya trae las dos plantas del membrete:
 
-| Lleva `subsidiaries_id` | No lleva |
+| Membrete | Tabla | Valor medido |
+|---|---|---|
+| f1 | `company.business_name` | `COMIENDO EN CHIAPAS` |
+| f2 | `branch.business_name` | `CAFE DE CHIAPAS SUC. POLIFORUM` |
+| f3 | `branch.fiscal_address` | `CALLE BRASIL, NUM 572, COL. EL RETIRO…` |
+
+**Regla:** lleva `branch_id` toda tabla que se puebla con datos del POS.
+
+| Lleva `branch_id` | No lleva |
 |---|---|
-| `sale`, `detail_sale`\*, `detail_sale_payment`\*, `branch`, `product`, `waiter`, `payment_method`, `import_batch`, `virtual_ticket` | `sale_status` |
+| `sale`, `detail_sale`\*, `detail_sale_payment`\*, `product`, `waiter`, `payment_method`, `import_batch`, `virtual_ticket` | `sale_status`, `company` |
 
 \* Los detalles lo heredan por `sale_id`; **no** se les pone columna propia, para no repetir la sucursal en
 13 141 filas. El filtro entra por el `JOIN` con `sale`.
@@ -914,12 +959,19 @@ concreta (`CAFE DE CHIAPAS SUC. POLIFORUM`). Todo lo que sale de ese archivo le 
   platillo en otra. Con el `UNIQUE` a nivel empresa, la segunda sucursal que cargara su catálogo chocaría
   contra el de la primera o —peor— *reutilizaría* su producto y mezclaría los importes.
 - Lo mismo con el **código de mesero** (`'03'` es un mesero distinto en cada sucursal) y con el **folio**
-  del ticket: el consecutivo del POS es por sucursal, así que `UNIQUE (folio, subsidiaries_id)`.
+  del ticket: el consecutivo del POS es por sucursal, así que `UNIQUE (folio, branch_id)`.
 - Los **nombres de método de pago** los escribe cada POS a su manera.
 
-La empresa no se pierde: se obtiene con un salto, `subsidiaries.companies_id`. Ese salto solo hace falta
-para un reporte corporativo que sume varias sucursales — el 100 % de la operación diaria filtra por
-sucursal, que es justo el campo que está en la tabla.
+La empresa no se pierde: se obtiene con un salto, `branch.company_id`. Ese salto solo hace falta para un
+reporte corporativo que sume varias sucursales — el 100 % de la operación diaria filtra por sucursal, que
+es justo el campo que está en la tabla.
+
+**Por qué la jerarquía es propia y no cross-schema.** El módulo se alimenta de exports de un POS externo,
+no de la operación del ERP: nada en `sale`, `detail_sale` ni `virtual_ticket` nace de `fayxzvov_alpha`.
+Con `company` y `branch` locales, el esquema `fayxzvov_facturacion` se crea, se respalda y se restaura
+entero, y las 19 FK son internas — no hay constraint que apunte a una base que puede no existir en el
+destino. Si algún día hace falta cruzar con el ERP, el enlace se agrega con un `ALTER` de una columna
+(`branch.subsidiaries_id`, sin constraint dura) y no obliga a rehacer nada.
 
 `sale_status` queda global: son 2 valores del formato del POS (`VENCIDO`/`FACTURADO`), no de nadie
 en particular.
@@ -1025,31 +1077,32 @@ asumirle un precio.
 
 | § | Ítem | Estado |
 |---|---|---|
-| 7.1 | Clasificación por clase de tabla | ✅ 6 catálogos · 2 raíz · 3 detalles · 0 pivotes |
+| 7.1 | Clasificación por clase de tabla | ✅ 7 catálogos · 2 raíz · 3 detalles · 0 pivotes |
 | 7.1 | Prefijo `detail_` solo en renglones de transacción raíz | ✅ `detail_sale`, `detail_sale_payment`, `detail_virtual_ticket` — todos cuelgan de una raíz |
-| 7.2 | Tablas en singular, snake_case, inglés | ✅ 11/11 |
+| 7.2 | Tablas en singular, snake_case, inglés | ✅ 12/12 |
 | 7.2 | Columnas snake_case inglés · PK `id` · FK `<tabla>_id` | ✅ tras los renombres del §3.2 |
 | 7.2 | `KEY` con el mismo nombre que la columna | ✅ |
-| 7.3 | `id`, `active`, `created_at`, `updated_at` en toda tabla | ⚠️ 10/11 — `sale_status` va **sin timestamps** por decisión del usuario (ver desviaciones) |
-| 7.3 | Raíz con `subsidiaries_id` | ✅ `sale`, `virtual_ticket` · **ninguna tabla lleva `usr_users_id`**: el módulo no liga registros a personas |
+| 7.3 | `id`, `active`, `created_at`, `updated_at` en toda tabla | ⚠️ 11/12 — `sale_status` va **sin timestamps** por decisión del usuario (ver desviaciones) |
+| 7.3 | Raíz con la dimensión de aislamiento | ✅ `sale`, `virtual_ticket` llevan `branch_id` · **ninguna tabla lleva `usr_users_id`**: el módulo no liga registros a personas |
 | 7.3 | Flujo con `status` → catálogo + FK | ✅ `sale_status_id` |
 | 7.4 | **Montos en `DOUBLE`**, nunca `DECIMAL` | ✅ 16/16 campos monetarios |
 | 7.4 | Nombres en `VARCHAR`, nunca `TEXT` | ✅ |
 | 7.4 | Estados extensibles → catálogo, **nunca `ENUM`** | ✅ 0 `ENUM` |
 | 7.4 | Fecha de negocio `DATE` · auditoría `DATETIME` | ✅ (`operation_date` es DATETIME **a propósito** — §5.7) |
 | 7.5 | FK con `CONSTRAINT` explícito + `KEY` | ✅ |
-| 7.5 | Política ON DELETE: detalle→raíz CASCADE · →catálogo SET NULL · →maestro SET NULL | ✅ tabla §3.4 |
-| 7.5 | Maestros cross-schema, **no duplicados** | ✅ `subsidiaries` — la única referencia cross-schema del módulo |
+| 7.5 | Política ON DELETE: detalle→raíz CASCADE · →catálogo SET NULL · →maestro SET NULL | ⚠️ 17/19 — los 2 `RESTRICT` (`branch.company_id`, `virtual_ticket.branch_id`) son columnas `NOT NULL`, justificados en §3.4 |
+| 7.5 | Maestros, **no duplicados** | ✅ `company` → `branch` viven una sola vez, en el propio esquema · **0 FK cross-schema** |
 | 7.6 | Sin `DELETE` físico → `active = 0` | ✅ (por eso `detail_sale_payment` necesitaba `active`) |
-| 7.7 | InnoDB · utf8mb4 · collation única en el esquema | ✅ `utf8mb4_general_ci` en 11/11 |
-| 7.7 | Orden: id → negocio → montos → fechas → timestamps → status → FKs → active | ✅ en las 11 cajas |
+| 7.7 | InnoDB · utf8mb4 · collation única en el esquema | ✅ `utf8mb4_general_ci` en 12/12 — **verificado ejecutando el DDL** |
+| 7.7 | Orden: id → negocio → montos → fechas → timestamps → status → FKs → active | ✅ en las 12 cajas |
 
 ### ⚠️ Desviaciones conscientes de db-rules (4)
 
 | Regla | Desviación | Motivo |
 |---|---|---|
 | §1.2 collation `utf8mb4_0900_ai_ci` | se usa **`utf8mb4_general_ci`** | **no existe en MySQL 5.7**, que indicaste como destino. `general_ci` funciona en 5.7 y 8.0 |
-| §5.3 maestros en `rfwsmqex_erp` | se usan **`fayxzvov_alpha`** y **`fayxzvov_admin`** | es el tenant real de este proyecto, verificado en el servidor |
+| §5.3 maestros corporativos externos | `company` y `branch` son **tablas del módulo** | el módulo se alimenta de exports de un POS ajeno al ERP; con la jerarquía local el esquema es autónomo y portable (§5.6) |
+| §7.5 `ON DELETE SET NULL` hacia maestro | 2 FK van en **`RESTRICT`** | son columnas `NOT NULL` (`branch.company_id`, `virtual_ticket.branch_id`): `SET NULL` sobre ellas fallaría con un error confuso (§3.4) |
 | §3.2 `operation_date` como `DATE` | es **`DATETIME`** | el origen trae hora y el ticket la imprime; truncar perdería dato. El filtro del día va por rango, no con `DATE()` (§5.7) |
 | §2.3 `updated_at` obligatorio | `sale` y `sale_status` van **sin `updated_at`** | ninguna de las dos se modifica nunca: `sale_status` es un seed fijo, y `sale` **se borra y se reinserta** en cada recarga (§7.3) en vez de actualizarse. Un `updated_at` que siempre valdría lo mismo que `created_at` no informa nada |
 | §2.3 `created_at` / `updated_at` obligatorios | `sale_status` va **sin timestamps** | seed fijo de 2 filas que se dan de alta una vez y no se editan: no hay nada que auditar. `id`, `name` y `active` bastan |
@@ -1065,11 +1118,12 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 | Entregable | Criterio de aceptación |
 |---|---|
 | `CREATE DATABASE fayxzvov_facturacion` | `SHOW DATABASES` lo lista |
-| 11 tablas | `COUNT(*) FROM information_schema.TABLES = 11` |
+| 12 tablas | `COUNT(*) FROM information_schema.TABLES = 12` |
 | Collation uniforme | `COUNT(DISTINCT TABLE_COLLATION) = 1` y vale `utf8mb4_general_ci` |
 | Seed `sale_status` | **2 filas**: `VENCIDO`, `FACTURADO` |
-| Seed `payment_method` | **6 filas** · `is_cash = 1` **solo** en `EFECTIVO` |
-| FK cross-schema | las 3 constraints a `alpha`/`admin` se crean sin error (INT→INT) |
+| Seed `company` + `branch` | **1 + 1 fila**, con `branch.company_id` resuelto |
+| Seed `payment_method` | **6 filas** · `is_cash = 1` **solo** en `EFECTIVO` · las 6 con `branch_id` |
+| FK | **19 constraints, todas locales**: `REFERENCED_TABLE_SCHEMA` = `fayxzvov_facturacion` en 19/19 |
 
 ### F1 · Cargar «Reporte de ventas» → `sale`
 
@@ -1124,7 +1178,8 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 | `product.is_bridge` | **0 al inicio** — lo marca el usuario |
 | `product.price` | **0 al inicio** — captura manual (§6) |
 | `waiter.name` | **18 filas con el código como nombre** (`'03'` → `'03'`) · **0 pendientes de captura** |
-| `branch` | 1 fila: `business_name` y `fiscal_address` salen del membrete del Excel; **RFC y teléfono a mano** |
+| `company` | 1 fila: `business_name` sale del membrete f1; **RFC y domicilio a mano** |
+| `branch` | 1 fila: `business_name` y `fiscal_address` salen del membrete f2/f3; **RFC y teléfono a mano** |
 
 ### F5 · Tablero y generador de folios
 
@@ -1133,7 +1188,7 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 | Tickets del día sin efectivo | los **1 881** pagos `EFECTIVO` no aparecen en el generador |
 | Tasa derivada | 16 % en **3 573** · 0 % en **63** · el resto reparte entre 11/15/14/13/12/8 % |
 | Filas bloqueadas | los **256** `FACTURADO` salen sin botón (template tab 5) |
-| `note_number` | reinicia en **1** cada día **por sucursal** · `UNIQUE (issue_date, note_number, subsidiaries_id)` |
+| `note_number` | reinicia en **1** cada día **por sucursal** · `UNIQUE (issue_date, note_number, branch_id)` |
 | Membrete impreso | sale de `virtual_ticket.branch_id → branch`, sin rodear por `sale` |
 | Cuadre del ticket virtual | `Σ detail_virtual_ticket.amount − virtual_ticket.discount` = `sale.total` **exacto** |
 | Pureza de la réplica | `COUNT(*) FROM detail_sale WHERE import_batch_id IS NULL` = **0** |
@@ -1156,10 +1211,11 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 |---|---|---|---|
 | 1 | **`product.price`** — ¿opción A, B o C del §6.3? | Es el punto donde tu ER contradice tus palabras | **A**: precio de lista manual, solo para el generador |
 | ~~2~~ | ~~`sale.employed_id`~~ | **Cerrada.** El campo se eliminó: el Excel de ventas no trae columna de persona y el mesero ya vive en `detail_sale.waiter_code` | — |
-| 3 | ¿`payment_method` lleva `subsidiaries_id` o es global? | Cada POS escribe los nombres a su manera | que lo lleve |
+| 3 | ¿`payment_method` lleva `branch_id` o es global? | Cada POS escribe los nombres a su manera | que lo lleve |
 | ~~4~~ | ~~`updated_at` en `sale`~~ | **Cerrada.** La reimportación **borra los folios y los reinserta**, no actualiza. La fila nunca se modifica: nace, se borra, nace otra con su `created_at` fresco. No hay nada que auditar | — |
 | 5 | ¿Un `sale` puede tener **varias** notas virtuales históricas, o solo la última? | El botón "Regenerar productos" del template | 1:N con **una sola activa** |
-| 6 | ¿Una `branch` por sucursal (1:1) o varias? | Hoy el `UNIQUE` fuerza 1:1 | 1:1 |
+| ~~6~~ | ~~¿Una `branch` por sucursal (1:1) o varias?~~ | **Cerrada.** `branch` **es** la sucursal: ya no hay dos tablas que casar. Una empresa tiene N sucursales (`company` 1:N `branch`) | — |
+| 13 | ¿`company` necesita más datos fiscales (régimen, código postal, certificados)? | Hoy lleva razón social, RFC, domicilio y teléfono — lo que imprime el ticket | esperar a F9 (timbrado CFDI) y agregarlos con `ALTER` |
 | 7 | Reimportar: ¿**borrado físico** del batch o `active = 0`? | El soft-delete conserva historial pero infla la tabla en cada recarga | físico **solo** dentro del batch reemplazado |
 | 8 | `invoice_series` — ¿se queda literal `'C2482'` o se parte en serie + folio? | Tu dibujo dice literal. Partirlo es derivable con `SUBSTRING` | literal, como lo dibujaste |
 | 9 | RFC y teléfono de `branch` — ¿los capturas tú? | **No vienen en ningún export**; el ticket imprime el teléfono | captura manual, una vez |
@@ -1185,17 +1241,20 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
    Es lo único que mantiene la promesa "`detail_sale` = el Excel".
 6. **`invoice` desaparece**, colapsada en `sale.invoice_series`, tal como lo decidiste.
 7. **Cero `ENUM`, cero plurales, cero `DECIMAL`, cero `DELETE` físico.** db-rules §6.
-8. **`utf8mb4_general_ci` en las 11 tablas.** Desviación consciente de §1.2 por compatibilidad 5.7.
-9. **Los maestros no se tocan ni se copian.** Son `latin1_swedish_ci`; las FK son `INT→INT` y no les
-   afecta. Regla operativa: **nunca `JOIN` por texto contra `alpha` / `admin`.**
+8. **`utf8mb4_general_ci` en las 12 tablas.** Desviación consciente de §1.2 por compatibilidad 5.7.
+9. **La jerarquía corporativa es del módulo: `company` → `branch`.** Cero FK cross-schema. La sucursal
+   (`branch_id`) es la dimensión de aislamiento de todo el esquema; la empresa se llega con un salto,
+   `branch.company_id` (§5.6).
 
 ---
 
 ## 11. Siguiente paso
 
-Cuando apruebes las cajas (y sobre todo la **§6 — `product.price`** y la **§9.4 — `updated_at` en `sale`**),
-genero:
+El DDL ya está escrito y probado: **[sql/ddl-facturacion.sql](../sql/ddl-facturacion.sql)** — 12 tablas,
+19 FK locales, seeds de `sale_status`, `company`, `branch` y `payment_method`. Se ejecutó completo contra
+el MySQL 5.7.36 local en una base temporal, que se eliminó tras verificar.
 
-1. El `CREATE TABLE` completo de las 11 tablas + seeds + constraints cross-schema.
-2. El archivo hermano `diagramas-er-facturacion.md` con la ficha exhaustiva por sección.
-3. Las consultas de validación de cada fase del §8, listas para correr tras la carga.
+Cuando apruebes las cajas (y sobre todo la **§6 — `product.price`**), falta:
+
+1. El archivo hermano `diagramas-er-facturacion.md` con la ficha exhaustiva por sección.
+2. Las consultas de validación de cada fase del §8, listas para correr tras la carga.

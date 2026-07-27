@@ -1,0 +1,5 @@
+- generic [active] [ref=f12e1]:
+  - generic:
+    - generic:
+      - complementary
+  - generic [ref=f12e2]: "{ \"mainPanel\": 1, \"viewHeader\": 1, \"tableWrap\": 1, \"detailPanel\": 1, \"detailHead\": 0, \"detailContent\": 0, \"detailFoot\": 0, \"asideInnerHTML\": \"\", \"domSnapshot\": \"<div class=\\\"w\\\" id=\\\"wrap\\\"><div class=\\\"mp \\\" id=\\\"mainPanel\\\"><div id=\\\"viewHeader\\\" class=\\\"vh \\\"></div><div id=\\\"tableWrap\\\" class=\\\"tw \\\"></div></div><aside id=\\\"detailPanel\\\" class=\\\"dp\\\"></aside></div>\" }"
