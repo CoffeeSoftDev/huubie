@@ -55,8 +55,8 @@ Dos consecuencias directas:
   `product` (`claveproducto` + `descripcion`), `waiter` (`mesero`), `branch` (membrete del Excel).
 - **Detalles:** `detail_sale` (comandas), `detail_sale_payment` (Pagos).
 - **Pivotes N:M:** **ninguno.** No hay relación muchos-a-muchos en este dominio.
-- **Maestros corporativos:** `subsidiaries` y `usr_users` en `fayxzvov_alpha`, `companies` en
-  `fayxzvov_admin`. **Cross-schema, no se duplican.**
+- **Maestro corporativo:** `fayxzvov_alpha.subsidiaries`, **la única referencia cross-schema**. El módulo
+  no se liga a usuarios ni a `companies` — la empresa se llega por `subsidiaries.companies_id`.
 - **Flujo / estados:** 2 valores fijos (`VENCIDO` 3 565 / `FACTURADO` 256) → catálogo + FK, nunca `ENUM`.
 
 ### 1.1 Trampas del origen que el modelo tiene que respetar
@@ -132,7 +132,7 @@ Traducir a FK no es descartar.
 | 9 | `detail_sale` | detalle | **[NUEVO]** | ER del usuario |
 | 10 | `detail_sale_payment` | detalle | **[NUEVO]** | ER del usuario |
 | 11 | `detail_virtual_ticket` | detalle | **[NUEVO]** ★ | **añadido** — ver §5.5 |
-| — | `subsidiaries`, `usr_users`, `companies` | maestros | **[REUSO]** | cross-schema, no se tocan |
+| — | `subsidiaries` | maestro | **[REUSO]** | cross-schema · **única** FK externa · no se toca |
 
 **11 tablas nuevas, 0 pivotes.** La tabla `invoice` del modelo anterior **desapareció** — colapsada en
 `sale.invoice_series`, tal como lo decidiste.
@@ -146,7 +146,7 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 |---|---|---|
 | `sale.create_at` | `created_at` **+ `updated_at`** | typo, y §2.3 exige ambos |
 | `sale.subsidiarie_id` | `subsidiaries_id` | la tabla destino se llama `subsidiaries` |
-| `sale.employed_id` | `usr_users_id` | en `fayxzvov_alpha` **no existe** tabla `employed`; el maestro de personas es `usr_users` · ⚠️ además hay duda de significado, §6.2 |
+| `sale.employed_id` | *(eliminado)* | el Excel de ventas no trae ninguna columna de persona, y el mesero ya vive en `detail_sale.waiter_code` |
 | `detail_sale.orden` | `table_number` | inglés; `orden` se lee como "pedido" y el dato es **el número de mesa** (12, 19, 33…) |
 | `detail_sale.descripcion` | `description` | inglés |
 | `detail_sale.code_product` | `product_code` | inglés (sustantivo + calificador) |
@@ -163,15 +163,15 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 │   fayxzvov_admin          fayxzvov_alpha            fayxzvov_alpha                               │
 │   ┌──────────────────┐    ┌──────────────────┐      ┌──────────────────┐                         │
 │   │ companies        │    │ subsidiaries     │      │ usr_users        │                         │
-│   │ • id         PK  │◀───│ • id         PK  │      │ • id         PK  │                         │
+│   │ • id         PK  │◀───│ • id         PK  │◀─────│ • id         PK  │                         │
 │   │ • social_name    │    │ • name           │      │ • fullname       │                         │
 │   │ • rfc            │    │ • companies_id   │      │ • subsidiaries_id│                         │
-│   └──────────────────┘    └────────┬─────────┘      └────────┬─────────┘                         │
-│    la empresa se llega             │                         │                                   │
-│    por aquí, no baja               │                         │                                   │
-└────────────────────────────────────┼─────────────────────────┼───────────────────────────────────┘
-                                     │ subsidiaries_id         │ usr_users_id
-                                     ▼                         ▼
+│   └──────────────────┘    └────────┬─────────┘      └──────────────────┘                         │
+│    la empresa se llega             │                  el módulo NO referencia                    │
+│    por aquí, no baja               │                  usuarios: no se liga a personas            │
+└────────────────────────────────────┼─────────────────────────────────────────────────────────────┘
+                                     │ subsidiaries_id   ← la ÚNICA FK cross-schema del módulo
+                                     ▼
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  fayxzvov_facturacion   ·   [ESQUEMA NUEVO]   ·   InnoDB · utf8mb4 · utf8mb4_general_ci          ║
 ║                                                                                                  ║
@@ -221,8 +221,8 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • expires_at               │            │ • discount_percent     ★     │                     ║
 ║   │ • sale_status_id      FK   │            │ • amount                     │                     ║
 ║   │ • subsidiaries_id  ─→alpha │            │ • opened_at · closed_at      │                     ║
-║   │ • usr_users_id     ─→alpha │            │ • captured_at                │                     ║
-║   │ • import_batch_id     FK   │            │ • sale_id · product_id  FK   │                     ║
+║   │ • import_batch_id     FK   │            │ • captured_at                │                     ║
+║   │ • source_row               │            │ • sale_id · product_id  FK   │                     ║
 ║   │                            │            │ • waiter_id            FK ★  │                     ║
 ║   └──────┬──────────────┬──────┘            └──────────────────────────────┘                     ║
 ║          │              │                                                                        ║
@@ -249,7 +249,7 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 ║   │ • sale_id             FK   │            │ • amount                     │                     ║
 ║   │ • branch_id           FK   │            │ • virtual_ticket_id     FK   │                     ║
 ║   │ • subsidiaries_id  ─→alpha │            │ • product_id            FK   │                     ║
-║   │ • usr_users_id     ─→alpha │            └──────────────────────────────┘                     ║
+║   │                            │            └──────────────────────────────┘                     ║
 ║   └────────────────────────────┘                                                                 ║
 ║                                                                                                  ║
 ║   ★ campo que el dibujo omitía y se añade      ┄ llave de cruce por texto (no es FK)             ║
@@ -276,10 +276,8 @@ reservado a FK). Los listo para que los puedas rechazar de un vistazo.
 | `detail_virtual_ticket` | → | `product` | N : 1 | SET NULL |
 | `branch` | → | `alpha.subsidiaries` | **1 : 1** | SET NULL |
 | `sale` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
-| `sale` | → | `alpha.usr_users` | N : 1 | SET NULL |
 | `virtual_ticket` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
-| `virtual_ticket` | → | `alpha.usr_users` | N : 1 | SET NULL |
-| `import_batch` | → | `alpha.subsidiaries` · `alpha.usr_users` | N : 1 | SET NULL |
+| `import_batch` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
 | `product` · `waiter` · `payment_method` | → | `alpha.subsidiaries` | N : 1 | SET NULL |
 
 > **Ninguna tabla del módulo referencia `admin.companies`.** El aislamiento es **por sucursal**: toda tabla
@@ -476,14 +474,13 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │                                                                                                  │
 │  ── FK cross-schema ──                                                                           │
 │  subsidiaries_id    → alpha.subsidiaries  [SISTEMA] sucursal de la carga  SET NULL               │
-│  usr_users_id       → alpha.usr_users     [SISTEMA] quién subió el archivo  SET NULL             │
 │                                                                                                  │
 │  ── Soft-delete ──                                                                               │
 │  active             TINYINT               [SISTEMA]                                              │
 │                                                                                                  │
 │  ── Índices ──                                                                                   │
 │  KEY     idx_import_period (period_year, period_month, sheet_name)                               │
-│  KEY     subsidiaries_id · usr_users_id                                                          │
+│  KEY     subsidiaries_id                                                                         │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -510,17 +507,14 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │                                                                                                  │
 │  ── Timestamps ──                                                                                │
 │  operation_date     DATETIME              V·C «Fecha» · CON hora (07:39) · no se trunca          │
-│  operation_day      DATE                  [DERIVADO] AÑADIDO · DATE(V·C) · índice del tablero    │
 │  expires_at         DATETIME              V·H «Fecha de expiración» · fin de mes 23:59:59        │
 │  created_at         DATETIME              [SISTEMA]  (el dibujo decía «create_at»)               │
-│  updated_at         DATETIME              [SISTEMA]  AÑADIDO · §2.3 lo exige                     │
 │                                                                                                  │
 │  ── Status ──                                                                                    │
 │  sale_status_id     → sale_status         V·I «Estado» resuelto por name    SET NULL             │
 │                                                                                                  │
 │  ── FK cross-schema ──                                                                           │
 │  subsidiaries_id    → alpha.subsidiaries  [SISTEMA] (dibujo: subsidiarie_id)  SET NULL           │
-│  usr_users_id       → alpha.usr_users     [SISTEMA] (dibujo: employed_id) ⚠ §6  SET NULL         │
 │                                                                                                  │
 │  ── FK locales ──                                                                                │
 │  import_batch_id    → import_batch        [SISTEMA]  AÑADIDO · trazabilidad  SET NULL            │
@@ -531,9 +525,8 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  ── Índices ──                                                                                   │
 │  UNIQUE  uk_sale_folio (folio, subsidiaries_id)                                                  │
 │  UNIQUE  uk_sale_billing_code (billing_code, subsidiaries_id)                                    │
-│  KEY     idx_sale_day (operation_day, sale_status_id)  ← tablero del día                         │
-│  KEY     sale_status_id · subsidiaries_id                                                        │
-│  KEY     usr_users_id · import_batch_id                                                          │
+│  KEY     idx_sale_operation (operation_date, sale_status_id)  ← tablero del día por RANGO        │
+│  KEY     sale_status_id · subsidiaries_id · import_batch_id                                      │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -552,17 +545,17 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  total              DOUBLE                [DERIVADO] = sale.total del origen · ej. 3 034.90      │
 │                                                                                                  │
 │  ── Timestamps ──                                                                                │
-│  issue_date         DATE                  [DERIVADO] = sale.operation_day del ticket origen      │
+│  issue_date         DATE                  [DERIVADO] = DATE(sale.operation_date) del origen      │
 │  created_at         DATETIME              [SISTEMA]                                              │
 │  updated_at         DATETIME              [SISTEMA]                                              │
 │                                                                                                  │
 │  ── FK cross-schema ──                                                                           │
 │  subsidiaries_id    → alpha.subsidiaries  [DERIVADO] = sale.subsidiaries_id · SUCURSAL emisora   │
 │                                           de la nota. El consecutivo vive aquí.   SET NULL       │
-│  usr_users_id       → alpha.usr_users     [SISTEMA] quién generó la nota  SET NULL               │
 │                                                                                                  │
 │  ── FK locales ──                                                                                │
-│  sale_id            → sale                [DERIVADO] ticket real que respalda  CASCADE           │
+│  sale_id            → sale                [DERIVADO] ticket que respalda      CASCADE            │
+│                                           sin venta no hay nota: se borra con ella               │
 │  branch_id          → branch              [DERIVADO] EMISOR del membrete impreso: razon social,  │
 │                                           domicilio, RFC, telefono            SET NULL           │
 │                                                                                                  │
@@ -573,9 +566,17 @@ Cada campo declara **de qué columna de Excel viene**, con esta notación:
 │  UNIQUE  uk_virtual_ticket_note (issue_date, note_number, subsidiaries_id)                       │
 │          ↑ el consecutivo diario es POR SUCURSAL: dos sucursales pueden emitir su                │
 │            «Nota #12» el mismo día sin chocar                                                    │
-│  KEY     sale_id · branch_id · subsidiaries_id · usr_users_id                                    │
+│  KEY     sale_id · branch_id · subsidiaries_id                                                   │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+> **La nota se borra con su venta.** Las tres tablas que cuelgan de `sale` van en `CASCADE`: sin el ticket
+> real que la respalda, una nota virtual no tiene sentido — quedaría un documento impreso sin origen.
+>
+> **Consecuencia operativa a tener presente:** como la recarga borra los folios y los reinserta (§7.3),
+> **resubir un archivo elimina las notas ya generadas de ese periodo** y hay que volver a generarlas. Es
+> aceptable porque generar es un clic y el algoritmo es determinista sobre los mismos datos, pero conviene
+> que la pantalla lo advierta antes de recargar un mes que ya tiene notas emitidas.
 
 
 ### 4.3 Detalles
@@ -704,7 +705,7 @@ La misma información del §4 leída al revés: **cada columna de los tres archi
 |---|---|---|---|
 | A | `Folio` | `sale.folio` | TRIM · 3 821 únicos · llave de cruce |
 | B | `Código facturación` | `sale.billing_code` | tal cual, con relleno · prefijo `156537` en 3 821/3 821 |
-| C | `Fecha` | `sale.operation_date` **+** `sale.operation_day` | DATETIME literal + DATE derivado para el índice |
+| C | `Fecha` | `sale.operation_date` | `DATETIME` literal, con hora · el filtro del día va por rango (§5.7) |
 | D | `Descuento` | `sale.discount_percent` | **es porcentaje**, no monto |
 | E | `Subtotal` | `sale.subtotal` | literal, sin recalcular |
 | F | `Impuestos` | `sale.tax` | literal, sin recalcular |
@@ -810,6 +811,10 @@ Tres problemas que resuelve, y ninguno tiene otra solución barata:
 Guarda además `period_year` / `period_month`, que son literalmente el selector de la pantalla que
 describe el ERS (*"permite subir los tickets seleccionando el mes y año"*).
 
+**No registra qué usuario subió el archivo.** El batch identifica **el archivo y su sucursal**, no a una
+persona; la carga es una operación técnica del administrador del POS (usuario único según el ERS), y ligarla
+a un `usr_users_id` solo agregaría una columna que nadie consulta.
+
 ### 5.5 ★ `virtual_ticket` + `detail_virtual_ticket` — así se separa lo importado de lo generado
 
 **Este es el punto de diseño más importante del módulo**, y sale directo de la tensión entre tus dos
@@ -819,6 +824,10 @@ requisitos:
 
 Si los renglones generados se metieran en `detail_sale`, esa tabla dejaría de ser una réplica: tendría
 filas que **no existen en ningún Excel**, y cualquier auditoría "Excel vs BD" fallaría para siempre.
+
+La nota sí desaparece si se borra su venta (`CASCADE`), y eso es lo correcto: un documento impreso sin
+ticket que lo respalde no significa nada. Lo que la tabla propia garantiza es distinto — que `detail_sale`
+siga siendo **comparable renglón por renglón contra el Excel**, sin filas inventadas mezcladas.
 
 **Solución: los renglones generados viven en su propia tabla.** `detail_sale` queda intocada — 13 141
 filas, 13 141 filas del Excel, punto. Y el ticket virtual queda modelado como lo que realmente es:
@@ -877,7 +886,8 @@ un puntero al catálogo.
 **Cómo trabaja el generador** (queda dicho para que el modelo se entienda, no es parte del DDL):
 
 ```
-1. Toma los tickets del día:  sale.operation_day = :fecha
+1. Toma los tickets del día:  sale.operation_date >= :fecha
+                              AND sale.operation_date < :fecha + INTERVAL 1 DAY
 2. Excluye los de efectivo:   no existe pago con payment_method.is_cash = 1
 3. Excluye los ya facturados: sale_status.name <> 'FACTURADO'   (fila bloqueada en el template)
 4. Detecta los de tasa 0:     ROUND(tax / NULLIF(subtotal,0), 2) = 0
@@ -914,15 +924,25 @@ sucursal, que es justo el campo que está en la tabla.
 `sale_status` queda global: son 2 valores del formato del POS (`VENCIDO`/`FACTURADO`), no de nadie
 en particular.
 
-### 5.7 `sale.operation_day` — 1 columna que salva el tablero
+### 5.7 `sale.operation_date` — cómo se filtra el día sin columna extra
 
-`V·C «Fecha»` es un `DATETIME` con hora (`2026-06-01 07:39`). Guardarlo como `DATE` **pierde la hora**,
-que el ticket imprime (`FECHA: 10/06/2026 19:47`). Guardarlo solo como `DATETIME` obliga a filtrar con
-`DATE(operation_date) = :fecha`, lo que **anula el índice**.
+`V·C «Fecha»` es un `DATETIME` con hora (`2026-06-01 07:39`), y la hora se conserva porque el ticket la
+imprime (`FECHA: 10/06/2026 19:47`).
 
-Como el generador de folios consulta *"los tickets de este día"* en cada carga de pantalla, se añade
-`operation_day DATE` indexada. En MySQL 5.7+ puede declararse `GENERATED ALWAYS AS (DATE(operation_date)) STORED`
-y entonces no hay riesgo de que se desincronice. → **§9.4.**
+El generador de folios consulta *"los tickets de este día"* en cada carga de pantalla, así que ese filtro
+tiene que usar el índice. La forma en que se escribe la consulta decide si lo usa:
+
+```sql
+-- ❌ envuelve la columna en una función: el índice NO se usa, escanea las 3 821 filas
+WHERE DATE(operation_date) = :fecha
+
+-- ✅ rango sobre la columna desnuda: usa idx_sale_operation
+WHERE operation_date >= :fecha AND operation_date < :fecha + INTERVAL 1 DAY
+```
+
+Con la segunda forma **no hace falta ninguna columna derivada**: el índice
+`idx_sale_operation (operation_date, sale_status_id)` cubre el filtro del día y el de estado en una sola
+pasada. Es la regla general — nunca aplicar una función a la columna por la que se filtra.
 
 ---
 
@@ -970,8 +990,8 @@ SELECT ROUND(d.amount / d.quantity, 2) AS price
    AND d.quantity > 0                -- excluye el prorrateo 0.096061
    AND d.amount   > 0                -- excluye modificadores y cortesías
    AND d.active = 1
-   AND s.operation_day <= :fecha     -- el precio que regía ESE día
- ORDER BY s.operation_day DESC, d.id DESC
+   AND s.operation_date < :fecha + INTERVAL 1 DAY   -- el precio que regía ESE día
+ ORDER BY s.operation_date DESC, d.id DESC
  LIMIT 1;
 ```
 
@@ -1011,7 +1031,7 @@ asumirle un precio.
 | 7.2 | Columnas snake_case inglés · PK `id` · FK `<tabla>_id` | ✅ tras los renombres del §3.2 |
 | 7.2 | `KEY` con el mismo nombre que la columna | ✅ |
 | 7.3 | `id`, `active`, `created_at`, `updated_at` en toda tabla | ⚠️ 10/11 — `sale_status` va **sin timestamps** por decisión del usuario (ver desviaciones) |
-| 7.3 | Raíz con `subsidiaries_id` / `usr_users_id` | ✅ `sale`, `virtual_ticket` |
+| 7.3 | Raíz con `subsidiaries_id` | ✅ `sale`, `virtual_ticket` · **ninguna tabla lleva `usr_users_id`**: el módulo no liga registros a personas |
 | 7.3 | Flujo con `status` → catálogo + FK | ✅ `sale_status_id` |
 | 7.4 | **Montos en `DOUBLE`**, nunca `DECIMAL` | ✅ 16/16 campos monetarios |
 | 7.4 | Nombres en `VARCHAR`, nunca `TEXT` | ✅ |
@@ -1019,7 +1039,7 @@ asumirle un precio.
 | 7.4 | Fecha de negocio `DATE` · auditoría `DATETIME` | ✅ (`operation_date` es DATETIME **a propósito** — §5.7) |
 | 7.5 | FK con `CONSTRAINT` explícito + `KEY` | ✅ |
 | 7.5 | Política ON DELETE: detalle→raíz CASCADE · →catálogo SET NULL · →maestro SET NULL | ✅ tabla §3.4 |
-| 7.5 | Maestros cross-schema, **no duplicados** | ✅ `subsidiaries` · `usr_users` · `companies` |
+| 7.5 | Maestros cross-schema, **no duplicados** | ✅ `subsidiaries` — la única referencia cross-schema del módulo |
 | 7.6 | Sin `DELETE` físico → `active = 0` | ✅ (por eso `detail_sale_payment` necesitaba `active`) |
 | 7.7 | InnoDB · utf8mb4 · collation única en el esquema | ✅ `utf8mb4_general_ci` en 11/11 |
 | 7.7 | Orden: id → negocio → montos → fechas → timestamps → status → FKs → active | ✅ en las 11 cajas |
@@ -1030,7 +1050,8 @@ asumirle un precio.
 |---|---|---|
 | §1.2 collation `utf8mb4_0900_ai_ci` | se usa **`utf8mb4_general_ci`** | **no existe en MySQL 5.7**, que indicaste como destino. `general_ci` funciona en 5.7 y 8.0 |
 | §5.3 maestros en `rfwsmqex_erp` | se usan **`fayxzvov_alpha`** y **`fayxzvov_admin`** | es el tenant real de este proyecto, verificado en el servidor |
-| §3.2 `operation_date` como `DATE` | es **`DATETIME`** + `operation_day DATE` | el origen trae hora y el ticket la imprime; truncar perdería dato |
+| §3.2 `operation_date` como `DATE` | es **`DATETIME`** | el origen trae hora y el ticket la imprime; truncar perdería dato. El filtro del día va por rango, no con `DATE()` (§5.7) |
+| §2.3 `updated_at` obligatorio | `sale` y `sale_status` van **sin `updated_at`** | ninguna de las dos se modifica nunca: `sale_status` es un seed fijo, y `sale` **se borra y se reinserta** en cada recarga (§7.3) en vez de actualizarse. Un `updated_at` que siempre valdría lo mismo que `created_at` no informa nada |
 | §2.3 `created_at` / `updated_at` obligatorios | `sale_status` va **sin timestamps** | seed fijo de 2 filas que se dan de alta una vez y no se editan: no hay nada que auditar. `id`, `name` y `active` bastan |
 
 ---
@@ -1124,6 +1145,8 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 | Recargar el mismo archivo | deja **3 821 / 3 909 / 13 141**, **no** 7 642 / 7 818 / 26 282 |
 | Mecanismo | borrar por `import_batch_id` y reinsertar — **no hay `UPSERT` por línea posible** (1 578 pares repetidos) |
 | Cifra de control tras recarga | sigue en **2 644 933.30** |
+| Notas generadas | **se borran con sus ventas** (`CASCADE`) y hay que regenerarlas · la pantalla debe **avisar** antes de recargar un periodo que ya tiene notas |
+| Sin huérfanos | `COUNT(*) FROM virtual_ticket WHERE sale_id IS NULL` = **0** siempre |
 
 ---
 
@@ -1132,9 +1155,9 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 | # | Pregunta | Por qué importa | Mi propuesta |
 |---|---|---|---|
 | 1 | **`product.price`** — ¿opción A, B o C del §6.3? | Es el punto donde tu ER contradice tus palabras | **A**: precio de lista manual, solo para el generador |
-| 2 | `sale.employed_id` del dibujo — ¿es **quién cargó el archivo** o **el mesero de la cuenta**? | El Excel de ventas **no trae ninguna columna de persona**. Si es el mesero, el dato está en `comandas.F` y ya vive en `detail_sale` | `usr_users_id` = quien ejecutó la carga |
+| ~~2~~ | ~~`sale.employed_id`~~ | **Cerrada.** El campo se eliminó: el Excel de ventas no trae columna de persona y el mesero ya vive en `detail_sale.waiter_code` | — |
 | 3 | ¿`payment_method` lleva `subsidiaries_id` o es global? | Cada POS escribe los nombres a su manera | que lo lleve |
-| 4 | `operation_day` — ¿columna normal o `GENERATED … STORED`? | La generada no se puede desincronizar; la normal es más portable | generada `STORED` |
+| ~~4~~ | ~~`updated_at` en `sale`~~ | **Cerrada.** La reimportación **borra los folios y los reinserta**, no actualiza. La fila nunca se modifica: nace, se borra, nace otra con su `created_at` fresco. No hay nada que auditar | — |
 | 5 | ¿Un `sale` puede tener **varias** notas virtuales históricas, o solo la última? | El botón "Regenerar productos" del template | 1:N con **una sola activa** |
 | 6 | ¿Una `branch` por sucursal (1:1) o varias? | Hoy el `UNIQUE` fuerza 1:1 | 1:1 |
 | 7 | Reimportar: ¿**borrado físico** del batch o `active = 0`? | El soft-delete conserva historial pero infla la tabla en cada recarga | físico **solo** dentro del batch reemplazado |
@@ -1170,7 +1193,7 @@ Cada fase tiene **criterios numéricos**. Si un número no da, la fase no pasa.
 
 ## 11. Siguiente paso
 
-Cuando apruebes las cajas (y sobre todo la **§6 — `product.price`** y la **§9.2 — `employed_id`**),
+Cuando apruebes las cajas (y sobre todo la **§6 — `product.price`** y la **§9.4 — `updated_at` en `sale`**),
 genero:
 
 1. El `CREATE TABLE` completo de las 11 tablas + seeds + constraints cross-schema.
