@@ -16,6 +16,7 @@ require_once __DIR__ . '/path-helper.php';
 require_once __DIR__ . '/db-introspect.php';
 require_once __DIR__ . '/fs-introspect.php';
 require_once __DIR__ . '/web-fetch.php';
+require_once __DIR__ . '/tools-registry.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
@@ -393,8 +394,13 @@ function coffeeia_build_context(array $body) {
         $webPages = $wb['fetched'];
     }
 
+    // Quien pregunta: la superficie (visor/coffeeia/playground) y el agente elegido.
+    // Con eso el catalogo de herramientas sabe cuales declararle a ESTE chat.
+    $surface = isset($body['surface'])  ? trim((string) $body['surface'])  : '';
+    $agent   = isset($body['agentKey']) ? trim((string) $body['agentKey']) : '';
+
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
-    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'effort' => $effort, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages];
+    return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'effort' => $effort, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages, 'surface' => $surface, 'agent' => $agent];
 }
 
 /**
@@ -451,98 +457,6 @@ function coffeeia_looks_unfinished($text) {
       . 'explore|check|query|read|look|run)\b[^.!?]{0,160}[:…]?\s*$/u',
         $tail
     );
-}
-
-/**
- * Loop agentico de SOLO LECTURA: deja que el modelo invoque run_select contra la base
- * conectada, ejecuta las consultas y le devuelve las filas, hasta que produce su
- * respuesta final (o se agota el tope de rondas). NO hace streaming: corre las rondas
- * de herramienta de forma sincrona; el endpoint emite el texto final despues.
- *
- * @param object   $client    cliente LLM con chat() que soporte 'tools'.
- * @param array    $messages  mensajes ya armados (incluye el system con el esquema).
- * @param string   $model
- * @param string   $schema    base conectada.
- * @param callable $onStatus  fn(string) opcional para avisar "consultando ..." al UI.
- * @return array{final: string, usage: array, rounds: int}
- */
-function coffeeia_run_db_tools($client, array $messages, $model, $schema, callable $onStatus = null, $maxRounds = 4) {
-    $tools = db_tool_specs();
-    $usage = [];
-    $final = '';
-    $rounds = 0;
-    $rescued = false;
-    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
-    $messages[] = coffeeia_tool_discipline_msg();
-
-    // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
-    for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
-        $rounds = $round + 1;
-        // Fase en lenguaje natural (sin jerga de "rondas"): cada chat() es una
-        // llamada COMPLETA al modelo (ahí se va el tiempo, no en MySQL); avisar
-        // en cuál va evita el "silencio" largo.
-        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
-            : ($round === 1 ? 'analizando los resultados…' : 'generando la respuesta con los datos…'));
-        $res = $client->chat($messages, $model, ['tools' => $tools]);
-        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
-
-        $toolCalls = $res['tool_calls'] ?? [];
-        if (empty($toolCalls)) {                       // el modelo ya respondio
-            $final = (string)($res['content'] ?? '');
-            $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
-            // Ronda de RESCATE (una sola vez): anuncio una consulta en prosa sin
-            // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
-            if (!$rescued && coffeeia_looks_unfinished($final)) {
-                $rescued = true;
-                if ($onStatus) $onStatus('completando una consulta pendiente…');
-                $messages[] = ['role' => 'assistant', 'content' => $final];
-                $messages[] = ['role' => 'user', 'content' =>
-                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
-                $final = '';
-                continue;
-            }
-            break;
-        }
-
-        // Registra el turno del asistente (con las llamadas) y ejecuta cada herramienta.
-        $messages[] = [
-            'role'       => 'assistant',
-            'content'    => (string)($res['content'] ?? ''),
-            'tool_calls' => $toolCalls,
-        ];
-        foreach ($toolCalls as $tc) {
-            $fn  = $tc['function']['name'] ?? '';
-            // OpenRouter manda arguments como STRING JSON; Ollama como OBJETO ya parseado.
-            $raw = $tc['function']['arguments'] ?? '{}';
-            $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
-            if (!is_array($args)) $args = [];
-            if ($onStatus) $onStatus('consultando ' . (isset($args['sql']) ? $args['sql'] : $fn));
-            $result = db_run_tool($fn, $args, $schema);
-            $messages[] = [
-                'role'         => 'tool',
-                'tool_call_id' => $tc['id'] ?? '',
-                'name'         => $fn,
-                'content'      => $result,
-            ];
-        }
-    }
-
-    // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
-    if ($final === '') {
-        if ($onStatus) $onStatus('redactando la respuesta final…');
-        // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
-        // contenido VACIO aqui porque intentan seguir llamando herramientas que
-        // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
-        $messages[] = ['role' => 'user', 'content' =>
-            'Se acabaron las rondas de herramientas. Con los datos YA obtenidos arriba, '
-          . 'entrega AHORA tu respuesta final completa; no llames a ninguna herramienta.'];
-        $res = $client->chat($messages, $model, []);
-        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
-        $final = (string)($res['content'] ?? '');
-        $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
-    }
-
-    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds, 'truncated' => $trunc];
 }
 
 /**
@@ -604,33 +518,54 @@ function coffeeia_inject_sample_rows(array $messages, $schema, $maxTables = 3, $
 }
 
 /**
- * Loop agentico de SOLO LECTURA sobre una CARPETA conectada: deja que el modelo
- * invoque list_dir/read_file/grep_files para navegar el proyecto, ejecuta cada
- * herramienta (sandbox a $root) y le devuelve el resultado, hasta su respuesta final
- * (o el tope de rondas). Gemelo de coffeeia_run_db_tools pero para el filesystem.
+ * MOTOR de los loops agenticos de herramientas (solo lectura).
+ *
+ * Los tres flujos (base, carpeta, hibrido) y el de herramientas propias corrian el
+ * MISMO algoritmo copiado tres veces; ahora comparten este motor y solo cambian las
+ * fuentes declaradas y las frases de estado. Que tools se declaran ya no lo decide el
+ * codigo sino el catalogo (tools-registry.php): el usuario elige cuales estan activas
+ * y puede sumar las suyas de tipo HTTP.
+ *
+ * NO hace streaming: corre las rondas de herramienta de forma sincrona; el endpoint
+ * emite el texto final despues.
  *
  * @param object   $client    cliente LLM con chat() que soporte 'tools'.
- * @param array    $messages  mensajes ya armados (incluye el system con el arbol).
+ * @param array    $messages  mensajes ya armados (incluye el system con el contexto).
  * @param string   $model
- * @param string   $root      carpeta conectada (ruta absoluta ya resuelta).
- * @param callable $onStatus  fn(string) opcional para avisar "leyendo ..." al UI.
- * @return array{final: string, usage: array, rounds: int}
+ * @param array    $ctx       ['db' => esquema|null, 'fs' => raiz|null,
+ *                              'surface' => visor|coffeeia|playground, 'agent' => agentKey].
+ * @param array    $phases    frases de estado [inicio, intermedia, final].
+ * @param string   $closing   como cerrar el rescate ("con los datos obtenidos"...).
+ * @param callable $onStatus  fn(string) opcional para avisar al UI.
+ * @return array{final: string, usage: array, rounds: int, truncated: bool}
  */
-function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable $onStatus = null, $maxRounds = 6) {
-    $tools = array_merge(fs_tool_specs(), [web_tool_spec()]);
-    $usage = [];
-    $final = '';
-    $rounds = 0;
+function coffeeia_run_tool_loop($client, array $messages, $model, array $ctx, array $phases, $closing, callable $onStatus = null, $maxRounds = 6) {
+    $sources = [];
+    if (!empty($ctx['fs'])) $sources[] = 'fs';
+    if (!empty($ctx['db'])) $sources[] = 'db';
+
+    // La asignacion decide que ve cada agente: una tool puede estar activa pero
+    // limitada al Playground o solo a CoffeeMagic.
+    $turn  = tools_for_turn($sources, (string)($ctx['surface'] ?? ''), (string)($ctx['agent'] ?? ''));
+    $tools = $turn['specs'];
+    $rows  = $turn['names'];
+    if (empty($tools)) {
+        throw new Exception('no hay herramientas activas para este contexto');
+    }
+
+    $usage   = [];
+    $final   = '';
+    $rounds  = 0;
     $rescued = false;
-    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
+    $trunc   = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
     $messages[] = coffeeia_tool_discipline_msg();
 
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
     for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
         $rounds = $round + 1;
-        // Fase en lenguaje natural (sin jerga de "rondas").
-        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
-            : ($round === 1 ? 'revisando lo leído…' : 'generando la respuesta con lo leído…'));
+        // Fase en lenguaje natural (sin jerga de "rondas"): cada chat() es una llamada
+        // COMPLETA al modelo (ahi se va el tiempo), avisar en cual va evita el silencio.
+        if ($onStatus) $onStatus($round === 0 ? $phases[0] : ($round === 1 ? $phases[1] : $phases[2]));
         $res = $client->chat($messages, $model, ['tools' => $tools]);
         $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
 
@@ -638,20 +573,21 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
         if (empty($toolCalls)) {                       // el modelo ya respondio
             $final = (string)($res['content'] ?? '');
             $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
-            // Ronda de RESCATE (una sola vez): anuncio una lectura en prosa sin
+            // Ronda de RESCATE (una sola vez): anuncio una accion en prosa sin
             // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
             if (!$rescued && coffeeia_looks_unfinished($final)) {
                 $rescued = true;
                 if ($onStatus) $onStatus('completando una acción pendiente…');
                 $messages[] = ['role' => 'assistant', 'content' => $final];
                 $messages[] = ['role' => 'user', 'content' =>
-                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con lo leído.'];
+                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa ' . $closing . '.'];
                 $final = '';
                 continue;
             }
             break;
         }
 
+        // Registra el turno del asistente (con las llamadas) y ejecuta cada herramienta.
         $messages[] = [
             'role'       => 'assistant',
             'content'    => (string)($res['content'] ?? ''),
@@ -663,17 +599,18 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
             $raw = $tc['function']['arguments'] ?? '{}';
             $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
             if (!is_array($args)) $args = [];
-            if ($onStatus) $onStatus($fn === 'fetch_url' ? web_tool_label($args) : fs_tool_label($fn, $args));
-            $result = $fn === 'fetch_url' ? web_run_tool($args) : fs_run_tool($fn, $args, $root);
+            $row = isset($rows[$fn]) ? $rows[$fn] : null;
+            if ($onStatus) $onStatus(tools_label($fn, $args, $row));
             $messages[] = [
                 'role'         => 'tool',
                 'tool_call_id' => $tc['id'] ?? '',
                 'name'         => $fn,
-                'content'      => $result,
+                'content'      => tools_run($fn, $args, $ctx, $row),
             ];
         }
     }
 
+    // Si agoto las rondas pidiendo herramientas sin cerrar, fuerza una respuesta final.
     if ($final === '') {
         if ($onStatus) $onStatus('redactando la respuesta final…');
         // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
@@ -692,94 +629,58 @@ function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable
 }
 
 /**
- * Loop agentico HIBRIDO de SOLO LECTURA: carpeta + base conectadas A LA VEZ. Expone
- * las herramientas de ambas fuentes (list_dir/read_file/grep_files + run_select) y
- * despacha cada llamada al sandbox que corresponda. Es el flujo "recrea la pantalla
- * de la carpeta y rellenala con datos reales de la base": el codigo sale del
- * filesystem y las filas/valores de MySQL.
- *
- * @param object   $client    cliente LLM con chat() que soporte 'tools'.
- * @param array    $messages  mensajes ya armados (incluye arbol + esquema en el system).
- * @param string   $model
- * @param string   $schema    base conectada.
- * @param string   $root      carpeta conectada (ruta absoluta ya resuelta).
- * @param callable $onStatus  fn(string) opcional para avisar "leyendo…/consultando…" al UI.
- * @return array{final: string, usage: array, rounds: int}
+ * Loop sobre la BASE conectada: el modelo consulta con run_select y responde con
+ * filas reales (mas las herramientas propias del usuario que esten activas).
  */
-function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $root, callable $onStatus = null, $maxRounds = 8) {
-    $tools   = array_merge(fs_tool_specs(), db_tool_specs(), [web_tool_spec()]);
-    $fsNames = ['list_dir', 'read_file', 'grep_files'];
-    $usage = [];
-    $final = '';
-    $rounds = 0;
-    $rescued = false;
-    $trunc = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
-    $messages[] = coffeeia_tool_discipline_msg();
+function coffeeia_run_db_tools($client, array $messages, $model, $schema, callable $onStatus = null, $maxRounds = 4, array $scope = []) {
+    return coffeeia_run_tool_loop(
+        $client, $messages, $model,
+        $scope + ['db' => $schema, 'fs' => null],
+        ['entendiendo tu petición…', 'analizando los resultados…', 'generando la respuesta con los datos…'],
+        'con los datos obtenidos',
+        $onStatus, $maxRounds
+    );
+}
 
-    // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
-    for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {
-        $rounds = $round + 1;
-        // Fase en lenguaje natural (sin jerga de "rondas").
-        if ($onStatus) $onStatus($round === 0 ? 'entendiendo tu petición…'
-            : ($round === 1 ? 'analizando lo obtenido…' : 'generando la respuesta con lo obtenido…'));
-        $res = $client->chat($messages, $model, ['tools' => $tools]);
-        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
+/**
+ * Loop sobre la CARPETA conectada: el modelo navega el proyecto con
+ * list_dir/read_file/grep_files (sandbox a $root) y responde con codigo real.
+ */
+function coffeeia_run_fs_tools($client, array $messages, $model, $root, callable $onStatus = null, $maxRounds = 6, array $scope = []) {
+    return coffeeia_run_tool_loop(
+        $client, $messages, $model,
+        $scope + ['db' => null, 'fs' => $root],
+        ['entendiendo tu petición…', 'revisando lo leído…', 'generando la respuesta con lo leído…'],
+        'con lo leído',
+        $onStatus, $maxRounds
+    );
+}
 
-        $toolCalls = $res['tool_calls'] ?? [];
-        if (empty($toolCalls)) {                       // el modelo ya respondio
-            $final = (string)($res['content'] ?? '');
-            $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
-            // Ronda de RESCATE (una sola vez): anuncio una accion en prosa sin
-            // ejecutarla — se le devuelve la pelota con la orden de hacerla YA.
-            if (!$rescued && coffeeia_looks_unfinished($final)) {
-                $rescued = true;
-                if ($onStatus) $onStatus('completando una acción pendiente…');
-                $messages[] = ['role' => 'assistant', 'content' => $final];
-                $messages[] = ['role' => 'user', 'content' =>
-                    'No anuncies la acción: ejecútala AHORA con tus herramientas y entrega en este mismo turno la respuesta completa con los datos obtenidos.'];
-                $final = '';
-                continue;
-            }
-            break;
-        }
+/**
+ * Loop HIBRIDO: carpeta + base a la vez. Es el flujo "recrea la pantalla de la
+ * carpeta y rellenala con datos reales de la base".
+ */
+function coffeeia_run_hybrid_tools($client, array $messages, $model, $schema, $root, callable $onStatus = null, $maxRounds = 8, array $scope = []) {
+    return coffeeia_run_tool_loop(
+        $client, $messages, $model,
+        $scope + ['db' => $schema, 'fs' => $root],
+        ['entendiendo tu petición…', 'analizando lo obtenido…', 'generando la respuesta con lo obtenido…'],
+        'con los datos obtenidos',
+        $onStatus, $maxRounds
+    );
+}
 
-        $messages[] = [
-            'role'       => 'assistant',
-            'content'    => (string)($res['content'] ?? ''),
-            'tool_calls' => $toolCalls,
-        ];
-        foreach ($toolCalls as $tc) {
-            $fn  = $tc['function']['name'] ?? '';
-            // OpenRouter manda arguments como STRING JSON; Ollama como OBJETO ya parseado.
-            $raw = $tc['function']['arguments'] ?? '{}';
-            $args = is_array($raw) ? $raw : json_decode((string) $raw, true);
-            if (!is_array($args)) $args = [];
-            $isFs  = in_array($fn, $fsNames, true);
-            $isWeb = $fn === 'fetch_url';
-            if ($onStatus) $onStatus($isWeb ? web_tool_label($args) : ($isFs ? fs_tool_label($fn, $args) : ('consultando ' . ($args['sql'] ?? $fn))));
-            $result = $isWeb ? web_run_tool($args) : ($isFs ? fs_run_tool($fn, $args, $root) : db_run_tool($fn, $args, $schema));
-            $messages[] = [
-                'role'         => 'tool',
-                'tool_call_id' => $tc['id'] ?? '',
-                'name'         => $fn,
-                'content'      => $result,
-            ];
-        }
-    }
-
-    if ($final === '') {
-        if ($onStatus) $onStatus('redactando la respuesta final…');
-        // Orden explicita de cierre: sin ella, algunos modelos (GLM) devuelven
-        // contenido VACIO aqui porque intentan seguir llamando herramientas que
-        // ya no estan declaradas — y el usuario recibia "no devolvio respuesta".
-        $messages[] = ['role' => 'user', 'content' =>
-            'Se acabaron las rondas de herramientas. Con los datos YA obtenidos arriba, '
-          . 'entrega AHORA tu respuesta final completa; no llames a ninguna herramienta.'];
-        $res = $client->chat($messages, $model, []);
-        $usage = coffeeia_merge_usage($usage, coffeeia_extract_usage($res));
-        $final = (string)($res['content'] ?? '');
-        $trunc = ((($res['done_reason'] ?? $res['finish_reason'] ?? '')) === 'length');
-    }
-
-    return ['final' => $final, 'usage' => $usage, 'rounds' => $rounds, 'truncated' => $trunc];
+/**
+ * Loop SIN conexiones: solo las herramientas propias del usuario (HTTP) y las de
+ * alcance web que esten activas. Es lo que hace utiles a las tools creadas desde
+ * Configuracion → Herramientas cuando no hay carpeta ni base conectada.
+ */
+function coffeeia_run_custom_tools($client, array $messages, $model, callable $onStatus = null, $maxRounds = 4, array $scope = []) {
+    return coffeeia_run_tool_loop(
+        $client, $messages, $model,
+        $scope + ['db' => null, 'fs' => null],
+        ['entendiendo tu petición…', 'usando tus herramientas…', 'generando la respuesta con lo obtenido…'],
+        'con los datos obtenidos',
+        $onStatus, $maxRounds
+    );
 }

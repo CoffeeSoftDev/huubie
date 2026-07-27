@@ -53,6 +53,8 @@ $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
 $canvasMode  = !empty($ctx['canvas']);
 $dbMode      = isset($body['dbMode']) ? trim((string) $body['dbMode']) : '';
+// Superficie y agente del chat: el catalogo declara solo las herramientas asignadas.
+$scope       = ['surface' => $ctx['surface'] ?? '', 'agent' => $ctx['agent'] ?? ''];
 
 // Cuando el tool-calling no funciona (modelo sin tools o que no las usa), aqui se
 // guarda el motivo y viaja en el evento `done` como `tools_fallback` para que el
@@ -93,7 +95,7 @@ if ($dbSchema && $fsRoot) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
         // Mas rondas que los loops simples: explorar + leer archivos + varias consultas.
-        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $hybridRounds);
+        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, $onStatus, $hybridRounds, $scope);
 
         // Un final VACIO se trata como fallo → catch (plan B + streaming normal).
         if (trim((string) $r['final']) === '') {
@@ -154,7 +156,7 @@ if ($dbSchema && !$fsRoot) {
         $onStatus = function ($label) use ($send) {
             $send('thinking', ['t' => "\n[{$label}]\n"]);
         };
-        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, $dbRounds);
+        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, $onStatus, $dbRounds, $scope);
 
         // Un final VACIO jamas debe llegar al usuario como done ok (se veia
         // "el agente no devolvio respuesta"): se trata como fallo y cae al
@@ -220,7 +222,7 @@ if ($fsRoot && !$dbSchema) {
         };
         // Con lienzo activo el modelo necesita mas rondas: explorar + leer varios
         // archivos (vista, css, js) antes de generar el template.
-        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $fsRounds);
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, $onStatus, $fsRounds, $scope);
 
         // Un final VACIO se trata como fallo → catch (streaming normal con el árbol).
         if (trim((string) $r['final']) === '') {
@@ -257,6 +259,52 @@ if ($fsRoot && !$dbSchema) {
         // pero avisando — antes el fallback era silencioso.
         $toolsFallback = 'Este modelo no soporta lectura de carpetas en vivo (tools): respondo solo con el árbol del proyecto ya inyectado.';
         $send('thinking', ['t' => "\n[herramientas no disponibles con este modelo: genero con el árbol precargado]\n"]);
+    }
+}
+
+// Sin carpeta ni base conectadas, pero con herramientas que se valen solas (las
+// propias del usuario y las de servidor remoto): loop agentico con esas. Si el
+// modelo no las soporta o falla, cae al streaming normal de abajo.
+if (!$dbSchema && !$fsRoot && tools_has_standalone($scope['surface'], $scope['agent'])) {
+    try {
+        $client = llm_client_for($model);
+        if ($effort !== '') $client->setThink($effort);
+        $onStatus = function ($label) use ($send) {
+            $send('thinking', ['t' => "\n[{$label}]\n"]);
+        };
+        $r = coffeeia_run_custom_tools($client, $allMessages, $model, $onStatus, $isOR ? 4 : 6, $scope);
+
+        if (trim((string) $r['final']) === '') {
+            throw new Exception('el modelo agotó las rondas sin entregar respuesta');
+        }
+
+        $final = (string) $r['final'];
+        foreach (preg_split('/(\s+)/u', $final, -1, PREG_SPLIT_DELIM_CAPTURE) as $piece) {
+            if ($piece !== '') $send('chunk', ['t' => $piece]);
+        }
+
+        $u         = $r['usage'];
+        $inTokens  = (int)($u['prompt_tokens']     ?? 0);
+        $outTokens = (int)($u['completion_tokens'] ?? 0);
+        $costUsd   = isset($u['cost']) ? (float) $u['cost'] : null;
+        $credits   = $outTokens > 0 ? round($outTokens / 1000, 4) : 0;
+
+        $send('done', [
+            'ok'                => true,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => $outTokens,
+            'prompt_tokens'     => $inTokens,
+            'completion_tokens' => $outTokens,
+            'cost_usd'          => $costUsd,
+            'credits_estimate'  => $credits,
+            'model'             => $model ?: '',
+            'tool_rounds'       => $r['rounds'],
+            'truncated'         => $r['truncated'] ?? false,
+        ]);
+        exit;
+    } catch (Throwable $e) {
+        $toolsFallback = 'Tus herramientas no se pudieron usar con este modelo (' . $e->getMessage() . '): respondo sin ellas.';
+        $send('thinking', ['t' => "\n[herramientas propias no disponibles con este modelo]\n"]);
     }
 }
 

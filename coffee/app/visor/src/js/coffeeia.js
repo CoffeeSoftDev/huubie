@@ -1627,6 +1627,10 @@ async function ciaSubmit() {
             return o;
         }),
         systemOverride: CIA.systemOverride || '',
+        // Quien pregunta: el catalogo declara solo las herramientas asignadas a
+        // esta superficie y a este agente (Configuracion -> Herramientas).
+        surface:        'coffeeia',
+        agentKey:       CIA.agentKey || '',
         model:          CIA.model || '',
         effort:         CIA.effort || '',
         canvasMode:     !!CIA.canvasMode,

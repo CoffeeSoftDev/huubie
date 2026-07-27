@@ -18,6 +18,8 @@ $allMessages = $ctx['messages'];
 $dbSchema    = $ctx['db'] ?? null;
 $fsRoot      = $ctx['fs'] ?? null;
 $canvasMode  = !empty($ctx['canvas']);
+// Superficie y agente del chat: el catalogo declara solo las herramientas asignadas.
+$scope       = ['surface' => $ctx['surface'] ?? '', 'agent' => $ctx['agent'] ?? ''];
 
 $t0 = microtime(true);
 
@@ -27,7 +29,7 @@ $t0 = microtime(true);
 if ($dbSchema && $fsRoot) {
     try {
         $client = llm_client_for($model);
-        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, null, $canvasMode ? 12 : 8);
+        $r = coffeeia_run_hybrid_tools($client, $allMessages, $model, $dbSchema, $fsRoot, null, $canvasMode ? 12 : 8, $scope);
         $usage = $r['usage'];
         echo json_encode([
             'ok'                => true,
@@ -54,7 +56,7 @@ if ($dbSchema && $fsRoot) {
 if ($dbSchema && !$fsRoot) {
     try {
         $client = llm_client_for($model);
-        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, null, 4);
+        $r = coffeeia_run_db_tools($client, $allMessages, $model, $dbSchema, null, 4, $scope);
         $usage = $r['usage'];
         echo json_encode([
             'ok'                => true,
@@ -79,7 +81,7 @@ if ($dbSchema && !$fsRoot) {
 if ($fsRoot && !$dbSchema) {
     try {
         $client = llm_client_for($model);
-        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, null, $canvasMode ? 10 : 6);
+        $r = coffeeia_run_fs_tools($client, $allMessages, $model, $fsRoot, null, $canvasMode ? 10 : 6, $scope);
         $usage = $r['usage'];
         echo json_encode([
             'ok'                => true,
@@ -92,6 +94,31 @@ if ($fsRoot && !$dbSchema) {
             'cost_usd'          => isset($usage['cost']) ? (float) $usage['cost'] : null,
             'credits_estimate'  => isset($usage['completion_tokens']) ? round($usage['completion_tokens'] / 1000, 4) : 0,
             'fs'                => $fsRoot,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    } catch (Throwable $e) {
+        // Modelo sin tools o error: seguimos al chat normal de abajo.
+    }
+}
+
+// Sin conexiones pero con herramientas que se valen solas (propias del usuario o de
+// servidor remoto): loop agentico con esas. Si el modelo no las soporta, cae al chat normal.
+if (!$dbSchema && !$fsRoot && tools_has_standalone($scope['surface'], $scope['agent'])) {
+    try {
+        $client = llm_client_for($model);
+        $r = coffeeia_run_custom_tools($client, $allMessages, $model, null, 4, $scope);
+        if (trim((string) $r['final']) === '') throw new Exception('sin respuesta');
+        $usage = $r['usage'];
+        echo json_encode([
+            'ok'                => true,
+            'reply'             => $r['final'],
+            'model'             => $model,
+            'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
+            'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
+            'prompt_tokens'     => (int)($usage['prompt_tokens'] ?? 0),
+            'completion_tokens' => (int)($usage['completion_tokens'] ?? 0),
+            'cost_usd'          => isset($usage['cost']) ? (float) $usage['cost'] : null,
+            'credits_estimate'  => isset($usage['completion_tokens']) ? round($usage['completion_tokens'] / 1000, 4) : 0,
         ], JSON_UNESCAPED_UNICODE);
         exit;
     } catch (Throwable $e) {

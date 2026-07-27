@@ -357,9 +357,21 @@
                         <i data-lucide="sparkles" class="w-4 h-4"></i>
                         <span>CoffeeIA</span>
                     </div>
-                    <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
+                    <div class="ia-drawer-actions">
+                        <button id="iaNewChatBtn" class="ia-drawer-close" title="Nueva conversaci&oacute;n (la actual queda en Chats guardados)">
+                            <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+                        </button>
+                        <button id="iaSaveChatBtn" class="ia-drawer-close" title="Guardar conversaci&oacute;n">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                        </button>
+                        <button id="iaSavedChatsBtn" class="ia-drawer-close" title="Chats guardados">
+                            <i data-lucide="messages-square" class="w-4 h-4"></i>
+                        </button>
+                        <span class="ia-drawer-actions-sep"></span>
+                        <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </header>
 
                 <div id="iaDrawerContext" class="ia-drawer-context">
@@ -418,27 +430,24 @@
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversaci&oacute;n (borra los mensajes actuales)">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                        </button>
                         <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
                         <div class="ia-tools-wrap" style="position:relative;">
                             <button id="iaToolsBtn" class="ia-attach-btn" title="Herramientas del chat">
                                 <i data-lucide="wrench" class="w-3 h-3"></i>
                             </button>
                             <div id="iaToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
-                                <button type="button" class="graph-menu-item" data-tool="save">
-                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                <button type="button" class="graph-menu-item" data-tool="folderdoc">
+                                    <i data-lucide="folder-down" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Guardar conversaci&oacute;n</span>
-                                        <span class="graph-menu-desc">Guarda el chat actual</span>
+                                        <span class="graph-menu-name">Documentar en la carpeta</span>
+                                        <span class="graph-menu-desc">Guarda el chat en la carpeta conectada</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-tool="saved">
-                                    <i data-lucide="messages-square" class="w-4 h-4"></i>
+                                <button type="button" class="graph-menu-item" data-tool="folderdocs">
+                                    <i data-lucide="history" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Chats guardados</span>
-                                        <span class="graph-menu-desc">Abre conversaciones previas</span>
+                                        <span class="graph-menu-name">Retomar de la carpeta</span>
+                                        <span class="graph-menu-desc">Abre una conversaci&oacute;n documentada</span>
                                     </span>
                                 </button>
                                 <div class="graph-menu-sep"></div>

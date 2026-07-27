@@ -569,6 +569,7 @@ textarea.acct-input { resize: vertical; }
 
 /* ── Configuración de cuenta y perfiles ── */
 .acct-settings-modal .acct-modal-card { width: min(1080px, 96vw); min-height: min(680px, 88vh); }
+.acct-settings-modal.is-editing .acct-modal-card { width: min(1080px, 96vw); min-height: min(680px, 88vh); }
 .acct-settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 0; flex: 1 1 auto; }
 .acct-settings-nav { padding: 14px 10px; border-right: 1px solid var(--vsr-border-soft); background: var(--vsr-bg-card); display: flex; flex-direction: column; gap: 4px; }
 .acct-settings-nav button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--vsr-text-muted); font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; }
@@ -621,6 +622,59 @@ textarea.acct-input { resize: vertical; }
     .acct-settings-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--vsr-border-soft); }
     .acct-settings-nav button { width: auto; white-space: nowrap; }
     .acct-profile-card { flex-wrap: wrap; }
+}
+
+/* ── Sección Herramientas (catálogo de tools del agente) ──
+   Reusa la maqueta de la sección Modelos (.acct-model-*): mismas tarjetas, switch y
+   menú. Aquí solo lo propio: avatar con ícono, filas de parámetros/headers, el schema
+   que ve el modelo y el resultado de la prueba. */
+.acct-tool-avatar { border-color: var(--vsr-accent-tint); background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.acct-tool-avatar svg { width: 15px; height: 15px; }
+.acct-tool-avatar.is-custom { border-color: rgba(52,211,153,.32); background: rgba(52,211,153,.1); color: #34D399; }
+.acct-tool-own { border-color: rgba(52,211,153,.35); color: #34D399; }
+.acct-tool-item .acct-model-desc { -webkit-line-clamp: 2; line-clamp: 2; min-height: 26px; }
+.acct-tool-item .acct-model-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 5px; }
+.acct-tool-item .acct-model-meta > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Asignacion: a que chats y agentes se le declara la herramienta */
+.acct-scope-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.acct-scope-badge { display: inline-flex; align-items: center; padding: 1px 6px; border: 1px solid rgba(96,165,250,.3); border-radius: 999px; background: rgba(96,165,250,.1); color: #60A5FA; font-size: 8px; font-weight: 700; }
+.acct-scope-badge.is-agent { border-color: rgba(192,132,252,.3); background: rgba(192,132,252,.1); color: #C084FC; }
+.acct-scope-badge.is-all { border-color: var(--vsr-border-soft); background: var(--vsr-bg-hover); color: var(--vsr-text-mute2); }
+.acct-scope-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.acct-scope-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--vsr-border); border-radius: 999px; background: var(--vsr-bg-card); color: var(--vsr-text-muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.acct-scope-chip:hover { border-color: var(--vsr-accent-tint); color: var(--vsr-text); }
+.acct-scope-chip.is-on { border-color: var(--vsr-accent-tint); background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
+.acct-scope-chip svg { width: 12px; height: 12px; }
+.acct-icon-row { display: flex; align-items: center; gap: 8px; }
+.acct-icon-row .acct-input { flex: 1 1 auto; }
+.acct-grid-mep { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+.acct-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 9px; }
+.acct-param-row { display: grid; grid-template-columns: minmax(90px, 1fr) 104px minmax(120px, 1.6fr) 56px 28px; align-items: center; gap: 6px; }
+.acct-param-row .acct-input { padding: 6px 9px; font-size: 11.5px; }
+.acct-param-row.is-readonly { grid-template-columns: minmax(90px, 1fr) 78px minmax(120px, 2fr) 74px; padding: 7px 9px; border: 1px solid var(--vsr-border-soft); border-radius: 8px; background: var(--vsr-bg-input); }
+.acct-param-name { color: var(--vsr-text-soft); font: 700 11px 'JetBrains Mono', monospace; }
+.acct-param-type { color: var(--vsr-accent-soft); font: 600 10px 'JetBrains Mono', monospace; }
+.acct-param-desc { overflow: hidden; color: var(--vsr-text-muted); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.acct-param-req { justify-self: end; padding: 1px 7px; border-radius: 999px; background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); font-size: 9px; font-weight: 700; }
+.acct-param-req.is-opt { background: var(--vsr-bg-hover); color: var(--vsr-text-mute2); }
+.acct-param-req-check { display: inline-flex; align-items: center; gap: 4px; color: var(--vsr-text-mute2); font-size: 10px; font-weight: 700; cursor: pointer; }
+.acct-param-req-check input { width: 14px; height: 14px; accent-color: var(--vsr-accent); }
+.acct-header-row { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(140px, 1.7fr) 28px; align-items: center; gap: 6px; }
+.acct-header-row .acct-input { padding: 6px 9px; font-size: 11.5px; }
+.acct-schema-pre { max-height: 220px; margin: 0; padding: 11px 12px; overflow: auto; border: 1px solid var(--vsr-border-soft); border-radius: 9px; background: var(--vsr-bg-input); color: var(--vsr-text-muted); font: 10.5px/1.5 'JetBrains Mono', monospace; white-space: pre; }
+.acct-test-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; margin-top: 10px; }
+.acct-test-row .acct-input { padding: 6px 9px; font-size: 11.5px; }
+.acct-test-out { max-height: 170px; margin-top: 9px; padding: 9px 11px; overflow: auto; border: 1px solid var(--vsr-border-soft); border-radius: 9px; background: var(--vsr-bg-input); color: var(--vsr-text-muted); font: 10.5px/1.5 'JetBrains Mono', monospace; white-space: pre-wrap; word-break: break-word; }
+.acct-test-out[hidden] { display: none; }
+.acct-test-out.is-ok  { border-color: rgba(52,211,153,.35); color: #34D399; }
+.acct-test-out.is-err { border-color: rgba(248,113,113,.35); color: #F87171; }
+#acctToolForm > .acct-card:first-child, #acctToolForm > .acct-form-foot { grid-column: 1 / -1; }
+#acctToolForm.acct-tool-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 860px) {
+    #acctToolForm.acct-tool-form { grid-template-columns: 1fr; }
+    #acctToolForm > .acct-card:first-child, #acctToolForm > .acct-form-foot { grid-column: auto; }
+    .acct-param-row { grid-template-columns: minmax(80px, 1fr) 92px 50px 28px; }
+    .acct-param-row .acct-p-desc { grid-column: 1 / -1; }
 }
 
 /* ── Modal "Mejorar plan" (registro manual de cuentas Claude) ── */
@@ -1063,6 +1117,12 @@ textarea.acct-input { resize: vertical; }
 
 /* Submenu flotante de Excalidraw (se posiciona FIXED por JS, va sobre el menu) */
 #iaExcaliSubmenu { z-index: 1001; min-width: 210px; }
+/* Submenu de herramientas del agente: mismo patron, con lista scrollable */
+#iaAgentToolsSubmenu { z-index: 1001; min-width: 248px; max-height: min(62vh, 420px); overflow-y: auto; }
+#iaAgentToolsList { display: flex; flex-direction: column; gap: 2px; }
+.graph-menu-empty { padding: 9px 10px; color: var(--vsr-text-mute2); font-size: 11px; }
+.ia-agenttool .graph-menu-caret { color: var(--vsr-text-mute2); }
+.ia-agenttool.is-active .graph-menu-caret { color: #34D399; }
 .graph-submenu-title {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--vsr-text-mute2);
@@ -1193,6 +1253,10 @@ textarea.acct-input { resize: vertical; }
 /* ── Iconos por tipo de documento (ER, features, plan, ...) ────
    El tipo sale del nombre del archivo: ver DOC_KINDS en visor.js.
    Se colorean en el arbol (.file-icon) y en el explorador (.docx-ic-file). */
+/* Conversación de CoffeeIA guardada en la carpeta: se pinta con el mismo color con
+   el que la IA firma sus mensajes en el chat, para que se lea como "esto es de ella". */
+.sidebar-item .file-icon.fmt-kind-chat,
+.docx-ic-file.fmt-kind-chat          { color: var(--vsr-accent-soft); }
 .sidebar-item .file-icon.fmt-kind-db,
 .docx-ic-file.fmt-kind-db            { color: #14B8A6; }              /* teal    */
 .sidebar-item .file-icon.fmt-kind-flow,
@@ -3674,7 +3738,16 @@ body.ia-drawer-resizing * {
 }
 .ia-drawer-close:hover { color: var(--vsr-text); background: var(--vsr-bg-hover); }
 
-/* Toggle del modo editor (vive en el footer del drawer junto a Limpiar) */
+/* Acciones de la cabecera del drawer: nueva conversación, guardar, historial y
+   cerrar. Comparten el estilo de .ia-drawer-close; el separador aísla la ✕ para
+   que no se confunda con las tres primeras. */
+.ia-drawer-actions { display: flex; align-items: center; gap: 2px; }
+.ia-drawer-actions-sep {
+    width: 1px; height: 16px; margin: 0 4px;
+    background: var(--vsr-border-soft);
+}
+
+/* Toggle del modo editor (vive en la barra del input, junto a adjuntar y herramientas) */
 .ia-editor-toggle {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 8px;
@@ -5556,3 +5629,304 @@ body.ia-drawer-resizing * {
 .sc-switch { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--vsr-text-mid); cursor: pointer; }
 .sc-switch input { width: 15px; height: 15px; accent-color: var(--vsr-accent); }
 .sc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--vsr-border); }
+
+/* ── Herramientas: catálogo visual ── */
+#acctToolsPanel .acct-tool-hero {
+    align-items: flex-start;
+    margin-bottom: 22px;
+}
+#acctToolsPanel .acct-tool-hero .acct-sec-title {
+    font-size: 18px;
+    line-height: 1.25;
+}
+#acctToolsPanel .acct-tool-hero .acct-sec-sub {
+    max-width: 70ch;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+#acctToolsPanel .acct-tool-add {
+    min-height: 36px;
+    padding: 0 13px;
+    border-color: var(--vsr-accent);
+    border-radius: 8px;
+    background: var(--vsr-accent);
+    color: #fff;
+    box-shadow: none;
+    white-space: nowrap;
+}
+#acctToolsPanel .acct-tool-add:hover {
+    border-color: var(--vsr-accent);
+    color: #fff;
+    box-shadow: none;
+    filter: brightness(1.05);
+}
+#acctToolsPanel .acct-tool-toolbar {
+    position: sticky;
+    top: -16px;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: 18px;
+    padding: 12px 0 15px;
+}
+#acctToolsPanel .acct-model-search input {
+    height: 38px;
+    border-radius: 9px;
+}
+#acctToolsPanel .acct-tool-filters {
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-hover);
+}
+#acctToolsPanel .acct-tool-filters .acct-provider-chip {
+    min-height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--vsr-text-muted);
+    box-shadow: none;
+}
+#acctToolsPanel .acct-tool-filters .acct-provider-chip:hover {
+    background: color-mix(in srgb, var(--vsr-bg-card) 70%, transparent);
+    color: var(--vsr-text);
+}
+#acctToolsPanel .acct-tool-filters .acct-provider-chip.is-active {
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text);
+    box-shadow: none;
+}
+#acctToolsPanel .acct-tool-results {
+    margin-bottom: 10px;
+    color: var(--vsr-text-muted);
+    font-size: 10.5px;
+    font-weight: 700;
+}
+#acctToolsPanel .acct-tool-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 11px;
+}
+#acctToolsPanel .acct-tool-card {
+    min-height: 226px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 13px;
+    border-radius: 11px;
+    box-shadow: none;
+    opacity: .78;
+    transform: none;
+}
+#acctToolsPanel .acct-tool-card:hover,
+#acctToolsPanel .acct-tool-card.is-on {
+    box-shadow: none;
+    transform: none;
+}
+#acctToolsPanel .acct-tool-card::after {
+    display: none;
+}
+#acctToolsPanel .acct-tool-card.is-on {
+    opacity: 1;
+}
+#acctToolsPanel .acct-tool-card-top {
+    display: grid;
+    grid-template-columns: 31px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+}
+#acctToolsPanel .acct-tool-card .acct-provider-avatar,
+#acctToolsPanel .acct-tool-card .acct-model-main,
+#acctToolsPanel .acct-tool-card .acct-model-switch,
+#acctToolsPanel .acct-tool-card .acct-model-menu {
+    grid-column: auto;
+    grid-row: auto;
+    margin: 0;
+}
+#acctToolsPanel .acct-tool-card .acct-provider-avatar {
+    width: 29px;
+    height: 29px;
+}
+#acctToolsPanel .acct-tool-card .acct-model-main {
+    cursor: default;
+    gap: 2px;
+}
+#acctToolsPanel .acct-tool-card .acct-model-title-row {
+    flex-wrap: wrap;
+}
+#acctToolsPanel .acct-tool-card .acct-model-name {
+    font-size: 11.5px;
+    line-height: 1.3;
+}
+#acctToolsPanel .acct-tool-card .acct-model-desc {
+    min-height: 29px;
+    margin-top: 1px;
+    font-size: 9.5px;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+#acctToolsPanel .acct-tool-card .acct-model-caps {
+    min-height: 16px;
+    margin-top: 0;
+}
+#acctToolsPanel .acct-tool-card .acct-scope-row {
+    min-height: 16px;
+    margin-top: 0;
+}
+#acctToolsPanel .acct-tool-card .acct-model-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    margin-top: 2px;
+}
+#acctToolsPanel .acct-tool-card .acct-model-meta > span {
+    width: 100%;
+    font-size: 9px;
+}
+#acctToolsPanel .acct-tool-card-foot {
+    width: calc(100% + 26px);
+    box-sizing: border-box;
+    display: flex;
+    align-self: stretch;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: auto -13px -1px;
+    padding: 9px 13px 0;
+    border-top: 1px solid var(--vsr-border-soft);
+}
+#acctToolsPanel .acct-tool-cb {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+#acctToolsPanel .acct-tool-card .acct-model-switch {
+    grid-template-columns: 27px auto;
+    align-self: auto;
+    width: max-content;
+}
+#acctToolsPanel .acct-tool-card .acct-model-menu {
+    align-self: auto;
+    justify-self: auto;
+}
+#acctToolsPanel .acct-tool-card .acct-model-menu-pop {
+    top: auto;
+    right: 0;
+    bottom: 30px;
+}
+@media (max-width: 980px) {
+    #acctToolsPanel .acct-tool-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+    #acctToolsPanel .acct-tool-hero { align-items: stretch; flex-direction: column; }
+    #acctToolsPanel .acct-tool-add { align-self: flex-start; }
+    #acctToolsPanel .acct-tool-toolbar { position: static; grid-template-columns: 1fr; gap: 9px; }
+    #acctToolsPanel .acct-tool-filters { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+    #acctToolsPanel .acct-tool-list { grid-template-columns: 1fr; }
+    #acctToolsPanel .acct-tool-card { min-height: 250px; }
+}
+
+/* ── Editor de herramientas: parámetros y schema ── */
+#acctToolForm .acct-tool-params-card {
+    grid-column: auto;
+    padding: 14px;
+    box-shadow: none;
+}
+#acctToolForm .acct-tool-params-card .acct-card-title {
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+#acctToolForm .acct-tool-params-card .acct-rows {
+    gap: 8px;
+    margin-bottom: 9px;
+}
+#acctToolForm .acct-tool-params-card .acct-param-row.is-readonly {
+    min-height: 62px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    gap: 5px 9px;
+    padding: 9px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-input);
+    box-shadow: none;
+}
+#acctToolForm .acct-tool-params-card .acct-param-name {
+    grid-column: 1;
+    grid-row: 1;
+    overflow: hidden;
+    color: var(--vsr-text);
+    font-size: 11.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#acctToolForm .acct-tool-params-card .acct-param-type {
+    grid-column: 2;
+    grid-row: 1;
+    color: #D7654E;
+    font-size: 10.5px;
+}
+#acctToolForm .acct-tool-params-card .acct-param-desc {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow: hidden;
+    color: var(--vsr-text-muted);
+    font-size: 10.5px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#acctToolForm .acct-tool-params-card .acct-param-req {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    padding: 2px 7px;
+    border: 1px solid rgba(215,101,78,.24);
+    background: rgba(215,101,78,.09);
+    color: #D7654E;
+    font-size: 9px;
+}
+#acctToolForm .acct-tool-params-card .acct-param-req.is-opt {
+    border-color: var(--vsr-border-soft);
+    background: var(--vsr-bg-hover);
+    color: var(--vsr-text-mute2);
+}
+#acctToolForm .acct-tool-params-card .acct-param-row:not(.is-readonly) {
+    grid-template-columns: minmax(100px, 1fr) 92px auto 28px;
+    grid-template-rows: auto auto;
+    gap: 7px;
+    padding: 8px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-input);
+}
+#acctToolForm .acct-tool-params-card .acct-param-row:not(.is-readonly) .acct-input {
+    min-height: 33px;
+    background: var(--vsr-bg-card);
+}
+#acctToolForm .acct-tool-params-card .acct-p-name { grid-column: 1; grid-row: 1; }
+#acctToolForm .acct-tool-params-card .acct-p-type { grid-column: 2; grid-row: 1; }
+#acctToolForm .acct-tool-params-card .acct-p-desc { grid-column: 1 / -1; grid-row: 2; }
+#acctToolForm .acct-tool-params-card .acct-param-req-check { grid-column: 3; grid-row: 1; }
+#acctToolForm .acct-tool-params-card [data-param-del] { grid-column: 4; grid-row: 1; }
+#acctToolForm .acct-tool-preview-card {
+    grid-column: 1 / -1;
+    padding: 16px;
+    box-shadow: none;
+}
+#acctToolForm .acct-tool-preview-card .acct-schema-pre {
+    width: 100%;
+    max-height: 320px;
+}
+@media (max-width: 860px) {
+    #acctToolForm .acct-tool-params-card,
+    #acctToolForm .acct-tool-preview-card {
+        grid-column: auto;
+    }
+}

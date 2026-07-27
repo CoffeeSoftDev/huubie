@@ -1652,6 +1652,20 @@ class App {
         return this.settings.customPath || '';
     }
 
+    // Carpeta absoluta que el explorador tiene ABIERTA ahora mismo. En el arbol de
+    // documentos hay que sumarle el crumb (proyecto / tipo): `currentPath` es solo la
+    // raiz del arbol. Vacio si el origen es Drive (no es una ruta local).
+    currentExplorerDir() {
+        const base = this.newFileTargetDir();
+        if (!base || /^drive:/i.test(base)) return '';
+        if (!(this.dataInit && this.dataInit.documents)) return base;
+
+        let crumb = [];
+        try { crumb = JSON.parse(localStorage.getItem('visor:docs:crumb') || '[]'); } catch (e) { crumb = []; }
+        if (!Array.isArray(crumb) || !crumb.length) return base;
+        return base.replace(/\/+$/, '') + '/' + crumb.join('/');
+    }
+
     // Solo origenes locales con ruta valida admiten creacion (Drive no usa el endpoint save).
     canCreateFiles() {
         const h = this.dataInit && this.dataInit.header ? this.dataInit.header : null;
@@ -2473,6 +2487,7 @@ class App {
 // del backend.
 const DOC_KIND_EXTS = ['md', 'markdown', 'txt'];
 const DOC_KINDS = [
+    { key: 'chat',  label: 'Conversación CoffeeIA', icon: 'bot',          cls: 'fmt-kind-chat',  words: ['chat', 'chats', 'conversacion', 'conversaciones'] },
     { key: 'db',    label: 'Base de datos / ER', icon: 'database',         cls: 'fmt-kind-db',    words: ['er', 'mer', 'bd', 'db', 'database', 'schema', 'esquema', 'modelo', 'ddl', 'entidad'] },
     { key: 'flow',  label: 'Diagrama / flujo',   icon: 'workflow',         cls: 'fmt-kind-flow',  words: ['diagrama', 'diagramas', 'diagram', 'flujo', 'flow', 'arquitectura'] },
     { key: 'feat',  label: 'Features',           icon: 'sparkles',         cls: 'fmt-kind-feat',  words: ['feature', 'features', 'funcionalidad', 'funcionalidades'] },
@@ -2676,7 +2691,7 @@ class Visor {
     }
 
     parseFrontmatter(raw) {
-        const fm = { name: null, description: null, model: null, type: null, project: null, status: null, date: null };
+        const fm = { name: null, description: null, model: null, type: null, project: null, status: null, date: null, coffeeia: null };
         const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
         if (!m) return fm;
         for (const line of m[1].split(/\r?\n/)) {
@@ -2689,10 +2704,24 @@ class Visor {
         return fm;
     }
 
+    // Conversacion de CoffeeIA documentada en la carpeta. Se reconoce por el MARCADOR
+    // del frontmatter, no por el nombre: el usuario bautiza el archivo como quiera.
+    isChatDoc(file) {
+        if (!file) return false;
+        const fm = file.frontmatter;
+        if (fm && String(fm.coffeeia || '').toLowerCase() === 'conversacion') return true;
+        // Arboles que no traen el frontmatter parseado: mirar la cabecera del crudo.
+        return typeof file.raw === 'string'
+            && /^---[\s\S]{0,400}?coffeeia:\s*conversacion/m.test(file.raw);
+    }
+
     fileFormat(file) {
         // Icono forzado a mano (clic derecho): gana sobre el nombre y la extension.
         const forced = DOC_KIND_BY_KEY[this.iconOverrides[file.relPath] || ''];
         if (forced) return { icon: forced.icon, cls: forced.cls };
+
+        // Conversacion de CoffeeIA: icono de bot, por encima del nombre del archivo.
+        if (this.isChatDoc(file)) return { icon: 'bot', cls: 'fmt-kind-chat' };
 
         if (file.isBackup) return { icon: 'archive', cls: 'fmt-backup' };
 
@@ -3076,7 +3105,7 @@ class VisorView {
         try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
     }
 
-    // Menu de clic derecho para elegir el icono de un archivo: los 10 tipos de
+    // Menu de clic derecho para elegir el icono de un archivo: los tipos de
     // DOC_KINDS mas "Automatico", que borra el override y devuelve el icono
     // deducido del nombre. Se cierra al elegir, al clic fuera, con Escape o al
     // hacer scroll (quedaria flotando lejos de su archivo).
@@ -3936,6 +3965,14 @@ const COFFEEIA_CONTINUE_PROMPT =
     + 'y SIN reabrir el bloque ```html: emite solo la continuación literal (lo que falte del <script> '
     + 'o del markup) hasta terminar y cerrar el componente. No agregues explicaciones ni comentarios.';
 
+// Documentacion de la conversacion DENTRO de la carpeta conectada: el chat se
+// escribe como markdown en la propia carpeta de trabajo (subcarpeta por defecto) y
+// desde ahi se puede retomar. El marcador del frontmatter identifica esos .md.
+const COFFEEIA_DOC_DIR    = 'docs/coffeeia';
+const COFFEEIA_DOC_MARKER = 'coffeeia: conversacion';
+const COFFEEIA_DOC_USER   = '## 👤 Usuario';
+const COFFEEIA_DOC_AI     = '## ☕ CoffeeIA';
+
 // Tipos de grafica que el modo grafica puede instruir a la IA a generar.
 const COFFEEIA_GRAPH_TYPES = ['mermaid', 'drawio', 'excalidraw'];
 const COFFEEIA_GRAPH_LABELS = { mermaid: 'Mermaid', drawio: 'draw.io', excalidraw: 'Excalidraw' };
@@ -4067,6 +4104,8 @@ class CoffeeIA {
         this._apiGithub = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-github.php');
         // Endpoint de assets del modulo (imagenes que el HTML generado usa con <img src>).
         this._apiAssets = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-module-assets.php');
+        // Endpoint de documentacion de conversaciones en la carpeta conectada.
+        this._apiFsNotes = apiEndpoint.replace('ctrl-coffeeia.php', 'ctrl-fs-notes.php');
         this._app     = appRef;
         this.history  = [];
         this._currentChatUid = null;   // uid de la conversacion guardada activa (para re-guardar/actualizar)
@@ -4080,6 +4119,7 @@ class CoffeeIA {
         this.excaliMode    = this._loadExcaliMode();  // 'libre' | 'template' (sub-modo de excalidraw)
         this.activeDb      = null;   // base MySQL conectada en la conversacion (persistente entre turnos)
         this.activeFolder  = null;   // carpeta local conectada en la conversacion (persistente entre turnos)
+        this._folderDoc    = null;   // { path, created } del .md que documenta el chat en esa carpeta
         this.pendingEdits  = null;   // [{ find, with, status }]
         this.pendingImages = [];     // [{ dataUrl, base64, mime, name }]
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
@@ -4096,6 +4136,7 @@ class CoffeeIA {
         this._applyGraphModeUI();
         this._applyModelUI();
         this._applyEffortUI();
+        this._applyFolderDocUI();
     }
 
     _loadModel() {
@@ -4247,6 +4288,79 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
+    // Submenu de herramientas del agente: mismas reglas de posicion que el de
+    // Excalidraw, pero su contenido sale del catalogo (CoffeeToolConfig) para poder
+    // activar/desactivar una tool sin salir del chat.
+    _toggleAgentToolsSubmenu(anchorEl) {
+        const $sub = $('#iaAgentToolsSubmenu');
+        if ($sub.is(':visible')) { $sub.hide(); return; }
+
+        const place = () => {
+            $sub.css({ display: 'block', visibility: 'hidden', top: '0px', left: '0px' });
+            const rect = anchorEl.getBoundingClientRect();
+            const sw   = $sub.outerWidth();
+            const sh   = $sub.outerHeight();
+            const gap  = 6;
+
+            let left = rect.right + gap;
+            if (left + sw > window.innerWidth - 8) left = rect.left - sw - gap;
+            left = Math.max(8, left);
+            let top = Math.max(8, Math.min(rect.top, window.innerHeight - sh - 8));
+
+            $sub.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+            if (window.lucide) lucide.createIcons();
+        };
+
+        this._renderAgentToolsList();
+        place();
+        // El catalogo vive en el servidor: si aun no llego, se repinta y reubica.
+        if (window.CoffeeToolConfig && !CoffeeToolConfig.isLoaded()) {
+            CoffeeToolConfig.load().then(() => { this._renderAgentToolsList(); place(); });
+        }
+    }
+
+    _renderAgentToolsList() {
+        const TC = window.CoffeeToolConfig;
+        const $list = $('#iaAgentToolsList');
+        if (!TC || !TC.isLoaded()) { $list.html('<div class="graph-menu-empty">Cargando…</div>'); return; }
+
+        // Solo las asignadas a ESTE chat (Visor + alma por defecto): las que el
+        // usuario reservó para el Playground o para otro agente no salen aquí.
+        const all = TC.getTools();
+        const tools = all.filter(t => TC.appliesTo(t, 'visor', 'CoffeeIA.md'));
+        const hidden = all.length - tools.length;
+        if (!tools.length) {
+            $list.html('<div class="graph-menu-empty">Ninguna herramienta asignada a este chat</div>');
+            this._applyAgentToolsCount();
+            return;
+        }
+
+        const scope = { fs: 'Con carpeta conectada', db: 'Con base conectada', ftp: 'Con servidor remoto', web: 'Siempre disponible', http: 'Herramienta propia' };
+        $list.html(tools.map(t => {
+            const on = Number(t.active) === 1;
+            return `<button type="button" class="graph-menu-item ia-agenttool${on ? ' is-active' : ''}" data-agenttool-id="${t.id}">
+                        <i data-lucide="${t.icon || 'wrench'}" class="w-4 h-4"></i>
+                        <span class="graph-menu-info">
+                            <span class="graph-menu-name">${visor.escapeHtml(t.label || t.name)}</span>
+                            <span class="graph-menu-desc">${visor.escapeHtml(scope[t.source] || 'Siempre disponible')}</span>
+                        </span>
+                        <i data-lucide="${on ? 'check' : 'minus'}" class="graph-menu-caret w-4 h-4"></i>
+                    </button>`;
+        }).join('')
+        // Las que existen pero estan reservadas a otro chat o a otro agente.
+        + (hidden ? `<div class="graph-menu-empty">${hidden} asignada${hidden === 1 ? '' : 's'} a otro chat o agente</div>` : ''));
+        this._applyAgentToolsCount();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Cuenta solo lo que ESTE chat puede usar: activa y asignada al Visor.
+    _applyAgentToolsCount() {
+        const TC = window.CoffeeToolConfig;
+        if (!TC || !TC.isLoaded()) return;
+        const n = TC.actives().filter(t => TC.appliesTo(t, 'visor', 'CoffeeIA.md')).length;
+        $('#iaAgentToolsDesc').text(n === 1 ? '1 herramienta activa' : `${n} herramientas activas`);
+    }
+
     // Selecciona el sub-modo de Excalidraw (template/libre) y activa el modo grafica
     // excalidraw. Re-elegir el sub-modo ya activo apaga el modo grafica (toggle off).
     _setExcaliMode(sub) {
@@ -4273,8 +4387,13 @@ class CoffeeIA {
     // (abre hacia arriba). Fixed evita que el overflow:hidden del drawer lo recorte.
     _toggleToolsMenu(btnEl) {
         const $menu = $('#iaToolsMenu');
-        $('#iaExcaliSubmenu').hide();   // el submenu nunca sobrevive a abrir/cerrar el menu padre
+        $('#iaExcaliSubmenu, #iaAgentToolsSubmenu').hide();   // los submenus nunca sobreviven a abrir/cerrar el menu padre
         if ($menu.is(':visible')) { $menu.hide(); return; }
+
+        // La carpeta destino del documento cambia al navegar el explorador: el item
+        // se refresca cada vez que se abre el menu, no solo al guardar.
+        this._applyFolderDocUI();
+        this._applyAgentToolsCount();
 
         // Medir con el menu visible pero invisible para no parpadear.
         $menu.css({ display: 'block', visibility: 'hidden', top: '0px', left: '0px' });
@@ -4401,30 +4520,62 @@ class CoffeeIA {
             this._toggleToolsMenu(e.currentTarget);
         });
         $(document).on('click.iaToolsMenu', (e) => {
-            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn, #iaExcaliSubmenu').length) {
-                $('#iaToolsMenu, #iaExcaliSubmenu').hide();
+            if (!$(e.target).closest('#iaToolsMenu, #iaToolsBtn, #iaExcaliSubmenu, #iaAgentToolsSubmenu').length) {
+                $('#iaToolsMenu, #iaExcaliSubmenu, #iaAgentToolsSubmenu').hide();
             }
         });
         // Reposicionar/cerrar si cambia el viewport mientras esta abierto.
-        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu, #iaExcaliSubmenu').hide());
+        $(window).on('resize.iaToolsMenu scroll.iaToolsMenu', () => $('#iaToolsMenu, #iaExcaliSubmenu, #iaAgentToolsSubmenu').hide());
         $('#iaToolsMenu').on('click', '.graph-menu-item', (e) => {
             const $it  = $(e.currentTarget);
             const tool = $it.data('tool');
             switch (tool) {
-                case 'save':   $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.saveConversation();    break;
-                case 'saved':  $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.openSavedChatsModal(); break;
+                case 'folderdoc':  $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.saveConversationToFolder(); break;
+                case 'folderdocs': $('#iaToolsMenu, #iaExcaliSubmenu').hide(); this.openFolderDocsModal();      break;
                 case 'github': $('#iaToolsMenu, #iaExcaliSubmenu').hide(); if (typeof githubBoard !== 'undefined' && githubBoard) githubBoard.open(); break;
+                case 'agenttools':
+                    e.stopPropagation();
+                    $('#iaExcaliSubmenu').hide();
+                    this._toggleAgentToolsSubmenu(e.currentTarget);
+                    break;
                 case 'graph':
                     // Excalidraw despliega un submenu (Template / Libre); el resto togglea directo.
                     if ($it.data('graph') === 'excalidraw') {
                         e.stopPropagation();
+                        $('#iaAgentToolsSubmenu').hide();
                         this._toggleExcaliSubmenu(e.currentTarget);
                     } else {
-                        $('#iaExcaliSubmenu').hide();
+                        $('#iaExcaliSubmenu, #iaAgentToolsSubmenu').hide();
                         this._setGraphMode($it.data('graph'));
                     }
                     break;
             }
+        });
+        // Submenu de herramientas: el check activa/desactiva la tool para todos los chats.
+        $('#iaAgentToolsSubmenu').on('click', '.ia-agenttool', (e) => {
+            e.stopPropagation();
+            const TC = window.CoffeeToolConfig;
+            if (!TC) return;
+            const id = $(e.currentTarget).data('agenttool-id');
+            const tool = TC.getTool(id);
+            if (!tool) return;
+            const on = Number(tool.active) !== 1;
+            TC.setActive(id, on)
+                .then(() => {
+                    this._renderAgentToolsList();
+                    this._toast(`${tool.label || tool.name}: ${on ? 'activada' : 'desactivada'}`, 'success');
+                })
+                .catch(err => this._toast(err.message || 'No se pudo cambiar la herramienta', 'warn'));
+        });
+        $('#iaAgentToolsSubmenu').on('click', '[data-agenttool-manage]', (e) => {
+            e.stopPropagation();
+            $('#iaToolsMenu, #iaAgentToolsSubmenu').hide();
+            if (window.CoffeeAccount) CoffeeAccount.openSettings('tools');
+        });
+        // El catalogo puede cambiar desde Configuracion: el submenu se mantiene al dia.
+        window.addEventListener('coffeeia:tools-changed', () => {
+            if ($('#iaAgentToolsSubmenu').is(':visible')) this._renderAgentToolsList();
+            else this._applyAgentToolsCount();
         });
         // Submenu de Excalidraw: elige plantilla o modo libre.
         $('#iaExcaliSubmenu').on('click', '.graph-menu-item', (e) => {
@@ -4473,7 +4624,12 @@ class CoffeeIA {
         // Adjuntar archivos: boton, file input, paste y drag&drop.
         // Imagenes -> vision; texto/codigo/html/md/csv/json -> contexto del chat.
         $('#iaAttachBtn').on('click', () => $('#iaImageInput').trigger('click'));
-        $('#iaClearBtn').on('click', () => this.clearConversation());
+
+        // Gestion de la conversacion: en la cabecera del drawer, junto al titulo.
+        // La actual queda en el historial (autoguardado), asi que "nueva" no la pierde.
+        $('#iaNewChatBtn').on('click', () => this.clearConversation());
+        $('#iaSaveChatBtn').on('click', () => this.saveConversation());
+        $('#iaSavedChatsBtn').on('click', () => this.openSavedChatsModal());
         $('#iaImageInput').on('change', (e) => {
             const files = Array.from(e.target.files || []);
             files.forEach(f => this._addFile(f));
@@ -4933,7 +5089,12 @@ class CoffeeIA {
             folderConnect:      this.activeFolder || '',   // carpeta conectada (conexion pegajosa)
             customPath:         (this._app.settings && this._app.settings.customPath) ? this._app.settings.customPath : '',
             model:              this.model || '',
-            effort:             this.effort || ''   // esfuerzo de razonamiento (think)
+            effort:             this.effort || '',  // esfuerzo de razonamiento (think)
+            // Quien pregunta: el catalogo declara solo las herramientas asignadas a
+            // esta superficie y a este agente (Configuracion -> Herramientas). El
+            // Visor no tiene selector de agente: siempre es el alma por defecto.
+            surface:            'visor',
+            agentKey:           'CoffeeIA.md'
         };
 
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---
@@ -6957,6 +7118,8 @@ class CoffeeIA {
         this._rememberActiveChat(null);       // sin conversacion activa que restaurar
         this._chipsRendered = false;
         this._setActiveDb(null);   // al limpiar, se suelta la conexion a la base
+        this._folderDoc = null;    // y el documento de la carpeta deja de estar ligado
+        this._applyFolderDocUI();
         this._stickBottom = true;
         this._toggleScrollDownBtn(false);
         $('#iaBodyChat').empty().hide();
@@ -6994,9 +7157,12 @@ class CoffeeIA {
     /* ── Conexion a una carpeta local (pegajosa por conversacion) ── */
 
     // Fija (o suelta, con null) la carpeta conectada y refresca el chip indicador.
+    // El documento ya ligado no se mueve: guarda su propia carpeta y sigue
+    // actualizandose ahi aunque el chat se conecte a otro proyecto.
     _setActiveFolder(path) {
         this.activeFolder = path || null;
         this._renderFolderIndicator();
+        this._applyFolderDocUI();
     }
 
     // Chip "carpeta: <nombre> ✕" sobre el input. La ✕ desconecta (sin borrar el chat).
@@ -7086,8 +7252,11 @@ class CoffeeIA {
     _autoSaveChat() {
         if (!this.history.length) return;
         clearTimeout(this._autoSaveTimer);
-        this._autoSaveTimer = setTimeout(() => {
-            this._persistChat(this._currentChatTitle || this._suggestChatTitle(), true);
+        this._autoSaveTimer = setTimeout(async () => {
+            await this._persistChat(this._currentChatTitle || this._suggestChatTitle(), true);
+            // Si el chat esta documentado en una carpeta, el .md se actualiza tambien.
+            // Va despues del upsert para que el documento lleve ya el uid definitivo.
+            this._refreshFolderDoc();
         }, 700);
     }
 
@@ -7191,6 +7360,24 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
+    // Repinta el chat entero desde this.history (al abrir una conversacion guardada
+    // o al retomar un documento de la carpeta).
+    _rebuildFromHistory() {
+        this._chipsRendered = false;
+        $('#iaBodyChat').empty();
+        this._switchToChat();
+        this.history.forEach(m => {
+            if (m.role === 'user') {
+                // Mostrar solo el texto visible (sin los docs embebidos en el content).
+                let text = String(m.content || '').replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '').trim();
+                this._appendUserMessage(text, m.imagesPreview, m.docsMeta);
+            } else {
+                this._appendAIMessage(String(m.content || ''), null);
+            }
+        });
+        this._scrollBottom();
+    }
+
     // Trae una conversacion del servidor y reconstruye las burbujas en el chat.
     // silent:true (restauracion al recargar) reconstruye SIN abrir el drawer ni
     // mostrar toasts; el usuario ve su chat en cuanto lo abre.
@@ -7213,20 +7400,7 @@ class CoffeeIA {
             this._rememberActiveChat(chat.uid);
             if (chat.model) { this.model = chat.model; this._saveModel(); this._applyModelUI(); }
 
-            // Reconstruir la UID del chat desde el historial.
-            this._chipsRendered = false;
-            $('#iaBodyChat').empty();
-            this._switchToChat();
-            this.history.forEach(m => {
-                if (m.role === 'user') {
-                    // Mostrar solo el texto visible (sin los docs embebidos en el content).
-                    let text = String(m.content || '').replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '').trim();
-                    this._appendUserMessage(text, m.imagesPreview, m.docsMeta);
-                } else {
-                    this._appendAIMessage(String(m.content || ''), null);
-                }
-            });
-            this._scrollBottom();
+            this._rebuildFromHistory();
 
             if (silent) return;   // restauracion: no abrir el drawer ni notificar
             this._closeSavedChatsModal();
@@ -7252,6 +7426,417 @@ class CoffeeIA {
         } catch (e) {
             this._toast('Error de red al eliminar', 'error');
         }
+    }
+
+    /* ── Documentar la conversacion EN la carpeta conectada ──────────────
+     *
+     * El chat se escribe como un .md dentro de la carpeta de trabajo: queda como
+     * documentacion del proyecto (transcripcion legible) y se puede retomar mas
+     * tarde, porque el propio documento lleva el historial en un bloque oculto.
+     * La escritura va sandbox-eada por ctrl/ctrl-fs-notes.php: es la unica
+     * excepcion al solo-lectura de la conexion a carpetas. */
+
+    // Carpeta destino del documento. Dos origenes, en este orden: la carpeta CONECTADA
+    // por el chat ("conectate a costsys") y, si no hay ninguna, la que el explorador
+    // tiene abierta (el arbol de documentos, un preset o un customPath). Con Drive
+    // abierto no hay ruta local y devuelve vacio.
+    _docTargetFolder() {
+        if (this.activeFolder) return this.activeFolder;
+        if (this._app && this._app.currentExplorerDir) return this._app.currentExplorerDir() || '';
+        return '';
+    }
+
+    _folderName(path) {
+        return String(path || '').replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+    }
+
+    // Estado del item "Documentar en la carpeta" del menu de herramientas: si la
+    // conversacion ya tiene documento, el item pasa a actualizarlo.
+    _applyFolderDocUI() {
+        const $it = $('#iaToolsMenu .graph-menu-item[data-tool="folderdoc"]');
+        if (!$it.length) return;
+        const linked = this._folderDoc && this._folderDoc.path;
+        const fname  = this._folderName(linked ? this._folderDoc.folder : this._docTargetFolder());
+        $it.find('.graph-menu-name').text(linked ? 'Actualizar documentación' : 'Documentar en la carpeta');
+        $it.find('.graph-menu-desc').text(linked
+            ? fname + '/' + this._folderDoc.path
+            : (fname ? 'Guarda el chat en ' + fname : 'Sin carpeta destino (abre una carpeta local)'));
+        $it.attr('title', linked
+            ? 'Actualiza ' + this._folderDoc.folder + '/' + this._folderDoc.path
+            : 'Guarda la conversación como .md en la carpeta conectada o en la que tengas abierta');
+        $it.toggleClass('is-active', !!linked);
+    }
+
+    _stampNow() {
+        const d = new Date(), p = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+             + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    }
+
+    // Nombre de archivo a partir del titulo del chat (sin acentos ni simbolos).
+    _docSlug(text) {
+        const slug = String(text || '').toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 50);
+        if (slug) return slug;
+        const d = new Date(), p = n => String(n).padStart(2, '0');
+        return 'chat-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate())
+             + '-' + p(d.getHours()) + p(d.getMinutes());
+    }
+
+    _oneLine(text) {
+        return String(text || '').replace(/\s+/g, ' ').trim();
+    }
+
+    _b64Encode(str) {
+        const bytes = new TextEncoder().encode(str);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 8192) {
+            bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+        }
+        return btoa(bin);
+    }
+
+    _b64Decode(b64) {
+        const bin   = atob(String(b64).replace(/\s+/g, ''));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new TextDecoder().decode(bytes);
+    }
+
+    // Bloque oculto (comentario HTML) con el historial serializado: es lo que permite
+    // retomar la conversacion tal cual. No incluye las imagenes en base64 para que el
+    // documento siga siendo ligero; si el bloque se pierde al editar el .md a mano,
+    // el historial se reconstruye leyendo la transcripcion.
+    _historyBlock() {
+        const slim = this.history.map(m => {
+            const out = { role: m.role, content: String(m.content || '') };
+            if (Array.isArray(m.docsMeta) && m.docsMeta.length) out.docsMeta = m.docsMeta;
+            return out;
+        });
+        const b64 = this._b64Encode(JSON.stringify(slim)).replace(/(.{120})/g, '$1\n');
+        return '<!-- coffeeia:history:v1\n' + b64 + '\n-->';
+    }
+
+    // Documento markdown completo: frontmatter (metadatos para listar y retomar) +
+    // cabecera legible + transcripcion turno por turno + historial oculto.
+    _conversationDocMarkdown(title, created, folder) {
+        const now   = this._stampNow();
+        folder      = folder || this._docTargetFolder();
+        const fname = this._folderName(folder);
+
+        const front = [
+            '---',
+            COFFEEIA_DOC_MARKER,
+            'titulo: '      + this._oneLine(title),
+            'uid: '         + (this._currentChatUid || ''),
+            'modelo: '      + (this.model || ''),
+            'carpeta: '     + folder,
+            this.activeDb ? 'base: ' + this.activeDb : null,
+            'mensajes: '    + this.history.length,
+            'creado: '      + created,
+            'actualizado: ' + now,
+            '---',
+            '',
+            ''
+        ].filter(l => l !== null).join('\n');
+
+        const head = [
+            '# ' + this._oneLine(title),
+            '',
+            '> Conversación con **CoffeeIA** documentada desde el Visor.',
+            '> Carpeta: `' + fname + '` · Modelo: `' + (this.model || '—') + '` · '
+                + this.history.length + ' mensajes · Actualizado: ' + now,
+            '>',
+            '> Para continuarla: chat de CoffeeIA → Herramientas → **Retomar de la carpeta**.',
+            ''
+        ].join('\n');
+
+        const turns = this.history.map(m => {
+            const isUser = m.role === 'user';
+            let text = String(m.content || '').replace(/\r/g, '').trim();
+            if (isUser) text = text.replace(/\n*===\s*DOCUMENTOS ADJUNTOS[\s\S]*$/i, '').trim();
+            const adj = (Array.isArray(m.docsMeta) && m.docsMeta.length)
+                ? '\n\n*Adjuntos: ' + m.docsMeta.map(d => d.name).join(', ') + '*'
+                : '';
+            return '\n' + (isUser ? COFFEEIA_DOC_USER : COFFEEIA_DOC_AI) + '\n\n'
+                 + (text || '_(sin texto)_') + adj + '\n';
+        }).join('');
+
+        return front + head + turns + '\n' + this._historyBlock() + '\n';
+    }
+
+    // Guarda (o actualiza) el documento de la conversacion en la carpeta destino.
+    async saveConversationToFolder() {
+        const folder = (this._folderDoc && this._folderDoc.folder) || this._docTargetFolder();
+        if (!folder) {
+            this._toast('Abre una carpeta local en el explorador o conéctate a una desde el chat', 'warn');
+            return;
+        }
+        if (!this.history.length) {
+            this._toast('No hay conversación que documentar', 'warn');
+            return;
+        }
+
+        // Destino del explorador: el archivo va PLANO en la carpeta abierta (el arbol
+        // de documentos solo lee dos niveles, proyecto/tipo, y una subcarpeta lo
+        // escondería). En un proyecto conectado por chat sí se agrupa en docs/coffeeia.
+        const title     = this._currentChatTitle || this._suggestChatTitle();
+        const subdir    = this.activeFolder ? COFFEEIA_DOC_DIR + '/' : '';
+        const suggested = (this._folderDoc && this._folderDoc.path)
+            || subdir + this._docSlug(title) + '.md';
+        const path = window.prompt(
+            'Documentar la conversación en: ' + folder + '\nRuta del .md (relativa a esa carpeta):',
+            suggested);
+        if (path === null) return;   // cancelado
+        await this._writeFolderDoc(folder, path.trim(), title, false, false);
+    }
+
+    async _writeFolderDoc(folder, path, title, overwrite, silent) {
+        if (!folder || !path) return false;
+        const created = (this._folderDoc && this._folderDoc.created) || this._stampNow();
+        try {
+            const form = new FormData();
+            form.append('action',  'save');
+            form.append('folder',  folder);
+            form.append('path',    path);
+            form.append('content', this._conversationDocMarkdown(title, created, folder));
+            if (overwrite) form.append('overwrite', '1');
+
+            const res  = await fetch(this._apiFsNotes, { method: 'POST', body: form });
+            const data = await res.json();
+
+            // El backend nunca pisa un .md sin permiso: preguntamos y reintentamos.
+            if (!data.success && data.exists) {
+                if (silent) return false;
+                if (!window.confirm('Ya existe "' + data.path + '" en la carpeta.\n¿Reemplazarlo?')) return false;
+                return this._writeFolderDoc(folder, path, title, true, silent);
+            }
+            if (!data.success) {
+                if (!silent) this._toast(data.message || 'No se pudo guardar el documento', 'error');
+                return false;
+            }
+
+            this._folderDoc = { folder: data.folder || folder, path: data.path, created };
+            this._applyFolderDocUI();
+            if (silent) return true;
+
+            this._toast('Documentado en ' + data.name + '/' + data.path, 'success');
+            // Si cayo dentro de la biblioteca que muestra el explorador, refrescarla
+            // para que el documento aparezca en el arbol sin recargar la pagina.
+            if (this._app && this._app.reloadLibrary && this._app.currentExplorerDir
+                && this._samePathIn(data.fullPath, this._app.currentExplorerDir())) {
+                this._app.reloadLibrary();
+            }
+            return true;
+        } catch (e) {
+            if (!silent) this._toast('Error de red al guardar el documento', 'error');
+            return false;
+        }
+    }
+
+    // true si `file` cuelga de `dir` (comparacion tolerante a barras y mayusculas).
+    _samePathIn(file, dir) {
+        const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+        const d = norm(dir);
+        return !!d && norm(file).indexOf(d + '/') === 0;
+    }
+
+    // Una vez que la conversacion tiene documento, cada turno lo reescribe en
+    // silencio: la documentacion nunca queda a medias. Siempre sobre la carpeta con
+    // la que se creo, aunque el explorador haya navegado a otra.
+    _refreshFolderDoc() {
+        if (!this._folderDoc || !this._folderDoc.path || !this._folderDoc.folder) return;
+        this._writeFolderDoc(this._folderDoc.folder, this._folderDoc.path,
+            this._currentChatTitle || this._suggestChatTitle(), true, true);
+    }
+
+    /* ── Modal de conversaciones documentadas en la carpeta ── */
+
+    _ensureFolderDocsModal() {
+        if (document.getElementById('iaFolderDocsModal')) return;
+        const $modal = $(`
+            <div id="iaFolderDocsModal" class="ia-saved-modal hidden" aria-hidden="true">
+                <div class="ia-saved-backdrop"></div>
+                <div class="ia-saved-dialog" role="dialog" aria-label="Conversaciones documentadas en la carpeta">
+                    <div class="ia-saved-head">
+                        <span class="ia-saved-title"><i data-lucide="folder-open" class="w-4 h-4"></i> Conversaciones en la carpeta</span>
+                        <button id="iaFolderDocsClose" class="ia-saved-close" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+                    <div id="iaFolderDocsList" class="ia-saved-list"></div>
+                </div>
+            </div>
+        `);
+        $('body').append($modal);
+
+        $modal.find('.ia-saved-backdrop, #iaFolderDocsClose').on('click', () => this._closeFolderDocsModal());
+        $(document).on('keydown.iaFolderDocs', (e) => {
+            if (e.key === 'Escape' && !$modal.hasClass('hidden')) this._closeFolderDocsModal();
+        });
+        $('#iaFolderDocsList').on('click', '[data-folder-doc]', (e) => {
+            this.loadConversationFromFolder($(e.currentTarget).attr('data-folder-doc'));
+        });
+    }
+
+    async openFolderDocsModal() {
+        const folder = this._docTargetFolder();
+        if (!folder) {
+            this._toast('Abre una carpeta local en el explorador o conéctate a una desde el chat', 'warn');
+            return;
+        }
+        this._docsModalFolder = folder;
+        this._ensureFolderDocsModal();
+        $('#iaFolderDocsModal').removeClass('hidden').attr('aria-hidden', 'false');
+        $('#iaFolderDocsList').html('<div class="ia-saved-empty">Buscando conversaciones…</div>');
+        if (window.lucide) lucide.createIcons();
+
+        try {
+            const url  = this._apiFsNotes + '?action=list&folder=' + encodeURIComponent(folder);
+            const res  = await fetch(url, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success) {
+                $('#iaFolderDocsList').html('<div class="ia-saved-empty">' + this._escape(data.message || 'Error al listar') + '</div>');
+                return;
+            }
+            this._renderFolderDocsList(data.docs || [], data.name || '');
+        } catch (e) {
+            $('#iaFolderDocsList').html('<div class="ia-saved-empty">Error de red al leer la carpeta</div>');
+        }
+    }
+
+    _closeFolderDocsModal() {
+        $('#iaFolderDocsModal').addClass('hidden').attr('aria-hidden', 'true');
+    }
+
+    _renderFolderDocsList(docs, folderName) {
+        if (!docs.length) {
+            $('#iaFolderDocsList').html(
+                '<div class="ia-saved-empty">Sin conversaciones documentadas en '
+                + this._escape(folderName || 'esta carpeta')
+                + '.<br>Usa <strong>Documentar en la carpeta</strong> para crear la primera.</div>');
+            return;
+        }
+        const html = docs.map(d => `
+            <div class="ia-saved-item" data-folder-doc="${this._escape(d.path)}" title="Retomar esta conversación">
+                <div class="ia-saved-item-main">
+                    <span class="ia-saved-item-title">
+                        <i data-lucide="bot" class="w-3.5 h-3.5 fmt-kind-chat"></i>
+                        ${this._escape(d.title)}
+                    </span>
+                    <span class="ia-saved-item-meta">
+                        <i data-lucide="message-circle" class="w-3 h-3"></i> ${d.msgCount}
+                        · <i data-lucide="file-text" class="w-3 h-3"></i> ${this._escape(d.path)}
+                        ${d.model ? '· ' + this._escape(d.model) : ''}
+                        · ${this._escape(d.updated || '')}
+                    </span>
+                </div>
+                <i data-lucide="corner-down-left" class="w-3.5 h-3.5"></i>
+            </div>
+        `).join('');
+        $('#iaFolderDocsList').html(html);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Retoma una conversacion documentada: lee el .md de la carpeta, reconstruye el
+    // historial y repinta el chat. A partir de ahi el chat continua normal y cada
+    // turno actualiza ese mismo documento.
+    async loadConversationFromFolder(path) {
+        const folder = this._docsModalFolder || this._docTargetFolder();
+        if (!folder) return;
+        try {
+            const url  = this._apiFsNotes + '?action=read&folder=' + encodeURIComponent(folder)
+                       + '&path=' + encodeURIComponent(path);
+            const res  = await fetch(url, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success) {
+                this._toast(data.message || 'No se pudo leer el documento', 'error');
+                return;
+            }
+
+            const doc = this._parseConversationDoc(data.content);
+            if (!doc.history.length) {
+                this._toast('El documento no tiene mensajes para retomar', 'error');
+                return;
+            }
+
+            clearTimeout(this._autoSaveTimer);   // que el autoguardado no pise el cambio a medias
+            this.history           = doc.history;
+            this._currentChatUid   = doc.meta.uid || null;
+            this._currentChatTitle = doc.meta.titulo || String(path).split('/').pop().replace(/\.(md|markdown)$/i, '');
+            this._rememberActiveChat(this._currentChatUid);
+            this._folderDoc = {
+                folder:  data.folder || folder,
+                path:    data.path,
+                created: doc.meta.creado || this._stampNow()
+            };
+            this._applyFolderDocUI();
+
+            // Modelo y base de datos con los que se trabajaba, si siguen disponibles.
+            const opts = $('#iaModelSelect option').filter((i, o) => o.value === doc.meta.modelo);
+            if (doc.meta.modelo && opts.length) {
+                this.model = doc.meta.modelo;
+                this._saveModel();
+                this._applyModelUI();
+            }
+            if (doc.meta.base) this._setActiveDb(doc.meta.base);
+
+            this._rebuildFromHistory();
+            this._closeFolderDocsModal();
+            if (!this.isOpen) this.open();
+            this._toast('Conversación retomada: ' + this._currentChatTitle, 'success');
+        } catch (e) {
+            this._toast('Error de red al leer el documento', 'error');
+        }
+    }
+
+    // Metadatos + historial de un documento de conversacion. El historial sale del
+    // bloque oculto; si falta (documento editado a mano), se reconstruye leyendo la
+    // transcripcion por sus encabezados de turno.
+    _parseConversationDoc(raw) {
+        const text = String(raw || '');
+        const meta = {};
+        const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (fm) {
+            fm[1].split(/\r?\n/).forEach(line => {
+                const kv = line.match(/^([a-zA-Z_]+)\s*:\s*(.*)$/);
+                if (kv) meta[kv[1].toLowerCase()] = kv[2].trim();
+            });
+        }
+
+        let history = [];
+        const block = text.match(/<!--\s*coffeeia:history:v1\s*([\s\S]*?)-->/);
+        if (block) {
+            try {
+                const arr = JSON.parse(this._b64Decode(block[1]));
+                if (Array.isArray(arr)) {
+                    history = arr.filter(m => m && (m.role === 'user' || m.role === 'assistant')
+                                               && typeof m.content === 'string');
+                }
+            } catch (e) { history = []; }
+        }
+        if (!history.length) history = this._historyFromTranscript(text);
+        return { meta, history };
+    }
+
+    _historyFromTranscript(text) {
+        const body = String(text || '').replace(/<!--\s*coffeeia:history:v1[\s\S]*?-->/, '');
+        const re   = /^##[ \t]+(👤 Usuario|☕ CoffeeIA)[^\n]*$/gm;
+        const hits = [];
+        let m;
+        while ((m = re.exec(body)) !== null) {
+            hits.push({
+                role: m[1].indexOf('Usuario') !== -1 ? 'user' : 'assistant',
+                at:   m.index,
+                from: m.index + m[0].length
+            });
+        }
+        return hits.map((h, i) => ({
+            role:    h.role,
+            content: body.slice(h.from, i + 1 < hits.length ? hits[i + 1].at : body.length)
+                         .replace(/\n\*Adjuntos:[^\n]*\*\s*$/, '').trim()
+        })).filter(x => x.content && x.content !== '_(sin texto)_');
     }
 
     // Si la respuesta trae XML de draw.io crudo SIN fence, lo envolvemos en

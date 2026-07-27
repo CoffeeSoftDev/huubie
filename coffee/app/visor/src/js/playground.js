@@ -1957,6 +1957,10 @@ async function pgRunModel(text, images, dropImages) {
             return o;
         }),
         systemOverride: systemOverride,
+        // Quien pregunta: el catalogo declara solo las herramientas asignadas a
+        // esta superficie y a este agente (Configuracion -> Herramientas).
+        surface:        'playground',
+        agentKey:       pg.agentKey || '',
         pinnedFiles:    pinned,
         canvasMode:     !!pg.canvasMode,
         dbConnect:      (pg.dbToolsOn && pg.activeDb) || '',   // base conectada (conexión pegajosa)

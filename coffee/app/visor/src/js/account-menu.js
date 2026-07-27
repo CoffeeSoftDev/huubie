@@ -209,11 +209,13 @@
                    +         '<button type="button" data-settings-section="account"><i data-lucide="user-round"></i><span>Mi cuenta</span></button>'
                    +         '<button type="button" data-settings-section="profiles"><i data-lucide="users-round"></i><span>Perfiles</span></button>'
                    +         '<button type="button" data-settings-section="models"><i data-lucide="bot"></i><span>Modelos</span></button>'
+                   +         '<button type="button" data-settings-section="tools"><i data-lucide="wrench"></i><span>Herramientas</span></button>'
                    +       '</nav>'
                    +       '<div class="acct-modal-body acct-settings-content">'
                    +         '<div id="acctUserPanel"></div>'
                    +         '<div id="acctProfilesPanel" hidden></div>'
                    +         '<div id="acctModelPanel" hidden></div>'
+                   +         '<div id="acctToolsPanel" hidden></div>'
                    +       '</div>'
                    +     '</div>'
                    +     '<div class="acct-modal-foot">'
@@ -227,9 +229,9 @@
     }
 
     function renderSettingsSection(section) {
-        const valid = ['account', 'profiles', 'models'];
+        const valid = ['account', 'profiles', 'models', 'tools'];
         const active = valid.indexOf(section) !== -1 ? section : 'account';
-        const panels = { account: '#acctUserPanel', profiles: '#acctProfilesPanel', models: '#acctModelPanel' };
+        const panels = { account: '#acctUserPanel', profiles: '#acctProfilesPanel', models: '#acctModelPanel', tools: '#acctToolsPanel' };
 
         global.jQuery('#accountSettings [data-settings-section]').each(function () {
             global.jQuery(this).toggleClass('is-active', global.jQuery(this).data('settings-section') === active);
@@ -241,7 +243,9 @@
         if (active === 'account') renderUserPanel();
         if (active === 'profiles') loadProfiles();
         if (active === 'models') renderModelPanel();
-        if (active !== 'models') global.jQuery('#accountSettings').removeClass('is-editing');
+        if (active === 'tools') openToolsPanel();
+        if (active !== 'models' && active !== 'tools') global.jQuery('#accountSettings').removeClass('is-editing');
+        if (active === 'models') updateCount();
         if (global.lucide) global.lucide.createIcons();
     }
 
@@ -549,6 +553,389 @@
         if (_modelView === 'form') backToModelList(); else renderModelPanel();
     }
 
+    /* ---------- Sección Herramientas ----------
+     * Elegir qué herramientas puede usar el agente (switch por tarjeta) y crear las
+     * propias de tipo HTTP. El catálogo vive en el servidor (CoffeeToolConfig), porque
+     * quien las ejecuta durante el chat es PHP. */
+    let _toolView = 'list';     // 'list' | 'form'
+    let _toolEditId = null;
+    let _toolForm = null;       // borrador en edición
+    let _toolQuery = '';
+    let _toolCat = '';
+
+    function emptyToolDraft() {
+        const TC = global.CoffeeToolConfig;
+        return {
+            id: 0, builtin: false, name: '', label: '', description: '', category: '',
+            icon: 'wrench', method: 'GET', endpoint: '',
+            params: [{ name: '', type: 'string', description: '', required: true }],
+            headers: [],
+            // Nace disponible en todos los chats y para todos los agentes.
+            surfaces: TC.surfaces().map(function (s) { return s.key; }),
+            agents: TC.agents().map(function (a) { return a.key; })
+        };
+    }
+
+    function openToolsPanel() {
+        const TC = global.CoffeeToolConfig;
+        if (!TC) {
+            global.jQuery('#acctToolsPanel').html('<div class="acct-empty">El catálogo de herramientas no está disponible.</div>');
+            return;
+        }
+        if (!TC.isLoaded()) {
+            global.jQuery('#acctToolsPanel').html('<div class="acct-empty">Cargando herramientas...</div>');
+            TC.load().then(function () { renderToolPanel(); });
+            return;
+        }
+        renderToolPanel();
+    }
+
+    function renderToolPanel() {
+        if (_toolView === 'form') renderToolForm();
+        else renderToolList();
+        global.jQuery('#accountSettings').toggleClass('is-editing', _toolView === 'form');
+        updateToolCount();
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    // ── Vista LISTA: elegir (switch) + editar/eliminar + crear ────────────────────
+    function renderToolList() {
+        const TC = global.CoffeeToolConfig;
+        const tools = TC.getTools();
+        const cats = TC.categories();
+
+        const card = function (tool) {
+            const on = Number(tool.active) === 1;
+            const toolParams = tool.params || [];
+            const params = toolParams.slice(0, 3).map(function (param) {
+                return '<span class="acct-model-tag">' + escHtml(param.name) + (param.required ? ' *' : '') + '</span>';
+            }).join('');
+            const more = toolParams.length > 3
+                ? '<span class="acct-model-tag">+' + (toolParams.length - 3) + '</span>'
+                : '';
+            const scope = { fs: 'Carpeta conectada', db: 'Base conectada', ftp: 'Servidor remoto', web: 'Siempre', http: 'Siempre' }[tool.source] || 'Siempre';
+            const allSurfaces = TC.surfaces().length;
+            const allAgents = TC.agents().length;
+            const surfaceBadges = (tool.surfaces || []).length >= allSurfaces
+                ? '<span class="acct-scope-badge is-all">Todos los chats</span>'
+                : (tool.surfaces || []).map(function (key) {
+                    return '<span class="acct-scope-badge">' + escHtml(TC.surfaceLabel(key)) + '</span>';
+                  }).join('');
+            const agentBadges = (tool.agents || []).length >= allAgents
+                ? '<span class="acct-scope-badge is-all">Todos los agentes</span>'
+                : (tool.agents || []).map(function (key) {
+                    return '<span class="acct-scope-badge is-agent">' + escHtml(TC.agentLabel(key)) + '</span>';
+                  }).join('');
+            const endpoint = tool.builtin
+                ? '<span title="Herramienta interna"><i data-lucide="cpu"></i>Interna del visor</span>'
+                : '<span title="' + escAttr(tool.endpoint || '') + '"><i data-lucide="plug"></i>' + escHtml(tool.method) + ' ' + escHtml(String(tool.endpoint || '').replace(/^https?:\/\//, '')) + '</span>';
+            const search = [tool.name, tool.label, tool.description, tool.category, tool.endpoint].join(' ').toLowerCase();
+            const label = tool.label || tool.name;
+
+            return '<article class="acct-model-item acct-tool-item acct-tool-card' + (on ? ' is-on' : '') + '" data-tool-id="' + escAttr(tool.id) + '"'
+                 +      ' data-cat="' + escAttr(tool.category || 'Otras') + '" data-search="' + escAttr(search) + '" aria-label="' + escAttr(label) + '">'
+                 +   '<div class="acct-tool-card-top">'
+                 +     '<span class="acct-provider-avatar acct-tool-avatar' + (tool.builtin ? '' : ' is-custom') + '"><i data-lucide="' + escAttr(tool.icon || 'wrench') + '"></i></span>'
+                 +     '<span class="acct-model-main">'
+                 +       '<span class="acct-model-title-row"><span class="acct-model-name">' + escHtml(label) + '</span>'
+                 +         (tool.builtin ? '<span class="acct-model-base">Base</span>' : '<span class="acct-model-base acct-tool-own">Propia</span>') + '</span>'
+                 +       '<span class="acct-model-val">' + escHtml(tool.name) + '</span>'
+                 +     '</span>'
+                 +   '</div>'
+                 +   '<span class="acct-model-desc">' + escHtml(tool.description || 'Sin descripción') + '</span>'
+                 +   '<span class="acct-model-caps">' + params + more + '</span>'
+                 +   '<span class="acct-scope-row">' + surfaceBadges + agentBadges + '</span>'
+                 +   '<span class="acct-model-meta">'
+                 +     '<span><i data-lucide="target"></i>' + escHtml(scope) + '</span>'
+                 +     endpoint
+                 +     '<span><i data-lucide="activity"></i>' + (tool.calls24h || 0) + ' usos/24 h</span>'
+                 +   '</span>'
+                 +   '<div class="acct-tool-card-foot">'
+                 +     '<label class="acct-model-switch" title="Activar o desactivar ' + escAttr(label) + '">'
+                 +       '<input type="checkbox" class="acct-tool-cb" aria-label="Activar o desactivar ' + escAttr(label) + '"' + (on ? ' checked' : '') + '>'
+                 +       '<span class="acct-switch-track"><span></span></span>'
+                 +       '<span class="acct-model-state acct-state-on">Activa</span><span class="acct-model-state acct-state-off">Inactiva</span>'
+                 +     '</label>'
+                 +     '<details class="acct-model-menu">'
+                 +       '<summary title="Acciones de ' + escAttr(label) + '"><i data-lucide="more-horizontal"></i></summary>'
+                 +       '<span class="acct-model-menu-pop">'
+                 +         '<button type="button" data-tool-edit><i data-lucide="pencil"></i>' + (tool.builtin ? 'Ajustar' : 'Editar') + '</button>'
+                 +         (tool.builtin ? '' : '<button type="button" class="is-danger" data-tool-del><i data-lucide="trash-2"></i>Eliminar</button>')
+                 +       '</span>'
+                 +     '</details>'
+                 +   '</div>'
+                 + '</article>';
+        };
+
+        const items = tools.map(card).join('');
+        const chips = ['<button type="button" class="acct-provider-chip' + (_toolCat === '' ? ' is-active' : '') + '" data-tool-cat="">Todas</button>']
+            .concat(cats.map(function (category) {
+                return '<button type="button" class="acct-provider-chip' + (_toolCat === category ? ' is-active' : '') + '" data-tool-cat="' + escAttr(category) + '">' + escHtml(category) + '</button>';
+            })).join('');
+
+        const head = '<div class="acct-model-hero acct-tool-hero">'
+                   +   '<div><div class="acct-sec-title">Herramientas de CoffeeIA</div>'
+                   +   '<div class="acct-sec-sub">Elige qué puede hacer el agente durante el chat y agrega las tuyas conectando cualquier API.</div></div>'
+                   +   '<button type="button" class="acct-mini acct-mini-primary acct-tool-add" data-tool-add><i data-lucide="plus"></i>Nueva herramienta</button>'
+                   + '</div>';
+        const toolbar = '<div class="acct-model-toolbar acct-tool-toolbar">'
+                      +   '<label class="acct-model-search"><i data-lucide="search"></i><input id="acctToolSearch" type="search" aria-label="Buscar herramienta" placeholder="Buscar herramienta..." value="' + escAttr(_toolQuery) + '"></label>'
+                      +   '<div class="acct-provider-filters acct-tool-filters" role="group" aria-label="Filtrar por categoría">' + chips + '</div>'
+                      + '</div>';
+        const empty = '<div id="acctToolEmpty" class="acct-model-empty" hidden><i data-lucide="search-x"></i><strong>Sin coincidencias</strong><span>Prueba con otro nombre o categoría.</span></div>';
+
+        const panel = global.jQuery('#acctToolsPanel');
+        panel.html(head + toolbar + '<div class="acct-model-results acct-tool-results"><span id="acctToolVisible" aria-live="polite"></span></div>'
+                 + '<div id="acctToolList" class="acct-model-list acct-tool-list">' + items + '</div>' + empty);
+
+        applyToolFilters();
+    }
+
+    function applyToolFilters() {
+        const panel = global.jQuery('#acctToolsPanel');
+        const term = _toolQuery.trim().toLowerCase();
+        let visible = 0;
+        panel.find('.acct-tool-item').each(function () {
+            const card = global.jQuery(this);
+            const okTerm = !term || String(card.data('search') || '').indexOf(term) !== -1;
+            const okCat = !_toolCat || card.data('cat') === _toolCat;
+            this.hidden = !(okTerm && okCat);
+            if (!this.hidden) visible++;
+        });
+        panel.find('#acctToolVisible').text(visible + (visible === 1 ? ' herramienta' : ' herramientas'));
+        panel.find('#acctToolEmpty').prop('hidden', visible !== 0);
+    }
+
+    function updateToolCount() {
+        const TC = global.CoffeeToolConfig;
+        if (!TC) return;
+        const total = TC.getTools().length;
+        global.jQuery('#acctModelCount').text(TC.actives().length + ' de ' + total + ' herramientas activas');
+    }
+
+    // ── Vista FORMULARIO: editor de la herramienta ───────────────────────────────
+    function renderToolParamRows() {
+        if (!_toolForm.params.length) return '<p class="acct-f-hint">Sin parámetros: la herramienta se llama sin argumentos.</p>';
+        const types = global.CoffeeToolConfig.PARAM_TYPES;
+        const readonly = _toolForm.builtin;
+        return _toolForm.params.map(function (p, i) {
+            if (readonly) {
+                return '<div class="acct-param-row is-readonly">'
+                     +   '<span class="acct-param-name">' + escHtml(p.name) + '</span>'
+                     +   '<span class="acct-param-type">' + escHtml(p.type) + '</span>'
+                     +   '<span class="acct-param-desc">' + escHtml(p.description || '') + '</span>'
+                     +   '<span class="acct-param-req' + (p.required ? '' : ' is-opt') + '">' + (p.required ? 'requerido' : 'opcional') + '</span>'
+                     + '</div>';
+            }
+            return '<div class="acct-param-row" data-param-i="' + i + '">'
+                 +   '<input type="text" class="acct-input mono acct-p-name" value="' + escAttr(p.name) + '" placeholder="ciudad">'
+                 +   '<select class="acct-input acct-p-type">' + types.map(function (t) {
+                        return '<option value="' + t + '"' + (p.type === t ? ' selected' : '') + '>' + t + '</option>';
+                     }).join('') + '</select>'
+                 +   '<input type="text" class="acct-input acct-p-desc" value="' + escAttr(p.description || '') + '" placeholder="Qué significa, para que el modelo lo entienda">'
+                 +   '<label class="acct-param-req-check" title="Requerido"><input type="checkbox" class="acct-p-req"' + (p.required ? ' checked' : '') + '><span>req</span></label>'
+                 +   '<button type="button" class="acct-icon-btn acct-icon-danger" data-param-del="' + i + '"><i data-lucide="x"></i></button>'
+                 + '</div>';
+        }).join('');
+    }
+
+    function renderToolHeaderRows() {
+        if (!_toolForm.headers.length) return '<p class="acct-f-hint">Sin headers adicionales.</p>';
+        return _toolForm.headers.map(function (h, i) {
+            return '<div class="acct-header-row" data-header-i="' + i + '">'
+                 +   '<input type="text" class="acct-input mono acct-h-key" value="' + escAttr(h.key || '') + '" placeholder="Authorization">'
+                 +   '<input type="text" class="acct-input mono acct-h-value" value="' + escAttr(h.value || '') + '" placeholder="Bearer ${MI_API_KEY}">'
+                 +   '<button type="button" class="acct-icon-btn acct-icon-danger" data-header-del="' + i + '"><i data-lucide="x"></i></button>'
+                 + '</div>';
+        }).join('');
+    }
+
+    function toolSchemaPreview() {
+        const TC = global.CoffeeToolConfig;
+        if (_toolForm.builtin && _toolForm.spec) return JSON.stringify(_toolForm.spec, null, 2);
+        return JSON.stringify(TC.buildSchema(_toolForm), null, 2);
+    }
+
+    function renderToolForm() {
+        const TC = global.CoffeeToolConfig;
+        const f = _toolForm;
+        const builtin = f.builtin;
+        const cats = TC.categories();
+        const iconOpts = TC.ICONS.map(function (ic) {
+            return '<option value="' + ic + '"' + (f.icon === ic ? ' selected' : '') + '>' + ic + '</option>';
+        }).join('');
+        const methodOpts = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(function (m) {
+            return '<option value="' + m + '"' + (f.method === m ? ' selected' : '') + '>' + m + '</option>';
+        }).join('');
+
+        const identity =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="info" class="w-4 h-4"></i> Identidad</div>'
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Nombre técnico ' + (builtin ? '' : '<span class="req">*</span>'),
+                    '<input type="text" class="acct-input mono" id="tfName" value="' + escAttr(f.name) + '" placeholder="get_weather"' + (builtin ? ' readonly' : '') + '>',
+                    builtin ? 'Herramienta base del visor: su nombre y parámetros los define el código' : 'snake_case · así la invoca el modelo')
+          +     fieldRow('Nombre visible <span class="req">*</span>', '<input type="text" class="acct-input" id="tfLabel" value="' + escAttr(f.label) + '" placeholder="Clima actual">')
+          +   '</div>'
+          +   fieldRow('Descripción', '<textarea class="acct-input" id="tfDescription" rows="2" placeholder="Qué hace y cuándo debe usarla el modelo...">' + escHtml(f.description) + '</textarea>',
+                    builtin ? 'Solo cambia lo que ves aquí; lo que lee el modelo sigue siendo el texto del código' : 'El modelo decide con esto si llamarla: sé concreto')
+          +   '<div class="acct-grid2">'
+          +     fieldRow('Categoría', '<input type="text" class="acct-input" id="tfCategory" list="tfCatList" value="' + escAttr(f.category) + '" placeholder="Web, Datos, Carpeta...">'
+                  + '<datalist id="tfCatList">' + cats.map(function (c) { return '<option value="' + escAttr(c) + '">'; }).join('') + '</datalist>')
+          +     fieldRow('Ícono', '<span class="acct-icon-row"><span class="acct-provider-avatar acct-tool-avatar" id="tfIconPreview"><i data-lucide="' + escAttr(f.icon) + '"></i></span>'
+                  + '<select class="acct-input" id="tfIcon">' + iconOpts + '</select></span>')
+          +   '</div>'
+          + '</div>';
+
+        // Asignación: en qué chats aparece y a qué agentes se les declara. Aplica
+        // también a las herramientas base (puedes dejar la lectura de carpeta solo
+        // para CoffeeMagic en el Playground, por ejemplo).
+        const assignment =
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="share-2" class="w-4 h-4"></i> Dónde se usa</div>'
+          +   '<div class="acct-f-label">Chats</div>'
+          +   '<div class="acct-scope-chips" id="tfSurfaces">' + renderScopeChips(TC.surfaces(), f.surfaces, 'surface') + '</div>'
+          +   '<div class="acct-f-hint">Dónde aparece la herramienta. Sin ninguno marcado no se usa en ningún lado.</div>'
+          +   '<div class="acct-f-label" style="margin-top:12px">Agentes</div>'
+          +   '<div class="acct-scope-chips" id="tfAgents">' + renderScopeChips(TC.agents(), f.agents, 'agent') + '</div>'
+          +   '<div class="acct-f-hint">A qué agente se le declara. Se combinan: Playground + CoffeeMagic = solo ese agente en el Playground.</div>'
+          + '</div>';
+
+        const connection = builtin ? '' :
+            '<div class="acct-card"><div class="acct-card-title"><i data-lucide="plug" class="w-4 h-4"></i> Conexión</div>'
+          +   '<div class="acct-grid-mep">'
+          +     fieldRow('Método', '<select class="acct-input" id="tfMethod">' + methodOpts + '</select>')
+          +     fieldRow('Endpoint <span class="req">*</span>', '<input type="text" class="acct-input mono" id="tfEndpoint" value="' + escAttr(f.endpoint) + '" placeholder="https://api.ejemplo.com/v1/clima">',
+                    'Puedes insertar un parámetro en la ruta con llaves: /ciudades/{ciudad}')
+          +   '</div>'
+          +   '<div class="acct-f-label">Headers</div>'
+          +   '<div id="tfHeaders" class="acct-rows">' + renderToolHeaderRows() + '</div>'
+          +   '<button type="button" class="acct-mini" id="tfAddHeader"><i data-lucide="plus"></i>Agregar header</button>'
+          +   '<div class="acct-f-hint" style="margin-top:8px">Usa <code>${MI_API_KEY}</code> para inyectar un secreto de <code>credentials/.env</code>: nunca se guarda en el catálogo ni viaja al navegador.</div>'
+          + '</div>';
+
+        const params =
+            '<div class="acct-card acct-tool-params-card"><div class="acct-card-title"><i data-lucide="list-tree" class="w-4 h-4"></i> Parámetros</div>'
+          +   '<div id="tfParams" class="acct-rows">' + renderToolParamRows() + '</div>'
+          +   (builtin ? '' : '<button type="button" class="acct-mini" id="tfAddParam"><i data-lucide="plus"></i>Agregar parámetro</button>')
+          + '</div>';
+
+        const preview =
+            '<div class="acct-card acct-tool-preview-card"><div class="acct-card-title"><i data-lucide="eye" class="w-4 h-4"></i> Lo que ve el modelo</div>'
+          +   '<pre class="acct-schema-pre" id="tfSchema">' + escHtml(toolSchemaPreview()) + '</pre>'
+          +   (builtin ? '' :
+                '<div class="acct-test-row">'
+              +   '<button type="button" class="acct-mini" id="tfTest"><i data-lucide="play"></i>Probar ahora</button>'
+              +   '<input type="text" class="acct-input mono" id="tfTestArgs" placeholder=\'{"ciudad":"Hermosillo"}\'>'
+              + '</div>'
+              + '<div id="tfTestOut" class="acct-test-out" hidden></div>')
+          + '</div>';
+
+        const foot =
+            '<div class="acct-form-foot">'
+          +   (f.id && !builtin ? '<button type="button" class="acct-btn acct-btn-danger" data-tool-del-form>Eliminar</button>' : '<span></span>')
+          +   '<span class="acct-form-foot-r">'
+          +     '<button type="button" class="acct-btn" data-tool-cancel>Cancelar</button>'
+          +     '<button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save" class="w-4 h-4"></i> Guardar herramienta</button>'
+          +   '</span>'
+          + '</div>';
+
+        global.jQuery('#acctToolsPanel').html('<form id="acctToolForm" class="acct-model-form acct-tool-form">'
+            + identity + assignment + connection + params + preview + foot + '</form>');
+    }
+
+    // Chips toggle de asignación (chats / agentes).
+    function renderScopeChips(catalog, selected, kind) {
+        const list = Array.isArray(selected) ? selected : [];
+        return catalog.map(function (item) {
+            const on = list.indexOf(item.key) !== -1;
+            return '<button type="button" class="acct-scope-chip' + (on ? ' is-on' : '') + '"'
+                 +   ' data-scope-kind="' + kind + '" data-scope-key="' + escAttr(item.key) + '" title="' + escAttr(item.description || '') + '">'
+                 +   '<i data-lucide="' + (on ? 'check' : 'plus') + '"></i>' + escHtml(item.label)
+                 + '</button>';
+        }).join('');
+    }
+
+    function toggleToolScope(kind, key) {
+        const TC = global.CoffeeToolConfig;
+        const field = kind === 'surface' ? 'surfaces' : 'agents';
+        const list = _toolForm[field] = Array.isArray(_toolForm[field]) ? _toolForm[field] : [];
+        const i = list.indexOf(key);
+        if (i === -1) list.push(key); else list.splice(i, 1);
+        // Se reordena según el catálogo para que la lista guardada sea estable.
+        const order = (kind === 'surface' ? TC.surfaces() : TC.agents()).map(function (x) { return x.key; });
+        _toolForm[field] = order.filter(function (k) { return list.indexOf(k) !== -1; });
+        global.jQuery(kind === 'surface' ? '#tfSurfaces' : '#tfAgents')
+            .html(renderScopeChips(kind === 'surface' ? TC.surfaces() : TC.agents(), _toolForm[field], kind));
+        if (global.lucide) global.lucide.createIcons();
+    }
+
+    function refreshToolSchema() {
+        global.jQuery('#tfSchema').text(toolSchemaPreview());
+    }
+
+    function openToolForm(id) {
+        const TC = global.CoffeeToolConfig;
+        const t = id ? TC.getTool(id) : null;
+        if (t) {
+            _toolForm = {
+                id: t.id, builtin: !!t.builtin, name: t.name, label: t.label || '',
+                description: t.description || '', category: t.category || '', icon: t.icon || 'wrench',
+                method: t.method || 'GET', endpoint: t.endpoint || '',
+                params: (t.params || []).map(function (p) { return { name: p.name, type: p.type, description: p.description, required: !!p.required }; }),
+                headers: (t.headers || []).map(function (h) { return { key: h.key || '', value: h.value || '' }; }),
+                surfaces: (t.surfaces || []).slice(),
+                agents: (t.agents || []).slice(),
+                spec: t.spec || null
+            };
+        } else {
+            _toolForm = emptyToolDraft();
+        }
+        _toolView = 'form';
+        _toolEditId = id || null;
+        renderToolPanel();
+    }
+
+    function backToToolList() { _toolView = 'list'; _toolEditId = null; _toolForm = null; renderToolPanel(); }
+
+    function saveToolForm() {
+        const TC = global.CoffeeToolConfig;
+        const f = _toolForm;
+        if (!f.label.trim()) { toast('Ponle un nombre visible a la herramienta', 'warn'); return; }
+        if (!f.builtin) {
+            if (!/^[a-z][a-z0-9_]*$/.test(f.name)) { toast('El nombre técnico debe ser snake_case (ej. get_weather)', 'warn'); return; }
+            if (!/^https?:\/\//i.test(f.endpoint.trim())) { toast('El endpoint debe empezar con http:// o https://', 'warn'); return; }
+        }
+        TC.save(f)
+            .then(function () { toast('Herramienta guardada', 'ok'); backToToolList(); })
+            .catch(function (err) { toast(err.message || 'No se pudo guardar', 'warn'); });
+    }
+
+    function deleteToolFromList(id) {
+        const TC = global.CoffeeToolConfig;
+        const t = TC.getTool(id);
+        if (!t) return;
+        if (t.builtin) { toast('Las herramientas base no se eliminan: desactívalas', 'warn'); return; }
+        if (!global.confirm('¿Eliminar la herramienta "' + (t.label || t.name) + '"?')) return;
+        TC.remove(id)
+            .then(function () { toast('Herramienta eliminada', 'info'); if (_toolView === 'form') backToToolList(); else renderToolPanel(); })
+            .catch(function (err) { toast(err.message || 'No se pudo eliminar', 'warn'); });
+    }
+
+    function testToolForm() {
+        const TC = global.CoffeeToolConfig;
+        let args = {};
+        const raw = String(global.jQuery('#tfTestArgs').val() || '').trim();
+        if (raw) {
+            try { args = JSON.parse(raw); } catch (e) { toast('Los argumentos de prueba deben ser JSON válido', 'warn'); return; }
+        }
+        const out = global.jQuery('#tfTestOut').prop('hidden', false).removeClass('is-ok is-err').text('Llamando…');
+        TC.test(_toolForm, args)
+            .then(function (res) {
+                out.addClass(res.success ? 'is-ok' : 'is-err')
+                   .text((res.success ? '✓ ' : '✗ ') + res.message + ' · ' + res.elapsed_ms + ' ms\n' + (res.result || ''));
+            })
+            .catch(function (err) { out.addClass('is-err').text('✗ ' + (err.message || 'La prueba falló')); });
+    }
+
     function renderUserPanel() {
         if (!_currentUser) {
             global.jQuery('#acctUserPanel').html('<div class="acct-empty">Cargando cuenta...</div>');
@@ -814,6 +1201,8 @@
         buildSettings();
         _modelView = 'list';
         _modelEditId = null;
+        _toolView = 'list';
+        _toolEditId = null;
         global.jQuery('#accountSettings').prop('hidden', false).addClass('is-open');
         renderSettingsSection(section || 'account');
     }
@@ -1699,6 +2088,91 @@
             const $def = $('#mfEffortDefault');
             const cur = $def.val();
             $def.html(effortDefaultOptions(_mfEffort.indexOf(cur) !== -1 ? cur : ''));
+        });
+
+        // ── Sección Herramientas ─────────────────────────────────────────────────
+        $(document).on('input', '#acctToolSearch', function () { _toolQuery = String($(this).val() || ''); applyToolFilters(); });
+        $(document).on('click', '#accountSettings [data-tool-cat]', function () {
+            _toolCat = String($(this).attr('data-tool-cat') || '');
+            $('#acctToolsPanel .acct-provider-chip').removeClass('is-active');
+            $(this).addClass('is-active');
+            applyToolFilters();
+        });
+        $(document).on('change', '#acctToolList .acct-tool-cb', function () {
+            const $item = $(this).closest('.acct-tool-item');
+            const on = this.checked;
+            $item.toggleClass('is-on', on);
+            global.CoffeeToolConfig.setActive($item.data('tool-id'), on)
+                .then(function () { updateToolCount(); })
+                .catch(function (err) { toast(err.message || 'No se pudo cambiar el estado', 'warn'); renderToolPanel(); });
+        });
+        $(document).on('click', '#accountSettings [data-tool-add]', function () { openToolForm(null); });
+        $(document).on('click', '#accountSettings [data-tool-edit]', function (e) {
+            e.stopPropagation();
+            openToolForm($(this).closest('.acct-tool-item').data('tool-id'));
+        });
+        $(document).on('click', '#accountSettings [data-tool-del]', function (e) {
+            e.stopPropagation();
+            deleteToolFromList($(this).closest('.acct-tool-item').data('tool-id'));
+        });
+        $(document).on('click', '#accountSettings [data-tool-del-form]', function () { deleteToolFromList(_toolEditId); });
+        $(document).on('click', '#accountSettings [data-tool-cancel]', function () { backToToolList(); });
+        $(document).on('submit', '#acctToolForm', function (e) { e.preventDefault(); saveToolForm(); });
+
+        // Editor: cada campo escribe en el borrador y repinta el schema que ve el modelo.
+        $(document).on('input', '#tfName, #tfLabel, #tfDescription, #tfCategory, #tfEndpoint', function () {
+            const map = { tfName: 'name', tfLabel: 'label', tfDescription: 'description', tfCategory: 'category', tfEndpoint: 'endpoint' };
+            const key = map[this.id];
+            _toolForm[key] = this.id === 'tfName' ? String(this.value || '').trim().toLowerCase() : this.value;
+            refreshToolSchema();
+        });
+        $(document).on('change', '#tfMethod', function () { _toolForm.method = this.value; });
+        $(document).on('change', '#tfIcon', function () {
+            _toolForm.icon = this.value;
+            $('#tfIconPreview').html('<i data-lucide="' + escAttr(this.value) + '"></i>');
+            if (global.lucide) global.lucide.createIcons();
+        });
+        $(document).on('click', '#tfAddParam', function () {
+            _toolForm.params.push({ name: '', type: 'string', description: '', required: false });
+            $('#tfParams').html(renderToolParamRows());
+            refreshToolSchema();
+            if (global.lucide) global.lucide.createIcons();
+        });
+        $(document).on('click', '#accountSettings [data-param-del]', function () {
+            _toolForm.params.splice(parseInt($(this).attr('data-param-del'), 10), 1);
+            $('#tfParams').html(renderToolParamRows());
+            refreshToolSchema();
+            if (global.lucide) global.lucide.createIcons();
+        });
+        $(document).on('input change', '.acct-p-name, .acct-p-type, .acct-p-desc, .acct-p-req', function () {
+            const p = _toolForm.params[parseInt($(this).closest('.acct-param-row').attr('data-param-i'), 10)];
+            if (!p) return;
+            const $el = $(this);
+            if ($el.hasClass('acct-p-name')) p.name = String(this.value || '').trim();
+            else if ($el.hasClass('acct-p-type')) p.type = this.value;
+            else if ($el.hasClass('acct-p-desc')) p.description = this.value;
+            else p.required = this.checked;
+            refreshToolSchema();
+        });
+        $(document).on('click', '#tfAddHeader', function () {
+            _toolForm.headers.push({ key: '', value: '' });
+            $('#tfHeaders').html(renderToolHeaderRows());
+            if (global.lucide) global.lucide.createIcons();
+        });
+        $(document).on('click', '#accountSettings [data-header-del]', function () {
+            _toolForm.headers.splice(parseInt($(this).attr('data-header-del'), 10), 1);
+            $('#tfHeaders').html(renderToolHeaderRows());
+            if (global.lucide) global.lucide.createIcons();
+        });
+        $(document).on('input', '.acct-h-key, .acct-h-value', function () {
+            const h = _toolForm.headers[parseInt($(this).closest('.acct-header-row').attr('data-header-i'), 10)];
+            if (!h) return;
+            if ($(this).hasClass('acct-h-key')) h.key = String(this.value || '').trim();
+            else h.value = this.value;
+        });
+        $(document).on('click', '#tfTest', function () { testToolForm(); });
+        $(document).on('click', '#accountSettings [data-scope-key]', function () {
+            toggleToolScope($(this).attr('data-scope-kind'), $(this).attr('data-scope-key'));
         });
 
         // Modal "Mejorar plan" (registro manual de cuentas Claude; nodo creado al abrir).

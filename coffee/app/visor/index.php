@@ -396,9 +396,23 @@
                         <span class="cs-brand-mark cs-brand-ink" title="CoffeeSoft"><?php include __DIR__ . '/brand-mark.php'; ?></span>
                         <span><span class="cs-agent-coffee">Coffee</span><span class="cs-agent-suffix">IA</span></span>
                     </div>
-                    <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
+                    <!-- Gesti&oacute;n de la conversaci&oacute;n: vive en la cabecera, no en el menu
+                         de herramientas (que queda para carpeta, diagramas y tools). -->
+                    <div class="ia-drawer-actions">
+                        <button id="iaNewChatBtn" class="ia-drawer-close" title="Nueva conversaci&oacute;n (la actual queda en Chats guardados)">
+                            <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+                        </button>
+                        <button id="iaSaveChatBtn" class="ia-drawer-close" title="Guardar conversaci&oacute;n">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                        </button>
+                        <button id="iaSavedChatsBtn" class="ia-drawer-close" title="Chats guardados">
+                            <i data-lucide="messages-square" class="w-4 h-4"></i>
+                        </button>
+                        <span class="ia-drawer-actions-sep"></span>
+                        <button id="btnCloseIA" class="ia-drawer-close" title="Cerrar (Esc)">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </header>
 
                 <div id="iaDrawerContext" class="ia-drawer-context">
@@ -458,27 +472,24 @@
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo Layout">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
-                        <button id="iaClearBtn" class="ia-attach-btn" title="Limpiar conversaci&oacute;n (borra los mensajes actuales)">
-                            <i data-lucide="trash-2" class="w-3 h-3"></i>
-                        </button>
                         <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
                         <div class="ia-tools-wrap" style="position:relative;">
                             <button id="iaToolsBtn" class="ia-attach-btn" title="Herramientas del chat">
                                 <i data-lucide="wrench" class="w-3 h-3"></i>
                             </button>
                             <div id="iaToolsMenu" class="graph-menu graph-menu-up" style="display:none;">
-                                <button type="button" class="graph-menu-item" data-tool="save">
-                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                <button type="button" class="graph-menu-item" data-tool="folderdoc">
+                                    <i data-lucide="folder-down" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Guardar conversaci&oacute;n</span>
-                                        <span class="graph-menu-desc">Guarda el chat actual</span>
+                                        <span class="graph-menu-name">Documentar en la carpeta</span>
+                                        <span class="graph-menu-desc">Guarda el chat en la carpeta conectada</span>
                                     </span>
                                 </button>
-                                <button type="button" class="graph-menu-item" data-tool="saved">
-                                    <i data-lucide="messages-square" class="w-4 h-4"></i>
+                                <button type="button" class="graph-menu-item" data-tool="folderdocs">
+                                    <i data-lucide="history" class="w-4 h-4"></i>
                                     <span class="graph-menu-info">
-                                        <span class="graph-menu-name">Chats guardados</span>
-                                        <span class="graph-menu-desc">Abre conversaciones previas</span>
+                                        <span class="graph-menu-name">Retomar de la carpeta</span>
+                                        <span class="graph-menu-desc">Abre una conversaci&oacute;n documentada</span>
                                     </span>
                                 </button>
                                 <div class="graph-menu-sep"></div>
@@ -511,6 +522,28 @@
                                         <span class="graph-menu-desc">Boceto a mano alzada</span>
                                     </span>
                                     <i data-lucide="chevron-right" class="graph-menu-caret w-4 h-4"></i>
+                                </button>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item has-submenu" data-tool="agenttools">
+                                    <i data-lucide="toy-brick" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Herramientas del agente</span>
+                                        <span class="graph-menu-desc" id="iaAgentToolsDesc">Elige qu&eacute; puede hacer CoffeeIA</span>
+                                    </span>
+                                    <i data-lucide="chevron-right" class="graph-menu-caret w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <!-- Submenu de herramientas del agente: activar/desactivar sin salir del chat -->
+                            <div id="iaAgentToolsSubmenu" class="graph-menu graph-submenu" style="display:none;">
+                                <div class="graph-submenu-title">Herramientas del agente</div>
+                                <div id="iaAgentToolsList"></div>
+                                <div class="graph-menu-sep"></div>
+                                <button type="button" class="graph-menu-item" data-agenttool-manage="1">
+                                    <i data-lucide="settings-2" class="w-4 h-4"></i>
+                                    <span class="graph-menu-info">
+                                        <span class="graph-menu-name">Gestionar herramientas</span>
+                                        <span class="graph-menu-desc">Crear, editar y probar las tuyas</span>
+                                    </span>
                                 </button>
                             </div>
                             <!-- Submenu de Excalidraw: elige plantilla o modo libre -->
@@ -729,6 +762,7 @@
     <script src="src/js/html-stage.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 

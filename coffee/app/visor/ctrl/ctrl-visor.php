@@ -991,7 +991,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
 // iconKey se valida contra esta lista blanca; debe coincidir con DOC_KINDS en
 // visor.js. Agregar un tipo = una entrada aqui y otra alla.
 function coffee_visor_icon_keys() {
-    return ['db', 'flow', 'feat', 'plan', 'idea', 'note', 'dash', 'log', 'bug', 'guide'];
+    return ['chat', 'db', 'flow', 'feat', 'plan', 'idea', 'note', 'dash', 'log', 'bug', 'guide'];
 }
 
 function coffee_visor_icons_file() {
@@ -1289,7 +1289,10 @@ function parseFrontmatter($raw) {
     $fm = [
         'name'        => null, 'description' => null, 'model' => null,
         'type'        => null, 'project'     => null,
-        'status'      => null, 'date'        => null
+        'status'      => null, 'date'        => null,
+        // Marcador de las conversaciones de CoffeeIA guardadas en la carpeta
+        // (ctrl-fs-notes.php): el explorador las pinta con icono de bot.
+        'coffeeia'    => null
     ];
     if (preg_match('/^---\r?\n(.*?)\r?\n---/s', $raw, $m)) {
         $block = $m[1];

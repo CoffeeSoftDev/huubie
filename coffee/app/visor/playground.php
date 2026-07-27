@@ -543,6 +543,7 @@
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>

@@ -8,5 +8,6 @@
     "coffee/app/visor/documents/GrupoVaroch/Menu/Features mermas.md": "note",
     "coffee/app/visor/documents/GrupoVaroch/Encuestas/todo.json": "dash",
     "coffee/app/visor/documents/Huubie/todo.json": "bug",
-    "coffee/app/visor/documents/Playground/todo-playground.json": "idea"
+    "coffee/app/visor/documents/Playground/todo-playground.json": "idea",
+    "coffee/app/visor/documents/Huubie/Facturador/plan-facturador.md": "db"
 }
