@@ -12,6 +12,10 @@ const VISOR_SHORTCUTS_KEY      = 'visor:shortcuts:v1';       // [{id,name,url,ic
 const VISOR_RECENT_VIEWS_KEY   = 'visor:recentViews:v1';    // [{file,project,type,ts}]
 const VISOR_RECENT_CREATED_KEY = 'visor:recentCreated:v1';  // [{file,project,type,ts}]
 const VISOR_QA_UI_KEY          = 'visor:qa:ui:v1';          // colapsado + pestaña activa (local)
+// Ultimo archivo abierto POR CARPETA, para retomar donde se quedo: { carpeta: {file,fullPath,ts} }.
+// Solo markdown/TODO (ver isRestorable) y solo en este navegador: no se espeja en prefs.sqlite.
+const VISOR_LAST_OPEN_KEY      = 'visor:lastOpen:v1';
+const LAST_OPEN_MAX  = 30;   // carpetas recordadas; se descartan las mas viejas
 const QA_RECENT_MAX  = 25;
 // Iconos (claves lucide) ofrecidos al crear un acceso directo.
 const SHORTCUT_ICONS = ['link','globe','external-link','kanban-square','database','table','folder','github','layout-dashboard','book-open','file-text','server'];
@@ -25,7 +29,10 @@ const EDITABLE_EXTS = [
 ];
 
 // Hojas de calculo que acepta el modal de subida (las pinta SheetJS).
-const SHEET_EXTS     = ['xlsx','xlsm','xlsb','xls','ods','csv','tsv'];
+// Las binarias se bajan enteras y SheetJS las parsea hoja por hoja: nunca se abren
+// solas al arrancar o al cambiar de carpeta (ver App.autoOpenTarget).
+const BINARY_SHEET_EXTS = ['xlsx','xlsm','xlsb','xls','ods'];
+const SHEET_EXTS     = [...BINARY_SHEET_EXTS, 'csv', 'tsv'];
 const SHEET_MAX_BYTES = 25 * 1024 * 1024;
 
 // Medios que el visor previsualiza sin convertir: las imagenes en un <img> y los
@@ -688,6 +695,67 @@ class App {
         } catch (e) { /* quota / private mode — ignorar */ }
     }
 
+    // Una hoja binaria (.xlsx/.xls/.ods) se descarga completa y SheetJS la parsea con
+    // todas sus pestañas: abrirla sin que el usuario la pida congela el arranque.
+    isBinarySheet(file) {
+        if (!file) return false;
+        if (file.lazyBinary) return true;
+        const ext = (file.file || '').split('.').pop().toLowerCase();
+        return BINARY_SHEET_EXTS.includes(ext);
+    }
+
+    // Lo unico que se reabre solo: markdown y paneles TODO. Son texto que ya viene en
+    // el arbol, se pintan al instante. Los documentos (hojas de calculo, codigo, pdf)
+    // se abren a mano — es lo que hacia lento entrar a una carpeta.
+    isRestorable(file) {
+        if (!file || !file.file || this.isBinarySheet(file)) return false;
+        return this._isMarkdown(file) || visorView._isTodoJson(file);
+    }
+
+    // El recuerdo es POR CARPETA: la clave combina la biblioteca activa con su ruta
+    // custom. Drive queda fuera (volatil: sus ids cambian con el service account).
+    folderKey() {
+        const folder = this.settings.folder || '';
+        if (!folder || this.isDriveFolder(folder)) return '';
+        return folder + '|' + (this.settings.customPath || '');
+    }
+
+    // Guarda el archivo abierto como "donde me quede" de esta carpeta. Un documento no
+    // se registra ni pisa al markdown anterior: al volver se retoma ese markdown.
+    rememberLastOpen(file) {
+        const key = this.folderKey();
+        if (!key || !this.isRestorable(file)) return;
+        const all = this._qaLoadJSON(VISOR_LAST_OPEN_KEY, {}) || {};
+        delete all[key];   // reinserta al final: el objeto conserva el orden de escritura
+        all[key] = { file: file.file, fullPath: file.fullPath || '', ts: Date.now() };
+        // Recorte por antiguedad: sin esto el mapa crece con cada carpeta visitada.
+        // Se ordena por ts y, cuando empatan (mismo ms), gana la escrita mas tarde:
+        // por eso se parte del orden de insercion invertido y el sort es estable.
+        const keys = Object.keys(all).reverse();
+        if (keys.length > LAST_OPEN_MAX) {
+            keys.sort((a, b) => (all[b].ts || 0) - (all[a].ts || 0))
+                .slice(LAST_OPEN_MAX)
+                .forEach(k => delete all[k]);
+        }
+        this._qaSaveJSON(VISOR_LAST_OPEN_KEY, all);
+    }
+
+    // Archivo que se abre solo al entrar o al cambiar de carpeta: el ultimo markdown
+    // /TODO que se vio en ESA carpeta, re-resuelto contra la biblioteca vigente (por
+    // ruta, para no confundir homonimos). null => pantalla de "elige un archivo": nada
+    // se abre solo sin que lo hayas abierto tu antes.
+    autoOpenTarget() {
+        const key = this.folderKey();
+        if (!key) return null;
+        const entry = (this._qaLoadJSON(VISOR_LAST_OPEN_KEY, {}) || {})[key];
+        if (!entry) return null;
+        const norm  = s => String(s || '').replace(/\\/g, '/');
+        const found = (this.allFiles || []).find(f => entry.fullPath
+            ? norm(f.fullPath) === norm(entry.fullPath)
+            : f.file === entry.file);
+        return this.isRestorable(found) ? found : null;
+    }
+
     async init() {
         visorView.applyTheme(this.settings.theme);
         visorView.applyDocStyle(this.settings.docStyle);
@@ -733,8 +801,7 @@ class App {
             };
             this.allFiles = [...this.dataInit.agents, ...this.dataInit.grimoires];
         }
-        const initial = this.allFiles[0]?.file || 'CoffeeIA.md';
-        this.render(initial);
+        this.render(this.autoOpenTarget());
         this.bind();
         this._maybeOpenDiagramFromUrl();
     }
@@ -765,14 +832,25 @@ class App {
         board.open({ file: name, raw: payload.content });
     }
 
+    // initialFile: objeto de allFiles (o null para arrancar sin archivo abierto).
     render(initialFile) {
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
         visorView.renderFooter(this.dataInit);
         visorView.renderSidebar(this.dataInit, this.currentFile, '');
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
         this.updateNewFileButton();
-        this.loadFile(initialFile);
+        if (initialFile) this.loadFile(initialFile.file, initialFile);
+        else             this.showEmptyMain();
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Sin archivo abierto: pantalla neutra ('pick' si hay archivos que elegir) y la
+    // barra de acciones coherente (nada que editar).
+    showEmptyMain() {
+        visorView.renderEmptyMain(this.allFiles.length ? 'pick' : 'empty');
+        this.currentFile    = null;
+        this.currentFileObj = null;
+        this.updateEditButton();
     }
 
     bind() {
@@ -795,6 +873,16 @@ class App {
             this.bindSidebarClicks();
             if (match) this.loadFile(match.file);
             if (window.lucide) lucide.createIcons();
+        });
+
+        // Pantalla "elige un archivo": el boton abre el sidebar y enfoca su buscador.
+        $('#md-rendered').on('click', '#btnPickFile', () => {
+            if (this.settings.sidebarCollapsed) {
+                this.settings.sidebarCollapsed = false;
+                this.saveSettings();
+                this.applySidebarCollapsed(false, true);
+            }
+            $('#sidebarSearch').trigger('focus');
         });
 
         this.bindSidebarClicks();
@@ -1713,9 +1801,9 @@ class App {
         this.currentFileObj = null;
         this.pinnedFiles    = this.loadPinned();
         if (coffeeIA) coffeeIA._renderPinnedChips();
-        const target = (this._pendingOpen && this.allFiles.find(f => f.file === this._pendingOpen))
-            ? this._pendingOpen
-            : this.allFiles[0]?.file;
+        // _pendingOpen (archivo recien creado/renombrado) manda sobre el recuerdo.
+        const target = this.allFiles.find(f => f.file === this._pendingOpen)
+            || this.autoOpenTarget();
         this._pendingOpen = null;
 
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
@@ -1724,8 +1812,8 @@ class App {
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
         this.updateNewFileButton();
         this.bindSidebarClicks();
-        if (target) this.loadFile(target);
-        else        visorView.renderEmptyMain();
+        if (target) this.loadFile(target.file, target);
+        else        this.showEmptyMain();
         visorView.toast(data.header.currentLabel + ': ' + this.allFiles.length + ' archivos', 'success');
         if (window.lucide) lucide.createIcons();
     }
@@ -1755,14 +1843,15 @@ class App {
             // Reabrir el archivo actual por su RUTA (no por nombre): con varios
             // todo.json el nombre solo reabriría el primero que coincida.
             const stillExists = this.currentFileRef();
-            const target      = stillExists ? stillExists.file : this.allFiles[0]?.file;
+            const target      = stillExists || this.autoOpenTarget();
 
             visorView.renderHeader(this.dataInit.header, this.allFiles.length);
             visorView.renderFooter(this.dataInit);
             visorView.renderSidebar(this.dataInit, this.currentFile, '');
             this.updateNewFileButton();
             this.bindSidebarClicks();
-            if (target) this.loadFile(target, stillExists || undefined);
+            if (target) this.loadFile(target.file, target);
+            else        this.showEmptyMain();
             visorView.toast('Biblioteca actualizada (' + this.allFiles.length + ' archivos)', 'success');
         } else {
             visorView.toast('Backend no disponible — sin cambios', 'warn');
@@ -2542,7 +2631,8 @@ class App {
             const found = (this.allFiles || []).find(f => norm(f.fullPath) === norm(fp));
             if (found) return found;
         }
-        return this.currentFileRef();
+        // Sin fullPath (Drive, sample) o si ya no esta en la biblioteca: caer al nombre.
+        return visor.getFile(this.allFiles || [], this.currentFile);
     }
 
     async loadFile(fileName, fileObj) {
@@ -2628,6 +2718,8 @@ class App {
 
         // Registrar la apertura para la pestaña "Vistos" del acceso rapido.
         this.recordView(file);
+        // ...y como "donde me quede" de esta carpeta (solo si es markdown/TODO).
+        this.rememberLastOpen(file);
 
         // Mantener sincronizado el contexto de CoffeeIA con el archivo abierto.
         if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._syncContext) {
@@ -4261,13 +4353,24 @@ class VisorView {
         return `<ul class="toc-tree">${rows}</ul>`;
     }
 
-    renderEmptyMain() {
-        $('#md-rendered').html(`
+    // reason 'empty' = la carpeta no tiene nada que abrir; 'pick' = si hay archivos pero
+    // ninguno se abrio solo (no hay markdown/TODO recordado en esta carpeta).
+    renderEmptyMain(reason) {
+        const pick = reason === 'pick';
+        $('#md-rendered').removeClass('is-sheet').html(pick ? `
+            <div class="empty-state" style="padding:80px 20px;">
+                <i data-lucide="file-search" class="w-10 h-10"></i>
+                <p style="margin-top:8px;">Elige un archivo en la barra lateral</p>
+                <p style="margin-top:4px;font-size:11.5px;opacity:.75;">Solo se reabre solo el ultimo markdown o TODO de cada carpeta.</p>
+                <button id="btnPickFile" class="empty-state-btn">Buscar archivo</button>
+            </div>
+        ` : `
             <div class="empty-state" style="padding:80px 20px;">
                 <i data-lucide="folder-x" class="w-10 h-10"></i>
                 <p class="text-sm" style="margin-top:8px;">Carpeta vacia o sin archivos .md</p>
             </div>
         `);
+        $('body').removeClass('xlsx-view');
         $('#md-raw').text('');
         $('#lineCountChip').text('~ 0 lineas');
         $('#breadcrumbFile').text('—');

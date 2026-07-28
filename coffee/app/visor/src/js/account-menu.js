@@ -1268,6 +1268,16 @@
         try { localStorage.setItem(REMINDER_KEY, raw); } catch (e) {}
         persist(REMINDER_KEY, raw);
     }
+
+    // Notas de reinicio cerradas con la X (id -> ocurrencia). Persistido para que al
+    // recargar la página no vuelva a aparecer la misma ocurrencia ya descartada.
+    const NOTE_DISMISS_KEY = 'coffeeia:claude:resetPinDismissed';
+    function loadResetPinDismissed() { try { return JSON.parse(localStorage.getItem(NOTE_DISMISS_KEY)) || {}; } catch (e) { return {}; } }
+    function saveResetPinDismissed(m) {
+        const raw = JSON.stringify(m || {});
+        try { localStorage.setItem(NOTE_DISMISS_KEY, raw); } catch (e) {}
+        persist(NOTE_DISMISS_KEY, raw);
+    }
     // Fija/limpia el recordatorio (datetime) de una cuenta; reactiva el aviso si cambió.
     function setAccountReminder(id, val) {
         const list = loadAccounts();
@@ -1751,6 +1761,52 @@
         if (global.jQuery('#creditNotes').length) return;
         global.jQuery('body').append('<div id="creditNotes"></div>');
     }
+    // Sonido al aparecer una nota nueva: campanilla de dos notas sintetizada con WebAudio,
+    // distinta del "pop" del resto del visor. Si el navegador no expone AudioContext se cae
+    // al archivo pop_up.ogg. Solo suena cuando el nodo se crea: los refrescos del timer
+    // reusan el existente. El audio puede quedar bloqueado hasta que el usuario interactúe
+    // con la página; en ese caso se ignora en silencio.
+    let _noteAudioCtx = null;
+    let _noteSound = null;
+    let _muteNoteSound = false;
+    function noteAudioCtx() {
+        const Ctx = global.AudioContext || global.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!_noteAudioCtx) _noteAudioCtx = new Ctx();
+        if (_noteAudioCtx.state === 'suspended') _noteAudioCtx.resume();
+        return _noteAudioCtx;
+    }
+    function noteChime(ctx, freq, at, dur) {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, at);
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.linearRampToValueAtTime(0.18, at + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + dur);
+    }
+    function playNoteSound() {
+        if (_muteNoteSound) return;
+        try {
+            const ctx = noteAudioCtx();
+            if (ctx) {
+                const t = ctx.currentTime;
+                noteChime(ctx, 987.77, t, 0.35);          // Si5
+                noteChime(ctx, 1318.51, t + 0.11, 0.45);  // Mi6
+                return;
+            }
+            if (!_noteSound) {
+                _noteSound = new global.Audio('src/audio/pop_up.ogg');
+                _noteSound.volume = 0.6;
+            }
+            _noteSound.currentTime = 0;
+            const p = _noteSound.play();
+            if (p && p.catch) p.catch(function () {});
+        } catch (e) {}
+    }
     function showNotice(title, msg) {
         buildNotes();
         global.jQuery('#creditNotes').append(
@@ -1764,6 +1820,7 @@
           + '</div>'
         );
         if (global.lucide) global.lucide.createIcons();
+        playNoteSound();
     }
     // Constructor genérico de nota flotante (con X para cerrar), identificada por cuenta.
     // `cls` distingue el tipo (timer / reinicio); `key` marca la ocurrencia; `ttl` (ms) la auto-cierra.
@@ -1780,7 +1837,10 @@
         const $ex    = $notes.find('.' + cls + '[data-note-acc="' + accId + '"]');
         const keyAt  = (key == null) ? '' : ' data-note-key="' + escAttr(key) + '"';
         if ($ex.length) { $ex.html(inner); if (key != null) $ex.attr('data-note-key', key); }
-        else { $notes.append('<div class="credit-note ' + cls + '" data-note-acc="' + escAttr(accId) + '"' + keyAt + ' role="status">' + inner + '</div>'); }
+        else {
+            $notes.append('<div class="credit-note ' + cls + '" data-note-acc="' + escAttr(accId) + '"' + keyAt + ' role="status">' + inner + '</div>');
+            playNoteSound();
+        }
         if (global.lucide) global.lucide.createIcons();
         if (ttl) {   // aviso temporal: desaparece solo tras `ttl` ms
             const sel = '.' + cls + '[data-note-acc="' + accId + '"]';
@@ -1798,12 +1858,14 @@
     // Reconstruye las notas de timer de los recordatorios aún vigentes: quedan fijas
     // aunque se recargue la página (el reminderAt persiste en las cuentas).
     function restoreTimerPins() {
+        _muteNoteSound = true;   // reconstrucción tras recargar: no es una nota nueva
         loadAccounts().forEach(function (a) {
             if (!a.reminderAt) return;
             const ms = new Date(a.reminderAt).getTime() - Date.now();
             if (isNaN(ms) || ms <= 0) return;   // solo recordatorios que aún no vencen
             showTimerPin(a);
         });
+        _muteNoteSound = false;
     }
     // (B) Reinicio de créditos. El día del reinicio queda FIJO; el día antes ("Mañana…")
     // es un aviso que desaparece solo (autoHide = true) y dice a qué hora se reinician.
@@ -1834,7 +1896,7 @@
 
     let _clockTimer = null;
     let _alerted = {};             // ids ya avisados en su ventana inminente actual (evita repetir el toast)
-    let _resetPinDismissed = {};   // ocurrencia de reinicio (día del) que el usuario cerró con la X (id -> key)
+    let _resetPinDismissed = loadResetPinDismissed();   // ocurrencia de reinicio que el usuario cerró con la X (id -> key)
     let _resetTomorrowShown = {};  // ocurrencia cuyo aviso "Mañana…" ya se mostró (id -> key), para no repetir
     function clockTick() {
         refreshClockBadge();
@@ -1855,7 +1917,7 @@
                     if (_resetPinDismissed[a.id] !== info.secondary) showResetPin(a, info.secondary, false);
                 } else if (info.days === 1) {
                     // Un día antes: aviso "Mañana…" que desaparece solo, una sola vez por ocurrencia.
-                    if (_resetTomorrowShown[a.id] !== info.secondary) {
+                    if (_resetTomorrowShown[a.id] !== info.secondary && _resetPinDismissed[a.id] !== info.secondary) {
                         _resetTomorrowShown[a.id] = info.secondary;
                         showResetPin(a, info.secondary, true);
                     }
@@ -1978,6 +2040,7 @@
             const $n = $(this).closest('.credit-note');
             if ($n.hasClass('credit-note-reset')) {
                 _resetPinDismissed[$n.attr('data-note-acc')] = $n.attr('data-note-key') || '1';
+                saveResetPinDismissed(_resetPinDismissed);
             }
             $n.remove();
         });

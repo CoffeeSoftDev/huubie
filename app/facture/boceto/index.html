@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<script data-sandbox-shim>(function(){try{window.localStorage.getItem("__t")}catch(e){var mk=function(){var m={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}};try{Object.defineProperty(window,"localStorage",{value:mk(),configurable:true});Object.defineProperty(window,"sessionStorage",{value:mk(),configurable:true})}catch(e2){}}})();(function(){var seen={},n=0;var send=function(kind,message,source,line,col){if(n>=30)return;var key=kind+"|"+message+"|"+line;if(seen[key])return;seen[key]=1;n++;try{parent.postMessage({__pgRuntime:1,kind:kind,message:String(message).slice(0,400),source:String(source||"").split("/").pop().split("?")[0],line:line||0,col:col||0},"*")}catch(e){}};window.addEventListener("error",function(e){var t=e.target;if(t&&t!==window&&(t.src||t.href)){send("resource","No se pudo cargar "+String(t.src||t.href).split("/").pop().split("?")[0],"",0,0);return}send("js",e.message||"Error de JavaScript",e.filename,e.lineno,e.colno)},true);window.addEventListener("unhandledrejection",function(e){var r=e.reason;send("promise",(r&&(r.message||r))||"Promesa rechazada sin motivo","",0,0)});var ce=console.error;console.error=function(){send("console",Array.prototype.map.call(arguments,function(a){return a&&a.message?a.message:String(a)}).join(" "),"",0,0);return ce.apply(console,arguments)}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facturador SAT · CoffeeSoft</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: { colors: {
+    brand: {50:'#FBF1ED',100:'#F5E3DC',200:'#F0C4B5',300:'#E9A38F',400:'#E08A70',500:'#C05A40',600:'#A84A33',700:'#8F3D2A',800:'#6E2F20',900:'#4E2117'},
+    ink:   {900:'#111928',700:'#374151',600:'#4B5563',500:'#6B7280',400:'#9CA3AF',300:'#D1D5DB',200:'#E5E7EB',100:'#F3F4F6',50:'#F9FAFB'}
+  }}}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-ink-100 text-ink-900 min-h-screen flex flex-col">
+
+<!-- ==================== TOPBAR ==================== -->
+<header class="bg-white border-b border-ink-200 sticky top-0 z-40">
+  <div class="max-w-[1600px] mx-auto px-4 h-14 flex items-center gap-3">
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div class="w-9 h-9 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center">
+        <i data-lucide="receipt-text" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-ink-900 leading-tight">Facturador SAT</h1>
+        <p class="text-[10px] text-ink-500 leading-tight">Control de tickets · Restaurant</p>
+      </div>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- selector de periodo compacto -->
+    <div class="hidden md:flex items-center gap-2 bg-ink-50 rounded-lg px-3 py-1.5 border border-ink-200">
+      <i data-lucide="calendar-days" class="w-4 h-4 text-ink-400"></i>
+      <select id="periodMonth" class="bg-transparent text-xs font-semibold text-ink-700 focus:outline-none cursor-pointer">
+        <option value="2026-06" selected>Junio 2026</option>
+        <option value="2026-05">Mayo 2026</option>
+        <option value="2026-04">Abril 2026</option>
+      </select>
+      <div class="w-px h-4 bg-ink-300"></div>
+      <input id="periodDay" type="date" value="2026-06-10" class="bg-transparent text-xs font-semibold text-ink-700 focus:outline-none cursor-pointer">
+    </div>
+
+    <div class="flex items-center gap-2 pl-3 border-l border-ink-200">
+      <div class="w-8 h-8 rounded-full bg-brand-500 text-white text-[11px] font-bold flex items-center justify-center">AP</div>
+      <div class="hidden sm:block">
+        <p class="text-[11px] font-semibold text-ink-800 leading-tight">Administrador POS</p>
+        <p class="text-[10px] text-ink-400 leading-tight">Sucursal Tapachula</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- tabs principales -->
+  <nav class="max-w-[1600px] mx-auto px-4">
+    <div id="mainTabs" class="flex gap-1 overflow-x-auto scroll-thin">
+      <button class="tab-btn active" data-tab="dashboard"><i data-lucide="layout-dashboard"></i>Resumen</button>
+      <button class="tab-btn" data-tab="uploads"><i data-lucide="upload-cloud"></i>Cargas</button>
+      <button class="tab-btn" data-tab="tickets"><i data-lucide="receipt"></i>Tickets</button>
+      <button class="tab-btn" data-tab="generator"><i data-lucide="printer"></i>Generador</button>
+      <button class="tab-btn" data-tab="catalogs"><i data-lucide="library"></i>Catálogos</button>
+    </div>
+  </nav>
+</header>
+
+<!-- ==================== MAIN ==================== -->
+<main class="flex-1 max-w-[1600px] mx-auto w-full px-4 py-5">
+
+<!-- ============================================================ -->
+<!-- TAB DASHBOARD: resumen ejecutivo del día                      -->
+<!-- ============================================================ -->
+<section id="tab-dashboard" class="tab-panel active">
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-ink-900">Resumen del día · <span id="dashDateLabel">10 de junio de 2026</span></h2>
+      <p class="text-[11px] text-ink-500">Meta de facturación: <b class="text-ink-700">70%</b> de la venta del día facturada al 16% de IVA.</p>
+    </div>
+    <button id="btnRecalc" class="btn-ghost"><i data-lucide="refresh-cw"></i>Recalcular</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-semibold text-ink-500 uppercase tracking-wide">Venta total</span>
+        <i data-lucide="banknote" class="w-4 h-4 text-ink-400"></i>
+      </div>
+      <p class="text-xl font-extrabold text-ink-900" id="kpiTotal">$31,843.90</p>
+      <p class="text-[10px] text-ink-400 mt-1">42 tickets · efectivo + tarjeta</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-semibold text-ink-500 uppercase tracking-wide">Meta al 70%</span>
+        <i data-lucide="target" class="w-4 h-4 text-brand-500"></i>
+      </div>
+      <p class="text-xl font-extrabold text-ink-900" id="kpiTarget">$22,290.73</p>
+      <p class="text-[10px] text-ink-400 mt-1">monto objetivo al 16%</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-semibold text-ink-500 uppercase tracking-wide">Ya facturado</span>
+        <i data-lucide="lock" class="w-4 h-4 text-green-600"></i>
+      </div>
+      <p class="text-xl font-extrabold text-green-700" id="kpiInvoiced">$2,978.30</p>
+      <p class="text-[10px] text-ink-400 mt-1">2 órdenes bloqueadas</p>
+    </div>
+    <div class="card-base p-4">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-semibold text-ink-500 uppercase tracking-wide">Por facturar</span>
+        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500"></i>
+      </div>
+      <p class="text-xl font-extrabold text-brand-600" id="kpiPending">$19,312.43</p>
+      <p class="text-[10px] text-ink-400 mt-1">meta − facturado</p>
+    </div>
+  </div>
+
+  <!-- progreso -->
+  <div class="card-base p-4 mb-5">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-[11px] font-semibold text-ink-700">Avance de la meta de facturación</span>
+      <span class="text-[11px] font-bold text-brand-600" id="kpiProgress">13.4%</span>
+    </div>
+    <div class="prog-track"><div id="kpiProgressBar" class="prog-fill" style="width:13.4%"></div></div>
+    <div class="flex justify-between mt-2 text-[10px] text-ink-400">
+      <span id="progressInvoiced">$2,978.30 facturado</span>
+      <span id="progressTarget">objetivo $22,290.73</span>
+    </div>
+  </div>
+
+  <!-- paneles del dashboard -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+    <!-- Acumulado total real -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="sigma" class="w-4 h-4 text-ink-400"></i>Acumulado total real</h3>
+        <span class="badge-base b-gray">todos los pagos</span>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-72">
+        <table>
+          <thead><tr><th>ID</th><th>Orden</th><th>Forma de pago</th><th class="text-right">Monto</th></tr></thead>
+          <tbody id="dashAllBody"></tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-ink-100 bg-ink-50">
+        <div class="flex justify-between text-[11px] font-semibold text-ink-800">
+          <span>Total del día</span><span id="dashAllTotal">$0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Por facturar -->
+    <div class="card-base overflow-hidden flex flex-col">
+      <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="file-clock" class="w-4 h-4 text-amber-500"></i>Por facturar</h3>
+        <span class="badge-base b-yellow">solo tarjeta</span>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-56">
+        <table>
+          <thead><tr><th><input type="checkbox" id="chkPendingAll" class="accent-brand-500"></th><th>ID</th><th>Orden</th><th class="text-right">Monto</th></tr></thead>
+          <tbody id="dashPendingBody"></tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-ink-100 bg-brand-50 mt-auto">
+        <div class="flex justify-between text-[11px] mb-1">
+          <span class="text-ink-600 font-semibold">Suma seleccionada</span>
+          <span class="font-bold text-brand-600" id="dashPendingSum">$0.00</span>
+        </div>
+        <div class="flex justify-between text-[10px] text-ink-500">
+          <span>Objetivo restante</span><span id="dashRemaining">$0.00</span>
+        </div>
+        <button id="btnSendToInvoice" class="btn-primary w-full justify-center mt-3" disabled><i data-lucide="send"></i>Enviar a facturar</button>
+      </div>
+    </div>
+
+    <!-- Facturados -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="lock" class="w-4 h-4 text-green-600"></i>Facturados</h3>
+        <span class="badge-base b-green">bloqueados</span>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-72">
+        <table>
+          <thead><tr><th>ID</th><th>Orden</th><th>Folio</th><th class="text-right">Monto</th></tr></thead>
+          <tbody id="dashInvoicedBody"></tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t border-ink-100 bg-ink-50">
+        <div class="flex justify-between text-[11px] font-semibold text-ink-800">
+          <span>Monto facturado</span><span id="dashInvoicedTotal" class="text-green-700">$0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB UPLOADS: carga de archivos mensuales                      -->
+<!-- ============================================================ -->
+<section id="tab-uploads" class="tab-panel">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-ink-900">Cargas mensuales</h2>
+      <p class="text-[11px] text-ink-500">Sube los tres exports del POS en el orden correcto. Cada pestaña indica el archivo exacto y las hojas que se leerán.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="uploadMonth" class="input-base"><option selected>Junio</option><option>Mayo</option><option>Abril</option></select>
+      <select id="uploadYear" class="input-base"><option selected>2026</option><option>2025</option></select>
+    </div>
+  </div>
+
+  <!-- sub-tabs de archivos -->
+  <nav class="mb-4">
+    <div id="uploadSubTabs" class="flex gap-2 overflow-x-auto scroll-thin pb-1">
+      <button class="subtab-btn active" data-subtab="sales-report">
+        <span class="subtab-icon excel"><i data-lucide="sheet"></i></span>
+        <span class="subtab-label">Reporte de ventas</span>
+        <span class="subtab-hint">sale + payments</span>
+      </button>
+      <button class="subtab-btn" data-subtab="commands">
+        <span class="subtab-icon excel"><i data-lucide="sheet"></i></span>
+        <span class="subtab-label">Comandas</span>
+        <span class="subtab-hint">detail_sale</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- sub-panel: Reporte de ventas -->
+  <div id="subtab-sales-report" class="subtab-panel active">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-5">
+      <!-- tarjeta principal: archivo unico -->
+      <div class="xl:col-span-2 card-base p-4">
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-12 h-12 rounded-xl bg-green-50 text-green-700 flex items-center justify-center shrink-0 border border-green-200">
+            <i data-lucide="sheet" class="w-6 h-6"></i>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-bold text-ink-900">Reporte de ventas</h3>
+              <span class="excel-badge">XLSX</span>
+            </div>
+            <p class="text-[10px] text-ink-500">Sube un solo archivo. El sistema detecta automaticamente si la hoja es <b>“Reporte de ventas”</b> (tickets) o <b>“Pagos”</b> (formas de pago) y la envia a la tabla correspondiente.</p>
+          </div>
+        </div>
+        <div class="upload-zone mb-3" data-type="sales-report">
+          <div class="flex-1">
+            <p class="text-[12px] font-semibold text-ink-800">Arrastra el Excel aqui o haz clic para buscar</p>
+            <p class="text-[10px] text-ink-500">Archivo esperado: <b>Reporte_De_Ventas_YYYYMMDD.xlsx</b></p>
+          </div>
+          <span class="badge-base b-green status-badge"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Tickets</p><p class="text-sm font-bold text-ink-900">3,821</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Pagos</p><p class="text-sm font-bold text-ink-900">3,909</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Vencidos</p><p class="text-sm font-bold text-ink-900">3,565</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Control total</p><p class="text-sm font-bold text-brand-600">$2,644,933.30</p></div>
+        </div>
+      </div>
+
+      <!-- detector de hojas -->
+      <div class="card-base p-4 flex flex-col">
+        <h4 class="text-[11px] font-bold text-ink-800 mb-3 flex items-center gap-2"><i data-lucide="scan" class="w-4 h-4 text-ink-400"></i>Hojas detectadas</h4>
+        <div class="space-y-3 flex-1">
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-100">
+            <div class="w-8 h-8 rounded-lg bg-white text-green-600 flex items-center justify-center shadow-sm"><i data-lucide="receipt-text" class="w-4 h-4"></i></div>
+            <div class="flex-1">
+              <p class="text-[11px] font-bold text-ink-800">Reporte de ventas</p>
+              <p class="text-[9px] text-ink-500">columnas A:J · fila 8 · 3,821 tickets</p>
+            </div>
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-green-600"></i>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <div class="w-8 h-8 rounded-lg bg-white text-blue-600 flex items-center justify-center shadow-sm"><i data-lucide="credit-card" class="w-4 h-4"></i></div>
+            <div class="flex-1">
+              <p class="text-[11px] font-bold text-ink-800">Pagos</p>
+              <p class="text-[9px] text-ink-500">columnas A:H · fila 8 · 3,909 pagos</p>
+            </div>
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-blue-600"></i>
+          </div>
+        </div>
+        <div class="mt-3 bg-ink-50 border border-ink-200 rounded-lg p-2.5">
+          <p class="text-[10px] text-ink-600 flex items-start gap-2">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-ink-400 shrink-0 mt-[1px]"></i>
+            <span>El sistema identifica la hoja por el nombre exacto y la estructura de columnas.</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-ink-50 border border-ink-200 rounded-lg p-3 mb-5">
+      <p class="text-[11px] text-ink-600 flex items-start gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-ink-400 shrink-0 mt-[1px]"></i>
+        <span>El sistema detecta automaticamente si la hoja es <b>“Reporte de ventas”</b> o <b>“Pagos”</b> por su nombre y estructura de columnas. Puedes subir un Excel con ambas hojas o solo una.</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- sub-panel: Comandas -->
+  <div id="subtab-commands" class="subtab-panel">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-5">
+      <div class="xl:col-span-2 card-base p-4">
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><i data-lucide="utensils" class="w-5 h-5"></i></div>
+          <div class="flex-1">
+            <h3 class="text-[13px] font-bold text-ink-900">Archivo de comandas</h3>
+            <p class="text-[10px] text-ink-500">Renglones del POS: qué se consumió, mesa, mesero y tiempos. Se guarda fila por fila tal cual viene en el Excel.</p>
+          </div>
+        </div>
+        <div class="upload-zone pending mb-3" data-type="commands-sheet">
+          <span class="excel-badge xls">XLS</span>
+          <div class="flex-1">
+            <p class="text-[12px] font-semibold text-ink-800">Arrastra el Excel aquí o haz clic para buscar</p>
+            <p class="text-[10px] text-ink-500">Archivo esperado: <b>comandas.xls</b> · columnas A:L · header fila 1</p>
+          </div>
+          <span class="badge-base b-yellow status-badge"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Renglones</p><p class="text-sm font-bold text-ink-900">—</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Cuentas</p><p class="text-sm font-bold text-ink-900">—</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Productos</p><p class="text-sm font-bold text-ink-900">—</p></div>
+          <div class="bg-ink-50 rounded-lg p-2"><p class="text-[10px] text-ink-500">Monto</p><p class="text-sm font-bold text-ink-900">—</p></div>
+        </div>
+      </div>
+
+      <div class="card-base p-4">
+        <h4 class="text-[11px] font-bold text-ink-800 mb-2 flex items-center gap-2"><i data-lucide="list" class="w-4 h-4 text-ink-400"></i>Columnas que se leen</h4>
+        <ul class="text-[10px] text-ink-600 space-y-1.5">
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">A</span> foliocomanda</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">B</span> foliocuenta</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">C</span> orden (mesa)</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">D</span> fechaapertura</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">E</span> fechacierre</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">F</span> mesero</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">G</span> claveproducto</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">H</span> fechadecaptura</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">I</span> descripcion</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">J</span> cantidad</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">K</span> descuento</li>
+          <li class="flex items-center gap-2"><span class="w-5 h-5 rounded bg-ink-100 text-ink-500 flex items-center justify-center font-mono text-[9px]">L</span> importe</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- log de carga -->
+  <div class="card-base overflow-hidden">
+    <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+      <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-ink-400"></i>Bitácora de carga</h3>
+      <button id="btnClearLog" class="btn-ghost !py-1 !px-2 text-[11px]"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Limpiar</button>
+    </div>
+    <div class="overflow-auto scroll-thin max-h-56">
+      <table class="min-w-[900px]">
+        <thead><tr><th>Hora</th><th>Archivo</th><th>Hoja</th><th>Filas</th><th>Control total</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="uploadLogBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB TICKETS: explorador de tickets y pagos                    -->
+<!-- ============================================================ -->
+<section id="tab-tickets" class="tab-panel">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-ink-900">Tickets y pagos</h2>
+      <p class="text-[11px] text-ink-500">Explora tickets, pagos y su estado fiscal. Filtra por día, forma de pago o estado.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-ink-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+        <input id="ticketSearch" type="text" placeholder="Buscar folio, orden…" class="input-base pl-9">
+      </div>
+      <select id="ticketFilterPay" class="input-base"><option value="">Todas las formas</option><option>Efectivo</option><option>Tarjeta de crédito</option></select>
+      <select id="ticketFilterStatus" class="input-base"><option value="">Todos los estados</option><option value="pending">Pendiente</option><option value="invoiced">Facturado</option><option value="zero">IVA 0%</option></select>
+    </div>
+  </div>
+
+  <div class="card-base overflow-hidden">
+    <div class="overflow-auto scroll-thin max-h-[540px]">
+      <table class="min-w-[1400px]">
+        <thead>
+          <tr>
+            <th>Folio</th><th>Orden</th><th>Fecha</th><th>Forma de pago</th><th>Método</th><th>Estado fiscal</th><th>Tasa</th>
+            <th class="text-right">Subtotal</th><th class="text-right">IVA</th><th class="text-right">IEPS</th><th class="text-right">Total</th>
+            <th>Factura</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="ticketsBody"></tbody>
+      </table>
+    </div>
+    <div class="px-4 py-3 border-t border-ink-100 flex items-center justify-between">
+      <p class="text-[10px] text-ink-500" id="ticketsCount">Mostrando 0 de 0</p>
+      <div class="flex items-center gap-1" id="ticketsPagination"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB GENERATOR: generador de tickets virtuales                 -->
+<!-- ============================================================ -->
+<section id="tab-generator" class="tab-panel">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h2 class="text-base font-bold text-ink-900">Generador de tickets virtuales · <span id="genDateLabel">10/06/2026</span></h2>
+      <p class="text-[11px] text-ink-500">Tickets del día pagados con tarjeta. Los tickets en efectivo no se muestran. Las notas se reinician cada día.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <input id="genDate" type="date" value="2026-06-10" class="input-base">
+      <button id="btnGenAll" class="btn-primary"><i data-lucide="wand-2"></i>Generar todos los 0%</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+    <!-- lista de tickets -->
+    <div class="xl:col-span-3">
+      <div class="card-base overflow-hidden">
+        <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="receipt" class="w-4 h-4 text-ink-400"></i>Tickets del día (sin efectivo)</h3>
+          <div class="flex items-center gap-2">
+            <span class="badge-base b-green"><span id="genLockedCount">0</span> bloqueados</span>
+            <span class="badge-base b-yellow"><span id="genZeroCount">0</span> con IVA 0%</span>
+          </div>
+        </div>
+        <div class="overflow-auto scroll-thin max-h-[520px]">
+          <table>
+            <thead><tr><th>Nota</th><th>ID</th><th>Tasa</th><th>Estado</th><th class="text-right">Monto</th><th class="text-right">Acción</th></tr></thead>
+            <tbody id="generatorBody"></tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 border-t border-ink-100">
+          <p class="text-[10px] text-ink-500 flex items-start gap-2">
+            <i data-lucide="info" class="w-3.5 h-3.5 text-ink-400 shrink-0 mt-[1px]"></i>
+            Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Si la combinación excede el monto, se aplica un descuento para cuadrar.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ticket virtual -->
+    <div class="xl:col-span-2">
+      <div class="card-base p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4 text-ink-400"></i>Ticket virtual · Nota #<span id="previewNoteNum">12</span></h3>
+          <span id="previewTaxBadge" class="badge-base b-yellow">IVA 0%</span>
+        </div>
+
+        <div id="ticketPrintArea">
+          <div class="ticket-paper">
+            <div class="text-center">
+              <p class="font-bold text-[13px] tracking-wide">RESTAURANT</p>
+              <p>Av. Central Norte 45, Tapachula, Chis.</p>
+              <p>Tel. (962) 555-0134</p>
+            </div>
+            <div class="tk-sep"></div>
+            <table>
+              <tr><td>NOTA:</td><td class="text-right font-bold" id="printNoteNum">#12</td></tr>
+              <tr><td>FECHA:</td><td class="text-right" id="printDate">10/06/2026 19:47</td></tr>
+              <tr><td>MESA:</td><td class="text-right" id="printTable">9</td></tr>
+              <tr><td>MESERO:</td><td class="text-right" id="printWaiter">ANGEL ANTONIO</td></tr>
+              <tr><td>TERMINAL:</td><td class="text-right" id="printTerminal">SERVER1</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+              <thead><tr><td class="font-bold">CANT DESCRIPCIÓN</td><td class="text-right font-bold">IMPORTE</td></tr></thead>
+              <tbody id="printLines"></tbody>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+              <tr><td>SUBTOTAL:</td><td class="text-right" id="printSubtotal">$3,050.00</td></tr>
+              <tr><td>DESCUENTO:</td><td class="text-right text-red-700" id="printDiscount">-$15.10</td></tr>
+              <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]" id="printTotal">$3,034.90</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <div class="text-center">
+              <p id="printPayment">PAGO: TARJETA DE CRÉDITO</p>
+              <p class="mt-1.5">¡GRACIAS POR SU VISITA!</p>
+              <p class="mt-1.5 text-ink-500">Este ticket no es un comprobante fiscal</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center gap-2 mt-4">
+          <button id="btnRegenerate" class="btn-ghost"><i data-lucide="dices"></i>Regenerar</button>
+          <button id="btnPrint" class="btn-primary"><i data-lucide="printer"></i>Imprimir</button>
+        </div>
+        <p id="printExplanation" class="text-[10px] text-ink-400 text-center mt-3">
+          Productos puente: 7 artículos suman $3,050.00 → descuento de $15.10 para cuadrar los $3,034.90 del ticket.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB CATALOGS: catálogos del módulo                            -->
+<!-- ============================================================ -->
+<section id="tab-catalogs" class="tab-panel">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-base font-bold text-ink-900">Catálogos</h2>
+      <p class="text-[11px] text-ink-500">Administra productos puente, meseros, métodos de pago y datos del emisor.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Productos puente -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="package" class="w-4 h-4 text-ink-400"></i>Productos puente</h3>
+        <button class="btn-primary !py-1.5 !px-3" onclick="alert('Aquí se abriría el modal de alta de producto puente')"><i data-lucide="plus" class="w-3.5 h-3.5"></i>Nuevo</button>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-72">
+        <table>
+          <thead><tr><th>Código</th><th>Nombre</th><th>Precio</th><th>Puente</th><th>Modificador</th><th>Acciones</th></tr></thead>
+          <tbody id="catalogProductsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Meseros -->
+    <div class="card-base overflow-hidden">
+      <div class="px-4 py-3 border-b border-ink-100 flex items-center justify-between">
+        <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-ink-400"></i>Meseros</h3>
+        <button class="btn-primary !py-1.5 !px-3" onclick="alert('Aquí se abriría el modal de alta de mesero')"><i data-lucide="plus" class="w-3.5 h-3.5"></i>Nuevo</button>
+      </div>
+      <div class="overflow-auto scroll-thin max-h-72">
+        <table>
+          <thead><tr><th>Código</th><th>Nombre</th><th>Acciones</th></tr></thead>
+          <tbody id="catalogWaitersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Emisor -->
+    <div class="card-base p-4 lg:col-span-2">
+      <h3 class="text-[12px] font-bold text-ink-800 flex items-center gap-2 mb-3"><i data-lucide="building-2" class="w-4 h-4 text-ink-400"></i>Emisor del ticket virtual</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-[10px] font-semibold text-ink-500 uppercase mb-1">Razón social</label>
+          <input type="text" value="CAFE DE CHIAPAS SUC. POLIFORUM" class="input-base w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-ink-500 uppercase mb-1">RFC</label>
+          <input type="text" value="CCD010101ABC" class="input-base w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-ink-500 uppercase mb-1">Teléfono</label>
+          <input type="text" value="(962) 555-0134" class="input-base w-full">
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-ink-500 uppercase mb-1">Lugar de expedición</label>
+          <input type="text" value="Tapachula, Chiapas" class="input-base w-full">
+        </div>
+        <div class="md:col-span-2 lg:col-span-4">
+          <label class="block text-[10px] font-semibold text-ink-500 uppercase mb-1">Domicilio fiscal</label>
+          <input type="text" value="CALLE BRASIL, NUM 572, COL. EL RETIRO, TAPACHULA, CHIAPAS" class="input-base w-full">
+        </div>
+      </div>
+      <div class="flex justify-end mt-3">
+        <button class="btn-primary"><i data-lucide="save"></i>Guardar emisor</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="border-t border-ink-200 bg-white mt-auto">
+  <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+    <p class="text-[10px] text-ink-400">Facturador SAT · Boceto Fase 1 · CoffeeSoft © 2026</p>
+    <div class="flex items-center gap-4 text-[10px] text-ink-400">
+      <span class="flex items-center gap-1"><i data-lucide="calendar-sync" class="w-3 h-3"></i>Las notas se reinician cada día</span>
+      <span class="flex items-center gap-1"><i data-lucide="eye-off" class="w-3 h-3"></i>Efectivo no entra al generador</span>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

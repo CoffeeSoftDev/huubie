@@ -19,6 +19,7 @@
     const KEYS  = [
         'coffeeia:claude:accounts',
         'coffeeia:claude:reminderFired',
+        'coffeeia:claude:resetPinDismissed',
         'coffeeia:global:enabledModels',
         'coffeeia:global:activeModel',
         'coffeeia:global:modelCatalog',

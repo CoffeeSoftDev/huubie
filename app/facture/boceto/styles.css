@@ -1,0 +1,256 @@
+/* ============================================================
+   Facturador SAT · Boceto Fase 1
+   Sistema de diseño CoffeeSoft con paleta terracota
+   ============================================================ */
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,-apple-system,sans-serif}
+
+/* ---- utilidades ---- */
+.scroll-thin::-webkit-scrollbar{width:6px;height:8px}
+.scroll-thin::-webkit-scrollbar-track{background:transparent}
+.scroll-thin::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
+.scroll-thin::-webkit-scrollbar-thumb:hover{background:#9CA3AF}
+
+/* ---- inputs ---- */
+.input-base{
+  background:#fff;
+  border:1px solid #E5E7EB;
+  border-radius:8px;
+  padding:7px 12px;
+  font-size:12px;
+  color:#374151;
+  min-height:34px;
+}
+.input-base:focus{outline:none;border-color:#C05A40;box-shadow:0 0 0 3px rgba(192,90,64,.12)}
+select.input-base{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+/* ---- cards ---- */
+.card-base{
+  background:#fff;
+  border:1px solid #E5E7EB;
+  border-radius:12px;
+  box-shadow:0 1px 2px rgba(17,25,40,.04);
+}
+
+/* ---- badges ---- */
+.badge-base{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:2px 10px;
+  border-radius:9999px;
+  font-size:10px;
+  font-weight:700;
+  border:1px solid;
+  white-space:nowrap;
+}
+.b-green {background:#DCFCE7;color:#15803D;border-color:#BBF7D0}
+.b-red   {background:#FEE2E2;color:#B91C1C;border-color:#FECACA}
+.b-yellow{background:#FEF3C7;color:#B45309;border-color:#FDE68A}
+.b-terra {background:#F5E3DC;color:#A84A33;border-color:#F0C4B5}
+.b-gray  {background:#F3F4F6;color:#6B7280;border-color:#E5E7EB}
+.b-blue  {background:#DBEAFE;color:#1D4ED8;border-color:#BFDBFE}
+
+/* ---- tabs ---- */
+.tab-btn{
+  padding:12px 16px;
+  font-size:12px;
+  font-weight:600;
+  color:#6B7280;
+  border-bottom:2px solid transparent;
+  cursor:pointer;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  transition:.15s;
+  background:none;
+  border-top:none;
+  border-left:none;
+  border-right:none;
+}
+.tab-btn:hover{color:#374151}
+.tab-btn.active{color:#C05A40;border-bottom-color:#C05A40}
+.tab-btn svg,.tab-btn i{width:15px;height:15px}
+.tab-panel{display:none;animation:fadeIn .18s ease}
+.tab-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---- tablas ---- */
+table{width:100%;border-collapse:collapse}
+thead th{
+  position:sticky;
+  top:0;
+  background:#F9FAFB;
+  z-index:10;
+  font-size:10px;
+  color:#6B7280;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-weight:600;
+  text-align:left;
+  padding:10px 12px;
+  white-space:nowrap;
+  border-bottom:1px solid #E5E7EB;
+}
+tbody td{font-size:11px;color:#4B5563;padding:9px 12px;white-space:nowrap}
+tbody tr{border-top:1px solid #F3F4F6}
+tbody tr:hover{background:#F9FAFB}
+tfoot td{font-size:11px;font-weight:700;color:#111928;padding:10px 12px;border-top:2px solid #E5E7EB;background:#F9FAFB;white-space:nowrap}
+.cell-null{color:#9CA3AF;font-style:italic;font-size:10px}
+.row-locked{background:#FBF1ED}
+.row-locked:hover{background:#F5E3DC}
+
+/* ---- botones ---- */
+.btn-primary{
+  background:#C05A40;
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+  padding:8px 16px;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  cursor:pointer;
+  transition:.15s;
+  border:none;
+}
+.btn-primary:hover{background:#A84A33}
+.btn-ghost{
+  background:#fff;
+  color:#374151;
+  border:1px solid #E5E7EB;
+  font-size:12px;
+  font-weight:600;
+  padding:8px 16px;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  cursor:pointer;
+  transition:.15s;
+}
+.btn-ghost:hover{background:#F9FAFB;border-color:#D1D5DB}
+.btn-primary svg,.btn-primary i,.btn-ghost svg,.btn-ghost i{width:14px;height:14px}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---- progreso ---- */
+.prog-track{height:10px;border-radius:9999px;background:#E5E7EB;overflow:hidden}
+.prog-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,#C05A40,#E08A70);transition:width .5s ease}
+
+/* ---- upload zone ---- */
+.upload-zone{
+  border:1px dashed #D1D5DB;
+  border-radius:12px;
+  padding:18px 16px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  cursor:pointer;
+  transition:.15s;
+  background:#fff;
+}
+.upload-zone:hover{border-color:#C05A40;background:#FBF1ED}
+.upload-zone.pending:hover{border-color:#F59E0B;background:#FFFBEB}
+.excel-badge{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  width:48px;
+  height:48px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.1;
+  text-align:center;
+  flex-shrink:0;
+}
+.excel-badge.xls{
+  background:#1D6F42;
+  color:#fff;
+}
+.excel-badge:not(.xls):not(.cfdi){
+  background:#217346;
+  color:#fff;
+}
+.excel-badge.cfdi{
+  background:#4B5563;
+  color:#fff;
+  font-size:8px;
+  padding:4px;
+  width:56px;
+}
+
+/* ---- sub-tabs de uploads ---- */
+.subtab-btn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 14px;
+  border:1px solid #E5E7EB;
+  border-radius:10px;
+  background:#fff;
+  color:#6B7280;
+  cursor:pointer;
+  transition:.15s;
+  white-space:nowrap;
+}
+.subtab-btn:hover{background:#F9FAFB;border-color:#D1D5DB;color:#374151}
+.subtab-btn.active{
+  background:#FBF1ED;
+  border-color:#C05A40;
+  color:#A84A33;
+}
+.subtab-icon{
+  width:28px;
+  height:28px;
+  border-radius:7px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.subtab-icon.excel{background:#217346;color:#fff}
+.subtab-icon.cfdi{background:#16A34A;color:#fff}
+.subtab-icon svg,.subtab-icon i{width:15px;height:15px}
+.subtab-label{font-size:12px;font-weight:700}
+.subtab-hint{
+  font-size:9px;
+  font-weight:600;
+  color:#9CA3AF;
+  background:#F3F4F6;
+  padding:1px 6px;
+  border-radius:9999px;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.subtab-btn.active .subtab-hint{background:#F5E3DC;color:#A84A33}
+.subtab-panel{display:none;animation:fadeIn .18s ease}
+.subtab-panel.active{display:block}
+
+/* ---- ticket virtual ---- */
+.ticket-paper{
+  background:#fff;
+  border:1px solid #E5E7EB;
+  border-radius:10px;
+  box-shadow:0 4px 14px rgba(17,25,40,.08);
+  font-family:'Courier New',ui-monospace,monospace;
+  font-size:11px;
+  color:#1F2937;
+  padding:22px 20px;
+  max-width:320px;
+  margin:0 auto;
+}
+.ticket-paper .tk-sep{border-top:1px dashed #9CA3AF;margin:8px 0}
+.ticket-paper table{width:100%}
+.ticket-paper td{padding:2px 0;font-size:11px;color:#1F2937;white-space:normal}
+.ticket-paper tr,.ticket-paper tr:hover{border:none;background:transparent}
+
+@media print{
+  body *{visibility:hidden}
+  #ticketPrintArea,#ticketPrintArea *{visibility:visible}
+  #ticketPrintArea{position:absolute;left:0;top:0;width:100%}
+  .ticket-paper{border:none;box-shadow:none}
+}
