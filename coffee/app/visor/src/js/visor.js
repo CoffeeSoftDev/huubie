@@ -553,13 +553,53 @@ class App {
         return BINARY_SHEET_EXTS.includes(ext);
     }
 
-    // Archivo que se abre solo al entrar o al cambiar de carpeta. Devuelve null si el
-    // candidato es una hoja binaria: mejor la pantalla de "elige un archivo" que pagar
-    // el parseo del libro entero sin que nadie lo haya pedido.
-    autoOpenTarget(fallback) {
-        const first = this.allFiles[0];
-        if (this.isBinarySheet(first)) return null;
-        return first?.file || fallback || null;
+    // Lo unico que se reabre solo: markdown y paneles TODO. Son texto que ya viene en
+    // el arbol, se pintan al instante. Los documentos (hojas de calculo, codigo, pdf)
+    // se abren a mano — es lo que hacia lento entrar a una carpeta.
+    isRestorable(file) {
+        if (!file || !file.file || this.isBinarySheet(file)) return false;
+        return this._isMarkdown(file) || visorView._isTodoJson(file);
+    }
+
+    // El recuerdo es POR CARPETA: la clave combina la biblioteca activa con su ruta
+    // custom. Drive queda fuera (volatil: sus ids cambian con el service account).
+    folderKey() {
+        const folder = this.settings.folder || '';
+        if (!folder || this.isDriveFolder(folder)) return '';
+        return folder + '|' + (this.settings.customPath || '');
+    }
+
+    // Guarda el archivo abierto como "donde me quede" de esta carpeta. Un documento no
+    // se registra ni pisa al markdown anterior: al volver se retoma ese markdown.
+    rememberLastOpen(file) {
+        const key = this.folderKey();
+        if (!key || !this.isRestorable(file)) return;
+        const all = this._qaLoadJSON(VISOR_LAST_OPEN_KEY, {}) || {};
+        all[key] = { file: file.file, fullPath: file.fullPath || '', ts: Date.now() };
+        // Recorte por antiguedad: sin esto el mapa crece con cada carpeta visitada.
+        const keys = Object.keys(all);
+        if (keys.length > LAST_OPEN_MAX) {
+            keys.sort((a, b) => (all[b].ts || 0) - (all[a].ts || 0))
+                .slice(LAST_OPEN_MAX)
+                .forEach(k => delete all[k]);
+        }
+        this._qaSaveJSON(VISOR_LAST_OPEN_KEY, all);
+    }
+
+    // Archivo que se abre solo al entrar o al cambiar de carpeta: el ultimo markdown
+    // /TODO que se vio en ESA carpeta, re-resuelto contra la biblioteca vigente (por
+    // ruta, para no confundir homonimos). null => pantalla de "elige un archivo": nada
+    // se abre solo sin que lo hayas abierto tu antes.
+    autoOpenTarget() {
+        const key = this.folderKey();
+        if (!key) return null;
+        const entry = (this._qaLoadJSON(VISOR_LAST_OPEN_KEY, {}) || {})[key];
+        if (!entry) return null;
+        const norm  = s => String(s || '').replace(/\\/g, '/');
+        const found = (this.allFiles || []).find(f => entry.fullPath
+            ? norm(f.fullPath) === norm(entry.fullPath)
+            : f.file === entry.file);
+        return this.isRestorable(found) ? found : null;
     }
 
     async init() {
@@ -607,7 +647,7 @@ class App {
             };
             this.allFiles = [...this.dataInit.agents, ...this.dataInit.grimoires];
         }
-        this.render(this.autoOpenTarget('CoffeeIA.md'));
+        this.render(this.autoOpenTarget());
         this.bind();
         this._maybeOpenDiagramFromUrl();
     }
