@@ -28,6 +28,111 @@ const EDITABLE_EXTS = [
 const SHEET_EXTS     = ['xlsx','xlsm','xlsb','xls','ods','csv','tsv'];
 const SHEET_MAX_BYTES = 25 * 1024 * 1024;
 
+// Medios que el visor previsualiza sin convertir: las imagenes en un <img> y los
+// PDF en un <iframe> con el visor nativo del navegador. Sus bytes NO viajan en el
+// JSON del arbol: la URL de ?action=readbin se usa directo como src.
+const IMAGE_EXTS = ['png','jpg','jpeg','gif','webp','svg','bmp','avif','ico'];
+const PDF_EXTS   = ['pdf'];
+const MEDIA_EXTS = IMAGE_EXTS.concat(PDF_EXTS);
+const MEDIA_MAX_BYTES = 25 * 1024 * 1024;
+
+/** 'image' | 'pdf' | '' — clase de medio por nombre de archivo. */
+function visorMediaKind(fileName) {
+    const parts = String(fileName || '').split('.');
+    if (parts.length < 2) return '';
+    const ext = parts.pop().toLowerCase();
+    if (IMAGE_EXTS.includes(ext)) return 'image';
+    if (PDF_EXTS.includes(ext))   return 'pdf';
+    return '';
+}
+
+/** Clase de medio de un objeto file del arbol (el backend ya la manda en mediaKind). */
+function visorFileMediaKind(file) {
+    if (!file) return '';
+    return file.mediaKind || visorMediaKind(file.file || '');
+}
+
+/** URL del endpoint que sirve los bytes del medio con su Content-Type real. */
+function visorMediaUrl(file) {
+    if (!file || !file.fullPath) return '';
+    const custom = (typeof app !== 'undefined' && app && app.settings && app.settings.customPath) || '';
+    return `${api}?action=readbin&fullPath=${encodeURIComponent(file.fullPath)}`
+         + `&customPath=${encodeURIComponent(custom)}`;
+}
+
+// ── PDF: extraccion de texto para el chat ────────────────────────────────────
+// El PDF se VE con el visor nativo del navegador (un <iframe>), pero el modelo
+// necesita texto. pdf.js solo se descarga la primera vez que hace falta leerlo
+// (anclarlo o adjuntarlo al chat): quien nunca abre un PDF no paga su peso.
+const PDFJS_SRC      = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER   = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PDF_MAX_BYTES  = 25 * 1024 * 1024;
+const PDF_MAX_CHARS  = 120000;   // tope del texto embebido: cuida el context window
+let _pdfjsPromise = null;
+
+function loadPdfJs() {
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        return Promise.resolve(window.pdfjsLib);
+    }
+    if (_pdfjsPromise) return _pdfjsPromise;
+    _pdfjsPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = PDFJS_SRC;
+        s.onload = () => {
+            if (!window.pdfjsLib) { reject(new Error('pdf.js no se pudo inicializar')); return; }
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+            resolve(window.pdfjsLib);
+        };
+        s.onerror = () => { _pdfjsPromise = null; reject(new Error('No se pudo descargar pdf.js')); };
+        document.head.appendChild(s);
+    });
+    return _pdfjsPromise;
+}
+
+/**
+ * Texto plano de un PDF: una seccion por pagina. Al pasar el tope corta y marca
+ * el resto como omitido (un PDF de 300 paginas no cabe en el contexto).
+ * @returns {Promise<{text: string, pages: number, truncated: boolean}>}
+ */
+async function pdfExtractText(arrayBuffer) {
+    const pdfjsLib = await loadPdfJs();
+    // slice(0): pdf.js se queda con el buffer y lo deja inutilizable para reintentos.
+    const doc   = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
+    const parts = [];
+    let total = 0, truncated = false;
+
+    for (let p = 1; p <= doc.numPages; p++) {
+        if (truncated) { parts.push(`## Pagina ${p}\n[omitida: se alcanzo el limite de tamano]`); break; }
+        const content = await doc.getPage(p).then(pg => pg.getTextContent());
+        let txt = content.items.map(i => i.str).join(' ').replace(/\s{2,}/g, ' ').trim();
+        if (!txt) { parts.push(`## Pagina ${p}\n[sin texto: probablemente es una pagina escaneada]`); continue; }
+        if (total + txt.length > PDF_MAX_CHARS) {
+            txt = txt.slice(0, Math.max(0, PDF_MAX_CHARS - total)) + '\n[... contenido truncado]';
+            truncated = true;
+        }
+        total += txt.length;
+        parts.push(`## Pagina ${p}\n${txt}`);
+    }
+    return { text: parts.join('\n\n'), pages: doc.numPages, truncated };
+}
+
+/** Descarga el PDF del sandbox y devuelve su texto, cacheado en el propio file. */
+async function visorPdfTextOf(file) {
+    if (!file) return '';
+    if (typeof file._pdfText === 'string') return file._pdfText;
+    const url = visorMediaUrl(file);
+    if (!url) return '';
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('No se pudo leer el PDF del servidor');
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > PDF_MAX_BYTES) throw new Error('El PDF pesa más de 25 MB');
+    const out = await pdfExtractText(buf);
+    file._pdfText  = out.text;
+    file._pdfPages = out.pages;
+    return file._pdfText;
+}
+
 $(async () => {
     visorView   = new VisorView('root');
     visor       = new Visor(api, 'root');
@@ -164,12 +269,50 @@ class App {
             this.pinnedFiles.delete(fileName);
         } else {
             this.pinnedFiles.add(fileName);
+            // Un PDF recien anclado necesita su texto extraido antes de poder
+            // servir de referencia: se adelanta aqui para que al enviar ya este.
+            this.ensurePinnedPdfText();
         }
         this.savePinned();
         visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
         this.bindSidebarClicks();
+        // La barra del medio abierto refleja el pin sin re-renderizar: volver a
+        // pintarlo recargaria el <iframe> del PDF y perderia la pagina que se leia.
+        const $pinBtn = $('#md-rendered').find('[data-media-pin]');
+        if ($pinBtn.length && this.currentFile === fileName) {
+            const on  = this.pinnedFiles.has(fileName);
+            const txt = on ? 'Anclado al chat' : 'Anclar al chat';
+            $pinBtn.toggleClass('is-pinned', on)
+                   .attr('title', txt + ' (CoffeeIA lo usa como referencia)')
+                   .find('span').text(txt);
+        }
         if (coffeeIA) coffeeIA._renderPinnedChips();
         if (window.lucide) lucide.createIcons();
+    }
+
+    /**
+     * Extrae (una vez) el texto de los PDF anclados. Se llama al anclar y otra vez
+     * antes de enviar un mensaje, por si el primer intento falló o aún corría.
+     */
+    async ensurePinnedPdfText() {
+        const pend = [];
+        this.pinnedFiles.forEach(name => {
+            const f = (this.allFiles || []).find(x => x.file === name);
+            if (f && visorFileMediaKind(f) === 'pdf' && typeof f._pdfText !== 'string') pend.push(f);
+        });
+        if (!pend.length) return;
+
+        for (const f of pend) {
+            try {
+                await visorPdfTextOf(f);
+                if (!f._pdfText) {
+                    visorView.toast(`"${f.file}" no tiene texto seleccionable (¿es un escaneo?)`, 'warn');
+                }
+            } catch (e) {
+                visorView.toast(`No se pudo leer "${f.file}": ${e.message || e}`, 'error');
+            }
+        }
+        if (coffeeIA) coffeeIA._renderPinnedChips();
     }
 
     getPinnedFilesPayload() {
@@ -177,10 +320,18 @@ class App {
         this.pinnedFiles.forEach(name => {
             const f = (this.allFiles || []).find(x => x.file === name);
             if (!f) return;
+            // Imagen: no lleva texto — el backend lee sus bytes del disco y los
+            // adjunta como vision al mensaje. PDF: viaja el texto que extrajo pdf.js.
+            const kind = visorFileMediaKind(f);
+            let content = '';
+            if (kind === 'image')     content = '';
+            else if (kind === 'pdf')  content = f._pdfText || '';
+            else                      content = iaFileTextForModel(f);
             out.push({
                 file:     f.file,
                 fullPath: f.fullPath || '',
-                content:  iaFileTextForModel(f)
+                kind:     kind,
+                content:  content
             });
         });
         return out;
@@ -1345,9 +1496,17 @@ class App {
     applyCustomPath() {
         const path = $('#folderCustomPath').val().trim();
         if (!path) { visorView.toast('Ingresa una ruta absoluta', 'warn'); return; }
+        this.navigateCustomPath(path);
+    }
+
+    // Mueve el origen Custom a otra ruta (navegacion del explorador y breadcrumb).
+    navigateCustomPath(path) {
+        const dir = String(path || '').trim().replace(/[\/\\]+$/, '');
+        if (!dir) return;
         this.settings.folder = 'custom';
-        this.settings.customPath = path;
+        this.settings.customPath = dir;
         this.saveSettings();
+        $('#folderCustomPath').val(dir);
         this.reloadLibrary();
     }
 
@@ -1682,7 +1841,7 @@ class App {
                 : 'Crear archivos no disponible en este origen (selecciona una carpeta local o Custom)');
         $('#btnUploadSheet').prop('disabled', !can)
             .attr('title', can
-                ? 'Subir una hoja de cálculo (.xlsx, .csv) a esta carpeta'
+                ? 'Subir un archivo (Excel, imagen o PDF) a esta carpeta'
                 : 'Subir archivos no disponible en este origen (selecciona una carpeta local o Custom)');
     }
 
@@ -1906,8 +2065,10 @@ class App {
         const size = file.size < 1024 * 1024
             ? Math.round(file.size / 1024) + ' KB'
             : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        const kind = visorMediaKind(file.name);
+        const icon = kind === 'image' ? 'image' : (kind === 'pdf' ? 'file-text' : 'file-spreadsheet');
         $picked.removeClass('hidden').html(`
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <i data-lucide="${icon}" class="w-4 h-4"></i>
             <span class="upload-picked-name" title="${file.name}">${file.name}</span>
             <span class="upload-picked-size">${size}</span>
             <button type="button" id="uploadSheetClear" class="upload-picked-clear" title="Quitar archivo">
@@ -1918,13 +2079,15 @@ class App {
         if (window.lucide) lucide.createIcons();
     }
 
-    _validSheetFile(file) {
+    // Lista blanca del modal de subida: hojas de calculo + medios (imagen / PDF).
+    // La misma que valida el backend en ?action=upload.
+    _validUploadFile(file) {
         const ext = (file.name || '').split('.').pop().toLowerCase();
-        if (!SHEET_EXTS.includes(ext)) {
-            visorView.toast('Solo hojas de cálculo: ' + SHEET_EXTS.map(e => '.' + e).join(', '), 'warn');
+        if (!SHEET_EXTS.includes(ext) && !MEDIA_EXTS.includes(ext)) {
+            visorView.toast('Formato no permitido: .' + ext + ' (Excel, imagen o PDF)', 'warn');
             return false;
         }
-        if (file.size > SHEET_MAX_BYTES) {
+        if (file.size > Math.max(SHEET_MAX_BYTES, MEDIA_MAX_BYTES)) {
             visorView.toast('El archivo pesa más de 25 MB', 'warn');
             return false;
         }
@@ -1950,7 +2113,7 @@ class App {
         });
         $input.on('change', (e) => {
             const f = e.target.files && e.target.files[0];
-            this.setUploadPick(f && this._validSheetFile(f) ? f : null);
+            this.setUploadPick(f && this._validUploadFile(f) ? f : null);
         });
 
         // dragover/dragleave solo pintan el estado; el drop toma el primer archivo.
@@ -1960,7 +2123,7 @@ class App {
             e.preventDefault();
             $drop.removeClass('is-over');
             const f = e.originalEvent?.dataTransfer?.files?.[0];
-            if (f && this._validSheetFile(f)) this.setUploadPick(f);
+            if (f && this._validUploadFile(f)) this.setUploadPick(f);
         });
 
         $modal.on('click', '#uploadSheetClear', (e) => { e.stopPropagation(); this.setUploadPick(null); });
@@ -2428,7 +2591,9 @@ class App {
 
         // Lazy-load BINARIO para hojas locales (.xlsx/.xls/.ods): sus bytes no caben
         // en el JSON del arbol, se piden aparte y los pinta SheetJS igual que Drive.
-        if (file.lazyBinary && file.fullPath && !file._loaded) {
+        // Los medios (imagen/PDF) tambien son lazyBinary pero NO se traen a memoria:
+        // el <img>/<iframe> apunta directo a readbin y el navegador los pinta solo.
+        if (file.lazyBinary && !visorFileMediaKind(file) && file.fullPath && !file._loaded) {
             visorView.showDriveLoader(file);
             try {
                 const url = `${api}?action=readbin&fullPath=${encodeURIComponent(file.fullPath)}`
@@ -2892,6 +3057,13 @@ class VisorView {
     }
 
     renderSidebar(data, currentFile, filter) {
+        // Origen Custom: mismo explorador que Documents sobre el filesystem real.
+        if (data.header && data.header.currentKey === 'custom') {
+            this.renderSidebarCustom(data, currentFile, filter);
+            this.renderQuickAccess(app);
+            return;
+        }
+
         if (data.documents && typeof data.documents === 'object') {
             this.renderSidebarTree(data.documents, currentFile, filter, data.header);
             this.renderQuickAccess(app);   // acceso rapido debajo del arbol
@@ -2910,7 +3082,7 @@ class VisorView {
         const canCreate = !!(data.header && data.header.source !== 'Drive'
             && data.header.currentPath && data.header.valid !== false);
         const newBtnHtml = `<button id="btnNewFile" class="section-new-btn" title="Crear un archivo nuevo en esta carpeta"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>`
-            + `<button id="btnUploadSheet" class="section-new-btn" title="Subir una hoja de cálculo (.xlsx, .csv) a esta carpeta"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i></button>`;
+            + `<button id="btnUploadSheet" class="section-new-btn" title="Subir un archivo (Excel, imagen o PDF) a esta carpeta"><i data-lucide="upload" class="w-3.5 h-3.5"></i></button>`;
 
         // Header de seccion sin icono decorativo: solo titulo, contador y el boton "+".
         const sectionHeader = (title, count, withNew) => `
@@ -3185,11 +3357,18 @@ class VisorView {
             </div>`;
     }
 
+    // Re-render del sidebar con la data y el filtro vigentes.
+    reRenderSidebar() {
+        visorView.renderSidebar(app.dataInit, app.currentFile, $('#sidebarSearch').val() || '');
+        app.bindSidebarClicks();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Arbol de Documents (y Drive): jerarquia proyecto -> tipo -> archivos, donde
+    // los archivos "(sin clasificar)" cuelgan sueltos del proyecto. Un nivel a la
+    // vez: [] raiz (proyectos) | [proj] | [proj, tipo]. Resuelve el nivel y delega
+    // el pintado en renderExplorer.
     renderSidebarTree(documents, currentFile, filter, header) {
-        // Explorador de iconos navegable (estilo Finder): un nivel a la vez, con
-        // breadcrumb clickeable. La jerarquia de `documents` es proyecto -> tipo
-        // (sub-carpeta) -> archivos; los archivos "(sin clasificar)" cuelgan sueltos
-        // del proyecto. Navegacion: [] raiz (proyectos) | [proj] | [proj, tipo].
         const f = (filter || '').trim().toLowerCase();
         const canCreate = !!(header && header.source !== 'Drive' && header.currentPath && header.valid !== false);
 
@@ -3206,6 +3385,7 @@ class VisorView {
         if (crumb[0] && !documents[crumb[0]]) crumb = [];
         if (crumb[1] && !(documents[crumb[0]] && documents[crumb[0]][crumb[1]])) crumb = crumb.slice(0, 1);
         const setCrumb = (arr) => { try { localStorage.setItem('visor:docs:crumb', JSON.stringify(arr)); } catch (e) {} };
+        const goTo = (arr) => { setCrumb(arr); this.reRenderSidebar(); };
 
         // Carpetas (subniveles) y archivos del nivel actual.
         let folders = [];   // { name, count, nav:[...] }
@@ -3232,16 +3412,111 @@ class VisorView {
             files   = files.filter(it => (it.file || it.name || '').toLowerCase().includes(f));
         }
 
+        // Paths fisicos derivados de la raiz real de la biblioteca (header.currentPath):
+        // baseDir/proj[/tipo]. Fiable para mover / crear / renombrar carpetas.
+        const baseDir  = (header && header.currentPath) ? String(header.currentPath).replace(/[\/\\]+$/, '') : '';
+        const levelDir = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
+
+        this.renderExplorer({
+            crumbs: [{ label: 'Documents', go: () => goTo([]) }].concat(crumb.map((seg, i) => ({
+                label: seg,
+                go: () => goTo(crumb.slice(0, i + 1))
+            }))),
+            folders: folders.map(fo => ({
+                name : fo.name,
+                count: fo.count,
+                dir  : levelDir(fo.nav),
+                enter: () => goTo(fo.nav)
+            })),
+            files,
+            currentFile,
+            filter   : f,
+            canCreate,
+            dir      : levelDir(crumb),
+            parentDir: crumb.length ? levelDir(crumb.slice(0, -1)) : '',
+            allowNewFolder      : crumb.length <= 1,
+            allowInFolderActions: crumb.length >= 1
+        });
+    }
+
+    // Explorador de una carpeta arbitraria del filesystem (origen "Custom"): mismo
+    // diseño que Documents, pero navegando rutas reales — entrar a una carpeta
+    // cambia la ruta activa y recarga la biblioteca.
+    renderSidebarCustom(data, currentFile, filter) {
+        const header  = data.header || {};
+        const f       = (filter || '').trim().toLowerCase();
+        const baseDir = String(header.currentPath || '').replace(/[\/\\]+$/, '');
+        const go      = (dir) => { if (typeof app !== 'undefined' && app && app.navigateCustomPath) app.navigateCustomPath(dir); };
+
+        let folders = (data.folders || []).map(fo => ({
+            name : fo.name,
+            count: typeof fo.count === 'number' ? fo.count : null,
+            dir  : String(fo.fullPath || '').replace(/[\/\\]+$/, '')
+        }));
+        let files = (data.agents || []).slice();
+
+        if (f) {
+            folders = folders.filter(fo => fo.name.toLowerCase().includes(f));
+            files   = files.filter(it => (it.file || it.name || '').toLowerCase().includes(f));
+        }
+        folders.forEach(fo => { fo.enter = () => go(fo.dir); });
+
+        // Breadcrumb de la ruta real. Solo los ultimos niveles caben en el sidebar:
+        // el resto se colapsa en un "..." que lleva al inicio del tramo visible.
+        const segs   = baseDir.split('/').filter(seg => seg !== '');
+        const shown  = 3;
+        const start  = Math.max(0, segs.length - shown);
+        const crumbs = [];
+        if (start > 0) {
+            const head = segs.slice(0, start).join('/');
+            crumbs.push({ label: '...', title: head, go: () => go(head) });
+        }
+        segs.slice(start).forEach((seg, i) => {
+            const dir = segs.slice(0, start + i + 1).join('/');
+            crumbs.push({ label: seg, title: dir, go: () => go(dir) });
+        });
+        if (!crumbs.length) crumbs.push({ label: baseDir || 'Custom', title: baseDir, go: () => {} });
+
+        this.renderExplorer({
+            crumbs,
+            folders,
+            files,
+            currentFile,
+            filter   : f,
+            canCreate: !!(baseDir && header.valid !== false),
+            dir      : baseDir,
+            parentDir: header.parentPath ? String(header.parentPath).replace(/[\/\\]+$/, '') : '',
+            allowNewFolder      : true,
+            allowInFolderActions: true
+        });
+    }
+
+    // Explorador navegable (estilo Finder) compartido por Documents y Custom.
+    // `cfg` describe el nivel ya resuelto:
+    //   crumbs   [{ label, title?, go }]        breadcrumb del nivel
+    //   folders  [{ name, count, dir, enter }]  subniveles
+    //   files    [ item ]                       archivos del nivel
+    //   dir / parentDir                         paths reales para crear y mover
+    //   allowNewFolder / allowInFolderActions   que ofrece el menu de creacion
+    renderExplorer(cfg) {
+        const currentFile = cfg.currentFile;
+        const f           = (cfg.filter || '').trim().toLowerCase();
+        const canCreate   = !!cfg.canCreate;
+        const crumbs      = cfg.crumbs || [];
+        const folders     = cfg.folders || [];
+        const files       = cfg.files || [];
+        const parentDir   = cfg.parentDir || '';   // '' en la raiz: no hay a donde subir
+
         // Modo de presentación del nivel actual: 'grid' (carpetas/iconos) o 'list' (filas).
         let docsView = 'grid';
         try { const v = localStorage.getItem('visor:docs:view'); if (v === 'list' || v === 'grid') docsView = v; } catch (e) {}
         const setDocsView = (v) => { try { localStorage.setItem('visor:docs:view', v); } catch (e) {} };
 
-        // Breadcrumb navegable "documents / proj / tipo" (cada segmento recorta).
-        const crumbBtns = [`<button type="button" class="docx-crumb" data-crumb-to="0">Documents</button>`]
-            .concat(crumb.map((seg, i) =>
-                `<span class="docx-crumb-sep">/</span><button type="button" class="docx-crumb" data-crumb-to="${i + 1}" title="${seg}">${seg}</button>`
-            )).join('');
+        // Breadcrumb navegable del nivel actual (cada segmento recorta la ruta).
+        const crumbBtns = crumbs.map((c, i) =>
+            (i ? `<span class="docx-crumb-sep">/</span>` : '')
+            + `<button type="button" class="docx-crumb" data-crumb-to="${i}" title="${c.title || c.label}">${c.label}</button>`
+        ).join('');
         const viewToggle = `
             <div class="docx-view" role="group" aria-label="Vista">
                 <button type="button" class="docx-viewbtn ${docsView === 'list' ? 'is-active' : ''}" data-docview="list" title="Ver en lista"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
@@ -3253,10 +3528,10 @@ class VisorView {
                     <i data-lucide="ellipsis" class="w-4 h-4"></i>
                 </button>
                 <div class="docx-create-menu" role="menu" aria-label="Opciones de creación" hidden>
-                    ${crumb.length <= 1 ? `<button type="button" class="docx-create-item docx-newfolder-btn" role="menuitem"><i data-lucide="folder-plus"></i><span>Nueva carpeta</span></button>` : ''}
+                    ${cfg.allowNewFolder ? `<button type="button" class="docx-create-item docx-newfolder-btn" role="menuitem"><i data-lucide="folder-plus"></i><span>Nueva carpeta</span></button>` : ''}
                     <button type="button" class="docx-create-item tree-root-new" role="menuitem"><i data-lucide="file-plus"></i><span>Nuevo archivo</span></button>
-                    ${crumb.length >= 1 ? `<button type="button" class="docx-create-item tree-new-todo" role="menuitem"><i data-lucide="list-checks"></i><span>Nuevo TODO</span></button>` : ''}
-                    ${crumb.length >= 1 ? `<button type="button" class="docx-create-item tree-upload-sheet" role="menuitem"><i data-lucide="file-spreadsheet"></i><span>Subir Excel</span></button>` : ''}
+                    ${cfg.allowInFolderActions ? `<button type="button" class="docx-create-item tree-new-todo" role="menuitem"><i data-lucide="list-checks"></i><span>Nuevo TODO</span></button>` : ''}
+                    ${cfg.allowInFolderActions ? `<button type="button" class="docx-create-item tree-upload-sheet" role="menuitem"><i data-lucide="upload"></i><span>Subir archivo</span></button>` : ''}
                 </div>
             </div>` : '';
         const bar = `
@@ -3268,25 +3543,25 @@ class VisorView {
                 </div>
             </div>`;
 
-        // Paths fisicos derivados de la raiz real de la biblioteca (header.currentPath):
-        // baseDir/proj[/tipo]. Fiable para mover / crear / renombrar carpetas.
-        const baseDir   = (header && header.currentPath) ? String(header.currentPath).replace(/[\/\\]+$/, '') : '';
-        const levelDir  = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
-        const parentDir = crumb.length ? levelDir(crumb.slice(0, -1)) : '';   // '' en la raiz: no hay a donde subir
-
         // Tarjetas del grid: carpeta (icono amarillo, drop target, burbuja con el
         // numero de archivos) y archivo (icono segun tipo, arrastrable por su fullPath).
         const folderCard = (fo, i) => `
-            <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${levelDir(fo.nav)}" draggable="true" title="${fo.name}">
+            <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${fo.dir}" draggable="true" title="${fo.name}">
                 <i data-lucide="folder" class="docx-ic docx-ic-folder"></i>
                 <span class="docx-name" title="Doble clic para renombrar">${fo.name}</span>
-                <span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>
+                ${typeof fo.count === 'number' ? `<span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>` : ''}
             </div>`;
         const fileCard = (item) => {
             const fmt = visor.fileFormat(item);
+            // Una imagen se reconoce viéndola: en el explorador va su miniatura real
+            // en lugar del icono generico (lazy: solo baja lo que entra en pantalla).
+            const thumb = visorFileMediaKind(item) === 'image' ? visorMediaUrl(item) : '';
+            const iconHtml = thumb
+                ? `<img class="docx-ic docx-ic-thumb" src="${thumb}" alt="" loading="lazy">`
+                : `<i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>`;
             return `
                 <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" data-relpath="${item.relPath || ''}" draggable="true" title="${item.file}">
-                    <i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>
+                    ${iconHtml}
                     <span class="docx-name" title="Doble clic para renombrar">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
                     <span class="docx-size">${item.size || ''}</span>
@@ -3302,15 +3577,11 @@ class VisorView {
 
         $('#sidebarList').html(bar + grid).addClass('is-doc-tree is-doc-explorer');
 
-        const reRender = () => {
-            visorView.renderSidebar(app.dataInit, app.currentFile, $('#sidebarSearch').val() || '');
-            app.bindSidebarClicks();
-            if (window.lucide) lucide.createIcons();
-        };
+        const reRender = () => this.reRenderSidebar();
 
         $('#sidebarList .docx-crumb').off('click').on('click', function () {
-            setCrumb(crumb.slice(0, Number($(this).data('crumb-to')) || 0));
-            reRender();
+            const target = crumbs[Number($(this).data('crumb-to')) || 0];
+            if (target && target.go) target.go();
         });
 
         const createContainer = $('#sidebarList .docx-create');
@@ -3351,12 +3622,12 @@ class VisorView {
 
         $('#sidebarList .tree-new-todo').off('click').on('click', (event) => {
             event.stopPropagation();
-            if (typeof app !== 'undefined' && app && app.createTodo) app.createTodo(levelDir(crumb));
+            if (typeof app !== 'undefined' && app && app.createTodo) app.createTodo(cfg.dir);
         });
 
         $('#sidebarList .tree-upload-sheet').off('click').on('click', (event) => {
             event.stopPropagation();
-            if (typeof app !== 'undefined' && app && app.openUploadModal) app.openUploadModal(levelDir(crumb));
+            if (typeof app !== 'undefined' && app && app.openUploadModal) app.openUploadModal(cfg.dir);
         });
 
         $('#sidebarList .docx-viewbtn').off('click').on('click', function () {
@@ -3377,7 +3648,7 @@ class VisorView {
                 if (done) return; done = true;
                 const val = ($input.val() || '').trim();
                 if (save && val && val !== fo.name && app.renameFolder) {
-                    if (await app.renameFolder(levelDir(fo.nav), val)) return;   // reloadLibrary re-renderiza
+                    if (await app.renameFolder(fo.dir, val)) return;   // reloadLibrary re-renderiza
                 }
                 reRender();
             };
@@ -3394,7 +3665,7 @@ class VisorView {
                 if ($(this).find('.docx-rename-input').length) return;   // renombrando
                 const fo = folders[Number($(this).data('nav-idx'))];
                 if (!fo) return;
-                const enter = () => { setCrumb(fo.nav); reRender(); };
+                const enter = () => { if (fo.enter) fo.enter(); };
                 if (!$(e.target).closest('.docx-name').length) { enter(); return; }
                 clearTimeout(folderNavTimer);
                 folderNavTimer = setTimeout(enter, 260);
@@ -3454,7 +3725,7 @@ class VisorView {
                 if (done) return; done = true;
                 const val = ($input.val() || '').trim();
                 if (save && val && app.createFolder) {
-                    if (await app.createFolder(levelDir(crumb), val)) return;   // reloadLibrary re-renderiza
+                    if (await app.createFolder(cfg.dir, val)) return;   // reloadLibrary re-renderiza
                 }
                 $card.remove();
             };
@@ -3613,8 +3884,13 @@ class VisorView {
         $('#md-rendered').off('.td').removeClass('is-todo');
         $('#btnEdit, #btnOpenEditor').removeClass('hidden');
         $('body').removeClass('todo-mode');   // restaura el aside (Frontmatter + TOC)
+        $('#md-rendered').removeClass('is-media');
+        $('body').removeClass('media-view');
         // Los todo.json se pintan como panel dinámico (CRUD), no como markdown.
         if (this._isTodoJson(file)) { this._renderTodoPanel(file); return; }
+        // Imagenes y PDF: se ven tal cual, no se convierten a markdown ni a codigo.
+        const mediaKind = visorFileMediaKind(file);
+        if (mediaKind) { this._renderMedia(file, mediaKind); return; }
 
         const parts = (file.file || '').split('.');
         const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
@@ -3705,6 +3981,132 @@ class VisorView {
 
         const $main = $('.main-content');
         if ($main.length) $main.scrollTop(0);
+    }
+
+    /* ── Medios: imagenes y PDF ──────────────────────────────────────────────
+       Ninguno pasa por marked ni por hljs. Los bytes los sirve ?action=readbin
+       con su Content-Type real, asi que basta con apuntar el <img>/<iframe> a esa
+       URL: el navegador los pinta solo y nada se carga en memoria del JS. */
+    _renderMedia(file, kind) {
+        const url  = visorMediaUrl(file);
+        const name = visor.escapeHtml(file.file || '');
+
+        // El medio vive dentro de la hoja del documento (mismo ancho y margen que
+        // un .md), pero sin el aside: ni el TOC ni el frontmatter dicen nada de una
+        // imagen o un PDF, y el hueco que dejan es ancho util para el archivo.
+        $('#md-rendered').addClass('is-media').removeClass('is-sheet');
+        $('body').addClass('media-view').removeClass('xlsx-view');
+        $('#tocBody').html('<span class="toc-empty">Sin secciones</span>');
+
+        if (!url) {
+            $('#md-rendered').html('<p class="doc-media-error">Este archivo no se puede previsualizar (no tiene ruta local).</p>');
+            return;
+        }
+
+        const pinned  = (typeof app !== 'undefined' && app && app.isPinned) ? app.isPinned(file.file) : false;
+        const pinTxt  = pinned ? 'Anclado al chat' : 'Anclar al chat';
+        const actions = `
+            <button type="button" class="doc-media-btn ${pinned ? 'is-pinned' : ''}" data-media-pin title="${pinTxt} (CoffeeIA lo usa como referencia)">
+                <i data-lucide="pin" class="w-3.5 h-3.5"></i><span>${pinTxt}</span>
+            </button>
+            <a class="doc-media-btn" href="${url}" target="_blank" rel="noopener" title="Abrir en una pestaña nueva">
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>`;
+
+        if (kind === 'pdf') {
+            // Visor nativo del navegador: paginacion, busqueda y zoom sin dependencias.
+            $('#md-rendered').html(`
+                <div class="doc-media doc-media-pdf">
+                    <div class="doc-media-bar">
+                        <span class="doc-media-name"><i data-lucide="file-text" class="w-4 h-4"></i>${name}</span>
+                        <span class="doc-media-meta">${visor.escapeHtml(file.size || '')}</span>
+                        <div class="doc-media-actions">${actions}</div>
+                    </div>
+                    <iframe class="doc-pdf-frame" src="${url}#view=FitH" title="${name}"></iframe>
+                </div>
+            `);
+            $('#md-raw').text('// Documento PDF. Vista Raw no disponible — el texto se extrae al anclarlo o adjuntarlo al chat.');
+            $('#lineCountChip').text('PDF');
+        } else {
+            $('#md-rendered').html(`
+                <div class="doc-media doc-media-image" data-zoom="fit">
+                    <div class="doc-media-bar">
+                        <span class="doc-media-name"><i data-lucide="image" class="w-4 h-4"></i>${name}</span>
+                        <span class="doc-media-meta" id="docMediaDims">${visor.escapeHtml(file.size || '')}</span>
+                        <div class="doc-media-actions">
+                            <button type="button" class="doc-media-btn" data-media-zoom="out" title="Alejar">
+                                <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button type="button" class="doc-media-btn" data-media-zoom="fit" title="Ajustar al ancho">
+                                <span id="docMediaZoomVal">Ajustada</span>
+                            </button>
+                            <button type="button" class="doc-media-btn" data-media-zoom="in" title="Acercar">
+                                <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                            </button>
+                            ${actions}
+                        </div>
+                    </div>
+                    <div class="doc-media-canvas">
+                        <img id="docMediaImg" src="${url}" alt="${name}">
+                    </div>
+                </div>
+            `);
+            this._wireImageZoom(file);
+            $('#md-raw').text('// Imagen. Vista Raw no disponible.');
+            $('#lineCountChip').text('imagen');
+        }
+
+        // Anclar/desanclar desde la propia barra del medio (mismo estado que el sidebar).
+        $('#md-rendered').find('[data-media-pin]').on('click', () => {
+            if (typeof app !== 'undefined' && app && app.togglePin) app.togglePin(file.file);
+        });
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    /** Zoom de la imagen abierta: 'fit' (ajustada al ancho) o un factor 0.25–5. */
+    _wireImageZoom(file) {
+        const $wrap = $('#md-rendered').find('.doc-media-image');
+        const $img  = $('#docMediaImg');
+        if (!$wrap.length || !$img.length) return;
+
+        let zoom = 'fit';
+        const apply = () => {
+            const natural = $img[0].naturalWidth || 0;
+            if (zoom === 'fit') {
+                $img.css('width', '').css('max-width', '100%');
+                $('#docMediaZoomVal').text('Ajustada');
+            } else {
+                $img.css({ 'max-width': 'none', width: Math.round(natural * zoom) + 'px' });
+                $('#docMediaZoomVal').text(Math.round(zoom * 100) + '%');
+            }
+            $wrap.attr('data-zoom', zoom === 'fit' ? 'fit' : 'manual');
+        };
+
+        // Las dimensiones reales solo se conocen cuando la imagen ya cargo.
+        $img.on('load', () => {
+            const w = $img[0].naturalWidth, h = $img[0].naturalHeight;
+            const size = file.size ? ' · ' + file.size : '';
+            if (w && h) $('#docMediaDims').text(`${w} × ${h}${size}`);
+            apply();
+        });
+        $img.on('error', () => {
+            $('#docMediaDims').text('No se pudo cargar la imagen');
+        });
+
+        $wrap.find('[data-media-zoom]').on('click', (e) => {
+            const mode = $(e.currentTarget).data('media-zoom');
+            if (mode === 'fit') {
+                zoom = 'fit';
+            } else {
+                // Al salir de "ajustada" se parte del tamano real (100%).
+                const base = (zoom === 'fit') ? 1 : zoom;
+                zoom = mode === 'in' ? Math.min(5, base * 1.25) : Math.max(0.25, base / 1.25);
+            }
+            apply();
+        });
     }
 
     // ── TODO dinámico (todo.json): panel CRUD con el look del documento ──
@@ -4010,6 +4412,14 @@ function iaIsSheetFile(file) {
     if (!file) return false;
     const ext = (file.name || '').split('.').pop().toLowerCase();
     return IA_SHEET_EXTS.indexOf(ext) !== -1;
+}
+
+// Los PDF llegan al modelo como texto (pdf.js lo extrae en el navegador), igual
+// que las hojas: asi funcionan con cualquier modelo, tenga vision o no.
+function iaIsPdfFile(file) {
+    if (!file) return false;
+    if ((file.type || '') === 'application/pdf') return true;
+    return /\.pdf$/i.test(file.name || '');
 }
 
 /**
@@ -4630,6 +5040,9 @@ class CoffeeIA {
         $('#iaNewChatBtn').on('click', () => this.clearConversation());
         $('#iaSaveChatBtn').on('click', () => this.saveConversation());
         $('#iaSavedChatsBtn').on('click', () => this.openSavedChatsModal());
+        // "Limpiar" (barra del input) sí descarta: vacía la pantalla y borra el
+        // autoguardado, para que la conversación no reaparezca en el historial.
+        $('#iaClearBtn').on('click', () => this.discardConversation());
         $('#iaImageInput').on('change', (e) => {
             const files = Array.from(e.target.files || []);
             files.forEach(f => this._addFile(f));
@@ -4714,9 +5127,15 @@ class CoffeeIA {
         const html = pinned.map(name => {
             const f = (this._app.allFiles || []).find(x => x.file === name);
             const size = f ? f.size : '';
+            // Un medio anclado se distingue de un .md: la imagen va como vision y el
+            // PDF como texto, y conviene verlo de un vistazo en el composer.
+            const kind = visorFileMediaKind(f);
+            const icon = kind === 'image' ? 'image' : 'file-text';
+            const hint = kind === 'image' ? ' — se envía como imagen de referencia'
+                       : (kind === 'pdf'  ? ' — se envía su texto' : '');
             return `
-                <span class="ia-pinned-chip" title="${name}${size ? ' (' + size + ')' : ''}">
-                    <i data-lucide="file-text" style="width:10px;height:10px;color:var(--vsr-accent-soft);"></i>
+                <span class="ia-pinned-chip" title="${name}${size ? ' (' + size + ')' : ''}${hint}">
+                    <i data-lucide="${icon}" style="width:10px;height:10px;color:var(--vsr-accent-soft);"></i>
                     <span class="chip-name">${name}</span>
                     <button type="button" class="chip-remove" data-unpin="${name}" title="Desanclar">
                         <i data-lucide="x"></i>
@@ -4744,10 +5163,11 @@ class CoffeeIA {
     _addFile(file) {
         if (!file) return;
         if (/^image\//.test(file.type)) { this._addImageFile(file); return; }
+        if (iaIsPdfFile(file))          { this._addPdfFile(file);   return; }
         if (iaIsSheetFile(file))        { this._addSheetFile(file); return; }
         if (iaIsTextFile(file))         { this._addDocFile(file);   return; }
         if (typeof visorView !== 'undefined' && visorView) {
-            visorView.toast('Formato no soportado: ' + (file.name || 'archivo') + ' (imagenes, texto y hojas de calculo)', 'warn');
+            visorView.toast('Formato no soportado: ' + (file.name || 'archivo') + ' (imagenes, PDF, texto y hojas de calculo)', 'warn');
         }
     }
 
@@ -4808,6 +5228,41 @@ class CoffeeIA {
         if (idx < 0 || idx >= this.pendingDocs.length) return;
         this.pendingDocs.splice(idx, 1);
         this._renderImageStrip();
+    }
+
+    /* ── PDF adjunto: pdf.js extrae su texto y viaja como documento ── */
+
+    _addPdfFile(file) {
+        if (!file) return;
+        const warn = (msg, kind) => {
+            if (typeof visorView !== 'undefined' && visorView) visorView.toast(msg, kind || 'warn');
+        };
+        if (file.size > PDF_MAX_BYTES) { warn('PDF demasiado grande (max 25 MB)'); return; }
+
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            let out;
+            try {
+                out = await pdfExtractText(ev.target.result);
+            } catch (err) {
+                warn('No se pudo leer el PDF: ' + (err.message || err), 'error');
+                return;
+            }
+            if (!out.text.replace(/## Pagina \d+|\[sin texto[^\]]*\]/g, '').trim()) {
+                warn('El PDF no tiene texto seleccionable (parece un escaneo)');
+                return;
+            }
+            this.pendingDocs.push({
+                name:    file.name || 'documento.pdf',
+                content: out.text,
+                size:    file.size || 0,
+                icon:    'file-text'
+            });
+            this._renderImageStrip();
+            if (out.truncated) warn('El PDF se recorto para caber en el contexto del modelo');
+        };
+        reader.onerror = () => warn('No se pudo leer el archivo', 'error');
+        reader.readAsArrayBuffer(file);
     }
 
     /* ── Hojas de calculo adjuntas: se convierten a CSV y viajan como documento ── */
@@ -5046,6 +5501,14 @@ class CoffeeIA {
                     + `NO inventes datos de muestra cuando hay una base conectada. `
                     + `Si una consulta no devuelve filas, refléjalo con un estado vacío en el componente.`;
             }
+        }
+
+        // Los PDF anclados viajan al modelo como texto: si alguno todavia no se ha
+        // leido (o fallo al anclarlo), se resuelve ahora — la primera vez esto
+        // descarga pdf.js. Las imagenes ancladas no pasan por aqui: sus bytes los
+        // lee el backend del disco y los adjunta como vision.
+        if (this._app && this._app.ensurePinnedPdfText) {
+            try { await this._app.ensurePinnedPdfText(); } catch (e) { /* ya se avisa con toast */ }
         }
 
         // Poda del PAYLOAD (this.history no se toca: chat y autoguardado conservan todo).
@@ -7108,7 +7571,16 @@ class CoffeeIA {
         if (show) $b.css('display', 'flex'); else $b.hide();
     }
 
-    /* ── Clear conversation ── */
+    /* ── Clear conversation ──────────────────────────────────────────────
+     *
+     * Dos gestos distintos sobre la conversacion abierta:
+     *
+     *   clearConversation()   "Nueva conversacion" (cabecera). Deja la mesa limpia
+     *                         SIN tirar nada: el autoguardado ya dejo la anterior en
+     *                         Chats guardados y se puede retomar cuando quieras.
+     *   discardConversation() "Limpiar" (barra del input). Ademas de vaciar la
+     *                         pantalla, borra el registro autoguardado del servidor:
+     *                         la conversacion desaparece del historial. */
 
     clearConversation() {
         clearTimeout(this._autoSaveTimer);   // que no guarde la conversacion recien limpiada
@@ -7125,6 +7597,31 @@ class CoffeeIA {
         $('#iaBodyChat').empty().hide();
         $('#iaBodyEmpty').show();
         this._syncContext();
+    }
+
+    // Descarta la conversacion abierta: la vacia y la borra del historial. El uid
+    // se captura ANTES de limpiar, porque clearConversation() lo pone en null.
+    async discardConversation() {
+        if (!this.history.length && !this._currentChatUid) {
+            this._toast('No hay conversación que limpiar', 'warn');
+            return;
+        }
+        if (!window.confirm('¿Limpiar esta conversación? Se borra también del historial y no se puede deshacer.\n\nSi solo quieres empezar otra y conservar esta, usa «Nueva conversación» (arriba).')) return;
+
+        const uid = this._currentChatUid;
+        this.clearConversation();
+        if (!uid) { this._toast('Conversación limpiada', 'success'); return; }
+        try {
+            const form = new FormData();
+            form.append('action', 'delete');
+            form.append('uid',    uid);
+            const res  = await fetch(this._apiChats, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { this._toast(data.message || 'Se limpió la pantalla, pero no se pudo borrar del historial', 'warn'); return; }
+            this._toast('Conversación limpiada y borrada del historial', 'success');
+        } catch (e) {
+            this._toast('Se limpió la pantalla, pero falló el borrado del historial', 'warn');
+        }
     }
 
     /* ── Conexion a base de datos (pegajosa por conversacion) ── */

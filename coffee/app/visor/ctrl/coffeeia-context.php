@@ -20,6 +20,33 @@ require_once __DIR__ . '/tools-registry.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
+// Tope por imagen anclada. Una imagen mas grande no aporta detalle util al modelo
+// y si infla el request hasta hacerlo fallar.
+if (!defined('COFFEEIA_MAX_IMAGE_BYTES')) define('COFFEEIA_MAX_IMAGE_BYTES', 8388608);   // 8 MB
+
+/**
+ * Clase de medio de un archivo anclado: 'image' (va como vision al mensaje del
+ * usuario) | 'pdf' (su texto ya viene extraido del cliente) | '' (texto normal).
+ * El .svg queda fuera a proposito: es XML y entra al contexto como texto.
+ */
+function coffeeia_media_kind($path) {
+    $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+    if (in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif'], true)) return 'image';
+    if ($ext === 'pdf') return 'pdf';
+    return '';
+}
+
+/**
+ * Archivo cuyos bytes NUNCA deben leerse crudos al prompt: son binarios y solo
+ * meterian basura (y romperian el UTF-8 del JSON) en el bloque de contexto.
+ */
+function coffeeia_is_binary_ext($path) {
+    $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+    return in_array($ext, [
+        'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'ico', 'pdf',
+        'xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'zip', 'rar', '7z'
+    ], true);
+}
 
 /**
  * @param array $body  Payload JSON decodificado del request.
@@ -121,9 +148,14 @@ function coffeeia_build_context(array $body) {
     }
 
     // Contenido del archivo actual: enviado por el front, o leido de disco.
+    // Los binarios (imagen, PDF, hoja) nunca se leen crudos: solo meterian bytes
+    // ilegibles al prompt. Para que el modelo los "vea" hay que anclarlos.
     $fileContent = '';
+    $currentIsBinary = coffeeia_is_binary_ext($currentFilePath !== '' ? $currentFilePath : $currentFile);
     if ($currentFileContent !== '') {
         $fileContent = $currentFileContent;
+    } elseif ($currentIsBinary) {
+        $fileContent = '';
     } elseif ($currentFilePath !== '' && is_file($currentFilePath)) {
         $read = @file_get_contents($currentFilePath);
         if ($read !== false) $fileContent = $read;
@@ -145,6 +177,14 @@ function coffeeia_build_context(array $body) {
         }
     }
 
+    // Nombres anclados: si el archivo abierto ya esta en la lista, entra mas abajo
+    // con su contenido real y no hace falta avisar de que no viajo.
+    $pinnedFiles = isset($body['pinnedFiles']) && is_array($body['pinnedFiles']) ? $body['pinnedFiles'] : [];
+    $pinnedNames = [];
+    foreach ($pinnedFiles as $pf) {
+        if (is_array($pf) && isset($pf['file'])) $pinnedNames[] = trim((string) $pf['file']);
+    }
+
     // Documentos en contexto: el actual + los anclados.
     $ctxDocs = [];
     if ($currentFile !== '' && $fileContent !== '') {
@@ -158,23 +198,86 @@ function coffeeia_build_context(array $body) {
             ? 'archivo abierto en el visor (TEXTO CRUDO — copia de aqui LITERAL para los <find>)'
             : 'archivo abierto en el visor';
         $ctxDocs[] = ['label' => $abiertoLabel, 'name' => $currentFile, 'content' => $fileContent];
+    } elseif ($currentFile !== '' && $currentIsBinary && !in_array($currentFile, $pinnedNames, true)) {
+        // El usuario tiene abierta una imagen/PDF/hoja pero no la anclo: se le dice
+        // al modelo que existe, para que pueda pedir que la anclen si la necesita.
+        $mk = coffeeia_media_kind($currentFile);
+        $ctxDocs[] = [
+            'label'   => 'archivo abierto en el visor (no enviado)',
+            'name'    => $currentFile,
+            'content' => 'El usuario tiene abierto este archivo ' . ($mk === 'image' ? 'de imagen' : ($mk === 'pdf' ? 'PDF' : 'binario'))
+                       . ', pero su contenido NO esta en el contexto. Si lo necesitas, pidele que lo ancle con el boton "Anclar al chat".'
+        ];
     }
 
-    $pinnedFiles = isset($body['pinnedFiles']) && is_array($body['pinnedFiles']) ? $body['pinnedFiles'] : [];
+    // Imagenes ancladas: no son texto, viajan como vision en el mensaje del usuario.
+    // Se leen aqui (server-side) para no mover megas de base64 por el request.
+    $pinnedImages = [];
+
     foreach ($pinnedFiles as $pf) {
         if (!is_array($pf)) continue;
         $pfName = isset($pf['file']) ? trim($pf['file']) : '';
-        if ($pfName === '' || $pfName === $currentFile) continue;
+        if ($pfName === '') continue;
+        $pfPath = isset($pf['fullPath']) ? (string) $pf['fullPath'] : '';
+        $pfKind = coffeeia_media_kind($pfName);
+        // El archivo abierto ya va en el contexto: no se repite. Salvo si es un medio,
+        // porque entonces NO viajo su contenido (es binario) y anclarlo es justo la
+        // forma de que el modelo lo reciba.
+        if ($pfName === $currentFile && $pfKind === '') continue;
+
+        // Imagen anclada -> bytes a base64 para el bloque de vision del turno.
+        if ($pfKind === 'image') {
+            if ($pfPath === '' || !is_file($pfPath)) continue;
+            if (@filesize($pfPath) > COFFEEIA_MAX_IMAGE_BYTES) {
+                $ctxDocs[] = [
+                    'label'   => 'imagen anclada (omitida)',
+                    'name'    => $pfName,
+                    'content' => 'La imagen pesa mas de 8 MB y no se envio al modelo.'
+                ];
+                continue;
+            }
+            $bytes = @file_get_contents($pfPath);
+            if ($bytes === false || $bytes === '') continue;
+            $pinnedImages[] = base64_encode($bytes);
+            // Nota de texto para que el modelo sepa QUE imagen esta viendo.
+            $ctxDocs[] = [
+                'label'   => 'imagen anclada al contexto',
+                'name'    => $pfName,
+                'content' => 'Esta imagen se adjunta al mensaje del usuario. Analizala como referencia visual.'
+            ];
+            continue;
+        }
+
         $pfContent = isset($pf['content']) ? $pf['content'] : '';
-        if ($pfContent === '' && !empty($pf['fullPath']) && is_file($pf['fullPath'])) {
-            $read = @file_get_contents($pf['fullPath']);
+        // Los binarios (PDF, hojas) solo entran si el cliente ya mando su texto
+        // extraido: leerlos del disco meteria bytes crudos al prompt.
+        if ($pfContent === '' && $pfPath !== '' && is_file($pfPath) && !coffeeia_is_binary_ext($pfPath)) {
+            $read = @file_get_contents($pfPath);
             if ($read !== false) $pfContent = $read;
         }
         if ($pfContent === '') continue;
         if (strlen($pfContent) > COFFEEIA_MAX_FILE_BYTES) {
             $pfContent = mb_strcut($pfContent, 0, COFFEEIA_MAX_FILE_BYTES, 'UTF-8') . "\n\n[... truncado a 64KB ...]";
         }
-        $ctxDocs[] = ['label' => 'archivo anclado al contexto', 'name' => $pfName, 'content' => $pfContent];
+        $label = $pfKind === 'pdf' ? 'PDF anclado al contexto (texto extraido)' : 'archivo anclado al contexto';
+        $ctxDocs[] = ['label' => $label, 'name' => $pfName, 'content' => $pfContent];
+    }
+
+    // Las imagenes ancladas se cuelgan del ULTIMO mensaje del usuario: es el turno
+    // que el modelo esta respondiendo. No se guardan en el historial del cliente, asi
+    // que se re-adjuntan en cada turno mientras sigan ancladas.
+    if (!empty($pinnedImages)) {
+        for ($i = count($messages) - 1; $i >= 0; $i--) {
+            if (($messages[$i]['role'] ?? '') !== 'user') continue;
+            $prev = isset($messages[$i]['images']) && is_array($messages[$i]['images']) ? $messages[$i]['images'] : [];
+            $messages[$i]['images'] = array_merge($prev, $pinnedImages);
+            $hasImages = true;
+            break;
+        }
+        // Con imagenes en juego y sin modelo fijado, hay que usar uno con vision.
+        if ($hasImages && ($model === null || $model === '')) {
+            $model = llm_vision_model_for($model);
+        }
     }
 
     // Consolida todo en un unico mensaje system.

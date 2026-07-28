@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - generic [ref=e4]: CoffeeSoft
+  - tablist [ref=e13]:
+    - tab "Iniciar sesión" [ref=e14] [cursor=pointer]
+    - tab "Crear cuenta" [ref=e15] [cursor=pointer]
+  - generic [ref=e16]: Inicio con Google aún no configurado
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]: Correo
+      - textbox "Correo" [ref=e23]:
+        - /placeholder: tu@correo.com
+    - tablist "Método de acceso" [ref=e24]:
+      - tab "Contraseña" [ref=e25] [cursor=pointer]
+      - tab "PIN" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28]: Contraseña
+      - generic [ref=e29]:
+        - textbox "Contraseña Mostrar contraseña" [ref=e30]:
+          - /placeholder: ••••••••
+        - button "Mostrar contraseña" [ref=e31] [cursor=pointer]
+    - button "Iniciar sesión" [ref=e35] [cursor=pointer]

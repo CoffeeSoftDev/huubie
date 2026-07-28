@@ -461,9 +461,9 @@
                             <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
-                    <input id="iaImageInput" type="file" accept="image/*,text/*,.md,.markdown,.csv,.tsv,.html,.htm,.xml,.svg,.json,.yaml,.yml,.toml,.ini,.env,.conf,.log,.js,.mjs,.ts,.jsx,.tsx,.css,.scss,.less,.php,.py,.rb,.go,.rs,.java,.kt,.c,.h,.cpp,.cs,.sql,.sh,.bash,.ps1,.bat,.vue,.astro,.xlsx,.xlsm,.xlsb,.xls,.ods" multiple style="display:none;">
+                    <input id="iaImageInput" type="file" accept="image/*,text/*,.pdf,.md,.markdown,.csv,.tsv,.html,.htm,.xml,.svg,.json,.yaml,.yml,.toml,.ini,.env,.conf,.log,.js,.mjs,.ts,.jsx,.tsx,.css,.scss,.less,.php,.py,.rb,.go,.rs,.java,.kt,.c,.h,.cpp,.cs,.sql,.sh,.bash,.ps1,.bat,.vue,.astro,.xlsx,.xlsm,.xlsb,.xls,.ods" multiple style="display:none;">
                     <div class="ia-input-hint">
-                        <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen, documento de texto o Excel (tambien Ctrl+V para pegar)">
+                        <button id="iaAttachBtn" class="ia-attach-btn" title="Adjuntar imagen, PDF, documento de texto o Excel (tambien Ctrl+V para pegar)">
                             <i data-lucide="paperclip" class="w-3 h-3"></i>
                         </button>
                         <button id="iaEditorToggle" class="ia-editor-toggle is-icon-only" title="Activar modo editor">
@@ -471,6 +471,11 @@
                         </button>
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo Layout">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
+                        </button>
+                        <!-- Descartar: borra la conversaci&oacute;n actual TAMBIEN del historial. Es lo
+                             contrario de "Nueva conversaci&oacute;n" (cabecera), que la deja guardada. -->
+                        <button id="iaClearBtn" class="ia-attach-btn is-danger" title="Limpiar conversaci&oacute;n (la borra del historial, no se puede deshacer)">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
                         </button>
                         <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
                         <div class="ia-tools-wrap" style="position:relative;">
@@ -715,14 +720,14 @@
         </div>
     </div>
 
-    <!-- Modal: subir una hoja de calculo (.xlsx/.xls/.ods/.csv) a una carpeta del sandbox -->
+    <!-- Modal: subir un archivo (hoja de calculo, imagen o PDF) a una carpeta del sandbox -->
     <div id="uploadSheetModal" class="folder-browse-modal new-file-modal hidden" aria-hidden="true">
         <div class="folder-browse-backdrop" data-upload-close></div>
         <div class="folder-browse-dialog new-file-dialog" role="dialog" aria-labelledby="uploadSheetTitle">
             <header class="folder-browse-header">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                    <h3 id="uploadSheetTitle">Subir hoja de c&aacute;lculo</h3>
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    <h3 id="uploadSheetTitle">Subir archivo</h3>
                 </div>
                 <button id="uploadSheetClose" class="folder-browse-close" title="Cerrar">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -736,12 +741,12 @@
                 <label class="new-file-label">Archivo</label>
                 <div id="uploadSheetDrop" class="upload-drop" tabindex="0" role="button" aria-label="Elegir archivo">
                     <i data-lucide="upload-cloud" class="upload-drop-icon"></i>
-                    <p class="upload-drop-text">Arrastra el Excel aqu&iacute; o <strong>haz clic para elegirlo</strong></p>
-                    <span class="upload-drop-hint">.xlsx &middot; .xlsm &middot; .xls &middot; .ods &middot; .csv &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
+                    <p class="upload-drop-text">Arrastra el archivo aqu&iacute; o <strong>haz clic para elegirlo</strong></p>
+                    <span class="upload-drop-hint">Excel &middot; CSV &middot; PNG &middot; JPG &middot; SVG &middot; PDF &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
                 </div>
-                <input id="uploadSheetInput" type="file" class="hidden" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv">
+                <input id="uploadSheetInput" type="file" class="hidden" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.pdf">
                 <div id="uploadSheetPicked" class="upload-picked hidden"></div>
-                <span class="new-file-hint">Se guarda tal cual y se abre en el visor con todas sus hojas. No se puede editar desde aqu&iacute;.</span>
+                <span class="new-file-hint">Se guarda tal cual y se abre en el visor: las hojas con todas sus pesta&ntilde;as, las im&aacute;genes y los PDF en su propio visor. Desde el visor puedes anclarlo al chat de CoffeeIA.</span>
             </div>
             <footer class="folder-browse-footer">
                 <span class="folder-browse-selected">Se guardar&aacute; dentro del sandbox del visor.</span>

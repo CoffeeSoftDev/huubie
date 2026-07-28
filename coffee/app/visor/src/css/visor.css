@@ -1898,6 +1898,103 @@ body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Front
 .md-rendered.is-sheet::before { display: none; }
 .main-content:has(.md-rendered.is-sheet) { padding: 8px 12px; }
 
+/* ── Modo MEDIO: imagen o PDF ──────────────────────────────────
+   La hoja del documento (ancho, centrado, radio y sombra de .md-rendered) hace
+   de marco y NO se toca: el ancho es el mismo que el de un .md. Lo que cambia es
+   que el archivo ocupa la hoja ENTERA — sin el padding del papel no queda
+   contorno blanco alrededor — y que se estira a lo alto.
+   overflow:hidden para que el radio de la hoja recorte el contenido.
+   Los colores de aqui son fijos del papel, no variables de tema: la hoja es
+   clara tanto en dark como en light. */
+.md-rendered.is-media {
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+/* Igual que en el modo hoja: sobre una imagen o un PDF, ni el TOC ni el
+   frontmatter tienen nada que decir — el ancho se lo queda el archivo. */
+body.media-view .doc-meta { display: none; }
+
+/* El archivo ocupa todo el ALTO del contenedor: la cadena main-content >
+   doc-layout > doc-main > .md-rendered se vuelve flex para que llegue hasta
+   abajo en vez de quedarse en el alto natural del bloque (dejaba una franja
+   muerta). El ancho no se toca: sigue siendo el de la hoja del markdown. */
+body.media-view .main-content { display: flex; flex-direction: column; overflow: hidden; }
+body.media-view .doc-layout   { flex: 1 1 auto; min-height: 0; }
+body.media-view .doc-main     { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: flex; }
+.md-rendered.is-media .doc-media { flex: 1 1 auto; min-height: 0; width: 100%; }
+
+.doc-media { display: flex; flex-direction: column; min-height: 0; }
+
+.doc-media-bar {
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;                                  /* nunca cede alto al archivo */
+    padding: 10px 14px;
+    background: rgba(44,36,22,.04);
+    border-bottom: 1px solid rgba(44,36,22,.12);
+}
+.doc-media-name {
+    display: flex; align-items: center; gap: 7px;
+    min-width: 0; flex: 0 1 auto;
+    font-size: 13px; font-weight: 600; color: #2C2416;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-media-name i { flex-shrink: 0; color: #C05A40; }
+.doc-media-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #8A7B63; white-space: nowrap;
+}
+.doc-media-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.doc-media-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 9px;
+    background: #FFFDF9;
+    border: 1px solid rgba(44,36,22,.16);
+    border-radius: 7px;
+    color: #5C5140;
+    font-size: 11.5px; font-weight: 500;
+    cursor: pointer; transition: all .15s ease;
+    text-decoration: none;
+}
+.doc-media-btn:hover { color: #2C2416; border-color: #C05A40; }
+.doc-media-btn.is-pinned { color: #C05A40; border-color: #C05A40; background: rgba(192,90,64,.08); }
+
+/* Tablero a cuadros: deja ver la transparencia real de un PNG/SVG. */
+.doc-media-canvas {
+    flex: 1 1 auto; min-height: 0;
+    overflow: auto;
+    padding: 20px;
+    display: flex; justify-content: center; align-items: flex-start;
+    background-color: #F1ECE4;
+    background-image:
+        linear-gradient(45deg, rgba(44,36,22,.07) 25%, transparent 25%, transparent 75%, rgba(44,36,22,.07) 75%),
+        linear-gradient(45deg, rgba(44,36,22,.07) 25%, transparent 25%, transparent 75%, rgba(44,36,22,.07) 75%);
+    background-size: 18px 18px;
+    background-position: 0 0, 9px 9px;
+}
+.doc-media-canvas img {
+    display: block; height: auto;
+    border-radius: 4px;
+    box-shadow: 0 4px 18px rgba(44,36,22,.22);
+}
+/* Con zoom manual la imagen puede exceder el ancho: se alinea a la izquierda
+   para que el scroll horizontal empiece por el principio de la imagen. */
+.doc-media-image[data-zoom="manual"] .doc-media-canvas { justify-content: flex-start; }
+
+/* El PDF se estira hasta el fondo del contenedor (nada de alto fijo). Sin borde
+   ni radio propios: el visor nativo del navegador ya trae su marco y su barra, y
+   encimarle otro deja un contorno de mas alrededor del documento. */
+.doc-pdf-frame {
+    display: block;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    border: 0;
+}
+.doc-media-error { color: #6B6250; font-size: 13px; padding: 24px; text-align: center; }
+
 /* ── Loaders de Drive ──────────────────────────────────────── */
 /* Solo posicionamiento; el visual lo aporta coffeeLoader() de */
 /* coffeeSoft.js (clase Templates).                            */
@@ -3472,6 +3569,13 @@ select.new-file-input {
 .docx-ic { width: 42px; height: 42px; flex-shrink: 0; stroke-width: 1.5; }
 .docx-ic-folder { color: #F5B841; fill: rgba(245, 184, 65, .16); }
 .docx-ic-file { color: var(--vsr-text-muted); }
+/* Miniatura de imagen: ocupa el hueco del icono sin deformarse. */
+.docx-ic-thumb {
+    object-fit: cover;
+    border-radius: 5px;
+    background: rgba(127,127,127,.12);
+    border: 1px solid var(--vsr-border);
+}
 
 /* Drag & drop: arrastrar un archivo sobre una carpeta lo mueve a esa carpeta. */
 /* Aunque siguen siendo arrastrables, el cursor se queda en flecha (preferencia
@@ -4421,6 +4525,13 @@ body.ia-drawer-resizing * {
     background: var(--vsr-accent-tint);
 }
 .ia-attach-btn.is-active i { color: var(--vsr-accent); }
+/* Accion destructiva (limpiar la conversacion): el rojo solo aparece al pasar el
+   cursor, para que no compita con el resto de la barra en reposo. */
+.ia-attach-btn.is-danger:hover {
+    color: #f87171;
+    border-color: rgba(248,113,113,.4);
+    background: rgba(220,38,38,0.12);
+}
 
 .ia-image-strip {
     display: flex; flex-wrap: wrap; gap: 6px;
@@ -5630,22 +5741,22 @@ body.ia-drawer-resizing * {
 .sc-switch input { width: 15px; height: 15px; accent-color: var(--vsr-accent); }
 .sc-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--vsr-border); }
 
-/* ── Herramientas: catálogo visual ── */
-#acctToolsPanel .acct-tool-hero {
+/* ── Catálogo visual en tarjetas (Herramientas y Modelos) ── */
+.acct-settings-content .acct-tool-hero {
     align-items: flex-start;
     margin-bottom: 22px;
 }
-#acctToolsPanel .acct-tool-hero .acct-sec-title {
+.acct-settings-content .acct-tool-hero .acct-sec-title {
     font-size: 18px;
     line-height: 1.25;
 }
-#acctToolsPanel .acct-tool-hero .acct-sec-sub {
+.acct-settings-content .acct-tool-hero .acct-sec-sub {
     max-width: 70ch;
     margin-top: 6px;
     font-size: 12px;
     line-height: 1.5;
 }
-#acctToolsPanel .acct-tool-add {
+.acct-settings-content .acct-tool-add {
     min-height: 36px;
     padding: 0 13px;
     border-color: var(--vsr-accent);
@@ -5655,24 +5766,24 @@ body.ia-drawer-resizing * {
     box-shadow: none;
     white-space: nowrap;
 }
-#acctToolsPanel .acct-tool-add:hover {
+.acct-settings-content .acct-tool-add:hover {
     border-color: var(--vsr-accent);
     color: #fff;
     box-shadow: none;
     filter: brightness(1.05);
 }
-#acctToolsPanel .acct-tool-toolbar {
+.acct-settings-content .acct-tool-toolbar {
     position: sticky;
     top: -16px;
     grid-template-columns: minmax(260px, 1fr) auto;
     gap: 18px;
     padding: 12px 0 15px;
 }
-#acctToolsPanel .acct-model-search input {
+.acct-settings-content .acct-model-search input {
     height: 38px;
     border-radius: 9px;
 }
-#acctToolsPanel .acct-tool-filters {
+.acct-settings-content .acct-tool-filters {
     justify-content: flex-end;
     gap: 2px;
     padding: 3px;
@@ -5680,7 +5791,7 @@ body.ia-drawer-resizing * {
     border-radius: 9px;
     background: var(--vsr-bg-hover);
 }
-#acctToolsPanel .acct-tool-filters .acct-provider-chip {
+.acct-settings-content .acct-tool-filters .acct-provider-chip {
     min-height: 30px;
     padding: 0 12px;
     border: 0;
@@ -5689,26 +5800,30 @@ body.ia-drawer-resizing * {
     color: var(--vsr-text-muted);
     box-shadow: none;
 }
-#acctToolsPanel .acct-tool-filters .acct-provider-chip:hover {
-    background: color-mix(in srgb, var(--vsr-bg-card) 70%, transparent);
-    color: var(--vsr-text);
+.acct-settings-content .acct-tool-filters .acct-provider-chip:hover {
+    background: var(--vsr-accent-tint);
+    color: var(--vsr-accent-soft);
 }
-#acctToolsPanel .acct-tool-filters .acct-provider-chip.is-active {
+.acct-settings-content .acct-tool-filters .acct-provider-chip.is-active {
     background: var(--vsr-bg-card);
     color: var(--vsr-text);
-    box-shadow: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
 }
-#acctToolsPanel .acct-tool-results {
+.acct-settings-content .acct-tool-filters .acct-provider-chip.is-active:hover {
+    background: var(--vsr-bg-card);
+    color: var(--vsr-accent-soft);
+}
+.acct-settings-content .acct-tool-results {
     margin-bottom: 10px;
     color: var(--vsr-text-muted);
     font-size: 10.5px;
     font-weight: 700;
 }
-#acctToolsPanel .acct-tool-list {
+.acct-settings-content .acct-tool-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 11px;
 }
-#acctToolsPanel .acct-tool-card {
+.acct-settings-content .acct-tool-card {
     min-height: 226px;
     display: flex;
     flex-direction: column;
@@ -5719,47 +5834,55 @@ body.ia-drawer-resizing * {
     opacity: .78;
     transform: none;
 }
-#acctToolsPanel .acct-tool-card:hover,
-#acctToolsPanel .acct-tool-card.is-on {
+.acct-settings-content .acct-tool-card[hidden] {
+    display: none;
+}
+.acct-settings-content .acct-tool-card:hover,
+.acct-settings-content .acct-tool-card.is-on {
     box-shadow: none;
     transform: none;
 }
-#acctToolsPanel .acct-tool-card::after {
+.acct-settings-content .acct-tool-card:hover {
+    opacity: 1;
+    border-color: var(--vsr-accent-tint);
+    background: var(--vsr-bg-hover);
+}
+.acct-settings-content .acct-tool-card::after {
     display: none;
 }
-#acctToolsPanel .acct-tool-card.is-on {
+.acct-settings-content .acct-tool-card.is-on {
     opacity: 1;
 }
-#acctToolsPanel .acct-tool-card-top {
+.acct-settings-content .acct-tool-card-top {
     display: grid;
     grid-template-columns: 31px minmax(0, 1fr);
     align-items: start;
     gap: 8px;
 }
-#acctToolsPanel .acct-tool-card .acct-provider-avatar,
-#acctToolsPanel .acct-tool-card .acct-model-main,
-#acctToolsPanel .acct-tool-card .acct-model-switch,
-#acctToolsPanel .acct-tool-card .acct-model-menu {
+.acct-settings-content .acct-tool-card .acct-provider-avatar,
+.acct-settings-content .acct-tool-card .acct-model-main,
+.acct-settings-content .acct-tool-card .acct-model-switch,
+.acct-settings-content .acct-tool-card .acct-model-menu {
     grid-column: auto;
     grid-row: auto;
     margin: 0;
 }
-#acctToolsPanel .acct-tool-card .acct-provider-avatar {
+.acct-settings-content .acct-tool-card .acct-provider-avatar {
     width: 29px;
     height: 29px;
 }
-#acctToolsPanel .acct-tool-card .acct-model-main {
+.acct-settings-content .acct-tool-card .acct-model-main {
     cursor: default;
     gap: 2px;
 }
-#acctToolsPanel .acct-tool-card .acct-model-title-row {
+.acct-settings-content .acct-tool-card .acct-model-title-row {
     flex-wrap: wrap;
 }
-#acctToolsPanel .acct-tool-card .acct-model-name {
+.acct-settings-content .acct-tool-card .acct-model-name {
     font-size: 11.5px;
     line-height: 1.3;
 }
-#acctToolsPanel .acct-tool-card .acct-model-desc {
+.acct-settings-content .acct-tool-card .acct-model-desc {
     min-height: 29px;
     margin-top: 1px;
     font-size: 9.5px;
@@ -5767,26 +5890,26 @@ body.ia-drawer-resizing * {
     -webkit-line-clamp: 2;
     line-clamp: 2;
 }
-#acctToolsPanel .acct-tool-card .acct-model-caps {
+.acct-settings-content .acct-tool-card .acct-model-caps {
     min-height: 16px;
     margin-top: 0;
 }
-#acctToolsPanel .acct-tool-card .acct-scope-row {
+.acct-settings-content .acct-tool-card .acct-scope-row {
     min-height: 16px;
     margin-top: 0;
 }
-#acctToolsPanel .acct-tool-card .acct-model-meta {
+.acct-settings-content .acct-tool-card .acct-model-meta {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
     margin-top: 2px;
 }
-#acctToolsPanel .acct-tool-card .acct-model-meta > span {
+.acct-settings-content .acct-tool-card .acct-model-meta > span {
     width: 100%;
     font-size: 9px;
 }
-#acctToolsPanel .acct-tool-card-foot {
+.acct-settings-content .acct-tool-card-foot {
     width: calc(100% + 26px);
     box-sizing: border-box;
     display: flex;
@@ -5798,7 +5921,7 @@ body.ia-drawer-resizing * {
     padding: 9px 13px 0;
     border-top: 1px solid var(--vsr-border-soft);
 }
-#acctToolsPanel .acct-tool-cb {
+.acct-settings-content .acct-tool-cb {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -5806,30 +5929,30 @@ body.ia-drawer-resizing * {
     opacity: 0;
     pointer-events: none;
 }
-#acctToolsPanel .acct-tool-card .acct-model-switch {
+.acct-settings-content .acct-tool-card .acct-model-switch {
     grid-template-columns: 27px auto;
     align-self: auto;
     width: max-content;
 }
-#acctToolsPanel .acct-tool-card .acct-model-menu {
+.acct-settings-content .acct-tool-card .acct-model-menu {
     align-self: auto;
     justify-self: auto;
 }
-#acctToolsPanel .acct-tool-card .acct-model-menu-pop {
+.acct-settings-content .acct-tool-card .acct-model-menu-pop {
     top: auto;
     right: 0;
     bottom: 30px;
 }
 @media (max-width: 980px) {
-    #acctToolsPanel .acct-tool-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .acct-settings-content .acct-tool-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-    #acctToolsPanel .acct-tool-hero { align-items: stretch; flex-direction: column; }
-    #acctToolsPanel .acct-tool-add { align-self: flex-start; }
-    #acctToolsPanel .acct-tool-toolbar { position: static; grid-template-columns: 1fr; gap: 9px; }
-    #acctToolsPanel .acct-tool-filters { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
-    #acctToolsPanel .acct-tool-list { grid-template-columns: 1fr; }
-    #acctToolsPanel .acct-tool-card { min-height: 250px; }
+    .acct-settings-content .acct-tool-hero { align-items: stretch; flex-direction: column; }
+    .acct-settings-content .acct-tool-add { align-self: flex-start; }
+    .acct-settings-content .acct-tool-toolbar { position: static; grid-template-columns: 1fr; gap: 9px; }
+    .acct-settings-content .acct-tool-filters { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+    .acct-settings-content .acct-tool-list { grid-template-columns: 1fr; }
+    .acct-settings-content .acct-tool-card { min-height: 250px; }
 }
 
 /* ── Editor de herramientas: parámetros y schema ── */

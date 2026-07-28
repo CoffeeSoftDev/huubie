@@ -430,6 +430,11 @@
                         <button id="iaCanvasToggle" class="ia-editor-toggle is-icon-only" title="Activar modo lienzo">
                             <i data-lucide="layout-template" class="w-3 h-3"></i>
                         </button>
+                        <!-- Descartar: borra la conversaci&oacute;n actual TAMBIEN del historial. Es lo
+                             contrario de "Nueva conversaci&oacute;n" (cabecera), que la deja guardada. -->
+                        <button id="iaClearBtn" class="ia-attach-btn is-danger" title="Limpiar conversaci&oacute;n (la borra del historial, no se puede deshacer)">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
                         <!-- Resto de herramientas del chat agrupadas en un menu desplegable -->
                         <div class="ia-tools-wrap" style="position:relative;">
                             <button id="iaToolsBtn" class="ia-attach-btn" title="Herramientas del chat">

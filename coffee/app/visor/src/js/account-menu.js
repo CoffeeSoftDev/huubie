@@ -304,32 +304,36 @@
                     : '';
                 const searchValue = [option.label, option.value, providerName, group.group].concat(model.tags || []).join(' ').toLowerCase();
 
-                return '<div class="acct-model-item' + (on ? ' is-on' : '') + '" data-id="' + escAttr(option.value) + '" data-provider="' + escAttr(provider) + '" data-search="' + escAttr(searchValue) + '">'
-                     +   '<span class="acct-provider-avatar acct-provider-' + escAttr(provider) + '">' + providerMark + '</span>'
-                     +   '<span class="acct-model-main">'
-                     +     '<span class="acct-model-title-row"><span class="acct-model-name">' + escHtml(option.label) + '</span>' + (model.builtin ? '<span class="acct-model-base">Base</span>' : '') + '</span>'
-                     +     '<span class="acct-model-val">' + escHtml(option.value) + '</span>'
-                     +     (model.desc ? '<span class="acct-model-desc">' + escHtml(model.desc) + '</span>' : '')
-                     +     '<span class="acct-model-caps">' + capabilities + tags + '</span>'
-                     +     '<span class="acct-model-meta">'
-                     +       '<span><i data-lucide="cloud"></i>' + providerName + '</span>'
-                     +       (context ? '<span><i data-lucide="braces"></i>' + context + ' tokens</span>' : '')
-                     +       pricing
+                return '<article class="acct-model-item acct-tool-card' + (on ? ' is-on' : '') + '" data-id="' + escAttr(option.value) + '" data-provider="' + escAttr(provider) + '" data-search="' + escAttr(searchValue) + '" aria-label="' + escAttr(option.label) + '">'
+                     +   '<div class="acct-tool-card-top">'
+                     +     '<span class="acct-provider-avatar acct-provider-' + escAttr(provider) + '">' + providerMark + '</span>'
+                     +     '<span class="acct-model-main">'
+                     +       '<span class="acct-model-title-row"><span class="acct-model-name">' + escHtml(option.label) + '</span>' + (model.builtin ? '<span class="acct-model-base">Base</span>' : '<span class="acct-model-base acct-tool-own">Propio</span>') + '</span>'
+                     +       '<span class="acct-model-val">' + escHtml(option.value) + '</span>'
                      +     '</span>'
+                     +   '</div>'
+                     +   '<span class="acct-model-desc">' + escHtml(model.desc || 'Sin descripción') + '</span>'
+                     +   '<span class="acct-model-caps">' + capabilities + tags + '</span>'
+                     +   '<span class="acct-model-meta">'
+                     +     '<span><i data-lucide="cloud"></i>' + providerName + '</span>'
+                     +     (context ? '<span><i data-lucide="braces"></i>' + context + ' tokens</span>' : '')
+                     +     pricing
                      +   '</span>'
-                     +   '<label class="acct-model-switch" title="Habilitar o deshabilitar modelo">'
-                     +     '<input type="checkbox" class="acct-model-cb" value="' + escAttr(option.value) + '"' + (on ? ' checked' : '') + '>'
-                     +     '<span class="acct-switch-track"><span></span></span>'
-                     +     '<span class="acct-model-state acct-state-on">Activo</span><span class="acct-model-state acct-state-off">Inactivo</span>'
-                     +   '</label>'
-                     +   '<details class="acct-model-menu">'
-                     +     '<summary title="Acciones"><i data-lucide="more-horizontal"></i></summary>'
-                     +     '<span class="acct-model-menu-pop">'
-                     +       '<button type="button" data-model-edit><i data-lucide="pencil"></i>Editar</button>'
-                     +       '<button type="button" class="is-danger" data-model-del><i data-lucide="trash-2"></i>Eliminar</button>'
-                     +     '</span>'
-                     +   '</details>'
-                     + '</div>';
+                     +   '<div class="acct-tool-card-foot">'
+                     +     '<label class="acct-model-switch" title="Habilitar o deshabilitar ' + escAttr(option.label) + '">'
+                     +       '<input type="checkbox" class="acct-model-cb" value="' + escAttr(option.value) + '"' + (on ? ' checked' : '') + '>'
+                     +       '<span class="acct-switch-track"><span></span></span>'
+                     +       '<span class="acct-model-state acct-state-on">Activo</span><span class="acct-model-state acct-state-off">Inactivo</span>'
+                     +     '</label>'
+                     +     '<details class="acct-model-menu">'
+                     +       '<summary title="Acciones de ' + escAttr(option.label) + '"><i data-lucide="more-horizontal"></i></summary>'
+                     +       '<span class="acct-model-menu-pop">'
+                     +         '<button type="button" data-model-edit><i data-lucide="pencil"></i>Editar</button>'
+                     +         '<button type="button" class="is-danger" data-model-del><i data-lucide="trash-2"></i>Eliminar</button>'
+                     +       '</span>'
+                     +     '</details>'
+                     +   '</div>'
+                     + '</article>';
             }).join('');
 
             return '<section class="acct-model-group" data-group="' + escAttr(group.group) + '">'
@@ -355,7 +359,8 @@
                       + '</div>';
         const empty = '<div id="acctModelEmpty" class="acct-model-empty" hidden><i data-lucide="search-x"></i><strong>Sin coincidencias</strong><span>Prueba con otro nombre, proveedor o estado.</span></div>';
         const panel = global.jQuery('#acctModelPanel');
-        panel.html(head + toolbar + '<div class="acct-model-results"><span id="acctModelVisible"></span></div><div id="acctModelList" class="acct-model-list">' + groups + '</div>' + empty);
+        panel.html(head + toolbar + '<div class="acct-model-results acct-tool-results"><span id="acctModelVisible" aria-live="polite"></span></div>'
+                 + '<div id="acctModelList" class="acct-model-list acct-tool-list">' + groups + '</div>' + empty);
 
         const applyFilters = function () {
             const term = String(panel.find('#acctModelSearch').val() || '').trim().toLowerCase();
