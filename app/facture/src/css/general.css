@@ -1,0 +1,516 @@
+* {
+  margin: 0;
+  padding: 0;
+  /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
+}
+
+/* ============================================================================
+   SCROLLBAR GLOBAL (tema light del proyecto)
+   ----------------------------------------------------------------------------
+   Barra delgada en tono gris para todo el modulo. Reemplaza la barra gruesa por
+   defecto del sistema. En dark-mode, dark-mode.css la sobreescribe (carga
+   despues / mayor especificidad con body.dark-mode). */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #C1C7CD transparent;
+}
+/* WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #C1C7CD;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9AA0A6;
+}
+body {
+  display: flex;
+  flex-direction: row;
+  background-color: #F3F4F6;
+  font-size: 1rem;
+  /* La ventana no scrollea: el alto se fija al viewport y el unico scroll
+     vive dentro de #main__content. Asi la barra de scroll queda confinada
+     al contenedor (no sobre el navbar fijo) y al abrir un modal la clase
+     .modal-open no remueve ninguna barra de ventana -> sin pantallazo. */
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  /* font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
+}
+
+/* ============================================================================
+   CAUSA RAIZ del "el container se hace mas pequeno" al mostrarse un alert (Swal)
+   ----------------------------------------------------------------------------
+   Nuestro <body> es display:flex; flex-direction:row (sidebar + main como
+   columnas). SweetAlert2 v11, cuando se abre con heightAuto:false (nuestro caso,
+   ver alert() en complementos.js), fuerza por CSS:
+
+       body.swal2-shown:not(.swal2-no-backdrop):not(.swal2-toast-shown)
+       .swal2-container { position: static !important }
+
+   El .swal2-container normalmente es position:fixed (fuera del flujo). Al pasar
+   a static dentro de un BODY FLEX, se convierte en UN FLEX ITEM MAS -> entra como
+   una tercera columna junto al sidebar y main, y le ROBA ancho a main. Por eso el
+   container se encoge mientras el alert esta visible y vuelve a su tamano al
+   cerrar. No era overflow ni scrollbar: era el position:static en un body flex.
+
+   FIX: devolvemos el contenedor del alert a position:fixed (fuera del flujo).
+   OJO: sweetalert2.all.min.js NO trae el position:static por JS inline, sino que
+   INYECTA su CSS mediante un <style> al <head> EN RUNTIME, que queda despues de
+   general.css en la cascada -> con misma especificidad gana Swal aunque general
+   cargue despues por <link>. Por eso empatar el selector no bastaba. Aqui SUBIMOS
+   la especificidad anteponiendo `html` (un elemento extra) para ganar por
+   especificidad, no por orden. Asi es imbatible aunque su <style> venga despues. */
+html body.swal2-shown:not(.swal2-no-backdrop):not(.swal2-toast-shown) .swal2-container {
+  position: fixed !important;
+  inset: 0 !important;
+}
+
+/* Defensa extra: el body nunca debe cambiar de tamano por el alert. Mantenemos
+   100vh, sin scrollbar de ventana (el scroll vive en #main__content) y sin el
+   padding-right que Swal podria inyectar. */
+body.swal2-shown,
+body.swal2-height-auto {
+  height: 100vh !important;
+  overflow: hidden !important;
+  padding-right: 0 !important;
+}
+
+#content-wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+main > #main__content {
+    flex: 1;
+    padding: 20px;
+    /* SIN transition aqui: el push del sidebar lo anima #sidebar (transition:width)
+       y este contenedor lo sigue por flex. Con `transition: all` cualquier reflujo
+       momentaneo (SweetAlert tocando el body, scrollbar) se animaba 0.5s -> el
+       "se contrae y regresa". Reflujos ahora instantaneos e imperceptibles. */
+    overflow-y: auto;
+    /* auto en vez de stable: reserva el gutter SOLO cuando hay scroll real.
+       Asi las paginas con layout flex interno (visores que scrollean por
+       dentro y nunca desbordan #main__content) no quedan con un hueco de ~15px
+       a la derecha, y las que si desbordan siguen mostrando su barra normal. */
+    scrollbar-gutter: auto;
+    /* Continua la cadena flex hasta #root: asi los hijos con flex-1
+       llenan el alto disponible sin necesitar calculo en JS. */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+main > #main__content > form,
+main > #main__content > div {
+    background-color: var(--aliceblue);
+    margin: 0;
+    padding: 10px; 
+    border-radius: 10px;
+}
+
+@media (max-width: 500px) {
+    main > #main__content.active {
+        flex: 0;
+        display: none;
+    }
+    main > #main__content {
+        padding: 0;
+    }
+    main > #main__content > form,
+    main > #main__content > div {
+        padding: 0;
+    }
+} 
+
+#menu-navbar {
+   position: fixed;
+   top: 0;
+   left: 0;
+   right: 0;
+   width: 100%;
+   height: 64px;
+   z-index: 50;
+}
+
+/* Forzar 64px reales: compact.css pone html{font-size:14px}, asi que el h-16
+   (4rem) de Tailwind quedaria en 56px y no cuadraria con el top:64 del sidebar. */
+#menu-navbar > nav {
+   height: 64px;
+   min-height: 64px;
+}
+
+#menu-sidebar {
+   width: 60px;
+   height: calc(100vh - 64px);
+   position: fixed;
+   left: 0;
+   top: 64px;
+   z-index: 40;
+   border-right: 1px solid #E5E7EB;
+}
+
+body {
+  padding-left: 60px;
+  padding-top: 64px;
+}
+
+#root{
+ /* Antes usaba un min-height aproximado con 4rem que no contemplaba el navbar
+    real (64px) ni el breadcrumb -> desbordaba. Ahora #main__content es flex
+    column, asi que #root simplemente toma el alto restante y se vuelve flex
+    para que sus hijos con flex-1 lo llenen. Sin calculo en JS. */
+ flex: 1;
+ min-height: 0;
+ display: flex;
+ flex-direction: column;
+}
+
+.pointer {
+  cursor: pointer;
+}
+.disabled {
+  cursor: no-drop;
+}
+.resize {
+  resize: none;
+}
+.hide {
+  display: none;
+}
+a {
+  text-decoration: none;
+}
+.select2-container {
+  z-index: 10000;
+}
+span.select2-container {
+  z-index: 10100;
+}
+
+
+
+.line {
+  border: 1.5px solid #e3ebf6;
+  border-radius: 0.25rem;
+  padding: 1rem 1rem;
+}
+
+.app .block.block-condensed {
+  padding: 0;
+}
+
+.line-1 {
+  border: 1.5px dashed #6c5ffc;
+  border-radius: 0.25rem;
+  /* padding: 1rem 1rem; */
+}
+
+/* Path: bordered.css */
+.container-border-right {
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-right-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+.container-border-left {
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-left-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+.container-border-bottom {
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-bottom-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+.container-border-top {
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-top-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+.container-border {
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-width: 0.25rem;
+  border-radius: 0.5rem;
+}
+
+.container-border-secondary {
+  border-right-color: var(--secondary) !important;
+}
+.container-border-primary {
+  border-right-color: var(--primary) !important;
+}
+.container-border-info {
+  border-right-color: var(--info) !important;
+}
+.container-border-success {
+  border-color: var(--success) !important;
+}
+.container-border-danger {
+  border-color: var(--danger) !important;
+}
+.container-border-warning {
+  border-color: var(--warning) !important;
+}
+
+/* badges */
+
+.list-group {
+  width: 100%;
+  float: left;
+  margin-bottom: 20px;
+  padding-left: 0;
+  color: #fb923c;
+  padding: 5px;
+  line-height: 20px;
+}
+
+.list-item {
+  font-weight: bold;
+  z-index: 0;
+  color: #454545;
+  line-height: 20px;
+  background-color: transparent;
+
+  position: relative;
+  display: block;
+  padding: 10px 15px;
+  margin-bottom: -1px;
+}
+
+.list-item span .icon {
+  font-size: 12px;
+  margin-right: 5px;
+}
+
+.badge.badge-bordered.badge-primary {
+  border: 1px solid #292f43;
+  color: #292f43;
+}
+
+.list-group span.badge {
+  float: right;
+}
+
+/* labels */
+.label{
+  letter-spacing: .5px;
+  border-radius : 3px;
+  line-height   : 14px;
+  padding       : 2px 5px;
+  font-weight   : 700;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+
+
+
+.label.label-primary {
+  background: #292f43!important;
+  color: #FFF!important
+}
+
+.label.label-success {
+  background: #76AB3C!important;
+  color: #FFF!important
+}
+
+
+.label.label-info {
+  background: #4FB5DD!important;
+  color: #FFF!important
+}
+
+.label.label-warning {
+  background: #F69F00!important;
+  color: #FFF!important
+}
+
+.label.label-danger {
+  background: #F04E51!important;
+  color: #FFF!important
+}
+
+
+/* CSS */
+/* Category / GRUPOS */
+/* Category / GRUPOS */
+#groups {
+    max-height: 20rem;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding-top: 0.1rem;
+    justify-content: space-evenly;
+}
+
+.category-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    width: 12rem;
+    height: auto;
+    min-height: 8rem;
+    cursor: pointer;
+    word-break: break-all;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-shadow: 0 0 5px #919292;
+    transition: transform .4s ease-in-out;
+}
+
+.category-card:hover {
+    transform: translateY(-9px);
+    background-color: #E1F5FE;
+}
+
+.category-card-active {
+    background-color: #E1F5FE;
+}
+
+.category-card label {
+    font-weight: bold;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.category-card span {
+    margin-top: auto;
+}
+
+
+/* Group / SUBGRUPOS */
+#subgroups {
+    max-height: 20rem;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding-top: 0.1rem;
+    justify-content: space-evenly;
+}
+
+.group-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    width: 8rem;
+    height: auto;
+    min-height: 8rem;
+    cursor: pointer;
+    background-color: #EEEFEF;
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: break-word; 
+    transition: transform .4s ease-in-out;
+}
+
+.group-card:hover {
+    transform: translateY(-9px);
+    background-color: #00355F;
+    color: white;
+}
+
+.group-card-active {
+    background-color: #00355F;
+    color: white;
+}
+
+.group-card label {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.group-card p {
+    margin-top: auto;
+    cursor: pointer;
+}
+
+
+/* Question / PREGUNTAS */
+#questions {
+    max-height: 20rem;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding-top: 0.1rem;
+    justify-content: space-evenly;
+}
+
+.question-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    width: 8rem;
+    height: auto;
+    min-height: 8rem;
+    cursor: pointer;
+    background-color: #EEEFEF;
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: break-word; 
+    transition: transform .4s ease-in-out;
+}
+
+.question-card:hover {
+    transform: translateY(-9px);
+    background-color: #00355F;
+    color: white;
+}
+
+.question-card-active {
+    background-color: #00355F;
+    color: white;
+}
+
+.question-card p {
+    cursor: pointer;
+}
+
+/* extras */
+.span-badge {
+    background-color: #E1F5FE;
+    padding: 0.4rem 0.5rem;
+    border-radius: 1rem;
+    width: auto;
+    min-width: 5.4rem;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.answered {
+    background-color: #aad377;
+    color: white;
+}

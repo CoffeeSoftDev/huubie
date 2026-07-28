@@ -575,9 +575,12 @@ class App {
         const key = this.folderKey();
         if (!key || !this.isRestorable(file)) return;
         const all = this._qaLoadJSON(VISOR_LAST_OPEN_KEY, {}) || {};
+        delete all[key];   // reinserta al final: el objeto conserva el orden de escritura
         all[key] = { file: file.file, fullPath: file.fullPath || '', ts: Date.now() };
         // Recorte por antiguedad: sin esto el mapa crece con cada carpeta visitada.
-        const keys = Object.keys(all);
+        // Se ordena por ts y, cuando empatan (mismo ms), gana la escrita mas tarde:
+        // por eso se parte del orden de insercion invertido y el sort es estable.
+        const keys = Object.keys(all).reverse();
         if (keys.length > LAST_OPEN_MAX) {
             keys.sort((a, b) => (all[b].ts || 0) - (all[a].ts || 0))
                 .slice(LAST_OPEN_MAX)
@@ -678,13 +681,14 @@ class App {
         board.open({ file: name, raw: payload.content });
     }
 
+    // initialFile: objeto de allFiles (o null para arrancar sin archivo abierto).
     render(initialFile) {
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
         visorView.renderFooter(this.dataInit);
         visorView.renderSidebar(this.dataInit, this.currentFile, '');
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
         this.updateNewFileButton();
-        if (initialFile) this.loadFile(initialFile);
+        if (initialFile) this.loadFile(initialFile.file, initialFile);
         else             this.showEmptyMain();
         if (window.lucide) lucide.createIcons();
     }
@@ -1638,9 +1642,9 @@ class App {
         this.currentFileObj = null;
         this.pinnedFiles    = this.loadPinned();
         if (coffeeIA) coffeeIA._renderPinnedChips();
-        const target = (this._pendingOpen && this.allFiles.find(f => f.file === this._pendingOpen))
-            ? this._pendingOpen
-            : this.autoOpenTarget();
+        // _pendingOpen (archivo recien creado/renombrado) manda sobre el recuerdo.
+        const target = this.allFiles.find(f => f.file === this._pendingOpen)
+            || this.autoOpenTarget();
         this._pendingOpen = null;
 
         visorView.renderHeader(this.dataInit.header, this.allFiles.length);
@@ -1649,7 +1653,7 @@ class App {
         visorView.renderFolderPicker(this.dataInit.header, this.settings);
         this.updateNewFileButton();
         this.bindSidebarClicks();
-        if (target) this.loadFile(target);
+        if (target) this.loadFile(target.file, target);
         else        this.showEmptyMain();
         visorView.toast(data.header.currentLabel + ': ' + this.allFiles.length + ' archivos', 'success');
         if (window.lucide) lucide.createIcons();
@@ -1680,14 +1684,14 @@ class App {
             // Reabrir el archivo actual por su RUTA (no por nombre): con varios
             // todo.json el nombre solo reabriría el primero que coincida.
             const stillExists = this.currentFileRef();
-            const target      = stillExists ? stillExists.file : this.autoOpenTarget();
+            const target      = stillExists || this.autoOpenTarget();
 
             visorView.renderHeader(this.dataInit.header, this.allFiles.length);
             visorView.renderFooter(this.dataInit);
             visorView.renderSidebar(this.dataInit, this.currentFile, '');
             this.updateNewFileButton();
             this.bindSidebarClicks();
-            if (target) this.loadFile(target, stillExists || undefined);
+            if (target) this.loadFile(target.file, target);
             else        this.showEmptyMain();
             visorView.toast('Biblioteca actualizada (' + this.allFiles.length + ' archivos)', 'success');
         } else {
@@ -2549,6 +2553,8 @@ class App {
 
         // Registrar la apertura para la pestaña "Vistos" del acceso rapido.
         this.recordView(file);
+        // ...y como "donde me quede" de esta carpeta (solo si es markdown/TODO).
+        this.rememberLastOpen(file);
 
         // Mantener sincronizado el contexto de CoffeeIA con el archivo abierto.
         if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._syncContext) {
@@ -3945,15 +3951,15 @@ class VisorView {
         return `<ul class="toc-tree">${rows}</ul>`;
     }
 
-    // reason 'empty' = no hay nada que abrir; 'pick' = si hay archivos pero ninguno se
-    // abrio solo (el primero es una hoja binaria), asi que invitamos a elegir uno.
+    // reason 'empty' = la carpeta no tiene nada que abrir; 'pick' = si hay archivos pero
+    // ninguno se abrio solo (no hay markdown/TODO recordado en esta carpeta).
     renderEmptyMain(reason) {
         const pick = reason === 'pick';
         $('#md-rendered').removeClass('is-sheet').html(pick ? `
             <div class="empty-state" style="padding:80px 20px;">
                 <i data-lucide="file-search" class="w-10 h-10"></i>
                 <p style="margin-top:8px;">Elige un archivo en la barra lateral</p>
-                <p style="margin-top:4px;font-size:11.5px;opacity:.75;">Las hojas de calculo no se abren solas: tardan en cargar.</p>
+                <p style="margin-top:4px;font-size:11.5px;opacity:.75;">Solo se reabre solo el ultimo markdown o TODO de cada carpeta.</p>
                 <button id="btnPickFile" class="empty-state-btn">Buscar archivo</button>
             </div>
         ` : `

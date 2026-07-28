@@ -1,0 +1,155 @@
+/* Facturador SAT — complementos visuales que el ERP no trae.
+   Solo lo que no existe en src/css (buttons.css, table.css, colors.css) ni en
+   Tailwind: badges de pildora, barra de progreso, zona de carga y ticket de papel.
+   Todo scopeado bajo #root para no pisar navbar, sidebar ni Bootstrap. */
+
+/* -- Iconos Lucide para estados vacios de tabla --
+   createCoffeeTable3 pinta el icono del estado vacio como CLASE
+   (<i class="${emptyIcon}">), no como atributo data-lucide, asi que
+   lucide.createIcons() no puede tocarlo. Estas clases sustituyen a los
+   antiguos glifos fontello (icon-doc-text, icon-clock, icon-lock, icon-list,
+   icon-box, icon-users) con la geometria oficial de Lucide via mask-image,
+   sin cargar el font de 6.4 MB y respetando el color de texto heredado
+   (text-gray-400) porque el relleno es currentColor. */
+#root .ic-file-text,
+#root .ic-clock,
+#root .ic-lock,
+#root .ic-list,
+#root .ic-box,
+#root .ic-users {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+#root .ic-file-text {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z'/%3E%3Cpath d='M14 2v5a1 1 0 0 0 1 1h5'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z'/%3E%3Cpath d='M14 2v5a1 1 0 0 0 1 1h5'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E");
+}
+
+#root .ic-clock {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 6v6l4 2'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 6v6l4 2'/%3E%3C/svg%3E");
+}
+
+#root .ic-lock {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+}
+
+#root .ic-list {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5h.01'/%3E%3Cpath d='M3 12h.01'/%3E%3Cpath d='M3 19h.01'/%3E%3Cpath d='M8 5h13'/%3E%3Cpath d='M8 12h13'/%3E%3Cpath d='M8 19h13'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5h.01'/%3E%3Cpath d='M3 12h.01'/%3E%3Cpath d='M3 19h.01'/%3E%3Cpath d='M8 5h13'/%3E%3Cpath d='M8 12h13'/%3E%3Cpath d='M8 19h13'/%3E%3C/svg%3E");
+}
+
+#root .ic-box {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E");
+}
+
+#root .ic-users {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Cpath d='M16 3.128a4 4 0 0 1 0 7.744'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Cpath d='M16 3.128a4 4 0 0 1 0 7.744'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3C/svg%3E");
+}
+
+/* -- Scroll fino en paneles internos -- */
+#root .scroll-thin::-webkit-scrollbar { width: 6px; height: 8px; }
+#root .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+#root .scroll-thin::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+#root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* -- Badges de pildora -- */
+#root .badge-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+#root .b-green  { background: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
+#root .b-red    { background: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
+#root .b-yellow { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
+#root .b-terra  { background: #F5E3DC; color: #A84A33; border-color: #F0C4B5; }
+#root .b-gray   { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
+#root .b-blue   { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
+
+/* -- Celdas -- */
+#root .cell-null { color: #9CA3AF; font-style: italic; font-size: 10px; }
+
+/* -- Barra de progreso de la meta -- */
+#root .prog-track { height: 10px; border-radius: 9999px; background: #E5E7EB; overflow: hidden; }
+#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #C05A40, #E08A70); transition: width .5s ease; }
+
+/* -- Zona de carga de Excel -- */
+#root .upload-zone {
+    border: 1px dashed #D1D5DB;
+    border-radius: 12px;
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: .15s;
+    background: #fff;
+}
+
+#root .upload-zone:hover { border-color: #C05A40; background: #FBF1ED; }
+#root .upload-zone.pending:hover { border-color: #F59E0B; background: #FFFBEB; }
+
+#root .excel-badge {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+#root .excel-badge.xls { background: #1D6F42; color: #fff; }
+#root .excel-badge:not(.xls) { background: #217346; color: #fff; }
+
+/* -- Ticket virtual (papel termico) -- */
+#root .ticket-paper {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(17, 25, 40, .08);
+    font-family: 'Courier New', ui-monospace, monospace;
+    font-size: 11px;
+    color: #1F2937;
+    padding: 22px 20px;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+#root .ticket-paper * { font-family: 'Courier New', ui-monospace, monospace; }
+#root .ticket-paper .tk-sep { border-top: 1px dashed #9CA3AF; margin: 8px 0; }
+#root .ticket-paper table { width: 100%; }
+#root .ticket-paper td { padding: 2px 0; font-size: 11px; color: #1F2937; white-space: normal; }
+#root .ticket-paper tr,
+#root .ticket-paper tr:hover { border: none; background: transparent; }
+
+@media print {
+    body * { visibility: hidden; }
+    #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
+    #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
+    #root .ticket-paper { border: none; box-shadow: none; }
+}
