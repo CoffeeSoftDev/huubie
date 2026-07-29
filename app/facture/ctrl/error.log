@@ -1,0 +1,56 @@
+[ 2026-07-29 10:02:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_facturacion.payment_method
+            WHERE active = 1 AND (subsidiaries_id <=> ? OR subsidiaries_id IS NULL)
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'where clause'
+
+
+[ 2026-07-29 10:02:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, file_name, sheet_name, period_year, period_month,
+                   row_count, control_total, created_at
+            FROM fayxzvov_facturacion.import_batch
+            WHERE active = 1
+              AND subsidiaries_id <=> ?
+              AND period_year  = ?
+              AND period_month = ?
+            ORDER BY created_at DESC, id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'where clause'
+
+
+[ 2026-07-29 10:02:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, file_name, sheet_name, period_year, period_month,
+                   row_count, control_total, created_at
+            FROM fayxzvov_facturacion.import_batch
+            WHERE active = 1
+              AND subsidiaries_id <=> ?
+              AND period_year  = ?
+              AND period_month = ?
+            ORDER BY created_at DESC, id DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'where clause'
+
+
+[ 2026-07-29 10:02:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT period_year AS id, period_year AS valor
+            FROM fayxzvov_facturacion.import_batch
+            WHERE active = 1 AND period_year IS NOT NULL AND subsidiaries_id <=> ?
+            ORDER BY period_year DESC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'subsidiaries_id' in 'where clause'
+
+
