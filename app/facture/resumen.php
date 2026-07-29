@@ -1,44 +1,40 @@
 <?php require_once("../conf/_Rutes.php"); ?>
-<?php
-require_once(__DIR__ . '/layout/head.php');
-require_once(__DIR__ . '/layout/core-libraries.php');
-?>
+<!DOCTYPE html>
+<html lang="es">
 
-<!-- CoffeeSoft Framework -->
-<script src="/app/facture/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
-<script src="/app/facture/src/js/plugins.js?t=<?php echo time(); ?>"></script>
-<script src="/app/facture/src/js/complementos.js?t=<?php echo time(); ?>"></script>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
+    <title>Huubie · Facturador SAT — Resumen</title>
 
-<link rel="stylesheet" href="/app/facture/src/css/dark-mode.css">
-<link rel="stylesheet" href="/app/facture/src/css/facture.css?t=<?php echo time(); ?>">
+    <?php require_once(__DIR__ . '/../layout/head.php'); ?>
+    <?php require_once(__DIR__ . '/layout/huubie-libraries.php'); ?>
+
+    <link rel="stylesheet" href="/app/facture/src/css/facture.css?t=<?php echo time(); ?>">
+
+    <!-- El scroll vive dentro de #mainContainer (body overflow-hidden), por lo que el
+         gutter global de head.php solo dejaria una franja muerta junto al navbar. -->
+    <style>
+        html { scrollbar-gutter: auto; }
+    </style>
 </head>
 
-<body>
-    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
-    <main>
-        <div id="menu-navbar"></div>
+<body class="bg-[#111928] text-white h-screen flex flex-col overflow-hidden" data-bs-theme="dark">
+    <div id="menu-navbar"></div>
+    <div id="menu-sidebar"></div>
 
-        <div id="main__content">
-            <!-- Breadcrumb Navigation -->
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item text-uppercase text-muted">Operación</li>
-                    <li class="breadcrumb-item text-muted"><a href="/app/facture/index.php" class="text-decoration-none text-muted">Facturador</a></li>
-                    <li class="breadcrumb-item fw-bold active">Resumen</li>
-                </ol>
-            </nav>
+    <div id="mainContainer" class="flex-1 w-full transition-all duration-500 bg-[#111928] text-white overflow-hidden flex flex-col min-h-0">
+        <div class="bg-[#111928] flex-1 flex flex-col min-h-0" id="root"></div>
+    </div>
 
-            <!-- Contenedor principal -->
-            <div class="" id="root"></div>
-        </div>
-    </main>
-
-    <!-- Navbar y sidebar propios del modulo (sin fetch) -->
-    <script src="/app/facture/src/js/navbar.js?t=<?php echo time(); ?>"></script>
-    <script src="/app/facture/src/js/sidebar.js?t=<?php echo time(); ?>"></script>
+    <!-- Navbar y sidebar propios del Facturador (sin fetch) -->
+    <script src="/app/facture/src/js/navbar-huubie.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/facture/src/js/sidebar-huubie.js?t=<?php echo time(); ?>"></script>
 
     <!-- Modulo Resumen -->
     <script src="/app/facture/src/js/sample_resumen.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/resumen.js?t=<?php echo time(); ?>"></script>
 </body>
+
 </html>

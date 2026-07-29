@@ -3149,6 +3149,9 @@ class VisorView {
     }
 
     renderSidebar(data, currentFile, filter) {
+        // El toggle de vista solo existe en el explorador; renderExplorer lo repinta.
+        $('#docsViewSlot').empty();
+
         // Origen Custom: mismo explorador que Documents sobre el filesystem real.
         if (data.header && data.header.currentKey === 'custom') {
             this.renderSidebarCustom(data, currentFile, filter);
@@ -3631,9 +3634,12 @@ class VisorView {
                 <div class="docx-crumbs">${crumbBtns}</div>
                 <div class="docx-bar-actions">
                     ${createMenu}
-                    ${viewToggle}
                 </div>
             </div>`;
+
+        // El toggle de vista vive en la fila del buscador (#docsViewSlot), no en la
+        // barra del breadcrumb: queda al mismo nivel que "Filtrar archivos...".
+        $('#docsViewSlot').html(viewToggle);
 
         // Tarjetas del grid: carpeta (icono amarillo, drop target, burbuja con el
         // numero de archivos) y archivo (icono segun tipo, arrastrable por su fullPath).
@@ -3722,7 +3728,7 @@ class VisorView {
             if (typeof app !== 'undefined' && app && app.openUploadModal) app.openUploadModal(cfg.dir);
         });
 
-        $('#sidebarList .docx-viewbtn').off('click').on('click', function () {
+        $('#docsViewSlot .docx-viewbtn').off('click').on('click', function () {
             setDocsView($(this).data('docview'));
             reRender();
         });
@@ -4218,6 +4224,42 @@ class VisorView {
             .catch(() => {});
     }
 
+    // Reescribe una tarea con la IA. Devuelve '' si no hubo respuesta util: el
+    // panel decide si muestra el error (no toca el texto original nunca).
+    async _todoImproveTask(text, docTitle, secTitle) {
+        const system = 'Reescribes tareas de un TODO de desarrollo de software. '
+            + 'Respondes SIEMPRE con una sola linea: la tarea reescrita, clara y accionable, '
+            + 'en espanol, con ortografia y acentos correctos, empezando con un verbo en infinitivo. '
+            + 'Conservas la intencion original y los nombres tecnicos tal cual (archivos, clases, modulos). '
+            + 'Sin vinetas, sin numeracion, sin comillas, sin markdown y sin explicaciones.';
+        const user = 'Contexto: documento "' + (docTitle || 'TODO') + '", seccion "' + (secTitle || '') + '".\n'
+            + 'Tarea original: ' + text;
+        // Modelo fijo: la varita no depende del selector del chat. Tampoco puede ir
+        // vacio (el backend caeria al default retirado qwen3-coder:480b -> HTTP 410).
+        const model = 'glm-5.2:cloud';
+        this._todoAiError = '';
+        try {
+            const res = await fetch(apiIA, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    systemOverride: system,
+                    messages:       [{ role: 'user', content: user }],
+                    model:          model
+                })
+            });
+            const data = await res.json();
+            if (!data || !data.ok) { this._todoAiError = (data && data.error) || 'Respuesta invalida de la IA'; return ''; }
+            const line = String(data.reply || '')
+                .replace(/<think>[\s\S]*?<\/think>/gi, '')
+                .split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+            return line.replace(/^[-*]\s*(\[[ xX]\]\s*)?/, '').replace(/^["'`]|["'`]$/g, '').trim();
+        } catch (e) {
+            this._todoAiError = e.message || 'No se pudo consultar la IA';
+            return '';
+        }
+    }
+
     _renderTodoPanel(file) {
         const view = this;
         const $root = $('#md-rendered').addClass('is-todo');
@@ -4232,10 +4274,14 @@ class VisorView {
         data.sections.forEach(s => { if (!s.id) s.id = uid('s'); if (!Array.isArray(s.tasks)) s.tasks = []; s.tasks.forEach(t => { if (!t.id) t.id = uid('t'); }); });
 
         const XSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
-        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
+        const COPYSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        const WANDSVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0l1.58 6.13A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96l-6.13 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/></svg>';
+        const SPINSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-magic" title="Mejorar con IA">' + WANDSVG + '</button><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
         function secBlock(s) {
             return '<section class="td-sec" data-id="' + s.id + '"><div class="td-sechead">' +
                    '<h2 class="td-sectitle" contenteditable="true" spellcheck="false">' + esc(s.title || 'Sección') + '</h2>' +
+                   '<button class="td-seccopy" title="Copiar tareas para Claude/Kiro">' + COPYSVG + '</button>' +
                    '<button class="td-secdel" title="Eliminar sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
                    '<ul class="td-list">' + s.tasks.map(taskRow).join('') + '</ul>' +
                    '<div class="td-add"><span class="td-adddot"></span><input type="text" class="td-addinput" data-sec="' + s.id + '" placeholder="Añadir tarea…" maxlength="240" autocomplete="off"></div></section>';
@@ -4272,6 +4318,28 @@ class VisorView {
             if (now) doIt(); else saveTimer = setTimeout(doIt, 500);
         }
         function drop($el, after) { $el.addClass('td-leaving').one('animationend', after); }
+
+        function copyText(txt, okMsg) {
+            const ok   = () => visorView.toast(okMsg, 'success');
+            const fail = () => visorView.toast('No se pudo copiar', 'error');
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok, fail); return; }
+            const ta = document.createElement('textarea');
+            ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
+            ta.remove();
+        }
+
+        function sectionPrompt(sec) {
+            const pend  = sec.tasks.filter(t => !t.done);
+            const list  = pend.length ? pend : sec.tasks;
+            const title = data.title || 'TODO';
+            const stitle = sec.title || 'Sección';
+            return 'Trabajemos en las tareas pendientes de "' + title + '" · sección "' + stitle + '":\n\n' +
+                   list.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n\n' +
+                   'Impleméntalas en orden, respetando las convenciones y el stack del proyecto. ' +
+                   'No agregues nada que no esté en la lista y al terminar dime qué tareas quedaron listas.';
+        }
 
         paint();
 
@@ -4318,10 +4386,41 @@ class VisorView {
         $root.on('click.td', '.td-clear', function () {
             data.sections.forEach(s => s.tasks = s.tasks.filter(t => !t.done)); paint(); persist(true); visorView.toast('Completadas eliminadas', 'success');
         });
+        function suggestBox(txt) {
+            return '<div class="td-suggest"><span class="td-suggest-txt">' + esc(txt) + '</span>' +
+                   '<div class="td-suggest-act"><button class="td-suggest-apply">Aplicar</button>' +
+                   '<button class="td-suggest-skip">Descartar</button></div></div>';
+        }
+
+        $root.on('click.td', '.td-magic', async function () {
+            const $btn = $(this), li = $btn.closest('.td-task');
+            if ($btn.hasClass('is-busy')) return;
+            const r = locate(li.data('id')); if (!r) return;
+            li.find('.td-suggest').remove();
+            $btn.addClass('is-busy').html(SPINSVG);
+            const improved = await view._todoImproveTask(r.task.text, data.title, r.sec.title);
+            $btn.removeClass('is-busy').html(WANDSVG);
+            if (!improved) { visorView.toast(view._todoAiError || 'La IA no pudo mejorar la tarea', 'error'); return; }
+            if (improved === r.task.text) { visorView.toast('La tarea ya esta clara', 'warn'); return; }
+            li.append(suggestBox(improved));
+        });
+        $root.on('click.td', '.td-suggest-apply', function () {
+            const box = $(this).closest('.td-suggest'), li = box.closest('.td-task');
+            const r = locate(li.data('id')); if (!r) return;
+            r.task.text = box.find('.td-suggest-txt').text();
+            li.find('.td-txt').text(r.task.text);
+            box.remove(); persist(true); visorView.toast('Tarea mejorada', 'success');
+        });
+        $root.on('click.td', '.td-suggest-skip', function () { $(this).closest('.td-suggest').remove(); });
+        $root.on('click.td', '.td-seccopy', function () {
+            const sec = data.sections.find(s => s.id === $(this).closest('.td-sec').data('id')); if (!sec) return;
+            if (!sec.tasks.length) { visorView.toast('La sección no tiene tareas', 'warn'); return; }
+            copyText(sectionPrompt(sec), 'Sección copiada para Claude/Kiro');
+        });
         $root.on('click.td', '.td-copy', function () {
             let md = '# ' + (data.title || 'TODO') + '\n';
             data.sections.forEach(s => { md += '\n## ' + s.title + '\n' + s.tasks.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n'; });
-            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(md).then(() => visorView.toast('Copiado como Markdown', 'success'), () => visorView.toast('No se pudo copiar', 'error'));
+            copyText(md, 'Copiado como Markdown');
         });
 
         // El panel ya es editable en sitio: no hay modo edición WYSIWYG.

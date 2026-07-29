@@ -27,11 +27,11 @@ const _badgeMetodo = (metodo) => {
 
 const _badgeFolio = (folio) => `<span class="badge-base b-terra">${folio}</span>`;
 
-const _cellId = (id) => `<span class="font-mono text-[10px] text-gray-500">${id}</span>`;
+const _cellId = (id) => `<span class="font-mono text-[10px] text-gray-400">${id}</span>`;
 
-const _cellMonto = (n) => `<span class="font-semibold text-gray-800">${_fmtMX(n)}</span>`;
+const _cellMonto = (n) => `<span class="font-semibold text-white">${_fmtMX(n)}</span>`;
 
-const _checkPendiente = (e, checked) => `<input type="checkbox" class="chk-pending w-4 h-4 rounded border-gray-300 accent-[#C05A40]" data-id="${e.id}" data-amount="${e.total}" onchange="app.onTogglePendiente(this)" ${checked ? 'checked' : ''}>`;
+const _checkPendiente = (e, checked) => `<input type="checkbox" class="chk-pending w-4 h-4 rounded border-[#374151] accent-[#1C64F2]" data-id="${e.id}" data-amount="${e.total}" onchange="app.onTogglePendiente(this)" ${checked ? 'checked' : ''}>`;
 
 const _MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -229,7 +229,7 @@ const SAMPLE_RESUMEN_PRESELECCION = ['461832', '461833', '461835', '461839', '46
 const _resumenRowTodos = (e) => ({
     id:              e.id,
     ID:              _cellId(e.id),
-    Orden:           `<span class="text-gray-600">${e.orden}</span>`,
+    Orden:           `<span class="text-gray-400">${e.orden}</span>`,
     'Forma de pago': _badgeMetodo(e.metodo),
     Monto:           _cellMonto(e.total)
 });
@@ -238,14 +238,14 @@ const _resumenRowPendiente = (e, checked) => ({
     id:    e.id,
     Sel:   _checkPendiente(e, checked),
     ID:    _cellId(e.id),
-    Orden: `<span class="text-gray-600">${e.orden}</span>`,
+    Orden: `<span class="text-gray-400">${e.orden}</span>`,
     Monto: _cellMonto(e.total)
 });
 
 const _resumenRowFacturado = (e) => ({
     id:    e.id,
     ID:    _cellId(e.id),
-    Orden: `<span class="text-gray-600">${e.orden}</span>`,
+    Orden: `<span class="text-gray-400">${e.orden}</span>`,
     Folio: _badgeFolio(e.factura),
     Monto: _cellMonto(e.total)
 });

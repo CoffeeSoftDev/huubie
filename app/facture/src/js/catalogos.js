@@ -50,23 +50,23 @@ class App extends Templates {
             children: [
                 {
                     id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto bg-white'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
                 {
                     id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
                 }
             ]
         };
@@ -76,7 +76,7 @@ class App extends Templates {
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden'
+            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -84,7 +84,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -99,7 +99,7 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'detailHead',
-                        class: 'px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0'
+                        class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0'
                     },
                     {
                         type:  'div',
@@ -117,11 +117,11 @@ class App extends Templates {
         const panel = (key) => ({
             type:  'div',
             id:    `card${key}`,
-            class: 'bg-white border border-gray-200 rounded-lg overflow-hidden flex flex-col',
+            class: 'bg-[#141d2b] border border-[#374151] rounded-lg overflow-hidden flex flex-col',
             children: [
                 {
                     id:    `head${key}`,
-                    class: 'px-4 py-3 border-b border-gray-200 flex items-center justify-between'
+                    class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between'
                 },
                 {
                     id:    `table${key}`,
@@ -185,7 +185,7 @@ class App extends Templates {
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'light',
+            theme:      'dark',
             data:       filters
         });
     }
@@ -246,7 +246,7 @@ class Catalogos extends Templates {
         this.createCoffeeTable3({
             parent:       'tableProductos',
             id:           'tbProductos',
-            theme:        'light',
+            theme:        'dark',
             center:       [1, 4, 5],
             right:        [3],
             actionsAlign: 'center',
@@ -272,7 +272,7 @@ class Catalogos extends Templates {
         this.createCoffeeTable3({
             parent:       'tableMeseros',
             id:           'tbMeseros',
-            theme:        'light',
+            theme:        'dark',
             center:       [1],
             actionsAlign: 'center',
             extends:      true,
@@ -298,19 +298,19 @@ class Catalogos extends Templates {
                 id:          'kpiProductos',
                 title:       'Productos',
                 lucideIcon:  'package',
-                bgColor:     'bg-white',
-                borderColor: 'border-gray-200',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-[#374151]',
                 data: {
                     value: productos.length,
-                    color: 'text-gray-800'
+                    color: 'text-white'
                 }
             },
             {
                 id:          'kpiPuente',
                 title:       'Marcados puente',
                 lucideIcon:  'link',
-                bgColor:     'bg-white',
-                borderColor: 'border-gray-200',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-[#374151]',
                 data: {
                     value: productos.filter(p => p.puente).length,
                     color: 'text-green-600'
@@ -320,22 +320,22 @@ class Catalogos extends Templates {
                 id:          'kpiMeseros',
                 title:       'Meseros',
                 lucideIcon:  'users',
-                bgColor:     'bg-white',
-                borderColor: 'border-gray-200',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-[#374151]',
                 data: {
                     value: meseros.length,
-                    color: 'text-gray-800'
+                    color: 'text-white'
                 }
             },
             {
                 id:          'kpiPrecio',
                 title:       'Suma de precios',
                 lucideIcon:  'banknote',
-                bgColor:     'bg-white',
-                borderColor: 'border-gray-200',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-[#374151]',
                 data: {
                     value: _fmtMX(productos.reduce((s, p) => s + Number(p.precio || 0), 0)),
-                    color: 'text-[#C05A40]'
+                    color: 'text-[#1C64F2]'
                 }
             }
         ]);
@@ -464,7 +464,7 @@ class CatalogosView extends Templates {
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisCatalogos',
-            theme:  'light',
+            theme:  'dark',
             style:  'file',
             cols:   4,
             json:   rows
@@ -505,7 +505,7 @@ class CatalogosView extends Templates {
         this.coffeeForm({
             parent:       'formEmisor',
             id:           'frmEmisor',
-            theme:        'light',
+            theme:        'dark',
             showRequired: false,
             autofill:     emisor,
             json:         this.jsonEmisor()
@@ -663,7 +663,7 @@ class CatalogosView extends Templates {
             id:       'frmModal',
             title:    '',
             size:     'large',
-            theme:    'light',
+            theme:    'dark',
             autofill: false,
             json:     [],
             onSave:   () => { }
@@ -706,7 +706,7 @@ class CatalogosView extends Templates {
             class:  'flex items-center justify-between w-full',
             json:   { icon: '', iconClass: 'w-4 h-4 text-gray-400', title: '', badge: null },
             classes: {
-                title: 'text-[12px] font-bold text-gray-700 flex items-center gap-2'
+                title: 'text-[12px] font-bold text-gray-300 flex items-center gap-2'
             }
         };
 
@@ -740,13 +740,13 @@ class CatalogosView extends Templates {
             class:  'flex items-center justify-between w-full',
             json:   { title: '', titleHtml: '', subtitle: '', toggles: [], back: null },
             classes: {
-                title:    'text-lg font-bold text-gray-800',
-                subtitle: 'text-xs text-gray-500',
-                groupLbl: 'text-[9px] text-gray-500 uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-blue-50 text-blue-700',
+                title:    'text-lg font-bold text-white',
+                subtitle: 'text-xs text-gray-400',
+                groupLbl: 'text-[9px] text-gray-400 uppercase tracking-wider font-bold',
+                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37] transition-colors',
+                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300',
                 sep:      'text-gray-300',
-                backBtn:  'w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 border border-gray-200 hover:border-blue-400 flex items-center justify-center text-gray-500 hover:text-blue-700 transition-colors flex-shrink-0'
+                backBtn:  'w-8 h-8 rounded-full bg-[#1F2A37] hover:bg-[rgba(28,100,242,0.12)] border border-[#374151] hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-300 transition-colors flex-shrink-0'
             },
             onToggle: () => { },
             onBack:   null
@@ -843,12 +843,12 @@ class CatalogosView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,#1C64F2)',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
-                info:   'text-[10px] text-gray-500',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-500',
+                info:   'text-[10px] text-gray-400',
+                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
                 item:   'flex items-center gap-1'
             }
         };

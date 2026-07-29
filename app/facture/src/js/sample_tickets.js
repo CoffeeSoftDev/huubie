@@ -41,7 +41,7 @@ const _badgeFactura = (folio) => folio
     ? `<span class="badge-base b-terra">${folio}</span>`
     : '<span class="cell-null">Sin factura</span>';
 
-const _cellId = (id) => `<span class="font-mono text-[10px] text-gray-500">${id}</span>`;
+const _cellId = (id) => `<span class="font-mono text-[10px] text-gray-400">${id}</span>`;
 
 // -- Datos --
 
@@ -240,16 +240,16 @@ const _ticketRow = (e) => {
     return {
         id:              e.id,
         Folio:           _cellId(e.id),
-        Orden:           `<span class="text-gray-600">${e.orden}</span>`,
-        Fecha:           `<span class="text-gray-600 whitespace-nowrap">${_fmtFechaCorta(e.fecha)}</span>`,
+        Orden:           `<span class="text-gray-400">${e.orden}</span>`,
+        Fecha:           `<span class="text-gray-400 whitespace-nowrap">${_fmtFechaCorta(e.fecha)}</span>`,
         'Forma de pago': _badgeMetodo(e.metodo),
-        Metodo:          '<span class="text-gray-500">PUE</span>',
+        Metodo:          '<span class="text-gray-400">PUE</span>',
         'Estado fiscal': _badgeEstadoFiscal(e),
         Tasa:            _badgeTasa(e.tasa),
-        Subtotal:        `<span class="text-gray-600">${_fmtMX(t.subtotal)}</span>`,
-        IVA:             `<span class="text-gray-600">${_fmtMX(t.iva)}</span>`,
-        IEPS:            `<span class="text-gray-600">${_fmtMX(t.ieps)}</span>`,
-        Total:           `<span class="font-semibold text-gray-800">${_fmtMX(e.total)}</span>`,
+        Subtotal:        `<span class="text-gray-400">${_fmtMX(t.subtotal)}</span>`,
+        IVA:             `<span class="text-gray-400">${_fmtMX(t.iva)}</span>`,
+        IEPS:            `<span class="text-gray-400">${_fmtMX(t.ieps)}</span>`,
+        Total:           `<span class="font-semibold text-white">${_fmtMX(e.total)}</span>`,
         Factura:         _badgeFactura(e.factura),
         a: [
             {

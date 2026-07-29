@@ -62,8 +62,8 @@
 /* -- Scroll fino en paneles internos -- */
 #root .scroll-thin::-webkit-scrollbar { width: 6px; height: 8px; }
 #root .scroll-thin::-webkit-scrollbar-track { background: transparent; }
-#root .scroll-thin::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
-#root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+#root .scroll-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+#root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #4B5563; }
 
 /* -- Badges de pildora -- */
 #root .badge-base {
@@ -78,23 +78,25 @@
     white-space: nowrap;
 }
 
-#root .b-green  { background: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
-#root .b-red    { background: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
-#root .b-yellow { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
-#root .b-terra  { background: #F5E3DC; color: #A84A33; border-color: #F0C4B5; }
-#root .b-gray   { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
-#root .b-blue   { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
+/* Sobre fondo oscuro la pildora se invierte: relleno translucido del tono y
+   texto claro, en vez de pastel con texto oscuro. */
+#root .b-green  { background: rgba(16,185,129,.15); color: #6EE7B7; border-color: rgba(16,185,129,.30); }
+#root .b-red    { background: rgba(239,68,68,.15);  color: #FCA5A5; border-color: rgba(239,68,68,.30); }
+#root .b-yellow { background: rgba(245,158,11,.15); color: #FCD34D; border-color: rgba(245,158,11,.30); }
+#root .b-terra  { background: rgba(28,100,242,.15); color: #93C5FD; border-color: rgba(28,100,242,.35); }
+#root .b-gray   { background: rgba(148,163,184,.12); color: #CBD5E1; border-color: rgba(148,163,184,.25); }
+#root .b-blue   { background: rgba(59,130,246,.15); color: #93C5FD; border-color: rgba(59,130,246,.30); }
 
 /* -- Celdas -- */
-#root .cell-null { color: #9CA3AF; font-style: italic; font-size: 10px; }
+#root .cell-null { color: #6B7280; font-style: italic; font-size: 10px; }
 
 /* -- Barra de progreso de la meta -- */
-#root .prog-track { height: 10px; border-radius: 9999px; background: #E5E7EB; overflow: hidden; }
-#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #C05A40, #E08A70); transition: width .5s ease; }
+#root .prog-track { height: 10px; border-radius: 9999px; background: #1F2A37; overflow: hidden; }
+#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #1C64F2, #60A5FA); transition: width .5s ease; }
 
 /* -- Zona de carga de Excel -- */
 #root .upload-zone {
-    border: 1px dashed #D1D5DB;
+    border: 1px dashed #374151;
     border-radius: 12px;
     padding: 18px 16px;
     display: flex;
@@ -102,11 +104,11 @@
     gap: 14px;
     cursor: pointer;
     transition: .15s;
-    background: #fff;
+    background: #141d2b;
 }
 
-#root .upload-zone:hover { border-color: #C05A40; background: #FBF1ED; }
-#root .upload-zone.pending:hover { border-color: #F59E0B; background: #FFFBEB; }
+#root .upload-zone:hover { border-color: #1C64F2; background: #1F2A37; }
+#root .upload-zone.pending:hover { border-color: #F59E0B; background: rgba(245,158,11,.10); }
 
 #root .excel-badge {
     display: inline-flex;
@@ -126,7 +128,9 @@
 #root .excel-badge.xls { background: #1D6F42; color: #fff; }
 #root .excel-badge:not(.xls) { background: #217346; color: #fff; }
 
-/* -- Ticket virtual (papel termico) -- */
+/* -- Ticket virtual (papel termico) --
+   Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel
+   impreso y se manda a la impresora tal cual (ver @media print al final). */
 #root .ticket-paper {
     background: #fff;
     border: 1px solid #E5E7EB;

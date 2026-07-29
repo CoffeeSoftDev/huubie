@@ -1,46 +1,41 @@
 <?php require_once("../conf/_Rutes.php"); ?>
-<?php
-require_once(__DIR__ . '/layout/head.php');
-require_once(__DIR__ . '/layout/core-libraries.php');
-?>
+<!DOCTYPE html>
+<html lang="es">
 
-<!-- CoffeeSoft Framework -->
-<script src="/app/facture/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
-<script src="/app/facture/src/js/plugins.js?t=<?php echo time(); ?>"></script>
-<script src="/app/facture/src/js/complementos.js?t=<?php echo time(); ?>"></script>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
+    <title>Huubie · Facturador SAT</title>
 
-<link rel="stylesheet" href="/app/facture/src/css/dark-mode.css">
-<link rel="stylesheet" href="/app/facture/src/css/facture.css?t=<?php echo time(); ?>">
+    <?php require_once(__DIR__ . '/../layout/head.php'); ?>
+
+    <?php require_once(__DIR__ . '/layout/huubie-libraries.php'); ?>
+
+    <!-- El hub no abre modales bootbox/Bootstrap, asi que no necesita el gutter
+         reservado de head.php. Se desactiva localmente para quitar la franja derecha. -->
+    <style>
+        html { scrollbar-gutter: auto !important; }
+    </style>
 </head>
 
-<body>
-    <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
-    <main>
-        <div id="menu-navbar"></div>
+<body class="bg-[#111928] h-screen" data-bs-theme="dark">
+    <div id="menu-navbar"></div>
 
-        <div id="main__content">
-            <!-- Breadcrumb Navigation -->
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item text-uppercase text-muted">Operación</li>
-                    <li class="breadcrumb-item fw-bold active">Facturador</li>
-                </ol>
-            </nav>
+    <!-- max-w-7xl + mx-auto: el contenedor se reduce y centra el grid en pantallas anchas. -->
+    <div id="mainContainer"
+        class="w-full max-w-7xl mx-auto h-[calc(100vh-3rem)] bg-[#111928] pt-5 transition-all duration-500 text-white p-6"></div>
 
-            <!-- Contenedor principal -->
-            <div class="" id="root"></div>
-        </div>
-    </main>
+    <!-- Navbar propio del Facturador (sin fetch). El hub no lleva sidebar: las
+         tarjetas ya son la navegacion. -->
+    <script src="/app/facture/src/js/navbar-huubie.js?t=<?php echo time(); ?>"></script>
 
-    <!-- Navbar y sidebar propios del modulo (sin fetch) -->
-    <script src="/app/facture/src/js/navbar.js?t=<?php echo time(); ?>"></script>
-    <script src="/app/facture/src/js/sidebar.js?t=<?php echo time(); ?>"></script>
+    <!-- Coffee Component -->
+    <script src="/app/src/js/components/moduleCard.js?t=<?php echo time(); ?>"></script>
 
-    <!-- Componentes -->
-    <script src="/app/facture/src/js/components/moduleCard.js?t=<?php echo time(); ?>"></script>
-
-    <!-- Modulo Facturador (hub) -->
+    <!-- Modulo Scripts -->
     <script src="/app/facture/src/js/sample_facture.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/facture.js?t=<?php echo time(); ?>"></script>
 </body>
+
 </html>

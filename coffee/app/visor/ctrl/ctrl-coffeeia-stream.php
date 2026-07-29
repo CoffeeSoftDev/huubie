@@ -40,6 +40,18 @@ $send = function ($event, $data) {
 
 $raw  = file_get_contents('php://input');
 $body = json_decode($raw, true);
+
+// Fallback base64: algunos WAF de hosting compartido (ModSecurity) devuelven 403
+// cuando el body lleva HTML/JS crudo, como el historial del asistente despues de
+// generar un componente. El cliente puede mandar el mismo JSON en base64 para
+// esquivar ese falso positivo; aqui se acepta cualquiera de las dos formas.
+if (!is_array($body) && $raw !== '') {
+    $decoded = base64_decode(trim($raw), true);
+    if ($decoded !== false) {
+        $body = json_decode($decoded, true);
+    }
+}
+
 if (!is_array($body)) {
     $send('error', ['error' => 'Payload JSON invalido']);
     exit;

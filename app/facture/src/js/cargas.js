@@ -50,19 +50,19 @@ class App extends Templates {
             children: [
                 {
                     id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'contentWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto bg-white'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto'
                 },
                 {
                     id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
                 }
             ]
         };
@@ -72,7 +72,7 @@ class App extends Templates {
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden'
+            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -80,7 +80,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
+                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
                 container: [mainPanel, detailPanel]
             }
         });
@@ -95,7 +95,7 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'detailHead',
-                        class: 'px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0'
+                        class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0'
                     },
                     {
                         type:  'div',
@@ -126,11 +126,11 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'cardLog',
-                        class: 'w-full bg-white border border-gray-200 rounded-lg overflow-hidden',
+                        class: 'w-full bg-[#141d2b] border border-[#374151] rounded-lg overflow-hidden',
                         children: [
                             {
                                 id:    'headLog',
-                                class: 'px-4 py-3 border-b border-gray-200 flex items-center justify-between'
+                                class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between'
                             },
                             {
                                 id:    'tableLog',
@@ -152,7 +152,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:    `panel-${tabId}`,
-                class: 'w-full bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-3',
+                class: 'w-full bg-[#141d2b] border border-[#374151] rounded-lg p-4 flex flex-col gap-3',
                 container: [
                     { type: 'div', id: `uploadHead-${tabId}`,  class: 'w-full' },
                     { type: 'div', id: `uploadZone-${tabId}`,  class: 'w-full' },
@@ -185,39 +185,21 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.anios
-            },
-            {
-                opc:         'input',
-                id:          'qBuscar',
-                lbl:         'Buscar:',
-                class:       'col-12 col-md-4 col-lg-4',
-                placeholder: 'Archivo, hoja...',
-                required:    false,
-                onkeyup:     'app.onChangeFilters()'
-            },
-            {
-                opc:       'button',
-                id:        'btnLimpiarLog',
-                text:      'Limpiar bitacora',
-                color_btn: 'danger',
-                class:     'col-12 col-md-6 col-lg-3',
-                onClick:   () => cargas.clearLog()
             }
         ];
 
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'light',
+            theme:      'dark',
             data:       filters
         });
     }
 
     getFilters() {
         return {
-            mes:  $('#fMes').val()     || '',
-            anio: $('#fAnio').val()    || '',
-            q:    $('#qBuscar').val()  || ''
+            mes:  $('#fMes').val()  || '',
+            anio: $('#fAnio').val() || ''
         };
     }
 
@@ -227,7 +209,7 @@ class App extends Templates {
         this.tabLayout({
             parent:          'tabsHost',
             id:              'tabsCargas',
-            theme:           'light',
+            theme:           'dark',
             type:            'short',
             showBorder:      false,
             renderContainer: true,
@@ -285,18 +267,12 @@ class Cargas extends Templates {
 
     lsBitacora() {
         // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:Object.assign({ opc:'lsBitacora' }, app.getFilters()) })
-        const f = app.getFilters();
-        const rows = Object.values(SAMPLE_CARGAS_DB)
-            .filter(e => {
-                if (!f.q) return true;
-                return (e.archivo + ' ' + e.hoja).toLowerCase().includes(f.q.toLowerCase());
-            })
-            .map(_cargaRow);
+        const rows = Object.values(SAMPLE_CARGAS_DB).map(_cargaRow);
 
         this.createCoffeeTable3({
             parent:       'tableLog',
             id:           'tbLog',
-            theme:        'light',
+            theme:        'dark',
             center:       [4, 6],
             right:        [5],
             actionsAlign: 'center',
@@ -320,7 +296,7 @@ class Cargas extends Templates {
         this.createCoffeeTable3({
             parent:       'detailContent',
             id:           'tbColumnas',
-            theme:        'light',
+            theme:        'dark',
             center:       [1],
             extends:      true,
             scrollable:   false,
@@ -334,11 +310,20 @@ class Cargas extends Templates {
 
     lsStats(tabId, archivo) {
         // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'showStats', archivo:archivo.id } })
-        cargasView.renderInfoCards(tabId, (archivo.stats || []).map(s => ({
+        const stats = archivo.stats || [];
+
+        // El tab de reporte de ventas ya no lleva cards: sin stats se vacia el
+        // contenedor en vez de pintar el bloque, asi no queda el gap del panel.
+        if (!stats.length) {
+            $(`#uploadStats-${tabId}`).empty();
+            return;
+        }
+
+        cargasView.renderInfoCards(tabId, stats.map(s => ({
             id:          s.id,
             title:       s.title,
-            bgColor:     'bg-gray-50',
-            borderColor: 'border-gray-200',
+            bgColor:     'bg-[#0E1521]',
+            borderColor: 'border-[#374151]',
             data: {
                 value: s.valor,
                 color: s.color
@@ -356,10 +341,10 @@ class Cargas extends Templates {
 
         if (tipo === 'commands') {
             archivo.stats = [
-                { id: 'cmRenglones', title: 'Renglones', valor: '13,141',       color: 'text-gray-800'  },
-                { id: 'cmCuentas',   title: 'Cuentas',   valor: '3,821',        color: 'text-gray-800'  },
-                { id: 'cmProductos', title: 'Productos', valor: '186',         color: 'text-gray-800'  },
-                { id: 'cmMonto',     title: 'Monto',     valor: '$186,420.50', color: 'text-[#C05A40]' }
+                { id: 'cmRenglones', title: 'Renglones', valor: '13,141',       color: 'text-white'  },
+                { id: 'cmCuentas',   title: 'Cuentas',   valor: '3,821',        color: 'text-white'  },
+                { id: 'cmProductos', title: 'Productos', valor: '186',         color: 'text-white'  },
+                { id: 'cmMonto',     title: 'Monto',     valor: '$186,420.50', color: 'text-[#1C64F2]' }
             ];
         }
 
@@ -391,7 +376,7 @@ class Cargas extends Templates {
             this.createCoffeeTable3({
                 parent:       'tableLog',
                 id:           'tbLog',
-                theme:        'light',
+                theme:        'dark',
                 emptyMessage: 'Sin registros en la bitacora de carga',
                 emptyIcon:    'ic-file-text',
                 data:         { row: [] }
@@ -432,7 +417,7 @@ class CargasView extends Templates {
         this.infoCard({
             parent: `uploadStats-${tabId}`,
             id:     `statsCargas-${tabId}`,
-            theme:  'light',
+            theme:  'dark',
             style:  'file',
             cols:   4,
             json:   rows
@@ -498,15 +483,15 @@ class CargasView extends Templates {
 
         const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
         wrap.html(`
-            <div class="w-12 h-12 rounded-xl bg-green-50 text-green-700 flex items-center justify-center shrink-0 border border-green-200">
+            <div class="w-12 h-12 rounded-xl bg-[rgba(16,185,129,0.12)] text-green-300 flex items-center justify-center shrink-0 border border-[rgba(16,185,129,0.30)]">
                 <i data-lucide="sheet" class="w-6 h-6"></i>
             </div>
             <div class="flex-1">
                 <div class="flex items-center gap-2 mb-1">
-                    <h3 class="text-[13px] font-bold text-gray-800">${esc(opts.json.titulo)}</h3>
+                    <h3 class="text-[13px] font-bold text-white">${esc(opts.json.titulo)}</h3>
                     <span class="badge-base b-green">${esc(opts.json.formato)}</span>
                 </div>
-                <p class="text-[10px] text-gray-500">${esc(opts.json.subtitulo)}</p>
+                <p class="text-[10px] text-gray-400">${esc(opts.json.subtitulo)}</p>
             </div>
         `);
 
@@ -541,8 +526,8 @@ class CargasView extends Templates {
         wrap.html(`
             <span class="excel-badge ${opts.json.formato === 'XLS' ? 'xls' : ''}">${esc(opts.json.formato)}</span>
             <div class="flex-1">
-                <p class="text-[12px] font-semibold text-gray-700">Arrastra el Excel aqui o haz clic para buscar</p>
-                <p class="text-[10px] text-gray-500">Archivo esperado: <b>${esc(opts.json.esperado)}</b></p>
+                <p class="text-[12px] font-semibold text-gray-300">Arrastra el Excel aqui o haz clic para buscar</p>
+                <p class="text-[10px] text-gray-400">Archivo esperado: <b>${esc(opts.json.esperado)}</b></p>
             </div>
             ${badgeHtml}
         `);
@@ -570,12 +555,12 @@ class CargasView extends Templates {
 
         const item = (h) => `
             <div class="flex items-center gap-3 p-3 rounded-lg ${h.bgClass}">
-                <div class="w-8 h-8 rounded-lg bg-white ${h.iconClass} flex items-center justify-center shadow-sm">
+                <div class="w-8 h-8 rounded-lg bg-[#141d2b] ${h.iconClass} flex items-center justify-center shadow-sm">
                     <i data-lucide="${esc(h.icon)}" class="w-4 h-4"></i>
                 </div>
                 <div class="flex-1">
-                    <p class="text-[11px] font-bold text-gray-700">${esc(h.titulo)}</p>
-                    <p class="text-[9px] text-gray-500">${esc(h.detalle)}</p>
+                    <p class="text-[11px] font-bold text-gray-300">${esc(h.titulo)}</p>
+                    <p class="text-[9px] text-gray-400">${esc(h.detalle)}</p>
                 </div>
                 <i data-lucide="check-circle-2" class="w-4 h-4 ${h.iconClass}"></i>
             </div>
@@ -595,7 +580,7 @@ class CargasView extends Templates {
             class:  'flex items-center justify-between w-full',
             json:   { icon: '', iconClass: 'w-4 h-4 text-gray-400', title: '', badge: null },
             classes: {
-                title: 'text-[12px] font-bold text-gray-700 flex items-center gap-2'
+                title: 'text-[12px] font-bold text-gray-300 flex items-center gap-2'
             }
         };
 
@@ -629,13 +614,13 @@ class CargasView extends Templates {
             class:  'flex items-center justify-between w-full',
             json:   { title: '', titleHtml: '', subtitle: '', toggles: [], back: null },
             classes: {
-                title:    'text-lg font-bold text-gray-800',
-                subtitle: 'text-xs text-gray-500',
-                groupLbl: 'text-[9px] text-gray-500 uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-blue-50 text-blue-700',
+                title:    'text-lg font-bold text-white',
+                subtitle: 'text-xs text-gray-400',
+                groupLbl: 'text-[9px] text-gray-400 uppercase tracking-wider font-bold',
+                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37] transition-colors',
+                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300',
                 sep:      'text-gray-300',
-                backBtn:  'w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 border border-gray-200 hover:border-blue-400 flex items-center justify-center text-gray-500 hover:text-blue-700 transition-colors flex-shrink-0'
+                backBtn:  'w-8 h-8 rounded-full bg-[#1F2A37] hover:bg-[rgba(28,100,242,0.12)] border border-[#374151] hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-300 transition-colors flex-shrink-0'
             },
             onToggle: () => { },
             onBack:   null
@@ -732,12 +717,12 @@ class CargasView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,#1C64F2)',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
-                info:   'text-[10px] text-gray-500',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-500',
+                info:   'text-[10px] text-gray-400',
+                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
                 item:   'flex items-center gap-1'
             }
         };

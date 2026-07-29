@@ -23,7 +23,7 @@ const _badgeSiNo = (valor, toneOn) => valor
     ? `<span class="badge-base ${toneOn}">Si</span>`
     : '<span class="badge-base b-gray">No</span>';
 
-const _cellCodigo = (code) => `<span class="font-mono text-[10px] text-gray-500">${code}</span>`;
+const _cellCodigo = (code) => `<span class="font-mono text-[10px] text-gray-400">${code}</span>`;
 
 // -- Datos --
 
@@ -119,8 +119,8 @@ const SAMPLE_CATALOGOS_EMISOR = {
 const _productoRow = (e) => ({
     id:          e.code,
     Codigo:      _cellCodigo(e.code),
-    Nombre:      `<span class="font-semibold text-gray-700">${e.nombre}</span>`,
-    Precio:      `<span class="text-gray-600">${_fmtMX(e.precio)}</span>`,
+    Nombre:      `<span class="font-semibold text-gray-300">${e.nombre}</span>`,
+    Precio:      `<span class="text-gray-400">${_fmtMX(e.precio)}</span>`,
     Puente:      _badgeSiNo(e.puente, 'b-green'),
     Modificador: _badgeSiNo(e.modificador, 'b-yellow'),
     a: [
@@ -140,7 +140,7 @@ const _productoRow = (e) => ({
 const _meseroRow = (e) => ({
     id:     e.code,
     Codigo: _cellCodigo(e.code),
-    Nombre: `<span class="font-semibold text-gray-700">${e.nombre}</span>`,
+    Nombre: `<span class="font-semibold text-gray-300">${e.nombre}</span>`,
     a: [
         {
             class:   'btn-ghost !py-1 !px-2 text-[11px]',

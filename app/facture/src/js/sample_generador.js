@@ -293,11 +293,11 @@ const _prepararTicketVirtual = (e) => {
 
 const _generadorRow = (e) => ({
     id:     e.id,
-    Nota:   `<span class="font-bold text-gray-700">#${e.orden}</span>`,
-    ID:     `<span class="font-mono text-[10px] text-gray-500">${e.id}</span>`,
+    Nota:   `<span class="font-bold text-gray-300">#${e.orden}</span>`,
+    ID:     `<span class="font-mono text-[10px] text-gray-400">${e.id}</span>`,
     Tasa:   _badgeTasa(e.tasa),
     Estado: _badgeEstadoGen(e),
-    Monto:  `<span class="font-semibold text-gray-800">${_fmtMX(e.total)}</span>`,
+    Monto:  `<span class="font-semibold text-white">${_fmtMX(e.total)}</span>`,
     a:      _accionGen(e)
 });
 

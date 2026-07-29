@@ -31,7 +31,7 @@ const _badgeEstadoCarga = (estado) => {
     return `<span class="badge-base ${c.tone}">${c.text}</span>`;
 };
 
-const _cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-gray-100 text-gray-500 font-mono text-[9px]">${letra}</span>`;
+const _cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
 
 // -- Datos --
 
@@ -72,13 +72,7 @@ const SAMPLE_CARGAS_ARCHIVOS = {
         subtitulo: 'Sube un solo archivo. El sistema detecta si la hoja es "Reporte de ventas" (tickets) o "Pagos" (formas de pago) y la envia a la tabla correspondiente.',
         esperado:  'Reporte_De_Ventas_YYYYMMDD.xlsx',
         formato:   'XLSX',
-        estado:    'ok',
-        stats: [
-            { id: 'stTickets', title: 'Tickets',       valor: '3,821',         color: 'text-gray-800'    },
-            { id: 'stPagos',   title: 'Pagos',         valor: '3,909',         color: 'text-gray-800'    },
-            { id: 'stVenc',    title: 'Vencidos',      valor: '3,565',         color: 'text-gray-800'    },
-            { id: 'stCtrl',    title: 'Control total', valor: '$2,644,933.30', color: 'text-[#C05A40]'   }
-        ]
+        estado:    'ok'
     },
     'commands': {
         id:        'commands',
@@ -88,10 +82,10 @@ const SAMPLE_CARGAS_ARCHIVOS = {
         formato:   'XLS',
         estado:    'pendiente',
         stats: [
-            { id: 'cmRenglones', title: 'Renglones', valor: '-', color: 'text-gray-800' },
-            { id: 'cmCuentas',   title: 'Cuentas',   valor: '-', color: 'text-gray-800' },
-            { id: 'cmProductos', title: 'Productos', valor: '-', color: 'text-gray-800' },
-            { id: 'cmMonto',     title: 'Monto',     valor: '-', color: 'text-gray-800' }
+            { id: 'cmRenglones', title: 'Renglones', valor: '-', color: 'text-white' },
+            { id: 'cmCuentas',   title: 'Cuentas',   valor: '-', color: 'text-white' },
+            { id: 'cmProductos', title: 'Productos', valor: '-', color: 'text-white' },
+            { id: 'cmMonto',     title: 'Monto',     valor: '-', color: 'text-white' }
         ]
     }
 };
@@ -101,15 +95,15 @@ const SAMPLE_CARGAS_HOJAS = [
         icon:      'receipt-text',
         titulo:    'Reporte de ventas',
         detalle:   'columnas A:J · fila 8 · 3,821 tickets',
-        bgClass:   'bg-green-50 border border-green-100',
+        bgClass:   'bg-[rgba(16,185,129,0.12)] border border-green-100',
         iconClass: 'text-green-600'
     },
     {
         icon:      'credit-card',
         titulo:    'Pagos',
         detalle:   'columnas A:H · fila 8 · 3,909 pagos',
-        bgClass:   'bg-[#FBF3EF] border border-[#F7E3DC]',
-        iconClass: 'text-[#C05A40]'
+        bgClass:   'bg-[rgba(28,100,242,0.12)] border border-[#F7E3DC]',
+        iconClass: 'text-[#1C64F2]'
     }
 ];
 
@@ -132,11 +126,11 @@ const SAMPLE_CARGAS_COLUMNAS = [
 
 const _cargaRow = (e) => ({
     id:              e.folio,
-    Hora:            `<span class="text-gray-500">${e.hora}</span>`,
-    Archivo:         `<span class="font-semibold text-gray-700">${e.archivo}</span>`,
-    Hoja:            `<span class="text-gray-600">${e.hoja}</span>`,
-    Filas:           `<span class="text-gray-600">${_fmtInt(e.filas)}</span>`,
-    'Control total': `<span class="font-semibold text-gray-700">${_fmtMX(e.control)}</span>`,
+    Hora:            `<span class="text-gray-400">${e.hora}</span>`,
+    Archivo:         `<span class="font-semibold text-gray-300">${e.archivo}</span>`,
+    Hoja:            `<span class="text-gray-400">${e.hoja}</span>`,
+    Filas:           `<span class="text-gray-400">${_fmtInt(e.filas)}</span>`,
+    'Control total': `<span class="font-semibold text-gray-300">${_fmtMX(e.control)}</span>`,
     Estado:          _badgeEstadoCarga(e.estado),
     a: [
         {
@@ -150,7 +144,7 @@ const _cargaRow = (e) => ({
 const _columnaRow = (c) => ({
     id:    c.letra,
     Col:   _cellColumna(c.letra),
-    Campo: `<span class="text-gray-600">${c.campo}</span>`
+    Campo: `<span class="text-gray-400">${c.campo}</span>`
 });
 
 const SAMPLE_CARGAS_COLUMNAS_TABLE = {

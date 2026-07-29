@@ -11,6 +11,25 @@ const PG_API         = 'ctrl/ctrl-visor.php';
 const PG_API_STREAM  = 'ctrl/ctrl-coffeeia-stream.php';
 const PG_API_THREADS = 'ctrl/ctrl-pg-threads.php';   // hilos de conversación (SQLite)
 
+/**
+ * Serializa el payload del chat a base64 para enviarlo al endpoint de streaming.
+ * En hosting compartido el WAF (ModSecurity) responde 403 cuando el body lleva
+ * HTML/JS crudo: pasa la 1a vuelta y corta la 2a, porque ahi el historial ya
+ * incluye el componente que genero el modelo. El endpoint acepta JSON plano y
+ * base64, asi que esto no rompe nada en local.
+ */
+function pgEncodePayload(payload) {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    // btoa solo admite latin1 y el spread revienta el stack con payloads grandes:
+    // se recorre por bloques.
+    let bin = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(bin);
+}
+
 // Extensiones tratadas como TEXTO plano (gemelo del Visor): se leen con readAsText
 // y se embeben al contexto del chat. Los binarios (pdf/docx/xlsx) no entran aqui.
 const PG_TEXT_EXTS = [
@@ -1986,7 +2005,7 @@ async function pgRunModel(text, images, dropImages) {
 
     try {
         const res = await fetch(PG_API_STREAM, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ac.signal
+            method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' }, body: pgEncodePayload(payload), signal: ac.signal
         });
         if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
 
@@ -2144,8 +2163,8 @@ async function pgContinueRound(payload, stream) {
     pg._abort = ac;
     try {
         const res = await fetch(PG_API_STREAM, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload), signal: ac.signal
+            method: 'POST', headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            body: pgEncodePayload(payload), signal: ac.signal
         });
         if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
         const reader = res.body.getReader();

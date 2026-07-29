@@ -153,6 +153,7 @@
                         </span>
                         <input id="sidebarSearch" type="text" placeholder="Filtrar archivos..." class="cs-input pl-9 w-full">
                     </div>
+                    <div id="docsViewSlot" class="docx-view-slot"></div>
                 </div>
 
                 <div id="sidebarList" class="sidebar-list"></div>

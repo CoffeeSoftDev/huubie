@@ -24,9 +24,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
 <!-- Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+    /* Las tarjetas usan Poppins (font-[Poppins] en coffeeSoft.js); el CDN de Tailwind
+       no genera utilidades arbitrarias de forma fiable, por eso se define como clase propia. */
+    .font-poppins { font-family: 'Poppins', sans-serif; }
+
     /* Select2 detrás de modales */
     .select2-container,
     .select2-dropdown {
