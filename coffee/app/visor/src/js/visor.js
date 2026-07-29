@@ -875,16 +875,6 @@ class App {
             if (window.lucide) lucide.createIcons();
         });
 
-        // Pantalla "elige un archivo": el boton abre el sidebar y enfoca su buscador.
-        $('#md-rendered').on('click', '#btnPickFile', () => {
-            if (this.settings.sidebarCollapsed) {
-                this.settings.sidebarCollapsed = false;
-                this.saveSettings();
-                this.applySidebarCollapsed(false, true);
-            }
-            $('#sidebarSearch').trigger('focus');
-        });
-
         this.bindSidebarClicks();
         this.bindTabs();
         this.bindActions();
@@ -3933,6 +3923,7 @@ class VisorView {
             $('#breadcrumbSection').text(path);
         }
         $('#breadcrumbFile').text(file.file);
+        $('body').removeClass('empty-view');   // se abrio un archivo (md, lienzo, media...)
     }
 
     renderFrontmatter(file) {
@@ -3982,6 +3973,7 @@ class VisorView {
         $('#md-rendered').off('.td').removeClass('is-todo');
         $('#btnEdit, #btnOpenEditor').removeClass('hidden');
         $('body').removeClass('todo-mode');   // restaura el aside (Frontmatter + TOC)
+        $('body').removeClass('empty-view');  // ya hay documento: vuelve la hoja y el chrome
         $('#md-rendered').removeClass('is-media');
         $('body').removeClass('media-view');
         // Los todo.json se pintan como panel dinámico (CRUD), no como markdown.
@@ -4456,20 +4448,29 @@ class VisorView {
     // ninguno se abrio solo (no hay markdown/TODO recordado en esta carpeta).
     renderEmptyMain(reason) {
         const pick = reason === 'pick';
-        $('#md-rendered').removeClass('is-sheet').html(pick ? `
-            <div class="empty-state" style="padding:80px 20px;">
-                <i data-lucide="file-search" class="w-10 h-10"></i>
-                <p style="margin-top:8px;">Elige un archivo en la barra lateral</p>
-                <p style="margin-top:4px;font-size:11.5px;opacity:.75;">Solo se reabre solo el ultimo markdown o TODO de cada carpeta.</p>
-                <button id="btnPickFile" class="empty-state-btn">Buscar archivo</button>
+        $('#md-rendered').removeClass('is-sheet is-todo is-media').html(pick ? `
+            <div class="empty-state is-blank">
+                <i data-lucide="file-search" class="w-12 h-12"></i>
+                <p class="empty-title">Elige un archivo en la barra lateral</p>
+                <p class="empty-hint">Solo se reabre solo el ultimo markdown o TODO de cada carpeta.</p>
             </div>
         ` : `
-            <div class="empty-state" style="padding:80px 20px;">
-                <i data-lucide="folder-x" class="w-10 h-10"></i>
-                <p class="text-sm" style="margin-top:8px;">Carpeta vacia o sin archivos .md</p>
+            <div class="empty-state is-blank">
+                <i data-lucide="folder-x" class="w-12 h-12"></i>
+                <p class="empty-title">Carpeta vacia o sin archivos .md</p>
+                <p class="empty-hint">Elige otra carpeta en el selector de arriba o crea un documento.</p>
             </div>
         `);
-        $('body').removeClass('xlsx-view');
+        // Sin documento no hay hoja: body.empty-view apaga el papel y el chrome del doc
+        // (toolbar, Frontmatter, TOC) y deja solo el icono con el mensaje centrado.
+        $('body').addClass('empty-view').removeClass('xlsx-view todo-mode media-view');
+
+        // Si el usuario venia de la pestaña Raw, el panel de lectura estaba oculto:
+        // se restaura para que el mensaje sea siempre visible.
+        $('#md-rendered').removeClass('hidden');
+        $('#md-raw, #md-edit').addClass('hidden');
+        $('.cs-tab[data-tab="rendered"]').addClass('active');
+        $('.cs-tab[data-tab="raw"]').removeClass('active');
         $('#md-raw').text('');
         $('#lineCountChip').text('~ 0 lineas');
         $('#breadcrumbFile').text('—');
@@ -4478,6 +4479,7 @@ class VisorView {
         $('#tocBody').html('<span class="toc-empty">Sin secciones</span>');
         $('#footerFile').text('—');
         $('#footerSize').text('—');
+        if (window.lucide) lucide.createIcons();
     }
 
     renderFooterSelection(file) {

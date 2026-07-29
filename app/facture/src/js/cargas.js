@@ -34,7 +34,6 @@ class App extends Templates {
         this.filterBar();
         this.renderTabs();
         cargasView.renderHeader(SAMPLE_VIEW_HEADER_CARGAS);
-        cargasView.renderFooter(SAMPLE_VIEW_FOOTER_CARGAS);
         cargasView.renderLogHead();
         this.renderActiveTab();
         cargas.lsBitacora();
@@ -49,20 +48,12 @@ class App extends Templates {
             class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
-                    id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
-                {
-                    id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    id:    'headerRow',
+                    class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'contentWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
-                },
-                {
-                    id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
                 }
             ]
         };
@@ -82,6 +73,21 @@ class App extends Templates {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
                 container: [mainPanel, detailPanel]
+            }
+        });
+
+        // Titulo y filtros comparten banda: el header queda a la izquierda y los
+        // selects de mes/anio a la derecha, alineados en la misma fila.
+        this.createLayout({
+            parent: 'headerRow',
+            design: false,
+            data: {
+                id:    'headerInner',
+                class: 'w-full flex flex-wrap items-center justify-between gap-3',
+                container: [
+                    { type: 'div', id: 'viewHeader', class: 'flex-1 min-w-0' },
+                    { type: 'div', id: 'filterBar',  class: 'flex-shrink-0 w-full sm:w-[300px]' }
+                ]
             }
         });
 
@@ -152,11 +158,10 @@ class App extends Templates {
             design: false,
             data: {
                 id:    `panel-${tabId}`,
-                class: 'w-full bg-[#141d2b] border border-[#374151] rounded-lg p-4 flex flex-col gap-3',
+                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col gap-3',
                 container: [
-                    { type: 'div', id: `uploadHead-${tabId}`,  class: 'w-full' },
-                    { type: 'div', id: `uploadZone-${tabId}`,  class: 'w-full' },
-                    { type: 'div', id: `uploadStats-${tabId}`, class: 'w-full' }
+                    { type: 'div', id: `uploadHead-${tabId}`, class: 'w-full' },
+                    { type: 'div', id: `uploadZone-${tabId}`, class: 'w-full' }
                 ]
             }
         });
@@ -170,7 +175,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMes',
                 lbl:      'Mes:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-6',
                 value:    '06',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -180,7 +185,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fAnio',
                 lbl:      'Anio:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-6',
                 value:    '2026',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -228,7 +233,6 @@ class App extends Templates {
         const archivo = this.dataInit.archivos[id];
         cargasView.renderUploadHead(id, archivo);
         cargasView.renderUploadZone(id, archivo);
-        cargas.lsStats(id, archivo);
 
         if (id === 'sales-report') {
             cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas' });
@@ -247,10 +251,6 @@ class App extends Templates {
 
     onChangeFilters() {
         cargas.lsBitacora();
-    }
-
-    updateFooterInfo(text) {
-        $('#viewFooter_info').text(text);
     }
 }
 
@@ -282,13 +282,11 @@ class Cargas extends Templates {
             f_size:       11,
             border_table: 'border-0',
             emptyMessage: 'Sin registros en la bitacora de carga',
-            emptyIcon:    'ic-file-text',
+            emptyIcon:    'icon-doc-text',
             data:         { row: rows }
         });
 
         if (window.lucide) lucide.createIcons();
-
-        app.updateFooterInfo(`Mostrando ${rows.length} carga${rows.length !== 1 ? 's' : ''}`);
     }
 
     lsColumnas() {
@@ -308,29 +306,6 @@ class Cargas extends Templates {
         });
     }
 
-    lsStats(tabId, archivo) {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'showStats', archivo:archivo.id } })
-        const stats = archivo.stats || [];
-
-        // El tab de reporte de ventas ya no lleva cards: sin stats se vacia el
-        // contenedor en vez de pintar el bloque, asi no queda el gap del panel.
-        if (!stats.length) {
-            $(`#uploadStats-${tabId}`).empty();
-            return;
-        }
-
-        cargasView.renderInfoCards(tabId, stats.map(s => ({
-            id:          s.id,
-            title:       s.title,
-            bgColor:     'bg-[#0E1521]',
-            borderColor: 'border-[#374151]',
-            data: {
-                value: s.valor,
-                color: s.color
-            }
-        })));
-    }
-
     // -- Actions --
 
     uploadFile(tipo) {
@@ -339,25 +314,30 @@ class Cargas extends Templates {
         if (!archivo) return;
         archivo.estado = 'ok';
 
-        if (tipo === 'commands') {
-            archivo.stats = [
-                { id: 'cmRenglones', title: 'Renglones', valor: '13,141',       color: 'text-white'  },
-                { id: 'cmCuentas',   title: 'Cuentas',   valor: '3,821',        color: 'text-white'  },
-                { id: 'cmProductos', title: 'Productos', valor: '186',         color: 'text-white'  },
-                { id: 'cmMonto',     title: 'Monto',     valor: '$186,420.50', color: 'text-[#1C64F2]' }
-            ];
-        }
-
         cargasView.renderUploadZone(tipo, archivo);
-        this.lsStats(tipo, archivo);
         this.alertBox({ type: 'success', title: `Archivo "${archivo.titulo}" procesado`, timer: 1600 });
     }
 
-    downloadCarga(folio) {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'downloadCarga', folio:folio } })
+    deleteCarga(folio) {
         const e = SAMPLE_CARGAS_DB[folio];
         if (!e) return;
-        this.alertBox({ type: 'message', title: `Descargando ${e.archivo}` });
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Eliminar carga',
+                text:              `Se borrara el registro ${folio} (${e.archivo} · ${e.hoja}).`,
+                icon:              'warning',
+                confirmButtonText: 'Si, eliminar',
+                cancelButtonText:  'No'
+            }
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'deleteCarga', folio:folio } })
+            delete SAMPLE_CARGAS_DB[folio];
+            this.lsBitacora();
+            this.alertBox({ type: 'success', title: `Carga ${folio} eliminada`, timer: 1600 });
+        });
     }
 
     clearLog() {
@@ -373,15 +353,10 @@ class Cargas extends Templates {
         }).then((result) => {
             if (!result.isConfirmed) return;
             // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'clearLog' } })
-            this.createCoffeeTable3({
-                parent:       'tableLog',
-                id:           'tbLog',
-                theme:        'dark',
-                emptyMessage: 'Sin registros en la bitacora de carga',
-                emptyIcon:    'ic-file-text',
-                data:         { row: [] }
-            });
-            app.updateFooterInfo('Mostrando 0 cargas');
+            // La tabla se repinta desde lsBitacora: es la unica definicion de
+            // createCoffeeTable3 del modulo, aqui solo se vacia el origen.
+            Object.keys(SAMPLE_CARGAS_DB).forEach(folio => delete SAMPLE_CARGAS_DB[folio]);
+            this.lsBitacora();
         });
     }
 }
@@ -402,25 +377,6 @@ class CargasView extends Templates {
             parent: 'viewHeader',
             id:     'hdrCargas',
             json:   data
-        });
-    }
-
-    renderFooter(data) {
-        this.viewFooter({
-            parent: 'viewFooterRow',
-            id:     'viewFooter',
-            json:   data
-        });
-    }
-
-    renderInfoCards(tabId, rows) {
-        this.infoCard({
-            parent: `uploadStats-${tabId}`,
-            id:     `statsCargas-${tabId}`,
-            theme:  'dark',
-            style:  'file',
-            cols:   4,
-            json:   rows
         });
     }
 
@@ -704,55 +660,5 @@ class CargasView extends Templates {
                 if (backHref) window.location.href = backHref;
             });
         }
-    }
-
-    viewFooter(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'viewFooter',
-            class:  'flex items-center justify-between w-full',
-            json:   { info: '', legends: [] },
-            tones: {
-                default: '#9CA3AF',
-                success: 'var(--cs-success,#3FC189)',
-                warning: 'var(--cs-warning,#FBBF24)',
-                danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
-                purple:  'var(--cs-accent-purple,#7C3AED)'
-            },
-            classes: {
-                info:   'text-[10px] text-gray-400',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
-                item:   'flex items-center gap-1'
-            }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.tones   = Object.assign({}, defaults.tones,   o.tones   || {});
-        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneColor  = (tone) => opts.tones[tone] || opts.tones.default;
-        const legendItem = (lg) => `
-            <span class="${opts.classes.item}">
-                <span class="w-2 h-2 rounded-full" style="background:${toneColor(lg.tone)};"></span>
-                ${esc(lg.label)}
-            </span>
-        `;
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-        const legendsHtml = (opts.json.legends || []).map(legendItem).join('');
-
-        wrap.html(`
-            <p id="${opts.id}_info" class="${opts.classes.info}">${esc(opts.json.info)}</p>
-            <div class="${opts.classes.legend}">${legendsHtml}</div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
     }
 }

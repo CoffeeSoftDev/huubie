@@ -131,10 +131,14 @@
 
     // CATALOG legacy [{group, options:[{value,label,tools}]}] derivado del catálogo rico,
     // para las superficies que lo consumen (coffeeia/chat lo espejan; account-menu lista).
-    function catalogGrouped() {
+    // `onlyEnabled` deja fuera los deshabilitados: así quien pinta un <select> ya nace
+    // filtrado y no depende de que applyToSelect llegue después a ocultar opciones.
+    function catalogGrouped(onlyEnabled) {
         const order = [];
         const byGroup = {};
+        const enabled = onlyEnabled ? getEnabled() : null;
         getModels().forEach(function (m) {
+            if (enabled && enabled.indexOf(m.id) === -1) return;
             if (!byGroup[m.group]) { byGroup[m.group] = []; order.push(m.group); }
             byGroup[m.group].push({ value: m.id, label: m.name, tools: m.tools, model: m });
         });
@@ -145,15 +149,33 @@
     function allValues() { return getModels().map(function (m) { return m.id; }); }
     function isCatalog(v) { return !!getModel(v); }
 
+    // Cuando la preferencia guardada se descarta, la app vuelve a mostrar TODOS los modelos.
+    // Eso se parece demasiado a "el ajuste no se aplicó", así que se anuncia en vez de
+    // pasar callado: `issue` guarda el motivo y se avisa una vez por página.
+    let _issue = null;
+    function discard(reason) {
+        if (_issue !== reason) {
+            _issue = reason;
+            console.warn('[modelos] la lista de habilitados se ignoró (' + reason + '): se muestran todos los modelos.');
+            try { global.dispatchEvent(new CustomEvent('coffeeia:models-issue', { detail: { reason: reason } })); } catch (e) {}
+        }
+        return allValues();
+    }
+
     function getEnabled() {
         try {
             const raw = localStorage.getItem(ENABLED_KEY);
-            if (!raw) return allValues();
+            if (!raw) return allValues();                      // nunca se configuró: todos
             const arr = JSON.parse(raw);
-            if (!Array.isArray(arr)) return allValues();
+            if (!Array.isArray(arr)) return discard('la preferencia guardada no es una lista');
             const known = arr.filter(isCatalog);
-            return known.length ? known : allValues();
-        } catch (e) { return allValues(); }
+            if (!known.length) return discard('ninguno de los ' + arr.length + ' modelos guardados existe en el catálogo actual');
+            if (known.length !== arr.length) {
+                console.warn('[modelos] ' + (arr.length - known.length) + ' modelo(s) habilitados ya no existen en el catálogo y se ignoran.');
+            }
+            _issue = null;
+            return known;
+        } catch (e) { return discard('la preferencia guardada está corrupta'); }
     }
     function setEnabled(values) {
         const clean = (values || []).filter(isCatalog);
@@ -250,8 +272,11 @@
     // Sincroniza las <option> del select con el catálogo (aditivo): agrega los modelos
     // que aún no tienen opción (los que registró el usuario), refresca su etiqueta y
     // data-tools. No borra opciones ajenas (p.ej. "" = default del servidor).
+    // `data-model-sync="off"` en el select: no se le inyecta el catálogo (conserva su
+    // lista curada, p.ej. un chat especializado) pero sí se le ocultan los deshabilitados.
     let _applying = false;
     function syncSelectOptions(el) {
+        if (el.getAttribute('data-model-sync') === 'off') return;
         const byGroup = {};
         const order = [];
         getModels().forEach(function (m) {
@@ -368,6 +393,10 @@
         EFFORT_LEVELS: EFFORT_LEVELS,
         // CATALOG legacy (getter): las superficies que lo consumen releen el vivo.
         get CATALOG() { return catalogGrouped(); },
+        // Igual que CATALOG pero ya sin los deshabilitados (para poblar selects).
+        get ENABLED_CATALOG() { return catalogGrouped(true); },
+        // Motivo por el que se ignoró la preferencia guardada (null = todo en orden).
+        lastIssue: function () { return _issue; },
         // catálogo rico + CRUD
         getModels: getModels,
         getModel: getModel,

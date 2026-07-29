@@ -15,11 +15,13 @@ const CHAT_AGENTS = {
 };
 const CHAT_DEFAULT_AGENT = 'CoffeeIA.md';
 
-// Catálogo de modelos: fuente única en model-config.js (CoffeeModelConfig.CATALOG),
-// igual que Visor y Lab. Así el chat respeta los modelos habilitados en
-// Configuración y el modelo activo global compartido entre superficies.
+// Catálogo de modelos: fuente única en model-config.js, igual que Visor y Lab. Así el
+// chat respeta los modelos habilitados en Configuración y el modelo activo global
+// compartido entre superficies. Se pide ya filtrado (ENABLED_CATALOG): si model-config
+// no cargó, el select queda vacío y se nota, en vez de mostrar todo el catálogo como si
+// no hubiera configuración.
 function chatModelCatalog() {
-    return (window.CoffeeModelConfig && window.CoffeeModelConfig.CATALOG) || [];
+    return (window.CoffeeModelConfig && window.CoffeeModelConfig.ENABLED_CATALOG) || [];
 }
 
 // Tipos de grafica del modo grafica (mismo set que el visor).
@@ -143,6 +145,9 @@ function chatPopulateModelSelect() {
         });
         $sel.append($grp);
     });
+    // El modelo recordado pudo quedar deshabilitado desde Configuración: en ese caso su
+    // opción ya no existe y el select quedaría en blanco. Se cae al default del proveedor.
+    if (chat.model && !$sel.find(`option[value="${chat.model.replace(/"/g, '\\"')}"]`).length) chat.model = '';
     $sel.val(chat.model || '');
 }
 

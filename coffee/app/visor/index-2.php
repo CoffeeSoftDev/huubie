@@ -661,6 +661,9 @@
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/html-stage.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
     <!-- Integración Excalidraw (solo en esta copia -2; el visor original queda intacto) -->
     <script src="src/js/excalidraw-board.js?t=<?php echo time(); ?>"></script>

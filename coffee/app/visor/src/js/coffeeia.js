@@ -43,9 +43,11 @@ const CIA_VIEWER_DEFAULT = 560;
 const CIA_VIEWER_MIN     = 380;
 const CIA_VIEWER_MAX     = 1100;
 
-// Catálogo de modelos: fuente única en model-config.js, igual que Visor y Lab.
+// Catálogo de modelos: fuente única en model-config.js, igual que Visor y Lab. Ya viene
+// sin los modelos deshabilitados en Configuración (ENABLED_CATALOG), sin depender de que
+// alguien los oculte después.
 function ciaModelCatalog() {
-    return (window.CoffeeModelConfig && window.CoffeeModelConfig.CATALOG) || [];
+    return (window.CoffeeModelConfig && window.CoffeeModelConfig.ENABLED_CATALOG) || [];
 }
 
 const CIA = {
@@ -257,6 +259,9 @@ function ciaPopulateModelSelect() {
         });
         $sel.append($grp);
     });
+    // El modelo recordado pudo quedar deshabilitado desde Configuración: sin su opción el
+    // select quedaría en blanco, así que se cae al default del proveedor.
+    if (CIA.model && !$sel.find(`option[value="${CIA.model.replace(/"/g, '\\"')}"]`).length) CIA.model = '';
     $sel.val(CIA.model || '');
 }
 

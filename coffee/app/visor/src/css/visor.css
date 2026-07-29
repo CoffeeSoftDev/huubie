@@ -449,6 +449,12 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 .acct-model-empty svg { width: 26px; height: 26px; color: var(--vsr-text-mute2); }
 .acct-model-empty strong { color: var(--vsr-text-soft); font-size: 12px; }
 .acct-model-empty span { font-size: 10.5px; }
+/* Aviso de que la configuracion no se esta guardando en el servidor (solo navegador). */
+.acct-model-alert { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid rgba(251,191,36,.35); border-radius: 10px; background: rgba(251,191,36,.08); color: var(--vsr-text-soft); font-size: 11.5px; line-height: 1.5; }
+.acct-model-alert[hidden] { display: none; }
+.acct-model-alert svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: #FBBF24; }
+.acct-model-alert strong { display: block; color: var(--vsr-text); font-size: 12px; margin-bottom: 1px; }
+.acct-model-alert code { font-size: 10.5px; color: var(--vsr-text-muted); }
 .acct-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--vsr-border-soft); }
 .acct-foot-count { font-size: 11.5px; color: var(--vsr-text-muted); }
 .acct-btn { font-size: 12.5px; font-weight: 600; padding: 8px 16px; border-radius: 9px; cursor: pointer; border: 1px solid var(--vsr-border); background: var(--vsr-bg-hover); color: var(--vsr-text-soft); display: inline-flex; align-items: center; gap: 6px; }
@@ -2727,18 +2733,41 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
 }
 .empty-state svg { color: var(--vsr-text-mute2); margin-bottom: 12px; opacity: .6; }
 .empty-state p { font-size: 13px; }
-.empty-state-btn {
-    margin-top: 16px;
-    padding: 6px 14px;
-    font-size: 12px;
-    background: var(--vsr-accent-tint);
-    border: 1px solid var(--vsr-accent-soft);
-    border-radius: 6px;
-    color: var(--vsr-accent-soft);
-    cursor: pointer;
-    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+
+/* ── Estado vacio (body.empty-view) ──────────────────────────
+   Sin archivo abierto no se simula un documento: se apaga la hoja de papel y
+   todo el chrome del doc (toolbar de lectura, Frontmatter, TOC, chip de lineas)
+   y queda solo el icono con el mensaje centrado en el area principal. */
+body.empty-view .doc-meta,
+body.empty-view .doc-main-meta,
+body.empty-view .doc-toolbar,
+body.empty-view #md-raw { display: none; }
+
+body.empty-view .main-content { display: flex; flex-direction: column; overflow: hidden; }
+body.empty-view .doc-layout   { flex: 1 1 auto; min-height: 0; }
+body.empty-view .doc-main     { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+
+body.empty-view .md-rendered {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: none;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--vsr-text-mute2);
 }
-.empty-state-btn:hover { background: var(--vsr-accent); border-color: var(--vsr-accent); color: #fff; }
+body.empty-view .md-rendered::before { display: none; }
+
+.empty-state.is-blank { padding: 0; gap: 2px; }
+.empty-state.is-blank svg { width: 44px; height: 44px; margin-bottom: 14px; opacity: .45; }
+.empty-state.is-blank .empty-title { font-size: 14px; font-weight: 600; color: var(--vsr-text-muted); }
+.empty-state.is-blank .empty-hint  { font-size: 11.5px; opacity: .75; max-width: 320px; line-height: 1.6; }
 
 #lineCountChip { font-size: 11.5px; color: var(--vsr-text-mute2); font-family: 'JetBrains Mono', monospace; }
 

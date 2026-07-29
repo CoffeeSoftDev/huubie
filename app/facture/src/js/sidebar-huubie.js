@@ -59,8 +59,15 @@ class Sidebar {
                     padding: 16px 6px;
                     background: #141d2b;
                     border-right: 1px solid #374151;
+                    /* overflow-x explicito: con solo overflow-y:auto el navegador
+                       calcula overflow-x:auto y, como los items ocupan los 60px
+                       exactos del rail, salia una barra horizontal al pie. */
                     overflow-y: auto;
+                    overflow-x: hidden;
+                    scrollbar-width: none;
                 }
+
+                #menu-sidebar::-webkit-scrollbar { width: 0; height: 0; }
 
                 /* La transicion entra un frame despues del render (clase is-ready):
                    si viviera en la regla de arriba, el rail se deslizaria solo al

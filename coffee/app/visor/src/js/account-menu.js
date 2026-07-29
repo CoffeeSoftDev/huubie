@@ -256,6 +256,35 @@
         if (global.lucide) global.lucide.createIcons();
     }
 
+    // Aviso cuando el ajuste NO está quedando guardado en el servidor, o cuando la lista
+    // guardada se descartó. Sin esto el usuario apaga modelos, ve el switch en "Inactivo"
+    // y al recargar vuelven todos sin explicación (la copia vieja del servidor gana).
+    function prefsAlert() {
+        const P = global.CoffeePrefs;
+        const MC = global.CoffeeModelConfig;
+        const issue = MC && MC.lastIssue ? MC.lastIssue() : null;
+        let title = '';
+        let body = '';
+
+        if (!P) {
+            title = 'Esta configuración solo vive en este navegador';
+            body = 'No se cargó el sincronizador de preferencias, así que el ajuste no seguirá a tu cuenta en otro equipo.';
+        } else if (!P.isOnline() || P.pending().length) {
+            const err = P.lastError();
+            title = 'El servidor no está guardando esta configuración';
+            body = 'El cambio se aplicó en este navegador, pero al recargar puede volver atrás. '
+                 + (err && err.message ? '<code>' + escHtml(err.message) + '</code>' : '')
+                 + '<br>Revisa que <code>coffee/app/visor/data/</code> tenga permiso de escritura para PHP y que <code>pdo_sqlite</code> esté habilitado.';
+        } else if (issue) {
+            title = 'Se están mostrando todos los modelos';
+            body = 'Tu lista de habilitados se ignoró: ' + escHtml(issue) + '. Vuelve a guardar la selección para rehacerla.';
+        } else {
+            return '';
+        }
+
+        return '<div class="acct-model-alert"><i data-lucide="alert-triangle"></i><span><strong>' + title + '</strong>' + body + '</span></div>';
+    }
+
     // ── Vista LISTA: habilitar/deshabilitar + editar/eliminar + agregar ───────────
     function renderModelList() {
         const MC = global.CoffeeModelConfig;
@@ -350,9 +379,10 @@
             return '<button type="button" class="acct-provider-chip" data-provider-filter="' + escAttr(provider) + '">' + label + '</button>';
         }).join('');
         const head = '<div class="acct-model-hero">'
-                   +   '<div><div class="acct-sec-title">Modelos de CoffeeIA</div><div class="acct-sec-sub">Configura los modelos disponibles en todas las conversaciones.</div></div>'
+                   +   '<div><div class="acct-sec-title">Modelos de CoffeeIA</div><div class="acct-sec-sub">Configura los modelos disponibles en todas tus conversaciones. Es una preferencia tuya: no cambia lo que ven otros usuarios.</div></div>'
                    +   '<button type="button" class="acct-mini acct-mini-primary" data-model-add><i data-lucide="plus"></i>Nuevo modelo</button>'
-                   + '</div>';
+                   + '</div>'
+                   + prefsAlert();
         const toolbar = '<div class="acct-model-toolbar">'
                       +   '<label class="acct-model-search"><i data-lucide="search"></i><input id="acctModelSearch" type="search" placeholder="Buscar modelos..."></label>'
                       +   '<div class="acct-provider-filters"><button type="button" class="acct-provider-chip is-active" data-provider-filter="">Todos</button>' + providerButtons + '</div>'
@@ -1957,6 +1987,18 @@
 
         // Las cuentas guardadas en SQLite llegaron (prefs-store.js) y pisaron a las locales:
         // repintar el reloj y lo que esté abierto en pantalla.
+        // El servidor rechazó guardar una preferencia (o no responde): avisar en vez de
+        // dejar creer que el ajuste quedó aplicado en todas las conversaciones.
+        global.addEventListener('coffeeia:prefs-error', function (e) {
+            const key = (e.detail && e.detail.key) || '';
+            const MC = global.CoffeeModelConfig;
+            if (MC && (key === MC.KEY || key === MC.CATALOG_KEY)) {
+                toast('El servidor no guardó la configuración de modelos: solo aplica en este navegador', 'warn');
+            }
+            if ($('#accountSettings').hasClass('is-open') && _modelView === 'list'
+                && $('#acctModelList').length) renderModelList();
+        });
+
         global.addEventListener('coffeeia:prefs-synced', function (e) {
             const keys = (e.detail && e.detail.keys) || [];
             if (keys.indexOf(ACCOUNTS_KEY) === -1) return;

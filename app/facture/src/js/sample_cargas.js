@@ -6,15 +6,6 @@ const SAMPLE_VIEW_HEADER_CARGAS = {
     back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
 };
 
-const SAMPLE_VIEW_FOOTER_CARGAS = {
-    info: '',
-    legends: [
-        { tone: 'success', label: 'Cargado'    },
-        { tone: 'warning', label: 'Pendiente'  },
-        { tone: 'danger',  label: 'Con error'  }
-    ]
-};
-
 // -- Helpers --
 
 const _fmtMX = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -80,13 +71,7 @@ const SAMPLE_CARGAS_ARCHIVOS = {
         subtitulo: 'Renglones del POS: que se consumio, mesa, mesero y tiempos. Se guarda fila por fila tal cual viene en el Excel.',
         esperado:  'comandas.xls · columnas A:L · header fila 1',
         formato:   'XLS',
-        estado:    'pendiente',
-        stats: [
-            { id: 'cmRenglones', title: 'Renglones', valor: '-', color: 'text-white' },
-            { id: 'cmCuentas',   title: 'Cuentas',   valor: '-', color: 'text-white' },
-            { id: 'cmProductos', title: 'Productos', valor: '-', color: 'text-white' },
-            { id: 'cmMonto',     title: 'Monto',     valor: '-', color: 'text-white' }
-        ]
+        estado:    'pendiente'
     }
 };
 
@@ -134,9 +119,9 @@ const _cargaRow = (e) => ({
     Estado:          _badgeEstadoCarga(e.estado),
     a: [
         {
-            class:   'btn-ghost !py-1 !px-2 text-[11px]',
-            html:    '<i data-lucide="download" class="w-3.5 h-3.5"></i>Descargar',
-            onclick: `cargas.downloadCarga('${e.folio}')`
+            class:   'btn-ghost !py-1 !px-2 text-[11px] text-red-300 hover:text-red-200',
+            html:    '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Eliminar',
+            onclick: `cargas.deleteCarga('${e.folio}')`
         }
     ]
 });

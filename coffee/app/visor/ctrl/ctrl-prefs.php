@@ -40,7 +40,13 @@ if (!extension_loaded('pdo_sqlite')) {
 // ── Conexion / esquema ──────────────────────────────────────────────────────
 $dataDir = __DIR__ . '/../data';
 if (!is_dir($dataDir) && !@mkdir($dataDir, 0775, true)) {
-    prefs_fail('No se pudo crear el directorio de datos', 500);
+    prefs_fail('No se pudo crear el directorio de datos (' . $dataDir . ')', 500);
+}
+// Fallo tipico al subir el proyecto a un servidor: la carpeta existe pero pertenece al
+// usuario de FTP y PHP no puede escribir. SQLite fallaria con "unable to open database
+// file"; se prefiere decir exactamente que hay que arreglar.
+if (!is_writable($dataDir)) {
+    prefs_fail('El directorio de datos no tiene permiso de escritura para PHP: ' . $dataDir, 500);
 }
 
 try {
@@ -102,6 +108,39 @@ try {
             $st->execute([$userId, $key, $value, date('Y-m-d H:i:s')]);
 
             echo json_encode(['success' => true, 'key' => $key], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        // Diagnostico: responde con que usuario se estan guardando las preferencias y si
+        // la escritura funciona de verdad (util al desplegar en un servidor nuevo).
+        case 'diag': {
+            $file = $dataDir . '/prefs.sqlite';
+            $st = $pdo->prepare('SELECT COUNT(*) FROM prefs WHERE user_id = ?');
+            $st->execute([$userId]);
+
+            // Sondeo de escritura sobre la propia tabla (no DDL: un CREATE/DROP toma un
+            // lock de esquema y falla en falso si hay otra pestana con el visor abierto).
+            $probe = 'ok';
+            try {
+                $pdo->prepare('INSERT INTO prefs (user_id, pref_key, pref_value, updated_at) VALUES (?, ?, ?, ?)
+                               ON CONFLICT(user_id, pref_key) DO UPDATE SET updated_at = excluded.updated_at')
+                    ->execute(['__probe__', '__probe__', '', date('Y-m-d H:i:s')]);
+                $pdo->prepare('DELETE FROM prefs WHERE user_id = ?')->execute(['__probe__']);
+            } catch (Throwable $e) {
+                $probe = 'FALLA: ' . $e->getMessage();
+            }
+
+            echo json_encode([
+                'success'    => true,
+                'user_id'    => $userId,
+                'logged_in'  => $userId !== '',
+                'db_file'    => $file,
+                'db_exists'  => file_exists($file),
+                'dir_writable'  => is_writable($dataDir),
+                'file_writable' => file_exists($file) ? is_writable($file) : null,
+                'write_probe'   => $probe,
+                'my_prefs'      => (int) $st->fetchColumn()
+            ], JSON_UNESCAPED_UNICODE);
             break;
         }
 

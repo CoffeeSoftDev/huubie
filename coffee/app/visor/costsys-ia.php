@@ -195,7 +195,7 @@
         <option value="high">Alto</option>
         <option value="max">M&aacute;ximo</option>
       </select>
-      <select id="modelSelect" class="ia-model-pill" title="Modelo activo">
+      <select id="modelSelect" class="ia-model-pill" title="Modelo activo" data-model-sync="off">
         <option value="">Automático (servidor)</option>
         <optgroup label="Ollama Cloud">
           <option value="glm-5.2:cloud">GLM 5.2</option>
@@ -540,5 +540,8 @@
   })();
 })();
 </script>
+<!-- Filtro de modelos habilitados en Configuracion. El select conserva su lista curada
+     (data-model-sync="off"): model-config.js solo oculta los que estan deshabilitados. -->
+<script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>
