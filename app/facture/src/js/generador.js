@@ -64,7 +64,7 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'listHead',
@@ -171,7 +171,7 @@ class App extends Templates {
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data:       filters
         });
     }
@@ -183,7 +183,7 @@ class App extends Templates {
             parent:     'detailActions',
             id:         'frmActionsGenerador',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data: [
                 {
                     opc:       'button',
@@ -302,7 +302,7 @@ class Generador extends Templates {
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [1, 3, 4],
             right:        [5],
             actionsAlign: 'right',
@@ -310,6 +310,7 @@ class Generador extends Templates {
             scrollable:   false,
             striped:      true,
             f_size:       11,
+            border_table: 'border-0',
             emptyMessage: 'No hay tickets con tarjeta para el dia seleccionado',
             emptyIcon:    'ic-file-text',
             data:         { row: rows }

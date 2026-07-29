@@ -1,6 +1,14 @@
 let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
 let app, tickets, ticketsView;
 
+// useFetch del framework resuelve por callback; aqui el modulo encadena con
+// await, asi que las llamadas pasan por este helper.
+const fnAjax = (data, url) => fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams(data)
+}).then(r => r.json());
+
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
     tickets     = new Tickets(apiTickets, 'root');
@@ -19,10 +27,11 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'init' } })
+        const data = await fnAjax({ opc: 'init' }, apiTickets);
+
         this.dataInit = {
-            formas:  SAMPLE_TICKETS_FORMAS,
-            estados: SAMPLE_TICKETS_ESTADOS,
+            formas:  data.formas,
+            estados: data.estados,
             dia:     this.getDiaFromUrl()
         };
 
@@ -57,11 +66,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -97,19 +106,18 @@ class App extends Templates {
     filterBar() {
         const filters = [
             {
-                opc:         'input',
-                id:          'qBuscar',
-                lbl:         'Buscar:',
-                class:       'col-12 col-md-4 col-lg-3',
-                placeholder: 'Folio, orden, forma de pago...',
-                required:    false,
-                onkeyup:     'app.onChangeFilters()'
+                opc:      'input-calendar',
+                id:       'fRango',
+                lbl:      'Consultar periodo:',
+                class:    'col-12 col-md-4 col-lg-3',
+                required: false,
+                readonly: true
             },
             {
                 opc:      'select',
                 id:       'fForma',
                 lbl:      'Forma de pago:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-3',
                 value:    '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -119,61 +127,75 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fEstado',
                 lbl:      'Estado fiscal:',
-                class:    'col-12 col-md-4 col-lg-2',
+                class:    'col-12 col-md-4 col-lg-3',
                 value:    '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.estados
-            },
-            {
-                opc:      'input',
-                id:       'fDia',
-                lbl:      'Dia:',
-                type:     'date',
-                class:    'col-12 col-md-6 col-lg-2',
-                value:    this.dataInit.dia,
-                required: false,
-                onchange: 'app.onChangeFilters()'
-            },
-            {
-                opc:       'button',
-                id:        'btnLimpiar',
-                text:      'Limpiar filtros',
-                color_btn: 'secondary',
-                class:     'col-12 col-md-6 col-lg-3',
-                onClick:   () => this.clearFilters()
             }
         ];
 
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data:       filters
+        });
+
+        this.rangePicker();
+    }
+
+    // El rango arranca en el dia que llega por URL (?dia=) y, si no viene, en el mes actual.
+    rangePicker() {
+        const dia   = this.dataInit.dia;
+        const start = dia ? moment(dia) : moment().startOf('month');
+        const end   = dia ? moment(dia) : moment().endOf('month');
+
+        dataPicker({
+            parent: 'fRango',
+            rangepicker: {
+                startDate:     start,
+                endDate:       end,
+                showDropdowns: true,
+                locale: {
+                    format:           'YYYY-MM-DD',
+                    applyLabel:       'Aplicar',
+                    cancelLabel:      'Cancelar',
+                    customRangeLabel: 'Personalizar',
+                    monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
+                },
+                ranges: {
+                    'Mes actual':       [moment().startOf('month'), moment().endOf('month')],
+                    'Mes anterior':     [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                    'Primera quincena': [moment().startOf('month'), moment().date(15)],
+                    'Segunda quincena': [moment().date(16), moment().endOf('month')]
+                }
+            },
+            onSelect: () => this.onChangeFilters()
         });
     }
 
     getFilters() {
+        const rango = this.getRango();
         return {
-            q:      $('#qBuscar').val() || '',
             forma:  $('#fForma').val()  || '',
             estado: $('#fEstado').val() || '',
-            dia:    $('#fDia').val()    || ''
+            fi:     rango.fi,
+            ff:     rango.ff
         };
     }
 
-    clearFilters() {
-        $('#qBuscar').val('');
-        $('#fForma').val('');
-        $('#fEstado').val('');
-        $('#fDia').val('');
-        this.onChangeFilters();
+    // Mientras dataPicker no engancha el plugin, el input aun no tiene rango.
+    getRango() {
+        if (!$('#fRango').data('daterangepicker')) return { fi: '', ff: '' };
+        return getDataRangePicker('fRango');
     }
 
     // -- Event handlers --
 
-    onChangeFilters() {
-        tickets.lsTickets();
+    async onChangeFilters() {
+        await tickets.lsTickets();
         tickets.lsKpis();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
@@ -181,8 +203,10 @@ class App extends Templates {
         }
     }
 
-    isVisibleAfterFilters(id) {
-        return tickets.getRegistros().some(e => e.id === id);
+    // La tabla ya viene filtrada del servidor: basta con ver si el folio
+    // seleccionado sobrevivio al repintado.
+    isVisibleAfterFilters(folio) {
+        return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
     }
 
     updateFooterInfo(text) {
@@ -191,14 +215,16 @@ class App extends Templates {
 
     // -- Facade --
 
-    selectTicket(id) {
-        this.selectedId = id;
+    async selectTicket(folio) {
+        this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
 
-        // La celda de folio lleva id `Folio_<id>`, generado por createCoffeeTable3.
-        if (id) $(`#Folio_${id}`).closest('tr').addClass('row-active');
+        if (!folio) return ticketsView.renderDetail(null);
 
-        ticketsView.renderDetail(id ? SAMPLE_TICKETS_DB[id] : null);
+        $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
+
+        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
+        ticketsView.renderDetail(data.status === 200 ? data.ticket : null);
     }
 }
 
@@ -213,40 +239,25 @@ class Tickets extends Templates {
 
     // -- Data --
 
-    getRegistros() {
-        const f = app.getFilters();
-        return Object.values(SAMPLE_TICKETS_DB).filter(e => {
-            if (f.dia && e.fecha !== f.dia) return false;
-            if (f.forma && e.metodo !== f.forma) return false;
-            if (f.estado === 'pending'  && e.fiscal !== 'pending')  return false;
-            if (f.estado === 'invoiced' && e.fiscal !== 'invoiced') return false;
-            if (f.estado === 'zero'     && e.tasa !== 0)            return false;
-            if (f.q) {
-                const hay = (e.id + ' ' + e.orden + ' ' + e.metodo + ' ' + e.mesero).toLowerCase();
-                if (!hay.includes(f.q.toLowerCase())) return false;
-            }
-            return true;
-        });
-    }
-
-    lsTickets() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:Object.assign({ opc:'lsTickets' }, app.getFilters()) })
-        const rows = this.getRegistros().map(_ticketRow);
+    async lsTickets() {
+        const data = await fnAjax(Object.assign({ opc: 'lsTickets' }, app.getFilters()), apiTickets);
+        const rows = data.row || [];
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
-            theme:        'dark',
-            center:       [2, 3, 4, 5, 6, 7, 12],
-            right:        [8, 9, 10, 11],
+            theme:        FACTURE_THEME,
+            center:       [2, 3, 4, 5, 6, 11],
+            right:        [7, 8, 9, 10],
             actionsAlign: 'center',
             extends:      true,
             scrollable:   false,
             striped:      true,
             f_size:       11,
+            border_table: 'border-0',
             emptyMessage: 'No se encontraron tickets con los filtros aplicados',
             emptyIcon:    'ic-file-text',
-            data:         { row: rows }
+            data:         data
         });
 
         if (window.lucide) lucide.createIcons();
@@ -255,13 +266,11 @@ class Tickets extends Templates {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 12);
         }
 
-        app.updateFooterInfo(`Mostrando ${rows.length} de ${Object.keys(SAMPLE_TICKETS_DB).length} tickets`);
+        app.updateFooterInfo(`Mostrando ${rows.length} de ${data.total} tickets del periodo`);
     }
 
-    lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:Object.assign({ opc:'showKpis' }, app.getFilters()) })
-        const registros = this.getRegistros();
-        const monto     = registros.reduce((s, e) => s + Number(e.total || 0), 0);
+    async lsKpis() {
+        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiTickets);
 
         ticketsView.renderInfoCards([
             {
@@ -269,9 +278,9 @@ class Tickets extends Templates {
                 title:       'Tickets',
                 lucideIcon:  'receipt',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
-                    value: registros.length,
+                    value: kpis.tickets,
                     color: 'text-white'
                 }
             },
@@ -280,9 +289,9 @@ class Tickets extends Templates {
                 title:       'Monto filtrado',
                 lucideIcon:  'banknote',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
-                    value: _fmtMX(monto),
+                    value: kpis.montoTexto,
                     color: 'text-[#1C64F2]'
                 }
             },
@@ -291,9 +300,9 @@ class Tickets extends Templates {
                 title:       'Facturados',
                 lucideIcon:  'lock',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
-                    value: registros.filter(e => e.fiscal === 'invoiced').length,
+                    value: kpis.facturados,
                     color: 'text-green-600'
                 }
             },
@@ -302,9 +311,9 @@ class Tickets extends Templates {
                 title:       'Con IVA 0%',
                 lucideIcon:  'alert-circle',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
-                    value: registros.filter(e => e.tasa === 0).length,
+                    value: kpis.cero,
                     color: 'text-amber-500'
                 }
             }
@@ -349,7 +358,7 @@ class TicketsView extends Templates {
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisTickets',
-            theme:  'dark',
+            theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
             json:   rows
@@ -376,6 +385,7 @@ class TicketsView extends Templates {
                 emptyTitle: 'Selecciona un ticket',
                 emptyHint:  'Haz click en cualquier fila o en el icono ojo para ver el detalle fiscal aqui.',
                 subtitle:   'Detalle fiscal',
+                leyenda:    'Este detalle no es un comprobante fiscal',
                 imprimir:   'Ver ticket virtual'
             },
             onClose: () => { },
@@ -406,45 +416,72 @@ class TicketsView extends Templates {
         }
 
         const e = opts.json;
-        const t = _totalsOf(e);
 
-        const item = (k, v) => `
-            <div class="flex items-center justify-between border-b border-gray-100 py-1.5">
-                <span class="text-[10px] uppercase tracking-wide text-gray-400">${esc(k)}</span>
-                <span class="text-[11px] font-semibold text-gray-300 text-right">${v}</span>
-            </div>
+        // Dentro del papel no van badges: sobre fondo blanco se pierden. Se usa
+        // el mismo renglon monoespaciado del ticket impreso.
+        const row = (k, v, strong) => `
+            <tr>
+                <td${strong ? ' class="font-bold text-[13px]"' : ''}>${esc(k)}</td>
+                <td class="text-right${strong ? ' font-bold text-[13px]' : ''}">${esc(v)}</td>
+            </tr>
         `;
+
+        // Las comandas viven en otra hoja del export: si aun no se cargan, el
+        // ticket no tiene mesa ni mesero que imprimir.
+        const mesaRow   = e.mesa   ? row('MESA:',   e.mesa)   : '';
+        const meseroRow = e.mesero ? row('MESERO:', e.mesero) : '';
 
         $parent.html(`
             <div class="flex-1 flex flex-col overflow-hidden">
                 <div class="px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0">
                     <div>
                         <p class="text-xs text-gray-400 uppercase tracking-wider">${esc(opts.labels.subtitle)}</p>
-                        <p class="text-base font-bold text-white font-mono">${esc(e.id)}</p>
+                        <p class="text-base font-bold text-white font-mono">${esc(e.folio)}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        ${_badgeEstadoFiscal(e)}
+                        ${e.badge || ''}
                         <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-[#1F2A37] hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors">
                             <i data-lucide="x" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto scroll-thin px-4 py-3">
-                    ${item('Orden',         esc(e.orden))}
-                    ${item('Fecha',         esc(_fmtFechaCorta(e.fecha)))}
-                    ${item('Forma de pago', _badgeMetodo(e.metodo))}
-                    ${item('Mesero',        esc(e.mesero))}
-                    ${item('Tasa',          _badgeTasa(e.tasa))}
-                    ${item('Subtotal',      esc(_fmtMX(t.subtotal)))}
-                    ${item('IVA',           esc(_fmtMX(t.iva)))}
-                    ${item('IEPS',          esc(_fmtMX(t.ieps)))}
-                    ${item('Total',         esc(_fmtMX(e.total)))}
-                    ${item('Factura',       _badgeFactura(e.factura))}
+                <div class="flex-1 overflow-y-auto scroll-thin px-4 py-4 bg-[#0E1521]">
+                    <div id="${opts.id}_paper" class="ticket-paper">
+                        <div class="text-center">
+                            <p class="font-bold text-[13px] tracking-wide">${esc(opts.labels.subtitle).toUpperCase()}</p>
+                            <p>TICKET ${esc(e.folio)}</p>
+                        </div>
+                        <div class="tk-sep"></div>
+                        <table>
+                            ${row('FOLIO:',  e.folio)}
+                            ${row('FECHA:',  e.fecha)}
+                            ${mesaRow}
+                            ${meseroRow}
+                            ${row('PAGO:',   String(e.pago).toUpperCase())}
+                            ${row('METODO:', e.metodo)}
+                        </table>
+                        <div class="tk-sep"></div>
+                        <table>
+                            ${row('SUBTOTAL:',          e.subtotal)}
+                            ${row(`IVA (${e.tasa}):`,   e.iva)}
+                            ${row('IEPS:',              e.ieps)}
+                            ${row('TOTAL:',             e.total, true)}
+                        </table>
+                        <div class="tk-sep"></div>
+                        <table>
+                            ${row('ESTADO:',  e.estado)}
+                            ${row('FACTURA:', e.factura)}
+                        </table>
+                        <div class="tk-sep"></div>
+                        <div class="text-center">
+                            <p class="text-gray-400">${esc(opts.labels.leyenda)}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="px-4 py-3 border-t border-[#374151] bg-[#0E1521] flex-shrink-0">
-                    <button type="button" id="${opts.id}_print" class="${CF_CSS.btnInvernal} flex items-center justify-center gap-2">
+                    <button type="button" id="${opts.id}_print" class="${CF_CSS.btnPrimary} flex items-center justify-center gap-2">
                         <i data-lucide="printer" class="w-4 h-4"></i>${esc(opts.labels.imprimir)}
                     </button>
                 </div>

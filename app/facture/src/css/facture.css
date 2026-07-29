@@ -65,6 +65,78 @@
 #root .scroll-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
 #root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #4B5563; }
 
+/* -- KPIs sin borde --
+   Las tarjetas de infoCard llevan la clase .border de Bootstrap, que trae
+   !important y gana al border-transparent de Tailwind; por eso el borde se
+   apaga aqui. Los containers principales (cabeceras de vista y de panel)
+   conservan el suyo. */
+#root #kpisTickets > div,
+#root #kpisResumen > div,
+#root #kpisCatalogos > div { border: 0 !important; }
+
+/* -- KPIs compactos (tickets) --
+   infoCard(style:'file') fija p-3, icono de 32px y valor text-xl; aqui se
+   reducen sin tocar el componente del framework. */
+#root #kpisTickets { gap: 8px !important; }
+
+#root #kpisTickets > div { padding: 6px 10px !important; }
+
+#root #kpisTickets p { font-size: 11px !important; margin-bottom: 0 !important; }
+
+#root #kpisTickets .text-xl { font-size: 15px; line-height: 1.2; }
+
+#root #kpisTickets .w-8 { width: 24px; height: 24px; margin-right: 6px; }
+
+#root #kpisTickets .w-8 svg,
+#root #kpisTickets .w-8 i { width: 14px; height: 14px; }
+
+/* -- Rango de fechas sobre fondo oscuro --
+   El popup del daterangepicker se monta en <body>, fuera de #root, por eso se
+   scopea al tema del documento y no al modulo. */
+body[data-bs-theme="dark"] .daterangepicker {
+    background: #141d2b;
+    border-color: #374151;
+    color: #E5E7EB;
+}
+
+body[data-bs-theme="dark"] .daterangepicker:before { border-bottom-color: #374151; }
+body[data-bs-theme="dark"] .daterangepicker:after  { border-bottom-color: #141d2b; }
+
+body[data-bs-theme="dark"] .daterangepicker .calendar-table {
+    background: #141d2b;
+    border-color: #374151;
+}
+
+body[data-bs-theme="dark"] .daterangepicker th,
+body[data-bs-theme="dark"] .daterangepicker td { color: #E5E7EB; }
+
+body[data-bs-theme="dark"] .daterangepicker td.off,
+body[data-bs-theme="dark"] .daterangepicker td.off.in-range { background: #141d2b; color: #6B7280; }
+
+body[data-bs-theme="dark"] .daterangepicker td.available:hover,
+body[data-bs-theme="dark"] .daterangepicker th.available:hover { background: #1F2A37; }
+
+body[data-bs-theme="dark"] .daterangepicker td.in-range { background: rgba(28,100,242,.18); color: #E5E7EB; }
+
+body[data-bs-theme="dark"] .daterangepicker td.active,
+body[data-bs-theme="dark"] .daterangepicker td.active:hover { background: #1C64F2; color: #fff; }
+
+body[data-bs-theme="dark"] .daterangepicker select.monthselect,
+body[data-bs-theme="dark"] .daterangepicker select.yearselect {
+    background: #1F2A37;
+    border-color: #374151;
+    color: #E5E7EB;
+}
+
+body[data-bs-theme="dark"] .daterangepicker .ranges li { color: #E5E7EB; }
+body[data-bs-theme="dark"] .daterangepicker .ranges li:hover { background: #1F2A37; }
+body[data-bs-theme="dark"] .daterangepicker .ranges li.active { background: #1C64F2; color: #fff; }
+
+body[data-bs-theme="dark"] .daterangepicker .drp-buttons,
+body[data-bs-theme="dark"] .daterangepicker .drp-calendar.left { border-color: #374151; }
+
+body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
+
 /* -- Badges de pildora -- */
 #root .badge-base {
     display: inline-flex;
@@ -94,39 +166,89 @@
 #root .prog-track { height: 10px; border-radius: 9999px; background: #1F2A37; overflow: hidden; }
 #root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #1C64F2, #60A5FA); transition: width .5s ease; }
 
-/* -- Zona de carga de Excel -- */
-#root .upload-zone {
-    border: 1px dashed #374151;
-    border-radius: 12px;
-    padding: 18px 16px;
+/* -- Fila de carga de Excel --
+   Una sola linea: icono, nombre del archivo, estado y boton de accion.
+   Sin fondo ni borde propios: se apoya en el contenedor del tab para no
+   dibujar una caja dentro de otra. */
+#root .upload-row {
     display: flex;
     align-items: center;
-    gap: 14px;
-    cursor: pointer;
-    transition: .15s;
-    background: #141d2b;
+    gap: 12px;
 }
 
-#root .upload-zone:hover { border-color: #1C64F2; background: #1F2A37; }
-#root .upload-zone.pending:hover { border-color: #F59E0B; background: rgba(245,158,11,.10); }
-
-#root .excel-badge {
-    display: inline-flex;
-    flex-direction: column;
+#root .upload-row-icon {
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1.1;
-    text-align: center;
     flex-shrink: 0;
+    background: rgba(16,185,129,.12);
+    border: 1px solid rgba(16,185,129,.30);
+    color: #6EE7B7;
 }
 
-#root .excel-badge.xls { background: #1D6F42; color: #fff; }
-#root .excel-badge:not(.xls) { background: #217346; color: #fff; }
+#root .upload-row-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #0E9E6E;
+    border: 0;
+    cursor: pointer;
+    transition: background .15s ease;
+}
+
+#root .upload-row-btn:hover { background: #0B8760; }
+
+/* -- Accion de icono en tabla --
+   Solo el glifo: en una celda de acciones el texto del boton competia con el
+   dato de la fila y forzaba dos lineas. */
+#root .btn-icon-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: #FCA5A5;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+#root .btn-icon-danger:hover { background: rgba(239,68,68,.15); color: #FECACA; }
+
+#root .btn-icon-view {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: #93C5FD;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+#root .btn-icon-view:hover { background: rgba(28,100,242,.15); color: #BFDBFE; }
+
+/* Barra indeterminada mientras el servidor lee el Excel: no hay avance real que
+   reportar hasta que responde, asi que se anima de lado a lado. */
+#root .prog-fill.indeterminate {
+    background: linear-gradient(90deg, transparent, #1C64F2, transparent);
+    animation: prog-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes prog-sweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
 
 /* -- Ticket virtual (papel termico) --
    Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel

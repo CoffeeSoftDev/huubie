@@ -43,6 +43,8 @@ class Sidebar {
     injectStyles() {
         if ($('#sidebar-huubie-styles').length) return;
 
+        const rail = FACTURE_PALETTE.rail;
+
         $('head').append(`
             <style id="sidebar-huubie-styles">
                 #menu-sidebar {
@@ -57,8 +59,8 @@ class Sidebar {
                     align-items: center;
                     gap: 4px;
                     padding: 16px 6px;
-                    background: #141d2b;
-                    border-right: 1px solid #374151;
+                    background: ${rail.bg};
+                    border-right: 1px solid ${rail.border};
                     /* overflow-x explicito: con solo overflow-y:auto el navegador
                        calcula overflow-x:auto y, como los items ocupan los 60px
                        exactos del rail, salia una barra horizontal al pie. */
@@ -95,7 +97,7 @@ class Sidebar {
                     justify-content: center;
                     gap: 3px;
                     padding: 7px 2px;
-                    color: #9CA3AF;
+                    color: ${rail.item};
                     background: transparent;
                     border: 1px solid transparent;
                     cursor: pointer;
@@ -115,13 +117,13 @@ class Sidebar {
                 }
 
                 .menu-rail-item:hover {
-                    color: #ffffff;
-                    background: #1F2A37;
+                    color: ${rail.hoverText};
+                    background: ${rail.hoverBg};
                     border-color: rgba(55, 65, 81, .4);
                 }
 
                 .menu-rail-item.is-active {
-                    color: #A4CAFE;
+                    color: ${rail.activeText};
                     background: rgba(28, 100, 242, .18);
                     border-color: rgba(28, 100, 242, .22);
                 }

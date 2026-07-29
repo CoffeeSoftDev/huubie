@@ -1,6 +1,14 @@
 let apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
 let app, cargas, cargasView;
 
+// useFetch del framework resuelve por callback y no admite archivos; aqui se
+// necesita await en todo el modulo, asi que las llamadas pasan por este helper.
+const fnAjax = (data, url) => fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams(data)
+}).then(r => r.json());
+
 $(async () => {
     cargasView = new CargasView(apiCargas, 'root');
     cargas     = new Cargas(apiCargas, 'root');
@@ -19,10 +27,11 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'init' } })
+        const data = await fnAjax({ opc: 'init' }, apiCargas);
+
         this.dataInit = {
-            meses:    SAMPLE_CARGAS_MESES,
-            anios:    SAMPLE_CARGAS_ANIOS,
+            meses:    data.meses,
+            anios:    data.anios,
             archivos: SAMPLE_CARGAS_ARCHIVOS
         };
 
@@ -36,7 +45,6 @@ class App extends Templates {
         cargasView.renderHeader(SAMPLE_VIEW_HEADER_CARGAS);
         cargasView.renderLogHead();
         this.renderActiveTab();
-        cargas.lsBitacora();
     }
 
     // -- Layout --
@@ -53,7 +61,7 @@ class App extends Templates {
                 },
                 {
                     id:    'contentWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto flex flex-col'
                 }
             ]
         };
@@ -116,31 +124,33 @@ class App extends Templates {
     }
 
     // Zona scrolleable: tabs con la carga del archivo activo y, debajo, la bitacora.
+    // La bitacora crece con flex-1 hasta el fondo del panel y su tabla se
+    // desplaza por dentro, en vez de cortarse a una altura fija.
     contentLayout() {
         this.createLayout({
             parent: 'contentWrap',
             design: false,
             data: {
                 id:    'contentGrid',
-                class: 'w-full flex flex-col gap-4',
+                class: 'w-full flex-1 min-h-0 flex flex-col gap-4',
                 container: [
                     {
                         type:  'div',
                         id:    'tabsHost',
-                        class: 'w-full'
+                        class: 'w-full flex-shrink-0'
                     },
                     {
                         type:  'div',
                         id:    'cardLog',
-                        class: 'w-full bg-[#141d2b] border border-[#374151] rounded-lg overflow-hidden',
+                        class: 'w-full flex-1 min-h-0 flex flex-col bg-[#141d2b] rounded-lg overflow-hidden',
                         children: [
                             {
                                 id:    'headLog',
-                                class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between'
+                                class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0'
                             },
                             {
                                 id:    'tableLog',
-                                class: 'overflow-auto scroll-thin max-h-72'
+                                class: 'flex-1 min-h-0 overflow-auto scroll-thin p-3'
                             }
                         ]
                     }
@@ -150,7 +160,7 @@ class App extends Templates {
     }
 
     // Los paneles de todos los tabs coexisten en el DOM (tabLayout solo los oculta),
-    // por eso cada id lleva el sufijo del tab: sin el, `$('#uploadHead')` resolvia
+    // por eso cada id lleva el sufijo del tab: sin el, `$('#uploadRow')` resolvia
     // siempre al panel del primer tab y el segundo quedaba vacio.
     tabPanelLayout(tabId) {
         this.createLayout({
@@ -160,8 +170,7 @@ class App extends Templates {
                 id:    `panel-${tabId}`,
                 class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col gap-3',
                 container: [
-                    { type: 'div', id: `uploadHead-${tabId}`, class: 'w-full' },
-                    { type: 'div', id: `uploadZone-${tabId}`, class: 'w-full' }
+                    { type: 'div', id: `uploadRow-${tabId}`, class: 'w-full' }
                 ]
             }
         });
@@ -196,7 +205,7 @@ class App extends Templates {
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data:       filters
         });
     }
@@ -214,7 +223,7 @@ class App extends Templates {
         this.tabLayout({
             parent:          'tabsHost',
             id:              'tabsCargas',
-            theme:           'dark',
+            theme:           FACTURE_THEME,
             type:            'short',
             showBorder:      false,
             renderContainer: true,
@@ -231,16 +240,35 @@ class App extends Templates {
         this.tabPanelLayout(id);
 
         const archivo = this.dataInit.archivos[id];
-        cargasView.renderUploadHead(id, archivo);
-        cargasView.renderUploadZone(id, archivo);
+        cargasView.renderUploadRow(id, archivo);
+        cargas.lsBitacora(id);
 
         if (id === 'sales-report') {
             cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas' });
+            this.asideLayout();
             cargasView.renderHojas(SAMPLE_CARGAS_HOJAS);
+            cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP);
         } else {
             cargasView.renderAsideHead({ icon: 'list', title: 'Columnas que se leen' });
             cargas.lsColumnas();
         }
+    }
+
+    // El panel lateral de ventas se parte en dos: hojas del archivo y, debajo,
+    // el roadmap con el avance de la carga.
+    asideLayout() {
+        this.createLayout({
+            parent: 'detailContent',
+            design: false,
+            data: {
+                id:    'detailStack',
+                class: 'w-full flex flex-col gap-4',
+                container: [
+                    { type: 'div', id: 'detailSheets',  class: 'w-full' },
+                    { type: 'div', id: 'detailRoadmap', class: 'w-full' }
+                ]
+            }
+        });
     }
 
     // -- Event handlers --
@@ -250,7 +278,7 @@ class App extends Templates {
     }
 
     onChangeFilters() {
-        cargas.lsBitacora();
+        cargas.lsBitacora(this.activeTab);
     }
 }
 
@@ -265,98 +293,184 @@ class Cargas extends Templates {
 
     // -- Data --
 
-    lsBitacora() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:Object.assign({ opc:'lsBitacora' }, app.getFilters()) })
-        const rows = Object.values(SAMPLE_CARGAS_DB).map(_cargaRow);
+    // Bitacora por pestana: cada tab lista unicamente las cargas de su archivo.
+    async lsBitacora(tabId) {
+        const tipo = tabId || app.activeTab;
+        const data = await fnAjax(Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()), apiCargas);
 
         this.createCoffeeTable3({
             parent:       'tableLog',
-            id:           'tbLog',
-            theme:        'dark',
+            id:           `tbLog-${tipo}`,
+            theme:        FACTURE_THEME,
             center:       [4, 6],
             right:        [5],
             actionsAlign: 'center',
             extends:      true,
             scrollable:   false,
             striped:      true,
+            hover:        true,
             f_size:       11,
             border_table: 'border-0',
             emptyMessage: 'Sin registros en la bitacora de carga',
-            emptyIcon:    'icon-doc-text',
-            data:         { row: rows }
+            emptyIcon:    'ic-file-text',
+            data:         data
         });
 
         if (window.lucide) lucide.createIcons();
     }
 
     lsColumnas() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'lsColumnas', archivo:'commands' } })
         this.createCoffeeTable3({
             parent:       'detailContent',
             id:           'tbColumnas',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [1],
             extends:      true,
             scrollable:   false,
             f_size:       10,
             border_table: 'border-0',
+            border_row:   'border-0',
             emptyMessage: 'Sin mapeo de columnas',
             emptyIcon:    'ic-list',
             data:         SAMPLE_CARGAS_COLUMNAS_TABLE
         });
     }
 
-    // -- Actions --
+    // Registros que entraron al sistema con esa carga. Se pintan en el mismo
+    // contenedor de la bitacora (no en modal) y el encabezado ofrece volver.
+    async lsRegistros(id) {
+        const data = await fnAjax({ opc: 'lsRegistros', id: id }, apiCargas);
 
-    uploadFile(tipo) {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'uploadFile', tipo:tipo } })
-        const archivo = app.dataInit.archivos[tipo];
-        if (!archivo) return;
-        archivo.estado = 'ok';
+        if (data.status !== 200) {
+            alert({ icon: 'error', title: data.message, timer: 2000 });
+            return;
+        }
 
-        cargasView.renderUploadZone(tipo, archivo);
-        this.alertBox({ type: 'success', title: `Archivo "${archivo.titulo}" procesado`, timer: 1600 });
+        cargasView.renderLogHead({
+            icon:  'file-text',
+            title: data.titulo,
+            badge: { text: `${data.row.length} de ${data.total.toLocaleString('en-US')}`, tone: 'b-blue' },
+            back:  true
+        });
+
+        this.createCoffeeTable3({
+            parent:       'tableLog',
+            id:           `tbRegistros-${id}`,
+            theme:        FACTURE_THEME,
+            extends:      true,
+            scrollable:   false,
+            striped:      true,
+            f_size:       11,
+            border_table: 'border-0',
+            emptyMessage: 'Esta carga no tiene registros',
+            emptyIcon:    'ic-file-text',
+            data:         { row: data.row }
+        });
+
+        if (window.lucide) lucide.createIcons();
     }
 
-    deleteCarga(folio) {
-        const e = SAMPLE_CARGAS_DB[folio];
-        if (!e) return;
+    // -- Actions --
 
+    // El nombre del archivo se revisa ANTES de subir: el POS exporta con nombres
+    // fijos por reporte, y subir el de otra pestana cargaria datos en la tabla
+    // equivocada. Si no cuadra se pide confirmacion en vez de bloquear.
+    onFileChange(input, tipo) {
+        const file = input.files[0];
+        input.value = '';
+        if (!file) return;
+
+        const esperado   = FACTURE_ARCHIVO_ESPERADO[tipo];
+        const nombreBase = file.name.replace(/\.[^.]+$/, '');
+        const coincide   = esperado.patron.test(nombreBase);
+
+        if (coincide) {
+            this.subirArchivo(file, tipo);
+            return;
+        }
+
+        alert({
+            icon:     'question',
+            title:    'El nombre del archivo no coincide',
+            html:     `El archivo <strong>${nombreBase}</strong> no parece el de <strong>${esperado.nombre}</strong> (se espera algo como <strong>${esperado.ejemplo}</strong>). ¿Deseas subirlo de todas formas?`,
+            btn1:     true,
+            btn1Text: 'Subir de todas formas',
+            btn2:     true,
+            btn2Text: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) this.subirArchivo(file, tipo);
+        });
+    }
+
+    subirArchivo(file, tipo) {
+        const filtros = app.getFilters();
+
+        if (!filtros.mes || !filtros.anio) {
+            alert({ icon: 'warning', title: 'Selecciona mes y anio antes de subir el archivo', btn1: true });
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('opc',         'uploadFile');
+        formData.append('tipo',        tipo);
+        formData.append('mes',         filtros.mes);
+        formData.append('anio',        filtros.anio);
+        formData.append('excel_file0', file);
+
+        cargasView.renderUploadRow(tipo, Object.assign({}, app.dataInit.archivos[tipo], { estado: 'cargando' }));
+
+        if (tipo === 'sales-report') {
+            cargasView.renderHojas(SAMPLE_CARGAS_HOJAS.map(h => Object.assign({}, h, {
+                detalle:    'Leyendo el archivo...',
+                procesando: true
+            })));
+            cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP.map(p => Object.assign({}, p, { estado: 'pendiente' })));
+        }
+
+        this.loader({ parent: 'tableLog', text: `Procesando ${file.name}...`, size: 'sm', type: 'aurora' });
+
+        form_data_ajax(formData, apiCargas).then((response) => {
+            const data    = response || {};
+            const archivo = app.dataInit.archivos[tipo];
+
+            archivo.estado  = data.status === 200 ? 'ok' : 'pendiente';
+            archivo.cargado = data.status === 200 ? file.name : '';
+
+            cargasView.renderUploadRow(tipo, archivo);
+
+            if (tipo === 'sales-report') {
+                if (data.hojas && data.hojas.length) cargasView.renderHojas(data.hojas.map(_hojaCard));
+                if (data.steps) cargasView.renderRoadmap(data.steps);
+            }
+
+            this.lsBitacora(tipo);
+
+            alert({
+                icon:  data.status === 200 ? 'success' : 'error',
+                title: data.message || 'Error al procesar el archivo',
+                timer: data.status === 200 ? 1800 : 0,
+                btn1:  data.status !== 200
+            });
+        });
+    }
+
+    deleteCarga(id) {
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Eliminar carga',
-                text:              `Se borrara el registro ${folio} (${e.archivo} · ${e.hoja}).`,
+                text:              'Se borraran tambien los registros que entraron al sistema con esta carga.',
                 icon:              'warning',
                 confirmButtonText: 'Si, eliminar',
                 cancelButtonText:  'No'
             }
-        }).then((result) => {
+        }).then(async (result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'deleteCarga', folio:folio } })
-            delete SAMPLE_CARGAS_DB[folio];
-            this.lsBitacora();
-            this.alertBox({ type: 'success', title: `Carga ${folio} eliminada`, timer: 1600 });
-        });
-    }
 
-    clearLog() {
-        this.swalQuestion({
-            extends: true,
-            opts: {
-                title:             'Limpiar bitacora',
-                text:              'Se ocultaran los registros de carga del periodo seleccionado.',
-                icon:              'warning',
-                confirmButtonText: 'Si, limpiar',
-                cancelButtonText:  'No'
-            }
-        }).then((result) => {
-            if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiCargas, data:{ opc:'clearLog' } })
-            // La tabla se repinta desde lsBitacora: es la unica definicion de
-            // createCoffeeTable3 del modulo, aqui solo se vacia el origen.
-            Object.keys(SAMPLE_CARGAS_DB).forEach(folio => delete SAMPLE_CARGAS_DB[folio]);
-            this.lsBitacora();
+            const data = await fnAjax({ opc: 'deleteCarga', id: id }, apiCargas);
+
+            this.lsBitacora(app.activeTab);
+            alert({ icon: data.status === 200 ? 'success' : 'error', title: data.message, timer: 1600 });
         });
     }
 }
@@ -380,14 +494,28 @@ class CargasView extends Templates {
         });
     }
 
-    renderLogHead() {
+    renderLogHead(data) {
+        const json = data || { icon: 'activity', title: 'Bitacora de carga' };
+
         this.panelHead({
             parent: 'headLog',
-            json: {
-                icon:  'activity',
-                title: 'Bitacora de carga'
-            }
+            json:   json
         });
+
+        if (!json.back) return;
+
+        // Al ver los registros de una carga el encabezado ofrece la vuelta: la
+        // bitacora y el detalle comparten el mismo contenedor.
+        $('#headLog').find('h3').prepend(
+            '<button type="button" id="btnBackLog" class="btn-icon-view mr-1" title="Volver a la bitacora"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>'
+        );
+
+        $('#btnBackLog').on('click', () => {
+            cargasView.renderLogHead();
+            cargas.lsBitacora(app.activeTab);
+        });
+
+        if (window.lucide) lucide.createIcons();
     }
 
     renderAsideHead(data) {
@@ -397,101 +525,137 @@ class CargasView extends Templates {
         });
     }
 
-    renderUploadHead(tabId, archivo) {
-        this.uploadHead({
-            parent: `uploadHead-${tabId}`,
-            json:   archivo
-        });
-    }
-
-    renderUploadZone(tabId, archivo) {
-        this.uploadZone({
-            parent:  `uploadZone-${tabId}`,
-            json:    archivo,
-            onClick: (tipo) => cargas.uploadFile(tipo)
+    renderUploadRow(tabId, archivo) {
+        this.uploadRow({
+            parent:   `uploadRow-${tabId}`,
+            json:     archivo,
+            onChange: (input, tipo) => cargas.onFileChange(input, tipo)
         });
     }
 
     renderHojas(rows) {
         this.detectList({
-            parent: 'detailContent',
+            parent: 'detailSheets',
             json:   rows
+        });
+    }
+
+    renderRoadmap(steps) {
+        this.roadmap({
+            parent: 'detailRoadmap',
+            json:   steps
         });
     }
 
     // -- Components --
 
-    uploadHead(options) {
+    uploadRow(options) {
+        const defaults = {
+            parent:   'root',
+            id:       '',
+            class:    'upload-row',
+            json:     { id: '', titulo: '', esperado: '', estado: 'pendiente' },
+            onChange: () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const estado    = opts.json.estado;
+        const cargando  = estado === 'cargando';
+        const listo     = estado === 'ok';
+        const detalle   = listo ? (opts.json.cargado || opts.json.esperado) : 'Sin archivo cargado';
+
+        const badges = {
+            ok:       '<span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>',
+            cargando: '<span class="badge-base b-blue"><i data-lucide="loader" class="w-3 h-3"></i>Procesando</span>',
+            pendiente:'<span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>'
+        };
+
+        const inputId = `fileUpload-${opts.json.id}`;
+        const wrap    = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+
+        wrap.html(`
+            <div class="upload-row-icon">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="text-[13px] font-bold text-white truncate">${esc(opts.json.titulo)}</h3>
+                <p class="text-[11px] text-gray-400 truncate">${cargando ? 'Leyendo el archivo...' : esc(detalle)}</p>
+            </div>
+            ${badges[estado] || badges.pendiente}
+            <input type="file" id="${inputId}" accept=".xlsx,.xls" class="hidden">
+            <button type="button" class="upload-row-btn" ${cargando ? 'disabled' : ''}>
+                <i data-lucide="upload" class="w-4 h-4"></i>Subir Excel
+            </button>
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+
+        // El input nativo se mantiene oculto: el boton verde lo dispara para no
+        // romper la fila con el control por defecto del navegador.
+        wrap.find('.upload-row-btn').on('click', () => $(`#${inputId}`).trigger('click'));
+
+        wrap.find(`#${inputId}`).on('change', (e) => opts.onChange(e.target, opts.json.id));
+    }
+
+    roadmap(options) {
         const defaults = {
             parent: 'root',
             id:     '',
-            class:  'flex items-start gap-3 w-full',
-            json:   { titulo: '', subtitulo: '', formato: 'XLSX' }
+            class:  'w-full',
+            json:   []
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
-        opts.json  = Object.assign({}, defaults.json, o.json || {});
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
+
+        const tonos = {
+            ok:        { icon: 'check',   dot: 'bg-[rgba(16,185,129,0.15)] text-green-300 border-[rgba(16,185,129,0.30)]', text: 'text-gray-300' },
+            error:     { icon: 'x',       dot: 'bg-[rgba(239,68,68,0.15)] text-red-300 border-[rgba(239,68,68,0.30)]',    text: 'text-red-300'   },
+            pendiente: { icon: 'circle',  dot: 'bg-[#1F2A37] text-gray-500 border-[#374151]',                              text: 'text-gray-500'  }
+        };
+
+        const paso = (s, i, total) => {
+            const t = tonos[s.estado] || tonos.pendiente;
+            return `
+                <div class="flex gap-3">
+                    <div class="flex flex-col items-center">
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${t.dot}">
+                            <i data-lucide="${t.icon}" class="w-3 h-3"></i>
+                        </div>
+                        ${i < total - 1 ? '<div class="w-px flex-1 bg-[#374151] my-1"></div>' : ''}
+                    </div>
+                    <div class="flex-1 pb-3">
+                        <p class="text-[11px] font-bold ${t.text}">${esc(s.titulo)}</p>
+                        <p class="text-[9px] text-gray-400">${esc(s.detalle)}</p>
+                    </div>
+                </div>
+            `;
+        };
 
         const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
         wrap.html(`
-            <div class="w-12 h-12 rounded-xl bg-[rgba(16,185,129,0.12)] text-green-300 flex items-center justify-center shrink-0 border border-[rgba(16,185,129,0.30)]">
-                <i data-lucide="sheet" class="w-6 h-6"></i>
-            </div>
-            <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                    <h3 class="text-[13px] font-bold text-white">${esc(opts.json.titulo)}</h3>
-                    <span class="badge-base b-green">${esc(opts.json.formato)}</span>
-                </div>
-                <p class="text-[10px] text-gray-400">${esc(opts.json.subtitulo)}</p>
+            <h4 class="text-[11px] font-bold text-gray-300 flex items-center gap-2 mb-3">
+                <i data-lucide="git-commit-horizontal" class="w-4 h-4 text-gray-400"></i>Roadmap de carga
+            </h4>
+            <div class="flex flex-col">
+                ${(opts.json || []).map((s, i) => paso(s, i, opts.json.length)).join('')}
             </div>
         `);
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
-    }
-
-    uploadZone(options) {
-        const defaults = {
-            parent:  'root',
-            id:      '',
-            class:   'upload-zone',
-            json:    { id: '', esperado: '', estado: 'pendiente', formato: 'XLSX' },
-            onClick: () => { }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json  = Object.assign({}, defaults.json, o.json || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const listo     = opts.json.estado === 'ok';
-        const zoneClass = opts.class + (listo ? '' : ' pending');
-        const badgeHtml = listo
-            ? '<span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>'
-            : '<span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>';
-
-        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: zoneClass });
-        wrap.html(`
-            <span class="excel-badge ${opts.json.formato === 'XLS' ? 'xls' : ''}">${esc(opts.json.formato)}</span>
-            <div class="flex-1">
-                <p class="text-[12px] font-semibold text-gray-300">Arrastra el Excel aqui o haz clic para buscar</p>
-                <p class="text-[10px] text-gray-400">Archivo esperado: <b>${esc(opts.json.esperado)}</b></p>
-            </div>
-            ${badgeHtml}
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
-        if (window.lucide) lucide.createIcons();
-
-        wrap.on('click', () => opts.onClick(opts.json.id));
     }
 
     detectList(options) {
@@ -509,14 +673,30 @@ class CargasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        // La barra vive dentro de la tarjeta: al subir arranca indeterminada y
+        // al terminar queda en el porcentaje de filas que si entraron a la base.
+        const barra = (h) => {
+            if (h.avance === undefined && !h.procesando) return '';
+
+            const clase = h.procesando ? 'prog-fill indeterminate' : 'prog-fill';
+            const ancho = h.procesando ? 100 : h.avance;
+
+            return `
+                <div class="prog-track mt-1.5">
+                    <div class="${clase}" style="width:${ancho}%"></div>
+                </div>
+            `;
+        };
+
         const item = (h) => `
             <div class="flex items-center gap-3 p-3 rounded-lg ${h.bgClass}">
                 <div class="w-8 h-8 rounded-lg bg-[#141d2b] ${h.iconClass} flex items-center justify-center shadow-sm">
                     <i data-lucide="${esc(h.icon)}" class="w-4 h-4"></i>
                 </div>
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                     <p class="text-[11px] font-bold text-gray-300">${esc(h.titulo)}</p>
                     <p class="text-[9px] text-gray-400">${esc(h.detalle)}</p>
+                    ${barra(h)}
                 </div>
                 <i data-lucide="check-circle-2" class="w-4 h-4 ${h.iconClass}"></i>
             </div>

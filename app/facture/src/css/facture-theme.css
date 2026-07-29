@@ -1,0 +1,64 @@
+/* Facturador SAT — tema claro.
+   Pareja de src/js/facture-theme.js: ese pone data-facture-theme en <html> y
+   esto traduce la paleta. Va en huubie-libraries.php para que lo carguen todas
+   las paginas del modulo, incluido el hub (que no enlaza facture.css).
+
+   Solo se traduce lo que los modulos escriben con color fijo en sus layouts.
+   Los componentes del framework (createfilterBar, createCoffeeTable3, infoCard,
+   tabLayout) no aparecen aqui: reciben FACTURE_THEME y se pintan claros de
+   origen. Navbar y rail tampoco: consumen FACTURE_PALETTE desde el JS.
+
+   El scope es #mainContainer, que envuelve tanto el #root de los modulos como
+   el contenido del hub. */
+
+/* -- Fondos --
+   Se conserva la jerarquia de tres capas del tema oscuro: pagina, bandas
+   (cabecera, KPIs, pie) y tarjetas. En claro las tarjetas son las mas claras,
+   al reves que en oscuro, para que sigan destacando sobre su banda. */
+html[data-facture-theme="light"] body,
+html[data-facture-theme="light"] #mainContainer,
+html[data-facture-theme="light"] .bg-\[\#111928\] { background-color: #F3F4F6 !important; }
+
+html[data-facture-theme="light"] .bg-\[\#0E1521\] { background-color: #F9FAFB !important; }
+
+html[data-facture-theme="light"] .bg-\[\#141d2b\] { background-color: #FFFFFF !important; }
+
+html[data-facture-theme="light"] .bg-\[\#1F2A37\] { background-color: #E5E7EB !important; }
+
+html[data-facture-theme="light"] .border-\[\#374151\] { border-color: #E5E7EB !important; }
+
+/* Las tarjetas de KPI van sin borde por regla del modulo: en claro se separan
+   de su banda con una sombra de un pixel, no con una linea. */
+html[data-facture-theme="light"] #mainContainer [id^="kpis"] > div { box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+
+/* El logo es blanco monocromo: sobre la navbar clara se volveria invisible. */
+html[data-facture-theme="light"] #menu-navbar img { filter: brightness(0); }
+
+/* -- Texto -- */
+html[data-facture-theme="light"] body { color: #111928; }
+
+/* Los botones conservan su texto blanco: su fondo sigue siendo de color. */
+html[data-facture-theme="light"] #mainContainer .text-white:not(button):not([class*="bg-"]) { color: #111928 !important; }
+html[data-facture-theme="light"] #mainContainer .text-gray-300 { color: #374151 !important; }
+html[data-facture-theme="light"] #mainContainer .text-gray-400 { color: #6B7280 !important; }
+
+/* -- Detalles del modulo -- */
+html[data-facture-theme="light"] #mainContainer .scroll-thin::-webkit-scrollbar-thumb { background: #D1D5DB; }
+html[data-facture-theme="light"] #mainContainer .scroll-thin::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+html[data-facture-theme="light"] #mainContainer .prog-track { background: #E5E7EB; }
+
+html[data-facture-theme="light"] #mainContainer .upload-row-icon { color: #047857; }
+
+/* El papel del ticket ya era blanco en ambos temas: en claro solo se le marca
+   el borde para que no se funda con la tarjeta que lo contiene. */
+html[data-facture-theme="light"] #mainContainer .ticket-paper { border-color: #D1D5DB; }
+
+/* -- Pildoras --
+   Sobre blanco el relleno translucido necesita texto oscuro para leerse. */
+html[data-facture-theme="light"] #mainContainer .b-green  { background: rgba(16,185,129,.12);  color: #047857; border-color: rgba(16,185,129,.35); }
+html[data-facture-theme="light"] #mainContainer .b-red    { background: rgba(239,68,68,.12);   color: #B91C1C; border-color: rgba(239,68,68,.35); }
+html[data-facture-theme="light"] #mainContainer .b-yellow { background: rgba(245,158,11,.14);  color: #B45309; border-color: rgba(245,158,11,.35); }
+html[data-facture-theme="light"] #mainContainer .b-terra  { background: rgba(28,100,242,.10);  color: #1E40AF; border-color: rgba(28,100,242,.30); }
+html[data-facture-theme="light"] #mainContainer .b-gray   { background: rgba(107,114,128,.10); color: #374151; border-color: rgba(107,114,128,.30); }
+html[data-facture-theme="light"] #mainContainer .b-blue   { background: rgba(59,130,246,.12);  color: #1D4ED8; border-color: rgba(59,130,246,.30); }

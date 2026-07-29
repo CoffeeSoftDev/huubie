@@ -61,15 +61,15 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'progressRow',
-                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -135,7 +135,7 @@ class App extends Templates {
         const panel = (key, maxH) => ({
             type:  'div',
             id:    `card${key}`,
-            class: 'bg-[#141d2b] border border-[#374151] rounded-lg overflow-hidden flex flex-col',
+            class: 'bg-[#141d2b] rounded-lg overflow-hidden flex flex-col',
             children: [
                 {
                     id:    `head${key}`,
@@ -213,7 +213,7 @@ class App extends Templates {
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data:       filters
         });
     }
@@ -298,7 +298,7 @@ class Resumen extends Templates {
         this.createCoffeeTable3({
             parent:       'tableTodos',
             id:           'tbTodos',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [2],
             right:        [4],
             extends:      true,
@@ -324,7 +324,7 @@ class Resumen extends Templates {
         this.createCoffeeTable3({
             parent:       'detailContent',
             id:           'tbPendientes',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [1, 3],
             right:        [4],
             extends:      true,
@@ -346,7 +346,7 @@ class Resumen extends Templates {
         this.createCoffeeTable3({
             parent:       'tableFacturados',
             id:           'tbFacturados',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [2, 3],
             right:        [4],
             extends:      true,
@@ -370,7 +370,7 @@ class Resumen extends Templates {
                 title:       'Venta total',
                 lucideIcon:  'banknote',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value:    _fmtMX(t.total),
                     subtitle: `${t.tickets} tickets · efectivo + tarjeta`,
@@ -382,7 +382,7 @@ class Resumen extends Templates {
                 title:       `Meta al ${Math.round(t.meta * 100)}%`,
                 lucideIcon:  'target',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value:    _fmtMX(t.objetivo),
                     subtitle: 'monto objetivo al 16%',
@@ -394,7 +394,7 @@ class Resumen extends Templates {
                 title:       'Ya facturado',
                 lucideIcon:  'lock',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value:    _fmtMX(t.facturado),
                     subtitle: `${t.bloqueados} ordenes bloqueadas`,
@@ -406,7 +406,7 @@ class Resumen extends Templates {
                 title:       'Por facturar',
                 lucideIcon:  'alert-circle',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value:    _fmtMX(t.porFacturar),
                     subtitle: 'meta menos facturado',
@@ -527,7 +527,7 @@ class ResumenView extends Templates {
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisResumen',
-            theme:  'dark',
+            theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
             json:   rows
@@ -646,7 +646,7 @@ class ResumenView extends Templates {
                 row:   'flex items-center justify-between w-full',
                 label: 'text-[11px] font-semibold text-gray-400',
                 value: 'text-[11px] font-semibold text-white',
-                btn:   `${CF_CSS.btnInvernal} mt-2 flex items-center justify-center gap-2`
+                btn:   `${CF_CSS.btnPrimary} mt-2 flex items-center justify-center gap-2`
             }
         };
 

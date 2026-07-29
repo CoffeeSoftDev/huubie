@@ -19,17 +19,18 @@ class Navbar {
     // -- Render --
 
     render(options) {
+        // La paleta la sirve facture-theme.js: es la misma para navbar y rail.
         const defaults = {
             parent:   '#menu-navbar',
             logo:     '/app/src/img/logo/logo.svg',
             username: FACTURE_USER.name,
             role:     FACTURE_USER.role,
 
-            navbar:   { bg: '#141d2b', border: '#1C64F2' },
-            header:   { bg: '#1F2A37', statusOnline: '#22c55e' },
-            dropdown: { bg: '#111928', hover: '#1F2937', divider: '#1F2937' },
-            badge:    { bg: '#1e3a8a', text: '#bfdbfe' },
-            logout:   { border: '#ef4444', hover: '#dc2626' }
+            navbar:   FACTURE_PALETTE.navbar,
+            header:   FACTURE_PALETTE.header,
+            dropdown: FACTURE_PALETTE.dropdown,
+            badge:    FACTURE_PALETTE.badge,
+            logout:   FACTURE_PALETTE.logout
         };
 
         this.settings = Object.assign({}, defaults, options);
@@ -45,18 +46,21 @@ class Navbar {
         const avatarLg = `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-purple-600 flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
 
         const navbarHtml = `
-            <nav class="w-full text-white px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D;">
+            <nav class="w-full px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b shadow-lg shadow-black/20 shrink-0" style="background-color: ${navbar.bg}; border-bottom-color: ${navbar.border}4D; color: ${navbar.text};">
                 <div class="flex items-center space-x-2">
                     <img src="${this.settings.logo}" alt="Logo" class="w-8 h-8" />
-                    <button id="toggleSidebar" class="text-white text-xl leading-none">☰</button>
-                    <span class="hidden md:inline text-xs text-gray-400 border-l border-gray-700 pl-2 ml-1">Facturador SAT</span>
+                    <button id="toggleSidebar" class="text-xl leading-none" style="color: ${navbar.text};">☰</button>
+                    <span class="hidden md:inline text-xs border-l pl-2 ml-1" style="color: ${navbar.muted}; border-color: ${navbar.divider};">Facturador SAT</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button id="btnUserMenu" class="ml-1 flex items-center gap-2 border-l border-gray-700 pl-3">
+                    <button id="btnFactureTheme" title="${this.themeTitle()}" class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style="color: ${navbar.muted};">
+                        ${this.themeIcon()}
+                    </button>
+                    <button id="btnUserMenu" class="ml-1 flex items-center gap-2 border-l pl-3" style="border-color: ${navbar.divider};">
                         ${avatar}
                         <div class="hidden md:flex flex-col items-start leading-tight text-left">
-                            <span class="text-xs font-semibold text-white">${this.settings.username}</span>
-                            <span class="text-[10px] text-gray-400">${this.settings.role}</span>
+                            <span class="text-xs font-semibold" style="color: ${navbar.text};">${this.settings.username}</span>
+                            <span class="text-[10px]" style="color: ${navbar.muted};">${this.settings.role}</span>
                         </div>
                     </button>
                 </div>
@@ -79,7 +83,7 @@ class Navbar {
                     </div>
 
                     <div class="flex flex-col items-center pt-4 pb-2 px-4 space-y-2">
-                        <h2 class="text-white font-semibold text-lg mt-3">${this.settings.username}</h2>
+                        <h2 class="font-semibold text-lg mt-3" style="color: ${navbar.text};">${this.settings.username}</h2>
                         <span class="inline-flex text-xs font-semibold px-2 py-1 rounded-full align-items-center" style="background-color: ${badge.bg}80; color: ${badge.text};">
                             <i class="icon-book-open"></i> ${this.settings.role}
                         </span>
@@ -103,11 +107,29 @@ class Navbar {
         if (!$('#menu-sidebar').length) $('#toggleSidebar').hide();
     }
 
+    // -- Tema --
+
+    // El icono anuncia a que tema se cambia, no en cual se esta.
+    themeIcon() {
+        const attrs = 'width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+
+        if (FACTURE_THEME_IS_LIGHT) {
+            return `<svg ${attrs}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+        }
+
+        return `<svg ${attrs}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
+    }
+
+    themeTitle() {
+        return FACTURE_THEME_IS_LIGHT ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+    }
+
     // -- Eventos --
 
     initEvents() {
         $('#btnUserMenu, #btnCloseUserMenu').on('click', () => this.toggleUserMenu());
         $('#btnLogout').on('click', () => this.logout());
+        $('#btnFactureTheme').on('click', () => toggleFactureTheme());
     }
 
     toggleUserMenu() {
@@ -123,12 +145,12 @@ class Navbar {
             confirmButtonText: 'Cerrar sesión',
             cancelButtonText:  'Cancelar',
             customClass: {
-                popup:         'bg-[#1F2A37] text-white rounded-lg shadow-lg',
+                popup:         FACTURE_PALETTE.swal.popup,
                 title:         'text-2xl font-semibold',
                 confirmButton: 'bg-[#1C64F2] hover:bg-[#0E9E6E] text-white py-2 px-4 rounded',
-                cancelButton:  'bg-transparent text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]'
+                cancelButton:  'bg-transparent border border-gray-500 py-2 px-4 rounded'
             },
-            background:        '#111928',
+            background:        FACTURE_PALETTE.swal.bg,
             allowOutsideClick: false,
             allowEscapeKey:    false
         }).then((result) => {

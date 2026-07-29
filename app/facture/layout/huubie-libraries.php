@@ -30,5 +30,9 @@
 <!-- LUCIDE -->
 <script src="https://unpkg.com/lucide@latest"></script>
 
+<!-- TEMA: antes del CSS del modulo para que el primer pintado ya sea el correcto -->
+<script src="/app/facture/src/js/facture-theme.js?t=<?php echo time(); ?>"></script>
+<link rel="stylesheet" href="/app/facture/src/css/facture-theme.css?t=<?php echo time(); ?>">
+
 <!-- POPPINS: tipografia de las tarjetas y encabezados Huubie -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">

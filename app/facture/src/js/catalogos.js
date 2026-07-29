@@ -54,11 +54,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
@@ -117,7 +117,7 @@ class App extends Templates {
         const panel = (key) => ({
             type:  'div',
             id:    `card${key}`,
-            class: 'bg-[#141d2b] border border-[#374151] rounded-lg overflow-hidden flex flex-col',
+            class: 'bg-[#141d2b] rounded-lg overflow-hidden flex flex-col',
             children: [
                 {
                     id:    `head${key}`,
@@ -185,7 +185,7 @@ class App extends Templates {
         this.createfilterBar({
             parent:     'filterBar',
             coffeesoft: true,
-            theme:      'dark',
+            theme:      FACTURE_THEME,
             data:       filters
         });
     }
@@ -246,7 +246,7 @@ class Catalogos extends Templates {
         this.createCoffeeTable3({
             parent:       'tableProductos',
             id:           'tbProductos',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [1, 4, 5],
             right:        [3],
             actionsAlign: 'center',
@@ -272,7 +272,7 @@ class Catalogos extends Templates {
         this.createCoffeeTable3({
             parent:       'tableMeseros',
             id:           'tbMeseros',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             center:       [1],
             actionsAlign: 'center',
             extends:      true,
@@ -299,7 +299,7 @@ class Catalogos extends Templates {
                 title:       'Productos',
                 lucideIcon:  'package',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value: productos.length,
                     color: 'text-white'
@@ -310,7 +310,7 @@ class Catalogos extends Templates {
                 title:       'Marcados puente',
                 lucideIcon:  'link',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value: productos.filter(p => p.puente).length,
                     color: 'text-green-600'
@@ -321,7 +321,7 @@ class Catalogos extends Templates {
                 title:       'Meseros',
                 lucideIcon:  'users',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value: meseros.length,
                     color: 'text-white'
@@ -332,7 +332,7 @@ class Catalogos extends Templates {
                 title:       'Suma de precios',
                 lucideIcon:  'banknote',
                 bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-[#374151]',
+                borderColor: 'border-transparent',
                 data: {
                     value: _fmtMX(productos.reduce((s, p) => s + Number(p.precio || 0), 0)),
                     color: 'text-[#1C64F2]'
@@ -464,7 +464,7 @@ class CatalogosView extends Templates {
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisCatalogos',
-            theme:  'dark',
+            theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
             json:   rows
@@ -505,7 +505,7 @@ class CatalogosView extends Templates {
         this.coffeeForm({
             parent:       'formEmisor',
             id:           'frmEmisor',
-            theme:        'dark',
+            theme:        FACTURE_THEME,
             showRequired: false,
             autofill:     emisor,
             json:         this.jsonEmisor()
@@ -663,7 +663,7 @@ class CatalogosView extends Templates {
             id:       'frmModal',
             title:    '',
             size:     'large',
-            theme:    'dark',
+            theme:    FACTURE_THEME,
             autofill: false,
             json:     [],
             onSave:   () => { }

@@ -6,55 +6,39 @@ const SAMPLE_VIEW_HEADER_CARGAS = {
     back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
 };
 
-// -- Helpers --
-
-const _fmtMX = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const _fmtInt = (n) => Number(n || 0).toLocaleString('en-US');
-
-const _badgeEstadoCarga = (estado) => {
-    const map = {
-        ok:        { tone: 'b-green',  text: 'OK'        },
-        pendiente: { tone: 'b-yellow', text: 'Pendiente' },
-        error:     { tone: 'b-red',    text: 'Error'     }
-    };
-    const c = map[estado] || map.pendiente;
-    return `<span class="badge-base ${c.tone}">${c.text}</span>`;
+// Nombre con el que el POS exporta cada reporte: se compara antes de subir para
+// avisar cuando el archivo no corresponde a la pestana activa.
+const FACTURE_ARCHIVO_ESPERADO = {
+    'sales-report': {
+        nombre:  'Reporte de ventas',
+        ejemplo: 'Reporte_De_Ventas_YYYYMMDD',
+        patron:  /reporte|venta/i
+    },
+    'commands': {
+        nombre:  'Archivo de comandas',
+        ejemplo: 'comandas',
+        patron:  /comanda/i
+    }
 };
+
+// -- Helpers --
 
 const _cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
 
-// -- Datos --
-
-const SAMPLE_CARGAS_DB = {
-    'LOG-001': {
-        folio:   'LOG-001',
-        hora:    '30/06/2026 21:15',
-        archivo: 'Reporte_De_Ventas_20260630.xlsx',
-        hoja:    'Reporte de ventas',
-        filas:   3821,
-        control: 2644933.30,
-        estado:  'ok'
-    },
-    'LOG-002': {
-        folio:   'LOG-002',
-        hora:    '30/06/2026 21:16',
-        archivo: 'Reporte_De_Ventas_20260630.xlsx',
-        hoja:    'Pagos',
-        filas:   3909,
-        control: 2644933.30,
-        estado:  'ok'
-    },
-    'LOG-003': {
-        folio:   'LOG-003',
-        hora:    '30/06/2026 21:18',
-        archivo: 'comandas.xls',
-        hoja:    'Hoja1',
-        filas:   13141,
-        control: 0,
-        estado:  'ok'
-    }
+// Tarjeta de hoja detectada a partir de la respuesta de uploadFile.
+const _hojaCard = (h) => {
+    const ok = h.estado === 'ok';
+    return {
+        icon:      h.nombre === 'Pagos' ? 'credit-card' : 'receipt-text',
+        titulo:    h.nombre,
+        detalle:   h.detalle,
+        bgClass:   ok ? 'bg-[rgba(16,185,129,0.12)]' : 'bg-[rgba(239,68,68,0.12)]',
+        iconClass: ok ? 'text-green-600' : 'text-red-400',
+        avance:    h.avance === undefined ? (ok ? 100 : 0) : h.avance
+    };
 };
+
+// -- Datos --
 
 const SAMPLE_CARGAS_ARCHIVOS = {
     'sales-report': {
@@ -63,7 +47,7 @@ const SAMPLE_CARGAS_ARCHIVOS = {
         subtitulo: 'Sube un solo archivo. El sistema detecta si la hoja es "Reporte de ventas" (tickets) o "Pagos" (formas de pago) y la envia a la tabla correspondiente.',
         esperado:  'Reporte_De_Ventas_YYYYMMDD.xlsx',
         formato:   'XLSX',
-        estado:    'ok'
+        estado:    'pendiente'
     },
     'commands': {
         id:        'commands',
@@ -75,21 +59,31 @@ const SAMPLE_CARGAS_ARCHIVOS = {
     }
 };
 
+// Hojas que el sistema espera encontrar; tras subir el archivo se reemplazan por
+// las que realmente trae, con su conteo de registros.
 const SAMPLE_CARGAS_HOJAS = [
     {
         icon:      'receipt-text',
         titulo:    'Reporte de ventas',
-        detalle:   'columnas A:J · fila 8 · 3,821 tickets',
-        bgClass:   'bg-[rgba(16,185,129,0.12)] border border-green-100',
+        detalle:   'columnas A:J · header fila 7',
+        bgClass:   'bg-[rgba(16,185,129,0.12)]',
         iconClass: 'text-green-600'
     },
     {
         icon:      'credit-card',
         titulo:    'Pagos',
-        detalle:   'columnas A:H · fila 8 · 3,909 pagos',
-        bgClass:   'bg-[rgba(28,100,242,0.12)] border border-[#F7E3DC]',
+        detalle:   'columnas A:H · header fila 7',
+        bgClass:   'bg-[rgba(28,100,242,0.12)]',
         iconClass: 'text-[#1C64F2]'
     }
+];
+
+// Roadmap en reposo: los mismos pasos que devuelve uploadFile, sin ejecutar.
+const SAMPLE_CARGAS_ROADMAP = [
+    { titulo: 'Recibir archivo',   estado: 'pendiente', detalle: 'Sube el Excel del periodo' },
+    { titulo: 'Detectar hojas',    estado: 'pendiente', detalle: 'Reporte de ventas · Pagos' },
+    { titulo: 'Validar columnas',  estado: 'pendiente', detalle: 'Se comparan contra el formato del POS' },
+    { titulo: 'Guardar en base',   estado: 'pendiente', detalle: 'Un lote por hoja' }
 ];
 
 const SAMPLE_CARGAS_COLUMNAS = [
@@ -109,23 +103,6 @@ const SAMPLE_CARGAS_COLUMNAS = [
 
 // -- Filas --
 
-const _cargaRow = (e) => ({
-    id:              e.folio,
-    Hora:            `<span class="text-gray-400">${e.hora}</span>`,
-    Archivo:         `<span class="font-semibold text-gray-300">${e.archivo}</span>`,
-    Hoja:            `<span class="text-gray-400">${e.hoja}</span>`,
-    Filas:           `<span class="text-gray-400">${_fmtInt(e.filas)}</span>`,
-    'Control total': `<span class="font-semibold text-gray-300">${_fmtMX(e.control)}</span>`,
-    Estado:          _badgeEstadoCarga(e.estado),
-    a: [
-        {
-            class:   'btn-ghost !py-1 !px-2 text-[11px] text-red-300 hover:text-red-200',
-            html:    '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Eliminar',
-            onclick: `cargas.deleteCarga('${e.folio}')`
-        }
-    ]
-});
-
 const _columnaRow = (c) => ({
     id:    c.letra,
     Col:   _cellColumna(c.letra),
@@ -137,20 +114,6 @@ const SAMPLE_CARGAS_COLUMNAS_TABLE = {
 };
 
 // -- Catalogos --
-
-const SAMPLE_CARGAS_MESES = [
-    { id: '06', valor: 'Junio'   },
-    { id: '05', valor: 'Mayo'    },
-    { id: '04', valor: 'Abril'   },
-    { id: '03', valor: 'Marzo'   },
-    { id: '02', valor: 'Febrero' },
-    { id: '01', valor: 'Enero'   }
-];
-
-const SAMPLE_CARGAS_ANIOS = [
-    { id: '2026', valor: '2026' },
-    { id: '2025', valor: '2025' }
-];
 
 const SAMPLE_CARGAS_TABS = [
     {
