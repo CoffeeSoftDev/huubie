@@ -1825,6 +1825,99 @@ class App {
         if (window.lucide) lucide.createIcons();
     }
 
+    // ── Origen "Carpeta local" (File System Access API) ─────────────────────
+    // El origen Custom pide la carpeta al backend, o sea al disco DEL SERVIDOR:
+    // publicado, una ruta de tu maquina no existe alla. Este origen no toca PHP —
+    // el navegador da acceso a la carpeta y el arbol se arma aqui (local-folder.js).
+
+    localSupported() {
+        return !!(window.localFolder && localFolder.supported());
+    }
+
+    // Elegir carpeta exige un gesto del usuario, asi que se llama desde el picker.
+    async openLocalFolder() {
+        if (!this.localSupported()) {
+            visorView.toast(window.localFolder && !localFolder.secureContext()
+                ? 'Abrir carpetas locales requiere https:// (o localhost)'
+                : 'Tu navegador no permite abrir carpetas locales: usa Chrome o Edge', 'error');
+            visorView.renderFolderPicker(this.dataInit.header, this.settings);
+            return;
+        }
+        try {
+            await localFolder.pick();
+        } catch (e) {
+            // El usuario cerro el selector: se deja el origen como estaba.
+            visorView.renderFolderPicker(this.dataInit.header, this.settings);
+            return;
+        }
+        this.settings.folder    = 'local';
+        this.settings.localPath = localFolder.path([]);
+        this.saveSettings();
+        this.reloadLibrary();
+    }
+
+    // Reconecta la carpeta recordada: tras recargar la pagina el permiso caduca y
+    // el navegador exige volver a concederlo con un clic.
+    async reconnectLocalFolder() {
+        if (!this.localSupported()) return;
+        await localFolder.restore();
+        if (!localFolder.hasRoot()) { this.openLocalFolder(); return; }
+        const perm = await localFolder.requestPermission();
+        if (perm !== 'granted') { visorView.toast('Sin permiso sobre la carpeta', 'warn'); return; }
+        this.settings.folder = 'local';
+        this.saveSettings();
+        this.reloadLibrary();
+    }
+
+    async reloadLocalLibrary() {
+        if (!this.localSupported()) {
+            visorView.toast('Tu navegador no permite abrir carpetas locales: usa Chrome o Edge', 'error');
+            return;
+        }
+        await localFolder.restore();
+        if (!localFolder.hasRoot()) { this.openLocalFolder(); return; }
+
+        // Permiso caducado (recarga de pagina): no se puede pedir sin gesto, asi
+        // que se avisa y se ofrece el boton de reconectar del selector de origen.
+        if (await localFolder.permission() !== 'granted') {
+            visorView.toast('Pulsa “Reconectar carpeta” para volver a dar permiso', 'warn');
+            visorView.renderFolderPicker((this.dataInit && this.dataInit.header) || {}, this.settings);
+            return;
+        }
+
+        let data;
+        try {
+            const presets = (this.dataInit && this.dataInit.header && this.dataInit.header.presets) || [];
+            data = await localFolder.buildLibrary(this.settings.localPath || '', presets);
+        } catch (e) {
+            visorView.toast('No se pudo leer la carpeta: ' + (e.message || e), 'error');
+            return;
+        }
+
+        this.settings.localPath = data.header.currentPath;
+        this.saveSettings();
+
+        this.dataInit       = { agents: data.agents, grimoires: data.grimoires, header: data.header, folders: data.folders };
+        this.allFiles       = [...data.agents];
+        this.currentFile    = null;
+        this.currentFileObj = null;
+        this.pinnedFiles    = this.loadPinned();
+
+        const target = this.allFiles.find(f => f.file === this._pendingOpen) || this.autoOpenTarget();
+        this._pendingOpen = null;
+
+        visorView.renderHeader(data.header, this.allFiles.length);
+        visorView.renderFooter(this.dataInit);
+        visorView.renderSidebar(this.dataInit, this.currentFile, '');
+        visorView.renderFolderPicker(data.header, this.settings);
+        this.updateNewFileButton();
+        this.bindSidebarClicks();
+        if (target) this.loadFile(target.file, target);
+        else        this.showEmptyMain();
+        visorView.toast(data.header.currentLabel + ': ' + this.allFiles.length + ' archivos', 'success');
+        if (window.lucide) lucide.createIcons();
+    }
+
     async refresh() {
         const $btn = $('#btnRefresh');
         const $icon = $btn.find('i');
