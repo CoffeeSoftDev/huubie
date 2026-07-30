@@ -148,6 +148,17 @@ class DrawioBoard {
     }
 
     async _persist(fullPath, content) {
+        // Carpeta local del navegador (File System Access API): se escribe en el
+        // cliente, porque esa ruta no existe para el servidor.
+        if (window.localFolder && localFolder.isLocalPath(fullPath)) {
+            try {
+                await localFolder.write(fullPath, content);
+                return true;
+            } catch (e) {
+                visorView.toast('No se pudo guardar el diagrama en la carpeta local', 'error');
+                return false;
+            }
+        }
         try {
             const form = new FormData();
             form.append('action',     'save');

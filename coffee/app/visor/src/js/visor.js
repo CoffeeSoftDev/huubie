@@ -666,7 +666,7 @@ class App {
     loadSettings() {
         const validStyles = ['github', 'notion', 'dracula', 'monokai'];
         const fallback = {
-            folder: 'agents', customPath: '', theme: 'dark', docStyle: 'github', docZoom: 1,
+            folder: 'agents', customPath: '', localPath: '', theme: 'dark', docStyle: 'github', docZoom: 1,
             sidebarCollapsed: false, iaDrawerWidth: 420, sidebarWidth: 320
         };
         try {
@@ -681,6 +681,9 @@ class App {
             return {
                 folder,
                 customPath: parsed.customPath || '',
+                // Ruta virtual dentro de la carpeta local elegida ("<carpeta>/sub").
+                // El permiso vive en IndexedDB (local-folder.js), aqui solo el sitio.
+                localPath:  parsed.localPath  || '',
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
@@ -729,6 +732,7 @@ class App {
     folderKey() {
         const folder = this.settings.folder || '';
         if (!folder || this.isDriveFolder(folder)) return '';
+        if (folder === 'local') return 'local|' + (this.settings.localPath || '');
         return folder + '|' + (this.settings.customPath || '');
     }
 
@@ -778,8 +782,11 @@ class App {
 
         // En paralelo con la biblioteca: ninguno depende del otro y el primer
         // render necesita los dos (fileFormat consulta los overrides).
+        // La carpeta local no la sirve el backend: se pide un preset cualquiera solo
+        // para tener el header con la lista de origenes, y despues se reconecta.
+        const wantLocal = this.settings.folder === 'local';
         const [data] = await Promise.all([
-            visor.fetchLibrary(this.settings.folder, this.settings.customPath),
+            visor.fetchLibrary(wantLocal ? 'agents' : this.settings.folder, this.settings.customPath),
             visor.loadIconOverrides()
         ]);
         if (data) {
@@ -816,6 +823,9 @@ class App {
         this.render(this.autoOpenTarget());
         this.bind();
         this._maybeOpenDiagramFromUrl();
+        // Si el permiso sigue vivo la carpeta local vuelve sola; si no, el aviso
+        // manda al boton de reconectar y mientras se ve el preset cargado arriba.
+        if (wantLocal) this.reloadLocalLibrary();
     }
 
     // Si la URL trae ?diagram=1 abrimos en ESTA pestaña el diagrama/boceto cuyo
@@ -1428,6 +1438,19 @@ class App {
             }
         }
 
+        // Carpeta local del navegador: se escribe con la File System Access API,
+        // sin pasar por el backend (el servidor no ve ese disco).
+        if (file.local) {
+            try {
+                const info = await localFolder.write(file.fullPath, content);
+                this._applySaveResult(file, content, { success: true, size: info.size, mtime: info.mtime });
+                return true;
+            } catch (e) {
+                visorView.toast('No se pudo guardar en la carpeta local: ' + (e.message || e), 'error');
+                return false;
+            }
+        }
+
         // Local
         if (!file.fullPath) return false;
         try {
@@ -1555,9 +1578,15 @@ class App {
     }
 
     bindFolderPicker() {
+        $(document).off('click.localfolder').on('click.localfolder', '#btnFolderReconnect', () => this.reconnectLocalFolder());
+
         $('#folderSelect').off('change').on('change', (e) => {
             const val = e.target.value;
-            if (val === 'custom') {
+            if (val === 'local') {
+                $('#folderCustomPath').addClass('hidden');
+                $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
+                this.openLocalFolder();
+            } else if (val === 'custom') {
                 $('#folderCustomPath').removeClass('hidden').val(this.settings.customPath || '').focus();
                 $('#btnFolderApply, #btnFolderBrowse').removeClass('hidden');
                 if (window.lucide) lucide.createIcons();
@@ -1592,9 +1621,17 @@ class App {
     }
 
     // Mueve el origen Custom a otra ruta (navegacion del explorador y breadcrumb).
+    // La carpeta local del navegador reusa este mismo camino: sus rutas son
+    // virtuales ("<carpeta>/sub") y no deben caer en el origen Custom del servidor.
     navigateCustomPath(path) {
         const dir = String(path || '').trim().replace(/[\/\\]+$/, '');
         if (!dir) return;
+        if (this.settings.folder === 'local') {
+            this.settings.localPath = dir;
+            this.saveSettings();
+            this.reloadLibrary();
+            return;
+        }
         this.settings.folder = 'custom';
         this.settings.customPath = dir;
         this.saveSettings();
@@ -1840,14 +1877,14 @@ class App {
             visorView.toast(window.localFolder && !localFolder.secureContext()
                 ? 'Abrir carpetas locales requiere https:// (o localhost)'
                 : 'Tu navegador no permite abrir carpetas locales: usa Chrome o Edge', 'error');
-            visorView.renderFolderPicker(this.dataInit.header, this.settings);
+            visorView.renderFolderPicker((this.dataInit && this.dataInit.header) || {}, this.settings);
             return;
         }
         try {
             await localFolder.pick();
         } catch (e) {
             // El usuario cerro el selector: se deja el origen como estaba.
-            visorView.renderFolderPicker(this.dataInit.header, this.settings);
+            visorView.renderFolderPicker((this.dataInit && this.dataInit.header) || {}, this.settings);
             return;
         }
         this.settings.folder    = 'local';
@@ -1919,6 +1956,10 @@ class App {
     }
 
     async refresh() {
+        // La carpeta local se relee entera desde el navegador: no hay endpoint que
+        // consultar y reloadLocalLibrary ya deja la vista al dia.
+        if (this.settings.folder === 'local') { await this.reloadLocalLibrary(); return; }
+
         const $btn = $('#btnRefresh');
         const $icon = $btn.find('i');
         $btn.prop('disabled', true);
@@ -2043,6 +2084,9 @@ class App {
         const h = this.dataInit && this.dataInit.header ? this.dataInit.header : null;
         if (!h) return false;
         if (h.source === 'Drive') return false;
+        // La carpeta local del navegador solo lee y guarda por ahora: crear pasa
+        // por el endpoint del backend, que no alcanza ese disco.
+        if (h.currentKey === 'local') return false;
         return !!h.currentPath && h.valid !== false;
     }
 
@@ -3412,9 +3456,26 @@ class VisorView {
         const opts    = presets.map(p =>
             `<option value="${p.key}" ${p.exists ? '' : 'disabled'}>${p.label}${p.exists ? '' : ' (no existe)'}</option>`
         ).join('');
-        $sel.html(opts + `<option value="custom">Custom...</option>`);
+        // "Carpeta local" lee el disco del usuario desde el navegador; "Custom" pide
+        // una ruta al servidor. Publicado son cosas distintas, de ahi que convivan.
+        const localOpt = (window.localFolder && localFolder.supported())
+            ? `<option value="local">Carpeta local (navegador)…</option>`
+            : '';
+        $sel.html(opts + localOpt + `<option value="custom">Custom...</option>`);
 
-        if (settings.folder === 'custom') {
+        $('#btnFolderReconnect').remove();
+        if (settings.folder === 'local') {
+            $sel.val('local');
+            $('#folderCustomPath').addClass('hidden');
+            $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
+            // El permiso sobre la carpeta no sobrevive a la recarga: el boton lo
+            // vuelve a pedir (la API exige un clic del usuario).
+            $sel.after(
+                '<button id="btnFolderReconnect" class="folder-browse" title="Reconectar carpeta local (volver a dar permiso)">' +
+                  '<i data-lucide="folder-symlink" class="w-3.5 h-3.5"></i>' +
+                '</button>'
+            );
+        } else if (settings.folder === 'custom') {
             $sel.val('custom');
             $('#folderCustomPath').removeClass('hidden').val(settings.customPath || '');
             $('#btnFolderApply, #btnFolderBrowse').removeClass('hidden');
@@ -3423,6 +3484,7 @@ class VisorView {
             $('#folderCustomPath').addClass('hidden');
             $('#btnFolderApply, #btnFolderBrowse').addClass('hidden');
         }
+        if (window.lucide) lucide.createIcons();
     }
 
     renderFooter(data) {
@@ -3449,8 +3511,9 @@ class VisorView {
         // El toggle de vista solo existe en el explorador; renderExplorer lo repinta.
         $('#docsViewSlot').empty();
 
-        // Origen Custom: mismo explorador que Documents sobre el filesystem real.
-        if (data.header && data.header.currentKey === 'custom') {
+        // Origen Custom (y la carpeta local del navegador, que trae el mismo
+        // payload): mismo explorador que Documents sobre el filesystem real.
+        if (data.header && (data.header.currentKey === 'custom' || data.header.currentKey === 'local')) {
             this.renderSidebarCustom(data, currentFile, filter);
             this.renderQuickAccess(app);
             return;
@@ -3899,17 +3962,21 @@ class VisorView {
         });
         if (!crumbs.length) crumbs.push({ label: baseDir || 'Custom', title: baseDir, go: () => {} });
 
+        // La carpeta local del navegador comparte explorador pero no backend: crear,
+        // renombrar y borrar siguen siendo del servidor, asi que ahi se apagan.
+        const isLocal = header.currentKey === 'local';
+
         this.renderExplorer({
             crumbs,
             folders,
             files,
             currentFile,
             filter   : f,
-            canCreate: !!(baseDir && header.valid !== false),
+            canCreate: !isLocal && !!(baseDir && header.valid !== false),
             dir      : baseDir,
             parentDir: header.parentPath ? String(header.parentPath).replace(/[\/\\]+$/, '') : '',
-            allowNewFolder      : true,
-            allowInFolderActions: true
+            allowNewFolder      : !isLocal,
+            allowInFolderActions: !isLocal
         });
     }
 
@@ -4604,6 +4671,13 @@ class VisorView {
 
     _todoPersist(file, content) {
         if (!file || !file.fullPath) return;
+        // Carpeta local del navegador: el backend no ve ese disco.
+        if (file.local && window.localFolder) {
+            localFolder.write(file.fullPath, content)
+                .then(info => { file.raw = content; file.mtime = info.mtime; file.size = info.size; })
+                .catch(() => {});
+            return;
+        }
         const form = new FormData();
         form.append('action', 'save');
         form.append('fullPath', file.fullPath);

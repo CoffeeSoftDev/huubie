@@ -326,6 +326,16 @@ class ExcalidrawBoard {
     }
 
     async _persist(fullPath, content) {
+        // Carpeta local del navegador: se escribe en el cliente (ver local-folder.js).
+        if (window.localFolder && localFolder.isLocalPath(fullPath)) {
+            try {
+                await localFolder.write(fullPath, content);
+                return true;
+            } catch (e) {
+                visorView.toast('No se pudo guardar el boceto en la carpeta local', 'error');
+                return false;
+            }
+        }
         try {
             const form = new FormData();
             form.append('action',     'save');
