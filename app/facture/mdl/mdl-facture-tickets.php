@@ -88,6 +88,9 @@ class mdl extends CRUD {
         ";
     }
 
+    // El listado va por folio ascendente. folio es VARCHAR, asi que se ordena por
+    // su valor numerico: en texto el '9' cae despues del '10'. El folio en texto
+    // queda de desempate para lo que no sea numero.
     function listTicketsByDay($array) {
         $query = "
             SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax, s.total,
@@ -109,7 +112,7 @@ class mdl extends CRUD {
                     WHERE d.active = 1 AND d.sale_folio = s.folio
                       AND (d.waiter_code LIKE ? OR w.name LIKE ?)
               ))
-            ORDER BY s.operation_date ASC, s.id ASC
+            ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
         ";
         return $this->_Read($query, $array);
     }
@@ -152,6 +155,10 @@ class mdl extends CRUD {
     // Ventas del dia que piden ticket virtual y no lo tienen: son las que genera de
     // una sola vez el boton del modulo. El 0% es el caso: sin IVA trasladado el
     // ticket del POS no sirve para facturar.
+    //
+    // Va en el mismo orden que listTicketsByDay: aqui se reparten las notas, y si
+    // se repartieran en otro orden no coincidirian con el consecutivo que el
+    // listado ya le mostro al usuario.
     function listPendingZero($array) {
         $query = "
             SELECT s.folio
@@ -165,7 +172,7 @@ class mdl extends CRUD {
               AND (st.name IS NULL OR st.name <> 'FACTURADO')
               AND v.id IS NULL
               AND EXISTS ({$this->sinEfectivo()})
-            ORDER BY s.operation_date ASC
+            ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
         ";
         return $this->_Read($query, $array);
     }

@@ -8,10 +8,7 @@ $(async () => {
     await app.init();
 });
 
-// -- Clase principal --
-
 class App extends Templates {
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
@@ -40,8 +37,6 @@ class App extends Templates {
         ticketsView.renderPreview(null);
         tickets.lsTickets();
     }
-
-    // -- Layout --
 
     layout() {
         const mainPanel = {
@@ -148,8 +143,6 @@ class App extends Templates {
         });
     }
 
-    // -- Filter bar --
-
     filterBar() {
         const filters = [
             {
@@ -162,15 +155,7 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()'
             },
-            {
-                opc:         'input',
-                id:          'qBuscar',
-                lbl:         'Buscar:',
-                class:       'col-12 col-md-4 col-lg-3',
-                placeholder: 'Nota, ID o mesero...',
-                required:    false,
-                onkeyup:     'app.onChangeFilters()'
-            },
+         
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
@@ -220,8 +205,7 @@ class App extends Templates {
 
     getFilters() {
         return {
-            dia: $('#fDia').val()    || this.dataInit.dia,
-            q:   $('#qBuscar').val() || ''
+            dia: $('#fDia').val()    || this.dataInit.dia
         };
     }
 
@@ -308,7 +292,7 @@ class Tickets extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [1, 4, 5],
+            center:       [1, 2, 3,  4, 5],
             right:        [6],
             actionsAlign: 'right',
             extends:      true,
@@ -425,7 +409,7 @@ class TicketsView extends Templates {
                     { tone: 'success', label: 'Facturado (bloqueado)'   },
                     { tone: 'info',    label: 'Ticket generado'         },
                     { tone: 'warning', label: 'Requiere ticket virtual' },
-                    { tone: 'default', label: 'Pendiente de facturar'   }
+                    { tone: 'default', label: 'No facturado'   }
                 ]
             }
         });

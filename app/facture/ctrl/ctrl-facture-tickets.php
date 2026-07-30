@@ -108,7 +108,6 @@ class ctrl extends mdl {
             'id'     => $item['folio'],
             'Nota'   => notaCelda($item['note_number'], $orden),
             'Folio'  => '<span data-folio="' . $item['folio'] . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
-            'Mesero' => '<span class="text-gray-400">' . ($item['waiter_name'] ?: '-') . '</span>',
             'Tasa'   => badgeTasa($tasa),
             'Estado' => badgeEstado($item, $tasa),
             'Monto'  => '<span class="font-semibold text-white">' . money($item['total']) . '</span>',
@@ -433,7 +432,7 @@ function badgeEstado($item, $tasa) {
 
     if ($tasa == 0) return '<span class="badge-base b-yellow">Requiere ticket virtual</span>';
 
-    return '<span class="badge-base b-gray">Pendiente de facturar</span>';
+    return '<span class="badge-base b-gray">No facturado</span>';
 }
 
 function estadoTexto($item, $tasa) {
