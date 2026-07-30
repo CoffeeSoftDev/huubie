@@ -33,7 +33,6 @@
     <script src="/app/facture/src/js/sidebar-huubie.js?t=<?php echo time(); ?>"></script>
 
     <!-- Modulo Cargas -->
-    <script src="/app/facture/src/js/sample_cargas.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/cargas.js?t=<?php echo time(); ?>"></script>
 </body>
 

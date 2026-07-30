@@ -34,7 +34,6 @@
     <script src="/app/src/js/components/moduleCard.js?t=<?php echo time(); ?>"></script>
 
     <!-- Modulo Scripts -->
-    <script src="/app/facture/src/js/sample_facture.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/facture.js?t=<?php echo time(); ?>"></script>
 </body>
 

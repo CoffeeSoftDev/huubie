@@ -87,9 +87,15 @@
         // ── Preferencia de archivado ────────────────────────────────────────
         // Solo se guardan claves de lista (ruta relativa), nunca el contenido: el
         // todo.json es del proyecto y no debe llevar estado de interfaz dentro.
+        // En el servidor ya va por cuenta (prefs.sqlite); la copia local tambien
+        // lleva el id, para que dos cuentas en el mismo navegador no se mezclen.
+        localKey() {
+            return global.coffeeScopedKey ? global.coffeeScopedKey(PREF_KEY) : PREF_KEY;
+        }
+
         readArchived() {
             try {
-                const raw = localStorage.getItem(PREF_KEY);
+                const raw = localStorage.getItem(this.localKey());
                 const arr = raw ? JSON.parse(raw) : [];
                 return Array.isArray(arr) ? arr : [];
             } catch (e) { return []; }
@@ -97,7 +103,8 @@
 
         writeArchived() {
             const value = JSON.stringify(this.archived);
-            try { localStorage.setItem(PREF_KEY, value); } catch (e) {}
+            try { localStorage.setItem(this.localKey(), value); } catch (e) {}
+            // Al servidor va con la clave limpia: alli la cuenta la pone la sesion.
             if (global.CoffeePrefs) global.CoffeePrefs.push(PREF_KEY, value);
         }
 

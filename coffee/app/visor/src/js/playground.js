@@ -82,7 +82,12 @@ function pgMetaItems(meta) {
     return costItem + toksItem + warnItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
 }
 
-const PG_STORE_KEY  = 'playground:settings:v1';
+// Los ajustes son privados de la cuenta: la clave lleva su id para que dos
+// personas en el mismo navegador no se pisen el hilo abierto ni el tema.
+function pgScoped(key) {
+    return window.coffeeScopedKey ? window.coffeeScopedKey(key) : key;
+}
+const PG_STORE_KEY  = pgScoped('playground:settings:v1');
 
 // Revision del valor por DEFECTO del lienzo. Los ajustes guardados antes de que el
 // lienzo pasara a venir encendido traen canvasMode:false por el default viejo, no

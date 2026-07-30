@@ -1,6 +1,38 @@
 let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
 let app, tickets, ticketsView;
 
+// Copy del modulo. No son datos: tickets, emisor y renglones del ticket virtual
+// se consultan al servidor.
+const VIEW_HEADER_TICKETS = {
+    title:    'Tickets',
+    subtitle: 'Tickets virtuales del dia, de lo cobrado por banco. Lo pagado en efectivo no se muestra. Las notas se reinician cada dia',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+};
+
+const VIEW_FOOTER_TICKETS = {
+    info: '',
+    legends: [
+        { tone: 'success', label: 'Facturado (bloqueado)'   },
+        { tone: 'info',    label: 'Ticket generado'         },
+        { tone: 'warning', label: 'Requiere ticket virtual' },
+        { tone: 'default', label: 'Pendiente de facturar'   }
+    ]
+};
+
+// El papel no es un comprobante fiscal y lo dice al pie: es la leyenda impresa,
+// no un dato de la sucursal.
+const TICKET_LEYENDA = 'Este ticket no es un comprobante fiscal';
+
+const NOTA_TICKETS = 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Los puente se marcan en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.';
+
+// useFetch del framework resuelve por callback; aqui el modulo encadena con
+// await, asi que las llamadas pasan por este helper.
+const fnAjax = (data, url) => fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams(data)
+}).then(r => r.json());
+
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
     tickets     = new Tickets(apiTickets, 'root');
@@ -16,16 +48,12 @@ class App extends Templates {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
         this.selectedId   = null;
-        this.preparado    = null;
     }
 
+    // El dia lo resuelve el servidor: el Excel del POS se sube en diferido, asi que
+    // el modulo abre en el ultimo dia con cobros por banco. Con ?dia= entra a ese.
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'init' } })
-        this.dataInit = {
-            emisor: SAMPLE_TICKETS_EMISOR,
-            dia:    this.getParam('dia') || '2026-06-10'
-        };
-        this.selectedId = this.getIdFromUrl() || '4618312';
+        this.dataInit = await fnAjax({ opc: 'init', dia: this.getParam('dia') }, apiTickets);
 
         this.render();
     }
@@ -34,20 +62,15 @@ class App extends Templates {
         return new URLSearchParams(window.location.search).get(name) || '';
     }
 
-    getIdFromUrl() {
-        const id = this.getParam('id');
-        return id && SAMPLE_TICKETS_DB[id] ? id : null;
-    }
-
     render() {
         this.layout();
         this.filterBar();
         this.previewActions();
-        ticketsView.renderFooter(SAMPLE_VIEW_FOOTER_TICKETS);
+        ticketsView.renderFooter(VIEW_FOOTER_TICKETS);
         ticketsView.renderListNote();
         this.updateHeaderTitle();
+        ticketsView.renderPreview(null);
         tickets.lsTickets();
-        this.selectTicket(this.selectedId);
     }
 
     // -- Layout --
@@ -183,7 +206,7 @@ class App extends Templates {
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
-                text:      'Generar todos los 0%',
+                text:      'Generar los del 0%',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => tickets.generateAllZero()
@@ -210,10 +233,10 @@ class App extends Templates {
                 {
                     opc:       'button',
                     id:        'btnRegenerar',
-                    text:      'Regenerar',
+                    text:      'Generar',
                     color_btn: 'secondary',
                     class:     'col-6',
-                    onClick:   () => tickets.regenerate()
+                    onClick:   () => tickets.generate()
                 },
                 {
                     opc:       'button',
@@ -245,8 +268,10 @@ class App extends Templates {
         }
     }
 
-    isVisibleAfterFilters(id) {
-        return tickets.getRegistros().some(e => e.id === id);
+    // El listado ya viene filtrado del servidor: basta con ver si el folio
+    // seleccionado sobrevivio al repintado.
+    isVisibleAfterFilters(folio) {
+        return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
     }
 
     updateHeaderTitle() {
@@ -255,9 +280,10 @@ class App extends Templates {
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${SAMPLE_VIEW_HEADER_TICKETS.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
+        const fecha     = String(f.dia || '').split('-').reverse().join('/');
+        const titleHtml = `${VIEW_HEADER_TICKETS.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fecha)}</span>`;
 
-        ticketsView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_TICKETS, { titleHtml }));
+        ticketsView.renderHeader(Object.assign({}, VIEW_HEADER_TICKETS, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -266,29 +292,24 @@ class App extends Templates {
 
     // -- Facade --
 
-    selectTicket(id) {
-        this.selectedId = id;
+    // El papel se pide al servidor: si el ticket ya se genero llegan los renglones
+    // guardados y si no, la propuesta con la que se armaria.
+    async selectTicket(folio) {
+        this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
 
-        if (!id) {
-            this.preparado = null;
-            ticketsView.renderPreview(null, null);
+        if (!folio) return ticketsView.renderPreview(null);
+
+        $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
+
+        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
+
+        if (data.status !== 200) {
+            ticketsView.renderPreview(null, data.message);
             return;
         }
 
-        // La celda de nota lleva id `Nota_<id>`, generado por createCoffeeTable3.
-        $(`#Nota_${id}`).closest('tr').addClass('row-active');
-
-        const e = SAMPLE_TICKETS_DB[id];
-        if (!e) return;
-
-        e.generado     = true;
-        this.preparado = _prepararTicketVirtual(e);
-        ticketsView.renderPreview(e, this.preparado);
-    }
-
-    getPreparado() {
-        return this.preparado;
+        ticketsView.renderPreview(data.ticket);
     }
 }
 
@@ -303,86 +324,83 @@ class Tickets extends Templates {
 
     // -- Data --
 
-    getRegistros() {
-        const f = app.getFilters();
-        return Object.values(SAMPLE_TICKETS_DB).filter(e => {
-            if (e.metodo === 'Efectivo') return false;
-            if (f.dia && e.fecha !== f.dia) return false;
-            if (f.q) {
-                const hay = (e.id + ' #' + e.orden + ' ' + e.mesero).toLowerCase();
-                if (!hay.includes(f.q.toLowerCase())) return false;
-            }
-            return true;
-        });
-    }
-
-    lsTickets() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:Object.assign({ opc:'lsTickets' }, app.getFilters()) })
-        const registros = this.getRegistros();
-        const rows      = registros.map(_ticketRow);
+    // Columnas: 1 Nota, 2 Folio, 3 Mesero, 4 Tasa, 5 Estado, 6 Monto.
+    async lsTickets() {
+        const data = await fnAjax(Object.assign({ opc: 'lsTickets' }, app.getFilters()), apiTickets);
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [1, 3, 4],
-            right:        [5],
+            center:       [1, 4, 5],
+            right:        [6],
             actionsAlign: 'right',
             extends:      true,
             scrollable:   false,
-            striped:      true,
+            hover:        true,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No hay tickets con tarjeta para el dia seleccionado',
+            emptyMessage: 'No hay cobros por banco en el dia seleccionado',
             emptyIcon:    'ic-file-text',
-            data:         { row: rows }
+            data:         data
         });
 
         if (window.lucide) lucide.createIcons();
 
-        ticketsView.renderListHead({
-            bloqueados: registros.filter(e => e.fiscal === 'invoiced').length,
-            cero:       registros.filter(e => e.tasa === 0 && e.fiscal !== 'invoiced').length
-        });
+        const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0 };
 
-        app.updateFooterInfo(`Mostrando ${rows.length} ticket${rows.length !== 1 ? 's' : ''} sin efectivo`);
+        ticketsView.renderListHead(counts);
+
+        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
     }
 
     // -- Actions --
 
+    // Los del 0% son el trabajo del cierre: sin IVA trasladado el ticket del POS no
+    // sirve para facturar, asi que se les arma su ticket virtual de una pasada.
     generateAllZero() {
-        const pendientes = this.getRegistros().filter(e => e.tasa === 0 && e.fiscal !== 'invoiced');
-
-        if (!pendientes.length) {
-            this.alertBox({ type: 'message', title: 'No hay tickets con IVA 0% por generar' });
-            return;
-        }
-
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Generar tickets virtuales',
-                text:              `Se generaran ${pendientes.length} tickets virtuales del dia seleccionado.`,
+                text:              'Se generaran los tickets virtuales del dia que van al 0% y aun no tienen uno.',
                 icon:              'question',
                 confirmButtonText: 'Si, generar',
                 cancelButtonText:  'No'
             }
-        }).then((result) => {
+        }).then(async (result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'generateAllZero', dia:app.getFilters().dia } })
-            pendientes.forEach(e => { e.generado = true; });
-            this.lsTickets();
-            this.alertBox({ type: 'success', title: `${pendientes.length} tickets virtuales generados`, timer: 1600 });
+
+            const response = await fnAjax(Object.assign({ opc: 'generateAllZero' }, app.getFilters()), apiTickets);
+
+            this.afterGenerate(response, response.folio);
         });
     }
 
-    regenerate() {
+    // Genera (o vuelve a generar) el ticket seleccionado. Regenerar conserva su
+    // numero de nota: ya se entrego y no puede cambiar.
+    async generate() {
         if (!app.selectedId) {
             this.alertBox({ type: 'message', title: 'Selecciona un ticket de la lista' });
             return;
         }
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'regenerate', id:app.selectedId } })
-        app.selectTicket(app.selectedId);
+
+        const response = await fnAjax({ opc: 'generate', folio: app.selectedId }, apiTickets);
+
+        this.afterGenerate(response, app.selectedId);
+    }
+
+    afterGenerate(response, folio) {
+        if (response.status === 200) {
+            this.lsTickets();
+            if (folio) app.selectTicket(folio);
+        }
+
+        this.alertBox({
+            type:  response.status === 200 ? 'success' : 'error',
+            title: response.message,
+            timer: response.status === 200 ? 1800 : 0
+        });
     }
 
     printTicket() {
@@ -393,10 +411,12 @@ class Tickets extends Templates {
         window.print();
     }
 
-    lockedNotice(id) {
-        const e = SAMPLE_TICKETS_DB[id];
-        if (!e) return;
-        this.alertBox({ type: 'message', title: `El ticket ya esta facturado con el folio ${e.factura}` });
+    async lockedNotice(folio) {
+        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
+
+        if (data.status !== 200) return;
+
+        this.alertBox({ type: 'message', title: `El ticket ya esta facturado con el folio ${data.ticket.factura}` });
     }
 }
 
@@ -430,9 +450,7 @@ class TicketsView extends Templates {
     renderListNote() {
         this.noteBox({
             parent: 'listNote',
-            json: {
-                text: 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Si la combinacion excede el monto, se aplica un descuento para cuadrar.'
-            }
+            json:   { text: NOTA_TICKETS }
         });
     }
 
@@ -441,29 +459,37 @@ class TicketsView extends Templates {
             parent: 'listHead',
             json: {
                 icon:  'receipt',
-                title: 'Tickets del dia (sin efectivo)',
+                title: 'Tickets del dia cobrados por banco',
                 badges: [
-                    { text: `${counts.bloqueados} bloqueados`, tone: 'b-green'  },
+                    { text: `${counts.generados} generados`,   tone: 'b-blue'   },
+                    { text: `${counts.facturados} bloqueados`, tone: 'b-green'  },
                     { text: `${counts.cero} con IVA 0%`,       tone: 'b-yellow' }
                 ]
             }
         });
     }
 
-    renderPreview(ticket, preparado) {
+    // El aviso del pie explica el ticket que se esta viendo: cuando no se pudo
+    // armar (sin productos puente marcados) dice por que en vez de quedarse mudo.
+    renderPreview(ticket, motivo) {
         this.ticketPaper({
             parent: 'ticketPrintArea',
             json:   ticket,
-            data:   preparado,
-            emisor: SAMPLE_TICKETS_EMISOR
+            emisor: app.dataInit.emisor,
+            labels: { empty: motivo || 'Sin ticket seleccionado' }
         });
 
         this.panelHead({
             parent: 'detailHead',
             json: {
                 icon:   'printer',
-                title:  ticket ? `Ticket virtual · Nota #${ticket.orden}` : 'Ticket virtual',
-                badges: ticket ? [{ text: ticket.tasa === 0 ? 'IVA 0%' : 'IVA 16%', tone: ticket.tasa === 0 ? 'b-yellow' : 'b-terra' }] : []
+                title:  ticket ? `Ticket virtual · Nota ${ticket.nota}` : 'Ticket virtual',
+                badges: ticket
+                    ? [
+                        { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
+                        { text: ticket.generado ? 'guardado' : 'propuesta', tone: ticket.generado ? 'b-blue' : 'b-gray' }
+                      ]
+                    : []
             }
         });
 
@@ -472,23 +498,25 @@ class TicketsView extends Templates {
             class:  'text-[10px] text-gray-400 text-center',
             json: {
                 icon: '',
-                text: ticket && preparado
-                    ? `Productos puente: ${preparado.lineas.length} articulos suman ${_fmtMX(preparado.subtotal)}, descuento de ${_fmtMX(preparado.descuento)} para cuadrar los ${_fmtMX(ticket.total)} del ticket.`
-                    : 'Selecciona un ticket de la lista para armar su ticket virtual.'
+                text: ticket
+                    ? `${ticket.lineas.length} renglon(es) de productos puente suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
+                    : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });
     }
 
     // -- Components --
 
+    // El ticket llega con sus importes ya formateados por el servidor: el papel
+    // imprime, no calcula. Los renglones del encabezado que no traen dato (mesa o
+    // mesero sin comanda cargada) no se pintan vacios.
     ticketPaper(options) {
         const defaults = {
             parent: 'root',
             id:     'ticketPaper',
             class:  'ticket-paper',
             json:   null,
-            data:   null,
-            emisor: { razon: '', domicilio: '', telefono: '', terminal: '', leyenda: '' },
+            emisor: { razon: '', domicilio: '', telefono: '' },
             labels: { empty: 'Sin ticket seleccionado' }
         };
 
@@ -503,20 +531,21 @@ class TicketsView extends Templates {
 
         const wrap = $('<div>', { id: opts.id, class: opts.class });
 
-        if (!opts.json || !opts.data) {
+        if (!opts.json) {
             wrap.html(`<p class="text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
             $(`#${opts.parent}`).html(wrap);
             return;
         }
 
         const e = opts.json;
-        const d = opts.data;
         const m = opts.emisor;
 
-        const lineas = d.lineas.map(l => `
+        const row = (k, v) => v ? `<tr><td>${esc(k)}</td><td class="text-right">${esc(v)}</td></tr>` : '';
+
+        const lineas = (e.lineas || []).map(l => `
             <tr>
                 <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
-                <td style="text-align:right">${esc(_fmtMX(l.importe))}</td>
+                <td style="text-align:right">${esc(l.importe)}</td>
             </tr>
         `).join('');
 
@@ -528,11 +557,11 @@ class TicketsView extends Templates {
             </div>
             <div class="tk-sep"></div>
             <table>
-                <tr><td>NOTA:</td><td class="text-right font-bold">#${esc(e.orden)}</td></tr>
-                <tr><td>FECHA:</td><td class="text-right">${esc(_fmtFechaCorta(e.fecha))} 19:47</td></tr>
-                <tr><td>MESA:</td><td class="text-right">${esc(e.mesa)}</td></tr>
-                <tr><td>MESERO:</td><td class="text-right">${esc(e.mesero)}</td></tr>
-                <tr><td>TERMINAL:</td><td class="text-right">${esc(m.terminal)}</td></tr>
+                <tr><td>NOTA:</td><td class="text-right font-bold">${esc(e.nota)}</td></tr>
+                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
+                ${row('MESA:',   e.mesa)}
+                ${row('MESERO:', e.mesero)}
+                ${row('TICKET:', e.folio)}
             </table>
             <div class="tk-sep"></div>
             <table>
@@ -543,15 +572,15 @@ class TicketsView extends Templates {
             </table>
             <div class="tk-sep"></div>
             <table>
-                <tr><td>SUBTOTAL:</td><td class="text-right">${esc(_fmtMX(d.subtotal))}</td></tr>
-                <tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(_fmtMX(d.descuento))}</td></tr>
-                <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(_fmtMX(e.total))}</td></tr>
+                <tr><td>SUBTOTAL:</td><td class="text-right">${esc(e.subtotal)}</td></tr>
+                <tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(e.descuento)}</td></tr>
+                <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
             </table>
             <div class="tk-sep"></div>
             <div class="text-center">
                 <p>PAGO: ${esc(String(e.metodo).toUpperCase())}</p>
                 <p class="mt-1.5">GRACIAS POR SU VISITA</p>
-                <p class="mt-1.5 text-gray-400">${esc(m.leyenda)}</p>
+                <p class="mt-1.5 text-gray-400">${esc(TICKET_LEYENDA)}</p>
             </div>
         `);
 

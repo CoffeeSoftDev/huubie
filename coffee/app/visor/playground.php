@@ -543,6 +543,7 @@
 
     <div id="pgToast" class="visor-toast"></div>
 
+    <?php include __DIR__ . '/partials/user-context.php'; ?>
     <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>

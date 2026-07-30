@@ -39,6 +39,10 @@ class ctrl extends mdl {
         return $this->branch > 0 ? $this->branch : null;
     }
 
+    // Todo lo que el modulo necesita para pintarse sale del contrato del
+    // importador: que pestanas hay, que archivo espera cada una, que hojas se leen
+    // de el y los pasos del proceso. Asi lo que la pantalla promete y lo que el
+    // importador exige no pueden separarse.
     function init() {
         $anios = $this->lsAnios([$this->branchId()]);
 
@@ -47,11 +51,15 @@ class ctrl extends mdl {
         }
 
         $importador = new ImportFactureCargas($this);
+        $contrato   = $importador->contrato();
 
         return [
-            'meses' => mesesCatalogo(),
-            'anios' => $anios,
-            'hojas' => hojasContrato($importador->contrato())
+            'meses'    => mesesCatalogo(),
+            'anios'    => $anios,
+            'tabs'     => tabsContrato($contrato),
+            'archivos' => archivosContrato($contrato),
+            'hojas'    => hojasContrato($contrato),
+            'roadmap'  => roadmapContrato()
         ];
     }
 
@@ -324,6 +332,75 @@ function mesesCatalogo() {
 // La pestana a la que pertenece cada hoja del export.
 function sheetTab($contrato, $sheetName) {
     return isset($contrato[$sheetName]) ? $contrato[$sheetName]['tab'] : 'sales-report';
+}
+
+// Las pestanas del modulo: una por archivo del POS. El contrato agrupa sus hojas
+// por tab, asi que de ahi salen sin escribirlas dos veces.
+function tabsContrato($contrato) {
+    $meta = [
+        'sales-report' => ['tab' => 'Reporte de ventas', 'lucideIcon' => 'sheet'],
+        'commands'     => ['tab' => 'Comandas',          'lucideIcon' => 'utensils']
+    ];
+
+    $__row = [];
+    foreach ($contrato as $config) {
+        $tab = $config['tab'];
+        if (isset($__row[$tab])) continue;
+
+        $__row[$tab] = array_merge(['id' => $tab, 'tab' => $tab, 'lucideIcon' => 'sheet'], $meta[$tab] ?? []);
+    }
+
+    return array_values($__row);
+}
+
+// La fila de carga de cada pestana: que archivo se espera, con que nombre lo
+// exporta el POS y el patron con el que se avisa cuando el que se sube no
+// corresponde. El patron viaja como texto porque cruza en JSON; el JS lo arma.
+function archivosContrato($contrato) {
+    $archivos = [
+        'sales-report' => [
+            'titulo'    => 'Reporte de ventas',
+            'subtitulo' => 'Sube un solo archivo. El sistema carga primero la hoja "Pagos" (formas de pago) y despues "Reporte de ventas" (tickets), que las cruza por folio.',
+            'esperado'  => 'Reporte_De_Ventas_YYYYMMDD.xlsx',
+            'ejemplo'   => 'Reporte_De_Ventas_YYYYMMDD',
+            'patron'    => 'reporte|venta',
+            'formato'   => 'XLSX'
+        ],
+        'commands' => [
+            'titulo'    => 'Archivo de comandas',
+            'subtitulo' => 'Renglones del POS: que se consumio, mesa, mesero y tiempos. Da de alta los productos y meseros que el catalogo no conoce y liga cada renglon con su ticket.',
+            'esperado'  => 'comandas.xls',
+            'ejemplo'   => 'comandas',
+            'patron'    => 'comanda',
+            'formato'   => 'XLS'
+        ]
+    ];
+
+    $__row = [];
+    foreach ($contrato as $nombre => $config) {
+        $tab = $config['tab'];
+        if (isset($__row[$tab])) continue;
+
+        $__row[$tab] = array_merge(
+            ['id' => $tab, 'titulo' => $tab, 'esperado' => '', 'formato' => '', 'patron' => '.'],
+            $archivos[$tab] ?? [],
+            ['estado' => 'pendiente']
+        );
+    }
+
+    return $__row;
+}
+
+// Pasos del proceso de carga, en reposo. Son los mismos que devuelve uploadFile
+// cuando corre: el modulo los usa para mostrar el avance mientras el servidor
+// trabaja, y al responder se reemplazan por los reales.
+function roadmapContrato() {
+    return [
+        ['titulo' => 'Recibir archivo',  'estado' => 'pendiente', 'detalle' => 'Sube el Excel del periodo'],
+        ['titulo' => 'Detectar hojas',   'estado' => 'pendiente', 'detalle' => 'Se buscan las hojas del contrato'],
+        ['titulo' => 'Validar columnas', 'estado' => 'pendiente', 'detalle' => 'Se comparan contra el formato del POS'],
+        ['titulo' => 'Guardar en base',  'estado' => 'pendiente', 'detalle' => 'Un lote por hoja y sus cruces']
+    ];
 }
 
 // Las hojas que espera cada pestana salen del mismo contrato con el que se valida

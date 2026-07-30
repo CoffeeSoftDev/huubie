@@ -766,6 +766,7 @@
         </div>
     </div>
 
+    <?php include __DIR__ . '/partials/user-context.php'; ?>
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/sample_visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>

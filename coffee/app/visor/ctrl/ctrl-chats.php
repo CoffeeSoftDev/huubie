@@ -5,6 +5,11 @@
 //   list   -> lista las conversaciones (resumen, sin el cuerpo de mensajes)
 //   get    -> devuelve una conversacion completa por uid
 //   delete -> elimina una conversacion por uid
+//
+// El historial es PRIVADO de cada cuenta: el dueño sale de la sesion, no de lo que
+// mande el cliente, y toda consulta filtra por el. Un user_id en el POST se ignora.
+require_once __DIR__ . '/library-roots.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -55,6 +60,10 @@ try {
     chats_fail('No se pudo abrir la base de datos: ' . $e->getMessage(), 500);
 }
 
+// Dueño de todo lo que pase por aqui. Misma clave que la biblioteca de documentos,
+// para que una cuenta sea la misma cosa en todo el visor.
+$userId = coffee_visor_user_key();
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 try {
@@ -71,7 +80,6 @@ try {
             $title = mb_substr($title, 0, 160);
 
             $uid    = trim($_POST['uid'] ?? '');
-            $userId = trim($_POST['user_id'] ?? '');
             $model  = trim($_POST['model'] ?? '');
             $doc    = trim($_POST['doc'] ?? '');
             $app    = trim($_POST['app'] ?? '');   // modulo de origen: visor | coffeeia
@@ -81,12 +89,17 @@ try {
             // Re-serializar para normalizar/compactar lo recibido.
             $messages = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-            // ¿Existe ya? -> update; si no -> insert.
+            // ¿Existe ya? -> update; si no -> insert. El uid de otra cuenta no se
+            // toca: se responde 403 en vez de reescribirle la conversacion.
             $exists = false;
             if ($uid !== '') {
-                $chk = $pdo->prepare('SELECT 1 FROM chats WHERE uid = ?');
+                $chk = $pdo->prepare('SELECT user_id FROM chats WHERE uid = ?');
                 $chk->execute([$uid]);
-                $exists = (bool) $chk->fetchColumn();
+                $owner = $chk->fetchColumn();
+                if ($owner !== false) {
+                    if ((string) $owner !== $userId) chats_fail('Esa conversacion es de otra cuenta', 403);
+                    $exists = true;
+                }
             }
 
             if ($exists) {
@@ -97,9 +110,9 @@ try {
                        SET title = ?, user_id = ?, model = ?, doc = ?,
                            app = CASE WHEN ? = '' THEN app ELSE ? END,
                            messages = ?, msg_count = ?, updated_at = ?
-                     WHERE uid = ?
+                     WHERE uid = ? AND user_id = ?
                 ");
-                $st->execute([$title, $userId, $model, $doc, $app, $app, $messages, $count, $now, $uid]);
+                $st->execute([$title, $userId, $model, $doc, $app, $app, $messages, $count, $now, $uid, $userId]);
             } else {
                 if ($uid === '') $uid = 'chat_' . bin2hex(random_bytes(8));
                 $st = $pdo->prepare('
@@ -120,17 +133,15 @@ try {
 
         case 'list': {
             // Cada modulo lista SOLO sus conversaciones: el Visor y CoffeeIA comparten
-            // la tabla pero no el historial. Sin `app` se devuelve todo (compatibilidad).
-            $userId = trim($_POST['user_id'] ?? $_GET['user_id'] ?? '');
-            $app    = trim($_POST['app']     ?? $_GET['app']     ?? '');
+            // la tabla pero no el historial. Sin `app` se devuelven las de la cuenta
+            // en curso, de cualquier modulo.
+            $app = trim($_POST['app'] ?? $_GET['app'] ?? '');
 
-            $where  = [];
-            $params = [];
-            if ($userId !== '') { $where[] = 'user_id = ?'; $params[] = $userId; }
-            if ($app    !== '') { $where[] = 'app = ?';     $params[] = $app; }
+            $where  = ['user_id = ?'];
+            $params = [$userId];
+            if ($app !== '') { $where[] = 'app = ?'; $params[] = $app; }
             $sql = 'SELECT uid, title, user_id, model, doc, app, msg_count, created_at, updated_at
-                      FROM chats'
-                 . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
+                      FROM chats WHERE ' . implode(' AND ', $where)
                  . ' ORDER BY updated_at DESC LIMIT 200';
 
             $st = $pdo->prepare($sql);
@@ -145,8 +156,10 @@ try {
         case 'get': {
             $uid = trim($_POST['uid'] ?? $_GET['uid'] ?? '');
             if ($uid === '') chats_fail('Falta el uid');
-            $st = $pdo->prepare('SELECT * FROM chats WHERE uid = ?');
-            $st->execute([$uid]);
+            // El uid entra por la URL: sin el filtro por dueño, conocerlo bastaria
+            // para leer la conversacion de otra cuenta.
+            $st = $pdo->prepare('SELECT * FROM chats WHERE uid = ? AND user_id = ?');
+            $st->execute([$uid, $userId]);
             $row = $st->fetch(PDO::FETCH_ASSOC);
             if (!$row) chats_fail('Conversacion no encontrada', 404);
             $row['messages'] = json_decode($row['messages'], true) ?: [];
@@ -157,8 +170,8 @@ try {
         case 'delete': {
             $uid = trim($_POST['uid'] ?? '');
             if ($uid === '') chats_fail('Falta el uid');
-            $st = $pdo->prepare('DELETE FROM chats WHERE uid = ?');
-            $st->execute([$uid]);
+            $st = $pdo->prepare('DELETE FROM chats WHERE uid = ? AND user_id = ?');
+            $st->execute([$uid, $userId]);
             echo json_encode(['success' => true, 'deleted' => $st->rowCount()], JSON_UNESCAPED_UNICODE);
             break;
         }

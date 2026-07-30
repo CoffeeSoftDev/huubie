@@ -32,75 +32,132 @@ class ctrl extends mdl {
         return $this->branch > 0 ? $this->branch : null;
     }
 
+    // El dia no se elige solo: el Excel del POS se sube en diferido, asi que el
+    // modulo abre en el ultimo dia cargado. La meta es una politica de la casa
+    // (que parte de la venta se factura), no un dato de la base.
     function init() {
         $dias = $this->lsDias([$this->branchId()]);
+        $pide = $_POST['dia'] ?? '';
+        $dia  = '';
+
+        foreach ($dias as $item) {
+            if ($item['id'] === $pide) $dia = $pide;
+        }
 
         return [
             'dias' => $dias,
-            'dia'  => empty($dias) ? date('Y-m-d') : $dias[0]['id']
+            'dia'  => $dia ?: ($dias[0]['id'] ?? date('Y-m-d')),
+            'metas' => [
+                ['id' => '0.60', 'valor' => '60% de la venta'],
+                ['id' => '0.70', 'valor' => '70% de la venta'],
+                ['id' => '0.80', 'valor' => '80% de la venta'],
+                ['id' => '1.00', 'valor' => '100% de la venta']
+            ]
         ];
     }
 
     // -- Listados --
 
+    // Las tres tablas salen de la misma consulta del dia y se separan por lo que
+    // cada panel responde: el acumulado real, lo que falta por facturar (solo
+    // banco, porque el efectivo no se factura por esta via) y lo ya bloqueado.
+    //
+    // El orden es la posicion del ticket dentro del dia: el POS no numera las notas
+    // del dia, se cuentan al recorrerlas en orden de operacion.
     function lsTodos() {
-        return ['row' => $this->rowsDelDia(''), 'thead' => ''];
-    }
-
-    function lsPendientes() {
-        return ['row' => $this->rowsDelDia('VENCIDO'), 'thead' => ''];
-    }
-
-    function lsFacturados() {
-        return ['row' => $this->rowsDelDia('FACTURADO'), 'thead' => ''];
-    }
-
-    // Las tres pestanas comparten consulta y se separan por estado fiscal.
-    function rowsDelDia($estado) {
-        $dia = $_POST['dia'];
-
         $__row = [];
-        foreach ($this->listSaleByDay([$this->branchId(), $dia]) as $item) {
-            if ($estado !== '' && $item['status_name'] !== $estado) continue;
+        $orden = 0;
 
-            $facturado = $item['status_name'] === 'FACTURADO';
-
+        foreach ($this->ventasDelDia() as $item) {
+            $orden++;
             $__row[] = [
-                'id'      => $item['folio'],
-                'Folio'   => '<span class="font-semibold text-gray-300">' . $item['folio'] . '</span>',
-                'Hora'    => '<span class="text-gray-400">' . date('H:i', strtotime($item['operation_date'])) . '</span>',
-                'Metodo'  => '<span class="text-gray-400">' . ($item['method_name'] ?: 'Sin pago') . '</span>',
-                'Mesero'  => '<span class="text-gray-400">' . ($item['waiter_code'] ?: '-') . '</span>',
-                'Total'   => '<span class="font-semibold text-gray-300">$' . number_format($item['total'], 2) . '</span>',
-                'Factura' => $item['invoice_series'] ? '<span class="text-gray-400">' . $item['invoice_series'] . '</span>' : '<span class="cell-null">Sin factura</span>',
-                'Estado'  => fiscalBadge($facturado)
+                'id'             => $item['folio'],
+                'ID'             => cellId($item['folio']),
+                'Orden'          => cellOrden($orden),
+                'Forma de pago'  => badgeMetodo($item['method_name']),
+                'Monto'          => cellMonto($item['total'])
             ];
         }
 
-        return $__row;
+        return ['row' => $__row, 'thead' => ''];
     }
 
+    function lsPendientes() {
+        $__row = [];
+        $orden = 0;
+
+        foreach ($this->ventasDelDia() as $item) {
+            $orden++;
+            if (esFacturado($item['status_name'])) continue;
+            if (esEfectivo($item['method_name']))  continue;
+
+            $__row[] = [
+                'id'    => $item['folio'],
+                'Sel'   => checkPendiente($item['folio'], $item['total']),
+                'ID'    => cellId($item['folio']),
+                'Orden' => cellOrden($orden),
+                'Monto' => cellMonto($item['total'])
+            ];
+        }
+
+        return ['row' => $__row, 'thead' => ''];
+    }
+
+    function lsFacturados() {
+        $__row = [];
+        $orden = 0;
+
+        foreach ($this->ventasDelDia() as $item) {
+            $orden++;
+            if (!esFacturado($item['status_name'])) continue;
+
+            $__row[] = [
+                'id'    => $item['folio'],
+                'ID'    => cellId($item['folio']),
+                'Orden' => cellOrden($orden),
+                'Folio' => badgeFolio($item['invoice_series']),
+                'Monto' => cellMonto($item['total'])
+            ];
+        }
+
+        return ['row' => $__row, 'thead' => ''];
+    }
+
+    function ventasDelDia() {
+        return $this->listSaleByDay([$this->branchId(), $_POST['dia'] ?? date('Y-m-d')]);
+    }
+
+    // Todo lo que dicen las tarjetas, la barra de avance y los pies de los paneles.
+    // El avance se mide en dinero y no en tickets: la meta es facturar una parte de
+    // la venta del dia, no una cantidad de notas.
     function showKpis() {
-        $dia  = $_POST['dia'];
-        $meta = (float) $_POST['meta'];
+        $dia  = $_POST['dia'] ?? date('Y-m-d');
+        $meta = (float) ($_POST['meta'] ?? 0.7);
 
         $counts = $this->getSaleDayCounts([$this->branchId(), $dia]);
-        $c      = $counts[0];
+        $c      = $counts[0] ?? ['tickets' => 0, 'total' => 0, 'facturados' => 0, 'total_facturado' => 0];
 
-        $tickets    = (int) $c['tickets'];
-        $facturados = (int) $c['facturados'];
-        $avance     = $tickets > 0 ? round($facturados * 100 / $tickets, 1) : 0;
+        $total       = (float) $c['total'];
+        $facturado   = (float) $c['total_facturado'];
+        $objetivo    = $total * $meta;
+        $porFacturar = max(0, $objetivo - $facturado);
+        $avance      = $objetivo > 0 ? round($facturado * 100 / $objetivo, 1) : 0;
 
         return [
-            'status'          => 200,
-            'tickets'         => $tickets,
-            'total'           => (float) $c['total'],
-            'facturados'      => $facturados,
-            'total_facturado' => (float) $c['total_facturado'],
-            'pendientes'      => $tickets - $facturados,
-            'avance'          => $avance,
-            'meta'            => $meta * 100,
-            'cumple_meta'     => $avance >= ($meta * 100)
+            'status'           => 200,
+            'tickets'          => (int) $c['tickets'],
+            'bloqueados'       => (int) $c['facturados'],
+            'meta'             => $meta,
+            'metaPct'          => round($meta * 100),
+            'total'            => $total,
+            'totalTexto'       => money($total),
+            'objetivo'         => $objetivo,
+            'objetivoTexto'    => money($objetivo),
+            'facturado'        => $facturado,
+            'facturadoTexto'   => money($facturado),
+            'porFacturar'      => $porFacturar,
+            'porFacturarTexto' => money($porFacturar),
+            'avance'           => $avance
         ];
     }
 
@@ -149,10 +206,52 @@ class ctrl extends mdl {
 
 // Complements
 
-function fiscalBadge($facturado) {
-    return $facturado
-        ? '<span class="badge-base b-green">Facturado</span>'
-        : '<span class="badge-base b-yellow">Pendiente</span>';
+function money($valor) {
+    return '$' . number_format((float) $valor, 2);
+}
+
+function esFacturado($statusName) {
+    return strtoupper((string) $statusName) === 'FACTURADO';
+}
+
+// El efectivo no entra a la seleccion: no deja rastro bancario y no se factura
+// por esta via. Un ticket multipago trae las dos formas concatenadas, asi que se
+// pregunta si SOLO fue efectivo.
+function esEfectivo($metodo) {
+    return strtoupper(trim((string) $metodo)) === 'EFECTIVO';
+}
+
+function cellId($folio) {
+    return '<span class="font-mono text-[10px] text-gray-400">' . $folio . '</span>';
+}
+
+function cellOrden($orden) {
+    return '<span class="text-gray-400">' . $orden . '</span>';
+}
+
+function cellMonto($valor) {
+    return '<span class="font-semibold text-white">' . money($valor) . '</span>';
+}
+
+function badgeMetodo($metodo) {
+    if (!$metodo) return '<span class="cell-null">Sin pago</span>';
+
+    $tone = esEfectivo($metodo) ? 'b-green' : 'b-terra';
+    return '<span class="badge-base ' . $tone . '">' . $metodo . '</span>';
+}
+
+function badgeFolio($serie) {
+    if (!$serie) return '<span class="cell-null">Sin folio</span>';
+
+    return '<span class="badge-base b-terra">' . $serie . '</span>';
+}
+
+// El monto viaja en el checkbox: la suma de lo seleccionado se actualiza en el
+// cliente mientras se marca, sin volver a preguntar al servidor.
+function checkPendiente($folio, $total) {
+    return '<input type="checkbox" class="chk-pending w-4 h-4 rounded border-[#374151] accent-[#1C64F2]"'
+         . ' data-id="' . $folio . '" data-amount="' . (float) $total . '"'
+         . ' onchange="app.onTogglePendiente(this)">';
 }
 
 $obj = new ctrl();

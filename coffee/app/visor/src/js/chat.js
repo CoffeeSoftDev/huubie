@@ -694,7 +694,6 @@ async function chatSaveConversation(silent) {
     form.append('action', 'save');
     if (chat.currentUid) form.append('uid', chat.currentUid);
     form.append('title',    chat.currentTitle);
-    form.append('user_id',  '');
     form.append('model',    chat.model || '');
     form.append('doc',      chat.agentKey || '');
     form.append('messages', JSON.stringify(chat.history));

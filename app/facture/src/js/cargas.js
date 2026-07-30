@@ -1,6 +1,131 @@
 let apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
 let app, cargas, cargasView;
 
+// Copy de la cabecera del modulo. Lo demas (pestanas, archivo esperado, hojas y
+// pasos del proceso) lo manda el contrato del importador desde init().
+const VIEW_HEADER_CARGAS = {
+    title:    'Cargas mensuales',
+    subtitle: 'Sube los exports del POS en orden. Cada pestana indica el archivo exacto y las hojas que se leeran',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+};
+
+// Color e icono con que se reconoce cada hoja mientras no hay carga: el estado de
+// la carga los pisa despues.
+const HOJA_TONO = {
+    'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
+    'Reporte de ventas': { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
+    'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(245,158,11,0.12)]', iconClass: 'text-yellow-300' }
+};
+
+const HOJA_TONO_DEFAULT = { icon: 'sheet', bgClass: 'bg-[#1F2A37]', iconClass: 'text-gray-400' };
+
+// -- Helpers --
+
+// Ids de las pestanas de la tira. Son la llave de todo el segundo nivel: tabLayout
+// nombra su boton `tab-{id}` y su panel `container-{id}`, y de ahi cuelgan el
+// cuerpo y el pie de cada hoja.
+const logKey   = (tabId)  => `log-${tabId}`;
+const sheetKey = (loteId) => `sheet-${loteId}`;
+
+const hojaIcono = (nombre) => (HOJA_TONO[nombre] || HOJA_TONO_DEFAULT).icon;
+
+const miles = (n) => Number(n || 0).toLocaleString('en-US');
+const pesos = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
+
+// Esqueleto que tabLayout inyecta en el panel de cada pestana: la tabla arriba con
+// su scroll y el pie fijo abajo. min-w-0 en el cuerpo porque la hoja "Pagos" trae
+// 9 columnas y sin el se desborda fuera del panel en vez de scrollear dentro.
+//
+// La columna se arma en un wrapper con h-full y no en el contenedor del tab: ese
+// contenedor lleva `hidden` mientras la pestana esta cerrada, y darle display:flex
+// seria pelearse con el.
+const sheetShell = (id) => `
+    <div class="h-full flex flex-col">
+        <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
+        <div id="sheetFoot-${id}" class="flex-shrink-0"></div>
+    </div>
+`;
+
+const logFoot = (lotes) => {
+    const ls    = lotes || [];
+    const filas = ls.reduce((a, l) => a + Number(l.row_count || 0), 0);
+
+    if (!ls.length) {
+        return { text: 'El periodo no tiene cargas', note: 'Sube el Excel para que aparezcan sus hojas' };
+    }
+
+    return {
+        text: `<span class="text-gray-400 font-semibold">${ls.length}</span> lote(s) en el periodo · <span class="text-gray-400">${miles(filas)}</span> filas`,
+        note: 'Cada hoja abre en su propia pestana'
+    };
+};
+
+// Pie de una hoja cargada. Cuando el modelo trunca el listado lo dice: la pestana
+// anuncia el total del lote y la tabla trae menos filas que eso.
+const sheetFoot = (lote, data) => {
+    if (!lote) return { text: '' };
+
+    const total   = Number(data.total || 0);
+    const traidas = (data.row || []).length;
+    const parcial = traidas < total ? `<span class="text-gray-400">${miles(traidas)}</span> de ` : '';
+
+    return {
+        text: `${parcial}<span class="text-gray-400 font-semibold">${miles(total)}</span> filas ·
+               control <span class="text-gray-400">${pesos(lote.control_total)}</span> ·
+               ${lote.file_name} · ${lote.stamp}`,
+        badges: [{ text: `lote #${lote.id}`, tone: 'b-gray' }],
+        actions: [
+            {
+                class:   'btn-icon-danger',
+                icon:    'trash-2',
+                title:   'Eliminar esta carga',
+                onclick: `cargas.deleteCarga(${lote.id})`
+            }
+        ]
+    };
+};
+
+// Tarjeta de hoja del panel lateral. En reposo la hoja solo se anuncia con su
+// color; cuando uploadFile responde manda el estado y el color pasa a decir como
+// termino la carga.
+const hojaCard = (h) => {
+    const tono  = HOJA_TONO[h.nombre] || HOJA_TONO_DEFAULT;
+    const ok    = h.estado === 'ok';
+    const error = h.estado === 'error';
+
+    return {
+        icon:       tono.icon,
+        titulo:     h.nombre,
+        detalle:    h.detalle,
+        bgClass:    error ? 'bg-[rgba(239,68,68,0.12)]' : (ok ? 'bg-[rgba(16,185,129,0.12)]' : tono.bgClass),
+        iconClass:  error ? 'text-red-400' : (ok ? 'text-green-600' : tono.iconClass),
+        // Sin carga la tarjeta no puede decir "listo": lo que ofrece es abrirse
+        // para mostrar sus columnas.
+        rightIcon:  error ? 'x-circle' : (ok ? 'check-circle-2' : 'chevron-right'),
+        procesando: h.procesando,
+        avance:     h.avance === undefined && h.estado ? (ok ? 100 : 0) : h.avance
+    };
+};
+
+// Las hojas que devuelve la carga traen el resultado pero no el contrato: el
+// mapeo de columnas se conserva del que trajo init() para que la hoja siga
+// diciendo que se lee de ella.
+const hojasCargadas = (base, hojas) => hojas.map(h => Object.assign(
+    {}, (base || []).find(b => b.nombre === h.nombre) || {}, h
+));
+
+// El mapeo se pinta de la hoja que este seleccionada en el panel, por eso la
+// tabla se arma en el momento y no queda como constante.
+const columnasTable = (hoja) => ({
+    row: ((hoja && hoja.columnas) || []).map(c => ({
+        id:    c.letra,
+        Col:   cellColumna(c.letra),
+        Campo: `<span class="text-gray-400">${c.campo}</span>`
+    }))
+});
+
 // useFetch del framework resuelve por callback y no admite archivos; aqui se
 // necesita await en todo el modulo, asi que las llamadas pasan por este helper.
 const fnAjax = (data, url) => fetch(url, {
@@ -41,14 +166,8 @@ class App extends Templates {
     }
 
     async init() {
-        const data = await fnAjax({ opc: 'init' }, apiCargas);
-
-        this.dataInit = {
-            meses:    data.meses,
-            anios:    data.anios,
-            archivos: SAMPLE_CARGAS_ARCHIVOS,
-            hojas:    data.hojas || SAMPLE_CARGAS_HOJAS
-        };
+        this.dataInit = await fnAjax({ opc: 'init' }, apiCargas);
+        this.activeTab = this.dataInit.tabs[0].id;
 
         this.render();
     }
@@ -57,7 +176,7 @@ class App extends Templates {
         this.layout();
         this.filterBar();
         this.renderTabs();
-        cargasView.renderHeader(SAMPLE_VIEW_HEADER_CARGAS);
+        cargasView.renderHeader(VIEW_HEADER_CARGAS);
         this.renderActiveTab();
     }
 
@@ -241,7 +360,7 @@ class App extends Templates {
             showBorder:      false,
             renderContainer: true,
             content:         { class: 'flex-1 min-h-0 flex flex-col' },
-            json: SAMPLE_CARGAS_TABS.map(t => Object.assign({}, t, {
+            json: app.dataInit.tabs.map(t => Object.assign({}, t, {
                 active:  t.id === this.activeTab,
                 class:   'flex-1 min-h-0',
                 onClick: (id) => this.onChangeTab(id)
@@ -498,7 +617,7 @@ class Cargas extends Templates {
             border_row:   'border-0',
             emptyMessage: 'Selecciona una hoja para ver sus columnas',
             emptyIcon:    'ic-list',
-            data:         _columnasTable(hoja)
+            data:         columnasTable(hoja)
         });
     }
 
@@ -557,7 +676,7 @@ class Cargas extends Templates {
     startRoadmap() {
         this.stopRoadmap();
 
-        const pasos    = SAMPLE_CARGAS_ROADMAP;
+        const pasos    = app.dataInit.roadmap;
         this.pasoVivo  = 0;
 
         const pintar = () => cargasView.renderRoadmap(pasos.map((p, i) => Object.assign({}, p, {
@@ -584,7 +703,7 @@ class Cargas extends Templates {
     failRoadmap(detalle) {
         this.stopRoadmap();
 
-        cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP.map((p, i) => Object.assign({}, p, {
+        cargasView.renderRoadmap(app.dataInit.roadmap.map((p, i) => Object.assign({}, p, {
             estado:  i < this.pasoVivo ? 'ok' : (i === this.pasoVivo ? 'error' : 'pendiente'),
             detalle: i === this.pasoVivo ? detalle : p.detalle
         })));
@@ -600,9 +719,11 @@ class Cargas extends Templates {
         input.value = '';
         if (!file) return;
 
-        const esperado   = FACTURE_ARCHIVO_ESPERADO[tipo];
+        // El patron viaja como texto en el contrato: en JSON no cabe una expresion
+        // regular, asi que se arma aqui.
+        const archivo    = app.dataInit.archivos[tipo];
         const nombreBase = file.name.replace(/\.[^.]+$/, '');
-        const coincide   = esperado.patron.test(nombreBase);
+        const coincide   = new RegExp(archivo.patron, 'i').test(nombreBase);
 
         if (coincide) {
             this.confirmarPeriodo(file, tipo);
@@ -612,7 +733,7 @@ class Cargas extends Templates {
         alert({
             icon:     'question',
             title:    'El nombre del archivo no coincide',
-            html:     `El archivo <strong>${nombreBase}</strong> no parece el de <strong>${esperado.nombre}</strong> (se espera algo como <strong>${esperado.ejemplo}</strong>). ¿Deseas subirlo de todas formas?`,
+            html:     `El archivo <strong>${nombreBase}</strong> no parece el de <strong>${archivo.titulo}</strong> (se espera algo como <strong>${archivo.ejemplo}</strong>). ¿Deseas subirlo de todas formas?`,
             btn1:     true,
             btn1Text: 'Subir de todas formas',
             btn2:     true,
@@ -697,7 +818,7 @@ class Cargas extends Templates {
             // Sin hojas reconocidas las tarjetas vuelven a su estado de reposo: si
             // se quedaran con la barra en marcha dirian que siguen leyendose.
             app.renderHojas(tipo, (data.hojas && data.hojas.length)
-                ? _hojasCargadas(app.hojasTab(tipo), data.hojas)
+                ? hojasCargadas(app.hojasTab(tipo), data.hojas)
                 : null);
 
             if (data.steps) {
@@ -801,7 +922,7 @@ class CargasView extends Templates {
     renderHojas(rows, selected, onSelect) {
         this.detectList({
             parent:   'detailSheets',
-            json:     (rows || []).map(_hojaCard),
+            json:     (rows || []).map(hojaCard),
             selected: selected,
             onSelect: onSelect
         });

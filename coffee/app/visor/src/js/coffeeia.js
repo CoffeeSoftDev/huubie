@@ -1984,7 +1984,6 @@ async function ciaSaveConversation(silent) {
     form.append('action', 'save');
     if (CIA.currentUid) form.append('uid', CIA.currentUid);
     form.append('title',    CIA.currentTitle);
-    form.append('user_id',  '');
     form.append('model',    CIA.model || '');
     form.append('doc',      CIA.agentKey || '');   // el agente viaja en `doc`
     form.append('app',      'coffeeia');           // historial propio: no se mezcla con el Visor

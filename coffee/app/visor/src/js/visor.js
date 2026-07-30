@@ -8192,13 +8192,11 @@ class CoffeeIA {
     // hace saveConversation(). silent:true calla los toasts (autoguardado).
     async _persistChat(title, silent) {
         if (!this.history.length) return false;
-        const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
         try {
             const form = new FormData();
             form.append('action',   'save');
             if (this._currentChatUid) form.append('uid', this._currentChatUid);
             form.append('title',    title);
-            form.append('user_id',  userId);
             form.append('model',    this.model || '');
             form.append('doc',      (this._app && this._app.currentFile) || '');
             form.append('app',      'visor');   // historial propio: no se mezcla con CoffeeIA
@@ -8309,8 +8307,7 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
 
         try {
-            const userId = (this._app && this._app.currentUser) ? this._app.currentUser.id : '';
-            const url = this._apiChats + '?action=list&app=visor&user_id=' + encodeURIComponent(userId);
+            const url = this._apiChats + '?action=list&app=visor';
             const res  = await fetch(url, { cache: 'no-store' });
             const data = await res.json();
             if (!data.success) { $('#iaSavedList').html('<div class="ia-saved-empty">' + (data.message || 'Error al listar') + '</div>'); return; }

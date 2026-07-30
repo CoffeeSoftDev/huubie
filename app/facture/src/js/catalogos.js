@@ -1,6 +1,31 @@
 let apiCatalogos = '/app/facture/ctrl/ctrl-facture-catalogos.php';
 let app, catalogos, catalogosView;
 
+// Copy de la cabecera y del pie del modulo. No son datos: productos, meseros y
+// emisor se consultan al servidor.
+const VIEW_HEADER_CATALOGOS = {
+    title:    'Catalogos',
+    subtitle: 'Administra los productos que sirven de puente, los meseros y los datos del emisor del ticket virtual',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+};
+
+const VIEW_FOOTER_CATALOGOS = {
+    info: '',
+    legends: [
+        { tone: 'success', label: 'Producto puente' },
+        { tone: 'warning', label: 'Modificador'     },
+        { tone: 'default', label: 'Sin marcar'      }
+    ]
+};
+
+// useFetch del framework resuelve por callback; aqui el modulo encadena con
+// await, asi que las llamadas pasan por este helper.
+const fnAjax = (data, url) => fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams(data)
+}).then(r => r.json());
+
 $(async () => {
     catalogosView = new CatalogosView(apiCatalogos, 'root');
     catalogos     = new Catalogos(apiCatalogos, 'root');
@@ -18,12 +43,7 @@ class App extends Templates {
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:{ opc:'init' } })
-        this.dataInit = {
-            tipos:  SAMPLE_CATALOGOS_TIPOS,
-            sino:   SAMPLE_CATALOGOS_SINO,
-            emisor: SAMPLE_CATALOGOS_EMISOR
-        };
+        this.dataInit = await fnAjax({ opc: 'init' }, apiCatalogos);
 
         this.render();
     }
@@ -31,8 +51,8 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        catalogosView.renderHeader(SAMPLE_VIEW_HEADER_CATALOGOS);
-        catalogosView.renderFooter(SAMPLE_VIEW_FOOTER_CATALOGOS);
+        catalogosView.renderHeader(VIEW_HEADER_CATALOGOS);
+        catalogosView.renderFooter(VIEW_FOOTER_CATALOGOS);
         catalogosView.renderPanelHeads();
         catalogosView.renderEmisorForm(this.dataInit.emisor);
         catalogos.lsKpis();
@@ -221,27 +241,8 @@ class Catalogos extends Templates {
 
     // -- Data --
 
-    getProductos() {
-        const f = app.getFilters();
-        if (f.tipo === 'meseros') return [];
-        return Object.values(SAMPLE_CATALOGOS_PRODUCTOS_DB).filter(e => {
-            if (!f.q) return true;
-            return (e.code + ' ' + e.nombre).toLowerCase().includes(f.q.toLowerCase());
-        });
-    }
-
-    getMeseros() {
-        const f = app.getFilters();
-        if (f.tipo === 'productos') return [];
-        return Object.values(SAMPLE_CATALOGOS_MESEROS_DB).filter(e => {
-            if (!f.q) return true;
-            return (e.code + ' ' + e.nombre).toLowerCase().includes(f.q.toLowerCase());
-        });
-    }
-
-    lsProductos() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:Object.assign({ opc:'lsProductos' }, app.getFilters()) })
-        const rows = this.getProductos().map(_productoRow);
+    async lsProductos() {
+        const data = await fnAjax(Object.assign({ opc: 'lsProductos' }, app.getFilters()), apiCatalogos);
 
         this.createCoffeeTable3({
             parent:       'tableProductos',
@@ -255,19 +256,16 @@ class Catalogos extends Templates {
             striped:      true,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No se encontraron productos puente',
+            emptyMessage: 'No se encontraron productos',
             emptyIcon:    'ic-box',
-            data:         { row: rows }
+            data:         data
         });
 
         if (window.lucide) lucide.createIcons();
-
-        app.updateFooterInfo(`${rows.length} productos puente · ${this.getMeseros().length} meseros`);
     }
 
-    lsMeseros() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:Object.assign({ opc:'lsMeseros' }, app.getFilters()) })
-        const rows = this.getMeseros().map(_meseroRow);
+    async lsMeseros() {
+        const data = await fnAjax(Object.assign({ opc: 'lsMeseros' }, app.getFilters()), apiCatalogos);
 
         this.createCoffeeTable3({
             parent:       'tableMeseros',
@@ -282,16 +280,16 @@ class Catalogos extends Templates {
             border_table: 'border-0',
             emptyMessage: 'No se encontraron meseros',
             emptyIcon:    'ic-users',
-            data:         { row: rows }
+            data:         data
         });
 
         if (window.lucide) lucide.createIcons();
     }
 
-    lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:Object.assign({ opc:'showKpis' }, app.getFilters()) })
-        const productos = this.getProductos();
-        const meseros   = this.getMeseros();
+    // El pie del modulo se escribe con los mismos conteos de las tarjetas: es el
+    // resumen del catalogo con el filtro puesto.
+    async lsKpis() {
+        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiCatalogos);
 
         catalogosView.renderInfoCards([
             {
@@ -301,7 +299,7 @@ class Catalogos extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value: productos.length,
+                    value: kpis.productos,
                     color: 'text-white'
                 }
             },
@@ -312,7 +310,7 @@ class Catalogos extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value: productos.filter(p => p.puente).length,
+                    value: kpis.puente,
                     color: 'text-green-600'
                 }
             },
@@ -323,112 +321,107 @@ class Catalogos extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value: meseros.length,
+                    value: kpis.meseros,
                     color: 'text-white'
                 }
             },
             {
                 id:          'kpiPrecio',
-                title:       'Suma de precios',
+                title:       'Suma de puentes',
                 lucideIcon:  'banknote',
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value: _fmtMX(productos.reduce((s, p) => s + Number(p.precio || 0), 0)),
+                    value: kpis.sumaPuente,
                     color: 'text-[#1C64F2]'
                 }
             }
         ]);
+
+        app.updateFooterInfo(`${kpis.productos} productos (${kpis.puente} puente · ${kpis.modificadores} modificadores) · ${kpis.meseros} meseros`);
     }
 
     // -- Actions --
 
-    saveProducto(code, data) {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:Object.assign({ opc:code ? 'editProducto' : 'addProducto' }, data) })
-        const payload = {
-            code:        data.code,
-            nombre:      data.nombre,
-            precio:      parseFloat(data.precio || '0'),
-            puente:      parseInt(data.puente || '0', 10),
-            modificador: parseInt(data.modificador || '0', 10)
-        };
+    // La clave anterior viaja aparte: es la que localiza la fila cuando la edicion
+    // cambia la clave del POS, y sin ella se daria de alta un producto nuevo.
+    async saveProducto(code, data) {
+        const response = await fnAjax(Object.assign({ opc: 'saveProducto', previo: code || '' }, data), apiCatalogos);
 
-        if (code && code !== payload.code) delete SAMPLE_CATALOGOS_PRODUCTOS_DB[code];
-        SAMPLE_CATALOGOS_PRODUCTOS_DB[payload.code] = payload;
-
-        this.lsProductos();
-        this.lsKpis();
-        this.alertBox({ type: 'success', title: 'Producto puente guardado', timer: 1600 });
+        this.afterSave(response);
     }
 
-    saveMesero(code, data) {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:Object.assign({ opc:code ? 'editMesero' : 'addMesero' }, data) })
-        const payload = {
-            code:   data.code,
-            nombre: data.nombre
-        };
+    async saveMesero(code, data) {
+        const response = await fnAjax(Object.assign({ opc: 'saveMesero', previo: code || '' }, data), apiCatalogos);
 
-        if (code && code !== payload.code) delete SAMPLE_CATALOGOS_MESEROS_DB[code];
-        SAMPLE_CATALOGOS_MESEROS_DB[payload.code] = payload;
-
-        this.lsMeseros();
-        this.lsKpis();
-        this.alertBox({ type: 'success', title: 'Mesero guardado', timer: 1600 });
+        this.afterSave(response);
     }
 
-    saveEmisor() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:{ opc:'saveEmisor', ...payload } })
-        app.dataInit.emisor = {
+    async saveEmisor() {
+        const response = await fnAjax({
+            opc:       'saveEmisor',
             razon:     $('#razon').val(),
             rfc:       $('#rfc').val(),
             telefono:  $('#telefono').val(),
-            lugar:     $('#lugar').val(),
             domicilio: $('#domicilio').val()
-        };
-        this.alertBox({ type: 'success', title: 'Datos del emisor actualizados', timer: 1600 });
+        }, apiCatalogos);
+
+        if (response.status === 200) app.dataInit.emisor = response.emisor;
+
+        this.alertBox({
+            type:  response.status === 200 ? 'success' : 'error',
+            title: response.message,
+            timer: response.status === 200 ? 1600 : 0
+        });
+    }
+
+    // Las dos tablas y las tarjetas se releen juntas: un producto marcado como
+    // puente cambia tambien el conteo del pie.
+    afterSave(response) {
+        if (response.status === 200) {
+            this.lsProductos();
+            this.lsMeseros();
+            this.lsKpis();
+        }
+
+        this.alertBox({
+            type:  response.status === 200 ? 'success' : 'error',
+            title: response.message,
+            timer: response.status === 200 ? 1600 : 0
+        });
     }
 
     deleteProducto(code) {
-        const e = SAMPLE_CATALOGOS_PRODUCTOS_DB[code];
-        if (!e) return;
-
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Dar de baja el producto',
-                text:              `Se retirara "${e.nombre}" del catalogo de productos puente.`,
+                text:              `Se retirara la clave ${code} del catalogo. Los renglones ya cargados la conservan.`,
                 icon:              'warning',
                 confirmButtonText: 'Si, dar de baja',
                 cancelButtonText:  'No'
             }
-        }).then((result) => {
+        }).then(async (result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:{ opc:'deleteProducto', code:code } })
-            delete SAMPLE_CATALOGOS_PRODUCTOS_DB[code];
-            this.lsProductos();
-            this.lsKpis();
+
+            this.afterSave(await fnAjax({ opc: 'deleteProducto', code: code }, apiCatalogos));
         });
     }
 
     deleteMesero(code) {
-        const e = SAMPLE_CATALOGOS_MESEROS_DB[code];
-        if (!e) return;
-
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Dar de baja el mesero',
-                text:              `Se retirara "${e.nombre}" del catalogo de meseros.`,
+                text:              `Se retirara la clave ${code} del catalogo de meseros.`,
                 icon:              'warning',
                 confirmButtonText: 'Si, dar de baja',
                 cancelButtonText:  'No'
             }
-        }).then((result) => {
+        }).then(async (result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiCatalogos, data:{ opc:'deleteMesero', code:code } })
-            delete SAMPLE_CATALOGOS_MESEROS_DB[code];
-            this.lsMeseros();
-            this.lsKpis();
+
+            this.afterSave(await fnAjax({ opc: 'deleteMesero', code: code }, apiCatalogos));
         });
     }
 }
@@ -537,13 +530,6 @@ class CatalogosView extends Templates {
             },
             {
                 opc:   'input',
-                id:    'lugar',
-                lbl:   'Lugar de expedicion',
-                tipo:  'texto',
-                class: 'col-12 mb-3'
-            },
-            {
-                opc:   'input',
                 id:    'domicilio',
                 lbl:   'Domicilio fiscal',
                 tipo:  'texto',
@@ -589,7 +575,7 @@ class CatalogosView extends Templates {
                 lbl:      'Es producto puente',
                 class:    'col-12 col-md-4 mb-3',
                 required: false,
-                data:     SAMPLE_CATALOGOS_SINO
+                data:     app.dataInit.sino
             },
             {
                 opc:      'select',
@@ -597,7 +583,7 @@ class CatalogosView extends Templates {
                 lbl:      'Es modificador',
                 class:    'col-12 col-md-4 mb-3',
                 required: false,
-                data:     SAMPLE_CATALOGOS_SINO
+                data:     app.dataInit.sino
             }
         ];
     }
@@ -621,30 +607,33 @@ class CatalogosView extends Templates {
         ];
     }
 
-    openProductoForm(code) {
-        const producto = code ? SAMPLE_CATALOGOS_PRODUCTOS_DB[code] : null;
+    // El registro se pide al servidor y no se guarda una copia en el cliente: la
+    // tabla ya viene armada como HTML, asi que el formulario necesita los campos
+    // en crudo y esos solo los tiene la consulta.
+    async openProductoForm(code) {
+        const data     = code ? await fnAjax({ opc: 'getProducto', code: code }, apiCatalogos) : {};
+        const producto = data.producto || null;
 
-        // MODO FAKE: si hubiera backend -> this.createModalForm({ coffeesoft:true, data:{ opc:code ? 'editProducto' : 'addProducto' } }) y el componente hace el POST
         this.formModal({
             id:       'frmProducto',
-            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto puente',
+            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto',
             autofill: producto || false,
             json:     this.jsonProducto(),
-            onSave:   (data) => catalogos.saveProducto(code || '', data)
+            onSave:   (form) => catalogos.saveProducto(code || '', form)
         });
     }
 
-    openMeseroForm(code) {
-        const mesero = code ? SAMPLE_CATALOGOS_MESEROS_DB[code] : null;
+    async openMeseroForm(code) {
+        const data   = code ? await fnAjax({ opc: 'getMesero', code: code }, apiCatalogos) : {};
+        const mesero = data.mesero || null;
 
-        // MODO FAKE: si hubiera backend -> this.createModalForm({ coffeesoft:true, data:{ opc:code ? 'editMesero' : 'addMesero' } }) y el componente hace el POST
         this.formModal({
             id:       'frmMesero',
             title:    mesero ? `Editar ${mesero.nombre}` : 'Nuevo mesero',
             size:     'default',
             autofill: mesero || false,
             json:     this.jsonMesero(),
-            onSave:   (data) => catalogos.saveMesero(code || '', data)
+            onSave:   (form) => catalogos.saveMesero(code || '', form)
         });
     }
 

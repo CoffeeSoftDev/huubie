@@ -1,6 +1,42 @@
 let apiFacture = '/app/facture/ctrl/ctrl-facture.php';
 let facture;
 
+// Las etapas del proceso fiscal, en el orden en que se recorren. Es la navegacion
+// del hub, no datos: cada modulo abre en el ultimo periodo que tiene cargado, que
+// resuelve su propio init().
+const FACTURE_MODULOS = [
+    {
+        titulo:      'Resumen',
+        descripcion: 'Resumen del dia: venta total, meta de facturacion, facturado y por facturar',
+        icon:        'layout-dashboard',
+        enlace:      '/app/facture/resumen.php'
+    },
+    {
+        titulo:      'Cargas',
+        descripcion: 'Carga mensual de los exports del POS: reporte de ventas, pagos y comandas',
+        icon:        'upload-cloud',
+        enlace:      '/app/facture/cargas.php'
+    },
+    {
+        titulo:      'Ventas',
+        descripcion: 'Explorador de ventas y pagos con su estado fiscal, tasa y factura asociada',
+        icon:        'receipt',
+        enlace:      '/app/facture/ventas.php'
+    },
+    {
+        titulo:      'Tickets',
+        descripcion: 'Tickets virtuales con productos puente para lo cobrado por banco',
+        icon:        'printer',
+        enlace:      '/app/facture/tickets.php'
+    },
+    {
+        titulo:      'Catalogos',
+        descripcion: 'Productos puente, meseros y datos del emisor que aparecen en el ticket virtual',
+        icon:        'library',
+        enlace:      '/app/facture/catalogos.php'
+    }
+];
+
 $(() => {
     facture = new Facture(apiFacture, 'mainContainer');
     facture.init();
@@ -25,7 +61,7 @@ class Facture extends Templates {
                 title:    `¡${this.greeting()}, ${FACTURE_USER.name}! 👋`,
                 subtitle: 'Cada etapa del proceso fiscal es un modulo independiente. Elige por donde empezar.',
             },
-            cards:  SAMPLE_MODULOS_CARDS,
+            cards:  FACTURE_MODULOS,
         }).init();
     }
 

@@ -33,7 +33,6 @@
     <script src="/app/facture/src/js/sidebar-huubie.js?t=<?php echo time(); ?>"></script>
 
     <!-- Modulo Ventas -->
-    <script src="/app/facture/src/js/sample_ventas.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/ventas.js?t=<?php echo time(); ?>"></script>
 </body>
 

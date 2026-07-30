@@ -70,7 +70,12 @@ function pgMetaItems(meta) {
     return costItem + toksItem + `<span class="meta-item">Time: <strong>${elapsedSec}</strong></span>`;
 }
 
-const PG_STORE_KEY  = 'forge:settings:v1';   // copia aislada — no comparte ajustes con el Playground
+// Los ajustes son privados de la cuenta: la clave lleva su id para que dos
+// personas en el mismo navegador no se pisen el hilo abierto ni el tema.
+function pgScoped(key) {
+    return window.coffeeScopedKey ? window.coffeeScopedKey(key) : key;
+}
+const PG_STORE_KEY  = pgScoped('forge:settings:v1');   // copia aislada — no comparte ajustes con el Playground
 
 // Agentes que el playground sabe presentar. `render` define como interpretar
 // la salida en el sandbox: 'html' (renderiza), 'code' (modulo), 'markdown' (doc).

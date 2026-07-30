@@ -5,12 +5,17 @@
 // `templates` (renders del sandbox) y un `meta` (tema/agente/canvas) para poder
 // restaurar el estado completo del hilo y seguir iterando.
 //
+// Los hilos son PRIVADOS de cada cuenta: el dueño sale de la sesion, no de lo que
+// mande el cliente, y toda consulta filtra por el. Un user_id en el POST se ignora.
+//
 // Acciones via POST FormData (campo `action`):
 //   save   -> inserta o actualiza un hilo (upsert por uid)
 //   list   -> lista los hilos (resumen, SIN messages/templates pesados)
 //   get    -> devuelve un hilo completo por uid
 //   rename -> cambia SOLO el titulo de un hilo por uid (no toca messages/templates)
 //   delete -> elimina un hilo por uid
+require_once __DIR__ . '/library-roots.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -60,6 +65,10 @@ try {
     pgt_fail('No se pudo abrir la base de datos: ' . $e->getMessage(), 500);
 }
 
+// Dueño de todo lo que pase por aqui. Misma clave que la biblioteca de documentos,
+// para que una cuenta sea la misma cosa en todo el visor.
+$userId = coffee_visor_user_key();
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 try {
@@ -84,7 +93,6 @@ try {
             $title = mb_substr($title, 0, 160);
 
             $uid    = trim($_POST['uid'] ?? '');
-            $userId = trim($_POST['user_id'] ?? '');
             $model  = trim($_POST['model'] ?? '');
             $count  = count($decoded);
             $tcount = count($tplDec);
@@ -95,12 +103,17 @@ try {
             $templates = json_encode($tplDec,  JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $meta      = json_encode($metaDec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-            // ¿Existe ya? -> update; si no -> insert.
+            // ¿Existe ya? -> update; si no -> insert. El uid de otra cuenta no se
+            // toca: se responde 403 en vez de reescribirle el hilo.
             $exists = false;
             if ($uid !== '') {
-                $chk = $pdo->prepare('SELECT 1 FROM threads WHERE uid = ?');
+                $chk = $pdo->prepare('SELECT user_id FROM threads WHERE uid = ?');
                 $chk->execute([$uid]);
-                $exists = (bool) $chk->fetchColumn();
+                $owner = $chk->fetchColumn();
+                if ($owner !== false) {
+                    if ((string) $owner !== $userId) pgt_fail('Ese hilo es de otra cuenta', 403);
+                    $exists = true;
+                }
             }
 
             if ($exists) {
@@ -108,9 +121,9 @@ try {
                     UPDATE threads
                        SET title = ?, user_id = ?, model = ?, meta = ?,
                            messages = ?, templates = ?, msg_count = ?, tpl_count = ?, updated_at = ?
-                     WHERE uid = ?
+                     WHERE uid = ? AND user_id = ?
                 ');
-                $st->execute([$title, $userId, $model, $meta, $messages, $templates, $count, $tcount, $now, $uid]);
+                $st->execute([$title, $userId, $model, $meta, $messages, $templates, $count, $tcount, $now, $uid, $userId]);
             } else {
                 if ($uid === '') $uid = 'th_' . bin2hex(random_bytes(8));
                 $st = $pdo->prepare('
@@ -136,13 +149,8 @@ try {
             $withThumb = !empty($_GET['thumb']) || !empty($_POST['thumb']);
             $cols = 'uid, title, user_id, model, msg_count, tpl_count, created_at, updated_at'
                   . ($withThumb ? ', templates' : '');
-            $userId = trim($_POST['user_id'] ?? $_GET['user_id'] ?? '');
-            if ($userId !== '') {
-                $st = $pdo->prepare("SELECT $cols FROM threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT 200");
-                $st->execute([$userId]);
-            } else {
-                $st = $pdo->query("SELECT $cols FROM threads ORDER BY updated_at DESC LIMIT 200");
-            }
+            $st = $pdo->prepare("SELECT $cols FROM threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT 200");
+            $st->execute([$userId]);
             $rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
             if ($withThumb) {
@@ -176,8 +184,10 @@ try {
         case 'get': {
             $uid = trim($_POST['uid'] ?? $_GET['uid'] ?? '');
             if ($uid === '') pgt_fail('Falta el uid');
-            $st = $pdo->prepare('SELECT * FROM threads WHERE uid = ?');
-            $st->execute([$uid]);
+            // El uid entra por la URL: sin el filtro por dueño, conocerlo bastaria
+            // para leer el hilo de otra cuenta.
+            $st = $pdo->prepare('SELECT * FROM threads WHERE uid = ? AND user_id = ?');
+            $st->execute([$uid, $userId]);
             $row = $st->fetch(PDO::FETCH_ASSOC);
             if (!$row) pgt_fail('Hilo no encontrado', 404);
             $row['messages']  = json_decode($row['messages'], true)  ?: [];
@@ -194,8 +204,8 @@ try {
             if ($title === '') pgt_fail('El título no puede estar vacío');
             $title = mb_substr($title, 0, 160);
             $now   = date('Y-m-d H:i:s');
-            $st = $pdo->prepare('UPDATE threads SET title = ?, updated_at = ? WHERE uid = ?');
-            $st->execute([$title, $now, $uid]);
+            $st = $pdo->prepare('UPDATE threads SET title = ?, updated_at = ? WHERE uid = ? AND user_id = ?');
+            $st->execute([$title, $now, $uid, $userId]);
             if ($st->rowCount() === 0) pgt_fail('Hilo no encontrado', 404);
             echo json_encode([
                 'success'    => true,
@@ -209,8 +219,8 @@ try {
         case 'delete': {
             $uid = trim($_POST['uid'] ?? '');
             if ($uid === '') pgt_fail('Falta el uid');
-            $st = $pdo->prepare('DELETE FROM threads WHERE uid = ?');
-            $st->execute([$uid]);
+            $st = $pdo->prepare('DELETE FROM threads WHERE uid = ? AND user_id = ?');
+            $st->execute([$uid, $userId]);
             echo json_encode(['success' => true, 'deleted' => $st->rowCount()], JSON_UNESCAPED_UNICODE);
             break;
         }

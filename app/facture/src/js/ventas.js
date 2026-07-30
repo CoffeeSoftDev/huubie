@@ -1,6 +1,14 @@
 let apiVentas = '/app/facture/ctrl/ctrl-facture-ventas.php';
 let app, ventas, ventasView;
 
+// Copy de la cabecera del modulo. No son datos: ventas, KPIs, formas de pago,
+// estados y periodo se consultan al servidor.
+const VIEW_HEADER_VENTAS = {
+    title:    'Ventas y pagos',
+    subtitle: 'Explora las ventas, sus pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+};
+
 // useFetch del framework resuelve por callback; aqui el modulo encadena con
 // await, asi que las llamadas pasan por este helper.
 const fnAjax = (data, url) => fetch(url, {
@@ -53,7 +61,7 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        ventasView.renderHeader(SAMPLE_VIEW_HEADER_VENTAS);
+        ventasView.renderHeader(VIEW_HEADER_VENTAS);
         ventasView.renderDetail(null);
         ventas.lsKpis();
         ventas.lsVentas();

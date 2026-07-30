@@ -1,6 +1,43 @@
 let apiResumen = '/app/facture/ctrl/ctrl-facture-resumen.php';
 let app, resumen, resumenView;
 
+// Copy del modulo. No son datos: ventas, montos y avance se consultan al servidor.
+const VIEW_HEADER_RESUMEN = {
+    title:    'Resumen del dia',
+    subtitle: 'Avance de la meta de facturacion del dia: cuanto se vendio, cuanto se facturo y cuanto falta',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+};
+
+const VIEW_FOOTER_RESUMEN = {
+    info: '',
+    legends: [
+        { tone: 'success', label: 'Facturado'    },
+        { tone: 'warning', label: 'Por facturar' },
+        { tone: 'purple',  label: 'Efectivo'     },
+        { tone: 'info',    label: 'Banco'        }
+    ]
+};
+
+// El unico formato que se arma en el cliente: la suma de lo que se va marcando.
+// El resto de los montos llegan ya escritos del servidor.
+const pesos = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+const fechaLarga = (iso) => {
+    const parts = String(iso || '').split('-');
+    if (parts.length !== 3) return iso || '';
+    return `${parseInt(parts[2], 10)} de ${MESES_ES[parseInt(parts[1], 10) - 1]} de ${parts[0]}`;
+};
+
+// useFetch del framework resuelve por callback; aqui el modulo encadena con
+// await, asi que las llamadas pasan por este helper.
+const fnAjax = (data, url) => fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams(data)
+}).then(r => r.json());
+
 $(async () => {
     resumenView = new ResumenView(apiResumen, 'root');
     resumen     = new Resumen(apiResumen, 'root');
@@ -18,14 +55,11 @@ class App extends Templates {
         this.seleccion    = [];
     }
 
+    // El dia lo resuelve el servidor con el ultimo que tiene ventas cargadas; con
+    // ?dia= entra a ese si existe. Nada se preselecciona: marcar los tickets que se
+    // van a facturar es la decision del cierre.
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:{ opc:'init' } })
-        this.dataInit = {
-            periodos: SAMPLE_RESUMEN_PERIODOS,
-            metas:    SAMPLE_RESUMEN_METAS,
-            dia:      this.getDiaFromUrl() || '2026-06-10'
-        };
-        this.seleccion = SAMPLE_RESUMEN_PRESELECCION.slice();
+        this.dataInit = await fnAjax({ opc: 'init', dia: this.getDiaFromUrl() }, apiResumen);
 
         this.render();
     }
@@ -37,14 +71,13 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        resumenView.renderFooter(SAMPLE_VIEW_FOOTER_RESUMEN);
+        resumenView.renderFooter(VIEW_FOOTER_RESUMEN);
         resumenView.renderPanelHeads();
         this.updateHeaderTitle();
         resumen.lsKpis();
         resumen.lsTodos();
         resumen.lsPendientes();
         resumen.lsFacturados();
-        resumen.refreshTotales();
     }
 
     // -- Layout --
@@ -182,16 +215,6 @@ class App extends Templates {
             },
             {
                 opc:      'select',
-                id:       'fPeriodo',
-                lbl:      'Periodo:',
-                class:    'col-12 col-md-4 col-lg-3',
-                value:    '2026-06',
-                required: false,
-                onchange: 'app.onChangeFilters()',
-                data:     this.dataInit.periodos
-            },
-            {
-                opc:      'select',
                 id:       'fMeta',
                 lbl:      'Meta de facturacion:',
                 class:    'col-12 col-md-4 col-lg-3',
@@ -220,21 +243,22 @@ class App extends Templates {
 
     getFilters() {
         return {
-            dia:     $('#fDia').val()     || this.dataInit.dia,
-            periodo: $('#fPeriodo').val() || '',
-            meta:    parseFloat($('#fMeta').val() || '0.70')
+            dia:  $('#fDia').val() || this.dataInit.dia,
+            meta: parseFloat($('#fMeta').val() || '0.70')
         };
     }
 
     // -- Event handlers --
 
+    // Cambiar de dia vacia la seleccion: los folios marcados eran de otro dia.
     onChangeFilters() {
+        this.seleccion = [];
+
         this.updateHeaderTitle();
         resumen.lsKpis();
         resumen.lsTodos();
         resumen.lsPendientes();
         resumen.lsFacturados();
-        resumen.refreshTotales();
     }
 
     onTogglePendiente(input) {
@@ -249,7 +273,6 @@ class App extends Templates {
 
     recalcular() {
         resumen.lsKpis();
-        resumen.refreshTotales();
         this.alertBox({ type: 'success', title: 'Indicadores recalculados', timer: 1600 });
     }
 
@@ -259,9 +282,9 @@ class App extends Templates {
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${SAMPLE_VIEW_HEADER_RESUMEN.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(_fmtFechaLarga(f.dia))}</span>`;
+        const titleHtml = `${VIEW_HEADER_RESUMEN.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fechaLarga(f.dia))}</span>`;
 
-        resumenView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_RESUMEN, { titleHtml }));
+        resumenView.renderHeader(Object.assign({}, VIEW_HEADER_RESUMEN, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -286,14 +309,8 @@ class Resumen extends Templates {
 
     // -- Data --
 
-    getRegistros() {
-        const f = app.getFilters();
-        return Object.values(SAMPLE_RESUMEN_DB).filter(e => !f.dia || e.fecha === f.dia);
-    }
-
-    lsTodos() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:Object.assign({ opc:'lsTodos' }, app.getFilters()) })
-        const rows = this.getRegistros().map(_resumenRowTodos);
+    async lsTodos() {
+        const data = await fnAjax(Object.assign({ opc: 'lsTodos' }, app.getFilters()), apiResumen);
 
         this.createCoffeeTable3({
             parent:       'tableTodos',
@@ -308,18 +325,15 @@ class Resumen extends Templates {
             border_table: 'border-0',
             emptyMessage: 'Sin pagos registrados en el dia seleccionado',
             emptyIcon:    'ic-file-text',
-            data:         { row: rows }
+            data:         data
         });
 
-        app.updateFooterInfo(`Mostrando ${rows.length} pago${rows.length !== 1 ? 's' : ''} del dia`);
+        const filas = (data.row || []).length;
+        app.updateFooterInfo(`Mostrando ${filas} ticket${filas !== 1 ? 's' : ''} del dia`);
     }
 
-    lsPendientes() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:Object.assign({ opc:'lsPendientes' }, app.getFilters()) })
-        const seleccion = app.getSeleccion();
-        const rows = this.getRegistros()
-            .filter(e => e.fiscal === 'pending' && e.metodo !== 'Efectivo')
-            .map(e => _resumenRowPendiente(e, seleccion.indexOf(e.id) !== -1));
+    async lsPendientes() {
+        const data = await fnAjax(Object.assign({ opc: 'lsPendientes' }, app.getFilters()), apiResumen);
 
         this.createCoffeeTable3({
             parent:       'detailContent',
@@ -331,17 +345,18 @@ class Resumen extends Templates {
             scrollable:   false,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No hay tickets pendientes con tarjeta',
+            emptyMessage: 'No hay tickets por facturar cobrados por banco',
             emptyIcon:    'ic-clock',
-            data:         { row: rows }
+            data:         data
         });
+
+        // La seleccion vive en el cliente: al repintar la tabla los checks vuelven
+        // vacios, asi que los totales del pie se recalculan con lo que quedo.
+        this.refreshTotales();
     }
 
-    lsFacturados() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:Object.assign({ opc:'lsFacturados' }, app.getFilters()) })
-        const rows = this.getRegistros()
-            .filter(e => e.fiscal === 'invoiced')
-            .map(_resumenRowFacturado);
+    async lsFacturados() {
+        const data = await fnAjax(Object.assign({ opc: 'lsFacturados' }, app.getFilters()), apiResumen);
 
         this.createCoffeeTable3({
             parent:       'tableFacturados',
@@ -356,13 +371,17 @@ class Resumen extends Templates {
             border_table: 'border-0',
             emptyMessage: 'Aun no hay tickets facturados',
             emptyIcon:    'ic-lock',
-            data:         { row: rows }
+            data:         data
         });
     }
 
-    lsKpis() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:Object.assign({ opc:'showKpis' }, app.getFilters()) })
-        const t = this.getTotales();
+    // Los montos del dia, el objetivo de la meta y el avance los calcula el
+    // servidor sobre las ventas del dia; aqui solo se pintan y se guardan para que
+    // el pie del panel los tenga a mano mientras se marcan tickets.
+    async lsKpis() {
+        const t = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiResumen);
+
+        this.totales = t;
 
         resumenView.renderInfoCards([
             {
@@ -372,20 +391,20 @@ class Resumen extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value:    _fmtMX(t.total),
-                    subtitle: `${t.tickets} tickets · efectivo + tarjeta`,
+                    value:    t.totalTexto,
+                    subtitle: `${t.tickets} tickets · efectivo + banco`,
                     color:    'text-white'
                 }
             },
             {
                 id:          'kpiMeta',
-                title:       `Meta al ${Math.round(t.meta * 100)}%`,
+                title:       `Meta al ${t.metaPct}%`,
                 lucideIcon:  'target',
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value:    _fmtMX(t.objetivo),
-                    subtitle: 'monto objetivo al 16%',
+                    value:    t.objetivoTexto,
+                    subtitle: 'monto objetivo del dia',
                     color:    'text-white'
                 }
             },
@@ -396,8 +415,8 @@ class Resumen extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value:    _fmtMX(t.facturado),
-                    subtitle: `${t.bloqueados} ordenes bloqueadas`,
+                    value:    t.facturadoTexto,
+                    subtitle: `${t.bloqueados} tickets bloqueados`,
                     color:    'text-green-600'
                 }
             },
@@ -408,51 +427,47 @@ class Resumen extends Templates {
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value:    _fmtMX(t.porFacturar),
+                    value:    t.porFacturarTexto,
                     subtitle: 'meta menos facturado',
                     color:    'text-[#1C64F2]'
                 }
             }
         ]);
+
+        this.refreshTotales();
     }
 
-    getTotales() {
-        const f          = app.getFilters();
-        const registros  = this.getRegistros();
-        const total      = registros.reduce((s, e) => s + Number(e.total || 0), 0);
-        const facturados = registros.filter(e => e.fiscal === 'invoiced');
-        const facturado  = facturados.reduce((s, e) => s + Number(e.total || 0), 0);
-        const objetivo   = total * f.meta;
-        const seleccion  = app.getSeleccion();
-        const sumaSel    = registros
-            .filter(e => seleccion.indexOf(e.id) !== -1)
-            .reduce((s, e) => s + Number(e.total || 0), 0);
+    // Lo unico que se suma en el cliente: el monto de los tickets marcados, que
+    // cambia con cada clic y no vale una peticion. El resto viene de lsKpis.
+    getSeleccionado() {
+        let suma = 0;
 
-        return {
-            tickets:     registros.length,
-            meta:        f.meta,
-            total:       total,
-            objetivo:    objetivo,
-            facturado:   facturado,
-            bloqueados:  facturados.length,
-            porFacturar: Math.max(0, objetivo - facturado),
-            avance:      objetivo > 0 ? (facturado / objetivo) * 100 : 0,
-            sumaSel:     sumaSel,
-            restante:    Math.max(0, objetivo - facturado - sumaSel)
-        };
+        $(`#tbPendientes .chk-pending:checked`).each(function () {
+            suma += Number($(this).attr('data-amount') || 0);
+        });
+
+        return suma;
     }
 
     refreshTotales() {
-        const t = this.getTotales();
+        const t = this.totales;
+        if (!t) return;
+
+        const sumaSel = this.getSeleccionado();
 
         resumenView.renderProgress({
             label:     'Avance de la meta de facturacion',
             percent:   t.avance,
-            leftText:  `${_fmtMX(t.facturado)} facturado`,
-            rightText: `objetivo ${_fmtMX(t.objetivo)}`
+            leftText:  `${t.facturadoTexto} facturado`,
+            rightText: `objetivo ${t.objetivoTexto}`
         });
 
-        resumenView.renderPanelFoots(t);
+        resumenView.renderPanelFoots({
+            total:     t.totalTexto,
+            facturado: t.facturadoTexto,
+            sumaSel:   pesos(sumaSel),
+            restante:  pesos(Math.max(0, t.porFacturar - sumaSel))
+        });
     }
 
     // -- Actions --
@@ -473,25 +488,28 @@ class Resumen extends Templates {
                 confirmButtonText: 'Si, enviar',
                 cancelButtonText:  'No'
             }
-        }).then((result) => {
+        }).then(async (result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiResumen, data:{ opc:'sendToInvoice', ids:JSON.stringify(seleccion) } })
-            seleccion.forEach((id, idx) => {
-                const e = SAMPLE_RESUMEN_DB[id];
-                if (e) {
-                    e.fiscal  = 'invoiced';
-                    e.factura = 'A' + (200 + idx);
-                }
+
+            const response = await fnAjax({
+                opc: 'sendToInvoice',
+                ids: JSON.stringify(seleccion)
+            }, apiResumen);
+
+            if (response.status === 200) {
+                app.seleccion = [];
+
+                this.lsKpis();
+                this.lsTodos();
+                this.lsPendientes();
+                this.lsFacturados();
+            }
+
+            this.alertBox({
+                type:  response.status === 200 ? 'success' : 'error',
+                title: response.message,
+                timer: response.status === 200 ? 1800 : 0
             });
-            app.seleccion = [];
-
-            this.lsTodos();
-            this.lsPendientes();
-            this.lsFacturados();
-            this.lsKpis();
-            this.refreshTotales();
-
-            this.alertBox({ type: 'success', title: `${seleccion.length} tickets enviados al portal`, timer: 1600 });
         });
     }
 }
@@ -568,19 +586,19 @@ class ResumenView extends Templates {
     renderPanelFoots(t) {
         this.panelFoot({
             parent: 'footTodos',
-            json:   [{ label: 'Total del dia', value: _fmtMX(t.total) }]
+            json:   [{ label: 'Total del dia', value: t.total }]
         });
 
         this.panelFoot({
             parent: 'footFacturados',
-            json:   [{ label: 'Monto facturado', value: _fmtMX(t.facturado), valueClass: 'text-[11px] font-bold text-green-600' }]
+            json:   [{ label: 'Monto facturado', value: t.facturado, valueClass: 'text-[11px] font-bold text-green-600' }]
         });
 
         this.panelFoot({
             parent: 'detailFoot',
             json: [
-                { label: 'Suma seleccionada', value: _fmtMX(t.sumaSel),  valueClass: 'text-[11px] font-bold text-[#1C64F2]' },
-                { label: 'Objetivo restante', value: _fmtMX(t.restante), labelClass: 'text-[10px] text-gray-400', valueClass: 'text-[10px] text-gray-400' }
+                { label: 'Suma seleccionada', value: t.sumaSel,  valueClass: 'text-[11px] font-bold text-[#1C64F2]' },
+                { label: 'Objetivo restante', value: t.restante, labelClass: 'text-[10px] text-gray-400', valueClass: 'text-[10px] text-gray-400' }
             ],
             action: {
                 id:      'btnEnviarFacturar',
