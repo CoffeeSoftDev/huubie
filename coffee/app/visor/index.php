@@ -713,7 +713,7 @@
                 <textarea id="newFileContent" class="new-file-textarea" spellcheck="false" placeholder="# T&iacute;tulo&#10;&#10;Escribe aqu&iacute;..."></textarea>
             </div>
             <footer class="folder-browse-footer">
-                <span class="folder-browse-selected">Se crear&aacute; dentro del sandbox del visor.</span>
+                <span id="newFileHintPath" class="folder-browse-selected">Se crear&aacute; dentro del sandbox del visor.</span>
                 <div class="flex gap-2">
                     <button id="newFileCancel" class="cs-btn cs-btn-outline cs-btn-sm">Cancelar</button>
                     <button id="newFileCreateBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5">

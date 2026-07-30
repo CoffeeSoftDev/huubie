@@ -14,7 +14,7 @@ const VIEW_HEADER_CARGAS = {
 const HOJA_TONO = {
     'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
     'Reporte de ventas': { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
-    'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(245,158,11,0.12)]', iconClass: 'text-yellow-300' }
+    'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' }
 };
 
 const HOJA_TONO_DEFAULT = { icon: 'sheet', bgClass: 'bg-[#1F2A37]', iconClass: 'text-gray-400' };
@@ -430,14 +430,21 @@ class App extends Templates {
     // La tira se arma con los lotes que reporta la bitacora, por eso se monta
     // desde lsBitacora y no en el layout: antes de la consulta no se sabe que
     // hojas tiene cargado el periodo.
-    sheetTabs(tabId, lotes) {
+    sheetTabs(tabId, lotes, filas) {
         this.lotes[tabId] = lotes || [];
+
+        // Sin registros en el periodo la bitacora no tiene nada que listar: su
+        // pestana se omite en vez de abrir en una tabla vacia.
+        const conLog = (filas || []).length > 0;
 
         // La hoja abierta se conserva al repintar mientras su lote siga existiendo;
         // si se elimino, la tira vuelve a abrir en la bitacora.
-        const previa = this.hojaTab[tabId];
-        const vive   = this.lotes[tabId].some(l => sheetKey(l.id) === previa);
-        const activa = vive ? previa : logKey(tabId);
+        const previa  = this.hojaTab[tabId];
+        const vive    = this.lotes[tabId].some(l => sheetKey(l.id) === previa);
+        const primera = this.lotes[tabId][0];
+        const activa  = vive
+            ? previa
+            : ((conLog || !primera) ? logKey(tabId) : sheetKey(primera.id));
 
         this.hojaTab[tabId] = activa;
 
@@ -461,6 +468,15 @@ class App extends Templates {
             onClick:    () => this.onSelectSheet(tabId, null)
         };
 
+        const json = conLog ? [bitacora].concat(hojas) : hojas;
+
+        // Sin pestanas que mostrar la tira no se pinta: tabLayout dejaria la barra
+        // de botones vacia sobre el panel.
+        if (!json.length) {
+            $(`#sheetsHost-${tabId}`).empty();
+            return;
+        }
+
         this.tabLayout({
             parent:          `sheetsHost-${tabId}`,
             id:              `tabsSheets-${tabId}`,
@@ -470,18 +486,22 @@ class App extends Templates {
             showBorder:      false,
             renderContainer: true,
             content:         { class: 'flex-1 min-h-0 flex flex-col' },
-            json:            [bitacora].concat(hojas)
+            json:            json
         });
     }
 
-    // Abre la hoja de un lote desde fuera de la tira (el nombre del archivo y el
-    // ojo de la bitacora): se dispara la pestana en vez de reemplazar la tabla.
-    openSheet(loteId) {
-        $(`#tab-${sheetKey(loteId)}`).trigger('click');
+    hasLog(tabId) {
+        return $(`#tab-${logKey(tabId)}`).length > 0;
     }
 
     openLog(tabId) {
-        $(`#tab-${logKey(tabId)}`).trigger('click');
+        if (this.hasLog(tabId)) $(`#tab-${logKey(tabId)}`).trigger('click');
+    }
+
+    // Donde se pinta la espera de una carga: con el periodo vacio la bitacora no
+    // tiene pestana, asi que el aviso va sobre la tira, que es el hueco que deja.
+    loaderHost(tabId) {
+        return this.hasLog(tabId) ? `sheetBody-${logKey(tabId)}` : `sheetsHost-${tabId}`;
     }
 
     // Render perezoso: la hoja se consulta la primera vez que se abre. Despues su
@@ -563,7 +583,17 @@ class Cargas extends Templates {
         const data = await fnAjax(Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()), apiCargas);
         const rows = data.row || [];
 
-        app.sheetTabs(tipo, data.lotes);
+        app.sheetTabs(tipo, data.lotes, rows);
+
+        // El periodo manda sobre la fila de carga: si ya entraron lotes en ese
+        // mes la pestana deja de decir "pendiente" y muestra que ya hay datos.
+        if (data.archivo) {
+            cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
+        }
+
+        // Sin registros no hay pestana de bitacora, asi que tampoco hay panel
+        // donde pintar su tabla.
+        if (!rows.length) return;
 
         const log = logKey(tipo);
 
@@ -586,17 +616,9 @@ class Cargas extends Templates {
 
         cargasView.renderSheetFoot(log, logFoot(data.lotes));
 
-        // El periodo manda sobre la fila de carga: si ya entraron lotes en ese
-        // mes la pestana deja de decir "pendiente" y muestra que ya hay datos.
-        if (data.archivo) {
-            cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
-        }
-
         if (window.lucide) lucide.createIcons();
 
-        if (rows.length > 0 && typeof simple_data_table === 'function') {
-            simple_data_table(`#tbLog-${tipo}`, 10);
-        }
+        if (typeof simple_data_table === 'function') simple_data_table(`#tbLog-${tipo}`, 10);
     }
 
     // Columnas que se leen de la hoja seleccionada: es el contrato con el que se
@@ -629,7 +651,7 @@ class Cargas extends Templates {
         const hoja  = sheetKey(id);
         const lote  = (app.lotes[tipo] || []).find(l => Number(l.id) === Number(id));
 
-        this.loader({ parent: `sheetBody-${hoja}`, text: 'Leyendo los registros de la carga...', size: 'sm', type: 'aurora' });
+        cargasView.renderLoader(`sheetBody-${hoja}`, 'Leyendo los registros de la carga...');
 
         const data = await fnAjax({ opc: 'lsRegistros', id: id }, apiCargas);
 
@@ -801,10 +823,7 @@ class Cargas extends Templates {
         // se la trae de vuelta, porque los lotes de esa hoja estan por cambiar.
         app.openLog(tipo);
 
-        // loader() hace append: sin vaciar la tabla el aviso queda debajo de la
-        // bitacora, donde no se ve mientras dura el proceso.
-        $(`#sheetBody-${logKey(tipo)}`).empty();
-        this.loader({ parent: `sheetBody-${logKey(tipo)}`, text: `Procesando ${file.name}...`, size: 'sm', type: 'aurora' });
+        cargasView.renderLoader(app.loaderHost(tipo), `Procesando ${file.name}...`);
 
         fnUpload(formData, apiCargas).then((response) => {
             const data    = response || {};
@@ -946,6 +965,13 @@ class CargasView extends Templates {
         });
     }
 
+    renderLoader(parent, text) {
+        this.spinnerBox({
+            parent: parent,
+            json:   { text: text }
+        });
+    }
+
     // -- Components --
 
     uploadRow(options) {
@@ -1002,6 +1028,34 @@ class CargasView extends Templates {
         wrap.find('.upload-row-btn').on('click', () => $(`#${inputId}`).trigger('click'));
 
         wrap.find(`#${inputId}`).on('change', (e) => opts.onChange(e.target, opts.json.id));
+    }
+
+    // Espera de una consulta o de una carga. Reemplaza el contenido del panel en
+    // vez de agregarse a el (loader() del framework hace append y el aviso queda
+    // debajo de la tabla, fuera de la vista) y se centra en el hueco que ocupa.
+    spinnerBox(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'w-full h-full flex-1 min-h-[160px] flex flex-col items-center justify-center gap-3',
+            json:   { text: '' }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            <span class="spinner-ring"></span>
+            ${opts.json.text ? `<p class="text-[11px] text-gray-400">${esc(opts.json.text)}</p>` : ''}
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
     }
 
     sheetFootBar(options) {

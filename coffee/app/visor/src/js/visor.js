@@ -1988,22 +1988,30 @@ class App {
             $('#newFileFolderSelect').html(
                 opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('')
             );
-            // Preseleccionar la carpeta del archivo abierto, si aplica.
+            // Preseleccionar la carpeta donde ESTAS parado en el explorador; si esa
+            // ruta no esta entre las opciones caemos a la del archivo abierto y, por
+            // ultimo, a la raiz de la biblioteca (nunca dejar el select vacio).
             const active = (this.allFiles || []).find(x => x.file === this.currentFile);
-            if (active && active.project) {
-                const want = (active.type && active.type !== '(sin clasificar)')
-                    ? `${baseDir}/${active.project}/${active.type}`
-                    : `${baseDir}/${active.project}`;
-                $('#newFileFolderSelect').val(want);
-            }
+            const fromActive = (active && active.project)
+                ? this.resolveTreeDir(baseDir, [
+                    active.project,
+                    (active.type && active.type !== '(sin clasificar)') ? active.type : null
+                  ])
+                : '';
+            const want = [this.currentExplorerDir(), fromActive, baseDir]
+                .map(p => (opts.find(o => this._samePath(o.value, p)) || {}).value)
+                .find(Boolean);
+            if (want) $('#newFileFolderSelect').val(want);
             $('#newFilePathInput').addClass('hidden');
             $('#newFileFolderSelect').removeClass('hidden');
+            this._updateNewFileHint($('#newFileFolderSelect').val() || '');
         } else {
             let dir = prefill.dir || this.newFileTargetDir();
             if (/^drive:/i.test(dir)) dir = this.settings.customPath || '';
             // Destino fijo: solo lectura para que el archivo caiga donde estas parado.
             $('#newFilePathInput').val(dir).prop('readonly', true).attr('title', dir).removeClass('hidden');
             $('#newFileFolderSelect').addClass('hidden');
+            this._updateNewFileHint(dir);
         }
 
         $('#newFileNameInput').val(prefill.name || '');
@@ -2013,13 +2021,14 @@ class App {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Opciones de carpeta destino para el modal (arbol de documentos): cada
-    // proyecto y cada subcarpeta real. Omitimos "(sin clasificar)" porque
-    // equivale a la propia carpeta del proyecto.
+    // Opciones de carpeta destino para el modal (arbol de documentos): la raiz de
+    // la biblioteca, cada proyecto y cada subcarpeta real. Omitimos "(sin clasificar)"
+    // porque equivale a la propia carpeta del proyecto.
     _buildFolderOptions(baseDir) {
         const docs = (this.dataInit && this.dataInit.documents) || {};
         const sf   = this.sharedFolder();
-        const out = [];
+        const root = (this.dataInit && this.dataInit.header && this.dataInit.header.currentLabel) || 'Documents';
+        const out = [{ value: String(baseDir || '').replace(/\/+$/, ''), label: `${root} (raiz)` }];
         Object.keys(docs).sort((a, b) => a.localeCompare(b)).forEach(proj => {
             // El destino tiene que ser la ruta REAL: la carpeta compartida no
             // cuelga de baseDir aunque en el arbol se vea al mismo nivel.
@@ -2039,6 +2048,13 @@ class App {
         return out;
     }
 
+    // Ruta absoluta del destino en el pie del modal: que se vea DONDE va a caer.
+    _updateNewFileHint(dir) {
+        $('#newFileHintPath')
+            .text(dir ? `Se creara en: ${dir}` : 'Se creara dentro del sandbox del visor.')
+            .attr('title', dir || '');
+    }
+
     closeNewFileModal() {
         $('#newFileModal').addClass('hidden').attr('aria-hidden', 'true');
     }
@@ -2052,6 +2068,7 @@ class App {
         $('#newFileClose, #newFileCancel').on('click', close);
         $modal.find('[data-newfile-close]').on('click', close);
         $('#newFileCreateBtn').on('click', () => this.createFile());
+        $('#newFileFolderSelect').on('change', (e) => this._updateNewFileHint($(e.currentTarget).val() || ''));
 
         $('#newFileNameInput').on('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); this.createFile(); }

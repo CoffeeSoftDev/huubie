@@ -48,6 +48,9 @@ html[data-facture-theme="light"] #mainContainer .scroll-thin::-webkit-scrollbar-
 
 html[data-facture-theme="light"] #mainContainer .prog-track { background: #E5E7EB; }
 
+/* El arco encendido sigue siendo azul: lo que cambia es el aro de fondo. */
+html[data-facture-theme="light"] #mainContainer .spinner-ring { border-color: #E5E7EB; border-top-color: #1C64F2; }
+
 html[data-facture-theme="light"] #mainContainer .upload-row-icon { color: #047857; }
 
 /* El papel del ticket ya era blanco en ambos temas: en claro solo se le marca

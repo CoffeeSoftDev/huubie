@@ -93,7 +93,7 @@ class ctrl extends mdl {
             // en la bitacora; la hora queda como su acompanante.
             $__row[] = [
                 'id'      => $item['id'],
-                'Archivo' => fileLink($item['id'], $item['file_name']),
+                'Archivo' => '<span class="font-semibold text-gray-300">' . $item['file_name'] . '</span>',
                 'Hora'    => rowStamp($item['id'], $item['created_at']),
                 'Hoja'    => '<span class="text-gray-400">' . $item['sheet_name'] . '</span>',
                 'Filas'   => '<span class="text-gray-400">' . number_format($item['row_count']) . '</span>',
@@ -460,15 +460,6 @@ function uploadState($ultimo, $filas) {
     ];
 }
 
-// El nombre del archivo abre la hoja de esa carga: es el dato que se busca en la
-// bitacora, asi que sirve de enlace y no obliga a apuntar al boton de la fila.
-// Abre la pestana de la hoja, no reemplaza la tabla.
-function fileLink($id, $name) {
-    return '<span class="font-semibold text-gray-300 cursor-pointer hover:text-blue-300 hover:underline"'
-        . ' onclick="app.openSheet(' . $id . ')" title="Abrir la hoja de esta carga">'
-        . $name . '</span>';
-}
-
 // Sin folio de factura la celda no se deja vacia: un pago sin facturar y un pago
 // cuya venta todavia no entro al sistema se leen igual y hay que distinguirlos.
 function invoiceCell($series) {
@@ -482,14 +473,10 @@ function saleStatusBadge($name) {
     return '<span class="badge-base ' . $tone . '">' . $name . '</span>';
 }
 
+// La hoja de la carga se abre desde su pestana en la tira, asi que la fila de la
+// bitacora solo conserva la accion que no vive en otro lado: eliminar el lote.
 function actionButtons($id) {
     return [
-        [
-            'class'   => 'btn-icon-view',
-            'title'   => 'Abrir la hoja de esta carga',
-            'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
-            'onclick' => "app.openSheet({$id})"
-        ],
         [
             'class'   => 'btn-icon-danger',
             'title'   => 'Eliminar',

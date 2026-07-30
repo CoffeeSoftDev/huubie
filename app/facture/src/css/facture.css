@@ -246,6 +246,24 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
    panel del modulo se pierde justo cuando hay que leerlo. */
 #root .coffeeia-loader span { color: #9CA3AF; }
 
+/* -- Espera de una carga --
+   Circulo con un solo arco encendido girando. El loader del framework es una
+   gota inline que se pega a la esquina del panel; aqui la espera ocupa el hueco
+   que deja la tabla, asi que se dibuja centrada y redonda. */
+#root .spinner-ring {
+    display: block;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid #374151;
+    border-top-color: #1C64F2;
+    animation: spinner-ring .8s linear infinite;
+}
+
+@keyframes spinner-ring {
+    to { transform: rotate(360deg); }
+}
+
 /* -- Fila de carga de Excel --
    Una sola linea: icono, nombre del archivo, estado y boton de accion.
    Sin fondo ni borde propios: se apoya en el contenedor del tab para no
