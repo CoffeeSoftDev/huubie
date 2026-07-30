@@ -1,17 +1,10 @@
 // -- Vista --
 
-const SAMPLE_VIEW_HEADER_TICKETS = {
-    title:    'Tickets y pagos',
-    subtitle: 'Explora tickets, pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
+// Copy de la cabecera del modulo (titulo, descripcion y regreso). No son datos:
+// ventas, KPIs, formas de pago, estados y periodo se consultan al servidor.
 
-const SAMPLE_VIEW_FOOTER_TICKETS = {
-    info: '',
-    legends: [
-        { tone: 'success', label: 'Facturado' },
-        { tone: 'warning', label: 'IVA 0%'    },
-        { tone: 'default', label: 'Pendiente' },
-        { tone: 'purple',  label: 'Tarjeta'   }
-    ]
+const SAMPLE_VIEW_HEADER_VENTAS = {
+    title:    'Ventas y pagos',
+    subtitle: 'Explora las ventas, sus pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
+    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
 };

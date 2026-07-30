@@ -2938,7 +2938,7 @@ class Components extends Complements {
             defaults.class = "w-full table-auto text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_row_alt = "bg-[#2F3B4B]";
         }
         else if (options.theme === 'corporativo') {
             defaults.color_th = "bg-[#003360] text-white";
@@ -3101,7 +3101,7 @@ class Components extends Complements {
                 if (opts.hoverColor) {
                     hoverClass = opts.hoverColor;
                 } else {
-                    hoverClass = opts.theme === 'dark' ? 'hover:bg-[#334155]' : 'hover:bg-gray-50';
+                    hoverClass = opts.theme === 'dark' ? 'hover:bg-[#3E4C60]' : 'hover:bg-gray-50';
                 }
             }
 
@@ -3269,7 +3269,7 @@ class Components extends Complements {
             defaults.class = "w-full text-sm text-gray-300";
             defaults.border_table = "";
             defaults.border_row = "border-t border-gray-700";
-            defaults.color_row_alt = "bg-[#2D3748]";
+            defaults.color_row_alt = "bg-[#2F3B4B]";
         }
 
         const opts = Object.assign({}, defaults, options);
@@ -3460,7 +3460,7 @@ class Components extends Complements {
             let colorBg = bg_grupo || (opts.striped && i % 2 === 0 ? opts.color_row_alt : opts.color_row);
 
             if (opts.hover && !bg_grupo) {
-                colorBg += opts.theme === 'dark' ? ' hover:bg-[#334155]' : ' hover:bg-gray-50';
+                colorBg += opts.theme === 'dark' ? ' hover:bg-[#3E4C60]' : ' hover:bg-gray-50';
             }
 
             const originalOpc = data.opc;
@@ -3839,16 +3839,23 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-gray-100";
         }
 
+        // Paleta dark de Huubie (la misma de alpha/src/js/coffeeSoft.js): el juego
+        // slate anterior dejaba color_row y color_row_alt en el mismo tono, asi que
+        // striped:true no alternaba nada.
+        //
+        // La fila alterna sube dentro de la escala de la tabla en vez de bajar a
+        // #111827: por debajo de la fila base el zebra se lee como huecos negros.
+        //   fila #283341 · alterna #2F3B4B · encabezado #374151
         if (options.theme === 'dark') {
             defaults.dark = true;
-            defaults.color_th = "bg-slate-800/60 text-slate-500";
-            defaults.color_row = "bg-slate-800/40";
-            defaults.color_group = "bg-slate-700/40 text-slate-200";
-            defaults.class = "w-full table-auto text-sm text-slate-300";
-            defaults.border_table = "!border !border-slate-700/40 rounded-lg";
-            defaults.border_row = "border-t border-slate-700/20";
-            defaults.border_color = "border-slate-700/30";
-            defaults.color_row_alt = "bg-slate-800/40";
+            defaults.color_th = "bg-[#374151] text-gray-300";
+            defaults.color_row = "bg-[#283341]";
+            defaults.color_group = "bg-[#334155] text-white";
+            defaults.class = "w-full table-auto text-sm text-gray-300";
+            defaults.border_table = "!border !border-gray-700 rounded-lg";
+            defaults.border_row = "border-t border-gray-700";
+            defaults.border_color = "border-gray-700";
+            defaults.color_row_alt = "bg-[#2F3B4B]";
         }
 
         if (options.theme === 'slate') {
@@ -4545,7 +4552,7 @@ class Components extends Complements {
             cursor: pointer;
         }
         #${opts.id} tbody tr.ct3-hoverable:hover td {
-            background-color: ${opts.theme === 'dark' ? 'rgba(51, 65, 85, 0.2)' : '#E5E7EB'} !important;
+            background-color: ${opts.theme === 'dark' ? '#3E4C60' : '#E5E7EB'} !important;
             transition: background-color 0.15s ease;
         }` : ''}
         `).appendTo("head");

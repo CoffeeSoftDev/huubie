@@ -6,8 +6,8 @@ const FACTURE_MENU = [
     { icon: 'layout-grid',      title: 'Inicio',    url: '/app/facture/index.php'     },
     { icon: 'layout-dashboard', title: 'Resumen',   url: '/app/facture/resumen.php'   },
     { icon: 'upload-cloud',     title: 'Cargas',    url: '/app/facture/cargas.php'    },
-    { icon: 'receipt',          title: 'Tickets',   url: '/app/facture/tickets.php'   },
-    { icon: 'printer',          title: 'Generador', url: '/app/facture/generador.php' },
+    { icon: 'receipt',          title: 'Ventas',    url: '/app/facture/ventas.php'    },
+    { icon: 'printer',          title: 'Tickets',   url: '/app/facture/tickets.php'   },
     { icon: 'library',          title: 'Catalogos', url: '/app/facture/catalogos.php' }
 ];
 

@@ -9,6 +9,13 @@ const fnAjax = (data, url) => fetch(url, {
     body:    new URLSearchParams(data)
 }).then(r => r.json());
 
+// La subida no pasa por form_data_ajax: ese helper no rechaza la promesa cuando
+// el servidor falla, y el roadmap se quedaria animado sin cerrar nunca.
+const fnUpload = (formData, url) => fetch(url, {
+    method: 'POST',
+    body:   formData
+}).then(r => r.json());
+
 $(async () => {
     cargasView = new CargasView(apiCargas, 'root');
     cargas     = new Cargas(apiCargas, 'root');
@@ -43,7 +50,6 @@ class App extends Templates {
         this.filterBar();
         this.renderTabs();
         cargasView.renderHeader(SAMPLE_VIEW_HEADER_CARGAS);
-        cargasView.renderLogHead();
         this.renderActiveTab();
     }
 
@@ -53,15 +59,15 @@ class App extends Templates {
         const mainPanel = {
             type:  'div',
             id:    'mainPanel',
-            class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
+            class: 'flex-1 flex flex-col overflow-hidden min-w-0  min-h-0 w-full',
             children: [
                 {
                     id:    'headerRow',
-                    class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#111827] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'contentWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto flex flex-col'
+                    class: 'p-3 flex-1 min-h-0 overflow-auto flex flex-col '
                 }
             ]
         };
@@ -123,36 +129,20 @@ class App extends Templates {
         this.contentLayout();
     }
 
-    // Zona scrolleable: tabs con la carga del archivo activo y, debajo, la bitacora.
-    // La bitacora crece con flex-1 hasta el fondo del panel y su tabla se
-    // desplaza por dentro, en vez de cortarse a una altura fija.
+    // Zona scrolleable: los tabs ocupan todo el alto porque la bitacora vive
+    // dentro del panel de cada uno.
     contentLayout() {
         this.createLayout({
             parent: 'contentWrap',
             design: false,
             data: {
                 id:    'contentGrid',
-                class: 'w-full flex-1 min-h-0 flex flex-col gap-4',
+                class: 'w-full flex-1 min-h-0 flex flex-col gap-4 ',
                 container: [
                     {
                         type:  'div',
                         id:    'tabsHost',
-                        class: 'w-full flex-shrink-0'
-                    },
-                    {
-                        type:  'div',
-                        id:    'cardLog',
-                        class: 'w-full flex-1 min-h-0 flex flex-col bg-[#141d2b] rounded-lg overflow-hidden',
-                        children: [
-                            {
-                                id:    'headLog',
-                                class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between flex-shrink-0'
-                            },
-                            {
-                                id:    'tableLog',
-                                class: 'flex-1 min-h-0 overflow-auto scroll-thin p-3'
-                            }
-                        ]
+                        class: 'w-full flex-1 min-h-0 flex flex-col'
                     }
                 ]
             }
@@ -162,15 +152,37 @@ class App extends Templates {
     // Los paneles de todos los tabs coexisten en el DOM (tabLayout solo los oculta),
     // por eso cada id lleva el sufijo del tab: sin el, `$('#uploadRow')` resolvia
     // siempre al panel del primer tab y el segundo quedaba vacio.
+    //
+    // La bitacora es de la pestana, no del modulo: cada archivo tiene su propia
+    // caja con su encabezado y su tabla, asi las cargas de comandas no se leen
+    // como si fueran del reporte de ventas. La bitacora crece con flex-1 hasta el
+    // fondo del panel y su tabla ya no lleva scroll propio: DataTables pagina.
     tabPanelLayout(tabId) {
         this.createLayout({
             parent: `container-${tabId}`,
             design: false,
             data: {
+                // h-full y no flex-1: el contenedor del tab inactivo lleva
+                // `hidden`, y darle display:flex ahi seria pelearse con el.
                 id:    `panel-${tabId}`,
-                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col gap-3',
+                class: 'w-full h-full bg-[#1F2A37]  rounded-lg p-4 flex flex-col gap-3',
                 container: [
-                    { type: 'div', id: `uploadRow-${tabId}`, class: 'w-full' }
+                    { type: 'div', id: `uploadRow-${tabId}`, class: 'w-full flex-shrink-0' },
+                    {
+                        type:  'div',
+                        id:    `cardLog-${tabId}`,
+                        class: 'w-full flex-1 min-h-0 flex flex-col border-t border-[#374151] pt-3',
+                        children: [
+                            {
+                                id:    `headLog-${tabId}`,
+                                class: 'pb-3 flex items-center justify-between flex-shrink-0'
+                            },
+                            {
+                                id:    `tableLog-${tabId}`,
+                                class: 'flex-1 min-h-0'
+                            }
+                        ]
+                    }
                 ]
             }
         });
@@ -219,16 +231,21 @@ class App extends Templates {
 
     // -- Tabs --
 
+    // El contenedor del tab y su panel heredan flex-1: sin eso la bitacora de la
+    // pestana no llega al fondo y la tabla se corta a la altura de sus filas.
     renderTabs() {
         this.tabLayout({
             parent:          'tabsHost',
             id:              'tabsCargas',
             theme:           FACTURE_THEME,
             type:            'short',
+            class:           'flex-shrink-0',
             showBorder:      false,
             renderContainer: true,
+            content:         { class: 'flex-1 min-h-0 flex flex-col' },
             json: SAMPLE_CARGAS_TABS.map(t => Object.assign({}, t, {
                 active:  t.id === this.activeTab,
+                class:   'flex-1 min-h-0',
                 onClick: (id) => this.onChangeTab(id)
             }))
         });
@@ -237,17 +254,24 @@ class App extends Templates {
     renderActiveTab(tabId) {
         const id = tabId || this.activeTab;
         this.activeTab = id;
+
+        // Cambiar de pestana durante una carga dejaria el roadmap animandose
+        // sobre el panel de la otra.
+        cargas.stopRoadmap();
         this.tabPanelLayout(id);
 
         const archivo = this.dataInit.archivos[id];
         cargasView.renderUploadRow(id, archivo);
+        cargasView.renderLogHead(id);
         cargas.lsBitacora(id);
 
+        // El roadmap no se pinta al entrar: es el avance de una carga, asi que el
+        // panel arranca solo con las tarjetas de las hojas y startRoadmap() lo
+        // agrega cuando se sube un archivo.
         if (id === 'sales-report') {
             cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas' });
             this.asideLayout();
             cargasView.renderHojas(SAMPLE_CARGAS_HOJAS);
-            cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP);
         } else {
             cargasView.renderAsideHead({ icon: 'list', title: 'Columnas que se leen' });
             cargas.lsColumnas();
@@ -297,26 +321,35 @@ class Cargas extends Templates {
     async lsBitacora(tabId) {
         const tipo = tabId || app.activeTab;
         const data = await fnAjax(Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()), apiCargas);
+        const rows = data.row || [];
 
         this.createCoffeeTable3({
-            parent:       'tableLog',
-            id:           `tbLog-${tipo}`,
-            theme:        FACTURE_THEME,
-            center:       [4, 6],
-            right:        [5],
-            actionsAlign: 'center',
-            extends:      true,
-            scrollable:   false,
-            striped:      true,
-            hover:        true,
-            f_size:       11,
-            border_table: 'border-0',
-            emptyMessage: 'Sin registros en la bitacora de carga',
-            emptyIcon:    'ic-file-text',
-            data:         data
+            parent:        `tableLog-${tipo}`,
+            id:            `tbLog-${tipo}`,
+            theme:         FACTURE_THEME,
+            center:        [1, 4, 5],
+            actionsAlign:  'center',
+            extends:       true,
+            scrollable:    false,
+            hover:         true,
+            f_size:        11,
+            border_table:  'border-0',
+            emptyMessage:  'Sin registros en la bitacora de carga',
+            emptyIcon:     'ic-file-text',
+            data:          data
         });
 
+        // El periodo manda sobre la fila de carga: si ya entraron lotes en ese
+        // mes la pestana deja de decir "pendiente" y muestra que ya hay datos.
+        if (data.archivo) {
+            cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
+        }
+
         if (window.lucide) lucide.createIcons();
+
+        if (rows.length > 0 && typeof simple_data_table === 'function') {
+            simple_data_table(`#tbLog-${tipo}`, 10);
+        }
     }
 
     lsColumnas() {
@@ -336,9 +369,8 @@ class Cargas extends Templates {
         });
     }
 
-    // Registros que entraron al sistema con esa carga. Se pintan en el mismo
-    // contenedor de la bitacora (no en modal) y el encabezado ofrece volver.
     async lsRegistros(id) {
+        const tipo = app.activeTab;
         const data = await fnAjax({ opc: 'lsRegistros', id: id }, apiCargas);
 
         if (data.status !== 200) {
@@ -346,7 +378,7 @@ class Cargas extends Templates {
             return;
         }
 
-        cargasView.renderLogHead({
+        cargasView.renderLogHead(tipo, {
             icon:  'file-text',
             title: data.titulo,
             badge: { text: `${data.row.length} de ${data.total.toLocaleString('en-US')}`, tone: 'b-blue' },
@@ -354,20 +386,68 @@ class Cargas extends Templates {
         });
 
         this.createCoffeeTable3({
-            parent:       'tableLog',
-            id:           `tbRegistros-${id}`,
-            theme:        FACTURE_THEME,
-            extends:      true,
-            scrollable:   false,
-            striped:      true,
-            f_size:       11,
-            border_table: 'border-0',
-            emptyMessage: 'Esta carga no tiene registros',
-            emptyIcon:    'ic-file-text',
-            data:         { row: data.row }
+            parent:        `tableLog-${tipo}`,
+            id:            `tbRegistros-${id}`,
+            theme:         FACTURE_THEME,
+            center:        data.center || [],
+            right:         data.right  || [],
+            extends:       true,
+            scrollable:    false,
+            hover:         true,
+            f_size:        11,
+            border_table:  'border-0',
+            emptyMessage:  'Esta carga no tiene registros',
+            emptyIcon:     'ic-file-text',
+            data:          { row: data.row }
         });
 
         if (window.lucide) lucide.createIcons();
+
+        if (data.row.length > 0 && typeof simple_data_table === 'function') {
+            simple_data_table(`#tbRegistros-${id}`, 12);
+        }
+    }
+
+    // -- Roadmap en vivo --
+
+    // El servidor responde una sola vez, con los pasos ya resueltos: hasta
+    // entonces no hay avance real que consultar. Para que la carga no se vea
+    // detenida, el roadmap avanza aqui paso a paso y el ultimo se queda animado
+    // hasta que llega la respuesta, que es la que pinta el detalle definitivo.
+    startRoadmap() {
+        this.stopRoadmap();
+
+        const pasos    = SAMPLE_CARGAS_ROADMAP;
+        this.pasoVivo  = 0;
+
+        const pintar = () => cargasView.renderRoadmap(pasos.map((p, i) => Object.assign({}, p, {
+            estado: i < this.pasoVivo ? 'ok' : (i === this.pasoVivo ? 'proceso' : 'pendiente')
+        })));
+
+        pintar();
+
+        this.roadmapTimer = setInterval(() => {
+            if (this.pasoVivo >= pasos.length - 1) return;
+
+            this.pasoVivo++;
+            pintar();
+        }, 900);
+    }
+
+    stopRoadmap() {
+        if (this.roadmapTimer) clearInterval(this.roadmapTimer);
+        this.roadmapTimer = null;
+    }
+
+    // Sin pasos del servidor (respuesta rota o sin llegar) el roadmap no puede
+    // quedarse girando: el paso en curso se marca en error con el motivo.
+    failRoadmap(detalle) {
+        this.stopRoadmap();
+
+        cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP.map((p, i) => Object.assign({}, p, {
+            estado:  i < this.pasoVivo ? 'ok' : (i === this.pasoVivo ? 'error' : 'pendiente'),
+            detalle: i === this.pasoVivo ? detalle : p.detalle
+        })));
     }
 
     // -- Actions --
@@ -385,7 +465,7 @@ class Cargas extends Templates {
         const coincide   = esperado.patron.test(nombreBase);
 
         if (coincide) {
-            this.subirArchivo(file, tipo);
+            this.confirmarPeriodo(file, tipo);
             return;
         }
 
@@ -398,17 +478,47 @@ class Cargas extends Templates {
             btn2:     true,
             btn2Text: 'Cancelar'
         }).then(result => {
-            if (result.isConfirmed) this.subirArchivo(file, tipo);
+            if (result.isConfirmed) this.confirmarPeriodo(file, tipo);
         });
     }
 
-    subirArchivo(file, tipo) {
+    // El periodo lo fija el filtro del modulo, no el nombre del archivo: se
+    // confirma a que mes y anio va la carga antes de tocar la base. Si ese periodo
+    // ya tiene datos de la pestana se avisa que se sobreescriben, porque la carga
+    // reemplaza a la anterior en lugar de sumarse a ella.
+    confirmarPeriodo(file, tipo) {
         const filtros = app.getFilters();
 
         if (!filtros.mes || !filtros.anio) {
             alert({ icon: 'warning', title: 'Selecciona mes y anio antes de subir el archivo', btn1: true });
             return;
         }
+
+        const archivo = app.dataInit.archivos[tipo];
+        const periodo = `${$('#fMes option:selected').text()} ${filtros.anio}`;
+        const existe  = archivo.estado === 'ok';
+
+        const aviso = existe
+            ? `<p class="text-[12px] text-yellow-300 mt-2">Este periodo ya tiene datos cargados
+                   (<strong>${archivo.cargado}</strong>) y se <strong>sobreescriben</strong> con este archivo.</p>`
+            : '';
+
+        alert({
+            icon:     existe ? 'warning' : 'question',
+            title:    `Cargar en ${periodo}`,
+            html:     `<p class="text-[12px]">Se va a subir <strong>${file.name}</strong> a
+                           <strong>${archivo.titulo}</strong> del periodo <strong>${periodo}</strong>.</p>${aviso}`,
+            btn1:     true,
+            btn1Text: existe ? 'Sobreescribir periodo' : 'Subir archivo',
+            btn2:     true,
+            btn2Text: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) this.subirArchivo(file, tipo);
+        });
+    }
+
+    subirArchivo(file, tipo) {
+        const filtros = app.getFilters();
 
         const formData = new FormData();
         formData.append('opc',         'uploadFile');
@@ -424,12 +534,15 @@ class Cargas extends Templates {
                 detalle:    'Leyendo el archivo...',
                 procesando: true
             })));
-            cargasView.renderRoadmap(SAMPLE_CARGAS_ROADMAP.map(p => Object.assign({}, p, { estado: 'pendiente' })));
+            this.startRoadmap();
         }
 
-        this.loader({ parent: 'tableLog', text: `Procesando ${file.name}...`, size: 'sm', type: 'aurora' });
+        // loader() hace append: sin vaciar la tabla el aviso queda debajo de la
+        // bitacora, donde no se ve mientras dura el proceso.
+        $(`#tableLog-${tipo}`).empty();
+        this.loader({ parent: `tableLog-${tipo}`, text: `Procesando ${file.name}...`, size: 'sm', type: 'aurora' });
 
-        form_data_ajax(formData, apiCargas).then((response) => {
+        fnUpload(formData, apiCargas).then((response) => {
             const data    = response || {};
             const archivo = app.dataInit.archivos[tipo];
 
@@ -440,7 +553,13 @@ class Cargas extends Templates {
 
             if (tipo === 'sales-report') {
                 if (data.hojas && data.hojas.length) cargasView.renderHojas(data.hojas.map(_hojaCard));
-                if (data.steps) cargasView.renderRoadmap(data.steps);
+
+                if (data.steps) {
+                    this.stopRoadmap();
+                    cargasView.renderRoadmap(data.steps);
+                } else {
+                    this.failRoadmap(data.message || 'El servidor no devolvio el detalle del proceso');
+                }
             }
 
             this.lsBitacora(tipo);
@@ -451,6 +570,19 @@ class Cargas extends Templates {
                 timer: data.status === 200 ? 1800 : 0,
                 btn1:  data.status !== 200
             });
+        }).catch((error) => {
+            const archivo = app.dataInit.archivos[tipo];
+
+            archivo.estado  = 'pendiente';
+            archivo.cargado = '';
+
+            cargasView.renderUploadRow(tipo, archivo);
+
+            if (tipo === 'sales-report') this.failRoadmap('El servidor corto el proceso');
+
+            this.lsBitacora(tipo);
+
+            alert({ icon: 'error', title: 'No se pudo procesar el archivo: ' + error.message, btn1: true });
         });
     }
 
@@ -494,11 +626,13 @@ class CargasView extends Templates {
         });
     }
 
-    renderLogHead(data) {
+    // Cada pestana tiene su propio encabezado de bitacora, por eso recibe el tab
+    // al que pertenece antes que los datos a pintar.
+    renderLogHead(tabId, data) {
         const json = data || { icon: 'activity', title: 'Bitacora de carga' };
 
         this.panelHead({
-            parent: 'headLog',
+            parent: `headLog-${tabId}`,
             json:   json
         });
 
@@ -506,13 +640,13 @@ class CargasView extends Templates {
 
         // Al ver los registros de una carga el encabezado ofrece la vuelta: la
         // bitacora y el detalle comparten el mismo contenedor.
-        $('#headLog').find('h3').prepend(
-            '<button type="button" id="btnBackLog" class="btn-icon-view mr-1" title="Volver a la bitacora"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>'
+        $(`#headLog-${tabId}`).find('h3').prepend(
+            `<button type="button" id="btnBackLog-${tabId}" class="btn-icon-view mr-1" title="Volver a la bitacora"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>`
         );
 
-        $('#btnBackLog').on('click', () => {
-            cargasView.renderLogHead();
-            cargas.lsBitacora(app.activeTab);
+        $(`#btnBackLog-${tabId}`).on('click', () => {
+            cargasView.renderLogHead(tabId);
+            cargas.lsBitacora(tabId);
         });
 
         if (window.lucide) lucide.createIcons();
@@ -573,7 +707,7 @@ class CargasView extends Templates {
 
         const badges = {
             ok:       '<span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>',
-            cargando: '<span class="badge-base b-blue"><i data-lucide="loader" class="w-3 h-3"></i>Procesando</span>',
+            cargando: '<span class="badge-base b-blue"><i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>Procesando</span>',
             pendiente:'<span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>'
         };
 
@@ -591,7 +725,7 @@ class CargasView extends Templates {
             ${badges[estado] || badges.pendiente}
             <input type="file" id="${inputId}" accept=".xlsx,.xls" class="hidden">
             <button type="button" class="upload-row-btn" ${cargando ? 'disabled' : ''}>
-                <i data-lucide="upload" class="w-4 h-4"></i>Subir Excel
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>Subir Excel
             </button>
         `);
 
@@ -620,21 +754,25 @@ class CargasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        // El paso en curso se distingue del resto: circulo azul con el icono
+        // girando, para que la carga no se lea como una lista congelada.
         const tonos = {
-            ok:        { icon: 'check',   dot: 'bg-[rgba(16,185,129,0.15)] text-green-300 border-[rgba(16,185,129,0.30)]', text: 'text-gray-300' },
-            error:     { icon: 'x',       dot: 'bg-[rgba(239,68,68,0.15)] text-red-300 border-[rgba(239,68,68,0.30)]',    text: 'text-red-300'   },
-            pendiente: { icon: 'circle',  dot: 'bg-[#1F2A37] text-gray-500 border-[#374151]',                              text: 'text-gray-500'  }
+            ok:        { icon: 'check',    dot: 'bg-[rgba(16,185,129,0.15)] text-green-300 border-[rgba(16,185,129,0.30)]', text: 'text-gray-300', line: 'bg-[rgba(16,185,129,0.35)]' },
+            proceso:   { icon: 'loader-2', dot: 'bg-[rgba(28,100,242,0.15)] text-blue-300 border-[rgba(28,100,242,0.35)]',  text: 'text-blue-300', spin: true },
+            error:     { icon: 'x',        dot: 'bg-[rgba(239,68,68,0.15)] text-red-300 border-[rgba(239,68,68,0.30)]',     text: 'text-red-300'   },
+            pendiente: { icon: 'circle',   dot: 'bg-[#1F2A37] text-gray-500 border-[#374151]',                               text: 'text-gray-500'  }
         };
 
         const paso = (s, i, total) => {
-            const t = tonos[s.estado] || tonos.pendiente;
+            const t    = tonos[s.estado] || tonos.pendiente;
+            const line = t.line || 'bg-[#374151]';
             return `
                 <div class="flex gap-3">
                     <div class="flex flex-col items-center">
                         <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${t.dot}">
-                            <i data-lucide="${t.icon}" class="w-3 h-3"></i>
+                            <i data-lucide="${t.icon}" class="w-3 h-3 ${t.spin ? 'animate-spin' : ''}"></i>
                         </div>
-                        ${i < total - 1 ? '<div class="w-px flex-1 bg-[#374151] my-1"></div>' : ''}
+                        ${i < total - 1 ? `<div class="w-px flex-1 ${line} my-1"></div>` : ''}
                     </div>
                     <div class="flex-1 pb-3">
                         <p class="text-[11px] font-bold ${t.text}">${esc(s.titulo)}</p>

@@ -20,19 +20,19 @@ const SAMPLE_MODULOS_DB = {
         icon:        'upload-cloud',
         enlace:      '/app/facture/cargas.php'
     },
+    ventas: {
+        id:          'ventas',
+        titulo:      'Ventas',
+        descripcion: 'Explorador de ventas y pagos con su estado fiscal, tasa y factura asociada',
+        icon:        'receipt',
+        enlace:      '/app/facture/ventas.php'
+    },
     tickets: {
         id:          'tickets',
         titulo:      'Tickets',
-        descripcion: 'Explorador de tickets y pagos con su estado fiscal, tasa y factura asociada',
-        icon:        'receipt',
-        enlace:      '/app/facture/tickets.php'
-    },
-    generador: {
-        id:          'generador',
-        titulo:      'Generador',
-        descripcion: 'Generador de tickets virtuales con productos puente para los pagos con tarjeta',
+        descripcion: 'Tickets virtuales con productos puente para los pagos con tarjeta',
         icon:        'printer',
-        enlace:      '/app/facture/generador.php'
+        enlace:      '/app/facture/tickets.php'
     },
     catalogos: {
         id:          'catalogos',

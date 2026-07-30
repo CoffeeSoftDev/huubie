@@ -12,6 +12,57 @@ function coffee_visor_header_user() {
     return ['initials' => coffee_auth_initials($u['name']), 'name' => $u['name'], 'role' => 'Miembro'];
 }
 
+// ── Biblioteca POR USUARIO ──────────────────────────────────────────────────
+// Cada cuenta tiene su propio arbol en documents/users/<id>/ y el visor solo
+// lista y escribe dentro de esa carpeta: nadie ve ni toca los documentos de
+// otro. Las carpetas de sistema (template/, module-template/, chats/) siguen
+// colgando de documents/ porque no pertenecen a ningun usuario — las gestionan
+// el Playground y el Forge con sus propios endpoints.
+function coffee_visor_documents_base() {
+    return rtrim(str_replace('\\', '/', __DIR__ . '/../documents'), '/');
+}
+
+// Identidad de la carpeta: el id numerico de la sesion. Sin sesion iniciada se
+// cae a "_guest" en vez de a la raiz compartida, para que una peticion sin
+// cookie nunca alcance los documentos de una cuenta real.
+function coffee_visor_user_key() {
+    $id = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+    return $id > 0 ? (string) $id : '_guest';
+}
+
+// Raiz de documentos del usuario en curso. Se crea al vuelo: una cuenta nueva
+// entra al visor con su carpeta vacia, sin paso de alta manual.
+function coffee_visor_docs_root() {
+    $root = coffee_visor_documents_base() . '/users/' . coffee_visor_user_key();
+    if (!is_dir($root)) @mkdir($root, 0775, true);
+    return $root;
+}
+
+// Prefijo de los relPath que se exponen al frontend (clave de los iconos por
+// archivo en data/icons.json).
+function coffee_visor_docs_rel_prefix() {
+    return 'coffee/app/visor/documents/users/' . coffee_visor_user_key();
+}
+
+// ── Carpeta compartida ──────────────────────────────────────────────────────
+// documents/shared/ es el terreno comun: cuelga del arbol de TODOS los usuarios
+// como un proyecto mas (en celeste, para que no se confunda con los propios) y
+// todos pueden leer y escribir en ella. No vive dentro de ninguna biblioteca:
+// es una raiz aparte que el sandbox autoriza explicitamente.
+function coffee_visor_shared_name() {
+    return 'Compartido';
+}
+
+function coffee_visor_shared_root() {
+    $root = coffee_visor_documents_base() . '/shared';
+    if (!is_dir($root)) @mkdir($root, 0775, true);
+    return $root;
+}
+
+function coffee_visor_shared_rel_prefix() {
+    return 'coffee/app/visor/documents/shared';
+}
+
 // Hojas de calculo que el visor renderiza con SheetJS. Son BINARIAS (salvo csv/tsv),
 // asi que no pasan por 'save' ni por el editor de texto: entran por 'upload' y se
 // leen por 'readbin'.
@@ -39,6 +90,47 @@ function coffee_visor_pdf_exts() {
 }
 function coffee_visor_media_exts() {
     return array_merge(coffee_visor_image_exts(), coffee_visor_pdf_exts());
+}
+
+// Documentos de texto que se pueden SUBIR (arrastrandolos al explorador). Es la
+// lista editable del visor menos todo lo ejecutable: documents/ cuelga del
+// docroot de Apache, asi que un .php subido se serviria como codigo. Crear un
+// .php desde el editor sigue siendo posible; subir uno, no.
+function coffee_visor_text_upload_exts() {
+    return [
+        'md', 'markdown', 'txt', 'json', 'yml', 'yaml', 'toml', 'xml',
+        'html', 'htm', 'css', 'scss', 'js', 'ts', 'sql', 'ini', 'conf',
+        'log', 'env', 'sh', 'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp',
+        'cs', 'drawio', 'excalidraw'
+    ];
+}
+
+// Todo lo que acepta ?action=upload: hojas + medios + texto.
+function coffee_visor_upload_exts() {
+    return array_merge(
+        coffee_visor_sheet_exts(),
+        coffee_visor_media_exts(),
+        coffee_visor_text_upload_exts()
+    );
+}
+
+// ¿El archivo entra en el arbol de la biblioteca? Lo que se puede subir se tiene
+// que poder ver: si no, un .txt arrastrado desaparece del explorador.
+function coffee_visor_tree_listable($fileName) {
+    $ext = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+    if (preg_match('/^todo.*\.json$/', strtolower((string) $fileName))) return true;
+    return in_array($ext, coffee_visor_upload_exts(), true);
+}
+
+// Nombre con el que se muestra en el explorador: los .md pierden la extension
+// (titulo del documento), todo.json se rotula TODO y el resto va tal cual.
+function coffee_visor_tree_label($fileName) {
+    $lower = strtolower((string) $fileName);
+    if ($lower === 'todo.json') return 'TODO';
+    if (preg_match('/\.(md|markdown)$/i', (string) $fileName)) {
+        return preg_replace('/\.(md|markdown)$/i', '', (string) $fileName);
+    }
+    return (string) $fileName;
 }
 
 // Clase de medio del archivo por extension: 'image' | 'pdf' | '' (no es medio).
@@ -250,7 +342,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         $CLAUDE_HOME . '/agents',
         $CLAUDE_HOME . '/commands',
         $CLAUDE_HOME . '/steering',
-        str_replace('\\', '/', __DIR__ . '/../documents'),
+        coffee_visor_docs_root(),
+        coffee_visor_shared_root(),
     ];
     if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
 
@@ -338,7 +431,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         $CLAUDE_HOME . '/agents',
         $CLAUDE_HOME . '/commands',
         $CLAUDE_HOME . '/steering',
-        str_replace('\\', '/', __DIR__ . '/../documents'),
+        coffee_visor_docs_root(),
+        coffee_visor_shared_root(),
     ];
     if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
 
@@ -408,7 +502,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         $CLAUDE_HOME . '/agents',
         $CLAUDE_HOME . '/commands',
         $CLAUDE_HOME . '/steering',
-        str_replace('\\', '/', __DIR__ . '/../documents'),
+        coffee_visor_docs_root(),
+        coffee_visor_shared_root(),
     ];
     if ($customPath !== '') $allowedRoots[] = str_replace('\\', '/', $customPath);
 
@@ -473,7 +568,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
 }
 
 // Helper de sandbox reutilizable por mkdir/renamedir: ¿la ruta real cae dentro de
-// un root permitido (agents/commands/steering/documents o el customPath activo)?
+// un root permitido (agents/commands/steering, la biblioteca del usuario en curso,
+// la carpeta compartida o el customPath activo)?
 if (!function_exists('coffee_visor_inside_sandbox')) {
     function coffee_visor_inside_sandbox($absReal, $customPath = '') {
         $userHome    = coffee_user_home();
@@ -482,7 +578,8 @@ if (!function_exists('coffee_visor_inside_sandbox')) {
             $CLAUDE_HOME . '/agents',
             $CLAUDE_HOME . '/commands',
             $CLAUDE_HOME . '/steering',
-            str_replace('\\', '/', __DIR__ . '/../documents'),
+            coffee_visor_docs_root(),
+            coffee_visor_shared_root(),
         ];
         if ($customPath !== '') $roots[] = str_replace('\\', '/', $customPath);
         $absReal = rtrim(str_replace('\\', '/', $absReal), '/');
@@ -504,6 +601,21 @@ if (!function_exists('coffee_visor_safe_name')) {
         if ($name === '' || $name === '.' || $name === '..') return '';
         if (preg_match('/[<>:"|?*\\x00-\\x1F]/', $name)) return '';
         return mb_substr($name, 0, 120);
+    }
+}
+
+// "Compartido" es el nombre con el que la carpeta comun se cuelga del arbol: una
+// carpeta propia homonima en la raiz de la biblioteca quedaria tapada por ella y
+// el usuario creeria que perdio sus archivos. Se reserva el nombre en ese nivel
+// (dentro de un proyecto no hay conflicto y se permite).
+if (!function_exists('coffee_visor_name_reserved_at')) {
+    function coffee_visor_name_reserved_at($parentReal, $name) {
+        $rootReal = realpath(coffee_visor_docs_root());
+        if ($rootReal === false) return false;
+        $parentReal = rtrim(str_replace('\\', '/', $parentReal), '/');
+        $rootReal   = rtrim(str_replace('\\', '/', $rootReal), '/');
+        return $parentReal === $rootReal
+            && strcasecmp(trim($name), coffee_visor_shared_name()) === 0;
     }
 }
 
@@ -530,6 +642,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     if (!coffee_visor_inside_sandbox($parentReal, $customPath)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    if (coffee_visor_name_reserved_at($parentReal, $name)) {
+        echo json_encode(['success' => false, 'message' => '"' . coffee_visor_shared_name() . '" es el nombre de la carpeta compartida: elige otro']);
         exit;
     }
 
@@ -575,8 +692,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         exit;
     }
 
+    // La carpeta compartida no es de nadie: nadie la renombra ni la reubica.
+    $sharedReal = realpath(coffee_visor_shared_root());
+    if ($sharedReal !== false && str_replace('\\', '/', $dirReal) === rtrim(str_replace('\\', '/', $sharedReal), '/')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'La carpeta compartida no se puede renombrar']);
+        exit;
+    }
+
     $parent = rtrim(str_replace('\\', '/', dirname($dirReal)), '/');
     $target = $parent . '/' . $newName;
+    if (coffee_visor_name_reserved_at($parent, $newName)) {
+        echo json_encode(['success' => false, 'message' => '"' . coffee_visor_shared_name() . '" es el nombre de la carpeta compartida: elige otro']);
+        exit;
+    }
     if (str_replace('\\', '/', $dirReal) === $target) {
         echo json_encode(['success' => true, 'message' => 'Sin cambios', 'fullPath' => $target]);
         exit;
@@ -662,6 +791,96 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     exit;
 }
 
+// Endpoint para ELIMINAR una carpeta y todo su contenido (POST deletedir).
+// Mismo sandbox que el resto. Se niega a borrar una RAIZ (la biblioteca del
+// usuario, .claude/agents, la carpeta conectada): vaciarlas de un clic seria
+// catastrofico y ninguna se puede recuperar desde el visor. La raiz compartida
+// SI se puede borrar — es una peticion explicita — pero el backend la vuelve a
+// crear vacia en la siguiente carga, asi que el efecto real es vaciarla.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'deletedir') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $fullPath   = trim($_POST['fullPath']   ?? '');
+    $customPath = trim($_POST['customPath'] ?? '');
+
+    if ($fullPath === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'fullPath requerido']);
+        exit;
+    }
+
+    $dirReal = realpath(str_replace('\\', '/', $fullPath));
+    if ($dirReal === false || !is_dir($dirReal)) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'La carpeta no existe']);
+        exit;
+    }
+    if (!coffee_visor_inside_sandbox($dirReal, $customPath)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Ruta fuera del sandbox del visor']);
+        exit;
+    }
+
+    $dirReal    = rtrim(str_replace('\\', '/', $dirReal), '/');
+    $sharedReal = realpath(coffee_visor_shared_root());
+    $sharedReal = $sharedReal === false ? '' : rtrim(str_replace('\\', '/', $sharedReal), '/');
+    $isShared   = ($sharedReal !== '' && $dirReal === $sharedReal);
+
+    // Raices protegidas: borrarlas no es "eliminar una carpeta", es borrar la
+    // biblioteca entera. La compartida se exceptua a proposito.
+    $userHome    = coffee_user_home();
+    $CLAUDE_HOME = str_replace('\\', '/', $userHome) . '/.claude';
+    $protected   = [
+        coffee_visor_docs_root(),
+        coffee_visor_documents_base(),
+        $CLAUDE_HOME . '/agents',
+        $CLAUDE_HOME . '/commands',
+        $CLAUDE_HOME . '/steering'
+    ];
+    if ($customPath !== '') $protected[] = $customPath;
+
+    foreach ($protected as $root) {
+        $rootReal = realpath($root);
+        if ($rootReal === false) continue;
+        if ($dirReal === rtrim(str_replace('\\', '/', $rootReal), '/')) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Esa es la carpeta raíz: no se puede eliminar desde el visor']);
+            exit;
+        }
+    }
+
+    // Borrado recursivo contando lo que se lleva por delante (el cliente ya
+    // pregunto, pero el resumen deja claro que se perdio).
+    $deleted = ['files' => 0, 'dirs' => 0];
+    $rrmdir = function ($path) use (&$rrmdir, &$deleted) {
+        foreach (array_diff(@scandir($path) ?: [], ['.', '..']) as $f) {
+            $full = $path . '/' . $f;
+            if (is_dir($full)) { $rrmdir($full); }
+            else if (@unlink($full)) { $deleted['files']++; }
+        }
+        if (@rmdir($path)) { $deleted['dirs']++; return true; }
+        return false;
+    };
+
+    if (!$rrmdir($dirReal)) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'No se pudo eliminar la carpeta (¿algún archivo abierto en otro programa?)',
+            'deleted' => $deleted
+        ]);
+        exit;
+    }
+
+    echo json_encode([
+        'success'  => true,
+        'message'  => $isShared ? 'Carpeta compartida vaciada' : 'Carpeta eliminada',
+        'isShared' => $isShared,
+        'deleted'  => $deleted
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 // Endpoint para MOVER una carpeta dentro de otra (POST movedir). Mismo sandbox.
 // No permite mover una carpeta dentro de sí misma o de un descendiente (bucle).
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '') === 'movedir') {
@@ -697,6 +916,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
 
     $srcReal    = str_replace('\\', '/', $srcReal);
     $dstDirReal = rtrim(str_replace('\\', '/', $dstDirReal), '/');
+
+    // La raiz compartida se queda donde esta: moverla la sacaria del alcance de
+    // los demas usuarios. Su CONTENIDO si se mueve libremente.
+    $sharedReal = realpath(coffee_visor_shared_root());
+    if ($sharedReal !== false && $srcReal === rtrim(str_replace('\\', '/', $sharedReal), '/')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'La carpeta compartida no se puede mover']);
+        exit;
+    }
 
     // No mover una carpeta dentro de sí misma ni de un descendiente suyo.
     if ($dstDirReal === $srcReal || strpos($dstDirReal . '/', $srcReal . '/') === 0) {
@@ -777,8 +1005,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     }
 
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    if (!in_array($ext, array_merge(coffee_visor_sheet_exts(), coffee_visor_media_exts()), true)) {
-        echo json_encode(['success' => false, 'message' => "Solo se pueden subir hojas de cálculo, imágenes o PDF. Recibido: .$ext"]);
+    if (!in_array($ext, coffee_visor_upload_exts(), true)) {
+        echo json_encode(['success' => false, 'message' => "Formato no permitido para subir: .$ext"]);
+        exit;
+    }
+    // Doble red: aunque la extension final sea inocente, un "reporte.php.md" o un
+    // ".htaccess" colado por un nombre raro no debe tocar disco.
+    $lowerName = strtolower($name);
+    if (preg_match('/\.(php\d?|phtml|phar|phps|cgi|pl|asp|aspx|jsp|exe|bat|cmd|dll)(\.|$)/', $lowerName)
+        || strpos($lowerName, '.htaccess') !== false
+        || strpos($lowerName, '.htpasswd') !== false) {
+        echo json_encode(['success' => false, 'message' => 'Nombre de archivo no permitido']);
         exit;
     }
 
@@ -1308,13 +1545,15 @@ $PRESETS = [
         'pathLabel'  => '.claude/agents/grimorios',
         'relPrefix'  => '.claude/agents/grimorios'
     ],
+    // Biblioteca privada del usuario en curso (documents/users/<id>). La clave del
+    // preset sigue siendo 'documents': es la que el frontend guarda en localStorage.
     'documents' => [
-        'label'      => 'Documents',
-        'path'       => __DIR__ . '/../documents',
+        'label'      => 'Mis documentos',
+        'path'       => coffee_visor_docs_root(),
         'subfolder'  => null,
         'subLabel'   => null,
-        'pathLabel'  => 'coffee/app/visor/documents',
-        'relPrefix'  => 'coffee/app/visor/documents',
+        'pathLabel'  => coffee_visor_docs_rel_prefix(),
+        'relPrefix'  => coffee_visor_docs_rel_prefix(),
         'mode'       => 'tree'
     ],
 ];
@@ -1436,6 +1675,102 @@ function readSection($dir, $section, $relPrefix, $exts = ['md']) {
     return $items;
 }
 
+// Lee UN proyecto de la biblioteca (carpeta de primer nivel): sus subcarpetas son
+// los "tipos" y los archivos que cuelgan sueltos caen en "(sin clasificar)".
+// `$relPrefix` ya incluye el proyecto y `$projLabel` es el nombre con el que el
+// arbol lo agrupa — no tienen que coincidir con la carpeta fisica, y de ahi que la
+// carpeta compartida pueda colgar del arbol de todos sin vivir dentro de ninguno.
+function readProjectTypes($projPath, $relPrefix, $projLabel) {
+    $types = [];
+    $uncategorized = [];
+    $entries = is_dir($projPath) ? scandir($projPath) : false;
+    if ($entries === false) return $types;
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') continue;
+        $entryPath = $projPath . '/' . $entry;
+
+        if (is_dir($entryPath)) {
+            $files = scandir($entryPath);
+            if ($files === false) continue;
+            $typeItems = [];
+            foreach ($files as $f) {
+                // Todo lo listable: .md, TODOs (todo*.json), hojas, medios y el
+                // resto de texto que el visor sabe abrir y que se puede subir.
+                if (!coffee_visor_tree_listable($f)) continue;
+                $full = $entryPath . '/' . $f;
+                if (!is_file($full)) continue;
+                // Los binarios no caben en el JSON del arbol (romperian json_encode):
+                // el frontend pide sus bytes aparte con ?action=readbin.
+                $isBin = coffee_visor_is_lazy_binary($f);
+                $raw   = $isBin ? '' : file_get_contents($full);
+                if ($raw === false) continue;
+                $name = coffee_visor_tree_label($f);
+                $typeItems[] = [
+                    'name'        => $name,
+                    'file'        => $f,
+                    'section'     => 'documents',
+                    'size'        => fmtSize(filesize($full)),
+                    'isBackup'    => (stripos($name, 'backup') !== false),
+                    'frontmatter' => parseFrontmatter($raw),
+                    'raw'         => $raw,
+                    'lazyBinary'  => $isBin,
+                    'mediaKind'   => coffee_visor_media_kind($f),
+                    'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
+                    'fullPath'    => str_replace('\\', '/', $full),
+                    'relPath'     => $relPrefix . '/' . $entry . '/' . $f,
+                    'project'     => $projLabel,
+                    'type'        => $entry
+                ];
+            }
+            usort($typeItems, function ($a, $b) {
+                return strcasecmp($a['name'], $b['name']);
+            });
+            // Incluimos la sub-carpeta aunque esté vacía (explorador tipo Windows:
+            // las carpetas recién creadas deben verse aunque no tengan archivos aún).
+            $types[$entry] = $typeItems;
+        } else if (coffee_visor_tree_listable($entry)) {
+            $full = $entryPath;
+            if (!is_file($full)) continue;
+            $isBin = coffee_visor_is_lazy_binary($entry);
+            $raw   = $isBin ? '' : file_get_contents($full);
+            if ($raw === false) continue;
+            $name = coffee_visor_tree_label($entry);
+            $uncategorized[] = [
+                'name'        => $name,
+                'file'        => $entry,
+                'section'     => 'documents',
+                'size'        => fmtSize(filesize($full)),
+                'isBackup'    => (stripos($name, 'backup') !== false),
+                'frontmatter' => parseFrontmatter($raw),
+                'raw'         => $raw,
+                'lazyBinary'  => $isBin,
+                'mediaKind'   => coffee_visor_media_kind($entry),
+                'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
+                'fullPath'    => str_replace('\\', '/', $full),
+                'relPath'     => $relPrefix . '/' . $entry,
+                'project'     => $projLabel,
+                'type'        => '(sin clasificar)'
+            ];
+        }
+    }
+
+    if (count($uncategorized)) {
+        usort($uncategorized, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        $types['(sin clasificar)'] = $uncategorized;
+    }
+
+    uksort($types, function ($a, $b) {
+        if ($a === '(sin clasificar)') return 1;
+        if ($b === '(sin clasificar)') return -1;
+        return strcasecmp($a, $b);
+    });
+
+    return $types;
+}
+
 function readDocumentsTree($baseDir, $relPrefix) {
     $documents = [];
     if (!is_dir($baseDir)) return $documents;
@@ -1445,8 +1780,10 @@ function readDocumentsTree($baseDir, $relPrefix) {
     sort($projects);
 
     // Carpetas de sistema dentro de documents/ (no son documentos del usuario):
-    // se ocultan del explorador. 'template' y 'Chats' las gestionan el Playground/Chat.
-    $SYSTEM_DIRS = ['template', 'chats'];
+    // se ocultan del explorador. 'template' y 'Chats' las gestionan el Playground/Chat,
+    // 'module-template' el Forge, 'users' es el contenedor de las bibliotecas privadas
+    // y 'shared' se inyecta aparte, con su nombre de carpeta compartida.
+    $SYSTEM_DIRS = ['template', 'chats', 'module-template', 'users', 'shared'];
 
     foreach ($projects as $proj) {
         if ($proj === '.' || $proj === '..') continue;
@@ -1454,105 +1791,8 @@ function readDocumentsTree($baseDir, $relPrefix) {
         $projPath = $baseDir . '/' . $proj;
         if (!is_dir($projPath)) continue;
 
-        $types = [];
-        $uncategorized = [];
-        $entries = scandir($projPath);
-        if ($entries === false) continue;
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') continue;
-            $entryPath = $projPath . '/' . $entry;
-
-            if (is_dir($entryPath)) {
-                $files = scandir($entryPath);
-                if ($files === false) continue;
-                $typeItems = [];
-                foreach ($files as $f) {
-                    // TODO dinamico (panel): todo.json o cualquier todo*.json (renombrado).
-                    $isTodo  = (bool) preg_match('/^todo.*\.json$/', strtolower($f));
-                    $isSheet = in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true);
-                    $isMedia = coffee_visor_media_kind($f) !== '';
-                    if (substr($f, -3) !== '.md' && !$isTodo && !$isSheet && !$isMedia) continue;
-                    $full = $entryPath . '/' . $f;
-                    if (!is_file($full)) continue;
-                    // Los binarios no caben en el JSON del arbol (romperian json_encode):
-                    // el frontend pide sus bytes aparte con ?action=readbin.
-                    $isBin = coffee_visor_is_lazy_binary($f);
-                    $raw   = $isBin ? '' : file_get_contents($full);
-                    if ($raw === false) continue;
-                    $name = ($isSheet || $isMedia)
-                        ? $f
-                        : (strtolower($f) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $f));
-                    $typeItems[] = [
-                        'name'        => $name,
-                        'file'        => $f,
-                        'section'     => 'documents',
-                        'size'        => fmtSize(filesize($full)),
-                        'isBackup'    => (stripos($name, 'backup') !== false),
-                        'frontmatter' => parseFrontmatter($raw),
-                        'raw'         => $raw,
-                        'lazyBinary'  => $isBin,
-                        'mediaKind'   => coffee_visor_media_kind($f),
-                        'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
-                        'fullPath'    => str_replace('\\', '/', $full),
-                        'relPath'     => $relPrefix . '/' . $proj . '/' . $entry . '/' . $f,
-                        'project'     => $proj,
-                        'type'        => $entry
-                    ];
-                }
-                usort($typeItems, function ($a, $b) {
-                    return strcasecmp($a['name'], $b['name']);
-                });
-                // Incluimos la sub-carpeta aunque esté vacía (explorador tipo Windows:
-                // las carpetas recién creadas deben verse aunque no tengan archivos aún).
-                $types[$entry] = $typeItems;
-            } else if (substr($entry, -3) === '.md'
-                       || preg_match('/^todo.*\.json$/', strtolower($entry))
-                       || in_array(strtolower(pathinfo($entry, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true)
-                       || coffee_visor_media_kind($entry) !== '') {
-                $full = $entryPath;
-                if (!is_file($full)) continue;
-                $isSheet = in_array(strtolower(pathinfo($entry, PATHINFO_EXTENSION)), coffee_visor_sheet_exts(), true);
-                $isMedia = coffee_visor_media_kind($entry) !== '';
-                $isBin   = coffee_visor_is_lazy_binary($entry);
-                $raw     = $isBin ? '' : file_get_contents($full);
-                if ($raw === false) continue;
-                $name = ($isSheet || $isMedia)
-                    ? $entry
-                    : (strtolower($entry) === 'todo.json' ? 'TODO' : preg_replace('/\.(md|json)$/i', '', $entry));
-                $uncategorized[] = [
-                    'name'        => $name,
-                    'file'        => $entry,
-                    'section'     => 'documents',
-                    'size'        => fmtSize(filesize($full)),
-                    'isBackup'    => (stripos($name, 'backup') !== false),
-                    'frontmatter' => parseFrontmatter($raw),
-                    'raw'         => $raw,
-                    'lazyBinary'  => $isBin,
-                    'mediaKind'   => coffee_visor_media_kind($entry),
-                    'mtime'       => date('Y-m-d H:i:s', filemtime($full)),
-                    'fullPath'    => str_replace('\\', '/', $full),
-                    'relPath'     => $relPrefix . '/' . $proj . '/' . $entry,
-                    'project'     => $proj,
-                    'type'        => '(sin clasificar)'
-                ];
-            }
-        }
-
-        if (count($uncategorized)) {
-            usort($uncategorized, function ($a, $b) {
-                return strcasecmp($a['name'], $b['name']);
-            });
-            $types['(sin clasificar)'] = $uncategorized;
-        }
-
-        uksort($types, function ($a, $b) {
-            if ($a === '(sin clasificar)') return 1;
-            if ($b === '(sin clasificar)') return -1;
-            return strcasecmp($a, $b);
-        });
         // Incluimos el proyecto aunque esté vacío (carpeta recién creada en la raíz).
-        $documents[$proj] = $types;
+        $documents[$proj] = readProjectTypes($projPath, $relPrefix . '/' . $proj, $proj);
     }
 
     return $documents;
@@ -1715,6 +1955,21 @@ if ($mode === 'drive') {
     ];
 } elseif ($mode === 'tree') {
     $documents = readDocumentsTree($rootDir, $relPrefix);
+
+    // La carpeta compartida se cuelga del arbol como un proyecto mas, pero su
+    // contenido se lee de documents/shared. Va PRIMERA en el orden y el frontend
+    // la pinta en celeste; `sharedFolder` en el header le dice cual es su ruta
+    // real, porque no se puede derivar de currentPath como las demas.
+    $sharedName = coffee_visor_shared_name();
+    $sharedRoot = str_replace('\\', '/', coffee_visor_shared_root());
+    if ($folderKey === 'documents') {
+        unset($documents[$sharedName]);   // una carpeta propia homonima no la tapa
+        $documents = array_merge(
+            [$sharedName => readProjectTypes($sharedRoot, coffee_visor_shared_rel_prefix(), $sharedName)],
+            $documents
+        );
+    }
+
     $payload = [
         'header' => [
             'title'        => 'CoffeeDocs',
@@ -1727,7 +1982,10 @@ if ($mode === 'drive') {
             'currentPath'  => str_replace('\\', '/', $rootDir),
             'valid'        => $isValid,
             'presets'      => presetList($PRESETS),
-            'sectionLabel' => null
+            'sectionLabel' => null,
+            'sharedFolder' => ($folderKey === 'documents')
+                ? ['name' => $sharedName, 'path' => $sharedRoot]
+                : null
         ],
         'documents' => $documents,
         'agents'    => [],

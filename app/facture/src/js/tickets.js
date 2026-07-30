@@ -1,10 +1,10 @@
-let apiGenerador = '/app/facture/ctrl/ctrl-facture-generador.php';
-let app, generador, generadorView;
+let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
+let app, tickets, ticketsView;
 
 $(async () => {
-    generadorView = new GeneradorView(apiGenerador, 'root');
-    generador     = new Generador(apiGenerador, 'root');
-    app           = new App(apiGenerador, 'root');
+    ticketsView = new TicketsView(apiTickets, 'root');
+    tickets     = new Tickets(apiTickets, 'root');
+    app         = new App(apiTickets, 'root');
     await app.init();
 });
 
@@ -14,15 +14,15 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'generador';
+        this.PROJECT_NAME = 'tickets';
         this.selectedId   = null;
         this.preparado    = null;
     }
 
     async init() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'init' } })
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'init' } })
         this.dataInit = {
-            emisor: SAMPLE_GENERADOR_EMISOR,
+            emisor: SAMPLE_TICKETS_EMISOR,
             dia:    this.getParam('dia') || '2026-06-10'
         };
         this.selectedId = this.getIdFromUrl() || '4618312';
@@ -36,17 +36,17 @@ class App extends Templates {
 
     getIdFromUrl() {
         const id = this.getParam('id');
-        return id && SAMPLE_GENERADOR_DB[id] ? id : null;
+        return id && SAMPLE_TICKETS_DB[id] ? id : null;
     }
 
     render() {
         this.layout();
         this.filterBar();
         this.previewActions();
-        generadorView.renderFooter(SAMPLE_VIEW_FOOTER_GENERADOR);
-        generadorView.renderListNote();
+        ticketsView.renderFooter(SAMPLE_VIEW_FOOTER_TICKETS);
+        ticketsView.renderListNote();
         this.updateHeaderTitle();
-        generador.lsTickets();
+        tickets.lsTickets();
         this.selectTicket(this.selectedId);
     }
 
@@ -64,23 +64,23 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
+                    class: 'px-3 pt-3 pb-1 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'listHead',
-                    class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#0E1521] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
                 },
                 {
-                    id:    'tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
+                    id:    'tableRow',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col'
                 },
                 {
                     id:    'listNote',
-                    class: 'px-4 py-2 border-t border-[#374151] bg-[#141d2b] flex-shrink-0'
+                    class: 'px-4 py-2 bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] flex-shrink-0'
                 }
             ]
         };
@@ -123,12 +123,34 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'detailNote',
-                        class: 'px-4 py-2 border-t border-[#374151] flex-shrink-0'
+                        class: 'px-4 py-2 flex-shrink-0'
                     },
                     {
                         type:  'div',
                         id:    'detailActions',
-                        class: 'px-3 py-2 border-t border-[#374151] bg-[#0E1521] flex-shrink-0'
+                        class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
+                    }
+                ]
+            }
+        });
+
+        this.tableLayout();
+    }
+
+    // La tabla vive en una tarjeta, como la bitacora de cargas: el p-3 de la fila
+    // queda como margen exterior y el fondo de la tarjeta la separa del panel.
+    tableLayout() {
+        this.createLayout({
+            parent: 'tableRow',
+            design: false,
+            data: {
+                id:    'cardTable',
+                class: 'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'tableWrap',
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin'
                     }
                 ]
             }
@@ -164,7 +186,7 @@ class App extends Templates {
                 text:      'Generar todos los 0%',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-3',
-                onClick:   () => generador.generateAllZero()
+                onClick:   () => tickets.generateAllZero()
             }
         ];
 
@@ -181,7 +203,7 @@ class App extends Templates {
     previewActions() {
         this.createfilterBar({
             parent:     'detailActions',
-            id:         'frmActionsGenerador',
+            id:         'frmActionsTickets',
             coffeesoft: true,
             theme:      FACTURE_THEME,
             data: [
@@ -191,7 +213,7 @@ class App extends Templates {
                     text:      'Regenerar',
                     color_btn: 'secondary',
                     class:     'col-6',
-                    onClick:   () => generador.regenerate()
+                    onClick:   () => tickets.regenerate()
                 },
                 {
                     opc:       'button',
@@ -199,7 +221,7 @@ class App extends Templates {
                     text:      'Imprimir',
                     color_btn: 'invernal',
                     class:     'col-6',
-                    onClick:   () => generador.printTicket()
+                    onClick:   () => tickets.printTicket()
                 }
             ]
         });
@@ -216,7 +238,7 @@ class App extends Templates {
 
     onChangeFilters() {
         this.updateHeaderTitle();
-        generador.lsTickets();
+        tickets.lsTickets();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
             this.selectTicket(null);
@@ -224,7 +246,7 @@ class App extends Templates {
     }
 
     isVisibleAfterFilters(id) {
-        return generador.getRegistros().some(e => e.id === id);
+        return tickets.getRegistros().some(e => e.id === id);
     }
 
     updateHeaderTitle() {
@@ -233,9 +255,9 @@ class App extends Templates {
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${SAMPLE_VIEW_HEADER_GENERADOR.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
+        const titleHtml = `${SAMPLE_VIEW_HEADER_TICKETS.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
 
-        generadorView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_GENERADOR, { titleHtml }));
+        ticketsView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_TICKETS, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -250,19 +272,19 @@ class App extends Templates {
 
         if (!id) {
             this.preparado = null;
-            generadorView.renderPreview(null, null);
+            ticketsView.renderPreview(null, null);
             return;
         }
 
         // La celda de nota lleva id `Nota_<id>`, generado por createCoffeeTable3.
         $(`#Nota_${id}`).closest('tr').addClass('row-active');
 
-        const e = SAMPLE_GENERADOR_DB[id];
+        const e = SAMPLE_TICKETS_DB[id];
         if (!e) return;
 
         e.generado     = true;
         this.preparado = _prepararTicketVirtual(e);
-        generadorView.renderPreview(e, this.preparado);
+        ticketsView.renderPreview(e, this.preparado);
     }
 
     getPreparado() {
@@ -270,20 +292,20 @@ class App extends Templates {
     }
 }
 
-// -- Generador --
+// -- Tickets --
 
-class Generador extends Templates {
+class Tickets extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'generador';
+        this.PROJECT_NAME = 'tickets';
     }
 
     // -- Data --
 
     getRegistros() {
         const f = app.getFilters();
-        return Object.values(SAMPLE_GENERADOR_DB).filter(e => {
+        return Object.values(SAMPLE_TICKETS_DB).filter(e => {
             if (e.metodo === 'Efectivo') return false;
             if (f.dia && e.fecha !== f.dia) return false;
             if (f.q) {
@@ -295,9 +317,9 @@ class Generador extends Templates {
     }
 
     lsTickets() {
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:Object.assign({ opc:'lsTickets' }, app.getFilters()) })
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:Object.assign({ opc:'lsTickets' }, app.getFilters()) })
         const registros = this.getRegistros();
-        const rows      = registros.map(_generadorRow);
+        const rows      = registros.map(_ticketRow);
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -318,7 +340,7 @@ class Generador extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
-        generadorView.renderListHead({
+        ticketsView.renderListHead({
             bloqueados: registros.filter(e => e.fiscal === 'invoiced').length,
             cero:       registros.filter(e => e.tasa === 0 && e.fiscal !== 'invoiced').length
         });
@@ -347,7 +369,7 @@ class Generador extends Templates {
             }
         }).then((result) => {
             if (!result.isConfirmed) return;
-            // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'generateAllZero', dia:app.getFilters().dia } })
+            // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'generateAllZero', dia:app.getFilters().dia } })
             pendientes.forEach(e => { e.generado = true; });
             this.lsTickets();
             this.alertBox({ type: 'success', title: `${pendientes.length} tickets virtuales generados`, timer: 1600 });
@@ -359,7 +381,7 @@ class Generador extends Templates {
             this.alertBox({ type: 'message', title: 'Selecciona un ticket de la lista' });
             return;
         }
-        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'regenerate', id:app.selectedId } })
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiTickets, data:{ opc:'regenerate', id:app.selectedId } })
         app.selectTicket(app.selectedId);
     }
 
@@ -372,7 +394,7 @@ class Generador extends Templates {
     }
 
     lockedNotice(id) {
-        const e = SAMPLE_GENERADOR_DB[id];
+        const e = SAMPLE_TICKETS_DB[id];
         if (!e) return;
         this.alertBox({ type: 'message', title: `El ticket ya esta facturado con el folio ${e.factura}` });
     }
@@ -380,11 +402,11 @@ class Generador extends Templates {
 
 // -- Vista --
 
-class GeneradorView extends Templates {
+class TicketsView extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'generador';
+        this.PROJECT_NAME = 'tickets';
     }
 
     // -- Render helpers --
@@ -392,7 +414,7 @@ class GeneradorView extends Templates {
     renderHeader(data) {
         this.viewHeader({
             parent: 'viewHeader',
-            id:     'hdrGenerador',
+            id:     'hdrTickets',
             json:   data
         });
     }
@@ -433,7 +455,7 @@ class GeneradorView extends Templates {
             parent: 'ticketPrintArea',
             json:   ticket,
             data:   preparado,
-            emisor: SAMPLE_GENERADOR_EMISOR
+            emisor: SAMPLE_TICKETS_EMISOR
         });
 
         this.panelHead({

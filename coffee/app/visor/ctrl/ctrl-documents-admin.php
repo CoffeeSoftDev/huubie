@@ -1,14 +1,29 @@
 <?php
+// Admin de Documentos: gestiona la MISMA biblioteca que el visor, que desde la
+// separacion por usuario vive en documents/users/<id>/. Sin sesion no hay
+// carpeta que administrar: si este panel siguiera apuntando a documents/ seria
+// la puerta de atras al arbol de las demas cuentas.
+require_once __DIR__ . '/../../ctrl/auth-session.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-$BASE_DIR = realpath(__DIR__ . '/../documents');
+$userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
+if ($userId <= 0) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Sesion requerida'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$BASE_DIR = __DIR__ . '/../documents/users/' . $userId;
+if (!is_dir($BASE_DIR)) {
+    @mkdir($BASE_DIR, 0755, true);
+}
+$BASE_DIR = realpath($BASE_DIR);
 if ($BASE_DIR === false) {
-    $BASE_DIR = __DIR__ . '/../documents';
-    if (!is_dir($BASE_DIR)) {
-        @mkdir($BASE_DIR, 0755, true);
-    }
-    $BASE_DIR = realpath($BASE_DIR);
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'No se pudo preparar la carpeta de documentos'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 $action = $_REQUEST['action'] ?? '';

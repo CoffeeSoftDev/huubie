@@ -1,12 +1,12 @@
 // -- Vista --
 
-const SAMPLE_VIEW_HEADER_GENERADOR = {
-    title:    'Generador de tickets virtuales',
-    subtitle: 'Tickets del dia pagados con tarjeta. Los tickets en efectivo no se muestran. Las notas se reinician cada dia',
+const SAMPLE_VIEW_HEADER_TICKETS = {
+    title:    'Tickets',
+    subtitle: 'Tickets virtuales del dia, pagados con tarjeta. Los tickets en efectivo no se muestran. Las notas se reinician cada dia',
     back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
 };
 
-const SAMPLE_VIEW_FOOTER_GENERADOR = {
+const SAMPLE_VIEW_FOOTER_TICKETS = {
     info: '',
     legends: [
         { tone: 'success', label: 'Bloqueado'               },
@@ -25,19 +25,19 @@ const _badgeTasa = (tasa) => tasa === 0
     ? '<span class="badge-base b-yellow">0%</span>'
     : '<span class="badge-base b-terra">16%</span>';
 
-const _badgeEstadoGen = (e) => {
+const _badgeEstadoTicket = (e) => {
     if (e.fiscal === 'invoiced') return `<span class="badge-base b-green"><i data-lucide="lock" class="w-3 h-3"></i>Facturado ${e.factura}</span>`;
     if (e.tasa === 0)            return '<span class="badge-base b-yellow">Requiere ticket virtual</span>';
     return '<span class="badge-base b-gray">Pendiente de facturar</span>';
 };
 
-const _accionGen = (e) => {
+const _accionTicket = (e) => {
     if (e.fiscal === 'invoiced') {
         return [
             {
                 class:   'btn-ghost !px-2.5 !py-1 text-[11px]',
                 html:    'Bloqueado',
-                onclick: `generador.lockedNotice('${e.id}')`
+                onclick: `tickets.lockedNotice('${e.id}')`
             }
         ];
     }
@@ -61,7 +61,7 @@ const _accionGen = (e) => {
 
 // -- Datos --
 
-const SAMPLE_GENERADOR_EMISOR = {
+const SAMPLE_TICKETS_EMISOR = {
     razon:     'RESTAURANT',
     domicilio: 'Av. Central Norte 45, Tapachula, Chis.',
     telefono:  'Tel. (962) 555-0134',
@@ -69,7 +69,7 @@ const SAMPLE_GENERADOR_EMISOR = {
     leyenda:   'Este ticket no es un comprobante fiscal'
 };
 
-const SAMPLE_GENERADOR_PUENTE = [
+const SAMPLE_TICKETS_PUENTE = [
     { code: 'PAR-001', nombre: 'Parrillada Argentina',  precio: 645.00 },
     { code: 'RIB-003', nombre: 'Rib Eye 400g',          precio: 985.00 },
     { code: 'LIM-014', nombre: 'Limonada mineral',      precio: 65.00  },
@@ -79,7 +79,7 @@ const SAMPLE_GENERADOR_PUENTE = [
     { code: 'FLA-002', nombre: 'Flan napolitano',       precio: 95.00  }
 ];
 
-const SAMPLE_GENERADOR_DB = {
+const SAMPLE_TICKETS_DB = {
     '461831': {
         id:       '461831',
         orden:    1,
@@ -269,7 +269,7 @@ const SAMPLE_GENERADOR_DB = {
 const _prepararTicketVirtual = (e) => {
     let restante = Number(e.total || 0);
     const lineas = [];
-    const pool   = SAMPLE_GENERADOR_PUENTE.slice().sort(() => Math.random() - 0.5);
+    const pool   = SAMPLE_TICKETS_PUENTE.slice().sort(() => Math.random() - 0.5);
 
     pool.forEach(prod => {
         if (restante <= 0) return;
@@ -291,13 +291,13 @@ const _prepararTicketVirtual = (e) => {
 
 // -- Filas --
 
-const _generadorRow = (e) => ({
+const _ticketRow = (e) => ({
     id:     e.id,
     Nota:   `<span class="font-bold text-gray-300">#${e.orden}</span>`,
     ID:     `<span class="font-mono text-[10px] text-gray-400">${e.id}</span>`,
     Tasa:   _badgeTasa(e.tasa),
-    Estado: _badgeEstadoGen(e),
+    Estado: _badgeEstadoTicket(e),
     Monto:  `<span class="font-semibold text-white">${_fmtMX(e.total)}</span>`,
-    a:      _accionGen(e)
+    a:      _accionTicket(e)
 });
 

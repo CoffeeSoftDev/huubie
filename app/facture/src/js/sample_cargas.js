@@ -44,7 +44,7 @@ const SAMPLE_CARGAS_ARCHIVOS = {
     'sales-report': {
         id:        'sales-report',
         titulo:    'Reporte de ventas',
-        subtitulo: 'Sube un solo archivo. El sistema detecta si la hoja es "Reporte de ventas" (tickets) o "Pagos" (formas de pago) y la envia a la tabla correspondiente.',
+        subtitulo: 'Sube un solo archivo. El sistema carga primero la hoja "Pagos" (formas de pago) y despues "Reporte de ventas" (tickets), que las cruza por folio.',
         esperado:  'Reporte_De_Ventas_YYYYMMDD.xlsx',
         formato:   'XLSX',
         estado:    'pendiente'
@@ -60,30 +60,31 @@ const SAMPLE_CARGAS_ARCHIVOS = {
 };
 
 // Hojas que el sistema espera encontrar; tras subir el archivo se reemplazan por
-// las que realmente trae, con su conteo de registros.
+// las que realmente trae, con su conteo de registros. Van en el orden en que se
+// cargan: los pagos primero, para que las ventas los cruzen por folio.
 const SAMPLE_CARGAS_HOJAS = [
-    {
-        icon:      'receipt-text',
-        titulo:    'Reporte de ventas',
-        detalle:   'columnas A:J · header fila 7',
-        bgClass:   'bg-[rgba(16,185,129,0.12)]',
-        iconClass: 'text-green-600'
-    },
     {
         icon:      'credit-card',
         titulo:    'Pagos',
         detalle:   'columnas A:H · header fila 7',
         bgClass:   'bg-[rgba(28,100,242,0.12)]',
         iconClass: 'text-[#1C64F2]'
+    },
+    {
+        icon:      'receipt-text',
+        titulo:    'Reporte de ventas',
+        detalle:   'columnas A:J · header fila 7',
+        bgClass:   'bg-[rgba(16,185,129,0.12)]',
+        iconClass: 'text-green-600'
     }
 ];
 
 // Roadmap en reposo: los mismos pasos que devuelve uploadFile, sin ejecutar.
 const SAMPLE_CARGAS_ROADMAP = [
     { titulo: 'Recibir archivo',   estado: 'pendiente', detalle: 'Sube el Excel del periodo' },
-    { titulo: 'Detectar hojas',    estado: 'pendiente', detalle: 'Reporte de ventas · Pagos' },
+    { titulo: 'Detectar hojas',    estado: 'pendiente', detalle: 'Pagos · Reporte de ventas' },
     { titulo: 'Validar columnas',  estado: 'pendiente', detalle: 'Se comparan contra el formato del POS' },
-    { titulo: 'Guardar en base',   estado: 'pendiente', detalle: 'Un lote por hoja' }
+    { titulo: 'Guardar en base',   estado: 'pendiente', detalle: 'Un lote por hoja · los pagos primero' }
 ];
 
 const SAMPLE_CARGAS_COLUMNAS = [

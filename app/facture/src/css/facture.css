@@ -74,21 +74,23 @@
 #root #kpisResumen > div,
 #root #kpisCatalogos > div { border: 0 !important; }
 
-/* -- KPIs compactos (tickets) --
-   infoCard(style:'file') fija p-3, icono de 32px y valor text-xl; aqui se
-   reducen sin tocar el componente del framework. */
-#root #kpisTickets { gap: 8px !important; }
+/* -- KPIs chicos (tickets) --
+   Son cuatro cifras de apoyo, no el contenido de la vista: la tarjeta se queda
+   en lo alto de su texto y el aire vive en la separacion entre ellas, no dentro.
+   El p-3, el icono de 32px y el valor text-xl de infoCard(style:'file') se
+   reducen aqui, sin tocar el componente del framework. */
+#root #kpisTickets { gap: 10px !important; }
 
-#root #kpisTickets > div { padding: 6px 10px !important; }
+#root #kpisTickets > div { padding: 7px 11px !important; }
 
 #root #kpisTickets p { font-size: 11px !important; margin-bottom: 0 !important; }
 
 #root #kpisTickets .text-xl { font-size: 15px; line-height: 1.2; }
 
-#root #kpisTickets .w-8 { width: 24px; height: 24px; margin-right: 6px; }
+#root #kpisTickets .w-8 { width: 26px; height: 26px; margin-right: 7px; }
 
 #root #kpisTickets .w-8 svg,
-#root #kpisTickets .w-8 i { width: 14px; height: 14px; }
+#root #kpisTickets .w-8 i { width: 15px; height: 15px; }
 
 /* -- Rango de fechas sobre fondo oscuro --
    El popup del daterangepicker se monta en <body>, fuera de #root, por eso se
@@ -165,6 +167,10 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 /* -- Barra de progreso de la meta -- */
 #root .prog-track { height: 10px; border-radius: 9999px; background: #1F2A37; overflow: hidden; }
 #root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #1C64F2, #60A5FA); transition: width .5s ease; }
+
+/* El texto del loader del framework viene en gris oscuro (#374151): sobre el
+   panel del modulo se pierde justo cuando hay que leerlo. */
+#root .coffeeia-loader span { color: #9CA3AF; }
 
 /* -- Fila de carga de Excel --
    Una sola linea: icono, nombre del archivo, estado y boton de accion.
@@ -252,7 +258,11 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 
 /* -- Ticket virtual (papel termico) --
    Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel
-   impreso y se manda a la impresora tal cual (ver @media print al final). */
+   impreso y se manda a la impresora tal cual (ver @media print al final).
+
+   El ancho es de tira termica (260px, no los 320px de una tarjeta) y los
+   renglones van mas separados: el papel crece a lo largo y se lee como el
+   ticket que sale de la impresora, no como una caja de datos. */
 #root .ticket-paper {
     background: #fff;
     border: 1px solid #E5E7EB;
@@ -261,15 +271,15 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
     font-family: 'Courier New', ui-monospace, monospace;
     font-size: 11px;
     color: #1F2937;
-    padding: 22px 20px;
-    max-width: 320px;
+    padding: 28px 16px;
+    max-width: 260px;
     margin: 0 auto;
 }
 
 #root .ticket-paper * { font-family: 'Courier New', ui-monospace, monospace; }
-#root .ticket-paper .tk-sep { border-top: 1px dashed #9CA3AF; margin: 8px 0; }
+#root .ticket-paper .tk-sep { border-top: 1px dashed #9CA3AF; margin: 12px 0; }
 #root .ticket-paper table { width: 100%; }
-#root .ticket-paper td { padding: 2px 0; font-size: 11px; color: #1F2937; white-space: normal; }
+#root .ticket-paper td { padding: 4px 0; font-size: 11px; color: #1F2937; white-space: normal; line-height: 1.5; }
 #root .ticket-paper tr,
 #root .ticket-paper tr:hover { border: none; background: transparent; }
 

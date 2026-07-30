@@ -6,17 +6,30 @@ require_once '../mdl/mdl-facture-resumen.php';
 
 class ctrl extends mdl {
 
-    public $subsidiariesId;
+    public $branch;
 
     public function __construct() {
         parent::__construct();
-        $this->subsidiariesId = (int) ($_SESSION['SUB'] ?? $_POST['subsidiaries_id'] ?? 0);
+        $this->branch = $this->resolveBranch();
     }
 
-    // subsidiaries_id apunta por FK a fayxzvov_alpha.subsidiaries: un 0 sin
-    // sucursal en sesion rompe la restriccion, y la columna admite NULL.
+    // El facturador tiene su propia tabla branch: el id de sucursal de la sesion
+    // de Huubie (SUB) es de otro esquema y no cruza con este. Se resuelve contra
+    // fayxzvov_facturacion.branch y se cachea en sesion.
+    function resolveBranch() {
+        if (!empty($_SESSION['FACTURE_BRANCH'])) return (int) $_SESSION['FACTURE_BRANCH'];
+
+        $ls = $this->getBranch();
+        $id = (int) ($ls[0]['id'] ?? 0);
+        if ($id > 0) $_SESSION['FACTURE_BRANCH'] = $id;
+
+        return $id;
+    }
+
+    // branch_id admite NULL: sin sucursal dada de alta el modulo lee las filas
+    // sin sucursal en vez de romper la FK.
     function branchId() {
-        return $this->subsidiariesId > 0 ? $this->subsidiariesId : null;
+        return $this->branch > 0 ? $this->branch : null;
     }
 
     function init() {

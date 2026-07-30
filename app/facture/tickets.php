@@ -6,7 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
-    <title>Huubie · Facturador SAT — Generador</title>
+    <title>Huubie · Facturador SAT — Tickets</title>
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/layout/huubie-libraries.php'); ?>
@@ -32,9 +32,9 @@
     <script src="/app/facture/src/js/navbar-huubie.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/sidebar-huubie.js?t=<?php echo time(); ?>"></script>
 
-    <!-- Modulo Generador -->
-    <script src="/app/facture/src/js/sample_generador.js?t=<?php echo time(); ?>"></script>
-    <script src="/app/facture/src/js/generador.js?t=<?php echo time(); ?>"></script>
+    <!-- Modulo Tickets -->
+    <script src="/app/facture/src/js/sample_tickets.js?t=<?php echo time(); ?>"></script>
+    <script src="/app/facture/src/js/tickets.js?t=<?php echo time(); ?>"></script>
 </body>
 
 </html>

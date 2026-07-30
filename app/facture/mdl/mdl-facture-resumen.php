@@ -14,12 +14,24 @@ class mdl extends CRUD {
 
     // -- Catalogos --
 
+    // La sucursal del modulo vive en este esquema, no en la sesion de Huubie.
+    function getBranch() {
+        $query = "
+            SELECT id
+            FROM {$this->bd}branch
+            WHERE active = 1
+            ORDER BY id ASC
+            LIMIT 1
+        ";
+        return $this->_Read($query);
+    }
+
     // Dias con ventas cargadas: alimentan el filtro de fecha del modulo.
     function lsDias($array) {
         $query = "
             SELECT DATE(operation_date) AS id, DATE(operation_date) AS valor
             FROM {$this->bd}sale
-            WHERE active = 1 AND subsidiaries_id <=> ? AND operation_date IS NOT NULL
+            WHERE active = 1 AND branch_id <=> ? AND operation_date IS NOT NULL
             GROUP BY DATE(operation_date)
             ORDER BY DATE(operation_date) DESC
         ";
@@ -48,7 +60,7 @@ class mdl extends CRUD {
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             WHERE s.active = 1
-              AND s.subsidiaries_id <=> ?
+              AND s.branch_id <=> ?
               AND DATE(s.operation_date) = ?
             ORDER BY s.operation_date ASC, s.id ASC
         ";
@@ -64,7 +76,7 @@ class mdl extends CRUD {
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             WHERE s.active = 1
-              AND s.subsidiaries_id <=> ?
+              AND s.branch_id <=> ?
               AND DATE(s.operation_date) = ?
         ";
         return $this->_Read($query, $array);

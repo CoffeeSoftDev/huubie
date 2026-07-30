@@ -43,6 +43,18 @@ const PDF_EXTS   = ['pdf'];
 const MEDIA_EXTS = IMAGE_EXTS.concat(PDF_EXTS);
 const MEDIA_MAX_BYTES = 25 * 1024 * 1024;
 
+// Documentos de texto que tambien se pueden subir (arrastrandolos al explorador).
+// Espeja coffee_visor_text_upload_exts() del backend: sin .php ni ejecutables,
+// porque la biblioteca vive dentro del docroot de Apache.
+const TEXT_UPLOAD_EXTS = [
+    'md','markdown','txt','json','yml','yaml','toml','xml',
+    'html','htm','css','scss','js','ts','sql','ini','conf',
+    'log','env','sh','py','rb','go','rs','java','c','cpp',
+    'cs','drawio','excalidraw'
+];
+const UPLOAD_EXTS     = SHEET_EXTS.concat(MEDIA_EXTS, TEXT_UPLOAD_EXTS);
+const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+
 /** 'image' | 'pdf' | '' — clase de medio por nombre de archivo. */
 function visorMediaKind(fileName) {
     const parts = String(fileName || '').split('.');
@@ -888,6 +900,8 @@ class App {
         this.bindSidebarResize();
         this.bindNewFileModal();
         this.bindUploadModal();
+        this.bindDropGuard();
+        this.bindLauncher();
 
         // Si prefs.sqlite trae accesos/recientes mas nuevos (otro equipo), repintar.
         if (window.CoffeePrefs) {
@@ -1890,6 +1904,30 @@ class App {
         return this.settings.customPath || '';
     }
 
+    // Datos de la carpeta compartida (documents/shared) tal como los manda el
+    // backend, o null si el origen abierto no la ofrece (Drive, Custom, presets).
+    sharedFolder() {
+        const h = this.dataInit && this.dataInit.header ? this.dataInit.header : null;
+        const sf = h && h.sharedFolder;
+        return (sf && sf.name && sf.path)
+            ? { name: sf.name, path: String(sf.path).replace(/[\/\\]+$/, '') }
+            : null;
+    }
+
+    // Ruta fisica de un nivel del arbol ([proyecto, tipo]). Casi siempre es
+    // baseDir + crumb, pero la carpeta compartida vive fuera de la biblioteca:
+    // lo que cuelga de ella se resuelve contra su propia raiz.
+    resolveTreeDir(baseDir, crumb) {
+        const base = String(baseDir || '').replace(/\/+$/, '');
+        const segs = Array.isArray(crumb) ? crumb.filter(Boolean) : [];
+        const sf   = this.sharedFolder();
+        if (sf && segs.length && segs[0] === sf.name) {
+            const rest = segs.slice(1);
+            return sf.path + (rest.length ? '/' + rest.join('/') : '');
+        }
+        return base + (segs.length ? '/' + segs.join('/') : '');
+    }
+
     // Carpeta absoluta que el explorador tiene ABIERTA ahora mismo. En el arbol de
     // documentos hay que sumarle el crumb (proyecto / tipo): `currentPath` es solo la
     // raiz del arbol. Vacio si el origen es Drive (no es una ruta local).
@@ -1901,7 +1939,7 @@ class App {
         let crumb = [];
         try { crumb = JSON.parse(localStorage.getItem('visor:docs:crumb') || '[]'); } catch (e) { crumb = []; }
         if (!Array.isArray(crumb) || !crumb.length) return base;
-        return base.replace(/\/+$/, '') + '/' + crumb.join('/');
+        return this.resolveTreeDir(base, crumb);
     }
 
     // Solo origenes locales con ruta valida admiten creacion (Drive no usa el endpoint save).
@@ -1980,9 +2018,14 @@ class App {
     // equivale a la propia carpeta del proyecto.
     _buildFolderOptions(baseDir) {
         const docs = (this.dataInit && this.dataInit.documents) || {};
+        const sf   = this.sharedFolder();
         const out = [];
         Object.keys(docs).sort((a, b) => a.localeCompare(b)).forEach(proj => {
-            out.push({ value: `${baseDir}/${proj}`, label: proj });
+            // El destino tiene que ser la ruta REAL: la carpeta compartida no
+            // cuelga de baseDir aunque en el arbol se vea al mismo nivel.
+            const isShared = !!(sf && proj === sf.name);
+            const label    = isShared ? `${proj} (compartida)` : proj;
+            out.push({ value: this.resolveTreeDir(baseDir, [proj]), label });
             const types = docs[proj];
             Object.keys(types).sort((a, b) => {
                 if (a === '(sin clasificar)') return 1;
@@ -1990,7 +2033,7 @@ class App {
                 return a.localeCompare(b);
             }).forEach(tipo => {
                 if (tipo === '(sin clasificar)') return;
-                out.push({ value: `${baseDir}/${proj}/${tipo}`, label: `${proj} / ${tipo}` });
+                out.push({ value: this.resolveTreeDir(baseDir, [proj, tipo]), label: `${label} / ${tipo}` });
             });
         });
         return out;
@@ -2158,19 +2201,85 @@ class App {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Lista blanca del modal de subida: hojas de calculo + medios (imagen / PDF).
-    // La misma que valida el backend en ?action=upload.
-    _validUploadFile(file) {
+    // Lista blanca de la subida: hojas de calculo, medios (imagen / PDF) y texto.
+    // La misma que valida el backend en ?action=upload. `quiet` evita el toast
+    // cuando se sueltan varios archivos de golpe (el resumen lo da el que llama).
+    _validUploadFile(file, quiet) {
         const ext = (file.name || '').split('.').pop().toLowerCase();
-        if (!SHEET_EXTS.includes(ext) && !MEDIA_EXTS.includes(ext)) {
-            visorView.toast('Formato no permitido: .' + ext + ' (Excel, imagen o PDF)', 'warn');
+        if (!UPLOAD_EXTS.includes(ext)) {
+            if (!quiet) visorView.toast('Formato no permitido: .' + ext, 'warn');
             return false;
         }
-        if (file.size > Math.max(SHEET_MAX_BYTES, MEDIA_MAX_BYTES)) {
-            visorView.toast('El archivo pesa más de 25 MB', 'warn');
+        if (file.size > UPLOAD_MAX_BYTES) {
+            if (!quiet) visorView.toast('El archivo pesa más de 25 MB', 'warn');
             return false;
         }
         return true;
+    }
+
+    // ── Launcher del header ─────────────────────────────────────────────
+    // Rejilla de utilidades. Hoy solo lleva el TODO (abre o crea el todo.json de
+    // la carpeta abierta); los otros dos huecos estan reservados y no responden.
+    bindLauncher() {
+        const $btn   = $('#btnLauncher');
+        const $panel = $('#launcherPanel');
+        if (!$btn.length || !$panel.length || $btn.data('bound')) return;
+        $btn.data('bound', true);
+
+        const close = () => {
+            $panel.prop('hidden', true);
+            $btn.attr('aria-expanded', 'false').removeClass('is-open');
+        };
+
+        $btn.on('click', (e) => {
+            e.stopPropagation();
+            const willOpen = $panel.prop('hidden');
+            close();
+            if (willOpen) {
+                $panel.prop('hidden', false);
+                $btn.attr('aria-expanded', 'true').addClass('is-open');
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+
+        $panel.on('click', (e) => e.stopPropagation());
+
+        $panel.on('click', '[data-launch="todo"]', () => {
+            close();
+            const dir = this.currentExplorerDir();
+            if (!dir) { visorView.toast('Abre una carpeta local para usar el TODO', 'warn'); return; }
+            this.createTodo(dir);
+        });
+
+        $(document).on('click.vsrLauncher', () => close());
+        $(document).on('keydown.vsrLauncher', (e) => {
+            if (e.key === 'Escape' && !$panel.prop('hidden')) close();
+        });
+    }
+
+    // Fallar la punteria al arrastrar un archivo no debe costar la sesion: por
+    // defecto el navegador ABRE el archivo soltado y se lleva el visor por
+    // delante. Fuera de las zonas de subida, el drop se ignora.
+    bindDropGuard() {
+        const isFileDrag = (e) => {
+            const dt = e.originalEvent && e.originalEvent.dataTransfer;
+            return !!(dt && Array.prototype.indexOf.call(dt.types || [], 'Files') !== -1);
+        };
+        const inDropZone = (e) => !!$(e.target).closest('#sidebarList, #uploadSheetDrop, .ia-input-wrap').length;
+
+        // El dragover se cancela SIEMPRE (no solo fuera de las zonas): un dragover
+        // sin cancelar deja al navegador con la accion por defecto y ni siquiera
+        // llega a dispararse el drop. Fuera de zona se marca con el cursor de
+        // "prohibido"; dentro manda el dropEffect que ya fijo el handler local.
+        $(document).on('dragover.visorDropGuard', (e) => {
+            if (!isFileDrag(e)) return;
+            e.preventDefault();
+            const dt = e.originalEvent.dataTransfer;
+            if (dt && !inDropZone(e)) dt.dropEffect = 'none';
+        });
+        $(document).on('drop.visorDropGuard', (e) => {
+            if (isFileDrag(e)) e.preventDefault();
+        });
     }
 
     bindUploadModal() {
@@ -2212,6 +2321,22 @@ class App {
         });
     }
 
+    // POST de un archivo al endpoint de subida. Lo comparten el modal y el drop
+    // directo sobre el explorador.
+    async _postUpload(file, dir, overwrite) {
+        const form = new FormData();
+        form.append('action',     'upload');
+        form.append('destDir',    dir);
+        // El sandbox del backend es la biblioteca del usuario + la carpeta conectada.
+        // NO mandamos `dir` como root: eso dejaria que el cliente autorizara cualquier destino.
+        form.append('customPath', this.settings.customPath || '');
+        form.append('file',       file, file.name);
+        if (overwrite) form.append('overwrite', '1');
+
+        const res = await fetch(this._link, { method: 'POST', body: form });
+        return res.json();
+    }
+
     async uploadSheet(overwrite) {
         const pick = this._uploadPick;
         if (!pick) { visorView.toast('Elige un archivo primero', 'warn'); return; }
@@ -2227,17 +2352,7 @@ class App {
         $btn.prop('disabled', true);
 
         try {
-            const form = new FormData();
-            form.append('action',     'upload');
-            form.append('destDir',    dir);
-            // El sandbox del backend son documents/ + la carpeta conectada. NO mandamos
-            // `dir` aqui: eso dejaria que el cliente autorizara cualquier destino.
-            form.append('customPath', this.settings.customPath || '');
-            form.append('file',       pick, pick.name);
-            if (overwrite) form.append('overwrite', '1');
-
-            const res  = await fetch(this._link, { method: 'POST', body: form });
-            const data = await res.json();
+            const data = await this._postUpload(pick, dir, overwrite);
 
             // El backend nunca pisa un archivo sin permiso: preguntamos y reintentamos.
             if (!data.success && data.exists) {
@@ -2268,15 +2383,77 @@ class App {
         $btn.prop('disabled', false);
     }
 
+    // ── Subir arrastrando al explorador ─────────────────────────────────
+    // Soltar archivos del escritorio sobre una carpeta (o sobre el panel, que
+    // es la carpeta abierta) los sube ahi: mismo endpoint que el modal, pero
+    // sin abrirlo. Se suben en serie para que el "¿reemplazar?" de uno no se
+    // solape con el siguiente, y se recarga la biblioteca una sola vez.
+    async uploadDroppedFiles(fileList, destDir) {
+        const dir = String(destDir || '').trim().replace(/[\\/]+$/, '');
+        if (!dir) { visorView.toast('Suelta el archivo dentro de una carpeta', 'warn'); return; }
+        if (!this.canCreateFiles()) {
+            visorView.toast('Selecciona una carpeta local (o Custom) para subir archivos', 'warn');
+            return;
+        }
+
+        const dropped = Array.from(fileList || []);
+        if (!dropped.length) return;
+
+        // Una carpeta arrastrada llega como File de 0 bytes y sin extension: el
+        // navegador no expone su contenido por este camino.
+        const single  = dropped.length === 1;
+        const valid   = dropped.filter(f => this._validUploadFile(f, !single));
+        const skipped = dropped.length - valid.length;
+        if (!valid.length) {
+            visorView.toast(single ? 'No se pudo subir el archivo' : 'Ningún archivo tiene un formato permitido', 'warn');
+            return;
+        }
+        if (valid.length > 1) visorView.toast(`Subiendo ${valid.length} archivos…`, 'info');
+
+        let ok = 0;
+        const failed = [];
+        for (const file of valid) {
+            try {
+                let data = await this._postUpload(file, dir, false);
+                if (!data.success && data.exists) {
+                    if (!confirm(`Ya existe "${data.name}" en esa carpeta.\n¿Reemplazarlo?`)) continue;
+                    data = await this._postUpload(file, dir, true);
+                }
+                if (data.success) { ok++; this.recordCreated(data.name, dir); }
+                else failed.push(`${file.name}: ${data.message || 'error'}`);
+            } catch (e) {
+                failed.push(`${file.name}: error de red`);
+            }
+        }
+
+        if (ok) {
+            const resumen = ok === 1 ? `Archivo subido: ${valid[0].name}` : `${ok} archivos subidos`;
+            visorView.toast(resumen, 'success');
+            // Sin mover el explorador de nivel: solo se refresca para que el
+            // archivo (o el conteo de la carpeta destino) aparezca al momento.
+            await this.reloadLibrary();
+        }
+        if (failed.length) visorView.toast(failed[0], 'error');
+        else if (skipped)  visorView.toast(`${skipped} archivo(s) con formato no permitido`, 'warn');
+    }
+
     // Posiciona el explorador de documentos en `dir`: su crumb es [proyecto, tipo]
-    // relativo a la raiz de la biblioteca.
+    // relativo a la raiz de la biblioteca — o [Compartido, tipo] si `dir` cae dentro
+    // de la carpeta compartida, que tiene su propia raiz.
     _setDocsCrumbFor(dir) {
         if (!(this.dataInit && this.dataInit.documents)) return;
         const norm = s => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '');
-        const base = norm(this.dataInit.header && this.dataInit.header.currentPath);
         const full = norm(dir);
-        if (!base || full.toLowerCase().indexOf(base.toLowerCase() + '/') !== 0) return;
-        const segs = full.slice(base.length + 1).split('/').filter(Boolean).slice(0, 2);
+        const sf   = this.sharedFolder();
+
+        let segs = null;
+        if (sf && full.toLowerCase().indexOf(norm(sf.path).toLowerCase() + '/') === 0) {
+            segs = [sf.name].concat(full.slice(norm(sf.path).length + 1).split('/').filter(Boolean)).slice(0, 2);
+        } else {
+            const base = norm(this.dataInit.header && this.dataInit.header.currentPath);
+            if (!base || full.toLowerCase().indexOf(base.toLowerCase() + '/') !== 0) return;
+            segs = full.slice(base.length + 1).split('/').filter(Boolean).slice(0, 2);
+        }
         try { localStorage.setItem('visor:docs:crumb', JSON.stringify(segs)); } catch (e) {}
     }
 
@@ -2356,6 +2533,44 @@ class App {
 
     // Crea una carpeta nueva dentro de parentDir (nivel actual del explorador) y
     // recarga la biblioteca. Devuelve true si se creó (para que el input inline se cierre).
+    // Elimina una carpeta con TODO su contenido. `info` describe la tarjeta que se
+    // pulso: { dir, name, count, shared } — el conteo va en la confirmacion para que
+    // nadie borre 40 archivos creyendo que la carpeta estaba vacia.
+    async deleteFolder(info) {
+        const dir = String((info && info.dir) || '').replace(/[\\/]+$/, '');
+        if (!dir) return false;
+
+        const name  = (info && info.name) || dir.split('/').pop();
+        const count = (info && typeof info.count === 'number') ? info.count : null;
+        const lo    = count === null ? '' : (count === 0
+            ? '\nEstá vacía.'
+            : `\nSe eliminarán también ${count} archivo${count === 1 ? '' : 's'}.`);
+        // La compartida la ven todos: borrar ahi no es una decision personal.
+        const aviso = (info && info.shared)
+            ? `\n\nOJO: es la carpeta compartida. Lo que borres desaparece para TODOS los usuarios, y la carpeta volverá a aparecer vacía.`
+            : '';
+        if (!confirm(`¿Eliminar la carpeta "${name}"?${lo}${aviso}\n\nEsta acción no se puede deshacer.`)) return false;
+
+        try {
+            const form = new FormData();
+            form.append('action',     'deletedir');
+            form.append('fullPath',   dir);
+            form.append('customPath', this.settings.customPath || '');
+            const res  = await fetch(this._link, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) {
+                visorView.toast(data.message || 'No se pudo eliminar la carpeta', 'error');
+                return false;
+            }
+            visorView.toast(data.message, 'success');
+            await this.reloadLibrary();
+            return true;
+        } catch (e) {
+            visorView.toast('Error de red al eliminar la carpeta', 'error');
+            return false;
+        }
+    }
+
     async createFolder(parentDir, name) {
         if (!parentDir || !name) return false;
         try {
@@ -3472,20 +3687,37 @@ class VisorView {
         const setCrumb = (arr) => { try { localStorage.setItem('visor:docs:crumb', JSON.stringify(arr)); } catch (e) {} };
         const goTo = (arr) => { setCrumb(arr); this.reRenderSidebar(); };
 
+        // Carpeta compartida entre usuarios: el backend la cuelga del arbol como un
+        // proyecto mas, pero vive fuera de la biblioteca (documents/shared) — por eso
+        // manda su ruta real aparte, y por eso va primera y en celeste.
+        const sharedName = (header && header.sharedFolder && header.sharedFolder.name) || '';
+        const sharedPath = (header && header.sharedFolder && header.sharedFolder.path)
+            ? String(header.sharedFolder.path).replace(/[\/\\]+$/, '') : '';
+        const isShared   = (name) => !!sharedName && name === sharedName;
+
         // Carpetas (subniveles) y archivos del nivel actual.
         let folders = [];   // { name, count, nav:[...] }
         let files   = [];
         if (crumb.length === 0) {
-            for (const proj of Object.keys(documents).sort((a, b) => a.localeCompare(b))) {
+            const projSort = (a, b) => {
+                if (isShared(a)) return -1;
+                if (isShared(b)) return 1;
+                return a.localeCompare(b);
+            };
+            for (const proj of Object.keys(documents).sort(projSort)) {
                 let count = 0;
                 for (const t in documents[proj]) count += documents[proj][t].length;
-                folders.push({ name: proj, count, nav: [proj] });
+                folders.push({ name: proj, count, nav: [proj], shared: isShared(proj) });
             }
         } else if (crumb.length === 1) {
             const types = documents[crumb[0]] || {};
+            // Dentro del compartido TODO es compartido: sus subcarpetas van tambien en
+            // celeste (`inShared`), pero se renombran y se mueven con normalidad — solo
+            // la raiz esta protegida.
+            const inShared = isShared(crumb[0]);
             for (const tipo of Object.keys(types).sort(typeSort)) {
                 if (tipo === '(sin clasificar)') { files = files.concat(types[tipo]); continue; }
-                folders.push({ name: tipo, count: types[tipo].length, nav: [crumb[0], tipo] });
+                folders.push({ name: tipo, count: types[tipo].length, nav: [crumb[0], tipo], inShared });
             }
         } else {
             files = ((documents[crumb[0]] && documents[crumb[0]][crumb[1]]) || []).slice();
@@ -3498,12 +3730,20 @@ class VisorView {
         }
 
         // Paths fisicos derivados de la raiz real de la biblioteca (header.currentPath):
-        // baseDir/proj[/tipo]. Fiable para mover / crear / renombrar carpetas.
+        // baseDir/proj[/tipo]. Fiable para mover / crear / renombrar carpetas. Lo que
+        // cuelga de la carpeta compartida se resuelve contra SU raiz, no contra baseDir.
         const baseDir  = (header && header.currentPath) ? String(header.currentPath).replace(/[\/\\]+$/, '') : '';
-        const levelDir = (arr) => baseDir + (arr && arr.length ? '/' + arr.join('/') : '');
+        const levelDir = (arr) => {
+            const segs = (arr || []).slice();
+            if (sharedPath && segs.length && isShared(segs[0])) {
+                const rest = segs.slice(1);
+                return sharedPath + (rest.length ? '/' + rest.join('/') : '');
+            }
+            return baseDir + (segs.length ? '/' + segs.join('/') : '');
+        };
 
         this.renderExplorer({
-            crumbs: [{ label: 'Documents', go: () => goTo([]) }].concat(crumb.map((seg, i) => ({
+            crumbs: [{ label: (header && header.currentLabel) || 'Documents', go: () => goTo([]) }].concat(crumb.map((seg, i) => ({
                 label: seg,
                 go: () => goTo(crumb.slice(0, i + 1))
             }))),
@@ -3511,6 +3751,8 @@ class VisorView {
                 name : fo.name,
                 count: fo.count,
                 dir  : levelDir(fo.nav),
+                shared  : !!fo.shared,     // ES la raiz compartida: celeste y protegida
+                inShared: !!fo.inShared,   // esta DENTRO: solo el celeste
                 enter: () => goTo(fo.nav)
             })),
             files,
@@ -3520,7 +3762,10 @@ class VisorView {
             dir      : levelDir(crumb),
             parentDir: crumb.length ? levelDir(crumb.slice(0, -1)) : '',
             allowNewFolder      : crumb.length <= 1,
-            allowInFolderActions: crumb.length >= 1
+            allowInFolderActions: crumb.length >= 1,
+            // Dentro del compartido el nivel actual pertenece a todos: se avisa en la
+            // barra para que nadie deje ahi algo pensando que es privado.
+            sharedScope: !!(crumb.length && isShared(crumb[0]))
         });
     }
 
@@ -3609,8 +3854,8 @@ class VisorView {
             </div>`;
         const createMenu = canCreate ? `
             <div class="docx-create">
-                <button type="button" class="docx-create-trigger" title="Más opciones" aria-label="Opciones para crear" aria-haspopup="menu" aria-expanded="false">
-                    <i data-lucide="ellipsis" class="w-4 h-4"></i>
+                <button type="button" class="docx-create-trigger" title="Crear" aria-label="Crear o subir" aria-haspopup="menu" aria-expanded="false">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
                 </button>
                 <div class="docx-create-menu" role="menu" aria-label="Opciones de creación" hidden>
                     ${cfg.allowNewFolder ? `<button type="button" class="docx-create-item docx-newfolder-btn" role="menuitem"><i data-lucide="folder-plus"></i><span>Nueva carpeta</span></button>` : ''}
@@ -3619,10 +3864,14 @@ class VisorView {
                     ${cfg.allowInFolderActions ? `<button type="button" class="docx-create-item tree-upload-sheet" role="menuitem"><i data-lucide="upload"></i><span>Subir archivo</span></button>` : ''}
                 </div>
             </div>` : '';
+        const sharedChip = cfg.sharedScope
+            ? `<span class="docx-shared-chip" title="Todo lo que dejes aquí lo ven los demás usuarios"><i data-lucide="users" class="w-3 h-3"></i>compartida</span>`
+            : '';
         const bar = `
             <div class="docx-bar">
                 <div class="docx-crumbs">${crumbBtns}</div>
                 <div class="docx-bar-actions">
+                    ${sharedChip}
                     ${createMenu}
                 </div>
             </div>`;
@@ -3633,11 +3882,17 @@ class VisorView {
 
         // Tarjetas del grid: carpeta (icono amarillo, drop target, burbuja con el
         // numero de archivos) y archivo (icono segun tipo, arrastrable por su fullPath).
+        // Celeste = contenido compartido. La RAIZ compartida (`shared`) ademas no es
+        // arrastrable ni renombrable: no pertenece a este usuario, solo esta colgada de
+        // su arbol. Lo que vive dentro (`inShared`) se maneja como cualquier carpeta.
         const folderCard = (fo, i) => `
-            <div class="docx-item docx-folder" data-nav-idx="${i}" data-destdir="${fo.dir}" draggable="true" title="${fo.name}">
-                <i data-lucide="folder" class="docx-ic docx-ic-folder"></i>
-                <span class="docx-name" title="Doble clic para renombrar">${fo.name}</span>
+            <div class="docx-item docx-folder ${fo.shared || fo.inShared ? 'is-shared' : ''}" data-nav-idx="${i}" data-destdir="${fo.dir}" ${fo.shared ? '' : 'draggable="true"'} title="${fo.shared ? fo.name + ' — carpeta compartida entre usuarios' : fo.name}">
+                <i data-lucide="${fo.shared ? 'folder-open' : 'folder'}" class="docx-ic docx-ic-folder"></i>
+                <span class="docx-name" title="${fo.shared ? 'Compartida: todos los usuarios la ven' : 'Doble clic para renombrar'}">${fo.name}</span>
                 ${typeof fo.count === 'number' ? `<span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>` : ''}
+                ${canCreate ? `<button type="button" class="docx-del-folder" data-del-folder="${i}" title="${fo.shared ? 'Vaciar la carpeta compartida' : 'Eliminar carpeta'}">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                </button>` : ''}
             </div>`;
         const fileCard = (item) => {
             const fmt = visor.fileFormat(item);
@@ -3728,6 +3983,7 @@ class VisorView {
         const startRenameFolder = ($folder) => {
             const fo = folders[Number($folder.data('nav-idx'))];
             if (!fo || $folder.find('.docx-rename-input').length) return;
+            if (fo.shared) { visorView.toast('La carpeta compartida no se puede renombrar', 'warn'); return; }
             const $input = $('<input type="text" class="docx-rename-input" maxlength="120">').val(fo.name);
             $folder.find('.docx-name').replaceWith($input);
             $input.trigger('focus').trigger('select');
@@ -3747,10 +4003,21 @@ class VisorView {
         // Entrar a una carpeta (proyecto o sub-carpeta). El clic que cae sobre el
         // nombre se difiere: si llega un doble clic se cancela la navegacion y se
         // abre el rename inline. Fuera del nombre la carpeta se abre al instante.
+        // Papelera de la carpeta: se resuelve antes que la navegacion (el clic no
+        // debe entrar en la carpeta que se esta borrando).
+        $('#sidebarList').off('click.docxDelFolder')
+            .on('click.docxDelFolder', '.docx-del-folder', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const fo = folders[Number($(this).data('del-folder'))];
+                if (fo && app.deleteFolder) app.deleteFolder(fo);
+            });
+
         let folderNavTimer = null;
         $('#sidebarList .docx-folder').off('click dblclick')
             .on('click', function (e) {
                 if ($(this).find('.docx-rename-input').length) return;   // renombrando
+                if ($(e.target).closest('.docx-del-folder').length) return;   // papelera
                 const fo = folders[Number($(this).data('nav-idx'))];
                 if (!fo) return;
                 const enter = () => { if (fo.enter) fo.enter(); };
@@ -3799,8 +4066,15 @@ class VisorView {
 
         // ── Crear carpeta nueva en el nivel actual (tarjeta temporal con input). ──
         const startCreateFolder = () => {
-            const $items = $('#sidebarList .docx-items');
-            if (!$items.length || $items.find('.docx-newfolder').length) return;
+            let $items = $('#sidebarList .docx-items');
+            // Nivel vacío: el grid es un empty-state y no existe el contenedor donde
+            // insertar la tarjeta. Se crea al vuelo — si no, "Nueva carpeta" no hacía
+            // nada en una carpeta sin contenido (la compartida recién estrenada, p. ej.).
+            if (!$items.length) {
+                $('#sidebarList .empty-state').remove();
+                $items = $(`<div class="docx-items is-${docsView}"></div>`).appendTo('#sidebarList');
+            }
+            if ($items.find('.docx-newfolder').length) return;
             const $card = $('<div class="docx-item docx-folder docx-newfolder">'
                 + '<i data-lucide="folder" class="docx-ic docx-ic-folder"></i>'
                 + '<input type="text" class="docx-rename-input" placeholder="Nueva carpeta" maxlength="120">'
@@ -3816,6 +4090,9 @@ class VisorView {
                     if (await app.createFolder(cfg.dir, val)) return;   // reloadLibrary re-renderiza
                 }
                 $card.remove();
+                // Si el nivel estaba vacío hay que reponer el empty-state que se quitó
+                // para hacerle sitio a la tarjeta.
+                if (!$items.children().length) reRender();
             };
             $input.on('click', ev => ev.stopPropagation())
                   .on('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } })
@@ -3833,10 +4110,13 @@ class VisorView {
             visorView.openIconMenu(e.pageX, e.pageY, relPath);
         });
 
-        // ── Drag & drop ── Archivos Y carpetas arrastrables. El payload viaja como
-        // JSON {k:'file'|'folder', p:path}. Un handler en el panel decide por el
-        // target: drop en una CARPETA -> mover dentro; drop en el PANEL vacío -> subir
-        // un nivel. Se valida no soltar una carpeta dentro de sí misma / descendiente.
+        // ── Drag & drop ── Dos arrastres distintos sobre el mismo panel:
+        //   INTERNO  archivos y carpetas del explorador. El payload viaja como JSON
+        //            {k:'file'|'folder', p:path}: drop en una CARPETA mueve dentro,
+        //            drop en el PANEL sube un nivel. Se valida no soltar una carpeta
+        //            dentro de sí misma / de un descendiente.
+        //   EXTERNO  archivos del escritorio (dataTransfer.files): drop en una CARPETA
+        //            los sube ahí, drop en el PANEL los sube a la carpeta abierta.
         $('#sidebarList').off('dragstart.docx dragend.docx dragover.docx dragleave.docx drop.docx')
             .on('dragstart.docx', '.docx-file', function (e) {
                 const p = $(this).attr('data-fullpath') || '';
@@ -3859,17 +4139,27 @@ class VisorView {
                 $('#sidebarList .docx-drop').removeClass('docx-drop');
                 $('#sidebarList').removeClass('docx-panel-drop');
             })
+            // Arrastre EXTERNO (archivos del escritorio): el drop sube en vez de mover.
+            // Sobre una carpeta van a esa carpeta; sobre el panel, a la carpeta abierta
+            // — al reves que el arrastre interno, donde el panel significa "un nivel arriba".
             .on('dragover.docx', function (e) {
-                const $folder = $(e.target).closest('.docx-folder');
-                if ($folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging')) {
-                    e.preventDefault();
-                    if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.dropEffect = 'move';
+                const dt       = e.originalEvent.dataTransfer;
+                const isUpload = !!(dt && Array.prototype.indexOf.call(dt.types || [], 'Files') !== -1);
+                const $folder  = $(e.target).closest('.docx-folder');
+                const onFolder = $folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging');
+
+                if (isUpload && !canCreate) return;               // Drive u origen invalido: no se sube
+                // Sin carpeta bajo el cursor: subir necesita un nivel con archivos
+                // (en la raiz de la biblioteca solo viven carpetas de proyecto).
+                if (!onFolder && (isUpload ? !cfg.allowInFolderActions : !parentDir)) return;
+
+                e.preventDefault();
+                if (dt) dt.dropEffect = isUpload ? 'copy' : 'move';
+                if (onFolder) {
                     $('#sidebarList .docx-drop').not($folder).removeClass('docx-drop');
                     $folder.addClass('docx-drop');
                     $('#sidebarList').removeClass('docx-panel-drop');
-                } else if (parentDir) {
-                    e.preventDefault();
-                    if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.dropEffect = 'move';
+                } else {
                     $('#sidebarList .docx-drop').removeClass('docx-drop');
                     $('#sidebarList').addClass('docx-panel-drop');
                 }
@@ -3881,15 +4171,32 @@ class VisorView {
                 }
             })
             .on('drop.docx', function (e) {
+                const dt      = e.originalEvent.dataTransfer;
                 const $folder = $(e.target).closest('.docx-folder');
-                let payload = null;
-                try { payload = JSON.parse((e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.getData('text/plain')) || ''); } catch (_) {}
+                const onFolder = $folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging');
                 $('#sidebarList .docx-drop').removeClass('docx-drop');
                 $('#sidebarList').removeClass('docx-panel-drop');
+
+                // ── Archivos del escritorio: subir a la carpeta destino. ──
+                if (dt && dt.files && dt.files.length) {
+                    e.preventDefault();
+                    if (!canCreate) { visorView.toast('Esta carpeta no admite subidas', 'warn'); return; }
+                    const dest = onFolder ? ($folder.attr('data-destdir') || '') : cfg.dir;
+                    if (!onFolder && !cfg.allowInFolderActions) {
+                        visorView.toast('Suelta los archivos sobre una carpeta', 'warn');
+                        return;
+                    }
+                    if (app.uploadDroppedFiles) app.uploadDroppedFiles(dt.files, dest);
+                    return;
+                }
+
+                // ── Arrastre interno: mover archivo o carpeta. ──
+                let payload = null;
+                try { payload = JSON.parse((dt && dt.getData('text/plain')) || ''); } catch (_) {}
                 if (!payload || !payload.p) return;
 
                 let dest = null;
-                if ($folder.length && !$folder.hasClass('docx-newfolder') && !$folder.hasClass('docx-dragging')) {
+                if (onFolder) {
                     e.preventDefault();
                     dest = $folder.attr('data-destdir') || '';
                 } else if (parentDir) {

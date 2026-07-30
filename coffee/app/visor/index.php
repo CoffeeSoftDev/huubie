@@ -107,6 +107,34 @@
                 <span class="btn-label">Refrescar</span>
             </button>
 
+            <!-- Launcher de utilidades. Andamiaje: por ahora solo el TODO esta
+                 cableado y los otros dos huecos quedan reservados a la vista. -->
+            <div class="vsr-launcher">
+                <button id="btnLauncher" class="vsr-launcher-trigger" type="button" title="Aplicaciones" aria-label="Abrir aplicaciones" aria-haspopup="menu" aria-expanded="false">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                </button>
+                <!-- Caja de aplicaciones al estilo del launcher de Google: rejilla de
+                     tarjetas con el icono en una pastilla de color y el nombre debajo.
+                     Cada app trae su propio tono (data-tone) para que la rejilla se
+                     reconozca por color, no por leer las etiquetas. -->
+                <div id="launcherPanel" class="vsr-launcher-panel" role="menu" aria-label="Aplicaciones" hidden>
+                    <div class="vsr-launcher-grid">
+                        <button type="button" class="vsr-launcher-item" data-launch="todo" data-tone="emerald" role="menuitem" title="TODO de la carpeta abierta">
+                            <span class="vsr-launcher-badge"><i data-lucide="list-checks"></i></span>
+                            <span class="vsr-launcher-name">TODO</span>
+                        </button>
+                        <span class="vsr-launcher-item is-empty" aria-hidden="true">
+                            <span class="vsr-launcher-badge"></span>
+                            <span class="vsr-launcher-name">&nbsp;</span>
+                        </span>
+                        <span class="vsr-launcher-item is-empty" aria-hidden="true">
+                            <span class="vsr-launcher-badge"></span>
+                            <span class="vsr-launcher-name">&nbsp;</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <div class="vsr-notifications">
                 <button id="btnCreditNotifications" class="vsr-notification-trigger" type="button" title="Reinicios de créditos" aria-label="Cuentas próximas a reiniciar créditos" aria-haspopup="dialog" aria-expanded="false">
                     <i data-lucide="bell" class="w-4 h-4"></i>
@@ -744,9 +772,9 @@
                 <div id="uploadSheetDrop" class="upload-drop" tabindex="0" role="button" aria-label="Elegir archivo">
                     <i data-lucide="upload-cloud" class="upload-drop-icon"></i>
                     <p class="upload-drop-text">Arrastra el archivo aqu&iacute; o <strong>haz clic para elegirlo</strong></p>
-                    <span class="upload-drop-hint">Excel &middot; CSV &middot; PNG &middot; JPG &middot; SVG &middot; PDF &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
+                    <span class="upload-drop-hint">Markdown &middot; Excel &middot; CSV &middot; PNG &middot; JPG &middot; SVG &middot; PDF &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
                 </div>
-                <input id="uploadSheetInput" type="file" class="hidden" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.pdf">
+                <input id="uploadSheetInput" type="file" class="hidden" accept=".md,.markdown,.txt,.json,.yml,.yaml,.toml,.xml,.html,.htm,.css,.scss,.js,.ts,.sql,.ini,.conf,.log,.env,.sh,.py,.rb,.go,.rs,.java,.c,.cpp,.cs,.drawio,.excalidraw,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.pdf">
                 <div id="uploadSheetPicked" class="upload-picked hidden"></div>
                 <span class="new-file-hint">Se guarda tal cual y se abre en el visor: las hojas con todas sus pesta&ntilde;as, las im&aacute;genes y los PDF en su propio visor. Desde el visor puedes anclarlo al chat de CoffeeIA.</span>
             </div>

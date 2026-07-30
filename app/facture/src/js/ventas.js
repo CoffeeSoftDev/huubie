@@ -1,5 +1,5 @@
-let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
-let app, tickets, ticketsView;
+let apiVentas = '/app/facture/ctrl/ctrl-facture-ventas.php';
+let app, ventas, ventasView;
 
 // useFetch del framework resuelve por callback; aqui el modulo encadena con
 // await, asi que las llamadas pasan por este helper.
@@ -10,9 +10,9 @@ const fnAjax = (data, url) => fetch(url, {
 }).then(r => r.json());
 
 $(async () => {
-    ticketsView = new TicketsView(apiTickets, 'root');
-    tickets     = new Tickets(apiTickets, 'root');
-    app         = new App(apiTickets, 'root');
+    ventasView = new VentasView(apiVentas, 'root');
+    ventas     = new Ventas(apiVentas, 'root');
+    app        = new App(apiVentas, 'root');
     await app.init();
 });
 
@@ -22,17 +22,25 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'ventas';
         this.selectedId   = null;
+        this.periodMode   = 'rango';
     }
 
     async init() {
-        const data = await fnAjax({ opc: 'init' }, apiTickets);
+        const data = await fnAjax({ opc: 'init' }, apiVentas);
+        const dia  = this.getDiaFromUrl();
+
+        // El periodo arranca en el ultimo mes con ventas cargadas, que resuelve el
+        // servidor: el Excel del POS se sube en diferido y el mes en curso puede no
+        // tener una sola venta. Con ?dia= el modulo abre en ese dia, en modo Dia.
+        this.periodMode = dia ? 'fecha' : 'rango';
 
         this.dataInit = {
             formas:  data.formas,
             estados: data.estados,
-            dia:     this.getDiaFromUrl()
+            dia:     dia,
+            periodo: dia ? { fi: dia, ff: dia } : data.periodo
         };
 
         this.render();
@@ -45,15 +53,17 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        ticketsView.renderHeader(SAMPLE_VIEW_HEADER_TICKETS);
-        ticketsView.renderFooter(SAMPLE_VIEW_FOOTER_TICKETS);
-        ticketsView.renderDetail(null);
-        tickets.lsKpis();
-        tickets.lsTickets();
+        ventasView.renderHeader(SAMPLE_VIEW_HEADER_VENTAS);
+        ventasView.renderDetail(null);
+        ventas.lsKpis();
+        ventas.lsVentas();
     }
 
     // -- Layout --
 
+    // Como en cargas: el unico borde de la zona superior es el de la banda del
+    // titulo. Filtros y KPIs continuan esa banda con su mismo fondo, sin dibujar
+    // una caja dentro de otra.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -66,24 +76,20 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
-                    id:    'tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
-                },
-                {
-                    id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
+                    id:    'tableRow',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col'
                 }
             ]
         };
 
-        // Sin children: el panel lo pinta ticketDetailPanel sobre 'detailPanel'.
+        // Sin children: el panel lo pinta ventaDetailPanel sobre 'detailPanel'.
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
@@ -99,6 +105,31 @@ class App extends Templates {
                 container: [mainPanel, detailPanel]
             }
         });
+
+        this.tableLayout();
+    }
+
+    // La tabla vive en una tarjeta, como la bitacora de cargas: el p-3 de la fila
+    // queda como margen exterior y el fondo de la tarjeta la separa del panel.
+    tableLayout() {
+        this.createLayout({
+            parent: 'tableRow',
+            design: false,
+            data: {
+                id:    'cardTable',
+                class: 'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col',
+                // overflow-hidden y no overflow-auto: la tabla pagina de 12 en 12 y
+                // ya no desborda ni a lo alto ni a lo ancho, asi que no hay barra de
+                // scroll que mostrar en ninguno de los dos ejes.
+                container: [
+                    {
+                        type:  'div',
+                        id:    'tableWrap',
+                        class: 'flex-1 min-h-0 overflow-hidden'
+                    }
+                ]
+            }
+        });
     }
 
     // -- Filter bar --
@@ -106,12 +137,10 @@ class App extends Templates {
     filterBar() {
         const filters = [
             {
-                opc:      'input-calendar',
-                id:       'fRango',
-                lbl:      'Consultar periodo:',
-                class:    'col-12 col-md-4 col-lg-3',
-                required: false,
-                readonly: true
+                opc:   'div',
+                id:    'periodGroup',
+                lbl:   'Periodo de consulta:',
+                class: 'col-12 col-md-5 col-lg-4'
             },
             {
                 opc:      'select',
@@ -142,38 +171,112 @@ class App extends Templates {
             data:       filters
         });
 
-        this.rangePicker();
+        this.periodPicker();
     }
 
-    // El rango arranca en el dia que llega por URL (?dia=) y, si no viene, en el mes actual.
-    rangePicker() {
-        const dia   = this.dataInit.dia;
-        const start = dia ? moment(dia) : moment().startOf('month');
-        const end   = dia ? moment(dia) : moment().endOf('month');
+    // "Periodo de consulta" es el control compuesto de pedidos/reportes: radios
+    // Dia/Rango con su calendario dentro de una sola caja. El filterBar no lo trae
+    // de fabrica, asi que se declara con `opc: 'div'` (cae en el default de
+    // coffeeForm, que crea el elemento con los atributos del objeto y pinta su
+    // label como el de cualquier campo) y aqui se rellena.
+    periodPicker() {
+        // La caja reusa la clase de campo del framework (CF_CSS.input tematizado),
+        // asi hereda borde, radio, fondo y tipografia de los selects hermanos. Solo
+        // se fija la altura: el px-3 py-2 de esa clase mas el contenido en linea
+        // daria un alto distinto al del select, y el control quedaria desalineado.
+        //   text-sm (1.25rem) + py-2 (2 x 0.5rem) + borde (2 x 1px)
+        const boxClass   = this.cfThemedClass(CF_CSS.input, FACTURE_THEME) + ' flex items-center gap-2';
+        const boxStyle   = 'height: calc(1.25rem + 1rem + 2px); padding-top: 0; padding-bottom: 0;';
+        const innerReset = 'height: 100%; line-height: 1;';
+        const modoFecha  = this.periodMode === 'fecha';
 
+        $('#periodGroup').html(`
+            <div class="${boxClass}" style="${boxStyle}">
+                <label class="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
+                    <input type="radio" name="ventaPeriodMode" value="fecha" class="accent-blue-500 m-0" ${modoFecha ? 'checked' : ''}
+                        onchange="app.setPeriodMode('fecha')"> Dia
+                </label>
+                <label class="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap mb-0" style="${innerReset}">
+                    <input type="radio" name="ventaPeriodMode" value="rango" class="accent-blue-500 m-0" ${modoFecha ? '' : 'checked'}
+                        onchange="app.setPeriodMode('rango')"> Rango
+                </label>
+                <span class="w-px bg-gray-600 flex-shrink-0" style="height: 16px;"></span>
+                <input type="text" id="fFecha" readonly
+                    class="period-fecha flex-1 min-w-0 bg-transparent text-sm border-0 outline-none p-0 m-0 cursor-pointer" style="${innerReset}" />
+                <input type="text" id="fRango" readonly
+                    class="period-rango flex-1 min-w-0 bg-transparent text-sm border-0 outline-none p-0 m-0 cursor-pointer" style="${innerReset}" />
+                <span class="text-gray-400 flex-shrink-0 flex items-center"><i data-lucide="calendar" class="w-4 h-4"></i></span>
+            </div>
+        `);
+
+        // type 'simple' => singleDatePicker con autoApply (sin botones).
         dataPicker({
-            parent: 'fRango',
-            rangepicker: {
-                startDate:     start,
-                endDate:       end,
-                showDropdowns: true,
-                locale: {
-                    format:           'YYYY-MM-DD',
-                    applyLabel:       'Aplicar',
-                    cancelLabel:      'Cancelar',
-                    customRangeLabel: 'Personalizar',
-                    monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
-                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
-                },
-                ranges: {
-                    'Mes actual':       [moment().startOf('month'), moment().endOf('month')],
-                    'Mes anterior':     [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-                    'Primera quincena': [moment().startOf('month'), moment().date(15)],
-                    'Segunda quincena': [moment().date(16), moment().endOf('month')]
-                }
+            parent:      'fFecha',
+            type:        'simple',
+            rangeDefault: {
+                singleDatePicker: true,
+                showDropdowns:    true,
+                autoApply:        true,
+                startDate:        moment(this.dataInit.periodo.ff),
+                locale:           this.pickerLocale()
             },
             onSelect: () => this.onChangeFilters()
         });
+
+        dataPicker({
+            parent: 'fRango',
+            type:   'all',
+            rangepicker: {
+                startDate:     moment(this.dataInit.periodo.fi),
+                endDate:       moment(this.dataInit.periodo.ff),
+                showDropdowns: true,
+                autoApply:     true,
+                locale:        this.pickerLocale(),
+                ranges:        this.pickerRanges()
+            },
+            onSelect: () => this.onChangeFilters()
+        });
+
+        if (window.lucide) lucide.createIcons();
+
+        this.applyPeriodMode();
+    }
+
+    pickerLocale() {
+        return {
+            format:           'YYYY-MM-DD',
+            applyLabel:       'Aplicar',
+            cancelLabel:      'Cancelar',
+            customRangeLabel: 'Personalizar',
+            monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
+        };
+    }
+
+    // Los atajos se calculan sobre el ultimo periodo cargado, no sobre hoy: el
+    // Excel del POS se sube en diferido y "Mes actual" del calendario puede no
+    // tener una sola venta.
+    pickerRanges() {
+        const ref = moment(this.dataInit.periodo.ff);
+
+        return {
+            'Mes cargado':      [ref.clone().startOf('month'), ref.clone().endOf('month')],
+            'Mes anterior':     [ref.clone().subtract(1, 'month').startOf('month'), ref.clone().subtract(1, 'month').endOf('month')],
+            'Primera quincena': [ref.clone().startOf('month'), ref.clone().date(15)],
+            'Segunda quincena': [ref.clone().date(16), ref.clone().endOf('month')]
+        };
+    }
+
+    // Solo se ve el calendario del modo activo: los dos inputs comparten la caja.
+    applyPeriodMode() {
+        $('.period-fecha').toggle(this.periodMode === 'fecha');
+        $('.period-rango').toggle(this.periodMode === 'rango');
+    }
+
+    setPeriodMode(mode) {
+        this.periodMode = mode;
+        this.applyPeriodMode();
+        this.onChangeFilters();
     }
 
     getFilters() {
@@ -186,20 +289,27 @@ class App extends Templates {
         };
     }
 
-    // Mientras dataPicker no engancha el plugin, el input aun no tiene rango.
+    // En modo 'fecha' el picker es singleDatePicker, asi que fi === ff y el
+    // periodo es un solo dia. Mientras dataPicker no engancha el plugin, el input
+    // aun no tiene fechas.
     getRango() {
-        if (!$('#fRango').data('daterangepicker')) return { fi: '', ff: '' };
-        return getDataRangePicker('fRango');
+        const id = this.periodMode === 'fecha' ? 'fFecha' : 'fRango';
+
+        if (!$(`#${id}`).data('daterangepicker')) {
+            return { fi: this.dataInit.periodo.fi, ff: this.dataInit.periodo.ff };
+        }
+
+        return getDataRangePicker(id);
     }
 
     // -- Event handlers --
 
     async onChangeFilters() {
-        await tickets.lsTickets();
-        tickets.lsKpis();
+        await ventas.lsVentas();
+        ventas.lsKpis();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
-            this.selectTicket(null);
+            this.selectVenta(null);
         }
     }
 
@@ -209,53 +319,51 @@ class App extends Templates {
         return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
     }
 
-    updateFooterInfo(text) {
-        $('#viewFooter_info').text(text);
-    }
-
     // -- Facade --
 
-    async selectTicket(folio) {
+    async selectVenta(folio) {
         this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
 
-        if (!folio) return ticketsView.renderDetail(null);
+        if (!folio) return ventasView.renderDetail(null);
 
         $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
 
-        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
-        ticketsView.renderDetail(data.status === 200 ? data.ticket : null);
+        const data = await fnAjax({ opc: 'getVenta', folio: folio }, apiVentas);
+        ventasView.renderDetail(data.status === 200 ? data.venta : null);
     }
 }
 
-// -- Tickets --
+// -- Ventas --
 
-class Tickets extends Templates {
+class Ventas extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'ventas';
     }
 
     // -- Data --
 
-    async lsTickets() {
-        const data = await fnAjax(Object.assign({ opc: 'lsTickets' }, app.getFilters()), apiTickets);
+    async lsVentas() {
+        const data = await fnAjax(Object.assign({ opc: 'lsVentas' }, app.getFilters()), apiVentas);
         const rows = data.row || [];
 
+        // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
+        // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [2, 3, 4, 5, 6, 11],
-            right:        [7, 8, 9, 10],
+            center:       [1, 2, 3, 4, 5, 10],
+            right:        [6, 7, 8, 9],
             actionsAlign: 'center',
             extends:      true,
             scrollable:   false,
             striped:      true,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No se encontraron tickets con los filtros aplicados',
+            emptyMessage: 'No se encontraron ventas con los filtros aplicados',
             emptyIcon:    'ic-file-text',
             data:         data
         });
@@ -265,22 +373,20 @@ class Tickets extends Templates {
         if (rows.length > 0 && typeof simple_data_table === 'function') {
             simple_data_table(`#tb${this.PROJECT_NAME}`, 12);
         }
-
-        app.updateFooterInfo(`Mostrando ${rows.length} de ${data.total} tickets del periodo`);
     }
 
     async lsKpis() {
-        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiTickets);
+        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiVentas);
 
-        ticketsView.renderInfoCards([
+        ventasView.renderInfoCards([
             {
-                id:          'kpiTickets',
-                title:       'Tickets',
+                id:          'kpiVentas',
+                title:       'Ventas',
                 lucideIcon:  'receipt',
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
                 data: {
-                    value: kpis.tickets,
+                    value: kpis.ventas,
                     color: 'text-white'
                 }
             },
@@ -292,7 +398,9 @@ class Tickets extends Templates {
                 borderColor: 'border-transparent',
                 data: {
                     value: kpis.montoTexto,
-                    color: 'text-[#1C64F2]'
+                    // El azul del acento se apagaba sobre el panel oscuro y el monto
+                    // es el dato que se busca primero: va en el verde del dinero.
+                    color: 'text-[#3FC189]'
                 }
             },
             {
@@ -320,20 +428,15 @@ class Tickets extends Templates {
         ]);
     }
 
-    // -- Actions --
-
-    openGenerador(id) {
-        window.location.href = `/app/facture/generador.php?id=${encodeURIComponent(id)}`;
-    }
 }
 
 // -- Vista --
 
-class TicketsView extends Templates {
+class VentasView extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'ventas';
     }
 
     // -- Render helpers --
@@ -341,15 +444,7 @@ class TicketsView extends Templates {
     renderHeader(data) {
         this.viewHeader({
             parent: 'viewHeader',
-            id:     'hdrTickets',
-            json:   data
-        });
-    }
-
-    renderFooter(data) {
-        this.viewFooter({
-            parent: 'viewFooterRow',
-            id:     'viewFooter',
+            id:     'hdrVentas',
             json:   data
         });
     }
@@ -357,7 +452,7 @@ class TicketsView extends Templates {
     renderInfoCards(rows) {
         this.infoCard({
             parent: 'kpisRow',
-            id:     'kpisTickets',
+            id:     'kpisVentas',
             theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
@@ -365,31 +460,30 @@ class TicketsView extends Templates {
         });
     }
 
-    renderDetail(ticket) {
-        this.ticketDetailPanel({
+    renderDetail(venta) {
+        this.ventaDetailPanel({
             parent:  'detailPanel',
-            json:    ticket,
-            onClose: () => app.selectTicket(null),
-            onPrint: (e) => tickets.openGenerador(e.id)
+            json:    venta,
+            onClose: () => app.selectVenta(null)
         });
     }
 
     // -- Components --
 
-    ticketDetailPanel(options) {
+    ventaDetailPanel(options) {
         const defaults = {
             parent: 'root',
-            id:     'ticketDetailPanel',
+            id:     'ventaDetailPanel',
             json:   null,
             labels: {
-                emptyTitle: 'Selecciona un ticket',
-                emptyHint:  'Haz click en cualquier fila o en el icono ojo para ver el detalle fiscal aqui.',
-                subtitle:   'Detalle fiscal',
-                leyenda:    'Este detalle no es un comprobante fiscal',
-                imprimir:   'Ver ticket virtual'
+                emptyTitle:  'Selecciona una venta',
+                emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle fiscal aqui.',
+                subtitle:    'Detalle fiscal',
+                productos:   'PRODUCTOS',
+                sinComanda:  'La comanda de esta venta no esta cargada',
+                leyenda:     'Este detalle no es un comprobante fiscal'
             },
-            onClose: () => { },
-            onPrint: () => { }
+            onClose: () => { }
         };
 
         const o    = options || {};
@@ -427,9 +521,32 @@ class TicketsView extends Templates {
         `;
 
         // Las comandas viven en otra hoja del export: si aun no se cargan, el
-        // ticket no tiene mesa ni mesero que imprimir.
-        const mesaRow   = e.mesa   ? row('MESA:',   e.mesa)   : '';
-        const meseroRow = e.mesero ? row('MESERO:', e.mesero) : '';
+        // venta no tiene mesa, mesero ni partidas que mostrar.
+        const items      = e.items || [];
+        const mesaRow    = e.mesa     ? row('MESA:',    e.mesa)    : '';
+        const meseroRow  = e.mesero   ? row('MESERO:',  e.mesero)  : '';
+        const comandaRow = e.comanda  ? row('COMANDA:', e.comanda) : '';
+        const horaRow    = e.apertura ? row('HORA:',    `${e.apertura} - ${e.cierre}`) : '';
+
+        // Tres columnas (cantidad, producto, importe) en vez del par etiqueta/valor
+        // de los totales: es la lista de consumo, no un dato del encabezado.
+        const itemRow = (it) => `
+            <tr>
+                <td style="width:26px;">${esc(it.cantidad)}</td>
+                <td>${esc(it.nombre)}${it.descuento ? ` (-${esc(it.descuento)}%)` : ''}</td>
+                <td class="text-right">${esc(it.importe)}</td>
+            </tr>
+        `;
+
+        const itemsHtml = items.length ? `
+            <div class="tk-sep"></div>
+            <p class="font-bold text-[11px]">${esc(opts.labels.productos)} (${items.length})</p>
+            <table>${items.map(itemRow).join('')}</table>
+            <table>${row('CONSUMO:', e.consumo)}</table>
+        ` : `
+            <div class="tk-sep"></div>
+            <p class="text-center text-gray-400">${esc(opts.labels.sinComanda)}</p>
+        `;
 
         $parent.html(`
             <div class="flex-1 flex flex-col overflow-hidden">
@@ -456,11 +573,14 @@ class TicketsView extends Templates {
                         <table>
                             ${row('FOLIO:',  e.folio)}
                             ${row('FECHA:',  e.fecha)}
+                            ${comandaRow}
                             ${mesaRow}
                             ${meseroRow}
+                            ${horaRow}
                             ${row('PAGO:',   String(e.pago).toUpperCase())}
                             ${row('METODO:', e.metodo)}
                         </table>
+                        ${itemsHtml}
                         <div class="tk-sep"></div>
                         <table>
                             ${row('SUBTOTAL:',          e.subtotal)}
@@ -479,19 +599,12 @@ class TicketsView extends Templates {
                         </div>
                     </div>
                 </div>
-
-                <div class="px-4 py-3 border-t border-[#374151] bg-[#0E1521] flex-shrink-0">
-                    <button type="button" id="${opts.id}_print" class="${CF_CSS.btnPrimary} flex items-center justify-center gap-2">
-                        <i data-lucide="printer" class="w-4 h-4"></i>${esc(opts.labels.imprimir)}
-                    </button>
-                </div>
             </div>
         `);
 
         if (window.lucide) lucide.createIcons();
 
         $(`#${opts.id}_close`).on('click', () => opts.onClose());
-        $(`#${opts.id}_print`).on('click', () => opts.onPrint(e));
     }
 
     viewHeader(options) {
@@ -593,53 +706,4 @@ class TicketsView extends Templates {
         }
     }
 
-    viewFooter(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'viewFooter',
-            class:  'flex items-center justify-between w-full',
-            json:   { info: '', legends: [] },
-            tones: {
-                default: '#9CA3AF',
-                success: 'var(--cs-success,#3FC189)',
-                warning: 'var(--cs-warning,#FBBF24)',
-                danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
-                purple:  'var(--cs-accent-purple,#7C3AED)'
-            },
-            classes: {
-                info:   'text-[10px] text-gray-400',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
-                item:   'flex items-center gap-1'
-            }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.tones   = Object.assign({}, defaults.tones,   o.tones   || {});
-        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneColor  = (tone) => opts.tones[tone] || opts.tones.default;
-        const legendItem = (lg) => `
-            <span class="${opts.classes.item}">
-                <span class="w-2 h-2 rounded-full" style="background:${toneColor(lg.tone)};"></span>
-                ${esc(lg.label)}
-            </span>
-        `;
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-        const legendsHtml = (opts.json.legends || []).map(legendItem).join('');
-
-        wrap.html(`
-            <p id="${opts.id}_info" class="${opts.classes.info}">${esc(opts.json.info)}</p>
-            <div class="${opts.classes.legend}">${legendsHtml}</div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
-    }
 }

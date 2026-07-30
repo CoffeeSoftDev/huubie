@@ -14,11 +14,23 @@ class mdl extends CRUD {
 
     // -- Catalogos --
 
+    // La sucursal del modulo vive en este esquema, no en la sesion de Huubie.
+    function getBranch() {
+        $query = "
+            SELECT id
+            FROM {$this->bd}branch
+            WHERE active = 1
+            ORDER BY id ASC
+            LIMIT 1
+        ";
+        return $this->_Read($query);
+    }
+
     function lsPaymentMethod($array) {
         $query = "
             SELECT id, name AS valor
             FROM {$this->bd}payment_method
-            WHERE active = 1 AND (subsidiaries_id <=> ? OR subsidiaries_id IS NULL)
+            WHERE active = 1 AND (branch_id <=> ? OR branch_id IS NULL)
             ORDER BY name ASC
         ";
         return $this->_Read($query, $array);
@@ -34,18 +46,30 @@ class mdl extends CRUD {
         return $this->_Read($query);
     }
 
-    // -- Tickets --
+    // El periodo por defecto no puede ser el mes en curso: el Excel del POS se
+    // sube en diferido, asi que se abre en el ultimo mes que tiene ventas.
+    function getLastPeriod($array) {
+        $query = "
+            SELECT DATE_FORMAT(MAX(operation_date), '%Y-%m-01') AS fi,
+                   DATE(LAST_DAY(MAX(operation_date)))          AS ff
+            FROM {$this->bd}sale
+            WHERE active = 1 AND branch_id <=> ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // -- Ventas --
 
     // El folio se repite cuando el mismo Excel se sube dos veces: el UNIQUE
-    // (folio, subsidiaries_id) no bloquea con la sucursal en NULL. Se toma la
-    // ultima fila de cada folio para que el listado tenga un ticket por folio.
-    function ticketsFrom() {
+    // (folio, branch_id) no bloquea con la sucursal en NULL. Se toma la
+    // ultima fila de cada folio para que el listado tenga una venta por folio.
+    function ventasFrom() {
         return "
             FROM {$this->bd}sale s
             JOIN (
                 SELECT folio, MAX(id) AS id
                 FROM {$this->bd}sale
-                WHERE active = 1 AND subsidiaries_id <=> ?
+                WHERE active = 1 AND branch_id <=> ?
                   AND operation_date BETWEEN ? AND ?
                 GROUP BY folio
             ) u ON u.id = s.id
@@ -63,13 +87,13 @@ class mdl extends CRUD {
         ";
     }
 
-    function listTickets($array) {
+    function listVentas($array) {
         $query = "
             SELECT s.id, s.folio, s.billing_code, s.invoice_series, s.operation_date,
                    s.discount_percent, s.subtotal, s.tax, s.total,
                    st.name AS status_name,
                    {$this->paymentsSelect()}
-            {$this->ticketsFrom()}
+            {$this->ventasFrom()}
             WHERE 1 = 1 {$array['filters']}
             ORDER BY s.operation_date ASC, s.folio ASC
             LIMIT 1000
@@ -77,19 +101,19 @@ class mdl extends CRUD {
         return $this->_Read($query, $array['data']);
     }
 
-    function sumTickets($array) {
+    function sumVentas($array) {
         $query = "
-            SELECT COUNT(*) AS tickets,
+            SELECT COUNT(*) AS ventas,
                    COALESCE(SUM(s.total), 0) AS monto,
                    COALESCE(SUM(st.name = 'FACTURADO'), 0) AS facturados,
                    COALESCE(SUM(s.tax = 0), 0) AS cero
-            {$this->ticketsFrom()}
+            {$this->ventasFrom()}
             WHERE 1 = 1 {$array['filters']}
         ";
         return $this->_Read($query, $array['data']);
     }
 
-    function getTicketByFolio($array) {
+    function getVentaByFolio($array) {
         $query = "
             SELECT s.id, s.folio, s.billing_code, s.invoice_series, s.operation_date,
                    s.discount_percent, s.subtotal, s.tax, s.total,
@@ -97,21 +121,46 @@ class mdl extends CRUD {
                    {$this->paymentsSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
-            WHERE s.active = 1 AND s.folio = ? AND s.subsidiaries_id <=> ?
+            WHERE s.active = 1 AND s.folio = ? AND s.branch_id <=> ?
             ORDER BY s.id DESC
             LIMIT 1
         ";
         return $this->_Read($query, $array);
     }
 
-    // El mesero vive en las comandas: solo hay dato si esa hoja ya se cargo.
-    function getTicketWaiter($array) {
+    // -- Comandas --
+
+    // Mesa, mesero y horas se repiten en cada partida de la cuenta: el
+    // encabezado de la comanda de la venta se resume en una sola fila. Solo hay
+    // dato si la hoja de comandas ya se cargo.
+    function getVentaComanda($array) {
         $query = "
-            SELECT COALESCE(w.name, d.waiter_code) AS waiter_name, d.table_number
+            SELECT MIN(d.comanda_folio)            AS comanda_folio,
+                   MIN(d.table_number)             AS table_number,
+                   COALESCE(MIN(w.name), MIN(d.waiter_code)) AS waiter_name,
+                   MIN(d.opened_at)                AS opened_at,
+                   MAX(d.closed_at)                AS closed_at,
+                   COUNT(*)                        AS partidas,
+                   COALESCE(SUM(d.amount), 0)      AS importe
             FROM {$this->bd}detail_sale d
             LEFT JOIN {$this->bd}waiter w ON w.id = d.waiter_id
             WHERE d.active = 1 AND d.sale_folio = ?
-            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Renglones de la comanda. El import de comandas.xls no resuelve product_id
+    // (el catalogo se arma aparte), asi que la descripcion sale de la hoja y el
+    // catalogo solo se consulta cuando ya quedo cruzado.
+    function listVentaItems($array) {
+        $query = "
+            SELECT d.product_code,
+                   COALESCE(p.name, d.description) AS description,
+                   d.quantity, d.discount_percent, d.amount
+            FROM {$this->bd}detail_sale d
+            LEFT JOIN {$this->bd}product p ON p.id = d.product_id
+            WHERE d.active = 1 AND d.sale_folio = ?
+            ORDER BY d.id ASC
         ";
         return $this->_Read($query, $array);
     }

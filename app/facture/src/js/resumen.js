@@ -61,11 +61,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
+                    class: 'px-3 pt-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 pt-1 pb-4 bg-[#0E1521] flex-shrink-0'
                 },
                 {
                     id:    'progressRow',
@@ -77,7 +77,7 @@ class App extends Templates {
                 },
                 {
                     id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] border-t border-[#374151] flex-shrink-0'
+                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] flex-shrink-0'
                 }
             ]
         };
@@ -120,7 +120,7 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'detailFoot',
-                        class: 'px-4 py-3 border-t border-[#374151] bg-[#0E1521] flex-shrink-0'
+                        class: 'px-4 py-3 bg-[#0E1521] flex-shrink-0'
                     }
                 ]
             }
@@ -135,11 +135,11 @@ class App extends Templates {
         const panel = (key, maxH) => ({
             type:  'div',
             id:    `card${key}`,
-            class: 'bg-[#141d2b] rounded-lg overflow-hidden flex flex-col',
+            class: 'bg-[#1F2A37] rounded-lg overflow-hidden flex flex-col',
             children: [
                 {
                     id:    `head${key}`,
-                    class: 'px-4 py-3 border-b border-[#374151] flex items-center justify-between'
+                    class: 'px-4 py-3 flex items-center justify-between'
                 },
                 {
                     id:    `table${key}`,
@@ -147,7 +147,7 @@ class App extends Templates {
                 },
                 {
                     id:    `foot${key}`,
-                    class: 'px-4 py-3 border-t border-[#374151] mt-auto'
+                    class: 'px-4 py-3 mt-auto'
                 }
             ]
         });
