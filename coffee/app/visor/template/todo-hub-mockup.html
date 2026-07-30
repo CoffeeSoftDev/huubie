@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>Cajón de TODOs — mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root {
+    --bg-base: #111827; --bg-card: #1F2A37; --bg-soft: #1a2332; --bg-hover: #243043;
+    --text: #F9FAFB; --text-soft: #D1D5DB; --text-mute: #9CA3AF; --text-dim: #6B7280;
+    --border: rgba(55,65,81,.75); --border-soft: rgba(55,65,81,.45);
+    --sky: #38BDF8; --sky-soft: rgba(56,189,248,.21); --sky-line: rgba(56,189,248,.35);
+    --rose: #FB7185;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 26px; background: #0B1220; color: var(--text); font-family: Inter, system-ui, sans-serif; }
+.row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.scene-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin: 30px 0 8px; }
+.scene-label:first-child { margin-top: 0; }
+.scene-note { font-size: 12px; color: var(--text-mute); margin: 0 0 12px; max-width: 940px; line-height: 1.55; }
+.col-label { font-size: 11px; font-weight: 600; color: var(--text-dim); margin: 0 0 8px; }
+
+/* ══ Contexto simulado (para ver que el cajón no tapa el trabajo) ══ */
+.stage { width: 1140px; height: 700px; position: relative; overflow: hidden; display: flex;
+    background: var(--bg-base); border: 1px solid var(--border); border-radius: 14px; }
+.stage-side { width: 210px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 14px 12px; background: rgba(17,24,39,.5); }
+.stage-main { flex: 1; padding: 18px 22px; }
+.ghost { height: 9px; border-radius: 999px; background: rgba(148,163,184,.13); margin-bottom: 11px; }
+.ghost.s { width: 45%; } .ghost.m { width: 72%; } .ghost.l { width: 92%; }
+.ghost.t { height: 15px; width: 38%; background: rgba(148,163,184,.2); margin-bottom: 18px; }
+.stage-drawer { position: absolute; top: 0; right: 0; bottom: 0; }
+
+/* ══ Cajón ══ */
+.dw { width: 432px; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg-card); border-left: 1px solid var(--border); box-shadow: -26px 0 60px rgba(0,0,0,.5); }
+.dw.standalone { height: 700px; border: 1px solid var(--border); border-radius: 14px; }
+
+/* ── Encabezado ── */
+.dw-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.dw-badge { width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--sky-soft); color: var(--sky); }
+.dw-badge svg { width: 17px; height: 17px; stroke-width: 2.1; }
+.dw-head h1 { margin: 0; font-size: 13.5px; font-weight: 700; }
+.dw-head p { margin: 1px 0 0; font-size: 11px; color: var(--text-mute); }
+.dw-head-tools { margin-left: auto; display: flex; gap: 5px; }
+.ico-btn { width: 29px; height: 29px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-soft); border-radius: 8px; background: transparent; color: var(--text-mute); cursor: pointer; }
+.ico-btn:hover { background: var(--bg-hover); color: var(--text); }
+.ico-btn svg { width: 15px; height: 15px; }
+.ico-btn.accent { background: var(--sky-soft); border-color: var(--sky-line); color: var(--sky); }
+
+/* ── Buscador + filtro ── */
+.dw-tools { display: flex; gap: 7px; padding: 10px 14px 9px; border-bottom: 1px solid var(--border-soft); }
+.dw-search { position: relative; flex: 1; }
+.dw-search > svg { position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: var(--text-dim); }
+.dw-search input { width: 100%; padding: 7px 10px 7px 31px; font: inherit; font-size: 12.5px; color: var(--text);
+    background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 8px; }
+.dw-search input::placeholder { color: var(--text-dim); }
+.dw-search .clear { position: absolute; right: 7px; top: 7px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 5px; background: rgba(148,163,184,.16); color: var(--text-mute); cursor: pointer; }
+.dw-search .clear svg { width: 11px; height: 11px; }
+.chip-filter { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border-soft);
+    border-radius: 8px; background: var(--bg-soft); color: var(--text-mute); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.chip-filter svg { width: 12px; height: 12px; }
+.chip-filter.on { background: var(--sky-soft); border-color: var(--sky-line); color: var(--sky); }
+
+.dw-scroll { flex: 1; overflow-y: auto; }
+
+/* ── Lista (carpeta) ── */
+.lst { border-bottom: 1px solid var(--border-soft); }
+.lst-head { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px 14px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.lst-head:hover, .lst.hovered > .lst-head { background: rgba(148,163,184,.05); }
+.lst.open > .lst-head { background: rgba(56,189,248,.07); }
+.chev { flex-shrink: 0; color: var(--text-dim); display: inline-flex; }
+.chev svg { width: 14px; height: 14px; }
+.lst-name { flex: 1; min-width: 0; }
+.lst-name b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lst-name small { display: block; margin-top: 1px; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lst-tools { display: none; gap: 3px; flex-shrink: 0; }
+.lst.hovered > .lst-head .lst-tools { display: flex; }
+.lst-tools button { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 6px; background: rgba(148,163,184,.13); color: var(--text-mute); cursor: pointer; }
+.lst-tools button:hover { background: var(--bg-hover); color: var(--text); }
+.lst-tools svg { width: 12px; height: 12px; }
+.count { flex-shrink: 0; min-width: 21px; height: 19px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: rgba(148,163,184,.14); color: var(--text-soft); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lst.open .count { background: var(--sky); color: #06283D; }
+.count.done-all { background: rgba(52,211,153,.16); color: #34D399; }
+
+.lst-body { padding: 0 14px 10px 33px; }
+
+/* ── Sección dentro de la lista ── */
+.sec-head { display: flex; align-items: center; gap: 7px; padding: 8px 2px 4px; }
+.sec-head h3 { margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-dim); }
+.sec-head .n { font-size: 10px; font-weight: 700; color: var(--text-dim); opacity: .7; }
+.sec-head .tools { margin-left: auto; display: none; gap: 3px; }
+.sec-head.hovered .tools { display: flex; }
+.sec-head .tools button { width: 21px; height: 21px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: rgba(148,163,184,.12); color: var(--text-mute); cursor: pointer; }
+.sec-head .tools svg { width: 11px; height: 11px; }
+
+/* ── Tarea ── */
+.task { display: flex; align-items: flex-start; gap: 9px; padding: 6px 7px; border-radius: 7px; }
+.task.hovered { background: rgba(148,163,184,.06); }
+.chk { margin-top: 1px; width: 15px; height: 15px; flex-shrink: 0; border-radius: 4.5px; border: 1.5px solid rgba(148,163,184,.5);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.chk svg { width: 10px; height: 10px; color: transparent; }
+.task.done .chk { background: var(--sky); border-color: var(--sky); }
+.task.done .chk svg { color: #06283D; }
+.task-txt { flex: 1; font-size: 12.5px; line-height: 1.45; color: var(--text-soft); }
+.task.done .task-txt { color: var(--text-dim); text-decoration: line-through; text-decoration-color: rgba(156,163,175,.45); }
+.task-tools { display: none; gap: 3px; flex-shrink: 0; }
+.task.hovered .task-tools { display: flex; }
+.task-tools button { width: 21px; height: 21px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: rgba(148,163,184,.14); color: var(--text-mute); cursor: pointer; }
+.task-tools svg { width: 11px; height: 11px; }
+.origin { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px;
+    background: rgba(148,163,184,.1); color: var(--text-mute); font-size: 9.5px; font-weight: 600; white-space: nowrap; }
+.origin svg { width: 9px; height: 9px; }
+.origin mark { background: transparent; color: var(--sky); }
+.task-txt mark { background: rgba(56,189,248,.22); color: var(--text); border-radius: 3px; padding: 0 2px; }
+
+.addtask { display: flex; align-items: center; gap: 9px; padding: 5px 7px; }
+.addtask .plus { width: 15px; height: 15px; flex-shrink: 0; border-radius: 4.5px; border: 1.5px dashed rgba(148,163,184,.4);
+    display: inline-flex; align-items: center; justify-content: center; color: var(--text-dim); }
+.addtask .plus svg { width: 9px; height: 9px; }
+.addtask input { flex: 1; padding: 1px 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; }
+.addtask input::placeholder { color: var(--text-dim); }
+.addtask.focus { background: rgba(56,189,248,.07); border-radius: 7px; }
+.addtask.focus .plus { border-style: solid; border-color: var(--sky-line); color: var(--sky); }
+.newsec { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 2px; padding: 5px 10px; border: 1px dashed var(--border);
+    border-radius: 7px; background: transparent; color: var(--text-dim); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.newsec svg { width: 11px; height: 11px; }
+
+/* ── Grupos plegados del fondo ── */
+.grp { display: flex; align-items: center; gap: 7px; width: 100%; padding: 11px 14px; border: 0; background: transparent;
+    color: var(--text-dim); font: inherit; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; cursor: pointer; text-align: left; }
+.grp:hover { background: rgba(148,163,184,.04); color: var(--text-mute); }
+.grp svg { width: 12px; height: 12px; }
+.grp span { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 11px; font-weight: 600; }
+
+/* ── Formulario nuevo TODO ── */
+.newform { margin: 10px 14px; padding: 12px; border: 1px solid var(--sky-line); border-radius: 11px; background: rgba(56,189,248,.06); }
+.newform h4 { margin: 0 0 10px; font-size: 11.5px; font-weight: 700; color: var(--sky); display: flex; align-items: center; gap: 6px; }
+.newform h4 svg { width: 13px; height: 13px; }
+.field { margin-bottom: 9px; }
+.field label { display: block; margin-bottom: 4px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-dim); }
+.field input, .field select { width: 100%; padding: 7px 9px; font: inherit; font-size: 12px; color: var(--text);
+    background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 8px; }
+.newform-foot { display: flex; gap: 7px; justify-content: flex-end; margin-top: 11px; }
+.btn { padding: 6px 13px; border: 1px solid var(--border-soft); border-radius: 8px; background: transparent;
+    color: var(--text-soft); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.btn.primary { background: var(--sky); border-color: var(--sky); color: #06283D; }
+
+/* ── Captura rápida ── */
+.dw-quick { padding: 10px 14px; border-top: 1px solid var(--border); background: rgba(17,24,39,.45); }
+.quick-in { display: flex; align-items: center; gap: 8px; padding: 8px 11px; background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 10px; }
+.quick-in.focus { border-color: var(--sky-line); background: rgba(56,189,248,.07); }
+.quick-in > svg { width: 15px; height: 15px; color: var(--sky); flex-shrink: 0; }
+.quick-in input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; }
+.quick-in input::placeholder { color: var(--text-dim); }
+.dest { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 7px;
+    background: rgba(56,189,248,.16); color: var(--sky); font-size: 10px; font-weight: 700; cursor: pointer; }
+.dest svg { width: 10px; height: 10px; }
+.kbd { flex-shrink: 0; padding: 2px 6px; border-radius: 5px; background: rgba(148,163,184,.14); color: var(--text-dim); font-size: 10px; font-weight: 700; }
+.empty { padding: 30px 20px; text-align: center; }
+.empty-ico { width: 42px; height: 42px; margin: 0 auto 11px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(148,163,184,.1); color: var(--text-dim); }
+.empty-ico svg { width: 20px; height: 20px; }
+.empty p { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: var(--text-soft); }
+.empty small { font-size: 11px; color: var(--text-dim); line-height: 1.5; display: block; }
+</style>
+</head>
+<body>
+
+<p class="scene-label">1 · El cajón en su sitio — no tapa el documento</p>
+<p class="scene-note">Se abre desde el icono del launcher y se ancla al borde derecho, a lo alto. La página de atrás sigue viva: puedes leer el documento y palomear tareas sin cerrar nada. Cada lista se plega; al abrir una, aparecen sus secciones reales (aquí las 5 de Huubie) con su propio “Añadir tarea…”.</p>
+
+<div class="stage" id="scene1">
+    <div class="stage-side">
+        <div class="ghost t"></div>
+        <div class="ghost l"></div><div class="ghost m"></div><div class="ghost l"></div>
+        <div class="ghost s"></div><div class="ghost m"></div><div class="ghost l"></div>
+        <div class="ghost m"></div><div class="ghost s"></div>
+    </div>
+    <div class="stage-main">
+        <div class="ghost t"></div>
+        <div class="ghost l"></div><div class="ghost l"></div><div class="ghost m"></div>
+        <div class="ghost l"></div><div class="ghost s"></div><div class="ghost l"></div>
+        <div class="ghost m"></div><div class="ghost l"></div><div class="ghost s"></div>
+    </div>
+
+    <div class="stage-drawer">
+        <div class="dw">
+            <div class="dw-head">
+                <span class="dw-badge"><i data-lucide="list-checks"></i></span>
+                <div><h1>TODO</h1><p>33 pendientes · 7 listas</p></div>
+                <div class="dw-head-tools">
+                    <button class="ico-btn accent" title="Nuevo TODO"><i data-lucide="plus"></i></button>
+                    <button class="ico-btn" title="Refrescar"><i data-lucide="refresh-cw"></i></button>
+                    <button class="ico-btn" title="Cerrar"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+
+            <div class="dw-tools">
+                <div class="dw-search">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Buscar tarea o lista…">
+                </div>
+                <button class="chip-filter on"><i data-lucide="circle-dashed"></i> Pendientes</button>
+            </div>
+
+            <div class="dw-scroll">
+                <div class="lst open">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-down"></i></span>
+                        <span class="lst-name"><b>Huubie</b><small>Huubie / todo-huubie.json</small></span>
+                        <span class="count">8</span>
+                    </div>
+                    <div class="lst-body">
+                        <div class="sec-head"><h3>Lista de pedidos</h3><span class="n">1</span></div>
+                        <div class="task hovered">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">Forzar al usuario a abrir turno para ver los pedidos</span>
+                            <span class="task-tools"><button title="Mejorar con IA"><i data-lucide="sparkles"></i></button><button title="Eliminar"><i data-lucide="x"></i></button></span>
+                        </div>
+                        <div class="addtask"><span class="plus"><i data-lucide="plus"></i></span><input placeholder="Añadir tarea…"></div>
+
+                        <div class="sec-head"><h3>Visor de cierre del día</h3><span class="n">2</span></div>
+                        <div class="task">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">Agregar un apartado inteligente ( sugerencia con coffee-ia) que detecte porque esta marcando ese error en el reporte</span>
+                        </div>
+                        <div class="task">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">Revisar si se cumpleten todos los eventos de pedidos</span>
+                        </div>
+                        <div class="addtask"><span class="plus"><i data-lucide="plus"></i></span><input placeholder="Añadir tarea…"></div>
+
+                        <div class="sec-head hovered"><h3>Detalles del pedido</h3><span class="n">2</span>
+                            <span class="tools"><button title="Copiar prompt de la sección"><i data-lucide="copy"></i></button><button title="Eliminar sección"><i data-lucide="x"></i></button></span>
+                        </div>
+                        <div class="task">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">Mejorar la interfaz de detalles del pedido</span>
+                        </div>
+                        <div class="task">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento</span>
+                        </div>
+                        <div class="addtask"><span class="plus"><i data-lucide="plus"></i></span><input placeholder="Añadir tarea…"></div>
+
+                        <div class="sec-head"><h3>Editar producto</h3><span class="n">1</span></div>
+                        <div class="task">
+                            <span class="chk"><i data-lucide="check"></i></span>
+                            <span class="task-txt">Mejorar los espacios para los contenedores</span>
+                        </div>
+                        <button class="newsec"><i data-lucide="plus"></i> Nueva sección</button>
+                    </div>
+                </div>
+
+                <div class="lst hovered">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Playground</b><small>Playground / todo_play.json</small></span>
+                        <span class="lst-tools">
+                            <button title="Abrir en el visor"><i data-lucide="external-link"></i></button>
+                            <button title="Copiar prompt"><i data-lucide="copy"></i></button>
+                            <button title="Archivar"><i data-lucide="archive"></i></button>
+                        </span>
+                        <span class="count">13</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Encuestas **</b><small>GrupoVaroch / Encuestas / todo.json</small></span>
+                        <span class="count">4</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Playground</b><small>Playground / todo-playground.json</small></span>
+                        <span class="count">3</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Campañas</b><small>Playground / todo-campaign.json</small></span>
+                        <span class="count">2</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Facturador</b><small>Huubie / Facturador / todo.json</small></span>
+                        <span class="count">2</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>GrupoVaroch</b><small>GrupoVaroch / todo-mermas.json</small></span>
+                        <span class="count">1</span>
+                    </div>
+                </div>
+
+                <button class="grp"><i data-lucide="chevron-right"></i> Sin tareas <span>3</span></button>
+                <button class="grp"><i data-lucide="archive"></i> Archivadas <span>1</span></button>
+            </div>
+
+            <div class="dw-quick">
+                <div class="quick-in">
+                    <i data-lucide="zap"></i>
+                    <input placeholder="Capturar tarea…">
+                    <span class="dest"><i data-lucide="corner-down-right"></i> Huubie · Editar producto</span>
+                    <span class="kbd">↵</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="scene-label">2 · Estados de trabajo</p>
+<p class="scene-note">Izquierda: buscando “pedido” — el cajón deja de mostrar carpetas y muestra tareas coincidentes con el chip de dónde viven. Centro: alta de un TODO nuevo, eligiendo carpeta de la biblioteca. Derecha: el fondo del cajón, con las listas sin tareas y las archivadas desplegadas (archivar solo las esconde de arriba; el archivo se queda en su carpeta).</p>
+
+<div class="row">
+    <div>
+        <p class="col-label">Búsqueda activa</p>
+        <div class="dw standalone" id="scene2" style="width:400px;height:560px">
+            <div class="dw-head">
+                <span class="dw-badge"><i data-lucide="list-checks"></i></span>
+                <div><h1>TODO</h1><p>6 resultados · 4 listas</p></div>
+                <div class="dw-head-tools"><button class="ico-btn"><i data-lucide="x"></i></button></div>
+            </div>
+            <div class="dw-tools">
+                <div class="dw-search">
+                    <i data-lucide="search"></i>
+                    <input type="text" value="pedido">
+                    <button class="clear"><i data-lucide="x"></i></button>
+                </div>
+                <button class="chip-filter"><i data-lucide="circle-dashed"></i> Todas</button>
+            </div>
+            <div class="dw-scroll" style="padding:8px 14px">
+                <div class="task hovered">
+                    <span class="chk"><i data-lucide="check"></i></span>
+                    <span class="task-txt">Forzar al usuario a abrir turno para ver los <mark>pedido</mark>s</span>
+                    <span class="task-tools"><button title="Abrir en el visor"><i data-lucide="external-link"></i></button></span>
+                </div>
+                <div class="origin" style="margin:0 0 9px 24px"><i data-lucide="folder"></i> Huubie · Lista de <mark>pedido</mark>s</div>
+
+                <div class="task">
+                    <span class="chk"><i data-lucide="check"></i></span>
+                    <span class="task-txt">Revisar si se cumpleten todos los eventos de <mark>pedido</mark>s</span>
+                </div>
+                <div class="origin" style="margin:0 0 9px 24px"><i data-lucide="folder"></i> Huubie · Visor de cierre del día</div>
+
+                <div class="task">
+                    <span class="chk"><i data-lucide="check"></i></span>
+                    <span class="task-txt">Mejorar la interfaz de detalles del <mark>pedido</mark></span>
+                </div>
+                <div class="origin" style="margin:0 0 9px 24px"><i data-lucide="folder"></i> Huubie · Detalles del <mark>pedido</mark></div>
+
+                <div class="task">
+                    <span class="chk"><i data-lucide="check"></i></span>
+                    <span class="task-txt">en Resumen de pago, lo pagado agregar detalles de la fecha y hora</span>
+                </div>
+                <div class="origin" style="margin:0 0 9px 24px"><i data-lucide="folder"></i> Huubie · Detalles del <mark>pedido</mark></div>
+            </div>
+            <div class="dw-quick">
+                <div class="quick-in"><i data-lucide="zap"></i><input placeholder="Capturar tarea…"><span class="dest"><i data-lucide="corner-down-right"></i> Elegir destino</span><span class="kbd">↵</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <p class="col-label">Nuevo TODO</p>
+        <div class="dw standalone" id="scene3" style="width:400px;height:560px">
+            <div class="dw-head">
+                <span class="dw-badge"><i data-lucide="list-checks"></i></span>
+                <div><h1>TODO</h1><p>33 pendientes · 7 listas</p></div>
+                <div class="dw-head-tools">
+                    <button class="ico-btn accent"><i data-lucide="plus"></i></button>
+                    <button class="ico-btn"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <div class="newform">
+                <h4><i data-lucide="file-plus-2"></i> Nueva lista</h4>
+                <div class="field">
+                    <label>Nombre</label>
+                    <input type="text" value="Costsys GV">
+                </div>
+                <div class="field">
+                    <label>Carpeta de la biblioteca</label>
+                    <select><option>GrupoVaroch / Costsys</option></select>
+                </div>
+                <div class="field">
+                    <label>Archivo</label>
+                    <input type="text" value="todo.json" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+                </div>
+                <div class="newform-foot">
+                    <button class="btn">Cancelar</button>
+                    <button class="btn primary">Crear lista</button>
+                </div>
+            </div>
+            <div class="dw-scroll">
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Huubie</b><small>Huubie / todo-huubie.json</small></span>
+                        <span class="count">8</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Playground</b><small>Playground / todo_play.json</small></span>
+                        <span class="count">13</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Encuestas **</b><small>GrupoVaroch / Encuestas / todo.json</small></span>
+                        <span class="count">4</span>
+                    </div>
+                </div>
+            </div>
+            <div class="dw-quick">
+                <div class="quick-in"><i data-lucide="zap"></i><input placeholder="Capturar tarea…"><span class="kbd">↵</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <p class="col-label">Fondo: sin tareas y archivadas</p>
+        <div class="dw standalone" id="scene4" style="width:400px;height:560px">
+            <div class="dw-head">
+                <span class="dw-badge"><i data-lucide="list-checks"></i></span>
+                <div><h1>TODO</h1><p>33 pendientes · 7 listas</p></div>
+                <div class="dw-head-tools"><button class="ico-btn"><i data-lucide="x"></i></button></div>
+            </div>
+            <div class="dw-scroll">
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>GrupoVaroch</b><small>GrupoVaroch / todo-mermas.json</small></span>
+                        <span class="count">1</span>
+                    </div>
+                </div>
+
+                <button class="grp"><i data-lucide="chevron-down"></i> Sin tareas <span>3</span></button>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>KPI - REDES SOCIALES ( SOFIA)</b><small>GrupoVaroch / todo-sofi.json</small></span>
+                        <span class="count done-all">0</span>
+                    </div>
+                </div>
+                <div class="lst hovered">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Playground</b><small>users / 3 / todo.json</small></span>
+                        <span class="lst-tools">
+                            <button title="Abrir en el visor"><i data-lucide="external-link"></i></button>
+                            <button title="Archivar"><i data-lucide="archive"></i></button>
+                        </span>
+                        <span class="count done-all">0</span>
+                    </div>
+                </div>
+                <div class="lst">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>shared</b><small>shared / todo.json</small></span>
+                        <span class="count done-all">0</span>
+                    </div>
+                </div>
+
+                <button class="grp"><i data-lucide="chevron-down"></i> <i data-lucide="archive"></i> Archivadas <span>1</span></button>
+                <div class="lst" style="opacity:.62">
+                    <div class="lst-head" role="button" tabindex="0">
+                        <span class="chev"><i data-lucide="chevron-right"></i></span>
+                        <span class="lst-name"><b>Campañas</b><small>Playground / todo-campaign.json</small></span>
+                        <span class="lst-tools" style="display:flex"><button title="Restaurar"><i data-lucide="archive-restore"></i></button></span>
+                        <span class="count">2</span>
+                    </div>
+                </div>
+
+                <div class="empty">
+                    <div class="empty-ico"><i data-lucide="folder-search"></i></div>
+                    <p>Nada más por aquí</p>
+                    <small>Las listas archivadas no cuentan en el total<br>y su archivo sigue en su carpeta.</small>
+                </div>
+            </div>
+            <div class="dw-quick">
+                <div class="quick-in focus"><i data-lucide="zap"></i><input placeholder="Capturar tarea…" value="Revisar tabla de costos"><span class="dest"><i data-lucide="corner-down-right"></i> GrupoVaroch</span><span class="kbd">↵</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>

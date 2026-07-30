@@ -46,9 +46,12 @@ class ctrl extends mdl {
             $anios = [['id' => date('Y'), 'valor' => date('Y')]];
         }
 
+        $importador = new ImportFactureCargas($this);
+
         return [
             'meses' => mesesCatalogo(),
-            'anios' => $anios
+            'anios' => $anios,
+            'hojas' => hojasContrato($importador->contrato())
         ];
     }
 
@@ -63,6 +66,7 @@ class ctrl extends mdl {
         $contrato   = $importador->contrato();
 
         $__row  = [];
+        $lotes  = [];
         $filas  = 0;
         $ultimo = null;
         $ls = $this->listImportBatch([$this->branchId(), $anio, $mes]);
@@ -77,20 +81,35 @@ class ctrl extends mdl {
             if ($ultimo === null) $ultimo = $item;
             $filas += (int) $item['row_count'];
 
+            // El archivo abre la fila, que es el dato con el que se busca una carga
+            // en la bitacora; la hora queda como su acompanante.
             $__row[] = [
                 'id'      => $item['id'],
-                'Hora'    => rowStamp($item['id'], $item['created_at']),
                 'Archivo' => fileLink($item['id'], $item['file_name']),
+                'Hora'    => rowStamp($item['id'], $item['created_at']),
                 'Hoja'    => '<span class="text-gray-400">' . $item['sheet_name'] . '</span>',
                 'Filas'   => '<span class="text-gray-400">' . number_format($item['row_count']) . '</span>',
                 'Estado'  => '<span class="badge-base b-green">OK</span>',
                 'a'       => actionButtons($item['id'])
+            ];
+
+            // Los mismos lotes en crudo: con ellos el JS arma la tira de hojas del
+            // periodo. Van en el orden de insercion (pagos antes que ventas), que
+            // es el orden en que se leyeron del Excel.
+            $lotes[] = [
+                'id'            => (int) $item['id'],
+                'sheet_name'    => $item['sheet_name'],
+                'file_name'     => $item['file_name'],
+                'row_count'     => (int) $item['row_count'],
+                'control_total' => (float) $item['control_total'],
+                'stamp'         => fechaLarga($item['created_at'])
             ];
         }
 
         return [
             'row'     => $__row,
             'thead'   => '',
+            'lotes'   => array_reverse($lotes),
             'archivo' => uploadState($ultimo, $filas)
         ];
     }
@@ -167,9 +186,11 @@ class ctrl extends mdl {
             }
         }
 
+        // El nombre del archivo no viaja: el encabezado del detalle titula con la
+        // hoja, que es lo que distingue lo que se esta viendo.
         return [
             'status'  => 200,
-            'titulo'  => $batch['file_name'] . ' · ' . $batch['sheet_name'],
+            'hoja'    => $batch['sheet_name'],
             'total'   => (int) $batch['row_count'],
             'center'  => $center,
             'right'   => $right,
@@ -259,10 +280,12 @@ class ctrl extends mdl {
 
         $where = $this->util->sql(['import_batch_id' => $id], 1);
 
-        // Los pagos son la base del cruce y no se van con las ventas: se desligan
-        // antes para que el CASCADE de sale_id no los borre.
+        // Pagos y renglones de comanda son la base del cruce y no se van con las
+        // ventas: los dos se desligan antes para que el CASCADE de sale_id no los
+        // borre. Son cargas propias, con su lote y su hoja.
         if ($target === 'sale') {
             $this->unlinkSalePaymentByBatch([$id]);
+            $this->unlinkSaleDetailByBatch([$id]);
             $this->deleteSaleByBatch($where);
         }
 
@@ -303,6 +326,29 @@ function sheetTab($contrato, $sheetName) {
     return isset($contrato[$sheetName]) ? $contrato[$sheetName]['tab'] : 'sales-report';
 }
 
+// Las hojas que espera cada pestana salen del mismo contrato con el que se valida
+// el Excel: asi lo que el panel anuncia y lo que el importador exige no se separan.
+// Cada hoja viaja con su mapeo columna -> campo, que es lo que hace falta para
+// migrar la informacion.
+function hojasContrato($contrato) {
+    $__row = [];
+
+    foreach ($contrato as $nombre => $config) {
+        $columnas = [];
+        foreach ($config['columns'] as $i => $campo) {
+            $columnas[] = ['letra' => columnLetter($i), 'campo' => $campo];
+        }
+
+        $__row[$config['tab']][] = [
+            'nombre'   => $nombre,
+            'detalle'  => 'columnas A:' . columnLetter(count($config['columns']) - 1) . ' · header fila ' . $config['headerRow'],
+            'columnas' => $columnas
+        ];
+    }
+
+    return $__row;
+}
+
 // El data-batch viaja en la celda para que la fila completa sea clickeable:
 // createCoffeeTable3 no expone el id del registro en el <tr>.
 function rowStamp($id, $created) {
@@ -337,12 +383,12 @@ function uploadState($ultimo, $filas) {
     ];
 }
 
-// El nombre del archivo abre los registros de esa carga: es el dato que se
-// busca en la bitacora, asi que sirve de enlace y no obliga a apuntar al boton
-// de la fila.
+// El nombre del archivo abre la hoja de esa carga: es el dato que se busca en la
+// bitacora, asi que sirve de enlace y no obliga a apuntar al boton de la fila.
+// Abre la pestana de la hoja, no reemplaza la tabla.
 function fileLink($id, $name) {
     return '<span class="font-semibold text-gray-300 cursor-pointer hover:text-blue-300 hover:underline"'
-        . ' onclick="cargas.lsRegistros(' . $id . ')" title="Ver los registros de esta carga">'
+        . ' onclick="app.openSheet(' . $id . ')" title="Abrir la hoja de esta carga">'
         . $name . '</span>';
 }
 
@@ -363,9 +409,9 @@ function actionButtons($id) {
     return [
         [
             'class'   => 'btn-icon-view',
-            'title'   => 'Ver registros',
+            'title'   => 'Abrir la hoja de esta carga',
             'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
-            'onclick' => "cargas.lsRegistros({$id})"
+            'onclick' => "app.openSheet({$id})"
         ],
         [
             'class'   => 'btn-icon-danger',

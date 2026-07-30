@@ -12,56 +12,11 @@ function coffee_visor_header_user() {
     return ['initials' => coffee_auth_initials($u['name']), 'name' => $u['name'], 'role' => 'Miembro'];
 }
 
-// ── Biblioteca POR USUARIO ──────────────────────────────────────────────────
-// Cada cuenta tiene su propio arbol en documents/users/<id>/ y el visor solo
-// lista y escribe dentro de esa carpeta: nadie ve ni toca los documentos de
-// otro. Las carpetas de sistema (template/, module-template/, chats/) siguen
-// colgando de documents/ porque no pertenecen a ningun usuario — las gestionan
-// el Playground y el Forge con sus propios endpoints.
-function coffee_visor_documents_base() {
-    return rtrim(str_replace('\\', '/', __DIR__ . '/../documents'), '/');
-}
-
-// Identidad de la carpeta: el id numerico de la sesion. Sin sesion iniciada se
-// cae a "_guest" en vez de a la raiz compartida, para que una peticion sin
-// cookie nunca alcance los documentos de una cuenta real.
-function coffee_visor_user_key() {
-    $id = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
-    return $id > 0 ? (string) $id : '_guest';
-}
-
-// Raiz de documentos del usuario en curso. Se crea al vuelo: una cuenta nueva
-// entra al visor con su carpeta vacia, sin paso de alta manual.
-function coffee_visor_docs_root() {
-    $root = coffee_visor_documents_base() . '/users/' . coffee_visor_user_key();
-    if (!is_dir($root)) @mkdir($root, 0775, true);
-    return $root;
-}
-
-// Prefijo de los relPath que se exponen al frontend (clave de los iconos por
-// archivo en data/icons.json).
-function coffee_visor_docs_rel_prefix() {
-    return 'coffee/app/visor/documents/users/' . coffee_visor_user_key();
-}
-
-// ── Carpeta compartida ──────────────────────────────────────────────────────
-// documents/shared/ es el terreno comun: cuelga del arbol de TODOS los usuarios
-// como un proyecto mas (en celeste, para que no se confunda con los propios) y
-// todos pueden leer y escribir en ella. No vive dentro de ninguna biblioteca:
-// es una raiz aparte que el sandbox autoriza explicitamente.
-function coffee_visor_shared_name() {
-    return 'Compartido';
-}
-
-function coffee_visor_shared_root() {
-    $root = coffee_visor_documents_base() . '/shared';
-    if (!is_dir($root)) @mkdir($root, 0775, true);
-    return $root;
-}
-
-function coffee_visor_shared_rel_prefix() {
-    return 'coffee/app/visor/documents/shared';
-}
+// Las raices de la biblioteca (documents/users/<id> y documents/shared) viven en
+// un include aparte para que otros endpoints — el cajon de TODOs, por ejemplo —
+// resuelvan la carpeta del usuario con esta misma logica sin arrastrar el
+// despachador de acciones de este archivo.
+require_once __DIR__ . '/library-roots.php';
 
 // Hojas de calculo que el visor renderiza con SheetJS. Son BINARIAS (salvo csv/tsv),
 // asi que no pasan por 'save' ni por el editor de texto: entran por 'upload' y se

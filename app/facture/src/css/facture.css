@@ -65,6 +65,14 @@
 #root .scroll-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
 #root .scroll-thin::-webkit-scrollbar-thumb:hover { background: #4B5563; }
 
+/* -- Gutter de DataTables --
+   El buscador y la paginacion se arman con .row de Bootstrap, cuyo gutter sale
+   como margen negativo de 10.5px por lado. Sin un .container que lo compense
+   sobresale del contenedor y dibuja una barra de scroll horizontal de 21px que
+   no corresponde a ningun contenido. En cero, la fila queda al ancho de la
+   tabla y sus columnas alineadas con ella. */
+#root .dataTables_wrapper > .row { --bs-gutter-x: 0; }
+
 /* -- KPIs sin borde --
    Las tarjetas de infoCard llevan la clase .border de Bootstrap, que trae
    !important y gana al border-transparent de Tailwind; por eso el borde se
@@ -72,25 +80,91 @@
    conservan el suyo. */
 #root #kpisTickets > div,
 #root #kpisResumen > div,
+#root #kpisVentas > div,
 #root #kpisCatalogos > div { border: 0 !important; }
 
-/* -- KPIs chicos (tickets) --
+/* -- KPIs chicos (tickets y ventas) --
    Son cuatro cifras de apoyo, no el contenido de la vista: la tarjeta se queda
    en lo alto de su texto y el aire vive en la separacion entre ellas, no dentro.
    El p-3, el icono de 32px y el valor text-xl de infoCard(style:'file') se
    reducen aqui, sin tocar el componente del framework. */
-#root #kpisTickets { gap: 10px !important; }
+#root #kpisTickets,
+#root #kpisVentas { gap: 10px !important; }
 
-#root #kpisTickets > div { padding: 7px 11px !important; }
+#root #kpisTickets > div,
+#root #kpisVentas > div { padding: 7px 11px !important; }
 
-#root #kpisTickets p { font-size: 11px !important; margin-bottom: 0 !important; }
+#root #kpisTickets p,
+#root #kpisVentas p { font-size: 11px !important; margin-bottom: 0 !important; }
 
-#root #kpisTickets .text-xl { font-size: 15px; line-height: 1.2; }
+#root #kpisTickets .text-xl,
+#root #kpisVentas .text-xl { font-size: 15px; line-height: 1.2; }
 
-#root #kpisTickets .w-8 { width: 26px; height: 26px; margin-right: 7px; }
+#root #kpisTickets .w-8,
+#root #kpisVentas .w-8 { width: 26px; height: 26px; margin-right: 7px; }
 
 #root #kpisTickets .w-8 svg,
-#root #kpisTickets .w-8 i { width: 15px; height: 15px; }
+#root #kpisTickets .w-8 i,
+#root #kpisVentas .w-8 svg,
+#root #kpisVentas .w-8 i { width: 15px; height: 15px; }
+
+/* -- Tabla plegable por grupos --
+   El listado de ventas se lee en dos niveles: el dia (fila opc 1, que pliega el
+   componente) y la forma de pago (subgrupo, que pliega el modulo). Sin striped:
+   el color se reserva para los encabezados, que es lo que separa un bloque del
+   siguiente.
+
+   Las bandas van aqui y no como clases de Tailwind en el PHP porque el modulo
+   corre en dos temas: el selector con #root gana a la utilidad de fondo que el
+   componente pone en la celda, y la variante clara solo cambia el tono. */
+#root .ct-group { background: #1E4B87; color: #EAF1FE; }
+
+#root #tbventas tbody tr.ct-subgroup > td { background: #2E3F54; color: #DCE4EF; }
+
+html[data-facture-theme="light"] #root .ct-group { background: #DBEAFE; color: #1E3A8A; }
+
+html[data-facture-theme="light"] #root #tbventas tbody tr.ct-subgroup > td { background: #EEF2F7; color: #374151; }
+
+/* Plegado del segundo nivel. Clase propia y no el `hidden` del componente: ese
+   lo mueve el grupo del dia, y al abrirlo destaparia los tickets de todas las
+   formas de pago aunque siguieran cerradas. */
+#root .sub-hidden { display: none !important; }
+
+/* Los chevrones del plegado los pinta el componente como clases de fontello, que
+   este modulo no carga (misma razon que los ic-* de arriba): se resuelven con la
+   geometria de Lucide via mask-image, heredando el color del texto. */
+#root .icon-right-open,
+#root .icon-down-open {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+#root .icon-right-open {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+}
+
+#root .icon-down-open {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* El listado no pagina: se recorre con el scroll de la tarjeta, asi que el
+   encabezado se queda fijo arriba o las columnas se pierden al bajar. */
+#root #tbventas thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
 
 /* -- Rango de fechas sobre fondo oscuro --
    El popup del daterangepicker se monta en <body>, fuera de #root, por eso se

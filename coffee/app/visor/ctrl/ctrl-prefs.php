@@ -29,7 +29,8 @@ const PREFS_ALLOWED = [
     'coffeeia:global:modelCatalog',   // LLM: catalogo editable de modelos (CRUD del admin)
     'visor:shortcuts:v1',             // sidebar: accesos directos (URLs configurables)
     'visor:recentViews:v1',           // sidebar: documentos vistos recientemente
-    'visor:recentCreated:v1'          // sidebar: documentos creados recientemente
+    'visor:recentCreated:v1',         // sidebar: documentos creados recientemente
+    'visor:todoArchived:v1'           // cajon de TODOs: listas archivadas (solo sus claves)
 ];
 const PREFS_MAX_BYTES = 262144;   // 256 KB por preferencia
 

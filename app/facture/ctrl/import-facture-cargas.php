@@ -33,6 +33,12 @@ class ImportFactureCargas {
     private $facturados = 0;
     private $rechazadas = 0;
 
+    // Catalogo que sembro la hoja de comandas y renglones que quedaron colgados de
+    // su venta, su producto y su mesero.
+    private $productos = 0;
+    private $meseros   = 0;
+    private $renglones = 0;
+
     function __construct($mdl) {
         $this->mdl  = $mdl;
         $this->util = $mdl->util;
@@ -188,6 +194,9 @@ class ImportFactureCargas {
         if ($carga['sinVenta']   > 0) $cola .= ' · ' . number_format($carga['sinVenta']) . ' sin venta (se ligan al subir el reporte de ventas)';
         if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' pagos ligados por folio';
         if ($carga['facturados'] > 0) $cola .= ' · ' . number_format($carga['facturados']) . ' facturados';
+        if ($carga['productos']  > 0) $cola .= ' · ' . number_format($carga['productos']) . ' productos nuevos al catalogo';
+        if ($carga['meseros']    > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
+        if ($carga['renglones']  > 0) $cola .= ' · ' . number_format($carga['renglones']) . ' renglones ligados a su ticket';
 
         return $cola;
     }
@@ -218,6 +227,9 @@ class ImportFactureCargas {
         $this->ligados    = 0;
         $this->facturados = 0;
         $this->rechazadas = 0;
+        $this->productos  = 0;
+        $this->meseros    = 0;
+        $this->renglones  = 0;
 
         $claveCol = columnLetter($config['keyIndex']);
 
@@ -261,7 +273,7 @@ class ImportFactureCargas {
 
         if ($config['target'] === 'sale')        $insertadas = $this->guardarVentas($limpias, $batchId, $ctx);
         elseif ($config['target'] === 'payment') $insertadas = $this->guardarPagos($limpias, $batchId, $ctx);
-        else                                     $insertadas = $this->guardarComandas($limpias, $batchId);
+        else                                     $insertadas = $this->guardarComandas($limpias, $batchId, $ctx);
 
         if ($insertadas === 0) {
             $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
@@ -280,7 +292,10 @@ class ImportFactureCargas {
             'sinVenta'     => $this->sinVenta,
             'ligados'      => $this->ligados,
             'facturados'   => $this->facturados,
-            'rechazadas'   => $this->rechazadas
+            'rechazadas'   => $this->rechazadas,
+            'productos'    => $this->productos,
+            'meseros'      => $this->meseros,
+            'renglones'    => $this->renglones
         ];
     }
 
@@ -299,9 +314,12 @@ class ImportFactureCargas {
             $where = $this->util->sql(['import_batch_id' => $lote['id']], 1);
 
             if ($target === 'sale') {
-                // Los pagos NO se borran con las ventas: se desligan para que el
-                // CASCADE no se los lleve y el nuevo lote los vuelva a cruzar.
+                // Ni los pagos ni los renglones de comanda se borran con las
+                // ventas: los dos cuelgan de sale con CASCADE, asi que se desligan
+                // antes y el nuevo lote los vuelve a cruzar. Son cargas distintas
+                // y el reporte de ventas no manda sobre ellas.
                 $this->mdl->unlinkSalePaymentByBatch([$lote['id']]);
+                $this->mdl->unlinkSaleDetailByBatch([$lote['id']]);
                 $this->mdl->deleteSaleByBatch($where);
             } elseif ($target === 'payment') {
                 $this->mdl->deleteSalePaymentByBatch($where);
@@ -316,7 +334,7 @@ class ImportFactureCargas {
         return $filas;
     }
 
-    private function guardarComandas($rows, $batchId) {
+    private function guardarComandas($rows, $batchId, $ctx) {
         $data = [];
         foreach ($rows as $v) {
             $data[] = [
@@ -337,7 +355,108 @@ class ImportFactureCargas {
             ];
         }
 
-        return $this->insertarPorBloques($data, 'detail');
+        $insertadas = $this->insertarPorBloques($data, 'detail');
+
+        // El renglon entra con los codigos de texto del Excel, que es todo lo que
+        // trae la hoja. Las tres llaves (venta, producto y mesero) se resuelven
+        // aqui: primero se da de alta lo que el catalogo no conoce y luego se
+        // cuelgan los renglones de su fila. Sin este paso el detalle queda con
+        // sale_id, product_id y waiter_id en nulo y las tablas product y waiter
+        // vacias, asi que ninguna consulta puede partir del catalogo.
+        if ($insertadas > 0) {
+            $this->productos = $this->sembrarProductos($rows, $ctx);
+            $this->meseros   = $this->sembrarMeseros($rows, $ctx);
+
+            $this->ligarComandas($batchId, $ctx);
+        }
+
+        return $insertadas;
+    }
+
+    // Alta de los productos que la hoja trae y el catalogo todavia no. El producto
+    // nace del primer renglon en que aparece y se queda con lo que ese renglon
+    // dice: la descripcion y el importe, tal cual vienen en la hoja. No se calcula
+    // nada (no se divide entre la cantidad ni se busca el importe mas alto): el
+    // catalogo guarda lo que el Excel trajo, y corregirlo es trabajo de quien lo
+    // administra, no del importador.
+    //
+    // Un producto cuyos renglones van SIEMPRE en cero no se vende solo: es un
+    // modificador (la guarnicion o la preparacion que acompana a un platillo), y
+    // asi queda marcado para que no entre a armar tickets.
+    private function sembrarProductos($rows, $ctx) {
+        $existen = [];
+        foreach ($this->mdl->listProduct([$ctx['branchId']]) as $item) $existen[$item['code']] = true;
+
+        $catalogo = [];
+
+        foreach ($rows as $v) {
+            $code = $v[6];
+            if ($code === '' || isset($existen[$code])) continue;
+
+            if (!isset($catalogo[$code])) {
+                $catalogo[$code] = ['name' => $v[8], 'price' => numVal($v[11]), 'is_modifier' => 1];
+            }
+
+            if (numVal($v[11]) > 0) $catalogo[$code]['is_modifier'] = 0;
+        }
+
+        $data = [];
+        foreach ($catalogo as $code => $item) {
+            $data[] = [
+                'code'        => $code,
+                'name'        => $item['name'],
+                'is_modifier' => $item['is_modifier'],
+                'price'       => $item['price'],
+                'branch_id'   => $ctx['branchId']
+            ];
+        }
+
+        if (empty($data)) return 0;
+
+        return $this->insertarCatalogo($data, 'product');
+    }
+
+    // La hoja solo trae la clave del mesero, no su nombre: se da de alta con la
+    // clave como nombre para que el renglon tenga a quien colgarse, y queda una
+    // fila donde despues se puede escribir el nombre real. El listado de ventas ya
+    // lo lee asi (COALESCE(w.name, d.waiter_code)).
+    private function sembrarMeseros($rows, $ctx) {
+        $existen = [];
+        foreach ($this->mdl->listWaiter([$ctx['branchId']]) as $item) $existen[$item['code']] = true;
+
+        $codigos = [];
+        foreach ($rows as $v) {
+            if ($v[5] === '' || isset($existen[$v[5]])) continue;
+
+            $codigos[$v[5]] = true;
+        }
+
+        $data = [];
+        foreach (array_keys($codigos) as $code) {
+            $data[] = [
+                'code'      => $code,
+                'name'      => $code,
+                'branch_id' => $ctx['branchId']
+            ];
+        }
+
+        if (empty($data)) return 0;
+
+        return $this->insertarCatalogo($data, 'waiter');
+    }
+
+    // Cruce de los renglones del lote contra venta, producto y mesero. Lo que no
+    // encuentra pareja se queda en nulo: la venta puede no estar cargada todavia
+    // (las comandas se pueden subir antes que el reporte), y ese caso lo cierra
+    // ligarDetalles cuando entra la hoja de ventas.
+    private function ligarComandas($batchId, $ctx) {
+        $this->mdl->linkSaleDetailToSale([$ctx['branchId'], $batchId]);
+        $this->mdl->linkSaleDetailToProduct([$ctx['branchId'], $batchId]);
+        $this->mdl->linkSaleDetailToWaiter([$ctx['branchId'], $batchId]);
+
+        $conteo = $this->mdl->countSaleDetailByBatch([$batchId]);
+
+        $this->renglones = (int) ($conteo[0]['con_venta'] ?? 0);
     }
 
     private function guardarVentas($rows, $batchId, $ctx) {
@@ -365,11 +484,22 @@ class ImportFactureCargas {
 
         $insertadas = $this->insertarPorBloques($data, 'sale');
 
-        // Las ventas cierran la carga: los pagos ya estan en base esperando su
-        // folio, asi que el cruce se dispara aqui.
-        if ($insertadas > 0) $this->ligarPagos($batchId);
+        // Las ventas cierran la carga: los pagos y los renglones de comanda ya
+        // estan en base esperando su folio, asi que el cruce se dispara aqui.
+        if ($insertadas > 0) {
+            $this->ligarPagos($batchId);
+            $this->ligarDetalles($batchId);
+        }
 
         return $insertadas;
+    }
+
+    // Los renglones de comanda que entraron antes que su venta se cuelgan del lote
+    // recien cargado. Es el mismo cruce por folio de los pagos, y por eso vive
+    // aqui: sin el, subir comandas y despues el reporte dejaria el detalle sin
+    // sale_id para siempre.
+    private function ligarDetalles($batchId) {
+        $this->mdl->linkSaleDetailByBatch([$batchId]);
     }
 
     // Match por folio contra los pagos que entraron antes sin venta ligada. Deja
@@ -463,11 +593,25 @@ class ImportFactureCargas {
         return $insertadas;
     }
 
+    // Las altas de catalogo no son filas de la hoja: lo que rechace el motor no
+    // cuenta como fila rechazada del Excel. Igual se nota, porque el renglon que
+    // apuntaba a esa clave se queda sin enlace.
+    private function insertarCatalogo($data, $target) {
+        $previas    = $this->rechazadas;
+        $insertadas = $this->insertarPorBloques($data, $target);
+
+        $this->rechazadas = $previas;
+
+        return $insertadas;
+    }
+
     private function insertarBloque($chunk, $target) {
         $values = $this->util->sql($chunk);
 
         if ($target === 'sale')    return $this->mdl->createSale($values);
         if ($target === 'payment') return $this->mdl->createSalePayment($values);
+        if ($target === 'product') return $this->mdl->createProduct($values);
+        if ($target === 'waiter')  return $this->mdl->createWaiter($values);
 
         return $this->mdl->createSaleDetail($values);
     }

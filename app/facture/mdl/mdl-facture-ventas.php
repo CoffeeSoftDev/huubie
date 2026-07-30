@@ -87,6 +87,9 @@ class mdl extends CRUD {
         ";
     }
 
+    // El tope da para un mes completo, que es el periodo mas largo que abre el
+    // modulo por defecto (~3 800 ventas del POS). Con rangos mas largos el listado
+    // se corta, y el controlador lo avisa al pie de la tabla en vez de callarlo.
     function listVentas($array) {
         $query = "
             SELECT s.id, s.folio, s.billing_code, s.invoice_series, s.operation_date,
@@ -96,7 +99,7 @@ class mdl extends CRUD {
             {$this->ventasFrom()}
             WHERE 1 = 1 {$array['filters']}
             ORDER BY s.operation_date ASC, s.folio ASC
-            LIMIT 1000
+            LIMIT 5000
         ";
         return $this->_Read($query, $array['data']);
     }

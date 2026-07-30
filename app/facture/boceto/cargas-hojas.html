@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargas · propuesta de navegacion por hojas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+    body { background: #111827; font-family: Inter, system-ui, sans-serif; }
+
+    .badge-base { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px;
+                  font-size:10px; font-weight:600; border:1px solid; white-space:nowrap; }
+    .b-green  { background:rgba(16,185,129,.15); color:#6EE7B7; border-color:rgba(16,185,129,.30); }
+    .b-yellow { background:rgba(245,158,11,.15); color:#FCD34D; border-color:rgba(245,158,11,.30); }
+    .b-blue   { background:rgba(59,130,246,.15); color:#93C5FD; border-color:rgba(59,130,246,.30); }
+    .b-gray   { background:rgba(148,163,184,.12); color:#CBD5E1; border-color:rgba(148,163,184,.25); }
+    .cell-null { color:#6B7280; font-style:italic; font-size:10px; }
+
+    .upload-row { display:flex; align-items:center; gap:12px; }
+    .upload-row-icon { display:flex; align-items:center; justify-content:center; width:40px; height:40px;
+                       border-radius:10px; flex-shrink:0; background:rgba(16,185,129,.12);
+                       border:1px solid rgba(16,185,129,.30); color:#6EE7B7; }
+    .upload-row-btn { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:8px;
+                      flex-shrink:0; font-size:12px; font-weight:600; color:#fff; background:#0E9E6E;
+                      border:0; cursor:pointer; transition:background .15s ease; }
+    .upload-row-btn:hover { background:#0B8760; }
+
+    .btn-icon-view { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px;
+                     border-radius:8px; color:#93C5FD; cursor:pointer; }
+    .btn-icon-view:hover { background:rgba(28,100,242,.15); }
+    .btn-icon-danger { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px;
+                       border-radius:8px; color:#FCA5A5; cursor:pointer; }
+    .btn-icon-danger:hover { background:rgba(239,68,68,.15); }
+
+    .prog-track { height:10px; border-radius:9999px; background:#1F2A37; overflow:hidden; }
+    .prog-fill  { height:100%; border-radius:9999px; background:linear-gradient(90deg,#1C64F2,#60A5FA); }
+
+    .scroll-thin::-webkit-scrollbar { width:6px; height:8px; }
+    .scroll-thin::-webkit-scrollbar-track { background:transparent; }
+    .scroll-thin::-webkit-scrollbar-thumb { background:#374151; border-radius:4px; }
+
+    /* Pestana de hoja con el estilo nativo de tabLayout (theme dark): nav
+       redondeado #19232D y pildora activa azul. Es el mismo componente del nivel
+       1, montado dentro del panel del tab. */
+    .sheet-tab { position:relative; display:inline-flex; align-items:center; gap:7px;
+                 padding:8px 12px; border-radius:6px; font-size:13px; font-weight:500;
+                 color:#D1D5DB; background:transparent; border:0; cursor:pointer;
+                 white-space:nowrap; transition:background .15s ease, color .15s ease; }
+    .sheet-tab:hover:not(.is-active):not(.is-off) { background:#374151; }
+    .sheet-tab.is-active { background:#2563EB; color:#fff; }
+    .sheet-tab.is-off { color:#4B5563; cursor:not-allowed; }
+    .sheet-tab .count { font-size:10px; font-weight:600; padding:2px 8px; border-radius:9999px;
+                        border:1px solid rgba(148,163,184,.25); background:rgba(148,163,184,.12); color:#CBD5E1; }
+    .sheet-tab.is-active .count { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.20); color:#fff; }
+
+    .sheet-strip { display:flex; align-items:center; gap:4px; align-self:flex-start;
+                   background:#19232D; border-radius:8px; padding:4px; }
+    /* Variante Excel: la misma tira al pie del panel. Solo invierte el eje del
+       contenedor, el componente no cambia. */
+    .flip .sheet-strip { align-self:flex-start; }
+
+    table { width:100%; border-collapse:collapse; }
+    thead th { position:sticky; top:0; background:#141d2b; color:#9CA3AF; font-size:10px; font-weight:700;
+               text-transform:uppercase; letter-spacing:.04em; padding:8px 10px; text-align:left;
+               border-bottom:1px solid #374151; white-space:nowrap; z-index:1; }
+    tbody td { padding:7px 10px; font-size:11px; color:#9CA3AF; border-bottom:1px solid rgba(55,65,81,.45);
+               white-space:nowrap; }
+    tbody tr:hover td { background:rgba(31,42,55,.75); }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    .mid { text-align:center; }
+    .strong { color:#D1D5DB; font-weight:600; }
+    .mono { font-family:ui-monospace, monospace; font-size:10px; }
+
+    .demo-toggle { transition:all .15s ease; }
+</style>
+</head>
+<body class="text-white">
+
+<div class="h-screen flex flex-col">
+
+    <div class="px-4 py-3 bg-[#111827] border-b border-[#374151] flex-shrink-0">
+        <div class="w-full flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <button class="w-8 h-8 rounded-full bg-[#1F2A37] border border-[#374151] flex items-center justify-center text-gray-400 flex-shrink-0">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <div>
+                    <h1 class="text-lg font-bold text-white">Cargas mensuales</h1>
+                    <p class="text-xs text-gray-400">La bitacora y las hojas cargadas viven como pestanas del mismo panel: se navegan sin entrar ni salir</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Hojas</span>
+                    <button data-flip="0" class="demo-toggle px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300">Arriba</button>
+                    <button data-flip="1" class="demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37]">Al pie (Excel)</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="fMes" class="bg-[#1F2A37] border border-[#374151] rounded text-[11px] text-gray-300 px-2 py-1.5">
+                        <option value="06" selected>Junio</option>
+                        <option value="07">Julio</option>
+                    </select>
+                    <select id="fAnio" class="bg-[#1F2A37] border border-[#374151] rounded text-[11px] text-gray-300 px-2 py-1.5">
+                        <option>2026</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden">
+
+        <div class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
+            <div class="p-3 flex-1 min-h-0 overflow-hidden flex flex-col gap-3">
+
+                <div id="tabsCargas" class="bg-[#19232D] text-white rounded-lg flex gap-1 px-1 py-1 text-sm flex-shrink-0 self-start"></div>
+
+                <div id="panel" class="w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col gap-3"></div>
+            </div>
+        </div>
+
+        <aside class="w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden">
+            <div class="px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0">
+                <h3 class="text-[12px] font-bold text-gray-300 flex items-center gap-2">
+                    <i data-lucide="scan" class="w-4 h-4 text-gray-400"></i>Hojas detectadas
+                </h3>
+            </div>
+            <div id="aside" class="flex-1 min-h-0 overflow-auto scroll-thin px-3 py-3 flex flex-col gap-4"></div>
+        </aside>
+    </div>
+</div>
+
+<script>
+// Datos reales del periodo junio 2026 (fayxzvov_facturacion): 3 lotes, 3 909
+// pagos, 3 821 tickets y 13 141 renglones de comanda.
+const LOTES = {
+    'sales-report': [
+        { id: 4, file: 'Reporte_De_Ventas_20260709.xlsx', sheet: 'Pagos',             rows: 3909,  control: 2644933.30, at: '29/ julio/ 2026 10:44 pm' },
+        { id: 5, file: 'Reporte_De_Ventas_20260709.xlsx', sheet: 'Reporte de ventas', rows: 3821,  control: 2644933.30, at: '29/ julio/ 2026 10:44 pm' }
+    ],
+    'commands': [
+        { id: 6, file: 'comandas (1).xls',                sheet: 'comandas',          rows: 13141, control: 1244539.08, at: '30/ julio/ 2026 12:06 am' }
+    ]
+};
+
+const COMANDAS = [
+    ['170617','4','98','13082','TARRITO DE LECHE',1,10],
+    ['170618','10','03','01184','HUEVOS AL GUSTO',1,163],
+    ['170618','10','03','01187','HUEVOS CON CHORIZO',1,0],
+    ['170618','10','03','02320','CAFE DE LA CASA/SUPREMO',1,65],
+    ['170619','1','124','02246','JUGO DIETETICO',1,75],
+    ['170619','1','124','02256','LECHERO',1,65],
+    ['170619','1','124','02320','CAFE DE LA CASA/SUPREMO',1,65]
+];
+
+const HOJAS = {
+    'sales-report': [
+        { name: 'Pagos',             icon: 'credit-card',  accent: '#1C64F2', bg: 'rgba(28,100,242,0.12)', color: 'text-[#60A5FA]', cols: 'A:H · header fila 7',
+          columnas: [['A','Folio'],['B','Metodo de pago'],['C','Moneda'],['D','Importe'],['E','Tipo de cambio'],['F','Subtotal'],['G','Impuestos'],['H','Total']] },
+        { name: 'Reporte de ventas', icon: 'receipt-text', accent: '#10B981', bg: 'rgba(16,185,129,0.12)', color: 'text-green-400',  cols: 'A:J · header fila 7',
+          columnas: [['A','Folio'],['B','Codigo facturacion'],['C','Fecha'],['D','Descuento'],['E','Subtotal'],['F','Impuestos'],['G','Total'],['H','Fecha de expiracion'],['I','Estado'],['J','Folio factura']] }
+    ],
+    'commands': [
+        { name: 'comandas', icon: 'utensils', accent: '#F59E0B', bg: 'rgba(245,158,11,0.12)', color: 'text-yellow-300', cols: 'A:L · header fila 1',
+          columnas: [['A','foliocomanda'],['B','foliocuenta'],['C','orden'],['D','fechaapertura'],['E','fechacierre'],['F','mesero'],['G','claveproducto'],['H','fechadecaptura'],['I','descripcion'],['J','cantidad'],['K','descuento'],['L','importe']] }
+    ]
+};
+
+const VENTAS = [
+    ['174443','156537A3RF8AR4','30/ junio/ 2026 07:17 pm',31.03,36,'VENCIDO',null],
+    ['174442','156537A3RF7WXS','30/ junio/ 2026 07:29 pm',39.31,40,'VENCIDO',null],
+    ['174441','156537A3RF7SEC','30/ junio/ 2026 02:11 pm',140.52,163,'VENCIDO',null],
+    ['174440','156537A3RF7BYQ','30/ junio/ 2026 07:48 pm',12.93,15,'VENCIDO',null],
+    ['174439','156537A3REZXXS','30/ junio/ 2026 10:24 pm',168.10,136.5,'VENCIDO',null],
+    ['174438','156537A3REKQYR','30/ junio/ 2026 10:56 pm',452.59,525,'VENCIDO',null],
+    ['174437','156537A3REDPVB','30/ junio/ 2026 10:49 pm',739.66,858,'VENCIDO',null],
+    ['174436','156537A3RED6BU','30/ junio/ 2026 11:17 pm',120.69,140,'VENCIDO',null],
+    ['174382','156537A3R39U42','30/ junio/ 2026 04:52 pm',1400,1624,'FACTURADO','C2482'],
+    ['174360','156537A3EY7M8S','30/ junio/ 2026 03:04 pm',741.38,860,'FACTURADO','C2504'],
+    ['174341','156537A3ETES7W','30/ junio/ 2026 12:17 pm',557.76,647,'FACTURADO','C2505']
+];
+
+const PAGOS = [
+    ['174443','EFECTIVO','Peso Mexicano',36,1,36,null],
+    ['174442','EFECTIVO','Peso Mexicano',40,1,40,null],
+    ['174441','EFECTIVO','Peso Mexicano',163,1,163,null],
+    ['174440','EFECTIVO','Peso Mexicano',15,1,15,null],
+    ['174439','EFECTIVO','Peso Mexicano',136.5,1,136.5,null],
+    ['174438','DEBITO','Peso Mexicano',525,1,525,null],
+    ['174437','EFECTIVO','Peso Mexicano',858,1,858,null],
+    ['170656','EFECTIVO','Peso Mexicano',271.4,1,532.4,null],
+    ['170656','DEBITO','Peso Mexicano',261,1,532.4,null],
+    ['174382','EFECTIVO','Peso Mexicano',1624,1,1624,'C2482']
+];
+
+const ARCHIVOS = {
+    'sales-report': { titulo: 'Reporte de ventas',   esperado: 'Reporte_De_Ventas_YYYYMMDD.xlsx' },
+    'commands':     { titulo: 'Archivo de comandas', esperado: 'comandas.xls · columnas A:L · header fila 1' }
+};
+
+const TABS = [
+    { id: 'sales-report', tab: 'Reporte de ventas', icon: 'sheet' },
+    { id: 'commands',     tab: 'Comandas',          icon: 'utensils' }
+];
+
+const ROADMAP = [
+    ['Recibir archivo',  'ok', 'Reporte_De_Ventas_20260709.xlsx'],
+    ['Detectar hojas',   'ok', 'Pagos · Reporte de ventas'],
+    ['Validar columnas', 'ok', '8 columnas A:H · 10 columnas A:J'],
+    ['Guardar en base',  'ok', '7,730 registros · 3,909 pagos ligados por folio · 256 facturados']
+];
+
+let tabActivo   = 'sales-report';
+let hojaActiva  = 'log';      // 'log' = bitacora; si no, el nombre de la hoja
+let flip        = false;      // tira de hojas al pie, como Excel
+let asideAbierta = -1;
+
+const money = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const miles = (n) => n.toLocaleString('en-US');
+const icons = () => window.lucide && lucide.createIcons();
+
+// -- Nivel 1: pestanas del modulo --
+
+function renderTabs() {
+    document.getElementById('tabsCargas').innerHTML = TABS.map(t => {
+        const on = t.id === tabActivo;
+        return `<button data-tab="${t.id}"
+                    class="transition text-sm font-medium rounded px-3 py-2 whitespace-nowrap
+                           ${on ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}">
+                    <i data-lucide="${t.icon}" class="w-4 h-4 inline-block mr-2 ${on ? 'text-white' : 'text-gray-400'}"></i>${t.tab}
+                </button>`;
+    }).join('');
+}
+
+// -- Panel: upload + tira de hojas + contenido + barra de estado --
+
+function renderPanel() {
+    const lotes   = LOTES[tabActivo];
+    const archivo = ARCHIVOS[tabActivo];
+    const cargado = lotes.length > 0;
+    const filas   = lotes.reduce((a, l) => a + l.rows, 0);
+
+    const detalle = cargado
+        ? `${lotes[0].file} · ${miles(filas)} filas · ${lotes[0].at}`
+        : 'Sin archivo cargado';
+
+    document.getElementById('panel').className =
+        `w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col gap-3 ${flip ? 'flip' : ''}`;
+
+    document.getElementById('panel').innerHTML = `
+        <div class="upload-row flex-shrink-0">
+            <div class="upload-row-icon"><i data-lucide="file-spreadsheet" class="w-5 h-5"></i></div>
+            <div class="flex-1 min-w-0">
+                <h3 class="text-[13px] font-bold text-white truncate">${archivo.titulo}</h3>
+                <p class="text-[11px] text-gray-400 truncate">${detalle}</p>
+            </div>
+            ${cargado
+                ? '<span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>'
+                : '<span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>'}
+            <button class="upload-row-btn"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i>Subir Excel</button>
+        </div>
+
+        <div class="flex-1 min-h-0 flex ${flip ? 'flex-col-reverse' : 'flex-col'} border-t border-[#374151] pt-3">
+            ${sheetStrip()}
+            <div class="flex-1 min-h-0 flex flex-col bg-[#1F2A37]">
+                <div class="flex-1 min-h-0 overflow-auto scroll-thin">${contenido()}</div>
+                ${statusBar()}
+            </div>
+        </div>
+    `;
+}
+
+// La tira de hojas: la bitacora es la primera pestana y las hojas del periodo son
+// sus hermanas. Una hoja sin carga se anuncia igual, pero apagada: el mapa del
+// archivo se ve completo desde antes de subirlo.
+function sheetStrip() {
+    const lotes = LOTES[tabActivo];
+
+    const bitacora = `
+        <button data-sheet="log" style="--sheet-accent:#94A3B8"
+                class="sheet-tab ${hojaActiva === 'log' ? 'is-active' : ''}">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i>Bitacora
+            <span class="count">${lotes.length}</span>
+        </button>`;
+
+    const hojas = HOJAS[tabActivo].map(h => {
+        const lote = lotes.find(l => l.sheet === h.name);
+        const on   = hojaActiva === h.name;
+
+        return `
+            <button data-sheet="${lote ? h.name : ''}" style="--sheet-accent:${h.accent}"
+                    class="sheet-tab ${on ? 'is-active' : ''} ${lote ? '' : 'is-off'}">
+                <i data-lucide="${lote ? h.icon : 'lock'}" class="w-3.5 h-3.5"></i>${h.name}
+                ${lote ? `<span class="count">${miles(lote.rows)}</span>`
+                       : '<span class="count">sin carga</span>'}
+            </button>`;
+    }).join('');
+
+    return `
+        <div class="flex ${flip ? 'flex-col-reverse' : 'flex-col'} flex-shrink-0">
+            <div class="sheet-strip">${bitacora}${hojas}</div>
+        </div>`;
+}
+
+function contenido() {
+    if (hojaActiva === 'log')               return tablaBitacora();
+    if (hojaActiva === 'Pagos')             return tablaPagos();
+    if (hojaActiva === 'Reporte de ventas') return tablaVentas();
+    if (hojaActiva === 'comandas')          return tablaComandas();
+
+    return vacio('Esta hoja todavia no se ha cargado en el periodo', 'lock');
+}
+
+// La barra de estado toma el lugar del boton "volver": el archivo del que salio la
+// hoja, su control y su accion de borrado quedan visibles mientras se leen los
+// registros, en vez de vivir en una fila de la bitacora a la que hay que regresar.
+function statusBar() {
+    if (hojaActiva === 'log') {
+        const filas = LOTES[tabActivo].reduce((a, l) => a + l.rows, 0);
+        return `
+            <div class="flex items-center justify-between gap-3 px-1 pt-2 border-t border-[rgba(55,65,81,.5)] flex-shrink-0">
+                <p class="text-[10px] text-gray-500">${LOTES[tabActivo].length} lote(s) en el periodo · ${miles(filas)} filas</p>
+                <p class="text-[10px] text-gray-500">Cada hoja abre en su propia pestana</p>
+            </div>`;
+    }
+
+    const lote = LOTES[tabActivo].find(l => l.sheet === hojaActiva);
+    if (!lote) return '';
+
+    return `
+        <div class="flex items-center justify-between gap-3 px-1 pt-2 border-t border-[rgba(55,65,81,.5)] flex-shrink-0">
+            <p class="text-[10px] text-gray-500 truncate">
+                <span class="text-gray-400 font-semibold">${miles(lote.rows)}</span> filas ·
+                control <span class="text-gray-400">${money(lote.control)}</span> ·
+                ${lote.file} · ${lote.at}
+            </p>
+            <div class="flex items-center gap-1 flex-shrink-0">
+                <span class="badge-base b-gray">lote #${lote.id}</span>
+                <button class="btn-icon-danger" title="Eliminar esta carga"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        </div>`;
+}
+
+// -- Tablas --
+
+function tablaBitacora() {
+    const lotes = LOTES[tabActivo];
+    if (!lotes.length) return vacio('Sin registros en la bitacora de carga', 'file-text');
+
+    return `
+        <table>
+            <thead><tr>
+                <th>Archivo</th><th>Hora</th><th class="mid">Hoja</th>
+                <th class="num">Filas</th><th class="num">Control</th><th class="mid">Estado</th><th class="mid">Acciones</th>
+            </tr></thead>
+            <tbody>
+                ${lotes.map(l => `
+                    <tr>
+                        <td><span data-sheet="${l.sheet}" class="strong cursor-pointer hover:text-blue-300 hover:underline">${l.file}</span></td>
+                        <td>${l.at}</td>
+                        <td class="mid">${l.sheet}</td>
+                        <td class="num">${miles(l.rows)}</td>
+                        <td class="num">${money(l.control)}</td>
+                        <td class="mid"><span class="badge-base b-green">OK</span></td>
+                        <td class="mid">
+                            <button data-sheet="${l.sheet}" class="btn-icon-view" title="Abrir la hoja en su pestana"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                            <button class="btn-icon-danger" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function tablaVentas() {
+    return `
+        <table>
+            <thead><tr>
+                <th class="mid">Folio</th><th class="mid">Codigo</th><th class="mid">Fecha</th>
+                <th class="num">Subtotal</th><th class="num">Total</th><th class="mid">Estado</th><th class="mid">Folio factura</th>
+            </tr></thead>
+            <tbody>
+                ${VENTAS.map(v => `
+                    <tr>
+                        <td class="mid strong">${v[0]}</td>
+                        <td class="mid mono">${v[1]}</td>
+                        <td class="mid">${v[2]}</td>
+                        <td class="num">${money(v[3])}</td>
+                        <td class="num strong">${money(v[4])}</td>
+                        <td class="mid"><span class="badge-base ${v[5] === 'FACTURADO' ? 'b-green' : 'b-yellow'}">${v[5]}</span></td>
+                        <td class="mid">${v[6] ? `<span class="mono strong">${v[6]}</span>` : '<span class="cell-null">Sin factura</span>'}</td>
+                    </tr>`).join('')}
+                <tr><td colspan="7" class="mid text-[10px] text-gray-500 py-3">3,810 filas mas · DataTables pagina de 12 en 12</td></tr>
+            </tbody>
+        </table>`;
+}
+
+function tablaPagos() {
+    return `
+        <table>
+            <thead><tr>
+                <th class="mid">Folio</th><th class="mid">Metodo</th><th class="mid">Moneda</th>
+                <th class="num">Importe</th><th class="num">T. cambio</th><th class="num">Total ticket</th><th class="mid">Folio factura</th>
+            </tr></thead>
+            <tbody>
+                ${PAGOS.map((p, i) => {
+                    const multi = PAGOS.filter(x => x[0] === p[0]).length > 1;
+                    return `
+                    <tr>
+                        <td class="mid strong">${p[0]}${multi ? ' <span class="badge-base b-blue ml-1">multipago</span>' : ''}</td>
+                        <td class="mid">${p[1]}</td>
+                        <td class="mid">${p[2]}</td>
+                        <td class="num strong">${money(p[3])}</td>
+                        <td class="num">${p[4].toFixed(2)}</td>
+                        <td class="num">${money(p[5])}</td>
+                        <td class="mid">${p[6] ? `<span class="mono strong">${p[6]}</span>` : '<span class="cell-null">Sin factura</span>'}</td>
+                    </tr>`;
+                }).join('')}
+                <tr><td colspan="7" class="mid text-[10px] text-gray-500 py-3">3,899 filas mas · 81 tickets se pagaron con dos metodos</td></tr>
+            </tbody>
+        </table>`;
+}
+
+function tablaComandas() {
+    return `
+        <table>
+            <thead><tr>
+                <th class="mid">Cuenta</th><th class="mid">Mesa</th><th class="mid">Mesero</th>
+                <th class="mid">Clave</th><th>Producto</th><th class="num">Cantidad</th><th class="num">Importe</th>
+            </tr></thead>
+            <tbody>
+                ${COMANDAS.map(c => `
+                    <tr>
+                        <td class="mid strong">${c[0]}</td>
+                        <td class="mid">${c[1]}</td>
+                        <td class="mid">${c[2]}</td>
+                        <td class="mid mono">${c[3]}</td>
+                        <td>${c[4]}</td>
+                        <td class="num">${c[5]}</td>
+                        <td class="num strong">${money(c[6])}</td>
+                    </tr>`).join('')}
+                <tr><td colspan="7" class="mid text-[10px] text-gray-500 py-3">13,134 filas mas · DataTables pagina de 12 en 12</td></tr>
+            </tbody>
+        </table>`;
+}
+
+function vacio(texto, icono) {
+    return `
+        <div class="h-full flex flex-col items-center justify-center gap-2 py-10">
+            <i data-lucide="${icono}" class="w-8 h-8 text-gray-600"></i>
+            <p class="text-[11px] text-gray-500">${texto}</p>
+        </div>`;
+}
+
+// -- Panel lateral --
+
+function renderAside() {
+    const hojas = HOJAS[tabActivo];
+    const lotes = LOTES[tabActivo];
+
+    const tarjetas = hojas.map((h, i) => {
+        const lote = lotes.find(l => l.sheet === h.name);
+        const on   = i === asideAbierta;
+
+        return `
+            <div data-aside="${i}" class="flex items-center gap-3 p-3 rounded-lg cursor-pointer
+                        ${on ? 'ring-1 ring-[#1C64F2]' : ''}"
+                 style="background:${lote ? 'rgba(16,185,129,0.12)' : h.bg}">
+                <div class="w-8 h-8 rounded-lg bg-[#141d2b] flex items-center justify-center ${lote ? 'text-green-400' : h.color}">
+                    <i data-lucide="${h.icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-bold text-gray-300">${h.name}</p>
+                    <p class="text-[9px] text-gray-400">columnas ${h.cols}${lote ? ` · ${miles(lote.rows)} filas` : ''}</p>
+                    ${lote ? '<div class="prog-track mt-1.5"><div class="prog-fill" style="width:100%"></div></div>' : ''}
+                </div>
+                <i data-lucide="${lote ? 'check-circle-2' : 'chevron-right'}" class="w-4 h-4 ${lote ? 'text-green-400' : h.color}"></i>
+            </div>`;
+    }).join('');
+
+    const abierta  = hojas[asideAbierta];
+    const columnas = abierta ? `
+        <div class="w-full">
+            <div class="flex items-center justify-between w-full pb-2">
+                <h3 class="text-[12px] font-bold text-gray-300 flex items-center gap-2">
+                    <i data-lucide="list" class="w-4 h-4 text-gray-400"></i>Columnas que se leen
+                </h3>
+                <span class="badge-base b-blue"><i data-lucide="table-2" class="w-3 h-3"></i>${abierta.name}</span>
+            </div>
+            <table>
+                <tbody>
+                    ${abierta.columnas.map(c => `
+                        <tr>
+                            <td class="mid" style="width:44px">
+                                <span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 mono">${c[0]}</span>
+                            </td>
+                            <td>${c[1]}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>` : '';
+
+    const tonos = {
+        ok: { icon: 'check', dot: 'bg-[rgba(16,185,129,0.15)] text-green-300 border-[rgba(16,185,129,0.30)]', text: 'text-gray-300', line: 'bg-[rgba(16,185,129,0.35)]' }
+    };
+
+    const roadmap = LOTES[tabActivo].length ? `
+        <div class="w-full">
+            <h4 class="text-[11px] font-bold text-gray-300 flex items-center gap-2 mb-3">
+                <i data-lucide="git-commit-horizontal" class="w-4 h-4 text-gray-400"></i>Roadmap de carga
+            </h4>
+            <div class="flex flex-col">
+                ${ROADMAP.map((s, i) => {
+                    const t = tonos.ok;
+                    return `
+                    <div class="flex gap-3">
+                        <div class="flex flex-col items-center">
+                            <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${t.dot}">
+                                <i data-lucide="${t.icon}" class="w-3 h-3"></i>
+                            </div>
+                            ${i < ROADMAP.length - 1 ? `<div class="w-px flex-1 ${t.line} my-1"></div>` : ''}
+                        </div>
+                        <div class="flex-1 pb-3">
+                            <p class="text-[11px] font-bold ${t.text}">${s[0]}</p>
+                            <p class="text-[9px] text-gray-400">${s[2]}</p>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>` : '';
+
+    document.getElementById('aside').innerHTML = `
+        <div class="w-full flex flex-col gap-3">${tarjetas}</div>
+        ${columnas}
+        ${roadmap}`;
+}
+
+// -- Eventos --
+
+function render() {
+    renderTabs();
+    renderPanel();
+    renderAside();
+    icons();
+}
+
+document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-tab]');
+    if (tab) {
+        tabActivo    = tab.dataset.tab;
+        hojaActiva   = 'log';
+        asideAbierta = -1;
+        return render();
+    }
+
+    const sheet = e.target.closest('[data-sheet]');
+    if (sheet && sheet.dataset.sheet) {
+        hojaActiva = sheet.dataset.sheet;
+        return render();
+    }
+
+    const aside = e.target.closest('[data-aside]');
+    if (aside) {
+        const i = Number(aside.dataset.aside);
+        asideAbierta = asideAbierta === i ? -1 : i;
+        return render();
+    }
+
+    const f = e.target.closest('[data-flip]');
+    if (f) {
+        flip = f.dataset.flip === '1';
+        document.querySelectorAll('[data-flip]').forEach(b => {
+            const on = b === f;
+            b.className = on
+                ? 'demo-toggle px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300'
+                : 'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37]';
+        });
+        return render();
+    }
+});
+
+render();
+</script>
+</body>
+</html>

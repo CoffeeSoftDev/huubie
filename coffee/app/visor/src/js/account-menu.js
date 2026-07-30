@@ -47,7 +47,9 @@
         if (type === 'icon' && value) content = '<i data-lucide="' + escAttr(value) + '"></i>';
         if (type === 'image' && value) {
             const source = /^(https?:\/\/|data:|blob:|\/)/i.test(value) ? value : '../' + value.replace(/^\.\//, '');
-            content = '<img src="' + escAttr(source) + '" alt="">';
+            // Si la ruta esta rota, el avatar cae a las iniciales en vez de quedar vacio.
+            content = '<img src="' + escAttr(source) + '" alt="" data-fallback="' + escAttr(content)
+                    + '" onerror="this.parentNode.textContent = this.getAttribute(\'data-fallback\')">';
         }
         return '<span class="' + escAttr(className) + '" style="background:' + escAttr(color) + '">' + content + '</span>';
     }
@@ -997,7 +999,7 @@
                    +   '<div><div class="acct-sec-title">Mi cuenta</div><div class="acct-sec-sub">Actualiza los datos usados para iniciar sesión en CoffeeSoft.</div></div>'
                    + '</div>'
                    + '<div class="acct-user-summary">'
-                   +   '<span class="acct-profile-avatar" style="background:var(--vsr-accent)">' + escHtml(_currentUser.initials || initials(_currentUser.name)) + '</span>'
+                   +   profileAvatar(_currentUser, 'acct-profile-avatar')
                    +   '<div><strong>' + escHtml(_currentUser.name) + '</strong><span>' + escHtml(_currentUser.email) + '</span></div>'
                    + '</div>'
                    + '<form id="acctUserForm" class="acct-model-form">'

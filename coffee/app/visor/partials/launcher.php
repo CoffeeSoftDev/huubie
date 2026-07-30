@@ -1,0 +1,32 @@
+<?php
+// Launcher de aplicaciones del encabezado. Se incluye igual en visor, playground,
+// forge y studio: una sola copia del markup para que las cuatro paginas tengan la
+// misma rejilla. La logica de abrir/cerrar esta en src/js/launcher.js y cada app
+// escucha el evento launcher:launch con su nombre (data-launch).
+//
+// Bandeja de aplicaciones: rejilla de celdas con el icono en una pastilla plana de
+// color y el nombre debajo. Cada app trae su propio tono (data-tone) para que la
+// rejilla se reconozca por color, no por leer las etiquetas.
+?>
+<div class="vsr-launcher">
+    <button id="btnLauncher" class="vsr-launcher-trigger" type="button" title="Aplicaciones" aria-label="Abrir aplicaciones" aria-haspopup="menu" aria-expanded="false">
+        <i data-lucide="layout-grid" class="w-4 h-4"></i>
+    </button>
+    <div id="launcherPanel" class="vsr-launcher-panel" role="menu" aria-label="Aplicaciones" hidden>
+        <span class="vsr-launcher-title">Aplicaciones</span>
+        <div class="vsr-launcher-grid">
+            <button type="button" class="vsr-launcher-item" data-launch="todo" data-tone="sky" role="menuitem" title="Tus listas de pendientes">
+                <span class="vsr-launcher-badge"><i data-lucide="list-checks"></i></span>
+                <span class="vsr-launcher-name">TODO</span>
+            </button>
+            <span class="vsr-launcher-item is-empty" aria-hidden="true">
+                <span class="vsr-launcher-badge"></span>
+                <span class="vsr-launcher-name">&nbsp;</span>
+            </span>
+            <span class="vsr-launcher-item is-empty" aria-hidden="true">
+                <span class="vsr-launcher-badge"></span>
+                <span class="vsr-launcher-name">&nbsp;</span>
+            </span>
+        </div>
+    </div>
+</div>

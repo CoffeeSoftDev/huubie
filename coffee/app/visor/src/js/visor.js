@@ -901,7 +901,7 @@ class App {
         this.bindNewFileModal();
         this.bindUploadModal();
         this.bindDropGuard();
-        this.bindLauncher();
+        this.bindTodoHubSync();
 
         // Si prefs.sqlite trae accesos/recientes mas nuevos (otro equipo), repintar.
         if (window.CoffeePrefs) {
@@ -2217,43 +2217,22 @@ class App {
         return true;
     }
 
-    // ── Launcher del header ─────────────────────────────────────────────
-    // Rejilla de utilidades. Hoy solo lleva el TODO (abre o crea el todo.json de
-    // la carpeta abierta); los otros dos huecos estan reservados y no responden.
-    bindLauncher() {
-        const $btn   = $('#btnLauncher');
-        const $panel = $('#launcherPanel');
-        if (!$btn.length || !$panel.length || $btn.data('bound')) return;
-        $btn.data('bound', true);
+    // Una lista editada en el cajon de TODOs deja el archivo del disco mas nuevo
+    // que la copia que este visor tiene en memoria: si es la que esta abierta, se
+    // recarga para no guardarle encima la version vieja.
+    bindTodoHubSync() {
+        const norm = (s) => String(s || '').replace(/\\/g, '/');
 
-        const close = () => {
-            $panel.prop('hidden', true);
-            $btn.attr('aria-expanded', 'false').removeClass('is-open');
-        };
+        document.addEventListener('visor:todo-saved', async (e) => {
+            const saved = norm(e.detail && e.detail.fullPath);
+            if (!saved || !this.currentFile) return;
 
-        $btn.on('click', (e) => {
-            e.stopPropagation();
-            const willOpen = $panel.prop('hidden');
-            close();
-            if (willOpen) {
-                $panel.prop('hidden', false);
-                $btn.attr('aria-expanded', 'true').addClass('is-open');
-                if (window.lucide) lucide.createIcons();
-            }
-        });
+            const open = (this.allFiles || []).find(f => f.file === this.currentFile);
+            if (!open || norm(open.fullPath) !== saved) return;
 
-        $panel.on('click', (e) => e.stopPropagation());
-
-        $panel.on('click', '[data-launch="todo"]', () => {
-            close();
-            const dir = this.currentExplorerDir();
-            if (!dir) { visorView.toast('Abre una carpeta local para usar el TODO', 'warn'); return; }
-            this.createTodo(dir);
-        });
-
-        $(document).on('click.vsrLauncher', () => close());
-        $(document).on('keydown.vsrLauncher', (e) => {
-            if (e.key === 'Escape' && !$panel.prop('hidden')) close();
+            await this.reloadLibrary();
+            const found = (this.allFiles || []).find(f => norm(f.fullPath) === saved);
+            if (found) this.loadFile(found.file, found);
         });
     }
 

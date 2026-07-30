@@ -118,14 +118,14 @@ class App extends Templates {
             data: {
                 id:    'cardTable',
                 class: 'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col',
-                // overflow-hidden y no overflow-auto: la tabla pagina de 12 en 12 y
-                // ya no desborda ni a lo alto ni a lo ancho, asi que no hay barra de
-                // scroll que mostrar en ninguno de los dos ejes.
+                // El listado ya no pagina: llega agrupado por dia y forma de pago,
+                // y partirlo en paginas cortaria los grupos. Se recorre con el
+                // scroll vertical de la tarjeta, con el encabezado fijo arriba.
                 container: [
                     {
                         type:  'div',
                         id:    'tableWrap',
-                        class: 'flex-1 min-h-0 overflow-hidden'
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin'
                     }
                 ]
             }
@@ -345,22 +345,31 @@ class Ventas extends Templates {
 
     // -- Data --
 
+    // El listado llega en dos niveles del servidor: el dia como grupo (opc 1) y la
+    // forma de pago como subgrupo. Sin striped y sin DataTables: el color fuerte se
+    // reserva para los encabezados de grupo, y paginar u ordenar por columna
+    // partiria los bloques. Arranca plegado, de modo que la vista abre en el
+    // resumen de los dias del periodo y se baja al detalle abriendo el que interesa.
+    //
+    // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
+    // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
     async lsVentas() {
         const data = await fnAjax(Object.assign({ opc: 'lsVentas' }, app.getFilters()), apiVentas);
-        const rows = data.row || [];
 
-        // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
-        // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [1, 2, 3, 4, 5, 10],
+            center:       [2, 3, 4, 5, 10],
             right:        [6, 7, 8, 9],
             actionsAlign: 'center',
             extends:      true,
             scrollable:   false,
-            striped:      true,
+            striped:      false,
+            hover:        true,
+            folding:      true,
+            collapsed:    true,
+            color_group:  'ct-group',
             f_size:       11,
             border_table: 'border-0',
             emptyMessage: 'No se encontraron ventas con los filtros aplicados',
@@ -368,28 +377,51 @@ class Ventas extends Templates {
             data:         data
         });
 
-        if (window.lucide) lucide.createIcons();
+        this.foldSubgroups();
+        this.rowSelect();
 
-        if (rows.length > 0 && typeof simple_data_table === 'function') {
-            simple_data_table(`#tb${this.PROJECT_NAME}`, 12);
-        }
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // La fila completa abre el detalle, que es lo que el panel vacio ya promete
+    // ("haz click en cualquier fila o en el icono ojo"): con el ojo como unica via
+    // el resto de la fila quedaba muerta. Los encabezados de grupo y de forma de
+    // pago no seleccionan: ahi el click es el del plegado.
+    rowSelect() {
+        $(`#tb${this.PROJECT_NAME}`).on('click', 'tbody tr', function (e) {
+            if ($(e.target).closest('a, [data-sub-group], [data-folding-trigger]').length) return;
+
+            const folio = $(this).find('[data-folio]').attr('data-folio');
+            if (folio) app.selectVenta(folio);
+        });
+    }
+
+    // Segundo nivel de plegado. El componente solo pliega las filas opc 1 (el dia),
+    // asi que la forma de pago se engancha aqui con su propia clase: si usara el
+    // `hidden` del componente, abrir el dia mostraria de golpe todos los tickets
+    // aunque sus formas siguieran cerradas.
+    foldSubgroups() {
+        const $tabla = $(`#tb${this.PROJECT_NAME}`);
+
+        $tabla.find('[data-sub-group]').closest('tr').addClass('ct-subgroup');
+        $tabla.find('[data-sub-member]').closest('tr').addClass('sub-hidden');
+
+        $tabla.on('click', '[data-sub-group]', function () {
+            const clave   = $(this).attr('data-sub-group');
+            const $filas  = $tabla.find(`[data-sub-member="${clave}"]`).closest('tr');
+            const abierto = !$filas.first().hasClass('sub-hidden');
+
+            $filas.toggleClass('sub-hidden', abierto);
+            $(this).find('i').attr('class', abierto ? 'icon-right-open' : 'icon-down-open');
+        });
     }
 
     async lsKpis() {
         const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiVentas);
 
+        // El monto abre la fila: es la cifra que se busca primero al mover los
+        // filtros, y las tres de conteo son su desglose.
         ventasView.renderInfoCards([
-            {
-                id:          'kpiVentas',
-                title:       'Ventas',
-                lucideIcon:  'receipt',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.ventas,
-                    color: 'text-white'
-                }
-            },
             {
                 id:          'kpiMonto',
                 title:       'Monto filtrado',
@@ -401,6 +433,17 @@ class Ventas extends Templates {
                     // El azul del acento se apagaba sobre el panel oscuro y el monto
                     // es el dato que se busca primero: va en el verde del dinero.
                     color: 'text-[#3FC189]'
+                }
+            },
+            {
+                id:          'kpiVentas',
+                title:       'Ventas',
+                lucideIcon:  'receipt',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.ventas,
+                    color: 'text-white'
                 }
             },
             {

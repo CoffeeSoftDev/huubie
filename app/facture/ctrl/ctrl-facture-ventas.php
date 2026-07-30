@@ -137,36 +137,44 @@ class ctrl extends mdl {
 
     // -- Listado --
 
+    // El listado se lee en dos niveles, como el concentrado de compras: el dia es
+    // el grupo y la forma de pago el subgrupo. Un ticket multipago no se parte en
+    // dos: cae en el subgrupo de su combinacion de pagos, que es justo lo que dice
+    // su columna "Forma de pago", asi que ningun monto se cuenta dos veces.
     function lsVentas() {
         $filtros = $this->filtros();
         $sum     = $this->sumVentas($filtros);
+        $ventas  = $this->listVentas($filtros);
+        $total   = (int) ($sum[0]['ventas'] ?? count($ventas));
+        $__row   = [];
 
-        // El bloque por dia solo aplica cuando el periodo abarca mas de un dia:
-        // en modo Dia todas las ventas caen en la misma fecha y el encabezado de
-        // grupo repetiria el filtro.
-        $agrupa = $filtros['fi'] !== $filtros['ff'];
-        $__row  = [];
+        foreach ($this->porDia($ventas) as $dia => $ventasDia) {
+            $__row[] = grupoDiaRow($dia, $ventasDia);
 
-        foreach ($this->porDia($this->listVentas($filtros), $agrupa) as $dia => $grupo) {
-            if ($agrupa) $__row[] = grupoDiaRow($dia, count($grupo));
+            foreach ($this->porForma($ventasDia) as $forma => $ventasForma) {
+                $clave   = claveForma($dia, $forma);
+                $__row[] = subgrupoFormaRow($clave, $forma, $ventasForma);
 
-            foreach ($grupo as $item) $__row[] = $this->ventaRow($item);
+                foreach ($ventasForma as $item) $__row[] = $this->ventaRow($item, $clave);
+            }
         }
 
-        // El listado va topado: un mes completo son ~3 800 ventas y la tabla las
-        // pinta todas en el DOM. El total real viaja aparte para que el pie lo diga.
+        // El listado esta topado por la consulta. Cuando el periodo trae mas de lo
+        // que cabe, el corte se dice al pie de la tabla: antes se recortaba en
+        // silencio y los ultimos dias del rango simplemente no aparecian.
+        if (count($ventas) < $total) $__row[] = avisoTopeRow(count($ventas), $total);
+
         return [
             'row'   => $__row,
             'thead' => '',
-            'total' => (int) ($sum[0]['ventas'] ?? count($__row))
+            'total' => $total
         ];
     }
 
-    // La consulta ya viene ordenada por operation_date, asi que el agrupado
-    // conserva el orden del dia. Sin agrupar, todo va en un solo bloque.
-    function porDia($ventas, $agrupa) {
-        if (!$agrupa) return ['' => $ventas];
-
+    // La consulta ya viene ordenada por operation_date, asi que los dias salen en
+    // orden y cada bloque conserva el orden del dia. El grupo se arma siempre,
+    // tambien en modo Dia: es la fila desde la que se pliega la tabla.
+    function porDia($ventas) {
         $dias = [];
 
         foreach ($ventas as $item) {
@@ -176,15 +184,34 @@ class ctrl extends mdl {
         return $dias;
     }
 
+    // Dentro del dia los tickets se reparten por la combinacion de formas con la
+    // que se cobraron. Los que todavia no tienen pagos cargados no se esconden:
+    // van a su propio subgrupo para que se vea que falta la hoja de pagos.
+    function porForma($ventas) {
+        $formas = [];
+
+        foreach ($ventas as $item) {
+            $formas[$item['payment_name'] ?: 'SIN PAGO REGISTRADO'][] = $item;
+        }
+
+        ksort($formas);
+
+        return $formas;
+    }
+
     // Todas las columnas salen de la venta y de sus pagos. La unica que no es
     // "IEPS", que va en cero porque el origen no desglosa ese impuesto: se pinta
     // igual para no dejar un hueco en el comprobante.
-    function ventaRow($item) {
+    //
+    // El folio carga la clave de su subgrupo: el componente solo pliega un nivel
+    // (el dia), asi que el del subgrupo se resuelve en el JS y esa marca es la que
+    // le dice a que forma de pago pertenece la fila.
+    function ventaRow($item, $clave = '') {
         $tasa = tasaDe($item);
 
         return [
             'id'             => $item['folio'],
-            'Folio'          => '<span data-folio="' . $item['folio'] . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
+            'Folio'          => '<span data-folio="' . $item['folio'] . '" data-sub-member="' . $clave . '" class="font-mono text-[10px] text-gray-400 inline-block pl-8">' . $item['folio'] . '</span>',
             'Fecha'          => '<span class="text-gray-400 whitespace-nowrap">' . date('d/m/Y', strtotime($item['operation_date'])) . '</span>',
             'Forma de pago'  => badgeMetodo($item['payment_name']),
             'Estado fiscal'  => badgeEstadoFiscal($item['status_name'], $item['tax']),
@@ -285,25 +312,80 @@ function fechaLarga($dia) {
     return $dias[(int) date('w', $tiempo)] . ' ' . date('d/m/Y', $tiempo);
 }
 
+// Clave que hermana la fila de una forma de pago con sus tickets. Va por dia
+// porque la misma forma se repite todos los dias del periodo y cada bloque se
+// pliega por separado.
+function claveForma($dia, $forma) {
+    return 'sub' . str_replace('-', '', $dia) . '_' . substr(md5($forma), 0, 6);
+}
+
 // Encabezado del bloque de un dia. Lleva las mismas claves que la fila de venta
-// (con 'a' vacio) porque DataTables exige el mismo numero de celdas en todas las
-// filas: con un colspan la paginacion se rompe. opc = 1 la pinta como grupo.
+// (con una accion invisible en 'a') porque el componente solo agrega la celda de
+// acciones cuando la fila trae alguna: sin ella el grupo quedaria una celda corto
+// y la ultima columna se correria. opc = 1 la pinta como grupo y la vuelve el
+// disparador del plegado.
 function grupoDiaRow($dia, $ventas) {
+    $tickets = count($ventas);
+
     return [
         'id'             => 'dia' . str_replace('-', '', $dia),
         'opc'            => 1,
         'Folio'          => '<span class="whitespace-nowrap">' . fechaLarga($dia) . '</span>',
-        'Fecha'          => '<span class="text-[10px] font-normal opacity-75 whitespace-nowrap">' . $ventas . ' ticket' . ($ventas === 1 ? '' : 's') . '</span>',
+        'Fecha'          => '<span class="text-[10px] font-normal opacity-75 whitespace-nowrap">' . $tickets . ' ticket' . ($tickets === 1 ? '' : 's') . '</span>',
         'Forma de pago'  => '',
         'Estado fiscal'  => '',
         'Tasa'           => '',
         'Subtotal'       => '',
         'IVA'            => '',
         'IEPS'           => '',
-        'Total'          => '',
+        'Total'          => montoDe($ventas),
         'Factura'        => '',
-        'a'              => []
+        'a'              => [['class' => 'hidden']]
     ];
+}
+
+// Encabezado de una forma de pago dentro del dia. No lleva opc: para el
+// componente es una fila mas del grupo del dia (asi el dia pliega tambien sus
+// subgrupos). Su propio plegado lo engancha el JS por la marca data-sub-group.
+function subgrupoFormaRow($clave, $forma, $ventas) {
+    $tickets = count($ventas);
+
+    return [
+        'id'             => $clave,
+        'Folio'          => '<span data-sub-group="' . $clave . '" class="inline-flex items-center gap-1.5 pl-4 cursor-pointer select-none whitespace-nowrap font-semibold">'
+                            . '<i class="icon-right-open"></i>' . $forma . '</span>',
+        'Fecha'          => '<span class="text-[10px] opacity-75 whitespace-nowrap">' . $tickets . ' ticket' . ($tickets === 1 ? '' : 's') . '</span>',
+        'Forma de pago'  => '',
+        'Estado fiscal'  => '',
+        'Tasa'           => '',
+        'Subtotal'       => '',
+        'IVA'            => '',
+        'IEPS'           => '',
+        'Total'          => '<span class="font-semibold">' . montoDe($ventas) . '</span>',
+        'Factura'        => '',
+        'a'              => [['class' => 'hidden']]
+    ];
+}
+
+// Banda a lo ancho de la tabla (colgroup) con el corte del listado. No es una
+// fila de datos: no pertenece a ningun dia ni se pliega con ellos.
+function avisoTopeRow($mostradas, $total) {
+    return [
+        'id'       => 'topeListado',
+        'colgroup' => true,
+        'Aviso'    => 'Se muestran las primeras ' . number_format($mostradas) . ' de ' . number_format($total)
+                      . ' ventas del periodo. Acota el rango de fechas para ver el resto.'
+    ];
+}
+
+// Suma de los tickets de un bloque, ya formateada: es el dato que resume al grupo
+// y al subgrupo cuando estan plegados.
+function montoDe($ventas) {
+    $monto = 0;
+
+    foreach ($ventas as $item) $monto += (float) $item['total'];
+
+    return money($monto);
 }
 
 // Ningun Excel trae la tasa: se deduce del par subtotal/impuesto de la venta.

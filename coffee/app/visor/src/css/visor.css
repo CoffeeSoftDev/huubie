@@ -329,7 +329,7 @@ body.visor-sidebar-resizing { cursor: col-resize; user-select: none; }
 }
 .app-rail-account .app-rail-label { font-size: 9px; font-weight: 600; letter-spacing: .02em; }
 .account-avatar {
-    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+    flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 10.5px; font-weight: 800; letter-spacing: .02em;
     background: var(--vsr-accent); color: #fff;
@@ -3161,58 +3161,72 @@ body.empty-view .md-rendered::before { display: none; }
     border-color: rgba(192, 90, 64, .5);
     color: var(--vsr-accent-soft); background: var(--vsr-bg-hover);
 }
-/* Caja de aplicaciones estilo launcher de Google: la tarjeta no tiene marco, el
-   color lo pone la pastilla del icono y el hover ilumina la celda entera. */
+/* Bandeja de aplicaciones: la celda no tiene marco, el color lo pone la pastilla
+   plana del icono y el hover ilumina la celda entera. */
 .vsr-launcher-panel {
     position: absolute; top: calc(100% + 10px); right: 0; z-index: 90;
-    padding: 14px 12px 12px;
+    padding: 10px;
     background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
-    border-radius: 16px; box-shadow: 0 20px 52px rgba(0, 0, 0, .42);
+    border-radius: 14px; box-shadow: 0 18px 44px rgba(0, 0, 0, .40);
 }
 .vsr-launcher-panel[hidden] { display: none; }
-.vsr-launcher-grid { display: grid; grid-template-columns: repeat(3, 88px); gap: 4px; }
-.vsr-launcher-item {
-    display: flex; flex-direction: column; align-items: center; gap: 9px;
-    padding: 12px 6px 11px;
-    border: 0; border-radius: 14px;
-    background: transparent; color: var(--vsr-text-soft);
-    font-size: 11px; font-weight: 650; cursor: pointer;
-    transition: background-color .14s ease;
+.vsr-launcher-title {
+    display: block; padding: 2px 8px 9px;
+    color: var(--vsr-text-soft); opacity: .5;
+    font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
 }
-.vsr-launcher-item:hover:not(.is-empty) { background: var(--vsr-bg-hover); }
+.vsr-launcher-grid { display: grid; grid-template-columns: repeat(3, 84px); gap: 2px; }
+.vsr-launcher-item {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 11px 6px 10px;
+    border: 0; border-radius: 12px;
+    background: transparent; color: var(--vsr-text-soft);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background-color .14s ease, color .14s ease;
+}
+.vsr-launcher-item:hover:not(.is-empty) { background: var(--vsr-bg-hover); color: var(--vsr-text); }
 .vsr-launcher-item:focus-visible { outline: 2px solid var(--vsr-accent); outline-offset: -2px; }
 .vsr-launcher-name { line-height: 1.2; }
 
-/* Pastilla del icono: squircle con degradado, como los iconos de app. */
+/* Pastilla del icono: fondo pastel del tono y el trazo del icono en el tono
+   fuerte. Sin degradado ni elevacion; el hover engrosa el pastel con un anillo. */
 .vsr-launcher-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 44px; height: 44px; border-radius: 15px;
-    color: #fff; background: linear-gradient(145deg, #64748B, #475569);
-    box-shadow: 0 5px 14px rgba(0, 0, 0, .28);
-    transition: transform .14s ease, box-shadow .14s ease;
+    width: 42px; height: 42px; border-radius: 12px;
+    color: var(--tone-ink, #94A3B8); background: var(--tone-soft, rgba(148, 163, 184, .14));
+    transition: box-shadow .14s ease, transform .12s ease;
 }
-.vsr-launcher-badge i { width: 22px; height: 22px; stroke-width: 2; }
-.vsr-launcher-item:hover:not(.is-empty) .vsr-launcher-badge {
-    transform: translateY(-1px) scale(1.04);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, .34);
-}
+.vsr-launcher-badge i { width: 20px; height: 20px; stroke-width: 2.1; }
+.vsr-launcher-item:hover:not(.is-empty) .vsr-launcher-badge { box-shadow: 0 0 0 3px var(--tone-ring, rgba(148, 163, 184, .18)); }
+.vsr-launcher-item:active:not(.is-empty) .vsr-launcher-badge { transform: scale(.95); }
 
-/* Paleta por app: se elige con data-tone. Añadir una app = un tono mas de esta
-   lista, sin tocar el resto del launcher. */
-.vsr-launcher-item[data-tone="emerald"] .vsr-launcher-badge { background: linear-gradient(145deg, #34D399, #059669); }
-.vsr-launcher-item[data-tone="blue"]    .vsr-launcher-badge { background: linear-gradient(145deg, #60A5FA, #2563EB); }
-.vsr-launcher-item[data-tone="amber"]   .vsr-launcher-badge { background: linear-gradient(145deg, #FBBF24, #D97706); }
-.vsr-launcher-item[data-tone="violet"]  .vsr-launcher-badge { background: linear-gradient(145deg, #A78BFA, #7C3AED); }
-.vsr-launcher-item[data-tone="rose"]    .vsr-launcher-badge { background: linear-gradient(145deg, #FB7185, #E11D48); }
-.vsr-launcher-item[data-tone="sky"]     .vsr-launcher-badge { background: linear-gradient(145deg, #38BDF8, #0284C7); }
+/* Paleta por app: se elige con data-tone. Cada tono trae el pastel del fondo
+   (--tone-soft), el color del icono (--tone-ink) y el anillo del hover. Añadir
+   una app = un tono mas de esta lista, sin tocar el resto del launcher. */
+.vsr-launcher-item[data-tone="sky"]     { --tone-ink: #38BDF8; --tone-soft: rgba(56, 189, 248, .21); --tone-ring: rgba(56, 189, 248, .15); }
+.vsr-launcher-item[data-tone="emerald"] { --tone-ink: #34D399; --tone-soft: rgba(52, 211, 153, .20); --tone-ring: rgba(52, 211, 153, .14); }
+.vsr-launcher-item[data-tone="blue"]    { --tone-ink: #60A5FA; --tone-soft: rgba(96, 165, 250, .21); --tone-ring: rgba(96, 165, 250, .15); }
+.vsr-launcher-item[data-tone="amber"]   { --tone-ink: #FBBF24; --tone-soft: rgba(251, 191, 36, .19); --tone-ring: rgba(251, 191, 36, .14); }
+.vsr-launcher-item[data-tone="violet"]  { --tone-ink: #A78BFA; --tone-soft: rgba(167, 139, 250, .22); --tone-ring: rgba(167, 139, 250, .16); }
+.vsr-launcher-item[data-tone="rose"]    { --tone-ink: #FB7185; --tone-soft: rgba(251, 113, 133, .21); --tone-ring: rgba(251, 113, 133, .15); }
 
-/* Hueco reservado: se ve el sitio de la proxima app, sin invitar a pulsarlo. */
+/* En claro el pastel va opaco (los tintes translucidos se pierden sobre blanco)
+   y el icono baja un paso para mantener contraste. */
+[data-theme="light"] .vsr-launcher-item[data-tone="sky"]     { --tone-ink: #0284C7; --tone-soft: #E0F2FE; --tone-ring: rgba(2, 132, 199, .13); }
+[data-theme="light"] .vsr-launcher-item[data-tone="emerald"] { --tone-ink: #059669; --tone-soft: #D1FAE5; --tone-ring: rgba(5, 150, 105, .13); }
+[data-theme="light"] .vsr-launcher-item[data-tone="blue"]    { --tone-ink: #2563EB; --tone-soft: #DBEAFE; --tone-ring: rgba(37, 99, 235, .13); }
+[data-theme="light"] .vsr-launcher-item[data-tone="amber"]   { --tone-ink: #D97706; --tone-soft: #FEF3C7; --tone-ring: rgba(217, 119, 6, .13); }
+[data-theme="light"] .vsr-launcher-item[data-tone="violet"]  { --tone-ink: #7C3AED; --tone-soft: #EDE9FE; --tone-ring: rgba(124, 58, 237, .13); }
+[data-theme="light"] .vsr-launcher-item[data-tone="rose"]    { --tone-ink: #E11D48; --tone-soft: #FFE4E6; --tone-ring: rgba(225, 29, 72, .13); }
+
+/* Hueco reservado: solo el contorno, para que no compita con el pastel de las
+   apps ya instaladas. */
 .vsr-launcher-item.is-empty { cursor: default; }
 .vsr-launcher-item.is-empty .vsr-launcher-badge {
-    background: transparent; box-shadow: none;
-    border: 1.5px dashed var(--vsr-border);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--vsr-border);
 }
-[data-theme="light"] .vsr-launcher-badge { box-shadow: 0 4px 12px rgba(17, 24, 39, .16); }
+[data-theme="light"] .vsr-launcher-item.is-empty .vsr-launcher-badge { background: #F3F4F6; }
 
 .vsr-notification-panel {
     position: absolute; top: calc(100% + 10px); right: 0; z-index: 90;

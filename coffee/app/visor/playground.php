@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/playground.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -59,6 +60,8 @@
                 Conocimiento
                 <span id="pgKnowledgeCount" class="pg-count">0</span>
             </button>
+
+            <?php include __DIR__ . '/partials/launcher.php'; ?>
 
             <button id="pgThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="sun" class="w-4 h-4"></i>
@@ -545,6 +548,8 @@
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/launcher.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

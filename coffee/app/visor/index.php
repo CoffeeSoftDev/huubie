@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -107,33 +108,7 @@
                 <span class="btn-label">Refrescar</span>
             </button>
 
-            <!-- Launcher de utilidades. Andamiaje: por ahora solo el TODO esta
-                 cableado y los otros dos huecos quedan reservados a la vista. -->
-            <div class="vsr-launcher">
-                <button id="btnLauncher" class="vsr-launcher-trigger" type="button" title="Aplicaciones" aria-label="Abrir aplicaciones" aria-haspopup="menu" aria-expanded="false">
-                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                </button>
-                <!-- Caja de aplicaciones al estilo del launcher de Google: rejilla de
-                     tarjetas con el icono en una pastilla de color y el nombre debajo.
-                     Cada app trae su propio tono (data-tone) para que la rejilla se
-                     reconozca por color, no por leer las etiquetas. -->
-                <div id="launcherPanel" class="vsr-launcher-panel" role="menu" aria-label="Aplicaciones" hidden>
-                    <div class="vsr-launcher-grid">
-                        <button type="button" class="vsr-launcher-item" data-launch="todo" data-tone="emerald" role="menuitem" title="TODO de la carpeta abierta">
-                            <span class="vsr-launcher-badge"><i data-lucide="list-checks"></i></span>
-                            <span class="vsr-launcher-name">TODO</span>
-                        </button>
-                        <span class="vsr-launcher-item is-empty" aria-hidden="true">
-                            <span class="vsr-launcher-badge"></span>
-                            <span class="vsr-launcher-name">&nbsp;</span>
-                        </span>
-                        <span class="vsr-launcher-item is-empty" aria-hidden="true">
-                            <span class="vsr-launcher-badge"></span>
-                            <span class="vsr-launcher-name">&nbsp;</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <?php include __DIR__ . '/partials/launcher.php'; ?>
 
             <div class="vsr-notifications">
                 <button id="btnCreditNotifications" class="vsr-notification-trigger" type="button" title="Reinicios de créditos" aria-label="Cuentas próximas a reiniciar créditos" aria-haspopup="dialog" aria-expanded="false">
@@ -796,6 +771,8 @@
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/html-stage.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/launcher.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>

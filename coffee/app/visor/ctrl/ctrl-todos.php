@@ -1,0 +1,296 @@
+<?php
+// Cajon de TODOs: barre la biblioteca del usuario buscando los todo*.json que
+// tenga repartidos por sus carpetas y los sirve juntos, para poder trabajarlos
+// sin abrir cada archivo en el visor.
+//
+// Acciones (`action` por POST o GET):
+//   scan    -> todas las listas encontradas, con sus secciones y contadores
+//   save    -> reescribe un todo.json completo (el cliente manda el JSON entero)
+//   create  -> crea una lista nueva en una carpeta de la biblioteca
+//   folders -> carpetas donde se puede crear una lista (para el selector)
+//
+// El alcance es la biblioteca del visor: documents/users/<id> y documents/shared.
+// Fuera de esas dos raices no lee ni escribe nada.
+require_once __DIR__ . '/library-roots.php';
+
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+
+const TODOS_MAX_DEPTH = 6;          // hasta donde baja el barrido
+const TODOS_MAX_BYTES = 524288;     // 512 KB por lista
+
+function todos_fail($msg, $code = 400) {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function todos_norm($p) {
+    return rtrim(str_replace('\\', '/', (string) $p), '/');
+}
+
+// Las dos raices del cajon, con la etiqueta que las nombra en la interfaz. La
+// biblioteca propia va primero: es la que el usuario reconoce como "sus" carpetas.
+function todos_roots() {
+    return [
+        ['root' => todos_norm(coffee_visor_docs_root()),   'scope' => 'mine',   'label' => ''],
+        ['root' => todos_norm(coffee_visor_shared_root()), 'scope' => 'shared', 'label' => coffee_visor_shared_name()]
+    ];
+}
+
+// Un todo es cualquier json cuyo nombre empiece por "todo": asi entran los que ya
+// existen (todo.json, todo-huubie.json, todo_play.json) sin renombrar nada.
+function todos_is_todo_file($name) {
+    return (bool) preg_match('/^todo[^\/\\\\]*\.json$/i', (string) $name);
+}
+
+// Recorre una raiz y devuelve las rutas de sus todo*.json. La profundidad esta
+// acotada porque la biblioteca puede tener arboles largos (Diagramas, planes) y
+// el barrido corre en cada apertura del cajon.
+function todos_walk($dir, $depth = 0) {
+    $found = [];
+    if ($depth > TODOS_MAX_DEPTH || !is_dir($dir)) return $found;
+
+    foreach (@scandir($dir) ?: [] as $entry) {
+        if ($entry === '.' || $entry === '..') continue;
+        $full = $dir . '/' . $entry;
+        if (is_dir($full)) {
+            $found = array_merge($found, todos_walk($full, $depth + 1));
+        } else if (todos_is_todo_file($entry)) {
+            $found[] = $full;
+        }
+    }
+    return $found;
+}
+
+// Normaliza el contenido de un todo.json a la forma que espera el cajon. Un
+// archivo a medias (sin sections, sin ids) no debe tirar la vista: se completa.
+function todos_shape($raw, $fallbackTitle) {
+    $data = json_decode((string) $raw, true);
+    if (!is_array($data)) $data = [];
+
+    $out = [
+        'title'    => trim((string) ($data['title'] ?? '')) !== '' ? $data['title'] : $fallbackTitle,
+        'sections' => []
+    ];
+
+    $seq = 0;
+    foreach ((array) ($data['sections'] ?? []) as $sec) {
+        if (!is_array($sec)) continue;
+        $tasks = [];
+        foreach ((array) ($sec['tasks'] ?? []) as $task) {
+            if (!is_array($task)) continue;
+            $tasks[] = [
+                'id'   => (string) ($task['id'] ?? ('t' . (++$seq))),
+                'text' => (string) ($task['text'] ?? ''),
+                'done' => !empty($task['done'])
+            ];
+        }
+        $out['sections'][] = [
+            'id'    => (string) ($sec['id'] ?? ('s' . (++$seq))),
+            'title' => (string) ($sec['title'] ?? 'Seccion'),
+            'tasks' => $tasks
+        ];
+    }
+    return $out;
+}
+
+// Ficha de una lista tal como la consume el cajon. `key` es la ruta relativa a su
+// raiz: sobrevive a que cambie el id de usuario, asi que sirve de identidad
+// estable para recordar que listas estan archivadas.
+function todos_entry($fullPath, $rootInfo) {
+    $full = todos_norm($fullPath);
+    $root = $rootInfo['root'];
+    $rel  = ltrim(substr($full, strlen($root)), '/');
+    $dir  = trim(dirname($rel), '.');
+    $file = basename($full);
+
+    $raw   = @file_get_contents($full);
+    $label = $dir !== '' ? basename($dir) : ($rootInfo['label'] !== '' ? $rootInfo['label'] : 'Biblioteca');
+    $shape = todos_shape($raw === false ? '' : $raw, $label);
+
+    $total = 0;
+    $done  = 0;
+    foreach ($shape['sections'] as $sec) {
+        foreach ($sec['tasks'] as $task) {
+            $total++;
+            if ($task['done']) $done++;
+        }
+    }
+
+    // Migas de pan legibles: "Huubie / Facturador / todo.json". La carpeta
+    // compartida se nombra con su etiqueta y no con el nombre real del directorio.
+    $crumbs = $dir !== '' ? explode('/', $dir) : [];
+    if ($rootInfo['scope'] === 'shared') array_unshift($crumbs, $rootInfo['label']);
+
+    $relPrefix = $rootInfo['scope'] === 'shared'
+        ? coffee_visor_shared_rel_prefix()
+        : coffee_visor_docs_rel_prefix();
+
+    return [
+        'key'      => ($rootInfo['scope'] === 'shared' ? 'shared:' : 'mine:') . $rel,
+        'scope'    => $rootInfo['scope'],
+        'title'    => $shape['title'],
+        'file'      => $file,
+        'dir'       => $dir,
+        'crumbs'    => $crumbs,
+        'pathLabel' => implode(' / ', array_merge($crumbs, [$file])),
+        'fullPath'  => $full,
+        'relPath'   => $relPrefix . ($rel !== '' ? '/' . $rel : ''),
+        'total'     => $total,
+        'done'      => $done,
+        'pending'   => $total - $done,
+        'mtime'     => @filemtime($full) ?: 0,
+        'sections'  => $shape['sections']
+    ];
+}
+
+// Valida que una ruta absoluta caiga dentro de las raices del cajon. Se compara
+// el directorio (no el archivo) para que tambien sirva al crear uno nuevo.
+function todos_root_of($fullPath) {
+    $dirReal = realpath(dirname(todos_norm($fullPath)));
+    if ($dirReal === false) return null;
+    $dirReal = todos_norm($dirReal);
+
+    foreach (todos_roots() as $info) {
+        $rootReal = realpath($info['root']);
+        if ($rootReal === false) continue;
+        $rootReal = todos_norm($rootReal);
+        if ($dirReal === $rootReal || strpos($dirReal, $rootReal . '/') === 0) return $info;
+    }
+    return null;
+}
+
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+try {
+    switch ($action) {
+
+        case 'scan': {
+            $lists = [];
+            foreach (todos_roots() as $info) {
+                foreach (todos_walk($info['root']) as $path) {
+                    $lists[] = todos_entry($path, $info);
+                }
+            }
+
+            // Mas pendientes primero: el cajon se abre mostrando donde hay trabajo.
+            // A igualdad, la lista tocada mas recientemente.
+            usort($lists, function ($a, $b) {
+                if ($a['pending'] !== $b['pending']) return $b['pending'] - $a['pending'];
+                return $b['mtime'] - $a['mtime'];
+            });
+
+            $pending = 0;
+            $active  = 0;
+            foreach ($lists as $l) {
+                $pending += $l['pending'];
+                if ($l['total'] > 0) $active++;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'user'    => coffee_visor_user_key(),
+                'lists'   => $lists,
+                'totals'  => ['lists' => count($lists), 'active' => $active, 'pending' => $pending]
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'save': {
+            $fullPath = trim($_POST['fullPath'] ?? '');
+            $content  = (string) ($_POST['content'] ?? '');
+
+            if ($fullPath === '')                     todos_fail('fullPath requerido');
+            if (!todos_is_todo_file(basename($fullPath))) todos_fail('Solo se guardan archivos todo*.json');
+            if (strlen($content) > TODOS_MAX_BYTES)   todos_fail('La lista excede el tamano maximo');
+            // El cliente manda el JSON entero: si viniera roto dejaria la lista
+            // ilegible para el visor, asi que se rechaza antes de tocar el disco.
+            if (json_decode($content, true) === null)  todos_fail('El contenido no es JSON valido');
+
+            $info = todos_root_of($fullPath);
+            if ($info === null) todos_fail('Ruta fuera de la biblioteca', 403);
+            if (!is_file($fullPath)) todos_fail('La lista ya no existe en el disco', 404);
+
+            if (@file_put_contents($fullPath, $content) === false) {
+                todos_fail('No se pudo escribir la lista', 500);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'entry'   => todos_entry($fullPath, $info)
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'create': {
+            $dir   = trim($_POST['dir'] ?? '');          // relativo a la raiz, '' = raiz
+            $scope = ($_POST['scope'] ?? 'mine') === 'shared' ? 'shared' : 'mine';
+            $file  = trim($_POST['file'] ?? 'todo.json');
+            $title = trim($_POST['title'] ?? '');
+
+            if ($file === '') $file = 'todo.json';
+            if (substr($file, -5) !== '.json') $file .= '.json';
+            if (!todos_is_todo_file($file)) todos_fail('El nombre debe empezar por "todo" y terminar en .json');
+            if (preg_match('#(^|/)\.\.(/|$)#', $dir . '/' . $file)) todos_fail('Ruta no permitida');
+
+            $roots = todos_roots();
+            $info  = $scope === 'shared' ? $roots[1] : $roots[0];
+            $target = $info['root'] . ($dir !== '' ? '/' . trim($dir, '/') : '') . '/' . $file;
+
+            if (todos_root_of($target) === null) todos_fail('Carpeta destino fuera de la biblioteca', 403);
+            // Nunca pisar una lista existente: se devuelve la que ya estaba para
+            // que el cajon la abra en vez de crear una vacia encima.
+            if (is_file($target)) {
+                echo json_encode([
+                    'success' => true,
+                    'exists'  => true,
+                    'entry'   => todos_entry($target, $info)
+                ], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+
+            $seed = [
+                'title'    => $title !== '' ? $title : basename(dirname($target)),
+                'sections' => []
+            ];
+            if (@file_put_contents($target, json_encode($seed, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false) {
+                todos_fail('No se pudo crear la lista', 500);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'entry'   => todos_entry($target, $info)
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        // Carpetas candidatas para una lista nueva: la raiz de la biblioteca, sus
+        // proyectos y las subcarpetas de estos. Mas hondo no se ofrece — una lista
+        // enterrada cuatro niveles no la vuelve a encontrar nadie.
+        case 'folders': {
+            $folders = [];
+            $roots   = todos_roots();
+            $mine    = $roots[0]['root'];
+
+            $folders[] = ['scope' => 'mine', 'dir' => '', 'label' => 'Biblioteca (raiz)'];
+            foreach (@scandir($mine) ?: [] as $proj) {
+                if ($proj === '.' || $proj === '..' || !is_dir($mine . '/' . $proj)) continue;
+                $folders[] = ['scope' => 'mine', 'dir' => $proj, 'label' => $proj];
+                foreach (@scandir($mine . '/' . $proj) ?: [] as $sub) {
+                    if ($sub === '.' || $sub === '..' || !is_dir($mine . '/' . $proj . '/' . $sub)) continue;
+                    $folders[] = ['scope' => 'mine', 'dir' => $proj . '/' . $sub, 'label' => $proj . ' / ' . $sub];
+                }
+            }
+            $folders[] = ['scope' => 'shared', 'dir' => '', 'label' => coffee_visor_shared_name()];
+
+            echo json_encode(['success' => true, 'folders' => $folders], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        default:
+            todos_fail('Accion no reconocida: ' . $action);
+    }
+} catch (Throwable $e) {
+    todos_fail('Error en el cajon de TODOs: ' . $e->getMessage(), 500);
+}

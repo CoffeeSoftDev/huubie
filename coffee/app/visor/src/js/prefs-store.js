@@ -34,7 +34,8 @@
         'coffeeia:global:modelCatalog',
         'visor:shortcuts:v1',
         'visor:recentViews:v1',
-        'visor:recentCreated:v1'
+        'visor:recentCreated:v1',
+        'visor:todoArchived:v1'
     ];
 
     let _ready  = false;          // ya terminó la primera sincronización

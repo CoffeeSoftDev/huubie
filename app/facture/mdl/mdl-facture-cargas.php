@@ -226,6 +226,11 @@ class mdl extends CRUD {
 
     // El folio de factura vive en la venta: llega por el enlace sale_id que arma
     // la carga, no por el folio de texto.
+    //
+    // Sin LIMIT, igual que las ventas: la hoja es una pestana del periodo y su
+    // pestana anuncia el total del lote, asi que traer solo una parte la haria
+    // mentir. Son 3 909 pagos del mismo orden que los 3 821 tickets, y DataTables
+    // los pagina en el cliente.
     function listSalePaymentByBatch($array) {
         $query = "
             SELECT p.sale_folio, p.currency, p.amount, p.exchange_rate,
@@ -236,7 +241,6 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}sale s ON s.id = p.sale_id
             WHERE p.active = 1 AND p.import_batch_id = ?
             ORDER BY p.id ASC
-            LIMIT 500
         ";
         return $this->_Read($query, $array);
     }
@@ -250,6 +254,47 @@ class mdl extends CRUD {
         ]);
     }
 
+    // -- Catalogos que siembra la hoja de comandas --
+
+    // El export del POS no trae catalogo: producto y mesero solo existen como
+    // codigo de texto dentro del renglon de la comanda. Se leen los que ya estan
+    // en base para insertar unicamente los nuevos, porque la UNIQUE
+    // (code, branch_id) rechaza el resto. Sin filtro de active: una fila dada de
+    // baja sigue ocupando esa clave.
+    function listProduct($array) {
+        $query = "
+            SELECT id, code
+            FROM {$this->bd}product
+            WHERE branch_id <=> ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function createProduct($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}product",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function listWaiter($array) {
+        $query = "
+            SELECT id, code
+            FROM {$this->bd}waiter
+            WHERE branch_id <=> ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function createWaiter($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}waiter",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
     // -- Comandas (hoja "comandas") --
 
     function createSaleDetail($array) {
@@ -260,6 +305,94 @@ class mdl extends CRUD {
         ]);
     }
 
+    // Los tres enlaces del renglon (venta, producto y mesero) se resuelven por el
+    // texto que trae el Excel, y cada uno va en una sola sentencia: son 13 000
+    // renglones por carga y un UPDATE por fila no termina dentro del tiempo de la
+    // peticion (mismo motivo que linkSalePaymentByBatch).
+    //
+    // Las tres solo tocan las filas del lote que aun no tienen el enlace, asi que
+    // volver a lanzarlas no deshace nada.
+    //
+    // El catalogo se cruza SIN mirar active: la venta ocurrio y su renglon apunta
+    // al producto y al mesero que la hicieron. Dar de baja un producto es dejar de
+    // ofrecerlo hoy, no borrar su historia; si el enlace pidiera active = 1, la
+    // baja dejaria renglones huerfanos que ya nadie podria volver a ligar (la clave
+    // sigue ocupada, asi que tampoco se daria de alta otra vez).
+    function linkSaleDetailToSale($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s
+              ON s.folio = d.sale_folio AND s.active = 1 AND s.branch_id <=> ?
+            SET d.sale_id = s.id
+            WHERE d.active = 1 AND d.sale_id IS NULL AND d.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function linkSaleDetailToProduct($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}product p
+              ON p.code = d.product_code AND p.branch_id <=> ?
+            SET d.product_id = p.id
+            WHERE d.active = 1 AND d.product_id IS NULL AND d.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function linkSaleDetailToWaiter($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}waiter w
+              ON w.code = d.waiter_code AND w.branch_id <=> ?
+            SET d.waiter_id = w.id
+            WHERE d.active = 1 AND d.waiter_id IS NULL AND d.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Las comandas se pueden subir antes que el reporte de ventas: sus renglones
+    // quedan sin sale_id hasta que la venta existe. El lote de ventas los liga por
+    // folio, igual que hace con los pagos.
+    function linkSaleDetailByBatch($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s ON s.folio = d.sale_folio AND s.active = 1
+            SET d.sale_id = s.id
+            WHERE d.active = 1 AND d.sale_id IS NULL AND s.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // detail_sale cuelga de sale con ON DELETE CASCADE, igual que los pagos:
+    // borrar un lote de ventas se llevaria los renglones de las comandas, que son
+    // de otra carga. Se desligan antes de borrar y vuelven a quedar sin venta.
+    function unlinkSaleDetailByBatch($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s ON s.id = d.sale_id
+            SET d.sale_id = NULL
+            WHERE s.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Resultado del cruce del lote: cuantos renglones quedaron colgados de su
+    // venta, de su producto y de su mesero.
+    function countSaleDetailByBatch($array) {
+        $query = "
+            SELECT COUNT(*)                     AS renglones,
+                   SUM(sale_id    IS NOT NULL)  AS con_venta,
+                   SUM(product_id IS NOT NULL)  AS con_producto,
+                   SUM(waiter_id  IS NOT NULL)  AS con_mesero
+            FROM {$this->bd}detail_sale
+            WHERE active = 1 AND import_batch_id = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Sin LIMIT por la misma razon que los pagos: la pestana de la hoja anuncia el
+    // total del lote y la tabla debe traerlo completo.
     function listSaleDetailByBatch($array) {
         $query = "
             SELECT sale_folio, table_number, waiter_code, product_code,
@@ -267,7 +400,6 @@ class mdl extends CRUD {
             FROM {$this->bd}detail_sale
             WHERE active = 1 AND import_batch_id = ?
             ORDER BY id ASC
-            LIMIT 500
         ";
         return $this->_Read($query, $array);
     }
