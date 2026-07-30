@@ -1,18 +1,10 @@
-let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
-let app, tickets, ticketsView;
-
-// useFetch del framework resuelve por callback; aqui el modulo encadena con
-// await, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
+let apiGenerador = '/app/facture/ctrl/ctrl-facture-generador.php';
+let app, generador, generadorView;
 
 $(async () => {
-    ticketsView = new TicketsView(apiTickets, 'root');
-    tickets     = new Tickets(apiTickets, 'root');
-    app         = new App(apiTickets, 'root');
+    generadorView = new GeneradorView(apiGenerador, 'root');
+    generador     = new Generador(apiGenerador, 'root');
+    app           = new App(apiGenerador, 'root');
     await app.init();
 });
 
@@ -22,34 +14,40 @@ class App extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'generador';
         this.selectedId   = null;
+        this.preparado    = null;
     }
 
     async init() {
-        const data = await fnAjax({ opc: 'init' }, apiTickets);
-
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'init' } })
         this.dataInit = {
-            formas:  data.formas,
-            estados: data.estados,
-            dia:     this.getDiaFromUrl()
+            emisor: SAMPLE_GENERADOR_EMISOR,
+            dia:    this.getParam('dia') || '2026-06-10'
         };
+        this.selectedId = this.getIdFromUrl() || '4618312';
 
         this.render();
     }
 
-    getDiaFromUrl() {
-        return new URLSearchParams(window.location.search).get('dia') || '';
+    getParam(name) {
+        return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    getIdFromUrl() {
+        const id = this.getParam('id');
+        return id && SAMPLE_GENERADOR_DB[id] ? id : null;
     }
 
     render() {
         this.layout();
         this.filterBar();
-        ticketsView.renderHeader(SAMPLE_VIEW_HEADER_TICKETS);
-        ticketsView.renderFooter(SAMPLE_VIEW_FOOTER_TICKETS);
-        ticketsView.renderDetail(null);
-        tickets.lsKpis();
-        tickets.lsTickets();
+        this.previewActions();
+        generadorView.renderFooter(SAMPLE_VIEW_FOOTER_GENERADOR);
+        generadorView.renderListNote();
+        this.updateHeaderTitle();
+        generador.lsTickets();
+        this.selectTicket(this.selectedId);
     }
 
     // -- Layout --
@@ -69,12 +67,16 @@ class App extends Templates {
                     class: 'px-3 py-3 bg-[#141d2b] flex-shrink-0'
                 },
                 {
-                    id:    'kpisRow',
-                    class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
+                    id:    'listHead',
+                    class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
                 },
                 {
                     id:    'tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto'
+                },
+                {
+                    id:    'listNote',
+                    class: 'px-4 py-2 border-t border-[#374151] bg-[#141d2b] flex-shrink-0'
                 },
                 {
                     id:    'viewFooterRow',
@@ -83,7 +85,8 @@ class App extends Templates {
             ]
         };
 
-        // Sin children: el panel lo pinta ticketDetailPanel sobre 'detailPanel'.
+        // createLayout solo itera children en type 'div': para un aside caen en el
+        // default y jQuery los toma como metodo. Las zonas del panel se arman aparte.
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
@@ -99,6 +102,37 @@ class App extends Templates {
                 container: [mainPanel, detailPanel]
             }
         });
+
+        this.createLayout({
+            parent: 'detailPanel',
+            design: false,
+            data: {
+                id:        'detailInner',
+                class:     'flex-1 min-h-0 flex flex-col overflow-hidden',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'detailHead',
+                        class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'ticketPrintArea',
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin px-4 py-4 bg-[#0E1521]'
+                    },
+                    {
+                        type:  'div',
+                        id:    'detailNote',
+                        class: 'px-4 py-2 border-t border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'detailActions',
+                        class: 'px-3 py-2 border-t border-[#374151] bg-[#0E1521] flex-shrink-0'
+                    }
+                ]
+            }
+        });
     }
 
     // -- Filter bar --
@@ -106,32 +140,31 @@ class App extends Templates {
     filterBar() {
         const filters = [
             {
-                opc:      'input-calendar',
-                id:       'fRango',
-                lbl:      'Consultar periodo:',
+                opc:      'input',
+                id:       'fDia',
+                lbl:      'Dia:',
+                type:     'date',
                 class:    'col-12 col-md-4 col-lg-3',
+                value:    this.dataInit.dia,
                 required: false,
-                readonly: true
+                onchange: 'app.onChangeFilters()'
             },
             {
-                opc:      'select',
-                id:       'fForma',
-                lbl:      'Forma de pago:',
-                class:    'col-12 col-md-4 col-lg-3',
-                value:    '',
-                required: false,
-                onchange: 'app.onChangeFilters()',
-                data:     this.dataInit.formas
+                opc:         'input',
+                id:          'qBuscar',
+                lbl:         'Buscar:',
+                class:       'col-12 col-md-4 col-lg-3',
+                placeholder: 'Nota, ID o mesero...',
+                required:    false,
+                onkeyup:     'app.onChangeFilters()'
             },
             {
-                opc:      'select',
-                id:       'fEstado',
-                lbl:      'Estado fiscal:',
-                class:    'col-12 col-md-4 col-lg-3',
-                value:    '',
-                required: false,
-                onchange: 'app.onChangeFilters()',
-                data:     this.dataInit.estados
+                opc:       'button',
+                id:        'btnGenerarTodos',
+                text:      'Generar todos los 0%',
+                color_btn: 'invernal',
+                class:     'col-12 col-md-4 col-lg-3',
+                onClick:   () => generador.generateAllZero()
             }
         ];
 
@@ -141,72 +174,68 @@ class App extends Templates {
             theme:      FACTURE_THEME,
             data:       filters
         });
-
-        this.rangePicker();
     }
 
-    // El rango arranca en el dia que llega por URL (?dia=) y, si no viene, en el mes actual.
-    rangePicker() {
-        const dia   = this.dataInit.dia;
-        const start = dia ? moment(dia) : moment().startOf('month');
-        const end   = dia ? moment(dia) : moment().endOf('month');
-
-        dataPicker({
-            parent: 'fRango',
-            rangepicker: {
-                startDate:     start,
-                endDate:       end,
-                showDropdowns: true,
-                locale: {
-                    format:           'YYYY-MM-DD',
-                    applyLabel:       'Aplicar',
-                    cancelLabel:      'Cancelar',
-                    customRangeLabel: 'Personalizar',
-                    monthNames:       ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
-                    daysOfWeek:       ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
+    // Acciones del ticket virtual: viven en el pie del aside, no en la filterBar,
+    // porque operan sobre el ticket seleccionado y no sobre el listado.
+    previewActions() {
+        this.createfilterBar({
+            parent:     'detailActions',
+            id:         'frmActionsGenerador',
+            coffeesoft: true,
+            theme:      FACTURE_THEME,
+            data: [
+                {
+                    opc:       'button',
+                    id:        'btnRegenerar',
+                    text:      'Regenerar',
+                    color_btn: 'secondary',
+                    class:     'col-6',
+                    onClick:   () => generador.regenerate()
                 },
-                ranges: {
-                    'Mes actual':       [moment().startOf('month'), moment().endOf('month')],
-                    'Mes anterior':     [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-                    'Primera quincena': [moment().startOf('month'), moment().date(15)],
-                    'Segunda quincena': [moment().date(16), moment().endOf('month')]
+                {
+                    opc:       'button',
+                    id:        'btnImprimir',
+                    text:      'Imprimir',
+                    color_btn: 'invernal',
+                    class:     'col-6',
+                    onClick:   () => generador.printTicket()
                 }
-            },
-            onSelect: () => this.onChangeFilters()
+            ]
         });
     }
 
     getFilters() {
-        const rango = this.getRango();
         return {
-            forma:  $('#fForma').val()  || '',
-            estado: $('#fEstado').val() || '',
-            fi:     rango.fi,
-            ff:     rango.ff
+            dia: $('#fDia').val()    || this.dataInit.dia,
+            q:   $('#qBuscar').val() || ''
         };
-    }
-
-    // Mientras dataPicker no engancha el plugin, el input aun no tiene rango.
-    getRango() {
-        if (!$('#fRango').data('daterangepicker')) return { fi: '', ff: '' };
-        return getDataRangePicker('fRango');
     }
 
     // -- Event handlers --
 
-    async onChangeFilters() {
-        await tickets.lsTickets();
-        tickets.lsKpis();
+    onChangeFilters() {
+        this.updateHeaderTitle();
+        generador.lsTickets();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
             this.selectTicket(null);
         }
     }
 
-    // La tabla ya viene filtrada del servidor: basta con ver si el folio
-    // seleccionado sobrevivio al repintado.
-    isVisibleAfterFilters(folio) {
-        return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
+    isVisibleAfterFilters(id) {
+        return generador.getRegistros().some(e => e.id === id);
+    }
+
+    updateHeaderTitle() {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const f         = this.getFilters();
+        const titleHtml = `${SAMPLE_VIEW_HEADER_GENERADOR.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
+
+        generadorView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_GENERADOR, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -215,125 +244,147 @@ class App extends Templates {
 
     // -- Facade --
 
-    async selectTicket(folio) {
-        this.selectedId = folio;
+    selectTicket(id) {
+        this.selectedId = id;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
 
-        if (!folio) return ticketsView.renderDetail(null);
+        if (!id) {
+            this.preparado = null;
+            generadorView.renderPreview(null, null);
+            return;
+        }
 
-        $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
+        // La celda de nota lleva id `Nota_<id>`, generado por createCoffeeTable3.
+        $(`#Nota_${id}`).closest('tr').addClass('row-active');
 
-        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
-        ticketsView.renderDetail(data.status === 200 ? data.ticket : null);
+        const e = SAMPLE_GENERADOR_DB[id];
+        if (!e) return;
+
+        e.generado     = true;
+        this.preparado = _prepararTicketVirtual(e);
+        generadorView.renderPreview(e, this.preparado);
+    }
+
+    getPreparado() {
+        return this.preparado;
     }
 }
 
-// -- Tickets --
+// -- Generador --
 
-class Tickets extends Templates {
+class Generador extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'generador';
     }
 
     // -- Data --
 
-    async lsTickets() {
-        const data = await fnAjax(Object.assign({ opc: 'lsTickets' }, app.getFilters()), apiTickets);
-        const rows = data.row || [];
+    getRegistros() {
+        const f = app.getFilters();
+        return Object.values(SAMPLE_GENERADOR_DB).filter(e => {
+            if (e.metodo === 'Efectivo') return false;
+            if (f.dia && e.fecha !== f.dia) return false;
+            if (f.q) {
+                const hay = (e.id + ' #' + e.orden + ' ' + e.mesero).toLowerCase();
+                if (!hay.includes(f.q.toLowerCase())) return false;
+            }
+            return true;
+        });
+    }
+
+    lsTickets() {
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:Object.assign({ opc:'lsTickets' }, app.getFilters()) })
+        const registros = this.getRegistros();
+        const rows      = registros.map(_generadorRow);
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [2, 3, 4, 5, 6, 11],
-            right:        [7, 8, 9, 10],
-            actionsAlign: 'center',
+            center:       [1, 3, 4],
+            right:        [5],
+            actionsAlign: 'right',
             extends:      true,
             scrollable:   false,
             striped:      true,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No se encontraron tickets con los filtros aplicados',
+            emptyMessage: 'No hay tickets con tarjeta para el dia seleccionado',
             emptyIcon:    'ic-file-text',
-            data:         data
+            data:         { row: rows }
         });
 
         if (window.lucide) lucide.createIcons();
 
-        if (rows.length > 0 && typeof simple_data_table === 'function') {
-            simple_data_table(`#tb${this.PROJECT_NAME}`, 12);
-        }
+        generadorView.renderListHead({
+            bloqueados: registros.filter(e => e.fiscal === 'invoiced').length,
+            cero:       registros.filter(e => e.tasa === 0 && e.fiscal !== 'invoiced').length
+        });
 
-        app.updateFooterInfo(`Mostrando ${rows.length} de ${data.total} tickets del periodo`);
-    }
-
-    async lsKpis() {
-        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiTickets);
-
-        ticketsView.renderInfoCards([
-            {
-                id:          'kpiTickets',
-                title:       'Tickets',
-                lucideIcon:  'receipt',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.tickets,
-                    color: 'text-white'
-                }
-            },
-            {
-                id:          'kpiMonto',
-                title:       'Monto filtrado',
-                lucideIcon:  'banknote',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.montoTexto,
-                    color: 'text-[#1C64F2]'
-                }
-            },
-            {
-                id:          'kpiFacturados',
-                title:       'Facturados',
-                lucideIcon:  'lock',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.facturados,
-                    color: 'text-green-600'
-                }
-            },
-            {
-                id:          'kpiCero',
-                title:       'Con IVA 0%',
-                lucideIcon:  'alert-circle',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.cero,
-                    color: 'text-amber-500'
-                }
-            }
-        ]);
+        app.updateFooterInfo(`Mostrando ${rows.length} ticket${rows.length !== 1 ? 's' : ''} sin efectivo`);
     }
 
     // -- Actions --
 
-    openGenerador(id) {
-        window.location.href = `/app/facture/generador.php?id=${encodeURIComponent(id)}`;
+    generateAllZero() {
+        const pendientes = this.getRegistros().filter(e => e.tasa === 0 && e.fiscal !== 'invoiced');
+
+        if (!pendientes.length) {
+            this.alertBox({ type: 'message', title: 'No hay tickets con IVA 0% por generar' });
+            return;
+        }
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Generar tickets virtuales',
+                text:              `Se generaran ${pendientes.length} tickets virtuales del dia seleccionado.`,
+                icon:              'question',
+                confirmButtonText: 'Si, generar',
+                cancelButtonText:  'No'
+            }
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'generateAllZero', dia:app.getFilters().dia } })
+            pendientes.forEach(e => { e.generado = true; });
+            this.lsTickets();
+            this.alertBox({ type: 'success', title: `${pendientes.length} tickets virtuales generados`, timer: 1600 });
+        });
+    }
+
+    regenerate() {
+        if (!app.selectedId) {
+            this.alertBox({ type: 'message', title: 'Selecciona un ticket de la lista' });
+            return;
+        }
+        // MODO FAKE: si hubiera backend -> useFetch({ url:apiGenerador, data:{ opc:'regenerate', id:app.selectedId } })
+        app.selectTicket(app.selectedId);
+    }
+
+    printTicket() {
+        if (!app.selectedId) {
+            this.alertBox({ type: 'message', title: 'Selecciona un ticket de la lista' });
+            return;
+        }
+        window.print();
+    }
+
+    lockedNotice(id) {
+        const e = SAMPLE_GENERADOR_DB[id];
+        if (!e) return;
+        this.alertBox({ type: 'message', title: `El ticket ya esta facturado con el folio ${e.factura}` });
     }
 }
 
 // -- Vista --
 
-class TicketsView extends Templates {
+class GeneradorView extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
-        this.PROJECT_NAME = 'tickets';
+        this.PROJECT_NAME = 'generador';
     }
 
     // -- Render helpers --
@@ -341,7 +392,7 @@ class TicketsView extends Templates {
     renderHeader(data) {
         this.viewHeader({
             parent: 'viewHeader',
-            id:     'hdrTickets',
+            id:     'hdrGenerador',
             json:   data
         });
     }
@@ -354,144 +405,197 @@ class TicketsView extends Templates {
         });
     }
 
-    renderInfoCards(rows) {
-        this.infoCard({
-            parent: 'kpisRow',
-            id:     'kpisTickets',
-            theme:  FACTURE_THEME,
-            style:  'file',
-            cols:   4,
-            json:   rows
+    renderListNote() {
+        this.noteBox({
+            parent: 'listNote',
+            json: {
+                text: 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Si la combinacion excede el monto, se aplica un descuento para cuadrar.'
+            }
         });
     }
 
-    renderDetail(ticket) {
-        this.ticketDetailPanel({
-            parent:  'detailPanel',
-            json:    ticket,
-            onClose: () => app.selectTicket(null),
-            onPrint: (e) => tickets.openGenerador(e.id)
+    renderListHead(counts) {
+        this.panelHead({
+            parent: 'listHead',
+            json: {
+                icon:  'receipt',
+                title: 'Tickets del dia (sin efectivo)',
+                badges: [
+                    { text: `${counts.bloqueados} bloqueados`, tone: 'b-green'  },
+                    { text: `${counts.cero} con IVA 0%`,       tone: 'b-yellow' }
+                ]
+            }
+        });
+    }
+
+    renderPreview(ticket, preparado) {
+        this.ticketPaper({
+            parent: 'ticketPrintArea',
+            json:   ticket,
+            data:   preparado,
+            emisor: SAMPLE_GENERADOR_EMISOR
+        });
+
+        this.panelHead({
+            parent: 'detailHead',
+            json: {
+                icon:   'printer',
+                title:  ticket ? `Ticket virtual · Nota #${ticket.orden}` : 'Ticket virtual',
+                badges: ticket ? [{ text: ticket.tasa === 0 ? 'IVA 0%' : 'IVA 16%', tone: ticket.tasa === 0 ? 'b-yellow' : 'b-terra' }] : []
+            }
+        });
+
+        this.noteBox({
+            parent: 'detailNote',
+            class:  'text-[10px] text-gray-400 text-center',
+            json: {
+                icon: '',
+                text: ticket && preparado
+                    ? `Productos puente: ${preparado.lineas.length} articulos suman ${_fmtMX(preparado.subtotal)}, descuento de ${_fmtMX(preparado.descuento)} para cuadrar los ${_fmtMX(ticket.total)} del ticket.`
+                    : 'Selecciona un ticket de la lista para armar su ticket virtual.'
+            }
         });
     }
 
     // -- Components --
 
-    ticketDetailPanel(options) {
+    ticketPaper(options) {
         const defaults = {
             parent: 'root',
-            id:     'ticketDetailPanel',
+            id:     'ticketPaper',
+            class:  'ticket-paper',
             json:   null,
-            labels: {
-                emptyTitle: 'Selecciona un ticket',
-                emptyHint:  'Haz click en cualquier fila o en el icono ojo para ver el detalle fiscal aqui.',
-                subtitle:   'Detalle fiscal',
-                leyenda:    'Este detalle no es un comprobante fiscal',
-                imprimir:   'Ver ticket virtual'
-            },
-            onClose: () => { },
-            onPrint: () => { }
+            data:   null,
+            emisor: { razon: '', domicilio: '', telefono: '', terminal: '', leyenda: '' },
+            labels: { empty: 'Sin ticket seleccionado' }
         };
 
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
+        opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-
-        const $parent = $(`#${opts.parent}`);
-        if (!$parent.length) return;
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        if (!opts.json) {
-            $parent.html(`
-                <div class="flex-1 flex flex-col items-center justify-center text-center px-6 py-12">
-                    <i data-lucide="inbox" class="w-10 h-10 text-gray-300 mb-3"></i>
-                    <p class="text-sm font-semibold text-gray-400">${esc(opts.labels.emptyTitle)}</p>
-                    <p class="text-xs text-gray-400 mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
-                </div>
-            `);
-            if (window.lucide) lucide.createIcons();
+        const wrap = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || !opts.data) {
+            wrap.html(`<p class="text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
+            $(`#${opts.parent}`).html(wrap);
             return;
         }
 
         const e = opts.json;
+        const d = opts.data;
+        const m = opts.emisor;
 
-        // Dentro del papel no van badges: sobre fondo blanco se pierden. Se usa
-        // el mismo renglon monoespaciado del ticket impreso.
-        const row = (k, v, strong) => `
+        const lineas = d.lineas.map(l => `
             <tr>
-                <td${strong ? ' class="font-bold text-[13px]"' : ''}>${esc(k)}</td>
-                <td class="text-right${strong ? ' font-bold text-[13px]' : ''}">${esc(v)}</td>
+                <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
+                <td style="text-align:right">${esc(_fmtMX(l.importe))}</td>
             </tr>
-        `;
+        `).join('');
 
-        // Las comandas viven en otra hoja del export: si aun no se cargan, el
-        // ticket no tiene mesa ni mesero que imprimir.
-        const mesaRow   = e.mesa   ? row('MESA:',   e.mesa)   : '';
-        const meseroRow = e.mesero ? row('MESERO:', e.mesero) : '';
-
-        $parent.html(`
-            <div class="flex-1 flex flex-col overflow-hidden">
-                <div class="px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0">
-                    <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wider">${esc(opts.labels.subtitle)}</p>
-                        <p class="text-base font-bold text-white font-mono">${esc(e.folio)}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        ${e.badge || ''}
-                        <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-[#1F2A37] hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors">
-                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto scroll-thin px-4 py-4 bg-[#0E1521]">
-                    <div id="${opts.id}_paper" class="ticket-paper">
-                        <div class="text-center">
-                            <p class="font-bold text-[13px] tracking-wide">${esc(opts.labels.subtitle).toUpperCase()}</p>
-                            <p>TICKET ${esc(e.folio)}</p>
-                        </div>
-                        <div class="tk-sep"></div>
-                        <table>
-                            ${row('FOLIO:',  e.folio)}
-                            ${row('FECHA:',  e.fecha)}
-                            ${mesaRow}
-                            ${meseroRow}
-                            ${row('PAGO:',   String(e.pago).toUpperCase())}
-                            ${row('METODO:', e.metodo)}
-                        </table>
-                        <div class="tk-sep"></div>
-                        <table>
-                            ${row('SUBTOTAL:',          e.subtotal)}
-                            ${row(`IVA (${e.tasa}):`,   e.iva)}
-                            ${row('IEPS:',              e.ieps)}
-                            ${row('TOTAL:',             e.total, true)}
-                        </table>
-                        <div class="tk-sep"></div>
-                        <table>
-                            ${row('ESTADO:',  e.estado)}
-                            ${row('FACTURA:', e.factura)}
-                        </table>
-                        <div class="tk-sep"></div>
-                        <div class="text-center">
-                            <p class="text-gray-400">${esc(opts.labels.leyenda)}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="px-4 py-3 border-t border-[#374151] bg-[#0E1521] flex-shrink-0">
-                    <button type="button" id="${opts.id}_print" class="${CF_CSS.btnPrimary} flex items-center justify-center gap-2">
-                        <i data-lucide="printer" class="w-4 h-4"></i>${esc(opts.labels.imprimir)}
-                    </button>
-                </div>
+        wrap.html(`
+            <div class="text-center">
+                <p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>
+                <p>${esc(m.domicilio)}</p>
+                <p>${esc(m.telefono)}</p>
+            </div>
+            <div class="tk-sep"></div>
+            <table>
+                <tr><td>NOTA:</td><td class="text-right font-bold">#${esc(e.orden)}</td></tr>
+                <tr><td>FECHA:</td><td class="text-right">${esc(_fmtFechaCorta(e.fecha))} 19:47</td></tr>
+                <tr><td>MESA:</td><td class="text-right">${esc(e.mesa)}</td></tr>
+                <tr><td>MESERO:</td><td class="text-right">${esc(e.mesero)}</td></tr>
+                <tr><td>TERMINAL:</td><td class="text-right">${esc(m.terminal)}</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+                <thead>
+                    <tr><td class="font-bold">CANT DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
+                </thead>
+                <tbody>${lineas}</tbody>
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+                <tr><td>SUBTOTAL:</td><td class="text-right">${esc(_fmtMX(d.subtotal))}</td></tr>
+                <tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(_fmtMX(d.descuento))}</td></tr>
+                <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(_fmtMX(e.total))}</td></tr>
+            </table>
+            <div class="tk-sep"></div>
+            <div class="text-center">
+                <p>PAGO: ${esc(String(e.metodo).toUpperCase())}</p>
+                <p class="mt-1.5">GRACIAS POR SU VISITA</p>
+                <p class="mt-1.5 text-gray-400">${esc(m.leyenda)}</p>
             </div>
         `);
 
-        if (window.lucide) lucide.createIcons();
+        $(`#${opts.parent}`).html(wrap);
+    }
 
-        $(`#${opts.id}_close`).on('click', () => opts.onClose());
-        $(`#${opts.id}_print`).on('click', () => opts.onPrint(e));
+    noteBox(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'text-[10px] text-gray-400 flex items-start gap-2',
+            json:   { icon: 'info', text: '' }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const iconHtml = opts.json.icon
+            ? `<i data-lucide="${esc(opts.json.icon)}" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-[1px]"></i>`
+            : '';
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`${iconHtml}<span>${esc(opts.json.text)}</span>`);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    panelHead(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'flex items-center justify-between w-full gap-2 flex-wrap',
+            json:   { icon: '', iconClass: 'w-4 h-4 text-gray-400', title: '', badges: [] },
+            classes: {
+                title: 'text-[12px] font-bold text-gray-300 flex items-center gap-2'
+            }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const iconHtml   = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
+        const badgesHtml = (opts.json.badges || [])
+            .map(b => `<span class="badge-base ${esc(b.tone || 'b-gray')}">${esc(b.text)}</span>`)
+            .join('');
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            <h3 class="${opts.classes.title}">${iconHtml}${esc(opts.json.title)}</h3>
+            <div class="flex items-center gap-2">${badgesHtml}</div>
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
     }
 
     viewHeader(options) {
