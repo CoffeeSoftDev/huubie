@@ -1,38 +1,6 @@
 let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
 let app, tickets, ticketsView;
 
-// Copy del modulo. No son datos: tickets, emisor y renglones del ticket virtual
-// se consultan al servidor.
-const VIEW_HEADER_TICKETS = {
-    title:    'Tickets',
-    subtitle: 'Tickets virtuales del dia, de lo cobrado por banco. Lo pagado en efectivo no se muestra. Las notas se reinician cada dia',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
-
-const VIEW_FOOTER_TICKETS = {
-    info: '',
-    legends: [
-        { tone: 'success', label: 'Facturado (bloqueado)'   },
-        { tone: 'info',    label: 'Ticket generado'         },
-        { tone: 'warning', label: 'Requiere ticket virtual' },
-        { tone: 'default', label: 'Pendiente de facturar'   }
-    ]
-};
-
-// El papel no es un comprobante fiscal y lo dice al pie: es la leyenda impresa,
-// no un dato de la sucursal.
-const TICKET_LEYENDA = 'Este ticket no es un comprobante fiscal';
-
-const NOTA_TICKETS = 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Los puente se marcan en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.';
-
-// useFetch del framework resuelve por callback; aqui el modulo encadena con
-// await, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
-
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
     tickets     = new Tickets(apiTickets, 'root');
@@ -53,7 +21,7 @@ class App extends Templates {
     // El dia lo resuelve el servidor: el Excel del POS se sube en diferido, asi que
     // el modulo abre en el ultimo dia con cobros por banco. Con ?dia= entra a ese.
     async init() {
-        this.dataInit = await fnAjax({ opc: 'init', dia: this.getParam('dia') }, apiTickets);
+        this.dataInit = await useFetch({ url: apiTickets, data: { opc: 'init', dia: this.getParam('dia') } });
 
         this.render();
     }
@@ -66,7 +34,7 @@ class App extends Templates {
         this.layout();
         this.filterBar();
         this.previewActions();
-        ticketsView.renderFooter(VIEW_FOOTER_TICKETS);
+        ticketsView.renderFooter();
         ticketsView.renderListNote();
         this.updateHeaderTitle();
         ticketsView.renderPreview(null);
@@ -274,16 +242,24 @@ class App extends Templates {
         return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
     }
 
+    // Copy de la cabecera del modulo. No son datos: tickets, emisor y renglones del
+    // ticket virtual se consultan al servidor.
     updateHeaderTitle() {
+        const header = {
+            title:    'Tickets',
+            subtitle: 'Tickets virtuales del dia, de lo cobrado por banco. Lo pagado en efectivo no se muestra. Las notas se reinician cada dia',
+            back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+        };
+
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
         const f         = this.getFilters();
         const fecha     = String(f.dia || '').split('-').reverse().join('/');
-        const titleHtml = `${VIEW_HEADER_TICKETS.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fecha)}</span>`;
+        const titleHtml = `${header.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fecha)}</span>`;
 
-        ticketsView.renderHeader(Object.assign({}, VIEW_HEADER_TICKETS, { titleHtml }));
+        ticketsView.renderHeader(Object.assign({}, header, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -302,7 +278,7 @@ class App extends Templates {
 
         $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
 
-        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
+        const data = await useFetch({ url: apiTickets, data: { opc: 'getTicket', folio: folio } });
 
         if (data.status !== 200) {
             ticketsView.renderPreview(null, data.message);
@@ -326,7 +302,7 @@ class Tickets extends Templates {
 
     // Columnas: 1 Nota, 2 Folio, 3 Mesero, 4 Tasa, 5 Estado, 6 Monto.
     async lsTickets() {
-        const data = await fnAjax(Object.assign({ opc: 'lsTickets' }, app.getFilters()), apiTickets);
+        const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'lsTickets' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -371,7 +347,7 @@ class Tickets extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            const response = await fnAjax(Object.assign({ opc: 'generateAllZero' }, app.getFilters()), apiTickets);
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateAllZero' }, app.getFilters()) });
 
             this.afterGenerate(response, response.folio);
         });
@@ -385,7 +361,7 @@ class Tickets extends Templates {
             return;
         }
 
-        const response = await fnAjax({ opc: 'generate', folio: app.selectedId }, apiTickets);
+        const response = await useFetch({ url: apiTickets, data: { opc: 'generate', folio: app.selectedId } });
 
         this.afterGenerate(response, app.selectedId);
     }
@@ -412,7 +388,7 @@ class Tickets extends Templates {
     }
 
     async lockedNotice(folio) {
-        const data = await fnAjax({ opc: 'getTicket', folio: folio }, apiTickets);
+        const data = await useFetch({ url: apiTickets, data: { opc: 'getTicket', folio: folio } });
 
         if (data.status !== 200) return;
 
@@ -439,18 +415,26 @@ class TicketsView extends Templates {
         });
     }
 
-    renderFooter(data) {
+    renderFooter() {
         this.viewFooter({
             parent: 'viewFooterRow',
             id:     'viewFooter',
-            json:   data
+            json: {
+                info: '',
+                legends: [
+                    { tone: 'success', label: 'Facturado (bloqueado)'   },
+                    { tone: 'info',    label: 'Ticket generado'         },
+                    { tone: 'warning', label: 'Requiere ticket virtual' },
+                    { tone: 'default', label: 'Pendiente de facturar'   }
+                ]
+            }
         });
     }
 
     renderListNote() {
         this.noteBox({
             parent: 'listNote',
-            json:   { text: NOTA_TICKETS }
+            json:   { text: 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Los puente se marcan en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
         });
     }
 
@@ -517,7 +501,12 @@ class TicketsView extends Templates {
             class:  'ticket-paper',
             json:   null,
             emisor: { razon: '', domicilio: '', telefono: '' },
-            labels: { empty: 'Sin ticket seleccionado' }
+            // El papel no es un comprobante fiscal y lo dice al pie: es la leyenda
+            // impresa, no un dato de la sucursal.
+            labels: {
+                empty:   'Sin ticket seleccionado',
+                leyenda: 'Este ticket no es un comprobante fiscal'
+            }
         };
 
         const o    = options || {};
@@ -580,7 +569,7 @@ class TicketsView extends Templates {
             <div class="text-center">
                 <p>PAGO: ${esc(String(e.metodo).toUpperCase())}</p>
                 <p class="mt-1.5">GRACIAS POR SU VISITA</p>
-                <p class="mt-1.5 text-gray-400">${esc(TICKET_LEYENDA)}</p>
+                <p class="mt-1.5 text-gray-400">${esc(opts.labels.leyenda)}</p>
             </div>
         `);
 

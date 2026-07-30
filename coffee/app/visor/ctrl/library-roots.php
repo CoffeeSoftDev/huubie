@@ -45,6 +45,24 @@ if (!function_exists('coffee_visor_docs_rel_prefix')) {
     }
 }
 
+// Biblioteca de OTRA cuenta. Solo la usan las funciones que ya validaron un
+// permiso explicito (listas TODO compartidas): a diferencia de la propia, esta
+// no se crea al vuelo — si la carpeta no existe, no hay nada que mirar.
+if (!function_exists('coffee_visor_docs_root_of')) {
+    function coffee_visor_docs_root_of($userId) {
+        $id = (int) $userId;
+        if ($id <= 0) return '';
+        $root = coffee_visor_documents_base() . '/users/' . $id;
+        return is_dir($root) ? $root : '';
+    }
+}
+
+if (!function_exists('coffee_visor_docs_rel_prefix_of')) {
+    function coffee_visor_docs_rel_prefix_of($userId) {
+        return 'coffee/app/visor/documents/users/' . (int) $userId;
+    }
+}
+
 // ── Carpeta compartida ──────────────────────────────────────────────────────
 // documents/shared/ es el terreno comun: cuelga del arbol de TODOS los usuarios
 // como un proyecto mas (en celeste, para que no se confunda con los propios) y

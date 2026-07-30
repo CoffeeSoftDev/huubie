@@ -1767,6 +1767,9 @@ class App {
     }
 
     async reloadLibrary() {
+        // Carpeta local del navegador: el arbol se arma en el cliente, sin backend.
+        if (this.settings.folder === 'local') { await this.reloadLocalLibrary(); return; }
+
         const isDrive = this.isDriveFolder(this.settings.folder);
         let label = this.settings.folder;
         if (isDrive) {

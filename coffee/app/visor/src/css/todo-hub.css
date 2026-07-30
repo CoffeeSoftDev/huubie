@@ -250,6 +250,41 @@
 .tdw-field input:focus, .tdw-field select:focus { outline: none; border-color: var(--tdw-sky-line); }
 .tdw-form-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 
+/* ── Comparticion entre cuentas ── */
+/* Chip de procedencia: en el rail dice de quien viene una lista prestada (o con
+   cuanta gente comparto la mia) y en la miga de pan repite el permiso. */
+.tdw-tag {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 999px; max-width: 120px;
+    background: var(--tdw-sky-soft); color: var(--tdw-sky);
+    font-size: 10px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tdw-tag svg { width: 11px; height: 11px; flex-shrink: 0; }
+.tdw-tag.is-ro { background: rgba(148, 163, 184, .16); color: var(--tdw-mute); }
+.tdw-crumb .tdw-tag { max-width: none; margin-left: 4px; }
+
+/* Solo consulta: la casilla se ve pero no invita a pulsarse. */
+.tdw-chk.is-ro { cursor: default; opacity: .5; }
+.tdw-chk.is-ro:hover { background: transparent; border-color: var(--tdw-line); }
+.tdw-task.is-ro:hover { background: transparent; }
+
+.tdw-btn.is-shared { border-color: var(--tdw-sky-line); color: var(--tdw-sky); }
+
+.tdw-share-row {
+    display: flex; align-items: center; gap: 9px; padding: 8px 0;
+    border-top: 1px solid var(--vsr-border);
+}
+.tdw-share-row:first-of-type { border-top: 0; }
+.tdw-share-who { flex: 1; min-width: 0; }
+.tdw-share-who b { display: block; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tdw-share-who small { display: block; margin-top: 1px; font-size: 10.5px; color: var(--tdw-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tdw-share-perm {
+    flex-shrink: 0; padding: 5px 8px; font: inherit; font-size: 11px; color: var(--vsr-text);
+    background: var(--vsr-bg-input); border: 1px solid var(--tdw-line); border-radius: 7px;
+}
+.tdw-share-perm:focus { outline: none; border-color: var(--tdw-sky-line); }
+.tdw-share-none { margin: 0; font-size: 11.5px; color: var(--tdw-dim); line-height: 1.6; }
+
 /* ── Captura rapida ── */
 .tdw-quick { display: flex; align-items: center; gap: 9px; padding: 11px 16px; border-top: 1px solid var(--vsr-border); background: var(--tdw-tint); flex-shrink: 0; }
 .tdw-quick-in {

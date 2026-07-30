@@ -1,146 +1,6 @@
 let apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
 let app, cargas, cargasView;
 
-// Copy de la cabecera del modulo. Lo demas (pestanas, archivo esperado, hojas y
-// pasos del proceso) lo manda el contrato del importador desde init().
-const VIEW_HEADER_CARGAS = {
-    title:    'Cargas mensuales',
-    subtitle: 'Sube los exports del POS en orden. Cada pestana indica el archivo exacto y las hojas que se leeran',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
-
-// Color e icono con que se reconoce cada hoja mientras no hay carga: el estado de
-// la carga los pisa despues.
-const HOJA_TONO = {
-    'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
-    'Reporte de ventas': { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
-    'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' }
-};
-
-const HOJA_TONO_DEFAULT = { icon: 'sheet', bgClass: 'bg-[#1F2A37]', iconClass: 'text-gray-400' };
-
-// -- Helpers --
-
-// Ids de las pestanas de la tira. Son la llave de todo el segundo nivel: tabLayout
-// nombra su boton `tab-{id}` y su panel `container-{id}`, y de ahi cuelgan el
-// cuerpo y el pie de cada hoja.
-const logKey   = (tabId)  => `log-${tabId}`;
-const sheetKey = (loteId) => `sheet-${loteId}`;
-
-const hojaIcono = (nombre) => (HOJA_TONO[nombre] || HOJA_TONO_DEFAULT).icon;
-
-const miles = (n) => Number(n || 0).toLocaleString('en-US');
-const pesos = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
-
-// Esqueleto que tabLayout inyecta en el panel de cada pestana: la tabla arriba con
-// su scroll y el pie fijo abajo. min-w-0 en el cuerpo porque la hoja "Pagos" trae
-// 9 columnas y sin el se desborda fuera del panel en vez de scrollear dentro.
-//
-// La columna se arma en un wrapper con h-full y no en el contenedor del tab: ese
-// contenedor lleva `hidden` mientras la pestana esta cerrada, y darle display:flex
-// seria pelearse con el.
-const sheetShell = (id) => `
-    <div class="h-full flex flex-col">
-        <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
-        <div id="sheetFoot-${id}" class="flex-shrink-0"></div>
-    </div>
-`;
-
-const logFoot = (lotes) => {
-    const ls    = lotes || [];
-    const filas = ls.reduce((a, l) => a + Number(l.row_count || 0), 0);
-
-    if (!ls.length) {
-        return { text: 'El periodo no tiene cargas', note: 'Sube el Excel para que aparezcan sus hojas' };
-    }
-
-    return {
-        text: `<span class="text-gray-400 font-semibold">${ls.length}</span> lote(s) en el periodo · <span class="text-gray-400">${miles(filas)}</span> filas`,
-        note: 'Cada hoja abre en su propia pestana'
-    };
-};
-
-// Pie de una hoja cargada. Cuando el modelo trunca el listado lo dice: la pestana
-// anuncia el total del lote y la tabla trae menos filas que eso.
-const sheetFoot = (lote, data) => {
-    if (!lote) return { text: '' };
-
-    const total   = Number(data.total || 0);
-    const traidas = (data.row || []).length;
-    const parcial = traidas < total ? `<span class="text-gray-400">${miles(traidas)}</span> de ` : '';
-
-    return {
-        text: `${parcial}<span class="text-gray-400 font-semibold">${miles(total)}</span> filas ·
-               control <span class="text-gray-400">${pesos(lote.control_total)}</span> ·
-               ${lote.file_name} · ${lote.stamp}`,
-        badges: [{ text: `lote #${lote.id}`, tone: 'b-gray' }],
-        actions: [
-            {
-                class:   'btn-icon-danger',
-                icon:    'trash-2',
-                title:   'Eliminar esta carga',
-                onclick: `cargas.deleteCarga(${lote.id})`
-            }
-        ]
-    };
-};
-
-// Tarjeta de hoja del panel lateral. En reposo la hoja solo se anuncia con su
-// color; cuando uploadFile responde manda el estado y el color pasa a decir como
-// termino la carga.
-const hojaCard = (h) => {
-    const tono  = HOJA_TONO[h.nombre] || HOJA_TONO_DEFAULT;
-    const ok    = h.estado === 'ok';
-    const error = h.estado === 'error';
-
-    return {
-        icon:       tono.icon,
-        titulo:     h.nombre,
-        detalle:    h.detalle,
-        bgClass:    error ? 'bg-[rgba(239,68,68,0.12)]' : (ok ? 'bg-[rgba(16,185,129,0.12)]' : tono.bgClass),
-        iconClass:  error ? 'text-red-400' : (ok ? 'text-green-600' : tono.iconClass),
-        // Sin carga la tarjeta no puede decir "listo": lo que ofrece es abrirse
-        // para mostrar sus columnas.
-        rightIcon:  error ? 'x-circle' : (ok ? 'check-circle-2' : 'chevron-right'),
-        procesando: h.procesando,
-        avance:     h.avance === undefined && h.estado ? (ok ? 100 : 0) : h.avance
-    };
-};
-
-// Las hojas que devuelve la carga traen el resultado pero no el contrato: el
-// mapeo de columnas se conserva del que trajo init() para que la hoja siga
-// diciendo que se lee de ella.
-const hojasCargadas = (base, hojas) => hojas.map(h => Object.assign(
-    {}, (base || []).find(b => b.nombre === h.nombre) || {}, h
-));
-
-// El mapeo se pinta de la hoja que este seleccionada en el panel, por eso la
-// tabla se arma en el momento y no queda como constante.
-const columnasTable = (hoja) => ({
-    row: ((hoja && hoja.columnas) || []).map(c => ({
-        id:    c.letra,
-        Col:   cellColumna(c.letra),
-        Campo: `<span class="text-gray-400">${c.campo}</span>`
-    }))
-});
-
-// useFetch del framework resuelve por callback y no admite archivos; aqui se
-// necesita await en todo el modulo, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
-
-// La subida no pasa por form_data_ajax: ese helper no rechaza la promesa cuando
-// el servidor falla, y el roadmap se quedaria animado sin cerrar nunca.
-const fnUpload = (formData, url) => fetch(url, {
-    method: 'POST',
-    body:   formData
-}).then(r => r.json());
-
 $(async () => {
     cargasView = new CargasView(apiCargas, 'root');
     cargas     = new Cargas(apiCargas, 'root');
@@ -166,7 +26,7 @@ class App extends Templates {
     }
 
     async init() {
-        this.dataInit = await fnAjax({ opc: 'init' }, apiCargas);
+        this.dataInit = await useFetch({ url: apiCargas, data: { opc: 'init' } });
         this.activeTab = this.dataInit.tabs[0].id;
 
         this.render();
@@ -176,7 +36,7 @@ class App extends Templates {
         this.layout();
         this.filterBar();
         this.renderTabs();
-        cargasView.renderHeader(VIEW_HEADER_CARGAS);
+        cargasView.renderHeader();
         this.renderActiveTab();
     }
 
@@ -421,6 +281,17 @@ class App extends Templates {
 
     // -- Tira de hojas del periodo --
 
+    // Ids de las pestanas de la tira. Son la llave de todo el segundo nivel:
+    // tabLayout nombra su boton `tab-{id}` y su panel `container-{id}`, y de ahi
+    // cuelgan el cuerpo y el pie de cada hoja.
+    logKey(tabId) {
+        return `log-${tabId}`;
+    }
+
+    sheetKey(loteId) {
+        return `sheet-${loteId}`;
+    }
+
     // Segundo nivel de tabLayout: la bitacora deja de ser un modo del que hay que
     // salir y pasa a ser la primera pestana; cada lote del periodo es una hermana
     // suya. tabLayout conserva los paneles en el DOM (solo les pone `hidden`), asi
@@ -437,34 +308,49 @@ class App extends Templates {
         // pestana se omite en vez de abrir en una tabla vacia.
         const conLog = (filas || []).length > 0;
 
+        // Esqueleto que tabLayout inyecta en el panel de cada pestana: la tabla
+        // arriba con su scroll y el pie fijo abajo. min-w-0 en el cuerpo porque la
+        // hoja "Pagos" trae 9 columnas y sin el se desborda fuera del panel en vez
+        // de scrollear dentro.
+        //
+        // La columna se arma en un wrapper con h-full y no en el contenedor del
+        // tab: ese contenedor lleva `hidden` mientras la pestana esta cerrada, y
+        // darle display:flex seria pelearse con el.
+        const sheetShell = (id) => `
+            <div class="h-full flex flex-col">
+                <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
+                <div id="sheetFoot-${id}" class="flex-shrink-0"></div>
+            </div>
+        `;
+
         // La hoja abierta se conserva al repintar mientras su lote siga existiendo;
         // si se elimino, la tira vuelve a abrir en la bitacora.
         const previa  = this.hojaTab[tabId];
-        const vive    = this.lotes[tabId].some(l => sheetKey(l.id) === previa);
+        const vive    = this.lotes[tabId].some(l => this.sheetKey(l.id) === previa);
         const primera = this.lotes[tabId][0];
         const activa  = vive
             ? previa
-            : ((conLog || !primera) ? logKey(tabId) : sheetKey(primera.id));
+            : ((conLog || !primera) ? this.logKey(tabId) : this.sheetKey(primera.id));
 
         this.hojaTab[tabId] = activa;
 
         const hojas = this.lotes[tabId].map(lote => ({
-            id:         sheetKey(lote.id),
+            id:         this.sheetKey(lote.id),
             tab:        `${lote.sheet_name} <span class="badge-base b-gray ml-2">${Number(lote.row_count).toLocaleString('en-US')}</span>`,
-            lucideIcon: hojaIcono(lote.sheet_name),
-            active:     sheetKey(lote.id) === activa,
+            lucideIcon: cargasView.sheetTone(lote.sheet_name).icon,
+            active:     this.sheetKey(lote.id) === activa,
             class:      'flex-1 min-h-0',
-            content:    sheetShell(sheetKey(lote.id)),
+            content:    sheetShell(this.sheetKey(lote.id)),
             onClick:    () => this.onSelectSheet(tabId, lote)
         }));
 
         const bitacora = {
-            id:         logKey(tabId),
+            id:         this.logKey(tabId),
             tab:        'Bitacora',
             lucideIcon: 'activity',
-            active:     activa === logKey(tabId),
+            active:     activa === this.logKey(tabId),
             class:      'flex-1 min-h-0',
-            content:    sheetShell(logKey(tabId)),
+            content:    sheetShell(this.logKey(tabId)),
             onClick:    () => this.onSelectSheet(tabId, null)
         };
 
@@ -491,27 +377,27 @@ class App extends Templates {
     }
 
     hasLog(tabId) {
-        return $(`#tab-${logKey(tabId)}`).length > 0;
+        return $(`#tab-${this.logKey(tabId)}`).length > 0;
     }
 
     openLog(tabId) {
-        if (this.hasLog(tabId)) $(`#tab-${logKey(tabId)}`).trigger('click');
+        if (this.hasLog(tabId)) $(`#tab-${this.logKey(tabId)}`).trigger('click');
     }
 
     // Donde se pinta la espera de una carga: con el periodo vacio la bitacora no
     // tiene pestana, asi que el aviso va sobre la tira, que es el hueco que deja.
     loaderHost(tabId) {
-        return this.hasLog(tabId) ? `sheetBody-${logKey(tabId)}` : `sheetsHost-${tabId}`;
+        return this.hasLog(tabId) ? `sheetBody-${this.logKey(tabId)}` : `sheetsHost-${tabId}`;
     }
 
     // Render perezoso: la hoja se consulta la primera vez que se abre. Despues su
     // panel ya vive en el DOM y cambiar de pestana no cuesta una peticion.
     onSelectSheet(tabId, lote) {
-        this.hojaTab[tabId] = lote ? sheetKey(lote.id) : logKey(tabId);
+        this.hojaTab[tabId] = lote ? this.sheetKey(lote.id) : this.logKey(tabId);
 
         if (!lote) return;
 
-        const parent = `sheetBody-${sheetKey(lote.id)}`;
+        const parent = `sheetBody-${this.sheetKey(lote.id)}`;
         if ($(`#${parent}`).children().length) return;
 
         cargas.lsRegistros(lote.id, tabId);
@@ -573,6 +459,16 @@ class Cargas extends Templates {
         this.PROJECT_NAME = 'cargas';
     }
 
+    // -- Formato --
+
+    miles(n) {
+        return Number(n || 0).toLocaleString('en-US');
+    }
+
+    pesos(n) {
+        return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     // -- Data --
 
     // Bitacora por pestana: cada tab lista unicamente las cargas de su archivo.
@@ -580,7 +476,7 @@ class Cargas extends Templates {
     // se sabe que lotes tiene el periodo.
     async lsBitacora(tabId) {
         const tipo = tabId || app.activeTab;
-        const data = await fnAjax(Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()), apiCargas);
+        const data = await useFetch({ url: apiCargas, data: Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()) });
         const rows = data.row || [];
 
         app.sheetTabs(tipo, data.lotes, rows);
@@ -595,7 +491,21 @@ class Cargas extends Templates {
         // donde pintar su tabla.
         if (!rows.length) return;
 
-        const log = logKey(tipo);
+        const log = app.logKey(tipo);
+
+        const logFoot = (lotes) => {
+            const ls    = lotes || [];
+            const filas = ls.reduce((a, l) => a + Number(l.row_count || 0), 0);
+
+            if (!ls.length) {
+                return { text: 'El periodo no tiene cargas', note: 'Sube el Excel para que aparezcan sus hojas' };
+            }
+
+            return {
+                text: `<span class="text-gray-400 font-semibold">${ls.length}</span> lote(s) en el periodo · <span class="text-gray-400">${this.miles(filas)}</span> filas`,
+                note: 'Cada hoja abre en su propia pestana'
+            };
+        };
 
         this.createCoffeeTable3({
             parent:        `sheetBody-${log}`,
@@ -627,6 +537,18 @@ class Cargas extends Templates {
     lsColumnas(hoja) {
         cargasView.renderColumnasHead(hoja);
 
+        const cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
+
+        // El mapeo se pinta de la hoja que este seleccionada en el panel, por eso
+        // la tabla se arma en el momento y no queda como constante.
+        const columnasTable = (h) => ({
+            row: ((h && h.columnas) || []).map(c => ({
+                id:    c.letra,
+                Col:   cellColumna(c.letra),
+                Campo: `<span class="text-gray-400">${c.campo}</span>`
+            }))
+        });
+
         this.createCoffeeTable3({
             parent:       'tableColumns',
             id:           'tbColumnas',
@@ -648,12 +570,37 @@ class Cargas extends Templates {
     // tabla de la bitacora, asi que no hace falta un boton para volver.
     async lsRegistros(id, tabId) {
         const tipo  = tabId || app.activeTab;
-        const hoja  = sheetKey(id);
+        const hoja  = app.sheetKey(id);
         const lote  = (app.lotes[tipo] || []).find(l => Number(l.id) === Number(id));
+
+        // Pie de una hoja cargada. Cuando el modelo trunca el listado lo dice: la
+        // pestana anuncia el total del lote y la tabla trae menos filas que eso.
+        const sheetFoot = (lt, res) => {
+            if (!lt) return { text: '' };
+
+            const total   = Number(res.total || 0);
+            const traidas = (res.row || []).length;
+            const parcial = traidas < total ? `<span class="text-gray-400">${this.miles(traidas)}</span> de ` : '';
+
+            return {
+                text: `${parcial}<span class="text-gray-400 font-semibold">${this.miles(total)}</span> filas ·
+                       control <span class="text-gray-400">${this.pesos(lt.control_total)}</span> ·
+                       ${lt.file_name} · ${lt.stamp}`,
+                badges: [{ text: `lote #${lt.id}`, tone: 'b-gray' }],
+                actions: [
+                    {
+                        class:   'btn-icon-danger',
+                        icon:    'trash-2',
+                        title:   'Eliminar esta carga',
+                        onclick: `cargas.deleteCarga(${lt.id})`
+                    }
+                ]
+            };
+        };
 
         cargasView.renderLoader(`sheetBody-${hoja}`, 'Leyendo los registros de la carga...');
 
-        const data = await fnAjax({ opc: 'lsRegistros', id: id }, apiCargas);
+        const data = await useFetch({ url: apiCargas, data: { opc: 'lsRegistros', id: id } });
 
         if (data.status !== 200) {
             $(`#sheetBody-${hoja}`).empty();
@@ -803,6 +750,21 @@ class Cargas extends Templates {
     subirArchivo(file, tipo) {
         const filtros = app.getFilters();
 
+        // useFetch manda urlencoded y no admite archivos: la subida necesita
+        // FormData. Tampoco pasa por form_data_ajax, que no rechaza la promesa
+        // cuando el servidor falla, y el roadmap se quedaria animado sin cerrar.
+        const fnUpload = (body, url) => fetch(url, {
+            method: 'POST',
+            body:   body
+        }).then(r => r.json());
+
+        // Las hojas que devuelve la carga traen el resultado pero no el contrato:
+        // el mapeo de columnas se conserva del que trajo init() para que la hoja
+        // siga diciendo que se lee de ella.
+        const hojasCargadas = (base, hojas) => hojas.map(h => Object.assign(
+            {}, (base || []).find(b => b.nombre === h.nombre) || {}, h
+        ));
+
         const formData = new FormData();
         formData.append('opc',         'uploadFile');
         formData.append('tipo',        tipo);
@@ -885,7 +847,7 @@ class Cargas extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            const data = await fnAjax({ opc: 'deleteCarga', id: id }, apiCargas);
+            const data = await useFetch({ url: apiCargas, data: { opc: 'deleteCarga', id: id } });
 
             this.lsBitacora(app.activeTab);
             alert({ icon: data.status === 200 ? 'success' : 'error', title: data.message, timer: 1600 });
@@ -902,13 +864,31 @@ class CargasView extends Templates {
         this.PROJECT_NAME = 'cargas';
     }
 
+    // Color e icono con que se reconoce cada hoja mientras no hay carga: el estado
+    // de la carga los pisa despues.
+    sheetTone(nombre) {
+        const tonos = {
+            'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
+            'Reporte de ventas': { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
+            'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' }
+        };
+
+        return tonos[nombre] || { icon: 'sheet', bgClass: 'bg-[#1F2A37]', iconClass: 'text-gray-400' };
+    }
+
     // -- Render helpers --
 
-    renderHeader(data) {
+    // Copy de la cabecera del modulo. Lo demas (pestanas, archivo esperado, hojas
+    // y pasos del proceso) lo manda el contrato del importador desde init().
+    renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
             id:     'hdrCargas',
-            json:   data
+            json: {
+                title:    'Cargas mensuales',
+                subtitle: 'Sube los exports del POS en orden. Cada pestana indica el archivo exacto y las hojas que se leeran',
+                back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+            }
         });
     }
 
@@ -937,8 +917,29 @@ class CargasView extends Templates {
     }
 
     // Las hojas llegan como vienen del contrato o de la carga: la tarjeta se arma
-    // aqui para que ambos origenes se pinten igual.
+    // aqui para que ambos origenes se pinten igual. En reposo la hoja solo se
+    // anuncia con su color; cuando uploadFile responde manda el estado y el color
+    // pasa a decir como termino la carga.
     renderHojas(rows, selected, onSelect) {
+        const hojaCard = (h) => {
+            const tono  = this.sheetTone(h.nombre);
+            const ok    = h.estado === 'ok';
+            const error = h.estado === 'error';
+
+            return {
+                icon:       tono.icon,
+                titulo:     h.nombre,
+                detalle:    h.detalle,
+                bgClass:    error ? 'bg-[rgba(239,68,68,0.12)]' : (ok ? 'bg-[rgba(16,185,129,0.12)]' : tono.bgClass),
+                iconClass:  error ? 'text-red-400' : (ok ? 'text-green-600' : tono.iconClass),
+                // Sin carga la tarjeta no puede decir "listo": lo que ofrece es
+                // abrirse para mostrar sus columnas.
+                rightIcon:  error ? 'x-circle' : (ok ? 'check-circle-2' : 'chevron-right'),
+                procesando: h.procesando,
+                avance:     h.avance === undefined && h.estado ? (ok ? 100 : 0) : h.avance
+            };
+        };
+
         this.detectList({
             parent:   'detailSheets',
             json:     (rows || []).map(hojaCard),

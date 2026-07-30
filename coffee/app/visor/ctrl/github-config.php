@@ -7,6 +7,8 @@
  * el ctrl decide como responder (error JSON controlado) para no romper la UI.
  */
 
+require_once __DIR__ . '/../../ctrl/credentials-path.php';
+
 define('GITHUB_ENV_PATH', __DIR__ . '/../../credentials/.env');
 
 $_GITHUB_ENV = [];
@@ -25,8 +27,10 @@ define('GITHUB_GRAPHQL_URL', 'https://api.github.com/graphql');
 // defecto (curl.cainfo vacio), asi que reusamos el mismo cacert.pem que ya usa el
 // cliente de Google Drive. Permite override por .env (GITHUB_CA_BUNDLE).
 $_GH_CA = (string)($_GITHUB_ENV['GITHUB_CA_BUNDLE'] ?? '');
-if ($_GH_CA === '' && file_exists('c:/wamp64/credentials/cacert.pem')) {
-    $_GH_CA = 'c:/wamp64/credentials/cacert.pem';
+if ($_GH_CA === '') {
+    $_GH_CA_FILE = coffee_credential_path('cacert.pem');
+    if (file_exists($_GH_CA_FILE)) $_GH_CA = $_GH_CA_FILE;
+    unset($_GH_CA_FILE);
 }
 define('GITHUB_CA_BUNDLE', $_GH_CA);
 

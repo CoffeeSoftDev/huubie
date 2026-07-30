@@ -4,6 +4,8 @@
  * Lee variables desde coffee/app/credentials/.env
  */
 
+require_once __DIR__ . '/../../ctrl/credentials-path.php';
+
 define('OLLAMA_ENV_PATH', __DIR__ . '/../../credentials/.env');
 
 if (!file_exists(OLLAMA_ENV_PATH)) {
@@ -23,6 +25,15 @@ define('OLLAMA_BASE_URL',      $_OLLAMA_ENV['OLLAMA_BASE_URL']      ?? 'https://
 define('OLLAMA_DEFAULT_MODEL', $_OLLAMA_ENV['OLLAMA_DEFAULT_MODEL'] ?? 'qwen3-coder:480b-cloud');
 define('OLLAMA_VISION_MODEL',  $_OLLAMA_ENV['OLLAMA_VISION_MODEL']  ?? 'kimi-k2.7-code:cloud');
 define('OLLAMA_TIMEOUT',       (int)($_OLLAMA_ENV['OLLAMA_TIMEOUT'] ?? 240));
-define('OLLAMA_CA_BUNDLE',     $_OLLAMA_ENV['OLLAMA_CA_BUNDLE']     ?? '');
+// El .env puede traer una ruta de la maquina donde se configuro; si ahi no hay
+// nada (tipico al subir al servidor) se usa el cacert.pem que viaja con el
+// proyecto en coffee/app/credentials/.
+$_OLLAMA_CA = (string)($_OLLAMA_ENV['OLLAMA_CA_BUNDLE'] ?? '');
+if ($_OLLAMA_CA === '' || !file_exists($_OLLAMA_CA)) {
+    $_OLLAMA_CA_FILE = coffee_credential_path('cacert.pem');
+    $_OLLAMA_CA = file_exists($_OLLAMA_CA_FILE) ? $_OLLAMA_CA_FILE : '';
+    unset($_OLLAMA_CA_FILE);
+}
+define('OLLAMA_CA_BUNDLE', $_OLLAMA_CA);
 
-unset($_OLLAMA_ENV);
+unset($_OLLAMA_ENV, $_OLLAMA_CA);

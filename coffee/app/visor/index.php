@@ -772,6 +772,7 @@
     <script src="src/js/drawio-board.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/html-stage.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/local-folder.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/launcher.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>

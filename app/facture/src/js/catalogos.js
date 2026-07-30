@@ -1,31 +1,6 @@
 let apiCatalogos = '/app/facture/ctrl/ctrl-facture-catalogos.php';
 let app, catalogos, catalogosView;
 
-// Copy de la cabecera y del pie del modulo. No son datos: productos, meseros y
-// emisor se consultan al servidor.
-const VIEW_HEADER_CATALOGOS = {
-    title:    'Catalogos',
-    subtitle: 'Administra los productos que sirven de puente, los meseros y los datos del emisor del ticket virtual',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
-
-const VIEW_FOOTER_CATALOGOS = {
-    info: '',
-    legends: [
-        { tone: 'success', label: 'Producto puente' },
-        { tone: 'warning', label: 'Modificador'     },
-        { tone: 'default', label: 'Sin marcar'      }
-    ]
-};
-
-// useFetch del framework resuelve por callback; aqui el modulo encadena con
-// await, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
-
 $(async () => {
     catalogosView = new CatalogosView(apiCatalogos, 'root');
     catalogos     = new Catalogos(apiCatalogos, 'root');
@@ -43,7 +18,7 @@ class App extends Templates {
     }
 
     async init() {
-        this.dataInit = await fnAjax({ opc: 'init' }, apiCatalogos);
+        this.dataInit = await useFetch({ url: apiCatalogos, data: { opc: 'init' } });
 
         this.render();
     }
@@ -51,8 +26,8 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        catalogosView.renderHeader(VIEW_HEADER_CATALOGOS);
-        catalogosView.renderFooter(VIEW_FOOTER_CATALOGOS);
+        catalogosView.renderHeader();
+        catalogosView.renderFooter();
         catalogosView.renderPanelHeads();
         catalogosView.renderEmisorForm(this.dataInit.emisor);
         catalogos.lsKpis();
@@ -242,7 +217,7 @@ class Catalogos extends Templates {
     // -- Data --
 
     async lsProductos() {
-        const data = await fnAjax(Object.assign({ opc: 'lsProductos' }, app.getFilters()), apiCatalogos);
+        const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsProductos' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableProductos',
@@ -265,7 +240,7 @@ class Catalogos extends Templates {
     }
 
     async lsMeseros() {
-        const data = await fnAjax(Object.assign({ opc: 'lsMeseros' }, app.getFilters()), apiCatalogos);
+        const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsMeseros' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableMeseros',
@@ -289,7 +264,7 @@ class Catalogos extends Templates {
     // El pie del modulo se escribe con los mismos conteos de las tarjetas: es el
     // resumen del catalogo con el filtro puesto.
     async lsKpis() {
-        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiCatalogos);
+        const kpis = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
 
         catalogosView.renderInfoCards([
             {
@@ -346,25 +321,28 @@ class Catalogos extends Templates {
     // La clave anterior viaja aparte: es la que localiza la fila cuando la edicion
     // cambia la clave del POS, y sin ella se daria de alta un producto nuevo.
     async saveProducto(code, data) {
-        const response = await fnAjax(Object.assign({ opc: 'saveProducto', previo: code || '' }, data), apiCatalogos);
+        const response = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data) });
 
         this.afterSave(response);
     }
 
     async saveMesero(code, data) {
-        const response = await fnAjax(Object.assign({ opc: 'saveMesero', previo: code || '' }, data), apiCatalogos);
+        const response = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'saveMesero', previo: code || '' }, data) });
 
         this.afterSave(response);
     }
 
     async saveEmisor() {
-        const response = await fnAjax({
-            opc:       'saveEmisor',
-            razon:     $('#razon').val(),
-            rfc:       $('#rfc').val(),
-            telefono:  $('#telefono').val(),
-            domicilio: $('#domicilio').val()
-        }, apiCatalogos);
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: {
+                opc:       'saveEmisor',
+                razon:     $('#razon').val(),
+                rfc:       $('#rfc').val(),
+                telefono:  $('#telefono').val(),
+                domicilio: $('#domicilio').val()
+            }
+        });
 
         if (response.status === 200) app.dataInit.emisor = response.emisor;
 
@@ -404,7 +382,7 @@ class Catalogos extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            this.afterSave(await fnAjax({ opc: 'deleteProducto', code: code }, apiCatalogos));
+            this.afterSave(await useFetch({ url: apiCatalogos, data: { opc: 'deleteProducto', code: code } }));
         });
     }
 
@@ -421,7 +399,7 @@ class Catalogos extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            this.afterSave(await fnAjax({ opc: 'deleteMesero', code: code }, apiCatalogos));
+            this.afterSave(await useFetch({ url: apiCatalogos, data: { opc: 'deleteMesero', code: code } }));
         });
     }
 }
@@ -437,19 +415,32 @@ class CatalogosView extends Templates {
 
     // -- Render helpers --
 
-    renderHeader(data) {
+    // Copy de la cabecera y del pie del modulo. No son datos: productos, meseros y
+    // emisor se consultan al servidor.
+    renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
             id:     'hdrCatalogos',
-            json:   data
+            json: {
+                title:    'Catalogos',
+                subtitle: 'Administra los productos que sirven de puente, los meseros y los datos del emisor del ticket virtual',
+                back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+            }
         });
     }
 
-    renderFooter(data) {
+    renderFooter() {
         this.viewFooter({
             parent: 'viewFooterRow',
             id:     'viewFooter',
-            json:   data
+            json: {
+                info: '',
+                legends: [
+                    { tone: 'success', label: 'Producto puente' },
+                    { tone: 'warning', label: 'Modificador'     },
+                    { tone: 'default', label: 'Sin marcar'      }
+                ]
+            }
         });
     }
 
@@ -611,7 +602,7 @@ class CatalogosView extends Templates {
     // tabla ya viene armada como HTML, asi que el formulario necesita los campos
     // en crudo y esos solo los tiene la consulta.
     async openProductoForm(code) {
-        const data     = code ? await fnAjax({ opc: 'getProducto', code: code }, apiCatalogos) : {};
+        const data     = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getProducto', code: code } }) : {};
         const producto = data.producto || null;
 
         this.formModal({
@@ -624,7 +615,7 @@ class CatalogosView extends Templates {
     }
 
     async openMeseroForm(code) {
-        const data   = code ? await fnAjax({ opc: 'getMesero', code: code }, apiCatalogos) : {};
+        const data   = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getMesero', code: code } }) : {};
         const mesero = data.mesero || null;
 
         this.formModal({

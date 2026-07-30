@@ -37,7 +37,13 @@
         send:    'arrow-up',
         dest:    'corner-down-right',
         file:    'file-plus-2',
-        empty:   'folder-search'
+        empty:   'folder-search',
+        share:   'user-plus',
+        users:   'users',
+        eye:     'eye',
+        pencil:  'pencil',
+        trash:   'trash-2',
+        back:    'arrow-left'
     };
 
     function ico(name) {
@@ -77,8 +83,11 @@
             this.filter   = 'pending';  // pending | all | done
             this.showEmpty    = false;
             this.showArchived = false;
+            this.showInvited  = true;   // lo que otros me prestan se ve de entrada
             this.formOpen = false;
+            this.shareOpen = false;     // panel de comparticion de la lista abierta
             this.folders  = null;
+            this.users    = null;       // catalogo de cuentas (se pide una vez)
             this.loading  = false;
             this.mounted  = false;
             this.saveTimers = {};
@@ -183,6 +192,7 @@
             if (!this.$veil) return;
             this.$veil.prop('hidden', true);
             this.closeForm();
+            this.closeShare();
         }
 
         isOpen() { return !!this.$veil && !this.$veil.prop('hidden'); }
@@ -232,6 +242,18 @@
             return this.lists.filter((l) => !this.isArchived(l.key));
         }
 
+        // ── Comparticion ────────────────────────────────────────────────────
+        // Una lista prestada en modo consulta se ve completa pero no se toca: el
+        // backend rechazaria el guardado igual, y avisar aqui evita perder lo
+        // escrito contra un 403.
+        canEdit(list) {
+            return !!list && list.canEdit !== false;
+        }
+
+        isInvited(list) {
+            return !!list && list.scope === 'invited';
+        }
+
         // Que tareas entran segun el segmento activo.
         keeps(task) {
             if (this.filter === 'pending') return !task.done;
@@ -266,6 +288,10 @@
         // Guarda con retardo para no escribir en cada tecla; `now` fuerza el envio
         // en las acciones que el usuario percibe como definitivas (palomear, borrar).
         persist(list, now) {
+            if (!this.canEdit(list)) {
+                this.flash((list.ownerName || 'Su dueño') + ' la compartió solo para consulta', 'error');
+                return;
+            }
             this.recount(list);
             this.summary();
             this.renderRail();
@@ -307,7 +333,11 @@
         renderRail() {
             const q        = this.query.toLowerCase();
             const matches  = (l) => !q || String(l.title + ' ' + l.pathLabel).toLowerCase().indexOf(q) !== -1;
-            const mine     = this.visibleLists().filter(matches);
+            const visible  = this.visibleLists().filter(matches);
+            // Lo prestado va en su propio grupo: mezclarlo con las carpetas
+            // propias haria dudar de donde vive cada archivo.
+            const mine     = visible.filter((l) => !this.isInvited(l));
+            const invited  = visible.filter((l) => this.isInvited(l));
             const withWork = mine.filter((l) => l.total > 0 || l.key === this.openKey);
             const empty    = mine.filter((l) => l.total === 0 && l.key !== this.openKey);
             const archived = this.lists.filter((l) => this.isArchived(l.key)).filter(matches);
@@ -323,6 +353,10 @@
             if (withWork.length) {
                 html += '<div class="tdw-group" data-tdw="nogroup">Listas<span>' + withWork.length + '</span></div>';
                 html += withWork.map((l) => this.railItem(l)).join('');
+            }
+            if (invited.length) {
+                html += this.groupRow('invited', 'Compartidas conmigo', invited.length, this.showInvited, ICON.users);
+                if (this.showInvited) html += invited.map((l) => this.railItem(l)).join('');
             }
             if (empty.length) {
                 html += this.groupRow('empty', 'Sin tareas', empty.length, this.showEmpty);
@@ -345,10 +379,27 @@
             const countCls = 'tdw-count' + (list.total > 0 && list.pending === 0 ? ' is-clear' : '');
             return '<button class="tdw-item' + (on ? ' is-on' : '') + (archived ? ' is-archived' : '') + '" ' +
                         'data-tdw="pick" data-key="' + esc(list.key) + '" type="button" title="' + esc(list.pathLabel) + '">' +
-                     '<span class="tdw-item-dot">' + ico(ICON.list) + '</span>' +
+                     '<span class="tdw-item-dot">' + ico(this.isInvited(list) ? ICON.users : ICON.list) + '</span>' +
                      '<span class="tdw-item-main"><b>' + esc(list.title) + '</b><small>' + esc(list.pathLabel) + '</small></span>' +
+                     this.shareTag(list) +
                      '<span class="' + countCls + '">' + (list.total ? list.pending : 0) + '</span>' +
                    '</button>';
+        }
+
+        // Marca de comparticion del rail: de quien viene la lista prestada, o con
+        // cuanta gente comparto la mia. Sin comparticion no se pinta nada.
+        shareTag(list) {
+            if (this.isInvited(list)) {
+                return '<span class="tdw-tag' + (this.canEdit(list) ? '' : ' is-ro') + '" ' +
+                            'title="' + esc('De ' + (list.ownerName || 'otra cuenta') + (this.canEdit(list) ? ' · puedes editarla' : ' · solo consulta')) + '">' +
+                         ico(this.canEdit(list) ? ICON.pencil : ICON.eye) + esc(list.ownerName || '') +
+                       '</span>';
+            }
+            const n = (list.shares || []).length;
+            if (!n) return '';
+            return '<span class="tdw-tag" title="' + esc('Compartida con ' + plural(n, 'cuenta', 'cuentas')) + '">' +
+                     ico(ICON.users) + n +
+                   '</span>';
         }
 
         groupRow(kind, label, count, open, iconName) {
@@ -366,26 +417,36 @@
 
             const list = this.listByKey(this.openKey);
             if (!list) { this.openKey = null; this.renderInbox(); return; }
+            if (this.shareOpen)         { this.renderShare(list); return; }
 
+            const rw   = this.canEdit(list);
             const secs = list.sections || [];
             const body = secs.length
-                ? secs.map((sec) => this.secBlock(sec)).join('')
-                : '<div class="tdw-sec" data-sec="">' +
-                     '<div class="tdw-add">' +
-                       '<span class="tdw-plus">' + ico(ICON.plus) + '</span>' +
-                       '<input type="text" data-tdw="addtask" placeholder="Añadir la primera tarea…" maxlength="240">' +
-                     '</div>' +
-                   '</div>';
+                ? secs.map((sec) => this.secBlock(sec, rw)).join('')
+                : (rw
+                    ? '<div class="tdw-sec" data-sec="">' +
+                        '<div class="tdw-add">' +
+                          '<span class="tdw-plus">' + ico(ICON.plus) + '</span>' +
+                          '<input type="text" data-tdw="addtask" placeholder="Añadir la primera tarea…" maxlength="240">' +
+                        '</div>' +
+                      '</div>'
+                    : this.emptyBlock(ICON.list, 'Esta lista todavía no tiene tareas',
+                        esc((list.ownerName || 'Su dueño') + ' la compartió contigo para consulta.')));
 
             this.$main.html(
                 '<div class="tdw-main-head">' +
                   '<div class="tdw-mh-row">' +
                     '<div class="tdw-mh-title">' +
-                      '<h3 contenteditable="true" spellcheck="false" data-tdw="listtitle">' + esc(list.title) + '</h3>' +
+                      '<h3' + (rw ? ' contenteditable="true" spellcheck="false" data-tdw="listtitle"' : '') + '>' + esc(list.title) + '</h3>' +
                       '<div class="tdw-crumb">' + ico(ICON.folder) + esc(list.crumbs.join(' / ')) +
-                        (list.crumbs.length ? ' / ' : '') + '<code>' + esc(list.file) + '</code></div>' +
+                        (list.crumbs.length ? ' / ' : '') + '<code>' + esc(list.file) + '</code>' +
+                        this.originNote(list) + '</div>' +
                     '</div>' +
                     '<div class="tdw-mh-actions">' +
+                      (list.scope === 'mine'
+                        ? '<button class="tdw-btn' + ((list.shares || []).length ? ' is-shared' : '') + '" data-tdw="share" type="button" title="Compartir con otras cuentas">' +
+                            ico(ICON.share) + '<span>' + ((list.shares || []).length ? 'Compartida · ' + list.shares.length : 'Compartir') + '</span></button>'
+                        : '') +
                       '<button class="tdw-btn" data-tdw="openfile" type="button" title="Abrir el archivo en el visor">' + ico(ICON.open) + '<span>Abrir</span></button>' +
                       '<button class="tdw-btn" data-tdw="prompt" type="button" title="Copiar prompt de la lista">' + ico(ICON.copy) + '<span>Copiar prompt</span></button>' +
                       (this.isArchived(list.key)
@@ -396,7 +457,7 @@
                   '<div class="tdw-progress" id="tdwProgress"></div>' +
                 '</div>' +
                 '<div class="tdw-scroll">' + body +
-                  '<button class="tdw-newsec" data-tdw="newsec" type="button">' + ico(ICON.plus) + ' Nueva sección</button>' +
+                  (rw ? '<button class="tdw-newsec" data-tdw="newsec" type="button">' + ico(ICON.plus) + ' Nueva sección</button>' : '') +
                 '</div>' +
                 this.quickBar()
             );
@@ -405,38 +466,59 @@
             this.icons();
         }
 
-        secBlock(sec) {
+        // Coletilla de la miga de pan cuando la lista no es propia: de quien es y
+        // que se puede hacer con ella.
+        originNote(list) {
+            if (!this.isInvited(list)) return '';
+            return '<span class="tdw-tag' + (this.canEdit(list) ? '' : ' is-ro') + '">' +
+                     ico(this.canEdit(list) ? ICON.pencil : ICON.eye) +
+                     esc((list.ownerName || 'Otra cuenta') + (this.canEdit(list) ? ' · puedes editarla' : ' · solo consulta')) +
+                   '</span>';
+        }
+
+        // `rw` (read-write) apaga los controles de escritura cuando la lista es
+        // prestada en modo consulta: sin caja de captura, sin renombrar, sin borrar.
+        secBlock(sec, rw) {
             const tasks = (sec.tasks || []).filter((t) => this.keeps(t));
             return '<section class="tdw-sec" data-sec="' + esc(sec.id) + '">' +
                      '<div class="tdw-sec-head">' +
-                       '<h4 contenteditable="true" spellcheck="false" data-tdw="sectitle">' + esc(sec.title) + '</h4>' +
+                       '<h4' + (rw ? ' contenteditable="true" spellcheck="false" data-tdw="sectitle"' : '') + '>' + esc(sec.title) + '</h4>' +
                        '<span class="tdw-n">' + (sec.tasks || []).length + '</span>' +
                        '<span class="tdw-sec-tools">' +
                          '<button data-tdw="secprompt" title="Copiar prompt de la sección">' + ico(ICON.copy) + '</button>' +
-                         '<button data-tdw="delsec" title="Eliminar sección">' + ico(ICON.close) + '</button>' +
+                         (rw ? '<button data-tdw="delsec" title="Eliminar sección">' + ico(ICON.close) + '</button>' : '') +
                        '</span>' +
                      '</div>' +
-                     tasks.map((t) => this.taskRow(t)).join('') +
-                     '<div class="tdw-add">' +
-                       '<span class="tdw-plus">' + ico(ICON.plus) + '</span>' +
-                       '<input type="text" data-tdw="addtask" placeholder="Añadir tarea…" maxlength="240">' +
-                     '</div>' +
+                     tasks.map((t) => this.taskRow(t, null, rw)).join('') +
+                     (rw
+                        ? '<div class="tdw-add">' +
+                            '<span class="tdw-plus">' + ico(ICON.plus) + '</span>' +
+                            '<input type="text" data-tdw="addtask" placeholder="Añadir tarea…" maxlength="240">' +
+                          '</div>'
+                        : '') +
                    '</section>';
         }
 
-        taskRow(task, origin) {
-            return '<div class="tdw-task' + (task.done ? ' is-done' : '') + '" data-id="' + esc(task.id) + '"' +
+        // En la Bandeja y en la busqueda cada fila trae su origen, asi que el
+        // permiso se resuelve por la lista a la que pertenece, no por la abierta.
+        taskRow(task, origin, rw) {
+            const editable = rw !== false;
+            return '<div class="tdw-task' + (task.done ? ' is-done' : '') + (editable ? '' : ' is-ro') + '" data-id="' + esc(task.id) + '"' +
                         (origin ? ' data-key="' + esc(origin.key) + '" data-sec="' + esc(origin.secId) + '"' : '') + '>' +
-                     '<button class="tdw-chk" data-tdw="check" type="button" title="Marcar">' + ico(ICON.check) + '</button>' +
-                     '<span class="tdw-txt"' + (origin ? '' : ' contenteditable="true" spellcheck="false" data-tdw="tasktext"') + '>' +
+                     (editable
+                        ? '<button class="tdw-chk" data-tdw="check" type="button" title="Marcar">' + ico(ICON.check) + '</button>'
+                        : '<span class="tdw-chk is-ro" title="Solo consulta">' + ico(ICON.check) + '</span>') +
+                     '<span class="tdw-txt"' + (origin || !editable ? '' : ' contenteditable="true" spellcheck="false" data-tdw="tasktext"') + '>' +
                        (origin ? mark(task.text, this.query) : esc(task.text)) +
                      '</span>' +
                      (origin
                         ? '<button class="tdw-origin" data-tdw="goto" type="button" title="Abrir esta lista">' + ico(ICON.folder) + esc(origin.label) + '</button>'
                         : '') +
-                     '<span class="tdw-task-tools">' +
-                       '<button data-tdw="deltask" title="Eliminar">' + ico(ICON.close) + '</button>' +
-                     '</span>' +
+                     (editable
+                        ? '<span class="tdw-task-tools">' +
+                            '<button data-tdw="deltask" title="Eliminar">' + ico(ICON.close) + '</button>' +
+                          '</span>'
+                        : '') +
                    '</div>';
         }
 
@@ -460,7 +542,7 @@
                 (list.sections || []).forEach((sec) => {
                     (sec.tasks || []).forEach((task) => {
                         if (!this.keeps(task)) return;
-                        rows.push(this.taskRow(task, { key: list.key, secId: sec.id, label: list.title + ' · ' + sec.title }));
+                        rows.push(this.taskRow(task, { key: list.key, secId: sec.id, label: list.title + ' · ' + sec.title }, this.canEdit(list)));
                     });
                 });
             });
@@ -502,7 +584,7 @@
                         const inList = String(list.title + ' ' + sec.title).toLowerCase().indexOf(q) !== -1;
                         if (!inTask && !inList) return;
                         hitLists[list.key] = true;
-                        rows.push(this.taskRow(task, { key: list.key, secId: sec.id, label: list.title + ' · ' + sec.title }));
+                        rows.push(this.taskRow(task, { key: list.key, secId: sec.id, label: list.title + ' · ' + sec.title }, this.canEdit(list)));
                     });
                 });
             });
@@ -562,7 +644,7 @@
         pickDest($anchor) {
             const opts = [];
             this.visibleLists().forEach((list) => {
-                if (!(list.sections || []).length) return;
+                if (!(list.sections || []).length || !this.canEdit(list)) return;
                 opts.push('<optgroup label="' + esc(list.title + ' — ' + list.pathLabel) + '">' +
                     list.sections.map((s) =>
                         '<option value="' + esc(list.key + '::' + s.id) + '"' + (this.destKey === list.key + '::' + s.id ? ' selected' : '') + '>' +
@@ -586,6 +668,10 @@
         quickAdd(text) {
             const dest = this.destOf();
             if (!dest) { this.flash('Elige primero a que lista va', 'error'); return false; }
+            if (!this.canEdit(dest.list)) {
+                this.flash('Esa lista se compartió contigo solo para consulta', 'error');
+                return false;
+            }
 
             dest.sec.tasks = dest.sec.tasks || [];
             dest.sec.tasks.push({ id: uid('t'), text: text, done: false });
@@ -598,6 +684,7 @@
         // ── Alta de lista ───────────────────────────────────────────────────
         openForm() {
             this.formOpen = true;
+            this.closeShare();
             this.renderRail();
 
             if (this.folders) { this.renderForm(); return; }
@@ -660,6 +747,133 @@
                         this.openKey = key;
                         this.render();
                     });
+                })
+                .fail((xhr) => this.flash(this.reasonOf(xhr), 'error'));
+        }
+
+        // ── Compartir con otras cuentas ─────────────────────────────────────
+        // El archivo no se mueve ni se duplica: el servidor solo anota que otra
+        // cuenta puede abrirlo (ver ctrl/todo-shares.php). Por eso solo se ofrece
+        // sobre listas propias — la carpeta comun ya la ve todo el mundo y lo
+        // prestado no es de uno para volver a prestarlo.
+        openShare() {
+            const list = this.listByKey(this.openKey);
+            if (!list || list.scope !== 'mine') {
+                this.flash('Solo puedes compartir listas de tu biblioteca', 'error');
+                return;
+            }
+            this.shareOpen = true;
+            this.closeForm();
+
+            if (this.users) { this.renderMain(); return; }
+            $.get(API, { action: 'users' })
+                .done((res) => {
+                    if (!res || !res.success) { this.shareOpen = false; this.flash((res && res.message) || 'no se pudo leer las cuentas', 'error'); this.render(); return; }
+                    this.users = res.users || [];
+                    this.renderMain();
+                })
+                .fail((xhr) => { this.shareOpen = false; this.flash(this.reasonOf(xhr), 'error'); this.render(); });
+        }
+
+        closeShare() {
+            this.shareOpen = false;
+        }
+
+        renderShare(list) {
+            const shares = list.shares || [];
+            const taken  = {};
+            shares.forEach((s) => { taken[s.id] = s.permission; });
+
+            // Una cuenta que ya tiene acceso sigue en el selector: volver a
+            // enviarla es la forma de cambiarle el permiso.
+            const opts = (this.users || []).map((u) =>
+                '<option value="' + u.id + '">' + esc(u.name || u.email) +
+                    (u.email ? ' — ' + esc(u.email) : '') +
+                    (taken[u.id] ? ' (ya tiene acceso)' : '') + '</option>'
+            ).join('');
+
+            const rows = shares.length
+                ? shares.map((s) =>
+                    '<div class="tdw-share-row" data-target="' + s.id + '">' +
+                      '<span class="tdw-share-who"><b>' + esc(s.name || s.email) + '</b>' +
+                        (s.email ? '<small>' + esc(s.email) + '</small>' : '') + '</span>' +
+                      '<select class="tdw-share-perm" data-tdw="shareperm">' +
+                        '<option value="edit"' + (s.permission === 'edit' ? ' selected' : '') + '>Puede editar</option>' +
+                        '<option value="view"' + (s.permission === 'view' ? ' selected' : '') + '>Solo consulta</option>' +
+                      '</select>' +
+                      '<button class="tdw-btn" data-tdw="unshare" type="button" title="Quitar acceso">' + ico(ICON.trash) + '</button>' +
+                    '</div>').join('')
+                : '<p class="tdw-share-none">Todavía no la comparte con nadie.</p>';
+
+            this.$main.html(
+                '<div class="tdw-main-head">' +
+                  '<div class="tdw-mh-row">' +
+                    '<div class="tdw-mh-title">' +
+                      '<h3>Compartir “' + esc(list.title) + '”</h3>' +
+                      '<div class="tdw-crumb">' + ico(ICON.users) +
+                        'El archivo se queda en tu biblioteca · <code>' + esc(list.pathLabel) + '</code></div>' +
+                    '</div>' +
+                    '<div class="tdw-mh-actions">' +
+                      '<button class="tdw-btn" data-tdw="closeshare" type="button">' + ico(ICON.back) + '<span>Volver a la lista</span></button>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="tdw-scroll">' +
+                  '<div class="tdw-form">' +
+                    '<h4>' + ico(ICON.share) + ' Dar acceso</h4>' +
+                    (opts
+                      ? '<div class="tdw-field"><label>Cuenta</label><select id="tdwShareUser">' + opts + '</select></div>' +
+                        '<div class="tdw-field"><label>Permiso</label><select id="tdwSharePerm">' +
+                          '<option value="edit">Puede editar — palomear, agregar y borrar tareas</option>' +
+                          '<option value="view">Solo consulta — ve la lista y su avance</option>' +
+                        '</select></div>' +
+                        '<div class="tdw-form-foot">' +
+                          '<button class="tdw-btn is-primary" data-tdw="doshare" type="button">' + ico(ICON.share) + ' Compartir</button>' +
+                        '</div>'
+                      : '<p class="tdw-share-none">No hay otras cuentas registradas todavía.</p>') +
+                  '</div>' +
+                  '<div class="tdw-form">' +
+                    '<h4>' + ico(ICON.users) + ' Con acceso (' + shares.length + ')</h4>' +
+                    rows +
+                  '</div>' +
+                '</div>'
+            );
+            this.icons();
+        }
+
+        // Alta y baja comparten respuesta: el servidor devuelve como queda la
+        // lista de accesos, asi no hay que adivinarlo en el cliente.
+        applyShares(list, shares) {
+            list.shares = shares || [];
+            this.renderRail();
+            this.renderMain();
+        }
+
+        share() {
+            const list = this.listByKey(this.openKey);
+            if (!list) return;
+            const target     = parseInt($('#tdwShareUser').val(), 10) || 0;
+            const permission = String($('#tdwSharePerm').val() || 'edit');
+            if (!target) { this.flash('Elige con quién compartirla', 'error'); return; }
+
+            $.post(API, { action: 'share', rel: list.rel, target: target, permission: permission })
+                .done((res) => {
+                    if (!res || !res.success) { this.flash((res && res.message) || 'no se pudo compartir', 'error'); return; }
+                    this.applyShares(list, res.shares);
+                    this.flash('Lista compartida', 'ok');
+                })
+                .fail((xhr) => this.flash(this.reasonOf(xhr), 'error'));
+        }
+
+        unshare(target) {
+            const list = this.listByKey(this.openKey);
+            if (!list || !target) return;
+
+            $.post(API, { action: 'unshare', rel: list.rel, target: target })
+                .done((res) => {
+                    if (!res || !res.success) { this.flash((res && res.message) || 'no se pudo quitar el acceso', 'error'); return; }
+                    this.applyShares(list, res.shares);
+                    this.flash('Acceso retirado', 'ok');
                 })
                 .fail((xhr) => this.flash(this.reasonOf(xhr), 'error'));
         }
@@ -783,6 +997,7 @@
                 searchTimer = setTimeout(() => {
                     self.query = value;
                     self.closeForm();
+                    self.closeShare();
                     self.render();
                 }, 160);
             });
@@ -790,23 +1005,26 @@
             $v.on('click', '[data-tdw="group"]', function () {
                 const kind = $(this).data('kind');
                 if (kind === 'empty') self.showEmpty = !self.showEmpty;
+                else if (kind === 'invited') self.showInvited = !self.showInvited;
                 else self.showArchived = !self.showArchived;
                 self.renderRail();
             });
 
             $v.on('click', '[data-tdw="inbox"]', function () {
                 self.closeForm();
+                self.closeShare();
                 self.openKey = null;
                 self.render();
             });
 
             $v.on('click', '[data-tdw="pick"]', function () {
                 self.closeForm();
+                self.closeShare();
                 self.openKey = $(this).data('key');
                 // Abrir una lista apunta ahi la captura rapida, salvo que el
                 // usuario haya fijado otro destino a mano.
                 const list = self.listByKey(self.openKey);
-                if (list && (list.sections || []).length && !self.destOf()) {
+                if (list && self.canEdit(list) && (list.sections || []).length && !self.destOf()) {
                     self.destKey = list.key + '::' + list.sections[list.sections.length - 1].id;
                 }
                 self.render();
@@ -815,6 +1033,7 @@
             // Chip de origen en la Bandeja / busqueda: salta a esa lista.
             $v.on('click', '[data-tdw="goto"]', function (e) {
                 e.stopPropagation();
+                self.closeShare();
                 self.openKey = $(this).closest('.tdw-task').data('key');
                 self.query = '';
                 $('#tdwSearch').val('');
@@ -842,6 +1061,30 @@
 
             $v.on('click', '[data-tdw="archive"]',   () => this.archive(this.openKey));
             $v.on('click', '[data-tdw="unarchive"]', () => this.unarchive(this.openKey));
+
+            $v.on('click', '[data-tdw="share"]',      () => this.openShare());
+            $v.on('click', '[data-tdw="closeshare"]', () => { this.closeShare(); this.renderMain(); this.icons(); });
+            $v.on('click', '[data-tdw="doshare"]',    () => this.share());
+
+            $v.on('click', '[data-tdw="unshare"]', function () {
+                self.unshare(parseInt($(this).closest('.tdw-share-row').data('target'), 10) || 0);
+            });
+
+            // Cambiar el permiso es volver a compartir con la misma cuenta: el
+            // servidor hace upsert y no hace falta una accion aparte.
+            $v.on('change', '[data-tdw="shareperm"]', function () {
+                const list   = self.listByKey(self.openKey);
+                const target = parseInt($(this).closest('.tdw-share-row').data('target'), 10) || 0;
+                if (!list || !target) return;
+
+                $.post(API, { action: 'share', rel: list.rel, target: target, permission: $(this).val() })
+                    .done((res) => {
+                        if (!res || !res.success) { self.flash((res && res.message) || 'no se pudo cambiar el permiso', 'error'); return; }
+                        self.applyShares(list, res.shares);
+                        self.flash('Permiso actualizado', 'ok');
+                    })
+                    .fail((xhr) => self.flash(self.reasonOf(xhr), 'error'));
+            });
 
             $v.on('click', '[data-tdw="check"]', function () {
                 const ref = self.refOf($(this));

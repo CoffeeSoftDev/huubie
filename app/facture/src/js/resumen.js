@@ -1,43 +1,6 @@
 let apiResumen = '/app/facture/ctrl/ctrl-facture-resumen.php';
 let app, resumen, resumenView;
 
-// Copy del modulo. No son datos: ventas, montos y avance se consultan al servidor.
-const VIEW_HEADER_RESUMEN = {
-    title:    'Resumen del dia',
-    subtitle: 'Avance de la meta de facturacion del dia: cuanto se vendio, cuanto se facturo y cuanto falta',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
-
-const VIEW_FOOTER_RESUMEN = {
-    info: '',
-    legends: [
-        { tone: 'success', label: 'Facturado'    },
-        { tone: 'warning', label: 'Por facturar' },
-        { tone: 'purple',  label: 'Efectivo'     },
-        { tone: 'info',    label: 'Banco'        }
-    ]
-};
-
-// El unico formato que se arma en el cliente: la suma de lo que se va marcando.
-// El resto de los montos llegan ya escritos del servidor.
-const pesos = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-const fechaLarga = (iso) => {
-    const parts = String(iso || '').split('-');
-    if (parts.length !== 3) return iso || '';
-    return `${parseInt(parts[2], 10)} de ${MESES_ES[parseInt(parts[1], 10) - 1]} de ${parts[0]}`;
-};
-
-// useFetch del framework resuelve por callback; aqui el modulo encadena con
-// await, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
-
 $(async () => {
     resumenView = new ResumenView(apiResumen, 'root');
     resumen     = new Resumen(apiResumen, 'root');
@@ -59,7 +22,7 @@ class App extends Templates {
     // ?dia= entra a ese si existe. Nada se preselecciona: marcar los tickets que se
     // van a facturar es la decision del cierre.
     async init() {
-        this.dataInit = await fnAjax({ opc: 'init', dia: this.getDiaFromUrl() }, apiResumen);
+        this.dataInit = await useFetch({ url: apiResumen, data: { opc: 'init', dia: this.getDiaFromUrl() } });
 
         this.render();
     }
@@ -71,7 +34,7 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        resumenView.renderFooter(VIEW_FOOTER_RESUMEN);
+        resumenView.renderFooter();
         resumenView.renderPanelHeads();
         this.updateHeaderTitle();
         resumen.lsKpis();
@@ -276,15 +239,31 @@ class App extends Templates {
         this.alertBox({ type: 'success', title: 'Indicadores recalculados', timer: 1600 });
     }
 
+    // Copy de la cabecera del modulo. No son datos: ventas, montos y avance se
+    // consultan al servidor.
     updateHeaderTitle() {
+        const header = {
+            title:    'Resumen del dia',
+            subtitle: 'Avance de la meta de facturacion del dia: cuanto se vendio, cuanto se facturo y cuanto falta',
+            back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+        };
+
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+        const fechaLarga = (iso) => {
+            const parts = String(iso || '').split('-');
+            if (parts.length !== 3) return iso || '';
+            return `${parseInt(parts[2], 10)} de ${meses[parseInt(parts[1], 10) - 1]} de ${parts[0]}`;
+        };
+
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${VIEW_HEADER_RESUMEN.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fechaLarga(f.dia))}</span>`;
+        const titleHtml = `${header.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fechaLarga(f.dia))}</span>`;
 
-        resumenView.renderHeader(Object.assign({}, VIEW_HEADER_RESUMEN, { titleHtml }));
+        resumenView.renderHeader(Object.assign({}, header, { titleHtml }));
     }
 
     updateFooterInfo(text) {
@@ -310,7 +289,7 @@ class Resumen extends Templates {
     // -- Data --
 
     async lsTodos() {
-        const data = await fnAjax(Object.assign({ opc: 'lsTodos' }, app.getFilters()), apiResumen);
+        const data = await useFetch({ url: apiResumen, data: Object.assign({ opc: 'lsTodos' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableTodos',
@@ -333,7 +312,7 @@ class Resumen extends Templates {
     }
 
     async lsPendientes() {
-        const data = await fnAjax(Object.assign({ opc: 'lsPendientes' }, app.getFilters()), apiResumen);
+        const data = await useFetch({ url: apiResumen, data: Object.assign({ opc: 'lsPendientes' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'detailContent',
@@ -356,7 +335,7 @@ class Resumen extends Templates {
     }
 
     async lsFacturados() {
-        const data = await fnAjax(Object.assign({ opc: 'lsFacturados' }, app.getFilters()), apiResumen);
+        const data = await useFetch({ url: apiResumen, data: Object.assign({ opc: 'lsFacturados' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableFacturados',
@@ -379,7 +358,7 @@ class Resumen extends Templates {
     // servidor sobre las ventas del dia; aqui solo se pintan y se guardan para que
     // el pie del panel los tenga a mano mientras se marcan tickets.
     async lsKpis() {
-        const t = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiResumen);
+        const t = await useFetch({ url: apiResumen, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
 
         this.totales = t;
 
@@ -453,6 +432,10 @@ class Resumen extends Templates {
         const t = this.totales;
         if (!t) return;
 
+        // El unico formato que se arma en el cliente: la suma de lo que se va
+        // marcando. El resto de los montos llegan ya escritos del servidor.
+        const pesos = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
         const sumaSel = this.getSeleccionado();
 
         resumenView.renderProgress({
@@ -491,10 +474,13 @@ class Resumen extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            const response = await fnAjax({
-                opc: 'sendToInvoice',
-                ids: JSON.stringify(seleccion)
-            }, apiResumen);
+            const response = await useFetch({
+                url: apiResumen,
+                data: {
+                    opc: 'sendToInvoice',
+                    ids: JSON.stringify(seleccion)
+                }
+            });
 
             if (response.status === 200) {
                 app.seleccion = [];
@@ -533,11 +519,19 @@ class ResumenView extends Templates {
         });
     }
 
-    renderFooter(data) {
+    renderFooter() {
         this.viewFooter({
             parent: 'viewFooterRow',
             id:     'viewFooter',
-            json:   data
+            json: {
+                info: '',
+                legends: [
+                    { tone: 'success', label: 'Facturado'    },
+                    { tone: 'warning', label: 'Por facturar' },
+                    { tone: 'purple',  label: 'Efectivo'     },
+                    { tone: 'info',    label: 'Banco'        }
+                ]
+            }
         });
     }
 

@@ -1,0 +1,67 @@
+{
+  "title": "Facture - tickets",
+  "sections": [
+    {
+      "id": "smyghy18",
+      "title": "Pendientes",
+      "tasks": [
+        {
+          "id": "tf8fwl4m",
+          "text": "Quitar el input de buscar nota",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sawt3qrt",
+      "title": "Tabla de tickets del dia",
+      "tasks": [
+        {
+          "id": "trd7592a",
+          "text": "Quitar la columna de mesero",
+          "done": false
+        },
+        {
+          "id": "tjmlkerl",
+          "text": "centrar folio y hacer mas compacta la tabla",
+          "done": false
+        },
+        {
+          "id": "t2zgd1sd",
+          "text": "Quitar el pendiente de facturar y solo dejar el badge de facturado",
+          "done": false
+        },
+        {
+          "id": "tsf43699",
+          "text": "Agregar un resumen de facturacion con kpis cards, donde se debe mostrar el total del dia, el 70 % del monto a facturar , el monto ya facturado y lo faltante por facturar",
+          "done": false
+        },
+        {
+          "id": "tsyzitjl",
+          "text": "agregar datatable a la tabla y separar un poco el scroll que tiene",
+          "done": false
+        },
+        {
+          "id": "tt4jqh6i",
+          "text": "Botón para generar los tickets que estan en 0 % , estos tickets tomaran de la base de datos de products con is_bridge = 1, y se generaran aleatoraimanete tratando de llegar al monto del ticket en 0, si no llega aplicar descuento o cambiar precio",
+          "done": false
+        },
+        {
+          "id": "tzfi7oc4",
+          "text": "Diseñar el ticket acorde al formato del soft restaurant",
+          "done": false
+        },
+        {
+          "id": "ta7hipt5",
+          "text": "Quitar el boton de generar y dejar solo el boton de imprimir en la parte de arriba en icono",
+          "done": false
+        },
+        {
+          "id": "tk1vpdvb",
+          "text": "agregar un boton que debe exportar todos los tickets en formato pdf",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

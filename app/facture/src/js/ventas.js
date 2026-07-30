@@ -1,22 +1,6 @@
 let apiVentas = '/app/facture/ctrl/ctrl-facture-ventas.php';
 let app, ventas, ventasView;
 
-// Copy de la cabecera del modulo. No son datos: ventas, KPIs, formas de pago,
-// estados y periodo se consultan al servidor.
-const VIEW_HEADER_VENTAS = {
-    title:    'Ventas y pagos',
-    subtitle: 'Explora las ventas, sus pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
-    back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-};
-
-// useFetch del framework resuelve por callback; aqui el modulo encadena con
-// await, asi que las llamadas pasan por este helper.
-const fnAjax = (data, url) => fetch(url, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams(data)
-}).then(r => r.json());
-
 $(async () => {
     ventasView = new VentasView(apiVentas, 'root');
     ventas     = new Ventas(apiVentas, 'root');
@@ -36,7 +20,7 @@ class App extends Templates {
     }
 
     async init() {
-        const data = await fnAjax({ opc: 'init' }, apiVentas);
+        const data = await useFetch({ url: apiVentas, data: { opc: 'init' } });
         const dia  = this.getDiaFromUrl();
 
         // El periodo arranca en el ultimo mes con ventas cargadas, que resuelve el
@@ -61,7 +45,7 @@ class App extends Templates {
     render() {
         this.layout();
         this.filterBar();
-        ventasView.renderHeader(VIEW_HEADER_VENTAS);
+        ventasView.renderHeader();
         ventasView.renderDetail(null);
         ventas.lsKpis();
         ventas.lsVentas();
@@ -337,7 +321,7 @@ class App extends Templates {
 
         $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).closest('tr').addClass('row-active');
 
-        const data = await fnAjax({ opc: 'getVenta', folio: folio }, apiVentas);
+        const data = await useFetch({ url: apiVentas, data: { opc: 'getVenta', folio: folio } });
         ventasView.renderDetail(data.status === 200 ? data.venta : null);
     }
 }
@@ -362,7 +346,7 @@ class Ventas extends Templates {
     // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
     // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
     async lsVentas() {
-        const data = await fnAjax(Object.assign({ opc: 'lsVentas' }, app.getFilters()), apiVentas);
+        const data = await useFetch({ url: apiVentas, data: Object.assign({ opc: 'lsVentas' }, app.getFilters()) });
 
         this.createCoffeeTable3({
             parent:       'tableWrap',
@@ -425,7 +409,7 @@ class Ventas extends Templates {
     }
 
     async lsKpis() {
-        const kpis = await fnAjax(Object.assign({ opc: 'showKpis' }, app.getFilters()), apiVentas);
+        const kpis = await useFetch({ url: apiVentas, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
 
         // El monto abre la fila: es la cifra que se busca primero al mover los
         // filtros, y las tres de conteo son su desglose.
@@ -492,11 +476,17 @@ class VentasView extends Templates {
 
     // -- Render helpers --
 
-    renderHeader(data) {
+    // Copy de la cabecera del modulo. No son datos: ventas, KPIs, formas de pago,
+    // estados y periodo se consultan al servidor.
+    renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
             id:     'hdrVentas',
-            json:   data
+            json: {
+                title:    'Ventas y pagos',
+                subtitle: 'Explora las ventas, sus pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
+                back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
+            }
         });
     }
 

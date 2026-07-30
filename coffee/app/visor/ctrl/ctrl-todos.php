@@ -8,10 +8,15 @@
 //   save    -> reescribe un todo.json completo (el cliente manda el JSON entero)
 //   create  -> crea una lista nueva en una carpeta de la biblioteca
 //   folders -> carpetas donde se puede crear una lista (para el selector)
+//   users   -> cuentas con las que se puede compartir (todas menos la propia)
+//   share   -> comparte una lista propia con una cuenta (permiso view | edit)
+//   unshare -> retira esa comparticion
 //
-// El alcance es la biblioteca del visor: documents/users/<id> y documents/shared.
-// Fuera de esas dos raices no lee ni escribe nada.
+// El alcance es la biblioteca del visor: documents/users/<id> y documents/shared,
+// mas las listas que OTRA cuenta haya compartido con la de la sesion — esas se
+// leen de su biblioteca original, nunca se copian (ver todo-shares.php).
 require_once __DIR__ . '/library-roots.php';
+require_once __DIR__ . '/todo-shares.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -29,12 +34,44 @@ function todos_norm($p) {
     return rtrim(str_replace('\\', '/', (string) $p), '/');
 }
 
-// Las dos raices del cajon, con la etiqueta que las nombra en la interfaz. La
-// biblioteca propia va primero: es la que el usuario reconoce como "sus" carpetas.
+// Las dos raices propias del cajon, con la etiqueta que las nombra en la interfaz.
+// La biblioteca propia va primero: es la que el usuario reconoce como "sus"
+// carpetas. `keyPrefix` y `relPrefix` viajan con la raiz porque las listas
+// invitadas (de otra cuenta) se arman con el mismo molde pero con otros valores.
 function todos_roots() {
     return [
-        ['root' => todos_norm(coffee_visor_docs_root()),   'scope' => 'mine',   'label' => ''],
-        ['root' => todos_norm(coffee_visor_shared_root()), 'scope' => 'shared', 'label' => coffee_visor_shared_name()]
+        [
+            'root'      => todos_norm(coffee_visor_docs_root()),
+            'scope'     => 'mine',
+            'label'     => '',
+            'keyPrefix' => 'mine:',
+            'relPrefix' => coffee_visor_docs_rel_prefix()
+        ],
+        [
+            'root'      => todos_norm(coffee_visor_shared_root()),
+            'scope'     => 'shared',
+            'label'     => coffee_visor_shared_name(),
+            'keyPrefix' => 'shared:',
+            'relPrefix' => coffee_visor_shared_rel_prefix()
+        ]
+    ];
+}
+
+// Raiz "prestada": la biblioteca de otra cuenta vista a traves de una
+// comparticion concreta. Devuelve null si esa cuenta ya no tiene carpeta.
+function todos_invited_root($share) {
+    $root = coffee_visor_docs_root_of($share['ownerId']);
+    if ($root === '') return null;
+
+    return [
+        'root'       => todos_norm($root),
+        'scope'      => 'invited',
+        'label'      => $share['ownerName'],
+        'keyPrefix'  => 'u' . (int) $share['ownerId'] . ':',
+        'relPrefix'  => coffee_visor_docs_rel_prefix_of($share['ownerId']),
+        'ownerId'    => (int) $share['ownerId'],
+        'ownerName'  => $share['ownerName'],
+        'permission' => $share['permission']
     ];
 }
 
@@ -119,29 +156,41 @@ function todos_entry($fullPath, $rootInfo) {
     }
 
     // Migas de pan legibles: "Huubie / Facturador / todo.json". La carpeta
-    // compartida se nombra con su etiqueta y no con el nombre real del directorio.
+    // compartida se nombra con su etiqueta y no con el nombre real del directorio;
+    // una lista invitada se encabeza con el nombre de su dueno, para que nadie la
+    // confunda con una propia.
     $crumbs = $dir !== '' ? explode('/', $dir) : [];
-    if ($rootInfo['scope'] === 'shared') array_unshift($crumbs, $rootInfo['label']);
+    if ($rootInfo['scope'] !== 'mine') array_unshift($crumbs, $rootInfo['label']);
 
-    $relPrefix = $rootInfo['scope'] === 'shared'
-        ? coffee_visor_shared_rel_prefix()
-        : coffee_visor_docs_rel_prefix();
+    // Sobre lo ajeno solo se manda el permiso registrado; lo propio y la carpeta
+    // comun siempre son editables.
+    $permission = $rootInfo['scope'] === 'invited'
+        ? ($rootInfo['permission'] === 'view' ? 'view' : 'edit')
+        : 'edit';
 
     return [
-        'key'      => ($rootInfo['scope'] === 'shared' ? 'shared:' : 'mine:') . $rel,
+        'key'      => $rootInfo['keyPrefix'] . $rel,
         'scope'    => $rootInfo['scope'],
         'title'    => $shape['title'],
         'file'      => $file,
         'dir'       => $dir,
+        'rel'       => $rel,
         'crumbs'    => $crumbs,
         'pathLabel' => implode(' / ', array_merge($crumbs, [$file])),
         'fullPath'  => $full,
-        'relPath'   => $relPrefix . ($rel !== '' ? '/' . $rel : ''),
+        'relPath'   => $rootInfo['relPrefix'] . ($rel !== '' ? '/' . $rel : ''),
         'total'     => $total,
         'done'      => $done,
         'pending'   => $total - $done,
         'mtime'     => @filemtime($full) ?: 0,
-        'sections'  => $shape['sections']
+        'sections'  => $shape['sections'],
+        // Comparticion: quien es el dueno cuando la lista es prestada, y con
+        // quien la comparto yo cuando es mia (lo rellena `scan`).
+        'ownerId'    => (int) ($rootInfo['ownerId'] ?? 0),
+        'ownerName'  => (string) ($rootInfo['ownerName'] ?? ''),
+        'permission' => $permission,
+        'canEdit'    => $permission === 'edit',
+        'shares'     => []
     ];
 }
 
@@ -161,17 +210,58 @@ function todos_root_of($fullPath) {
     return null;
 }
 
+// Igual que la anterior pero para lo prestado: una ruta cae aqui solo si apunta
+// EXACTAMENTE al archivo que otra cuenta compartio conmigo. No basta con estar
+// dentro de su biblioteca — compartir una lista no abre su carpeta entera.
+function todos_invited_root_of($fullPath) {
+    $me = todo_shares_user_id();
+    if ($me <= 0) return null;
+
+    // Se compara la ruta REAL de los dos lados: las raices se arman con un ".."
+    // en medio y una comparacion literal nunca casaria.
+    $full = realpath(todos_norm($fullPath));
+    if ($full === false) return null;
+    $full = todos_norm($full);
+
+    foreach (todo_shares_for_target($me) as $share) {
+        $info = todos_invited_root($share);
+        if ($info === null) continue;
+        $target = realpath($info['root'] . '/' . $share['rel']);
+        if ($target !== false && strcasecmp(todos_norm($target), $full) === 0) return $info;
+    }
+    return null;
+}
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 try {
     switch ($action) {
 
         case 'scan': {
-            $lists = [];
+            $me     = todo_shares_user_id();
+            $shared = $me > 0 ? todo_shares_by_owner($me) : [];
+            $lists  = [];
+
             foreach (todos_roots() as $info) {
                 foreach (todos_walk($info['root']) as $path) {
-                    $lists[] = todos_entry($path, $info);
+                    $entry = todos_entry($path, $info);
+                    // Mis listas cargan con quien las comparto: el panel de
+                    // comparticion se abre sin pedir nada mas al servidor.
+                    if ($entry['scope'] === 'mine' && isset($shared[$entry['rel']])) {
+                        $entry['shares'] = $shared[$entry['rel']];
+                    }
+                    $lists[] = $entry;
                 }
+            }
+
+            // Listas que otras cuentas comparten conmigo. Se leen de su biblioteca
+            // original: si el dueno la borro o la movio, simplemente no aparece.
+            foreach (todo_shares_for_target($me) as $share) {
+                $info = todos_invited_root($share);
+                if ($info === null) continue;
+                $path = $info['root'] . '/' . $share['rel'];
+                if (!is_file($path) || !todos_is_todo_file(basename($path))) continue;
+                $lists[] = todos_entry($path, $info);
             }
 
             // Mas pendientes primero: el cajon se abre mostrando donde hay trabajo.
@@ -208,8 +298,14 @@ try {
             // ilegible para el visor, asi que se rechaza antes de tocar el disco.
             if (json_decode($content, true) === null)  todos_fail('El contenido no es JSON valido');
 
+            // Primero las raices propias; si no cae en ninguna, todavia puede ser
+            // una lista que me compartieron — y entonces manda su permiso.
             $info = todos_root_of($fullPath);
-            if ($info === null) todos_fail('Ruta fuera de la biblioteca', 403);
+            if ($info === null) {
+                $info = todos_invited_root_of($fullPath);
+                if ($info === null)               todos_fail('Ruta fuera de la biblioteca', 403);
+                if ($info['permission'] !== 'edit') todos_fail('Esta lista se compartio contigo solo para consulta', 403);
+            }
             if (!is_file($fullPath)) todos_fail('La lista ya no existe en el disco', 404);
 
             if (@file_put_contents($fullPath, $content) === false) {
@@ -285,6 +381,68 @@ try {
             $folders[] = ['scope' => 'shared', 'dir' => '', 'label' => coffee_visor_shared_name()];
 
             echo json_encode(['success' => true, 'folders' => $folders], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        // ── Comparticion entre cuentas ──────────────────────────────────────
+        // Solo se comparte lo propio (`scope` mine): la carpeta comun ya la ven
+        // todos, y lo que a mi me prestaron no es mio para volver a prestarlo.
+        case 'users': {
+            $me = todo_shares_user_id();
+            if ($me <= 0) todos_fail('Inicia sesion para compartir listas', 401);
+
+            $users = array_values(array_filter(todo_shares_users(), function ($u) use ($me) {
+                return $u['id'] !== $me;
+            }));
+            echo json_encode(['success' => true, 'users' => $users], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'share': {
+            $me         = todo_shares_user_id();
+            $rel        = todo_shares_norm_rel($_POST['rel'] ?? '');
+            $target     = (int) ($_POST['target'] ?? 0);
+            $permission = todo_shares_perm($_POST['permission'] ?? 'edit');
+
+            if ($me <= 0)        todos_fail('Inicia sesion para compartir listas', 401);
+            if ($rel === '')     todos_fail('Lista no valida');
+            if ($target <= 0)    todos_fail('Elige con quien compartir');
+            if ($target === $me) todos_fail('Esa lista ya es tuya');
+            if (!isset(todo_shares_users_map()[$target])) todos_fail('Esa cuenta no existe', 404);
+
+            // La ruta se reconstruye desde MI raiz: el cliente manda solo el
+            // relativo, asi que no hay forma de registrar un permiso sobre la
+            // biblioteca de otro.
+            $mine = todos_roots()[0];
+            $path = $mine['root'] . '/' . $rel;
+            if (!is_file($path) || !todos_is_todo_file(basename($path))) todos_fail('Esa lista no esta en tu biblioteca', 404);
+
+            todo_shares_set($me, $rel, $target, $permission);
+
+            $byOwner = todo_shares_by_owner($me);
+            echo json_encode([
+                'success' => true,
+                'shares'  => $byOwner[$rel] ?? []
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
+        case 'unshare': {
+            $me     = todo_shares_user_id();
+            $rel    = todo_shares_norm_rel($_POST['rel'] ?? '');
+            $target = (int) ($_POST['target'] ?? 0);
+
+            if ($me <= 0)     todos_fail('Inicia sesion para compartir listas', 401);
+            if ($rel === '')  todos_fail('Lista no valida');
+            if ($target <= 0) todos_fail('Falta la cuenta a retirar');
+
+            todo_shares_remove($me, $rel, $target);
+
+            $byOwner = todo_shares_by_owner($me);
+            echo json_encode([
+                'success' => true,
+                'shares'  => $byOwner[$rel] ?? []
+            ], JSON_UNESCAPED_UNICODE);
             break;
         }
 

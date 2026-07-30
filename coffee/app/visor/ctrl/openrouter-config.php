@@ -4,6 +4,8 @@
  * Lee variables desde coffee/app/credentials/.env (el mismo .env de Ollama).
  */
 
+require_once __DIR__ . '/../../ctrl/credentials-path.php';
+
 define('OPENROUTER_ENV_PATH', __DIR__ . '/../../credentials/.env');
 
 if (!file_exists(OPENROUTER_ENV_PATH)) {
@@ -23,10 +25,18 @@ define('OPENROUTER_BASE_URL',      $_OPENROUTER_ENV['OPENROUTER_BASE_URL']      
 define('OPENROUTER_DEFAULT_MODEL', $_OPENROUTER_ENV['OPENROUTER_DEFAULT_MODEL'] ?? 'anthropic/claude-sonnet-4');
 define('OPENROUTER_VISION_MODEL',  $_OPENROUTER_ENV['OPENROUTER_VISION_MODEL']  ?? 'google/gemini-2.0-flash-001');
 define('OPENROUTER_TIMEOUT',       (int)($_OPENROUTER_ENV['OPENROUTER_TIMEOUT'] ?? 240));
-define('OPENROUTER_CA_BUNDLE',     $_OPENROUTER_ENV['OPENROUTER_CA_BUNDLE']     ?? '');
+// Igual que en Ollama: si la ruta del .env no resuelve (se configuro en otra
+// maquina), se cae al cacert.pem que viaja con el proyecto.
+$_OPENROUTER_CA = (string)($_OPENROUTER_ENV['OPENROUTER_CA_BUNDLE'] ?? '');
+if ($_OPENROUTER_CA === '' || !file_exists($_OPENROUTER_CA)) {
+    $_OPENROUTER_CA_FILE = coffee_credential_path('cacert.pem');
+    $_OPENROUTER_CA = file_exists($_OPENROUTER_CA_FILE) ? $_OPENROUTER_CA_FILE : '';
+    unset($_OPENROUTER_CA_FILE);
+}
+define('OPENROUTER_CA_BUNDLE', $_OPENROUTER_CA);
 
 // Cabeceras opcionales para el ranking/identificacion en openrouter.ai.
 define('OPENROUTER_APP_TITLE',     $_OPENROUTER_ENV['OPENROUTER_APP_TITLE']     ?? 'Huubie Visor');
 define('OPENROUTER_APP_REFERER',   $_OPENROUTER_ENV['OPENROUTER_APP_REFERER']   ?? '');
 
-unset($_OPENROUTER_ENV);
+unset($_OPENROUTER_ENV, $_OPENROUTER_CA);
