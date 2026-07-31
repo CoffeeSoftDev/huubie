@@ -4,6 +4,12 @@ if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-facture-tickets.php';
 
+// Que parte de la venta del dia se factura es politica de la casa, no un dato de
+// la base: por eso vive aqui y no en una tabla. Resumen ofrece el mismo numero
+// como selector (60/80/100); en Tickets es fijo porque el modulo trabaja el
+// cierre del dia contra una sola meta.
+define('META_FACTURACION', 0.7);
+
 class ctrl extends mdl {
 
     public $branch;
@@ -87,7 +93,10 @@ class ctrl extends mdl {
             $__row[] = $this->ticketRow($item, $orden);
         }
 
-        $c = $conteo[0] ?? ['tickets' => 0, 'facturados' => 0, 'cero' => 0, 'generados' => 0];
+        $c = $conteo[0] ?? [
+            'tickets' => 0, 'facturados'      => 0, 'cero' => 0, 'generados' => 0,
+            'total'   => 0, 'total_facturado' => 0
+        ];
 
         return [
             'row'    => $__row,
@@ -98,7 +107,42 @@ class ctrl extends mdl {
                 'cero'       => (int) $c['cero'],
                 'generados'  => (int) $c['generados'],
                 'mostrados'  => count($__row)
-            ]
+            ],
+            'kpis'   => $this->kpisDelDia($c)
+        ];
+    }
+
+    // Las tarjetas del encabezado. Los montos viajan ya escritos: la pantalla los
+    // imprime, no los calcula, igual que el papel del ticket.
+    //
+    // El universo es el mismo que lista la tabla (lo cobrado por banco), asi que
+    // estos numeros NO cuadran con los de Resumen, que suma tambien el efectivo. Es
+    // a proposito y las tarjetas lo dicen.
+    //
+    // Lo facturado son las ventas congeladas: las que el POS reporta FACTURADO y ya
+    // traen folio de factura. El ticket virtual no mueve esta cifra, porque generar
+    // el papel no factura nada todavia.
+    function kpisDelDia($c) {
+        $total     = (float) $c['total'];
+        $facturado = (float) $c['total_facturado'];
+        $objetivo  = $total * META_FACTURACION;
+
+        // Lo que no va al 16% va al 0%: el objetivo de la tasa cero es el
+        // complemento de la meta, no un porcentaje aparte. Derivarlo asi mantiene
+        // las dos tarjetas sumando la venta del dia si la meta cambia.
+        $objetivoCero = $total * (1 - META_FACTURACION);
+
+        return [
+            'metaPct'           => round(META_FACTURACION * 100),
+            'metaCeroPct'       => round((1 - META_FACTURACION) * 100),
+            'totalTexto'        => money($total),
+            'objetivoTexto'     => money($objetivo),
+            'objetivoCeroTexto' => money($objetivoCero),
+            'facturadoTexto'    => money($facturado),
+            // Rebasar la meta no deja un negativo en pantalla: ya no falta nada.
+            'porFacturarTexto'  => money(max(0, $objetivo - $facturado)),
+            'tickets'           => (int) $c['tickets'],
+            'facturados'        => (int) $c['facturados']
         ];
     }
 

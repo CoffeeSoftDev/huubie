@@ -53,6 +53,10 @@ class App extends Templates {
                     class: 'px-3 pt-3 pb-1 bg-[#0E1521] flex-shrink-0'
                 },
                 {
+                    id:    'kpisRow',
+                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
+                },
+                {
                     id:    'listHead',
                     class: 'px-4 py-3 bg-[#0E1521] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
                 },
@@ -210,7 +214,6 @@ class App extends Templates {
     }
 
     // -- Event handlers --
-
     onChangeFilters() {
         this.updateHeaderTitle();
         tickets.lsTickets();
@@ -302,11 +305,23 @@ class Tickets extends Templates {
 
         if (window.lucide) lucide.createIcons();
 
+        this.dataTable(`#tb${this.PROJECT_NAME}`, data);
+
         const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0 };
 
         ticketsView.renderListHead(counts);
+        ticketsView.renderKpis(data.kpis || {});
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
+    }
+
+    // Paginado, buscador y ordenamiento de la tabla ya pintada. Sin filas
+    // createCoffeeTable3 no arma un <table> sino el aviso de vacio, asi que montar
+    // DataTables ahi dejaria la paginacion colgando debajo del mensaje.
+    dataTable(id, data) {
+        if (!(data.row || []).length) return;
+
+        if (typeof simple_data_table === 'function') simple_data_table(id, 50);
     }
 
     // -- Actions --
@@ -413,6 +428,49 @@ class TicketsView extends Templates {
         this.noteBox({
             parent: 'listNote',
             json:   { text: 'Al generar, el sistema arma una lista de productos auxiliares que suman el total del ticket. Los auxiliares se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
+        });
+    }
+
+    // Tarjetas del dia: la venta por banco, la meta a la que hay que llegar, lo que
+    // ya quedo cubierto y lo que falta. Los montos llegan escritos del servidor; lo
+    // unico que se arma aqui es el copy que los acompana.
+    //
+    // El fondo se elige por tema: Resumen lo trae fijo en oscuro y en la vista clara
+    // se le ven tarjetas negras. Aqui no.
+    renderKpis(k) {
+        const bgColor     = FACTURE_THEME_IS_LIGHT ? 'bg-white' : 'bg-[#141d2b]';
+        const borderColor = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-transparent';
+        const textColor   = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+
+        const card = (id, title, lucideIcon, value, subtitle, color) => ({
+            id, title, lucideIcon, bgColor, borderColor,
+            data: { value: value || '$0.00', subtitle: subtitle, color: color }
+        });
+
+        this.infoCard({
+            parent: 'kpisRow',
+            id:     'kpisTickets',
+            theme:  FACTURE_THEME,
+            style:  'file',
+            cols:   5,
+            json: [
+                // El subtitulo dice "solo banco" porque es justo lo que separa este
+                // total del de Resumen, que suma tambien el efectivo.
+                card('kpiTotalDia', 'Venta del dia', 'banknote', k.totalTexto,
+                     `${k.tickets || 0} tickets · solo banco`, textColor),
+
+                card('kpiMeta', 'Monto objetivo para IVA 16%', 'target', k.objetivoTexto,
+                     `${k.metaPct || 70}% de la venta por banco`, textColor),
+
+                card('kpiFacturado', 'Ya facturado', 'lock', k.facturadoTexto,
+                     `${k.facturados || 0} tickets facturados realmente`, 'text-green-600'),
+
+                card('kpiPorFacturar', 'Por facturar al IVA 16%', 'alert-circle', k.porFacturarTexto,
+                     `${k.metaPct || 70}% de la venta - Facturado`, 'text-[#1C64F2]'),
+
+                card('kpiObjetivoCero', 'Monto objetivo para IVA 0%', 'alert-circle', k.objetivoCeroTexto,
+                     `${k.metaCeroPct || 30}% de la venta por banco`, 'text-[#1C64F2]')
+            ]
         });
     }
 
