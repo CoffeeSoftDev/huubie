@@ -31,6 +31,7 @@ class App extends Templates {
         this.dataInit = {
             formas:  data.formas,
             estados: data.estados,
+            emisor:  data.emisor,
             dia:     dia,
             periodo: dia ? { fi: dia, ff: dia } : data.periodo
         };
@@ -53,9 +54,9 @@ class App extends Templates {
 
     // -- Layout --
 
-    // Como en cargas: el unico borde de la zona superior es el de la banda del
-    // titulo. Filtros y KPIs continuan esa banda con su mismo fondo, sin dibujar
-    // una caja dentro de otra.
+    // Misma configuracion que el visor de entradas del POS: cada zona de la banda
+    // superior se separa con su propio borde, y los filtros van sobre el fondo de
+    // cabecera para distinguirse de las cifras.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -68,11 +69,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 py-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'tableRow',
@@ -391,6 +392,8 @@ class Ventas extends Templates {
 
         this.rowSelect();
         this.markInvoiced();
+        this.foldFormas();
+        this.collapseFormas();
 
         // La leyenda explica una marca de las filas: mientras se consulta y sobre
         // el estado vacio no tiene nada que explicar, asi que solo sale con el
@@ -420,6 +423,55 @@ class Ventas extends Templates {
         });
     }
 
+    // -- Plegado de los subgrupos de forma --
+
+    // El componente solo pliega el bloque del dia (las filas opc 1). Los rotulos
+    // de Efectivo y Bancos son filas normales, justamente para plegarse con su
+    // dia, asi que su propio plegado se resuelve aqui.
+    foldFormas() {
+        const tabla = `#tb${this.PROJECT_NAME}`;
+
+        $(tabla).on('click', 'td.ct-subgrupo', (e) => this.toggleForma($(e.currentTarget).closest('tr')));
+
+        // Al abrir un dia el componente muestra todas sus filas de golpe, tambien
+        // las de un subgrupo que quedo plegado: se les devuelve su estado.
+        $(tabla).on('click', 'td[data-folding-trigger]', () => this.applyFormas());
+    }
+
+    toggleForma($fila) {
+        const plegado = $fila.attr('data-forma-collapsed') === 'true';
+
+        $fila.attr('data-forma-collapsed', plegado ? 'false' : 'true');
+        this.formaMembers($fila).toggleClass('hidden', !plegado);
+
+        $fila.find('.folding-sub')
+             .toggleClass('icon-down-open', plegado)
+             .toggleClass('icon-right-open', !plegado);
+    }
+
+    // Las filas de un subgrupo son las que siguen hasta el proximo rotulo o hasta
+    // el dia siguiente. El aviso de tope queda fuera: es una banda del listado
+    // entero (una celda con colspan), no una fila del bloque.
+    formaMembers($fila) {
+        return $fila.nextUntil('tr:has(td.ct-subgrupo), tr[data-group-header]').not(':has(td[colspan])');
+    }
+
+    applyFormas() {
+        $(`#tb${this.PROJECT_NAME} tr[data-forma-collapsed="true"]`).each((i, fila) => {
+            this.formaMembers($(fila)).addClass('hidden');
+        });
+    }
+
+    // Los subgrupos nacen plegados, igual que los dias: al abrir un dia se lee su
+    // reparto entre Efectivo y Bancos y de ahi se baja a los tickets del bloque
+    // que interesa, en vez de recibir el listado entero de golpe. El chevron ya
+    // viene cerrado del servidor; aqui se declara el estado, que vive en el <tr>
+    // porque el componente no admite clases ni atributos en la fila.
+    collapseFormas() {
+        $(`#tb${this.PROJECT_NAME} tr:has(td.ct-subgrupo)`).attr('data-forma-collapsed', 'true');
+        this.applyFormas();
+    }
+
     async lsKpis() {
         const kpis = await useFetch({ url: apiVentas, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
 
@@ -427,50 +479,30 @@ class Ventas extends Templates {
         // filtros, y las tres de conteo son su desglose.
         ventasView.renderInfoCards([
             {
-                id:          'kpiMonto',
-                title:       'Monto filtrado',
-                lucideIcon:  'banknote',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.montoTexto,
-                    // El azul del acento se apagaba sobre el panel oscuro y el monto
-                    // es el dato que se busca primero: va en el verde del dinero.
-                    color: 'text-[#3FC189]'
-                }
+                id:    'kpiMonto',
+                label: 'Monto filtrado',
+                value: kpis.montoTexto,
+                // El azul del acento se apagaba sobre el panel oscuro y el monto
+                // es el dato que se busca primero: va en el verde del dinero.
+                tone:  'success'
             },
             {
-                id:          'kpiVentas',
-                title:       'Ventas',
-                lucideIcon:  'receipt',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.ventas,
-                    color: 'text-white'
-                }
+                id:    'kpiVentas',
+                label: 'Ventas',
+                value: kpis.ventas,
+                tone:  'default'
             },
             {
-                id:          'kpiFacturados',
-                title:       'Facturados',
-                lucideIcon:  'lock',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.facturados,
-                    color: 'text-green-600'
-                }
+                id:    'kpiFacturados',
+                label: 'Facturados',
+                value: kpis.facturados,
+                tone:  'success'
             },
             {
-                id:          'kpiCero',
-                title:       'Con IVA 0%',
-                lucideIcon:  'alert-circle',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.cero,
-                    color: 'text-amber-500'
-                }
+                id:    'kpiCero',
+                label: 'Con IVA 0%',
+                value: kpis.cero,
+                tone:  'warning'
             }
         ]);
     }
@@ -503,13 +535,79 @@ class VentasView extends Templates {
     }
 
     renderInfoCards(rows) {
-        this.infoCard({
+        this.kpisRow({
             parent: 'kpisRow',
-            id:     'kpisVentas',
-            theme:  FACTURE_THEME,
-            style:  'file',
-            cols:   4,
             json:   rows
+        });
+    }
+
+    kpisRow(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'kpisRow',
+            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
+            json:   [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-white',
+                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
+                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
+                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
+                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+            },
+            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
+            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            valueClass:    'cs-kpi-value text-sm font-bold',
+            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+            onClick:       () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+
+            return `
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}">${esc(kpi.subtitle)}</p>` : ''}
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+
+            return $(`#${opts.parent}`).html(grid);
+        }
+
+        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
+
+        $(`#${opts.parent}`).html(grid);
+
+        grid.find('[data-kpi-idx]').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
+
+            opts.onClick(opts.json[idx], idx);
         });
     }
 
@@ -544,6 +642,7 @@ class VentasView extends Templates {
         this.ventaDetailPanel({
             parent:  'detailPanel',
             json:    venta,
+            emisor:  app.dataInit.emisor,
             onClose: () => app.selectVenta(null)
         });
     }
@@ -610,13 +709,15 @@ class VentasView extends Templates {
             parent: 'root',
             id:     'ventaDetailPanel',
             json:   null,
+            emisor: { razon: '', rfc: '', telefono: '', domicilio: '' },
             labels: {
                 emptyTitle:  'Selecciona una venta',
                 emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle fiscal aqui.',
                 subtitle:    'Detalle fiscal',
-                productos:   'PRODUCTOS',
+                productos:   'CANT. DESCRIPCION',
+                importe:     'IMPORTE',
                 sinComanda:  'La comanda de esta venta no esta cargada',
-                leyenda:     'Este detalle no es un comprobante fiscal'
+                leyenda:     'ESTE NO ES UN COMPROBANTE FISCAL'
             },
             onClose: () => { }
         };
@@ -624,6 +725,7 @@ class VentasView extends Templates {
         const o    = options || {};
         const opts = Object.assign({}, defaults, o);
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
 
         const $parent = $(`#${opts.parent}`);
         if (!$parent.length) return;
@@ -658,10 +760,8 @@ class VentasView extends Templates {
         // Las comandas viven en otra hoja del export: si aun no se cargan, el
         // venta no tiene mesa, mesero ni partidas que mostrar.
         const items      = e.items || [];
-        const mesaRow    = e.mesa     ? row('MESA:',    e.mesa)    : '';
-        const meseroRow  = e.mesero   ? row('MESERO:',  e.mesero)  : '';
-        const comandaRow = e.comanda  ? row('COMANDA:', e.comanda) : '';
-        const horaRow    = e.apertura ? row('HORA:',    `${e.apertura} - ${e.cierre}`) : '';
+        const mesaRow    = e.mesa    ? row('MESA:',    e.mesa)    : '';
+        const comandaRow = e.comanda ? row('COMANDA:', e.comanda) : '';
 
         // Tres columnas (cantidad, producto, importe) en vez del par etiqueta/valor
         // de los totales: es la lista de consumo, no un dato del encabezado.
@@ -673,15 +773,51 @@ class VentasView extends Templates {
             </tr>
         `;
 
+        // Los renglones van bajo su encabezado de columnas, como en el papel del
+        // POS: cantidad y descripcion a la izquierda, importe a la derecha.
         const itemsHtml = items.length ? `
-            <div class="tk-sep"></div>
-            <p class="font-bold text-[11px]">${esc(opts.labels.productos)} (${items.length})</p>
-            <table>${items.map(itemRow).join('')}</table>
+            <table>
+                <thead>
+                    <tr>
+                        <td class="font-bold" colspan="2">${esc(opts.labels.productos)}</td>
+                        <td class="text-right font-bold">${esc(opts.labels.importe)}</td>
+                    </tr>
+                </thead>
+                <tbody>${items.map(itemRow).join('')}</tbody>
+            </table>
             <table>${row('CONSUMO:', e.consumo)}</table>
         ` : `
-            <div class="tk-sep"></div>
             <p class="text-center text-gray-400">${esc(opts.labels.sinComanda)}</p>
         `;
+
+        const m        = opts.emisor;
+        const emisorHtml = `
+            <div class="text-center">
+                ${m.razon     ? `<p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>` : ''}
+                ${m.rfc       ? `<p>RFC: ${esc(m.rfc)}</p>` : ''}
+                ${m.domicilio ? `<p>${esc(m.domicilio)}</p>` : ''}
+                ${m.telefono  ? `<p>TEL: ${esc(m.telefono)}</p>` : ''}
+            </div>
+        `;
+
+        // Los dos importes que el papel imprime en un mismo renglon bajo el total.
+        const parRow = (k1, v1, k2, v2) => `
+            <tr>
+                <td>${esc(k1)}${esc(v1)}</td>
+                <td class="text-right">${esc(k2)}${esc(v2)}</td>
+            </tr>
+        `;
+
+        // El importe llega formateado del servidor ($0.00): se lee la cifra para
+        // saber si hay algo que imprimir.
+        const cifra = (txt) => parseFloat(String(txt == null ? '' : txt).replace(/[^0-9.-]/g, '')) || 0;
+
+        // El origen no desglosa IEPS y casi siempre llega en cero: ese renglon no
+        // se imprime, y el pago pasa a ocupar la linea.
+        const pago    = String(e.pago).toUpperCase();
+        const iepsRow = cifra(e.ieps) > 0
+            ? parRow('IEPS:', e.ieps, 'PAGO:', pago)
+            : parRow('PAGO:', pago,   '',      '');
 
         $parent.html(`
             <div class="flex-1 flex flex-col overflow-hidden">
@@ -700,38 +836,32 @@ class VentasView extends Templates {
 
                 <div class="flex-1 overflow-y-auto scroll-thin px-4 py-4 bg-[#0E1521]">
                     <div id="${opts.id}_paper" class="ticket-paper">
-                        <div class="text-center">
-                            <p class="font-bold text-[13px] tracking-wide">${esc(opts.labels.subtitle).toUpperCase()}</p>
-                            <p>TICKET ${esc(e.folio)}</p>
-                        </div>
+                        ${emisorHtml}
                         <div class="tk-sep"></div>
                         <table>
-                            ${row('FOLIO:',  e.folio)}
-                            ${row('FECHA:',  e.fecha)}
-                            ${comandaRow}
                             ${mesaRow}
-                            ${meseroRow}
-                            ${horaRow}
-                            ${row('PAGO:',   String(e.pago).toUpperCase())}
-                            ${row('METODO:', e.metodo)}
+                            ${comandaRow}
+                            ${row('FOLIO:', e.folio)}
+                            ${row('FECHA:', e.fecha)}
                         </table>
+                        <div class="tk-sep"></div>
                         ${itemsHtml}
-                        <div class="tk-sep"></div>
+                        <div class="tk-total">
+                            <table>
+                                ${row('TOTAL:', e.total, true)}
+                            </table>
+                        </div>
                         <table>
-                            ${row('SUBTOTAL:',          e.subtotal)}
-                            ${row(`IVA (${e.tasa}):`,   e.iva)}
-                            ${row('IEPS:',              e.ieps)}
-                            ${row('TOTAL:',             e.total, true)}
+                            ${parRow('SUBTOTAL:', e.subtotal, `IVA (${e.tasa}):`, e.iva)}
+                            ${iepsRow}
                         </table>
+                        <p class="text-center font-bold mt-2">${esc(opts.labels.leyenda)}</p>
                         <div class="tk-sep"></div>
                         <table>
+                            ${row('METODO:',  e.metodo)}
                             ${row('ESTADO:',  e.estado)}
                             ${row('FACTURA:', e.factura)}
                         </table>
-                        <div class="tk-sep"></div>
-                        <div class="text-center">
-                            <p class="text-gray-400">${esc(opts.labels.leyenda)}</p>
-                        </div>
                     </div>
                 </div>
             </div>

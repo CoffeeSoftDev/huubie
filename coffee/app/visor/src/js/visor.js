@@ -4881,7 +4881,9 @@ class VisorView {
         const COPYSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         const WANDSVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0l1.58 6.13A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96l-6.13 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/></svg>';
         const SPINSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
-        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-magic" title="Mejorar con IA">' + WANDSVG + '</button><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
+        const CHECKSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>';
+        const GRIPSVG = '<svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2.6" cy="3" r="1.25"/><circle cx="7.4" cy="3" r="1.25"/><circle cx="2.6" cy="8" r="1.25"/><circle cx="7.4" cy="8" r="1.25"/><circle cx="2.6" cy="13" r="1.25"/><circle cx="7.4" cy="13" r="1.25"/></svg>';
+        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><span class="td-grip" title="Arrastra para reordenar">' + GRIPSVG + '</span><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-magic" title="Mejorar con IA">' + WANDSVG + '</button><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
         function secBlock(s) {
             return '<section class="td-sec" data-id="' + s.id + '"><div class="td-sechead">' +
                    '<h2 class="td-sectitle" contenteditable="true" spellcheck="false">' + esc(s.title || 'Sección') + '</h2>' +
@@ -4923,8 +4925,31 @@ class VisorView {
         }
         function drop($el, after) { $el.addClass('td-leaving').one('animationend', after); }
 
-        function copyText(txt, okMsg) {
-            const ok   = () => visorView.toast(okMsg, 'success');
+        // Animacion de copiado: el boton pasa a palomita y sube una burbuja desde
+        // el. El toast sigue estando, pero aparece lejos del boton que se pulso.
+        function copyFx($btn) {
+            if (!$btn || !$btn.length) return;
+            const el = $btn.get(0);
+            clearTimeout($btn.data('fxTimer'));
+            if ($btn.data('fxHtml') == null) $btn.data('fxHtml', $btn.html());
+            $btn.addClass('td-copied').html($btn.hasClass('td-copy') ? 'Copiado' : CHECKSVG);
+            $btn.data('fxTimer', setTimeout(() => {
+                $btn.removeClass('td-copied').html($btn.data('fxHtml'));
+                $btn.removeData('fxHtml');
+            }, 1400));
+
+            const r   = el.getBoundingClientRect();
+            const pop = document.createElement('div');
+            pop.className   = 'td-copied-pop';
+            pop.textContent = 'Copiado';
+            pop.style.left  = Math.round(r.left + r.width / 2) + 'px';
+            pop.style.top   = Math.round(r.top - 6) + 'px';
+            document.body.appendChild(pop);
+            setTimeout(() => pop.remove(), 950);
+        }
+
+        function copyText(txt, okMsg, $btn) {
+            const ok   = () => { visorView.toast(okMsg, 'success'); copyFx($btn); };
             const fail = () => visorView.toast('No se pudo copiar', 'error');
             if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok, fail); return; }
             const ta = document.createElement('textarea');
@@ -5019,12 +5044,189 @@ class VisorView {
         $root.on('click.td', '.td-seccopy', function () {
             const sec = data.sections.find(s => s.id === $(this).closest('.td-sec').data('id')); if (!sec) return;
             if (!sec.tasks.length) { visorView.toast('La sección no tiene tareas', 'warn'); return; }
-            copyText(sectionPrompt(sec), 'Sección copiada para Claude/Kiro');
+            copyText(sectionPrompt(sec), 'Sección copiada para Claude/Kiro', $(this));
         });
         $root.on('click.td', '.td-copy', function () {
             let md = '# ' + (data.title || 'TODO') + '\n';
             data.sections.forEach(s => { md += '\n## ' + s.title + '\n' + s.tasks.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n'; });
-            copyText(md, 'Copiado como Markdown');
+            copyText(md, 'Copiado como Markdown', $(this));
+        });
+
+        // ── Reordenar tareas (arrastrar / Alt+flechas) ──
+        // Arrastre propio con pointer events, no el DnD nativo: arranca a los 4px de
+        // movimiento, no depende de que el navegador acepte el dragstart y responde
+        // igual con dedo. Se agarra desde el grip o desde cualquier zona de la fila
+        // que no sea el texto editable ni un control.
+        let drag = null;
+
+        function commitOrder() {
+            const byId = {};
+            data.sections.forEach(s => s.tasks.forEach(t => { byId[t.id] = t; }));
+            let changed = false;
+            $root.find('.td-sec').each(function () {
+                const sec = data.sections.find(s => s.id === $(this).data('id')); if (!sec) return;
+                const ids  = $(this).find('.td-list > .td-task').map((i, el) => $(el).data('id')).get();
+                const next = ids.map(id => byId[id]).filter(Boolean);
+                if (next.length !== sec.tasks.length || next.some((t, i) => t !== sec.tasks[i])) changed = true;
+                sec.tasks = next;
+            });
+            if (changed) { stats(); persist(true); }
+        }
+
+        // Levanta la fila: clon flotante bajo el cursor, linea de destino y la
+        // original atenuada en su sitio. El clon va envuelto en .md-rendered.is-todo
+        // porque toda la hoja del TODO cuelga de ese selector: suelto en el body
+        // perderia tipografia, colores y espaciados.
+        function liftRow() {
+            drag.moved = true;
+            const root = $root.get(0);
+            const wrap = document.createElement('div');
+            wrap.className = 'md-rendered is-todo td-ghost-wrap';
+            wrap.style.width = drag.w + 'px';
+            wrap.style.setProperty('--vsr-doc-zoom', getComputedStyle(root).getPropertyValue('--vsr-doc-zoom') || 1);
+
+            const ul = document.createElement('ul');
+            ul.className = 'td-list';
+            const clone = drag.row.cloneNode(true);
+            clone.classList.remove('td-dragging');
+            ul.appendChild(clone);
+            wrap.appendChild(ul);
+            document.body.appendChild(wrap);
+
+            const line = document.createElement('div');
+            line.className = 'td-dropline';
+            document.body.appendChild(line);
+
+            drag.ghost = wrap;
+            drag.line  = line;
+            $(drag.row).addClass('td-dragging');
+            $root.addClass('td-dnd');
+            drag.raf = requestAnimationFrame(dragFrame);
+        }
+
+        // Decide en que borde caeria la fila y lleva la linea ahi. No mueve nada.
+        // Resuelve por ALTURA, no por lo que haya bajo el cursor: con
+        // elementFromPoint la franja del grip y los margenes quedaban fuera de toda
+        // fila y el destino se perdia. La X solo dice si sigues dentro de la hoja.
+        function markDrop(x, y) {
+            const secs = $root.find('.td-sec').get();
+            const hide = () => { drag.dest = null; drag.line.style.opacity = '0'; };
+            if (!secs.length) { hide(); return; }
+
+            const hr = $root.get(0).getBoundingClientRect();
+            if (x < hr.left - 40 || x > hr.right + 40) { hide(); return; }   // fuera de la hoja: se cancela
+
+            // Seccion por franja vertical; fuera de todas, la de arriba o la de abajo.
+            let sec = null;
+            for (let i = 0; i < secs.length; i++) {
+                const r = secs[i].getBoundingClientRect();
+                if (y >= r.top && y <= r.bottom) { sec = secs[i]; break; }
+            }
+            if (!sec) sec = (y < secs[0].getBoundingClientRect().top) ? secs[0] : secs[secs.length - 1];
+
+            // Primera fila cuyo medio queda por debajo del cursor: la linea va encima.
+            const rows = $(sec).find('.td-task').get().filter(el => el !== drag.row);
+            let edge = null;
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i].getBoundingClientRect();
+                if (y < r.top + r.height / 2) {
+                    drag.dest = { ref: rows[i], after: false };
+                    edge      = { top: r.top, left: r.left, width: r.width };
+                    break;
+                }
+            }
+            if (!edge && rows.length) {                          // por debajo de todas: al final
+                const r = rows[rows.length - 1].getBoundingClientRect();
+                drag.dest = { ref: rows[rows.length - 1], after: true };
+                edge      = { top: r.bottom, left: r.left, width: r.width };
+            }
+            if (!edge) {                                         // seccion sin otras tareas
+                const list = $(sec).find('.td-list').get(0) || sec;
+                const r    = list.getBoundingClientRect();
+                drag.dest  = { list: list };
+                edge       = { top: r.top + 4, left: r.left, width: Math.max(r.width, 160) };
+            }
+
+            drag.line.style.opacity = '1';
+            drag.line.style.top     = Math.round(edge.top) + 'px';
+            drag.line.style.left    = Math.round(edge.left) + 'px';
+            drag.line.style.width   = Math.round(edge.width) + 'px';
+        }
+
+        // Un solo recalculo por cuadro: el pointermove solo anota la posicion. Un
+        // mouse de alta frecuencia dispara decenas de eventos por frame y resolver
+        // ahi el destino es lo que se siente pesado.
+        function dragFrame() {
+            if (!drag || !drag.moved) return;
+            let scrolled = false;
+            const el = $('.main-content').get(0);
+            if (el) {
+                const r = el.getBoundingClientRect();
+                if (drag.y - r.top < 60)         { el.scrollTop -= 14; scrolled = true; }
+                else if (r.bottom - drag.y < 60) { el.scrollTop += 14; scrolled = true; }
+            }
+            drag.ghost.style.transform = 'translate3d(' + (drag.x - drag.dx) + 'px,' + (drag.y - drag.dy) + 'px,0)';
+            if (scrolled || drag.x !== drag.px || drag.y !== drag.py) {
+                markDrop(drag.x, drag.y);
+                drag.px = drag.x; drag.py = drag.y;
+            }
+            drag.raf = requestAnimationFrame(dragFrame);
+        }
+
+        function endDrag() {
+            $(document).off('.tddrag');
+            if (!drag) return;
+            const d = drag;
+            drag = null;
+            cancelAnimationFrame(d.raf);
+            if (d.ghost) d.ghost.remove();
+            if (d.line)  d.line.remove();
+            $(d.row).removeClass('td-dragging');
+            $root.removeClass('td-dnd');
+            if (!d.moved || !d.dest) return;                  // sin destino valido no hubo movimiento
+
+            if (d.dest.ref) {
+                if (d.dest.after) d.dest.ref.after(d.row); else d.dest.ref.before(d.row);
+            } else if (d.dest.list) {
+                d.dest.list.appendChild(d.row);
+            }
+            const $row = $(d.row).addClass('td-dropped');
+            setTimeout(() => $row.removeClass('td-dropped'), 320);
+            commitOrder();
+        }
+
+        $root.on('pointerdown.td', '.td-task', function (e) {
+            const ev = e.originalEvent;
+            if (ev.button > 0) return;
+            const $t = $(e.target);
+            // Fuera del grip solo agarra el fondo de la fila: texto y controles
+            // conservan su comportamiento (seleccionar, palomear, borrar, IA).
+            if (!$t.closest('.td-grip').length && $t.closest('.td-txt, button, input, .td-suggest').length) return;
+            ev.preventDefault();
+            const r = this.getBoundingClientRect();
+            drag = {
+                row: this, x: ev.clientX, y: ev.clientY, y0: ev.clientY, px: 0, py: 0,
+                dx: ev.clientX - r.left, dy: ev.clientY - r.top, w: r.width,
+                moved: false, raf: 0, ghost: null, line: null, dest: null
+            };
+            $(document)
+                .on('pointermove.tddrag', (me) => {
+                    const m = me.originalEvent;
+                    drag.x = m.clientX; drag.y = m.clientY;                // el trabajo real va en dragFrame
+                    if (drag.moved || Math.abs(m.clientY - drag.y0) < 4) return;   // umbral: un clic no arrastra
+                    liftRow();
+                })
+                .on('pointerup.tddrag pointercancel.tddrag', endDrag);
+        });
+
+        // Alt+flechas: mismo reordenamiento sin mouse, dentro de la seccion.
+        $root.on('keydown.td', '.td-txt', function (e) {
+            if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+            e.preventDefault();
+            const li = $(this).closest('.td-task'), up = e.key === 'ArrowUp';
+            const sib = up ? li.prev('.td-task') : li.next('.td-task'); if (!sib.length) return;
+            if (up) sib.before(li); else sib.after(li);
+            this.focus(); commitOrder();
         });
 
         // El panel ya es editable en sitio: no hay modo edición WYSIWYG.

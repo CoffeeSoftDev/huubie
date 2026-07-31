@@ -49,7 +49,7 @@ class App extends Templates {
             children: [
                 {
                     id:    'headerRow',
-                    class: 'px-4 py-3 bg-[#111827] border-b border-[#374151] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'contentWrap',

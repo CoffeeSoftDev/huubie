@@ -1,0 +1,109 @@
+/* ─────────────────────────────────────────────────────────────
+ *  CoffeeSoft — PWA (botón de instalación y aviso de versión)
+ *  Usa los tokens --vsr-* del visor; los fallbacks son la paleta
+ *  Arcilla Invernal, para el login que no carga visor.css.
+ * ───────────────────────────────────────────────────────────── */
+
+/* Variante flotante: sólo cuando no hay header donde anclarse */
+.pwa-install-float {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9998;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--vsr-accent, #C05A40);
+    border: 0;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(192, 90, 64, .35);
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease;
+}
+
+.pwa-install-float:hover {
+    background: #A34630;
+    transform: translateY(-1px);
+}
+
+/* Variante en el header: hereda .theme-toggle y sólo suma la etiqueta */
+.pwa-install-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto !important;
+    padding: 0 10px;
+    color: var(--vsr-accent, #C05A40);
+}
+
+.pwa-install-inline span {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+@media (max-width: 900px) {
+    .pwa-install-inline span { display: none; }
+    .pwa-install-inline { padding: 0; }
+}
+
+/* Aviso de versión nueva */
+.pwa-update-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100vw - 32px);
+    padding: 10px 12px 10px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--vsr-text, #fff);
+    background: var(--vsr-bg-card, #1F2A37);
+    border: 1px solid var(--vsr-border, rgba(55, 65, 81, .6));
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
+    animation: pwaToastIn .25s ease;
+}
+
+.pwa-update-toast #pwaUpdateBtn {
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--vsr-accent, #C05A40);
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pwa-update-toast #pwaUpdateBtn:hover { background: #A34630; }
+
+.pwa-update-toast #pwaUpdateClose {
+    padding: 0 4px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--vsr-text-muted, #9CA3AF);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+@keyframes pwaToastIn {
+    from { opacity: 0; transform: translate(-50%, 12px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* En modo app instalada sobra el botón de instalar */
+@media (display-mode: standalone) {
+    #btnInstallApp { display: none !important; }
+}

@@ -102,32 +102,52 @@ function todos_walk($dir, $depth = 0) {
 
 // Normaliza el contenido de un todo.json a la forma que espera el cajon. Un
 // archivo a medias (sin sections, sin ids) no debe tirar la vista: se completa.
+//
+// Normalizar NO es recortar: las claves que el cajon no entiende (due, tags,
+// prio, notas, lo que sea) viajan intactas hasta el navegador y vuelven al disco
+// al guardar. Antes se perdian aqui, y el archivo quedaba mutilado al primer clic.
+// Las del nivel raiz van aparte, en `extra`, porque ahi la ficha de la lista mezcla
+// datos del archivo con estado de ejecucion que nunca debe escribirse.
 function todos_shape($raw, $fallbackTitle) {
     $data = json_decode((string) $raw, true);
     if (!is_array($data)) $data = [];
 
     $out = [
         'title'    => trim((string) ($data['title'] ?? '')) !== '' ? $data['title'] : $fallbackTitle,
-        'sections' => []
+        'sections' => [],
+        'extra'    => array_diff_key($data, ['title' => 1, 'sections' => 1])
     ];
 
-    $seq = 0;
+    // Los ids que faltan se inventan, pero nunca pisando uno que ya exista en el
+    // archivo: dos tareas con el mismo id rompen en silencio el borrado, el
+    // arrastre y la edicion, porque el cajon las localiza por ese id.
+    $seq  = 0;
+    $used = [];
+    $mint = function ($given, $prefix) use (&$seq, &$used) {
+        $id = (string) $given;
+        if ($id === '' || isset($used[$id])) {
+            do { $id = $prefix . (++$seq); } while (isset($used[$id]));
+        }
+        $used[$id] = true;
+        return $id;
+    };
+
     foreach ((array) ($data['sections'] ?? []) as $sec) {
         if (!is_array($sec)) continue;
         $tasks = [];
         foreach ((array) ($sec['tasks'] ?? []) as $task) {
             if (!is_array($task)) continue;
-            $tasks[] = [
-                'id'   => (string) ($task['id'] ?? ('t' . (++$seq))),
+            $tasks[] = array_merge($task, [
+                'id'   => $mint($task['id'] ?? '', 't'),
                 'text' => (string) ($task['text'] ?? ''),
                 'done' => !empty($task['done'])
-            ];
+            ]);
         }
-        $out['sections'][] = [
-            'id'    => (string) ($sec['id'] ?? ('s' . (++$seq))),
+        $out['sections'][] = array_merge($sec, [
+            'id'    => $mint($sec['id'] ?? '', 's'),
             'title' => (string) ($sec['title'] ?? 'Seccion'),
             'tasks' => $tasks
-        ];
+        ]);
     }
     return $out;
 }
@@ -184,6 +204,9 @@ function todos_entry($fullPath, $rootInfo) {
         'pending'   => $total - $done,
         'mtime'     => @filemtime($full) ?: 0,
         'sections'  => $shape['sections'],
+        // Claves del nivel raiz que no son del cajon: se devuelven para poder
+        // reescribirlas tal cual al guardar.
+        'extra'     => (object) $shape['extra'],
         // Comparticion: quien es el dueno cuando la lista es prestada, y con
         // quien la comparto yo cuando es mia (lo rellena `scan`).
         'ownerId'    => (int) ($rootInfo['ownerId'] ?? 0),

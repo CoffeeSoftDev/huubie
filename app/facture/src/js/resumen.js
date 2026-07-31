@@ -57,11 +57,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 pt-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 pt-1 pb-4 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'progressRow',
@@ -364,52 +364,32 @@ class Resumen extends Templates {
 
         resumenView.renderInfoCards([
             {
-                id:          'kpiTotal',
-                title:       'Venta total',
-                lucideIcon:  'banknote',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value:    t.totalTexto,
-                    subtitle: `${t.tickets} tickets · efectivo + banco`,
-                    color:    'text-white'
-                }
+                id:       'kpiTotal',
+                label:    'Venta total',
+                value:    t.totalTexto,
+                subtitle: `${t.tickets} tickets · efectivo + banco`,
+                tone:     'default'
             },
             {
-                id:          'kpiMeta',
-                title:       `Meta al ${t.metaPct}%`,
-                lucideIcon:  'target',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value:    t.objetivoTexto,
-                    subtitle: 'monto objetivo del dia',
-                    color:    'text-white'
-                }
+                id:       'kpiMeta',
+                label:    `Meta al ${t.metaPct}%`,
+                value:    t.objetivoTexto,
+                subtitle: 'monto objetivo del dia',
+                tone:     'default'
             },
             {
-                id:          'kpiFacturado',
-                title:       'Ya facturado',
-                lucideIcon:  'lock',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value:    t.facturadoTexto,
-                    subtitle: `${t.bloqueados} tickets bloqueados`,
-                    color:    'text-green-600'
-                }
+                id:       'kpiFacturado',
+                label:    'Ya facturado',
+                value:    t.facturadoTexto,
+                subtitle: `${t.bloqueados} tickets bloqueados`,
+                tone:     'success'
             },
             {
-                id:          'kpiPorFacturar',
-                title:       'Por facturar',
-                lucideIcon:  'alert-circle',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value:    t.porFacturarTexto,
-                    subtitle: 'meta menos facturado',
-                    color:    'text-[#1C64F2]'
-                }
+                id:       'kpiPorFacturar',
+                label:    'Por facturar',
+                value:    t.porFacturarTexto,
+                subtitle: 'meta menos facturado',
+                tone:     'info'
             }
         ]);
 
@@ -536,13 +516,79 @@ class ResumenView extends Templates {
     }
 
     renderInfoCards(rows) {
-        this.infoCard({
+        this.kpisRow({
             parent: 'kpisRow',
-            id:     'kpisResumen',
-            theme:  FACTURE_THEME,
-            style:  'file',
-            cols:   4,
             json:   rows
+        });
+    }
+
+    kpisRow(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'kpisRow',
+            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
+            json:   [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-white',
+                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
+                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
+                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
+                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+            },
+            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
+            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            valueClass:    'cs-kpi-value text-sm font-bold',
+            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+            onClick:       () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+
+            return `
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}">${esc(kpi.subtitle)}</p>` : ''}
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+
+            return $(`#${opts.parent}`).html(grid);
+        }
+
+        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
+
+        $(`#${opts.parent}`).html(grid);
+
+        grid.find('[data-kpi-idx]').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
+
+            opts.onClick(opts.json[idx], idx);
         });
     }
 
