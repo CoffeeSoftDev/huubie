@@ -104,45 +104,59 @@
 #root #kpisVentas > div,
 #root #kpisCatalogos > div { border: 0 !important; }
 
-/* -- KPIs chicos (tickets y ventas) --
+/* -- KPIs chicos (tickets, ventas y catalogos) --
    Son cuatro cifras de apoyo, no el contenido de la vista: la tarjeta se queda
    en lo alto de su texto y el aire vive en la separacion entre ellas, no dentro.
    El p-3, el icono de 32px y el valor text-xl de infoCard(style:'file') se
    reducen aqui, sin tocar el componente del framework. */
 #root #kpisTickets,
-#root #kpisVentas { gap: 10px !important; }
+#root #kpisVentas,
+#root #kpisCatalogos { gap: 10px !important; }
 
 #root #kpisTickets > div,
-#root #kpisVentas > div { padding: 7px 11px !important; }
+#root #kpisVentas > div,
+#root #kpisCatalogos > div { padding: 7px 11px !important; }
 
 #root #kpisTickets p,
-#root #kpisVentas p { font-size: 11px !important; margin-bottom: 0 !important; }
+#root #kpisVentas p,
+#root #kpisCatalogos p { font-size: 11px !important; margin-bottom: 0 !important; }
 
 #root #kpisTickets .text-xl,
-#root #kpisVentas .text-xl { font-size: 15px; line-height: 1.2; }
+#root #kpisVentas .text-xl,
+#root #kpisCatalogos .text-xl { font-size: 15px; line-height: 1.2; }
 
 #root #kpisTickets .w-8,
-#root #kpisVentas .w-8 { width: 26px; height: 26px; margin-right: 7px; }
+#root #kpisVentas .w-8,
+#root #kpisCatalogos .w-8 { width: 26px; height: 26px; margin-right: 7px; }
 
 #root #kpisTickets .w-8 svg,
 #root #kpisTickets .w-8 i,
 #root #kpisVentas .w-8 svg,
-#root #kpisVentas .w-8 i { width: 15px; height: 15px; }
+#root #kpisVentas .w-8 i,
+#root #kpisCatalogos .w-8 svg,
+#root #kpisCatalogos .w-8 i { width: 15px; height: 15px; }
 
-/* En ventas la tabla es la vista y las cuatro cifras son solo el encabezado del
-   periodo filtrado: bajan otro escalon para dejarle el alto al listado. */
-#root #kpisVentas { gap: 8px !important; }
+/* En ventas y en catalogos la tabla es la vista y las cuatro cifras son solo el
+   encabezado de lo filtrado: bajan otro escalon para dejarle el alto al listado. */
+#root #kpisVentas,
+#root #kpisCatalogos { gap: 8px !important; }
 
-#root #kpisVentas > div { padding: 5px 9px !important; }
+#root #kpisVentas > div,
+#root #kpisCatalogos > div { padding: 5px 9px !important; }
 
-#root #kpisVentas p { font-size: 10px !important; }
+#root #kpisVentas p,
+#root #kpisCatalogos p { font-size: 10px !important; }
 
-#root #kpisVentas .text-xl { font-size: 13px; }
+#root #kpisVentas .text-xl,
+#root #kpisCatalogos .text-xl { font-size: 13px; }
 
-#root #kpisVentas .w-8 { width: 22px; height: 22px; margin-right: 6px; }
+#root #kpisVentas .w-8,
+#root #kpisCatalogos .w-8 { width: 22px; height: 22px; margin-right: 6px; }
 
 #root #kpisVentas .w-8 svg,
-#root #kpisVentas .w-8 i { width: 13px; height: 13px; }
+#root #kpisVentas .w-8 i,
+#root #kpisCatalogos .w-8 svg,
+#root #kpisCatalogos .w-8 i { width: 13px; height: 13px; }
 
 /* -- Tabla plegable por grupos --
    El listado de ventas se agrupa por dia (fila opc 1, que pliega el componente).
@@ -469,38 +483,31 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
 
 /* -- Leyenda de las marcas del catalogo --
    Las dos cajas viven dentro de la tarjeta del catalogo, que en claro es blanca:
-   sin esto conservarian el fondo oscuro de la banda. */
+   sin esto conservarian el fondo oscuro de la banda. Sin borde: lo que las separa
+   de la tarjeta es el fondo, un tono por debajo (por encima en claro). */
 html[data-facture-theme="light"] #root .note-card {
-    background: #F9FAFB;
-    border-color: #E5E7EB;
+    background: #F3F4F6;
 }
 
 /* Los filtros van en su propia caja, como en el resto del modulo: la banda
-   superior queda de fondo y la fila de campos se lee como un bloque. */
+   superior queda de fondo y la fila de campos se lee como un bloque. Lo que la
+   delimita es su fondo, no un marco: el modulo no encierra bloques en recuadros. */
 #root #filterBar > div > .fade-in {
     padding: 12px 14px;
     border-radius: 10px;
     background: #141d2b;
-    border: 1px solid #374151;
 }
 
 html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
     background: #FFFFFF;
-    border-color: #E5E7EB;
 }
 
-/* En cargas los filtros comparten banda con el titulo: ahi la caja sobra y el
-   recuadro parte el encabezado en dos. */
+/* En cargas los filtros comparten banda con el titulo: ahi la caja sobra y su
+   fondo parte el encabezado en dos. */
 #root #headerRow #filterBar > div > .fade-in {
     padding: 0;
     background: transparent;
-    border: 0;
 }
-
-/* En catalogos la fila solo lleva el boton de alta: el recuadro alrededor de un
-   unico control se lee como una caja vacia. */
-#root #catalogos #filterBar > div > .fade-in,
-html[data-facture-theme="light"] #root #catalogos #filterBar > div > .fade-in { border: 0; }
 
 /* La vista del emisor no tiene filtros ni tarjetas: sin esto sus dos bandas
    dejarian una franja vacia entre la cabecera y el formulario. */
@@ -517,10 +524,12 @@ html[data-facture-theme="light"] #root #catalogos #filterBar > div > .fade-in { 
 #root #btnGuardarEmisor:hover { background: #1A56DB; }
 
 /* La cifra de la tarjeta va bajo su titulo, alineada con el, no pegada al borde
-   derecho: se leen en columna al recorrer la fila de tarjetas. */
+   derecho: se leen en columna al recorrer la fila de tarjetas. La sangria es el
+   ancho del icono chico mas su margen (22 + 6), asi la cifra cae bajo la primera
+   letra del titulo. */
 #root #kpisCatalogos > div > div:last-child {
     justify-content: flex-start;
-    padding-left: 40px;
+    padding-left: 28px;
 }
 
 /* El icono de cada tarjeta lleva el tinte de su cifra: el conteo se localiza por

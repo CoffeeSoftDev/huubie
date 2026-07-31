@@ -32,8 +32,18 @@ class ctrl extends mdl {
         return $this->branch > 0 ? $this->branch : null;
     }
 
+    // Los auxiliares encabezan la lista porque son la marca con la que abre el
+    // modulo: el resto del catalogo se consulta desde aqui, pero no es lo que se
+    // viene a ver. El id de cada opcion es la clave del mapa de whereTipo().
     function init() {
         return [
+            'tipos' => [
+                ['id' => 'puente',      'valor' => 'Productos auxiliares'],
+                ['id' => 'modificador', 'valor' => 'Modificadores'],
+                ['id' => 'normal',      'valor' => 'Sin marcar'],
+                ['id' => 'inactivos',   'valor' => 'Inactivos'],
+                ['id' => '',            'valor' => 'Todos']
+            ],
             'sino' => [
                 ['id' => '1', 'valor' => 'Si'],
                 ['id' => '0', 'valor' => 'No']

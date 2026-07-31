@@ -12,10 +12,15 @@ $(async () => {
 
 class App extends Templates {
 
+    // El tipo vive aqui y no en el campo: el filterBar se repinta al ir y volver
+    // de la vista del emisor, y leyendolo del DOM la marca elegida se perderia en
+    // cada cambio de vista. Arranca en los auxiliares, que son el catalogo del
+    // modulo.
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
         this.view         = 'productos';
+        this.tipo         = 'puente';
     }
 
     async init() {
@@ -121,6 +126,16 @@ class App extends Templates {
     jsonFiltroProductos() {
         return [
             {
+                opc:      'select',
+                id:       'fTipo',
+                lbl:      'Tipo de producto:',
+                class:    'col-12 col-md-4 col-lg-3',
+                value:    this.tipo,
+                required: false,
+                onchange: 'app.onChangeFilters()',
+                data:     this.dataInit.tipos
+            },
+            {
                 opc:       'button',
                 id:        'btnNuevoProducto',
                 text:      'Nuevo producto auxiliar',
@@ -132,14 +147,29 @@ class App extends Templates {
         ];
     }
 
-    // El catalogo es el de los productos auxiliares: la lista arranca con ellos y
-    // no hay control que la abra al resto del catalogo del POS, asi que la marca
-    // viaja fija en vez de leerse de un campo.
+    // El buscador no esta pintado: el catalogo son unas cuantas claves y se
+    // recorren de un vistazo. Viaja vacio porque el servidor arma el LIKE con el,
+    // no porque haya un campo del que leerlo.
     getFilters() {
         return {
             q:    '',
-            tipo: 'puente'
+            tipo: this.tipo
         };
+    }
+
+    onChangeFilters() {
+        this.tipo = $('#fTipo').val() || '';
+
+        this.lsView();
+    }
+
+    // El aviso de vacio habla de la marca elegida: en el arranque la lista es la
+    // de los auxiliares y lo que falta son altas; con cualquier otra marca lo que
+    // falta son filas de esa marca, que aqui no se dan de alta.
+    emptyMessage() {
+        return this.tipo === 'puente'
+            ? 'Aun no hay productos auxiliares dados de alta'
+            : 'No hay productos con el filtro aplicado';
     }
 
     // -- Vistas --
@@ -205,7 +235,7 @@ class Catalogos extends Templates {
             hover:         true,
             f_size:        11,
             border_table:  'border-0',
-            emptyMessage:  'Aun no hay productos auxiliares dados de alta',
+            emptyMessage:  app.emptyMessage(),
             emptyIcon:     'ic-box',
             data:          data
         });
@@ -224,9 +254,9 @@ class Catalogos extends Templates {
         if (typeof simple_data_table === 'function') simple_data_table(id, 12);
     }
 
-    // Las cifras son las del catalogo completo, no las del listado: la tabla ya
-    // solo trae los auxiliares y las tarjetas son las que dicen cuantos productos
-    // hay en total y cuantos de ellos estan marcados.
+    // Las cifras son las del catalogo completo, no las del listado: el selector
+    // deja ver una marca a la vez y las tarjetas son las que dicen cuantos
+    // productos hay en total y cuantos de ellos estan marcados.
     async lsKpis() {
         const kpis = await useFetch({ url: apiCatalogos, data: { opc: 'showKpis' } });
 
@@ -238,12 +268,15 @@ class Catalogos extends Templates {
     // La clave anterior viaja aparte: es la que localiza la fila cuando la edicion
     // cambia la clave del POS, y sin ella se daria de alta un producto nuevo.
     //
-    // La marca no se pregunta en el formulario: lo que se da de alta aqui es un
-    // producto auxiliar, y por eso viaja fija.
-    async saveProducto(code, data) {
+    // La marca no se pregunta en el formulario: aqui solo se dan de alta productos
+    // auxiliares, asi que en el alta viaja fija. En la edicion viaja la que ya
+    // tiene el producto, que puede ser uno del resto del catalogo abierto desde el
+    // selector: guardarlo no debe convertirlo en auxiliar. La marca se quita y se
+    // pone desde el interruptor de su fila.
+    async saveProducto(code, data, puente) {
         const response = await useFetch({
             url:  apiCatalogos,
-            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data, { puente: 1 })
+            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data, { puente: puente })
         });
 
         this.afterSave(response);
@@ -270,9 +303,9 @@ class Catalogos extends Templates {
         });
     }
 
-    // El interruptor de la fila escribe la marca contraria a la que muestra. Quitar
-    // la marca de auxiliar saca al producto del listado, que es el de los
-    // auxiliares, asi que la vista se relee entera.
+    // El interruptor de la fila escribe la marca contraria a la que muestra. Tocar
+    // la marca por la que esta filtrado el listado saca al producto de el, asi que
+    // la vista se relee entera.
     async editProductoFlag(code, campo, valor) {
         const response = await useFetch({
             url: apiCatalogos,
@@ -385,22 +418,25 @@ class CatalogosView extends Templates {
     // Las dos marcas del catalogo no se explican solas: una dice que el producto
     // sirve para armar el ticket virtual y la otra que solo acompaña a un platillo.
     // La leyenda va arriba de la tabla, donde se leen las columnas que las pintan.
+    //
+    // El tinte es el mismo con el que la columna pinta cada marca: la caja se
+    // reconoce por color antes de leerse, igual que las tarjetas de arriba.
     renderNote() {
         this.noteCard({
             parent: 'viewNote',
             json: {
                 items: [
                     {
-                        icon:  'link',
-                        tone:  'text-[#3FC189]',
-                        title: 'Producto auxiliar',
-                        text:  'Es el que el generador usa para armar el ticket virtual: se van sumando sus precios hasta cubrir el total cobrado. Solo estos se dan de alta aqui.'
+                        icon:   'link',
+                        accent: '#3FC189',
+                        title:  'Producto auxiliar',
+                        text:   'Es el que el generador usa para armar el ticket virtual: se van sumando sus precios hasta cubrir el total cobrado. Solo estos se dan de alta aqui.'
                     },
                     {
-                        icon:  'layers',
-                        tone:  'text-amber-500',
-                        title: 'Modificador',
-                        text:  'Acompaña a otro producto (extras, terminos, guarniciones) y no arma un ticket por si solo: no entra en la combinacion.'
+                        icon:   'layers',
+                        accent: '#F59E0B',
+                        title:  'Modificador',
+                        text:   'Acompaña a otro producto (extras, terminos, guarniciones) y no arma un ticket por si solo: no entra en la combinacion.'
                     }
                 ]
             }
@@ -588,7 +624,7 @@ class CatalogosView extends Templates {
             title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto auxiliar',
             autofill: producto || false,
             json:     this.jsonProducto(),
-            onSave:   (form) => catalogos.saveProducto(code || '', form)
+            onSave:   (form) => catalogos.saveProducto(code || '', form, producto ? Number(producto.puente) : 1)
         });
     }
 
@@ -641,6 +677,11 @@ class CatalogosView extends Templates {
 
     // Leyenda de una tabla cuando lo que hay que explicar son varios conceptos: uno
     // por caja, en linea, con el icono de la columna que representan delante.
+    //
+    // El icono va en su propia pastilla del color del concepto y el titulo en ese
+    // mismo tono, en renglon aparte: asi la caja se lee de un vistazo (que marca
+    // es) y solo despues su explicacion, que baja a gris. El color no toca el
+    // borde: la caja se distingue por su pastilla, no por un marco de mas.
     noteCard(options) {
         const defaults = {
             parent: 'root',
@@ -648,11 +689,24 @@ class CatalogosView extends Templates {
             class:  'flex flex-col md:flex-row gap-2 mb-3',
             json:   { items: [] },
             classes: {
-                item:  'note-card flex items-start gap-2 flex-1 px-3 py-2 rounded-lg bg-[#0E1521] border border-[#374151]',
-                icon:  'w-3.5 h-3.5 flex-shrink-0 mt-[2px]',
-                text:  'text-[10px] text-gray-400 leading-relaxed mb-0',
-                title: 'font-bold text-gray-300'
+                item:  'note-card flex items-start gap-2.5 flex-1 px-3 py-2.5 rounded-lg bg-[#0E1521]',
+                chip:  'note-chip flex items-center justify-center w-6 h-6 rounded-md flex-shrink-0',
+                icon:  'w-3.5 h-3.5',
+                body:  'flex-1 min-w-0',
+                text:  'note-text text-[10px] text-gray-400 leading-relaxed mb-0',
+                title: 'note-title text-[11px] font-bold mb-0.5'
             }
+        };
+
+        // El color del concepto llega en un solo dato: el titulo y el icono lo
+        // llevan tal cual y el fondo de la pastilla es ese mismo color rebajado,
+        // como los iconos de las tarjetas de arriba.
+        const tint = (hex, alpha) => {
+            const n = parseInt(String(hex || '').replace('#', ''), 16);
+
+            if (isNaN(n)) return 'transparent';
+
+            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
         };
 
         const o    = options || {};
@@ -666,10 +720,15 @@ class CatalogosView extends Templates {
 
         const item = (it) => `
             <div class="${opts.classes.item}">
-                ${it.icon ? `<i data-lucide="${esc(it.icon)}" class="${opts.classes.icon} ${esc(it.tone || '')}"></i>` : ''}
-                <p class="${opts.classes.text}">
-                    <span class="${opts.classes.title}">${esc(it.title)}:</span> ${esc(it.text)}
-                </p>
+                ${it.icon ? `
+                    <span class="${opts.classes.chip}" style="background: ${tint(it.accent, .15)};">
+                        <i data-lucide="${esc(it.icon)}" class="${opts.classes.icon}" style="color: ${esc(it.accent || 'currentColor')};"></i>
+                    </span>
+                ` : ''}
+                <div class="${opts.classes.body}">
+                    <p class="${opts.classes.title}" style="color: ${esc(it.accent || 'currentColor')};">${esc(it.title)}</p>
+                    <p class="${opts.classes.text}">${esc(it.text)}</p>
+                </div>
             </div>
         `;
 
