@@ -19,10 +19,10 @@
                 <span class="vsr-launcher-badge"><i data-lucide="list-checks"></i></span>
                 <span class="vsr-launcher-name">TODO</span>
             </button>
-            <span class="vsr-launcher-item is-empty" aria-hidden="true">
-                <span class="vsr-launcher-badge"></span>
-                <span class="vsr-launcher-name">&nbsp;</span>
-            </span>
+            <button type="button" class="vsr-launcher-item" data-launch="drive" data-tone="violet" role="menuitem" title="Explorar las carpetas de Drive compartidas">
+                <span class="vsr-launcher-badge"><i data-lucide="hard-drive"></i></span>
+                <span class="vsr-launcher-name">Drive</span>
+            </button>
             <span class="vsr-launcher-item is-empty" aria-hidden="true">
                 <span class="vsr-launcher-badge"></span>
                 <span class="vsr-launcher-name">&nbsp;</span>

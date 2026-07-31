@@ -948,11 +948,15 @@
         // paginas no hay explorador que pilotar, asi que se navega a el.
         openInVisor(list) {
             const norm = (s) => String(s || '').replace(/\\/g, '/');
-            const app  = global.app;
+            // El visor declara su instancia con `let app` a nivel de script, y eso NO
+            // crea window.app: hay que leer el identificador del ambito global de
+            // scripts. Buscarlo en `global` devolvia undefined y esta ventana acababa
+            // abriendo el visor en otra pestana teniendolo delante.
+            const vsr = (typeof app !== 'undefined' && app) ? app : global.app;
 
-            if (app && typeof app.loadFile === 'function' && Array.isArray(app.allFiles)) {
-                const found = app.allFiles.filter((f) => norm(f.fullPath) === norm(list.fullPath))[0];
-                if (found) { this.close(); app.loadFile(found.file, found); return; }
+            if (vsr && typeof vsr.loadFile === 'function' && Array.isArray(vsr.allFiles)) {
+                const found = vsr.allFiles.filter((f) => norm(f.fullPath) === norm(list.fullPath))[0];
+                if (found) { this.close(); vsr.loadFile(found.file, found); return; }
                 this.flash('El visor no tiene ese archivo en la carpeta abierta', 'error');
                 return;
             }

@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/drive-hub.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -305,6 +306,13 @@
                 <div class="doc-layout">
 
                     <aside class="doc-meta">
+                        <!-- Panel plegado: queda solo esta pastilla, como el esquema de
+                             Google Docs. Vive dentro del aside (que es sticky) para que
+                             acompane el scroll sin robarle ancho al documento. -->
+                        <button id="btnMetaShow" class="doc-meta-fab" type="button" title="Mostrar el panel (Contenido)">
+                            <i data-lucide="list" class="w-4 h-4"></i>
+                        </button>
+
                         <div id="frontmatterCard" class="frontmatter-card">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-2.5">
@@ -326,6 +334,9 @@
                                     <i data-lucide="list" class="vsr-fm-icon w-4 h-4"></i>
                                     <h2>Contenido</h2>
                                 </div>
+                                <button id="btnMetaHide" class="doc-meta-hide" type="button" title="Ocultar el panel">
+                                    <i data-lucide="panel-left-close" class="w-3.5 h-3.5"></i>
+                                </button>
                             </div>
                             <nav id="tocBody" class="toc-body"></nav>
                         </div>
@@ -775,6 +786,7 @@
     <script src="src/js/local-folder.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/launcher.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/drive-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>

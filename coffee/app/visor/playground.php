@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
+    <link rel="stylesheet" href="src/css/drive-hub.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/playground.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -551,6 +552,7 @@
     <script src="src/js/playground.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/launcher.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/drive-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

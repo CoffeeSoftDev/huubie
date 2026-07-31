@@ -15,6 +15,7 @@ class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
+        this.view         = 'productos';
     }
 
     async init() {
@@ -25,18 +26,14 @@ class App extends Templates {
 
     render() {
         this.layout();
-        this.filterBar();
         catalogosView.renderHeader();
-        catalogosView.renderFooter();
-        catalogosView.renderPanelHeads();
-        catalogosView.renderEmisorForm(this.dataInit.emisor);
-        catalogos.lsKpis();
-        catalogos.lsProductos();
-        catalogos.lsMeseros();
+        this.renderView();
     }
 
     // -- Layout --
 
+    // Un solo panel: las tres vistas del modulo se turnan en la misma tarjeta y se
+    // eligen desde el conmutador de la cabecera, no desde un costado fijo.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -53,25 +50,13 @@ class App extends Templates {
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 pt-1 pb-4 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
-                    id:    'tableWrap',
-                    class: 'p-3 flex-1 min-h-0 overflow-auto'
-                },
-                {
-                    id:    'viewFooterRow',
-                    class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] flex-shrink-0'
+                    id:    'contentRow',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col'
                 }
             ]
-        };
-
-        // createLayout solo itera children en type 'div': para un aside caen en el
-        // default y jQuery los toma como metodo. Las zonas del panel se arman aparte.
-        const detailPanel = {
-            type:  'aside',
-            id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -79,59 +64,34 @@ class App extends Templates {
             design: false,
             data: {
                 id:        this.PROJECT_NAME,
-                class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
-                container: [mainPanel, detailPanel]
+                class:     'flex-1 min-h-0 w-full flex flex-col overflow-hidden',
+                container: [mainPanel]
             }
         });
 
+        this.cardLayout();
+    }
+
+    // La tarjeta es el marco de la vista activa: dentro va la tabla del catalogo o
+    // el formulario del emisor, nunca las dos cosas. El scroll vive aqui, de modo
+    // que cabecera, filtros y tarjetas se quedan fijos arriba.
+    cardLayout() {
         this.createLayout({
-            parent: 'detailPanel',
+            parent: 'contentRow',
             design: false,
             data: {
-                id:        'detailInner',
-                class:     'flex-1 min-h-0 flex flex-col overflow-hidden',
+                // p-4 como el panel de cada pestana en Cargas: el aire lo pone la
+                // tarjeta, no el contenido, asi la tabla y el formulario del emisor
+                // se separan igual de sus bordes sin repetir el margen cada uno.
+                id:        'cardCatalogo',
+                class:     'w-full flex-1 min-h-0 bg-[#141d2b] rounded-lg p-4 flex flex-col overflow-hidden',
                 container: [
                     {
                         type:  'div',
-                        id:    'detailHead',
-                        class: 'px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex items-center justify-between flex-shrink-0'
-                    },
-                    {
-                        type:  'div',
-                        id:    'formEmisor',
-                        class: 'flex-1 min-h-0 overflow-auto scroll-thin px-3 py-3'
+                        id:    'viewBody',
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin'
                     }
                 ]
-            }
-        });
-
-        this.gridsLayout();
-    }
-
-    gridsLayout() {
-        const panel = (key) => ({
-            type:  'div',
-            id:    `card${key}`,
-            class: 'bg-[#1F2A37] rounded-lg overflow-hidden flex flex-col',
-            children: [
-                {
-                    id:    `head${key}`,
-                    class: 'px-4 py-3 flex items-center justify-between'
-                },
-                {
-                    id:    `table${key}`,
-                    class: 'overflow-auto scroll-thin max-h-80'
-                }
-            ]
-        });
-
-        this.createLayout({
-            parent: 'tableWrap',
-            design: false,
-            data: {
-                id:        'gridsRow',
-                class:     'w-full grid grid-cols-1 xl:grid-cols-2 gap-4',
-                container: [panel('Productos'), panel('Meseros')]
             }
         });
     }
@@ -139,12 +99,24 @@ class App extends Templates {
     // -- Filter bar --
 
     filterBar() {
-        const filters = [
+        if (this.view === 'emisor') return $('#filterBar').empty();
+
+        this.createfilterBar({
+            parent:     'filterBar',
+            id:         `filterBar${this.PROJECT_NAME}`,
+            coffeesoft: true,
+            theme:      FACTURE_THEME,
+            data:       this.view === 'meseros' ? this.jsonFiltroMeseros() : this.jsonFiltroProductos()
+        });
+    }
+
+    jsonFiltroProductos() {
+        return [
             {
                 opc:         'input',
                 id:          'qBuscar',
-                lbl:         'Buscar:',
-                class:       'col-12 col-md-4 col-lg-3',
+                lbl:         'Buscar producto',
+                class:       'col-12 col-md-6 col-lg-6',
                 placeholder: 'Codigo o nombre...',
                 required:    false,
                 onkeyup:     'app.onChangeFilters()'
@@ -152,8 +124,8 @@ class App extends Templates {
             {
                 opc:      'select',
                 id:       'fTipo',
-                lbl:      'Catalogo:',
-                class:    'col-12 col-md-4 col-lg-3',
+                lbl:      'Tipo',
+                class:    'col-12 col-md-3 col-lg-3',
                 value:    '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -163,28 +135,39 @@ class App extends Templates {
                 opc:       'button',
                 id:        'btnNuevoProducto',
                 text:      'Nuevo producto',
-                color_btn: 'invernal',
-                class:     'col-12 col-md-6 col-lg-3',
+                icon:      'ic-plus',
+                color_btn: 'primary',
+                class:     'col-12 col-md-3 col-lg-3',
                 onClick:   () => catalogosView.openProductoForm()
+            }
+        ];
+    }
+
+    jsonFiltroMeseros() {
+        return [
+            {
+                opc:         'input',
+                id:          'qBuscar',
+                lbl:         'Buscar mesero',
+                class:       'col-12 col-md-8 col-lg-9',
+                placeholder: 'Clave o nombre...',
+                required:    false,
+                onkeyup:     'app.onChangeFilters()'
             },
             {
                 opc:       'button',
                 id:        'btnNuevoMesero',
                 text:      'Nuevo mesero',
-                color_btn: 'secondary',
-                class:     'col-12 col-md-6 col-lg-3',
+                icon:      'ic-plus',
+                color_btn: 'primary',
+                class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => catalogosView.openMeseroForm()
             }
         ];
-
-        this.createfilterBar({
-            parent:     'filterBar',
-            coffeesoft: true,
-            theme:      FACTURE_THEME,
-            data:       filters
-        });
     }
 
+    // El tipo solo existe en la vista de productos: en meseros el campo no esta
+    // pintado y el filtro viaja vacio.
     getFilters() {
         return {
             q:    $('#qBuscar').val() || '',
@@ -192,16 +175,42 @@ class App extends Templates {
         };
     }
 
+    // -- Vistas --
+
+    renderView() {
+        const vistas = {
+            productos: () => {
+                catalogos.lsProductos();
+                catalogos.lsKpis();
+            },
+            meseros: () => {
+                catalogos.lsMeseros();
+                catalogos.lsKpis();
+            },
+            emisor: () => {
+                $('#kpisRow').empty();
+                catalogosView.renderEmisor(this.dataInit.emisor);
+            }
+        };
+
+        this.filterBar();
+        vistas[this.view]();
+    }
+
+    setView(view) {
+        this.view = view;
+        this.renderView();
+    }
+
+    lsView() {
+        this.view === 'meseros' ? catalogos.lsMeseros() : catalogos.lsProductos();
+    }
+
     // -- Event handlers --
 
     onChangeFilters() {
-        catalogos.lsProductos();
-        catalogos.lsMeseros();
+        this.lsView();
         catalogos.lsKpis();
-    }
-
-    updateFooterInfo(text) {
-        $('#viewFooter_info').text(text);
     }
 }
 
@@ -216,104 +225,76 @@ class Catalogos extends Templates {
 
     // -- Data --
 
+    // Columnas: 1 Codigo, 2 Nombre, 3 Precio, 4 Puente, 5 Modificador, 6 Estatus.
+    //
+    // Misma configuracion que las tablas de Cargas: la paleta se deja al tema y
+    // solo se apaga el borde exterior, porque la tarjeta que las contiene ya
+    // dibuja el marco. Fijar aqui los colores dark rompia la variante clara del
+    // modulo, que se elige desde facture-theme.js.
     async lsProductos() {
         const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsProductos' }, app.getFilters()) });
 
         this.createCoffeeTable3({
-            parent:       'tableProductos',
-            id:           'tbProductos',
-            theme:        FACTURE_THEME,
-            center:       [1, 4, 5],
-            right:        [3],
-            actionsAlign: 'center',
-            extends:      true,
-            scrollable:   false,
-            striped:      true,
-            f_size:       11,
-            border_table: 'border-0',
-            emptyMessage: 'No se encontraron productos',
-            emptyIcon:    'ic-box',
-            data:         data
+            parent:        'viewBody',
+            id:            'tbProductos',
+            theme:         FACTURE_THEME,
+            center:        [4, 5, 6],
+            right:         [3],
+            actionsAlign:  'center',
+            extends:       true,
+            scrollable:    false,
+            hover:         true,
+            f_size:        11,
+            border_table:  'border-0',
+            emptyMessage:  'No se encontraron productos',
+            emptyIcon:     'ic-box',
+            data:          data
         });
 
         if (window.lucide) lucide.createIcons();
+
+        this.dataTable('#tbProductos', data);
     }
 
     async lsMeseros() {
         const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsMeseros' }, app.getFilters()) });
 
         this.createCoffeeTable3({
-            parent:       'tableMeseros',
-            id:           'tbMeseros',
-            theme:        FACTURE_THEME,
-            center:       [1],
-            actionsAlign: 'center',
-            extends:      true,
-            scrollable:   false,
-            striped:      true,
-            f_size:       11,
-            border_table: 'border-0',
-            emptyMessage: 'No se encontraron meseros',
-            emptyIcon:    'ic-users',
-            data:         data
+            parent:        'viewBody',
+            id:            'tbMeseros',
+            theme:         FACTURE_THEME,
+            center:        [3],
+            actionsAlign:  'center',
+            extends:       true,
+            scrollable:    false,
+            hover:         true,
+            f_size:        11,
+            border_table:  'border-0',
+            emptyMessage:  'No se encontraron meseros',
+            emptyIcon:     'ic-users',
+            data:          data
         });
 
         if (window.lucide) lucide.createIcons();
+
+        this.dataTable('#tbMeseros', data);
     }
 
-    // El pie del modulo se escribe con los mismos conteos de las tarjetas: es el
-    // resumen del catalogo con el filtro puesto.
+    // Paginado y ordenamiento de la tabla ya pintada. Sin filas createCoffeeTable3
+    // no arma un <table> sino el aviso de vacio, asi que montar DataTables ahi
+    // dejaria la paginacion colgando debajo del mensaje.
+    dataTable(id, data) {
+        if (!(data.row || []).length) return;
+
+        if (typeof simple_data_table === 'function') simple_data_table(id, 12);
+    }
+
+    // Una sola consulta sirve a las dos vistas: el buscador es comun y cambiar de
+    // pestaña no vuelve a pedir cifras al servidor.
     async lsKpis() {
         const kpis = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
 
-        catalogosView.renderInfoCards([
-            {
-                id:          'kpiProductos',
-                title:       'Productos',
-                lucideIcon:  'package',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.productos,
-                    color: 'text-white'
-                }
-            },
-            {
-                id:          'kpiPuente',
-                title:       'Marcados puente',
-                lucideIcon:  'link',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.puente,
-                    color: 'text-green-600'
-                }
-            },
-            {
-                id:          'kpiMeseros',
-                title:       'Meseros',
-                lucideIcon:  'users',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.meseros,
-                    color: 'text-white'
-                }
-            },
-            {
-                id:          'kpiPrecio',
-                title:       'Suma de puentes',
-                lucideIcon:  'banknote',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.sumaPuente,
-                    color: 'text-[#1C64F2]'
-                }
-            }
-        ]);
-
-        app.updateFooterInfo(`${kpis.productos} productos (${kpis.puente} puente · ${kpis.modificadores} modificadores) · ${kpis.meseros} meseros`);
+        catalogosView.renderInfoCards(kpis);
     }
 
     // -- Actions --
@@ -353,14 +334,76 @@ class Catalogos extends Templates {
         });
     }
 
-    // Las dos tablas y las tarjetas se releen juntas: un producto marcado como
-    // puente cambia tambien el conteo del pie.
+    // El interruptor de la fila escribe la marca contraria a la que muestra. Un
+    // producto puente cambia tambien de sitio en la tabla y las cifras de las
+    // tarjetas, asi que la vista se relee entera.
+    async editProductoFlag(code, campo, valor) {
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: {
+                opc:   'editProductoFlag',
+                code:  code,
+                campo: campo,
+                valor: valor
+            }
+        });
+
+        if (response.status === 200) return this.refresh();
+
+        this.alertBox({ type: 'error', title: response.message });
+    }
+
+    // Activar es directo; dar de baja se confirma, porque el producto deja de estar
+    // disponible para armar tickets virtuales.
+    editProductoStatus(code, valor) {
+        if (valor === 1) return this.saveStatus('editProductoStatus', code, valor);
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Dar de baja el producto',
+                text:              `Se retirara la clave ${code} del catalogo activo. Los renglones ya cargados la conservan y podras volver a activarla.`,
+                icon:              'warning',
+                confirmButtonText: 'Si, dar de baja',
+                cancelButtonText:  'No'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) this.saveStatus('editProductoStatus', code, valor);
+        });
+    }
+
+    editMeseroStatus(code, valor) {
+        if (valor === 1) return this.saveStatus('editMeseroStatus', code, valor);
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Dar de baja el mesero',
+                text:              `Se retirara la clave ${code} del catalogo activo. Podras volver a activarla cuando haga falta.`,
+                icon:              'warning',
+                confirmButtonText: 'Si, dar de baja',
+                cancelButtonText:  'No'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) this.saveStatus('editMeseroStatus', code, valor);
+        });
+    }
+
+    async saveStatus(opc, code, valor) {
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: {
+                opc:   opc,
+                code:  code,
+                valor: valor
+            }
+        });
+
+        this.afterSave(response);
+    }
+
     afterSave(response) {
-        if (response.status === 200) {
-            this.lsProductos();
-            this.lsMeseros();
-            this.lsKpis();
-        }
+        if (response.status === 200) this.refresh();
 
         this.alertBox({
             type:  response.status === 200 ? 'success' : 'error',
@@ -369,38 +412,11 @@ class Catalogos extends Templates {
         });
     }
 
-    deleteProducto(code) {
-        this.swalQuestion({
-            extends: true,
-            opts: {
-                title:             'Dar de baja el producto',
-                text:              `Se retirara la clave ${code} del catalogo. Los renglones ya cargados la conservan.`,
-                icon:              'warning',
-                confirmButtonText: 'Si, dar de baja',
-                cancelButtonText:  'No'
-            }
-        }).then(async (result) => {
-            if (!result.isConfirmed) return;
-
-            this.afterSave(await useFetch({ url: apiCatalogos, data: { opc: 'deleteProducto', code: code } }));
-        });
-    }
-
-    deleteMesero(code) {
-        this.swalQuestion({
-            extends: true,
-            opts: {
-                title:             'Dar de baja el mesero',
-                text:              `Se retirara la clave ${code} del catalogo de meseros.`,
-                icon:              'warning',
-                confirmButtonText: 'Si, dar de baja',
-                cancelButtonText:  'No'
-            }
-        }).then(async (result) => {
-            if (!result.isConfirmed) return;
-
-            this.afterSave(await useFetch({ url: apiCatalogos, data: { opc: 'deleteMesero', code: code } }));
-        });
+    // La tabla y las tarjetas se releen juntas: un producto marcado como puente
+    // cambia tambien los conteos del encabezado.
+    refresh() {
+        app.lsView();
+        this.lsKpis();
     }
 }
 
@@ -415,77 +431,174 @@ class CatalogosView extends Templates {
 
     // -- Render helpers --
 
-    // Copy de la cabecera y del pie del modulo. No son datos: productos, meseros y
-    // emisor se consultan al servidor.
+    // Copy de la cabecera del modulo. No son datos: productos, meseros y emisor se
+    // consultan al servidor.
     renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
             id:     'hdrCatalogos',
             json: {
                 title:    'Catalogos',
-                subtitle: 'Administra los productos que sirven de puente, los meseros y los datos del emisor del ticket virtual',
-                back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
-            }
-        });
-    }
-
-    renderFooter() {
-        this.viewFooter({
-            parent: 'viewFooterRow',
-            id:     'viewFooter',
-            json: {
-                info: '',
-                legends: [
-                    { tone: 'success', label: 'Producto puente' },
-                    { tone: 'warning', label: 'Modificador'     },
-                    { tone: 'default', label: 'Sin marcar'      }
+                subtitle: 'Productos del punto de venta y datos del ticket virtual',
+                back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' },
+                toggles: [
+                    {
+                        key:   'vista',
+                        label: '',
+                        value: app.view,
+                        options: [
+                            {
+                                value: 'productos',
+                                label: 'Productos'
+                            },
+                            {
+                                value: 'meseros',
+                                label: 'Meseros'
+                            },
+                            {
+                                value: 'emisor',
+                                label: 'Ticket / Emisor'
+                            }
+                        ]
+                    }
                 ]
-            }
+            },
+            onToggle: (key, value) => app.setView(value)
         });
     }
 
-    renderInfoCards(rows) {
+    // La vista viaja como atributo de la fila: el tinte del icono de cada tarjeta
+    // depende de su posicion, y esa cambia con la vista.
+    renderInfoCards(kpis) {
+        $('#kpisRow').attr('data-view', app.view);
+
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisCatalogos',
             theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
-            json:   rows
+            json:   app.view === 'meseros' ? this.jsonKpisMeseros(kpis) : this.jsonKpisProductos(kpis)
         });
     }
 
-    renderPanelHeads() {
-        this.panelHead({
-            parent: 'headProductos',
-            json: {
-                icon:  'package',
-                title: 'Productos puente',
-                badge: { text: 'catalogo', tone: 'b-gray' }
+    jsonKpisProductos(kpis) {
+        return [
+            {
+                id:          'kpiProductos',
+                title:       'Productos',
+                lucideIcon:  'package',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.productos,
+                    color: 'text-white'
+                }
+            },
+            {
+                id:          'kpiPuente',
+                title:       'Puente',
+                lucideIcon:  'link',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.puente,
+                    color: 'text-[#3FC189]'
+                }
+            },
+            {
+                id:          'kpiModificadores',
+                title:       'Modificadores',
+                lucideIcon:  'layers',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.modificadores,
+                    color: 'text-amber-500'
+                }
+            },
+            {
+                id:          'kpiPrecio',
+                title:       'Precio promedio',
+                lucideIcon:  'banknote',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.precioPromedio,
+                    color: 'text-[#1C64F2]'
+                }
             }
-        });
+        ];
+    }
 
-        this.panelHead({
-            parent: 'headMeseros',
-            json: {
-                icon:  'users',
-                title: 'Meseros',
-                badge: { text: 'catalogo', tone: 'b-gray' }
+    jsonKpisMeseros(kpis) {
+        return [
+            {
+                id:          'kpiMeseros',
+                title:       'Meseros',
+                lucideIcon:  'users',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.meseros,
+                    color: 'text-white'
+                }
+            },
+            {
+                id:          'kpiMeserosActivos',
+                title:       'Activos',
+                lucideIcon:  'user-check',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.meserosActivos,
+                    color: 'text-[#3FC189]'
+                }
+            },
+            {
+                id:          'kpiMeserosBaja',
+                title:       'Dados de baja',
+                lucideIcon:  'user-x',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.meserosBaja,
+                    color: 'text-red-400'
+                }
+            },
+            {
+                id:          'kpiMeserosSinNombre',
+                title:       'Sin nombre',
+                lucideIcon:  'badge-alert',
+                bgColor:     'bg-[#141d2b]',
+                borderColor: 'border-transparent',
+                data: {
+                    value: kpis.meserosSinNombre,
+                    color: 'text-amber-500'
+                }
             }
-        });
-
-        this.panelHead({
-            parent: 'detailHead',
-            json: {
-                icon:  'building-2',
-                title: 'Emisor del ticket virtual'
-            }
-        });
+        ];
     }
 
     // -- Forms --
 
-    renderEmisorForm(emisor) {
+    renderEmisor(emisor) {
+        // Sin margen horizontal propio: el aire ya lo pone el p-4 de la tarjeta, y
+        // repetirlo aqui dejaba el separador del encabezado sin llegar a sus bordes.
+        $('#viewBody').html('<div id="emisorHead" class="pb-3 border-b border-[#374151]"></div><div id="formEmisor" class="pt-4 max-w-3xl"></div>');
+
+        this.panelHead({
+            parent: 'emisorHead',
+            json: {
+                icon:  'building-2',
+                title: 'Emisor del ticket virtual',
+                badge: {
+                    text: 'sucursal',
+                    tone: 'b-gray'
+                }
+            }
+        });
+
         this.coffeeForm({
             parent:       'formEmisor',
             id:           'frmEmisor',
@@ -530,8 +643,8 @@ class CatalogosView extends Templates {
                 opc:       'button',
                 id:        'btnGuardarEmisor',
                 text:      'Guardar emisor',
-                color_btn: 'invernal',
-                class:     'col-12',
+                color_btn: 'primary',
+                class:     'col-12 col-md-4',
                 onClick:   () => catalogos.saveEmisor()
             }
         ];
@@ -713,6 +826,8 @@ class CatalogosView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
+    // El grupo de toggles va como control segmentado: son las vistas del modulo, no
+    // un filtro mas, y el activo se pinta relleno para que se lea como pestaña.
     viewHeader(options) {
         const defaults = {
             parent: 'root',
@@ -723,8 +838,9 @@ class CatalogosView extends Templates {
                 title:    'text-lg font-bold text-white',
                 subtitle: 'text-xs text-gray-400',
                 groupLbl: 'text-[9px] text-gray-400 uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37] transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300',
+                group:    'flex items-center gap-1 p-1 rounded-lg border border-[#374151] bg-[#141d2b]',
+                btn:      'demo-toggle px-3 py-1.5 rounded-md text-[12px] text-gray-400 hover:bg-[#1F2A37] hover:text-white transition-colors',
+                btnActive:'demo-toggle active px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#1C64F2] text-white',
                 sep:      'text-gray-300',
                 backBtn:  'w-8 h-8 rounded-full bg-[#1F2A37] hover:bg-[rgba(28,100,242,0.12)] border border-[#374151] hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-300 transition-colors flex-shrink-0'
             },
@@ -752,9 +868,10 @@ class CatalogosView extends Templates {
                                 data-toggle-value="${esc(op.value)}"
                                 class="${active ? opts.classes.btnActive : opts.classes.btn}">${esc(op.label)}</button>`;
             }).join('');
+            const label = g.label ? `<span class="${opts.classes.groupLbl}">${esc(g.label)}</span>` : '';
             return `
-                <div class="flex items-center gap-2">
-                    <span class="${opts.classes.groupLbl}">${esc(g.label)}</span>
+                ${label}
+                <div class="${opts.classes.group}">
                     ${buttons}
                 </div>
             `;
@@ -810,55 +927,5 @@ class CatalogosView extends Templates {
                 if (backHref) window.location.href = backHref;
             });
         }
-    }
-
-    viewFooter(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'viewFooter',
-            class:  'flex items-center justify-between w-full',
-            json:   { info: '', legends: [] },
-            tones: {
-                default: '#9CA3AF',
-                success: 'var(--cs-success,#3FC189)',
-                warning: 'var(--cs-warning,#FBBF24)',
-                danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
-                purple:  'var(--cs-accent-purple,#7C3AED)'
-            },
-            classes: {
-                info:   'text-[10px] text-gray-400',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
-                item:   'flex items-center gap-1'
-            }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.tones   = Object.assign({}, defaults.tones,   o.tones   || {});
-        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneColor  = (tone) => opts.tones[tone] || opts.tones.default;
-        const legendItem = (lg) => `
-            <span class="${opts.classes.item}">
-                <span class="w-2 h-2 rounded-full" style="background:${toneColor(lg.tone)};"></span>
-                ${esc(lg.label)}
-            </span>
-        `;
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-        const legendsHtml = (opts.json.legends || []).map(legendItem).join('');
-
-        wrap.html(`
-            <p id="${opts.id}_info" class="${opts.classes.info}">${esc(opts.json.info)}</p>
-            <div class="${opts.classes.legend}">${legendsHtml}</div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
     }
 }

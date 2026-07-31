@@ -1366,9 +1366,50 @@ textarea.acct-input { resize: vertical; }
     z-index: 1;
 }
 
+/* ── Panel lateral plegable (Frontmatter + Contenido) ──────────────
+   Como el esquema de Google Docs: se pliega a una pastilla y el documento
+   recupera el ancho. No hace falta centrarlo a mano — .md-rendered ya lleva
+   max-width + margin auto, asi que al soltar los 320px del panel se centra solo. */
+.doc-meta-hide {
+    width: 24px; height: 24px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 7px; background: transparent;
+    color: var(--vsr-text-mute2); cursor: pointer; transition: all .13s ease;
+}
+.doc-meta-hide:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+
+.doc-meta-fab {
+    display: none;
+    width: 34px; height: 34px; align-items: center; justify-content: center;
+    border: 1px solid var(--vsr-border); border-radius: 999px;
+    background: var(--vsr-bg-card); color: var(--vsr-text-soft);
+    cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); transition: all .13s ease;
+}
+.doc-meta-fab:hover { background: var(--vsr-bg-hover); color: var(--vsr-accent); border-color: var(--vsr-accent-soft); }
+
+body.doc-meta-hidden .doc-meta {
+    /* Ancho cero y la pastilla fuera del flujo: asi el documento queda centrado
+       de verdad y no desplazado por el carril del boton. El aside es sticky
+       (elemento posicionado), asi que el absolute se ancla a el y acompana el
+       scroll igual que el esquema de Docs. */
+    width: 0;
+    overflow: visible;
+}
+/* !important porque renderFrontmatter usa .hide()/.show() de jQuery, que escribe
+   el display en el propio elemento y le ganaria a esta regla. */
+body.doc-meta-hidden .doc-meta > .frontmatter-card { display: none !important; }
+body.doc-meta-hidden .doc-meta-fab { display: inline-flex; position: absolute; top: 0; left: 0; }
+/* Sin panel, el hueco entre columnas sobra. */
+body.doc-meta-hidden .doc-layout { gap: 0; }
+
 @media (max-width: 1100px) {
     .doc-layout { flex-direction: column; align-items: stretch; }
     .doc-meta   { width: 100%; position: static; }
+    /* En columna el panel va arriba y ocupa todo el ancho: plegarlo no libera
+       nada horizontal, asi que el boton no aplica. */
+    .doc-meta-hide, .doc-meta-fab { display: none !important; }
+    body.doc-meta-hidden .doc-meta { width: 100%; }
+    body.doc-meta-hidden .doc-meta > .frontmatter-card { display: block; }
     /* En columna, align-items:flex-start dejaba que .doc-main se dimensionara al
        contenido (hasta max-width:1000px) y desbordara el viewport. Forzarlo al
        100% mantiene el documento dentro del ancho de la pantalla. */

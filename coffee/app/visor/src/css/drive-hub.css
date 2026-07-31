@@ -1,0 +1,234 @@
+/* Explorador de Drive: ventana que navega las carpetas compartidas con la cuenta
+   de servicio y abre un documento en el visor.
+
+   Comparte esqueleto con el cajon de TODOs (misma ventana, mismo velo, mismo rail
+   a la izquierda), pero con acento violeta: el TODO es celeste, y en la rejilla del
+   launcher las apps se reconocen por color antes que por la etiqueta. Los grises
+   salen de las variables --vsr-* para seguir el tema activo.
+
+   Un solo color manda: los iconos van todos en gris y solo el acento marca lo
+   seleccionado y los botones. Las carpetas se separan de los archivos por un
+   violeta atenuado, no por un color propio — mezclar ambar, verde y azul en la
+   misma lista hacia mas ruido que jerarquia. */
+.drv-veil {
+    --drv-ink:  #A78BFA;
+    --drv-soft: rgba(167, 139, 250, .20);
+    --drv-line: rgba(167, 139, 250, .36);
+    --drv-dim:  #6B7280;
+    --drv-mute: #9CA3AF;
+    --drv-edge: rgba(55, 65, 81, .45);
+    --drv-tint: rgba(148, 163, 184, .06);
+    /* Fondo de los iconos: carpeta con un guino del acento, archivo neutro. */
+    --drv-folder-bg: rgba(167, 139, 250, .16);
+    --drv-folder-fg: #A78BFA;
+    --drv-file-bg:   rgba(148, 163, 184, .14);
+    --drv-file-fg:   #9CA3AF;
+}
+[data-theme="light"] .drv-veil {
+    --drv-ink:  #7C3AED;
+    --drv-soft: #EDE9FE;
+    --drv-line: rgba(124, 58, 237, .32);
+    --drv-dim:  #9CA3AF;
+    --drv-mute: #6B7280;
+    --drv-edge: #E5E7EB;
+    --drv-tint: rgba(17, 24, 39, .04);
+    --drv-folder-bg: #EDE9FE;
+    --drv-folder-fg: #7C3AED;
+    --drv-file-bg:   rgba(17, 24, 39, .06);
+    --drv-file-fg:   #6B7280;
+}
+
+.drv-veil {
+    position: fixed; inset: 0; z-index: 120;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: rgba(3, 7, 18, .58); backdrop-filter: blur(2px);
+}
+.drv-veil[hidden] { display: none; }
+
+.drv-modal {
+    width: min(1030px, 100%); height: min(630px, 100%);
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--vsr-bg-card); color: var(--vsr-text);
+    border: 1px solid var(--vsr-border); border-radius: 16px;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, .55);
+    font-size: 13px;
+}
+.drv-modal * { box-sizing: border-box; }
+.drv-veil.is-wide .drv-modal { width: 100%; height: 100%; }
+.drv-veil.is-in .drv-modal { animation: drv-pop .17s ease-out; }
+@keyframes drv-pop { from { transform: scale(.985); opacity: .5; } to { transform: none; opacity: 1; } }
+
+/* ── Barra superior ── */
+.drv-top { display: flex; align-items: center; gap: 13px; padding: 13px 16px; border-bottom: 1px solid var(--vsr-border); flex-shrink: 0; }
+.drv-badge {
+    width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--drv-soft); color: var(--drv-ink);
+}
+.drv-badge svg { width: 17px; height: 17px; stroke-width: 2.1; }
+.drv-top h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.01em; cursor: pointer; }
+.drv-top h2:hover { color: var(--drv-ink); }
+.drv-top p { margin: 1px 0 0; font-size: 11px; color: var(--drv-mute); }
+.drv-top-tools { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+
+.drv-ico {
+    width: 30px; height: 30px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--drv-edge); border-radius: 8px; background: transparent;
+    color: var(--drv-mute); cursor: pointer; transition: all .13s ease;
+}
+.drv-ico:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.drv-ico svg { width: 15px; height: 15px; }
+
+.drv-search { position: relative; flex: 1; max-width: 340px; margin-left: 18px; }
+.drv-search > svg { position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: var(--drv-dim); pointer-events: none; }
+.drv-search input {
+    width: 100%; padding: 7px 28px 7px 31px; font: inherit; font-size: 12.5px; color: var(--vsr-text);
+    background: var(--vsr-bg-input); border: 1px solid var(--drv-edge); border-radius: 8px;
+}
+.drv-search input:focus { outline: none; border-color: var(--drv-line); }
+.drv-search input::placeholder { color: var(--drv-dim); }
+.drv-search .drv-clear {
+    position: absolute; right: 7px; top: 7px; width: 18px; height: 18px;
+    display: none; align-items: center; justify-content: center;
+    border: 0; border-radius: 5px; background: rgba(148, 163, 184, .16); color: var(--drv-mute); cursor: pointer;
+}
+.drv-search .drv-clear svg { width: 11px; height: 11px; }
+.drv-veil.has-query .drv-search .drv-clear { display: inline-flex; }
+
+/* ── Cuerpo: rail + panel ── */
+.drv-body { flex: 1; display: flex; min-height: 0; }
+
+.drv-rail {
+    width: 236px; flex-shrink: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--vsr-border); background: var(--drv-tint);
+}
+.drv-rail-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 7px 10px; }
+
+.drv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.drv-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 6px 8px 10px; }
+
+/* ── Migas de pan ── */
+.drv-crumbs {
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+    padding: 10px 16px; font-size: 11.5px; color: var(--drv-mute);
+    border-bottom: 1px solid var(--drv-edge); flex-shrink: 0;
+}
+.drv-crumbs svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--drv-dim); }
+.drv-crumbs button {
+    border: 0; background: transparent; color: var(--drv-mute); font: inherit; font-size: 11.5px; cursor: pointer; padding: 0;
+}
+.drv-crumbs button:hover { color: var(--drv-ink); }
+.drv-crumbs .is-now { color: var(--vsr-text); font-weight: 600; }
+
+/* ── Filas ── */
+.drv-item {
+    display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 9px;
+    border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit;
+    font: inherit; text-align: left; cursor: pointer;
+}
+.drv-item:hover { background: var(--vsr-bg-hover); }
+.drv-item.is-on { background: var(--drv-soft); border-color: var(--drv-line); }
+.drv-item.is-off { opacity: .55; cursor: default; }
+.drv-item.is-off:hover { background: transparent; }
+
+.drv-item-ico {
+    width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--drv-file-bg); color: var(--drv-file-fg);
+}
+.drv-item-ico svg { width: 15px; height: 15px; }
+/* Lo unico que cambia de color es la carpeta: dentro de una lista, saber que
+   entra y que abre importa mas que de que tipo es cada archivo (para eso esta
+   el icono y el renglon de abajo). */
+.drv-item-ico.k-folder { background: var(--drv-folder-bg); color: var(--drv-folder-fg); }
+/* La fila seleccionada tine su icono con el acento: el color sigue al foco. */
+.drv-item.is-on .drv-item-ico { background: var(--drv-soft); color: var(--drv-ink); }
+
+.drv-item-main { flex: 1; min-width: 0; }
+.drv-item-main b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drv-item-main small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--drv-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drv-item-meta { flex-shrink: 0; font-size: 10.5px; color: var(--drv-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.drv-item-chev { flex-shrink: 0; color: var(--drv-dim); display: inline-flex; }
+.drv-item-chev svg { width: 14px; height: 14px; }
+
+.drv-tag {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px;
+    background: rgba(148, 163, 184, .16); color: var(--drv-mute);
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+}
+
+.drv-group {
+    padding: 13px 10px 5px; font-size: 10px; font-weight: 700; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--drv-dim);
+}
+
+/* ── Vista previa ── */
+.drv-prev {
+    flex-shrink: 0; border-top: 1px solid var(--vsr-border);
+    padding: 12px 16px 14px; background: var(--drv-tint);
+}
+.drv-prev h4 {
+    margin: 0 0 7px; font-size: 10px; font-weight: 700; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--drv-dim);
+}
+.drv-prev-card { display: flex; gap: 13px; align-items: flex-start; }
+.drv-prev-txt {
+    flex: 1; min-width: 0; margin: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; line-height: 1.65; color: var(--drv-mute);
+    max-height: 74px; overflow: hidden; white-space: pre-wrap; word-break: break-word;
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+            mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+.drv-prev-note { flex: 1; min-width: 0; margin: 0; font-size: 11.5px; color: var(--drv-dim); line-height: 1.6; }
+.drv-prev-acts { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+
+/* ── Botones ── */
+.drv-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    border: 1px solid var(--drv-edge); border-radius: 8px; background: transparent;
+    color: var(--vsr-text-soft); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.drv-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.drv-btn svg { width: 14px; height: 14px; }
+.drv-btn.is-primary { background: var(--drv-ink); border-color: var(--drv-ink); color: #06281C; }
+[data-theme="light"] .drv-btn.is-primary { color: #fff; }
+.drv-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Pie ── */
+.drv-foot {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+    border-top: 1px solid var(--vsr-border); background: var(--drv-tint); flex-shrink: 0;
+}
+.drv-foot .drv-hint { flex: 1; min-width: 0; font-size: 11px; color: var(--drv-dim); }
+.drv-foot .drv-hint b { color: var(--vsr-text-soft); font-weight: 600; }
+
+/* ── Vacios y carga ── */
+.drv-empty { padding: 40px 24px; text-align: center; color: var(--drv-dim); }
+.drv-empty-ico {
+    width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 13px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(148, 163, 184, .12);
+}
+.drv-empty-ico svg { width: 21px; height: 21px; }
+.drv-empty p { margin: 0 0 5px; font-size: 13px; font-weight: 600; color: var(--vsr-text-soft); }
+.drv-empty small { font-size: 11.5px; line-height: 1.6; display: block; max-width: 380px; margin: 0 auto; }
+
+/* Cada carpeta es una peticion a Drive: el esqueleto avisa de que se esta yendo
+   a buscarla y evita el salto de una lista que aparece de golpe. */
+.drv-skeleton { padding: 8px 9px; }
+.drv-skeleton i {
+    display: block; height: 34px; margin-bottom: 8px; border-radius: 10px;
+    background: linear-gradient(90deg, rgba(148,163,184,.10), rgba(148,163,184,.20), rgba(148,163,184,.10));
+    background-size: 200% 100%; animation: drv-shimmer 1.1s linear infinite;
+}
+@keyframes drv-shimmer { to { background-position: -200% 0; } }
+
+/* En pantallas angostas el rail estorba mas de lo que ayuda: se retira y el
+   camino queda solo en las migas. */
+@media (max-width: 860px) {
+    .drv-veil { padding: 0; }
+    .drv-modal { width: 100%; height: 100%; border-radius: 0; border: 0; }
+    .drv-rail { display: none; }
+    .drv-search { margin-left: 10px; }
+    .drv-prev { display: none; }
+}

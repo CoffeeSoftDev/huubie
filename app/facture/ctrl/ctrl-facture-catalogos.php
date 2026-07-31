@@ -35,9 +35,11 @@ class ctrl extends mdl {
     function init() {
         return [
             'tipos' => [
-                ['id' => '',          'valor' => 'Todos los catalogos'],
-                ['id' => 'productos', 'valor' => 'Productos'],
-                ['id' => 'meseros',   'valor' => 'Meseros']
+                ['id' => '',            'valor' => 'Todos'],
+                ['id' => 'puente',      'valor' => 'Puente'],
+                ['id' => 'modificador', 'valor' => 'Modificador'],
+                ['id' => 'normal',      'valor' => 'Sin marcar'],
+                ['id' => 'inactivos',   'valor' => 'Inactivos']
             ],
             'sino' => [
                 ['id' => '1', 'valor' => 'Si'],
@@ -52,13 +54,22 @@ class ctrl extends mdl {
     // El buscador cae sobre clave y nombre en las dos tablas, asi que el arreglo de
     // parametros es el mismo para productos y para meseros.
     function filtros() {
-        $q     = trim($_POST['q'] ?? '');
-        $like  = '%' . $q . '%';
+        $like = '%' . trim($_POST['q'] ?? '') . '%';
 
-        return [
-            'tipo' => $_POST['tipo'] ?? '',
-            'data' => [$this->branchId(), $like, $like]
+        return [$this->branchId(), $like, $like];
+    }
+
+    // El valor del select no viaja al SQL: cada opcion tiene aqui su condicion
+    // fija, y lo que no este en el mapa no filtra.
+    function whereTipo() {
+        $mapa = [
+            'puente'      => ' AND is_bridge = 1 ',
+            'modificador' => ' AND is_modifier = 1 ',
+            'normal'      => ' AND is_bridge = 0 AND is_modifier = 0 ',
+            'inactivos'   => ' AND active = 0 '
         ];
+
+        return $mapa[$_POST['tipo'] ?? ''] ?? '';
     }
 
     // -- Emisor --
@@ -112,27 +123,28 @@ class ctrl extends mdl {
 
     // -- Productos --
 
-    // El tipo del filtro apaga la tabla que no se pidio: las dos viven en la misma
-    // pantalla, asi que el filtro decide cual trae filas en vez de esconderla.
+    // Las dos marcas del producto se cambian con el interruptor de su celda, sin
+    // abrir el formulario: son las dos columnas que se repasan de corrido cuando se
+    // arma el catalogo de puentes.
     function lsProductos() {
-        $filtros = $this->filtros();
-
-        if ($filtros['tipo'] === 'meseros') return ['row' => [], 'thead' => ''];
-
         $__row = [];
-        foreach ($this->listProduct($filtros['data']) as $item) {
+        foreach ($this->listProduct($this->filtros(), $this->whereTipo()) as $item) {
             $__row[] = [
                 'id'          => $item['code'],
                 'Codigo'      => cellCodigo($item['code']),
-                'Nombre'      => '<span class="font-semibold text-gray-300">' . $item['name'] . '</span>',
-                'Precio'      => '<span class="text-gray-400">' . money($item['price']) . '</span>',
-                'Puente'      => badgeSiNo($item['is_bridge'], 'b-green'),
-                'Modificador' => badgeSiNo($item['is_modifier'], 'b-yellow'),
-                'a'           => productoButtons($item['code'])
+                'Nombre'      => cellNombre($item['name'], $item['active']),
+                'Precio'      => cellPrecio($item['price']),
+                'Puente'      => switchCell($item['code'], 'puente', $item['is_bridge']),
+                'Modificador' => switchCell($item['code'], 'modificador', $item['is_modifier']),
+                'Estatus'     => statusBadge($item['active']),
+                'a'           => productoButtons($item['code'], $item['active'])
             ];
         }
 
-        return ['row' => $__row, 'thead' => ''];
+        return [
+            'row'   => $__row,
+            'thead' => ['Codigo', 'Nombre', 'Precio', 'Puente', 'Modificador', 'Estatus', 'Acciones']
+        ];
     }
 
     function getProducto() {
@@ -188,42 +200,71 @@ class ctrl extends mdl {
         ];
     }
 
-    // Baja logica: los renglones de comanda ya cargados apuntan al producto por id,
-    // asi que borrarlo de verdad dejaria el historico sin a que colgarse.
-    function deleteProducto() {
+    // El interruptor de la fila manda que marca toca y con que valor se queda. La
+    // columna se resuelve contra un mapa: lo que no este ahi no se escribe.
+    function editProductoFlag() {
+        $columnas = ['puente' => 'is_bridge', 'modificador' => 'is_modifier'];
+        $columna  = $columnas[$_POST['campo'] ?? ''] ?? '';
+
+        if ($columna === '') return ['status' => 400, 'message' => 'La marca no existe'];
+
         $ls = $this->getProductByCode([$_POST['code'] ?? '', $this->branchId()]);
 
         if (empty($ls)) return ['status' => 404, 'message' => 'El producto no existe'];
 
-        $baja = $this->updateProduct($this->util->sql([
-            'active' => 0,
+        $guardado = $this->updateProduct($this->util->sql([
+            $columna => (int) ($_POST['valor'] ?? 0),
             'id'     => $ls[0]['id']
         ], 1));
 
         return [
-            'status'  => $baja ? 200 : 500,
-            'message' => $baja ? 'Producto dado de baja' : 'No se pudo dar de baja el producto'
+            'status'  => $guardado ? 200 : 500,
+            'message' => $guardado ? 'Marca actualizada' : 'No se pudo actualizar la marca'
+        ];
+    }
+
+    // Baja logica y reversible: los renglones de comanda ya cargados apuntan al
+    // producto por id, asi que borrarlo de verdad dejaria el historico sin a que
+    // colgarse. El mismo boton lo vuelve a dar de alta.
+    function editProductoStatus() {
+        $ls = $this->getProductByCode([$_POST['code'] ?? '', $this->branchId()]);
+
+        if (empty($ls)) return ['status' => 404, 'message' => 'El producto no existe'];
+
+        $activo   = (int) ($_POST['valor'] ?? 0);
+        $guardado = $this->updateProduct($this->util->sql([
+            'active' => $activo,
+            'id'     => $ls[0]['id']
+        ], 1));
+
+        return [
+            'status'  => $guardado ? 200 : 500,
+            'message' => $guardado
+                ? ($activo ? 'Producto activado' : 'Producto dado de baja')
+                : 'No se pudo cambiar el estatus del producto'
         ];
     }
 
     // -- Meseros --
 
+    // El mesero que sigue con su clave por nombre es el que la carga dio de alta y
+    // nadie ha bautizado: se marca para que se vea cual falta capturar.
     function lsMeseros() {
-        $filtros = $this->filtros();
-
-        if ($filtros['tipo'] === 'productos') return ['row' => [], 'thead' => ''];
-
         $__row = [];
-        foreach ($this->listWaiter($filtros['data']) as $item) {
+        foreach ($this->listWaiter($this->filtros()) as $item) {
             $__row[] = [
-                'id'     => $item['code'],
-                'Codigo' => cellCodigo($item['code']),
-                'Nombre' => '<span class="font-semibold text-gray-300">' . $item['name'] . '</span>',
-                'a'      => meseroButtons($item['code'])
+                'id'      => $item['code'],
+                'Codigo'  => cellCodigo($item['code']),
+                'Nombre'  => cellMesero($item['name'], $item['code'], $item['active']),
+                'Estatus' => statusBadge($item['active']),
+                'a'       => meseroButtons($item['code'], $item['active'])
             ];
         }
 
-        return ['row' => $__row, 'thead' => ''];
+        return [
+            'row'   => $__row,
+            'thead' => ['Codigo', 'Nombre', 'Estatus', 'Acciones']
+        ];
     }
 
     function getMesero() {
@@ -270,37 +311,46 @@ class ctrl extends mdl {
         ];
     }
 
-    function deleteMesero() {
+    function editMeseroStatus() {
         $ls = $this->getWaiterByCode([$_POST['code'] ?? '', $this->branchId()]);
 
         if (empty($ls)) return ['status' => 404, 'message' => 'El mesero no existe'];
 
-        $baja = $this->updateWaiter($this->util->sql([
-            'active' => 0,
+        $activo   = (int) ($_POST['valor'] ?? 0);
+        $guardado = $this->updateWaiter($this->util->sql([
+            'active' => $activo,
             'id'     => $ls[0]['id']
         ], 1));
 
         return [
-            'status'  => $baja ? 200 : 500,
-            'message' => $baja ? 'Mesero dado de baja' : 'No se pudo dar de baja el mesero'
+            'status'  => $guardado ? 200 : 500,
+            'message' => $guardado
+                ? ($activo ? 'Mesero activado' : 'Mesero dado de baja')
+                : 'No se pudo cambiar el estatus del mesero'
         ];
     }
 
     // -- Indicadores --
 
+    // Las dos vistas se sirven de una sola consulta: el buscador es comun a las dos
+    // y el cambio de pestaña no vuelve a pedir cifras al servidor.
     function showKpis() {
         $filtros  = $this->filtros();
-        $producto = $this->getProductCounts($filtros['data']);
-        $mesero   = $this->getWaiterCounts($filtros['data']);
+        $producto = $this->getProductCounts($filtros, $this->whereTipo());
+        $mesero   = $this->getWaiterCounts($filtros);
 
-        $p = $producto[0] ?? ['productos' => 0, 'puente' => 0, 'modificadores' => 0, 'suma_puente' => 0];
+        $p = $producto[0] ?? ['productos' => 0, 'puente' => 0, 'modificadores' => 0, 'precio_promedio' => 0];
+        $m = $mesero[0]   ?? ['meseros' => 0, 'activos' => 0, 'sin_nombre' => 0];
 
         return [
-            'productos'     => (int) $p['productos'],
-            'puente'        => (int) $p['puente'],
-            'modificadores' => (int) $p['modificadores'],
-            'sumaPuente'    => money($p['suma_puente']),
-            'meseros'       => (int) ($mesero[0]['meseros'] ?? 0)
+            'productos'       => (int) $p['productos'],
+            'puente'          => (int) $p['puente'],
+            'modificadores'   => (int) $p['modificadores'],
+            'precioPromedio'  => money($p['precio_promedio']),
+            'meseros'         => (int) $m['meseros'],
+            'meserosActivos'  => (int) $m['activos'],
+            'meserosBaja'     => (int) $m['meseros'] - (int) $m['activos'],
+            'meserosSinNombre'=> (int) $m['sin_nombre']
         ];
     }
 }
@@ -315,13 +365,59 @@ function cellCodigo($code) {
     return '<span class="font-mono text-[10px] text-gray-400">' . $code . '</span>';
 }
 
-function badgeSiNo($valor, $tone) {
-    return (int) $valor === 1
-        ? '<span class="badge-base ' . $tone . '">Si</span>'
-        : '<span class="badge-base b-gray">No</span>';
+// El nombre pierde fuerza cuando el producto esta de baja: es la primera senal de
+// la fila, antes de llegar a la columna de estatus.
+function cellNombre($name, $active) {
+    $tono = (int) $active === 1 ? 'text-gray-300' : 'text-gray-500 line-through';
+
+    return '<span class="font-semibold ' . $tono . '">' . $name . '</span>';
 }
 
-function productoButtons($code) {
+function cellPrecio($price) {
+    return '<span class="text-gray-400">' . money($price) . '</span>';
+}
+
+function cellMesero($name, $code, $active) {
+    $pendiente = $name === $code
+        ? '<span class="badge-base b-yellow ml-2">Sin nombre</span>'
+        : '';
+
+    return cellNombre($name, $active) . $pendiente;
+}
+
+// Interruptor de la marca: escribe el valor contrario al que muestra, de modo que
+// la celda es el control y no hace falta abrir el formulario para una sola casilla.
+function switchCell($code, $campo, $valor) {
+    $on = (int) $valor === 1;
+
+    return '<button type="button"
+                    class="cs-switch' . ($on ? ' is-on' : '') . '"
+                    title="' . ($on ? 'Quitar marca' : 'Marcar') . '"
+                    onclick="catalogos.editProductoFlag(\'' . $code . '\', \'' . $campo . '\', ' . ($on ? 0 : 1) . ')">
+                <span class="cs-switch-knob"></span>
+            </button>';
+}
+
+function statusBadge($active) {
+    return (int) $active === 1
+        ? '<span class="badge-base b-green">Activo</span>'
+        : '<span class="badge-base b-red">Inactivo</span>';
+}
+
+// El mismo boton da de baja y vuelve a dar de alta: la baja es logica, asi que la
+// fila no desaparece y el estatus se corrige desde donde se ve.
+function statusButton($code, $active, $accion) {
+    $on = (int) $active === 1;
+
+    return [
+        'class'   => $on ? 'btn-icon-danger' : 'btn-icon-success',
+        'html'    => '<i data-lucide="power" class="w-3.5 h-3.5"></i>',
+        'title'   => $on ? 'Dar de baja' : 'Activar',
+        'onclick' => "{$accion}('{$code}', " . ($on ? 0 : 1) . ")"
+    ];
+}
+
+function productoButtons($code, $active) {
     return [
         [
             'class'   => 'btn-icon-view',
@@ -329,16 +425,11 @@ function productoButtons($code) {
             'title'   => 'Editar producto',
             'onclick' => "catalogosView.editProducto('{$code}')"
         ],
-        [
-            'class'   => 'btn-icon-danger',
-            'html'    => '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>',
-            'title'   => 'Dar de baja',
-            'onclick' => "catalogos.deleteProducto('{$code}')"
-        ]
+        statusButton($code, $active, 'catalogos.editProductoStatus')
     ];
 }
 
-function meseroButtons($code) {
+function meseroButtons($code, $active) {
     return [
         [
             'class'   => 'btn-icon-view',
@@ -346,12 +437,7 @@ function meseroButtons($code) {
             'title'   => 'Editar mesero',
             'onclick' => "catalogosView.editMesero('{$code}')"
         ],
-        [
-            'class'   => 'btn-icon-danger',
-            'html'    => '<i data-lucide="trash-2" class="w-3.5 h-3.5"></i>',
-            'title'   => 'Dar de baja',
-            'onclick' => "catalogos.deleteMesero('{$code}')"
-        ]
+        statusButton($code, $active, 'catalogos.editMeseroStatus')
     ];
 }
 

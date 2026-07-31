@@ -87,6 +87,28 @@ class mdl extends CRUD {
         ";
     }
 
+    // Los pagos del periodo, uno por renglon y sin agrupar: la columna "Forma de
+    // pago" muestra cada cobro del ticket con su importe, y un GROUP_CONCAT los
+    // devolveria ya fundidos en una sola cadena. Se traen de una sola consulta y
+    // el controlador los reparte por folio.
+    function listPagos($array) {
+        $query = "
+            SELECT p.sale_folio, p.amount, pm.name AS payment_name
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            JOIN (
+                SELECT folio, MAX(id) AS id
+                FROM {$this->bd}sale
+                WHERE active = 1 AND branch_id <=> ?
+                  AND operation_date BETWEEN ? AND ?
+                GROUP BY folio
+            ) u ON u.folio = p.sale_folio
+            WHERE p.active = 1
+            ORDER BY p.sale_folio ASC, pm.name ASC, p.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // El tope da para un mes completo, que es el periodo mas largo que abre el
     // modulo por defecto (~3 800 ventas del POS). Con rangos mas largos el listado
     // se corta, y el controlador lo avisa al pie de la tabla en vez de callarlo.

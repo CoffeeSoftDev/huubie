@@ -357,9 +357,10 @@ class App extends Templates {
         const json = conLog ? [bitacora].concat(hojas) : hojas;
 
         // Sin pestanas que mostrar la tira no se pinta: tabLayout dejaria la barra
-        // de botones vacia sobre el panel.
+        // de botones vacia sobre el panel. El hueco no se deja en blanco, que se
+        // lee como una pantalla a medio cargar: el vacio dice que le falta.
         if (!json.length) {
-            $(`#sheetsHost-${tabId}`).empty();
+            cargasView.renderEmptySheets(tabId);
             return;
         }
 
@@ -400,7 +401,7 @@ class App extends Templates {
         const parent = `sheetBody-${this.sheetKey(lote.id)}`;
         if ($(`#${parent}`).children().length) return;
 
-        cargas.lsRegistros(lote.id, tabId);
+        cargas.lsRegistros(lote.id);
     }
 
     // -- Hojas del panel --
@@ -463,10 +464,6 @@ class Cargas extends Templates {
 
     miles(n) {
         return Number(n || 0).toLocaleString('en-US');
-    }
-
-    pesos(n) {
-        return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     // -- Data --
@@ -568,35 +565,8 @@ class Cargas extends Templates {
     // Registros de un lote: se pintan en el panel de SU hoja, que es el que
     // tabLayout mantiene oculto hasta que la pestana se abre. Ya no reemplazan la
     // tabla de la bitacora, asi que no hace falta un boton para volver.
-    async lsRegistros(id, tabId) {
-        const tipo  = tabId || app.activeTab;
-        const hoja  = app.sheetKey(id);
-        const lote  = (app.lotes[tipo] || []).find(l => Number(l.id) === Number(id));
-
-        // Pie de una hoja cargada. Cuando el modelo trunca el listado lo dice: la
-        // pestana anuncia el total del lote y la tabla trae menos filas que eso.
-        const sheetFoot = (lt, res) => {
-            if (!lt) return { text: '' };
-
-            const total   = Number(res.total || 0);
-            const traidas = (res.row || []).length;
-            const parcial = traidas < total ? `<span class="text-gray-400">${this.miles(traidas)}</span> de ` : '';
-
-            return {
-                text: `${parcial}<span class="text-gray-400 font-semibold">${this.miles(total)}</span> filas ·
-                       control <span class="text-gray-400">${this.pesos(lt.control_total)}</span> ·
-                       ${lt.file_name} · ${lt.stamp}`,
-                badges: [{ text: `lote #${lt.id}`, tone: 'b-gray' }],
-                actions: [
-                    {
-                        class:   'btn-icon-danger',
-                        icon:    'trash-2',
-                        title:   'Eliminar esta carga',
-                        onclick: `cargas.deleteCarga(${lt.id})`
-                    }
-                ]
-            };
-        };
+    async lsRegistros(id) {
+        const hoja = app.sheetKey(id);
 
         cargasView.renderLoader(`sheetBody-${hoja}`, 'Leyendo los registros de la carga...');
 
@@ -623,11 +593,6 @@ class Cargas extends Templates {
             emptyIcon:     'ic-file-text',
             data:          { row: data.row }
         });
-
-        // El pie toma el lugar del encabezado con el boton de volver: mientras se
-        // leen los registros sigue a la vista de que archivo salieron, su control y
-        // la accion de borrar el lote.
-        cargasView.renderSheetFoot(hoja, sheetFoot(lote, data));
 
         if (window.lucide) lucide.createIcons();
 
@@ -973,6 +938,23 @@ class CargasView extends Templates {
         });
     }
 
+    // Periodo sin cargas, en cualquiera de las dos pestanas: donde iria la tira de
+    // hojas se dice que archivo espera esa pestana y con que boton se sube, para
+    // que el vacio no se confunda con una consulta que no termino.
+    renderEmptySheets(tabId) {
+        const archivo = app.dataInit.archivos[tabId] || {};
+        const periodo = `${$('#fMes option:selected').text()} ${$('#fAnio').val()}`;
+
+        this.emptyBox({
+            parent: `sheetsHost-${tabId}`,
+            json: {
+                icon:  'folder-open',
+                title: `Sin cargas de ${archivo.titulo} en ${periodo}`,
+                text:  `Sube ${archivo.esperado} con el boton "Subir Excel" para ver aqui las hojas del archivo y sus registros.`
+            }
+        });
+    }
+
     // -- Components --
 
     uploadRow(options) {
@@ -1057,6 +1039,38 @@ class CargasView extends Templates {
         `);
 
         $(`#${opts.parent}`).html(wrap);
+    }
+
+    // Hueco sin datos. Ocupa el mismo lugar que la espera y con la misma forma
+    // (icono arriba, texto centrado), porque son los dos estados del mismo panel:
+    // uno dice que se esta consultando y el otro que no hay nada que consultar.
+    emptyBox(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'w-full h-full flex-1 min-h-[180px] flex flex-col items-center justify-center gap-2 text-center px-4',
+            json:   { icon: 'inbox', title: '', text: '' }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            <div class="w-12 h-12 rounded-full bg-[#1F2A37] border border-[#374151] flex items-center justify-center text-gray-500">
+                <i data-lucide="${esc(opts.json.icon)}" class="w-6 h-6"></i>
+            </div>
+            <p class="text-[12px] font-bold text-gray-300">${esc(opts.json.title)}</p>
+            ${opts.json.text ? `<p class="text-[11px] text-gray-500 max-w-[380px]">${esc(opts.json.text)}</p>` : ''}
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
     }
 
     sheetFootBar(options) {

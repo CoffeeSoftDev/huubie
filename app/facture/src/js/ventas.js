@@ -324,6 +324,12 @@ class App extends Templates {
         const data = await useFetch({ url: apiVentas, data: { opc: 'getVenta', folio: folio } });
         ventasView.renderDetail(data.status === 200 ? data.venta : null);
     }
+
+    // El modulo de Tickets abre por dia, y por dia se entra: el enlace vive en el
+    // encabezado del grupo, no en cada ticket.
+    verTickets(dia) {
+        window.location.href = `/app/facture/tickets.php?dia=${dia}`;
+    }
 }
 
 // -- Ventas --
@@ -337,11 +343,11 @@ class Ventas extends Templates {
 
     // -- Data --
 
-    // El listado llega en dos niveles del servidor: el dia como grupo (opc 1) y la
-    // forma de pago como subgrupo. Sin striped y sin DataTables: el color fuerte se
-    // reserva para los encabezados de grupo, y paginar u ordenar por columna
-    // partiria los bloques. Arranca plegado, de modo que la vista abre en el
-    // resumen de los dias del periodo y se baja al detalle abriendo el que interesa.
+    // El listado llega agrupado por dia del servidor (opc 1). Sin striped y sin
+    // DataTables: el color se reserva para los encabezados de grupo, y paginar u
+    // ordenar por columna partiria los bloques. Arranca plegado, de modo que la
+    // vista abre en el resumen de los dias del periodo y se baja al detalle
+    // abriendo el que interesa.
     //
     // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
     // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
@@ -369,7 +375,6 @@ class Ventas extends Templates {
             data:         data
         });
 
-        this.foldSubgroups();
         this.rowSelect();
 
         if (window.lucide) lucide.createIcons();
@@ -377,34 +382,14 @@ class Ventas extends Templates {
 
     // La fila completa abre el detalle, que es lo que el panel vacio ya promete
     // ("haz click en cualquier fila o en el icono ojo"): con el ojo como unica via
-    // el resto de la fila quedaba muerta. Los encabezados de grupo y de forma de
-    // pago no seleccionan: ahi el click es el del plegado.
+    // el resto de la fila quedaba muerta. El encabezado del dia no selecciona: ahi
+    // el click es el del plegado.
     rowSelect() {
         $(`#tb${this.PROJECT_NAME}`).on('click', 'tbody tr', function (e) {
-            if ($(e.target).closest('a, [data-sub-group], [data-folding-trigger]').length) return;
+            if ($(e.target).closest('a, [data-folding-trigger]').length) return;
 
             const folio = $(this).find('[data-folio]').attr('data-folio');
             if (folio) app.selectVenta(folio);
-        });
-    }
-
-    // Segundo nivel de plegado. El componente solo pliega las filas opc 1 (el dia),
-    // asi que la forma de pago se engancha aqui con su propia clase: si usara el
-    // `hidden` del componente, abrir el dia mostraria de golpe todos los tickets
-    // aunque sus formas siguieran cerradas.
-    foldSubgroups() {
-        const $tabla = $(`#tb${this.PROJECT_NAME}`);
-
-        $tabla.find('[data-sub-group]').closest('tr').addClass('ct-subgroup');
-        $tabla.find('[data-sub-member]').closest('tr').addClass('sub-hidden');
-
-        $tabla.on('click', '[data-sub-group]', function () {
-            const clave   = $(this).attr('data-sub-group');
-            const $filas  = $tabla.find(`[data-sub-member="${clave}"]`).closest('tr');
-            const abierto = !$filas.first().hasClass('sub-hidden');
-
-            $filas.toggleClass('sub-hidden', abierto);
-            $(this).find('i').attr('class', abierto ? 'icon-right-open' : 'icon-down-open');
         });
     }
 

@@ -30,7 +30,8 @@ const PREFS_ALLOWED = [
     'visor:shortcuts:v1',             // sidebar: accesos directos (URLs configurables)
     'visor:recentViews:v1',           // sidebar: documentos vistos recientemente
     'visor:recentCreated:v1',         // sidebar: documentos creados recientemente
-    'visor:todoArchived:v1'           // cajon de TODOs: listas archivadas (solo sus claves)
+    'visor:todoArchived:v1',          // cajon de TODOs: listas archivadas (solo sus claves)
+    'visor:driveRecent:v1'            // explorador de Drive: documentos abiertos hace poco
 ];
 const PREFS_MAX_BYTES = 262144;   // 256 KB por preferencia
 

@@ -59,6 +59,27 @@
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Cpath d='M16 3.128a4 4 0 0 1 0 7.744'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3C/svg%3E");
 }
 
+/* -- Signo de mas de los botones de alta --
+   El framework pinta el icono del boton como CLASE (<i class="...">), no como
+   atributo data-lucide: misma razon que los ic-* de arriba, y por eso el glifo se
+   dibuja con mask-image en vez de cargar un font. */
+#root .ic-plus {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='M12 5v14'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='M12 5v14'/%3E%3C/svg%3E");
+}
+
 /* -- Scroll fino en paneles internos -- */
 #root .scroll-thin::-webkit-scrollbar { width: 6px; height: 8px; }
 #root .scroll-thin::-webkit-scrollbar-track { background: transparent; }
@@ -109,26 +130,19 @@
 #root #kpisVentas .w-8 i { width: 15px; height: 15px; }
 
 /* -- Tabla plegable por grupos --
-   El listado de ventas se lee en dos niveles: el dia (fila opc 1, que pliega el
-   componente) y la forma de pago (subgrupo, que pliega el modulo). Sin striped:
-   el color se reserva para los encabezados, que es lo que separa un bloque del
-   siguiente.
+   El listado de ventas se agrupa por dia (fila opc 1, que pliega el componente).
+   Sin striped: el color se reserva para el encabezado, que es lo que separa un
+   bloque del siguiente.
 
-   Las bandas van aqui y no como clases de Tailwind en el PHP porque el modulo
-   corre en dos temas: el selector con #root gana a la utilidad de fondo que el
-   componente pone en la celda, y la variante clara solo cambia el tono. */
-#root .ct-group { background: #1E4B87; color: #EAF1FE; }
+   La banda va aqui y no como clase de Tailwind en el PHP porque el modulo corre
+   en dos temas: el selector con #root gana a la utilidad de fondo que el
+   componente pone en la celda, y la variante clara solo cambia el tono.
 
-#root #tbventas tbody tr.ct-subgroup > td { background: #2E3F54; color: #DCE4EF; }
+   Usa el acento del modulo tintado, el mismo de los badges b-terra y del titulo
+   de la cabecera, no un fondo solido: separa los dias sin dominar la tabla. */
+#root .ct-group { background: rgba(28,100,242,.15); color: #93C5FD; }
 
-html[data-facture-theme="light"] #root .ct-group { background: #DBEAFE; color: #1E3A8A; }
-
-html[data-facture-theme="light"] #root #tbventas tbody tr.ct-subgroup > td { background: #EEF2F7; color: #374151; }
-
-/* Plegado del segundo nivel. Clase propia y no el `hidden` del componente: ese
-   lo mueve el grupo del dia, y al abrirlo destaparia los tickets de todas las
-   formas de pago aunque siguieran cerradas. */
-#root .sub-hidden { display: none !important; }
+html[data-facture-theme="light"] #root .ct-group { background: rgba(28,100,242,.10); color: #1E40AF; }
 
 /* Los chevrones del plegado los pinta el componente como clases de fontello, que
    este modulo no carga (misma razon que los ic-* de arriba): se resuelven con la
@@ -335,6 +349,142 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 }
 
 #root .btn-icon-view:hover { background: rgba(28,100,242,.15); color: #BFDBFE; }
+
+#root .btn-icon-success {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: #6EE7B7;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+#root .btn-icon-success:hover { background: rgba(16,185,129,.15); color: #A7F3D0; }
+
+/* -- Interruptor de marca en tabla --
+   Las dos marcas del producto (puente y modificador) se repasan de corrido: la
+   celda es el control y guarda al momento, sin abrir el formulario por una sola
+   casilla. Encendido va en el verde del si, apagado en el gris del no. */
+#root .cs-switch {
+    display: inline-flex;
+    align-items: center;
+    width: 36px;
+    height: 20px;
+    padding: 3px;
+    border-radius: 9999px;
+    border: 0;
+    background: #4B5563;
+    cursor: pointer;
+    transition: background .18s ease;
+}
+
+#root .cs-switch:hover { background: #6B7280; }
+
+#root .cs-switch.is-on { background: #0E9E6E; }
+#root .cs-switch.is-on:hover { background: #0B8760; }
+
+#root .cs-switch-knob {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(17, 25, 40, .35);
+    transition: transform .18s ease;
+}
+
+#root .cs-switch.is-on .cs-switch-knob { transform: translateX(16px); }
+
+html[data-facture-theme="light"] #root .cs-switch { background: #D1D5DB; }
+html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
+
+/* -- Catalogos --
+   El listado no pagina: se recorre con el scroll de la tarjeta, asi que el
+   encabezado se queda fijo arriba. Va en versalitas para separarlo del dato,
+   como la fila de filtros. */
+#root #tbProductos thead th,
+#root #tbMeseros thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* El componente centra todo encabezado; clave, nombre e importe se leen contra su
+   columna, asi que el titulo se alinea con el dato y no al centro de la celda.
+   Va con !important porque la clase text-center del th es tambien una utilidad de
+   Bootstrap, y ahi si la trae. */
+#root #tbProductos thead th[data-col="1"],
+#root #tbProductos thead th[data-col="2"],
+#root #tbMeseros   thead th[data-col="1"],
+#root #tbMeseros   thead th[data-col="2"] { text-align: left !important; }
+
+#root #tbProductos thead th[data-col="3"] { text-align: right !important; }
+
+/* En meseros solo hay cuatro columnas: sin un ancho de referencia, table-auto
+   reparte el sobrante entre clave y estatus y el nombre queda flotando. */
+#root #tbMeseros th[data-col="2"],
+#root #tbMeseros td[data-col="2"] { width: 55%; }
+
+#root #filterBarcatalogos label {
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Los filtros van en su propia caja, como en el resto del modulo: la banda
+   superior queda de fondo y la fila de campos se lee como un bloque. */
+#root #filterBar > div > .fade-in {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #141d2b;
+    border: 1px solid #374151;
+}
+
+html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
+    background: #FFFFFF;
+    border-color: #E5E7EB;
+}
+
+/* La vista del emisor no tiene filtros ni tarjetas: sin esto sus dos bandas
+   dejarian una franja vacia entre la cabecera y el formulario. */
+#root #filterBar:empty,
+#root #kpisRow:empty { display: none; }
+
+/* El alta es la accion de la fila de filtros y va en el azul del modulo: el
+   primary del framework es el azul marino corporativo, mas apagado sobre la
+   banda oscura. */
+#root #btnNuevoProducto,
+#root #btnNuevoMesero,
+#root #btnGuardarEmisor { background: #1C64F2; }
+
+#root #btnNuevoProducto:hover,
+#root #btnNuevoMesero:hover,
+#root #btnGuardarEmisor:hover { background: #1A56DB; }
+
+/* La cifra de la tarjeta va bajo su titulo, alineada con el, no pegada al borde
+   derecho: se leen en columna al recorrer la fila de tarjetas. */
+#root #kpisCatalogos > div > div:last-child {
+    justify-content: flex-start;
+    padding-left: 40px;
+}
+
+/* El icono de cada tarjeta lleva el tinte de su cifra: el conteo se localiza por
+   color antes de leer el titulo. El orden es el de renderInfoCards y cambia con
+   la vista, por eso se declara por vista y no una sola vez. */
+#root #kpisRow[data-view="productos"] #kpisCatalogos_0 .w-8,
+#root #kpisRow[data-view="productos"] #kpisCatalogos_3 .w-8,
+#root #kpisRow[data-view="meseros"]   #kpisCatalogos_0 .w-8 { background: rgba(28,100,242,.15) !important; }
+
+#root #kpisRow[data-view="productos"] #kpisCatalogos_1 .w-8,
+#root #kpisRow[data-view="meseros"]   #kpisCatalogos_1 .w-8 { background: rgba(16,185,129,.15) !important; }
+
+#root #kpisRow[data-view="productos"] #kpisCatalogos_2 .w-8,
+#root #kpisRow[data-view="meseros"]   #kpisCatalogos_3 .w-8 { background: rgba(245,158,11,.15) !important; }
+
+#root #kpisRow[data-view="meseros"]   #kpisCatalogos_2 .w-8 { background: rgba(239,68,68,.15)  !important; }
 
 /* Barra indeterminada mientras el servidor lee el Excel: no hay avance real que
    reportar hasta que responde, asi que se anima de lado a lado. */

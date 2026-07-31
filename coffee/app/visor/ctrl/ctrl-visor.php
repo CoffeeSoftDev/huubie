@@ -1843,6 +1843,88 @@ function readDriveTree($relPrefix, $folderId) {
     return $documents;
 }
 
+// Origen "carpeta de Drive": el visor se para en UNA carpeta concreta y la lee
+// perezosamente, un nivel cada vez. Lo usa el explorador del launcher al abrir un
+// documento, para dejar el visor justo donde vive ese archivo. Se diferencia del
+// preset 'drive:<id>', que descarga el arbol entero de la unidad con tope de tres
+// niveles: aqui no hay tope y solo se pide la carpeta que se esta mirando.
+if ($folderKey === 'drivedir' && $customPath !== '') {
+    require_once __DIR__ . '/drive-client.php';
+
+    $folderId  = $customPath;   // en este origen `path` es el id de la carpeta
+    $agents    = [];
+    $folders   = [];
+    $parentRef = null;
+    $label     = 'Drive';
+    $errMsg    = null;
+    $valid     = true;
+
+    try {
+        $drive = new DriveClient();
+        $meta  = $drive->getMeta($folderId);
+        $label = $meta['name'] ?? 'Drive';
+        $parentRef = isset($meta['parents'][0]) ? $meta['parents'][0] : null;
+
+        foreach ($drive->listChildren($folderId, 'all') as $f) {
+            $isFolder = ($f['mimeType'] ?? '') === DRIVE_FOLDER_MIME;
+            if ($isFolder) {
+                // `fullPath` lleva el id: es lo que el sidebar usa para entrar.
+                $folders[] = [
+                    'name'     => $f['name'],
+                    'fullPath' => 'drivedir:' . $f['id'],
+                    'count'    => null   // contarlo costaria una peticion por carpeta
+                ];
+                continue;
+            }
+            $name = $f['name'];
+            $agents[] = [
+                'name'        => preg_replace('/\.(md|markdown)$/i', '', $name),
+                'file'        => $name,
+                'section'     => 'agentes',
+                'size'        => fmtSize($f['size'] ?? 0),
+                'isBackup'    => (stripos($name, 'backup') !== false),
+                'frontmatter' => ['name' => null, 'description' => null, 'model' => null, 'type' => null, 'project' => null, 'status' => null, 'date' => null],
+                'raw'         => '',
+                'lazyDrive'   => true,
+                'mtime'       => isset($f['modifiedTime']) ? date('Y-m-d H:i:s', strtotime($f['modifiedTime'])) : '',
+                'fullPath'    => 'drive://' . $f['id'],
+                'relPath'     => 'drive/' . $folderId . '/' . $name,
+                'driveId'     => $f['id'],
+                'mimeType'    => $f['mimeType'] ?? ''
+            ];
+        }
+        usort($agents,  function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        usort($folders, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+    } catch (Throwable $e) {
+        $valid  = false;
+        $errMsg = $e->getMessage();
+    }
+
+    echo json_encode([
+        'header' => [
+            'title'        => 'CoffeeDocs',
+            'subtitle'     => 'CoffeeSoft Library',
+            'user'         => coffee_visor_header_user(),
+            'pathLabel'    => 'Google Drive · ' . $label,
+            'source'       => 'Drive',
+            'currentKey'   => 'drivedir',
+            'currentLabel' => $label,
+            'currentPath'  => 'drivedir:' . $folderId,
+            // El padre solo sirve para el boton "subir": si la carpeta es una raiz
+            // compartida, su padre esta fuera de lo que la cuenta de servicio ve.
+            'parentPath'   => $parentRef ? 'drivedir:' . $parentRef : '',
+            'valid'        => $valid,
+            'presets'      => presetList($PRESETS),
+            'sectionLabel' => null,
+            'error'        => $errMsg
+        ],
+        'agents'    => $agents,
+        'grimoires' => [],
+        'folders'   => $folders
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if ($folderKey === 'custom' && $customPath !== '') {
     $normalized = str_replace('\\', '/', $customPath);
     $baseLabel  = basename($normalized);

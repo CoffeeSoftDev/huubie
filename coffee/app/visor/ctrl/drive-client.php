@@ -166,6 +166,32 @@ class DriveClient {
         return $result['files'] ?? [];
     }
 
+    /**
+     * Metadatos de un elemento: nombre, tipo y carpeta padre. Lo necesita el visor
+     * para pararse en una carpeta de Drive sabiendo como se llama y de donde cuelga.
+     */
+    public function getMeta($id) {
+        return $this->apiRequest(
+            'GET',
+            'https://www.googleapis.com/drive/v3/files/' . urlencode($id) . '?fields=id,name,mimeType,parents'
+        );
+    }
+
+    /**
+     * Busqueda libre con la sintaxis de consultas de Drive. La usa el explorador
+     * del launcher; el resto de operaciones arman su propia query acotada por padre.
+     */
+    public function searchFiles($query, $limit = 60) {
+        $params = http_build_query([
+            'q'        => $query,
+            'fields'   => 'files(id, name, mimeType, size, modifiedTime)',
+            'pageSize' => max(1, min((int) $limit, 200)),
+            'orderBy'  => 'folder,name',
+        ]);
+        $result = $this->apiRequest('GET', 'https://www.googleapis.com/drive/v3/files?' . $params);
+        return $result['files'] ?? [];
+    }
+
     public function findChildByName($parentId, $name, $isFolder = null) {
         $safe = str_replace("'", "\\'", $name);
         $q = "'" . $parentId . "' in parents and name = '" . $safe . "' and trashed = false";

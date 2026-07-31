@@ -57,40 +57,45 @@ class mdl extends CRUD {
     // El catalogo lo siembra la carga de comandas con las claves del POS; aqui se
     // administra lo que el POS no dice: si el producto sirve de puente para armar
     // tickets virtuales y si es un modificador.
-    function listProduct($array) {
+    //
+    // El listado ya no esconde a los inactivos: la baja es logica y reversible, y
+    // la columna de estatus es la que la vuelve visible. $where lo arma el ctrl
+    // desde un mapa fijo (nunca texto del usuario).
+    function listProduct($array, $where = '') {
         $query = "
-            SELECT id, code, name, price, is_bridge, is_modifier
+            SELECT id, code, name, price, is_bridge, is_modifier, active
             FROM {$this->bd}product
-            WHERE active = 1
-              AND branch_id <=> ?
+            WHERE branch_id <=> ?
               AND (code LIKE ? OR name LIKE ?)
-            ORDER BY is_bridge DESC, name ASC
+              {$where}
+            ORDER BY active DESC, is_bridge DESC, name ASC
         ";
         return $this->_Read($query, $array);
     }
 
     function getProductByCode($array) {
         $query = "
-            SELECT id, code, name, price, is_bridge, is_modifier
+            SELECT id, code, name, price, is_bridge, is_modifier, active
             FROM {$this->bd}product
-            WHERE active = 1 AND code = ? AND branch_id <=> ?
+            WHERE code = ? AND branch_id <=> ?
             LIMIT 1
         ";
         return $this->_Read($query, $array);
     }
 
-    // Conteos del catalogo para las tarjetas del modulo. La suma de precios se
-    // limita a los productos puente: son los que van a armar el ticket virtual.
-    function getProductCounts($array) {
+    // Conteos del catalogo para las tarjetas del modulo. El promedio se calcula
+    // sobre el mismo conjunto que la tabla muestra: es el precio tipico de lo que
+    // se esta viendo, no el del catalogo entero.
+    function getProductCounts($array, $where = '') {
         $query = "
             SELECT COUNT(*) AS productos,
                    COALESCE(SUM(is_bridge), 0)   AS puente,
                    COALESCE(SUM(is_modifier), 0) AS modificadores,
-                   COALESCE(SUM(CASE WHEN is_bridge = 1 THEN price ELSE 0 END), 0) AS suma_puente
+                   COALESCE(AVG(price), 0)       AS precio_promedio
             FROM {$this->bd}product
-            WHERE active = 1
-              AND branch_id <=> ?
+            WHERE branch_id <=> ?
               AND (code LIKE ? OR name LIKE ?)
+              {$where}
         ";
         return $this->_Read($query, $array);
     }
@@ -116,32 +121,34 @@ class mdl extends CRUD {
 
     function listWaiter($array) {
         $query = "
-            SELECT id, code, name
+            SELECT id, code, name, active
             FROM {$this->bd}waiter
-            WHERE active = 1
-              AND branch_id <=> ?
+            WHERE branch_id <=> ?
               AND (code LIKE ? OR name LIKE ?)
-            ORDER BY name ASC
+            ORDER BY active DESC, name ASC
         ";
         return $this->_Read($query, $array);
     }
 
     function getWaiterByCode($array) {
         $query = "
-            SELECT id, code, name
+            SELECT id, code, name, active
             FROM {$this->bd}waiter
-            WHERE active = 1 AND code = ? AND branch_id <=> ?
+            WHERE code = ? AND branch_id <=> ?
             LIMIT 1
         ";
         return $this->_Read($query, $array);
     }
 
+    // Los que siguen con el codigo por nombre son los que la carga de comandas
+    // dio de alta y nadie ha bautizado: es el pendiente del catalogo.
     function getWaiterCounts($array) {
         $query = "
-            SELECT COUNT(*) AS meseros
+            SELECT COUNT(*) AS meseros,
+                   COALESCE(SUM(active), 0)              AS activos,
+                   COALESCE(SUM(name = code), 0)         AS sin_nombre
             FROM {$this->bd}waiter
-            WHERE active = 1
-              AND branch_id <=> ?
+            WHERE branch_id <=> ?
               AND (code LIKE ? OR name LIKE ?)
         ";
         return $this->_Read($query, $array);

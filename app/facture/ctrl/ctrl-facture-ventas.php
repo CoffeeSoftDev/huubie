@@ -137,10 +137,9 @@ class ctrl extends mdl {
 
     // -- Listado --
 
-    // El listado se lee en dos niveles, como el concentrado de compras: el dia es
-    // el grupo y la forma de pago el subgrupo. Un ticket multipago no se parte en
-    // dos: cae en el subgrupo de su combinacion de pagos, que es justo lo que dice
-    // su columna "Forma de pago", asi que ningun monto se cuenta dos veces.
+    // El listado se agrupa por dia y nada mas: los tickets cuelgan directo de su
+    // fecha. La forma de pago no arma bloques, se lee en la columna de cada
+    // ticket, donde un cobro en dos partidas se ve como los dos cobros que es.
     function lsVentas() {
         $filtros = $this->filtros();
         $sum     = $this->sumVentas($filtros);
@@ -148,14 +147,15 @@ class ctrl extends mdl {
         $total   = (int) ($sum[0]['ventas'] ?? count($ventas));
         $__row   = [];
 
+        $pagos = $this->pagosPorFolio($filtros);
+
         foreach ($this->porDia($ventas) as $dia => $ventasDia) {
             $__row[] = grupoDiaRow($dia, $ventasDia);
 
-            foreach ($this->porForma($ventasDia) as $forma => $ventasForma) {
-                $clave   = claveForma($dia, $forma);
-                $__row[] = subgrupoFormaRow($clave, $forma, $ventasForma);
-
-                foreach ($ventasForma as $item) $__row[] = $this->ventaRow($item, $clave);
+            foreach ($ventasDia as $item) {
+                foreach ($this->ventaRows($item, $pagos[$item['folio']] ?? []) as $fila) {
+                    $__row[] = $fila;
+                }
             }
         }
 
@@ -184,44 +184,57 @@ class ctrl extends mdl {
         return $dias;
     }
 
-    // Dentro del dia los tickets se reparten por la combinacion de formas con la
-    // que se cobraron. Los que todavia no tienen pagos cargados no se esconden:
-    // van a su propio subgrupo para que se vea que falta la hoja de pagos.
-    function porForma($ventas) {
-        $formas = [];
+    // Los pagos del periodo indexados por folio, en el orden en que los devuelve
+    // el modelo. El rango es el mismo del listado, sin los filtros de forma y
+    // estado: la fila ya esta elegida y aqui solo se le cuelgan sus cobros.
+    function pagosPorFolio($filtros) {
+        $rango = [$this->branchId(), $filtros['fi'] . ' 00:00:00', $filtros['ff'] . ' 23:59:59'];
+        $ls    = [];
 
-        foreach ($ventas as $item) {
-            $formas[$item['payment_name'] ?: 'SIN PAGO REGISTRADO'][] = $item;
+        foreach ($this->listPagos($rango) as $pago) {
+            $ls[$pago['sale_folio']][] = $pago;
         }
 
-        ksort($formas);
-
-        return $formas;
+        return $ls;
     }
 
     // Todas las columnas salen de la venta y de sus pagos. La unica que no es
     // "IEPS", que va en cero porque el origen no desglosa ese impuesto: se pinta
     // igual para no dejar un hueco en el comprobante.
     //
-    // El folio carga la clave de su subgrupo: el componente solo pliega un nivel
-    // (el dia), asi que el del subgrupo se resuelve en el JS y esa marca es la que
-    // le dice a que forma de pago pertenece la fila.
-    function ventaRow($item, $clave = '') {
-        $tasa = tasaDe($item);
+    // El ticket cobrado en dos o mas partidas se abre en una fila completa por
+    // pago, no en una fila resumen con renglones sueltos debajo: cada una repite
+    // los datos del ticket y cambia la forma y el importe cobrado por ella. El
+    // badge numerado del folio es lo que las hermana.
+    function ventaRows($item, $pagos) {
+        if (count($pagos) < 2) return [$this->ventaRow($item, $pagos)];
+
+        $filas = [];
+
+        foreach ($pagos as $i => $pago) $filas[] = $this->ventaRow($item, $pagos, $pago, $i + 1);
+
+        return $filas;
+    }
+
+    // $pago y $parte solo llegan en el desglose: fijan la forma y el importe de
+    // esa fila. Sin ellos la fila es la del ticket completo.
+    function ventaRow($item, $pagos = [], $pago = null, $parte = 0) {
+        $tasa  = tasaDe($item);
+        $total = $pago ? $pago['amount'] : $item['total'];
 
         return [
-            'id'             => $item['folio'],
-            'Folio'          => '<span data-folio="' . $item['folio'] . '" data-sub-member="' . $clave . '" class="font-mono text-[10px] text-gray-400 inline-block pl-8">' . $item['folio'] . '</span>',
+            'id'             => $item['folio'] . ($parte ? '_p' . $parte : ''),
+            'Folio'          => folioCelda($item['folio'], $parte),
             'Fecha'          => '<span class="text-gray-400 whitespace-nowrap">' . date('d/m/Y', strtotime($item['operation_date'])) . '</span>',
-            'Forma de pago'  => badgeMetodo($item['payment_name']),
+            'Forma de pago'  => $pago ? badgeForma($pago['payment_name'] ?: 'SIN FORMA') : formaCelda($pagos, $item['payment_name']),
             'Estado fiscal'  => badgeEstadoFiscal($item['status_name'], $item['tax']),
             'Tasa'           => badgeTasa($tasa),
             'Subtotal'       => '<span class="text-gray-400">' . money($item['subtotal']) . '</span>',
             'IVA'            => '<span class="text-gray-400">' . money($item['tax']) . '</span>',
             'IEPS'           => '<span class="text-gray-400">' . money(0) . '</span>',
-            'Total'          => '<span class="font-semibold text-white">' . money($item['total']) . '</span>',
+            'Total'          => '<span class="font-semibold text-white">' . money($total) . '</span>',
             'Factura'        => badgeFactura($item['invoice_series']),
-            'a'              => actionButtons($item['folio'])
+            'a'              => actionButtons($item)
         ];
     }
 
@@ -312,18 +325,11 @@ function fechaLarga($dia) {
     return $dias[(int) date('w', $tiempo)] . ' ' . date('d/m/Y', $tiempo);
 }
 
-// Clave que hermana la fila de una forma de pago con sus tickets. Va por dia
-// porque la misma forma se repite todos los dias del periodo y cada bloque se
-// pliega por separado.
-function claveForma($dia, $forma) {
-    return 'sub' . str_replace('-', '', $dia) . '_' . substr(md5($forma), 0, 6);
-}
-
 // Encabezado del bloque de un dia. Lleva las mismas claves que la fila de venta
-// (con una accion invisible en 'a') porque el componente solo agrega la celda de
-// acciones cuando la fila trae alguna: sin ella el grupo quedaria una celda corto
-// y la ultima columna se correria. opc = 1 la pinta como grupo y la vuelve el
-// disparador del plegado.
+// porque el componente solo agrega la celda de acciones cuando la fila trae
+// alguna: sin ella el grupo quedaria una celda corto y la ultima columna se
+// correria. Aqui esa celda es el enlace al modulo de Tickets del dia. opc = 1 la
+// pinta como grupo y la vuelve el disparador del plegado.
 function grupoDiaRow($dia, $ventas) {
     $tickets = count($ventas);
 
@@ -340,30 +346,7 @@ function grupoDiaRow($dia, $ventas) {
         'IEPS'           => '',
         'Total'          => montoDe($ventas),
         'Factura'        => '',
-        'a'              => [['class' => 'hidden']]
-    ];
-}
-
-// Encabezado de una forma de pago dentro del dia. No lleva opc: para el
-// componente es una fila mas del grupo del dia (asi el dia pliega tambien sus
-// subgrupos). Su propio plegado lo engancha el JS por la marca data-sub-group.
-function subgrupoFormaRow($clave, $forma, $ventas) {
-    $tickets = count($ventas);
-
-    return [
-        'id'             => $clave,
-        'Folio'          => '<span data-sub-group="' . $clave . '" class="inline-flex items-center gap-1.5 pl-4 cursor-pointer select-none whitespace-nowrap font-semibold">'
-                            . '<i class="icon-right-open"></i>' . $forma . '</span>',
-        'Fecha'          => '<span class="text-[10px] opacity-75 whitespace-nowrap">' . $tickets . ' ticket' . ($tickets === 1 ? '' : 's') . '</span>',
-        'Forma de pago'  => '',
-        'Estado fiscal'  => '',
-        'Tasa'           => '',
-        'Subtotal'       => '',
-        'IVA'            => '',
-        'IEPS'           => '',
-        'Total'          => '<span class="font-semibold">' . montoDe($ventas) . '</span>',
-        'Factura'        => '',
-        'a'              => [['class' => 'hidden']]
+        'a'              => ticketsDiaButton($dia)
     ];
 }
 
@@ -438,12 +421,37 @@ function badgeEstadoFiscal($statusName, $tax) {
     return '<span class="badge-base b-gray">' . $texto . '</span>';
 }
 
-// Una venta puede pagarse con dos formas: el modelo permite hasta 3 pagos.
+// El folio del ticket, con el numero de parte cuando la fila es uno de sus
+// pagos: es lo que dice que dos filas con el mismo folio son el mismo ticket
+// cobrado en dos partidas y no un folio repetido.
+function folioCelda($folio, $parte) {
+    $badge = $parte ? '<span class="badge-base b-gray ml-2">' . $parte . '</span>' : '';
+
+    return '<span data-folio="' . $folio . '" class="font-mono text-[10px] text-gray-400 inline-block pl-4">'
+           . $folio . $badge . '</span>';
+}
+
+// La forma del ticket cuando la fila no es un desglose. Sin hoja de pagos
+// cargada se cae al nombre que trae la venta.
+function formaCelda($pagos, $payment) {
+    if (!$pagos) return badgeMetodo($payment);
+
+    return badgeForma($pagos[0]['payment_name'] ?: 'SIN FORMA');
+}
+
+// El efectivo se distingue del banco por el tono del badge.
+function tonoForma($nombre) {
+    return strpos(strtoupper($nombre), 'EFECTIVO') !== false ? 'b-green' : 'b-terra';
+}
+
+function badgeForma($nombre) {
+    return '<span class="badge-base ' . tonoForma($nombre) . '">' . $nombre . '</span>';
+}
+
 function badgeMetodo($payment) {
     if (!$payment) return '<span class="cell-null">Sin pago</span>';
 
-    $tone = strpos(strtoupper($payment), 'EFECTIVO') !== false ? 'b-green' : 'b-terra';
-    return '<span class="badge-base ' . $tone . '">' . $payment . '</span>';
+    return badgeForma($payment);
 }
 
 function badgeTasa($tasa) {
@@ -458,12 +466,24 @@ function badgeFactura($serie) {
 
 // Una sola accion en la fila y sin texto: abre el detalle fiscal de la venta en
 // el panel de la derecha, que es la unica cosa que hace la fila.
-function actionButtons($folio) {
+function actionButtons($item) {
     return [
         [
             'class'   => 'btn-ghost !py-1 !px-2 text-[11px]',
             'html'    => '<i data-lucide="eye" class="w-3.5 h-3.5"></i>',
-            'onclick' => "app.selectVenta('{$folio}')"
+            'onclick' => "app.selectVenta('{$item['folio']}')"
+        ]
+    ];
+}
+
+// La accion del dia: el modulo de Tickets abre por dia, asi que el enlace
+// pertenece al encabezado del grupo y no a cada ticket.
+function ticketsDiaButton($dia) {
+    return [
+        [
+            'class'   => 'btn-ghost !py-1 !px-2 text-[11px]',
+            'html'    => '<i data-lucide="receipt" class="w-3.5 h-3.5"></i>',
+            'onclick' => "app.verTickets('{$dia}')"
         ]
     ];
 }

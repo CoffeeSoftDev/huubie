@@ -666,8 +666,8 @@ class App {
     loadSettings() {
         const validStyles = ['github', 'notion', 'dracula', 'monokai'];
         const fallback = {
-            folder: 'agents', customPath: '', localPath: '', theme: 'dark', docStyle: 'github', docZoom: 1,
-            sidebarCollapsed: false, iaDrawerWidth: 420, sidebarWidth: 320
+            folder: 'agents', customPath: '', localPath: '', drivePath: [], theme: 'dark', docStyle: 'github', docZoom: 1,
+            sidebarCollapsed: false, metaCollapsed: false, iaDrawerWidth: 420, sidebarWidth: 320
         };
         try {
             const raw = localStorage.getItem(VISOR_STORAGE_KEY);
@@ -676,18 +676,25 @@ class App {
             const zoom = Number(parsed.docZoom);
             const drawerW = Number(parsed.iaDrawerWidth);
             const sidebarW = Number(parsed.sidebarWidth);
-            // Drive es volatil (depende del SA) — nunca lo restauramos desde localStorage
-            const folder = (parsed.folder && !this.isDriveFolder(parsed.folder)) ? parsed.folder : 'agents';
+            // Drive es volatil (depende del SA) — nunca lo restauramos desde localStorage.
+            // 'drivedir' si vuelve: su carpeta es un id estable, no un preset descubierto.
+            let folder = (parsed.folder && !this.isDriveFolder(parsed.folder)) ? parsed.folder : 'agents';
+            if (folder === 'drivedir' && !(Array.isArray(parsed.drivePath) && parsed.drivePath.length)) folder = 'agents';
             return {
                 folder,
                 customPath: parsed.customPath || '',
                 // Ruta virtual dentro de la carpeta local elegida ("<carpeta>/sub").
                 // El permiso vive en IndexedDB (local-folder.js), aqui solo el sitio.
                 localPath:  parsed.localPath  || '',
+                // Camino recorrido dentro de Drive: [{ id, name }, …]. Sobrevive a la
+                // recarga porque los ids de Drive son estables.
+                drivePath:  Array.isArray(parsed.drivePath) ? parsed.drivePath : [],
                 theme:      parsed.theme === 'light' ? 'light' : 'dark',
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
                 sidebarCollapsed: !!parsed.sidebarCollapsed,
+                // Panel del documento plegado (Frontmatter + Contenido).
+                metaCollapsed:    !!parsed.metaCollapsed,
                 iaDrawerWidth:    (isFinite(drawerW) && drawerW >= 380 && drawerW <= 900) ? drawerW : 420,
                 sidebarWidth:     (isFinite(sidebarW) && sidebarW >= 200 && sidebarW <= 680) ? sidebarW : 320
             };
@@ -732,7 +739,8 @@ class App {
     folderKey() {
         const folder = this.settings.folder || '';
         if (!folder || this.isDriveFolder(folder)) return '';
-        if (folder === 'local') return 'local|' + (this.settings.localPath || '');
+        if (folder === 'local')    return 'local|' + (this.settings.localPath || '');
+        if (folder === 'drivedir') return 'drivedir|' + this.drivePathId();
         return folder + '|' + (this.settings.customPath || '');
     }
 
@@ -779,6 +787,7 @@ class App {
         this.applySidebarCollapsed(this.settings.sidebarCollapsed, false);
         this.applyIaDrawerWidth(this.settings.iaDrawerWidth);
         this.applySidebarWidth(this.settings.sidebarWidth);
+        this.applyMetaCollapsed(this.settings.metaCollapsed);
 
         // En paralelo con la biblioteca: ninguno depende del otro y el primer
         // render necesita los dos (fileFormat consulta los overrides).
@@ -786,7 +795,7 @@ class App {
         // para tener el header con la lista de origenes, y despues se reconecta.
         const wantLocal = this.settings.folder === 'local';
         const [data] = await Promise.all([
-            visor.fetchLibrary(wantLocal ? 'agents' : this.settings.folder, this.settings.customPath),
+            visor.fetchLibrary(wantLocal ? 'agents' : this.settings.folder, this.libraryPathArg()),
             visor.loadIconOverrides()
         ]);
         if (data) {
@@ -823,9 +832,36 @@ class App {
         this.render(this.autoOpenTarget());
         this.bind();
         this._maybeOpenDiagramFromUrl();
+        this._maybeOpenDriveFromUrl();
         // Si el permiso sigue vivo la carpeta local vuelve sola; si no, el aviso
         // manda al boton de reconectar y mientras se ve el preset cargado arriba.
         if (wantLocal) this.reloadLocalLibrary();
+    }
+
+    // Relevo del explorador de Drive del launcher. En playground/forge/studio no hay
+    // visor que pilotar: el explorador deja ahi la ficha del archivo y abre esta
+    // pagina con ?drive=1 para que se abra aqui. Mismo patron que el de diagramas.
+    _maybeOpenDriveFromUrl() {
+        let params;
+        try { params = new URLSearchParams(window.location.search); } catch (e) { return; }
+        if (params.get('drive') !== '1') return;
+
+        let relay = null;
+        try { relay = JSON.parse(localStorage.getItem('visor:openDrive') || 'null'); } catch (e) {}
+        try { localStorage.removeItem('visor:openDrive'); } catch (e) {}
+
+        const file  = relay && (relay.file || relay);          // formato viejo: solo el archivo
+        const stack = (relay && relay.stack) || [];
+        if (!file || !file.driveId) return;
+
+        // Igual que al abrirlo desde el propio visor: el visor se planta en la
+        // carpeta de Drive de donde salio y abre el archivo ahi.
+        if (stack.length) { this.openDriveFolder(stack, file.file); return; }
+
+        this.allFiles = this.allFiles || [];
+        const prev = this.allFiles.filter(f => f.driveId === file.driveId)[0];
+        if (!prev) this.allFiles.push(file);
+        this.loadFile((prev || file).file, prev || file);
     }
 
     // Si la URL trae ?diagram=1 abrimos en ESTA pestaña el diagrama/boceto cuyo
@@ -905,6 +941,7 @@ class App {
         this.bindDocStyle();
         this.bindToc();
         this.bindSidebarToggle();
+        this.bindMetaToggle();
         this.bindMobileSidebar();
         this.bindIaDrawerResize();
         this.bindSidebarResize();
@@ -983,6 +1020,23 @@ class App {
             $sb[0] && $sb[0].offsetHeight;
             $sb.css('transition', '');
         }
+    }
+
+    // Panel lateral del documento (Frontmatter + Contenido), al estilo del esquema
+    // de Google Docs: plegado deja solo una pastilla y el documento se centra en
+    // todo el ancho — el centrado lo hace ya el margin auto de .md-rendered.
+    applyMetaCollapsed(collapsed) {
+        $('body').toggleClass('doc-meta-hidden', !!collapsed);
+    }
+
+    bindMetaToggle() {
+        const set = (collapsed) => {
+            this.settings.metaCollapsed = collapsed;
+            this.saveSettings();
+            this.applyMetaCollapsed(collapsed);
+        };
+        $('#btnMetaHide').off('click').on('click', () => set(true));
+        $('#btnMetaShow').off('click').on('click', () => set(false));
     }
 
     applyIaDrawerWidth(px) {
@@ -1620,12 +1674,53 @@ class App {
         this.navigateCustomPath(path);
     }
 
+    // ── Origen "carpeta de Drive" ───────────────────────────────────────────
+    // El visor se para en UNA carpeta de Drive (la que el explorador del launcher
+    // tenia abierta) y la lee un nivel cada vez. La pila `drivePath` guarda el
+    // camino recorrido: es lo que pinta las migas y lo que permite subir.
+
+    // Segundo argumento de fetchLibrary segun el origen: el id de la carpeta de
+    // Drive, o la ruta del servidor para el resto.
+    libraryPathArg() {
+        if (this.settings.folder === 'drivedir') return this.drivePathId();
+        return this.settings.customPath;
+    }
+
+    drivePathId() {
+        const stack = this.settings.drivePath || [];
+        return stack.length ? stack[stack.length - 1].id : '';
+    }
+
+    // Planta el visor en una carpeta de Drive con su camino ya conocido (lo manda
+    // el explorador, que lo tiene de haber navegado hasta ahi). `openFile` es el
+    // archivo que debe quedar abierto al terminar de cargar.
+    openDriveFolder(stack, openFile) {
+        if (!Array.isArray(stack) || !stack.length) return;
+        this.settings.folder    = 'drivedir';
+        this.settings.drivePath = stack.map(p => ({ id: p.id, name: p.name || '' }));
+        this.saveSettings();
+        this._pendingOpen = openFile || null;
+        this.reloadLibrary();
+    }
+
     // Mueve el origen Custom a otra ruta (navegacion del explorador y breadcrumb).
     // La carpeta local del navegador reusa este mismo camino: sus rutas son
     // virtuales ("<carpeta>/sub") y no deben caer en el origen Custom del servidor.
     navigateCustomPath(path) {
         const dir = String(path || '').trim().replace(/[\/\\]+$/, '');
         if (!dir) return;
+        // Carpeta de Drive: el "dir" es un id disfrazado (drivedir:<id>). Entrar
+        // apila; volver por una miga corta la pila en ese punto.
+        if (/^drivedir:/i.test(dir)) {
+            const id    = dir.slice(9);
+            const stack = (this.settings.drivePath || []).slice();
+            const at    = stack.map(p => p.id).indexOf(id);
+            this.settings.folder    = 'drivedir';
+            this.settings.drivePath = at >= 0 ? stack.slice(0, at + 1) : stack.concat([{ id: id, name: '' }]);
+            this.saveSettings();
+            this.reloadLibrary();
+            return;
+        }
         if (this.settings.folder === 'local') {
             this.settings.localPath = dir;
             this.saveSettings();
@@ -1816,7 +1911,7 @@ class App {
         }
         let data;
         try {
-            data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+            data = await visor.fetchLibrary(this.settings.folder, this.libraryPathArg());
         } finally {
             if (isDrive) visorView.hideGlobalDriveLoader();
         }
@@ -1825,8 +1920,17 @@ class App {
             return;
         }
         if (!data.header.valid) {
-            visorView.toast('Ruta invalida: ' + data.header.currentPath, 'error');
+            visorView.toast(this.settings.folder === 'drivedir'
+                ? ('No se pudo abrir la carpeta de Drive: ' + (data.header.error || 'sin detalle'))
+                : ('Ruta invalida: ' + data.header.currentPath), 'error');
             return;
+        }
+        // El nombre de la carpeta de Drive solo lo sabe el servidor: se completa en
+        // la pila al llegar, para que las migas no muestren un hueco.
+        if (this.settings.folder === 'drivedir' && (this.settings.drivePath || []).length) {
+            const stack = this.settings.drivePath;
+            stack[stack.length - 1].name = data.header.currentLabel || stack[stack.length - 1].name;
+            this.saveSettings();
         }
         if (data.documents && typeof data.documents === 'object') {
             let allFiles = [];
@@ -1966,7 +2070,7 @@ class App {
         $icon.addClass('visor-spin');
         $btn.find('.btn-label').text('Refrescando...');
 
-        const data = await visor.fetchLibrary(this.settings.folder, this.settings.customPath);
+        const data = await visor.fetchLibrary(this.settings.folder, this.libraryPathArg());
         if (data) {
             if (data.documents && typeof data.documents === 'object') {
                 let allFiles = [];
@@ -3132,7 +3236,9 @@ class Visor {
     async fetchLibrary(folderKey, customPath) {
         try {
             const params = new URLSearchParams({ folder: folderKey || 'agents' });
-            if (folderKey === 'custom' && customPath) params.set('path', customPath);
+            // En 'custom' el path es una ruta del disco del servidor; en 'drivedir',
+            // el id de la carpeta de Drive en la que el visor esta parado.
+            if ((folderKey === 'custom' || folderKey === 'drivedir') && customPath) params.set('path', customPath);
             const url = this._link + '?' + params.toString();
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -3461,7 +3567,12 @@ class VisorView {
         const localOpt = (window.localFolder && localFolder.supported())
             ? `<option value="local">Carpeta local (navegador)…</option>`
             : '';
-        $sel.html(opts + localOpt + `<option value="custom">Custom...</option>`);
+        // La carpeta de Drive en la que te dejo el explorador no es un preset: se
+        // añade al vuelo para que el selector no quede sin opción marcada.
+        const driveOpt = (settings.folder === 'drivedir')
+            ? `<option value="drivedir">Drive · ${header.currentLabel || 'carpeta'}</option>`
+            : '';
+        $sel.html(opts + driveOpt + localOpt + `<option value="custom">Custom...</option>`);
 
         $('#btnFolderReconnect').remove();
         if (settings.folder === 'local') {
@@ -3511,9 +3622,10 @@ class VisorView {
         // El toggle de vista solo existe en el explorador; renderExplorer lo repinta.
         $('#docsViewSlot').empty();
 
-        // Origen Custom (y la carpeta local del navegador, que trae el mismo
-        // payload): mismo explorador que Documents sobre el filesystem real.
-        if (data.header && (data.header.currentKey === 'custom' || data.header.currentKey === 'local')) {
+        // Origen Custom, carpeta local del navegador y carpeta de Drive: los tres
+        // traen el mismo payload plano (archivos + subcarpetas), asi que comparten
+        // el explorador de Documents.
+        if (data.header && ['custom', 'local', 'drivedir'].indexOf(data.header.currentKey) !== -1) {
             this.renderSidebarCustom(data, currentFile, filter);
             this.renderQuickAccess(app);
             return;
@@ -3945,6 +4057,33 @@ class VisorView {
             files   = files.filter(it => (it.file || it.name || '').toLowerCase().includes(f));
         }
         folders.forEach(fo => { fo.enter = () => go(fo.dir); });
+
+        // Carpeta de Drive: no hay ruta que partir, el camino es la pila que el
+        // visor trae de haber navegado (o la que le paso el explorador).
+        if (header.currentKey === 'drivedir') {
+            const stack = (typeof app !== 'undefined' && app && app.settings && app.settings.drivePath) || [];
+            const driveCrumbs = stack.map((p) => ({
+                label: p.name || 'Drive',
+                title: p.name || '',
+                go   : () => go('drivedir:' + p.id)
+            }));
+            if (!driveCrumbs.length) driveCrumbs.push({ label: header.currentLabel || 'Drive', title: '', go: () => {} });
+
+            this.renderExplorer({
+                crumbs: driveCrumbs,
+                folders,
+                files,
+                currentFile,
+                filter   : f,
+                // Crear, renombrar y borrar en Drive no pasan por este explorador.
+                canCreate: false,
+                dir      : baseDir,
+                parentDir: header.parentPath || '',
+                allowNewFolder      : false,
+                allowInFolderActions: false
+            });
+            return;
+        }
 
         // Breadcrumb de la ruta real. Solo los ultimos niveles caben en el sidebar:
         // el resto se colapsa en un "..." que lleva al inicio del tramo visible.
