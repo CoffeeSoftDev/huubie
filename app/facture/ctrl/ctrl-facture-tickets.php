@@ -458,7 +458,7 @@ function accionTicket($item, $tasa) {
         ];
     }
 
-    $icono = empty($item['virtual_id']) ? 'wand-2' : 'eye';
+    $icono = empty($item['virtual_id']) ? 'eye' : 'eye-off';
     $texto = empty($item['virtual_id']) ? 'Armar el ticket virtual' : 'Ver el ticket virtual';
 
     return [

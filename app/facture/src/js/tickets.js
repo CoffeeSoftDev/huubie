@@ -273,18 +273,13 @@ class App extends Templates {
     }
 }
 
-// -- Tickets --
-
 class Tickets extends Templates {
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
     }
 
-    // -- Data --
-
-    // Columnas: 1 Nota, 2 Folio, 3 Mesero, 4 Tasa, 5 Estado, 6 Monto.
+    // Tabla de tickets
     async lsTickets() {
         const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'lsTickets' }, app.getFilters()) });
 
@@ -380,8 +375,7 @@ class Tickets extends Templates {
     }
 }
 
-// -- Vista --
-
+// Vista lateral del ticket seleccionado.
 class TicketsView extends Templates {
 
     constructor(link, divModule) {

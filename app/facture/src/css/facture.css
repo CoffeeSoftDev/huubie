@@ -220,6 +220,22 @@ html[data-facture-theme="light"] #root .ct-group { background: #D1D5DB; color: #
 
 html[data-facture-theme="light"] #root #tbventas tbody tr.row-invoiced:not(.row-active) > td { background-color: #E5E7EB !important; }
 
+/* -- Fila seleccionada sobre el tema dark --
+   table.css tinta la fila con --primary1 (terracota al 10%), que sobre blanco se
+   lee y sobre el #283341 de la tabla dark queda a siete puntos de RGB del fondo
+   normal: la seleccion no se distinguia. Aqui se sube a un terracota oscuro
+   solido, que contrasta contra la fila normal Y contra el hover (#334155).
+
+   La clase va repetida a proposito. createCoffeeTable3 inyecta su hover como
+   `#tbXxx tbody tr.ct3-hoverable:hover td { ... !important }` en un <style> que
+   cuelga del <head> DESPUES de esta hoja, asi que con la misma especificidad el
+   hover ganaria y taparia la seleccion justo cuando el puntero sigue sobre la
+   fila que se acaba de elegir. Repetir la clase sube la especificidad lo justo
+   para que la seleccion mande, sin recurrir a un id de tabla. */
+#root tbody tr.row-active.row-active.row-active > td { background-color: #3E4C60 !important; }
+
+html[data-facture-theme="light"] #root tbody tr.row-active.row-active.row-active > td { background-color: var(--primary1) !important; }
+
 /* -- Rango de fechas sobre fondo oscuro --
    El popup del daterangepicker se monta en <body>, fuera de #root, por eso se
    scopea al tema del documento y no al modulo. */
