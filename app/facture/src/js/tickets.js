@@ -68,6 +68,12 @@ class App extends Templates {
                     id:    'listNote',
                     class: 'px-4 py-2 bg-[#141d2b] flex-shrink-0'
                 },
+                // La hoja del dia solo existe para el papel: en pantalla no se ve y
+                // @media print la saca a imprimir, igual que #ticketPrintArea.
+                {
+                    id:    'printSheet',
+                    class: 'hidden'
+                },
                 {
                     id:    'viewFooterRow',
                     class: 'flex items-center justify-between px-4 py-2 bg-[#0E1521] flex-shrink-0'
@@ -159,14 +165,13 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()'
             },
-         
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
-                text:      'Generar los del 0%',
+                text:      'Generar tickets',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-3',
-                onClick:   () => tickets.generateAllZero()
+                onClick:   () => tickets.generateDay()
             }
         ];
 
@@ -309,8 +314,10 @@ class Tickets extends Templates {
 
         const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0 };
 
+        app.dataKpis = data.kpis || {};
+
         ticketsView.renderListHead(counts);
-        ticketsView.renderKpis(data.kpis || {});
+        ticketsView.renderKpis(app.dataKpis);
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
     }
@@ -321,10 +328,66 @@ class Tickets extends Templates {
     dataTable(id, data) {
         if (!(data.row || []).length) return;
 
-        if (typeof simple_data_table === 'function') simple_data_table(id, 50);
+        if (typeof simple_data_table === 'function') simple_data_table(id, 100);
     }
 
     // -- Actions --
+
+    // El cierre del dia: el servidor decide que se factura al 16% y que se manda al
+    // 0%, arma el papel de los segundos y al volver se manda todo a imprimir.
+    //
+    // La confirmacion dice lo que esta en juego porque la corrida REEMPLAZA el
+    // reparto anterior del dia: un ticket que estaba al 0% puede pasar al 16% y
+    // soltar su papel.
+    generateDay() {
+        const k = app.dataKpis || {};
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Generar los tickets del dia',
+                text:              `Se repartira la venta del dia: hasta ${k.objetivoTexto || 'la meta'} al IVA 16% con los productos reales, y el resto al IVA 0% con productos auxiliares. Se reemplaza el reparto anterior de este dia.`,
+                icon:              'question',
+                confirmButtonText: 'Si, generar e imprimir',
+                cancelButtonText:  'No'
+            }
+        }).then(async (result) => {
+            if (!result.isConfirmed) return;
+
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
+
+            if (response.status !== 200) {
+                this.alertBox({ type: 'error', title: response.message, timer: 0 });
+                return;
+            }
+
+            await this.lsTickets();
+            await this.printSheet();
+
+            this.alertBox({ type: 'success', title: response.message, timer: 2200 });
+        });
+    }
+
+    // La hoja del dia: se piden los papeles ya armados, se pintan en el contenedor
+    // que solo existe para imprimir y se abre el dialogo del navegador. El PDF lo
+    // guarda el usuario desde ahi.
+    async printSheet() {
+        const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'showPrintSheet' }, app.getFilters()) });
+
+        if (data.status !== 200) {
+            this.alertBox({ type: 'error', title: data.message, timer: 0 });
+            return;
+        }
+
+        ticketsView.renderPrintSheet(data.tickets, data.emisor);
+
+        // La clase le dice al @media print cual de los dos trabajos es: la hoja
+        // del dia o el ticket del panel. Se quita al cerrar el dialogo para que la
+        // siguiente impresion vuelva a ser la del ticket seleccionado.
+        $('body').addClass('printing-sheet');
+        window.print();
+        $('body').removeClass('printing-sheet');
+    }
 
     // Los del 0% son el trabajo del cierre: sin IVA trasladado el ticket del POS no
     // sirve para facturar, asi que se les arma su ticket virtual de una pasada.
@@ -416,7 +479,7 @@ class TicketsView extends Templates {
                 info: '',
                 legends: [
                     { tone: 'success', label: 'Facturado (bloqueado)'   },
-                    { tone: 'info',    label: 'Ticket generado'         },
+                    { tone: 'info',    label: 'IVA 0% · ticket generado' },
                     { tone: 'warning', label: 'Requiere ticket virtual' },
                     { tone: 'default', label: 'No facturado'   }
                 ]
@@ -474,6 +537,26 @@ class TicketsView extends Templates {
         });
     }
 
+    // La hoja del dia: un papel por venta, todos con el mismo componente que pinta
+    // el ticket del panel lateral. Cada uno estrena su propio contenedor porque
+    // ticketPaper reemplaza el contenido de su padre, no lo acumula.
+    renderPrintSheet(tickets, emisor) {
+        const host = $('#printSheet');
+
+        host.empty();
+
+        (tickets || []).forEach((ticket, i) => {
+            host.append($('<div>', { id: `printTicket${i}` }));
+
+            this.ticketPaper({
+                parent: `printTicket${i}`,
+                id:     `paperTicket${i}`,
+                json:   ticket,
+                emisor: emisor
+            });
+        });
+    }
+
     renderListHead(counts) {
         this.panelHead({
             parent: 'listHead',
@@ -508,7 +591,9 @@ class TicketsView extends Templates {
                 badges: ticket
                     ? [
                         { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
-                        { text: ticket.generado ? 'guardado' : 'propuesta', tone: ticket.generado ? 'b-blue' : 'b-gray' }
+                        // El que no se genero ya no es una propuesta: es el consumo
+                        // real con el que la venta se factura al 16%.
+                        { text: ticket.generado ? 'papel guardado' : 'consumo real', tone: ticket.generado ? 'b-blue' : 'b-gray' }
                       ]
                     : []
             }
@@ -519,8 +604,12 @@ class TicketsView extends Templates {
             class:  'text-[10px] text-gray-400 text-center',
             json: {
                 icon: '',
+                // El copy depende de que papel se esta viendo: el inventado explica
+                // el cuadre con auxiliares y el real explica su desglose fiscal.
                 text: ticket
-                    ? `${ticket.lineas.length} renglon(es) de productos auxiliares suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
+                    ? (ticket.grupo === 'cero'
+                        ? `${ticket.lineas.length} renglon(es) de productos auxiliares suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
+                        : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.`)
                     : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });
@@ -568,6 +657,10 @@ class TicketsView extends Templates {
 
         const row = (k, v) => v ? `<tr><td>${esc(k)}</td><td class="text-right">${esc(v)}</td></tr>` : '';
 
+        // Un importe en cero no se imprime: el ticket al 16% no lleva descuento y la
+        // linea vacia solo ensucia el papel.
+        const vacio = (importe) => !importe || Number(String(importe).replace(/[^0-9.-]/g, '')) === 0;
+
         const lineas = (e.lineas || []).map(l => `
             <tr>
                 <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
@@ -599,7 +692,8 @@ class TicketsView extends Templates {
             <div class="tk-sep"></div>
             <table>
                 <tr><td>SUBTOTAL:</td><td class="text-right">${esc(e.subtotal)}</td></tr>
-                <tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(e.descuento)}</td></tr>
+                ${vacio(e.descuento) ? '' : `<tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(e.descuento)}</td></tr>`}
+                ${e.iva === undefined ? '' : `<tr><td>${esc(e.ivaLabel || 'IVA:')}</td><td class="text-right">${esc(e.iva)}</td></tr>`}
                 <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
             </table>
             <div class="tk-sep"></div>

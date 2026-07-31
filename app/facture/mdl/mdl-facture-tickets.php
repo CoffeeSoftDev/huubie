@@ -253,4 +253,81 @@ class mdl extends CRUD {
             'data'  => $array['data']
         ]);
     }
+
+    // -- Reparto del dia --
+
+    // Insumo del reparto 16%/0%: la venta del dia por banco con lo unico que el
+    // algoritmo necesita mirar. La nota viaja porque el ticket que sigue en el
+    // grupo del cero conserva la suya, que ya se entrego.
+    function listSaleDayForSplit($array) {
+        $query = "
+            SELECT s.id, s.folio, s.total, s.operation_date,
+                   st.name AS status_name,
+                   v.id AS virtual_id, v.note_number
+            FROM {$this->bd}sale s
+            LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
+            LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
+            WHERE s.active = 1
+              AND s.branch_id <=> ?
+              AND DATE(s.operation_date) = ?
+              AND EXISTS ({$this->sinEfectivo()})
+            ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Los renglones reales del dia completo en una sola consulta. La hoja imprime
+    // 91 papeles: pedir el detalle ticket por ticket serian 91 viajes a la base.
+    function listSaleDetailByDay($array) {
+        $query = "
+            SELECT d.sale_folio, d.description, d.quantity, d.amount
+            FROM {$this->bd}detail_sale d
+            INNER JOIN {$this->bd}sale s ON s.id = d.sale_id
+            WHERE d.active = 1
+              AND s.active = 1
+              AND s.branch_id <=> ?
+              AND DATE(s.operation_date) = ?
+            ORDER BY d.sale_folio ASC, d.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Los renglones reales de una sola venta, para el papel que se mira en el
+    // panel. El listado del dia usa listSaleDetailByDay; aqui se pide uno.
+    function listSaleDetailByFolio($array) {
+        $query = "
+            SELECT d.description, d.quantity, d.amount
+            FROM {$this->bd}detail_sale d
+            INNER JOIN {$this->bd}sale s ON s.id = d.sale_id
+            WHERE d.active = 1 AND s.active = 1 AND s.id = ?
+            ORDER BY d.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Lo mismo para el papel inventado: los renglones puente de todos los tickets
+    // del dia de una pasada, para no repetir listVirtualDetail por cada uno.
+    function listVirtualDetailByDay($array) {
+        $query = "
+            SELECT v.sale_id, d.description, d.quantity, d.amount
+            FROM {$this->bd}detail_virtual_ticket d
+            INNER JOIN {$this->bd}virtual_ticket v ON v.id = d.virtual_ticket_id
+            WHERE d.active = 1
+              AND v.active = 1
+              AND v.branch_id <=> ?
+              AND v.issue_date = ?
+            ORDER BY v.sale_id ASC, d.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // La venta que salio del grupo del cero suelta su papel: si se quedara, el
+    // reparto guardado diria que sigue al 0% cuando ya se factura al 16%.
+    function deleteVirtualTicketBySale($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}virtual_ticket",
+            'where' => $array['where'],
+            'data'  => $array['data']
+        ]);
+    }
 }

@@ -601,4 +601,30 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
     #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
     #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
     #root .ticket-paper { border: none; box-shadow: none; }
+
+    /* -- Hoja del dia --
+       Imprimir el lote y imprimir el ticket seleccionado son dos trabajos
+       distintos sobre la misma pantalla, y quien manda es la clase que el JS
+       pone en el body antes de abrir el dialogo. Sin ella no se puede decidir:
+       #ticketPrintArea y #printSheet viven en ramas separadas del DOM (panel
+       lateral y panel principal), asi que ningun selector de hermanos alcanza
+       a apagar el uno desde el otro.
+
+       El contenedor de la hoja vive con .hidden (display:none) para no ocupar
+       lugar en pantalla: aqui no basta con devolverle la visibilidad, hay que
+       volver a mostrarlo. */
+    body.printing-sheet #ticketPrintArea,
+    body.printing-sheet #ticketPrintArea * { visibility: hidden; }
+
+    body.printing-sheet #printSheet { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+    body.printing-sheet #printSheet,
+    body.printing-sheet #printSheet * { visibility: visible; }
+
+    /* Un ticket por hoja: es como sale de la impresora y como se entrega. */
+    #printSheet .ticket-paper {
+        page-break-after: always;
+        break-after: page;
+        margin: 0 auto;
+    }
+    #printSheet > div:last-child .ticket-paper { page-break-after: auto; break-after: auto; }
 }

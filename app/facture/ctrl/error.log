@@ -1,3 +1,52 @@
+[ 2026-07-31 14:38:43 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:38:40 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:33:16 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:33:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:32:51 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:32:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
+[ 2026-07-31 14:32:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  UPDATE fayxzvov_facturacion.product SET is_bridge = ? WHERE id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'is_bridge' cannot be null
+
+
 [ 2026-07-31 11:58:55 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-56GL0L8$

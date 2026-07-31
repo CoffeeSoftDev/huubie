@@ -146,7 +146,7 @@ class ctrl extends mdl {
     }
 
     function ticketRow($item, $orden) {
-        $tasa = tasaDe($item);
+        $tasa = tasaEfectiva($item);
 
         return [
             'id'     => $item['folio'],
@@ -172,13 +172,18 @@ class ctrl extends mdl {
 
         $item     = $ls[0];
         $generado = !empty($item['virtual_id']);
-        $armado   = $generado ? $this->ticketGuardado($item) : $this->armarTicket($item);
 
-        if ($armado['status'] !== 200) return $armado;
+        // Sin ticket generado la venta se queda al 16% con lo que realmente
+        // consumieron: se muestra SU papel, no una propuesta de productos puente.
+        // El puente solo entra cuando la venta pasa al 0%, que es lo que decide el
+        // reparto del dia (o el boton Generar de este mismo panel).
+        $lineas = $generado
+            ? $this->listVirtualDetail([$item['virtual_id']])
+            : $this->listSaleDetailByFolio([$item['id']]);
 
         return [
             'status' => 200,
-            'ticket' => array_merge($this->cabecera($item), $armado['ticket'], [
+            'ticket' => array_merge($this->cabecera($item), $this->papelDe($item, $lineas, $generado), [
                 'generado' => $generado
             ])
         ];
@@ -188,7 +193,7 @@ class ctrl extends mdl {
     // real del POS y se imprimen igual este o no generado. La nota solo existe
     // cuando el ticket ya se guardo, porque es el consecutivo que se entrega.
     function cabecera($item) {
-        $tasa = tasaDe($item);
+        $tasa = tasaEfectiva($item);
 
         return [
             'folio'    => $item['folio'],
@@ -304,6 +309,57 @@ class ctrl extends mdl {
         ];
     }
 
+    // Misma cuenta que armarTicket, pero sin recorrer los puente del mas caro al
+    // mas barato: se elige al azar entre los que todavia caben y se les suma una
+    // pieza. El reparto del dia arma decenas de papeles de golpe y con el orden
+    // fijo todos saldrian con la misma receta; asi cada ticket lleva su mezcla.
+    //
+    // El bucle siempre termina: cada vuelta descuenta al menos el puente mas
+    // barato, y cuando ya no cabe ninguno se sale.
+    function armarTicketAleatorio($total, $puente) {
+        $restante = (float) $total;
+        $cuenta   = [];
+
+        while (true) {
+            $caben = [];
+            foreach ($puente as $producto) {
+                if ((float) $producto['price'] <= $restante) $caben[] = $producto;
+            }
+
+            if (empty($caben)) break;
+
+            $elegido = $caben[array_rand($caben)];
+            $id      = $elegido['id'];
+
+            if (isset($cuenta[$id])) $cuenta[$id]['cant']++;
+            else                     $cuenta[$id] = ['producto' => $elegido, 'cant' => 1];
+
+            $restante -= (float) $elegido['price'];
+        }
+
+        // Lo que queda no lo cubre ninguna pieza completa: la cierra el puente mas
+        // barato y el excedente se va como descuento, para que el papel cuadre
+        // EXACTO contra lo que se cobro. Es la misma salida que armarTicket.
+        if ($restante > 0.009) {
+            $barato = end($puente);
+            $id     = $barato['id'];
+
+            if (isset($cuenta[$id])) $cuenta[$id]['cant']++;
+            else                     $cuenta[$id] = ['producto' => $barato, 'cant' => 1];
+        }
+
+        $lineas   = [];
+        $subtotal = 0;
+
+        foreach ($cuenta as $renglon) {
+            $linea    = $this->lineaPuente($renglon['producto'], $renglon['cant']);
+            $lineas[] = $linea;
+            $subtotal += $linea['amount'];
+        }
+
+        return ['lineas' => $lineas, 'subtotal' => $subtotal];
+    }
+
     // -- Acciones --
 
     function generate() {
@@ -311,6 +367,272 @@ class ctrl extends mdl {
         $resultado = $this->generarFolio($folio);
 
         return $resultado;
+    }
+
+    // El cierre del dia completo: decide que se factura al 16% y que se manda al
+    // 0%, y arma el papel de los segundos.
+    //
+    // Lo ya facturado esta congelado y cuenta dentro del 16%: sobre el hueco que
+    // deja se eligen ventas reales hasta acercarse a la meta. Esas conservan sus
+    // productos del POS y no se guardan aqui; lo que se guarda es el complemento,
+    // los que pasan al 0% y necesitan un papel inventado. Asi el reparto queda
+    // registrado sin tabla extra: la venta con ticket es del cero, la que no lo
+    // tiene es del 16%.
+    function generateDay() {
+        $dia    = $_POST['dia'] ?? date('Y-m-d');
+        $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+
+        if (empty($ventas)) {
+            return ['status' => 400, 'message' => 'No hay ventas cobradas por banco en el dia'];
+        }
+
+        $puente = $this->listBridgeProducts([$this->branchId()]);
+
+        if (empty($puente)) {
+            return [
+                'status'  => 400,
+                'message' => 'No hay productos marcados como puente. Marcalos en Catalogos para poder armar los tickets.'
+            ];
+        }
+
+        $total      = 0;
+        $facturado  = 0;
+        $candidatas = [];
+
+        foreach ($ventas as $item) {
+            $total += (float) $item['total'];
+
+            if (esFacturado($item['status_name'])) {
+                $facturado += (float) $item['total'];
+                continue;
+            }
+
+            $candidatas[] = $item;
+        }
+
+        $objetivo = $total * META_FACTURACION;
+        $elegidas = $this->mejorAjuste($candidatas, max(0, $objetivo - $facturado));
+
+        // El consecutivo se lleva en memoria: se borran y se crean tickets en la
+        // misma pasada, y preguntarle el MAX a la base despues de cada borrado
+        // devolveria notas ya entregadas.
+        $siguiente = $this->siguienteNota($dia);
+
+        $monto16   = 0;
+        $monto0    = 0;
+        $cuenta16  = 0;
+        $cuenta0   = 0;
+        $sinPapel  = 0;
+
+        foreach ($candidatas as $item) {
+            // Grupo 16%: se queda con su ticket real. Si venia de una corrida
+            // anterior como ticket del cero, suelta ese papel.
+            if (isset($elegidas[$item['id']])) {
+                if (!empty($item['virtual_id'])) {
+                    $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
+                }
+
+                $monto16 += (float) $item['total'];
+                $cuenta16++;
+                continue;
+            }
+
+            // Grupo 0%: la nota que ya se entrego no cambia, el papel se rearma.
+            $nota = (int) $item['note_number'];
+
+            if (!empty($item['virtual_id'])) {
+                $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
+            }
+
+            if ($nota === 0) {
+                $nota = $siguiente;
+                $siguiente++;
+            }
+
+            if (!$this->guardarTicketCero($item, $puente, $nota, $dia)) {
+                $sinPapel++;
+                continue;
+            }
+
+            $monto0 += (float) $item['total'];
+            $cuenta0++;
+        }
+
+        return [
+            'status'     => 200,
+            'message'    => number_format($cuenta0) . ' ticket(s) al 0% generados · ' . number_format($cuenta16 + count($ventas) - count($candidatas)) . ' al 16%',
+            'dia'        => $dia,
+            'facturados' => count($ventas) - count($candidatas),
+            'cuenta16'   => $cuenta16,
+            'cuenta0'    => $cuenta0,
+            'sinPapel'   => $sinPapel,
+            'totalTexto'      => money($total),
+            'objetivoTexto'   => money($objetivo),
+            'facturadoTexto'  => money($facturado),
+            'monto16Texto'    => money($monto16),
+            'monto0Texto'     => money($monto0),
+            // Lo que falto para la meta: con el mejor ajuste deberia ser centavos
+            // frente al ticket mas barato del dia.
+            'diferenciaTexto' => money(max(0, $objetivo - $facturado - $monto16))
+        ];
+    }
+
+    // Mejor ajuste: de las que todavia caben en el hueco se toma la mas grande,
+    // que es la que deja la diferencia mas chica, y se repite. Ninguna que rebase
+    // la meta entra: facturar de mas al 16% es peor que quedarse corto.
+    //
+    // Devuelve las elegidas indexadas por id, que es como se consultan despues.
+    function mejorAjuste($candidatas, $restante) {
+        $pendientes = [];
+        foreach ($candidatas as $item) $pendientes[$item['id']] = (float) $item['total'];
+
+        $elegidas = [];
+
+        while (true) {
+            $mejor = null;
+
+            foreach ($pendientes as $id => $monto) {
+                if ($monto > $restante)                          continue;
+                if ($mejor === null || $monto > $pendientes[$mejor]) $mejor = $id;
+            }
+
+            if ($mejor === null) break;
+
+            $elegidas[$mejor] = true;
+            $restante -= $pendientes[$mejor];
+            unset($pendientes[$mejor]);
+        }
+
+        return $elegidas;
+    }
+
+    function siguienteNota($dia) {
+        $ls = $this->getNextNote([$dia, $this->branchId()]);
+
+        return (int) ($ls[0]['nota'] ?? 1);
+    }
+
+    // El papel del 0%: renglones puente al azar que suman el total de la venta, con
+    // el descuento de cuadre. La tasa viaja en el ticket, no en la venta: `sale`
+    // sigue diciendo lo que trajo el POS.
+    function guardarTicketCero($item, $puente, $nota, $dia) {
+        $armado   = $this->armarTicketAleatorio($item['total'], $puente);
+        $subtotal = $armado['subtotal'];
+        $total    = (float) $item['total'];
+
+        if (empty($armado['lineas'])) return false;
+
+        $creado = $this->createVirtualTicket($this->util->sql([[
+            'note_number' => $nota,
+            'subtotal'    => $subtotal,
+            'discount'    => $subtotal - $total,
+            'tax_rate'    => 0,
+            'tax'         => 0,
+            'total'       => $total,
+            'issue_date'  => $dia,
+            'sale_id'     => $item['id'],
+            'branch_id'   => $this->branchId()
+        ]]));
+
+        if (!$creado) return false;
+
+        $max       = $this->getMaxVirtualTicketId();
+        $ticketId  = (int) ($max[0]['id'] ?? 0);
+        $renglones = [];
+
+        foreach ($armado['lineas'] as $linea) {
+            $renglones[] = [
+                'description'       => $linea['description'],
+                'quantity'          => $linea['quantity'],
+                'unit_price'        => $linea['unit_price'],
+                'amount'            => $linea['amount'],
+                'product_id'        => $linea['product_id'],
+                'virtual_ticket_id' => $ticketId
+            ];
+        }
+
+        return (bool) $this->createVirtualDetail($this->util->sql($renglones));
+    }
+
+    // -- Hoja imprimible --
+
+    // Los papeles del dia completo, listos para el navegador: los del 0% con sus
+    // renglones guardados y el resto (facturados y 16%) con los productos reales
+    // del comandas. Los tres detalles se piden de una vez, no uno por ticket.
+    function showPrintSheet() {
+        $ventas = $this->listTicketsByDay($this->filtros());
+
+        if (empty($ventas)) {
+            return ['status' => 400, 'message' => 'No hay tickets que imprimir en el dia'];
+        }
+
+        $dia      = $_POST['dia'] ?? date('Y-m-d');
+        $reales   = agruparPorClave($this->listSaleDetailByDay([$this->branchId(), $dia]), 'sale_folio');
+        $virtuales = agruparPorClave($this->listVirtualDetailByDay([$this->branchId(), $dia]), 'sale_id');
+
+        $tickets = [];
+
+        foreach ($ventas as $item) {
+            $esCero  = !empty($item['virtual_id']);
+            $lineas  = $esCero ? ($virtuales[$item['id']] ?? []) : ($reales[$item['folio']] ?? []);
+            $tickets[] = $this->papelDe($item, $lineas, $esCero);
+        }
+
+        return [
+            'status'  => 200,
+            'emisor'  => $this->emisor(),
+            'tickets' => $tickets
+        ];
+    }
+
+    // Un papel de la hoja. El del cero ya trae su subtotal y su descuento
+    // guardados; el real los saca de sus propios renglones, que es lo que el POS
+    // cobro. Los importes salen escritos: el papel imprime, no calcula.
+    function papelDe($item, $lineas, $esCero) {
+        $total = (float) $item['total'];
+
+        // El ticket real de un dia sin comandas cargadas se quedaria sin renglones:
+        // el papel saldria en blanco y con el descuento en negativo. Se imprime
+        // entonces el consumo como una sola partida, que es lo unico que la venta
+        // sabe de si misma cuando su detalle no esta en el sistema.
+        if (!$esCero && empty($lineas)) {
+            $lineas = [['description' => 'CONSUMO', 'quantity' => 1, 'amount' => $total]];
+        }
+
+        $suma = 0;
+        foreach ($lineas as $linea) $suma += (float) $linea['amount'];
+
+        // Los dos papeles cierran distinto y por eso el desglose no es uno solo:
+        //
+        //   0%  el papel es inventado y no traslada impuesto. Su subtotal es lo que
+        //       suman los puente y el excedente se va como descuento de cuadre.
+        //   16% el papel es el consumo real y SI traslada: la base gravable y el
+        //       impuesto ya vienen calculados en la venta del POS (937.93 + 150.07
+        //       = 1,088.00), asi que se imprimen tal cual en vez de deducirlos. El
+        //       descuento solo aparece cuando los renglones suman mas que el total,
+        //       que es como el POS registra una cortesia.
+        $tasa      = $esCero ? 0 : tasaDe($item);
+        $subtotal  = $esCero ? (float) $item['virtual_subtotal'] : (float) $item['subtotal'];
+        $descuento = $esCero ? (float) $item['virtual_discount'] : max(0, $suma - $total);
+        $iva       = $esCero ? 0 : (float) $item['tax'];
+
+        return array_merge($this->cabecera($item), [
+            'nota'      => $esCero ? '#' . $item['note_number'] : $item['folio'],
+            'tasaText'  => porcentaje($tasa),
+            'grupo'     => $esCero ? 'cero' : (esFacturado($item['status_name']) ? 'facturado' : 'real'),
+            'lineas'    => array_map(function ($linea) {
+                return [
+                    'cant'    => cantidad($linea['quantity']),
+                    'nombre'  => $linea['description'],
+                    'importe' => money($linea['amount'])
+                ];
+            }, $lineas),
+            'subtotal'  => money($subtotal),
+            'descuento' => money($descuento),
+            'iva'       => money($iva),
+            'ivaLabel'  => 'IVA ' . porcentaje($tasa) . ':',
+            'total'     => money($total)
+        ]);
     }
 
     // Genera de una sola pasada los tickets del dia que van al 0% y no tienen uno:
@@ -383,10 +705,14 @@ class ctrl extends mdl {
         $subtotal = $armado['subtotal'];
         $total    = (float) $item['total'];
 
+        // El papel puente siempre va al 0%: la tasa vive en el ticket porque la
+        // venta sigue diciendo lo que trajo el POS.
         $creado = $this->createVirtualTicket($this->util->sql([[
             'note_number' => $nota,
             'subtotal'    => $subtotal,
             'discount'    => $subtotal - $total,
+            'tax_rate'    => 0,
+            'tax'         => 0,
             'total'       => $total,
             'issue_date'  => $dia,
             'sale_id'     => $item['id'],
@@ -423,10 +749,29 @@ class ctrl extends mdl {
 
 // Complements
 
+// Los renglones del dia llegan en una sola lista y hay que repartirlos entre sus
+// tickets: agrupar aqui evita una consulta por papel.
+function agruparPorClave($filas, $clave) {
+    $__row = [];
+
+    foreach ($filas as $fila) $__row[$fila[$clave]][] = $fila;
+
+    return $__row;
+}
+
 // Ningun Excel trae la tasa: se deduce del par subtotal/impuesto de la venta.
 function tasaDe($item) {
     $subtotal = (float) $item['subtotal'];
     return $subtotal > 0 ? round((float) $item['tax'] / $subtotal, 2) : 0;
+}
+
+// La tasa que vale es la del papel que se entrega, no la que trajo el POS: la
+// venta que el reparto mando al 0% sigue diciendo 16% en `sale`, y sin esto la
+// pantalla la seguiria mostrando al 16% con un ticket al cero en la mano.
+function tasaEfectiva($item) {
+    if (!empty($item['virtual_id'])) return 0;
+
+    return tasaDe($item);
 }
 
 function money($valor) {
@@ -470,8 +815,10 @@ function badgeEstado($item, $tasa) {
         return '<span class="badge-base b-green"><i data-lucide="lock" class="w-3 h-3"></i>Facturado ' . $item['invoice_series'] . '</span>';
     }
 
+    // El ticket generado ES el del 0%: el reparto solo guarda papel para los que
+    // pasan a esa tasa, asi que el badge lo dice en vez de dejarlo a deducir.
     if (!empty($item['virtual_id'])) {
-        return '<span class="badge-base b-blue">Ticket generado</span>';
+        return '<span class="badge-base b-blue">IVA 0% · ticket generado</span>';
     }
 
     if ($tasa == 0) return '<span class="badge-base b-yellow">Requiere ticket virtual</span>';
@@ -502,13 +849,14 @@ function accionTicket($item, $tasa) {
         ];
     }
 
-    $icono = empty($item['virtual_id']) ? 'eye' : 'eye-off';
+    $icono = empty($item['virtual_id']) ? '' : 'text-amber-500';
+
     $texto = empty($item['virtual_id']) ? 'Armar el ticket virtual' : 'Ver el ticket virtual';
 
     return [
         [
             'class'   => 'btn-icon-view',
-            'html'    => '<i data-lucide="' . $icono . '" class="w-3.5 h-3.5"></i>',
+            'html'    => '<i data-lucide="eye" class="w-3.5 h-3.5 ' . $icono . '"></i>',
             'title'   => $texto,
             'onclick' => "app.selectTicket('{$folio}')"
         ]
