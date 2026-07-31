@@ -51,15 +51,21 @@ class ImportFactureCargas {
                        (foliocomanda) viene vacia y la clave real es B (foliocuenta)
           controlIndex columna que suma el control total del lote
           tab          pestana del modulo a la que pertenece la hoja
+          orden        posicion en que se lee la hoja en pantalla
 
         El orden de este array es el orden en que se cargan las hojas: "Pagos"
         primero, "Reporte de ventas" despues.
+
+        En pantalla se leen al reves, por eso 'orden' va aparte: el usuario
+        entra por el reporte de ventas y los pagos son su acompanante, aunque
+        para cargar tengan que entrar antes.
     */
     function contrato() {
         return [
             'Pagos' => [
                 'tab'          => 'sales-report',
                 'target'       => 'payment',
+                'orden'        => 2,
                 'headerRow'    => 7,
                 'keyIndex'     => 0,
                 'controlIndex' => 3,
@@ -71,6 +77,7 @@ class ImportFactureCargas {
             'Reporte de ventas' => [
                 'tab'          => 'sales-report',
                 'target'       => 'sale',
+                'orden'        => 1,
                 'headerRow'    => 7,
                 'keyIndex'     => 0,
                 'controlIndex' => 6,
@@ -82,6 +89,7 @@ class ImportFactureCargas {
             'comandas' => [
                 'tab'          => 'commands',
                 'target'       => 'detail',
+                'orden'        => 1,
                 'headerRow'    => 1,
                 'keyIndex'     => 1,
                 'controlIndex' => 11,
@@ -174,13 +182,16 @@ class ImportFactureCargas {
             ];
         }
 
+        // Las hojas se procesan en el orden en que hay que cargarlas, pero el
+        // panel las anuncia en el suyo: el resultado se reacomoda antes de
+        // salir para que la carga no reordene lo que ya estaba en pantalla.
         return [
             'status'  => $cargadas > 0 ? 200 : 500,
             'message' => $cargadas > 0
                 ? 'Archivo procesado: ' . $cargadas . ' hoja(s) cargada(s)'
                 : 'No se pudo cargar ninguna hoja del archivo',
             'steps'   => $steps,
-            'hojas'   => $hojas
+            'hojas'   => ordenarPorHoja($hojas, $contrato, 'nombre')
         ];
     }
 
@@ -638,6 +649,27 @@ function numVal($value) {
     $limpio = str_replace(['%', ',', '$', ' '], '', (string) $value);
 
     return is_numeric($limpio) ? (float) $limpio : 0;
+}
+
+// El contrato se lee en el orden en que hay que cargar las hojas, que no es el
+// orden en que se muestran: 'orden' dice donde va cada una en pantalla. El
+// indice de llegada desempata, porque usort no es estable en PHP 7.
+function ordenarPorHoja($items, $contrato, $campo) {
+    $lista = [];
+    foreach ($items as $i => $item) {
+        $nombre  = $item[$campo];
+        $lista[] = [
+            'pos'   => $i,
+            'orden' => isset($contrato[$nombre]['orden']) ? (int) $contrato[$nombre]['orden'] : 99,
+            'item'  => $item
+        ];
+    }
+
+    usort($lista, function ($a, $b) {
+        return $a['orden'] === $b['orden'] ? $a['pos'] - $b['pos'] : $a['orden'] - $b['orden'];
+    });
+
+    return array_column($lista, 'item');
 }
 
 function columnLetter($index) {

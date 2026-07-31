@@ -224,7 +224,7 @@ class ctrl extends mdl {
 
         return [
             'id'             => $item['folio'] . ($parte ? '_p' . $parte : ''),
-            'Folio'          => folioCelda($item['folio'], $parte),
+            'Folio'          => folioCelda($item['folio'], $parte, esFacturado($item['status_name'])),
             'Fecha'          => '<span class="text-gray-400 whitespace-nowrap">' . date('d/m/Y', strtotime($item['operation_date'])) . '</span>',
             'Forma de pago'  => $pago ? badgeForma($pago['payment_name'] ?: 'SIN FORMA') : formaCelda($pagos, $item['payment_name']),
             'Estado fiscal'  => badgeEstadoFiscal($item['status_name'], $item['tax']),
@@ -424,10 +424,15 @@ function badgeEstadoFiscal($statusName, $tax) {
 // El folio del ticket, con el numero de parte cuando la fila es uno de sus
 // pagos: es lo que dice que dos filas con el mismo folio son el mismo ticket
 // cobrado en dos partidas y no un folio repetido.
-function folioCelda($folio, $parte) {
-    $badge = $parte ? '<span class="badge-base b-gray ml-2">' . $parte . '</span>' : '';
+//
+// data-invoiced viaja aqui, en la celda que el JS ya usa como ancla de la fila
+// (data-folio), porque la tabla se arma por celdas y el componente no acepta
+// clases en el <tr>: el modulo lo lee al pintar y marca la fila completa.
+function folioCelda($folio, $parte, $facturado = false) {
+    $badge = $parte ? '<span class="badge-base badge-xs b-gray ml-2">' . $parte . '</span>' : '';
+    $marca = $facturado ? ' data-invoiced="1"' : '';
 
-    return '<span data-folio="' . $folio . '" class="font-mono text-[10px] text-gray-400 inline-block pl-4">'
+    return '<span data-folio="' . $folio . '"' . $marca . ' class="font-mono text-[10px] text-gray-400 inline-block pl-4">'
            . $folio . $badge . '</span>';
 }
 

@@ -101,9 +101,8 @@ class ctrl extends mdl {
                 'a'       => actionButtons($item['id'])
             ];
 
-            // Los mismos lotes en crudo: con ellos el JS arma la tira de hojas del
-            // periodo. Van en el orden de insercion (pagos antes que ventas), que
-            // es el orden en que se leyeron del Excel.
+            // Los mismos lotes en crudo: con ellos el JS arma la tira de hojas
+            // del periodo, que se ordena aparte con el 'orden' del contrato.
             $lotes[] = [
                 'id'            => (int) $item['id'],
                 'sheet_name'    => $item['sheet_name'],
@@ -114,10 +113,13 @@ class ctrl extends mdl {
             ];
         }
 
+        // La bitacora llega de la mas reciente a la mas vieja: se invierte para
+        // que dos cargas de la misma hoja queden en el orden en que entraron, y
+        // ya sobre eso manda el contrato.
         return [
             'row'     => $__row,
             'thead'   => '',
-            'lotes'   => array_reverse($lotes),
+            'lotes'   => ordenarPorHoja(array_reverse($lotes), $contrato, 'sheet_name'),
             'archivo' => uploadState($ultimo, $filas)
         ];
     }
@@ -144,24 +146,30 @@ class ctrl extends mdl {
         $right  = [];
 
         if ($target === 'sale') {
-            $center = [1, 2, 3, 6];
-            $right  = [4, 5];
+            $center = [1, 2, 3, 8, 9, 10];
+            $right  = [4, 5, 6, 7];
 
             foreach ($this->listSaleByBatch([$id]) as $item) {
                 $__row[] = [
-                    'id'       => $item['folio'],
-                    'Folio'    => '<span class="font-semibold text-gray-300">' . $item['folio'] . '</span>',
-                    'Codigo'   => '<span class="text-gray-400 font-mono text-[10px]">' . $item['billing_code'] . '</span>',
-                    'Fecha'    => '<span class="text-gray-400">' . fechaLarga($item['operation_date']) . '</span>',
-                    'Subtotal' => '<span class="text-gray-400">$' . number_format($item['subtotal'], 2) . '</span>',
-                    'Total'    => '<span class="font-semibold text-gray-300">$' . number_format($item['total'], 2) . '</span>',
-                    'Estado'   => saleStatusBadge($item['status_name'])
+                    'id'                  => $item['folio'],
+                    'Folio'               => '<span class="font-semibold text-gray-300">' . $item['folio'] . '</span>',
+                    'Codigo facturacion'  => '<span class="text-gray-400 font-mono text-[10px]">' . $item['billing_code'] . '</span>',
+                    'Fecha'               => '<span class="text-gray-400">' . fechaLarga($item['operation_date']) . '</span>',
+                    // El POS exporta el descuento como importe, no como tasa: la
+                    // columna se lee en pesos aunque el campo se llame _percent.
+                    'Descuento'           => '<span class="text-gray-400">$' . number_format($item['discount_percent'], 2) . '</span>',
+                    'Subtotal'            => '<span class="text-gray-400">$' . number_format($item['subtotal'], 2) . '</span>',
+                    'Impuestos'           => '<span class="text-gray-400">$' . number_format($item['tax'], 2) . '</span>',
+                    'Total'               => '<span class="font-semibold text-gray-300">$' . number_format($item['total'], 2) . '</span>',
+                    'Expiracion'          => dateCell($item['expires_at']),
+                    'Estado'              => saleStatusBadge($item['status_name']),
+                    'Folio factura'       => invoiceCell($item['invoice_series'])
                 ];
             }
         }
 
         if ($target === 'payment') {
-            $center = [1, 2, 3, 9];
+            $center = [1, 2, 3];
             $right  = [4, 5, 6, 7, 8];
 
             foreach ($this->listSalePaymentByBatch([$id]) as $item) {
@@ -174,8 +182,7 @@ class ctrl extends mdl {
                     'Tipo de cambio'  => '<span class="text-gray-400">' . number_format($item['exchange_rate'], 2) . '</span>',
                     'Subtotal'        => '<span class="text-gray-400">$' . number_format($item['sale_subtotal'], 2) . '</span>',
                     'Impuesto'        => '<span class="text-gray-400">$' . number_format($item['sale_tax'], 2) . '</span>',
-                    'Total'           => '<span class="text-gray-400">$' . number_format($item['sale_total'], 2) . '</span>',
-                    'Folio factura'   => invoiceCell($item['invoice_series'])
+                    'Total'           => '<span class="text-gray-400">$' . number_format($item['sale_total'], 2) . '</span>'
                 ];
             }
         }
@@ -423,6 +430,13 @@ function hojasContrato($contrato) {
         ];
     }
 
+    // El panel anuncia las hojas en el mismo orden en que se leen en la tira:
+    // si el aside dijera una cosa y las pestanas otra, se leerian como dos
+    // listas distintas del mismo archivo.
+    foreach ($__row as $tab => $hojas) {
+        $__row[$tab] = ordenarPorHoja($hojas, $contrato, 'nombre');
+    }
+
     return $__row;
 }
 
@@ -458,6 +472,14 @@ function uploadState($ultimo, $filas) {
         'estado'  => 'ok',
         'cargado' => $ultimo['file_name'] . ' · ' . number_format($filas) . ' filas · ' . fechaLarga($ultimo['created_at'])
     ];
+}
+
+// El POS no siempre exporta la fecha de expiracion: la celda vacia se dice, para
+// que no se lea como una fecha que no alcanzo a pintarse.
+function dateCell($fecha) {
+    if (empty($fecha)) return '<span class="cell-null">Sin fecha</span>';
+
+    return '<span class="text-gray-400">' . fechaLarga($fecha) . '</span>';
 }
 
 // Sin folio de factura la celda no se deja vacia: un pago sin facturar y un pago

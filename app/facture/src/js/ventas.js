@@ -113,11 +113,22 @@ class App extends Templates {
                 // El listado ya no pagina: llega agrupado por dia y forma de pago,
                 // y partirlo en paginas cortaria los grupos. Se recorre con el
                 // scroll vertical de la tarjeta, con el encabezado fijo arriba.
+                //
+                // El pr-2 es el aire entre la ultima columna y esa barra: sin el
+                // queda pegada al borde de la tabla y se lee como una columna mas.
+                //
+                // La nota va fuera del wrapper con scroll: es la leyenda de la
+                // tabla y tiene que seguir a la vista al recorrer el listado.
                 container: [
                     {
                         type:  'div',
+                        id:    'tableNote',
+                        class: 'flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
                         id:    'tableWrap',
-                        class: 'flex-1 min-h-0 overflow-auto scroll-thin'
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin pr-2'
                     }
                 ]
             }
@@ -352,6 +363,9 @@ class Ventas extends Templates {
     // Columnas: 1 Folio, 2 Fecha, 3 Forma de pago, 4 Estado fiscal, 5 Tasa,
     // 6 Subtotal, 7 IVA, 8 IEPS, 9 Total, 10 Factura.
     async lsVentas() {
+        ventasView.renderLoader('Cargando ventas...');
+        ventasView.renderTableNote(false);
+
         const data = await useFetch({ url: apiVentas, data: Object.assign({ opc: 'lsVentas' }, app.getFilters()) });
 
         this.createCoffeeTable3({
@@ -376,8 +390,21 @@ class Ventas extends Templates {
         });
 
         this.rowSelect();
+        this.markInvoiced();
+
+        // La leyenda explica una marca de las filas: mientras se consulta y sobre
+        // el estado vacio no tiene nada que explicar, asi que solo sale con el
+        // listado pintado.
+        ventasView.renderTableNote((data.row || []).length > 0);
 
         if (window.lucide) lucide.createIcons();
+    }
+
+    // El componente arma la tabla celda por celda y no admite clases en el <tr>:
+    // el servidor marca la celda del folio y aqui la marca sube a la fila, que es
+    // lo que se pinta.
+    markInvoiced() {
+        $(`#tb${this.PROJECT_NAME} [data-invoiced]`).closest('tr').addClass('row-invoiced');
     }
 
     // La fila completa abre el detalle, que es lo que el panel vacio ya promete
@@ -486,6 +513,33 @@ class VentasView extends Templates {
         });
     }
 
+    // El numero pegado al folio es el unico dato de la tabla que no se explica
+    // solo: sin la leyenda, dos filas con el mismo folio se leen como un folio
+    // repetido. Va arriba de la tabla, en el lugar del titulo que la tarjeta no
+    // tiene, y con la misma pildora que usa la celda para que se reconozca.
+    renderTableNote(hayVentas) {
+        if (!hayVentas) return $('#tableNote').empty();
+
+        this.noteBar({
+            parent: 'tableNote',
+            json: {
+                badge: '1',
+                text:  'Los tickets cobrados en varios pagos abren una fila por pago: el numero junto al folio dice cual de ellos es (1 el primer cobro, 2 el segundo).'
+            }
+        });
+    }
+
+    // La consulta de un rango largo tarda, y hasta que responde la tarjeta se
+    // queda con el listado anterior o en blanco: el spinner ocupa ese hueco para
+    // que se vea que la tabla se esta rehaciendo. Lo reemplaza createCoffeeTable3,
+    // que repinta el contenido del wrapper.
+    renderLoader(text) {
+        this.spinnerBox({
+            parent: 'tableWrap',
+            json:   { text: text }
+        });
+    }
+
     renderDetail(venta) {
         this.ventaDetailPanel({
             parent:  'detailPanel',
@@ -495,6 +549,61 @@ class VentasView extends Templates {
     }
 
     // -- Components --
+
+    // Leyenda de una tabla: una linea de texto menudo, con una pildora de
+    // muestra delante cuando lo que se explica es una marca de las celdas.
+    noteBar(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'flex items-center gap-2 mb-3 text-[10px] text-gray-400',
+            json:   { badge: '', text: '' }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            ${opts.json.badge ? `<span class="badge-base badge-xs b-gray flex-shrink-0">${esc(opts.json.badge)}</span>` : ''}
+            <span>${esc(opts.json.text)}</span>
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+    }
+
+    // Espera de una consulta. Reemplaza el contenido del panel en vez de
+    // agregarse a el (loader() del framework hace append y el aviso queda debajo
+    // de la tabla, fuera de la vista) y se centra en el hueco que ocupa.
+    spinnerBox(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'w-full h-full flex-1 min-h-[160px] flex flex-col items-center justify-center gap-3',
+            json:   { text: '' }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json  = Object.assign({}, defaults.json, o.json || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            <span class="spinner-ring"></span>
+            ${opts.json.text ? `<p class="text-[11px] text-gray-400">${esc(opts.json.text)}</p>` : ''}
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+    }
 
     ventaDetailPanel(options) {
         const defaults = {

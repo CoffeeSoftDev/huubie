@@ -75,6 +75,9 @@ class App extends Templates {
     // La tarjeta es el marco de la vista activa: dentro va la tabla del catalogo o
     // el formulario del emisor, nunca las dos cosas. El scroll vive aqui, de modo
     // que cabecera, filtros y tarjetas se quedan fijos arriba.
+    //
+    // La leyenda va fuera del wrapper con scroll: explica las dos marcas del
+    // catalogo y tiene que seguir a la vista al recorrer el listado.
     cardLayout() {
         this.createLayout({
             parent: 'contentRow',
@@ -86,6 +89,11 @@ class App extends Templates {
                 id:        'cardCatalogo',
                 class:     'w-full flex-1 min-h-0 bg-[#141d2b] rounded-lg p-4 flex flex-col overflow-hidden',
                 container: [
+                    {
+                        type:  'div',
+                        id:    'viewNote',
+                        class: 'flex-shrink-0'
+                    },
                     {
                         type:  'div',
                         id:    'viewBody',
@@ -106,72 +114,31 @@ class App extends Templates {
             id:         `filterBar${this.PROJECT_NAME}`,
             coffeesoft: true,
             theme:      FACTURE_THEME,
-            data:       this.view === 'meseros' ? this.jsonFiltroMeseros() : this.jsonFiltroProductos()
+            data:       this.jsonFiltroProductos()
         });
     }
 
     jsonFiltroProductos() {
         return [
             {
-                opc:         'input',
-                id:          'qBuscar',
-                lbl:         'Buscar producto',
-                class:       'col-12 col-md-6 col-lg-6',
-                placeholder: 'Codigo o nombre...',
-                required:    false,
-                onkeyup:     'app.onChangeFilters()'
-            },
-            {
-                opc:      'select',
-                id:       'fTipo',
-                lbl:      'Tipo',
-                class:    'col-12 col-md-3 col-lg-3',
-                value:    '',
-                required: false,
-                onchange: 'app.onChangeFilters()',
-                data:     this.dataInit.tipos
-            },
-            {
                 opc:       'button',
                 id:        'btnNuevoProducto',
-                text:      'Nuevo producto',
+                text:      'Nuevo producto auxiliar',
                 icon:      'ic-plus',
                 color_btn: 'primary',
-                class:     'col-12 col-md-3 col-lg-3',
+                class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => catalogosView.openProductoForm()
             }
         ];
     }
 
-    jsonFiltroMeseros() {
-        return [
-            {
-                opc:         'input',
-                id:          'qBuscar',
-                lbl:         'Buscar mesero',
-                class:       'col-12 col-md-8 col-lg-9',
-                placeholder: 'Clave o nombre...',
-                required:    false,
-                onkeyup:     'app.onChangeFilters()'
-            },
-            {
-                opc:       'button',
-                id:        'btnNuevoMesero',
-                text:      'Nuevo mesero',
-                icon:      'ic-plus',
-                color_btn: 'primary',
-                class:     'col-12 col-md-4 col-lg-3',
-                onClick:   () => catalogosView.openMeseroForm()
-            }
-        ];
-    }
-
-    // El tipo solo existe en la vista de productos: en meseros el campo no esta
-    // pintado y el filtro viaja vacio.
+    // El catalogo es el de los productos auxiliares: la lista arranca con ellos y
+    // no hay control que la abra al resto del catalogo del POS, asi que la marca
+    // viaja fija en vez de leerse de un campo.
     getFilters() {
         return {
-            q:    $('#qBuscar').val() || '',
-            tipo: $('#fTipo').val()   || ''
+            q:    '',
+            tipo: 'puente'
         };
     }
 
@@ -180,15 +147,13 @@ class App extends Templates {
     renderView() {
         const vistas = {
             productos: () => {
+                catalogosView.renderNote();
                 catalogos.lsProductos();
-                catalogos.lsKpis();
-            },
-            meseros: () => {
-                catalogos.lsMeseros();
                 catalogos.lsKpis();
             },
             emisor: () => {
                 $('#kpisRow').empty();
+                $('#viewNote').empty();
                 catalogosView.renderEmisor(this.dataInit.emisor);
             }
         };
@@ -203,14 +168,7 @@ class App extends Templates {
     }
 
     lsView() {
-        this.view === 'meseros' ? catalogos.lsMeseros() : catalogos.lsProductos();
-    }
-
-    // -- Event handlers --
-
-    onChangeFilters() {
-        this.lsView();
-        catalogos.lsKpis();
+        catalogos.lsProductos();
     }
 }
 
@@ -225,7 +183,8 @@ class Catalogos extends Templates {
 
     // -- Data --
 
-    // Columnas: 1 Codigo, 2 Nombre, 3 Precio, 4 Puente, 5 Modificador, 6 Estatus.
+    // Columnas: 1 Codigo, 2 Nombre, 3 Precio, 4 Producto auxiliar, 5 Modificador,
+    // 6 Estatus.
     //
     // Misma configuracion que las tablas de Cargas: la paleta se deja al tema y
     // solo se apaga el borde exterior, porque la tarjeta que las contiene ya
@@ -246,7 +205,7 @@ class Catalogos extends Templates {
             hover:         true,
             f_size:        11,
             border_table:  'border-0',
-            emptyMessage:  'No se encontraron productos',
+            emptyMessage:  'Aun no hay productos auxiliares dados de alta',
             emptyIcon:     'ic-box',
             data:          data
         });
@@ -254,30 +213,6 @@ class Catalogos extends Templates {
         if (window.lucide) lucide.createIcons();
 
         this.dataTable('#tbProductos', data);
-    }
-
-    async lsMeseros() {
-        const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsMeseros' }, app.getFilters()) });
-
-        this.createCoffeeTable3({
-            parent:        'viewBody',
-            id:            'tbMeseros',
-            theme:         FACTURE_THEME,
-            center:        [3],
-            actionsAlign:  'center',
-            extends:       true,
-            scrollable:    false,
-            hover:         true,
-            f_size:        11,
-            border_table:  'border-0',
-            emptyMessage:  'No se encontraron meseros',
-            emptyIcon:     'ic-users',
-            data:          data
-        });
-
-        if (window.lucide) lucide.createIcons();
-
-        this.dataTable('#tbMeseros', data);
     }
 
     // Paginado y ordenamiento de la tabla ya pintada. Sin filas createCoffeeTable3
@@ -289,10 +224,11 @@ class Catalogos extends Templates {
         if (typeof simple_data_table === 'function') simple_data_table(id, 12);
     }
 
-    // Una sola consulta sirve a las dos vistas: el buscador es comun y cambiar de
-    // pestaña no vuelve a pedir cifras al servidor.
+    // Las cifras son las del catalogo completo, no las del listado: la tabla ya
+    // solo trae los auxiliares y las tarjetas son las que dicen cuantos productos
+    // hay en total y cuantos de ellos estan marcados.
     async lsKpis() {
-        const kpis = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'showKpis' }, app.getFilters()) });
+        const kpis = await useFetch({ url: apiCatalogos, data: { opc: 'showKpis' } });
 
         catalogosView.renderInfoCards(kpis);
     }
@@ -301,14 +237,14 @@ class Catalogos extends Templates {
 
     // La clave anterior viaja aparte: es la que localiza la fila cuando la edicion
     // cambia la clave del POS, y sin ella se daria de alta un producto nuevo.
+    //
+    // La marca no se pregunta en el formulario: lo que se da de alta aqui es un
+    // producto auxiliar, y por eso viaja fija.
     async saveProducto(code, data) {
-        const response = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data) });
-
-        this.afterSave(response);
-    }
-
-    async saveMesero(code, data) {
-        const response = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'saveMesero', previo: code || '' }, data) });
+        const response = await useFetch({
+            url:  apiCatalogos,
+            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data, { puente: 1 })
+        });
 
         this.afterSave(response);
     }
@@ -334,9 +270,9 @@ class Catalogos extends Templates {
         });
     }
 
-    // El interruptor de la fila escribe la marca contraria a la que muestra. Un
-    // producto puente cambia tambien de sitio en la tabla y las cifras de las
-    // tarjetas, asi que la vista se relee entera.
+    // El interruptor de la fila escribe la marca contraria a la que muestra. Quitar
+    // la marca de auxiliar saca al producto del listado, que es el de los
+    // auxiliares, asi que la vista se relee entera.
     async editProductoFlag(code, campo, valor) {
         const response = await useFetch({
             url: apiCatalogos,
@@ -372,23 +308,6 @@ class Catalogos extends Templates {
         });
     }
 
-    editMeseroStatus(code, valor) {
-        if (valor === 1) return this.saveStatus('editMeseroStatus', code, valor);
-
-        this.swalQuestion({
-            extends: true,
-            opts: {
-                title:             'Dar de baja el mesero',
-                text:              `Se retirara la clave ${code} del catalogo activo. Podras volver a activarla cuando haga falta.`,
-                icon:              'warning',
-                confirmButtonText: 'Si, dar de baja',
-                cancelButtonText:  'No'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) this.saveStatus('editMeseroStatus', code, valor);
-        });
-    }
-
     async saveStatus(opc, code, valor) {
         const response = await useFetch({
             url: apiCatalogos,
@@ -412,7 +331,7 @@ class Catalogos extends Templates {
         });
     }
 
-    // La tabla y las tarjetas se releen juntas: un producto marcado como puente
+    // La tabla y las tarjetas se releen juntas: un producto marcado como auxiliar
     // cambia tambien los conteos del encabezado.
     refresh() {
         app.lsView();
@@ -431,15 +350,15 @@ class CatalogosView extends Templates {
 
     // -- Render helpers --
 
-    // Copy de la cabecera del modulo. No son datos: productos, meseros y emisor se
-    // consultan al servidor.
+    // Copy de la cabecera del modulo. No son datos: productos y emisor se consultan
+    // al servidor.
     renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
             id:     'hdrCatalogos',
             json: {
                 title:    'Catalogos',
-                subtitle: 'Productos del punto de venta y datos del ticket virtual',
+                subtitle: 'Productos auxiliares y datos del ticket virtual',
                 back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' },
                 toggles: [
                     {
@@ -450,10 +369,6 @@ class CatalogosView extends Templates {
                             {
                                 value: 'productos',
                                 label: 'Productos'
-                            },
-                            {
-                                value: 'meseros',
-                                label: 'Meseros'
                             },
                             {
                                 value: 'emisor',
@@ -467,8 +382,33 @@ class CatalogosView extends Templates {
         });
     }
 
+    // Las dos marcas del catalogo no se explican solas: una dice que el producto
+    // sirve para armar el ticket virtual y la otra que solo acompaña a un platillo.
+    // La leyenda va arriba de la tabla, donde se leen las columnas que las pintan.
+    renderNote() {
+        this.noteCard({
+            parent: 'viewNote',
+            json: {
+                items: [
+                    {
+                        icon:  'link',
+                        tone:  'text-[#3FC189]',
+                        title: 'Producto auxiliar',
+                        text:  'Es el que el generador usa para armar el ticket virtual: se van sumando sus precios hasta cubrir el total cobrado. Solo estos se dan de alta aqui.'
+                    },
+                    {
+                        icon:  'layers',
+                        tone:  'text-amber-500',
+                        title: 'Modificador',
+                        text:  'Acompaña a otro producto (extras, terminos, guarniciones) y no arma un ticket por si solo: no entra en la combinacion.'
+                    }
+                ]
+            }
+        });
+    }
+
     // La vista viaja como atributo de la fila: el tinte del icono de cada tarjeta
-    // depende de su posicion, y esa cambia con la vista.
+    // depende de su posicion.
     renderInfoCards(kpis) {
         $('#kpisRow').attr('data-view', app.view);
 
@@ -478,7 +418,7 @@ class CatalogosView extends Templates {
             theme:  FACTURE_THEME,
             style:  'file',
             cols:   4,
-            json:   app.view === 'meseros' ? this.jsonKpisMeseros(kpis) : this.jsonKpisProductos(kpis)
+            json:   this.jsonKpisProductos(kpis)
         });
     }
 
@@ -497,7 +437,7 @@ class CatalogosView extends Templates {
             },
             {
                 id:          'kpiPuente',
-                title:       'Puente',
+                title:       'Productos auxiliares',
                 lucideIcon:  'link',
                 bgColor:     'bg-[#141d2b]',
                 borderColor: 'border-transparent',
@@ -526,55 +466,6 @@ class CatalogosView extends Templates {
                 data: {
                     value: kpis.precioPromedio,
                     color: 'text-[#1C64F2]'
-                }
-            }
-        ];
-    }
-
-    jsonKpisMeseros(kpis) {
-        return [
-            {
-                id:          'kpiMeseros',
-                title:       'Meseros',
-                lucideIcon:  'users',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.meseros,
-                    color: 'text-white'
-                }
-            },
-            {
-                id:          'kpiMeserosActivos',
-                title:       'Activos',
-                lucideIcon:  'user-check',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.meserosActivos,
-                    color: 'text-[#3FC189]'
-                }
-            },
-            {
-                id:          'kpiMeserosBaja',
-                title:       'Dados de baja',
-                lucideIcon:  'user-x',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.meserosBaja,
-                    color: 'text-red-400'
-                }
-            },
-            {
-                id:          'kpiMeserosSinNombre',
-                title:       'Sin nombre',
-                lucideIcon:  'badge-alert',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.meserosSinNombre,
-                    color: 'text-amber-500'
                 }
             }
         ];
@@ -671,42 +562,16 @@ class CatalogosView extends Templates {
                 id:    'precio',
                 lbl:   'Precio',
                 tipo:  'cifra',
-                class: 'col-12 col-md-4 mb-3'
-            },
-            {
-                opc:      'select',
-                id:       'puente',
-                lbl:      'Es producto puente',
-                class:    'col-12 col-md-4 mb-3',
-                required: false,
-                data:     app.dataInit.sino
+                class: 'col-12 col-md-6 mb-3'
             },
             {
                 opc:      'select',
                 id:       'modificador',
                 lbl:      'Es modificador',
-                class:    'col-12 col-md-4 mb-3',
+                class:    'col-12 col-md-6 mb-3',
+                value:    '0',
                 required: false,
                 data:     app.dataInit.sino
-            }
-        ];
-    }
-
-    jsonMesero() {
-        return [
-            {
-                opc:   'input',
-                id:    'code',
-                lbl:   'Codigo',
-                tipo:  'texto',
-                class: 'col-12 col-md-4 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'nombre',
-                lbl:   'Nombre del mesero',
-                tipo:  'texto',
-                class: 'col-12 col-md-8 mb-3'
             }
         ];
     }
@@ -720,33 +585,15 @@ class CatalogosView extends Templates {
 
         this.formModal({
             id:       'frmProducto',
-            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto',
+            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto auxiliar',
             autofill: producto || false,
             json:     this.jsonProducto(),
             onSave:   (form) => catalogos.saveProducto(code || '', form)
         });
     }
 
-    async openMeseroForm(code) {
-        const data   = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getMesero', code: code } }) : {};
-        const mesero = data.mesero || null;
-
-        this.formModal({
-            id:       'frmMesero',
-            title:    mesero ? `Editar ${mesero.nombre}` : 'Nuevo mesero',
-            size:     'default',
-            autofill: mesero || false,
-            json:     this.jsonMesero(),
-            onSave:   (form) => catalogos.saveMesero(code || '', form)
-        });
-    }
-
     editProducto(code) {
         this.openProductoForm(code);
-    }
-
-    editMesero(code) {
-        this.openMeseroForm(code);
     }
 
     // -- Components --
@@ -790,6 +637,47 @@ class CatalogosView extends Templates {
         });
 
         return modal;
+    }
+
+    // Leyenda de una tabla cuando lo que hay que explicar son varios conceptos: uno
+    // por caja, en linea, con el icono de la columna que representan delante.
+    noteCard(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'flex flex-col md:flex-row gap-2 mb-3',
+            json:   { items: [] },
+            classes: {
+                item:  'note-card flex items-start gap-2 flex-1 px-3 py-2 rounded-lg bg-[#0E1521] border border-[#374151]',
+                icon:  'w-3.5 h-3.5 flex-shrink-0 mt-[2px]',
+                text:  'text-[10px] text-gray-400 leading-relaxed mb-0',
+                title: 'font-bold text-gray-300'
+            }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const item = (it) => `
+            <div class="${opts.classes.item}">
+                ${it.icon ? `<i data-lucide="${esc(it.icon)}" class="${opts.classes.icon} ${esc(it.tone || '')}"></i>` : ''}
+                <p class="${opts.classes.text}">
+                    <span class="${opts.classes.title}">${esc(it.title)}:</span> ${esc(it.text)}
+                </p>
+            </div>
+        `;
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html((opts.json.items || []).map(item).join(''));
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
     }
 
     panelHead(options) {

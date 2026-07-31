@@ -129,6 +129,21 @@
 #root #kpisVentas .w-8 svg,
 #root #kpisVentas .w-8 i { width: 15px; height: 15px; }
 
+/* En ventas la tabla es la vista y las cuatro cifras son solo el encabezado del
+   periodo filtrado: bajan otro escalon para dejarle el alto al listado. */
+#root #kpisVentas { gap: 8px !important; }
+
+#root #kpisVentas > div { padding: 5px 9px !important; }
+
+#root #kpisVentas p { font-size: 10px !important; }
+
+#root #kpisVentas .text-xl { font-size: 13px; }
+
+#root #kpisVentas .w-8 { width: 22px; height: 22px; margin-right: 6px; }
+
+#root #kpisVentas .w-8 svg,
+#root #kpisVentas .w-8 i { width: 13px; height: 13px; }
+
 /* -- Tabla plegable por grupos --
    El listado de ventas se agrupa por dia (fila opc 1, que pliega el componente).
    Sin striped: el color se reserva para el encabezado, que es lo que separa un
@@ -138,11 +153,13 @@
    en dos temas: el selector con #root gana a la utilidad de fondo que el
    componente pone en la celda, y la variante clara solo cambia el tono.
 
-   Usa el acento del modulo tintado, el mismo de los badges b-terra y del titulo
-   de la cabecera, no un fondo solido: separa los dias sin dominar la tabla. */
-#root .ct-group { background: rgba(28,100,242,.15); color: #93C5FD; }
+   La banda no lleva color de acento: el listado ya esta lleno de pildoras de
+   colores y una franja azul por dia competia con ellas. Se separa del resto por
+   tono, un escalon sobre la tarjeta que la contiene (al reves en el tema claro),
+   asi el corte se ve sin sumar un color mas a la tabla. */
+#root .ct-group { background: #283545; color: #E5E7EB; }
 
-html[data-facture-theme="light"] #root .ct-group { background: rgba(28,100,242,.10); color: #1E40AF; }
+html[data-facture-theme="light"] #root .ct-group { background: #D1D5DB; color: #374151; }
 
 /* Los chevrones del plegado los pinta el componente como clases de fontello, que
    este modulo no carga (misma razon que los ic-* de arriba): se resuelven con la
@@ -179,6 +196,15 @@ html[data-facture-theme="light"] #root .ct-group { background: rgba(28,100,242,.
     top: 0;
     z-index: 20;
 }
+
+/* La venta ya facturada se queda con el fondo del hover de la tabla: es la que
+   ya no admite trabajo, y verla marcada de un vistazo ahorra leer la columna de
+   estado fila por fila. El !important es el mismo caso que el hover del
+   componente, que pinta el fondo como clase de Tailwind en cada celda; se cede
+   ante la fila seleccionada para no tapar el acento de la seleccion. */
+#root #tbventas tbody tr.row-invoiced:not(.row-active) > td { background-color: #334155 !important; }
+
+html[data-facture-theme="light"] #root #tbventas tbody tr.row-invoiced:not(.row-active) > td { background-color: #E5E7EB !important; }
 
 /* -- Rango de fechas sobre fondo oscuro --
    El popup del daterangepicker se monta en <body>, fuera de #root, por eso se
@@ -248,6 +274,16 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 #root .b-terra  { background: rgba(28,100,242,.15); color: #93C5FD; border-color: rgba(28,100,242,.35); }
 #root .b-gray   { background: rgba(148,163,184,.12); color: #CBD5E1; border-color: rgba(148,163,184,.25); }
 #root .b-blue   { background: rgba(59,130,246,.15); color: #93C5FD; border-color: rgba(59,130,246,.30); }
+
+/* El numero de parte que acompania al folio no es una etiqueta que se lea: solo
+   dice cual de los pagos del ticket es esa fila. Va en la pildora minima, del
+   alto del folio, para que no pese mas que el dato al que se pega. */
+#root .badge-xs {
+    gap: 2px;
+    padding: 0 5px;
+    font-size: 9px;
+    line-height: 13px;
+}
 
 /* -- Celdas -- */
 #root .cell-null { color: #6B7280; font-style: italic; font-size: 10px; }
@@ -404,8 +440,7 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
    El listado no pagina: se recorre con el scroll de la tarjeta, asi que el
    encabezado se queda fijo arriba. Va en versalitas para separarlo del dato,
    como la fila de filtros. */
-#root #tbProductos thead th,
-#root #tbMeseros thead th {
+#root #tbProductos thead th {
     position: sticky;
     top: 0;
     z-index: 20;
@@ -418,20 +453,26 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
    Va con !important porque la clase text-center del th es tambien una utilidad de
    Bootstrap, y ahi si la trae. */
 #root #tbProductos thead th[data-col="1"],
-#root #tbProductos thead th[data-col="2"],
-#root #tbMeseros   thead th[data-col="1"],
-#root #tbMeseros   thead th[data-col="2"] { text-align: left !important; }
+#root #tbProductos thead th[data-col="2"] { text-align: left !important; }
 
 #root #tbProductos thead th[data-col="3"] { text-align: right !important; }
-
-/* En meseros solo hay cuatro columnas: sin un ancho de referencia, table-auto
-   reparte el sobrante entre clave y estatus y el nombre queda flotando. */
-#root #tbMeseros th[data-col="2"],
-#root #tbMeseros td[data-col="2"] { width: 55%; }
 
 #root #filterBarcatalogos label {
     text-transform: uppercase;
     letter-spacing: .04em;
+}
+
+/* El catalogo no se busca: son los auxiliares dados de alta, unas cuantas filas.
+   simple_data_table arma DataTables con su propio buscador (su searching gana al
+   bFilter que lo apagaba), y esa es la fila que se oculta. */
+#root #tbProductos_wrapper > .row:first-child { display: none; }
+
+/* -- Leyenda de las marcas del catalogo --
+   Las dos cajas viven dentro de la tarjeta del catalogo, que en claro es blanca:
+   sin esto conservarian el fondo oscuro de la banda. */
+html[data-facture-theme="light"] #root .note-card {
+    background: #F9FAFB;
+    border-color: #E5E7EB;
 }
 
 /* Los filtros van en su propia caja, como en el resto del modulo: la banda
@@ -448,6 +489,19 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
     border-color: #E5E7EB;
 }
 
+/* En cargas los filtros comparten banda con el titulo: ahi la caja sobra y el
+   recuadro parte el encabezado en dos. */
+#root #headerRow #filterBar > div > .fade-in {
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
+/* En catalogos la fila solo lleva el boton de alta: el recuadro alrededor de un
+   unico control se lee como una caja vacia. */
+#root #catalogos #filterBar > div > .fade-in,
+html[data-facture-theme="light"] #root #catalogos #filterBar > div > .fade-in { border: 0; }
+
 /* La vista del emisor no tiene filtros ni tarjetas: sin esto sus dos bandas
    dejarian una franja vacia entre la cabecera y el formulario. */
 #root #filterBar:empty,
@@ -457,11 +511,9 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
    primary del framework es el azul marino corporativo, mas apagado sobre la
    banda oscura. */
 #root #btnNuevoProducto,
-#root #btnNuevoMesero,
 #root #btnGuardarEmisor { background: #1C64F2; }
 
 #root #btnNuevoProducto:hover,
-#root #btnNuevoMesero:hover,
 #root #btnGuardarEmisor:hover { background: #1A56DB; }
 
 /* La cifra de la tarjeta va bajo su titulo, alineada con el, no pegada al borde
@@ -472,19 +524,13 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
 }
 
 /* El icono de cada tarjeta lleva el tinte de su cifra: el conteo se localiza por
-   color antes de leer el titulo. El orden es el de renderInfoCards y cambia con
-   la vista, por eso se declara por vista y no una sola vez. */
+   color antes de leer el titulo. El orden es el de renderInfoCards. */
 #root #kpisRow[data-view="productos"] #kpisCatalogos_0 .w-8,
-#root #kpisRow[data-view="productos"] #kpisCatalogos_3 .w-8,
-#root #kpisRow[data-view="meseros"]   #kpisCatalogos_0 .w-8 { background: rgba(28,100,242,.15) !important; }
+#root #kpisRow[data-view="productos"] #kpisCatalogos_3 .w-8 { background: rgba(28,100,242,.15) !important; }
 
-#root #kpisRow[data-view="productos"] #kpisCatalogos_1 .w-8,
-#root #kpisRow[data-view="meseros"]   #kpisCatalogos_1 .w-8 { background: rgba(16,185,129,.15) !important; }
+#root #kpisRow[data-view="productos"] #kpisCatalogos_1 .w-8 { background: rgba(16,185,129,.15) !important; }
 
-#root #kpisRow[data-view="productos"] #kpisCatalogos_2 .w-8,
-#root #kpisRow[data-view="meseros"]   #kpisCatalogos_3 .w-8 { background: rgba(245,158,11,.15) !important; }
-
-#root #kpisRow[data-view="meseros"]   #kpisCatalogos_2 .w-8 { background: rgba(239,68,68,.15)  !important; }
+#root #kpisRow[data-view="productos"] #kpisCatalogos_2 .w-8 { background: rgba(245,158,11,.15) !important; }
 
 /* Barra indeterminada mientras el servidor lee el Excel: no hay avance real que
    reportar hasta que responde, asi que se anima de lado a lado. */

@@ -155,7 +155,8 @@ class mdl extends CRUD {
     function listSaleByBatch($array) {
         $query = "
             SELECT s.folio, s.billing_code, s.invoice_series, s.operation_date,
-                   s.subtotal, s.tax, s.total, st.name AS status_name
+                   s.discount_percent, s.subtotal, s.tax, s.total, s.expires_at,
+                   st.name AS status_name
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             WHERE s.active = 1 AND s.import_batch_id = ?
@@ -224,9 +225,6 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
-    // El folio de factura vive en la venta: llega por el enlace sale_id que arma
-    // la carga, no por el folio de texto.
-    //
     // Sin LIMIT, igual que las ventas: la hoja es una pestana del periodo y su
     // pestana anuncia el total del lote, asi que traer solo una parte la haria
     // mentir. Son 3 909 pagos del mismo orden que los 3 821 tickets, y DataTables
@@ -234,11 +232,9 @@ class mdl extends CRUD {
     function listSalePaymentByBatch($array) {
         $query = "
             SELECT p.sale_folio, p.currency, p.amount, p.exchange_rate,
-                   p.sale_subtotal, p.sale_tax, p.sale_total, pm.name AS method_name,
-                   s.invoice_series
+                   p.sale_subtotal, p.sale_tax, p.sale_total, pm.name AS method_name
             FROM {$this->bd}detail_sale_payment p
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-            LEFT JOIN {$this->bd}sale s ON s.id = p.sale_id
             WHERE p.active = 1 AND p.import_batch_id = ?
             ORDER BY p.id ASC
         ";

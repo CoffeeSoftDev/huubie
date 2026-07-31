@@ -19,8 +19,7 @@ class App extends Templates {
         this.hojas        = [];
         this.hojaActiva   = 0;
 
-        // Lotes y hoja abierta por pestana: cada tab recuerda en que hoja se quedo,
-        // asi volver al tab no lo devuelve a la bitacora.
+        // Cada tab recuerda en que hoja se quedo: volver a el no lo devuelve a la bitacora.
         this.lotes   = {};
         this.hojaTab = {};
     }
@@ -77,8 +76,6 @@ class App extends Templates {
             }
         });
 
-        // Titulo y filtros comparten banda: el header queda a la izquierda y los
-        // selects de mes/anio a la derecha, alineados en la misma fila.
         this.createLayout({
             parent: 'headerRow',
             design: false,
@@ -116,8 +113,6 @@ class App extends Templates {
         this.contentLayout();
     }
 
-    // Zona scrolleable: los tabs ocupan todo el alto porque la bitacora vive
-    // dentro del panel de cada uno.
     contentLayout() {
         this.createLayout({
             parent: 'contentWrap',
@@ -139,11 +134,6 @@ class App extends Templates {
     // Los paneles de todos los tabs coexisten en el DOM (tabLayout solo los oculta),
     // por eso cada id lleva el sufijo del tab: sin el, `$('#uploadRow')` resolvia
     // siempre al panel del primer tab y el segundo quedaba vacio.
-    //
-    // La bitacora es de la pestana, no del modulo: cada archivo tiene su propia
-    // caja, asi las cargas de comandas no se leen como si fueran del reporte de
-    // ventas. Dentro del panel no va una tabla sino la tira de hojas, que la
-    // bitacora arma cuando sabe que lotes trae el periodo.
     tabPanelLayout(tabId) {
         this.createLayout({
             parent: `container-${tabId}`,
@@ -241,20 +231,13 @@ class App extends Templates {
         cargasView.renderUploadRow(id, archivo);
         cargas.lsBitacora(id);
 
-        // El panel lateral es el mismo en las dos pestanas: cada una anuncia las
-        // hojas que se leen de su archivo. El roadmap no se pinta al entrar (es el
-        // avance de una carga): startRoadmap() lo agrega cuando se sube un archivo.
         cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas' });
         this.asideLayout();
 
-        // Ninguna hoja arranca abierta: el mapeo de columnas es un detalle que se
-        // pide, y el indice de la pestana anterior no significa lo mismo aqui.
         this.hojaActiva = -1;
         this.renderHojas(id);
     }
 
-    // El panel lateral se parte en tres: las hojas del archivo, las columnas de la
-    // hoja elegida y el roadmap con el avance de la carga.
     asideLayout() {
         this.createLayout({
             parent: 'detailContent',
@@ -281,9 +264,8 @@ class App extends Templates {
 
     // -- Tira de hojas del periodo --
 
-    // Ids de las pestanas de la tira. Son la llave de todo el segundo nivel:
-    // tabLayout nombra su boton `tab-{id}` y su panel `container-{id}`, y de ahi
-    // cuelgan el cuerpo y el pie de cada hoja.
+    // tabLayout nombra su boton `tab-{id}` y su panel `container-{id}`: de estas
+    // llaves cuelgan el cuerpo y el pie de cada hoja.
     logKey(tabId) {
         return `log-${tabId}`;
     }
@@ -292,30 +274,16 @@ class App extends Templates {
         return `sheet-${loteId}`;
     }
 
-    // Segundo nivel de tabLayout: la bitacora deja de ser un modo del que hay que
-    // salir y pasa a ser la primera pestana; cada lote del periodo es una hermana
-    // suya. tabLayout conserva los paneles en el DOM (solo les pone `hidden`), asi
-    // que una hoja ya abierta mantiene su tabla y la pagina de DataTables donde se
-    // quedo: moverse entre hojas no vuelve a consultar.
-    //
-    // La tira se arma con los lotes que reporta la bitacora, por eso se monta
-    // desde lsBitacora y no en el layout: antes de la consulta no se sabe que
-    // hojas tiene cargado el periodo.
+    // La tira se monta desde lsBitacora y no en el layout: antes de la consulta no
+    // se sabe que hojas tiene cargado el periodo.
     sheetTabs(tabId, lotes, filas) {
         this.lotes[tabId] = lotes || [];
 
-        // Sin registros en el periodo la bitacora no tiene nada que listar: su
-        // pestana se omite en vez de abrir en una tabla vacia.
         const conLog = (filas || []).length > 0;
 
-        // Esqueleto que tabLayout inyecta en el panel de cada pestana: la tabla
-        // arriba con su scroll y el pie fijo abajo. min-w-0 en el cuerpo porque la
-        // hoja "Pagos" trae 9 columnas y sin el se desborda fuera del panel en vez
-        // de scrollear dentro.
-        //
-        // La columna se arma en un wrapper con h-full y no en el contenedor del
-        // tab: ese contenedor lleva `hidden` mientras la pestana esta cerrada, y
-        // darle display:flex seria pelearse con el.
+        // min-w-0 en el cuerpo: sin el, una hoja de muchas columnas se desborda
+        // fuera del panel en vez de scrollear dentro. El wrapper va con h-full y no
+        // flex-1 porque el contenedor del tab cerrado lleva `hidden`.
         const sheetShell = (id) => `
             <div class="h-full flex flex-col">
                 <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
@@ -357,8 +325,7 @@ class App extends Templates {
         const json = conLog ? [bitacora].concat(hojas) : hojas;
 
         // Sin pestanas que mostrar la tira no se pinta: tabLayout dejaria la barra
-        // de botones vacia sobre el panel. El hueco no se deja en blanco, que se
-        // lee como una pantalla a medio cargar: el vacio dice que le falta.
+        // de botones vacia sobre el panel.
         if (!json.length) {
             cargasView.renderEmptySheets(tabId);
             return;
@@ -385,8 +352,6 @@ class App extends Templates {
         if (this.hasLog(tabId)) $(`#tab-${this.logKey(tabId)}`).trigger('click');
     }
 
-    // Donde se pinta la espera de una carga: con el periodo vacio la bitacora no
-    // tiene pestana, asi que el aviso va sobre la tira, que es el hueco que deja.
     loaderHost(tabId) {
         return this.hasLog(tabId) ? `sheetBody-${this.logKey(tabId)}` : `sheetsHost-${tabId}`;
     }
@@ -411,8 +376,7 @@ class App extends Templates {
     }
 
     // Las hojas de reposo salen del contrato del importador; la carga las reemplaza
-    // por las que trajo el archivo. La hoja abierta se conserva mientras exista en
-    // la lista nueva, para que el mapeo no se cierre solo al repintar el panel.
+    // por las que trajo el archivo.
     renderHojas(tabId, hojas) {
         this.hojas = hojas || this.hojasTab(tabId);
 
@@ -421,8 +385,6 @@ class App extends Templates {
         this.paintHojas();
     }
 
-    // Sin hoja abierta el bloque de columnas no se pinta vacio: se esconde, para
-    // que el panel sea la lista de hojas hasta que se pida el detalle de una.
     paintHojas() {
         const hoja = this.hojas[this.hojaActiva];
 
@@ -439,8 +401,6 @@ class App extends Templates {
         this.renderActiveTab(tabId);
     }
 
-    // La tarjeta abre y cierra su mapeo: volver a darle clic deja el panel como
-    // estaba, sin columnas.
     onSelectHoja(index) {
         this.hojaActiva = this.hojaActiva === index ? -1 : index;
         this.paintHojas();
@@ -468,9 +428,6 @@ class Cargas extends Templates {
 
     // -- Data --
 
-    // Bitacora por pestana: cada tab lista unicamente las cargas de su archivo.
-    // La consulta es tambien la que define la tira de hojas, porque hasta aqui no
-    // se sabe que lotes tiene el periodo.
     async lsBitacora(tabId) {
         const tipo = tabId || app.activeTab;
         const data = await useFetch({ url: apiCargas, data: Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()) });
@@ -478,8 +435,6 @@ class Cargas extends Templates {
 
         app.sheetTabs(tipo, data.lotes, rows);
 
-        // El periodo manda sobre la fila de carga: si ya entraron lotes en ese
-        // mes la pestana deja de decir "pendiente" y muestra que ya hay datos.
         if (data.archivo) {
             cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
         }
@@ -528,16 +483,11 @@ class Cargas extends Templates {
         if (typeof simple_data_table === 'function') simple_data_table(`#tbLog-${tipo}`, 10);
     }
 
-    // Columnas que se leen de la hoja seleccionada: es el contrato con el que se
-    // valida el Excel, asi que dice exactamente que necesita traer el archivo para
-    // que la informacion se pueda migrar.
     lsColumnas(hoja) {
         cargasView.renderColumnasHead(hoja);
 
         const cellColumna = (letra) => `<span class="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1F2A37] text-gray-400 font-mono text-[9px]">${letra}</span>`;
 
-        // El mapeo se pinta de la hoja que este seleccionada en el panel, por eso
-        // la tabla se arma en el momento y no queda como constante.
         const columnasTable = (h) => ({
             row: ((h && h.columnas) || []).map(c => ({
                 id:    c.letra,
@@ -562,9 +512,6 @@ class Cargas extends Templates {
         });
     }
 
-    // Registros de un lote: se pintan en el panel de SU hoja, que es el que
-    // tabLayout mantiene oculto hasta que la pestana se abre. Ya no reemplazan la
-    // tabla de la bitacora, asi que no hace falta un boton para volver.
     async lsRegistros(id) {
         const hoja = app.sheetKey(id);
 
@@ -632,8 +579,6 @@ class Cargas extends Templates {
         this.roadmapTimer = null;
     }
 
-    // Sin pasos del servidor (respuesta rota o sin llegar) el roadmap no puede
-    // quedarse girando: el paso en curso se marca en error con el motivo.
     failRoadmap(detalle) {
         this.stopRoadmap();
 
@@ -723,9 +668,8 @@ class Cargas extends Templates {
             body:   body
         }).then(r => r.json());
 
-        // Las hojas que devuelve la carga traen el resultado pero no el contrato:
-        // el mapeo de columnas se conserva del que trajo init() para que la hoja
-        // siga diciendo que se lee de ella.
+        // La carga devuelve el resultado pero no el contrato: el mapeo de columnas
+        // se conserva del que trajo init().
         const hojasCargadas = (base, hojas) => hojas.map(h => Object.assign(
             {}, (base || []).find(b => b.nombre === h.nombre) || {}, h
         ));
@@ -746,8 +690,6 @@ class Cargas extends Templates {
 
         this.startRoadmap();
 
-        // La carga se sigue desde la bitacora: si el usuario estaba viendo una hoja
-        // se la trae de vuelta, porque los lotes de esa hoja estan por cambiar.
         app.openLog(tipo);
 
         cargasView.renderLoader(app.loaderHost(tipo), `Procesando ${file.name}...`);
@@ -761,8 +703,6 @@ class Cargas extends Templates {
 
             cargasView.renderUploadRow(tipo, archivo);
 
-            // Sin hojas reconocidas las tarjetas vuelven a su estado de reposo: si
-            // se quedaran con la barra en marcha dirian que siguen leyendose.
             app.renderHojas(tipo, (data.hojas && data.hojas.length)
                 ? hojasCargadas(app.hojasTab(tipo), data.hojas)
                 : null);
@@ -829,8 +769,6 @@ class CargasView extends Templates {
         this.PROJECT_NAME = 'cargas';
     }
 
-    // Color e icono con que se reconoce cada hoja mientras no hay carga: el estado
-    // de la carga los pisa despues.
     sheetTone(nombre) {
         const tonos = {
             'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
@@ -843,8 +781,6 @@ class CargasView extends Templates {
 
     // -- Render helpers --
 
-    // Copy de la cabecera del modulo. Lo demas (pestanas, archivo esperado, hojas
-    // y pasos del proceso) lo manda el contrato del importador desde init().
     renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
@@ -857,8 +793,6 @@ class CargasView extends Templates {
         });
     }
 
-    // Pie de la hoja abierta: lo que antes decia el encabezado con el boton de
-    // volver, ahora dicho debajo de la tabla y sin sacar al usuario de la hoja.
     renderSheetFoot(sheetId, json) {
         this.sheetFootBar({
             parent: `sheetFoot-${sheetId}`,
@@ -881,10 +815,8 @@ class CargasView extends Templates {
         });
     }
 
-    // Las hojas llegan como vienen del contrato o de la carga: la tarjeta se arma
-    // aqui para que ambos origenes se pinten igual. En reposo la hoja solo se
-    // anuncia con su color; cuando uploadFile responde manda el estado y el color
-    // pasa a decir como termino la carga.
+    // Las hojas llegan del contrato o de la carga: la tarjeta se arma aqui para que
+    // ambos origenes se pinten igual.
     renderHojas(rows, selected, onSelect) {
         const hojaCard = (h) => {
             const tono  = this.sheetTone(h.nombre);
@@ -897,8 +829,6 @@ class CargasView extends Templates {
                 detalle:    h.detalle,
                 bgClass:    error ? 'bg-[rgba(239,68,68,0.12)]' : (ok ? 'bg-[rgba(16,185,129,0.12)]' : tono.bgClass),
                 iconClass:  error ? 'text-red-400' : (ok ? 'text-green-600' : tono.iconClass),
-                // Sin carga la tarjeta no puede decir "listo": lo que ofrece es
-                // abrirse para mostrar sus columnas.
                 rightIcon:  error ? 'x-circle' : (ok ? 'check-circle-2' : 'chevron-right'),
                 procesando: h.procesando,
                 avance:     h.avance === undefined && h.estado ? (ok ? 100 : 0) : h.avance
@@ -938,9 +868,6 @@ class CargasView extends Templates {
         });
     }
 
-    // Periodo sin cargas, en cualquiera de las dos pestanas: donde iria la tira de
-    // hojas se dice que archivo espera esa pestana y con que boton se sube, para
-    // que el vacio no se confunda con una consulta que no termino.
     renderEmptySheets(tabId) {
         const archivo = app.dataInit.archivos[tabId] || {};
         const periodo = `${$('#fMes option:selected').text()} ${$('#fAnio').val()}`;
@@ -1006,8 +933,6 @@ class CargasView extends Templates {
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
 
-        // El input nativo se mantiene oculto: el boton verde lo dispara para no
-        // romper la fila con el control por defecto del navegador.
         wrap.find('.upload-row-btn').on('click', () => $(`#${inputId}`).trigger('click'));
 
         wrap.find(`#${inputId}`).on('change', (e) => opts.onChange(e.target, opts.json.id));
@@ -1041,9 +966,6 @@ class CargasView extends Templates {
         $(`#${opts.parent}`).html(wrap);
     }
 
-    // Hueco sin datos. Ocupa el mismo lugar que la espera y con la misma forma
-    // (icono arriba, texto centrado), porque son los dos estados del mismo panel:
-    // uno dice que se esta consultando y el otro que no hay nada que consultar.
     emptyBox(options) {
         const defaults = {
             parent: 'root',
@@ -1127,8 +1049,6 @@ class CargasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        // El paso en curso se distingue del resto: circulo azul con el icono
-        // girando, para que la carga no se lea como una lista congelada.
         const tonos = {
             ok:        { icon: 'check',    dot: 'bg-[rgba(16,185,129,0.15)] text-green-300 border-[rgba(16,185,129,0.30)]', text: 'text-gray-300', line: 'bg-[rgba(16,185,129,0.35)]' },
             proceso:   { icon: 'loader-2', dot: 'bg-[rgba(28,100,242,0.15)] text-blue-300 border-[rgba(28,100,242,0.35)]',  text: 'text-blue-300', spin: true },
@@ -1186,8 +1106,6 @@ class CargasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        // La barra vive dentro de la tarjeta: al subir arranca indeterminada y
-        // al terminar queda en el porcentaje de filas que si entraron a la base.
         const barra = (h) => {
             if (h.avance === undefined && !h.procesando) return '';
 
@@ -1201,8 +1119,6 @@ class CargasView extends Templates {
             `;
         };
 
-        // La hoja seleccionada se marca con anillo: es la que manda el mapeo de
-        // columnas que se ve debajo, y sin la marca no se sabria de cual es.
         const item = (h, i) => `
             <div data-hoja="${i}"
                  class="flex items-center gap-3 p-3 rounded-lg ${h.bgClass}
@@ -1253,9 +1169,8 @@ class CargasView extends Templates {
 
         const iconHtml = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
 
-        // Un encabezado puede necesitar varias etiquetas (la hoja del Excel y el
-        // conteo, por ejemplo). `badge` en singular se conserva porque el resto de
-        // los encabezados del modulo ya lo pasan asi.
+        // `badge` en singular se conserva porque el resto de los encabezados del
+        // modulo ya lo pasan asi.
         const lista = (opts.json.badges && opts.json.badges.length)
             ? opts.json.badges
             : (opts.json.badge ? [opts.json.badge] : []);

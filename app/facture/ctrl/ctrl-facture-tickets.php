@@ -194,7 +194,7 @@ class ctrl extends mdl {
         if (empty($puente)) {
             return [
                 'status'  => 400,
-                'message' => 'No hay productos marcados como puente. Marcalos en Catalogos para poder armar el ticket.'
+                'message' => 'No hay productos auxiliares dados de alta. Registralos en Catalogos para poder armar el ticket.'
             ];
         }
 

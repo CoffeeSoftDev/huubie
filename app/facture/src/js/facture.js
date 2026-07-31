@@ -25,13 +25,13 @@ const FACTURE_MODULOS = [
     },
     {
         titulo:      'Tickets',
-        descripcion: 'Tickets virtuales con productos puente para lo cobrado por banco',
+        descripcion: 'Tickets virtuales con productos auxiliares para lo cobrado por banco',
         icon:        'printer',
         enlace:      '/app/facture/tickets.php'
     },
     {
         titulo:      'Catalogos',
-        descripcion: 'Productos puente, meseros y datos del emisor que aparecen en el ticket virtual',
+        descripcion: 'Productos auxiliares y datos del emisor que aparecen en el ticket virtual',
         icon:        'library',
         enlace:      '/app/facture/catalogos.php'
     }

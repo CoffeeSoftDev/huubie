@@ -34,13 +34,6 @@ class ctrl extends mdl {
 
     function init() {
         return [
-            'tipos' => [
-                ['id' => '',            'valor' => 'Todos'],
-                ['id' => 'puente',      'valor' => 'Puente'],
-                ['id' => 'modificador', 'valor' => 'Modificador'],
-                ['id' => 'normal',      'valor' => 'Sin marcar'],
-                ['id' => 'inactivos',   'valor' => 'Inactivos']
-            ],
             'sino' => [
                 ['id' => '1', 'valor' => 'Si'],
                 ['id' => '0', 'valor' => 'No']
@@ -125,25 +118,25 @@ class ctrl extends mdl {
 
     // Las dos marcas del producto se cambian con el interruptor de su celda, sin
     // abrir el formulario: son las dos columnas que se repasan de corrido cuando se
-    // arma el catalogo de puentes.
+    // arma el catalogo de auxiliares.
     function lsProductos() {
         $__row = [];
         foreach ($this->listProduct($this->filtros(), $this->whereTipo()) as $item) {
             $__row[] = [
-                'id'          => $item['code'],
-                'Codigo'      => cellCodigo($item['code']),
-                'Nombre'      => cellNombre($item['name'], $item['active']),
-                'Precio'      => cellPrecio($item['price']),
-                'Puente'      => switchCell($item['code'], 'puente', $item['is_bridge']),
-                'Modificador' => switchCell($item['code'], 'modificador', $item['is_modifier']),
-                'Estatus'     => statusBadge($item['active']),
-                'a'           => productoButtons($item['code'], $item['active'])
+                'id'                => $item['code'],
+                'Codigo'            => cellCodigo($item['code']),
+                'Nombre'            => cellNombre($item['name'], $item['active']),
+                'Precio'            => cellPrecio($item['price']),
+                'Producto auxiliar' => switchCell($item['code'], 'puente', $item['is_bridge']),
+                'Modificador'       => switchCell($item['code'], 'modificador', $item['is_modifier']),
+                'Estatus'           => statusBadge($item['active']),
+                'a'                 => productoButtons($item['code'], $item['active'])
             ];
         }
 
         return [
             'row'   => $__row,
-            'thead' => ['Codigo', 'Nombre', 'Precio', 'Puente', 'Modificador', 'Estatus', 'Acciones']
+            'thead' => ['Codigo', 'Nombre', 'Precio', 'Producto auxiliar', 'Modificador', 'Estatus', 'Acciones']
         ];
     }
 

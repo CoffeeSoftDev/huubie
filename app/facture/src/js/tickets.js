@@ -418,7 +418,7 @@ class TicketsView extends Templates {
     renderListNote() {
         this.noteBox({
             parent: 'listNote',
-            json:   { text: 'Al generar, el sistema arma una lista de productos puente que suman el total del ticket. Los puente se marcan en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
+            json:   { text: 'Al generar, el sistema arma una lista de productos auxiliares que suman el total del ticket. Los auxiliares se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
         });
     }
 
@@ -438,7 +438,8 @@ class TicketsView extends Templates {
     }
 
     // El aviso del pie explica el ticket que se esta viendo: cuando no se pudo
-    // armar (sin productos puente marcados) dice por que en vez de quedarse mudo.
+    // armar (sin productos auxiliares dados de alta) dice por que en vez de
+    // quedarse mudo.
     renderPreview(ticket, motivo) {
         this.ticketPaper({
             parent: 'ticketPrintArea',
@@ -467,7 +468,7 @@ class TicketsView extends Templates {
             json: {
                 icon: '',
                 text: ticket
-                    ? `${ticket.lineas.length} renglon(es) de productos puente suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
+                    ? `${ticket.lineas.length} renglon(es) de productos auxiliares suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
                     : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });
