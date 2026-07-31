@@ -119,12 +119,20 @@ class mdl extends CRUD {
 
     // Conteos del dia para las pildoras del encabezado: los que ya estan facturados
     // (no se les toca) y los que van al 0% (los que piden ticket virtual).
+    //
+    // De la misma pasada salen los montos de las tarjetas: la venta del dia y lo que
+    // ya esta facturado. Facturado es SOLO la venta que el POS reporto FACTURADO, la
+    // que quedo congelada con su folio de factura. Tener ticket virtual no cuenta:
+    // el ticket es el papel con el que se va a facturar, no la factura. El monto
+    // sale de s.total, que es lo que se cobro.
     function getTicketDayCounts($array) {
         $query = "
             SELECT COUNT(*) AS tickets,
                    COALESCE(SUM(st.name = 'FACTURADO'), 0) AS facturados,
                    COALESCE(SUM(s.tax = 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
-                   COALESCE(SUM(v.id IS NOT NULL), 0) AS generados
+                   COALESCE(SUM(v.id IS NOT NULL), 0) AS generados,
+                   COALESCE(SUM(s.total), 0) AS total,
+                   COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN s.total ELSE 0 END), 0) AS total_facturado
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
