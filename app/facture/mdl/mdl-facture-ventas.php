@@ -26,6 +26,21 @@ class mdl extends CRUD {
         return $this->_Read($query);
     }
 
+    // Con lo que se encabeza el ticket del detalle: son los datos de la sucursal,
+    // y la razon social de la empresa se trae junto porque es la que va cuando la
+    // sucursal no tiene nombre propio.
+    function getEmisor($array) {
+        $query = "
+            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone,
+                   c.business_name AS company_name, c.rfc AS company_rfc
+            FROM {$this->bd}branch b
+            LEFT JOIN {$this->bd}company c ON c.id = b.company_id
+            WHERE b.id <=> ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function lsPaymentMethod($array) {
         $query = "
             SELECT id, name AS valor

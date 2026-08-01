@@ -99,64 +99,37 @@
    !important y gana al border-transparent de Tailwind; por eso el borde se
    apaga aqui. Los containers principales (cabeceras de vista y de panel)
    conservan el suyo. */
-#root #kpisTickets > div,
-#root #kpisResumen > div,
-#root #kpisVentas > div,
-#root #kpisCatalogos > div { border: 0 !important; }
+#root #kpisTickets > div { border: 0 !important; }
 
-/* -- KPIs chicos (tickets, ventas y catalogos) --
+/* -- KPIs chicos (tickets) --
    Son cuatro cifras de apoyo, no el contenido de la vista: la tarjeta se queda
    en lo alto de su texto y el aire vive en la separacion entre ellas, no dentro.
    El p-3, el icono de 32px y el valor text-xl de infoCard(style:'file') se
-   reducen aqui, sin tocar el componente del framework. */
-#root #kpisTickets,
-#root #kpisVentas,
-#root #kpisCatalogos { gap: 10px !important; }
+   reducen aqui, sin tocar el componente del framework.
 
-#root #kpisTickets > div,
-#root #kpisVentas > div,
-#root #kpisCatalogos > div { padding: 7px 11px !important; }
+   Solo tickets: catalogos, resumen y ventas pintan sus cifras con el componente
+   kpisRow del visor de entradas del POS, que no lleva icono ni necesita esto. */
+#root #kpisTickets { gap: 10px !important; }
 
-#root #kpisTickets p,
-#root #kpisVentas p,
-#root #kpisCatalogos p { font-size: 11px !important; margin-bottom: 0 !important; }
+#root #kpisTickets > div { padding: 7px 11px !important; }
 
-#root #kpisTickets .text-xl,
-#root #kpisVentas .text-xl,
-#root #kpisCatalogos .text-xl { font-size: 15px; line-height: 1.2; }
+#root #kpisTickets p { font-size: 11px !important; margin-bottom: 0 !important; }
 
-#root #kpisTickets .w-8,
-#root #kpisVentas .w-8,
-#root #kpisCatalogos .w-8 { width: 26px; height: 26px; margin-right: 7px; }
+#root #kpisTickets .text-xl { font-size: 15px; line-height: 1.2; }
+
+#root #kpisTickets .w-8 { width: 26px; height: 26px; margin-right: 7px; }
 
 #root #kpisTickets .w-8 svg,
-#root #kpisTickets .w-8 i,
-#root #kpisVentas .w-8 svg,
-#root #kpisVentas .w-8 i,
-#root #kpisCatalogos .w-8 svg,
-#root #kpisCatalogos .w-8 i { width: 15px; height: 15px; }
+#root #kpisTickets .w-8 i { width: 15px; height: 15px; }
 
-/* En ventas y en catalogos la tabla es la vista y las cuatro cifras son solo el
-   encabezado de lo filtrado: bajan otro escalon para dejarle el alto al listado. */
-#root #kpisVentas,
-#root #kpisCatalogos { gap: 8px !important; }
+/* -- Subgrupo de forma de pago (ventas) --
+   Rotulo de Efectivo y Bancos dentro del bloque del dia. No es fila de grupo del
+   componente (esas abren su propio plegado y quedarian fuera del dia), asi que la
+   banda se pinta aqui. Va por la fila y no por la celda porque la de acciones la
+   arma el componente con el fondo de fila normal y cortaria la banda al final. */
+#root #tbventas tr:has(.ct-subgrupo) > td { background: #141d2b !important; }
 
-#root #kpisVentas > div,
-#root #kpisCatalogos > div { padding: 5px 9px !important; }
-
-#root #kpisVentas p,
-#root #kpisCatalogos p { font-size: 10px !important; }
-
-#root #kpisVentas .text-xl,
-#root #kpisCatalogos .text-xl { font-size: 13px; }
-
-#root #kpisVentas .w-8,
-#root #kpisCatalogos .w-8 { width: 22px; height: 22px; margin-right: 6px; }
-
-#root #kpisVentas .w-8 svg,
-#root #kpisVentas .w-8 i,
-#root #kpisCatalogos .w-8 svg,
-#root #kpisCatalogos .w-8 i { width: 13px; height: 13px; }
+html[data-facture-theme="light"] #root #tbventas tr:has(.ct-subgrupo) > td { background: #F3F4F6 !important; }
 
 /* -- Tabla plegable por grupos --
    El listado de ventas se agrupa por dia (fila opc 1, que pliega el componente).
@@ -174,6 +147,49 @@
 #root .ct-group { background: #283545; color: #E5E7EB; }
 
 html[data-facture-theme="light"] #root .ct-group { background: #D1D5DB; color: #374151; }
+
+/* -- Boton de tickets del dia --
+   Unica accion de la banda del grupo, y con rotulo: sobre el encabezado no hay
+   otra accion con la que comparar un icono suelto, asi que el boton dice a donde
+   lleva. Se dibuja como boton (borde y relleno propios) y no como enlace porque
+   la banda ya es una superficie tintada: sin el recuadro el texto se leia como
+   una columna mas del encabezado. Tono neutro traslucido para que se despegue de
+   la banda en los dos temas sin sumar otro color al listado, y el azul del acento
+   se reserva para el hover, que es cuando hay que confirmar que es pulsable. */
+#root .btn-ticket-dia {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(229,231,235,.25);
+    background: rgba(229,231,235,.10);
+    color: #E5E7EB;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 17px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+#root .btn-ticket-dia:hover {
+    background: rgba(28,100,242,.20);
+    border-color: rgba(28,100,242,.55);
+    color: #BFDBFE;
+}
+
+html[data-facture-theme="light"] #root .btn-ticket-dia {
+    border-color: #9CA3AF;
+    background: #FFFFFF;
+    color: #374151;
+}
+
+html[data-facture-theme="light"] #root .btn-ticket-dia:hover {
+    background: #EFF6FF;
+    border-color: #1C64F2;
+    color: #1C64F2;
+}
 
 /* Los chevrones del plegado los pinta el componente como clases de fontello, que
    este modulo no carga (misma razon que los ic-* de arriba): se resuelven con la
@@ -452,6 +468,16 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 #root .cs-switch.is-on { background: #0E9E6E; }
 #root .cs-switch.is-on:hover { background: #0B8760; }
 
+/* El modificador va en gris y no en el verde del si: no es una marca que se
+   busque encender, solo dice que el producto acompaña a otro. Toda su escala vive
+   en los grises de la tabla (#374151 es el de sus bordes), y el encendido queda
+   un escalon por encima del apagado para que los dos estados se distingan. */
+#root .cs-switch-gray { background: #374151; }
+#root .cs-switch-gray:hover { background: #4B5563; }
+
+#root .cs-switch-gray.is-on { background: #6B7280; }
+#root .cs-switch-gray.is-on:hover { background: #9CA3AF; }
+
 #root .cs-switch-knob {
     width: 14px;
     height: 14px;
@@ -487,11 +513,6 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
 
 #root #tbProductos thead th[data-col="3"] { text-align: right !important; }
 
-#root #filterBarcatalogos label {
-    text-transform: uppercase;
-    letter-spacing: .04em;
-}
-
 /* El catalogo no se busca: son los auxiliares dados de alta, unas cuantas filas.
    simple_data_table arma DataTables con su propio buscador (su searching gana al
    bFilter que lo apagaba), y esa es la fila que se oculta. */
@@ -505,24 +526,21 @@ html[data-facture-theme="light"] #root .note-card {
     background: #F3F4F6;
 }
 
-/* Los filtros van en su propia caja, como en el resto del modulo: la banda
-   superior queda de fondo y la fila de campos se lee como un bloque. Lo que la
-   delimita es su fondo, no un marco: el modulo no encierra bloques en recuadros. */
-#root #filterBar > div > .fade-in {
+/* En tickets los filtros van en su propia caja: la banda superior queda de fondo
+   y la fila de campos se lee como un bloque. Lo que la delimita es su fondo, no un
+   marco: el modulo no encierra bloques en recuadros.
+
+   Solo tickets: catalogos, resumen y ventas siguen al visor de entradas del POS,
+   donde la banda ya es #141d2b y los campos van directo sobre ella. En cargas los
+   filtros comparten banda con el titulo y la caja partiria el encabezado en dos. */
+#root #tickets #filterBar > div > .fade-in {
     padding: 12px 14px;
     border-radius: 10px;
     background: #141d2b;
 }
 
-html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
+html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
     background: #FFFFFF;
-}
-
-/* En cargas los filtros comparten banda con el titulo: ahi la caja sobra y su
-   fondo parte el encabezado en dos. */
-#root #headerRow #filterBar > div > .fade-in {
-    padding: 0;
-    background: transparent;
 }
 
 /* La vista del emisor no tiene filtros ni tarjetas: sin esto sus dos bandas
@@ -538,24 +556,6 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
 
 #root #btnNuevoProducto:hover,
 #root #btnGuardarEmisor:hover { background: #1A56DB; }
-
-/* La cifra de la tarjeta va bajo su titulo, alineada con el, no pegada al borde
-   derecho: se leen en columna al recorrer la fila de tarjetas. La sangria es el
-   ancho del icono chico mas su margen (22 + 6), asi la cifra cae bajo la primera
-   letra del titulo. */
-#root #kpisCatalogos > div > div:last-child {
-    justify-content: flex-start;
-    padding-left: 28px;
-}
-
-/* El icono de cada tarjeta lleva el tinte de su cifra: el conteo se localiza por
-   color antes de leer el titulo. El orden es el de renderInfoCards. */
-#root #kpisRow[data-view="productos"] #kpisCatalogos_0 .w-8,
-#root #kpisRow[data-view="productos"] #kpisCatalogos_3 .w-8 { background: rgba(28,100,242,.15) !important; }
-
-#root #kpisRow[data-view="productos"] #kpisCatalogos_1 .w-8 { background: rgba(16,185,129,.15) !important; }
-
-#root #kpisRow[data-view="productos"] #kpisCatalogos_2 .w-8 { background: rgba(245,158,11,.15) !important; }
 
 /* Barra indeterminada mientras el servidor lee el Excel: no hay avance real que
    reportar hasta que responde, asi que se anima de lado a lado. */
@@ -573,9 +573,12 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
    Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel
    impreso y se manda a la impresora tal cual (ver @media print al final).
 
-   El ancho es de tira termica (260px, no los 320px de una tarjeta) y los
-   renglones van mas separados: el papel crece a lo largo y se lee como el
-   ticket que sale de la impresora, no como una caja de datos. */
+   Un solo formato para los tres papeles del modulo (ticket virtual, vista previa
+   del emisor y detalle fiscal): reproduce el que imprime el POS, con los cortes
+   en linea doble (los ==== del papel) y el total encuadrado entre dos de ellas.
+
+   En pantalla va a 340px, que es donde se lee; la tira termica de la impresora
+   la fija el @media print del final. */
 #root .ticket-paper {
     background: #fff;
     border: 1px solid #E5E7EB;
@@ -584,13 +587,21 @@ html[data-facture-theme="light"] #root #filterBar > div > .fade-in {
     font-family: 'Courier New', ui-monospace, monospace;
     font-size: 11px;
     color: #1F2937;
-    padding: 28px 16px;
-    max-width: 260px;
+    padding: 24px 18px;
+    max-width: 340px;
     margin: 0 auto;
 }
 
 #root .ticket-paper * { font-family: 'Courier New', ui-monospace, monospace; }
-#root .ticket-paper .tk-sep { border-top: 1px dashed #9CA3AF; margin: 12px 0; }
+#root .ticket-paper .tk-sep { border-top: 3px double #9CA3AF; margin: 10px 0; }
+
+#root .ticket-paper .tk-total {
+    border-top: 3px double #9CA3AF;
+    border-bottom: 3px double #9CA3AF;
+    margin: 10px 0;
+    padding: 2px 0;
+}
+
 #root .ticket-paper table { width: 100%; }
 #root .ticket-paper td { padding: 4px 0; font-size: 11px; color: #1F2937; white-space: normal; line-height: 1.5; }
 #root .ticket-paper tr,

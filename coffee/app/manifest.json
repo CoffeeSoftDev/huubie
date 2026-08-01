@@ -1,0 +1,78 @@
+{
+  "id": "coffeesoft-app",
+  "name": "CoffeeSoft",
+  "short_name": "CoffeeSoft",
+  "description": "Suite CoffeeSoft: CoffeeDocs, Playground de agentes, Forge y Studio.",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "start_url": "visor/index.php",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "theme_color": "#C05A40",
+  "background_color": "#111928",
+  "categories": ["productivity", "developer", "business"],
+  "icons": [
+    {
+      "src": "src/img/pwa/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "src/img/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "src/img/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "src/img/pwa/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "src/img/pwa/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "CoffeeDocs",
+      "short_name": "Docs",
+      "description": "Visor de documentos y agentes",
+      "url": "visor/index.php",
+      "icons": [{ "src": "src/img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Playground",
+      "short_name": "Playground",
+      "description": "Playground de agentes",
+      "url": "visor/playground.php",
+      "icons": [{ "src": "src/img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Forge",
+      "short_name": "Forge",
+      "description": "Fábrica de módulos",
+      "url": "visor/forge.php",
+      "icons": [{ "src": "src/img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Studio",
+      "short_name": "Studio",
+      "description": "Coffee Studio",
+      "url": "visor/studio.php",
+      "icons": [{ "src": "src/img/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}

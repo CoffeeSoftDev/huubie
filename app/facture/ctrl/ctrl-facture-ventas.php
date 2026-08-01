@@ -55,7 +55,26 @@ class ctrl extends mdl {
                 ['id' => 'bancos',   'valor' => 'Bancos (tarjetas y transferencias)']
             ],
             'estados' => $estados,
-            'periodo' => $this->lastPeriod()
+            'periodo' => $this->lastPeriod(),
+            'emisor'  => $this->emisor()
+        ];
+    }
+
+    // Encabeza el ticket del detalle fiscal, como en el papel que imprime el POS.
+    // Si la sucursal no tiene razon social propia se usa la de la empresa, que es
+    // la dueña del RFC.
+    function emisor() {
+        $ls = $this->getEmisor([$this->branchId()]);
+
+        if (empty($ls)) return ['razon' => '', 'rfc' => '', 'telefono' => '', 'domicilio' => ''];
+
+        $item = $ls[0];
+
+        return [
+            'razon'     => $item['business_name'] ?: $item['company_name'],
+            'rfc'       => $item['rfc'] ?: $item['company_rfc'],
+            'telefono'  => $item['phone'],
+            'domicilio' => $item['fiscal_address']
         ];
     }
 
@@ -142,6 +161,7 @@ class ctrl extends mdl {
     // ticket, donde un cobro en dos partidas se ve como los dos cobros que es.
     function lsVentas() {
         $filtros = $this->filtros();
+        $forma   = $_POST['forma'] ?? '';
         $sum     = $this->sumVentas($filtros);
         $ventas  = $this->listVentas($filtros);
         $total   = (int) ($sum[0]['ventas'] ?? count($ventas));
@@ -150,12 +170,22 @@ class ctrl extends mdl {
         $pagos = $this->pagosPorFolio($filtros);
 
         foreach ($this->porDia($ventas) as $dia => $ventasDia) {
-            $__row[] = grupoDiaRow($dia, $ventasDia);
+            $filas = [];
 
             foreach ($ventasDia as $item) {
-                foreach ($this->ventaRows($item, $pagos[$item['folio']] ?? []) as $fila) {
-                    $__row[] = $fila;
+                $todos = $pagos[$item['folio']] ?? [];
+
+                foreach ($this->filasDeVenta($item, $this->pagosDelGrupo($todos, $forma), count($todos)) as $fila) {
+                    $filas[] = $fila;
                 }
+            }
+
+            $__row[] = grupoDiaRow($dia, $filas);
+
+            // Con una forma elegida el listado entero ya es de ese grupo: partirlo
+            // repetiria el mismo rotulo en cada dia.
+            foreach ($forma === '' ? subgruposForma($filas) : columna($filas, 'row') as $fila) {
+                $__row[] = $fila;
             }
         }
 
@@ -198,6 +228,23 @@ class ctrl extends mdl {
         return $ls;
     }
 
+    // Con una forma elegida el ticket entra al listado por tener un cobro de ese
+    // grupo, pero sus otros cobros no son de lo consultado: un ticket pagado mitad
+    // en efectivo y mitad con tarjeta no debe pintar su renglon de efectivo cuando
+    // se piden bancos. El indice se conserva porque es el numero del cobro.
+    function pagosDelGrupo($pagos, $forma) {
+        if ($forma === '') return $pagos;
+
+        $nombres = array_map('strtoupper', $this->formasDe($forma));
+        $ls      = [];
+
+        foreach ($pagos as $i => $pago) {
+            if (in_array(strtoupper((string) $pago['payment_name']), $nombres, true)) $ls[$i] = $pago;
+        }
+
+        return $ls;
+    }
+
     // Todas las columnas salen de la venta y de sus pagos. La unica que no es
     // "IEPS", que va en cero porque el origen no desglosa ese impuesto: se pinta
     // igual para no dejar un hueco en el comprobante.
@@ -206,12 +253,32 @@ class ctrl extends mdl {
     // pago, no en una fila resumen con renglones sueltos debajo: cada una repite
     // los datos del ticket y cambia la forma y el importe cobrado por ella. El
     // badge numerado del folio es lo que las hermana.
-    function ventaRows($item, $pagos) {
-        if (count($pagos) < 2) return [$this->ventaRow($item, $pagos)];
+    // Cada entrada lleva la fila y con que se agrupa: la forma del cobro que la
+    // origina y su importe, que es lo que suman el dia y su subgrupo. $totalPagos
+    // es el numero de cobros del ticket antes de filtrar por forma: un ticket
+    // multipago se desglosa aunque del grupo consultado solo quede un cobro.
+    function filasDeVenta($item, $pagos, $totalPagos) {
+        if ($totalPagos < 2) {
+            $pago = $pagos ? reset($pagos) : null;
+
+            return [[
+                'folio' => $item['folio'],
+                'grupo' => grupoDeForma($pago ? $pago['payment_name'] : $item['payment_name']),
+                'monto' => (float) $item['total'],
+                'row'   => $this->ventaRow($item, $pagos)
+            ]];
+        }
 
         $filas = [];
 
-        foreach ($pagos as $i => $pago) $filas[] = $this->ventaRow($item, $pagos, $pago, $i + 1);
+        foreach ($pagos as $i => $pago) {
+            $filas[] = [
+                'folio' => $item['folio'],
+                'grupo' => grupoDeForma($pago['payment_name']),
+                'monto' => (float) $pago['amount'],
+                'row'   => $this->ventaRow($item, $pagos, $pago, $i + 1)
+            ];
+        }
 
         return $filas;
     }
@@ -330,24 +397,92 @@ function fechaLarga($dia) {
 // alguna: sin ella el grupo quedaria una celda corto y la ultima columna se
 // correria. Aqui esa celda es el enlace al modulo de Tickets del dia. opc = 1 la
 // pinta como grupo y la vuelve el disparador del plegado.
-function grupoDiaRow($dia, $ventas) {
-    $tickets = count($ventas);
-
+function grupoDiaRow($dia, $filas) {
     return [
         'id'             => 'dia' . str_replace('-', '', $dia),
         'opc'            => 1,
         'Folio'          => '<span class="whitespace-nowrap">' . fechaLarga($dia) . '</span>',
-        'Fecha'          => '<span class="text-[10px] font-normal opacity-75 whitespace-nowrap">' . $tickets . ' ticket' . ($tickets === 1 ? '' : 's') . '</span>',
+        'Fecha'          => '<span class="text-[10px] font-normal opacity-75 whitespace-nowrap">' . ticketsTexto($filas) . '</span>',
         'Forma de pago'  => '',
         'Estado fiscal'  => '',
         'Tasa'           => '',
         'Subtotal'       => '',
         'IVA'            => '',
         'IEPS'           => '',
-        'Total'          => montoDe($ventas),
+        'Total'          => money(array_sum(columna($filas, 'monto'))),
         'Factura'        => '',
         'a'              => ticketsDiaButton($dia)
     ];
+}
+
+// Los cobros del dia partidos en efectivo y bancos, cada bloque tras su rotulo.
+// El subgrupo no es fila de grupo del componente (opc): las de grupo abren su
+// propio plegado y quedarian fuera del dia, asi que va como fila normal y se
+// pliega con el.
+function subgruposForma($filas) {
+    $bloques = ['efectivo' => [], 'bancos' => []];
+
+    foreach ($filas as $fila) $bloques[$fila['grupo']][] = $fila;
+
+    $ls = [];
+
+    foreach ($bloques as $grupo => $delGrupo) {
+        if (!$delGrupo) continue;
+
+        $ls[] = subgrupoFormaRow($grupo, $delGrupo);
+
+        foreach (columna($delGrupo, 'row') as $row) $ls[] = $row;
+    }
+
+    return $ls;
+}
+
+function subgrupoFormaRow($grupo, $filas) {
+    $rotulo = $grupo === 'efectivo' ? 'Efectivo' : 'Bancos';
+    $icono  = $grupo === 'efectivo' ? 'banknote' : 'credit-card';
+    // ct-subgrupo marca la fila para el CSS y para el plegado: la celda de acciones
+    // la pinta el componente con el fondo de fila normal y cortaria la banda al
+    // final. El chevron usa las clases del componente, ya resueltas en facture.css,
+    // y arranca cerrado porque el subgrupo nace plegado (lo aplica collapseFormas
+    // en ventas.js: el estado vive en el <tr>, que el componente no deja marcar).
+    $celda = function ($html = '', $extra = '') {
+        return [
+            'html'  => $html,
+            'class' => 'ct-subgrupo !py-1.5 text-[11px] cursor-pointer select-none ' . $extra
+        ];
+    };
+
+    return [
+        'id'             => 'sub' . $grupo . uniqid(),
+        'Folio'          => $celda('<span class="inline-flex items-center gap-1.5 font-semibold text-gray-300">'
+                                 . '<i class="icon-right-open folding-sub"></i>'
+                                 . '<i data-lucide="' . $icono . '" class="w-3.5 h-3.5"></i>' . $rotulo . '</span>'),
+        'Fecha'          => $celda('<span class="text-[10px] text-gray-400 whitespace-nowrap">' . ticketsTexto($filas) . '</span>'),
+        'Forma de pago'  => $celda(),
+        'Estado fiscal'  => $celda(),
+        'Tasa'           => $celda(),
+        'Subtotal'       => $celda(),
+        'IVA'            => $celda(),
+        'IEPS'           => $celda(),
+        'Total'          => $celda('<span class="font-semibold text-gray-300">' . money(array_sum(columna($filas, 'monto'))) . '</span>'),
+        'Factura'        => $celda(),
+        // Sin botones, pero la clave viaja: el componente solo pinta la celda de
+        // acciones cuando la fila la trae, y sin ella el subgrupo quedaria corto y
+        // correria la ultima columna.
+        'a'              => []
+    ];
+}
+
+// Los tickets de un bloque son los folios distintos: un cobro en dos partidas
+// abre dos filas, pero sigue siendo un ticket.
+function ticketsTexto($filas) {
+    $tickets = count(array_unique(columna($filas, 'folio')));
+
+    return $tickets . ' ticket' . ($tickets === 1 ? '' : 's');
+}
+
+function columna($filas, $clave) {
+    return array_column($filas, $clave);
 }
 
 // Banda a lo ancho de la tabla (colgroup) con el corte del listado. No es una
@@ -359,16 +494,6 @@ function avisoTopeRow($mostradas, $total) {
         'Aviso'    => 'Se muestran las primeras ' . number_format($mostradas) . ' de ' . number_format($total)
                       . ' ventas del periodo. Acota el rango de fechas para ver el resto.'
     ];
-}
-
-// Suma de los tickets de un bloque, ya formateada: es el dato que resume al grupo
-// y al subgrupo cuando estan plegados.
-function montoDe($ventas) {
-    $monto = 0;
-
-    foreach ($ventas as $item) $monto += (float) $item['total'];
-
-    return money($monto);
 }
 
 // Ningun Excel trae la tasa: se deduce del par subtotal/impuesto de la venta.
@@ -441,12 +566,22 @@ function folioCelda($folio, $parte, $facturado = false) {
 function formaCelda($pagos, $payment) {
     if (!$pagos) return badgeMetodo($payment);
 
-    return badgeForma($pagos[0]['payment_name'] ?: 'SIN FORMA');
+    // reset() y no [0]: al filtrar por forma la hoja de pagos conserva el indice
+    // original del cobro, que puede no arrancar en cero.
+    $pago = reset($pagos);
+
+    return badgeForma($pago['payment_name'] ?: 'SIN FORMA');
 }
 
 // El efectivo se distingue del banco por el tono del badge.
 function tonoForma($nombre) {
     return strpos(strtoupper($nombre), 'EFECTIVO') !== false ? 'b-green' : 'b-terra';
+}
+
+// El grupo al que pertenece un cobro: como en el filtro de la filterBar, todo lo
+// que no es efectivo (tarjetas y transferencias) cae en bancos.
+function grupoDeForma($nombre) {
+    return strpos(strtoupper((string) $nombre), 'EFECTIVO') !== false ? 'efectivo' : 'bancos';
 }
 
 function badgeForma($nombre) {
@@ -483,11 +618,17 @@ function actionButtons($item) {
 
 // La accion del dia: el modulo de Tickets abre por dia, asi que el enlace
 // pertenece al encabezado del grupo y no a cada ticket.
+//
+// Va con rotulo y no como icono suelto: el icono solo no decia a donde lleva y
+// se perdia en la banda del grupo, donde no hay otra accion con la que
+// compararlo. El estilo del boton vive en facture.css (btn-ticket-dia) porque
+// tiene que leerse sobre la banda en los dos temas del modulo.
 function ticketsDiaButton($dia) {
     return [
         [
-            'class'   => 'btn-ghost !py-1 !px-2 text-[11px]',
-            'html'    => '<i data-lucide="receipt" class="w-3.5 h-3.5"></i>',
+            'class'   => 'btn-ticket-dia',
+            'title'   => 'Abrir los tickets de este dia',
+            'html'    => '<i data-lucide="ticket" class="w-3 h-3"></i>Ticket',
             'onclick' => "app.verTickets('{$dia}')"
         ]
     ];

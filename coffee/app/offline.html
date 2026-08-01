@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin conexión — CoffeeSoft</title>
+    <meta name="theme-color" content="#C05A40">
+    <style>
+        /* Todo va inline: esta página se muestra justo cuando no hay red */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background: #111928;
+            color: #fff;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            background: #1F2A37;
+            border: 1px solid rgba(55, 65, 81, .6);
+            border-radius: 16px;
+            padding: 36px 28px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+        }
+
+        .card img { width: 88px; height: 88px; border-radius: 20px; }
+
+        h1 { font-size: 18px; font-weight: 700; margin: 18px 0 8px; }
+
+        p { font-size: 13.5px; line-height: 1.6; color: #9CA3AF; }
+
+        button {
+            margin-top: 22px;
+            width: 100%;
+            padding: 11px 16px;
+            font: inherit;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #fff;
+            background: #C05A40;
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #A34630; }
+
+        @media (prefers-color-scheme: light) {
+            body { background: #F7F0EB; color: #1E2730; }
+            .card { background: #fff; border-color: #E7DED6; box-shadow: 0 10px 30px rgba(30, 39, 48, .08); }
+            p { color: #6B7280; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <img src="src/img/pwa/icon-192.png" alt="CoffeeSoft">
+        <h1>Sin conexión</h1>
+        <p>CoffeeSoft necesita internet para cargar tus documentos y agentes. Revisa tu conexión y vuelve a intentarlo.</p>
+        <button type="button" onclick="location.reload()">Reintentar</button>
+    </div>
+    <script>
+        // En cuanto vuelva la red, recargamos solos
+        window.addEventListener('online', () => location.reload());
+    </script>
+</body>
+
+</html>

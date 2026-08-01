@@ -391,10 +391,11 @@ function cellMesero($name, $code, $active) {
 // Interruptor de la marca: escribe el valor contrario al que muestra, de modo que
 // la celda es el control y no hace falta abrir el formulario para una sola casilla.
 function switchCell($code, $campo, $valor) {
-    $on = (int) $valor === 1;
+    $on   = (int) $valor === 1;
+    $tono = $campo === 'modificador' ? ' cs-switch-gray' : '';
 
     return '<button type="button"
-                    class="cs-switch' . ($on ? ' is-on' : '') . '"
+                    class="cs-switch' . $tono . ($on ? ' is-on' : '') . '"
                     title="' . ($on ? 'Quitar marca' : 'Marcar') . '"
                     onclick="catalogos.editProductoFlag(\'' . $code . '\', \'' . $campo . '\', ' . ($on ? 0 : 1) . ')">
                 <span class="cs-switch-knob"></span>

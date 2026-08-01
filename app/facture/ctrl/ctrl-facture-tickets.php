@@ -60,10 +60,11 @@ class ctrl extends mdl {
     function emisor() {
         $ls = $this->getEmisor([$this->branchId()]);
 
-        if (empty($ls)) return ['razon' => '', 'domicilio' => '', 'telefono' => ''];
+        if (empty($ls)) return ['razon' => '', 'rfc' => '', 'domicilio' => '', 'telefono' => ''];
 
         return [
             'razon'     => $ls[0]['business_name'] ?: $ls[0]['company_name'],
+            'rfc'       => $ls[0]['rfc'] ?: $ls[0]['company_rfc'],
             'domicilio' => $ls[0]['fiscal_address'],
             'telefono'  => $ls[0]['phone']
         ];

@@ -1821,6 +1821,76 @@ body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Front
 .md-rendered.is-todo .td-del { width: 24px; height: 24px; margin-top: 3px; }
 .md-rendered.is-todo .td-task:hover .td-del { opacity: 1; }
 
+/* ── Reordenar tareas arrastrando (grip) ── */
+/* El grip va absoluto para no desplazar el checkbox ni el texto ya existentes.
+   El área de agarre es de 22x26px (el dibujo es más chico) y se ve siempre en
+   tenue: apuntarle no debe requerir puntería. */
+.md-rendered.is-todo .td-task { position: relative; }
+.md-rendered.is-todo .td-grip {
+    position: absolute; left: -24px; top: 1px; width: 22px; height: 26px;
+    display: grid; place-items: center; color: #C6BCA6; cursor: move;
+    opacity: .38; touch-action: none; transition: opacity .15s, color .15s;
+}
+.md-rendered.is-todo .td-task:hover .td-grip { opacity: 1; }
+.md-rendered.is-todo .td-grip:hover { color: #C05A40; background: rgba(192,90,64,.08); border-radius: 6px; }
+/* Durante el arrastre el puntero debe resolver la fila, no el texto editable. */
+.md-rendered.is-todo.td-dnd { cursor: move; user-select: none; }
+.md-rendered.is-todo.td-dnd .td-task > * { pointer-events: none; }
+.md-rendered.is-todo.td-dnd .td-task, .md-rendered.is-todo.td-dnd .td-grip { transition: none; }   /* nada que animar mientras se reordena */
+
+/* La fila se queda atenuada en su sitio (de dónde salió) mientras el clon vuela. */
+.md-rendered.is-todo .td-task.td-dragging { opacity: .3; }
+/* Clon flotante: hereda la hoja del TODO, pero sin el papel ni el padding. */
+.md-rendered.td-ghost-wrap {
+    position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
+    margin: 0; padding: 0; max-width: none; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; will-change: transform;
+}
+.md-rendered.td-ghost-wrap::before { display: none; }
+.md-rendered.td-ghost-wrap .td-list { margin: 0; padding: 0; }
+.md-rendered.td-ghost-wrap .td-task {
+    margin: 0; opacity: .97; border-radius: 8px; background: #FFFFFF;
+    box-shadow: 0 14px 32px rgba(26,18,8,.20);
+}
+/* El clon es solo el contenido: el grip vive fuera del recuadro y estorbaría. */
+.md-rendered.td-ghost-wrap .td-grip,
+.md-rendered.td-ghost-wrap .td-del,
+.md-rendered.td-ghost-wrap .td-magic { opacity: 0; }
+
+/* Línea de inserción: marca el borde donde va a caer, con el punto del inicio. */
+.td-dropline {
+    position: fixed; z-index: 9998; height: 2px; margin-top: -1px; border-radius: 2px;
+    background: #C05A40; pointer-events: none; opacity: 0; transition: opacity .1s ease;
+}
+.td-dropline::before {
+    content: ''; position: absolute; left: -3px; top: -3px;
+    width: 8px; height: 8px; border-radius: 50%; background: #C05A40;
+}
+/* Al aterrizar, un destello del acento en vez de un salto seco. */
+@keyframes tdDrop { from { background: rgba(192,90,64,.14); } to { background: transparent; } }
+.md-rendered.is-todo .td-task.td-dropped { animation: tdDrop .32s ease-out; }
+
+/* ── Animación de copiado ── */
+.md-rendered.is-todo .td-seccopy.td-copied,
+.md-rendered.is-todo .td-foot-r button.td-copied { opacity: 1; color: #C05A40; background: rgba(192,90,64,.12); }
+.md-rendered.is-todo .td-seccopy.td-copied svg { animation: tdCheck .3s cubic-bezier(.2,.9,.3,1.4); }
+@keyframes tdCheck { from { transform: scale(.35); opacity: .2; } to { transform: none; opacity: 1; } }
+
+.td-copied-pop {
+    position: fixed; z-index: 9999; pointer-events: none; white-space: nowrap;
+    padding: 3px 9px; border-radius: 999px; background: #C05A40; color: #fff;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 10.5px; font-weight: 700;
+    box-shadow: 0 6px 16px rgba(26,18,8,.28);
+    animation: tdCopied .95s cubic-bezier(.2,.8,.3,1) forwards;
+}
+@keyframes tdCopied {
+    0%   { opacity: 0; transform: translate(-50%, 4px)   scale(.9); }
+    18%  { opacity: 1; transform: translate(-50%, -15px) scale(1); }
+    70%  { opacity: 1; transform: translate(-50%, -19px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -32px) scale(.96); }
+}
+.md-rendered.is-todo.td-dnd .td-list { min-height: 26px; }   /* permite soltar en una sección vacía */
+
 /* ── Mejorar tarea con IA (varita) ── */
 .md-rendered.is-todo .td-task { flex-wrap: wrap; }
 .md-rendered.is-todo .td-magic { flex: none; width: 24px; height: 24px; margin-top: 3px; border: 0; background: transparent; color: #A99C82; cursor: pointer; border-radius: 6px; display: grid; place-items: center; opacity: 0; transition: .15s; }

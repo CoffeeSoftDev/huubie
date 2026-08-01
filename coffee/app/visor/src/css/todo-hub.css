@@ -70,6 +70,121 @@
 }
 .tdw-ico:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
 .tdw-ico svg { width: 15px; height: 15px; }
+.tdw-ico[data-tdw="accent"].is-open { border-color: var(--tdw-sky); color: var(--tdw-sky); }
+
+/* ── Color del tema (engrane) ── */
+.tdw-modal { position: relative; }
+.tdw-accents {
+    position: absolute; top: 52px; right: 14px; z-index: 60; width: 206px; padding: 12px;
+    border-radius: 12px; background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, .42);
+    animation: tdw-pop .13s ease-out;
+}
+[data-theme="light"] .tdw-accents { box-shadow: 0 16px 34px rgba(17, 24, 39, .16); }
+.tdw-accents[hidden] { display: none; }
+.tdw-accents-h { margin: 0 0 9px; font-size: 11px; font-weight: 700; color: var(--vsr-text-soft); }
+.tdw-accents-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tdw-swatch {
+    height: 30px; padding: 0; border: 1px solid transparent; border-radius: 8px;
+    background: transparent; cursor: pointer; display: grid; place-items: center; transition: all .12s ease;
+}
+.tdw-swatch i { display: block; width: 17px; height: 17px; border-radius: 50%; }
+.tdw-swatch:hover { border-color: var(--tdw-line); background: var(--vsr-bg-hover); }
+.tdw-swatch.is-on { border-color: var(--tdw-sky); background: var(--tdw-sky-soft); }
+.tdw-accents-note { margin: 10px 0 0; font-size: 10.5px; line-height: 1.45; color: var(--tdw-mute); }
+.tdw-accents-note code { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10px; }
+
+/* Interruptor por campo: la muestra dice qué se apaga, no hace falta leer. */
+.tdw-chiprow {
+    width: 100%; display: flex; align-items: center; gap: 9px; padding: 7px 0;
+    border: 0; border-bottom: 1px solid var(--tdw-line); background: transparent;
+    font: inherit; color: var(--vsr-text-soft); cursor: pointer; text-align: left;
+}
+.tdw-chiprow:last-of-type { border-bottom: 0; }
+.tdw-chiprow-n { flex: 1; min-width: 0; font-size: 11.5px; }
+.tdw-tog {
+    flex: none; width: 26px; height: 15px; border-radius: 999px; position: relative;
+    background: rgba(148, 163, 184, .32); transition: background .14s ease;
+}
+.tdw-tog::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+    border-radius: 50%; background: #E5E7EB; transition: left .14s ease;
+}
+.tdw-chiprow.is-on .tdw-tog { background: var(--tdw-sky); }
+.tdw-chiprow.is-on .tdw-tog::after { left: 13px; background: #06283D; }
+[data-theme="light"] .tdw-chiprow.is-on .tdw-tog::after { background: #fff; }
+.tdw-chiprow:not(.is-on) .tdw-chip { opacity: .38; }
+
+/* ── Editor de campos de la tarea ── */
+.tdw-fields {
+    position: fixed; z-index: 70; width: 232px; padding: 12px;
+    border-radius: 12px; background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, .45); animation: tdw-pop .13s ease-out;
+}
+[data-theme="light"] .tdw-fields { box-shadow: 0 16px 34px rgba(17, 24, 39, .16); }
+.tdw-fields[hidden] { display: none; }
+.tdw-fields-h { margin: 0 0 7px; font-size: 11px; font-weight: 700; color: var(--vsr-text-soft); }
+.tdw-fields-h + .tdw-fields-h, .tdw-fields-row + .tdw-fields-h { margin-top: 13px; }
+.tdw-fields-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.tdw-fields-row button {
+    flex: 1; min-width: 0; padding: 5px 4px; border-radius: 7px;
+    border: 1px solid var(--tdw-line); background: transparent;
+    font: inherit; font-size: 10.5px; font-weight: 600; color: var(--tdw-mute);
+    cursor: pointer; white-space: nowrap; transition: all .12s ease;
+}
+.tdw-fields-row button:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.tdw-fields-row button.is-on { border-color: var(--tdw-sky); background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-fields-row button.is-none { flex: 0 0 44px; }
+.tdw-fields-date, .tdw-fields-tags {
+    width: 100%; margin-bottom: 5px; padding: 6px 9px; border-radius: 8px;
+    border: 1px solid var(--tdw-line); background: var(--vsr-bg-input);
+    font: inherit; font-size: 11.5px; color: var(--vsr-text);
+}
+.tdw-fields-date:focus, .tdw-fields-tags:focus { outline: none; border-color: var(--tdw-sky); }
+.tdw-fields-date::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
+[data-theme="light"] .tdw-fields-date::-webkit-calendar-picker-indicator { filter: none; }
+.tdw-fields .tdw-accents-note { margin-top: 6px; }
+
+/* ── Chips de la tarea (due · tags · prio) ── */
+.tdw-chips { flex: none; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding-top: 1px; }
+.tdw-chip {
+    font-size: 9.5px; font-weight: 700; line-height: 1.6; padding: 1px 7px; border-radius: 999px;
+    white-space: nowrap; background: rgba(148, 163, 184, .16); color: var(--tdw-mute);
+}
+.tdw-chip.is-tags { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-chip.is-due  { background: rgba(148, 163, 184, .16); color: var(--tdw-mute); }
+.tdw-chip.is-due.is-soon { background: rgba(251, 191, 36, .16); color: #FBBF24; }
+.tdw-chip.is-due.is-late { background: rgba(251, 113, 133, .16); color: #FB7185; }
+.tdw-chip.is-prio.p-alta  { background: rgba(251, 113, 133, .16); color: #FB7185; }
+.tdw-chip.is-prio.p-media { background: rgba(251, 191, 36, .16);  color: #FBBF24; }
+.tdw-chip.is-prio.p-baja  { background: rgba(148, 163, 184, .16); color: var(--tdw-mute); }
+[data-theme="light"] .tdw-chip.is-due.is-soon,
+[data-theme="light"] .tdw-chip.is-prio.p-media { background: #FEF3C7; color: #B45309; }
+[data-theme="light"] .tdw-chip.is-due.is-late,
+[data-theme="light"] .tdw-chip.is-prio.p-alta  { background: #FFE4E6; color: #BE123C; }
+/* Una tarea hecha no reclama atención: sus chips se apagan con ella. */
+.tdw-task.is-done .tdw-chip { opacity: .45; }
+
+/* ── Animación de copiado ── */
+.tdw-btn.is-copied, .tdw-sec-tools button.is-copied {
+    color: var(--tdw-sky); border-color: var(--tdw-sky-line); background: var(--tdw-sky-soft);
+}
+.tdw-btn.is-copied svg, .tdw-sec-tools button.is-copied svg { animation: tdwCheck .3s cubic-bezier(.2,.9,.3,1.4); }
+@keyframes tdwCheck { from { transform: scale(.35); opacity: .2; } to { transform: none; opacity: 1; } }
+
+.tdw-copied-pop {
+    position: fixed; z-index: 9999; pointer-events: none; white-space: nowrap;
+    padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    color: #06283D; background: var(--tdw-sky, #38BDF8); box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
+    animation: tdwCopied .95s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+[data-theme="light"] .tdw-copied-pop { color: #fff; }
+@keyframes tdwCopied {
+    0%   { opacity: 0; transform: translate(-50%, 4px)   scale(.9); }
+    18%  { opacity: 1; transform: translate(-50%, -15px) scale(1); }
+    70%  { opacity: 1; transform: translate(-50%, -19px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -32px) scale(.96); }
+}
 
 .tdw-body { flex: 1; display: flex; min-height: 0; }
 
@@ -203,6 +318,34 @@
 .tdw-txt mark { background: var(--tdw-sky-soft); color: var(--vsr-text); border-radius: 3px; padding: 0 2px; }
 .tdw-task-tools { display: flex; gap: 3px; flex-shrink: 0; visibility: hidden; }
 .tdw-task:hover .tdw-task-tools { visibility: visible; }
+/* La varita en curso no se esconde al quitar el mouse: es una espera con red.
+   Lo mismo con la fila que tiene el editor de campos abierto. */
+.tdw-task:has(.is-busy) .tdw-task-tools,
+.tdw-task.is-editing .tdw-task-tools { visibility: visible; }
+.tdw-task.is-editing { background: var(--tdw-tint); }
+.tdw-task.is-editing [data-tdw="fields"] { color: var(--tdw-sky); background: var(--tdw-sky-soft); }
+.tdw-task-tools button.is-busy { color: var(--tdw-sky); cursor: progress; }
+.tdw-task-tools button.is-busy svg { animation: tdwSpin .8s linear infinite; }
+@keyframes tdwSpin { to { transform: rotate(360deg); } }
+
+/* ── Propuesta de la IA ── */
+/* Ocupa una línea completa bajo la tarea: el texto original queda intacto arriba
+   hasta que se acepta. */
+.tdw-task { flex-wrap: wrap; }
+.tdw-suggest {
+    flex: 1 0 100%; display: flex; align-items: flex-start; gap: 8px;
+    margin: 7px 0 1px 26px; padding: 8px 10px; border-radius: 8px;
+    background: var(--tdw-sky-soft); border: 1px solid var(--tdw-sky-line);
+}
+.tdw-suggest-txt { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.5; color: var(--vsr-text); word-break: break-word; }
+.tdw-suggest-act { flex: none; display: flex; gap: 4px; }
+.tdw-suggest-act button {
+    border: 0; border-radius: 6px; padding: 4px 9px; background: transparent;
+    font: inherit; font-size: 11px; font-weight: 700; color: var(--tdw-mute); cursor: pointer;
+}
+.tdw-suggest-act [data-tdw="applysuggest"] { background: var(--tdw-sky); color: #06283D; }
+[data-theme="light"] .tdw-suggest-act [data-tdw="applysuggest"] { color: #fff; }
+.tdw-suggest-act [data-tdw="skipsuggest"]:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
 .tdw-task-tools button {
     width: 23px; height: 23px; display: inline-flex; align-items: center; justify-content: center;
     border: 0; border-radius: 6px; background: rgba(148, 163, 184, .16); color: var(--tdw-mute); cursor: pointer;
@@ -215,6 +358,52 @@
 }
 .tdw-origin:hover { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
 .tdw-origin svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* ── Reordenar tareas arrastrando (grip) ── */
+/* El grip va absoluto sobre el padding de la lista para no correr el check ni el
+   texto. El área de agarre es de 18x24px (el dibujo es más chico) y se ve siempre
+   en tenue: apuntarle no debe requerir puntería. */
+.tdw-task { position: relative; }
+.tdw-grip {
+    position: absolute; left: -14px; top: 4px; width: 18px; height: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tdw-dim); cursor: move; opacity: .4; border-radius: 5px;
+    touch-action: none; transition: opacity .13s ease, color .13s ease, background .13s ease;
+}
+.tdw-grip svg { width: 13px; height: 13px; }
+.tdw-task:hover .tdw-grip { opacity: 1; }
+.tdw-grip:hover { color: var(--tdw-sky); background: var(--tdw-sky-soft); }
+/* Durante el arrastre el puntero debe resolver la fila, no el texto editable. */
+.tdw-dnd { cursor: move; user-select: none; }
+.tdw-dnd .tdw-task > * { pointer-events: none; }
+.tdw-dnd .tdw-task, .tdw-dnd .tdw-grip { transition: none; }   /* nada que animar mientras se reordena */
+
+/* La fila se queda atenuada en su sitio (de dónde salió) mientras el clon vuela. */
+.tdw-task.is-dragging { opacity: .3; }
+.tdw-task.tdw-ghost {
+    position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
+    margin: 0; border-radius: 8px; opacity: .96; will-change: transform;
+    background: var(--vsr-bg-card); box-shadow: 0 14px 32px rgba(0,0,0,.4);
+}
+[data-theme="light"] .tdw-task.tdw-ghost { box-shadow: 0 14px 32px rgba(17,24,39,.18); }
+/* El clon es solo el contenido: el grip vive fuera del recuadro y estorbaría. */
+.tdw-ghost .tdw-grip { opacity: 0; }
+.tdw-ghost .tdw-task-tools { visibility: hidden; }
+
+/* Línea de inserción: marca el borde donde va a caer, con el punto del inicio. */
+.tdw-dropline {
+    position: fixed; z-index: 9998; height: 2px; margin-top: -1px; border-radius: 2px;
+    background: var(--tdw-sky, #38BDF8); pointer-events: none; opacity: 0;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, .22); transition: opacity .1s ease;
+}
+.tdw-dropline::before {
+    content: ''; position: absolute; left: -3px; top: -3px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--tdw-sky, #38BDF8);
+}
+/* Al aterrizar, un destello del acento en vez de un salto seco. */
+@keyframes tdwDrop { from { background: var(--tdw-sky-soft); } to { background: transparent; } }
+.tdw-task.is-dropped { animation: tdwDrop .32s ease-out; }
+.tdw-dnd .tdw-sec { min-height: 34px; }   /* permite soltar en una sección vacía */
 
 .tdw-add { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
 .tdw-add .tdw-plus {

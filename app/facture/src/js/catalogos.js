@@ -12,10 +12,7 @@ $(async () => {
 
 class App extends Templates {
 
-    // El tipo vive aqui y no en el campo: el filterBar se repinta al ir y volver
-    // de la vista del emisor, y leyendolo del DOM la marca elegida se perderia en
-    // cada cambio de vista. Arranca en los auxiliares, que son el catalogo del
-    // modulo.
+    // El tipo vive aqui y no en el campo: el filterBar se repinta al cambiar de vista.
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
@@ -32,13 +29,19 @@ class App extends Templates {
     render() {
         this.layout();
         catalogosView.renderHeader();
-        this.renderView();
+        this.filterBar();
+
+        if (this.view === 'productos') {
+            catalogosView.renderNote();
+            catalogos.lsProductos();
+            catalogos.lsKpis();
+        } else {
+            catalogosView.renderEmisor(this.dataInit.emisor);
+        }
     }
 
     // -- Layout --
 
-    // Un solo panel: las tres vistas del modulo se turnan en la misma tarjeta y se
-    // eligen desde el conmutador de la cabecera, no desde un costado fijo.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -51,11 +54,11 @@ class App extends Templates {
                 },
                 {
                     id:    'filterBar',
-                    class: 'px-3 pt-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'kpisRow',
-                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'contentRow',
@@ -77,22 +80,13 @@ class App extends Templates {
         this.cardLayout();
     }
 
-    // La tarjeta es el marco de la vista activa: dentro va la tabla del catalogo o
-    // el formulario del emisor, nunca las dos cosas. El scroll vive aqui, de modo
-    // que cabecera, filtros y tarjetas se quedan fijos arriba.
-    //
-    // La leyenda va fuera del wrapper con scroll: explica las dos marcas del
-    // catalogo y tiene que seguir a la vista al recorrer el listado.
     cardLayout() {
         this.createLayout({
             parent: 'contentRow',
             design: false,
             data: {
-                // p-4 como el panel de cada pestana en Cargas: el aire lo pone la
-                // tarjeta, no el contenido, asi la tabla y el formulario del emisor
-                // se separan igual de sus bordes sin repetir el margen cada uno.
                 id:        'cardCatalogo',
-                class:     'w-full flex-1 min-h-0 bg-[#141d2b] rounded-lg p-4 flex flex-col overflow-hidden',
+                class:     'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col overflow-hidden',
                 container: [
                     {
                         type:  'div',
@@ -112,7 +106,7 @@ class App extends Templates {
     // -- Filter bar --
 
     filterBar() {
-        if (this.view === 'emisor') return $('#filterBar').empty();
+        if (this.view === 'emisor') return;
 
         this.createfilterBar({
             parent:     'filterBar',
@@ -129,7 +123,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fTipo',
                 lbl:      'Tipo de producto:',
-                class:    'col-12 col-md-4 col-lg-3',
+                class:    'col-12 col-md-3 col-lg-2',
                 value:    this.tipo,
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -138,18 +132,16 @@ class App extends Templates {
             {
                 opc:       'button',
                 id:        'btnNuevoProducto',
-                text:      'Nuevo producto auxiliar',
+                text:      'Nuevo producto',
                 icon:      'ic-plus',
                 color_btn: 'primary',
-                class:     'col-12 col-md-4 col-lg-3',
+                class:     'col-12 col-md-4 col-lg-2',
                 onClick:   () => catalogosView.openProductoForm()
             }
         ];
     }
 
-    // El buscador no esta pintado: el catalogo son unas cuantas claves y se
-    // recorren de un vistazo. Viaja vacio porque el servidor arma el LIKE con el,
-    // no porque haya un campo del que leerlo.
+    // El buscador no esta pintado: q viaja vacio porque el servidor arma el LIKE con el.
     getFilters() {
         return {
             q:    '',
@@ -160,12 +152,9 @@ class App extends Templates {
     onChangeFilters() {
         this.tipo = $('#fTipo').val() || '';
 
-        this.lsView();
+        catalogos.lsProductos();
     }
 
-    // El aviso de vacio habla de la marca elegida: en el arranque la lista es la
-    // de los auxiliares y lo que falta son altas; con cualquier otra marca lo que
-    // falta son filas de esa marca, que aqui no se dan de alta.
     emptyMessage() {
         return this.tipo === 'puente'
             ? 'Aun no hay productos auxiliares dados de alta'
@@ -174,37 +163,15 @@ class App extends Templates {
 
     // -- Vistas --
 
-    renderView() {
-        const vistas = {
-            productos: () => {
-                catalogosView.renderNote();
-                catalogos.lsProductos();
-                catalogos.lsKpis();
-            },
-            emisor: () => {
-                $('#kpisRow').empty();
-                $('#viewNote').empty();
-                catalogosView.renderEmisor(this.dataInit.emisor);
-            }
-        };
-
-        this.filterBar();
-        vistas[this.view]();
-    }
-
     setView(view) {
         this.view = view;
-        this.renderView();
-    }
-
-    lsView() {
-        catalogos.lsProductos();
+        this.render();
     }
 }
 
 // -- Catalogos --
 
-class Catalogos extends Templates {
+class Catalogos extends App {
 
     constructor(link, divModule) {
         super(link, divModule);
@@ -213,13 +180,6 @@ class Catalogos extends Templates {
 
     // -- Data --
 
-    // Columnas: 1 Codigo, 2 Nombre, 3 Precio, 4 Producto auxiliar, 5 Modificador,
-    // 6 Estatus.
-    //
-    // Misma configuracion que las tablas de Cargas: la paleta se deja al tema y
-    // solo se apaga el borde exterior, porque la tarjeta que las contiene ya
-    // dibuja el marco. Fijar aqui los colores dark rompia la variante clara del
-    // modulo, que se elige desde facture-theme.js.
     async lsProductos() {
         const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsProductos' }, app.getFilters()) });
 
@@ -245,8 +205,7 @@ class Catalogos extends Templates {
         this.dataTable('#tbProductos', data);
     }
 
-    // Paginado y ordenamiento de la tabla ya pintada. Sin filas createCoffeeTable3
-    // no arma un <table> sino el aviso de vacio, asi que montar DataTables ahi
+    // Sin filas createCoffeeTable3 pinta el aviso de vacio y no un <table>: DataTables
     // dejaria la paginacion colgando debajo del mensaje.
     dataTable(id, data) {
         if (!(data.row || []).length) return;
@@ -254,9 +213,6 @@ class Catalogos extends Templates {
         if (typeof simple_data_table === 'function') simple_data_table(id, 12);
     }
 
-    // Las cifras son las del catalogo completo, no las del listado: el selector
-    // deja ver una marca a la vez y las tarjetas son las que dicen cuantos
-    // productos hay en total y cuantos de ellos estan marcados.
     async lsKpis() {
         const kpis = await useFetch({ url: apiCatalogos, data: { opc: 'showKpis' } });
 
@@ -265,14 +221,9 @@ class Catalogos extends Templates {
 
     // -- Actions --
 
-    // La clave anterior viaja aparte: es la que localiza la fila cuando la edicion
-    // cambia la clave del POS, y sin ella se daria de alta un producto nuevo.
-    //
-    // La marca no se pregunta en el formulario: aqui solo se dan de alta productos
-    // auxiliares, asi que en el alta viaja fija. En la edicion viaja la que ya
-    // tiene el producto, que puede ser uno del resto del catalogo abierto desde el
-    // selector: guardarlo no debe convertirlo en auxiliar. La marca se quita y se
-    // pone desde el interruptor de su fila.
+    // 'previo' localiza la fila cuando la edicion cambia la clave del POS. La marca no
+    // se pregunta en el formulario: en el alta viaja fija y en la edicion la que ya
+    // tiene el producto, que puede no ser auxiliar.
     async saveProducto(code, data, puente) {
         const response = await useFetch({
             url:  apiCatalogos,
@@ -303,9 +254,6 @@ class Catalogos extends Templates {
         });
     }
 
-    // El interruptor de la fila escribe la marca contraria a la que muestra. Tocar
-    // la marca por la que esta filtrado el listado saca al producto de el, asi que
-    // la vista se relee entera.
     async editProductoFlag(code, campo, valor) {
         const response = await useFetch({
             url: apiCatalogos,
@@ -322,8 +270,6 @@ class Catalogos extends Templates {
         this.alertBox({ type: 'error', title: response.message });
     }
 
-    // Activar es directo; dar de baja se confirma, porque el producto deja de estar
-    // disponible para armar tickets virtuales.
     editProductoStatus(code, valor) {
         if (valor === 1) return this.saveStatus('editProductoStatus', code, valor);
 
@@ -364,10 +310,8 @@ class Catalogos extends Templates {
         });
     }
 
-    // La tabla y las tarjetas se releen juntas: un producto marcado como auxiliar
-    // cambia tambien los conteos del encabezado.
     refresh() {
-        app.lsView();
+        this.lsProductos();
         this.lsKpis();
     }
 }
@@ -383,8 +327,6 @@ class CatalogosView extends Templates {
 
     // -- Render helpers --
 
-    // Copy de la cabecera del modulo. No son datos: productos y emisor se consultan
-    // al servidor.
     renderHeader() {
         this.viewHeader({
             parent: 'viewHeader',
@@ -415,12 +357,6 @@ class CatalogosView extends Templates {
         });
     }
 
-    // Las dos marcas del catalogo no se explican solas: una dice que el producto
-    // sirve para armar el ticket virtual y la otra que solo acompaña a un platillo.
-    // La leyenda va arriba de la tabla, donde se leen las columnas que las pintan.
-    //
-    // El tinte es el mismo con el que la columna pinta cada marca: la caja se
-    // reconoce por color antes de leerse, igual que las tarjetas de arriba.
     renderNote() {
         this.noteCard({
             parent: 'viewNote',
@@ -443,17 +379,9 @@ class CatalogosView extends Templates {
         });
     }
 
-    // La vista viaja como atributo de la fila: el tinte del icono de cada tarjeta
-    // depende de su posicion.
     renderInfoCards(kpis) {
-        $('#kpisRow').attr('data-view', app.view);
-
-        this.infoCard({
+        this.kpisRow({
             parent: 'kpisRow',
-            id:     'kpisCatalogos',
-            theme:  FACTURE_THEME,
-            style:  'file',
-            cols:   4,
             json:   this.jsonKpisProductos(kpis)
         });
     }
@@ -461,48 +389,28 @@ class CatalogosView extends Templates {
     jsonKpisProductos(kpis) {
         return [
             {
-                id:          'kpiProductos',
-                title:       'Productos',
-                lucideIcon:  'package',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.productos,
-                    color: 'text-white'
-                }
+                id:    'kpiProductos',
+                label: 'Productos',
+                value: kpis.productos,
+                tone:  'default'
             },
             {
-                id:          'kpiPuente',
-                title:       'Productos auxiliares',
-                lucideIcon:  'link',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.puente,
-                    color: 'text-[#3FC189]'
-                }
+                id:    'kpiPuente',
+                label: 'Productos auxiliares',
+                value: kpis.puente,
+                tone:  'success'
             },
             {
-                id:          'kpiModificadores',
-                title:       'Modificadores',
-                lucideIcon:  'layers',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.modificadores,
-                    color: 'text-amber-500'
-                }
+                id:    'kpiModificadores',
+                label: 'Modificadores',
+                value: kpis.modificadores,
+                tone:  'warning'
             },
             {
-                id:          'kpiPrecio',
-                title:       'Precio promedio',
-                lucideIcon:  'banknote',
-                bgColor:     'bg-[#141d2b]',
-                borderColor: 'border-transparent',
-                data: {
-                    value: kpis.precioPromedio,
-                    color: 'text-[#1C64F2]'
-                }
+                id:    'kpiPrecio',
+                label: 'Precio promedio',
+                value: kpis.precioPromedio,
+                tone:  'info'
             }
         ];
     }
@@ -510,9 +418,19 @@ class CatalogosView extends Templates {
     // -- Forms --
 
     renderEmisor(emisor) {
-        // Sin margen horizontal propio: el aire ya lo pone el p-4 de la tarjeta, y
-        // repetirlo aqui dejaba el separador del encabezado sin llegar a sus bordes.
-        $('#viewBody').html('<div id="emisorHead" class="pb-3 border-b border-[#374151]"></div><div id="formEmisor" class="pt-4 max-w-3xl"></div>');
+        $('#viewBody').html(`
+            <div id="emisorHead" class="pb-3 border-b border-[#374151]"></div>
+            <div class="pt-4 flex flex-col lg:flex-row gap-4 items-start">
+                <div id="emisorCard" class="flex-1 min-w-0 w-full bg-[#141d2b] rounded-lg p-4">
+                    <div id="emisorCardHead" class="pb-3 mb-3 border-b border-[#374151]"></div>
+                    <div id="formEmisor"></div>
+                </div>
+                <div id="emisorPreview" class="w-full lg:w-[320px] flex-shrink-0 bg-[#141d2b] rounded-lg p-4">
+                    <div id="previewHead" class="pb-3 mb-3 border-b border-[#374151]"></div>
+                    <div id="ticketPrintArea"></div>
+                </div>
+            </div>
+        `);
 
         this.panelHead({
             parent: 'emisorHead',
@@ -526,6 +444,26 @@ class CatalogosView extends Templates {
             }
         });
 
+        this.panelHead({
+            parent: 'emisorCardHead',
+            json: {
+                icon:  'building-2',
+                title: 'Datos de la empresa'
+            }
+        });
+
+        this.panelHead({
+            parent: 'previewHead',
+            json: {
+                icon:  'printer',
+                title: 'Vista previa del ticket',
+                badge: {
+                    text: 'muestra',
+                    tone: 'b-gray'
+                }
+            }
+        });
+
         this.coffeeForm({
             parent:       'formEmisor',
             id:           'frmEmisor',
@@ -533,6 +471,44 @@ class CatalogosView extends Templates {
             showRequired: false,
             autofill:     emisor,
             json:         this.jsonEmisor()
+        });
+
+        this.renderEmisorPreview(emisor);
+
+        // El papel repite el encabezado que se esta escribiendo: sin esto la
+        // muestra quedaria con los datos guardados hasta recargar la vista.
+        $('#frmEmisor').on('input', () => this.renderEmisorPreview(this.getEmisorForm()));
+    }
+
+    getEmisorForm() {
+        return {
+            razon:     $('#razon').val(),
+            rfc:       $('#rfc').val(),
+            telefono:  $('#telefono').val(),
+            domicilio: $('#domicilio').val()
+        };
+    }
+
+    // Los renglones son de muestra: lo que el emisor gobierna es el encabezado del
+    // papel, y el cuerpo esta para leerlo en su contexto.
+    renderEmisorPreview(emisor) {
+        this.ticketPaper({
+            parent: 'ticketPrintArea',
+            emisor: emisor,
+            json: {
+                nota:      'A-1024',
+                fecha:     '01/07/2026',
+                hora:      '14:32',
+                folio:     'MUESTRA',
+                subtotal:  '$260.00',
+                descuento: '$10.00',
+                total:     '$250.00',
+                metodo:    'efectivo',
+                lineas: [
+                    { cant: 2, nombre: 'Producto auxiliar A', importe: '$120.00' },
+                    { cant: 1, nombre: 'Producto auxiliar B', importe: '$140.00' }
+                ]
+            }
         });
     }
 
@@ -612,9 +588,8 @@ class CatalogosView extends Templates {
         ];
     }
 
-    // El registro se pide al servidor y no se guarda una copia en el cliente: la
-    // tabla ya viene armada como HTML, asi que el formulario necesita los campos
-    // en crudo y esos solo los tiene la consulta.
+    // El registro se pide al servidor: la tabla viene armada como HTML y el formulario
+    // necesita los campos en crudo.
     async openProductoForm(code) {
         const data     = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getProducto', code: code } }) : {};
         const producto = data.producto || null;
@@ -675,13 +650,167 @@ class CatalogosView extends Templates {
         return modal;
     }
 
-    // Leyenda de una tabla cuando lo que hay que explicar son varios conceptos: uno
-    // por caja, en linea, con el icono de la columna que representan delante.
-    //
-    // El icono va en su propia pastilla del color del concepto y el titulo en ese
-    // mismo tono, en renglon aparte: asi la caja se lee de un vistazo (que marca
-    // es) y solo despues su explicacion, que baja a gris. El color no toca el
-    // borde: la caja se distingue por su pastilla, no por un marco de mas.
+    // El papel se queda blanco aunque el modulo sea dark: representa el ticket
+    // impreso. Los renglones del encabezado sin dato no se pintan vacios.
+    ticketPaper(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'ticketPaper',
+            class:  'ticket-paper',
+            json:   null,
+            emisor: { razon: '', domicilio: '', telefono: '' },
+            labels: {
+                empty:   'Sin ticket que mostrar',
+                leyenda: 'ESTE NO ES UN COMPROBANTE FISCAL'
+            }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const wrap = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json) {
+            wrap.html(`<p class="text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
+
+            return $(`#${opts.parent}`).html(wrap);
+        }
+
+        const e = opts.json;
+        const m = opts.emisor;
+
+        const row = (k, v) => v ? `<tr><td>${esc(k)}</td><td class="text-right">${esc(v)}</td></tr>` : '';
+
+        const lineas = (e.lineas || []).map(l => `
+            <tr>
+                <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
+                <td style="text-align:right">${esc(l.importe)}</td>
+            </tr>
+        `).join('');
+
+        // Los dos importes que el papel imprime en un mismo renglon bajo el total.
+        const parRow = (k1, v1, k2, v2) => `
+            <tr>
+                <td>${esc(k1)}${esc(v1)}</td>
+                <td class="text-right">${esc(k2)}${esc(v2)}</td>
+            </tr>
+        `;
+
+        wrap.html(`
+            <div class="text-center">
+                <p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>
+                ${m.rfc ? `<p>RFC: ${esc(m.rfc)}</p>` : ''}
+                <p>${esc(m.domicilio)}</p>
+                ${m.telefono ? `<p>TEL: ${esc(m.telefono)}</p>` : ''}
+            </div>
+            <div class="tk-sep"></div>
+            <table>
+                <tr><td>NOTA:</td><td class="text-right font-bold">${esc(e.nota)}</td></tr>
+                ${row('TICKET:', e.folio)}
+                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
+            </table>
+            <div class="tk-sep"></div>
+            <table>
+                <thead>
+                    <tr><td class="font-bold">CANT. DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
+                </thead>
+                <tbody>${lineas}</tbody>
+            </table>
+            <div class="tk-total">
+                <table>
+                    <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
+                </table>
+            </div>
+            <table>
+                ${parRow('SUBTOTAL:', e.subtotal, 'DESCUENTO:', '-' + e.descuento)}
+                ${parRow('PAGO:',     String(e.metodo).toUpperCase(), '', '')}
+            </table>
+            <p class="text-center font-bold mt-2">${esc(opts.labels.leyenda)}</p>
+            <div class="tk-sep"></div>
+            <div class="text-center">
+                <p>GRACIAS POR SU VISITA</p>
+            </div>
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+    }
+
+    kpisRow(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'kpisRow',
+            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
+            json:   [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-white',
+                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
+                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
+                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
+                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+            },
+            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
+            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            valueClass:    'cs-kpi-value text-sm font-bold',
+            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+            onClick:       () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+
+            return `
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}">${esc(kpi.subtitle)}</p>` : ''}
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+
+            return $(`#${opts.parent}`).html(grid);
+        }
+
+        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
+
+        $(`#${opts.parent}`).html(grid);
+
+        grid.find('[data-kpi-idx]').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
+
+            opts.onClick(opts.json[idx], idx);
+        });
+    }
+
     noteCard(options) {
         const defaults = {
             parent: 'root',
@@ -698,9 +827,6 @@ class CatalogosView extends Templates {
             }
         };
 
-        // El color del concepto llega en un solo dato: el titulo y el icono lo
-        // llevan tal cual y el fondo de la pastilla es ese mismo color rebajado,
-        // como los iconos de las tarjetas de arriba.
         const tint = (hex, alpha) => {
             const n = parseInt(String(hex || '').replace('#', ''), 16);
 
@@ -773,8 +899,6 @@ class CatalogosView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // El grupo de toggles va como control segmentado: son las vistas del modulo, no
-    // un filtro mas, y el activo se pinta relleno para que se lea como pestaña.
     viewHeader(options) {
         const defaults = {
             parent: 'root',

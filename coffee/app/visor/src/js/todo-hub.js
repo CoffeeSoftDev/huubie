@@ -14,7 +14,39 @@
     'use strict';
 
     const API      = 'ctrl/ctrl-todos.php';
-    const PREF_KEY = 'visor:todoArchived:v1';
+    // Mismo endpoint y mismo modelo fijo que la varita del panel TODO del visor:
+    // la reescritura no depende del selector de modelo de ningun chat.
+    const API_IA   = 'ctrl/ctrl-coffeeia.php';
+    const IA_MODEL = 'glm-5.2:cloud';
+    const PREF_KEY   = 'visor:todoArchived:v1';
+    const ACCENT_KEY = 'visor:todoAccent:v1';
+    const CHIPS_KEY  = 'visor:todoChips:v1';
+
+    // Campos opcionales de una tarea que se pintan como chip. Solo se ven si el
+    // todo.json los trae: el cajon los conserva pero no los inventa.
+    const CHIPS = [
+        { id: 'prio', name: 'Prioridad',    sample: 'alta'  },
+        { id: 'tags', name: 'Etiquetas',    sample: '#ui'   },
+        { id: 'due',  name: 'Fecha límite', sample: '5 ago' }
+    ];
+
+    const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    // La fecha se dice en relativo mientras sea util (hoy, mañana, tarde) y en
+    // dia/mes cuando ya no lo es. `late` la pinta en rojo.
+    function dueLabel(raw) {
+        const d = new Date(String(raw).slice(0, 10) + 'T00:00:00');
+        if (isNaN(d.getTime())) return { text: String(raw), late: false, soon: false };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const days = Math.round((d - today) / 86400000);
+
+        if (days < 0)   return { text: days === -1 ? 'ayer' : Math.abs(days) + ' d tarde', late: true,  soon: false };
+        if (days === 0) return { text: 'hoy',    late: false, soon: true };
+        if (days === 1) return { text: 'mañana', late: false, soon: true };
+        return { text: d.getDate() + ' ' + MESES[d.getMonth()], late: false, soon: false };
+    }
     const SAVED_EVENT = 'visor:todo-saved';
 
     const ICON = {
@@ -43,8 +75,34 @@
         eye:     'eye',
         pencil:  'pencil',
         trash:   'trash-2',
-        back:    'arrow-left'
+        back:    'arrow-left',
+        grip:    'grip-vertical',
+        cog:     'settings',
+        wand:    'wand-sparkles',
+        spin:    'loader-circle',
+        fields:  'sliders-horizontal'
     };
+
+    // Color de acento del hub. Cada uno trae su tono para fondo oscuro y para claro:
+    // el celeste que se lee bien sobre #1F2A37 pierde contraste sobre blanco.
+    const ACCENTS = [
+        { id: 'sky',    name: 'Celeste',   dark: '#38BDF8', light: '#0284C7' },
+        { id: 'terra',  name: 'Terracota', dark: '#E2795B', light: '#C05A40' },
+        { id: 'jade',   name: 'Jade',      dark: '#34D399', light: '#059669' },
+        { id: 'violet', name: 'Violeta',   dark: '#A78BFA', light: '#7C3AED' },
+        { id: 'amber',  name: 'Ámbar',     dark: '#FBBF24', light: '#D97706' },
+        { id: 'rose',   name: 'Rosa',      dark: '#F472B6', light: '#DB2777' },
+        { id: 'indigo', name: 'Índigo',    dark: '#818CF8', light: '#4F46E5' },
+        { id: 'slate',  name: 'Grafito',   dark: '#94A3B8', light: '#475569' }
+    ];
+
+    // rgba a partir del hex del acento: las variables soft/line del tema son el
+    // mismo color con alfa, no colores aparte.
+    function rgba(hex, a) {
+        const h = String(hex).replace('#', '');
+        const n = parseInt(h.length === 3 ? h.replace(/./g, (c) => c + c) : h, 16);
+        return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
 
     function ico(name) {
         return '<i data-lucide="' + name + '"></i>';
@@ -91,6 +149,10 @@
             this.loading  = false;
             this.mounted  = false;
             this.saveTimers = {};
+            this.drag       = null;     // arrastre de tarea en curso
+            this.accent     = this.readAccent();
+            this.chips      = this.readChips();   // que campos opcionales se pintan
+            this.fieldsId   = null;               // tarea abierta en el editor de campos
         }
 
         // ── Preferencia de archivado ────────────────────────────────────────
@@ -119,6 +181,201 @@
 
         isArchived(key) { return this.archived.indexOf(key) !== -1; }
 
+        // ── Color de acento ─────────────────────────────────────────────────
+        // Se pisan las tres variables --tdw-sky* sobre el propio velo: el CSS las
+        // declara ahi, asi que el inline gana en los dos temas sin duplicar reglas.
+        readAccent() {
+            try {
+                const key = global.coffeeScopedKey ? global.coffeeScopedKey(ACCENT_KEY) : ACCENT_KEY;
+                const id  = localStorage.getItem(key) || '';
+                return ACCENTS.filter((a) => a.id === id).length ? id : 'sky';
+            } catch (e) { return 'sky'; }
+        }
+
+        writeAccent() {
+            try {
+                const key = global.coffeeScopedKey ? global.coffeeScopedKey(ACCENT_KEY) : ACCENT_KEY;
+                localStorage.setItem(key, this.accent);
+            } catch (e) {}
+            if (global.CoffeePrefs) global.CoffeePrefs.push(ACCENT_KEY, this.accent);
+        }
+
+        applyAccent() {
+            if (!this.$veil) return;
+            const acc  = ACCENTS.filter((a) => a.id === this.accent)[0] || ACCENTS[0];
+            const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+            const c    = dark ? acc.dark : acc.light;
+            const el   = this.$veil.get(0);
+            el.style.setProperty('--tdw-sky', c);
+            el.style.setProperty('--tdw-sky-soft', rgba(c, .21));
+            el.style.setProperty('--tdw-sky-line', rgba(c, .35));
+            // Las muestras enseñan el tono que se va a aplicar en el tema vigente.
+            this.$veil.find('[data-accent]').each(function () {
+                const id = $(this).attr('data-accent');
+                const a  = ACCENTS.filter((x) => x.id === id)[0];
+                if (a) $(this).find('i').css('background', dark ? a.dark : a.light);
+                $(this).toggleClass('is-on', id === acc.id);
+            });
+        }
+
+        setAccent(id) {
+            if (!ACCENTS.filter((a) => a.id === id).length) return;
+            this.accent = id;
+            this.applyAccent();
+            this.writeAccent();
+        }
+
+        accentMenuHtml() {
+            return '<div class="tdw-accents" id="tdwAccents" hidden>' +
+                     '<p class="tdw-accents-h">Color del tema</p>' +
+                     '<div class="tdw-accents-grid">' +
+                       ACCENTS.map((a) =>
+                         '<button class="tdw-swatch" type="button" data-accent="' + a.id + '" title="' + esc(a.name) + '">' +
+                           '<i style="background:' + a.dark + '"></i>' +
+                         '</button>').join('') +
+                     '</div>' +
+                     '<p class="tdw-accents-note">El claro/oscuro sigue al tema del visor.</p>' +
+                     '<p class="tdw-accents-h" style="margin-top:14px">En cada tarea</p>' +
+                     CHIPS.map((c) =>
+                       '<button class="tdw-chiprow" type="button" data-chip="' + c.id + '">' +
+                         '<span class="tdw-chip is-' + c.id + '">' + esc(c.sample) + '</span>' +
+                         '<span class="tdw-chiprow-n">' + esc(c.name) + '</span>' +
+                         '<i class="tdw-tog"></i>' +
+                       '</button>').join('') +
+                     '<p class="tdw-accents-note">Solo cambia lo que ves: el <code>todo.json</code> conserva los campos.</p>' +
+                   '</div>';
+        }
+
+        // ── Chips de la tarea ───────────────────────────────────────────────
+        readChips() {
+            const def = { prio: true, tags: true, due: true };
+            try {
+                const key = global.coffeeScopedKey ? global.coffeeScopedKey(CHIPS_KEY) : CHIPS_KEY;
+                const raw = localStorage.getItem(key);
+                const val = raw ? JSON.parse(raw) : null;
+                if (!val || typeof val !== 'object') return def;
+                CHIPS.forEach((c) => { def[c.id] = val[c.id] !== false; });
+                return def;
+            } catch (e) { return def; }
+        }
+
+        writeChips() {
+            const value = JSON.stringify(this.chips);
+            try {
+                const key = global.coffeeScopedKey ? global.coffeeScopedKey(CHIPS_KEY) : CHIPS_KEY;
+                localStorage.setItem(key, value);
+            } catch (e) {}
+            if (global.CoffeePrefs) global.CoffeePrefs.push(CHIPS_KEY, value);
+        }
+
+        toggleChip(id) {
+            if (!CHIPS.filter((c) => c.id === id).length) return;
+            this.chips[id] = !this.chips[id];
+            this.writeChips();
+            this.syncChipToggles();
+            this.renderMain();       // los chips se pintan al armar la fila
+            this.icons();
+        }
+
+        syncChipToggles() {
+            if (!this.$veil) return;
+            const chips = this.chips;
+            this.$veil.find('[data-chip]').each(function () {
+                $(this).toggleClass('is-on', chips[$(this).attr('data-chip')] !== false);
+            });
+        }
+
+        // ── Editor de campos de la tarea (fecha · prioridad · etiquetas) ────
+        // Un panel por tarea, anclado a su boton. Cada cambio se guarda al vuelo y
+        // repinta solo los chips de esa fila: repintar la vista entera cerraria el
+        // panel debajo del cursor.
+        fieldsMenuHtml() {
+            const btn = (attr, val, label, cls) =>
+                '<button type="button" ' + attr + '="' + val + '"' + (cls ? ' class="' + cls + '"' : '') + '>' + label + '</button>';
+            return '<div class="tdw-fields" id="tdwFields" hidden>' +
+                     '<p class="tdw-fields-h">Prioridad</p>' +
+                     '<div class="tdw-fields-row" data-group="prio">' +
+                       btn('data-prio', 'alta', 'Alta') + btn('data-prio', 'media', 'Media') +
+                       btn('data-prio', 'baja', 'Baja') + btn('data-prio', '', 'Sin', 'is-none') +
+                     '</div>' +
+                     '<p class="tdw-fields-h">Fecha límite</p>' +
+                     '<input type="date" class="tdw-fields-date" data-tdw="duedate">' +
+                     '<div class="tdw-fields-row">' +
+                       btn('data-due', 'today', 'Hoy') + btn('data-due', 'tomorrow', 'Mañana') +
+                       btn('data-due', 'week', 'En 7 días') + btn('data-due', '', 'Sin', 'is-none') +
+                     '</div>' +
+                     '<p class="tdw-fields-h">Etiquetas</p>' +
+                     '<input type="text" class="tdw-fields-tags" data-tdw="tagsinput" placeholder="ui, facture" autocomplete="off">' +
+                     '<p class="tdw-accents-note">Separadas por coma. Enter para guardar.</p>' +
+                   '</div>';
+        }
+
+        openFieldsMenu($btn) {
+            const $row = $btn.closest('.tdw-task');
+            const ref  = this.refOf($row);
+            if (!ref || !ref.task) return;
+
+            const $m = $('#tdwFields');
+            // Segundo clic en el mismo boton: se cierra.
+            if (!$m.prop('hidden') && this.fieldsId === ref.task.id) { this.closeFieldsMenu(); return; }
+            this.fieldsId = ref.task.id;
+
+            $m.find('[data-prio]').each(function () {
+                $(this).toggleClass('is-on', $(this).attr('data-prio') === String(ref.task.prio || ''));
+            });
+            $m.find('[data-tdw="duedate"]').val(String(ref.task.due || '').slice(0, 10));
+            $m.find('[data-tdw="tagsinput"]').val(Array.isArray(ref.task.tags) ? ref.task.tags.join(', ') : '');
+
+            // Anclado al boton; si no cabe abajo, sube. El velo es fixed inset:0,
+            // asi que las coordenadas del viewport valen tal cual.
+            $m.prop('hidden', false);
+            const r  = $btn.get(0).getBoundingClientRect();
+            const mh = $m.outerHeight();
+            const mw = $m.outerWidth();
+            const top = (r.bottom + mh + 12 > window.innerHeight) ? Math.max(8, r.top - mh - 6) : r.bottom + 6;
+            $m.css({ top: Math.round(top) + 'px', left: Math.round(Math.max(8, r.right - mw)) + 'px' });
+            $row.addClass('is-editing');
+        }
+
+        closeFieldsMenu() {
+            this.fieldsId = null;
+            $('#tdwFields').prop('hidden', true);
+            if (this.$veil) this.$veil.find('.tdw-task.is-editing').removeClass('is-editing');
+        }
+
+        // Escribe (o borra) un campo opcional de la tarea abierta en el editor.
+        // Vaciar borra la clave en vez de dejarla en '': el archivo no acumula ruido.
+        setTaskField(key, value) {
+            const $row = this.$veil.find('.tdw-task[data-id="' + this.fieldsId + '"]').first();
+            const ref  = this.refOf($row);
+            if (!ref || !ref.task) return;
+
+            const empty = value === '' || value == null || (Array.isArray(value) && !value.length);
+            if (empty) delete ref.task[key]; else ref.task[key] = value;
+
+            this.persist(ref.list, true);
+            $row.find('.tdw-chips').remove();
+            const html = this.chipsHtml(ref.task);
+            if (html) $row.find('.tdw-txt').first().after(html);
+        }
+
+        // Chips de una tarea. Se omite el bloque entero si no hay nada que decir:
+        // una lista sin estos campos se ve exactamente igual que antes.
+        chipsHtml(task) {
+            let out = '';
+            if (this.chips.prio && task.prio) {
+                out += '<span class="tdw-chip is-prio p-' + esc(String(task.prio).toLowerCase()) + '">' + esc(task.prio) + '</span>';
+            }
+            if (this.chips.tags && Array.isArray(task.tags)) {
+                out += task.tags.slice(0, 3).map((t) => '<span class="tdw-chip is-tags">#' + esc(t) + '</span>').join('');
+            }
+            if (this.chips.due && task.due) {
+                const d = dueLabel(task.due);
+                out += '<span class="tdw-chip is-due' + (d.late ? ' is-late' : (d.soon ? ' is-soon' : '')) + '">' + esc(d.text) + '</span>';
+            }
+            return out ? '<span class="tdw-chips">' + out + '</span>' : '';
+        }
+
         // ── Montaje ─────────────────────────────────────────────────────────
         mount() {
             if (this.mounted) return;
@@ -137,9 +394,12 @@
                         '<button data-tdw="filter" data-f="all" type="button">Todas</button>' +
                         '<button data-tdw="filter" data-f="done" type="button">Hechas</button>' +
                       '</div>' +
+                      '<button class="tdw-ico" data-tdw="accent" type="button" title="Color del tema">' + ico(ICON.cog) + '</button>' +
                       '<button class="tdw-ico" data-tdw="wide" type="button" title="Agrandar">' + ico(ICON.wide) + '</button>' +
                       '<button class="tdw-ico" data-tdw="close" type="button" title="Cerrar">' + ico(ICON.close) + '</button>' +
                     '</div>' +
+                    this.accentMenuHtml() +
+                    this.fieldsMenuHtml() +
                     '<div class="tdw-body">' +
                       '<div class="tdw-rail">' +
                         '<div class="tdw-search">' + ico(ICON.search) +
@@ -162,6 +422,15 @@
             this.$main = $('#tdwMain');
             this.bind();
             this.icons();
+            this.applyAccent();
+            this.syncChipToggles();
+
+            // El acento tiene un tono por tema: si el visor cambia de claro a oscuro
+            // con el hub abierto hay que recalcularlo.
+            try {
+                new MutationObserver(() => this.applyAccent())
+                    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+            } catch (e) {}
         }
 
         icons() {
@@ -261,17 +530,23 @@
             return true;
         }
 
-        // El JSON que se escribe en disco: solo titulo y secciones, en el mismo
-        // formato que ya lee el visor. Los contadores se recalculan al leer.
+        // El JSON que se escribe en disco, en el mismo formato que ya lee el visor.
+        // Los contadores se recalculan al leer, por eso no viajan.
+        //
+        // Se escribe por fusion, no por reconstruccion: lo que el cajon no entiende
+        // (due, tags, prio, notas...) sobrevive al guardado. En secciones y tareas
+        // basta con esparcir el objeto; el nivel raiz se rearma desde `list.extra`
+        // porque la ficha de la lista trae ademas estado de ejecucion (key, fullPath,
+        // crumbs, shares, canEdit...) que jamas debe acabar en el archivo.
         payloadOf(list) {
-            return JSON.stringify({
+            return JSON.stringify(Object.assign({}, list.extra || {}, {
                 title: list.title,
-                sections: (list.sections || []).map((s) => ({
+                sections: (list.sections || []).map((s) => Object.assign({}, s, {
                     id: s.id,
                     title: s.title,
-                    tasks: (s.tasks || []).map((t) => ({ id: t.id, text: t.text, done: !!t.done }))
+                    tasks: (s.tasks || []).map((t) => Object.assign({}, t, { id: t.id, text: t.text, done: !!t.done }))
                 }))
-            }, null, 2);
+            }), null, 2);
         }
 
         recount(list) {
@@ -505,17 +780,25 @@
             const editable = rw !== false;
             return '<div class="tdw-task' + (task.done ? ' is-done' : '') + (editable ? '' : ' is-ro') + '" data-id="' + esc(task.id) + '"' +
                         (origin ? ' data-key="' + esc(origin.key) + '" data-sec="' + esc(origin.secId) + '"' : '') + '>' +
+                     // En la Bandeja y en la busqueda las filas vienen de varias
+                     // listas: ahi no hay orden que reordenar, por eso no llevan grip.
+                     (editable && !origin ? '<span class="tdw-grip" title="Arrastra para reordenar">' + ico(ICON.grip) + '</span>' : '') +
                      (editable
                         ? '<button class="tdw-chk" data-tdw="check" type="button" title="Marcar">' + ico(ICON.check) + '</button>'
                         : '<span class="tdw-chk is-ro" title="Solo consulta">' + ico(ICON.check) + '</span>') +
                      '<span class="tdw-txt"' + (origin || !editable ? '' : ' contenteditable="true" spellcheck="false" data-tdw="tasktext"') + '>' +
                        (origin ? mark(task.text, this.query) : esc(task.text)) +
                      '</span>' +
+                     this.chipsHtml(task) +
                      (origin
                         ? '<button class="tdw-origin" data-tdw="goto" type="button" title="Abrir esta lista">' + ico(ICON.folder) + esc(origin.label) + '</button>'
                         : '') +
                      (editable
                         ? '<span class="tdw-task-tools">' +
+                            // La varita solo en la lista abierta: en la Bandeja la fila
+                            // es de otra lista y la sugerencia no tendria donde vivir.
+                            (origin ? '' : '<button data-tdw="fields" title="Fecha, prioridad y etiquetas">' + ico(ICON.fields) + '</button>') +
+                            (origin ? '' : '<button data-tdw="magic" title="Mejorar con IA">' + ico(ICON.wand) + '</button>') +
                             '<button data-tdw="deltask" title="Eliminar">' + ico(ICON.close) + '</button>' +
                           '</span>'
                         : '') +
@@ -927,8 +1210,77 @@
                    '\n\nDime en que orden los atacarias y por que.';
         }
 
-        copy(text, okMsg) {
-            const ok   = () => this.flash(okMsg, 'ok');
+        // ── Mejorar la tarea con IA ─────────────────────────────────────────
+        // Reescribe el texto con el modelo fijo. Devuelve '' si no hubo respuesta
+        // util y deja el motivo en this.iaError: el texto original no se toca nunca,
+        // la propuesta se muestra aparte y el usuario decide.
+        improveTask(text, listTitle, secTitle) {
+            const system = 'Reescribes tareas de un TODO de desarrollo de software. '
+                + 'Respondes SIEMPRE con una sola linea: la tarea reescrita, clara y accionable, '
+                + 'en espanol, con ortografia y acentos correctos, empezando con un verbo en infinitivo. '
+                + 'Conservas la intencion original y los nombres tecnicos tal cual (archivos, clases, modulos). '
+                + 'Sin vinetas, sin numeracion, sin comillas, sin markdown y sin explicaciones.';
+            const user = 'Contexto: lista "' + (listTitle || 'TODO') + '", seccion "' + (secTitle || '') + '".\n'
+                + 'Tarea original: ' + text;
+
+            this.iaError = '';
+            return fetch(API_IA, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ systemOverride: system, messages: [{ role: 'user', content: user }], model: IA_MODEL })
+            })
+                .then((r) => r.json())
+                .then((data) => {
+                    if (!data || !data.ok) { this.iaError = (data && data.error) || 'Respuesta invalida de la IA'; return ''; }
+                    const line = String(data.reply || '')
+                        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+                        .split('\n').map((s) => s.trim()).filter(Boolean)[0] || '';
+                    return line.replace(/^[-*]\s*(\[[ xX]\]\s*)?/, '').replace(/^["'`]|["'`]$/g, '').trim();
+                })
+                .catch((e) => { this.iaError = e.message || 'No se pudo consultar la IA'; return ''; });
+        }
+
+        suggestHtml(txt) {
+            return '<div class="tdw-suggest">' +
+                     '<span class="tdw-suggest-txt">' + esc(txt) + '</span>' +
+                     '<span class="tdw-suggest-act">' +
+                       '<button data-tdw="applysuggest" type="button">Aplicar</button>' +
+                       '<button data-tdw="skipsuggest" type="button">Descartar</button>' +
+                     '</span>' +
+                   '</div>';
+        }
+
+        // Animacion de copiado: el icono del boton pasa a palomita y sube una
+        // burbuja desde el. La barra de resumen queda como aviso de respaldo, pero
+        // el ojo esta en el boton que se acaba de pulsar, no arriba.
+        copiedFx($btn) {
+            if (!$btn || !$btn.length) return;
+            const self = this;
+            const el   = $btn.get(0);
+
+            clearTimeout($btn.data('fxTimer'));
+            if ($btn.data('fxHtml') == null) $btn.data('fxHtml', $btn.html());
+            const hadText = !!$btn.find('span').length;
+            $btn.addClass('is-copied').html(ico(ICON.check) + (hadText ? '<span>Copiado</span>' : ''));
+            this.icons();
+            $btn.data('fxTimer', setTimeout(function () {
+                $btn.removeClass('is-copied').html($btn.data('fxHtml'));
+                $btn.removeData('fxHtml');
+                self.icons();
+            }, 1400));
+
+            const r   = el.getBoundingClientRect();
+            const pop = document.createElement('div');
+            pop.className   = 'tdw-copied-pop';
+            pop.textContent = 'Copiado';
+            pop.style.left  = Math.round(r.left + r.width / 2) + 'px';
+            pop.style.top   = Math.round(r.top - 6) + 'px';
+            this.$veil.get(0).appendChild(pop);          // dentro del velo: hereda la paleta
+            setTimeout(() => pop.remove(), 950);
+        }
+
+        copy(text, okMsg, $btn) {
+            const ok   = () => { this.flash(okMsg, 'ok'); this.copiedFx($btn); };
             const fail = () => this.flash('no se pudo copiar', 'error');
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(ok, fail);
@@ -971,11 +1323,36 @@
             // Clic en el velo (fuera de la ventana) cierra.
             $v.on('click', function (e) { if (e.target === this) self.close(); });
             $(document).on('keydown.tdw', (e) => {
-                if (e.key === 'Escape' && this.isOpen()) this.close();
+                if (e.key !== 'Escape' || !this.isOpen()) return;
+                // Escape cierra primero lo que este encima; solo si no hay nada
+                // abierto encima cierra la ventana.
+                if (!$('#tdwFields').prop('hidden'))  { this.closeFieldsMenu(); return; }
+                if (!$('#tdwAccents').prop('hidden')) {
+                    $('#tdwAccents').prop('hidden', true);
+                    this.$veil.find('[data-tdw="accent"]').removeClass('is-open');
+                    return;
+                }
+                this.close();
             });
 
             $v.on('click', '[data-tdw="close"]',   () => this.close());
             $v.on('click', '[data-tdw="refresh"]', () => this.scan());
+
+            // Color del tema: el panel se queda abierto al elegir para poder comparar.
+            $v.on('click', '[data-tdw="accent"]', function (e) {
+                e.stopPropagation();
+                const $m = $('#tdwAccents');
+                const open = $m.prop('hidden');
+                $m.prop('hidden', !open);
+                $(this).toggleClass('is-open', open);
+            });
+            $v.on('click', '[data-accent]', function () { self.setAccent($(this).attr('data-accent')); });
+            $v.on('click', '[data-chip]',   function () { self.toggleChip($(this).attr('data-chip')); });
+            $v.on('click', function (e) {
+                if ($(e.target).closest('#tdwAccents, [data-tdw="accent"]').length) return;
+                $('#tdwAccents').prop('hidden', true);
+                $v.find('[data-tdw="accent"]').removeClass('is-open');
+            });
             $v.on('click', '[data-tdw="wide"]',    () => $v.toggleClass('is-wide'));
             $v.on('click', '[data-tdw="new"]',     () => this.openForm());
             $v.on('click', '[data-tdw="cancelnew"]', () => { this.closeForm(); this.render(); });
@@ -1049,18 +1426,18 @@
                 if (list) this.openInVisor(list);
             });
 
-            $v.on('click', '[data-tdw="prompt"]', () => {
-                const list = this.listByKey(this.openKey);
-                if (list) this.copy(this.promptOf(list), 'Prompt de la lista copiado');
+            $v.on('click', '[data-tdw="prompt"]', function () {
+                const list = self.listByKey(self.openKey);
+                if (list) self.copy(self.promptOf(list), 'Prompt de la lista copiado', $(this));
             });
 
-            $v.on('click', '[data-tdw="inboxprompt"]', () => {
-                this.copy(this.inboxPrompt(), 'Pendientes copiados como prompt');
+            $v.on('click', '[data-tdw="inboxprompt"]', function () {
+                self.copy(self.inboxPrompt(), 'Pendientes copiados como prompt', $(this));
             });
 
             $v.on('click', '[data-tdw="secprompt"]', function () {
                 const ref = self.refOf($(this));
-                if (ref) self.copy(self.promptOf(ref.list, ref.sec), 'Prompt de la sección copiado');
+                if (ref) self.copy(self.promptOf(ref.list, ref.sec), 'Prompt de la sección copiado', $(this));
             });
 
             $v.on('click', '[data-tdw="archive"]',   () => this.archive(this.openKey));
@@ -1109,9 +1486,120 @@
                 $(this).closest('.tdw-task').slideUp(140, function () { $(this).remove(); });
             });
 
+            // ── Mejorar con IA ──
+            $v.on('click', '[data-tdw="magic"]', function () {
+                const $btn = $(this);
+                if ($btn.hasClass('is-busy')) return;
+                const ref = self.refOf($btn);
+                if (!ref || !ref.task) return;
+
+                const $row = $btn.closest('.tdw-task');
+                $row.find('.tdw-suggest').remove();
+                $btn.addClass('is-busy').html(ico(ICON.spin));
+                self.icons();
+
+                self.improveTask(ref.task.text, ref.list.title, ref.sec.title).then((improved) => {
+                    $btn.removeClass('is-busy').html(ico(ICON.wand));
+                    self.icons();
+                    if (!improved)                   { self.flash(self.iaError || 'la IA no pudo mejorar la tarea', 'error'); return; }
+                    if (improved === ref.task.text)  { self.flash('la tarea ya está clara', 'ok'); return; }
+                    $row.append(self.suggestHtml(improved));
+                });
+            });
+
+            $v.on('click', '[data-tdw="applysuggest"]', function () {
+                const $box = $(this).closest('.tdw-suggest');
+                const $row = $box.closest('.tdw-task');
+                const ref  = self.refOf($row);
+                if (!ref || !ref.task) return;
+                ref.task.text = $box.find('.tdw-suggest-txt').text();
+                $row.find('.tdw-txt').text(ref.task.text);
+                $box.remove();
+                self.persist(ref.list, true);
+                self.flash('tarea mejorada', 'ok');
+            });
+
+            $v.on('click', '[data-tdw="skipsuggest"]', function () { $(this).closest('.tdw-suggest').remove(); });
+
+            // ── Fecha, prioridad y etiquetas ──
+            $v.on('click', '[data-tdw="fields"]', function (e) {
+                e.stopPropagation();
+                self.openFieldsMenu($(this));
+            });
+
+            $v.on('click', '[data-prio]', function () {
+                const val = $(this).attr('data-prio');
+                $(this).closest('.tdw-fields-row').find('[data-prio]').removeClass('is-on');
+                $(this).addClass('is-on');
+                self.setTaskField('prio', val);
+            });
+
+            $v.on('click', '[data-due]', function () {
+                const when = $(this).attr('data-due');
+                let val = '';
+                if (when) {
+                    const d = new Date();
+                    d.setHours(12, 0, 0, 0);                       // mediodia: el cambio de dia no lo corre
+                    if (when === 'tomorrow') d.setDate(d.getDate() + 1);
+                    if (when === 'week')     d.setDate(d.getDate() + 7);
+                    val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                }
+                $('#tdwFields [data-tdw="duedate"]').val(val);
+                self.setTaskField('due', val);
+            });
+
+            $v.on('change', '[data-tdw="duedate"]', function () { self.setTaskField('due', this.value); });
+
+            $v.on('keydown', '[data-tdw="tagsinput"]', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+                if (e.key === 'Escape') { self.closeFieldsMenu(); }
+            });
+
+            $v.on('blur', '[data-tdw="tagsinput"]', function () {
+                // "ui, #facture ,, ui" -> ["ui","facture"]: sin gato, sin vacias, sin repetir.
+                const tags = [];
+                String(this.value).split(',').forEach((raw) => {
+                    const t = raw.trim().replace(/^#+/, '');
+                    if (t && tags.indexOf(t) === -1) tags.push(t);
+                });
+                this.value = tags.join(', ');
+                self.setTaskField('tags', tags);
+            });
+
+            // Un clic fuera cierra el editor; dentro no, para poder encadenar cambios.
+            $v.on('click', function (e) {
+                if ($(e.target).closest('#tdwFields, [data-tdw="fields"]').length) return;
+                self.closeFieldsMenu();
+            });
+
+            // ── Reordenar tareas arrastrando ──
+            // Arrastre propio con pointer events, no el DnD nativo: arranca a los 4px
+            // de movimiento, no depende de que el navegador acepte el dragstart y
+            // responde igual con dedo. Se agarra desde el grip o desde el fondo de la
+            // fila; el texto y los controles conservan su comportamiento.
+            $v.on('pointerdown', '.tdw-task', function (e) {
+                const ev = e.originalEvent;
+                if (ev.button > 0) return;
+                if (!$(this).find('.tdw-grip').length) return;      // Bandeja/busqueda: no se reordena
+                const $t = $(e.target);
+                if (!$t.closest('.tdw-grip').length && $t.closest('.tdw-txt, button, input, .tdw-suggest').length) return;
+                ev.preventDefault();
+                self.startDragTask(this, ev);
+            });
+
             $v.on('keydown', '.tdw-txt, [data-tdw="sectitle"], [data-tdw="listtitle"]', function (e) {
                 if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
                 if (e.key === 'Escape') { this.blur(); }
+                // Alt+flechas: mismo reordenamiento sin mouse, dentro de la seccion.
+                if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+                if (!$(this).is('[data-tdw="tasktext"]')) return;
+                e.preventDefault();
+                const $row = $(this).closest('.tdw-task'), up = e.key === 'ArrowUp';
+                const $sib = up ? $row.prev('.tdw-task') : $row.next('.tdw-task');
+                if (!$sib.length) return;
+                if (up) $sib.before($row); else $sib.after($row);
+                this.focus();
+                self.commitTaskRow($row);
             });
 
             $v.on('blur', '[data-tdw="tasktext"]', function () {
@@ -1224,6 +1712,189 @@
         // Localiza la lista, seccion y tarea a la que pertenece un elemento del DOM.
         // En el detalle la lista es la abierta; en la Bandeja y en la busqueda cada
         // fila lleva su referencia completa en sus propios data-*.
+        // ── Reordenar tareas: arrastre al estilo Notion ─────────────────────
+        // La lista no se reordena en vivo. Se levanta un clon flotante que sigue al
+        // cursor (solo transform, sin layout) y una linea marca donde va a caer; el
+        // movimiento real se aplica una sola vez, al soltar.
+        startDragTask(row, ev) {
+            const self = this;
+            const r    = row.getBoundingClientRect();
+            this.drag = {
+                row: row, x: ev.clientX, y: ev.clientY, y0: ev.clientY, px: 0, py: 0,
+                dx: ev.clientX - r.left, dy: ev.clientY - r.top, w: r.width,
+                moved: false, raf: 0, ghost: null, line: null, dest: null
+            };
+            $(document)
+                .on('pointermove.tdwdrag', function (me) {
+                    const m = me.originalEvent, d = self.drag;
+                    if (!d) return;
+                    d.x = m.clientX;                                 // el trabajo real va en dragFrame
+                    d.y = m.clientY;
+                    if (d.moved || Math.abs(m.clientY - d.y0) < 4) return;   // umbral: un clic no arrastra
+                    self.liftDragRow();
+                })
+                .on('pointerup.tdwdrag pointercancel.tdwdrag', function () { self.endDragTask(); });
+        }
+
+        // Levanta la fila: clon flotante bajo el cursor, linea de destino y la
+        // original atenuada en su sitio (queda claro de donde salio).
+        liftDragRow() {
+            const d = this.drag;
+            d.moved = true;
+
+            // Van dentro del velo, no en el body: la paleta del hub (--tdw-*) esta
+            // declarada en .tdw-veil, asi que fuera de el la linea saldria sin color.
+            // El velo es fixed inset:0, de modo que las coordenadas siguen siendo las
+            // del viewport.
+            const veil = this.$veil.get(0);
+
+            const ghost = d.row.cloneNode(true);
+            ghost.className  = 'tdw-task tdw-ghost';
+            ghost.style.width = d.w + 'px';
+            veil.appendChild(ghost);
+
+            const line = document.createElement('div');
+            line.className = 'tdw-dropline';
+            veil.appendChild(line);
+
+            d.ghost = ghost;
+            d.line  = line;
+            $(d.row).addClass('is-dragging');
+            this.$veil.addClass('tdw-dnd');
+            d.raf = requestAnimationFrame(() => this.dragFrame());
+        }
+
+        // Decide en que borde caeria la fila y lleva la linea ahi. No mueve nada.
+        // Resuelve por ALTURA, no por lo que haya bajo el cursor: con
+        // elementFromPoint la franja del grip y los margenes quedaban fuera de toda
+        // fila y el destino se perdia. Aqui la X solo sirve para saber si sigues
+        // dentro de la lista.
+        markDrop(x, y) {
+            const d      = this.drag;
+            const scroll = this.$veil.find('.tdw-scroll').get(0);
+            const secs   = this.$veil.find('.tdw-sec').get();
+            const hide   = () => { d.dest = null; d.line.style.opacity = '0'; };
+            if (!scroll || !secs.length) { hide(); return; }
+
+            const sr = scroll.getBoundingClientRect();
+            if (x < sr.left - 40 || x > sr.right + 40) { hide(); return; }   // fuera de la lista: se cancela
+
+            // Seccion por franja vertical; fuera de todas, la de arriba o la de abajo.
+            let sec = null;
+            for (let i = 0; i < secs.length; i++) {
+                const r = secs[i].getBoundingClientRect();
+                if (y >= r.top && y <= r.bottom) { sec = secs[i]; break; }
+            }
+            if (!sec) sec = (y < secs[0].getBoundingClientRect().top) ? secs[0] : secs[secs.length - 1];
+
+            // Primera fila cuyo medio queda por debajo del cursor: la linea va encima.
+            const rows = $(sec).find('.tdw-task').get().filter((el) => el !== d.row);
+            let edge = null;
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i].getBoundingClientRect();
+                if (y < r.top + r.height / 2) {
+                    d.dest = { ref: rows[i], after: false };
+                    edge   = { top: r.top, left: r.left, width: r.width };
+                    break;
+                }
+            }
+            if (!edge && rows.length) {                          // por debajo de todas: al final
+                const r = rows[rows.length - 1].getBoundingClientRect();
+                d.dest = { ref: rows[rows.length - 1], after: true };
+                edge   = { top: r.bottom, left: r.left, width: r.width };
+            }
+            if (!edge) {                                         // seccion sin otras tareas
+                const add = sec.querySelector('.tdw-add') || sec;
+                const r   = add.getBoundingClientRect();
+                d.dest = { sec: sec };
+                edge   = { top: r.top, left: r.left, width: r.width };
+            }
+
+            d.line.style.opacity = '1';
+            d.line.style.top     = Math.round(edge.top) + 'px';
+            d.line.style.left    = Math.round(edge.left) + 'px';
+            d.line.style.width   = Math.round(edge.width) + 'px';
+        }
+
+        // Un solo recalculo por cuadro: el pointermove solo anota la posicion. Un
+        // mouse de alta frecuencia dispara decenas de eventos por frame y resolver
+        // ahi el destino es lo que se siente pesado.
+        dragFrame() {
+            const d = this.drag;
+            if (!d || !d.moved) return;
+            let scrolled = false;
+            const el = this.$veil.find('.tdw-scroll').get(0);
+            if (el) {
+                const r = el.getBoundingClientRect();
+                if (d.y - r.top < 50)         { el.scrollTop -= 14; scrolled = true; }
+                else if (r.bottom - d.y < 50) { el.scrollTop += 14; scrolled = true; }
+            }
+            d.ghost.style.transform = 'translate3d(' + (d.x - d.dx) + 'px,' + (d.y - d.dy) + 'px,0)';
+            if (scrolled || d.x !== d.px || d.y !== d.py) {
+                this.markDrop(d.x, d.y);
+                d.px = d.x;
+                d.py = d.y;
+            }
+            d.raf = requestAnimationFrame(() => this.dragFrame());
+        }
+
+        endDragTask() {
+            $(document).off('.tdwdrag');
+            const d = this.drag;
+            this.drag = null;
+            if (!d) return;
+            cancelAnimationFrame(d.raf);
+            if (d.ghost) d.ghost.remove();
+            if (d.line)  d.line.remove();
+            this.$veil.removeClass('tdw-dnd');
+            $(d.row).removeClass('is-dragging');
+            if (!d.moved || !d.dest) return;                  // sin destino valido no hubo movimiento
+
+            if (d.dest.ref) {
+                if (d.dest.after) d.dest.ref.after(d.row); else d.dest.ref.before(d.row);
+            } else if (d.dest.sec) {
+                const add = d.dest.sec.querySelector('.tdw-add');
+                if (add) d.dest.sec.insertBefore(d.row, add); else d.dest.sec.appendChild(d.row);
+            }
+            const $row = $(d.row).addClass('is-dropped');
+            setTimeout(() => $row.removeClass('is-dropped'), 320);
+            this.commitTaskRow($row);
+        }
+
+        // Aplica al modelo la posicion en que quedo la fila: se saca la tarea de su
+        // seccion y se reinserta detras de la tarea anterior (o al inicio si quedo
+        // primera). Se resuelve por vecino y no por el indice del DOM porque el
+        // filtro activo puede tener tareas ocultas que no deben perder su lugar.
+        commitTaskRow($row) {
+            const id   = $row.data('id');
+            const list = this.listByKey(this.openKey);
+            if (!id || !$row.length || !list) return;
+            if (!this.canEdit(list)) { this.renderMain(); return; }   // prestada en consulta: se deshace
+
+            const destId = $row.closest('.tdw-sec').data('sec');
+            const dest   = (list.sections || []).filter((s) => s.id === destId)[0];
+            if (!dest) { this.renderMain(); return; }
+
+            let task = null, fromSec = null;
+            (list.sections || []).forEach((s) => {
+                const i = (s.tasks || []).map((t) => t.id).indexOf(id);
+                if (i >= 0) { task = s.tasks[i]; fromSec = s; }
+            });
+            if (!task) { this.renderMain(); return; }
+
+            const snap   = () => (list.sections || []).map((s) => (s.tasks || []).map((t) => t.id).join(',')).join('|');
+            const before = snap();
+            const prevId = $row.prevAll('.tdw-task').first().data('id');
+
+            fromSec.tasks = (fromSec.tasks || []).filter((t) => t.id !== id);
+            const at = prevId ? dest.tasks.map((t) => t.id).indexOf(prevId) + 1 : 0;
+            dest.tasks.splice(at, 0, task);
+
+            if (snap() === before) return;                 // volvio a su sitio: no se escribe
+            this.persist(list, true);
+            if (fromSec !== dest) this.renderMain();        // cambiaron los contadores por seccion
+        }
+
         refOf($el) {
             const $task = $el.closest('.tdw-task');
             const key   = ($task.length && $task.data('key')) || this.openKey;

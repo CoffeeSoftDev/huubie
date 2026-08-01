@@ -626,12 +626,13 @@ class TicketsView extends Templates {
             id:     'ticketPaper',
             class:  'ticket-paper',
             json:   null,
-            emisor: { razon: '', domicilio: '', telefono: '' },
-            // El papel no es un comprobante fiscal y lo dice al pie: es la leyenda
-            // impresa, no un dato de la sucursal.
+            emisor: { razon: '', rfc: '', domicilio: '', telefono: '' },
+            // El papel no es un comprobante fiscal y lo dice bajo los importes,
+            // donde lo imprime el POS: es la leyenda impresa, no un dato de la
+            // sucursal.
             labels: {
                 empty:   'Sin ticket seleccionado',
-                leyenda: 'Este ticket no es un comprobante fiscal'
+                leyenda: 'ESTE NO ES UN COMPROBANTE FISCAL'
             }
         };
 
@@ -668,39 +669,50 @@ class TicketsView extends Templates {
             </tr>
         `).join('');
 
+        // Los dos importes que el papel imprime en un mismo renglon bajo el total.
+        const parRow = (k1, v1, k2, v2) => `
+            <tr>
+                <td>${esc(k1)}${esc(v1)}</td>
+                <td class="text-right">${esc(k2)}${esc(v2)}</td>
+            </tr>
+        `;
+
         wrap.html(`
             <div class="text-center">
                 <p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>
+                ${m.rfc ? `<p>RFC: ${esc(m.rfc)}</p>` : ''}
                 <p>${esc(m.domicilio)}</p>
-                <p>${esc(m.telefono)}</p>
+                ${m.telefono ? `<p>TEL: ${esc(m.telefono)}</p>` : ''}
             </div>
             <div class="tk-sep"></div>
             <table>
                 <tr><td>NOTA:</td><td class="text-right font-bold">${esc(e.nota)}</td></tr>
-                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
                 ${row('MESA:',   e.mesa)}
-                ${row('MESERO:', e.mesero)}
                 ${row('TICKET:', e.folio)}
+                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
             </table>
             <div class="tk-sep"></div>
             <table>
                 <thead>
-                    <tr><td class="font-bold">CANT DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
+                    <tr><td class="font-bold">CANT. DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
                 </thead>
                 <tbody>${lineas}</tbody>
             </table>
-            <div class="tk-sep"></div>
+            <div class="tk-total">
+                <table>
+                    <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
+                </table>
+            </div>
             <table>
                 <tr><td>SUBTOTAL:</td><td class="text-right">${esc(e.subtotal)}</td></tr>
                 ${vacio(e.descuento) ? '' : `<tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(e.descuento)}</td></tr>`}
                 ${e.iva === undefined ? '' : `<tr><td>${esc(e.ivaLabel || 'IVA:')}</td><td class="text-right">${esc(e.iva)}</td></tr>`}
                 <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
             </table>
+            <p class="text-center font-bold mt-2">${esc(opts.labels.leyenda)}</p>
             <div class="tk-sep"></div>
             <div class="text-center">
-                <p>PAGO: ${esc(String(e.metodo).toUpperCase())}</p>
-                <p class="mt-1.5">GRACIAS POR SU VISITA</p>
-                <p class="mt-1.5 text-gray-400">${esc(opts.labels.leyenda)}</p>
+                <p>GRACIAS POR SU VISITA</p>
             </div>
         `);
 

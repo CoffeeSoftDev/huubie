@@ -6,9 +6,19 @@
       "title": "Contenedor principal",
       "tasks": [
         {
-          "id": "t38pe0vq",
-          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
-          "done": true
+          "id": "tocria15",
+          "text": "Quitar la info que tiene pagos y reporte de ventas",
+          "done": false
+        },
+        {
+          "id": "tnwbog56",
+          "text": "Revisar que los datos se subieron correctamente",
+          "done": false
+        },
+        {
+          "id": "t8xoj4lc",
+          "text": "Quitar el background azul de los grupos de la tabla",
+          "done": false
         },
         {
           "id": "tu4nec9i",
@@ -31,19 +41,9 @@
           "done": true
         },
         {
-          "id": "ti7ejd1t",
-          "text": "mostra un emptyState en reporte de ventas y comandas",
-          "done": false
-        },
-        {
-          "id": "tnwbog56",
-          "text": "Revisar que los datos se subieron correctamente",
-          "done": false
-        },
-        {
-          "id": "tocria15",
-          "text": "Quitar la info que tiene pagos y reporte de ventas",
-          "done": false
+          "id": "t38pe0vq",
+          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
+          "done": true
         }
       ]
     },
@@ -52,13 +52,13 @@
       "title": "Ventas y pagos",
       "tasks": [
         {
-          "id": "t8xoj4lc",
-          "text": "Quitar el background azul de los grupos de la tabla",
+          "id": "tqp02f8q",
+          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos",
           "done": false
         },
         {
-          "id": "tqp02f8q",
-          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos",
+          "id": "ti7ejd1t",
+          "text": "mostra un emptyState en reporte de ventas y comandas",
           "done": false
         },
         {
