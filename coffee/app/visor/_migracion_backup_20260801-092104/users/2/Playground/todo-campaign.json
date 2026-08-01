@@ -1,0 +1,21 @@
+{
+  "title": "Campañas",
+  "sections": [
+    {
+      "id": "supadm4w",
+      "title": "Administrador",
+      "tasks": [
+        {
+          "id": "tag4s8jh",
+          "text": "Quiero ver al seleccionar una estrategia que formula se usara para realizar el calculo",
+          "done": false
+        },
+        {
+          "id": "t3s0o9hb",
+          "text": "Cambiar el orden , debe seleccionar acorde a la red social y estrategia",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

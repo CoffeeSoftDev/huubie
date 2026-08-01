@@ -144,6 +144,49 @@
         lastError: function () { return _last; }
     };
 
+    /* ── Temas de la interfaz ────────────────────────────────────────────────
+     * Catalogo unico para todas las paginas del visor. Cada modulo guardaba su
+     * tema con `t === 'light' ? 'light' : 'dark'`, asi que cualquier valor nuevo
+     * caia en "dark" y no habia forma de sumar un tercero sin tocar seis archivos
+     * a mano. Aqui vive la lista y la normalizacion; los modulos solo preguntan.
+     *
+     * `dark` es el navy de siempre con terracota; `midnight`, azul noche con
+     * celeste; `light`, el claro. Los dos primeros son oscuros, asi que un modulo
+     * que solo distinga claro/oscuro puede usar `isDark()`.
+     */
+    const THEMES = [
+        { key: 'dark',     label: 'Oscuro',     icon: 'moon',  dark: true  },
+        { key: 'midnight', label: 'Medianoche', icon: 'stars', dark: true  },
+        { key: 'light',    label: 'Claro',      icon: 'sun',   dark: false }
+    ];
+
+    function themeOf(key) {
+        const k = String(key || '');
+        return THEMES.filter(function (t) { return t.key === k; })[0] || THEMES[0];
+    }
+
+    global.CoffeeTheme = {
+        LIST: THEMES,
+        /** Valor valido a partir de cualquier cosa guardada. */
+        normalize: function (key) { return themeOf(key).key; },
+        /** Ficha del tema (label, icono, si es oscuro). */
+        info: function (key) { return themeOf(key); },
+        /** ¿Se pinta sobre fondo oscuro? Para quien solo necesita saber eso. */
+        isDark: function (key) { return themeOf(key).dark; },
+        /** Siguiente tema del ciclo, para el boton de la barra. */
+        next: function (key) {
+            const i = THEMES.indexOf(themeOf(key));
+            return THEMES[(i + 1) % THEMES.length].key;
+        },
+        /** Lo escribe en el documento. Devuelve el tema aplicado. */
+        apply: function (key) {
+            const t = themeOf(key).key;
+            document.documentElement.setAttribute('data-theme', t);
+            document.body.setAttribute('data-theme', t);
+            return t;
+        }
+    };
+
     if (global.jQuery) {
         global.jQuery(sync);
     } else {

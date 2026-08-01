@@ -31,7 +31,7 @@
     width: 38px; height: 38px; border-radius: 9px;
     display: grid; place-items: center;
     font-weight: 800; font-size: 14px; letter-spacing: .5px;
-    color: #fff; background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
+    color: #fff; background: linear-gradient(135deg, var(--vsr-accent), var(--vsr-brand-hi));
 }
 .pg-title { font-weight: 700; font-size: 14px; color: var(--vsr-text); }
 .pg-subtitle { font-size: 11px; color: var(--vsr-text-muted); }

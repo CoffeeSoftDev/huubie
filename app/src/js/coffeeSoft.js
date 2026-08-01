@@ -6177,6 +6177,229 @@ class Templates extends Components {
         $(`#${opts.parent}`).simple_json_tab({ data: opts.json });
     }
 
+    // -- Alert component --
+
+    alertBox(options) {
+        // Botón OK por defecto: terracota Arcilla Invernal (acento de la casa).
+        // Se puede sobrescribir por llamada pasando `okBg` en options.
+        const OK_TERRACOTA = 'bg-[#C05A40] hover:bg-[#A84A33]';
+
+        if (!document.getElementById('tf-alert-anim')) {
+            const style = document.createElement('style');
+            style.id = 'tf-alert-anim';
+            style.textContent = `
+                @keyframes tfAlertPop {
+                    0%   { transform: scale(.7);  opacity: 0; }
+                    45%  { transform: scale(1.05); }
+                    80%  { transform: scale(.97); }
+                    100% { transform: scale(1);   opacity: 1; }
+                }
+                @keyframes tfAlertHide {
+                    0%   { transform: scale(1);  opacity: 1; }
+                    100% { transform: scale(.6); opacity: 0; }
+                }
+                @keyframes tfAlertFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes tfAlertFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                .tf-alert-card.tf-ab-in   { animation: tfAlertPop  .32s cubic-bezier(.34,1.56,.64,1) both; }
+                .tf-alert-card.tf-ab-out  { animation: tfAlertHide .2s  ease-in both; }
+                .tf-ab-backdrop.tf-ab-in  { animation: tfAlertFadeIn  .25s ease both; }
+                .tf-ab-backdrop.tf-ab-out { animation: tfAlertFadeOut .2s  ease both; }
+                @media (prefers-reduced-motion: reduce) {
+                    .tf-alert-card.tf-ab-in, .tf-alert-card.tf-ab-out,
+                    .tf-ab-backdrop.tf-ab-in, .tf-ab-backdrop.tf-ab-out { animation: none; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Superficie de la tarjeta por tema. La clara queda tal cual estaba: sin
+        // `theme` el componente pinta igual que antes y los modulos que ya lo llaman
+        // no se enteran del cambio.
+        const themes = {
+            light: {
+                backdrop:   'bg-black/40',
+                card:       'bg-white border-gray-200',
+                title:      'text-gray-800',
+                detail:     'text-gray-500',
+                inputLabel: 'text-gray-600',
+                input:      'text-gray-800 bg-white border-gray-300',
+                cancel:     'text-gray-600 bg-white border-gray-300 hover:bg-gray-100 hover:text-gray-800'
+            },
+            dark: {
+                backdrop:   'bg-black/60',
+                card:       'bg-[#1F2A37] border-[#374151]',
+                title:      'text-gray-100',
+                detail:     'text-gray-400',
+                inputLabel: 'text-gray-300',
+                input:      'text-gray-100 bg-[#111928] border-[#374151]',
+                cancel:     'text-gray-300 bg-[#111928] border-[#374151] hover:bg-[#374151] hover:text-white'
+            }
+        };
+
+        // El halo del icono cambia con el tema: los bg-*-50 de Tailwind son manchas
+        // blancas sobre fondo oscuro, asi que en dark se vuelven tinte translucido.
+        const presets = {
+            message: { icon: 'info',           light: ['bg-blue-50',  'text-blue-600'],  dark: ['bg-blue-500/15',  'text-blue-400'],  dual: false, okLabel: 'Entendido' },
+            success: { icon: 'check-circle',   light: ['bg-green-50', 'text-green-600'], dark: ['bg-green-500/15', 'text-green-400'], dual: false, okLabel: 'Entendido' },
+            error:   { icon: 'x-circle',       light: ['bg-red-50',   'text-red-600'],   dark: ['bg-red-500/15',   'text-red-400'],   dual: false, okLabel: 'Entendido' },
+            warning: { icon: 'alert-triangle', light: ['bg-amber-50', 'text-amber-500'], dark: ['bg-amber-500/15', 'text-amber-400'], dual: false, okLabel: 'Entendido' },
+            confirm: { icon: 'help-circle',    light: ['bg-blue-50',  'text-blue-600'],  dark: ['bg-blue-500/15',  'text-blue-400'],  dual: true,  okLabel: 'Confirmar' },
+            cancel:  { icon: 'alert-triangle', light: ['bg-red-50',   'text-red-500'],   dark: ['bg-red-500/15',   'text-red-400'],   dual: true,  okLabel: 'Sí, continuar' }
+        };
+
+        const theme = String((options && options.theme) || 'light').toLowerCase();
+        const skin  = themes[theme] || themes.light;
+        const type  = String((options && options.type) || 'message').toLowerCase();
+        const base  = presets[type] || presets.message;
+        const tone  = base[theme] || base.light;
+
+        const defaults = {
+            parent:      'body',
+            id:          'alertBox_' + Date.now(),
+            type:        'message',
+            theme:       'light',
+            icon:        base.icon,
+            iconBg:      tone[0],
+            iconColor:   tone[1],
+            title:       '',
+            detailHtml:  '',
+            dual:        base.dual,
+            cancelLabel: 'Cancelar',
+            okLabel:     base.okLabel,
+            okIcon:      '',
+            okBg:        OK_TERRACOTA,
+            width:       base.dual ? 'w-[360px]' : 'w-[340px]',
+            timer:       0,
+            // Campo de entrada opcional. `input`: 'text' | 'textarea' | true (= 'text').
+            // El valor capturado se pasa como argumento a onOk(value).
+            input:          false,
+            inputLabel:     '',
+            inputPlaceholder: '',
+            inputValue:     '',
+            inputRequired:  false,
+            inputError:     'Este campo es obligatorio',
+            inputValidator: null,
+            onOk:        null,
+            onCancel:    null,
+            onClose:     null
+        };
+
+        const opts   = Object.assign({}, defaults, options);
+        const onOk    = typeof opts.onOk    === 'function' ? opts.onOk    : opts.onClose;
+        const onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : opts.onClose;
+
+        const $parent = $(opts.parent === 'body' ? 'body' : '#' + opts.parent);
+        const uid     = opts.id;
+
+        const detailHtml = opts.detailHtml
+            ? `<p class="text-[12px] ${skin.detail} leading-relaxed mt-1.5">${opts.detailHtml}</p>`
+            : '';
+
+        const okIconHtml = opts.okIcon
+            ? `<i data-lucide="${opts.okIcon}" class="w-3.5 h-3.5"></i>`
+            : '';
+
+        const escAttr = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const inputType = opts.input === true ? 'text' : opts.input;
+        const inputField = inputType === 'textarea'
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">${escAttr(opts.inputValue)}</textarea>`
+            : inputType
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">`
+                : '';
+
+        const inputHtml = inputField
+            ? `<div class="px-5 pt-1 pb-4 text-left">
+                    ${opts.inputLabel ? `<label class="block text-[11px] font-bold ${skin.inputLabel} mb-1.5">${opts.inputLabel}</label>` : ''}
+                    ${inputField}
+                    <p data-ab-input-error class="hidden text-[11px] font-medium text-red-500 mt-1.5"></p>
+               </div>`
+            : '';
+
+        // Modo toast: con auto-cierre (timer) y sin segundo boton, no se muestran
+        // botones porque la notificacion se cierra sola. Con input no aplica toast.
+        const isToast = opts.timer > 0 && !opts.dual && !inputField;
+
+        const cancelBtn = opts.dual
+            ? `<button type="button" data-ab-cancel class="flex-1 min-w-[110px] whitespace-nowrap py-2.5 rounded-xl text-[12px] font-bold border ${skin.cancel} transition-all">${opts.cancelLabel}</button>`
+            : '';
+
+        const okBtn = `<button type="button" data-ab-ok class="${opts.dual ? 'flex-1 min-w-[110px] whitespace-nowrap' : 'w-full'} py-2.5 rounded-xl text-[12px] font-bold text-white ${opts.okBg} transition-all flex items-center justify-center gap-1.5">${okIconHtml}${opts.okLabel}</button>`;
+
+        const buttonsHtml = isToast
+            ? ''
+            : `<div class="px-5 pb-4 flex gap-2">${cancelBtn}${okBtn}</div>`;
+
+        const $overlay = $(`
+            <div id="${uid}" class="fixed inset-0 z-[10001] flex items-center justify-center">
+                <div class="absolute inset-0 ${skin.backdrop} tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
+                <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] border ${skin.card} rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+                    <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
+                        <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
+                            <i data-lucide="${opts.icon}" class="w-7 h-7 ${opts.iconColor}"></i>
+                        </div>
+                        <p class="text-[14px] font-bold ${skin.title} leading-snug">${opts.title}</p>
+                        ${detailHtml}
+                    </div>
+                    ${inputHtml}
+                    ${buttonsHtml}
+                </div>
+            </div>
+        `);
+
+        $parent.append($overlay);
+        if (window.lucide) lucide.createIcons();
+
+        const $input    = $overlay.find('[data-ab-input]');
+        const $inputErr = $overlay.find('[data-ab-input-error]');
+        const getValue  = () => $input.length ? String($input.val()).trim() : undefined;
+        const showError = (msg) => {
+            $inputErr.text(msg).removeClass('hidden');
+            $input.addClass('border-red-400 focus:ring-red-400/40 focus:border-red-400').trigger('focus');
+        };
+
+        let dismissed = false;
+        const dismiss = (isOk) => {
+            if (dismissed) return;
+
+            // Validacion del input solo al confirmar (OK).
+            if (isOk && inputField) {
+                const val = getValue();
+                if (opts.inputRequired && !val) return showError(opts.inputError);
+                if (typeof opts.inputValidator === 'function') {
+                    const msg = opts.inputValidator(val);
+                    if (msg) return showError(msg);
+                }
+            }
+
+            dismissed = true;
+            $overlay.find('.tf-alert-card').removeClass('tf-ab-in').addClass('tf-ab-out');
+            $overlay.find('[data-ab-backdrop]').removeClass('tf-ab-in').addClass('tf-ab-out');
+            setTimeout(() => $overlay.remove(), 200);
+            const cb = isOk ? onOk : onCancel;
+            if (typeof cb === 'function') cb(inputField ? getValue() : undefined);
+        };
+
+        $overlay.find('[data-ab-ok]').on('click', () => dismiss(true));
+        $overlay.find('[data-ab-cancel]').on('click', () => dismiss(false));
+        $overlay.find('[data-ab-backdrop]').on('click', () => dismiss(!opts.dual));
+
+        if ($input.length) {
+            $input.on('input', () => $inputErr.addClass('hidden'));
+            if (inputType !== 'textarea') {
+                $input.on('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); dismiss(true); } });
+            }
+            setTimeout(() => $input.trigger('focus'), 60);
+        }
+
+        // Auto-cierre opcional (estilo toast) para notificaciones no bloqueantes.
+        if (opts.timer > 0 && !opts.dual && !inputField) {
+            setTimeout(() => dismiss(true), opts.timer);
+        }
+    }
+
 }
 
 

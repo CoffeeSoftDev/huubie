@@ -12,12 +12,12 @@ $(async () => {
 
 class App extends Templates {
 
-    // El tipo vive aqui y no en el campo: el filterBar se repinta al cambiar de vista.
+    // La clase vive aqui y no en el campo: el filterBar se repinta al cambiar de vista.
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
         this.view         = 'productos';
-        this.tipo         = 'puente';
+        this.clase        = 'puente';
     }
 
     async init() {
@@ -34,7 +34,6 @@ class App extends Templates {
         if (this.view === 'productos') {
             catalogosView.renderNote();
             catalogos.lsProductos();
-            catalogos.lsKpis();
         } else {
             catalogosView.renderEmisor(this.dataInit.emisor);
         }
@@ -121,10 +120,10 @@ class App extends Templates {
         return [
             {
                 opc:      'select',
-                id:       'fTipo',
+                id:       'fClase',
                 lbl:      'Tipo de producto:',
                 class:    'col-12 col-md-3 col-lg-2',
-                value:    this.tipo,
+                value:    this.clase,
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.tipos
@@ -142,21 +141,23 @@ class App extends Templates {
     }
 
     // El buscador no esta pintado: q viaja vacio porque el servidor arma el LIKE con el.
+    // La marca viaja como 'clase' y no como 'tipo': createTable reserva esa llave para
+    // el modo de validar_contenedor, y un 'tipo' propio le impediria armar el envio.
     getFilters() {
         return {
-            q:    '',
-            tipo: this.tipo
+            q:     '',
+            clase: this.clase
         };
     }
 
     onChangeFilters() {
-        this.tipo = $('#fTipo').val() || '';
+        this.clase = $('#fClase').val() || '';
 
         catalogos.lsProductos();
     }
 
     emptyMessage() {
-        return this.tipo === 'puente'
+        return this.clase === 'puente'
             ? 'Aun no hay productos auxiliares dados de alta'
             : 'No hay productos con el filtro aplicado';
     }
@@ -180,43 +181,36 @@ class Catalogos extends App {
 
     // -- Data --
 
-    async lsProductos() {
-        const data = await useFetch({ url: apiCatalogos, data: Object.assign({ opc: 'lsProductos' }, app.getFilters()) });
-
-        this.createCoffeeTable3({
-            parent:        'viewBody',
-            id:            'tbProductos',
-            theme:         FACTURE_THEME,
-            center:        [4, 5, 6],
-            right:         [3],
-            actionsAlign:  'center',
-            extends:       true,
-            scrollable:    false,
-            hover:         true,
-            f_size:        11,
-            border_table:  'border-0',
-            emptyMessage:  app.emptyMessage(),
-            emptyIcon:     'ic-box',
-            data:          data
+    // createTable pide los datos, pinta con createCoffeeTable3 y monta DataTables en
+    // una sola pasada. Los kpis viajan en esa misma respuesta (ctrl:lsProductos), asi
+    // que el interruptor de la celda solo da una vuelta al servidor para refrescar
+    // tabla y tarjetas.
+    lsProductos() {
+        this.createTable({
+            parent:      'viewBody',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
+            coffeesoft:  true,
+            data:        Object.assign({ opc: 'lsProductos' }, app.getFilters()),
+            attr: {
+                id:           'tbProductos',
+                theme:        FACTURE_THEME,
+                center:       [4, 5, 6],
+                right:        [3],
+                actionsAlign: 'center',
+                hover:        true,
+                f_size:       11,
+                border_table: 'border-0',
+                emptyMessage: app.emptyMessage(),
+                emptyIcon:    'ic-box'
+            },
+            conf: {
+                fn_datatable: 'dataTableCatalogos',
+                pag:          12
+            },
+            methods: {
+                send: (data) => { if (data.kpis) catalogosView.renderInfoCards(data.kpis); }
+            }
         });
-
-        if (window.lucide) lucide.createIcons();
-
-        this.dataTable('#tbProductos', data);
-    }
-
-    // Sin filas createCoffeeTable3 pinta el aviso de vacio y no un <table>: DataTables
-    // dejaria la paginacion colgando debajo del mensaje.
-    dataTable(id, data) {
-        if (!(data.row || []).length) return;
-
-        if (typeof simple_data_table === 'function') simple_data_table(id, 12);
-    }
-
-    async lsKpis() {
-        const kpis = await useFetch({ url: apiCatalogos, data: { opc: 'showKpis' } });
-
-        catalogosView.renderInfoCards(kpis);
     }
 
     // -- Actions --
@@ -248,6 +242,7 @@ class Catalogos extends App {
         if (response.status === 200) app.dataInit.emisor = response.emisor;
 
         this.alertBox({
+            theme: FACTURE_THEME,
             type:  response.status === 200 ? 'success' : 'error',
             title: response.message,
             timer: response.status === 200 ? 1600 : 0
@@ -267,7 +262,7 @@ class Catalogos extends App {
 
         if (response.status === 200) return this.refresh();
 
-        this.alertBox({ type: 'error', title: response.message });
+        this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message });
     }
 
     editProductoStatus(code, valor) {
@@ -304,6 +299,7 @@ class Catalogos extends App {
         if (response.status === 200) this.refresh();
 
         this.alertBox({
+            theme: FACTURE_THEME,
             type:  response.status === 200 ? 'success' : 'error',
             title: response.message,
             timer: response.status === 200 ? 1600 : 0
@@ -312,7 +308,6 @@ class Catalogos extends App {
 
     refresh() {
         this.lsProductos();
-        this.lsKpis();
     }
 }
 
@@ -999,4 +994,15 @@ class CatalogosView extends Templates {
             });
         }
     }
+}
+
+// -- Complementos --
+
+// createTable la busca en window y la llama despues de pintar. Sin filas
+// createCoffeeTable3 escribe el aviso de vacio y no un <table>: DataTables dejaria
+// la paginacion colgando debajo del mensaje.
+function dataTableCatalogos(id, pag) {
+    if (!$(id).length) return;
+
+    if (typeof simple_data_table === 'function') simple_data_table(id, pag);
 }

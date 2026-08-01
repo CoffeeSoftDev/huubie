@@ -2,7 +2,9 @@
    Vive fuera de visor.css porque lo cargan tambien playground, forge y studio, que
    no comparten el resto de los estilos del visor. Los colores salen de las
    variables --vsr-* para que siga el tema activo sin duplicar paletas. */
-.tdw-veil {
+/* La misma vista de lista se monta en dos sitios: la ventana (.tdw-veil) y la hoja
+   del visor cuando abre un todo.json (.tdw-embed). Las dos declaran la paleta. */
+.tdw-veil, .tdw-embed, .tdw-fields {
     --tdw-sky:      #38BDF8;
     --tdw-sky-soft: rgba(56, 189, 248, .21);
     --tdw-sky-line: rgba(56, 189, 248, .35);
@@ -10,8 +12,13 @@
     --tdw-mute:     #9CA3AF;
     --tdw-line:     rgba(55, 65, 81, .45);
     --tdw-tint:     rgba(148, 163, 184, .06);
+    --tdw-scroll:     rgba(148, 163, 184, .28);   /* pulgar del scrollbar: gris del tema */
+    --tdw-scroll-hov: rgba(148, 163, 184, .48);
+    --tdw-on-sky:     #06283D;                   /* texto legible SOBRE el acento */
 }
-[data-theme="light"] .tdw-veil {
+[data-theme="light"] .tdw-veil,
+[data-theme="light"] .tdw-embed,
+[data-theme="light"] .tdw-fields {
     --tdw-sky:      #0284C7;
     --tdw-sky-soft: #E0F2FE;
     --tdw-sky-line: rgba(2, 132, 199, .3);
@@ -19,7 +26,38 @@
     --tdw-mute:     #6B7280;
     --tdw-line:     #E5E7EB;
     --tdw-tint:     rgba(17, 24, 39, .04);
+    --tdw-scroll:     rgba(100, 116, 139, .32);
+    --tdw-scroll-hov: rgba(100, 116, 139, .52);
+    --tdw-on-sky:     #FFFFFF;
 }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────────
+   El navegador pinta uno grueso y de un gris que no pertenece a ninguna paleta.
+   Aqui va fino y en el gris del tema (mas claro sobre fondo oscuro, mas oscuro sobre
+   fondo claro). En gris a proposito: es cromo de la ventana, no un elemento de la
+   interfaz, y tenirlo del acento competia con lo que si importa. Firefox usa
+   `scrollbar-width/color`; los WebKit, las reglas de abajo. */
+/* `scrollbar-width` no se hereda: hay que declararlo en cada contenedor que
+   scrollea, no en la raiz. */
+.tdw-veil, .tdw-embed,
+.tdw-scroll, .tdw-rail-scroll, .tdw-prop-body, .tdw-accents, .tdw-share-list,
+.tdw-veil textarea, .tdw-embed textarea {
+    scrollbar-width: thin;
+    scrollbar-color: var(--tdw-scroll) transparent;
+}
+.tdw-veil ::-webkit-scrollbar,
+.tdw-embed ::-webkit-scrollbar { width: 7px; height: 7px; }
+.tdw-veil ::-webkit-scrollbar-track,
+.tdw-embed ::-webkit-scrollbar-track { background: transparent; }
+.tdw-veil ::-webkit-scrollbar-thumb,
+.tdw-embed ::-webkit-scrollbar-thumb {
+    background: var(--tdw-scroll); border-radius: 999px; border: 2px solid transparent;
+    background-clip: content-box;
+}
+.tdw-veil ::-webkit-scrollbar-thumb:hover,
+.tdw-embed ::-webkit-scrollbar-thumb:hover { background: var(--tdw-scroll-hov); background-clip: content-box; }
+.tdw-veil ::-webkit-scrollbar-corner,
+.tdw-embed ::-webkit-scrollbar-corner { background: transparent; }
 
 /* La ventana se abre sobre lo que estabas haciendo: el velo oscurece para que el
    foco quede aqui, y un clic fuera la cierra. */
@@ -111,13 +149,15 @@
     border-radius: 50%; background: #E5E7EB; transition: left .14s ease;
 }
 .tdw-chiprow.is-on .tdw-tog { background: var(--tdw-sky); }
-.tdw-chiprow.is-on .tdw-tog::after { left: 13px; background: #06283D; }
-[data-theme="light"] .tdw-chiprow.is-on .tdw-tog::after { background: #fff; }
+.tdw-chiprow.is-on .tdw-tog::after { left: 13px; background: var(--tdw-on-sky); }
+
 .tdw-chiprow:not(.is-on) .tdw-chip { opacity: .38; }
 
 /* ── Editor de campos de la tarea ── */
+/* z-index por encima del velo (120): este panel cuelga del <body>, no del modal, y
+   con un valor menor quedaba pintado DEBAJO de la ventana — se abria y no se veia. */
 .tdw-fields {
-    position: fixed; z-index: 70; width: 232px; padding: 12px;
+    position: fixed; z-index: 140; width: 232px; padding: 12px;
     border-radius: 12px; background: var(--vsr-bg-card); border: 1px solid var(--vsr-border);
     box-shadow: 0 16px 34px rgba(0, 0, 0, .45); animation: tdw-pop .13s ease-out;
 }
@@ -175,10 +215,10 @@
 .tdw-copied-pop {
     position: fixed; z-index: 9999; pointer-events: none; white-space: nowrap;
     padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
-    color: #06283D; background: var(--tdw-sky, #38BDF8); box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
+    color: var(--tdw-on-sky); background: var(--tdw-sky, #38BDF8); box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
     animation: tdwCopied .95s cubic-bezier(.2, .8, .3, 1) forwards;
 }
-[data-theme="light"] .tdw-copied-pop { color: #fff; }
+
 @keyframes tdwCopied {
     0%   { opacity: 0; transform: translate(-50%, 4px)   scale(.9); }
     18%  { opacity: 1; transform: translate(-50%, -15px) scale(1); }
@@ -230,7 +270,7 @@
     background: rgba(148, 163, 184, .14); color: var(--tdw-mute);
 }
 .tdw-item-dot svg { width: 15px; height: 15px; }
-.tdw-item.is-on .tdw-item-dot { background: rgba(56, 189, 248, .26); color: var(--tdw-sky); }
+.tdw-item.is-on .tdw-item-dot { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
 .tdw-item-main { flex: 1; min-width: 0; display: block; }
 .tdw-item-main b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tdw-item-main small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--tdw-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -240,7 +280,7 @@
     background: rgba(148, 163, 184, .16); color: var(--vsr-text-soft);
     font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.tdw-item.is-on .tdw-count { background: var(--tdw-sky); color: #06283D; }
+.tdw-item.is-on .tdw-count { background: var(--tdw-sky); color: var(--tdw-on-sky); }
 [data-theme="light"] .tdw-item.is-on .tdw-count { color: #fff; }
 .tdw-count.is-clear { background: rgba(52, 211, 153, .16); color: #34D399; }
 [data-theme="light"] .tdw-count.is-clear { background: #D1FAE5; color: #059669; }
@@ -274,7 +314,7 @@
 }
 .tdw-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
 .tdw-btn svg { width: 14px; height: 14px; }
-.tdw-btn.is-primary { background: var(--tdw-sky); border-color: var(--tdw-sky); color: #06283D; }
+.tdw-btn.is-primary { background: var(--tdw-sky); border-color: var(--tdw-sky); color: var(--tdw-on-sky); }
 [data-theme="light"] .tdw-btn.is-primary { color: #fff; }
 
 .tdw-progress { margin-top: 13px; display: flex; align-items: center; gap: 11px; }
@@ -310,7 +350,7 @@
 }
 .tdw-chk svg { width: 11px; height: 11px; color: transparent; }
 .tdw-task.is-done .tdw-chk { background: var(--tdw-sky); border-color: var(--tdw-sky); }
-.tdw-task.is-done .tdw-chk svg { color: #06283D; }
+.tdw-task.is-done .tdw-chk svg { color: var(--tdw-on-sky); }
 [data-theme="light"] .tdw-task.is-done .tdw-chk svg { color: #fff; }
 .tdw-txt { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.5; color: var(--vsr-text-soft); word-break: break-word; }
 .tdw-txt:focus { outline: none; color: var(--vsr-text); }
@@ -343,8 +383,8 @@
     border: 0; border-radius: 6px; padding: 4px 9px; background: transparent;
     font: inherit; font-size: 11px; font-weight: 700; color: var(--tdw-mute); cursor: pointer;
 }
-.tdw-suggest-act [data-tdw="applysuggest"] { background: var(--tdw-sky); color: #06283D; }
-[data-theme="light"] .tdw-suggest-act [data-tdw="applysuggest"] { color: #fff; }
+.tdw-suggest-act [data-tdw="applysuggest"] { background: var(--tdw-sky); color: var(--tdw-on-sky); }
+
 .tdw-suggest-act [data-tdw="skipsuggest"]:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
 .tdw-task-tools button {
     width: 23px; height: 23px; display: inline-flex; align-items: center; justify-content: center;
@@ -495,7 +535,7 @@
 .tdw-kbd { flex-shrink: 0; padding: 3px 6px; border-radius: 5px; background: rgba(148, 163, 184, .16); color: var(--tdw-dim); font-size: 10px; font-weight: 700; }
 .tdw-send {
     flex-shrink: 0; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-    border: 0; border-radius: 9px; background: var(--tdw-sky); color: #06283D; cursor: pointer;
+    border: 0; border-radius: 9px; background: var(--tdw-sky); color: var(--tdw-on-sky); cursor: pointer;
 }
 .tdw-send:hover { filter: brightness(1.08); }
 .tdw-send svg { width: 16px; height: 16px; stroke-width: 2.4; }
@@ -528,4 +568,126 @@
     .tdw-rail { width: 100%; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--vsr-border); }
     .tdw-seg button { padding: 5px 8px; font-size: 11px; }
     .tdw-mh-actions .tdw-btn span { display: none; }
+}
+
+/* ── Panel embebido (la hoja del visor con un todo.json abierto) ── */
+/* Mismo componente que dentro de la ventana, sin el armazon del modal: aqui el
+   scroll y el ancho los pone el visor, no una caja propia. */
+.tdw-embed {
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--vsr-bg-card); color: var(--vsr-text);
+    font-family: 'Inter', system-ui, sans-serif; font-size: 13px;
+}
+.tdw-embed * { box-sizing: border-box; }
+.tdw-embed .tdw-main-head { padding: 4px 2px 13px; }
+.tdw-embed .tdw-scroll { flex: 1; overflow: visible; padding: 6px 2px 4px; }
+.tdw-embed .tdw-sec:first-child { padding-top: 6px; }
+
+/* Blindaje del panel embebido.
+   Dentro del visor este panel cuelga de la hoja del documento (.md-rendered), que
+   viste sus propios h3/h4/p/code/input para leer prosa: mayusculas en los titulos
+   de seccion, interlineado de lectura, fondo en el codigo. Nada de eso debe
+   alcanzar a una interfaz, y el componente no puede saber en que hoja lo montan. */
+.tdw-embed h3, .tdw-embed h4 {
+    text-transform: none; letter-spacing: normal; line-height: 1.3;
+    border: 0; padding: 0; color: inherit; font-family: inherit;
+}
+.tdw-embed .tdw-mh-title h3 { font-size: 17px; font-weight: 700; letter-spacing: -.015em; }
+.tdw-embed .tdw-sec-head h4 { font-size: 12.5px; font-weight: 700; color: var(--vsr-text-soft); }
+.tdw-embed p, .tdw-embed ul, .tdw-embed li { margin: 0; padding: 0; list-style: none; }
+.tdw-embed code {
+    background: transparent; border: 0; padding: 0; border-radius: 0;
+    color: var(--tdw-mute); font-size: 10.5px;
+}
+.tdw-embed input, .tdw-embed button, .tdw-embed textarea { font-family: inherit; }
+.tdw-embed .tdw-txt { font-size: 12.5px; line-height: 1.5; }
+.tdw-embed a { text-decoration: none; }
+
+/* Segunda capa del blindaje: los estilos de documento del visor (data-style) visten
+   los encabezados con selectores de dos clases, que ganan a `.tdw-embed h4`. Cuando
+   el panel ES la hoja (misma etiqueta), este selector los iguala en peso y manda por
+   orden de carga, porque todo-hub.css va despues de visor.css. */
+.md-rendered.tdw-embed h3, .md-rendered.tdw-embed h4 {
+    text-transform: none; letter-spacing: normal; line-height: 1.3;
+    border: 0; padding: 0; margin: 0; font-family: inherit; color: inherit;
+}
+.md-rendered.tdw-embed .tdw-mh-title h3 { font-size: 17px; font-weight: 700; letter-spacing: -.015em; }
+.md-rendered.tdw-embed .tdw-sec-head h4 { font-size: 12.5px; font-weight: 700; color: var(--vsr-text-soft); }
+.md-rendered.tdw-embed code { background: transparent; border: 0; padding: 0; color: var(--tdw-mute); font-size: 10.5px; }
+.md-rendered.tdw-embed p, .md-rendered.tdw-embed li { margin: 0; padding: 0; }
+.md-rendered.tdw-embed .tdw-txt { font-size: 12.5px; line-height: 1.5; }
+
+/* ── Tarjeta de tareas propuestas por el chat ────────────────────────────────
+   Se pinta dentro de la conversación (visor, coffeeia o playground), así que trae
+   su propia paleta: en esos sitios no hay velo ni panel embebido que la declare. */
+.tdw-prop {
+    /* Valores de respaldo: applyAccent los pisa con el color elegido en cuanto la
+       tarjeta se monta (vive fuera del velo, en el hilo del chat). */
+    --tdw-sky: #38BDF8; --tdw-sky-soft: rgba(56,189,248,.16); --tdw-sky-line: rgba(56,189,248,.34);
+    --tdw-on-sky: #06283D;
+    --tdw-mute: #9CA3AF; --tdw-dim: #6B7280; --tdw-line: rgba(148,163,184,.28);
+    margin: 10px 0; border: 1px solid var(--tdw-sky-line); border-radius: 11px;
+    background: var(--vsr-bg-card, #16202D); overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 12.5px;
+}
+[data-theme="light"] .tdw-prop {
+    --tdw-sky: #0284C7; --tdw-sky-soft: #E0F2FE; --tdw-sky-line: rgba(2,132,199,.3);
+    --tdw-on-sky: #FFFFFF;
+    --tdw-mute: #6B7280; --tdw-dim: #9CA3AF; --tdw-line: #E5E7EB;
+}
+.tdw-prop-head {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    background: var(--tdw-sky-soft); border-bottom: 1px solid var(--tdw-sky-line);
+    font-size: 11.5px; color: var(--tdw-sky);
+}
+.tdw-prop-head b { font-weight: 700; }
+.tdw-prop-head span { margin-left: auto; font-weight: 400; color: var(--tdw-mute); font-size: 10.5px; }
+.tdw-prop-head svg { width: 14px; height: 14px; }
+.tdw-prop-body { padding: 4px 0 6px; max-height: 340px; overflow-y: auto; }
+.tdw-prop-sec { margin: 8px 0 2px; padding: 0 12px; font-size: 10.5px; font-weight: 700; color: var(--tdw-mute); }
+.tdw-prop-row {
+    display: flex; align-items: flex-start; gap: 9px; padding: 5px 12px;
+    cursor: pointer; transition: background .12s ease;
+}
+.tdw-prop-row:hover { background: rgba(148,163,184,.07); }
+.tdw-prop-row input { margin: 3px 0 0; width: 14px; height: 14px; flex: none; accent-color: var(--tdw-sky); cursor: pointer; }
+.tdw-prop-txt { flex: 1; min-width: 0; line-height: 1.45; color: var(--vsr-text, #D1D5DB); }
+.tdw-prop-txt em {
+    display: block; margin-top: 2px; font-style: normal;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: var(--tdw-dim);
+}
+.tdw-prop-row input:not(:checked) ~ .tdw-prop-txt { color: var(--tdw-dim); text-decoration: line-through; }
+.tdw-prop-row .tdw-chips { padding-top: 2px; }
+.tdw-prop-foot {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    padding: 9px 12px; border-top: 1px solid var(--tdw-line);
+}
+.tdw-prop-n { margin-right: auto; font-size: 10.5px; color: var(--tdw-mute); font-variant-numeric: tabular-nums; }
+.tdw-prop-dest {
+    max-width: 210px; padding: 4px 9px; border-radius: 999px;
+    border: 1px solid var(--tdw-sky-line); background: var(--tdw-sky-soft);
+    color: var(--tdw-sky); font: inherit; font-size: 10.5px; cursor: pointer;
+}
+.tdw-prop-dest.is-fixed { display: inline-flex; align-items: center; gap: 5px; cursor: default; }
+.tdw-prop-dest.is-fixed svg { width: 11px; height: 11px; }
+.tdw-prop-btn {
+    padding: 5px 12px; border-radius: 7px; border: 1px solid var(--tdw-line);
+    background: transparent; color: var(--tdw-mute);
+    font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .12s ease;
+}
+.tdw-prop-btn:hover { color: var(--vsr-text, #E5E7EB); background: rgba(148,163,184,.12); }
+.tdw-prop-btn.is-pri { background: var(--tdw-sky); border-color: var(--tdw-sky); color: var(--tdw-on-sky); }
+
+.tdw-prop-btn:disabled { opacity: .45; cursor: not-allowed; }
+.tdw-prop.is-sending { opacity: .75; pointer-events: none; }
+.tdw-prop.is-done { border-color: var(--tdw-line); }
+.tdw-prop-ok {
+    display: flex; align-items: center; gap: 8px; padding: 11px 13px;
+    font-size: 12px; color: #34D399;
+}
+.tdw-prop-ok span { color: var(--tdw-mute); font-size: 10.5px; }
+.tdw-prop-ok svg { width: 14px; height: 14px; }
+.tdw-prop-ok.is-skip { color: var(--tdw-mute); }
+.tdw-prop-dest.is-empty {
+    border-style: dashed; background: transparent; color: var(--tdw-mute); cursor: default;
 }

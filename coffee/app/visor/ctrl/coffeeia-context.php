@@ -537,11 +537,23 @@ function coffeeia_extract_usage(array $res) {
  * inconclusa + ronda de rescate (corrige). */
 
 /** Regla anti-narración: se anexa como system al entrar a un loop de tools. */
-function coffeeia_tool_discipline_msg() {
-    return ['role' => 'system', 'content' =>
-        'REGLA DE HERRAMIENTAS: nunca anuncies en prosa que "vas a" consultar, explorar o leer algo — '
-      . 'ejecuta la herramienta correspondiente en ese MISMO turno y encadena las llamadas que hagan '
-      . 'falta hasta tener el dato. Tu respuesta final debe estar COMPLETA, sin acciones pendientes.'];
+function coffeeia_tool_discipline_msg(array $names = []) {
+    $txt = 'REGLA DE HERRAMIENTAS: nunca anuncies en prosa que "vas a" consultar, explorar o leer algo — '
+         . 'ejecuta la herramienta correspondiente en ese MISMO turno y encadena las llamadas que hagan '
+         . 'falta hasta tener el dato. Tu respuesta final debe estar COMPLETA, sin acciones pendientes.';
+
+    // La regla de arriba solo habla de leer. Sin esta, el modelo escribe la lista de
+    // tareas en prosa y nunca llama a la herramienta que la convierte en tarjeta.
+    if (isset($names['todo_propose'])) {
+        $txt .= "\n\n"
+              . 'TAREAS: cuando el usuario pida anotar, apuntar o agregar algo a su TODO, o cuando tu '
+              . 'respuesta vaya a terminar en una lista de cosas por hacer (hallazgos de una revision, '
+              . 'pendientes, pasos a corregir), llama a `todo_propose` con esas tareas en ESE MISMO turno '
+              . 'en vez de escribirlas en prosa. La herramienta no guarda nada: solo se las enseña al '
+              . 'usuario para que elija cuales acepta. Una sola llamada con todas las secciones.';
+    }
+
+    return ['role' => 'system', 'content' => $txt];
 }
 
 /** ¿La respuesta CIERRA anunciando una accion pendiente en vez de ejecutarla?
@@ -661,7 +673,7 @@ function coffeeia_run_tool_loop($client, array $messages, $model, array $ctx, ar
     $rounds  = 0;
     $rescued = false;
     $trunc   = false;   // corte por limite de tokens en la respuesta final (done/finish_reason = 'length')
-    $messages[] = coffeeia_tool_discipline_msg();
+    $messages[] = coffeeia_tool_discipline_msg($rows);
 
     // (int)$rescued: la ronda de rescate concede UNA iteracion extra sobre el tope.
     for ($round = 0; $round < $maxRounds + (int) $rescued; $round++) {

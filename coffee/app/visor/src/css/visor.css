@@ -16,6 +16,7 @@ html, body { height: 100%; }
     --vsr-bg-card:      #1F2A37;
     --vsr-bg-input:     #1F2A37;
     --vsr-bg-hover:     #1a2332;
+    --vsr-bg-soft:      #172030;
 
     --vsr-text:         #ffffff;
     --vsr-text-soft:    #E5E7EB;
@@ -32,6 +33,12 @@ html, body { height: 100%; }
     --vsr-accent-soft:  #E8A68F;
     --vsr-accent-tint:  rgba(192,90,64,0.18);
 
+    /* Degradado del logotipo de la barra: `lo` es el tono claro, `hi` el oscuro,
+       y `glow` su sombra. Estaban clavados en cinco archivos distintos. */
+    --vsr-brand-lo:     #E8A68F;
+    --vsr-brand-hi:     #8e3f2c;
+    --vsr-brand-glow:   rgba(192,90,64,.35);
+
     --vsr-shadow-chrome: 0 4px 8px rgba(0,0,0,0.3);
     --vsr-scrollbar:     #374151;
     --vsr-scrollbar-hov: #4B5563;
@@ -45,6 +52,7 @@ html, body { height: 100%; }
     --vsr-bg-card:      #FFFFFF;
     --vsr-bg-input:     #FFFFFF;
     --vsr-bg-hover:     #F3F4F6;
+    --vsr-bg-soft:      #F9FAFB;
 
     --vsr-text:         #111827;
     --vsr-text-soft:    #1F2937;
@@ -61,10 +69,70 @@ html, body { height: 100%; }
     --vsr-accent-soft:  #A84A33;
     --vsr-accent-tint:  rgba(192,90,64,0.10);
 
+    --vsr-brand-lo:     #E8A68F;
+    --vsr-brand-hi:     #8e3f2c;
+    --vsr-brand-glow:   rgba(192,90,64,.25);
+
     --vsr-shadow-chrome: 0 1px 4px rgba(17,24,39,0.06);
     --vsr-scrollbar:     #D1D5DB;
     --vsr-scrollbar-hov: #9CA3AF;
 }
+
+/* ── Tokens MIDNIGHT — Azul profundo con acento celeste ─────────────────────
+   Tercer tema, hermano del oscuro: mismo esquema (fondos bajos, texto claro), otra
+   temperatura. Donde "dark" es navy con terracota, este es azul noche con celeste.
+   Al ser oscuro no necesita reglas propias en los modulos: los bloques
+   [data-theme="light"] no le aplican y hereda todo lo demas de la base. */
+
+[data-theme="midnight"] {
+    --vsr-bg-base:      #0B1420;
+    --vsr-bg-chrome:    #101B29;
+    --vsr-bg-card:      #142132;
+    --vsr-bg-input:     #16243A;
+    --vsr-bg-hover:     #1B2C44;
+    --vsr-bg-soft:      #121D2E;
+
+    --vsr-text:         #EAF2FB;
+    --vsr-text-soft:    #D3E0EF;
+    --vsr-text-mid:     #B3C4D8;
+    --vsr-text-muted:   #8CA0B8;
+    --vsr-text-mute2:   #61748C;
+
+    /* Los bordes llevan una gota del acento: es lo que da el aire "futurista"
+       sin subir el contraste ni ensuciar los fondos. */
+    --vsr-border:       rgba(56,189,248,.16);
+    --vsr-border-soft:  rgba(56,189,248,.10);
+    --vsr-border-input: rgba(56,189,248,.20);
+    --vsr-divider:      rgba(56,189,248,.20);
+
+    --vsr-accent:       #38BDF8;
+    --vsr-accent-soft:  #7DD3FC;
+    --vsr-accent-tint:  rgba(56,189,248,.16);
+
+    --vsr-brand-lo:     #7DD3FC;
+    --vsr-brand-hi:     #0284C7;
+    --vsr-brand-glow:   rgba(56,189,248,.35);
+
+    --vsr-shadow-chrome: 0 4px 14px rgba(2,8,20,.55);
+    --vsr-scrollbar:     #26384F;
+    --vsr-scrollbar-hov: #33506E;
+}
+
+/* Badges de cuenta y perfil en MIDNIGHT.
+   El avatar lleva el color guardado del perfil como estilo inline (lo escribe
+   account-menu.js), asi que en la barra convivian un azul oscuro y un terracota que
+   no eran de este tema. Aqui se alinean al acento: el `!important` es para ganarle
+   al inline, que es la unica forma de pisarlo sin repintar desde JS al cambiar de
+   tema. Los otros dos temas conservan el color propio de cada perfil. */
+[data-theme="midnight"] .account-avatar,
+[data-theme="midnight"] .acct-profile-avatar,
+[data-theme="midnight"] .acct-avatar-preview {
+    background: var(--vsr-accent) !important;
+    color: #06283D;
+}
+[data-theme="midnight"] .account-avatar img,
+[data-theme="midnight"] .acct-profile-avatar img,
+[data-theme="midnight"] .acct-avatar-preview img { mix-blend-mode: normal; }
 
 /* ── Layout base ───────────────────────────────────────────── */
 
@@ -930,10 +998,10 @@ textarea.acct-input { resize: vertical; }
 
 .visor-logo {
     width: 36px; height: 36px; border-radius: 10px;
-    background: linear-gradient(135deg, #C05A40 0%, #E8A68F 100%);
+    background: linear-gradient(135deg, var(--vsr-accent) 0%, var(--vsr-brand-lo) 100%);
     display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 14px; letter-spacing: .5px; color: #fff;
-    box-shadow: 0 4px 12px rgba(192,90,64,.35);
+    box-shadow: 0 4px 12px var(--vsr-brand-glow);
 }
 
 .user-avatar {
@@ -1789,141 +1857,11 @@ body.stage-resizing * { cursor: ew-resize !important; user-select: none !importa
 .md-rendered.wysiwyg-editing li.task-list-item input[type="checkbox"] { pointer-events: auto; }
 
 /* ── Panel TODO dinámico (todo.json) ── */
-/* Solo se oculta el aside (body.todo-mode) para que la hoja del TODO ocupe el
-   contenedor. La hoja conserva su aspecto de .md-rendered (redondeo/borde/sombra). */
+/* Se oculta el aside (body.todo-mode) para que el panel ocupe el contenedor. */
 body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Frontmatter + TOC) */
-.md-rendered.is-todo { background: #FFFFFF; }          /* papel blanco (pedido) */
 .md-rendered.is-todo::before { display: none; }        /* sin la línea naranja */
-.md-rendered.is-todo .td-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 4px 0 4px; padding-bottom: 12px; border-bottom: 2px solid #D4C9B3; }
-.md-rendered.is-todo .td-title { font-family: 'Inter', system-ui, sans-serif; font-size: 1.875em; font-weight: 800; color: #1A1208; letter-spacing: -.01em; margin: 0; padding-bottom: 0; border-bottom: none; outline: none; border-radius: 5px; }
-.md-rendered.is-todo .td-title:focus-visible { box-shadow: 0 0 0 2px rgba(192,90,64,.18); }
-.md-rendered.is-todo .td-count { flex: none; text-align: right; }
-.md-rendered.is-todo .td-count-n { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #6B5A30; font-variant-numeric: tabular-nums; }
-.md-rendered.is-todo .td-count-n b { color: #1A1208; }
-.md-rendered.is-todo .td-bar { width: 110px; height: 5px; margin-top: 7px; border-radius: 999px; background: #F1E9D6; overflow: hidden; border: 1px solid #E8DFCA; }
-.md-rendered.is-todo .td-bar span { display: block; height: 100%; width: 0; background: #C05A40; border-radius: 999px; transition: width .35s cubic-bezier(.2,.7,.3,1); }
-.md-rendered.is-todo .td-sec { margin-top: 30px; }
-.md-rendered.is-todo .td-sechead { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid #E8DFCA; }
-.md-rendered.is-todo .td-sectitle { flex: 1; min-width: 0; font-family: 'Inter', sans-serif; font-size: 1.375em; font-weight: 700; color: #1A1208; margin: 0; outline: none; border-bottom: none; border-radius: 5px; padding: 1px 4px; }
-.md-rendered.is-todo .td-sectitle:focus-visible { box-shadow: 0 0 0 2px rgba(192,90,64,.18); }
-.md-rendered.is-todo .td-secdel, .md-rendered.is-todo .td-seccopy, .md-rendered.is-todo .td-del { flex: none; border: 0; background: transparent; color: #A99C82; cursor: pointer; border-radius: 6px; display: grid; place-items: center; opacity: 0; transition: .15s; }
-.md-rendered.is-todo .td-secdel, .md-rendered.is-todo .td-seccopy { width: 24px; height: 24px; }
-.md-rendered.is-todo .td-sec:hover .td-secdel, .md-rendered.is-todo .td-sec:hover .td-seccopy { opacity: 1; }
-.md-rendered.is-todo .td-secdel:hover, .md-rendered.is-todo .td-del:hover { color: #B5462F; background: rgba(181,70,47,.10); }
-.md-rendered.is-todo .td-seccopy:hover { color: #C05A40; background: rgba(192,90,64,.10); }
-.md-rendered.is-todo .td-list { list-style: none; margin: 12px 0 6px; padding-left: 4px; }
-.md-rendered.is-todo .td-task { list-style: none; display: flex; align-items: flex-start; gap: 9px; margin: 6px 0; padding: 3px 6px; margin-left: -6px; border-radius: 7px; transition: background .14s; }
-.md-rendered.is-todo .td-task:hover { background: #F7F3EA; }
-.md-rendered.is-todo .td-chk { flex: 0 0 auto; width: 16px; height: 16px; margin: 0; margin-top: 6px; accent-color: #C05A40; cursor: pointer; }
-.md-rendered.is-todo .td-txt { flex: 1; min-width: 0; font-size: 16px; line-height: 1.7; color: #2C2416; outline: none; border-radius: 4px; padding: 0 3px; margin: 0 -3px; word-break: break-word; }
-.md-rendered.is-todo .td-txt:focus-visible { box-shadow: 0 0 0 2px rgba(192,90,64,.18); background: #FBFAF7; }
-.md-rendered.is-todo .td-task.done .td-txt { color: #A99C82; text-decoration: line-through; text-decoration-color: #D4C9B3; }
-.md-rendered.is-todo .td-del { width: 24px; height: 24px; margin-top: 3px; }
-.md-rendered.is-todo .td-task:hover .td-del { opacity: 1; }
-
-/* ── Reordenar tareas arrastrando (grip) ── */
-/* El grip va absoluto para no desplazar el checkbox ni el texto ya existentes.
-   El área de agarre es de 22x26px (el dibujo es más chico) y se ve siempre en
-   tenue: apuntarle no debe requerir puntería. */
-.md-rendered.is-todo .td-task { position: relative; }
-.md-rendered.is-todo .td-grip {
-    position: absolute; left: -24px; top: 1px; width: 22px; height: 26px;
-    display: grid; place-items: center; color: #C6BCA6; cursor: move;
-    opacity: .38; touch-action: none; transition: opacity .15s, color .15s;
-}
-.md-rendered.is-todo .td-task:hover .td-grip { opacity: 1; }
-.md-rendered.is-todo .td-grip:hover { color: #C05A40; background: rgba(192,90,64,.08); border-radius: 6px; }
-/* Durante el arrastre el puntero debe resolver la fila, no el texto editable. */
-.md-rendered.is-todo.td-dnd { cursor: move; user-select: none; }
-.md-rendered.is-todo.td-dnd .td-task > * { pointer-events: none; }
-.md-rendered.is-todo.td-dnd .td-task, .md-rendered.is-todo.td-dnd .td-grip { transition: none; }   /* nada que animar mientras se reordena */
-
-/* La fila se queda atenuada en su sitio (de dónde salió) mientras el clon vuela. */
-.md-rendered.is-todo .td-task.td-dragging { opacity: .3; }
-/* Clon flotante: hereda la hoja del TODO, pero sin el papel ni el padding. */
-.md-rendered.td-ghost-wrap {
-    position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
-    margin: 0; padding: 0; max-width: none; border: 0; border-radius: 0;
-    background: transparent; box-shadow: none; will-change: transform;
-}
-.md-rendered.td-ghost-wrap::before { display: none; }
-.md-rendered.td-ghost-wrap .td-list { margin: 0; padding: 0; }
-.md-rendered.td-ghost-wrap .td-task {
-    margin: 0; opacity: .97; border-radius: 8px; background: #FFFFFF;
-    box-shadow: 0 14px 32px rgba(26,18,8,.20);
-}
-/* El clon es solo el contenido: el grip vive fuera del recuadro y estorbaría. */
-.md-rendered.td-ghost-wrap .td-grip,
-.md-rendered.td-ghost-wrap .td-del,
-.md-rendered.td-ghost-wrap .td-magic { opacity: 0; }
-
-/* Línea de inserción: marca el borde donde va a caer, con el punto del inicio. */
-.td-dropline {
-    position: fixed; z-index: 9998; height: 2px; margin-top: -1px; border-radius: 2px;
-    background: #C05A40; pointer-events: none; opacity: 0; transition: opacity .1s ease;
-}
-.td-dropline::before {
-    content: ''; position: absolute; left: -3px; top: -3px;
-    width: 8px; height: 8px; border-radius: 50%; background: #C05A40;
-}
-/* Al aterrizar, un destello del acento en vez de un salto seco. */
-@keyframes tdDrop { from { background: rgba(192,90,64,.14); } to { background: transparent; } }
-.md-rendered.is-todo .td-task.td-dropped { animation: tdDrop .32s ease-out; }
-
-/* ── Animación de copiado ── */
-.md-rendered.is-todo .td-seccopy.td-copied,
-.md-rendered.is-todo .td-foot-r button.td-copied { opacity: 1; color: #C05A40; background: rgba(192,90,64,.12); }
-.md-rendered.is-todo .td-seccopy.td-copied svg { animation: tdCheck .3s cubic-bezier(.2,.9,.3,1.4); }
-@keyframes tdCheck { from { transform: scale(.35); opacity: .2; } to { transform: none; opacity: 1; } }
-
-.td-copied-pop {
-    position: fixed; z-index: 9999; pointer-events: none; white-space: nowrap;
-    padding: 3px 9px; border-radius: 999px; background: #C05A40; color: #fff;
-    font-family: 'Inter', system-ui, sans-serif; font-size: 10.5px; font-weight: 700;
-    box-shadow: 0 6px 16px rgba(26,18,8,.28);
-    animation: tdCopied .95s cubic-bezier(.2,.8,.3,1) forwards;
-}
-@keyframes tdCopied {
-    0%   { opacity: 0; transform: translate(-50%, 4px)   scale(.9); }
-    18%  { opacity: 1; transform: translate(-50%, -15px) scale(1); }
-    70%  { opacity: 1; transform: translate(-50%, -19px) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -32px) scale(.96); }
-}
-.md-rendered.is-todo.td-dnd .td-list { min-height: 26px; }   /* permite soltar en una sección vacía */
-
-/* ── Mejorar tarea con IA (varita) ── */
-.md-rendered.is-todo .td-task { flex-wrap: wrap; }
-.md-rendered.is-todo .td-magic { flex: none; width: 24px; height: 24px; margin-top: 3px; border: 0; background: transparent; color: #A99C82; cursor: pointer; border-radius: 6px; display: grid; place-items: center; opacity: 0; transition: .15s; }
-.md-rendered.is-todo .td-task:hover .td-magic, .md-rendered.is-todo .td-magic.is-busy { opacity: 1; }
-.md-rendered.is-todo .td-magic:hover { color: #7C3AED; background: rgba(124,58,237,.10); }
-.md-rendered.is-todo .td-magic.is-busy { color: #7C3AED; cursor: progress; }
-.md-rendered.is-todo .td-magic.is-busy svg { animation: tdSpin .8s linear infinite; }
-@keyframes tdSpin { to { transform: rotate(360deg); } }
-.md-rendered.is-todo .td-suggest { flex: 1 0 100%; display: flex; align-items: flex-start; gap: 10px; margin: 6px 0 2px 25px; padding: 9px 11px; border-radius: 8px; background: #FAF7FF; border: 1px solid #E4D9FA; }
-.md-rendered.is-todo .td-suggest-txt { flex: 1; min-width: 0; font-size: 14.5px; line-height: 1.6; color: #2C2416; word-break: break-word; }
-.md-rendered.is-todo .td-suggest-act { flex: none; display: flex; gap: 4px; }
-.md-rendered.is-todo .td-suggest-act button { border: 0; background: transparent; font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: .15s; }
-.md-rendered.is-todo .td-suggest-apply { color: #6D28D9; background: rgba(124,58,237,.10); }
-.md-rendered.is-todo .td-suggest-apply:hover { color: #fff; background: #7C3AED; }
-.md-rendered.is-todo .td-suggest-skip { color: #A99C82; }
-.md-rendered.is-todo .td-suggest-skip:hover { color: #6B5A30; background: #F1E9D6; }
-.md-rendered.is-todo .td-add { display: flex; align-items: center; gap: 9px; padding: 3px 6px; margin: 2px 0 0 -6px; }
-.md-rendered.is-todo .td-adddot { flex: 0 0 auto; width: 16px; height: 16px; border-radius: 4px; border: 1.4px dashed #D4C9B3; }
-.md-rendered.is-todo .td-add:focus-within .td-adddot { border-color: #C05A40; border-style: solid; }
-.md-rendered.is-todo .td-addinput { flex: 1; border: 0; background: transparent; color: #2C2416; font-family: inherit; font-size: 16px; padding: 2px 0; outline: none; }
-.md-rendered.is-todo .td-addinput::placeholder { color: #A99C82; font-style: italic; }
-.md-rendered.is-todo .td-newsec { display: inline-flex; align-items: center; gap: 7px; margin-top: 22px; padding: 8px 13px; border-radius: 8px; cursor: pointer; background: transparent; border: 1px dashed #D4C9B3; color: #6B5A30; font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; transition: .15s; }
-.md-rendered.is-todo .td-newsec:hover { color: #C05A40; border-color: #C05A40; }
-.md-rendered.is-todo .td-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 26px; padding-top: 14px; border-top: 1px solid #E8DFCA; }
-.md-rendered.is-todo .td-foot-l { display: flex; align-items: center; gap: 5px; font-family: 'Inter', sans-serif; font-size: 11.5px; color: #A99C82; }
-.md-rendered.is-todo .td-foot-l code { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11px; color: #6B21A8; background: #F1E9D6; padding: 1.5px 6px; border-radius: 4px; border: 1px solid #E0D3B0; }
-.md-rendered.is-todo .td-foot-r { display: flex; gap: 4px; }
-.md-rendered.is-todo .td-foot-r button { border: 0; background: transparent; color: #6B5A30; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: .15s; }
-.md-rendered.is-todo .td-foot-r button:hover { color: #C05A40; background: rgba(192,90,64,.10); }
-.md-rendered.is-todo .td-foot-r button[hidden] { display: none; }
-.md-rendered.is-todo .td-empty { text-align: center; color: #A99C82; font-family: 'Inter', sans-serif; font-size: 13px; padding: 24px 10px; }
-.td-leaving { animation: tdLeave .18s ease forwards; overflow: hidden; }
-@keyframes tdLeave { to { opacity: 0; transform: translateX(8px); height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; } }
+/* El panel TODO no lleva hoja: ver el bloque del final del archivo. */
+.md-rendered.is-todo .td-empty { text-align: center; color: var(--vsr-text-soft); font-family: 'Inter', sans-serif; font-size: 13px; padding: 24px 10px; }
 
 .md-rendered code {
     background: #F1E9D6;
@@ -2024,7 +1962,8 @@ body.todo-mode .doc-meta { display: none; }            /* libera el ancho (Front
         0 20px 50px rgba(15,23,42,.10);
     font-family: inherit;
 }
-[data-theme="dark"] .md-rendered.is-sheet {
+[data-theme="dark"] .md-rendered.is-sheet,
+[data-theme="midnight"] .md-rendered.is-sheet {
     box-shadow:
         0 1px 0 rgba(255,255,255,.03) inset,
         0 2px 8px rgba(0,0,0,.30),
@@ -2217,7 +2156,8 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
         0 2px 4px rgba(15,23,42,.04),
         0 16px 40px rgba(15,23,42,.10);
 }
-[data-theme="dark"] .md-rendered .xlsx-workbook {
+[data-theme="dark"] .md-rendered .xlsx-workbook,
+[data-theme="midnight"] .md-rendered .xlsx-workbook {
     border-color: rgba(255,255,255,.06);
     box-shadow:
         0 1px 0 rgba(255,255,255,.04) inset,
@@ -2376,7 +2316,8 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
     white-space: pre-wrap;
     word-break: break-word;
 }
-[data-theme="dark"] .md-raw { background: #0d1420; border-color: #1F2A37; color: #D1D5DB; }
+[data-theme="dark"] .md-raw,
+[data-theme="midnight"] .md-raw { background: #0d1420; border-color: var(--vsr-border); color: #D1D5DB; }
 
 /* ── Editor de archivos (textarea Raw editable) ─────────────── */
 .md-edit {
@@ -2396,7 +2337,8 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
     transition: box-shadow .15s ease;
 }
 .md-edit:focus { box-shadow: 0 0 0 4px var(--vsr-accent-tint); }
-[data-theme="dark"] .md-edit { background: #0d1420; border-color: #C05A40; color: #E5E7EB; }
+[data-theme="dark"] .md-edit,
+[data-theme="midnight"] .md-edit { background: #0d1420; border-color: var(--vsr-accent); color: #E5E7EB; }
 .md-edit.hidden { display: none; }
 
 /* ── Toolbar de formato (flotante sobre el documento editable) ── */
@@ -2418,7 +2360,8 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
     box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 .md-toolbar.hidden { display: none; }
-[data-theme="dark"] .md-toolbar { background: #141d2b; border-color: #243043; }
+[data-theme="dark"] .md-toolbar,
+[data-theme="midnight"] .md-toolbar { background: var(--vsr-bg-chrome); border-color: var(--vsr-border); }
 
 .md-tool {
     display: inline-flex;
@@ -2466,7 +2409,8 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
 .md-block-select:hover { background-color: var(--vsr-bg-hover); }
 .md-block-select:focus { outline: none; border-color: var(--vsr-accent); }
 .md-block-select option { background: var(--vsr-bg-card); color: var(--vsr-text); }
-[data-theme="dark"] .md-block-select option { background: #141d2b; }
+[data-theme="dark"] .md-block-select option,
+[data-theme="midnight"] .md-block-select option { background: var(--vsr-bg-chrome); }
 
 /* ─────────────────────────────────────────────────────────────
  *  Estilo GITHUB — sans, look readme.md (siempre light)
@@ -5297,6 +5241,7 @@ body.ia-drawer-resizing * {
     overflow-x: auto;
 }
 [data-theme="dark"] .ia-render-view { background: #0F172A; }
+[data-theme="midnight"] .ia-render-view { background: var(--vsr-bg-base); }
 [data-theme="light"] .ia-render-view { background: #FFFFFF; }
 
 .ia-render-mermaid .ia-render-view {
@@ -6360,4 +6305,49 @@ body.ia-drawer-resizing * {
     #acctToolForm .acct-tool-preview-card {
         grid-column: auto;
     }
+}
+
+/* ── Hoja del panel TODO ──────────────────────────────────────────────────────
+   Va al final a proposito. Los estilos de documento (data-style: github, notion,
+   dracula…) se declaran mas abajo que el resto y reponen fondo y borde con la misma
+   especificidad; si esta regla fuera antes, la hoja de papel volveria en cuanto el
+   lector eligiera un estilo. El contenido lo pinta el componente compartido
+   (.tdw-embed, todo-hub.css) y el TODO es una interfaz, no un documento: se retiran
+   papel, borde, sombra, redondeo y el padding de lectura. */
+.md-rendered.is-todo,
+.md-rendered.is-todo[data-style] {
+    /* 940px es el ancho util del panel dentro de la ventana (1120 menos la columna
+       de listas): a mas que eso los chips de la derecha se despegan del texto. */
+    max-width: 940px; padding: 4px 0 0;
+    background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    font-family: 'Inter', system-ui, sans-serif; color: var(--vsr-text);
+}
+.md-rendered.is-todo::before, .md-rendered.is-todo[data-style]::before { display: none; }
+
+/* ── Menú del clic derecho en el explorador ─────────────────────────────────
+   Las acciones de fila (papelera, pin) se piden desde aquí. En la vista de lista
+   esos botones ocupaban su hueco siempre —invisibles, pero 20px cada uno— y
+   dejaban el contador de archivos flotando lejos del borde. */
+.docx-rowmenu { width: 212px; padding: 6px; }
+.docx-rowmenu .docx-icmenu-title { padding: 4px 8px 7px; }
+.docx-rowmenu-btn {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%; padding: 7px 9px;
+    border: 0; border-radius: 7px; background: transparent;
+    color: var(--vsr-text-soft); font-family: inherit; font-size: 12px;
+    text-align: left; cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.docx-rowmenu-btn:hover { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+.docx-rowmenu-btn svg { width: 14px; height: 14px; flex: none; stroke-width: 1.8; }
+.docx-rowmenu-btn.is-danger { color: #f87171; }
+.docx-rowmenu-btn.is-danger:hover { background: rgba(248, 113, 113, .14); color: #f87171; }
+.docx-rowmenu-sep { height: 1px; margin: 5px 7px; background: var(--vsr-border-soft); }
+
+/* La fila deja de reservar sitio para lo que ya no lleva. El pin se queda solo
+   cuando marca estado: un archivo fijado se reconoce de un vistazo. */
+#sidebarList.is-doc-explorer .docx-items.is-list .docx-del-folder,
+#sidebarList.is-doc-explorer .docx-items.is-list .sidebar-del-btn,
+#sidebarList.is-doc-explorer .docx-items.is-list .sidebar-pin-btn { display: none; }
+#sidebarList.is-doc-explorer .docx-items.is-list .sidebar-pin-btn.is-pinned {
+    display: inline-flex; opacity: 1;
 }

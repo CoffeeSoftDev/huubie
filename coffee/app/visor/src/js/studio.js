@@ -369,11 +369,12 @@ function pgBindSplitter() {
 
 /* ── Tema de la UI (claro/oscuro) — mismo mecanismo que el Visor ── */
 function pgApplyUiTheme(theme) {
-    const t = theme === 'light' ? 'light' : 'dark';
+    const t = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
     pg.uiTheme = t;
     document.documentElement.setAttribute('data-theme', t);
     document.body.setAttribute('data-theme', t);
-    $('#pgThemeToggle').html(`<i data-lucide="${t === 'dark' ? 'sun' : 'moon'}" class="w-4 h-4"></i>`);
+    $('#pgThemeToggle').attr('title', (window.CoffeeTheme ? 'Tema: ' + CoffeeTheme.info(CoffeeTheme.next(t)).label : 'Cambiar tema'))
+                       .html(`<i data-lucide="${(window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(t)).icon : (t === 'dark' ? 'sun' : 'moon'))}" class="w-4 h-4"></i>`);
     const hljs = document.getElementById('hljsTheme');
     if (hljs) {
         const base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
@@ -506,7 +507,7 @@ function pgBind() {
     $('#pgEffortSelect').on('change', e => { pg.effort = e.target.value || ''; pgSaveSettings(); });
 
     $('#pgThemeToggle').on('click', () => {
-        pgApplyUiTheme(pg.uiTheme === 'dark' ? 'light' : 'dark');
+        pgApplyUiTheme((window.CoffeeTheme ? CoffeeTheme.next(pg.uiTheme) : (pg.uiTheme === 'dark' ? 'light' : 'dark')));
         pgSaveSettings();
     });
 

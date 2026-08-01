@@ -34,6 +34,9 @@ if ($dbSchema && $fsRoot) {
         echo json_encode([
             'ok'                => true,
             'reply'             => $r['final'],
+            // Tareas que el modelo propuso con todo_propose: las pinta la interfaz
+            // como tarjeta con casillas. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'model'             => $model,
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
@@ -61,6 +64,9 @@ if ($dbSchema && !$fsRoot) {
         echo json_encode([
             'ok'                => true,
             'reply'             => $r['final'],
+            // Tareas que el modelo propuso con todo_propose: las pinta la interfaz
+            // como tarjeta con casillas. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'model'             => $model,
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
@@ -86,6 +92,9 @@ if ($fsRoot && !$dbSchema) {
         echo json_encode([
             'ok'                => true,
             'reply'             => $r['final'],
+            // Tareas que el modelo propuso con todo_propose: las pinta la interfaz
+            // como tarjeta con casillas. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'model'             => $model,
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
@@ -112,6 +121,9 @@ if (!$dbSchema && !$fsRoot && tools_has_standalone($scope['surface'], $scope['ag
         echo json_encode([
             'ok'                => true,
             'reply'             => $r['final'],
+            // Tareas que el modelo propuso con todo_propose: las pinta la interfaz
+            // como tarjeta con casillas. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'model'             => $model,
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => (int)($usage['completion_tokens'] ?? 0),
@@ -159,6 +171,7 @@ $credits     = $tokensUsed > 0 ? round($tokensUsed / 1000, 4) : 0;
 echo json_encode([
     'ok'              => true,
     'reply'           => $reply,
+    'proposal'        => todo_tool_take(),
     'model'           => $modelUsed,
     'elapsed_ms'      => $elapsed,
     'tokens_used'     => (int) $tokensUsed,

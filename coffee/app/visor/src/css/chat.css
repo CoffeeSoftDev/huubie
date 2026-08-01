@@ -46,7 +46,7 @@
     font-size: 14px;
     letter-spacing: .5px;
     color: #fff;
-    background: linear-gradient(135deg, var(--vsr-accent), #8e3f2c);
+    background: linear-gradient(135deg, var(--vsr-accent), var(--vsr-brand-hi));
     box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
 }
 

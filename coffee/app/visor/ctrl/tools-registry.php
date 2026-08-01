@@ -23,6 +23,7 @@ require_once __DIR__ . '/fs-introspect.php';
 require_once __DIR__ . '/db-introspect.php';
 require_once __DIR__ . '/web-fetch.php';
 require_once __DIR__ . '/ftp-introspect.php';
+require_once __DIR__ . '/todo-tool.php';
 
 if (!defined('TOOLS_DB_PATH'))      define('TOOLS_DB_PATH', __DIR__ . '/../data/tools.sqlite');
 if (!defined('TOOLS_ENV_PATH'))     define('TOOLS_ENV_PATH', __DIR__ . '/../../credentials/.env');
@@ -103,6 +104,14 @@ function tools_builtin_catalog() {
             'source'      => 'fs',
         ],
         [
+            'name'        => 'todo_propose',
+            'label'       => 'Proponer tareas',
+            'description' => 'Propone tareas para la lista TODO. No las guarda: el usuario elige cuales acepta.',
+            'category'    => 'TODO',
+            'icon'        => 'list-checks',
+            'source'      => 'todo',
+        ],
+        [
             'name'        => 'run_select',
             'label'       => 'Consultar la base',
             'description' => 'Ejecuta SELECT/SHOW/DESCRIBE de solo lectura contra la base conectada.',
@@ -145,6 +154,7 @@ function tools_builtin_spec($name) {
         foreach (fs_tool_specs() as $spec)  $map[$spec['function']['name']] = $spec;
         foreach (db_tool_specs() as $spec)  $map[$spec['function']['name']] = $spec;
         foreach (ftp_tool_specs() as $spec) $map[$spec['function']['name']] = $spec;
+        foreach (todo_tool_specs() as $spec) $map[$spec['function']['name']] = $spec;
         $web = web_tool_spec();
         $map[$web['function']['name']] = $web;
     }
@@ -378,7 +388,10 @@ function tools_for_turn(array $sources, $surface = '', $agent = '') {
  */
 function tools_has_standalone($surface = '', $agent = '') {
     try {
-        $rows = tools_db()->query('SELECT source, surfaces, agents FROM tools WHERE active = 1 AND source IN ("http", "ftp")')->fetchAll(PDO::FETCH_ASSOC);
+        // `todo` entra aqui aunque no dependa de nada externo: sin ella, pedir "anotame
+        // esto" en un chat sin carpeta ni base conectada no abria ningun loop de
+        // herramientas y el modelo no llegaba a ver todo_propose.
+        $rows = tools_db()->query('SELECT source, surfaces, agents FROM tools WHERE active = 1 AND source IN ("http", "ftp", "todo")')->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {
         return false;
     }
@@ -399,6 +412,7 @@ function tools_label($name, array $args, array $row = null) {
     if ($name === 'fetch_url')  return web_tool_label($args);
     if (in_array($name, ['list_dir', 'read_file', 'grep_files'], true)) return fs_tool_label($name, $args);
     if (in_array($name, ['ftp_list', 'ftp_read'], true)) return ftp_tool_label($name, $args);
+    if ($name === 'todo_propose') return todo_tool_label($args);
     $label = $row && $row['label'] !== '' ? $row['label'] : $name;
     return 'ejecutando ' . $label;
 }
@@ -424,6 +438,9 @@ function tools_run($name, array $args, array $ctx = [], array $row = null) {
             $result = web_run_tool($args);
         } elseif (in_array($name, ['ftp_list', 'ftp_read'], true)) {
             $result = ftp_run_tool($name, $args);
+        } elseif ($name === 'todo_propose') {
+            // No devuelve datos al modelo: aparta la propuesta para la interfaz.
+            $result = todo_run_tool($name, $args);
         } else {
             if ($row === null) $row = tools_get_by_name($name);
             if (!$row || (int) $row['active'] !== 1) {
