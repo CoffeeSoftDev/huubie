@@ -94,8 +94,8 @@ class ctrl extends mdl {
         }
 
         $c = $conteo[0] ?? [
-            'tickets' => 0, 'facturados'      => 0, 'cero' => 0, 'generados' => 0,
-            'total'   => 0, 'total_facturado' => 0
+            'tickets' => 0, 'facturados'      => 0, 'cero'       => 0, 'generados' => 0,
+            'total'   => 0, 'total_facturado' => 0, 'total_cero' => 0
         ];
 
         return [
@@ -132,12 +132,23 @@ class ctrl extends mdl {
         // las dos tarjetas sumando la venta del dia si la meta cambia.
         $objetivoCero = $total * (1 - META_FACTURACION);
 
+        // Lo que el reparto dejo de verdad en el cero, contra lo que debio dejar. El
+        // mejor ajuste toma ventas completas y no puede partir un ticket, asi que la
+        // diferencia siempre existe: mostrarla evita que se lea como error.
+        $obtenidoCero = (float) $c['total_cero'];
+        $difCero      = $obtenidoCero - $objetivoCero;
+
         return [
             'metaPct'           => round(META_FACTURACION * 100),
             'metaCeroPct'       => round((1 - META_FACTURACION) * 100),
             'totalTexto'        => money($total),
             'objetivoTexto'     => money($objetivo),
             'objetivoCeroTexto' => money($objetivoCero),
+            'obtenidoCeroTexto' => money($obtenidoCero),
+            'difCeroTexto'      => ($difCero >= 0 ? '+' : '-') . money(abs($difCero)),
+            // Sin reparto corrido no hay nada obtenido que contrastar: la tarjeta
+            // muestra solo el objetivo en vez de un cero que parece un faltante.
+            'ceroGenerado'      => (int) $c['generados'] > 0,
             'facturadoTexto'    => money($facturado),
             // Rebasar la meta no deja un negativo en pantalla: ya no falta nada.
             'porFacturarTexto'  => money(max(0, $objetivo - $facturado)),

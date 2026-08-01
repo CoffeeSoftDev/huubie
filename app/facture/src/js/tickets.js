@@ -510,6 +510,15 @@ class TicketsView extends Templates {
             data: { value: value || '$0.00', subtitle: subtitle, color: color }
         });
 
+        const pctCero      = k.metaCeroPct || 30;
+        const tituloCero   = k.ceroGenerado ? 'IVA 0% obtenido / objetivo' : 'Monto objetivo para IVA 0%';
+        const valorCero    = k.ceroGenerado
+            ? `${k.obtenidoCeroTexto} / ${k.objetivoCeroTexto}`
+            : k.objetivoCeroTexto;
+        const subtituloCero = k.ceroGenerado
+            ? `${pctCero}% de la venta · ${k.difCeroTexto} vs objetivo`
+            : `${pctCero}% de la venta por banco`;
+
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisTickets',
@@ -531,8 +540,11 @@ class TicketsView extends Templates {
                 card('kpiPorFacturar', 'Por facturar al IVA 16%', 'alert-circle', k.porFacturarTexto,
                      `${k.metaPct || 70}% de la venta - Facturado`, 'text-[#1C64F2]'),
 
-                card('kpiObjetivoCero', 'Monto objetivo para IVA 0%', 'alert-circle', k.objetivoCeroTexto,
-                     `${k.metaCeroPct || 30}% de la venta por banco`, 'text-[#1C64F2]')
+                // La unica tarjeta con dos montos: el 0% es lo que el reparto arma,
+                // asi que se muestra lo que se obtuvo contra lo que se debio obtener.
+                // Mientras el dia no tenga reparto corrido solo se muestra el objetivo.
+                card('kpiObjetivoCero', tituloCero, 'alert-circle', valorCero,
+                     subtituloCero, 'text-[#1C64F2]')
             ]
         });
     }
