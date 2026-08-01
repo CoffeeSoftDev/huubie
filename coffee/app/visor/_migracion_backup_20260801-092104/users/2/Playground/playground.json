@@ -1,0 +1,52 @@
+{
+  "title": "Playground",
+  "sections": [
+    {
+      "id": "sj3tms86",
+      "title": "container visor",
+      "tasks": [
+        {
+          "id": "t3y0ispr",
+          "text": "hay momentos deonde el visor no me reenderiza el index correctamente",
+          "done": false
+        },
+        {
+          "id": "t95aqmvc",
+          "text": "Cambiar el titulo promp del agente",
+          "done": false
+        },
+        {
+          "id": "tn4a3xhp",
+          "text": "En el boton mejorar abrir un mini modal para escribir que quieres que aga el agente o como se puede mejorar",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "shpv5y6j",
+      "title": "Container configuracion",
+      "tasks": [
+        {
+          "id": "tccpuxmg",
+          "text": "que sea mas grande el logo de la imagen del agente",
+          "done": true
+        },
+        {
+          "id": "tja38t8x",
+          "text": "El conocimiento debe poderse compatir con otros agentes",
+          "done": false
+        },
+        {
+          "id": "t24yqtnw",
+          "text": "Dale un mejor orden al conocimiento y la memoria persistente",
+          "done": false
+        },
+        {
+          "id": "t73oqhtl",
+          "text": "Tools: Mejorar el formato de tols",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

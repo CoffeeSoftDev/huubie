@@ -689,7 +689,7 @@ class App {
                 // Camino recorrido dentro de Drive: [{ id, name }, …]. Sobrevive a la
                 // recarga porque los ids de Drive son estables.
                 drivePath:  Array.isArray(parsed.drivePath) ? parsed.drivePath : [],
-                theme:      parsed.theme === 'light' ? 'light' : 'dark',
+                theme:      (window.CoffeeTheme ? CoffeeTheme.normalize(parsed.theme) : (parsed.theme === 'light' ? 'light' : 'dark')),
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
                 sidebarCollapsed: !!parsed.sidebarCollapsed,
@@ -1846,7 +1846,7 @@ class App {
 
     bindThemeToggle() {
         $('#btnThemeToggle').off('click').on('click', () => {
-            this.settings.theme = this.settings.theme === 'dark' ? 'light' : 'dark';
+            this.settings.theme = (window.CoffeeTheme ? CoffeeTheme.next(this.settings.theme) : (this.settings.theme === 'dark' ? 'light' : 'dark'));
             this.saveSettings();
             visorView.applyTheme(this.settings.theme);
             if (typeof coffeeIA !== 'undefined' && coffeeIA && coffeeIA._reRenderBlocksOnThemeChange) {
@@ -3517,11 +3517,13 @@ class VisorView {
     }
 
     applyTheme(theme) {
-        const t = theme === 'light' ? 'light' : 'dark';
+        const t = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
         document.documentElement.setAttribute('data-theme', t);
         document.body.setAttribute('data-theme', t);
-        const iconName = t === 'dark' ? 'sun' : 'moon';
-        $('#btnThemeToggle').html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
+        // El icono anuncia a que tema se salta, no en cual estas.
+        const iconName = (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(t)).icon : (t === 'dark' ? 'sun' : 'moon'));
+        $('#btnThemeToggle').attr('title', (window.CoffeeTheme ? 'Tema: ' + CoffeeTheme.info(CoffeeTheme.next(t)).label : 'Cambiar tema'))
+                            .html(`<i data-lucide="${iconName}" class="w-4 h-4"></i>`);
         if (window.lucide) lucide.createIcons();
     }
 
@@ -3848,6 +3850,50 @@ class VisorView {
     // DOC_KINDS mas "Automatico", que borra el override y devuelve el icono
     // deducido del nombre. Se cierra al elegir, al clic fuera, con Escape o al
     // hacer scroll (quedaria flotando lejos de su archivo).
+    // Menu del clic derecho sobre una fila del explorador. Las acciones que antes
+    // vivian en la propia fila (papelera, pin) se piden desde aqui: en la vista de
+    // lista ocupaban su hueco siempre —aunque estuvieran invisibles— y empujaban el
+    // contador lejos del borde.
+    //
+    // `actions` es una lista de { icon, label, danger, fn }; un null dibuja separador.
+    openRowMenu(x, y, title, actions) {
+        this.closeIconMenu();
+
+        const rows = actions.map((a, i) => {
+            if (!a) return '<div class="docx-rowmenu-sep"></div>';
+            return `<button type="button" class="docx-rowmenu-btn ${a.danger ? 'is-danger' : ''}" data-act="${i}">
+                        <i data-lucide="${a.icon}"></i><span>${a.label}</span>
+                    </button>`;
+        }).join('');
+
+        const $menu = $(`
+            <div id="docxIconMenu" class="docx-icmenu docx-rowmenu" role="menu">
+                <div class="docx-icmenu-title">${visor.escapeHtml(title)}</div>
+                ${rows}
+            </div>`).appendTo('body');
+
+        const pad = 8;
+        $menu.css({
+            left: Math.max(pad, Math.min(x, window.innerWidth  - $menu.outerWidth()  - pad)),
+            top:  Math.max(pad, Math.min(y, window.innerHeight - $menu.outerHeight() - pad))
+        });
+        if (window.lucide) lucide.createIcons();
+
+        $menu.on('click', '[data-act]', function () {
+            const act = actions[Number($(this).attr('data-act'))];
+            visorView.closeIconMenu();
+            if (act && act.fn) act.fn();
+        });
+
+        // En el siguiente tick, para no capturar el propio evento que abrio el menu.
+        setTimeout(() => {
+            $(document).on('click.docxicmenu', () => this.closeIconMenu());
+            $(document).on('contextmenu.docxicmenu', () => this.closeIconMenu());
+            $(document).on('keydown.docxicmenu', (e) => { if (e.key === 'Escape') this.closeIconMenu(); });
+            $('#sidebarList').on('scroll.docxicmenu', () => this.closeIconMenu());
+        }, 0);
+    }
+
     openIconMenu(x, y, relPath) {
         this.closeIconMenu();
 
@@ -4184,7 +4230,7 @@ class VisorView {
         // arrastrable ni renombrable: no pertenece a este usuario, solo esta colgada de
         // su arbol. Lo que vive dentro (`inShared`) se maneja como cualquier carpeta.
         const folderCard = (fo, i) => `
-            <div class="docx-item docx-folder ${fo.shared || fo.inShared ? 'is-shared' : ''}" data-nav-idx="${i}" data-destdir="${fo.dir}" ${fo.shared ? '' : 'draggable="true"'} title="${fo.shared ? fo.name + ' — carpeta compartida entre usuarios' : fo.name}">
+            <div class="docx-item docx-folder ${fo.shared || fo.inShared ? 'is-shared' : ''}" data-nav-idx="${i}" data-destdir="${fo.dir}" ${fo.shared ? '' : 'draggable="true"'} title="${fo.shared ? fo.name + ' — carpeta compartida entre usuarios' : fo.name} · clic derecho para más opciones">
                 <i data-lucide="${fo.shared ? 'folder-open' : 'folder'}" class="docx-ic docx-ic-folder"></i>
                 <span class="docx-name" title="${fo.shared ? 'Compartida: todos los usuarios la ven' : 'Doble clic para renombrar'}">${fo.name}</span>
                 ${typeof fo.count === 'number' ? `<span class="docx-badge" title="${fo.count} archivo${fo.count === 1 ? '' : 's'}">${fo.count}</span>` : ''}
@@ -4201,7 +4247,7 @@ class VisorView {
                 ? `<img class="docx-ic docx-ic-thumb" src="${thumb}" alt="" loading="lazy">`
                 : `<i data-lucide="${fmt.icon}" class="docx-ic docx-ic-file ${fmt.cls}"></i>`;
             return `
-                <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" data-relpath="${item.relPath || ''}" draggable="true" title="${item.file}">
+                <div class="sidebar-item docx-item docx-file ${currentFile === item.file ? 'active' : ''}" data-file="${item.file}" data-fullpath="${item.fullPath || ''}" data-relpath="${item.relPath || ''}" draggable="true" title="${item.file} · clic derecho para más opciones">
                     ${iconHtml}
                     <span class="docx-name" title="Doble clic para renombrar">${item.file}</span>
                     ${item.isBackup ? '<span class="badge-backup">backup</span>' : ''}
@@ -4398,15 +4444,60 @@ class VisorView {
         };
         $('#sidebarList .docx-newfolder-btn').off('click').on('click', (e) => { e.stopPropagation(); startCreateFolder(); });
 
-        // ── Clic derecho sobre un archivo: elegir su icono. ──
-        // Delegado en #sidebarList (sobrevive a los re-render) y solo si el item
-        // trae relPath, que es la clave con la que el backend guarda la eleccion.
-        $('#sidebarList').off('contextmenu.docx').on('contextmenu.docx', '.docx-file', function (e) {
-            const relPath = $(this).attr('data-relpath') || '';
-            if (!relPath) return;   // sin clave estable no hay donde guardar: menu nativo
-            e.preventDefault();
-            visorView.openIconMenu(e.pageX, e.pageY, relPath);
-        });
+        // ── Clic derecho sobre una fila del explorador ──
+        // Aqui viven las acciones que ya no ocupan sitio en la fila. Delegado en
+        // #sidebarList para sobrevivir a los re-render.
+        $('#sidebarList').off('contextmenu.docx')
+            .on('contextmenu.docx', '.docx-folder', function (e) {
+                const $row = $(this);
+                if ($row.hasClass('docx-newfolder') || $row.find('.docx-rename-input').length) return;
+                const fo = folders[Number($row.data('nav-idx'))];
+                if (!fo) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const acciones = [
+                    { icon: 'folder-open', label: 'Abrir', fn: () => { if (fo.enter) fo.enter(); } }
+                ];
+                if (canCreate && !fo.shared) {
+                    acciones.push({ icon: 'pencil', label: 'Renombrar', fn: () => startRenameFolder($row) });
+                }
+                if (canCreate) {
+                    acciones.push(null);
+                    acciones.push({
+                        icon: 'trash-2', danger: true,
+                        label: fo.shared ? 'Vaciar carpeta compartida' : 'Eliminar carpeta',
+                        fn: () => { if (app.deleteFolder) app.deleteFolder(fo); }
+                    });
+                }
+                visorView.openRowMenu(e.pageX, e.pageY, fo.name, acciones);
+            })
+            .on('contextmenu.docx', '.docx-file', function (e) {
+                const $row    = $(this);
+                if ($row.find('.docx-rename-input').length) return;
+                const name    = $row.attr('data-file') || '';
+                const relPath = $row.attr('data-relpath') || '';
+                if (!name) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const pinned = app.isPinned(name);
+                const acciones = [
+                    { icon: 'file-text', label: 'Abrir', fn: () => $row.trigger('click') },
+                    { icon: 'pencil',    label: 'Renombrar', fn: () => startRenameFile($row) },
+                    { icon: pinned ? 'pin-off' : 'pin', label: pinned ? 'Quitar de fijados' : 'Fijar al contexto',
+                      fn: () => app.togglePin(name) }
+                ];
+                // El icono se guarda por relPath: sin esa clave no hay donde apuntarlo.
+                if (relPath) {
+                    acciones.push({ icon: 'palette', label: 'Cambiar icono…',
+                                    fn: () => visorView.openIconMenu(e.pageX, e.pageY, relPath) });
+                }
+                acciones.push(null);
+                acciones.push({ icon: 'trash-2', danger: true, label: 'Eliminar archivo',
+                                fn: () => app.deleteFile(name) });
+                visorView.openRowMenu(e.pageX, e.pageY, name, acciones);
+            });
 
         // ── Drag & drop ── Dos arrastres distintos sobre el mismo panel:
         //   INTERNO  archivos y carpetas del explorador. El payload viaja como JSON
@@ -4574,8 +4665,11 @@ class VisorView {
     }
 
     renderContent(file) {
-        // Limpiar estado del panel TODO por si el archivo anterior era un todo.json.
-        $('#md-rendered').off('.td').removeClass('is-todo');
+        // Limpiar el panel TODO por si el archivo anterior era un todo.json. Los
+        // handlers del componente se quedan enganchados en #md-rendered: son
+        // delegados sobre selectores .tdw-* que no existen en un documento normal,
+        // y asi no hay que volver a montarlos en cada archivo.
+        $('#md-rendered').off('.td').removeClass('is-todo tdw-embed').removeAttr('data-listkey');
         $('#btnEdit, #btnOpenEditor').removeClass('hidden');
         $('body').removeClass('todo-mode');   // restaura el aside (Frontmatter + TOC)
         $('body').removeClass('empty-view');  // ya hay documento: vuelve la hoja y el chrome
@@ -4828,406 +4922,38 @@ class VisorView {
             .catch(() => {});
     }
 
-    // Reescribe una tarea con la IA. Devuelve '' si no hubo respuesta util: el
-    // panel decide si muestra el error (no toca el texto original nunca).
-    async _todoImproveTask(text, docTitle, secTitle) {
-        const system = 'Reescribes tareas de un TODO de desarrollo de software. '
-            + 'Respondes SIEMPRE con una sola linea: la tarea reescrita, clara y accionable, '
-            + 'en espanol, con ortografia y acentos correctos, empezando con un verbo en infinitivo. '
-            + 'Conservas la intencion original y los nombres tecnicos tal cual (archivos, clases, modulos). '
-            + 'Sin vinetas, sin numeracion, sin comillas, sin markdown y sin explicaciones.';
-        const user = 'Contexto: documento "' + (docTitle || 'TODO') + '", seccion "' + (secTitle || '') + '".\n'
-            + 'Tarea original: ' + text;
-        // Modelo fijo: la varita no depende del selector del chat. Tampoco puede ir
-        // vacio (el backend caeria al default retirado qwen3-coder:480b -> HTTP 410).
-        const model = 'glm-5.2:cloud';
-        this._todoAiError = '';
-        try {
-            const res = await fetch(apiIA, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                    systemOverride: system,
-                    messages:       [{ role: 'user', content: user }],
-                    model:          model
-                })
-            });
-            const data = await res.json();
-            if (!data || !data.ok) { this._todoAiError = (data && data.error) || 'Respuesta invalida de la IA'; return ''; }
-            const line = String(data.reply || '')
-                .replace(/<think>[\s\S]*?<\/think>/gi, '')
-                .split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
-            return line.replace(/^[-*]\s*(\[[ xX]\]\s*)?/, '').replace(/^["'`]|["'`]$/g, '').trim();
-        } catch (e) {
-            this._todoAiError = e.message || 'No se pudo consultar la IA';
-            return '';
-        }
-    }
-
+    // El TODO del visor es el mismo panel del cajon (todo-hub.js), montado dentro
+    // de la hoja. Antes habia aqui una copia entera —render, arrastre, varita,
+    // copiado— que divergia funcion a funcion de la del cajon; ahora esto solo
+    // conecta el archivo abierto con el componente y le dice como guardarlo: el
+    // visor sabe escribir en carpetas locales del navegador, que el controlador
+    // del cajon no alcanza.
     _renderTodoPanel(file) {
-        const view = this;
+        const view  = this;
         const $root = $('#md-rendered').addClass('is-todo');
-        const uid = p => p + Math.random().toString(36).slice(2, 9);
-        const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
 
-        let data;
-        try { data = JSON.parse(file.raw || ''); } catch (e) { data = null; }
-        if (!data || typeof data !== 'object') data = {};
-        if (!Array.isArray(data.sections)) data.sections = [];
-        if (!data.title) data.title = file.project || 'TODO';
-        data.sections.forEach(s => { if (!s.id) s.id = uid('s'); if (!Array.isArray(s.tasks)) s.tasks = []; s.tasks.forEach(t => { if (!t.id) t.id = uid('t'); }); });
-
-        const XSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
-        const COPYSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-        const WANDSVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0l1.58 6.13A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96l-6.13 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/></svg>';
-        const SPINSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
-        const CHECKSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>';
-        const GRIPSVG = '<svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2.6" cy="3" r="1.25"/><circle cx="7.4" cy="3" r="1.25"/><circle cx="2.6" cy="8" r="1.25"/><circle cx="7.4" cy="8" r="1.25"/><circle cx="2.6" cy="13" r="1.25"/><circle cx="7.4" cy="13" r="1.25"/></svg>';
-        function taskRow(t) { return '<li class="td-task' + (t.done ? ' done' : '') + '" data-id="' + t.id + '"><span class="td-grip" title="Arrastra para reordenar">' + GRIPSVG + '</span><input type="checkbox" class="td-chk"' + (t.done ? ' checked' : '') + '><span class="td-txt" contenteditable="true" spellcheck="false">' + esc(t.text) + '</span><button class="td-magic" title="Mejorar con IA">' + WANDSVG + '</button><button class="td-del" title="Eliminar">' + XSVG + '</button></li>'; }
-        function secBlock(s) {
-            return '<section class="td-sec" data-id="' + s.id + '"><div class="td-sechead">' +
-                   '<h2 class="td-sectitle" contenteditable="true" spellcheck="false">' + esc(s.title || 'Sección') + '</h2>' +
-                   '<button class="td-seccopy" title="Copiar tareas para Claude/Kiro">' + COPYSVG + '</button>' +
-                   '<button class="td-secdel" title="Eliminar sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
-                   '<ul class="td-list">' + s.tasks.map(taskRow).join('') + '</ul>' +
-                   '<div class="td-add"><span class="td-adddot"></span><input type="text" class="td-addinput" data-sec="' + s.id + '" placeholder="Añadir tarea…" maxlength="240" autocomplete="off"></div></section>';
-        }
-        function paint() {
-            const secs = data.sections.length ? data.sections.map(secBlock).join('') : '<div class="td-empty">Sin secciones. Crea una con “Nueva sección”.</div>';
-            $root.html(
-                '<div class="td-head"><h1 class="td-title" contenteditable="true" spellcheck="false">' + esc(data.title) + '</h1>' +
-                  '<div class="td-count"><div class="td-count-n"><b class="td-done">0</b> / <span class="td-total">0</span></div><div class="td-bar"><span></span></div></div></div>' +
-                '<div class="td-secs">' + secs + '</div>' +
-                '<button class="td-newsec"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Nueva sección</button>' +
-                '<div class="td-foot"><div class="td-foot-l"><span class="td-pend">0 pendientes</span><span> · </span><span>guardado en <code>todo.json</code></span></div>' +
-                  '<div class="td-foot-r"><button class="td-clear" hidden>Limpiar completadas</button><button class="td-copy">Copiar</button></div></div>'
-            );
-            stats();
-        }
-        function stats() {
-            const all = data.sections.flatMap(s => s.tasks), total = all.length, done = all.filter(t => t.done).length;
-            $root.find('.td-done').text(done); $root.find('.td-total').text(total);
-            $root.find('.td-bar span').css('width', total ? Math.round(done / total * 100) + '%' : '0%');
-            const pend = total - done;
-            $root.find('.td-pend').text(pend === 1 ? '1 pendiente' : pend + ' pendientes');
-            $root.find('.td-clear').prop('hidden', done === 0);
-            $('#lineCountChip').text('TODO · ' + total + (total === 1 ? ' tarea' : ' tareas'));
-            $('#md-raw').text(JSON.stringify(data, null, 2));
-        }
-        function locate(id) { for (const s of data.sections) { const t = s.tasks.find(x => x.id === id); if (t) return { sec: s, task: t }; } return null; }
-        function selectAll(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-
-        let saveTimer = null;
-        function persist(now) {
-            clearTimeout(saveTimer);
-            const doIt = () => view._todoPersist(file, JSON.stringify(data, null, 2));
-            if (now) doIt(); else saveTimer = setTimeout(doIt, 500);
-        }
-        function drop($el, after) { $el.addClass('td-leaving').one('animationend', after); }
-
-        // Animacion de copiado: el boton pasa a palomita y sube una burbuja desde
-        // el. El toast sigue estando, pero aparece lejos del boton que se pulso.
-        function copyFx($btn) {
-            if (!$btn || !$btn.length) return;
-            const el = $btn.get(0);
-            clearTimeout($btn.data('fxTimer'));
-            if ($btn.data('fxHtml') == null) $btn.data('fxHtml', $btn.html());
-            $btn.addClass('td-copied').html($btn.hasClass('td-copy') ? 'Copiado' : CHECKSVG);
-            $btn.data('fxTimer', setTimeout(() => {
-                $btn.removeClass('td-copied').html($btn.data('fxHtml'));
-                $btn.removeData('fxHtml');
-            }, 1400));
-
-            const r   = el.getBoundingClientRect();
-            const pop = document.createElement('div');
-            pop.className   = 'td-copied-pop';
-            pop.textContent = 'Copiado';
-            pop.style.left  = Math.round(r.left + r.width / 2) + 'px';
-            pop.style.top   = Math.round(r.top - 6) + 'px';
-            document.body.appendChild(pop);
-            setTimeout(() => pop.remove(), 950);
+        if (!window.todoHub) {
+            $root.html('<div class="td-empty">No se pudo cargar el panel de TODOs.</div>');
+            return;
         }
 
-        function copyText(txt, okMsg, $btn) {
-            const ok   = () => { visorView.toast(okMsg, 'success'); copyFx($btn); };
-            const fail = () => visorView.toast('No se pudo copiar', 'error');
-            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(ok, fail); return; }
-            const ta = document.createElement('textarea');
-            ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
-            document.body.appendChild(ta); ta.select();
-            try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
-            ta.remove();
-        }
+        // Espejo del contenido para el panel "crudo" y el chip de conteo, que son
+        // del armazon del visor y el componente no conoce.
+        const echo = (content, list) => {
+            $('#md-raw').text(content);
+            $('#lineCountChip').text('TODO · ' + list.total + (list.total === 1 ? ' tarea' : ' tareas'));
+        };
 
-        function sectionPrompt(sec) {
-            const pend  = sec.tasks.filter(t => !t.done);
-            const list  = pend.length ? pend : sec.tasks;
-            const title = data.title || 'TODO';
-            const stitle = sec.title || 'Sección';
-            return 'Trabajemos en las tareas pendientes de "' + title + '" · sección "' + stitle + '":\n\n' +
-                   list.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n\n' +
-                   'Impleméntalas en orden, respetando las convenciones y el stack del proyecto. ' +
-                   'No agregues nada que no esté en la lista y al terminar dime qué tareas quedaron listas.';
-        }
-
-        paint();
-
-        $root.on('keydown.td', '.td-addinput', function (e) {
-            if (e.key !== 'Enter') return; e.preventDefault();
-            const v = this.value.trim(); if (!v) return;
-            const sec = data.sections.find(s => s.id === this.dataset.sec); if (!sec) return;
-            const t = { id: uid('t'), text: v, done: false }; sec.tasks.push(t);
-            $(this).closest('.td-sec').find('.td-list').append(taskRow(t));
-            this.value = ''; stats(); persist(true);
+        const list = todoHub.embed($root, {
+            fullPath: file.fullPath,
+            file:     file.file || 'todo.json',
+            title:    file.project || 'TODO',
+            crumbs:   file.project ? [file.project] : [],
+            raw:      file.raw,
+            canEdit:  !file.readOnly,
+            onSave:   (content, l) => { view._todoPersist(file, content); echo(content, l); }
         });
-        $root.on('keydown.td', '.td-txt,.td-sectitle,.td-title', function (e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
-        $root.on('change.td', '.td-chk', function () {
-            const r = locate($(this).closest('.td-task').data('id')); if (!r) return;
-            r.task.done = this.checked; $(this).closest('.td-task').toggleClass('done', this.checked); stats(); persist(true);
-        });
-        $root.on('click.td', '.td-del', function () {
-            const li = $(this).closest('.td-task'); const r = locate(li.data('id')); if (!r) return;
-            r.sec.tasks = r.sec.tasks.filter(x => x.id !== r.task.id); drop(li, () => { li.remove(); stats(); }); persist(true);
-        });
-        $root.on('click.td', '.td-secdel', function () {
-            const el = $(this).closest('.td-sec'); const sid = el.data('id'); const sec = data.sections.find(s => s.id === sid);
-            if (sec && sec.tasks.length && !confirm('Eliminar la sección “' + sec.title + '” y sus ' + sec.tasks.length + ' tarea(s)?')) return;
-            data.sections = data.sections.filter(s => s.id !== sid);
-            drop(el, () => { if (!data.sections.length) paint(); else { el.remove(); stats(); } }); persist(true);
-        });
-        $root.on('blur.td', '.td-txt', function () {
-            const li = $(this).closest('.td-task'); const r = locate(li.data('id')); if (!r) return;
-            const v = this.textContent.trim();
-            if (!v) { r.sec.tasks = r.sec.tasks.filter(x => x.id !== r.task.id); drop(li, () => { li.remove(); stats(); }); persist(true); return; }
-            if (v !== r.task.text) { r.task.text = v; persist(); }
-        });
-        $root.on('blur.td', '.td-sectitle', function () {
-            const sec = data.sections.find(s => s.id === $(this).closest('.td-sec').data('id')); if (!sec) return;
-            const v = this.textContent.trim() || 'Sección'; this.textContent = v; if (v !== sec.title) { sec.title = v; persist(); }
-        });
-        $root.on('blur.td', '.td-title', function () {
-            const v = this.textContent.trim() || 'TODO'; this.textContent = v; if (v !== data.title) { data.title = v; persist(); }
-        });
-        $root.on('click.td', '.td-newsec', function () {
-            const s = { id: uid('s'), title: 'Nueva sección', tasks: [] }; data.sections.push(s); paint();
-            const h = $root.find('.td-sec[data-id="' + s.id + '"] .td-sectitle').get(0); if (h) { h.focus(); selectAll(h); } persist(true);
-        });
-        $root.on('click.td', '.td-clear', function () {
-            data.sections.forEach(s => s.tasks = s.tasks.filter(t => !t.done)); paint(); persist(true); visorView.toast('Completadas eliminadas', 'success');
-        });
-        function suggestBox(txt) {
-            return '<div class="td-suggest"><span class="td-suggest-txt">' + esc(txt) + '</span>' +
-                   '<div class="td-suggest-act"><button class="td-suggest-apply">Aplicar</button>' +
-                   '<button class="td-suggest-skip">Descartar</button></div></div>';
-        }
-
-        $root.on('click.td', '.td-magic', async function () {
-            const $btn = $(this), li = $btn.closest('.td-task');
-            if ($btn.hasClass('is-busy')) return;
-            const r = locate(li.data('id')); if (!r) return;
-            li.find('.td-suggest').remove();
-            $btn.addClass('is-busy').html(SPINSVG);
-            const improved = await view._todoImproveTask(r.task.text, data.title, r.sec.title);
-            $btn.removeClass('is-busy').html(WANDSVG);
-            if (!improved) { visorView.toast(view._todoAiError || 'La IA no pudo mejorar la tarea', 'error'); return; }
-            if (improved === r.task.text) { visorView.toast('La tarea ya esta clara', 'warn'); return; }
-            li.append(suggestBox(improved));
-        });
-        $root.on('click.td', '.td-suggest-apply', function () {
-            const box = $(this).closest('.td-suggest'), li = box.closest('.td-task');
-            const r = locate(li.data('id')); if (!r) return;
-            r.task.text = box.find('.td-suggest-txt').text();
-            li.find('.td-txt').text(r.task.text);
-            box.remove(); persist(true); visorView.toast('Tarea mejorada', 'success');
-        });
-        $root.on('click.td', '.td-suggest-skip', function () { $(this).closest('.td-suggest').remove(); });
-        $root.on('click.td', '.td-seccopy', function () {
-            const sec = data.sections.find(s => s.id === $(this).closest('.td-sec').data('id')); if (!sec) return;
-            if (!sec.tasks.length) { visorView.toast('La sección no tiene tareas', 'warn'); return; }
-            copyText(sectionPrompt(sec), 'Sección copiada para Claude/Kiro', $(this));
-        });
-        $root.on('click.td', '.td-copy', function () {
-            let md = '# ' + (data.title || 'TODO') + '\n';
-            data.sections.forEach(s => { md += '\n## ' + s.title + '\n' + s.tasks.map(t => '- [' + (t.done ? 'x' : ' ') + '] ' + t.text).join('\n') + '\n'; });
-            copyText(md, 'Copiado como Markdown', $(this));
-        });
-
-        // ── Reordenar tareas (arrastrar / Alt+flechas) ──
-        // Arrastre propio con pointer events, no el DnD nativo: arranca a los 4px de
-        // movimiento, no depende de que el navegador acepte el dragstart y responde
-        // igual con dedo. Se agarra desde el grip o desde cualquier zona de la fila
-        // que no sea el texto editable ni un control.
-        let drag = null;
-
-        function commitOrder() {
-            const byId = {};
-            data.sections.forEach(s => s.tasks.forEach(t => { byId[t.id] = t; }));
-            let changed = false;
-            $root.find('.td-sec').each(function () {
-                const sec = data.sections.find(s => s.id === $(this).data('id')); if (!sec) return;
-                const ids  = $(this).find('.td-list > .td-task').map((i, el) => $(el).data('id')).get();
-                const next = ids.map(id => byId[id]).filter(Boolean);
-                if (next.length !== sec.tasks.length || next.some((t, i) => t !== sec.tasks[i])) changed = true;
-                sec.tasks = next;
-            });
-            if (changed) { stats(); persist(true); }
-        }
-
-        // Levanta la fila: clon flotante bajo el cursor, linea de destino y la
-        // original atenuada en su sitio. El clon va envuelto en .md-rendered.is-todo
-        // porque toda la hoja del TODO cuelga de ese selector: suelto en el body
-        // perderia tipografia, colores y espaciados.
-        function liftRow() {
-            drag.moved = true;
-            const root = $root.get(0);
-            const wrap = document.createElement('div');
-            wrap.className = 'md-rendered is-todo td-ghost-wrap';
-            wrap.style.width = drag.w + 'px';
-            wrap.style.setProperty('--vsr-doc-zoom', getComputedStyle(root).getPropertyValue('--vsr-doc-zoom') || 1);
-
-            const ul = document.createElement('ul');
-            ul.className = 'td-list';
-            const clone = drag.row.cloneNode(true);
-            clone.classList.remove('td-dragging');
-            ul.appendChild(clone);
-            wrap.appendChild(ul);
-            document.body.appendChild(wrap);
-
-            const line = document.createElement('div');
-            line.className = 'td-dropline';
-            document.body.appendChild(line);
-
-            drag.ghost = wrap;
-            drag.line  = line;
-            $(drag.row).addClass('td-dragging');
-            $root.addClass('td-dnd');
-            drag.raf = requestAnimationFrame(dragFrame);
-        }
-
-        // Decide en que borde caeria la fila y lleva la linea ahi. No mueve nada.
-        // Resuelve por ALTURA, no por lo que haya bajo el cursor: con
-        // elementFromPoint la franja del grip y los margenes quedaban fuera de toda
-        // fila y el destino se perdia. La X solo dice si sigues dentro de la hoja.
-        function markDrop(x, y) {
-            const secs = $root.find('.td-sec').get();
-            const hide = () => { drag.dest = null; drag.line.style.opacity = '0'; };
-            if (!secs.length) { hide(); return; }
-
-            const hr = $root.get(0).getBoundingClientRect();
-            if (x < hr.left - 40 || x > hr.right + 40) { hide(); return; }   // fuera de la hoja: se cancela
-
-            // Seccion por franja vertical; fuera de todas, la de arriba o la de abajo.
-            let sec = null;
-            for (let i = 0; i < secs.length; i++) {
-                const r = secs[i].getBoundingClientRect();
-                if (y >= r.top && y <= r.bottom) { sec = secs[i]; break; }
-            }
-            if (!sec) sec = (y < secs[0].getBoundingClientRect().top) ? secs[0] : secs[secs.length - 1];
-
-            // Primera fila cuyo medio queda por debajo del cursor: la linea va encima.
-            const rows = $(sec).find('.td-task').get().filter(el => el !== drag.row);
-            let edge = null;
-            for (let i = 0; i < rows.length; i++) {
-                const r = rows[i].getBoundingClientRect();
-                if (y < r.top + r.height / 2) {
-                    drag.dest = { ref: rows[i], after: false };
-                    edge      = { top: r.top, left: r.left, width: r.width };
-                    break;
-                }
-            }
-            if (!edge && rows.length) {                          // por debajo de todas: al final
-                const r = rows[rows.length - 1].getBoundingClientRect();
-                drag.dest = { ref: rows[rows.length - 1], after: true };
-                edge      = { top: r.bottom, left: r.left, width: r.width };
-            }
-            if (!edge) {                                         // seccion sin otras tareas
-                const list = $(sec).find('.td-list').get(0) || sec;
-                const r    = list.getBoundingClientRect();
-                drag.dest  = { list: list };
-                edge       = { top: r.top + 4, left: r.left, width: Math.max(r.width, 160) };
-            }
-
-            drag.line.style.opacity = '1';
-            drag.line.style.top     = Math.round(edge.top) + 'px';
-            drag.line.style.left    = Math.round(edge.left) + 'px';
-            drag.line.style.width   = Math.round(edge.width) + 'px';
-        }
-
-        // Un solo recalculo por cuadro: el pointermove solo anota la posicion. Un
-        // mouse de alta frecuencia dispara decenas de eventos por frame y resolver
-        // ahi el destino es lo que se siente pesado.
-        function dragFrame() {
-            if (!drag || !drag.moved) return;
-            let scrolled = false;
-            const el = $('.main-content').get(0);
-            if (el) {
-                const r = el.getBoundingClientRect();
-                if (drag.y - r.top < 60)         { el.scrollTop -= 14; scrolled = true; }
-                else if (r.bottom - drag.y < 60) { el.scrollTop += 14; scrolled = true; }
-            }
-            drag.ghost.style.transform = 'translate3d(' + (drag.x - drag.dx) + 'px,' + (drag.y - drag.dy) + 'px,0)';
-            if (scrolled || drag.x !== drag.px || drag.y !== drag.py) {
-                markDrop(drag.x, drag.y);
-                drag.px = drag.x; drag.py = drag.y;
-            }
-            drag.raf = requestAnimationFrame(dragFrame);
-        }
-
-        function endDrag() {
-            $(document).off('.tddrag');
-            if (!drag) return;
-            const d = drag;
-            drag = null;
-            cancelAnimationFrame(d.raf);
-            if (d.ghost) d.ghost.remove();
-            if (d.line)  d.line.remove();
-            $(d.row).removeClass('td-dragging');
-            $root.removeClass('td-dnd');
-            if (!d.moved || !d.dest) return;                  // sin destino valido no hubo movimiento
-
-            if (d.dest.ref) {
-                if (d.dest.after) d.dest.ref.after(d.row); else d.dest.ref.before(d.row);
-            } else if (d.dest.list) {
-                d.dest.list.appendChild(d.row);
-            }
-            const $row = $(d.row).addClass('td-dropped');
-            setTimeout(() => $row.removeClass('td-dropped'), 320);
-            commitOrder();
-        }
-
-        $root.on('pointerdown.td', '.td-task', function (e) {
-            const ev = e.originalEvent;
-            if (ev.button > 0) return;
-            const $t = $(e.target);
-            // Fuera del grip solo agarra el fondo de la fila: texto y controles
-            // conservan su comportamiento (seleccionar, palomear, borrar, IA).
-            if (!$t.closest('.td-grip').length && $t.closest('.td-txt, button, input, .td-suggest').length) return;
-            ev.preventDefault();
-            const r = this.getBoundingClientRect();
-            drag = {
-                row: this, x: ev.clientX, y: ev.clientY, y0: ev.clientY, px: 0, py: 0,
-                dx: ev.clientX - r.left, dy: ev.clientY - r.top, w: r.width,
-                moved: false, raf: 0, ghost: null, line: null, dest: null
-            };
-            $(document)
-                .on('pointermove.tddrag', (me) => {
-                    const m = me.originalEvent;
-                    drag.x = m.clientX; drag.y = m.clientY;                // el trabajo real va en dragFrame
-                    if (drag.moved || Math.abs(m.clientY - drag.y0) < 4) return;   // umbral: un clic no arrastra
-                    liftRow();
-                })
-                .on('pointerup.tddrag pointercancel.tddrag', endDrag);
-        });
-
-        // Alt+flechas: mismo reordenamiento sin mouse, dentro de la seccion.
-        $root.on('keydown.td', '.td-txt', function (e) {
-            if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
-            e.preventDefault();
-            const li = $(this).closest('.td-task'), up = e.key === 'ArrowUp';
-            const sib = up ? li.prev('.td-task') : li.next('.td-task'); if (!sib.length) return;
-            if (up) sib.before(li); else sib.after(li);
-            this.focus(); commitOrder();
-        });
+        echo(file.raw || '', list);
 
         // El panel ya es editable en sitio: no hay modo edición WYSIWYG.
         $('#btnEdit, #btnOpenEditor').addClass('hidden');
@@ -6787,6 +6513,18 @@ class CoffeeIA {
             this._renderLayoutPreview(received);
         }
 
+        // Tareas propuestas por el modelo (todo_propose). Aqui el chat convive con
+        // el documento abierto: si es un todo.json, la propuesta cae en esa lista
+        // sin preguntar a cual.
+        if (meta && meta.proposal && window.todoHub) {
+            const abierto = this.currentFileRef && this.currentFileRef();
+            const esTodo  = abierto && visorView._isTodoJson(abierto);
+            todoHub.proposalIn(meta.proposal, '#iaBodyChat', esTodo ? {
+                listKey:   'embed::' + abierto.fullPath,
+                listLabel: abierto.file
+            } : null);
+        }
+
         // Sonido al terminar de responder (solo en respuestas exitosas).
         this._playPopSound();
 
@@ -7813,7 +7551,7 @@ class CoffeeIA {
 
     _getTheme() {
         const t = (document.documentElement.getAttribute('data-theme') || 'dark').toLowerCase();
-        return t === 'light' ? 'light' : 'dark';
+        return (window.CoffeeTheme ? CoffeeTheme.normalize(t) : (t === 'light' ? 'light' : 'dark'));
     }
 
     // Tamano natural de un <svg>: prioriza el viewBox (Mermaid emite width="100%",

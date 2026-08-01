@@ -100,21 +100,40 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    // Consulta dedicada con arreglo posicional (sin util->sql()): is_bridge, is_modifier
+    // y price aceptan 0 legitimo, y util->sql() lo convertiria en NULL por su
+    // comparacion suelta contra las columnas NOT NULL de este esquema.
     function createProduct($array) {
-        return $this->_Insert([
-            'table'  => "{$this->bd}product",
-            'values' => $array['values'],
-            'data'   => $array['data']
-        ]);
+        // [code, name, price, is_bridge, is_modifier, branch_id]
+        $query = "
+            INSERT INTO {$this->bd}product (code, name, price, is_bridge, is_modifier, branch_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ";
+        return $this->_CUD($query, $array);
     }
 
     function updateProduct($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}product",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data']
-        ]);
+        // [code, name, price, is_bridge, is_modifier, id]
+        $query = "
+            UPDATE {$this->bd}product
+            SET code = ?, name = ?, price = ?, is_bridge = ?, is_modifier = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // $column ya viene validada en el ctrl contra un mapa fijo (is_bridge/is_modifier),
+    // nunca es texto libre del usuario: por eso es seguro interpolarla en el SET.
+    function updateProductFlag($column, $array) {
+        // [valor, id]
+        $query = "UPDATE {$this->bd}product SET {$column} = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateProductActive($array) {
+        // [active, id]
+        $query = "UPDATE {$this->bd}product SET active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
     }
 
     // -- Meseros --
@@ -169,5 +188,14 @@ class mdl extends CRUD {
             'where'  => $array['where'],
             'data'   => $array['data']
         ]);
+    }
+
+    // Consulta dedicada con arreglo posicional: la baja (active = 0) pasada por
+    // util->sql() se convierte en NULL por su comparacion suelta y la columna es
+    // NOT NULL con STRICT_ALL_TABLES.
+    function updateWaiterActive($array) {
+        // [active, id]
+        $query = "UPDATE {$this->bd}waiter SET active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
     }
 }

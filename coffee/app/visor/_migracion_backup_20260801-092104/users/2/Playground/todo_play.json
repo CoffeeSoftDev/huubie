@@ -1,0 +1,82 @@
+{
+  "title": "Playground",
+  "sections": [
+    {
+      "id": "spe0f4t6",
+      "title": "Contenedor de contexto",
+      "tasks": [
+        {
+          "id": "tszy4t7c",
+          "text": "Ventana de prompt para describir que va realizar el agente , debe incluir un boton para mejorar el prompt ( la idea )",
+          "done": false
+        },
+        {
+          "id": "tl2jmyq2",
+          "text": "Modelo por defecto",
+          "done": false
+        },
+        {
+          "id": "tje5qkvo",
+          "text": "Apartado para agregar el alma la esencia del agente",
+          "done": false
+        },
+        {
+          "id": "tmipufld",
+          "text": "Sección para agregar el conocimiento del cual el agente usara para su conocimiento, debe ser clickeable para saber que conocimiento usar",
+          "done": false
+        },
+        {
+          "id": "tyxxdbt1",
+          "text": "Habilitar/deshabilitar   tools ( debe mostrar todas las tools disponibles, por defecto carga las tools que ya tiene por defecto)",
+          "done": false
+        },
+        {
+          "id": "tfhg4v2i",
+          "text": "Debe permitirte saber si ese agente ocupa lienzo o no por defecto ( lienzo sirve para renderizar html/md/documents/",
+          "done": false
+        },
+        {
+          "id": "t078tp2r",
+          "text": "agregar conectores MCP",
+          "done": false
+        },
+        {
+          "id": "tjrqs3kp",
+          "text": "Agregar un selector de agente",
+          "done": false
+        },
+        {
+          "id": "tvyndo7i",
+          "text": "Seleccionar el tipo de razonamiento que tendra",
+          "done": false
+        },
+        {
+          "id": "tyhluz57",
+          "text": "*** En un futuro poder seleccionar los vectores",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "szqc5v07",
+      "title": "sanbox/chat",
+      "tasks": [
+        {
+          "id": "tk2g9pfq",
+          "text": "te muestra como responde el asistent",
+          "done": false
+        },
+        {
+          "id": "tr4sksq5",
+          "text": "El sandbox no guarda ninguna conversacion",
+          "done": false
+        },
+        {
+          "id": "tszs01v8",
+          "text": "Debe tener la posibilidad de limpiar , tanto como boton como al cambiar de agente",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

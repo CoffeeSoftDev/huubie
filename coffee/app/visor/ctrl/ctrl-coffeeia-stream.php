@@ -127,6 +127,9 @@ if ($dbSchema && $fsRoot) {
 
         $send('done', [
             'ok'                => true,
+            // Tareas propuestas con todo_propose durante el turno (o null): la
+            // interfaz las pinta como tarjeta. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => $outTokens,
             'prompt_tokens'     => $inTokens,
@@ -192,6 +195,9 @@ if ($dbSchema && !$fsRoot) {
 
         $send('done', [
             'ok'                => true,
+            // Tareas propuestas con todo_propose durante el turno (o null): la
+            // interfaz las pinta como tarjeta. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => $outTokens,
             'prompt_tokens'     => $inTokens,
@@ -254,6 +260,9 @@ if ($fsRoot && !$dbSchema) {
 
         $send('done', [
             'ok'                => true,
+            // Tareas propuestas con todo_propose durante el turno (o null): la
+            // interfaz las pinta como tarjeta. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => $outTokens,
             'prompt_tokens'     => $inTokens,
@@ -303,6 +312,9 @@ if (!$dbSchema && !$fsRoot && tools_has_standalone($scope['surface'], $scope['ag
 
         $send('done', [
             'ok'                => true,
+            // Tareas propuestas con todo_propose durante el turno (o null): la
+            // interfaz las pinta como tarjeta. Nada se escribio en disco.
+            'proposal'          => todo_tool_take(),
             'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
             'tokens_used'       => $outTokens,
             'prompt_tokens'     => $inTokens,
@@ -353,6 +365,9 @@ try {
 
     $send('done', [
         'ok'                => true,
+        // Sin herramientas no hay propuesta, pero el campo viaja igual para que el
+        // frontend no tenga que distinguir por que rama vino la respuesta.
+        'proposal'          => todo_tool_take(),
         'elapsed_ms'        => (int) round((microtime(true) - $t0) * 1000),
         'tokens_used'       => (int) $tokensUsed,
         'prompt_tokens'     => (int) $inTokens,

@@ -11,6 +11,11 @@ class ctrl extends mdl {
     public function __construct() {
         parent::__construct();
         $this->branch = $this->resolveBranch();
+
+        // La tabla y los kpis se piden juntos tras cada escritura: sin cerrar la
+        // sesion aqui, el lock de sesion de PHP los serializa aunque el navegador
+        // los dispare al mismo tiempo.
+        session_write_close();
     }
 
     // El facturador tiene su propia tabla branch: el id de sucursal de la sesion
@@ -34,7 +39,7 @@ class ctrl extends mdl {
 
     // Los auxiliares encabezan la lista porque son la marca con la que abre el
     // modulo: el resto del catalogo se consulta desde aqui, pero no es lo que se
-    // viene a ver. El id de cada opcion es la clave del mapa de whereTipo().
+    // viene a ver. El id de cada opcion es la clave del mapa de whereClase().
     function init() {
         return [
             'tipos' => [
@@ -64,7 +69,10 @@ class ctrl extends mdl {
 
     // El valor del select no viaja al SQL: cada opcion tiene aqui su condicion
     // fija, y lo que no este en el mapa no filtra.
-    function whereTipo() {
+    //
+    // La marca llega como 'clase' porque createTable reserva la llave 'tipo' para el
+    // modo de validar_contenedor y no la reenvia.
+    function whereClase() {
         $mapa = [
             'puente'      => ' AND is_bridge = 1 ',
             'modificador' => ' AND is_modifier = 1 ',
@@ -72,7 +80,7 @@ class ctrl extends mdl {
             'inactivos'   => ' AND active = 0 '
         ];
 
-        return $mapa[$_POST['tipo'] ?? ''] ?? '';
+        return $mapa[$_POST['clase'] ?? ''] ?? '';
     }
 
     // -- Emisor --
@@ -129,9 +137,13 @@ class ctrl extends mdl {
     // Las dos marcas del producto se cambian con el interruptor de su celda, sin
     // abrir el formulario: son las dos columnas que se repasan de corrido cuando se
     // arma el catalogo de auxiliares.
+    //
+    // Los kpis viajan en la misma respuesta: el switch de la celda dispara esta
+    // consulta para refrescar la tabla, y sin esto necesitaria una segunda vuelta
+    // al servidor solo para las tarjetas.
     function lsProductos() {
         $__row = [];
-        foreach ($this->listProduct($this->filtros(), $this->whereTipo()) as $item) {
+        foreach ($this->listProduct($this->filtros(), $this->whereClase()) as $item) {
             $__row[] = [
                 'id'                => $item['code'],
                 'Codigo'            => cellCodigo($item['code']),
@@ -146,7 +158,8 @@ class ctrl extends mdl {
 
         return [
             'row'   => $__row,
-            'thead' => ['Codigo', 'Nombre', 'Precio', 'Producto auxiliar', 'Modificador', 'Estatus', 'Acciones']
+            'thead' => ['Codigo', 'Nombre', 'Precio', 'Producto auxiliar', 'Modificador', 'Estatus', 'Acciones'],
+            'kpis'  => $this->productKpis()
         ];
     }
 
@@ -172,30 +185,27 @@ class ctrl extends mdl {
     // Alta y edicion comparten campos: la clave decide cual de las dos es. La clave
     // es la del POS, asi que un producto que ya existe se edita, no se duplica (la
     // UNIQUE (code, branch_id) lo rechazaria).
+    //
+    // Las escrituras van por consulta dedicada con arreglo posicional, sin pasar
+    // por util->sql(): su comparacion suelta ($value == '') convierte is_bridge,
+    // is_modifier o price en 0 a NULL, y las columnas son NOT NULL con STRICT_ALL_TABLES.
     function saveProducto() {
         $code   = trim($_POST['code'] ?? '');
         $previo = trim($_POST['previo'] ?? '');
 
         if ($code === '') return ['status' => 400, 'message' => 'La clave del producto es obligatoria'];
 
-        $campos = [
-            'code'        => $code,
-            'name'        => trim($_POST['nombre'] ?? ''),
-            'price'       => (float) ($_POST['precio'] ?? 0),
-            'is_bridge'   => (int) ($_POST['puente'] ?? 0),
-            'is_modifier' => (int) ($_POST['modificador'] ?? 0)
-        ];
+        $nombre     = trim($_POST['nombre'] ?? '');
+        $precio     = (float) ($_POST['precio'] ?? 0);
+        $isBridge   = (int) ($_POST['puente'] ?? 0);
+        $isModifier = (int) ($_POST['modificador'] ?? 0);
 
         $existe = $previo !== '' ? $previo : $code;
         $actual = $this->getProductByCode([$existe, $this->branchId()]);
 
-        if (!empty($actual)) {
-            $campos['id'] = $actual[0]['id'];
-            $guardado     = $this->updateProduct($this->util->sql($campos, 1));
-        } else {
-            $campos['branch_id'] = $this->branchId();
-            $guardado            = $this->createProduct($this->util->sql([$campos]));
-        }
+        $guardado = !empty($actual)
+            ? $this->updateProduct([$code, $nombre, $precio, $isBridge, $isModifier, $actual[0]['id']])
+            : $this->createProduct([$code, $nombre, $precio, $isBridge, $isModifier, $this->branchId()]);
 
         return [
             'status'  => $guardado ? 200 : 500,
@@ -204,7 +214,8 @@ class ctrl extends mdl {
     }
 
     // El interruptor de la fila manda que marca toca y con que valor se queda. La
-    // columna se resuelve contra un mapa: lo que no este ahi no se escribe.
+    // columna se resuelve contra un mapa fijo (nunca texto libre del usuario) y
+    // viaja como literal seguro en el SET de la consulta dedicada.
     function editProductoFlag() {
         $columnas = ['puente' => 'is_bridge', 'modificador' => 'is_modifier'];
         $columna  = $columnas[$_POST['campo'] ?? ''] ?? '';
@@ -215,10 +226,8 @@ class ctrl extends mdl {
 
         if (empty($ls)) return ['status' => 404, 'message' => 'El producto no existe'];
 
-        $guardado = $this->updateProduct($this->util->sql([
-            $columna => (int) ($_POST['valor'] ?? 0),
-            'id'     => $ls[0]['id']
-        ], 1));
+        $valor    = (int) ($_POST['valor'] ?? 0);
+        $guardado = $this->updateProductFlag($columna, [$valor, $ls[0]['id']]);
 
         return [
             'status'  => $guardado ? 200 : 500,
@@ -235,10 +244,7 @@ class ctrl extends mdl {
         if (empty($ls)) return ['status' => 404, 'message' => 'El producto no existe'];
 
         $activo   = (int) ($_POST['valor'] ?? 0);
-        $guardado = $this->updateProduct($this->util->sql([
-            'active' => $activo,
-            'id'     => $ls[0]['id']
-        ], 1));
+        $guardado = $this->updateProductActive([$activo, $ls[0]['id']]);
 
         return [
             'status'  => $guardado ? 200 : 500,
@@ -314,16 +320,16 @@ class ctrl extends mdl {
         ];
     }
 
+    // Consulta dedicada con arreglo posicional: la baja (active = 0) pasada por
+    // util->sql() se convierte en NULL por su comparacion suelta y la columna es
+    // NOT NULL con STRICT_ALL_TABLES.
     function editMeseroStatus() {
         $ls = $this->getWaiterByCode([$_POST['code'] ?? '', $this->branchId()]);
 
         if (empty($ls)) return ['status' => 404, 'message' => 'El mesero no existe'];
 
         $activo   = (int) ($_POST['valor'] ?? 0);
-        $guardado = $this->updateWaiter($this->util->sql([
-            'active' => $activo,
-            'id'     => $ls[0]['id']
-        ], 1));
+        $guardado = $this->updateWaiterActive([$activo, $ls[0]['id']]);
 
         return [
             'status'  => $guardado ? 200 : 500,
@@ -335,26 +341,33 @@ class ctrl extends mdl {
 
     // -- Indicadores --
 
+    // Compartida por lsProductos() (viaja en la misma respuesta que la tabla) y por
+    // showKpis() (cifras de producto + mesero juntas para cuando la vista lo pida
+    // aparte). El buscador es comun a las dos vistas.
+    function productKpis() {
+        $producto = $this->getProductCounts($this->filtros(), $this->whereClase());
+        $p = $producto[0] ?? ['productos' => 0, 'puente' => 0, 'modificadores' => 0, 'precio_promedio' => 0];
+
+        return [
+            'productos'      => (int) $p['productos'],
+            'puente'         => (int) $p['puente'],
+            'modificadores'  => (int) $p['modificadores'],
+            'precioPromedio' => money($p['precio_promedio'])
+        ];
+    }
+
     // Las dos vistas se sirven de una sola consulta: el buscador es comun a las dos
     // y el cambio de pestaña no vuelve a pedir cifras al servidor.
     function showKpis() {
-        $filtros  = $this->filtros();
-        $producto = $this->getProductCounts($filtros, $this->whereTipo());
-        $mesero   = $this->getWaiterCounts($filtros);
+        $mesero = $this->getWaiterCounts($this->filtros());
+        $m = $mesero[0] ?? ['meseros' => 0, 'activos' => 0, 'sin_nombre' => 0];
 
-        $p = $producto[0] ?? ['productos' => 0, 'puente' => 0, 'modificadores' => 0, 'precio_promedio' => 0];
-        $m = $mesero[0]   ?? ['meseros' => 0, 'activos' => 0, 'sin_nombre' => 0];
-
-        return [
-            'productos'       => (int) $p['productos'],
-            'puente'          => (int) $p['puente'],
-            'modificadores'   => (int) $p['modificadores'],
-            'precioPromedio'  => money($p['precio_promedio']),
-            'meseros'         => (int) $m['meseros'],
-            'meserosActivos'  => (int) $m['activos'],
-            'meserosBaja'     => (int) $m['meseros'] - (int) $m['activos'],
-            'meserosSinNombre'=> (int) $m['sin_nombre']
-        ];
+        return array_merge($this->productKpis(), [
+            'meseros'          => (int) $m['meseros'],
+            'meserosActivos'   => (int) $m['activos'],
+            'meserosBaja'      => (int) $m['meseros'] - (int) $m['activos'],
+            'meserosSinNombre' => (int) $m['sin_nombre']
+        ]);
     }
 }
 

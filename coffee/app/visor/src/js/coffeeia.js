@@ -151,7 +151,7 @@ function ciaLoadSettings() {
         CIA.agentKey   = CIA_AGENTS[s.agentKey] ? s.agentKey : CIA_DEFAULT_AGENT;
         CIA.model      = s.model || '';
         CIA.effort     = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : '';
-        CIA.uiTheme    = s.uiTheme === 'light' ? 'light' : 'dark';
+        CIA.uiTheme    = (window.CoffeeTheme ? CoffeeTheme.normalize(s.uiTheme) : (s.uiTheme === 'light' ? 'light' : 'dark'));
         CIA.canvasMode = !!s.canvasMode;
         CIA.graphMode  = CIA_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
         CIA.dbToolsOn  = !!s.dbToolsOn;
@@ -223,7 +223,7 @@ function ciaBindSidebarResize() {
 }
 
 function ciaApplyUiTheme(theme) {
-    CIA.uiTheme = theme === 'light' ? 'light' : 'dark';
+    CIA.uiTheme = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
     document.documentElement.setAttribute('data-theme', CIA.uiTheme);
     document.body.setAttribute('data-theme', CIA.uiTheme);
     // Mermaid no conoce el tema 'light': su equivalente claro es 'default'.
@@ -232,7 +232,7 @@ function ciaApplyUiTheme(theme) {
     }
     const $icon = $('#ciaThemeToggle i');
     if ($icon.length) {
-        $icon.attr('data-lucide', CIA.uiTheme === 'dark' ? 'sun' : 'moon');
+        $icon.attr('data-lucide', (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(CIA.uiTheme)).icon : (CIA.uiTheme === 'dark' ? 'sun' : 'moon')));
         if (window.lucide) lucide.createIcons();
     }
     ciaSaveSettings();
@@ -282,7 +282,7 @@ function ciaBind() {
     $('#ciaAgentSelect').on('change', e => ciaApplyAgent(e.target.value, false));
     $('#ciaModelSelect').on('change', e => { CIA.model = e.target.value || ''; ciaSaveSettings(); ciaWarnModelTools(); });
     $('#ciaEffortSelect').val(CIA.effort || '').on('change', e => { CIA.effort = e.target.value || ''; ciaSaveSettings(); });
-    $('#ciaThemeToggle').on('click', () => ciaApplyUiTheme(CIA.uiTheme === 'dark' ? 'light' : 'dark'));
+    $('#ciaThemeToggle').on('click', () => ciaApplyUiTheme((window.CoffeeTheme ? CoffeeTheme.next(CIA.uiTheme) : (CIA.uiTheme === 'dark' ? 'light' : 'dark'))));
 
     /* ── Menú "+" : todas las herramientas en un solo sitio (patrón Claude) ── */
     $('#ciaPlusBtn').on('click', e => {
@@ -506,6 +506,28 @@ function ciaWarnModelTools() {
     const target = CIA.activeDb ? `la base conectada ("${CIA.activeDb}")`
                  : CIA.activeFolder ? 'la carpeta conectada' : 'bases de datos y carpetas';
     ciaToast(`Este modelo puede no soportar consultas en vivo (tools): ${target} podría no leerse. Para datos reales usa GLM, Qwen3 Coder o Kimi.`, 'warn');
+}
+
+/* ── Guardas de conexión (patrón del Lab) ──
+ * El backend solo resuelve carpeta/base si el turno viaja con `fsTools`/`dbTools`
+ * encendidos (coffeeia-context.php). Con el interruptor apagado no declara
+ * list_dir/read_file/grep_files y el modelo responde "no tengo herramientas"
+ * DESPUÉS de gastar el turno. Estas heurísticas detectan el caso antes de enviar. */
+
+// Ruta REAL del disco (C:\..., a/b.php, src\js). Estricta a propósito: la palabra
+// suelta "carpeta" no basta para bloquear un envío, y una URL no es ruta local.
+function ciaTextHasRealPath(text) {
+    const t = String(text || '').replace(/\b[a-z][\w+.-]*:\/\/\S+/gi, ' ');
+    return /(^|[\s"'(<[])[A-Za-z]:[\\/]/.test(t)         // Windows: C:\ o C:/
+        || /[\w.-]+\\[\w.-]+/.test(t)                    // backslash: no aparece en prosa
+        || /(^|\s)\.{0,2}\/[\w.-]+\/[\w.-]+/.test(t)     // Unix: /a/b, ./a/b, ../a/b
+        || /[\w.-]+\/[\w-]+\.[a-z0-9]{1,4}\b/i.test(t);  // a/b.php: segmento + archivo
+}
+
+// Intención EXPLÍCITA de conectar ("conéctate a X"): exige verbo + preposición
+// para no confundirla con un pedido de UI ("un botón que conecta los puntos").
+function ciaTextIsConnectIntent(text) {
+    return /\bcon[eé]ct\w*\s+(a|al|con)\b/i.test(String(text || ''));
 }
 
 /* ═══════════════════════ Conexiones pegajosas (BD / carpeta) ═══════════════════════ */
@@ -1603,6 +1625,27 @@ async function ciaSubmit() {
     // generación, la pregunta no se pierde y la conversación queda restaurable.
     ciaAutoSave();
 
+    // Guardas proactivas: nombraste una ruta o pediste conectarte, pero el
+    // interruptor que lo hace posible está apagado. Se avisa aquí en vez de gastar
+    // el turno; el aviso NO entra al historial, así el hilo sigue terminando en tu
+    // mensaje y basta encender y pulsar Enviar (con el input vacío) para reenviarlo.
+    const askText = userMsg.displayText || userMsg.content || '';
+    if (ciaTextHasRealPath(askText) && !CIA.fsToolsOn) {
+        ciaAppendAIMessage('📁 Nombraste una ruta del disco, pero **Archivos** está apagado: '
+            + 'sin ese interruptor no recibo `list_dir` ni `read_file` y no puedo leer la carpeta. '
+            + 'Enciéndelo en el menú **"+"** (o escribe **@** y elige la carpeta, que además fija la ruta exacta) '
+            + 'y vuelve a enviar tu mensaje.');
+        ciaScrollBottom();
+        return;
+    }
+    if (ciaTextIsConnectIntent(askText) && !CIA.dbToolsOn && !CIA.fsToolsOn) {
+        ciaAppendAIMessage('🔌 Para conectarme a datos enciende primero una herramienta en el menú **"+"**: '
+            + '**Base de datos** si es una base, **Archivos** si es una carpeta. '
+            + 'Después vuelve a enviar tu mensaje.');
+        ciaScrollBottom();
+        return;
+    }
+
     ciaSetBusy(true);
     ciaScrollBottom(true);
     const $typing = ciaAppendTyping();
@@ -1813,6 +1856,12 @@ async function ciaSubmit() {
         },
         ts: Date.now()
     });
+
+    // Tareas que el modelo propuso durante el turno: las pinta el componente del
+    // TODO, el mismo en las tres superficies.
+    if (meta && meta.proposal && window.todoHub) {
+        todoHub.proposalIn(meta.proposal, '#ciaBody .cia-thread');
+    }
 
     ciaPlayPop();
     finish();

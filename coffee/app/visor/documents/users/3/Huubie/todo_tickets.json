@@ -8,7 +8,9 @@
         {
           "id": "tf8fwl4m",
           "text": "Eliminar el input de buscar nota en la lista \"Facture - tickets\", sección \"Pendientes\".",
-          "done": false
+          "done": false,
+          "prio": "media",
+          "due": "2026-08-01"
         },
         {
           "id": "t2zgd1sd",

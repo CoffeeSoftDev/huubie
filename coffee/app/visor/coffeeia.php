@@ -15,6 +15,8 @@
          puntos animados, el cerebro de "Razonando...", la card "Conjurando..." y
          el cursor del typewriter. Son las MISMAS animaciones del Visor. -->
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
+    <!-- El centro de TODOs pinta aqui la tarjeta de tareas que propone el chat. -->
+    <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/coffeeia.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 
@@ -427,6 +429,7 @@
          del chat anterior). -->
     <script src="../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>

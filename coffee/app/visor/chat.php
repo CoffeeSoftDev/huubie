@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/css/ui-kit.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/visor.css?t=<?php echo time(); ?>">
+    <!-- El centro de TODOs pinta aqui la tarjeta de tareas que propone el chat. -->
+    <link rel="stylesheet" href="src/css/todo-hub.css?t=<?php echo time(); ?>">
     <link rel="stylesheet" href="src/css/chat.css?t=<?php echo time(); ?>">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -312,6 +314,7 @@
     <div id="chatToast" class="visor-toast"></div>
 
     <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
+    <script src="src/js/todo-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/chat.js?t=<?php echo time(); ?>"></script>

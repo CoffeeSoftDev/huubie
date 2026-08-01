@@ -114,7 +114,7 @@ function chatApplyUiTheme(theme) {
     document.body.setAttribute('data-theme', theme);
     const $icon = $('#chatThemeToggle i');
     if ($icon.length) {
-        $icon.attr('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        $icon.attr('data-lucide', (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(theme)).icon : (theme === 'dark' ? 'sun' : 'moon')));
         if (window.lucide) lucide.createIcons();
     }
     chatSaveSettings();
@@ -156,7 +156,7 @@ function chatBind() {
     $('#chatAgentSelect').on('change', e => chatApplyAgent(e.target.value, false));
     $('#chatModelSelect').on('change', e => { chat.model = e.target.value || ''; chatSaveSettings(); chatWarnModelTools(); });
     $('#chatEffortSelect').val(chat.effort || '').on('change', e => { chat.effort = e.target.value || ''; chatSaveSettings(); });
-    $('#chatThemeToggle').on('click', () => chatApplyUiTheme(chat.uiTheme === 'dark' ? 'light' : 'dark'));
+    $('#chatThemeToggle').on('click', () => chatApplyUiTheme((window.CoffeeTheme ? CoffeeTheme.next(chat.uiTheme) : (chat.uiTheme === 'dark' ? 'light' : 'dark'))));
 
     // Modo lienzo (HTML renderizable).
     $('#chatCanvasToggle').on('click', () => chatToggleCanvasMode());

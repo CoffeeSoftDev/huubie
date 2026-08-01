@@ -1,0 +1,72 @@
+{
+  "title": "Facture - Cargas Mensuales",
+  "sections": [
+    {
+      "id": "s3477iki",
+      "title": "Contenedor principal",
+      "tasks": [
+        {
+          "id": "tocria15",
+          "text": "Quitar la info que tiene pagos y reporte de ventas",
+          "done": false
+        },
+        {
+          "id": "tnwbog56",
+          "text": "Revisar que los datos se subieron correctamente",
+          "done": false
+        },
+        {
+          "id": "t8xoj4lc",
+          "text": "Quitar el background azul de los grupos de la tabla",
+          "done": false
+        },
+        {
+          "id": "tu4nec9i",
+          "text": "Comandas: en hojas detectadas cambia el color a purpura",
+          "done": true
+        },
+        {
+          "id": "tel4opk8",
+          "text": "el boton del loader de carga debe estar centrado y debe ser un loader de circulo",
+          "done": true
+        },
+        {
+          "id": "t6sisqqp",
+          "text": "Al seleccionar una tab ( Pagos, reporte de ventas) el loader de carga debe ser circular",
+          "done": true
+        },
+        {
+          "id": "tlfxip2p",
+          "text": "quitar el boton de ver a bitacora y tambien los acceso directos de archivo",
+          "done": true
+        },
+        {
+          "id": "t38pe0vq",
+          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "sq12csh9",
+      "title": "Ventas y pagos",
+      "tasks": [
+        {
+          "id": "tqp02f8q",
+          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos",
+          "done": false
+        },
+        {
+          "id": "ti7ejd1t",
+          "text": "mostra un emptyState en reporte de ventas y comandas",
+          "done": false
+        },
+        {
+          "id": "tx3ttn5i",
+          "text": "agregar un ver al ticket que te envie al apartado de tickets",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

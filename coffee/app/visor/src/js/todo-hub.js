@@ -80,7 +80,8 @@
         cog:     'settings',
         wand:    'wand-sparkles',
         spin:    'loader-circle',
-        fields:  'sliders-horizontal'
+        fields:  'sliders-horizontal',
+        broom:   'eraser'
     };
 
     // Color de acento del hub. Cada uno trae su tono para fondo oscuro y para claro:
@@ -95,6 +96,21 @@
         { id: 'indigo', name: 'Índigo',    dark: '#818CF8', light: '#4F46E5' },
         { id: 'slate',  name: 'Grafito',   dark: '#94A3B8', light: '#475569' }
     ];
+
+    // Texto legible SOBRE el acento. Con celeste o ambar hay que escribir en oscuro;
+    // con indigo o terracota, en blanco. Se decide por luminancia relativa (WCAG) en
+    // vez de fijar un color, que era lo que dejaba textos ilegibles al cambiar de
+    // acento.
+    function onColor(hex) {
+        const h = String(hex).replace('#', '');
+        const n = parseInt(h.length === 3 ? h.replace(/./g, (c) => c + c) : h, 16);
+        const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+            v /= 255;
+            return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4);
+        });
+        const lum = .2126 * ch[0] + .7152 * ch[1] + .0722 * ch[2];
+        return lum > .45 ? '#0A1A24' : '#FFFFFF';
+    }
 
     // rgba a partir del hex del acento: las variables soft/line del tema son el
     // mismo color con alfa, no colores aparte.
@@ -205,10 +221,23 @@
             const acc  = ACCENTS.filter((a) => a.id === this.accent)[0] || ACCENTS[0];
             const dark = document.documentElement.getAttribute('data-theme') !== 'light';
             const c    = dark ? acc.dark : acc.light;
-            const el   = this.$veil.get(0);
-            el.style.setProperty('--tdw-sky', c);
-            el.style.setProperty('--tdw-sky-soft', rgba(c, .21));
-            el.style.setProperty('--tdw-sky-line', rgba(c, .35));
+            // El velo, el editor de campos (que cuelga del body) y cada panel
+            // embebido declaran la paleta por separado: el acento se escribe en los
+            // tres o el color solo cambiaria dentro de la ventana.
+            const targets = [this.$veil.get(0), $('#tdwFields').get(0)]
+                .concat(this.lists.filter((l) => l.embedded && l.host).map((l) => l.host))
+                .concat($('.tdw-prop').get());          // tarjetas del chat, fuera del velo
+
+            targets.forEach((el) => {
+                if (!el) return;
+                el.style.setProperty('--tdw-sky', c);
+                el.style.setProperty('--tdw-sky-soft', rgba(c, .21));
+                el.style.setProperty('--tdw-sky-line', rgba(c, .35));
+                // Lo que va ENCIMA del acento: sin esto, el texto de los botones se
+                // quedaba en el azul oscuro pensado para el celeste. El scrollbar NO
+                // entra aqui: es gris del tema y no sigue al acento.
+                el.style.setProperty('--tdw-on-sky', onColor(c));
+            });
             // Las muestras enseñan el tono que se va a aplicar en el tema vigente.
             this.$veil.find('[data-accent]').each(function () {
                 const id = $(this).attr('data-accent');
@@ -216,6 +245,22 @@
                 if (a) $(this).find('i').css('background', dark ? a.dark : a.light);
                 $(this).toggleClass('is-on', id === acc.id);
             });
+        }
+
+        // Abre/cierra el panel de configuracion. El estado vivia en dos sitios —la clase
+        // del boton y el atributo hidden del panel— sincronizados a mano en tres
+        // handlers; bastaba que uno no corriera para que el boton dejara de responder
+        // (quedaba "abierto" con el panel cerrado, y el clic siguiente lo reabria).
+        // Ahora manda el panel y el boton solo lo refleja.
+        toggleAccents(force) {
+            const $m = $('#tdwAccents');
+            if (!$m.length) return;
+            const abrir = (force === undefined) ? !!$m.prop('hidden') : !!force;
+            $m.prop('hidden', !abrir);
+            this.$veil.find('[data-tdw="accent"]').toggleClass('is-on', abrir).toggleClass('is-open', abrir);
+            // Al abrir se refleja lo vigente: si el color o los interruptores cambiaron
+            // en otra pestaña, el panel no debe mostrar lo de antes.
+            if (abrir) { this.applyAccent(); this.syncChipToggles(); }
         }
 
         setAccent(id) {
@@ -340,13 +385,15 @@
         closeFieldsMenu() {
             this.fieldsId = null;
             $('#tdwFields').prop('hidden', true);
-            if (this.$veil) this.$veil.find('.tdw-task.is-editing').removeClass('is-editing');
+            $('.tdw-task.is-editing').removeClass('is-editing');
         }
 
         // Escribe (o borra) un campo opcional de la tarea abierta en el editor.
         // Vaciar borra la clave en vez de dejarla en '': el archivo no acumula ruido.
         setTaskField(key, value) {
-            const $row = this.$veil.find('.tdw-task[data-id="' + this.fieldsId + '"]').first();
+            // Se busca en todo el documento: la fila puede estar en la ventana o en
+            // el panel embebido del visor, que no cuelga del velo.
+            const $row = $('.tdw-task[data-id="' + this.fieldsId + '"]').first();
             const ref  = this.refOf($row);
             if (!ref || !ref.task) return;
 
@@ -399,7 +446,6 @@
                       '<button class="tdw-ico" data-tdw="close" type="button" title="Cerrar">' + ico(ICON.close) + '</button>' +
                     '</div>' +
                     this.accentMenuHtml() +
-                    this.fieldsMenuHtml() +
                     '<div class="tdw-body">' +
                       '<div class="tdw-rail">' +
                         '<div class="tdw-search">' + ico(ICON.search) +
@@ -416,6 +462,11 @@
                   '</section>' +
                 '</div>'
             );
+
+            // El editor de campos cuelga del body, no del velo: cuando el panel va
+            // embebido en el visor la ventana del cajon esta oculta, y todo lo que
+            // viva dentro de ella se oculta con ella.
+            $('body').append(this.fieldsMenuHtml());
 
             this.$veil = $('#tdwVeil');
             this.$rail = $('#tdwRail');
@@ -562,19 +613,24 @@
 
         // Guarda con retardo para no escribir en cada tecla; `now` fuerza el envio
         // en las acciones que el usuario percibe como definitivas (palomear, borrar).
+        //
+        // Una lista embebida trae su propio `onSave`: el visor guarda por su
+        // controlador y sabe de carpetas locales del navegador, que este cajon no
+        // puede alcanzar. El resto del ciclo (recuento, progreso) es el mismo.
         persist(list, now) {
             if (!this.canEdit(list)) {
                 this.flash((list.ownerName || 'Su dueño') + ' la compartió solo para consulta', 'error');
                 return;
             }
             this.recount(list);
-            this.summary();
-            this.renderRail();
-            this.renderProgress();
+            if (!list.embedded) { this.summary(); this.renderRail(); }
+            this.renderProgress(list);
             clearTimeout(this.saveTimers[list.key]);
 
             const send = () => {
-                $.post(API, { action: 'save', fullPath: list.fullPath, content: this.payloadOf(list) })
+                const content = this.payloadOf(list);
+                if (typeof list.onSave === 'function') { list.onSave(content, list); return; }
+                $.post(API, { action: 'save', fullPath: list.fullPath, content: content })
                     .done((res) => {
                         if (!res || !res.success) { this.flash((res && res.message) || 'no se pudo guardar', 'error'); return; }
                         // El visor puede tener este mismo archivo abierto: que lo
@@ -694,6 +750,17 @@
             if (!list) { this.openKey = null; this.renderInbox(); return; }
             if (this.shareOpen)         { this.renderShare(list); return; }
 
+            this.$main.attr('data-listkey', list.key).html(this.listViewHtml(list) + this.quickBar());
+            this.renderProgress();
+            this.renderDest();
+            this.icons();
+        }
+
+        // La vista de una lista: cabecera, progreso, secciones y tareas. Es lo unico
+        // que el visor necesita, asi que vive aparte del armazon del modal y se pinta
+        // igual en los dos sitios. `embedded` retira lo que solo tiene sentido dentro
+        // del cajon (compartir, archivar, abrir el archivo).
+        listViewHtml(list, embedded) {
             const rw   = this.canEdit(list);
             const secs = list.sections || [];
             const body = secs.length
@@ -708,36 +775,300 @@
                     : this.emptyBlock(ICON.list, 'Esta lista todavía no tiene tareas',
                         esc((list.ownerName || 'Su dueño') + ' la compartió contigo para consulta.')));
 
-            this.$main.html(
-                '<div class="tdw-main-head">' +
-                  '<div class="tdw-mh-row">' +
-                    '<div class="tdw-mh-title">' +
-                      '<h3' + (rw ? ' contenteditable="true" spellcheck="false" data-tdw="listtitle"' : '') + '>' + esc(list.title) + '</h3>' +
-                      '<div class="tdw-crumb">' + ico(ICON.folder) + esc(list.crumbs.join(' / ')) +
-                        (list.crumbs.length ? ' / ' : '') + '<code>' + esc(list.file) + '</code>' +
-                        this.originNote(list) + '</div>' +
-                    '</div>' +
-                    '<div class="tdw-mh-actions">' +
-                      (list.scope === 'mine'
-                        ? '<button class="tdw-btn' + ((list.shares || []).length ? ' is-shared' : '') + '" data-tdw="share" type="button" title="Compartir con otras cuentas">' +
-                            ico(ICON.share) + '<span>' + ((list.shares || []).length ? 'Compartida · ' + list.shares.length : 'Compartir') + '</span></button>'
-                        : '') +
-                      '<button class="tdw-btn" data-tdw="openfile" type="button" title="Abrir el archivo en el visor">' + ico(ICON.open) + '<span>Abrir</span></button>' +
-                      '<button class="tdw-btn" data-tdw="prompt" type="button" title="Copiar prompt de la lista">' + ico(ICON.copy) + '<span>Copiar prompt</span></button>' +
-                      (this.isArchived(list.key)
-                        ? '<button class="tdw-btn" data-tdw="unarchive" type="button" title="Restaurar">' + ico(ICON.restore) + '</button>'
-                        : '<button class="tdw-btn" data-tdw="archive" type="button" title="Archivar">' + ico(ICON.archive) + '</button>') +
-                    '</div>' +
+            const done = (list.sections || []).some((s) => (s.tasks || []).some((t) => t.done));
+
+            return '<div class="tdw-main-head">' +
+                     '<div class="tdw-mh-row">' +
+                       '<div class="tdw-mh-title">' +
+                         '<h3' + (rw ? ' contenteditable="true" spellcheck="false" data-tdw="listtitle"' : '') + '>' + esc(list.title) + '</h3>' +
+                         '<div class="tdw-crumb">' + ico(ICON.folder) + esc((list.crumbs || []).join(' / ')) +
+                           ((list.crumbs || []).length ? ' / ' : '') + '<code>' + esc(list.file) + '</code>' +
+                           this.originNote(list) + '</div>' +
+                       '</div>' +
+                       '<div class="tdw-mh-actions">' +
+                         // El segmento de filtro vive en la barra de la ventana; el
+                         // panel embebido no la tiene, asi que lo lleva aqui: sin el
+                         // se quedaria fijo en "Pendientes" y las tareas hechas serian
+                         // invisibles desde el visor.
+                         (embedded
+                           ? '<div class="tdw-seg">' +
+                               ['pending:Pendientes', 'all:Todas', 'done:Hechas'].map((o) => {
+                                   const f = o.split(':');
+                                   return '<button data-tdw="filter" data-f="' + f[0] + '" type="button"' +
+                                          (this.filter === f[0] ? ' class="is-on"' : '') + '>' + f[1] + '</button>';
+                               }).join('') +
+                             '</div>'
+                           : '') +
+                         (!embedded && list.scope === 'mine'
+                           ? '<button class="tdw-btn' + ((list.shares || []).length ? ' is-shared' : '') + '" data-tdw="share" type="button" title="Compartir con otras cuentas">' +
+                               ico(ICON.share) + '<span>' + ((list.shares || []).length ? 'Compartida · ' + list.shares.length : 'Compartir') + '</span></button>'
+                           : '') +
+                         (embedded ? '' : '<button class="tdw-btn" data-tdw="openfile" type="button" title="Abrir el archivo en el visor">' + ico(ICON.open) + '<span>Abrir</span></button>') +
+                         '<button class="tdw-btn" data-tdw="prompt" type="button" title="Copiar prompt de la lista">' + ico(ICON.copy) + '<span>Copiar prompt</span></button>' +
+                         (rw && done ? '<button class="tdw-btn" data-tdw="clearcompleted" type="button" title="Quitar las tareas hechas">' + ico(ICON.broom) + '</button>' : '') +
+                         (embedded ? '' : (this.isArchived(list.key)
+                           ? '<button class="tdw-btn" data-tdw="unarchive" type="button" title="Restaurar">' + ico(ICON.restore) + '</button>'
+                           : '<button class="tdw-btn" data-tdw="archive" type="button" title="Archivar">' + ico(ICON.archive) + '</button>')) +
+                       '</div>' +
+                     '</div>' +
+                     '<div class="tdw-progress"' + (embedded ? '' : ' id="tdwProgress"') + '></div>' +
+                   '</div>' +
+                   '<div class="tdw-scroll">' + body +
+                     (rw ? '<button class="tdw-newsec" data-tdw="newsec" type="button">' + ico(ICON.plus) + ' Nueva sección</button>' : '') +
+                   '</div>';
+        }
+
+        // ── Propuesta de tareas venida del chat ─────────────────────────────
+        // La pinta este archivo y nadie mas. Hay tres chats (el cajon del visor, el
+        // de pantalla completa y el del playground) con tres renderizadores propios:
+        // si cada uno dibujara su tarjeta acabarian divergiendo, que es justo lo que
+        // pasaba con el panel TODO antes de unificarlo.
+        //
+        // `payload` es lo que devolvio la tool todo_propose:
+        //   { titulo, secciones: [{ titulo, tareas: [{ text, prio, tags, ref }] }] }
+        // `$host` es donde el chat quiere la tarjeta. `opts.listKey` fija el destino
+        // (el visor sabe que lista tiene abierta; los demas dejan elegir).
+        proposal(payload, $host, opts) {
+            if (!payload || !Array.isArray(payload.secciones) || !payload.secciones.length) return null;
+            if (!$host || !$host.length) return null;
+            this.mount();
+
+            const o  = opts || {};
+            const id = uid('p');
+            const total = payload.secciones.reduce((n, s) => n + (s.tareas || []).length, 0);
+
+            const filas = payload.secciones.map((sec) =>
+                '<p class="tdw-prop-sec">' + esc(sec.titulo || 'Pendientes') + '</p>' +
+                (sec.tareas || []).map((t, i) => {
+                    const key = payload.secciones.indexOf(sec) + ':' + i;
+                    return '<label class="tdw-prop-row">' +
+                             '<input type="checkbox" checked data-prop-task="' + key + '">' +
+                             '<span class="tdw-prop-txt">' + esc(t.text) +
+                               (t.ref ? '<em>' + esc(t.ref) + '</em>' : '') +
+                             '</span>' +
+                             this.chipsHtml(Object.assign({}, t, { due: null })) +
+                           '</label>';
+                }).join('')
+            ).join('');
+
+            const selHtml = o.listKey
+                ? '<span class="tdw-prop-dest is-fixed">' + ico(ICON.folder) + esc(o.listLabel || 'esta lista') + '</span>'
+                : this.destSelectHtml();
+
+            const $card = $(
+                '<div class="tdw-prop" data-prop="' + id + '" data-prop-key="' + esc(o.listKey || '') + '">' +
+                  '<div class="tdw-prop-head">' + ico(ICON.list) +
+                    '<b>' + esc(payload.titulo || 'Tareas propuestas') + '</b>' +
+                    '<span>' + total + (total === 1 ? ' tarea' : ' tareas') + '</span>' +
                   '</div>' +
-                  '<div class="tdw-progress" id="tdwProgress"></div>' +
-                '</div>' +
-                '<div class="tdw-scroll">' + body +
-                  (rw ? '<button class="tdw-newsec" data-tdw="newsec" type="button">' + ico(ICON.plus) + ' Nueva sección</button>' : '') +
-                '</div>' +
-                this.quickBar()
+                  '<div class="tdw-prop-body">' + filas + '</div>' +
+                  '<div class="tdw-prop-foot">' +
+                    '<span class="tdw-prop-n"></span>' + selHtml +
+                    '<button type="button" class="tdw-prop-btn" data-prop-skip>Descartar</button>' +
+                    '<button type="button" class="tdw-prop-btn is-pri" data-prop-add>Añadir</button>' +
+                  '</div>' +
+                '</div>'
             );
-            this.renderProgress();
-            this.renderDest();
+
+            $card.data('payload', payload);
+            $host.append($card);
+            this.applyAccent();
+            this.icons();
+            this.syncProposal($card);
+
+            // El catalogo de listas solo se carga al abrir la ventana del TODO. Si el
+            // chat propone antes de que eso ocurra no habria donde guardar, asi que
+            // se pide aqui y el selector se rellena cuando llega.
+            if (!o.listKey && !this.lists.length) this.scanForDest();
+            return $card;
+        }
+
+        // Opciones del selector de destino (o el aviso de que no hay ninguna lista).
+        destSelectHtml() {
+            const destinos = this.visibleLists().filter((l) => this.canEdit(l) && !l.embedded);
+            if (!destinos.length) {
+                return '<span class="tdw-prop-dest is-empty" data-prop-empty>Sin listas donde guardar</span>';
+            }
+            return '<select class="tdw-prop-dest" data-prop-list>' +
+                     destinos.map((l) => '<option value="' + esc(l.key) + '">' +
+                       esc(l.title) + ' · ' + esc(l.pathLabel || l.file) + '</option>').join('') +
+                   '</select>';
+        }
+
+        // Escaneo silencioso para las tarjetas de propuesta: no repinta la ventana
+        // (puede estar cerrada), solo rellena los selectores que esten esperando.
+        scanForDest() {
+            if (this.loading) return;
+            this.loading = true;
+            $.get(API, { action: 'scan' })
+                .done((res) => {
+                    if (!res || !res.success) return;
+                    this.lists = res.lists || [];
+                    const self = this;
+                    $('.tdw-prop:not(.is-done)').each(function () {
+                        const $c = $(this);
+                        if ($c.attr('data-prop-key')) return;          // destino fijo
+                        $c.find('[data-prop-list], [data-prop-empty]').replaceWith(self.destSelectHtml());
+                        self.syncProposal($c);
+                    });
+                })
+                .always(() => { this.loading = false; });
+        }
+
+        // Atajo para los chats: cuelga la tarjeta del ultimo mensaje del hilo. Las
+        // tres superficies pintan sus burbujas con la misma clase (.ia-msg.ai), asi
+        // que cada una solo tiene que decir cual es su contenedor.
+        proposalIn(payload, selector, opts) {
+            const $c = $(selector);
+            if (!$c.length) return null;
+            const $last = $c.find('.ia-msg.ai').last();
+            return this.proposal(payload, $last.length ? $last : $c, opts);
+        }
+
+        // Cuenta lo marcado y refleja el numero en el boton.
+        syncProposal($card) {
+            const n = $card.find('[data-prop-task]:checked').length;
+            const sinDestino = !$card.attr('data-prop-key') && !$card.find('[data-prop-list]').length;
+            $card.find('.tdw-prop-n').text(n + ' de ' + $card.find('[data-prop-task]').length);
+            $card.find('[data-prop-add]')
+                 .prop('disabled', !n || sinDestino)
+                 .text(n ? 'Añadir ' + n : 'Añadir');
+        }
+
+        // Manda al servidor solo lo marcado. El archivo se modifica alli (action=append),
+        // no se reescribe desde aqui: entre la propuesta y el disco no hay una copia
+        // del navegador que pueda pisar lo que otro escribio mientras tanto.
+        applyProposal($card) {
+            const payload = $card.data('payload');
+            const key     = $card.attr('data-prop-key') || $card.find('[data-prop-list]').val() || '';
+            const list    = this.listByKey(key);
+            if (!payload || !list) { this.flash('elige a qué lista van', 'error'); return; }
+
+            const secciones = [];
+            payload.secciones.forEach((sec, si) => {
+                const tareas = (sec.tareas || []).filter((t, i) =>
+                    $card.find('[data-prop-task="' + si + ':' + i + '"]').is(':checked'));
+                if (tareas.length) secciones.push({ titulo: sec.titulo || 'Pendientes', tareas: tareas });
+            });
+            if (!secciones.length) return;
+
+            $card.addClass('is-sending').find('[data-prop-add]').prop('disabled', true).text('Añadiendo…');
+
+            $.post(API, { action: 'append', fullPath: list.fullPath, sections: JSON.stringify(secciones) })
+                .done((res) => {
+                    if (!res || !res.success) {
+                        $card.removeClass('is-sending');
+                        this.syncProposal($card);
+                        this.flash((res && res.message) || 'no se pudieron añadir', 'error');
+                        return;
+                    }
+                    // La ficha que devuelve el servidor ya trae la lista con las tareas
+                    // dentro: se cambia en sitio para no volver a escanear la biblioteca.
+                    const i = this.lists.findIndex((l) => l.key === list.key);
+                    if (i >= 0) this.lists[i] = Object.assign({}, this.lists[i], res.entry);
+                    if (this.openKey === list.key) { this.renderMain(); this.icons(); }
+                    this.lists.filter((l) => l.embedded && l.fullPath === list.fullPath)
+                              .forEach((l) => this.reloadEmbedded(l, res.entry));
+                    this.summary();
+                    this.renderRail();
+
+                    $card.addClass('is-done').html(
+                        '<div class="tdw-prop-ok">' + ico(ICON.check) +
+                          '<b>' + res.added + (res.added === 1 ? ' tarea añadida' : ' tareas añadidas') + '</b>' +
+                          '<span>' + esc(list.title) + '</span>' +
+                        '</div>');
+                    this.icons();
+                })
+                .fail((xhr) => {
+                    $card.removeClass('is-sending');
+                    this.syncProposal($card);
+                    this.flash(this.reasonOf(xhr), 'error');
+                });
+        }
+
+        // Refresca un panel embebido con la version del servidor tras un append.
+        reloadEmbedded(list, entry) {
+            if (!entry || !Array.isArray(entry.sections)) return;
+            list.sections = entry.sections;
+            this.recount(list);
+            this.renderEmbed(list);
+        }
+
+        // ── Panel embebido ──────────────────────────────────────────────────
+        // Monta la vista de una lista fuera del cajon (hoy: la hoja del visor). La
+        // lista no viene del escaneo sino del archivo que el anfitrion ya tiene
+        // abierto, y se guarda con su `onSave`, no con el controlador de aqui.
+        //
+        // Al registrarla en `this.lists` con su key, todo lo demas —refOf, persist,
+        // arrastre, varita, chips, editor de campos— funciona sin distinguir si esta
+        // dentro o fuera del modal.
+        embed($host, opts) {
+            this.mount();
+            const o   = opts || {};
+            const key = 'embed::' + (o.fullPath || o.file || 'todo.json');
+
+            let data;
+            try { data = JSON.parse(o.raw || ''); } catch (e) { data = null; }
+            if (!data || typeof data !== 'object') data = {};
+
+            const sections = Array.isArray(data.sections) ? data.sections : [];
+            sections.forEach((s) => {
+                if (!s.id) s.id = uid('s');
+                if (!Array.isArray(s.tasks)) s.tasks = [];
+                s.tasks.forEach((t) => { if (!t.id) t.id = uid('t'); });
+            });
+
+            const list = {
+                key: key, scope: 'mine', embedded: true, host: $host.get(0),
+                title: data.title || o.title || 'TODO',
+                file: o.file || 'todo.json',
+                crumbs: o.crumbs || [],
+                fullPath: o.fullPath || '',
+                sections: sections,
+                extra: (function (d) {
+                    const rest = {};
+                    Object.keys(d).forEach((k) => { if (k !== 'title' && k !== 'sections') rest[k] = d[k]; });
+                    return rest;
+                })(data),
+                canEdit: o.canEdit !== false,
+                shares: [],
+                onSave: o.onSave
+            };
+            this.recount(list);
+
+            this.lists = this.lists.filter((l) => l.key !== key).concat([list]);
+            $host.attr('data-listkey', key).addClass('tdw-embed').html(this.listViewHtml(list, true));
+            this.bindEmbed($host);
+            this.applyAccent();
+            this.syncChipToggles();
+            this.renderProgress(list);
+            this.icons();
+            return list;
+        }
+
+        // Los handlers del cajon estan delegados sobre el velo; aqui se vuelven a
+        // aplicar sobre el contenedor embebido, una sola vez por contenedor.
+        bindEmbed($host) {
+            if ($host.data('tdwBound')) return;
+            $host.data('tdwBound', true);
+            (this._binds || []).forEach((args) => $host.on.apply($host, args));
+        }
+
+        // Repinta el panel embebido de una lista (tras acciones que cambian su
+        // estructura: limpiar completadas, nueva sección…).
+        renderEmbed(list) {
+            if (!list || !list.embedded || !list.host) return;
+            const $host = $(list.host);
+            $host.html(this.listViewHtml(list, true));
+            this.renderProgress(list);
+            this.syncChipToggles();
+            this.icons();
+        }
+
+        // Repinta donde viva la lista: el cajon o el panel embebido.
+        repaint(list) {
+            if (list && list.embedded) { this.renderEmbed(list); return; }
+            this.renderMain();
             this.icons();
         }
 
@@ -805,9 +1136,13 @@
                    '</div>';
         }
 
-        renderProgress() {
-            const list = this.listByKey(this.openKey);
-            const $p = $('#tdwProgress');
+        // Sin argumento pinta el progreso de la lista abierta en el modal; con una
+        // lista embebida pinta el de su propio contenedor.
+        renderProgress(which) {
+            const list = which || this.listByKey(this.openKey);
+            const $p = list && list.embedded
+                ? $(list.host).find('.tdw-progress').first()
+                : $('#tdwProgress');
             if (!list || !$p.length) return;
             const pct = list.total ? Math.round(list.done / list.total * 100) : 0;
             $p.html(
@@ -1275,7 +1610,9 @@
             pop.textContent = 'Copiado';
             pop.style.left  = Math.round(r.left + r.width / 2) + 'px';
             pop.style.top   = Math.round(r.top - 6) + 'px';
-            this.$veil.get(0).appendChild(pop);          // dentro del velo: hereda la paleta
+            // En el contenedor del boton (ventana o panel embebido): ahi hereda la
+            // paleta y se ve aunque la ventana este cerrada.
+            ($btn.closest('.tdw-embed, .tdw-veil').get(0) || document.body).appendChild(pop);
             setTimeout(() => pop.remove(), 950);
         }
 
@@ -1318,20 +1655,35 @@
         // ── Eventos ─────────────────────────────────────────────────────────
         bind() {
             const self = this;
-            const $v = this.$veil;
 
-            // Clic en el velo (fuera de la ventana) cierra.
-            $v.on('click', function (e) { if (e.target === this) self.close(); });
+            // Todos los handlers se enganchan por delegacion sobre el velo, pero la
+            // misma vista de lista se monta tambien fuera de el (embebida en el
+            // visor). En vez de partir este bloque en dos, cada enganche se anota y
+            // se vuelve a aplicar sobre el contenedor embebido al montarlo: un solo
+            // juego de handlers para los dos sitios.
+            this._binds = [];
+            const $v = {
+                on: function () {
+                    const args = Array.prototype.slice.call(arguments);
+                    self._binds.push(args);
+                    self.$veil.on.apply(self.$veil, args);
+                    return $v;
+                },
+                find: function () { return self.$veil.find.apply(self.$veil, arguments); },
+                addClass:    function () { return self.$veil.addClass.apply(self.$veil, arguments); },
+                removeClass: function () { return self.$veil.removeClass.apply(self.$veil, arguments); },
+                toggleClass: function () { return self.$veil.toggleClass.apply(self.$veil, arguments); }
+            };
+
+            // Clic en el velo (fuera de la ventana) cierra. En el panel embebido no
+            // hay ventana que cerrar, por eso se compara contra el velo real.
+            $v.on('click', function (e) { if (e.target === this && this === self.$veil.get(0)) self.close(); });
             $(document).on('keydown.tdw', (e) => {
                 if (e.key !== 'Escape' || !this.isOpen()) return;
                 // Escape cierra primero lo que este encima; solo si no hay nada
                 // abierto encima cierra la ventana.
                 if (!$('#tdwFields').prop('hidden'))  { this.closeFieldsMenu(); return; }
-                if (!$('#tdwAccents').prop('hidden')) {
-                    $('#tdwAccents').prop('hidden', true);
-                    this.$veil.find('[data-tdw="accent"]').removeClass('is-open');
-                    return;
-                }
+                if (!$('#tdwAccents').prop('hidden')) { this.toggleAccents(false); return; }
                 this.close();
             });
 
@@ -1341,17 +1693,13 @@
             // Color del tema: el panel se queda abierto al elegir para poder comparar.
             $v.on('click', '[data-tdw="accent"]', function (e) {
                 e.stopPropagation();
-                const $m = $('#tdwAccents');
-                const open = $m.prop('hidden');
-                $m.prop('hidden', !open);
-                $(this).toggleClass('is-open', open);
+                self.toggleAccents();
             });
             $v.on('click', '[data-accent]', function () { self.setAccent($(this).attr('data-accent')); });
             $v.on('click', '[data-chip]',   function () { self.toggleChip($(this).attr('data-chip')); });
             $v.on('click', function (e) {
                 if ($(e.target).closest('#tdwAccents, [data-tdw="accent"]').length) return;
-                $('#tdwAccents').prop('hidden', true);
-                $v.find('[data-tdw="accent"]').removeClass('is-open');
+                self.toggleAccents(false);
             });
             $v.on('click', '[data-tdw="wide"]',    () => $v.toggleClass('is-wide'));
             $v.on('click', '[data-tdw="new"]',     () => this.openForm());
@@ -1366,9 +1714,12 @@
 
             $v.on('click', '[data-tdw="filter"]', function () {
                 self.filter = $(this).data('f');
-                $v.find('[data-tdw="filter"]').removeClass('is-on');
-                $(this).addClass('is-on');
-                self.render();
+                // Los dos juegos de botones (ventana y panel embebido) miran el mismo
+                // filtro: se marcan los dos y se repinta lo que este montado.
+                $('[data-tdw="filter"]').removeClass('is-on')
+                    .filter('[data-f="' + self.filter + '"]').addClass('is-on');
+                if (self.isOpen()) self.render();
+                self.lists.filter((l) => l.embedded).forEach((l) => self.renderEmbed(l));
             });
 
             let searchTimer = null;
@@ -1427,12 +1778,23 @@
             });
 
             $v.on('click', '[data-tdw="prompt"]', function () {
-                const list = self.listByKey(self.openKey);
+                const list = self.listOf($(this));
                 if (list) self.copy(self.promptOf(list), 'Prompt de la lista copiado', $(this));
             });
 
             $v.on('click', '[data-tdw="inboxprompt"]', function () {
                 self.copy(self.inboxPrompt(), 'Pendientes copiados como prompt', $(this));
+            });
+
+            $v.on('click', '[data-tdw="clearcompleted"]', function () {
+                const list = self.listOf($(this));
+                if (!list) return;
+                const n = (list.sections || []).reduce((a, s) => a + (s.tasks || []).filter((t) => t.done).length, 0);
+                if (!n || !global.confirm('¿Quitar ' + plural(n, 'tarea hecha', 'tareas hechas') + ' de esta lista?')) return;
+                (list.sections || []).forEach((s) => { s.tasks = (s.tasks || []).filter((t) => !t.done); });
+                self.persist(list, true);
+                self.repaint(list);
+                self.flash(plural(n, 'tarea quitada', 'tareas quitadas'), 'ok');
             });
 
             $v.on('click', '[data-tdw="secprompt"]', function () {
@@ -1521,20 +1883,36 @@
 
             $v.on('click', '[data-tdw="skipsuggest"]', function () { $(this).closest('.tdw-suggest').remove(); });
 
+            // ── Tarjeta de propuesta ──
+            // Va sobre `document`: la tarjeta vive dentro del chat que la pidio, que
+            // puede estar fuera del velo y fuera de cualquier panel embebido.
+            $(document)
+                .on('change.tdwprop', '[data-prop-task]', function () {
+                    self.syncProposal($(this).closest('.tdw-prop'));
+                })
+                .on('click.tdwprop', '[data-prop-add]', function () {
+                    self.applyProposal($(this).closest('.tdw-prop'));
+                })
+                .on('click.tdwprop', '[data-prop-skip]', function () {
+                    const $c = $(this).closest('.tdw-prop');
+                    $c.addClass('is-done').html('<div class="tdw-prop-ok is-skip">' + ico(ICON.close) + '<b>Propuesta descartada</b></div>');
+                    self.icons();
+                });
+
             // ── Fecha, prioridad y etiquetas ──
             $v.on('click', '[data-tdw="fields"]', function (e) {
                 e.stopPropagation();
                 self.openFieldsMenu($(this));
             });
 
-            $v.on('click', '[data-prio]', function () {
+            $(document).on('click.tdwf', '[data-prio]', function () {
                 const val = $(this).attr('data-prio');
                 $(this).closest('.tdw-fields-row').find('[data-prio]').removeClass('is-on');
                 $(this).addClass('is-on');
                 self.setTaskField('prio', val);
             });
 
-            $v.on('click', '[data-due]', function () {
+            $(document).on('click.tdwf', '[data-due]', function () {
                 const when = $(this).attr('data-due');
                 let val = '';
                 if (when) {
@@ -1548,14 +1926,14 @@
                 self.setTaskField('due', val);
             });
 
-            $v.on('change', '[data-tdw="duedate"]', function () { self.setTaskField('due', this.value); });
+            $(document).on('change.tdwf', '[data-tdw="duedate"]', function () { self.setTaskField('due', this.value); });
 
-            $v.on('keydown', '[data-tdw="tagsinput"]', function (e) {
+            $(document).on('keydown.tdwf', '[data-tdw="tagsinput"]', function (e) {
                 if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
                 if (e.key === 'Escape') { self.closeFieldsMenu(); }
             });
 
-            $v.on('blur', '[data-tdw="tagsinput"]', function () {
+            $(document).on('blur.tdwf', '[data-tdw="tagsinput"]', function () {
                 // "ui, #facture ,, ui" -> ["ui","facture"]: sin gato, sin vacias, sin repetir.
                 const tags = [];
                 String(this.value).split(',').forEach((raw) => {
@@ -1567,7 +1945,7 @@
             });
 
             // Un clic fuera cierra el editor; dentro no, para poder encadenar cambios.
-            $v.on('click', function (e) {
+            $(document).on('click.tdwf', function (e) {
                 if ($(e.target).closest('#tdwFields, [data-tdw="fields"]').length) return;
                 self.closeFieldsMenu();
             });
@@ -1629,7 +2007,7 @@
             });
 
             $v.on('blur', '[data-tdw="listtitle"]', function () {
-                const list = self.listByKey(self.openKey);
+                const list = self.listOf($(this));
                 if (!list) return;
                 const v = this.textContent.trim() || 'TODO';
                 this.textContent = v;
@@ -1644,7 +2022,7 @@
                 const text = this.value.trim();
                 if (!text) return;
 
-                const list = self.listByKey(self.openKey);
+                const list = self.listOf($(this));
                 if (!list) return;
 
                 const secId = $(this).closest('[data-sec]').data('sec');
@@ -1658,18 +2036,18 @@
                 sec.tasks = (sec.tasks || []).concat([{ id: uid('t'), text: text, done: false }]);
                 this.value = '';
                 self.persist(list, true);
-                self.renderMain();
+                self.repaint(list);
                 // Seguir capturando sin volver a apuntar con el mouse.
                 $('.tdw-sec[data-sec="' + sec.id + '"] [data-tdw="addtask"]').trigger('focus');
             });
 
             $v.on('click', '[data-tdw="newsec"]', function () {
-                const list = self.listByKey(self.openKey);
+                const list = self.listOf($(this));
                 if (!list) return;
                 const sec = { id: uid('s'), title: 'Nueva sección', tasks: [] };
                 list.sections = (list.sections || []).concat([sec]);
                 self.persist(list, true);
-                self.renderMain();
+                self.repaint(list);
 
                 const $t = $('.tdw-sec[data-sec="' + sec.id + '"] [data-tdw="sectitle"]');
                 $t.trigger('focus');
@@ -1689,7 +2067,7 @@
                 if (n && !confirm('¿Eliminar la sección “' + ref.sec.title + '” y sus ' + n + ' tarea(s)?')) return;
                 ref.list.sections = ref.list.sections.filter((s) => s.id !== ref.sec.id);
                 self.persist(ref.list, true);
-                self.renderMain();
+                self.repaint(ref.list);
             });
 
             $v.on('click', '[data-tdw="dest"]', function () { self.pickDest($(this)); });
@@ -1722,7 +2100,10 @@
             this.drag = {
                 row: row, x: ev.clientX, y: ev.clientY, y0: ev.clientY, px: 0, py: 0,
                 dx: ev.clientX - r.left, dy: ev.clientY - r.top, w: r.width,
-                moved: false, raf: 0, ghost: null, line: null, dest: null
+                moved: false, raf: 0, ghost: null, line: null, dest: null,
+                // La ventana o el panel embebido: el arrastre solo mira dentro del
+                // contenedor de donde salio la fila.
+                scope: $(row).closest('.tdw-embed, .tdw-veil')
             };
             $(document)
                 .on('pointermove.tdwdrag', function (me) {
@@ -1746,7 +2127,7 @@
             // declarada en .tdw-veil, asi que fuera de el la linea saldria sin color.
             // El velo es fixed inset:0, de modo que las coordenadas siguen siendo las
             // del viewport.
-            const veil = this.$veil.get(0);
+            const veil = (d.scope && d.scope.get(0)) || this.$veil.get(0);
 
             const ghost = d.row.cloneNode(true);
             ghost.className  = 'tdw-task tdw-ghost';
@@ -1760,7 +2141,7 @@
             d.ghost = ghost;
             d.line  = line;
             $(d.row).addClass('is-dragging');
-            this.$veil.addClass('tdw-dnd');
+            d.scope.addClass('tdw-dnd');
             d.raf = requestAnimationFrame(() => this.dragFrame());
         }
 
@@ -1771,8 +2152,8 @@
         // dentro de la lista.
         markDrop(x, y) {
             const d      = this.drag;
-            const scroll = this.$veil.find('.tdw-scroll').get(0);
-            const secs   = this.$veil.find('.tdw-sec').get();
+            const scroll = d.scope.find('.tdw-scroll').get(0) || d.scope.get(0);
+            const secs   = d.scope.find('.tdw-sec').get();
             const hide   = () => { d.dest = null; d.line.style.opacity = '0'; };
             if (!scroll || !secs.length) { hide(); return; }
 
@@ -1823,7 +2204,7 @@
             const d = this.drag;
             if (!d || !d.moved) return;
             let scrolled = false;
-            const el = this.$veil.find('.tdw-scroll').get(0);
+            const el = d.scope.find('.tdw-scroll').get(0);
             if (el) {
                 const r = el.getBoundingClientRect();
                 if (d.y - r.top < 50)         { el.scrollTop -= 14; scrolled = true; }
@@ -1846,7 +2227,7 @@
             cancelAnimationFrame(d.raf);
             if (d.ghost) d.ghost.remove();
             if (d.line)  d.line.remove();
-            this.$veil.removeClass('tdw-dnd');
+            d.scope.removeClass('tdw-dnd');
             $(d.row).removeClass('is-dragging');
             if (!d.moved || !d.dest) return;                  // sin destino valido no hubo movimiento
 
@@ -1867,7 +2248,7 @@
         // filtro activo puede tener tareas ocultas que no deben perder su lugar.
         commitTaskRow($row) {
             const id   = $row.data('id');
-            const list = this.listByKey(this.openKey);
+            const list = this.listOf($row);
             if (!id || !$row.length || !list) return;
             if (!this.canEdit(list)) { this.renderMain(); return; }   // prestada en consulta: se deshace
 
@@ -1895,9 +2276,18 @@
             if (fromSec !== dest) this.renderMain();        // cambiaron los contadores por seccion
         }
 
+        // La lista a la que pertenece un elemento del DOM. En el modal casi siempre
+        // es la abierta, pero el panel embebido en el visor trabaja otra lista a la
+        // vez: por eso manda el contenedor marcado con data-listkey y no `openKey`.
+        listOf($el) {
+            const key = ($el && $el.length) ? $el.closest('[data-listkey]').attr('data-listkey') : '';
+            return this.listByKey(key || this.openKey);
+        }
+
         refOf($el) {
             const $task = $el.closest('.tdw-task');
-            const key   = ($task.length && $task.data('key')) || this.openKey;
+            const key   = ($task.length && $task.data('key')) ||
+                          $el.closest('[data-listkey]').attr('data-listkey') || this.openKey;
             const list  = this.listByKey(key);
             if (!list) return null;
 

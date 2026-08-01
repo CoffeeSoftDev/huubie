@@ -1,0 +1,76 @@
+{
+  "title": "Huubie",
+  "sections": [
+    {
+      "id": "si2nvttf",
+      "title": "Lista de pedidos",
+      "tasks": [
+        {
+          "id": "tci0r2gn",
+          "text": "Forzar al usuario a abrir turno para ver los pedidos",
+          "done": false,
+          "prio": "alta"
+        }
+      ]
+    },
+    {
+      "id": "s83nf573",
+      "title": "Visor de cierre del día",
+      "tasks": [
+        {
+          "id": "tlh63sdt",
+          "text": "Agregar un apartado inteligente ( sugerencia con coffee-ia) que detecte porque esta marcando ese error en el reporte",
+          "done": false
+        },
+        {
+          "id": "tdb561tz",
+          "text": "Revisar si se cumpleten todos los eventos de pedidos",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sqrbc72c",
+      "title": "Detalles del pedido",
+      "tasks": [
+        {
+          "id": "tlb5jzvm",
+          "text": "Mejorar la interfaz de detalles del pedido",
+          "done": false
+        },
+        {
+          "id": "t9vno2um",
+          "text": "en Resumen de pago, lo pagado agregar detalles de la fecha y hora que se realizo el movimiento",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "seknbr2o",
+      "title": "Editar producto",
+      "tasks": [
+        {
+          "id": "te556n3w",
+          "text": "Mejorar los espacios para los contenedores",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "surmihcc",
+      "title": "Interfaz **",
+      "tasks": [
+        {
+          "id": "tix4myn2",
+          "text": "la navbar del menu inicial debe ser igual a las demas, no debe existe diferentes tipos de navbar",
+          "done": false
+        },
+        {
+          "id": "thya4q0l",
+          "text": "Revisar los permisos de administrador",
+          "done": false
+        }
+      ]
+    }
+  ]
+}
