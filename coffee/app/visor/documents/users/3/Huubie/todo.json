@@ -6,19 +6,9 @@
       "title": "Contenedor principal",
       "tasks": [
         {
-          "id": "tocria15",
-          "text": "Quitar la info que tiene pagos y reporte de ventas",
-          "done": false
-        },
-        {
-          "id": "tnwbog56",
-          "text": "Revisar que los datos se subieron correctamente",
-          "done": false
-        },
-        {
-          "id": "t8xoj4lc",
-          "text": "Quitar el background azul de los grupos de la tabla",
-          "done": false
+          "id": "t38pe0vq",
+          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
+          "done": true
         },
         {
           "id": "tu4nec9i",
@@ -41,8 +31,28 @@
           "done": true
         },
         {
-          "id": "t38pe0vq",
-          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
+          "id": "ti7ejd1t",
+          "text": "mostra un emptyState en reporte de ventas y comandas",
+          "done": true
+        },
+        {
+          "id": "tnwbog56",
+          "text": "Revisar que los datos se subieron correctamente",
+          "done": true
+        },
+        {
+          "id": "tocria15",
+          "text": "Quitar la info del foter que tiene pagos y reporte de ventas",
+          "done": true
+        },
+        {
+          "id": "tj44v9wt",
+          "text": "Reporte de ventas debe tener las columnas de folio,codigo facturacion,fecha,descuento,subtotal,impuestos,total,expiracion estado , folio factura",
+          "done": true
+        },
+        {
+          "id": "tcuh1aik",
+          "text": "Quitarle a pagos la columna folio factura no mostrarla",
           "done": true
         }
       ]
@@ -52,19 +62,140 @@
       "title": "Ventas y pagos",
       "tasks": [
         {
-          "id": "tqp02f8q",
-          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos",
-          "done": false
+          "id": "t8xoj4lc",
+          "text": "Quitar el background  gris de los grupos de la tabla y poner un color acorde a los grupos",
+          "done": true
         },
         {
-          "id": "ti7ejd1t",
-          "text": "mostra un emptyState en reporte de ventas y comandas",
-          "done": false
+          "id": "tqp02f8q",
+          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos, mostrar los pagos del ticket sin agruparlos, no aislarlos del grupo",
+          "done": true
         },
         {
           "id": "tx3ttn5i",
-          "text": "agregar un ver al ticket que te envie al apartado de tickets",
-          "done": false
+          "text": "quitar el ver ticket y solo agregarlo al grupo",
+          "done": true
+        },
+        {
+          "id": "tgum3dbm",
+          "text": "Quitar los subgrupos de forma de pago",
+          "done": true
+        },
+        {
+          "id": "td4m3ccn",
+          "text": "cambiar el color del background de los grupos a este #283545",
+          "done": true
+        },
+        {
+          "id": "t7ryyfss",
+          "text": "Añadir una animacion de carga , en lo que se ven los registros",
+          "done": true
+        },
+        {
+          "id": "t9g19bo5",
+          "text": "los badges de ticket(1,2) deben ser mas pequeños",
+          "done": true
+        },
+        {
+          "id": "t112ukyb",
+          "text": "el scroll en y que tiene la tabla no debe estar tan pegada a la tabla debe tener un espacio en x",
+          "done": true
+        },
+        {
+          "id": "t7i33o2g",
+          "text": "la nota de los tickets cobrados solo se visualiza cuando hay registros, no antes",
+          "done": true
+        },
+        {
+          "id": "tprwiksk",
+          "text": "para los tickets que tiene factura, que aparesca toda la row seleccioanda como el color del badkground del hover",
+          "done": true
+        },
+        {
+          "id": "tmdsmsd8",
+          "text": "Cambiar el icono del grupo que sirve para ver por uno mas visual, que permita abrir tickets",
+          "done": true
+        },
+        {
+          "id": "tmhaojos",
+          "text": "Cuando se selecciona el toogle forma de pago - Bancos, en los registros me muestra efectivo y solo deberia mostrarme bancos",
+          "done": true
+        },
+        {
+          "id": "twhbotag",
+          "text": "Cuando esta seleccionado todas las formas, los subgrupos por dia deben ser Efectivo, bancos",
+          "done": true
+        },
+        {
+          "id": "tnfd0vqs",
+          "text": "el icono del ticket del grupo debe ser un boton pequeño que diga ticket pero que sea un boton",
+          "done": true
+        },
+        {
+          "id": "tin9cwez",
+          "text": "los grupos de efectivo y bancos deben iniciar collapsados",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "shyu86js",
+      "title": "Catalogos",
+      "tasks": [
+        {
+          "id": "tpdxcqyv",
+          "text": "FilterBar: quitar el input de buscar y catalogo",
+          "done": true
+        },
+        {
+          "id": "tud17vvb",
+          "text": "Diseñar otra interfaz para administrar los productos y la información del ticket, no quiero que se administren los meseros",
+          "done": true
+        },
+        {
+          "id": "t8025wco",
+          "text": "Cambiar el nombre de puente a productos auxiliares ( solo vista )",
+          "done": true
+        },
+        {
+          "id": "taphdi77",
+          "text": "Por defecto debe iniciar con productos auxiliares, agregar el selector que tenia enteriormente",
+          "done": true
+        },
+        {
+          "id": "tzndada3",
+          "text": "Quitar el border que tiene la filterBar",
+          "done": true
+        },
+        {
+          "id": "tm3427j1",
+          "text": "revisar las kpis de ventas, y hace mas pequeña las kpisCards",
+          "done": true
+        },
+        {
+          "id": "tryflump",
+          "text": "Quitar el selector de meseros, solo debe estar productos/Ticket / Emisor",
+          "done": true
+        },
+        {
+          "id": "tvuu9dah",
+          "text": "Solo se puede agregar producto Puente ( productos auxiliares)",
+          "done": true
+        },
+        {
+          "id": "tkprr1ma",
+          "text": "mejorar la nota visual",
+          "done": true
+        },
+        {
+          "id": "tib4h0jg",
+          "text": "en el apartado de ticket emisor  cambiar el diseño al que tiene la imagen, card de informacion de la empresa (izquierda) vista previa del ticket (derecha)",
+          "done": true
+        },
+        {
+          "id": "tit2i826",
+          "text": "cambia el color del toogle de la columna modificador a un tono gris",
+          "done": true
         }
       ]
     }

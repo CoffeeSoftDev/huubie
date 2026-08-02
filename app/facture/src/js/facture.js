@@ -6,12 +6,6 @@ let facture;
 // resuelve su propio init().
 const FACTURE_MODULOS = [
     {
-        titulo:      'Resumen',
-        descripcion: 'Resumen del dia: venta total, meta de facturacion, facturado y por facturar',
-        icon:        'layout-dashboard',
-        enlace:      '/app/facture/resumen.php'
-    },
-    {
         titulo:      'Cargas',
         descripcion: 'Carga mensual de los exports del POS: reporte de ventas, pagos y comandas',
         icon:        'upload-cloud',

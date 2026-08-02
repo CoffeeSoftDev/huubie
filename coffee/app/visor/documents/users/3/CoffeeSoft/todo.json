@@ -1,0 +1,36 @@
+{
+  "title": "Todo",
+  "sections": [
+    {
+      "id": "s7amg1hf",
+      "title": "Interface",
+      "tasks": [
+        {
+          "id": "tprxhnx4",
+          "text": "el scrollbar debe ser en tono gris",
+          "done": true
+        },
+        {
+          "id": "tagwm5oj",
+          "text": "el background de la card de lista debe ser un tono suave",
+          "done": true
+        },
+        {
+          "id": "tnpnfjza",
+          "text": "en tema dark , el color de la scrollbar debe ser acorde al tema, dark",
+          "done": true
+        },
+        {
+          "id": "thf93kqn",
+          "text": "Revisar el boton de configuraciones de fecha prioridad, no se ve , probablemente este renderizando debajo del modal",
+          "done": true
+        },
+        {
+          "id": "t1q9uukm",
+          "text": "quitar el boton de copiar markdown",
+          "done": true
+        }
+      ]
+    }
+  ]
+}

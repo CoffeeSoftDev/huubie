@@ -1,4 +1,46 @@
 {
-  "title": "shared",
-  "sections": []
+  "title": "Menu Baos",
+  "sections": [
+    {
+      "id": "s7xkqo34",
+      "title": "Pendientes",
+      "tasks": [
+        {
+          "id": "t62ckoal",
+          "text": "Instalar servidor XAMPP en computadora ( personal o varoch )",
+          "done": false
+        },
+        {
+          "id": "thtr5som",
+          "text": "Configurar administrador + menu como programa independiente",
+          "done": false
+        },
+        {
+          "id": "tsa08741",
+          "text": "Decidir si sera un puerto o nombre dns para compartir la aplicacion",
+          "done": false
+        },
+        {
+          "id": "ty5izqa1",
+          "text": "Verificar que se vean los videos en el menu",
+          "done": false
+        },
+        {
+          "id": "tf35zd21",
+          "text": "Instalar hamachi y crear un red vpn",
+          "done": false
+        },
+        {
+          "id": "txmbynx7",
+          "text": "Verificar que sea posible acceder desde casa a esa red vpn usando hamachi",
+          "done": false
+        },
+        {
+          "id": "ti72lygo",
+          "text": "Crear qr y asignar ip fija",
+          "done": false
+        }
+      ]
+    }
+  ]
 }

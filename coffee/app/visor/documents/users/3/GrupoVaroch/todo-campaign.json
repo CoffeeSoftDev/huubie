@@ -1,0 +1,78 @@
+{
+  "title": "Campaign",
+  "sections": [
+    {
+      "id": "se4kzyns",
+      "title": "Global",
+      "tasks": [
+        {
+          "id": "tpzhrxno",
+          "text": "Ajustar el diseño de la imagen, formulario [ fecha inicio, fecha fin, tipo anuncio, clasificacion ] a la izquierda, contenedo de imagen a ala derecha",
+          "done": true
+        },
+        {
+          "id": "t2egr308",
+          "text": "Al crear campaña , debe crear los anuncios agregados, y avisar al usuario",
+          "done": true
+        },
+        {
+          "id": "t920gmwq",
+          "text": "Los alerts de anuncios bloqueados y elige una estrategia nueva deben ser mas pequeños para que no causen ruido visual",
+          "done": true
+        },
+        {
+          "id": "tduvttxe",
+          "text": "Quisiera que existiera un campo para poder modificar el nombre de la campaña y no que aparesca campaña 56",
+          "done": true
+        },
+        {
+          "id": "t0ksn46l",
+          "text": "El selector de unidad  de negocio debe ser el mismo para todas las pestañas es decir si seleccione fogaza debe estar activa en todas",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sunwymq0",
+      "title": "Grafico",
+      "tasks": [
+        {
+          "id": "tbrn8aw0",
+          "text": "La estrategia que esta en la columna campaña, pintala de un color para quie se distinga que es una estrategia",
+          "done": true
+        },
+        {
+          "id": "tklnp148",
+          "text": "Si una campaña se desactivo no debe aparecer en la tabla de anuncios ( aunque tenga anuncios relacionados )",
+          "done": true
+        },
+        {
+          "id": "ticib37o",
+          "text": "fecha inicio, fecha fin deben estar centradas, deben tener formato 02/agosto/2026",
+          "done": true
+        },
+        {
+          "id": "t2sdx1d1",
+          "text": "en el TOP 5 de campanas del mes , empuja el conteneido deberia dar un salto de pagina anuncio para que opcupe toda la tabla",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "s5ip04bs",
+      "title": "Resumen de campaña",
+      "tasks": [
+        {
+          "id": "t65ruucp",
+          "text": "Quiero que en el modal capturar resultados del anuncio , el titulo anuncio promo fin de semana este en el titulo del modal , y quitar captura de resultados",
+          "done": true
+        },
+        {
+          "id": "t43w7oyh",
+          "text": "El contenedor debe ocupar todo el espacio , quitar los bordes al container",
+          "done": false
+        }
+      ]
+    }
+  ]
+}
