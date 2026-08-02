@@ -122,6 +122,13 @@
 #root #kpisTickets .w-8 svg,
 #root #kpisTickets .w-8 i { width: 15px; height: 15px; }
 
+/* -- Tarjeta del 0%: dos montos en un renglon --
+   Es la unica que imprime obtenido / objetivo, asi que su cifra es el doble de
+   larga que la de sus vecinas. Se le deja el renglon intacto y se la escala con
+   el ancho disponible en vez de partirla en dos lineas, que descuadraria la
+   altura de toda la fila. */
+#root #kpiObjetivoCero { white-space: nowrap; font-size: clamp(11px, 1.05vw, 15px); }
+
 /* -- Subgrupo de forma de pago (ventas) --
    Rotulo de Efectivo y Bancos dentro del bloque del dia. No es fila de grupo del
    componente (esas abren su propio plegado y quedarian fuera del dia), asi que la

@@ -30,8 +30,8 @@ class mdl extends CRUD {
     // pone la razon social cuando la sucursal no tiene una propia.
     function getEmisor($array) {
         $query = "
-            SELECT b.business_name, b.rfc, b.fiscal_address, b.phone,
-                   c.business_name AS company_name
+            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone,
+                   c.business_name AS company_name, c.rfc AS company_rfc
             FROM {$this->bd}branch b
             LEFT JOIN {$this->bd}company c ON c.id = b.company_id
             WHERE b.id <=> ?
@@ -125,6 +125,10 @@ class mdl extends CRUD {
     // que quedo congelada con su folio de factura. Tener ticket virtual no cuenta:
     // el ticket es el papel con el que se va a facturar, no la factura. El monto
     // sale de s.total, que es lo que se cobro.
+    //
+    // total_cero es lo que el reparto dejo realmente en la tasa cero: la venta que
+    // se quedo con papel. Es el mismo monto que suma generateDay(), y sirve para
+    // contrastarlo contra el objetivo en la tarjeta del 0%.
     function getTicketDayCounts($array) {
         $query = "
             SELECT COUNT(*) AS tickets,
@@ -132,7 +136,8 @@ class mdl extends CRUD {
                    COALESCE(SUM(s.tax = 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
                    COALESCE(SUM(v.id IS NOT NULL), 0) AS generados,
                    COALESCE(SUM(s.total), 0) AS total,
-                   COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN s.total ELSE 0 END), 0) AS total_facturado
+                   COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN s.total ELSE 0 END), 0) AS total_facturado,
+                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL THEN s.total ELSE 0 END), 0) AS total_cero
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
