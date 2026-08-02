@@ -6180,9 +6180,10 @@ class Templates extends Components {
     // -- Alert component --
 
     alertBox(options) {
-        // Botón OK por defecto: terracota Arcilla Invernal (acento de la casa).
-        // Se puede sobrescribir por llamada pasando `okBg` en options.
+        // Boton OK por tema: terracota Arcilla Invernal en claro, azul Huubie en
+        // oscuro. Se puede sobrescribir por llamada pasando `okBg` en options.
         const OK_TERRACOTA = 'bg-[#C05A40] hover:bg-[#A84A33]';
+        const OK_HUUBIE    = 'bg-[#1C64F2] hover:bg-[#1A56DB]';
 
         if (!document.getElementById('tf-alert-anim')) {
             const style = document.createElement('style');
@@ -6223,7 +6224,9 @@ class Templates extends Components {
                 detail:     'text-gray-500',
                 inputLabel: 'text-gray-600',
                 input:      'text-gray-800 bg-white border-gray-300',
-                cancel:     'text-gray-600 bg-white border-gray-300 hover:bg-gray-100 hover:text-gray-800'
+                cancel:     'text-gray-600 bg-white border-gray-300 hover:bg-gray-100 hover:text-gray-800',
+                ok:         OK_TERRACOTA,
+                focus:      'focus:ring-[#C05A40]/40 focus:border-[#C05A40]'
             },
             dark: {
                 backdrop:   'bg-black/60',
@@ -6232,7 +6235,9 @@ class Templates extends Components {
                 detail:     'text-gray-400',
                 inputLabel: 'text-gray-300',
                 input:      'text-gray-100 bg-[#111928] border-[#374151]',
-                cancel:     'text-gray-300 bg-[#111928] border-[#374151] hover:bg-[#374151] hover:text-white'
+                cancel:     'text-gray-300 bg-[#111928] border-[#374151] hover:bg-[#374151] hover:text-white',
+                ok:         OK_HUUBIE,
+                focus:      'focus:ring-[#1C64F2]/40 focus:border-[#1C64F2]'
             }
         };
 
@@ -6267,7 +6272,7 @@ class Templates extends Components {
             cancelLabel: 'Cancelar',
             okLabel:     base.okLabel,
             okIcon:      '',
-            okBg:        OK_TERRACOTA,
+            okBg:        skin.ok,
             width:       base.dual ? 'w-[360px]' : 'w-[340px]',
             timer:       0,
             // Campo de entrada opcional. `input`: 'text' | 'textarea' | true (= 'text').
@@ -6305,9 +6310,9 @@ class Templates extends Components {
 
         const inputType = opts.input === true ? 'text' : opts.input;
         const inputField = inputType === 'textarea'
-            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">${escAttr(opts.inputValue)}</textarea>`
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl resize-none focus:outline-none focus:ring-2 ${skin.focus}">${escAttr(opts.inputValue)}</textarea>`
             : inputType
-                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">`
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl focus:outline-none focus:ring-2 ${skin.focus}">`
                 : '';
 
         const inputHtml = inputField

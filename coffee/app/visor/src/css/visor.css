@@ -6351,3 +6351,28 @@ body.ia-drawer-resizing * {
 #sidebarList.is-doc-explorer .docx-items.is-list .sidebar-pin-btn.is-pinned {
     display: inline-flex; opacity: 1;
 }
+
+/* Aplicaciones vinculadas (Configuración → Cuenta): el código de un solo uso que
+   conecta otra aplicación con esta cuenta sin compartir contraseña ni PIN. */
+.acct-link-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.acct-link-code {
+    flex: 1;
+    min-width: 160px;
+    text-align: center;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: .10em;
+    color: var(--vsr-text);
+    background: var(--vsr-bg-input);
+    border: 2px dashed var(--vsr-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    user-select: all;   /* un triple clic selecciona el código entero */
+}

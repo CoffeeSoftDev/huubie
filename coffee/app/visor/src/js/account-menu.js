@@ -1018,10 +1018,77 @@
                    +   '</div>'
                    +   pinCard
                    +   '<div class="acct-form-foot"><span></span><button type="submit" class="acct-btn acct-btn-primary"><i data-lucide="save"></i> Guardar cuenta</button></div>'
-                   + '</form>';
+                   + '</form>'
+                   + linkAppsCard();
         global.jQuery('#acctUserPanel').html(html);
         global.jQuery('#acctModelCount').text('Usuario #' + _currentUser.id);
         if (global.lucide) global.lucide.createIcons();
+    }
+
+    /* ---------- Aplicaciones vinculadas ----------
+     * Otra aplicación (hoy el TODO de avatars, en otro servidor) necesita saber
+     * a qué cuenta publica. Se resuelve con un código de un solo uso: se genera
+     * aquí, donde el usuario YA tiene sesión, y se pega allá. Así su contraseña
+     * y su PIN no salen del visor ni pasan por el otro servidor.
+     *
+     * El generador vive dentro de Configuración y no solo en visor/vincular.php:
+     * una URL suelta que hay que teclear no la encuentra nadie. La página sigue
+     * existiendo para quien llegue desde la otra aplicación. */
+    function linkAppsCard() {
+        return '<div class="acct-card" style="margin-top:16px">'
+             +   '<div class="acct-card-title"><i data-lucide="link"></i> Aplicaciones vinculadas</div>'
+             +   '<div class="acct-f-hint" style="margin:2px 0 12px">'
+             +     'Genera un código para conectar otra aplicación (por ejemplo <b>Avatars</b>) con esta cuenta. '
+             +     'Vale 10 minutos, sirve una sola vez y no comparte tu contraseña.'
+             +   '</div>'
+             +   '<div class="acct-link-row">'
+             +     '<code class="acct-link-code" id="acctLinkCode">— — — —</code>'
+             +     '<button type="button" class="acct-btn" id="acctLinkCopy" hidden><i data-lucide="copy"></i> Copiar</button>'
+             +     '<button type="button" class="acct-btn acct-btn-primary" id="acctLinkGen"><i data-lucide="refresh-cw"></i> Generar código</button>'
+             +   '</div>'
+             +   '<div class="acct-f-hint" id="acctLinkMeta" style="margin-top:8px"></div>'
+             + '</div>';
+    }
+
+    let _linkTimer = null;
+
+    function genLinkCode() {
+        const $btn = global.jQuery('#acctLinkGen').prop('disabled', true);
+        global.jQuery.post('ctrl/ctrl-todo-link.php', { action: 'create', app: 'avatars' }, null, 'json')
+            .done(function (res) {
+                if (!res || !res.success) {
+                    global.jQuery('#acctLinkMeta').text((res && res.message) || 'No se pudo generar el código');
+                    return;
+                }
+                global.jQuery('#acctLinkCode').text(res.code);
+                global.jQuery('#acctLinkCopy').prop('hidden', false);
+                startLinkCountdown(res.ttl || 600);
+                $btn.html('<i data-lucide="refresh-cw"></i> Generar otro');
+                if (global.lucide) global.lucide.createIcons();
+            })
+            .fail(function () { global.jQuery('#acctLinkMeta').text('No se pudo contactar al servidor'); })
+            .always(function () { $btn.prop('disabled', false); });
+    }
+
+    // Ver caer el tiempo evita pegar un código ya vencido y no entender por qué
+    // la otra aplicación dice que no sirve.
+    function startLinkCountdown(segundos) {
+        clearInterval(_linkTimer);
+        let queda = segundos;
+        const pinta = function () {
+            if (queda <= 0) {
+                clearInterval(_linkTimer);
+                global.jQuery('#acctLinkMeta').text('El código venció · genera otro');
+                global.jQuery('#acctLinkCode').text('— — — —');
+                global.jQuery('#acctLinkCopy').prop('hidden', true);
+                return;
+            }
+            const m = Math.floor(queda / 60), s = queda % 60;
+            global.jQuery('#acctLinkMeta').text('Válido ' + m + ':' + String(s).padStart(2, '0') + ' · un solo uso');
+            queda--;
+        };
+        pinta();
+        _linkTimer = setInterval(pinta, 1000);
     }
 
     function saveUser() {
@@ -2107,6 +2174,14 @@
         $(document).on('click', '#accountSettings .acct-modal-card', function (e) { e.stopPropagation(); });
         $(document).on('click', '#accountSettings [data-settings-section]', function () { renderSettingsSection($(this).data('settings-section')); });
         $(document).on('submit', '#acctUserForm', function (e) { e.preventDefault(); saveUser(); });
+
+        // Aplicaciones vinculadas: generar y copiar el código de un solo uso
+        $(document).on('click', '#acctLinkGen', function () { genLinkCode(); });
+        $(document).on('click', '#acctLinkCopy', function () {
+            const code = $('#acctLinkCode').text().trim();
+            if (navigator.clipboard) navigator.clipboard.writeText(code);
+            toast('Código copiado', 'ok');
+        });
         $(document).on('click', '#accountSettings .acct-pass-toggle', function (e) {
             e.preventDefault();
             e.stopPropagation();

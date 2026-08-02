@@ -18,6 +18,8 @@
 // fuera, porque el otro lado no puede saber que se editó aqui mientras tanto.
 
 require_once __DIR__ . '/todos-lib.php';
+require_once __DIR__ . '/todo-link-store.php';
+require_once __DIR__ . '/../../ctrl/auth-db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -28,6 +30,24 @@ function sync_fail($msg, $code = 400) {
     http_response_code($code);
     echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * Carpetas de primer nivel de la biblioteca de una cuenta. Es lo que ve el
+ * selector de destino del otro lado: solo nombres de carpetas propias, nada de
+ * su contenido ni de otras cuentas.
+ */
+function sync_folders_of($userId) {
+    $root = coffee_visor_docs_root_of((int) $userId);
+    if ($root === '' || !is_dir($root)) return [];
+
+    $out = [];
+    foreach (@scandir($root) ?: [] as $e) {
+        if ($e === '.' || $e === '..' || $e[0] === '.') continue;
+        if (is_dir($root . '/' . $e)) $out[] = $e;
+    }
+    sort($out);
+    return $out;
 }
 
 /** Token compartido del .env. Vacio = la sincronizacion esta apagada. */
@@ -78,7 +98,77 @@ if (!is_string($sent) || $sent === '' || !hash_equals($expected, $sent)) {
 // ── Acciones ────────────────────────────────────────────────────────────────
 
 $action = $_POST['action'] ?? '';
-$path   = sync_resolve($_POST['user'] ?? 0, $_POST['rel'] ?? '');
+
+// `ping` responde ANTES de resolver ninguna ruta: sirve para saber si el token y
+// la URL son correctos, que es justo lo que se comprueba cuando todavia no hay
+// nada configurado del otro lado.
+if ($action === 'ping') {
+    echo json_encode([
+        'success' => true,
+        'service' => 'CoffeeIA · Visor',
+        'time'    => date('Y-m-d H:i:s'),
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/* ── Vinculacion de una cuenta ───────────────────────────────────────────────
+   Aqui se resuelve QUIEN es el usuario, que es lo unico que este servidor puede
+   responder: las cuentas viven en su auth.sqlite y en ningun otro sitio.
+
+   Dos caminos, mismo resultado:
+     - code  : canjea un codigo pedido desde el visor (la credencial no sale de aqui)
+     - email+pin : valida contra la cuenta, para quien prefiera un solo paso
+
+   Lo que se devuelve es el id, el nombre y las carpetas de SU biblioteca. Nunca
+   una credencial, y nunca datos de otras cuentas. */
+if ($action === 'link') {
+    $code  = trim((string) ($_POST['code']  ?? ''));
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $pin   = trim((string) ($_POST['pin']   ?? ''));
+    $app   = trim((string) ($_POST['app']   ?? 'avatars'));
+
+    $userId = 0;
+
+    if ($code !== '') {
+        $userId = (int) todo_link_redeem($code, $app);
+        if ($userId <= 0) sync_fail('Codigo no valido, ya usado o vencido.', 401);
+    } elseif ($email !== '' && $pin !== '') {
+        // Mismo criterio que auth_action_login_pin: mensaje generico, sin decir
+        // si fallo el correo o el PIN.
+        $u = auth_find_by_email($email);
+        if (!$u || empty($u['pin_hash']) || !password_verify($pin, $u['pin_hash'])) {
+            sync_fail('Correo y/o PIN incorrectos.', 401);
+        }
+        $userId = (int) $u['id'];
+    } else {
+        sync_fail('Falta el codigo, o el correo y el PIN.');
+    }
+
+    $u = auth_find_by_id($userId);
+    if (!$u) sync_fail('La cuenta ya no existe.', 404);
+
+    echo json_encode([
+        'success' => true,
+        'user'    => [
+            'id'    => (int) $u['id'],
+            'name'  => (string) ($u['name'] ?? ''),
+            'email' => (string) ($u['email'] ?? ''),
+        ],
+        'folders' => sync_folders_of($userId),
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Carpetas de la biblioteca de una cuenta ya vinculada: alimenta el selector de
+// destino, para no escribir la ruta a mano.
+if ($action === 'folders') {
+    $userId = (int) ($_POST['user'] ?? 0);
+    if ($userId <= 0) sync_fail('Falta la cuenta.');
+    echo json_encode(['success' => true, 'folders' => sync_folders_of($userId)], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$path = sync_resolve($_POST['user'] ?? 0, $_POST['rel'] ?? '');
 if ($path === null) sync_fail('Destino no valido: revisa el usuario y la ruta relativa (debe ser una carpeta existente de su biblioteca y un archivo todo*.json).', 403);
 
 try {
