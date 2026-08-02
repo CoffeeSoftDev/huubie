@@ -12,6 +12,13 @@ coffee/app/data/*.sqlite
 coffee/app/data/*.sqlite-wal
 coffee/app/data/*.sqlite-shm
 
+# Respaldos que dejan los sincronizadores y migraciones de coffee/app — pesan
+# decenas de MB y son copias de datos de runtime, no codigo.
+coffee/app/_sync_backup_*/
+coffee/app/_import_backup_*/
+coffee/app/visor/_migracion_backup_*/
+coffee/app/visor/_todo_backups_*/
+
 .vscode/settings.json
 
 # Snapshots de Playwright MCP - runtime, no versionar
