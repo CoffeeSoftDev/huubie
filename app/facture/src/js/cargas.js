@@ -836,7 +836,7 @@ class CargasView extends Templates {
             parent: 'viewHeader',
             id:     'hdrCargas',
             json: {
-                title:    'Cargas mensuales',
+                title:    'Importación mensual',
                 subtitle: 'Sube los exports del POS en orden. Cada pestana indica el archivo exacto y las hojas que se leeran',
                 back:     { href: '/app/facture/index.php', title: 'Regresar al Facturador' }
             }

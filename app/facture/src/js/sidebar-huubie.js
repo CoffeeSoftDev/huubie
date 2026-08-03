@@ -4,13 +4,13 @@
 // modulo vivira en otra base de datos. Las secciones son fijas.
 // El icono es de Lucide: el rail lo pinta arriba y el nombre debajo.
 const FACTURE_MENU = [
-    { icon: 'home',             title: 'Inicio',    url: '/app/facture/index.php'     },
+    { icon: 'home',             title: 'Inicio',      url: '/app/facture/index.php'     },
     // Resumen queda oculto del rail: la pagina sigue viva en /app/facture/resumen.php.
-    // { icon: 'layout-dashboard', title: 'Resumen',   url: '/app/facture/resumen.php'   },
-    { icon: 'upload',           title: 'Cargas',    url: '/app/facture/cargas.php'    },
-    { icon: 'receipt-text',     title: 'Ventas',    url: '/app/facture/ventas.php'    },
-    { icon: 'file-text',        title: 'Tickets',   url: '/app/facture/tickets.php'   },
-    { icon: 'book-open',        title: 'Catalogos', url: '/app/facture/catalogos.php' }
+    // { icon: 'layout-dashboard', title: 'Resumen',     url: '/app/facture/resumen.php'   },
+    { icon: 'upload',           title: 'Importación', url: '/app/facture/cargas.php'    },
+    { icon: 'receipt-text',     title: 'Ventas',      url: '/app/facture/ventas.php'    },
+    { icon: 'file-text',        title: 'Tickets',     url: '/app/facture/tickets.php'   },
+    { icon: 'book-open',        title: 'Catalogos',   url: '/app/facture/catalogos.php' }
 ];
 
 // Alto real del navbar (nav h-12 en navbar-huubie.js). El rail arranca debajo.

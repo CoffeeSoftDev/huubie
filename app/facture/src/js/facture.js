@@ -6,8 +6,8 @@ let facture;
 // resuelve su propio init().
 const FACTURE_MODULOS = [
     {
-        titulo:      'Cargas',
-        descripcion: 'Carga mensual de los exports del POS: reporte de ventas, pagos y comandas',
+        titulo:      'Importación',
+        descripcion: 'Importación mensual de los exports del POS: reporte de ventas, pagos y comandas',
         icon:        'upload-cloud',
         enlace:      '/app/facture/cargas.php'
     },

@@ -1054,3 +1054,22 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
     }
     #printSheet > div:last-child .ticket-paper { page-break-after: auto; break-after: auto; }
 }
+
+/* -- SweetAlert no encoge el shell --
+   Las cinco paginas del modulo cuelgan su alto de <body class="h-screen flex
+   flex-col overflow-hidden">: el scroll vive dentro de #mainContainer, no en la
+   pagina. Al abrir un dialogo, SweetAlert2 le pone al body la clase
+   swal2-height-auto —cuya regla es height:auto !important, y gana a h-screen
+   porque Tailwind no lleva !important— mas un padding-right para compensar una
+   scrollbar que aqui no existe. De ahi que el contenedor se contraiga al salir
+   el alert de "Eliminar carga".
+
+   alert() y swalQuestion() ya pasan heightAuto:false, pero viven en app/src/js,
+   fuera del modulo: basta una copia vieja en el servidor —o el cache del
+   navegador sobre complementos.js, que se carga sin ?t=— para que el problema
+   vuelva. Por eso el candado se pone aqui, donde no depende de esa version. */
+body.swal2-shown,
+body.swal2-height-auto {
+    height: 100vh !important;
+    padding-right: 0 !important;
+}
