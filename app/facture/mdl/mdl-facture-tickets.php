@@ -28,10 +28,15 @@ class mdl extends CRUD {
 
     // Lo que se imprime en el encabezado del ticket sale de la sucursal; la empresa
     // pone la razon social cuando la sucursal no tiene una propia.
+    //
+    // Las dos filas se necesitan enteras porque el membrete reparte los datos entre
+    // ellas: el lema y el domicilio fiscal son de la empresa y la direccion de la
+    // sucursal es el LUGAR DE EXPEDICION.
     function getEmisor($array) {
         $query = "
             SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone,
-                   c.business_name AS company_name, c.rfc AS company_rfc
+                   c.business_name AS company_name, c.rfc AS company_rfc,
+                   c.fiscal_address AS company_address, c.phone AS company_phone
             FROM {$this->bd}branch b
             LEFT JOIN {$this->bd}company c ON c.id = b.company_id
             WHERE b.id <=> ?
@@ -213,17 +218,6 @@ class mdl extends CRUD {
             FROM {$this->bd}detail_virtual_ticket
             WHERE active = 1 AND virtual_ticket_id = ?
             ORDER BY id ASC
-        ";
-        return $this->_Read($query, $array);
-    }
-
-    // La nota se reinicia cada dia: el consecutivo se busca dentro del dia de
-    // expedicion, no en toda la tabla.
-    function getNextNote($array) {
-        $query = "
-            SELECT COALESCE(MAX(note_number), 0) + 1 AS nota
-            FROM {$this->bd}virtual_ticket
-            WHERE issue_date = ? AND branch_id <=> ?
         ";
         return $this->_Read($query, $array);
     }

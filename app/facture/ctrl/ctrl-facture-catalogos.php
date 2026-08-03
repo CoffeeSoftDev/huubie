@@ -87,23 +87,30 @@ class ctrl extends mdl {
 
     // Lo que se imprime en el ticket sale de la sucursal. Si no tiene razon social
     // propia se encabeza con la de la empresa, que es la dueña del RFC.
+    // El membrete se arma con las dos filas: la sucursal encabeza el papel y pone el
+    // LUGAR DE EXPEDICION, y la empresa pone el lema y el domicilio fiscal, que es
+    // el que va bajo el RFC. Es el mismo arreglo que devuelve el modulo Tickets.
     function emisor() {
         $ls = $this->getEmisor([$this->branchId()]);
 
         if (empty($ls)) {
-            return ['razon' => '', 'rfc' => '', 'telefono' => '', 'domicilio' => ''];
+            return ['razon' => '', 'lema' => '', 'rfc' => '', 'telefono' => '', 'domicilio' => '', 'expedicion' => ''];
         }
 
         $item = $ls[0];
 
         return [
-            'razon'     => $item['business_name'] ?: $item['company_name'],
-            'rfc'       => $item['rfc'] ?: $item['company_rfc'],
-            'telefono'  => $item['phone'],
-            'domicilio' => $item['fiscal_address']
+            'razon'      => $item['business_name'] ?: $item['company_name'],
+            'lema'       => $item['company_name'],
+            'rfc'        => $item['rfc'] ?: $item['company_rfc'],
+            'telefono'   => $item['phone'] ?: $item['company_phone'],
+            'domicilio'  => $item['company_address'] ?: $item['fiscal_address'],
+            'expedicion' => $item['fiscal_address']
         ];
     }
 
+    // El formulario es uno solo pero cae en dos tablas. La empresa se actualiza
+    // aparte y no bloquea: una sucursal sin empresa resuelta igual guarda lo suyo.
     function saveEmisor() {
         $status  = 500;
         $message = 'No se pudieron guardar los datos del emisor';
@@ -113,12 +120,14 @@ class ctrl extends mdl {
         }
 
         $update = $this->updateBranch($this->util->sql([
-            'business_name'  => $_POST['razon']     ?? '',
-            'rfc'            => $_POST['rfc']       ?? '',
-            'phone'          => $_POST['telefono']  ?? '',
-            'fiscal_address' => $_POST['domicilio'] ?? '',
+            'business_name'  => $_POST['razon']      ?? '',
+            'rfc'            => $_POST['rfc']        ?? '',
+            'phone'          => $_POST['telefono']   ?? '',
+            'fiscal_address' => $_POST['expedicion'] ?? '',
             'id'             => $this->branchId()
         ], 1));
+
+        $this->saveCompany();
 
         if ($update) {
             $status  = 200;
@@ -130,6 +139,23 @@ class ctrl extends mdl {
             'message' => $message,
             'emisor'  => $this->emisor()
         ];
+    }
+
+    // Lema y domicilio fiscal son de la empresa. Si el lema llega vacio no se pisa:
+    // company.business_name es la razon social del membrete y borrarla dejaria al
+    // papel sin encabezado cuando la sucursal tampoco tiene nombre propio.
+    function saveCompany() {
+        $ls = $this->getEmisor([$this->branchId()]);
+
+        if (empty($ls) || empty($ls[0]['company_id'])) return false;
+
+        $campos = ['fiscal_address' => $_POST['domicilio'] ?? ''];
+
+        if (trim($_POST['lema'] ?? '') !== '') $campos['business_name'] = $_POST['lema'];
+
+        $campos['id'] = $ls[0]['company_id'];
+
+        return $this->updateCompany($this->util->sql($campos, 1));
     }
 
     // -- Productos --

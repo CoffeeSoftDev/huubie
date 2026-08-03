@@ -57,16 +57,23 @@ class ctrl extends mdl {
         ];
     }
 
+    // El membrete del papel se reparte entre las dos tablas: la sucursal encabeza y
+    // pone el LUGAR DE EXPEDICION (donde se cobro), y la empresa pone el lema y el
+    // domicilio fiscal, que es el que va bajo el RFC.
     function emisor() {
         $ls = $this->getEmisor([$this->branchId()]);
 
-        if (empty($ls)) return ['razon' => '', 'rfc' => '', 'domicilio' => '', 'telefono' => ''];
+        if (empty($ls)) return emisorVacio();
 
         return [
-            'razon'     => $ls[0]['business_name'] ?: $ls[0]['company_name'],
-            'rfc'       => $ls[0]['rfc'] ?: $ls[0]['company_rfc'],
-            'domicilio' => $ls[0]['fiscal_address'],
-            'telefono'  => $ls[0]['phone']
+            'razon'      => $ls[0]['business_name'] ?: $ls[0]['company_name'],
+            'lema'       => $ls[0]['company_name'],
+            'rfc'        => $ls[0]['rfc'] ?: $ls[0]['company_rfc'],
+            // Sin domicilio de empresa capturado se imprime el de la sucursal: mas
+            // vale repetirlo abajo que dejar el papel sin direccion.
+            'domicilio'  => $ls[0]['company_address'] ?: $ls[0]['fiscal_address'],
+            'expedicion' => $ls[0]['fiscal_address'],
+            'telefono'   => $ls[0]['phone'] ?: $ls[0]['company_phone']
         ];
     }
 
@@ -80,17 +87,17 @@ class ctrl extends mdl {
 
     // -- Listado del dia --
 
-    // La nota es el consecutivo del dia: cuando el ticket ya se genero es la que
-    // quedo guardada, y mientras no exista se muestra la posicion que le tocaria.
+    // La nota es el lugar que ocupa la venta en el dia, y ese lugar no cambia
+    // nunca: la venta numero 7 por folio es la nota 7 antes y despues de que se
+    // reparta el dia.
     function lsTickets() {
         $ventas = $this->listTicketsByDay($this->filtros());
         $conteo = $this->getTicketDayCounts([$this->branchId(), $_POST['dia'] ?? date('Y-m-d')]);
+        $notas  = $this->notasDelDia($_POST['dia'] ?? date('Y-m-d'));
         $__row  = [];
-        $orden  = 0;
 
         foreach ($ventas as $item) {
-            $orden++;
-            $__row[] = $this->ticketRow($item, $orden);
+            $__row[] = $this->ticketRow($item, (int) ($notas[$item['id']] ?? 0));
         }
 
         $c = $conteo[0] ?? [
@@ -157,12 +164,28 @@ class ctrl extends mdl {
         ];
     }
 
-    function ticketRow($item, $orden) {
+    // La numeracion del dia: [sale_id => lugar]. Sale de listSaleDayForSplit, que
+    // trae el dia COMPLETO ordenado por folio. No se cuentan aqui las filas que
+    // devuelve el listado porque esas ya vienen filtradas por el buscador, y con una
+    // busqueda activa la venta numero 7 dejaria de ser la nota 7.
+    function notasDelDia($dia) {
+        $notas = [];
+        $lugar = 0;
+
+        foreach ($this->listSaleDayForSplit([$this->branchId(), $dia]) as $item) {
+            $lugar++;
+            $notas[$item['id']] = $lugar;
+        }
+
+        return $notas;
+    }
+
+    function ticketRow($item, $nota) {
         $tasa = tasaEfectiva($item);
 
         return [
             'id'     => $item['folio'],
-            'Nota'   => notaCelda($item['note_number'], $orden),
+            'Nota'   => notaCelda($nota, !empty($item['virtual_id'])),
             'Folio'  => '<span data-folio="' . $item['folio'] . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
             'Tasa'   => badgeTasa($tasa),
             'Estado' => badgeEstado($item, $tasa),
@@ -204,22 +227,36 @@ class ctrl extends mdl {
     // Datos del ticket que no dependen de los productos puente: son los del ticket
     // real del POS y se imprimen igual este o no generado. La nota solo existe
     // cuando el ticket ya se guardo, porque es el consecutivo que se entrega.
+    //
+    // Mesa y mesero salen de la comanda cuando la hay: poco mas de la mitad de las
+    // ventas la tienen cargada. El resto —y personas, orden, que el POS no exporta
+    // nunca— se arman con la semilla del folio, para que el mismo ticket salga
+    // siempre igual por mas veces que se imprima.
     function cabecera($item) {
-        $tasa = tasaEfectiva($item);
+        $tasa    = tasaEfectiva($item);
+        $semilla = semillaFolio($item['folio']);
 
         return [
-            'folio'    => $item['folio'],
-            'nota'     => $item['note_number'] ? '#' . $item['note_number'] : 'POR ASIGNAR',
-            'fecha'    => date('d/m/Y', strtotime($item['operation_date'])),
-            'hora'     => date('H:i', strtotime($item['operation_date'])),
-            'mesa'     => $item['table_number'] ?: '',
-            'mesero'   => $item['waiter_name'] ?: '',
-            'metodo'   => $item['payment_name'] ?: 'SIN PAGO REGISTRADO',
-            'tasa'     => $tasa,
-            'tasaText' => porcentaje($tasa),
-            'total'    => money($item['total']),
-            'estado'   => estadoTexto($item, $tasa),
-            'factura'  => $item['invoice_series'] ?: ''
+            'folio'     => $item['folio'],
+            'nota'      => $item['note_number'] ? '#' . $item['note_number'] : 'POR ASIGNAR',
+            'fecha'     => date('d/m/Y', strtotime($item['operation_date'])),
+            'hora'      => date('H:i', strtotime($item['operation_date'])),
+            'fechaHora' => date('d/m/Y h:i:s A', strtotime($item['operation_date'])),
+            'mesa'      => $item['table_number'] ?: mesaFicticia($semilla),
+            'mesero'    => $item['waiter_name'] ?: meseroFicticio($semilla),
+            'personas'  => personasFicticias($semilla),
+            'orden'     => ordenFicticia($semilla),
+            'cajero'    => 'ADMINISTRACION',
+            'metodo'    => $item['payment_name'] ?: 'SIN PAGO REGISTRADO',
+            'tasa'      => $tasa,
+            'tasaText'  => porcentaje($tasa),
+            'total'     => money($item['total']),
+            // El POS no exporta propina y el ticket la imprime siempre, en cero
+            // cuando no la hubo.
+            'propina'   => money(0),
+            'letras'    => letras($item['total']),
+            'estado'    => estadoTexto($item, $tasa),
+            'factura'   => $item['invoice_series'] ?: ''
         ];
     }
 
@@ -384,12 +421,18 @@ class ctrl extends mdl {
     // El cierre del dia completo: decide que se factura al 16% y que se manda al
     // 0%, y arma el papel de los segundos.
     //
-    // Lo ya facturado esta congelado y cuenta dentro del 16%: sobre el hueco que
-    // deja se eligen ventas reales hasta acercarse a la meta. Esas conservan sus
-    // productos del POS y no se guardan aqui; lo que se guarda es el complemento,
-    // los que pasan al 0% y necesitan un papel inventado. Asi el reparto queda
-    // registrado sin tabla extra: la venta con ticket es del cero, la que no lo
-    // tiene es del 16%.
+    // El reparto va folio por folio, de la primera venta del dia a la ultima: se
+    // acumula al 16% hasta cubrir la meta y lo que sigue se va al 0%. Asi los del
+    // cero quedan juntos al final del dia en vez de salteados, que es como se ve un
+    // corte de caja de verdad.
+    //
+    // Lo ya facturado esta congelado y SIEMPRE es del 16%: cuenta desde el arranque
+    // aunque su folio caiga tarde, porque lo que importa es el total de la tasa.
+    //
+    // Las del 16% conservan sus productos del POS y no se guardan aqui; lo que se
+    // guarda es el complemento, los que pasan al 0% y necesitan un papel inventado.
+    // Asi el reparto queda registrado sin tabla extra: la venta con ticket es del
+    // cero, la que no lo tiene es del 16%.
     function generateDay() {
         $dia    = $_POST['dia'] ?? date('Y-m-d');
         $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
@@ -407,61 +450,60 @@ class ctrl extends mdl {
             ];
         }
 
-        $total      = 0;
-        $facturado  = 0;
-        $candidatas = [];
+        $total     = 0;
+        $facturado = 0;
+        $cuentaFac = 0;
 
         foreach ($ventas as $item) {
             $total += (float) $item['total'];
 
-            if (esFacturado($item['status_name'])) {
-                $facturado += (float) $item['total'];
-                continue;
-            }
+            if (!esFacturado($item['status_name'])) continue;
 
-            $candidatas[] = $item;
+            $facturado += (float) $item['total'];
+            $cuentaFac++;
         }
 
         $objetivo = $total * META_FACTURACION;
-        $elegidas = $this->mejorAjuste($candidatas, max(0, $objetivo - $facturado));
 
-        // El consecutivo se lleva en memoria: se borran y se crean tickets en la
-        // misma pasada, y preguntarle el MAX a la base despues de cada borrado
-        // devolveria notas ya entregadas.
-        $siguiente = $this->siguienteNota($dia);
+        // Los facturados ya estan dentro del 16%, asi que la cuenta arranca con
+        // ellos: sobre ese piso se van sumando las ventas en orden de folio.
+        $acumulado = $facturado;
 
-        $monto16   = 0;
-        $monto0    = 0;
-        $cuenta16  = 0;
-        $cuenta0   = 0;
-        $sinPapel  = 0;
+        $monto16  = 0;
+        $monto0   = 0;
+        $cuenta16 = 0;
+        $cuenta0  = 0;
+        $sinPapel = 0;
+        $lugar    = 0;
 
-        foreach ($candidatas as $item) {
+        foreach ($ventas as $item) {
+            $lugar++;
+
+            if (esFacturado($item['status_name'])) continue;
+
             // Grupo 16%: se queda con su ticket real. Si venia de una corrida
             // anterior como ticket del cero, suelta ese papel.
-            if (isset($elegidas[$item['id']])) {
+            //
+            // El que cruza la meta entra completo: partir una venta no se puede, y
+            // quedarse abajo dejaria el 0% pasado de su propio objetivo.
+            if ($acumulado < $objetivo) {
                 if (!empty($item['virtual_id'])) {
                     $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
                 }
 
-                $monto16 += (float) $item['total'];
+                $acumulado += (float) $item['total'];
+                $monto16   += (float) $item['total'];
                 $cuenta16++;
                 continue;
             }
 
-            // Grupo 0%: la nota que ya se entrego no cambia, el papel se rearma.
-            $nota = (int) $item['note_number'];
-
+            // Grupo 0%: la nota es el lugar de la venta en el dia, el mismo que la
+            // pantalla ya venia mostrando antes de generar nada.
             if (!empty($item['virtual_id'])) {
                 $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
             }
 
-            if ($nota === 0) {
-                $nota = $siguiente;
-                $siguiente++;
-            }
-
-            if (!$this->guardarTicketCero($item, $puente, $nota, $dia)) {
+            if (!$this->guardarTicketCero($item, $puente, $lugar, $dia)) {
                 $sinPapel++;
                 continue;
             }
@@ -470,58 +512,61 @@ class ctrl extends mdl {
             $cuenta0++;
         }
 
-        return [
-            'status'     => 200,
-            'message'    => number_format($cuenta0) . ' ticket(s) al 0% generados · ' . number_format($cuenta16 + count($ventas) - count($candidatas)) . ' al 16%',
-            'dia'        => $dia,
-            'facturados' => count($ventas) - count($candidatas),
-            'cuenta16'   => $cuenta16,
-            'cuenta0'    => $cuenta0,
-            'sinPapel'   => $sinPapel,
-            'totalTexto'      => money($total),
-            'objetivoTexto'   => money($objetivo),
-            'facturadoTexto'  => money($facturado),
-            'monto16Texto'    => money($monto16),
-            'monto0Texto'     => money($monto0),
-            // Lo que falto para la meta: con el mejor ajuste deberia ser centavos
-            // frente al ticket mas barato del dia.
-            'diferenciaTexto' => money(max(0, $objetivo - $facturado - $monto16))
-        ];
+        return array_merge(
+            [
+                'status'  => 200,
+                'message' => number_format($cuenta0) . ' ticket(s) al 0% generados · ' . number_format($cuenta16 + $cuentaFac) . ' al 16%',
+                'dia'     => $dia
+            ],
+            $this->resumenReparto([
+                'dia'        => $dia,
+                'total'      => $total,
+                'objetivo'   => $objetivo,
+                'facturado'  => $facturado,
+                'monto16'    => $monto16,
+                'monto0'     => $monto0,
+                'tickets'    => count($ventas),
+                'facturados' => $cuentaFac,
+                'cuenta16'   => $cuenta16,
+                'cuenta0'    => $cuenta0,
+                'sinPapel'   => $sinPapel
+            ])
+        );
     }
 
-    // Mejor ajuste: de las que todavia caben en el hueco se toma la mas grande,
-    // que es la que deja la diferencia mas chica, y se repite. Ninguna que rebase
-    // la meta entra: facturar de mas al 16% es peor que quedarse corto.
+    // El corte que se le muestra al usuario al terminar. Los montos salen escritos
+    // de aqui: la pantalla imprime, no calcula, igual que el papel del ticket.
     //
-    // Devuelve las elegidas indexadas por id, que es como se consultan despues.
-    function mejorAjuste($candidatas, $restante) {
-        $pendientes = [];
-        foreach ($candidatas as $item) $pendientes[$item['id']] = (float) $item['total'];
+    // El logrado del 16% incluye lo facturado, porque el objetivo del 70% es de la
+    // tasa completa y no solo de lo que el reparto movio.
+    function resumenReparto($r) {
+        $objetivoCero = $r['total'] * (1 - META_FACTURACION);
+        $logrado16    = $r['facturado'] + $r['monto16'];
+        $dif16        = $logrado16 - $r['objetivo'];
+        $dif0         = $r['monto0'] - $objetivoCero;
 
-        $elegidas = [];
-
-        while (true) {
-            $mejor = null;
-
-            foreach ($pendientes as $id => $monto) {
-                if ($monto > $restante)                          continue;
-                if ($mejor === null || $monto > $pendientes[$mejor]) $mejor = $id;
-            }
-
-            if ($mejor === null) break;
-
-            $elegidas[$mejor] = true;
-            $restante -= $pendientes[$mejor];
-            unset($pendientes[$mejor]);
-        }
-
-        return $elegidas;
-    }
-
-    function siguienteNota($dia) {
-        $ls = $this->getNextNote([$dia, $this->branchId()]);
-
-        return (int) ($ls[0]['nota'] ?? 1);
+        return [
+            'fechaTexto'        => date('d/m/Y', strtotime($r['dia'] ?? date('Y-m-d'))),
+            'metaPct'           => round(META_FACTURACION * 100),
+            'metaCeroPct'       => round((1 - META_FACTURACION) * 100),
+            'totalTexto'        => money($r['total']),
+            'objetivoTexto'     => money($r['objetivo']),
+            'objetivoCeroTexto' => money($objetivoCero),
+            'facturadoTexto'    => money($r['facturado']),
+            // Lo que el reparto tenia que cubrir con tickets: la meta menos lo que
+            // los facturados ya aportaban.
+            'porCubrirTexto'    => money(max(0, $r['objetivo'] - $r['facturado'])),
+            'logrado16Texto'    => money($logrado16),
+            'logrado0Texto'     => money($r['monto0']),
+            'dif16Texto'        => ($dif16 >= 0 ? '+' : '-') . money(abs($dif16)),
+            'dif0Texto'         => ($dif0  >= 0 ? '+' : '-') . money(abs($dif0)),
+            'tickets'           => $r['tickets'],
+            'facturados'        => $r['facturados'],
+            'cuenta16'          => $r['cuenta16'],
+            'cuenta16Total'     => $r['cuenta16'] + $r['facturados'],
+            'cuenta0'           => $r['cuenta0'],
+            'sinPapel'          => $r['sinPapel']
+        ];
     }
 
     // El papel del 0%: renglones puente al azar que suman el total de la venta, con
@@ -641,8 +686,9 @@ class ctrl extends mdl {
             }, $lineas),
             'subtotal'  => money($subtotal),
             'descuento' => money($descuento),
+            // El papel dice "IVA:" a secas, como el del POS: el importe ya dice si
+            // hubo impuesto y a que tasa se factura la venta se ve en pantalla.
             'iva'       => money($iva),
-            'ivaLabel'  => 'IVA ' . porcentaje($tasa) . ':',
             'total'     => money($total)
         ]);
     }
@@ -702,16 +748,18 @@ class ctrl extends mdl {
         $armado = $this->armarTicket($item);
         if ($armado['status'] !== 200) return $armado;
 
-        $dia  = date('Y-m-d', strtotime($item['operation_date']));
-        $nota = (int) $item['note_number'];
+        $dia = date('Y-m-d', strtotime($item['operation_date']));
+
+        // La nota no se pide ni se inventa: es el lugar que la venta ocupa en su
+        // dia, el mismo que ya se ve en el listado. Regenerar un ticket suelto no
+        // la mueve.
+        $notas = $this->notasDelDia($dia);
+        $nota  = (int) ($notas[$item['id']] ?? 0);
+
+        if ($nota === 0) return ['status' => 400, 'message' => 'La venta no aparece en el corte del dia'];
 
         if (!empty($item['virtual_id'])) {
             $this->deleteVirtualTicket($this->util->sql(['id' => $item['virtual_id']], 1));
-        }
-
-        if ($nota === 0) {
-            $siguiente = $this->getNextNote([$dia, $this->branchId()]);
-            $nota      = (int) ($siguiente[0]['nota'] ?? 1);
         }
 
         $subtotal = $armado['subtotal'];
@@ -807,12 +855,114 @@ function esFacturado($statusName) {
     return strtoupper((string) $statusName) === 'FACTURADO';
 }
 
-// La nota ya generada se dice con su numero; la que aun no existe se muestra en
-// gris con la posicion que le tocaria en el dia.
-function notaCelda($nota, $orden) {
-    if ($nota) return '<span class="font-bold text-gray-300">#' . $nota . '</span>';
+function emisorVacio() {
+    return ['razon' => '', 'lema' => '', 'rfc' => '', 'domicilio' => '', 'expedicion' => '', 'telefono' => ''];
+}
 
-    return '<span class="text-gray-500">#' . $orden . '</span>';
+// -- Renglones que el POS no exporta --
+//
+// Mesa, mesero, personas y orden se imprimen en todos los tickets del POS, pero
+// el Excel solo trae los dos primeros y nada mas cuando la comanda del dia esta
+// cargada. Los que faltan se arman a partir del folio: no es azar, es una funcion
+// del folio, asi que el ticket 174291 muestra hoy y en un ano las mismas personas
+// y la misma orden. Un rand() daria un papel distinto en cada impresion.
+function semillaFolio($folio) {
+    return crc32((string) $folio);
+}
+
+function mesaFicticia($semilla) {
+    return (string) ($semilla % 20 + 1);
+}
+
+// Los mismos 17 nombres con los que la migracion 03 bautizo el catalogo de
+// meseros: la venta sin comanda cargada se atiende con alguno de ellos.
+function meseroFicticio($semilla) {
+    $nombres = ['MAFER', 'DIANA', 'KARLA', 'JOSUE', 'BRENDA', 'IVAN', 'PAOLA', 'LUIS', 'ANDREA',
+                'HUGO', 'XIMENA', 'CESAR', 'ROSY', 'ABEL', 'YARELI', 'OMAR', 'NALLELY'];
+
+    return $nombres[intdiv($semilla, 20) % count($nombres)];
+}
+
+function personasFicticias($semilla) {
+    return (string) (intdiv($semilla, 400) % 6 + 1);
+}
+
+function ordenFicticia($semilla) {
+    return (string) (intdiv($semilla, 3000) % 99 + 1);
+}
+
+// -- Monto en letras --
+//
+// El renglon "SON:" del ticket. Se arma aqui, del lado del servidor, por la misma
+// razon que los importes: el papel imprime, no calcula.
+function letras($monto) {
+    $monto    = round((float) $monto, 2);
+    $entero   = (int) floor($monto);
+    $centavos = str_pad((string) round(($monto - $entero) * 100), 2, '0', STR_PAD_LEFT);
+    $moneda   = $entero == 1 ? 'PESO' : 'PESOS';
+
+    // Delante del sustantivo el uno se apocopa: TRESCIENTOS OCHENTA Y UN PESOS,
+    // no "OCHENTA Y UNO PESOS".
+    $texto = preg_replace('/UNO$/', 'UN', enLetras($entero));
+
+    return $texto . ' ' . $moneda . ' ' . $centavos . '/100 M.N.';
+}
+
+// Numero a letras en la forma corta del espanol de Mexico: sin "y" entre grupos
+// (DOSCIENTOS TREINTA, no doscientos y treinta) y con las contracciones que el
+// idioma exige (VEINTIUNO, CIEN, UN MIL).
+function enLetras($n) {
+    $n = (int) $n;
+
+    if ($n === 0)   return 'CERO';
+    if ($n < 0)     return 'MENOS ' . enLetras(-$n);
+
+    $unidades = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE',
+                 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE',
+                 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
+    $decenas  = ['', '', '', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA',
+                 'OCHENTA', 'NOVENTA'];
+    $centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS',
+                 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+    if ($n <= 20) return $unidades[$n];
+
+    if ($n < 100) {
+        $d = intdiv($n, 10);
+        $u = $n % 10;
+
+        // Los veintitantos van pegados; del treinta en adelante con "Y".
+        if ($d === 2) return 'VEINTI' . $unidades[$u];
+
+        return $decenas[$d] . ($u ? ' Y ' . $unidades[$u] : '');
+    }
+
+    if ($n === 100) return 'CIEN';
+
+    if ($n < 1000) {
+        $c = intdiv($n, 100);
+        return $centenas[$c] . (($n % 100) ? ' ' . enLetras($n % 100) : '');
+    }
+
+    if ($n < 1000000) {
+        $miles = intdiv($n, 1000);
+        $texto = $miles === 1 ? 'MIL' : enLetras($miles) . ' MIL';
+        return $texto . (($n % 1000) ? ' ' . enLetras($n % 1000) : '');
+    }
+
+    $millones = intdiv($n, 1000000);
+    $texto    = $millones === 1 ? 'UN MILLON' : enLetras($millones) . ' MILLONES';
+
+    return $texto . (($n % 1000000) ? ' ' . enLetras($n % 1000000) : '');
+}
+
+// El numero es el mismo se haya generado el ticket o no, porque es el lugar de la
+// venta en el dia. Lo unico que cambia es el peso: en negrita la nota que ya viaja
+// en un papel, en gris la que todavia no.
+function notaCelda($nota, $generado) {
+    $clase = $generado ? 'font-bold text-gray-300' : 'text-gray-500';
+
+    return '<span class="' . $clase . '">#' . $nota . '</span>';
 }
 
 function badgeTasa($tasa) {

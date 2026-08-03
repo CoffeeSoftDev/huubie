@@ -20,11 +20,27 @@ class App extends Templates {
     async init() {
         this.dataInit = await useFetch({ url: apiTickets, data: { opc: 'init', dia: this.getParam('dia') } });
 
+        this.hideTitleOnPrint();
         this.render();
     }
 
     getParam(name) {
         return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    // El encabezado que el navegador estampa en cada hoja se arma con la fecha y el
+    // titulo de la pagina, y el ticket entregado no tiene por que anunciar de que
+    // sistema salio. El titulo se vacia mientras dura la impresion y se repone al
+    // cerrar el dialogo, porque en pantalla si nombra a la pestana.
+    //
+    // El @page sin margen de facture.css es lo que quita el encabezado completo;
+    // esto es el respaldo para cuando el usuario imprime con "Encabezados y pies de
+    // pagina" marcado, que es ajuste del navegador y no se puede tocar desde aqui.
+    hideTitleOnPrint() {
+        const titulo = document.title;
+
+        window.addEventListener('beforeprint', () => { document.title = ''; });
+        window.addEventListener('afterprint',  () => { document.title = titulo; });
     }
 
     render() {
@@ -153,6 +169,9 @@ class App extends Templates {
         });
     }
 
+    // Los tres botones se pintan de una vez y se muestran segun el estado del dia
+    // (ver syncActionButtons). Repintar la barra en cada listado le quitaria el foco
+    // al selector de fecha justo cuando se esta usando.
     filterBar() {
         const filters = [
             {
@@ -168,10 +187,26 @@ class App extends Templates {
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
-                text:      'Generar tickets',
+                text:      'Generar tickets IVA 0%',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => tickets.generateDay()
+            },
+            {
+                opc:       'button',
+                id:        'btnImprimirTodos',
+                text:      'Imprimir tickets',
+                color_btn: 'invernal',
+                class:     'col-12 col-md-4 col-lg-3',
+                onClick:   () => tickets.printSheet()
+            },
+            {
+                opc:       'button',
+                id:        'btnRehacer',
+                text:      'Rehacer reparto',
+                color_btn: 'secondary',
+                class:     'col-12 col-md-4 col-lg-3',
+                onClick:   () => tickets.redoDay()
             }
         ];
 
@@ -181,6 +216,21 @@ class App extends Templates {
             theme:      FACTURE_THEME,
             data:       filters
         });
+    }
+
+    // Repartir el dia y sacar el papel son dos momentos distintos, y solo uno de los
+    // dos tiene sentido a la vez: mientras el dia no se reparte no hay nada que
+    // imprimir, y una vez repartido volver a correrlo es rehacerlo.
+    //
+    // Se esconde la columna, no el boton: el <button> vive dentro de su celda de la
+    // rejilla y ocultarlo solo dejaria el hueco.
+    syncActionButtons(counts) {
+        const repartido = (counts.generados || 0) > 0;
+        const columna   = (id) => $(`#${id}`).closest('[class*="col-"]');
+
+        columna('btnGenerarTodos').toggle(!repartido);
+        columna('btnImprimirTodos').toggle(repartido);
+        columna('btnRehacer').toggle(repartido);
     }
 
     // Acciones del ticket virtual: viven en el pie del aside, no en la filterBar,
@@ -318,6 +368,7 @@ class Tickets extends Templates {
 
         ticketsView.renderListHead(counts);
         ticketsView.renderKpis(app.dataKpis);
+        app.syncActionButtons(counts);
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
     }
@@ -334,37 +385,39 @@ class Tickets extends Templates {
     // -- Actions --
 
     // El cierre del dia: el servidor decide que se factura al 16% y que se manda al
-    // 0%, arma el papel de los segundos y al volver se manda todo a imprimir.
+    // 0% y arma el papel de los segundos. No imprime nada; el papel sale con el otro
+    // boton, que aparece justo cuando esto termina.
     //
-    // La confirmacion dice lo que esta en juego porque la corrida REEMPLAZA el
-    // reparto anterior del dia: un ticket que estaba al 0% puede pasar al 16% y
-    // soltar su papel.
-    generateDay() {
-        const k = app.dataKpis || {};
+    // Va sin preguntar porque solo se ofrece en el dia que todavia no se reparte: no
+    // hay nada que reemplazar. El que si pregunta es redoDay().
+    async generateDay() {
+        const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
 
+        if (response.status !== 200) {
+            this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
+            return;
+        }
+
+        await this.lsTickets();
+
+        ticketsView.renderResumenReparto(response);
+    }
+
+    // Volver a repartir un dia ya cerrado. La confirmacion dice lo que esta en juego
+    // porque la corrida REEMPLAZA el reparto anterior: un ticket que estaba al 0%
+    // puede pasar al 16% y soltar su papel.
+    redoDay() {
         this.swalQuestion({
             extends: true,
             opts: {
-                title:             'Generar los tickets del dia',
-                text:              `Se repartira la venta del dia: hasta ${k.objetivoTexto || 'la meta'} al IVA 16% con los productos reales, y el resto al IVA 0% con productos auxiliares. Se reemplaza el reparto anterior de este dia.`,
+                title:             'Rehacer el reparto del dia',
+                text:              'Se vuelve a repartir la venta del dia entre IVA 16% e IVA 0%, y se reemplazan los tickets que ya se generaron. Las notas no cambian.',
                 icon:              'question',
-                confirmButtonText: 'Si, generar e imprimir',
+                confirmButtonText: 'Si, rehacer',
                 cancelButtonText:  'No'
             }
-        }).then(async (result) => {
-            if (!result.isConfirmed) return;
-
-            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
-
-            if (response.status !== 200) {
-                this.alertBox({ type: 'error', title: response.message, timer: 0 });
-                return;
-            }
-
-            await this.lsTickets();
-            await this.printSheet();
-
-            this.alertBox({ type: 'success', title: response.message, timer: 2200 });
+        }).then((result) => {
+            if (result.isConfirmed) this.generateDay();
         });
     }
 
@@ -549,6 +602,83 @@ class TicketsView extends Templates {
         });
     }
 
+    // El corte que se muestra al terminar el reparto. Todos los montos llegan
+    // escritos del servidor; aqui solo se acomodan en dos columnas.
+    //
+    // Los renglones van con <span class="block"> y no con <div>: alertBox mete este
+    // html dentro de un <p>, y un <div> ahi adentro lo parte en dos.
+    renderResumenReparto(r) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        // Rebasar el objetivo no es un error: el ticket que cruza la meta entra
+        // completo. Se pinta en azul, y en ambar solo lo que se quedo corto.
+        const dif = (texto) => {
+            const color = String(texto).startsWith('+') ? 'text-[#1C64F2]' : 'text-amber-400';
+            return `<span class="${color} ml-2">${esc(texto)}</span>`;
+        };
+
+        // El titulo de cada bloque lleva la tasa —que es de lo que habla el reparto—
+        // y a un lado, en chico, que tajada de la venta le toca.
+        const titulo = (texto, pct, monto) => `
+            <span class="block flex items-baseline justify-between gap-3 mt-1">
+                <span class="text-gray-300 font-semibold">${esc(texto)}
+                    <span class="text-gray-500 font-normal ml-1">${esc(pct)}% de la venta</span>
+                </span>
+                <span class="font-mono text-gray-200 font-semibold whitespace-nowrap">${esc(monto)}</span>
+            </span>
+        `;
+
+        const renglon = (etiqueta, monto, extra) => `
+            <span class="block flex items-baseline justify-between gap-3 pl-3">
+                <span class="text-gray-500">${esc(etiqueta)}</span>
+                <span class="font-mono text-gray-400 whitespace-nowrap">${esc(monto)}${extra || ''}</span>
+            </span>
+        `;
+
+        // Los conteos no son montos: el numero va pegado a su etiqueta y el desglose
+        // queda a la derecha, para no leerlos como una columna de dinero.
+        const conteo = (etiqueta, cuantos, detalle) => `
+            <span class="block flex items-baseline justify-between gap-3 pl-3">
+                <span class="text-gray-500">${esc(etiqueta)}
+                    <span class="font-mono text-gray-300 font-semibold ml-1">${esc(cuantos)}</span>
+                </span>
+                <span class="text-gray-500">${detalle}</span>
+            </span>
+        `;
+
+        const separador = '<span class="block border-t border-[#374151] my-2.5"></span>';
+
+        this.alertBox({
+            theme:   FACTURE_THEME,
+            type:    'success',
+            title:   `Reparto del ${r.fechaTexto}`,
+            width:   'w-[430px]',
+            timer:   0,
+            okLabel: 'Entendido',
+            detailHtml: `
+                <span class="block flex items-baseline justify-between gap-3">
+                    <span class="text-gray-300 font-semibold">Monto del dia</span>
+                    <span class="font-mono text-gray-200 font-semibold">${esc(r.totalTexto)}</span>
+                </span>
+                ${separador}
+                ${titulo('Objetivo IVA 16%', r.metaPct, r.objetivoTexto)}
+                ${renglon('ya facturado', r.facturadoTexto)}
+                ${renglon('por cubrir con tickets', r.porCubrirTexto)}
+                ${renglon('logrado', r.logrado16Texto, dif(r.dif16Texto))}
+                ${separador}
+                ${titulo('Objetivo IVA 0%', r.metaCeroPct, r.objetivoCeroTexto)}
+                ${renglon('logrado', r.logrado0Texto, dif(r.dif0Texto))}
+                ${separador}
+                <span class="block text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
+                ${conteo('al IVA 16%', r.cuenta16Total, `${esc(r.facturados)} facturados + ${esc(r.cuenta16)} reales`)}
+                ${conteo('al IVA 0%',  r.cuenta0, 'con ticket virtual')}
+                ${r.sinPapel ? conteo('sin papel', r.sinPapel, '<span class="text-amber-400">faltan productos auxiliares</span>') : ''}
+            `
+        });
+    }
+
     // La hoja del dia: un papel por venta, todos con el mismo componente que pinta
     // el ticket del panel lateral. Cada uno estrena su propio contenedor porque
     // ticketPaper reemplaza el contenido de su padre, no lo acumula.
@@ -629,106 +759,11 @@ class TicketsView extends Templates {
 
     // -- Components --
 
-    // El ticket llega con sus importes ya formateados por el servidor: el papel
-    // imprime, no calcula. Los renglones del encabezado que no traen dato (mesa o
-    // mesero sin comanda cargada) no se pintan vacios.
+    // El papel del ticket vive en components/ticketPaper.js: lo comparten este
+    // modulo y la vista previa del emisor en Catalogos, que muestran el mismo
+    // papel y tienen que verse identicos.
     ticketPaper(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'ticketPaper',
-            class:  'ticket-paper',
-            json:   null,
-            emisor: { razon: '', rfc: '', domicilio: '', telefono: '' },
-            // El papel no es un comprobante fiscal y lo dice bajo los importes,
-            // donde lo imprime el POS: es la leyenda impresa, no un dato de la
-            // sucursal.
-            labels: {
-                empty:   'Sin ticket seleccionado',
-                leyenda: 'ESTE NO ES UN COMPROBANTE FISCAL'
-            }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
-        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json) {
-            wrap.html(`<p class="text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
-            $(`#${opts.parent}`).html(wrap);
-            return;
-        }
-
-        const e = opts.json;
-        const m = opts.emisor;
-
-        const row = (k, v) => v ? `<tr><td>${esc(k)}</td><td class="text-right">${esc(v)}</td></tr>` : '';
-
-        // Un importe en cero no se imprime: el ticket al 16% no lleva descuento y la
-        // linea vacia solo ensucia el papel.
-        const vacio = (importe) => !importe || Number(String(importe).replace(/[^0-9.-]/g, '')) === 0;
-
-        const lineas = (e.lineas || []).map(l => `
-            <tr>
-                <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
-                <td style="text-align:right">${esc(l.importe)}</td>
-            </tr>
-        `).join('');
-
-        // Los dos importes que el papel imprime en un mismo renglon bajo el total.
-        const parRow = (k1, v1, k2, v2) => `
-            <tr>
-                <td>${esc(k1)}${esc(v1)}</td>
-                <td class="text-right">${esc(k2)}${esc(v2)}</td>
-            </tr>
-        `;
-
-        wrap.html(`
-            <div class="text-center">
-                <p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>
-                ${m.rfc ? `<p>RFC: ${esc(m.rfc)}</p>` : ''}
-                <p>${esc(m.domicilio)}</p>
-                ${m.telefono ? `<p>TEL: ${esc(m.telefono)}</p>` : ''}
-            </div>
-            <div class="tk-sep"></div>
-            <table>
-                <tr><td>NOTA:</td><td class="text-right font-bold">${esc(e.nota)}</td></tr>
-                ${row('MESA:',   e.mesa)}
-                ${row('TICKET:', e.folio)}
-                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
-            </table>
-            <div class="tk-sep"></div>
-            <table>
-                <thead>
-                    <tr><td class="font-bold">CANT. DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
-                </thead>
-                <tbody>${lineas}</tbody>
-            </table>
-            <div class="tk-total">
-                <table>
-                    <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
-                </table>
-            </div>
-            <table>
-                <tr><td>SUBTOTAL:</td><td class="text-right">${esc(e.subtotal)}</td></tr>
-                ${vacio(e.descuento) ? '' : `<tr><td>DESCUENTO:</td><td class="text-right text-red-300">-${esc(e.descuento)}</td></tr>`}
-                ${e.iva === undefined ? '' : `<tr><td>${esc(e.ivaLabel || 'IVA:')}</td><td class="text-right">${esc(e.iva)}</td></tr>`}
-                <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
-            </table>
-            <p class="text-center font-bold mt-2">${esc(opts.labels.leyenda)}</p>
-            <div class="tk-sep"></div>
-            <div class="text-center">
-                <p>GRACIAS POR SU VISITA</p>
-            </div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
+        TicketPaper.render(options);
     }
 
     noteBox(options) {

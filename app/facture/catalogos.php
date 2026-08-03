@@ -32,6 +32,9 @@
     <script src="/app/facture/src/js/navbar-huubie.js?t=<?php echo time(); ?>"></script>
     <script src="/app/facture/src/js/sidebar-huubie.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Papel del ticket: compartido con el modulo Tickets -->
+    <script src="/app/facture/src/js/components/ticketPaper.js?t=<?php echo time(); ?>"></script>
+
     <!-- Modulo Catalogos -->
     <script src="/app/facture/src/js/catalogos.js?t=<?php echo time(); ?>"></script>
 </body>

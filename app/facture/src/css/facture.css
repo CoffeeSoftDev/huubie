@@ -887,6 +887,46 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
     100% { transform: translateX(100%); }
 }
 
+/* -- Tipografia de la termica --
+   Cousine (metricas de Liberation Mono) es la que mas se acerca a la Lucida
+   Console con la que imprime el POS, y a diferencia de aquella se puede
+   redistribuir: va bajo SIL Open Font License 1.1, cuyo texto acompana a los
+   archivos en src/fonts/OFL-Cousine.txt.
+
+   Los unicode-range separan latin de latin-ext para no bajar los 55 KB del
+   segundo archivo cuando el ticket solo tiene texto sin acentos. */
+@font-face {
+    font-family: 'Cousine';
+    src: url('/app/facture/src/fonts/cousine-400.woff2') format('woff2');
+    font-weight: 400;
+    font-display: block;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Cousine';
+    src: url('/app/facture/src/fonts/cousine-700.woff2') format('woff2');
+    font-weight: 700;
+    font-display: block;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Cousine';
+    src: url('/app/facture/src/fonts/cousine-ext-400.woff2') format('woff2');
+    font-weight: 400;
+    font-display: block;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Cousine';
+    src: url('/app/facture/src/fonts/cousine-ext-700.woff2') format('woff2');
+    font-weight: 700;
+    font-display: block;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* -- Ticket virtual (papel termico) --
    Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel
    impreso y se manda a la impresora tal cual (ver @media print al final).
@@ -925,11 +965,68 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 #root .ticket-paper tr,
 #root .ticket-paper tr:hover { border: none; background: transparent; }
 
+/* -- Variante POS (.tk-pos) --
+   El ticket del modulo Tickets no es un resumen con formato de papel: es la tira
+   termica tal cual, sobre una rejilla monoespaciada de 40 columnas medida en ch.
+   Por eso se le quita el ancho holgado del papel generico y el interlineado de
+   sus celdas: si la fila mide 1.5 y el separador 1.35, las "=" dejan de cuadrar
+   con el texto de arriba. Va con doble clase para ganarle a las reglas de arriba,
+   que son de id. */
+#root .ticket-paper.tk-pos {
+    /* El papel es la tira de 80mm y sale de la impresora con el canto recto: sin
+       borde ni esquinas redondeadas. Lo unico que lo despega del fondo es la
+       sombra, que no dibuja contorno. */
+    width: 80mm;
+    max-width: 100%;
+    padding: 8px 10px 16px;
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, .08);
+    color: #000;
+    text-align: center;
+    line-height: 1.35;
+    font-family: 'Cousine', 'Lucida Console', ui-monospace, monospace;
+
+    /* El texto de la termica no lleva antialias y pesa un poco mas de lo que su
+       tamano sugiere: sin esto la replica se ve como un texto de pantalla. */
+    -webkit-font-smoothing: none;
+    text-shadow: 0 0 0.35px currentColor;
+}
+
+/* El papel generico impone Courier New con un selector universal, y ese gana por
+   especificidad sobre la familia heredada: la variante tiene que repetirla. */
+#root .ticket-paper.tk-pos * { font-family: 'Cousine', 'Lucida Console', ui-monospace, monospace; }
+
+#root .ticket-paper.tk-pos table { border-collapse: collapse; }
+#root .ticket-paper.tk-pos th,
+#root .ticket-paper.tk-pos td { padding: 1px 0; font-size: 11px; color: #000; line-height: 1.35; }
+#root .ticket-paper.tk-pos thead th { padding: 2px 0; }
+
 @media print {
+    /* El encabezado que el navegador estampa arriba de cada hoja (la fecha y el
+       titulo de la pagina) y el pie con la URL no se apagan desde el HTML: el
+       <title> no manda ahi. Lo que si los quita es dejar la hoja sin margen,
+       porque es en ese margen donde el navegador los dibuja. */
+    @page { margin: 0; }
+
     body * { visibility: hidden; }
     #ticketPrintArea, #ticketPrintArea * { visibility: visible; }
     #ticketPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
     #root .ticket-paper { border: none; box-shadow: none; }
+
+    /* Impreso ya no hay que simular nada: el ancho lo da el papel, la sombra no
+       existe y el engrosado que la replica usa en pantalla solo emborrona el
+       grano de la impresora. */
+    #root .ticket-paper.tk-pos {
+        width: 100%;
+        margin: 0;
+        /* La hoja ya no trae margen propio (ver @page): el respiro del papel lo
+           pone el papel, o el texto sale al filo y las impresoras lo recortan. */
+        padding: 8px 10px;
+        box-shadow: none;
+        text-shadow: none;
+        -webkit-font-smoothing: auto;
+    }
 
     /* -- Hoja del dia --
        Imprimir el lote y imprimir el ticket seleccionado son dos trabajos

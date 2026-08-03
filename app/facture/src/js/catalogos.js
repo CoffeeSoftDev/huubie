@@ -239,13 +239,7 @@ class Catalogos extends Templates {
     async saveEmisor() {
         const response = await useFetch({
             url: apiCatalogos,
-            data: {
-                opc:       'saveEmisor',
-                razon:     $('#razon').val(),
-                rfc:       $('#rfc').val(),
-                telefono:  $('#telefono').val(),
-                domicilio: $('#domicilio').val()
-            }
+            data: Object.assign({ opc: 'saveEmisor' }, catalogosView.getEmisorForm())
         });
 
         if (response.status === 200) app.dataInit.emisor = response.emisor;
@@ -549,6 +543,16 @@ class CatalogosView extends Templates {
                     tipo:  'texto',
                     class: 'col-12 mb-3'
                 },
+                // El lema es el renglon que va bajo la razon social. Se guarda en la
+                // empresa, igual que el domicilio fiscal: son los dos datos del
+                // membrete que no cambian de una sucursal a otra.
+                {
+                    opc:   'input',
+                    id:    'lema',
+                    lbl:   'Lema',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
                 {
                     opc:   'input',
                     id:    'rfc',
@@ -566,7 +570,14 @@ class CatalogosView extends Templates {
                 {
                     opc:   'input',
                     id:    'domicilio',
-                    lbl:   'Domicilio fiscal',
+                    lbl:   'Domicilio fiscal (empresa)',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'expedicion',
+                    lbl:   'Lugar de expedicion (sucursal)',
                     tipo:  'texto',
                     class: 'col-12 mb-3'
                 },
@@ -588,25 +599,35 @@ class CatalogosView extends Templates {
 
     getEmisorForm() {
         return {
-            razon:     $('#razon').val(),
-            rfc:       $('#rfc').val(),
-            telefono:  $('#telefono').val(),
-            domicilio: $('#domicilio').val()
+            razon:      $('#razon').val(),
+            lema:       $('#lema').val(),
+            rfc:        $('#rfc').val(),
+            telefono:   $('#telefono').val(),
+            domicilio:  $('#domicilio').val(),
+            expedicion: $('#expedicion').val()
         };
     }
 
+    // La muestra trae todos los renglones que imprime un ticket real: se captura el
+    // membrete mirando el papel completo, no una version recortada de el.
     renderEmisorPreview(emisor) {
         this.ticketPaper({
             parent: 'ticketPrintArea',
             emisor: emisor,
             json: {
                 nota:      'A-1024',
-                fecha:     '01/07/2026',
-                hora:      '14:32',
                 folio:     'MUESTRA',
+                fechaHora: '01/07/2026 02:32:10 PM',
+                mesa:      '12',
+                mesero:    'MAFER',
+                personas:  '2',
+                orden:     '13',
+                cajero:    'ADMINISTRACION',
                 subtotal:  '$260.00',
                 descuento: '$10.00',
                 total:     '$250.00',
+                propina:   '$0.00',
+                letras:    'DOSCIENTOS CINCUENTA PESOS 00/100 M.N.',
                 metodo:    'efectivo',
                 lineas: [
                     { cant: 2, nombre: 'Producto auxiliar A', importe: '$120.00' },
@@ -721,88 +742,11 @@ class CatalogosView extends Templates {
         return modal;
     }
 
+    // El papel de la vista previa es el mismo que imprime el modulo Tickets, asi
+    // que sale del componente compartido: si aqui se viera distinto, el usuario
+    // estaria capturando el emisor mirando un ticket que no existe.
     ticketPaper(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'ticketPaper',
-            class:  'ticket-paper',
-            json:   null,
-            emisor: { razon: '', domicilio: '', telefono: '' },
-            labels: {
-                empty:   'Sin ticket que mostrar',
-                leyenda: 'ESTE NO ES UN COMPROBANTE FISCAL'
-            }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
-        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json) {
-            wrap.html(`<p class="text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
-
-            return $(`#${opts.parent}`).html(wrap);
-        }
-
-        const e = opts.json;
-        const m = opts.emisor;
-
-        const row = (k, v) => v ? `<tr><td>${esc(k)}</td><td class="text-right">${esc(v)}</td></tr>` : '';
-
-        const lineas = (e.lineas || []).map(l => `
-            <tr>
-                <td>${esc(l.cant)}&nbsp;&nbsp;${esc(l.nombre)}</td>
-                <td style="text-align:right">${esc(l.importe)}</td>
-            </tr>
-        `).join('');
-
-        const parRow = (k1, v1, k2, v2) => `
-            <tr>
-                <td>${esc(k1)}${esc(v1)}</td>
-                <td class="text-right">${esc(k2)}${esc(v2)}</td>
-            </tr>
-        `;
-
-        wrap.html(`
-            <div class="text-center">
-                <p class="font-bold text-[13px] tracking-wide">${esc(m.razon)}</p>
-                ${m.rfc ? `<p>RFC: ${esc(m.rfc)}</p>` : ''}
-                <p>${esc(m.domicilio)}</p>
-                ${m.telefono ? `<p>TEL: ${esc(m.telefono)}</p>` : ''}
-            </div>
-            <div class="tk-sep"></div>
-            <table>
-                <tr><td>NOTA:</td><td class="text-right font-bold">${esc(e.nota)}</td></tr>
-                ${row('TICKET:', e.folio)}
-                ${row('FECHA:',  `${e.fecha} ${e.hora}`)}
-            </table>
-            <div class="tk-sep"></div>
-            <table>
-                <thead>
-                    <tr><td class="font-bold">CANT. DESCRIPCION</td><td class="text-right font-bold">IMPORTE</td></tr>
-                </thead>
-                <tbody>${lineas}</tbody>
-            </table>
-            <div class="tk-total">
-                <table>
-                    <tr><td class="font-bold text-[13px]">TOTAL:</td><td class="text-right font-bold text-[13px]">${esc(e.total)}</td></tr>
-                </table>
-            </div>
-            <table>
-                ${parRow('SUBTOTAL:', e.subtotal, 'DESCUENTO:', '-' + e.descuento)}
-                ${parRow('PAGO:',     String(e.metodo).toUpperCase(), '', '')}
-            </table>
-            <p class="text-center font-bold mt-2">${esc(opts.labels.leyenda)}</p>
-            <div class="tk-sep"></div>
-            <div class="text-center">
-                <p>GRACIAS POR SU VISITA</p>
-            </div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
+        TicketPaper.render(options);
     }
 
     kpisRow(options) {

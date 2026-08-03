@@ -31,10 +31,15 @@ class mdl extends CRUD {
     // Los datos con los que se imprime el ticket son los de la sucursal; la razon
     // social de la empresa se trae junto porque es la que encabeza el papel cuando
     // la sucursal no tiene nombre propio.
+    //
+    // Del lado de la empresa viajan tambien el lema y su domicilio fiscal: son dos
+    // renglones del membrete que no son de la sucursal, la cual aporta su direccion
+    // como LUGAR DE EXPEDICION.
     function getEmisor($array) {
         $query = "
-            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone,
-                   c.business_name AS company_name, c.rfc AS company_rfc
+            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone, b.company_id,
+                   c.business_name AS company_name, c.rfc AS company_rfc,
+                   c.fiscal_address AS company_address, c.phone AS company_phone
             FROM {$this->bd}branch b
             LEFT JOIN {$this->bd}company c ON c.id = b.company_id
             WHERE b.id <=> ?
@@ -46,6 +51,17 @@ class mdl extends CRUD {
     function updateBranch($array) {
         return $this->_Update([
             'table'  => "{$this->bd}branch",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    // El membrete se guarda en dos tablas: el formulario del emisor es uno solo,
+    // pero el lema y el domicilio fiscal viven en la empresa.
+    function updateCompany($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}company",
             'values' => $array['values'],
             'where'  => $array['where'],
             'data'   => $array['data']
