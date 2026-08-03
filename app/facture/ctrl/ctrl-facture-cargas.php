@@ -257,9 +257,16 @@ class ctrl extends mdl {
         $libro = $this->leerLibro();
         if (isset($libro['error'])) return $libro['error'];
 
+        // El periodo viaja con la revision: sin el no se puede saber si el mes
+        // destino ya tiene notas emitidas, que es lo primero que se comprueba.
         $importador = new ImportFactureCargas($this);
 
-        return $importador->inspeccionarLibro($libro['documento'], $_POST['tipo'] ?? '');
+        return $importador->inspeccionarLibro($libro['documento'], [
+            'tipo'     => $_POST['tipo'] ?? '',
+            'mes'      => (int) ($_POST['mes'] ?? 0),
+            'anio'     => (int) ($_POST['anio'] ?? 0),
+            'branchId' => $this->branchId()
+        ]);
     }
 
     function uploadFile() {

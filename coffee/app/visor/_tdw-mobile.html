@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TODO hub — banco de pruebas responsive</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/css/visor.css">
+<script>document.write('<link rel="stylesheet" href="src/css/todo-hub.css?t=' + Date.now() + '">');</script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--vsr-bg-base, #0E1521); color: #D1D5DB; }
+    .harness { padding: 20px; }
+    .harness button { padding: 10px 16px; border-radius: 8px; border: 1px solid #374151; background: #1F2A37; color: #E5E7EB; font: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="harness">
+    <p>Banco de pruebas del centro de TODOs (datos falsos, sin servidor).</p>
+    <button id="btnOpen" type="button">Abrir TODO</button>
+    <button id="btnTheme" type="button">Tema</button>
+</div>
+
+<script>
+// ── Mock del backend ────────────────────────────────────────────────────────
+(function () {
+    const task = (id, text, extra) => Object.assign({ id: id, text: text, done: false }, extra || {});
+    const LISTS = [
+        {
+            key: 'k1', title: 'Facture — Cargas Mensuales', file: 'todo.json',
+            fullPath: 'users/3/Huubie/todo.json', pathLabel: 'Huubie / Facture', crumbs: ['Huubie', 'Facture'],
+            scope: 'mine', canEdit: true, shares: [{ id: 9, name: 'Rosy', perm: 'rw' }], extra: {},
+            sections: [
+                { id: 's1', title: 'Catálogos', tasks: [
+                    task('t1', 'FilterBar: quitar el input de buscar y catálogo', { done: true }),
+                    task('t2', 'Diseñar otra interfaz para administrar los productos y la información del ticket, no quiero que se administren los meseros', { prio: 'alta', tags: ['ui', 'facture'], due: '2026-08-04' }),
+                    task('t3', 'Cambiar el nombre de puente a productos auxiliares (solo vista)', { prio: 'media' }),
+                    task('t4', 'Revisar las KPIs de ventas y hacer más pequeñas las kpisCards', { due: '2026-07-30' })
+                ] },
+                { id: 's2', title: 'Importador', tasks: [
+                    task('t5', 'Validar el layout del CSV antes de subir', { tags: ['backend'] }),
+                    task('t6', 'Mostrar el resumen de filas rechazadas', { prio: 'baja', due: '2026-08-12' })
+                ] }
+            ]
+        },
+        {
+            key: 'k2', title: 'Visor — pendientes', file: 'todo.json',
+            fullPath: 'users/3/Visor/todo.json', pathLabel: 'Visor', crumbs: ['Visor'],
+            scope: 'mine', canEdit: true, shares: [], extra: {},
+            sections: [
+                { id: 's3', title: 'Pendientes', tasks: [
+                    task('t7', 'Hacer el centro de tareas responsive en celular', { prio: 'alta', due: '2026-08-03' }),
+                    task('t8', 'Revisar el arrastre de tareas con el dedo')
+                ] }
+            ]
+        },
+        {
+            key: 'k3', title: 'Costsys GV', file: 'todo.json',
+            fullPath: 'users/9/Costsys/todo.json', pathLabel: 'Compartidas / Costsys', crumbs: ['Costsys'],
+            scope: 'invited', canEdit: false, ownerName: 'Rosy', shares: [], extra: {},
+            sections: [
+                { id: 's4', title: 'Recetas', tasks: [ task('t9', 'Cargar el catálogo de insumos', { done: true }), task('t10', 'Costeo potencial por UDN') ] }
+            ]
+        },
+        {
+            key: 'k4', title: 'Ideas sueltas', file: 'todo.json',
+            fullPath: 'users/3/Ideas/todo.json', pathLabel: 'Ideas', crumbs: ['Ideas'],
+            scope: 'mine', canEdit: true, shares: [], extra: {}, sections: []
+        }
+    ];
+
+    LISTS.forEach(function (l) {
+        let total = 0, done = 0;
+        (l.sections || []).forEach((s) => (s.tasks || []).forEach((t) => { total++; if (t.done) done++; }));
+        l.total = total; l.done = done; l.pending = total - done;
+    });
+
+    const fake = (data) => { const d = $.Deferred().resolve(data); d.done = d.done || function () {}; return d.promise({ always: function (f) { f(); return this; } }); };
+    const origGet = $.get, origPost = $.post;
+    $.get = function (url, params) {
+        if (String(url).indexOf('ctrl-todos') !== -1) {
+            if (params && params.action === 'scan') return fake({ success: true, lists: JSON.parse(JSON.stringify(LISTS)) });
+            return fake({ success: true });
+        }
+        return origGet.apply($, arguments);
+    };
+    $.post = function (url) {
+        if (String(url).indexOf('ctrl-todos') !== -1 || String(url).indexOf('coffeeia') !== -1) return fake({ success: true });
+        return origPost.apply($, arguments);
+    };
+})();
+</script>
+<script>document.write('<scr' + 'ipt src="src/js/todo-hub.js?t=' + Date.now() + '"></scr' + 'ipt>');</script>
+<script>
+$(function () {
+    $('#btnOpen').on('click', function () { window.todoHub.open(); });
+    $('#btnTheme').on('click', function () {
+        const el = document.documentElement;
+        el.setAttribute('data-theme', el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+    window.todoHub.open();
+});
+</script>
+</body>
+</html>

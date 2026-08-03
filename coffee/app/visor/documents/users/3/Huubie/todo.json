@@ -129,12 +129,12 @@
         {
           "id": "tunw394q",
           "text": "El sistema debe reconocer que el archivo le faltan pestañas ( pueden venir solo 1 )",
-          "done": false
+          "done": true
         },
         {
           "id": "tm5t29ua",
           "text": "El sistema debe reconocer que se subio un archivo incorrecto y que le faltan ciertas columnas",
-          "done": false
+          "done": true
         },
         {
           "id": "tykbi265",
@@ -144,6 +144,17 @@
         {
           "id": "t06ifc1i",
           "text": "Si ya hay tickets virtuales ligados a archivos ya no se puede subir al sistema",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sfa4fa61",
+      "title": "Nueva sección",
+      "tasks": [
+        {
+          "id": "tkvyvzop",
+          "text": "Agregar un login temporal",
           "done": false
         }
       ]

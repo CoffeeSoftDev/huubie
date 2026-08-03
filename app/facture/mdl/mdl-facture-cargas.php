@@ -257,9 +257,51 @@ class mdl extends CRUD {
     // en base para insertar unicamente los nuevos, porque la UNIQUE
     // (code, branch_id) rechaza el resto. Sin filtro de active: una fila dada de
     // baja sigue ocupando esa clave.
+    // -- Tickets virtuales del periodo --
+
+    // Notas ya emitidas sobre las ventas de un periodo. Es lo que convierte una
+    // recarga en algo destructivo: virtual_ticket cuelga de sale con ON DELETE
+    // CASCADE, asi que reemplazar el reporte de ventas borraria las notas junto
+    // con las ventas, sin dejar rastro.
+    function countVirtualTicketByPeriod($array) {
+        $query = "
+            SELECT COUNT(*)          AS total,
+                   MIN(v.note_number) AS nota_min,
+                   MAX(v.note_number) AS nota_max
+            FROM {$this->bd}virtual_ticket v
+            JOIN {$this->bd}sale s         ON s.id = v.sale_id
+            JOIN {$this->bd}import_batch b ON b.id = s.import_batch_id
+            WHERE v.active = 1
+              AND b.branch_id <=> ?
+              AND b.period_year  = ?
+              AND b.period_month = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Muestra de las notas emitidas, para poder nombrarlas en el aviso: un conteo
+    // a secas no deja ir a buscarlas.
+    function listVirtualTicketByPeriod($array) {
+        $query = "
+            SELECT v.note_number, s.folio, v.total
+            FROM {$this->bd}virtual_ticket v
+            JOIN {$this->bd}sale s         ON s.id = v.sale_id
+            JOIN {$this->bd}import_batch b ON b.id = s.import_batch_id
+            WHERE v.active = 1
+              AND b.branch_id <=> ?
+              AND b.period_year  = ?
+              AND b.period_month = ?
+            ORDER BY v.note_number
+            LIMIT 6
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Trae tambien lo que la carga puede refrescar: con el valor actual a la mano
+    // el importador solo escribe los productos que de verdad cambiaron.
     function listProduct($array) {
         $query = "
-            SELECT id, code
+            SELECT id, code, name, price, is_modifier
             FROM {$this->bd}product
             WHERE branch_id <=> ?
         ";
@@ -272,6 +314,17 @@ class mdl extends CRUD {
             'values' => $array['values'],
             'data'   => $array['data']
         ]);
+    }
+
+    // Refresca del producto solo lo que se deriva del Excel. is_bridge queda
+    // fuera a proposito: lo marca el usuario a mano y la carga no manda sobre el.
+    function updateProduct($array) {
+        $query = "
+            UPDATE {$this->bd}product
+            SET name = ?, price = ?, is_modifier = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 
     function listWaiter($array) {

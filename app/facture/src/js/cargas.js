@@ -630,9 +630,13 @@ class Cargas extends Templates {
     // Lectura del libro sin guardar nada: devuelve a que pestana pertenece y si
     // sus columnas cuadran.
     inspeccionar(file, tipo) {
+        const filtros  = app.getFilters();
         const formData = new FormData();
+
         formData.append('opc',         'inspectFile');
         formData.append('tipo',        tipo);
+        formData.append('mes',         filtros.mes);
+        formData.append('anio',        filtros.anio);
         formData.append('excel_file0', file);
 
         return fetch(apiCargas, { method: 'POST', body: formData })
@@ -1022,6 +1026,36 @@ class CargasView extends Templates {
             `;
         };
 
+        // Periodo con notas emitidas. Aqui no hay nada que corregir en el archivo:
+        // lo que se dice es por que no se puede cargar y que habria que hacer
+        // antes, con las notas nombradas para poder ir a buscarlas.
+        const notasEmitidas = () => {
+            const notas  = v.notas || [];
+            const rango  = v.notaMin === v.notaMax
+                ? `la nota <strong>#${esc(v.notaMin)}</strong>`
+                : `las notas <strong>#${esc(v.notaMin)}</strong> a <strong>#${esc(v.notaMax)}</strong>`;
+
+            const fila = (n) => `
+                <tr>
+                    <td class="chk-col">#${esc(n.note_number)}</td>
+                    <td>${esc(n.folio)}</td>
+                    <td class="chk-right">$${Number(n.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+
+            return `
+                <p class="chk-lead">Este periodo ya tiene ${rango} emitidas sobre sus ventas.
+                    Volver a cargar reemplazaria esas ventas y <strong>las notas se borrarian con ellas</strong>.</p>
+                <table class="chk-table">
+                    <thead><tr><th>Nota</th><th>Folio</th><th>Total</th></tr></thead>
+                    <tbody>${notas.map(fila).join('')}</tbody>
+                </table>
+                ${v.total > notas.length
+                    ? `<p class="chk-note">y ${esc(v.total - notas.length)} mas</p>`
+                    : ''}
+            `;
+        };
+
         const cargadas = v.cargadas || [];
         const pie = cargadas.length
             ? `Si entro: <span class="chk-strong">${esc(cargadas.join(' · '))}</span>. El resto no se modifico.`
@@ -1030,24 +1064,34 @@ class CargasView extends Templates {
         const titulos = {
             'hojas':    'Este no es el archivo de esta pestana',
             'otro-tab': 'Este archivo va en otra pestana',
-            'columnas': 'Revisa las columnas del archivo'
+            'columnas': 'Revisa las columnas del archivo',
+            'tickets':  'El periodo ya tiene tickets virtuales'
         };
 
         const cuerpos = {
             'hojas':    hojasEsperadas,
             'otro-tab': otroTab,
-            'columnas': () => (v.columnas || []).map(bloqueHoja).join('')
+            'columnas': () => (v.columnas || []).map(bloqueHoja).join(''),
+            'tickets':  notasEmitidas
         };
 
-        // El caso de la pestana equivocada es el unico que pregunta: los otros dos
-        // no tienen nada que ofrecer, solo que corregir el archivo.
-        const mover  = v.motivo === 'otro-tab';
-        const cierre = mover
-            ? 'Todavia no se modifico nada. Si aceptas se revisan sus columnas antes de cargar.'
-            : pie;
+        // El caso de la pestana equivocada es el unico que pregunta: los demas no
+        // tienen nada que ofrecer, solo que corregir el archivo o el periodo.
+        const mover   = v.motivo === 'otro-tab';
+        const cerrado = v.motivo === 'tickets';
+
+        // El cierre del aviso de notas no manda a ninguna pantalla a proposito:
+        // dar de baja una nota emitida no es una accion que el modulo ofrezca hoy,
+        // y prometerla dejaria al usuario buscando un boton que no existe.
+        const cierres = {
+            'otro-tab': 'Todavia no se modifico nada. Si aceptas se revisan sus columnas antes de cargar.',
+            'tickets':  'No se modifico ningun dato. Mientras existan esas notas el periodo no admite cargas; se puede cargar en otro mes.'
+        };
+
+        const cierre = cierres[v.motivo] || pie;
 
         const promesa = alert({
-            icon:     mover ? 'question' : 'error',
+            icon:     mover ? 'question' : (cerrado ? 'warning' : 'error'),
             title:    titulos[v.motivo],
             width:    720,
             timer:    0,
@@ -1059,7 +1103,7 @@ class CargasView extends Templates {
                 <div class="chk-box">
                     <p class="chk-file">${esc(fileName)}</p>
                     ${(cuerpos[v.motivo] || cuerpos.columnas)()}
-                    <p class="${mover ? 'chk-note' : (cargadas.length ? 'chk-partial' : 'chk-safe')}">${cierre}</p>
+                    <p class="${mover || cerrado ? 'chk-note' : (cargadas.length ? 'chk-partial' : 'chk-safe')}">${cierre}</p>
                 </div>
             `
         });

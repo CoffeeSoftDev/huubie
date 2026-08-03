@@ -34,10 +34,13 @@ class ImportFactureCargas {
     private $rechazadas = 0;
 
     // Catalogo que sembro la hoja de comandas y renglones que quedaron colgados de
-    // su venta, su producto y su mesero.
-    private $productos = 0;
-    private $meseros   = 0;
-    private $renglones = 0;
+    // su venta, su producto y su mesero. 'refrescados' son los productos que ya
+    // existian y a los que la carga les cambio el nombre, el precio o su condicion
+    // de modificador.
+    private $productos   = 0;
+    private $refrescados = 0;
+    private $meseros     = 0;
+    private $renglones   = 0;
 
     function __construct($mdl) {
         $this->mdl  = $mdl;
@@ -109,10 +112,25 @@ class ImportFactureCargas {
     // Sin esto el usuario confirmaba "cargar comandas.xls en Reporte de ventas"
     // (que era falso) y solo despues se le avisaba que el archivo era de otra
     // pestana: dos preguntas seguidas y la primera diciendo lo que no era.
-    function inspeccionarLibro($documento, $tipo) {
+    function inspeccionarLibro($documento, $ctx) {
+        $tipo       = isset($ctx['tipo']) ? $ctx['tipo'] : '';
         $contrato   = $this->contrato();
         $hojasLibro = $documento->getSheetNames();
         $destino    = $tipo;
+
+        // El periodo cerrado manda sobre todo lo demas: si ya se emitieron notas
+        // no hay nada que revisar del archivo, porque no se va a cargar.
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            return [
+                'status'     => 200,
+                'destino'    => $tipo,
+                'movido'     => false,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
 
         $presentes = $this->hojasPresentes($contrato, $hojasLibro, $destino);
 
@@ -180,6 +198,40 @@ class ImportFactureCargas {
         return $revision;
     }
 
+    // Notas ya emitidas sobre el periodo al que va la carga, si las hay.
+    //
+    // Un ticket virtual es un documento entregado, y su respaldo son las ventas y
+    // los renglones de ese periodo. Volver a cargar los reemplaza: en el caso del
+    // reporte de ventas, ademas, las notas se irian con las ventas por el CASCADE
+    // de virtual_ticket.sale_id, sin quedar rastro de que existieron.
+    //
+    // Por eso el bloqueo es del PERIODO y no de la hoja: aunque solo comandas o
+    // pagos se reemplacen, lo que respalda a la nota deja de ser lo que era.
+    private function notasDelPeriodo($ctx) {
+        $mes  = isset($ctx['mes'])  ? (int) $ctx['mes']  : 0;
+        $anio = isset($ctx['anio']) ? (int) $ctx['anio'] : 0;
+
+        if ($mes < 1 || $anio < 2000) return null;
+
+        $branchId = isset($ctx['branchId']) ? $ctx['branchId'] : null;
+        $conteo   = $this->mdl->countVirtualTicketByPeriod([$branchId, $anio, $mes]);
+        $total    = (int) ($conteo[0]['total'] ?? 0);
+
+        if ($total === 0) return null;
+
+        return [
+            'motivo'    => 'tickets',
+            'total'     => $total,
+            'notaMin'   => (int) ($conteo[0]['nota_min'] ?? 0),
+            'notaMax'   => (int) ($conteo[0]['nota_max'] ?? 0),
+            'notas'     => $this->mdl->listVirtualTicketByPeriod([$branchId, $anio, $mes]),
+            'esperadas' => [],
+            'libro'     => [],
+            'columnas'  => [],
+            'cargadas'  => []
+        ];
+    }
+
     // Las hojas del contrato de una pestana que el libro trae, en el orden en que
     // hay que cargarlas.
     private function hojasPresentes($contrato, $hojasLibro, $tab) {
@@ -214,6 +266,23 @@ class ImportFactureCargas {
         $presentes = $this->hojasPresentes($contrato, $hojasLibro, $tipo);
 
         $steps = $ctx['steps'];
+
+        // El mismo corte que hace la revision previa, repetido aqui a proposito:
+        // uploadFile se puede llamar sin haber pasado por ella, y este es el punto
+        // donde se empieza a borrar el periodo.
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            $steps[] = step('Revisar periodo', 'error', $notas['total'] . ' nota(s) ya emitidas');
+
+            return [
+                'status'     => 409,
+                'message'    => 'El periodo ya tiene tickets virtuales emitidos',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
         $steps[] = step(
             'Detectar hojas',
             count($presentes) ? 'ok' : 'error',
@@ -363,8 +432,9 @@ class ImportFactureCargas {
         if ($carga['sinVenta']   > 0) $cola .= ' · ' . number_format($carga['sinVenta']) . ' sin venta (se ligan al subir el reporte de ventas)';
         if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' pagos ligados por folio';
         if ($carga['facturados'] > 0) $cola .= ' · ' . number_format($carga['facturados']) . ' facturados';
-        if ($carga['productos']  > 0) $cola .= ' · ' . number_format($carga['productos']) . ' productos nuevos al catalogo';
-        if ($carga['meseros']    > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
+        if ($carga['productos']   > 0) $cola .= ' · ' . number_format($carga['productos']) . ' productos nuevos al catalogo';
+        if ($carga['refrescados'] > 0) $cola .= ' · ' . number_format($carga['refrescados']) . ' productos actualizados';
+        if ($carga['meseros']     > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
         if ($carga['renglones']  > 0) $cola .= ' · ' . number_format($carga['renglones']) . ' renglones ligados a su ticket';
 
         return $cola;
@@ -441,9 +511,10 @@ class ImportFactureCargas {
         $this->ligados    = 0;
         $this->facturados = 0;
         $this->rechazadas = 0;
-        $this->productos  = 0;
-        $this->meseros    = 0;
-        $this->renglones  = 0;
+        $this->productos   = 0;
+        $this->refrescados = 0;
+        $this->meseros     = 0;
+        $this->renglones   = 0;
 
         $claveCol = columnLetter($config['keyIndex']);
 
@@ -508,6 +579,7 @@ class ImportFactureCargas {
             'facturados'   => $this->facturados,
             'rechazadas'   => $this->rechazadas,
             'productos'    => $this->productos,
+            'refrescados'  => $this->refrescados,
             'meseros'      => $this->meseros,
             'renglones'    => $this->renglones
         ];
@@ -587,35 +659,37 @@ class ImportFactureCargas {
         return $insertadas;
     }
 
-    // Alta de los productos que la hoja trae y el catalogo todavia no. El producto
-    // nace del primer renglon en que aparece y se queda con lo que ese renglon
-    // dice: la descripcion y el importe, tal cual vienen en la hoja. No se calcula
-    // nada (no se divide entre la cantidad ni se busca el importe mas alto): el
-    // catalogo guarda lo que el Excel trajo, y corregirlo es trabajo de quien lo
-    // administra, no del importador.
+    // El catalogo de productos se sincroniza con lo que trae la hoja: el que no
+    // existe se da de alta y el que ya existe se refresca. La clave es
+    // 'claveproducto' (columna G), que es la que lleva el UNIQUE de la tabla; el
+    // folio es de la cuenta y no identifica al producto.
+    //
+    // Se refresca solo lo que se DERIVA del Excel, y eso lo dice el DDL: name,
+    // price y is_modifier son derivados, is_bridge lo marca el usuario a mano y la
+    // carga no lo toca.
+    //
+    // Dos resguardos para no destruir un dato bueno con una carga pobre:
+    //   - el nombre solo se escribe si la hoja trae descripcion;
+    //   - el precio solo se escribe si la carga vio algun importe mayor a cero,
+    //     porque un mes en el que un producto solo aparecio regalado no significa
+    //     que valga cero.
     //
     // Un producto cuyos renglones van SIEMPRE en cero no se vende solo: es un
     // modificador (la guarnicion o la preparacion que acompana a un platillo), y
     // asi queda marcado para que no entre a armar tickets.
     private function sembrarProductos($rows, $ctx) {
         $existen = [];
-        foreach ($this->mdl->listProduct([$ctx['branchId']]) as $item) $existen[$item['code']] = true;
+        foreach ($this->mdl->listProduct([$ctx['branchId']]) as $item) $existen[$item['code']] = $item;
 
-        $catalogo = [];
-
-        foreach ($rows as $v) {
-            $code = $v[6];
-            if ($code === '' || isset($existen[$code])) continue;
-
-            if (!isset($catalogo[$code])) {
-                $catalogo[$code] = ['name' => $v[8], 'price' => numVal($v[11]), 'is_modifier' => 1];
-            }
-
-            if (numVal($v[11]) > 0) $catalogo[$code]['is_modifier'] = 0;
-        }
+        $catalogo = $this->productosDeLaHoja($rows);
 
         $data = [];
         foreach ($catalogo as $code => $item) {
+            if (isset($existen[$code])) {
+                $this->refrescarProducto($existen[$code], $item);
+                continue;
+            }
+
             $data[] = [
                 'code'        => $code,
                 'name'        => $item['name'],
@@ -628,6 +702,62 @@ class ImportFactureCargas {
         if (empty($data)) return 0;
 
         return $this->insertarCatalogo($data, 'product');
+    }
+
+    // Lo que la hoja dice de cada producto, resumido en una sola ficha.
+    //
+    // El precio es UNITARIO: la hoja trae el importe de la linea, y una linea de
+    // tres piezas por 255 no significa que el producto valga 255. De todos los
+    // renglones del producto se toma el unitario mas alto, porque los descuentos
+    // solo bajan el importe y el maximo es lo mas cerca que la hoja deja del
+    // precio de lista.
+    private function productosDeLaHoja($rows) {
+        $__row = [];
+
+        foreach ($rows as $v) {
+            $code = $v[6];
+            if ($code === '') continue;
+
+            $importe  = numVal($v[11]);
+            $cantidad = numVal($v[9]);
+            $unitario = $cantidad > 0 ? round($importe / $cantidad, 2) : $importe;
+
+            if (!isset($__row[$code])) {
+                $__row[$code] = ['name' => $v[8], 'price' => 0, 'is_modifier' => 1];
+            }
+
+            // El nombre lo pone el primer renglon que traiga descripcion: el POS
+            // deja la celda vacia en algunos modificadores.
+            if ($__row[$code]['name'] === '' && $v[8] !== '') $__row[$code]['name'] = $v[8];
+
+            if ($unitario > $__row[$code]['price']) $__row[$code]['price'] = $unitario;
+            if ($importe > 0)                       $__row[$code]['is_modifier'] = 0;
+        }
+
+        return $__row;
+    }
+
+    // Escribe en el producto existente solo los campos que cambiaron. Comparar
+    // antes de escribir mantiene el updated_at limpio: si la carga no trajo nada
+    // nuevo, el producto no se toca y no aparece como modificado.
+    private function refrescarProducto($actual, $hoja) {
+        $name  = $hoja['name'] !== '' ? $hoja['name']  : $actual['name'];
+        $price = $hoja['price'] > 0   ? $hoja['price'] : (float) $actual['price'];
+
+        // La marca de modificador solo se quita, nunca se pone: que un producto
+        // haya cobrado alguna vez es prueba definitiva de que se vende solo, pero
+        // un mes en el que solo aparecio regalado no prueba lo contrario. Sin esto
+        // una carga pobre degradaba un platillo a guarnicion y lo sacaba de los
+        // tickets.
+        $modifier = (int) $actual['is_modifier'] === 0 ? 0 : (int) $hoja['is_modifier'];
+
+        $igual = $name === $actual['name']
+              && abs($price - (float) $actual['price']) < 0.005
+              && $modifier === (int) $actual['is_modifier'];
+
+        if ($igual) return;
+
+        if ($this->mdl->updateProduct([$name, $price, $modifier, $actual['id']])) $this->refrescados++;
     }
 
     // La hoja solo trae la clave del mesero, no su nombre: se da de alta con la

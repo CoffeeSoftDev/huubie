@@ -146,6 +146,12 @@
         return n + ' ' + (n === 1 ? one : many);
     }
 
+    // En el telefono la ventana no muestra las dos columnas a la vez: ensena las
+    // listas o el detalle, nunca los dos. El mismo ancho que corta el CSS.
+    function isPhone() {
+        return !!(global.matchMedia && global.matchMedia('(max-width: 640px)').matches);
+    }
+
     class TodoHub {
 
         constructor() {
@@ -371,9 +377,20 @@
             $m.find('[data-tdw="duedate"]').val(String(ref.task.due || '').slice(0, 10));
             $m.find('[data-tdw="tagsinput"]').val(Array.isArray(ref.task.tags) ? ref.task.tags.join(', ') : '');
 
+            $m.prop('hidden', false);
+
+            // En el telefono no se ancla a nada: 232px colgados de un boton que
+            // vive en el borde derecho se salen de la pantalla. Va abajo, a lo
+            // ancho, como una hoja.
+            if (isPhone()) {
+                $m.addClass('is-sheet').css({ top: '', left: '' });
+                $row.addClass('is-editing');
+                return;
+            }
+            $m.removeClass('is-sheet');
+
             // Anclado al boton; si no cabe abajo, sube. El velo es fixed inset:0,
             // asi que las coordenadas del viewport valen tal cual.
-            $m.prop('hidden', false);
             const r  = $btn.get(0).getBoundingClientRect();
             const mh = $m.outerHeight();
             const mw = $m.outerWidth();
@@ -503,9 +520,26 @@
 
         open() {
             this.mount();
-            this.$veil.prop('hidden', false).addClass('is-in');
+            // Se entra siempre por el listado: en el telefono el detalle tapa el
+            // rail y abrir directo en la lista de la sesion anterior desorienta.
+            this.$veil.prop('hidden', false).removeClass('is-detail').addClass('is-in');
             setTimeout(() => this.$veil.removeClass('is-in'), 200);
             this.scan();
+        }
+
+        // ── Ir y volver en el telefono ──────────────────────────────────────
+        // En pantallas anchas no hacen nada: las dos columnas ya estan a la vista
+        // y la clase no la mira ningun estilo.
+        showDetail() {
+            if (this.$veil && isPhone()) this.$veil.addClass('is-detail');
+        }
+
+        backToRail() {
+            if (this.$veil) this.$veil.removeClass('is-detail');
+        }
+
+        inDetail() {
+            return !!this.$veil && this.$veil.hasClass('is-detail');
         }
 
         close() {
@@ -742,6 +776,18 @@
         }
 
         renderMain() {
+            this.paintMain();
+            // Todas las vistas del panel abren con la misma fila de titulo, asi que
+            // el boton de volver se cuelga aqui una sola vez en vez de repetirlo en
+            // cada plantilla. En pantallas anchas el CSS lo mantiene oculto.
+            const $row = this.$main.find('.tdw-mh-row').first();
+            if ($row.length && !$row.find('.tdw-back').length) {
+                $row.prepend('<button class="tdw-back" data-tdw="back" type="button" title="Volver a las listas">' + ico(ICON.back) + '</button>');
+                this.icons();
+            }
+        }
+
+        paintMain() {
             if (this.formOpen)         { this.renderForm(); return; }
             if (this.query.length >= 2) { this.renderSearch(); return; }
             if (this.openKey === null)  { this.renderInbox(); return; }
@@ -1684,6 +1730,8 @@
                 // abierto encima cierra la ventana.
                 if (!$('#tdwFields').prop('hidden'))  { this.closeFieldsMenu(); return; }
                 if (!$('#tdwAccents').prop('hidden')) { this.toggleAccents(false); return; }
+                // Con el detalle abierto en el telefono, primero se retrocede.
+                if (this.inDetail()) { this.backToRail(); return; }
                 this.close();
             });
 
@@ -1702,7 +1750,7 @@
                 self.toggleAccents(false);
             });
             $v.on('click', '[data-tdw="wide"]',    () => $v.toggleClass('is-wide'));
-            $v.on('click', '[data-tdw="new"]',     () => this.openForm());
+            $v.on('click', '[data-tdw="new"]',     () => { this.openForm(); this.showDetail(); });
             $v.on('click', '[data-tdw="cancelnew"]', () => { this.closeForm(); this.render(); });
             $v.on('click', '[data-tdw="createnew"]', () => this.createList());
 
@@ -1710,6 +1758,17 @@
                 this.query = '';
                 $('#tdwSearch').val('');
                 this.render();
+                // Sin busqueda no hay resultados que mirar: se vuelve al listado.
+                this.backToRail();
+            });
+
+            // El buscador vive en el rail y sus resultados en el detalle: en el
+            // telefono se salta alla al confirmar, no mientras se teclea.
+            $v.on('keydown', '#tdwSearch', function (e) {
+                if (e.key !== 'Enter') return;
+                self.query = this.value.trim();
+                self.render();
+                if (self.query.length >= 2) self.showDetail();
             });
 
             $v.on('click', '[data-tdw="filter"]', function () {
@@ -1742,11 +1801,14 @@
                 self.renderRail();
             });
 
+            $v.on('click', '[data-tdw="back"]', () => this.backToRail());
+
             $v.on('click', '[data-tdw="inbox"]', function () {
                 self.closeForm();
                 self.closeShare();
                 self.openKey = null;
                 self.render();
+                self.showDetail();
             });
 
             $v.on('click', '[data-tdw="pick"]', function () {
@@ -1760,6 +1822,7 @@
                     self.destKey = list.key + '::' + list.sections[list.sections.length - 1].id;
                 }
                 self.render();
+                self.showDetail();
             });
 
             // Chip de origen en la Bandeja / busqueda: salta a esa lista.
@@ -1770,6 +1833,7 @@
                 self.query = '';
                 $('#tdwSearch').val('');
                 self.render();
+                self.showDetail();
             });
 
             $v.on('click', '[data-tdw="openfile"]', () => {
@@ -1961,6 +2025,10 @@
                 if (!$(this).find('.tdw-grip').length) return;      // Bandeja/busqueda: no se reordena
                 const $t = $(e.target);
                 if (!$t.closest('.tdw-grip').length && $t.closest('.tdw-txt, button, input, .tdw-suggest').length) return;
+                // Con el dedo solo se arrastra desde el asa. Agarrando la fila
+                // entera, el gesto de deslizar para leer la lista arrancaria un
+                // reordenamiento en vez de hacer scroll.
+                if (ev.pointerType === 'touch' && !$t.closest('.tdw-grip').length) return;
                 ev.preventDefault();
                 self.startDragTask(this, ev);
             });

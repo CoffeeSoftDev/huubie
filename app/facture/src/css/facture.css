@@ -551,6 +551,8 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
    corrido, que es lo que cambia como se arregla el archivo. */
 .chk-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 
+/* nowrap en el encabezado: la primera columna es angosta y un titulo de una sola
+   palabra se partia por la mitad ("NOT / A"). */
 .chk-table th {
     text-align: left;
     font-size: 9px;
@@ -559,8 +561,13 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
     color: #6B7280;
     font-weight: 700;
     padding: 4px 6px;
+    white-space: nowrap;
     border-bottom: 1px solid #374151;
 }
+
+/* La coletilla del listado recortado cuelga de la tabla, no del parrafo
+   siguiente: sin separacion se leia como parte del cierre. */
+.chk-table + .chk-note { margin-top: 6px; }
 
 .chk-table td {
     padding: 4px 6px;
@@ -576,10 +583,20 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
     color: #9CA3AF;
-    width: 34px;
+    white-space: nowrap;
+    width: 48px;
 }
 
 .chk-table td.chk-empty { color: #6B7280; font-style: italic; }
+
+/* Importes a la derecha y con cifras de ancho fijo: en la lista de notas se leen
+   como columna de dinero, no como texto. */
+.chk-table td.chk-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #E5E7EB;
+    font-weight: 700;
+}
 
 .chk-safe,
 .chk-partial {

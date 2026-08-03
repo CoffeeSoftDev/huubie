@@ -559,15 +559,204 @@
 }
 @keyframes tdw-shimmer { to { background-position: -200% 0; } }
 
-/* En pantallas angostas las dos columnas no caben: el rail pasa arriba y se
+/* Volver al listado. Solo existe en el telefono, donde las dos columnas no caben
+   a la vez y el detalle tapa el rail; en pantallas anchas no hay a donde volver. */
+.tdw-back {
+    display: none; flex: none; width: 32px; height: 32px; margin: -2px 2px 0 -4px;
+    align-items: center; justify-content: center;
+    border: 0; border-radius: 9px; background: rgba(148, 163, 184, .14);
+    color: var(--vsr-text-soft); cursor: pointer;
+}
+.tdw-back svg { width: 17px; height: 17px; }
+
+/* En pantallas sin raton no hay hover que revele nada: las herramientas de tarea
+   y de seccion se quedan a la vista, y el asa de arrastre visible a media luz. */
+@media (hover: none) {
+    .tdw-task-tools, .tdw-sec-tools { visibility: visible; }
+    .tdw-grip { opacity: .55; }
+}
+
+/* En pantallas medianas las dos columnas no caben: el rail pasa arriba y se
    queda con un tercio del alto, con el detalle debajo. */
 @media (max-width: 860px) {
     .tdw-veil { padding: 0; }
     .tdw-modal { width: 100%; height: 100%; border-radius: 0; border: 0; }
     .tdw-body { flex-direction: column; }
     .tdw-rail { width: 100%; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--vsr-border); }
+    /* Apilado, `flex:1` no basta: sin `min-height:0` el panel crece con su
+       contenido y empuja la captura rapida fuera de la pantalla. */
+    .tdw-main { min-height: 0; }
     .tdw-seg button { padding: 5px 8px; font-size: 11px; }
     .tdw-mh-actions .tdw-btn span { display: none; }
+}
+
+/* ── Telefono ───────────────────────────────────────────────────────────────
+   Aqui no hay sitio para dos columnas ni recortando: la ventana pasa a una sola
+   pantalla a la vez (listas → detalle) con un boton para volver, como cualquier
+   app de correo. `is-detail` lo pone el JS al elegir lista, bandeja o busqueda.
+   Ademas se engordan las zonas que se tocan con el dedo y los campos suben a
+   16px, que es el tamano por debajo del cual iOS hace zoom solo al enfocar. */
+@media (max-width: 640px) {
+    /* dvh sigue a la barra del navegador cuando aparece y desaparece; con 100%
+       la ventana se quedaba mas alta que lo visible y la captura rapida caia
+       debajo del borde. */
+    .tdw-veil  { padding: 0; height: 100dvh; overscroll-behavior: contain; }
+    /* `manipulation` quita la espera de 300ms con la que el navegador comprueba
+       si el toque era un doble tap para hacer zoom. */
+    .tdw-modal { width: 100%; height: 100%; border-radius: 0; border: 0; font-size: 13.5px; touch-action: manipulation; }
+    .tdw-veil.is-in .tdw-modal { animation: none; }
+
+    /* ── Barra superior: identidad arriba, filtros en su propia fila ── */
+    .tdw-top {
+        flex-wrap: wrap; gap: 8px 10px; padding: 10px 12px;
+        padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    }
+    .tdw-top > div:not(.tdw-seg) { flex: 1; min-width: 0; }
+    .tdw-top p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tdw-seg { order: 9; width: 100%; margin-left: 0; }
+    .tdw-seg button { flex: 1; padding: 7px 4px; font-size: 12px; }
+    .tdw-ico { width: 36px; height: 36px; }
+    /* Agrandar no significa nada cuando ya ocupa toda la pantalla. */
+    .tdw-ico[data-tdw="wide"] { display: none; }
+
+    /* ── Una pantalla a la vez ── */
+    .tdw-body { flex-direction: column; }
+    .tdw-rail {
+        width: 100%; max-height: none; flex: 1; min-height: 0;
+        border-right: 0; background: transparent;
+    }
+    .tdw-main { display: none; }
+    .tdw-veil.is-detail .tdw-rail { display: none; }
+    .tdw-veil.is-detail .tdw-main { display: flex; }
+    .tdw-back { display: inline-flex; }
+
+    /* Sin raton no hay hover que revele las herramientas de cada fila. */
+    .tdw-task-tools, .tdw-sec-tools { visibility: visible; }
+    .tdw-grip { opacity: .55; }
+
+    .tdw-search { padding: 10px 12px 8px; }
+    .tdw-search input { padding: 11px 30px 11px 34px; font-size: 16px; }
+    .tdw-search > svg { left: 25px; top: 23px; }
+    .tdw-clear { right: 21px; top: 23px; width: 22px; height: 22px; }
+    .tdw-rail-scroll { padding: 4px 10px 8px; }
+    .tdw-rail-foot { padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .tdw-newbtn { padding: 12px; font-size: 13px; }
+
+    .tdw-item { padding: 11px 10px; gap: 11px; }
+    .tdw-item-dot { width: 34px; height: 34px; }
+    .tdw-item-main b { font-size: 13.5px; }
+    .tdw-item-main small { font-size: 11px; }
+    .tdw-count { min-width: 24px; height: 22px; }
+
+    /* ── Cabecera del detalle ── */
+    .tdw-main-head { padding: 12px 13px 11px; }
+    .tdw-mh-row { flex-wrap: wrap; gap: 8px; }
+    .tdw-mh-title { flex: 1 1 auto; }
+    .tdw-mh-title h3 { font-size: 16px; }
+    .tdw-crumb { font-size: 10.5px; flex-wrap: wrap; }
+    /* Las acciones bajan a su propia franja y se deslizan de lado: prefiero una
+       fila que se arrastra a botones apretados de 20px. */
+    .tdw-mh-actions {
+        order: 9; width: 100%; overflow-x: auto; padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+    .tdw-mh-actions::-webkit-scrollbar { display: none; }
+    .tdw-mh-actions .tdw-btn { padding: 8px 12px; }
+    .tdw-progress { margin-top: 11px; }
+
+    .tdw-scroll { padding: 4px 12px 14px; }
+
+    /* ── Tareas ──
+       El texto reserva mas de la mitad del renglon: con `flex:1` podia encogerse
+       hasta cero contra los chips y la palabra se partia letra por letra. */
+    .tdw-task { padding: 9px 6px 9px 22px; gap: 9px 8px; }
+    /* El texto reserva mas de la mitad del renglon y crece con lo que sobre. Con
+       el `flex:1` de escritorio (base 0) se dejaba estrujar por los chips hasta
+       partir la palabra letra a letra, que es como se veia en el telefono. */
+    .tdw-txt { flex: 1 1 55%; min-width: 0; font-size: 14px; }
+    .tdw-suggest-txt { font-size: 14px; }
+    /* Las herramientas se quedan en el renglon del texto y solo los chips bajan:
+       asi cada tarea ocupa una linea menos. */
+    .tdw-task-tools { order: 2; }
+    .tdw-chips      { order: 3; }
+    .tdw-origin     { order: 4; }
+    .tdw-suggest    { order: 5; }
+    .tdw-chk { width: 20px; height: 20px; margin-top: 0; }
+    .tdw-chk svg { width: 13px; height: 13px; }
+    .tdw-task-tools button { width: 30px; height: 30px; }
+    .tdw-task-tools svg { width: 14px; height: 14px; }
+    .tdw-origin { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 3px 9px; }
+    /* El asa vivia sobre el margen izquierdo del panel; en el telefono ese margen
+       ya no existe, asi que entra en el hueco que le abre el padding de la fila.
+       Ademas engorda: con el dedo es el unico sitio desde donde se reordena. */
+    .tdw-grip { left: 0; top: 6px; width: 22px; height: 30px; }
+    .tdw-suggest { margin-left: 0; }
+
+    .tdw-sec-head { gap: 8px; }
+    .tdw-sec-tools button { width: 28px; height: 28px; }
+    .tdw-add { padding: 9px 6px 9px 22px; }
+    .tdw-add input { font-size: 16px; }
+    .tdw-newsec { padding: 10px 14px; }
+
+    /* ── Captura rapida ── */
+    .tdw-quick {
+        gap: 8px; padding: 10px 12px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+    .tdw-quick-in { gap: 8px; padding: 7px 10px; }
+    .tdw-quick-in input { font-size: 16px; }
+    /* El atajo del teclado no existe en un telefono. */
+    .tdw-kbd { display: none; }
+    .tdw-dest { max-width: 42%; padding: 5px 9px; }
+    .tdw-send { width: 42px; height: 42px; }
+
+    /* ── Paneles flotantes: en el telefono, hojas ancladas abajo ── */
+    .tdw-accents { top: auto; bottom: 12px; left: 10px; right: 10px; width: auto; padding: 14px; }
+    .tdw-accents-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .tdw-swatch { height: 40px; }
+    .tdw-swatch i { width: 20px; height: 20px; }
+    .tdw-chiprow { padding: 10px 0; }
+    /* `is-sheet` la pone openFieldsMenu: sin ella el panel conserva las
+       coordenadas del boton que lo abrio y se sale de la pantalla. */
+    .tdw-fields.is-sheet { left: 10px; right: 10px; bottom: 12px; top: auto; width: auto; padding: 14px; }
+    /* Tirador: dice que es una hoja y que se va tocando fuera. */
+    .tdw-fields.is-sheet::before {
+        content: ''; display: block; width: 34px; height: 4px; margin: -4px auto 10px;
+        border-radius: 999px; background: rgba(148, 163, 184, .35);
+    }
+    .tdw-fields-row button { padding: 9px 4px; font-size: 11.5px; }
+    .tdw-fields-date, .tdw-fields-tags { padding: 10px; font-size: 16px; }
+
+    /* ── Alta de lista y comparticion ── */
+    .tdw-form { max-width: none; margin: 14px 0; }
+    .tdw-field input, .tdw-field select { padding: 11px 10px; font-size: 16px; }
+    .tdw-form-foot .tdw-btn { flex: 1; justify-content: center; padding: 11px; }
+    .tdw-share-row { flex-wrap: wrap; }
+    .tdw-share-who { flex: 1 1 100%; }
+    .tdw-share-perm { flex: 1; padding: 9px 8px; font-size: 13px; }
+    .tdw-empty { padding: 32px 18px; }
+
+    /* ── Tarjeta de propuesta dentro del chat ── */
+    .tdw-prop-foot { gap: 8px; }
+    .tdw-prop-dest { max-width: 100%; flex: 1 1 100%; padding: 7px 10px; }
+    .tdw-prop-btn { flex: 1; padding: 9px 12px; }
+    .tdw-prop-row { padding: 8px 12px; }
+    .tdw-prop-row input { width: 17px; height: 17px; }
+}
+
+/* El panel embebido en la hoja del visor no tiene rail ni modal, pero si las
+   mismas filas: hereda el ensanche tactil y el reflujo de la cabecera. */
+@media (max-width: 640px) {
+    .tdw-embed .tdw-mh-row { flex-wrap: wrap; gap: 8px; }
+    .tdw-embed .tdw-mh-actions { order: 9; width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .tdw-embed .tdw-mh-actions::-webkit-scrollbar { display: none; }
+    .tdw-embed .tdw-mh-actions .tdw-btn span { display: none; }
+    .tdw-embed .tdw-task { padding-left: 20px; }
+    .tdw-embed .tdw-txt { font-size: 14px; }
+    .tdw-embed .tdw-add { padding-left: 20px; }
+    .tdw-embed .tdw-add input { font-size: 16px; }
+    /* Aqui el back no lleva a ningun sitio: la hoja ES la lista. */
+    .tdw-embed .tdw-back { display: none; }
 }
 
 /* ── Panel embebido (la hoja del visor con un todo.json abierto) ── */
