@@ -1,4 +1,4 @@
-<?php require_once("../conf/_Rutes.php"); ?>
+<?php require_once(__DIR__ . "/conf/_Rutes.php"); ?>
 <!DOCTYPE html>
 <html lang="es">
 
