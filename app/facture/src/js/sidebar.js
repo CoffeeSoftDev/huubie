@@ -3,12 +3,12 @@
 // Rail estatico: app/ no expone el endpoint de menus del ERP (ctrl-access.php
 // opc=menu), asi que las secciones del Facturador viven aqui, sin fetch.
 const FACTURE_MENU = [
-    { icon: 'layout-grid',      title: 'Inicio',    url: '/app/facture/index.php'     },
-    { icon: 'layout-dashboard', title: 'Resumen',   url: '/app/facture/resumen.php'   },
-    { icon: 'upload-cloud',     title: 'Cargas',    url: '/app/facture/cargas.php'    },
-    { icon: 'receipt',          title: 'Ventas',    url: '/app/facture/ventas.php'    },
-    { icon: 'printer',          title: 'Tickets',   url: '/app/facture/tickets.php'   },
-    { icon: 'library',          title: 'Catalogos', url: '/app/facture/catalogos.php' }
+    { icon: 'layout-grid',      title: 'Inicio',      url: '/app/facture/index.php'     },
+    { icon: 'layout-dashboard', title: 'Resumen',     url: '/app/facture/resumen.php'   },
+    { icon: 'upload-cloud',     title: 'Importación', url: '/app/facture/cargas.php'    },
+    { icon: 'receipt',          title: 'Ventas',      url: '/app/facture/ventas.php'    },
+    { icon: 'printer',          title: 'Tickets',     url: '/app/facture/tickets.php'   },
+    { icon: 'library',          title: 'Catalogos',   url: '/app/facture/catalogos.php' }
 ];
 
 // -- Sidebar --

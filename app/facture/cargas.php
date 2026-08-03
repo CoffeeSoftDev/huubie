@@ -6,7 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
-    <title>Huubie · Facturador SAT — Cargas</title>
+    <title>Huubie · Facturador SAT — Importación</title>
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/layout/huubie-libraries.php'); ?>

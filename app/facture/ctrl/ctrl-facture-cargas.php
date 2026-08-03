@@ -6,8 +6,15 @@ require_once '../mdl/mdl-facture-cargas.php';
 require_once 'import-facture-cargas.php';
 
 // PhpSpreadsheet (vendor) solo es necesario para procesar Excel en uploadFile().
-// Se carga bajo demanda para que el resto del modulo opere sin el.
-define('AUTOLOAD_PATH', '../../src/vendor/autoload.php');
+// Se carga bajo demanda para que el resto del modulo opere sin el. La ruta se
+// resuelve contra __DIR__ y no contra el directorio de trabajo, y se admite una
+// copia junto al modulo: cuando se despliega solo la carpeta facture el vendor
+// del proyecto no viaja con ella.
+$__autoload = '';
+foreach ([__DIR__ . '/../../src/vendor/autoload.php', __DIR__ . '/../vendor/autoload.php'] as $__ruta) {
+    if (file_exists($__ruta)) { $__autoload = $__ruta; break; }
+}
+define('AUTOLOAD_PATH', $__autoload);
 
 class ctrl extends mdl {
 

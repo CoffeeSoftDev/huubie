@@ -11,9 +11,7 @@
 //
 //   1. Solo si NO hay sesion. Una sesion real de Huubie nunca se pisa.
 //   2. Solo si FACTURE_DEV_SESSION esta encendida (se apaga en conf/_Rutes.php).
-//   3. Solo en local. Es el candado que importa: si este archivo llega al
-//      servidor no abre nada, porque ahi ni la ip es de loopback ni el dominio
-//      esta en la lista.
+//   3. Solo en local, SALVO que FACTURE_OPEN_ACCESS este encendida (ver abajo).
 //
 // La sesion sembrada se marca con FACTURE_DEV para que la pantalla lo diga. Una
 // sesion falsa que no se anuncia es peor que no tenerla: cualquiera creeria que
@@ -29,6 +27,18 @@
 //                        false el modulo manda a login.php a elegir perfil.
 if (!defined('FACTURE_DEV_SESSION')) define('FACTURE_DEV_SESSION', true);
 if (!defined('FACTURE_DEV_AUTO'))    define('FACTURE_DEV_AUTO', true);
+
+// ACCESO ABIERTO — PROVISIONAL. Levanta el candado de local y deja entrar al
+// modulo SIN LOGIN tambien desde el servidor, con el perfil Administrador.
+//
+// Es lo que hoy permite abrir /app/facture/ en produccion mientras no exista el
+// login propio del Facturador. Mientras este en true, cualquiera que conozca la
+// url entra y puede subir o borrar cargas: no hay usuario, no hay contrasena y
+// la autoria de cada carga queda en el USR sembrado, no en quien la hizo.
+//
+// PARA CERRARLO: poner false. El modulo vuelve a exigir sesion de Huubie fuera
+// de local y en local sigue abriendo igual que siempre.
+if (!defined('FACTURE_OPEN_ACCESS')) define('FACTURE_OPEN_ACCESS', true);
 
 // Hosts de trabajo local. El vhost del proyecto va aqui; agregar otro es sumarlo
 // a esta lista, no tocar la logica.
@@ -117,6 +127,10 @@ function factureEsLocal() {
 function factureDevPermitido() {
     if (!defined('FACTURE_DEV_SESSION') || !FACTURE_DEV_SESSION) return false;
 
+    // El acceso abierto SUSTITUYE al candado de local, no lo acompana: mientras
+    // este encendido, la ip y el dominio dejan de importar.
+    if (defined('FACTURE_OPEN_ACCESS') && FACTURE_OPEN_ACCESS) return true;
+
     return factureEsLocal();
 }
 
@@ -176,6 +190,16 @@ function factureDevRibbon($html) {
     $lista  = factureDevPerfiles();
     $titulo = $lista[$perfil]['titulo'] ?? 'Desarrollo';
 
+    // Fuera de local la cinta no dice "Dev" ni va en ambar: ahi la sesion no es
+    // una comodidad de trabajo sino un modulo abierto a quien tenga la url, y eso
+    // tiene que verse distinto para que nadie lo deje asi por olvido.
+    $abierto = !factureEsLocal();
+    $rotulo  = $abierto ? 'Sin login' : 'Dev';
+    $fondo   = $abierto ? '#B91C1C' : '#B45309';
+    $aviso   = $abierto
+        ? 'Acceso abierto: FACTURE_OPEN_ACCESS en conf/dev-session.php. Cualquiera con la url entra con este perfil.'
+        : 'Sesion sembrada en local por conf/dev-session.php. No es un usuario real.';
+
     // La cinta es tambien el camino de vuelta al login: sin ella habria que
     // escribir la url a mano para cambiar de perfil o salir.
     $tag = '
@@ -190,7 +214,7 @@ function factureDevRibbon($html) {
             gap: 8px;
             padding: 4px 10px 5px;
             border-top-left-radius: 6px;
-            background: #B45309;
+            background: ' . $fondo . ';
             color: #FFF7E6;
             font: 700 10px/1 -apple-system, "Segoe UI", sans-serif;
             letter-spacing: .06em;
@@ -213,8 +237,8 @@ function factureDevRibbon($html) {
 
         .facture-dev-tag a:hover { opacity: 1; }
     </style>
-    <div class="facture-dev-tag" title="Sesion sembrada en local por conf/dev-session.php. No es un usuario real.">
-        <b></b>Dev · ' . htmlspecialchars($titulo) . '
+    <div class="facture-dev-tag" title="' . htmlspecialchars($aviso) . '">
+        <b></b>' . $rotulo . ' · ' . htmlspecialchars($titulo) . '
         <a href="/app/facture/login.php">cambiar</a>
     </div>
     ';
