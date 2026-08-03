@@ -590,43 +590,15 @@ class Cargas extends Templates {
 
     // -- Actions --
 
-    // El nombre del archivo se revisa ANTES de subir: el POS exporta con nombres
-    // fijos por reporte, y subir el de otra pestana cargaria datos en la tabla
-    // equivocada. Si no cuadra se pide confirmacion en vez de bloquear.
-    onFileChange(input, tipo) {
+    // El archivo se lee ANTES de preguntar nada. Antes se confirmaba el periodo
+    // contra la pestana del boton y solo despues, ya subido, se descubria que el
+    // archivo era de otra: la primera pregunta afirmaba un destino falso y venia
+    // una segunda a corregirlo. Ahora la revision decide, y se pregunta una vez.
+    async onFileChange(input, tipo) {
         const file = input.files[0];
         input.value = '';
         if (!file) return;
 
-        // El patron viaja como texto en el contrato: en JSON no cabe una expresion
-        // regular, asi que se arma aqui.
-        const archivo    = app.dataInit.archivos[tipo];
-        const nombreBase = file.name.replace(/\.[^.]+$/, '');
-        const coincide   = new RegExp(archivo.patron, 'i').test(nombreBase);
-
-        if (coincide) {
-            this.confirmarPeriodo(file, tipo);
-            return;
-        }
-
-        alert({
-            icon:     'question',
-            title:    'El nombre del archivo no coincide',
-            html:     `El archivo <strong>${nombreBase}</strong> no parece el de <strong>${archivo.titulo}</strong> (se espera algo como <strong>${archivo.ejemplo}</strong>). ¿Deseas subirlo de todas formas?`,
-            btn1:     true,
-            btn1Text: 'Subir de todas formas',
-            btn2:     true,
-            btn2Text: 'Cancelar'
-        }).then(result => {
-            if (result.isConfirmed) this.confirmarPeriodo(file, tipo);
-        });
-    }
-
-    // El periodo lo fija el filtro del modulo, no el nombre del archivo: se
-    // confirma a que mes y anio va la carga antes de tocar la base. Si ese periodo
-    // ya tiene datos de la pestana se avisa que se sobreescriben, porque la carga
-    // reemplaza a la anterior en lugar de sumarse a ella.
-    confirmarPeriodo(file, tipo) {
         const filtros = app.getFilters();
 
         if (!filtros.mes || !filtros.anio) {
@@ -634,9 +606,58 @@ class Cargas extends Templates {
             return;
         }
 
+        cargasView.renderUploadRow(tipo, Object.assign({}, app.dataInit.archivos[tipo], { estado: 'cargando' }));
+
+        const revision = await this.inspeccionar(file, tipo);
+
+        cargasView.renderUploadRow(tipo, app.dataInit.archivos[tipo]);
+
+        if (revision.status !== 200) {
+            alert({ icon: 'error', title: revision.message || 'No se pudo leer el archivo', btn1: true });
+            return;
+        }
+
+        // Hojas que no son de ninguna pestana, o columnas que no cuadran: no hay
+        // nada que confirmar, solo que corregir.
+        if (revision.validacion) {
+            cargasView.alertValidacion(revision.validacion, file.name, app.dataInit.archivos[revision.destino] || app.dataInit.archivos[tipo]);
+            return;
+        }
+
+        this.confirmarPeriodo(file, revision.destino, revision.movido ? tipo : '');
+    }
+
+    // Lectura del libro sin guardar nada: devuelve a que pestana pertenece y si
+    // sus columnas cuadran.
+    inspeccionar(file, tipo) {
+        const formData = new FormData();
+        formData.append('opc',         'inspectFile');
+        formData.append('tipo',        tipo);
+        formData.append('excel_file0', file);
+
+        return fetch(apiCargas, { method: 'POST', body: formData })
+            .then(r => r.json())
+            .catch(() => ({ status: 500, message: 'No se pudo leer el archivo' }));
+    }
+
+    // El periodo lo fija el filtro del modulo, no el nombre del archivo: se
+    // confirma a que mes y anio va la carga antes de tocar la base. Si ese periodo
+    // ya tiene datos de la pestana se avisa que se sobreescriben, porque la carga
+    // reemplaza a la anterior en lugar de sumarse a ella.
+    //
+    // `desde` llega cuando la revision mando el archivo a otra pestana: el destino
+    // y el cambio de pestana se confirman aqui mismo, no en un aviso aparte.
+    confirmarPeriodo(file, tipo, desde) {
+        const filtros = app.getFilters();
         const archivo = app.dataInit.archivos[tipo];
         const periodo = `${$('#fMes option:selected').text()} ${filtros.anio}`;
         const existe  = archivo.estado === 'ok';
+
+        const origen = desde
+            ? `<p class="text-[12px] text-blue-300 mb-2">Este archivo es de
+                   <strong>${archivo.titulo}</strong>, no de
+                   <strong>${app.dataInit.archivos[desde].titulo}</strong>. Sus columnas ya se revisaron y estan bien.</p>`
+            : '';
 
         const aviso = existe
             ? `<p class="text-[12px] text-yellow-300 mt-2">Este periodo ya tiene datos cargados
@@ -645,15 +666,18 @@ class Cargas extends Templates {
 
         alert({
             icon:     existe ? 'warning' : 'question',
-            title:    `Cargar en ${periodo}`,
-            html:     `<p class="text-[12px]">Se va a subir <strong>${file.name}</strong> a
+            title:    desde ? 'Este archivo va en otra pestana' : `Cargar en ${periodo}`,
+            html:     `${origen}<p class="text-[12px]">Se va a subir <strong>${file.name}</strong> a
                            <strong>${archivo.titulo}</strong> del periodo <strong>${periodo}</strong>.</p>${aviso}`,
             btn1:     true,
-            btn1Text: existe ? 'Sobreescribir periodo' : 'Subir archivo',
+            btn1Text: existe ? 'Sobreescribir periodo' : (desde ? `Cargar en ${archivo.titulo}` : 'Subir archivo'),
             btn2:     true,
             btn2Text: 'Cancelar'
         }).then(result => {
-            if (result.isConfirmed) this.subirArchivo(file, tipo);
+            if (!result.isConfirmed) return;
+
+            if (desde) this.cargarEnOtroTab(file, tipo);
+            else       this.subirArchivo(file, tipo);
         });
     }
 
@@ -716,6 +740,19 @@ class Cargas extends Templates {
 
             this.lsBitacora(tipo);
 
+            // Una columna que falta o que esta corrida no cabe en el titulo de un
+            // aviso: se muestra columna por columna, que es lo unico con lo que el
+            // usuario puede arreglar el Excel.
+            if (data.validacion) {
+                cargasView.alertValidacion(data.validacion, file.name, app.dataInit.archivos[tipo])
+                    .then(res => {
+                        if (res && res.isConfirmed && data.validacion.motivo === 'otro-tab') {
+                            this.cargarEnOtroTab(file, data.validacion.sugerido);
+                        }
+                    });
+                return;
+            }
+
             alert({
                 icon:  data.status === 200 ? 'success' : 'error',
                 title: data.message || 'Error al procesar el archivo',
@@ -737,6 +774,15 @@ class Cargas extends Templates {
 
             alert({ icon: 'error', title: 'No se pudo procesar el archivo: ' + error.message, btn1: true });
         });
+    }
+
+    // Reintento del mismo archivo en la pestana a la que pertenece. Se cambia de
+    // pestana antes de subir porque el panel de la otra no existe en el DOM hasta
+    // que se visita, y la carga no tendria donde pintar su avance.
+    cargarEnOtroTab(file, tab) {
+        $(`#tab-${tab}`).trigger('click');
+
+        this.subirArchivo(file, tab);
     }
 
     deleteCarga(id) {
@@ -866,6 +912,168 @@ class CargasView extends Templates {
             parent: parent,
             json:   { text: text }
         });
+    }
+
+    // Aviso de lo que hay que corregir en el Excel. Son dos lecturas distintas:
+    // o el archivo no es el de esta pestana (ninguna hoja conocida), o si lo es
+    // pero alguna hoja trae las columnas cambiadas. En el segundo caso el pie
+    // dice que si alcanzo a entrar, porque las hojas se cargan por separado y
+    // anunciar "no se modifico nada" seria falso.
+    alertValidacion(v, fileName, archivo) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        // Las hojas se dibujan como la barra de pestanas de Excel y no como una
+        // lista: es lo que el usuario ve al pie de su archivo cuando lo abre, asi
+        // que puede comparar sin que nadie le explique donde mirar.
+        // La fila de letras es lo que vuelve inconfundible que eso es un Excel: sin
+        // ella la cuadricula sola se lee como una tabla cualquiera.
+        const columnasHoja = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+        const libroExcel = (titulo, hojas) => `
+            <p class="chk-lead">${titulo}</p>
+            <div class="xls-book">
+                <div class="xls-head">${columnasHoja.map(c => `<span>${c}</span>`).join('')}</div>
+                <div class="xls-grid"></div>
+                <div class="xls-tabs">
+                    ${hojas.map(h => `<span class="xls-tab xls-${h.tone}">${esc(h.nombre)}</span>`).join('')}
+                </div>
+            </div>
+        `;
+
+        const hojasEsperadas = () => {
+            const esperadas = v.esperadas || [];
+            const libro     = v.libro || [];
+
+            const trae = libro.length
+                ? libro.map(h => ({ nombre: h, tone: esperadas.indexOf(h) >= 0 ? 'ok' : 'bad' }))
+                : [{ nombre: 'sin hojas', tone: 'bad' }];
+
+            return libroExcel(
+                `Asi debe venir el Excel de <strong>${esc(archivo.titulo)}</strong>:`,
+                esperadas.map(h => ({ nombre: h, tone: 'ok' }))
+            ) + libroExcel(
+                'Asi viene el que subiste:',
+                trae
+            );
+        };
+
+        // La fila de encabezados se dibuja como esta en la hoja, con las dos
+        // versiones una debajo de otra: sin las columnas que si cuadran no se ve
+        // donde empieza el desfase, que es lo que hay que corregir. Se pintan
+        // todas y solo se resaltan las que fallan.
+        const celda = (texto, estado) => `
+            <span class="xls-cel ${estado ? 'xls-cel-' + estado : ''}" title="${esc(texto)}">${esc(texto) || '&nbsp;'}</span>
+        `;
+
+        const bloqueHoja = (item) => {
+            const cols   = item.columnas || item.faltan || [];
+            const faltan = item.faltan || [];
+            const perdidas = faltan.filter(c => c.estado === 'ausente');
+            const corridas = faltan.filter(c => c.estado === 'movida');
+
+            const resumen = [
+                perdidas.length ? `<span class="chk-bad-txt">falta ${perdidas.map(c => esc(c.esperada)).join(', ')}</span>` : '',
+                corridas.length ? `<span class="chk-warn-txt">${corridas.length} columna(s) corridas de lugar</span>` : ''
+            ].filter(Boolean).join(' · ');
+
+            // Con diez columnas la fila no cabe en el dialogo: se anota cual es la
+            // primera que falla para desplazar la hoja hasta ahi al abrir, y que
+            // el error se vea sin tener que buscarlo.
+            const primerMal = cols.findIndex(c => c.estado !== 'ok');
+
+            return `
+                <p class="chk-lead">Hoja <strong>${esc(item.hoja)}</strong>, fila ${esc(item.headerRow)}: ${resumen}</p>
+                <div class="xls-book">
+                    <div class="xls-scroll" data-mal="${primerMal}">
+                        <div class="xls-line">
+                            <span class="xls-lbl"></span>
+                            ${cols.map(c => `<span class="xls-hcel">${esc(c.letra)}</span>`).join('')}
+                        </div>
+                        <div class="xls-line">
+                            <span class="xls-lbl">Debe decir</span>
+                            ${cols.map(c => celda(c.esperada, c.estado === 'ok' ? '' : 'want')).join('')}
+                        </div>
+                        <div class="xls-line">
+                            <span class="xls-lbl">Tu archivo</span>
+                            ${cols.map(c => celda(c.encontrada, c.estado === 'ok' ? '' : (c.estado === 'ausente' ? 'bad' : 'alt'))).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // El archivo cayo en la pestana equivocada pero es valido en otra: en vez
+        // de rechazarlo se ofrece cargarlo donde va. Sus hojas se pintan en ambar
+        // y no en rojo porque no estan mal, solo estan en el lugar equivocado.
+        const otroTab = () => {
+            const destino = (app.dataInit.archivos[v.sugerido] || {}).titulo || v.sugerido;
+            const suyas   = v.suyas || [];
+
+            return `
+                <p class="chk-lead">Parece que subiste el archivo de
+                    <strong>${esc(destino)}</strong> en la pestana de
+                    <strong>${esc(archivo.titulo)}</strong>.</p>
+                ${libroExcel(
+                    'Las hojas que trae son las de esa otra pestana:',
+                    (v.libro || []).map(h => ({ nombre: h, tone: suyas.indexOf(h) >= 0 ? 'alt' : 'bad' }))
+                )}
+            `;
+        };
+
+        const cargadas = v.cargadas || [];
+        const pie = cargadas.length
+            ? `Si entro: <span class="chk-strong">${esc(cargadas.join(' · '))}</span>. El resto no se modifico.`
+            : 'No se modifico ningun dato. Corrige el archivo y vuelve a subirlo.';
+
+        const titulos = {
+            'hojas':    'Este no es el archivo de esta pestana',
+            'otro-tab': 'Este archivo va en otra pestana',
+            'columnas': 'Revisa las columnas del archivo'
+        };
+
+        const cuerpos = {
+            'hojas':    hojasEsperadas,
+            'otro-tab': otroTab,
+            'columnas': () => (v.columnas || []).map(bloqueHoja).join('')
+        };
+
+        // El caso de la pestana equivocada es el unico que pregunta: los otros dos
+        // no tienen nada que ofrecer, solo que corregir el archivo.
+        const mover  = v.motivo === 'otro-tab';
+        const cierre = mover
+            ? 'Todavia no se modifico nada. Si aceptas se revisan sus columnas antes de cargar.'
+            : pie;
+
+        const promesa = alert({
+            icon:     mover ? 'question' : 'error',
+            title:    titulos[v.motivo],
+            width:    720,
+            timer:    0,
+            btn1:     true,
+            btn1Text: mover ? `Si, cargar en ${(app.dataInit.archivos[v.sugerido] || {}).titulo || v.sugerido}` : 'Entendido',
+            btn2:     mover,
+            btn2Text: 'Cancelar',
+            html: `
+                <div class="chk-box">
+                    <p class="chk-file">${esc(fileName)}</p>
+                    ${(cuerpos[v.motivo] || cuerpos.columnas)()}
+                    <p class="${mover ? 'chk-note' : (cargadas.length ? 'chk-partial' : 'chk-safe')}">${cierre}</p>
+                </div>
+            `
+        });
+
+        // SweetAlert monta el dialogo en la misma vuelta, asi que la hoja ya se
+        // puede desplazar: cada bloque se coloca en su primera columna con
+        // problema para que el error quede a la vista al abrir.
+        $('.xls-scroll').each(function () {
+            const mal = Number($(this).attr('data-mal'));
+
+            if (mal > 1) this.scrollLeft = (mal - 1) * 76;
+        });
+
+        return promesa;
     }
 
     renderEmptySheets(tabId) {

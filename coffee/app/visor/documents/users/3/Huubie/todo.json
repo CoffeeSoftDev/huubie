@@ -2,143 +2,6 @@
   "title": "Facture - Cargas Mensuales",
   "sections": [
     {
-      "id": "s3477iki",
-      "title": "Contenedor principal",
-      "tasks": [
-        {
-          "id": "t38pe0vq",
-          "text": "Cuando no existan registros no mostrar el tab de bitacora , aplica para reporte de ventas y comandas",
-          "done": true
-        },
-        {
-          "id": "tu4nec9i",
-          "text": "Comandas: en hojas detectadas cambia el color a purpura",
-          "done": true
-        },
-        {
-          "id": "tel4opk8",
-          "text": "el boton del loader de carga debe estar centrado y debe ser un loader de circulo",
-          "done": true
-        },
-        {
-          "id": "t6sisqqp",
-          "text": "Al seleccionar una tab ( Pagos, reporte de ventas) el loader de carga debe ser circular",
-          "done": true
-        },
-        {
-          "id": "tlfxip2p",
-          "text": "quitar el boton de ver a bitacora y tambien los acceso directos de archivo",
-          "done": true
-        },
-        {
-          "id": "ti7ejd1t",
-          "text": "mostra un emptyState en reporte de ventas y comandas",
-          "done": true
-        },
-        {
-          "id": "tnwbog56",
-          "text": "Revisar que los datos se subieron correctamente",
-          "done": true
-        },
-        {
-          "id": "tocria15",
-          "text": "Quitar la info del foter que tiene pagos y reporte de ventas",
-          "done": true
-        },
-        {
-          "id": "tj44v9wt",
-          "text": "Reporte de ventas debe tener las columnas de folio,codigo facturacion,fecha,descuento,subtotal,impuestos,total,expiracion estado , folio factura",
-          "done": true
-        },
-        {
-          "id": "tcuh1aik",
-          "text": "Quitarle a pagos la columna folio factura no mostrarla",
-          "done": true
-        }
-      ]
-    },
-    {
-      "id": "sq12csh9",
-      "title": "Ventas y pagos",
-      "tasks": [
-        {
-          "id": "t8xoj4lc",
-          "text": "Quitar el background  gris de los grupos de la tabla y poner un color acorde a los grupos",
-          "done": true
-        },
-        {
-          "id": "tqp02f8q",
-          "text": "en el desgloce de tickets, no agrupar los ticket que tenga dos pagos, mostrar los pagos del ticket sin agruparlos, no aislarlos del grupo",
-          "done": true
-        },
-        {
-          "id": "tx3ttn5i",
-          "text": "quitar el ver ticket y solo agregarlo al grupo",
-          "done": true
-        },
-        {
-          "id": "tgum3dbm",
-          "text": "Quitar los subgrupos de forma de pago",
-          "done": true
-        },
-        {
-          "id": "td4m3ccn",
-          "text": "cambiar el color del background de los grupos a este #283545",
-          "done": true
-        },
-        {
-          "id": "t7ryyfss",
-          "text": "Añadir una animacion de carga , en lo que se ven los registros",
-          "done": true
-        },
-        {
-          "id": "t9g19bo5",
-          "text": "los badges de ticket(1,2) deben ser mas pequeños",
-          "done": true
-        },
-        {
-          "id": "t112ukyb",
-          "text": "el scroll en y que tiene la tabla no debe estar tan pegada a la tabla debe tener un espacio en x",
-          "done": true
-        },
-        {
-          "id": "t7i33o2g",
-          "text": "la nota de los tickets cobrados solo se visualiza cuando hay registros, no antes",
-          "done": true
-        },
-        {
-          "id": "tprwiksk",
-          "text": "para los tickets que tiene factura, que aparesca toda la row seleccioanda como el color del badkground del hover",
-          "done": true
-        },
-        {
-          "id": "tmdsmsd8",
-          "text": "Cambiar el icono del grupo que sirve para ver por uno mas visual, que permita abrir tickets",
-          "done": true
-        },
-        {
-          "id": "tmhaojos",
-          "text": "Cuando se selecciona el toogle forma de pago - Bancos, en los registros me muestra efectivo y solo deberia mostrarme bancos",
-          "done": true
-        },
-        {
-          "id": "twhbotag",
-          "text": "Cuando esta seleccionado todas las formas, los subgrupos por dia deben ser Efectivo, bancos",
-          "done": true
-        },
-        {
-          "id": "tnfd0vqs",
-          "text": "el icono del ticket del grupo debe ser un boton pequeño que diga ticket pero que sea un boton",
-          "done": true
-        },
-        {
-          "id": "tin9cwez",
-          "text": "los grupos de efectivo y bancos deben iniciar collapsados",
-          "done": true
-        }
-      ]
-    },
-    {
       "id": "shyu86js",
       "title": "Catalogos",
       "tasks": [
@@ -196,6 +59,92 @@
           "id": "tit2i826",
           "text": "cambia el color del toogle de la columna modificador a un tono gris",
           "done": true
+        },
+        {
+          "id": "tz7hmels",
+          "text": "Nuevo producto: Codigo no maneja la opcion de poner digitos",
+          "done": true,
+          "tags": [
+            "new-product"
+          ]
+        },
+        {
+          "id": "thz8jbpz",
+          "text": "Nuevo producto: Explicar que es modificador con una nota",
+          "done": true,
+          "tags": [
+            "new-product"
+          ]
+        },
+        {
+          "id": "tkezlerq",
+          "text": "Que sea mas intuitiva la explicacion de producto auxiliar y modificar y agregarlo en la filterBar no en la tabla de productos",
+          "done": true,
+          "tags": [
+            "interfaz"
+          ]
+        },
+        {
+          "id": "t5e2863r",
+          "text": "Centrar codigo",
+          "done": true,
+          "tags": [
+            "tabla"
+          ]
+        },
+        {
+          "id": "tv4cf12f",
+          "text": "Quitar border alos alerts de coffeeSoft",
+          "done": true,
+          "tags": [
+            "coffeesoft.js"
+          ]
+        },
+        {
+          "id": "t6cun7x5",
+          "text": "Ordenar la tabla del ultimo agregado",
+          "done": true
+        },
+        {
+          "id": "tfybm82p",
+          "text": "El switch de producto auxiliar no funciona revisar porque",
+          "done": true
+        },
+        {
+          "id": "ta1ct1dz",
+          "text": "El datatable solo reederiza los iconos de la primer pagina, cuando reviso la segunda no los muestra",
+          "done": false
+        },
+        {
+          "id": "t6s1i25y",
+          "text": "Ajustar el tamaño de los infos de producto auxiliar y modificado para que todos los componentes de la filter bar entren correctamente",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "s1pmiv8g",
+      "title": "Cargas mensuales",
+      "tasks": [
+        {
+          "id": "tunw394q",
+          "text": "El sistema debe reconocer que el archivo le faltan pestañas ( pueden venir solo 1 )",
+          "done": false
+        },
+        {
+          "id": "tm5t29ua",
+          "text": "El sistema debe reconocer que se subio un archivo incorrecto y que le faltan ciertas columnas",
+          "done": false
+        },
+        {
+          "id": "tykbi265",
+          "text": "El sistema debe dejar subir los archivos aunque falte una pestaña",
+          "done": false
+        },
+        {
+          "id": "t06ifc1i",
+          "text": "Si ya hay tickets virtuales ligados a archivos ya no se puede subir al sistema",
+          "done": false
         }
       ]
     }

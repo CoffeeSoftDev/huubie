@@ -5217,6 +5217,31 @@ function iaFileTextForModel(file) {
     return '';
 }
 
+/* Marca que sustituye a las versiones viejas del template al podar el payload.
+ * No cita la secuencia del fence: si lo hiciera, la propia marca pasaria por
+ * "bloque vigente" en el turno siguiente y el template real quedaria podado. */
+const IA_HTML_OMITTED = '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque de código HTML de la conversación]';
+const IA_HTML_FENCE   = /```[ \t]*html[ \t]*\r?\n?[\s\S]*?```/gi;
+
+// Contenido de cada fence ```html del mensaje: se mira el bloque REAL con markup
+// dentro, no la mera mencion de la secuencia. Las marcas de omision guardadas en
+// conversaciones antiguas la citaban y pueden encadenarse como un bloque falso.
+function iaHtmlBlocks(content) {
+    const re  = /```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/gi;
+    const out = [];
+    let m;
+    while ((m = re.exec(String(content || '')))) {
+        const b = m[1].trim();
+        if (/<[a-z!]/i.test(b)) out.push(b);
+    }
+    return out;
+}
+// Clave laxa para comparar markup: el HTML del lienzo pasa por trim y no coincide
+// byte a byte con el que quedo guardado en el mensaje.
+function iaHtmlKey(html) {
+    return String(html || '').replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Construye los <span> del footer de metadatos de un mensaje IA.
  * Prioriza el COSTO REAL en USD (lo trae OpenRouter via usage.cost); si no hay
@@ -6258,24 +6283,39 @@ class CoffeeIA {
         // Poda del PAYLOAD (this.history no se toca: chat y autoguardado conservan todo).
         // Cada iteracion de lienzo deja un template HTML completo en el historial y todo
         // viajaba en cada turno, asi que el modelo releia miles de tokens de versiones
-        // obsoletas. Solo el ULTIMO bloque ```html viaja completo (es la version vigente,
-        // la que se modifica); los anteriores se sustituyen por una marca.
+        // obsoletas. Solo el template VIGENTE viaja completo; los demas se sustituyen
+        // por una marca.
+        //
+        // Cual es el vigente lo dice el lienzo (htmlStage.code), no "el ultimo mensaje
+        // que mencione un fence html": una respuesta corta con un snippet de ejemplo se
+        // llevaba esa etiqueta y el template real quedaba podado, asi que el modelo se
+        // quedaba sin markup que editar. Si el HTML del lienzo no aparece integro en
+        // ningun mensaje, se ancla al ultimo turno para que nunca falte.
+        const stageHtml = (typeof htmlStage !== 'undefined' && htmlStage) ? String(htmlStage.code || '') : '';
+        const vigente   = iaHtmlKey(stageHtml);
         let lastHtmlIdx = -1;
-        this.history.forEach((m, i) => {
-            if (/```html/i.test(m.content || '')) lastHtmlIdx = i;
+        for (let i = this.history.length - 1; i >= 0 && lastHtmlIdx === -1; i--) {
+            const blocks = iaHtmlBlocks(this.history[i].content);
+            if (vigente ? blocks.some(b => iaHtmlKey(b) === vigente) : blocks.length) lastHtmlIdx = i;
+        }
+
+        const msgs = this.history.map((m, i) => {
+            let content = m.content;
+            if (i !== lastHtmlIdx) {
+                content = String(content || '').replace(IA_HTML_FENCE, IA_HTML_OMITTED);
+            }
+            const out = { role: m.role, content };
+            if (m.images && m.images.length) out.images = m.images;
+            return out;
         });
+        if (vigente && lastHtmlIdx === -1 && msgs.length) {
+            msgs[msgs.length - 1].content += '\n\n=== TEMPLATE VIGENTE (el que esta renderizado ahora en el lienzo) ===\n'
+                + 'Es el markup sobre el que trabajas. Devuelvelo COMPLETO con el cambio aplicado.\n'
+                + '```html\n' + stageHtml + '\n```';
+        }
 
         const payload = {
-            messages:           this.history.map((m, i) => {
-                let content = m.content;
-                if (i !== lastHtmlIdx && /```html/i.test(content || '')) {
-                    content = content.replace(/```html[\s\S]*?```/gi,
-                        '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque ```html de la conversación]');
-                }
-                const out = { role: m.role, content };
-                if (m.images && m.images.length) out.images = m.images;
-                return out;
-            }),
+            messages:           msgs,
             currentFile:        this._app.currentFile || '',
             currentFilePath:    currentFileObj?.fullPath || '',
             currentFileContent: iaFileTextForModel(currentFileObj),

@@ -68,7 +68,7 @@ class mdl extends CRUD {
             WHERE branch_id <=> ?
               AND (code LIKE ? OR name LIKE ?)
               {$where}
-            ORDER BY active DESC, is_bridge DESC, name ASC
+            ORDER BY id DESC
         ";
         return $this->_Read($query, $array);
     }

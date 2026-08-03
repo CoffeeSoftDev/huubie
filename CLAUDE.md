@@ -40,10 +40,25 @@ layout() {
     });
 
     // Filter bar wrapper.
-    $('#filterBar').html(`
-        <div id="filterBar${this.PROJECT_NAME}" class="w-full my-3 " ></div>
-        <div id="containerHours"></div>
-    `);
+    this.createLayout({
+        parent: 'filterBar',
+        design: false,
+        data: {
+            id:    'filterBarWrap',
+            class: 'w-full',
+            container: [
+                {
+                    type:  'div',
+                    id:    `filterBar${this.PROJECT_NAME}`,
+                    class: 'w-full my-3'
+                },
+                {
+                    type: 'div',
+                    id:   'containerHours'
+                }
+            ]
+        }
+    });
 }
 ```
 
@@ -57,8 +72,20 @@ layout() {
   - **dark:** `bg-[#1F2A37]` (azul-gris oscuro). Usar cuando el modulo corre en dark y sus tabs/tablas/modales van con `theme: 'dark'`.
   - **light:** sin fondo (transparente, hereda el blanco de la pagina) o `bg-white border border-gray-200` si se quiere efecto tarjeta. Usar cuando el modulo va con `theme: 'light'` (filterBar, createTable, modales y badges en paleta clara).
   - Regla practica: el fondo del container debe coincidir con el `theme` que usan los componentes internos (`tabLayout`, `createTable`, `createModalForm`). Nunca mezclar container `#1F2A37` con contenido light, ni container claro con contenido dark.
-- Dentro de `#filterBar` se inyecta el HTML con dos divs:
+- Dentro de `#filterBar` se montan dos huecos con **`createLayout`**, nunca con `.html()`:
   - `#filterBar${PROJECT_NAME}` -> donde el modulo engancha `createfilterBar()` y demas selectores (`.advanced-filter`, `#subsidiaries_id`, etc.).
   - `#containerHours` -> reservado para mostrar fecha/hora del modulo si aplica.
+
+  > Versiones anteriores de este documento pintaban esos dos divs con un template
+  > literal (`$('#filterBar').html(\`...\`)`). Eso contradice `steering/FRONT-JS.md`
+  > seccion "PROHIBIDO: HTML crudo en metodos JS": la excepcion de wrappers simples
+  > solo admite `.html()` con **maximo 2 elementos vacios y en una sola linea**, no
+  > un literal multilinea. Si el layout necesita mas de eso -> `createLayout`.
+
+- **Nunca dejar bandas vacias:** si una vista del modulo no usa filterBar (o la fila
+  de KPIs), no se incluye esa banda en el layout — de lo contrario queda una franja
+  con padding y borde sin contenido. Regla equivalente en `FRONT-JS.md`: *"NUNCA crear
+  un filterBar vacio"*. Cuando el modulo alterna vistas, armar los `children` del
+  layout de forma condicional (ver `App.layout()` en [app/facture/src/js/catalogos.js](app/facture/src/js/catalogos.js)).
 
 Los selectores existentes (`#filterBar${PROJECT_NAME} .advanced-filter`, `#filterBar${PROJECT_NAME} #subsidiaries_id`) siguen funcionando porque ese div vive dentro del wrapper `#filterBar`.

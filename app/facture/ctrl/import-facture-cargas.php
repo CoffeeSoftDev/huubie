@@ -102,17 +102,116 @@ class ImportFactureCargas {
         ];
     }
 
+    // Revision sin escribir nada: a que pestana pertenece el libro y si sus
+    // columnas cuadran. El modulo la consulta ANTES de preguntar el periodo, para
+    // que esa confirmacion nombre el destino real y no el boton que se apreto.
+    //
+    // Sin esto el usuario confirmaba "cargar comandas.xls en Reporte de ventas"
+    // (que era falso) y solo despues se le avisaba que el archivo era de otra
+    // pestana: dos preguntas seguidas y la primera diciendo lo que no era.
+    function inspeccionarLibro($documento, $tipo) {
+        $contrato   = $this->contrato();
+        $hojasLibro = $documento->getSheetNames();
+        $destino    = $tipo;
+
+        $presentes = $this->hojasPresentes($contrato, $hojasLibro, $destino);
+
+        // Ninguna hoja de esta pestana: se mira si el libro es de otra.
+        if (empty($presentes)) {
+            $otro = tabDelLibro($contrato, $hojasLibro, $tipo);
+
+            if (empty($otro)) {
+                return [
+                    'status'  => 200,
+                    'destino' => $tipo,
+                    'movido'  => false,
+                    'hojas'   => [],
+                    'validacion' => [
+                        'motivo'    => 'hojas',
+                        'esperadas' => hojasDelTab($contrato, $tipo),
+                        'libro'     => $hojasLibro,
+                        'columnas'  => [],
+                        'cargadas'  => []
+                    ]
+                ];
+            }
+
+            // Se sigue revisando, pero contra la pestana a la que pertenece: si
+            // ahi tampoco sirve, el usuario se entera antes de aceptar el cambio.
+            $destino   = $otro['tab'];
+            $presentes = $this->hojasPresentes($contrato, $hojasLibro, $destino);
+        }
+
+        $malas = [];
+        foreach ($presentes as $nombre) {
+            $config   = $contrato[$nombre];
+            $columnas = $this->validarEncabezados($documento->getSheetByName($nombre), $config['columns'], $config['headerRow']);
+            $faltan   = $this->columnasMalas($columnas);
+
+            if (empty($faltan)) continue;
+
+            $malas[] = [
+                'hoja'      => $nombre,
+                'headerRow' => $config['headerRow'],
+                'columnas'  => $columnas,
+                'faltan'    => $faltan
+            ];
+        }
+
+        $revision = [
+            'status'  => 200,
+            'destino' => $destino,
+            'movido'  => $destino !== $tipo,
+            'hojas'   => $presentes,
+            'suyas'   => hojasDelTab($contrato, $destino),
+            'libro'   => $hojasLibro
+        ];
+
+        if (!empty($malas)) {
+            $revision['validacion'] = [
+                'motivo'    => 'columnas',
+                'esperadas' => [],
+                'libro'     => $hojasLibro,
+                'columnas'  => $malas,
+                'cargadas'  => []
+            ];
+        }
+
+        return $revision;
+    }
+
+    // Las hojas del contrato de una pestana que el libro trae, en el orden en que
+    // hay que cargarlas.
+    private function hojasPresentes($contrato, $hojasLibro, $tab) {
+        $__row = [];
+
+        foreach (hojasDelTab($contrato, $tab) as $nombre) {
+            if (in_array($nombre, $hojasLibro)) $__row[] = $nombre;
+        }
+
+        return $__row;
+    }
+
     // Router: recorre las hojas del contrato que trae el libro, valida su
     // estructura y guarda las que pasan. Devuelve siempre 'status' (200 al
     // procesar al menos una hoja, 400 si no reconoce ninguna).
+    //
+    // Las hojas se pueden subir juntas o por separado: un libro con solo "Pagos"
+    // es una carga valida. Lo que decide si una hoja entra son sus columnas, no
+    // que venga acompanada. La que no cuadra se queda fuera y se reporta con el
+    // detalle de que columna falta o esta corrida, sin arrastrar a las demas.
+    //
+    // Solo se buscan las hojas de la pestana desde la que se subio: mirar el
+    // contrato completo hacia que el archivo de comandas entrara por el boton del
+    // reporte de ventas, porque el importador reconocia su hoja igual. La carga
+    // se veia bien y los datos aparecian en la otra pestana.
     function procesarLibro($documento, $ctx) {
-        $contrato = $this->contrato();
+        $contrato   = $this->contrato();
+        $tipo       = isset($ctx['tipo']) ? $ctx['tipo'] : '';
+        $esperadas  = hojasDelTab($contrato, $tipo);
         $hojasLibro = $documento->getSheetNames();
 
-        $presentes = [];
-        foreach ($contrato as $nombre => $config) {
-            if (in_array($nombre, $hojasLibro)) $presentes[] = $nombre;
-        }
+        $presentes = $this->hojasPresentes($contrato, $hojasLibro, $tipo);
 
         $steps = $ctx['steps'];
         $steps[] = step(
@@ -121,29 +220,73 @@ class ImportFactureCargas {
             count($presentes) ? implode(' · ', $presentes) : 'El libro trae: ' . implode(' · ', $hojasLibro)
         );
 
+        // Ninguna hoja de esta pestana. Antes de rechazar se mira si el libro trae
+        // las de otra: subir comandas por el boton de ventas es el error facil de
+        // cometer, y ahi lo util no es negarse sino ofrecer cargarlo donde va. El
+        // archivo no se toca aqui; el modulo lo reenvia si el usuario acepta.
         if (empty($presentes)) {
+            $otro = tabDelLibro($contrato, $hojasLibro, isset($ctx['tipo']) ? $ctx['tipo'] : '');
+
+            if ($otro) {
+                $steps[] = step('Detectar pestana', 'error', 'Las hojas del archivo son de "' . $otro['tab'] . '"');
+
+                return [
+                    'status'  => 409,
+                    'message' => 'El archivo parece de otra pestana',
+                    'steps'   => $steps,
+                    'hojas'   => [],
+                    'validacion' => [
+                        'motivo'    => 'otro-tab',
+                        'sugerido'  => $otro['tab'],
+                        'suyas'     => $otro['hojas'],
+                        'esperadas' => $esperadas,
+                        'libro'     => $hojasLibro,
+                        'columnas'  => [],
+                        'cargadas'  => []
+                    ]
+                ];
+            }
+
             return [
                 'status'  => 400,
-                'message' => 'El archivo no contiene las hojas "Reporte de ventas" ni "Pagos". No se modifico ningun dato.',
+                'message' => 'Este no es el archivo que espera esta pestana',
                 'steps'   => $steps,
-                'hojas'   => []
+                'hojas'   => [],
+                'validacion' => [
+                    'motivo'    => 'hojas',
+                    'esperadas' => $esperadas,
+                    'libro'     => $hojasLibro,
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ]
             ];
         }
 
         $hojas    = [];
         $cargadas = 0;
+        $malas    = [];
+        $entraron = [];
 
         foreach ($presentes as $nombre) {
-            $config = $contrato[$nombre];
-            $hoja   = $documento->getSheetByName($nombre);
-            $faltan = $this->validarEncabezados($hoja, $config['columns'], $config['headerRow']);
+            $config   = $contrato[$nombre];
+            $hoja     = $documento->getSheetByName($nombre);
+            $columnas = $this->validarEncabezados($hoja, $config['columns'], $config['headerRow']);
+            $faltan   = $this->columnasMalas($columnas);
 
             if (!empty($faltan)) {
-                $steps[] = step('Validar columnas de "' . $nombre . '"', 'error', implode(', ', $faltan));
+                $steps[] = step('Validar columnas de "' . $nombre . '"', 'error', resumenColumnas($faltan));
+
+                $malas[] = [
+                    'hoja'      => $nombre,
+                    'headerRow' => $config['headerRow'],
+                    'columnas'  => $columnas,
+                    'faltan'    => $faltan
+                ];
+
                 $hojas[] = [
                     'nombre'  => $nombre,
                     'estado'  => 'error',
-                    'detalle' => 'Columnas que no coinciden: ' . implode(', ', $faltan),
+                    'detalle' => resumenColumnas($faltan),
                     'filas'   => 0
                 ];
                 continue;
@@ -155,6 +298,8 @@ class ImportFactureCargas {
 
             $carga     = $this->guardarHoja($nombre, $config, $hoja, $ctx);
             $cargadas += $carga['insertadas'] > 0 ? 1 : 0;
+
+            if ($carga['insertadas'] > 0) $entraron[] = $nombre;
 
             // El periodo se sobreescribe, no se acumula: si habia una carga previa
             // de esta hoja se dice cuanto se reemplazo.
@@ -185,14 +330,27 @@ class ImportFactureCargas {
         // Las hojas se procesan en el orden en que hay que cargarlas, pero el
         // panel las anuncia en el suyo: el resultado se reacomoda antes de
         // salir para que la carga no reordene lo que ya estaba en pantalla.
-        return [
-            'status'  => $cargadas > 0 ? 200 : 500,
-            'message' => $cargadas > 0
-                ? 'Archivo procesado: ' . $cargadas . ' hoja(s) cargada(s)'
-                : 'No se pudo cargar ninguna hoja del archivo',
+        $resultado = [
+            'status'  => $cargadas > 0 ? 200 : ($malas ? 422 : 500),
+            'message' => mensajeCarga($cargadas, $malas),
             'steps'   => $steps,
             'hojas'   => ordenarPorHoja($hojas, $contrato, 'nombre')
         ];
+
+        // El detalle de columnas solo viaja cuando hay algo que corregir. Lleva
+        // ademas lo que si entro: una hoja rechazada junto a otra cargada no se
+        // puede anunciar como "no se modifico nada".
+        if (!empty($malas)) {
+            $resultado['validacion'] = [
+                'motivo'    => 'columnas',
+                'esperadas' => [],
+                'libro'     => $hojasLibro,
+                'columnas'  => $malas,
+                'cargadas'  => $entraron
+            ];
+        }
+
+        return $resultado;
     }
 
     // Cola del paso "Guardar": lo que la hoja hizo mas alla de insertar. En pagos
@@ -212,20 +370,65 @@ class ImportFactureCargas {
         return $cola;
     }
 
-    // Devuelve las columnas del contrato que NO estan en su posicion.
+    // Devuelve la fila de encabezados COMPLETA, celda por celda, con el estado de
+    // cada una. Van todas y no solo las que fallan porque el aviso la dibuja como
+    // la hoja de Excel que es: sin las columnas buenas no se ve donde empieza el
+    // desfase ni contra que comparar.
+    //
+    // Tres estados, y los dos ultimos se resuelven distinto:
+    //
+    //   ok       el encabezado esta donde debe.
+    //   movida   existe, pero en otra columna. El export esta corrido y basta
+    //            reacomodarlo.
+    //   ausente  no aparece en ninguna parte de la fila. Falta el dato, o el
+    //            archivo es de otro reporte.
+    //
+    // La fila se lee mas alla del contrato para poder decir a donde se movio una
+    // columna cuando el export trae campos de mas al principio.
     private function validarEncabezados($hoja, $columns, $headerRow) {
-        $faltan = [];
+        $total  = count($columns);
+        $limite = $total * 2;
 
-        foreach ($columns as $i => $name) {
-            $letra  = columnLetter($i);
-            $actual = (string) $hoja->getCell($letra . $headerRow)->getValue();
-
-            if (normalizeHeader($actual) !== normalizeHeader($name)) {
-                $faltan[] = $letra . ': se esperaba "' . $name . '"';
-            }
+        $fila = [];
+        for ($i = 0; $i < $limite; $i++) {
+            $letra        = columnLetter($i);
+            $fila[$letra] = (string) $hoja->getCell($letra . $headerRow)->getValue();
         }
 
-        return $faltan;
+        $normal = array_map('normalizeHeader', $fila);
+        $__row  = [];
+
+        foreach ($columns as $i => $name) {
+            $letra    = columnLetter($i);
+            $esperada = normalizeHeader($name);
+            $cuadra   = $normal[$letra] === $esperada;
+
+            // array_search sobre la fila normalizada: si el encabezado aparece en
+            // otra celda, la columna esta corrida y no perdida.
+            $en = $cuadra ? false : array_search($esperada, $normal, true);
+
+            $__row[] = [
+                'letra'      => $letra,
+                'esperada'   => $name,
+                'encontrada' => trim($fila[$letra]),
+                'estado'     => $cuadra ? 'ok' : ($en === false ? 'ausente' : 'movida'),
+                'en'         => $en === false ? '' : $en
+            ];
+        }
+
+        return $__row;
+    }
+
+    // Las celdas de la fila que no cuadran. El aviso necesita las dos listas: la
+    // completa para dibujar la hoja y esta para contar y decidir si se rechaza.
+    private function columnasMalas($columnas) {
+        $__row = [];
+
+        foreach ($columnas as $c) {
+            if ($c['estado'] !== 'ok') $__row[] = $c;
+        }
+
+        return $__row;
     }
 
     // Crea el lote de la hoja y vuelca sus filas.
@@ -649,6 +852,74 @@ function numVal($value) {
     $limpio = str_replace(['%', ',', '$', ' '], '', (string) $value);
 
     return is_numeric($limpio) ? (float) $limpio : 0;
+}
+
+// Las hojas que el contrato espera para una pestana. Es el universo de lo que se
+// busca en el libro: fuera de esta lista una hoja no se lee, aunque el contrato
+// la conozca por otra pestana.
+//
+// Sin pestana reconocida se cae al contrato completo, para que una llamada sin
+// 'tipo' no se quede sin nada que buscar.
+function hojasDelTab($contrato, $tab) {
+    $__row = [];
+
+    foreach ($contrato as $nombre => $config) {
+        if ($config['tab'] === $tab) $__row[] = $nombre;
+    }
+
+    return empty($__row) ? array_keys($contrato) : $__row;
+}
+
+// A que otra pestana pertenecen las hojas que trae el libro. Sirve para el caso
+// de subir el archivo por el boton equivocado: el importador no lo carga solo
+// (la pestana la elige el usuario), pero si puede decir cual era.
+function tabDelLibro($contrato, $hojasLibro, $tabActual) {
+    foreach ($contrato as $nombre => $config) {
+        if ($config['tab'] === $tabActual)   continue;
+        if (!in_array($nombre, $hojasLibro)) continue;
+
+        // Las hojas se devuelven completas: el aviso muestra la pestana sugerida
+        // con todo lo que va en ella, no solo con la que disparo el hallazgo.
+        return [
+            'tab'   => $config['tab'],
+            'hojas' => hojasDelTab($contrato, $config['tab'])
+        ];
+    }
+
+    return null;
+}
+
+// Resumen de una linea para el roadmap y la tarjeta de la hoja. El detalle
+// columna por columna va en el aviso, que es donde hay lugar para leerlo.
+function resumenColumnas($faltan) {
+    $ausentes = 0;
+    $movidas  = 0;
+
+    foreach ($faltan as $c) {
+        if ($c['estado'] === 'ausente') $ausentes++;
+        else                            $movidas++;
+    }
+
+    $partes = [];
+    if ($ausentes > 0) $partes[] = $ausentes . ' columna(s) que faltan';
+    if ($movidas  > 0) $partes[] = $movidas . ' fuera de lugar';
+
+    return implode(' · ', $partes);
+}
+
+// La carga puede terminar de tres formas y las tres se dicen distinto: todo
+// entro, nada entro, o una hoja entro y la otra no. La tercera es la que no
+// puede anunciarse como exito a secas.
+function mensajeCarga($cargadas, $malas) {
+    if ($cargadas > 0 && empty($malas)) return 'Archivo procesado: ' . $cargadas . ' hoja(s) cargada(s)';
+
+    if ($cargadas > 0) {
+        return 'Se cargo ' . $cargadas . ' hoja(s), pero ' . count($malas) . ' quedo fuera por sus columnas';
+    }
+
+    if (!empty($malas)) return 'Las columnas del archivo no coinciden con el formato del POS';
+
+    return 'No se pudo cargar ninguna hoja del archivo';
 }
 
 // El contrato se lee en el orden en que hay que cargar las hojas, que no es el

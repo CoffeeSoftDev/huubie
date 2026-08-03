@@ -1859,6 +1859,70 @@ async function pgSend(text, images, docs) {
     await pgRunModel(text, images, dropImages);
 }
 
+/* ── Historial que viaja al modelo ──
+ * Cada iteración deja un template HTML completo en el historial: mandarlos todos
+ * en cada turno —y en CADA ronda del loop de herramientas— hace que el modelo
+ * relea miles de tokens de versiones obsoletas. Solo el template VIGENTE viaja
+ * completo; los demás se sustituyen por una marca. pg.history no se toca: el
+ * chat, la sesión y los hilos guardan siempre la conversación entera.
+ *
+ * Cuál es el vigente lo dice el sandbox (pg.lastHtml), no "el último mensaje que
+ * mencione un fence html": una respuesta corta con un snippet de ejemplo se
+ * llevaba esa etiqueta y el template real quedaba podado, así que el modelo se
+ * quedaba sin markup que editar y respondía de memoria. Si el HTML del sandbox
+ * no aparece íntegro en ningún mensaje (salió de un parche ```js/```css, o el
+ * modelo lo reescribió), se ancla al último turno para que nunca falte. */
+const PG_HTML_OMITTED = '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque de código HTML de la conversación]';
+const PG_HTML_FENCE   = /```[ \t]*html[ \t]*\r?\n?[\s\S]*?```/gi;
+
+// Contenido de cada fence ```html del mensaje, solo los que traen markup de
+// verdad: en los hilos guardados hay marcas de omisión antiguas que citaban la
+// secuencia del fence y pueden encadenarse como un bloque falso.
+function pgHtmlBlocks(content) {
+    const re  = /```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/gi;
+    const out = [];
+    let m;
+    while ((m = re.exec(String(content || '')))) {
+        const b = m[1].trim();
+        if (/<[a-z!]/i.test(b)) out.push(b);
+    }
+    return out;
+}
+// Clave laxa para comparar markup: el HTML del sandbox pasa por trim y fusión de
+// bloques hermanos, así que no coincide byte a byte con el del mensaje.
+function pgHtmlKey(html) {
+    return String(html || '').replace(/\s+/g, ' ').trim();
+}
+
+function pgPayloadMessages(dropImages) {
+    const vigente = pgHtmlKey(pg.lastHtml);
+    let keepIdx = -1;
+    for (let i = pg.history.length - 1; i >= 0 && keepIdx === -1; i--) {
+        const blocks = pgHtmlBlocks(pg.history[i].content);
+        // Con render en el sandbox se busca ESE markup; sin render todavía, vale
+        // el último bloque real de la conversación (markup pegado por el usuario).
+        if (vigente ? blocks.some(b => pgHtmlKey(b) === vigente) : blocks.length) keepIdx = i;
+    }
+
+    const msgs = pg.history.map((m, i) => {
+        const content = i === keepIdx
+            ? m.content
+            : String(m.content || '').replace(PG_HTML_FENCE, PG_HTML_OMITTED);
+        const o = { role: m.role, content };
+        // Solo adjuntar imágenes si el modelo activo tiene visión.
+        if (!dropImages && m.images && m.images.length) o.images = m.images;
+        return o;
+    });
+
+    const last = msgs[msgs.length - 1];
+    if (vigente && keepIdx === -1 && last) {
+        last.content += '\n\n=== TEMPLATE VIGENTE (el que está renderizado ahora en el sandbox) ===\n'
+            + 'Es el markup sobre el que trabajas. Devuélvelo COMPLETO con el cambio aplicado.\n'
+            + '```html\n' + pg.lastHtml + '\n```';
+    }
+    return msgs;
+}
+
 // Llama al modelo con el pg.history vigente y streamea la respuesta en una nueva
 // burbuja. Se separó de pgSend para poder REGENERAR una respuesta: reenviar el
 // último turno del usuario sin volver a empujarlo ni recocinar su contenido.
@@ -1959,28 +2023,8 @@ async function pgRunModel(text, images, dropImages) {
             + `Si una consulta no devuelve filas, refléjalo con un estado vacío en el componente.`;
     }
 
-    // Poda del PAYLOAD (pg.history no se toca: chat, sesión e hilos guardan todo).
-    // Cada iteración deja un template HTML completo en el historial y todo viajaba
-    // en cada turno — y en CADA ronda del loop de herramientas — así que el modelo
-    // releía miles de tokens de versiones obsoletas. Solo el ÚLTIMO bloque ```html
-    // de la conversación viaja completo (es la versión vigente, la que se modifica);
-    // los anteriores se sustituyen por una marca.
-    let lastHtmlIdx = -1;
-    pg.history.forEach((m, i) => {
-        if (/```html/i.test(m.content || '')) lastHtmlIdx = i;
-    });
     const payload = {
-        messages: pg.history.map((m, i) => {
-            let content = m.content;
-            if (i !== lastHtmlIdx && /```html/i.test(content || '')) {
-                content = content.replace(/```html[\s\S]*?```/gi,
-                    '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque ```html de la conversación]');
-            }
-            const o = { role: m.role, content };
-            // Solo adjuntar imágenes si el modelo activo tiene visión.
-            if (!dropImages && m.images && m.images.length) o.images = m.images;
-            return o;
-        }),
+        messages: pgPayloadMessages(dropImages),
         systemOverride: systemOverride,
         // Quien pregunta: el catalogo declara solo las herramientas asignadas a
         // esta superficie y a este agente (Configuracion -> Herramientas).

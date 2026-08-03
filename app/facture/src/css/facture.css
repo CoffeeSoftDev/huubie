@@ -328,6 +328,273 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 #root .b-gray   { background: rgba(148,163,184,.12); color: #CBD5E1; border-color: rgba(148,163,184,.25); }
 #root .b-blue   { background: rgba(59,130,246,.15); color: #93C5FD; border-color: rgba(59,130,246,.30); }
 
+/* -- Aviso de columnas por corregir --
+   El dialogo se monta en <body>, fuera de #root, asi que ni las pildoras ni la
+   tipografia del modulo lo alcanzan: los tonos que usa el aviso se repiten aqui. */
+.swal2-container .badge-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 9px;
+    font-weight: 700;
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+.swal2-container .b-red    { background: rgba(239,68,68,.15);  color: #FCA5A5; border-color: rgba(239,68,68,.30); }
+.swal2-container .b-yellow { background: rgba(245,158,11,.15); color: #FCD34D; border-color: rgba(245,158,11,.30); }
+.swal2-container .b-blue   { background: rgba(59,130,246,.15); color: #93C5FD; border-color: rgba(59,130,246,.30); }
+
+/* El fondo del dialogo lo pinta Tailwind desde customClass, que resuelve las
+   clases en caliente sobre un popup recien creado: cuando no llega a tiempo el
+   dialogo sale blanco y su titulo, que va en text-white, se pierde. El aviso no
+   depende de eso y se pinta su propio fondo. */
+.swal2-popup:has(.chk-box) { background: #1F2A37; }
+
+.chk-box {
+    background: #141d2b;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: left;
+    color: #9CA3AF;
+}
+
+.chk-file {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #E5E7EB;
+    background: #1F2A37;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin-bottom: 10px;
+    word-break: break-all;
+}
+
+.chk-lead { font-size: 12px; color: #D1D5DB; margin: 12px 0 6px; }
+.chk-lead:first-of-type { margin-top: 0; }
+.chk-lead strong { color: #fff; }
+
+.chk-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+
+/* -- Libro de Excel --
+   Dibuja lo que el usuario tiene delante cuando abre su archivo: la hoja y, al
+   pie, la barra de pestanas. Comparar dos de estos (el que se espera y el que
+   subio) dice mas que una lista de nombres.
+
+   Va en claro aunque el modulo sea oscuro, y a proposito: un Excel es blanco, y
+   pintarlo del color del panel lo convertia en una caja mas del dialogo en vez
+   de en la ventana que el usuario reconoce. */
+.xls-book {
+    background: #fff;
+    border: 1px solid #C9CFD6;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+/* Barra de letras de columna. Los <span> miden lo mismo que el paso de la
+   cuadricula, asi que las dos rejillas caen alineadas sin coordinarlas. */
+.xls-head {
+    display: flex;
+    background: #F1F3F5;
+    border-bottom: 1px solid #D5DAE0;
+}
+
+.xls-head span {
+    flex: 0 0 38px;
+    padding: 2px 0;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 700;
+    color: #6B7280;
+    border-right: 1px solid #E2E6EA;
+}
+
+/* La cuadricula no representa datos: solo sostiene la lectura de "hoja de
+   calculo" para que la barra de pestanas de abajo se entienda sola. */
+.xls-grid {
+    height: 45px;
+    background-color: #fff;
+    background-image:
+        linear-gradient(to right,  #E4E8ED 1px, transparent 1px),
+        linear-gradient(to bottom, #E4E8ED 1px, transparent 1px);
+    background-size: 38px 15px;
+}
+
+.xls-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 0 8px 6px;
+    background: #F1F3F5;
+    border-top: 1px solid #D5DAE0;
+}
+
+/* -- Fila de encabezados comparada --
+   La misma fila del Excel dos veces, una debajo de otra: lo que debe decir y lo
+   que dice. Puestas asi el desfase se ve de un vistazo, que es justo lo que una
+   lista de "columna X no coincide" no alcanza a mostrar. */
+.xls-scroll {
+    overflow-x: auto;
+    background: #fff;
+}
+
+.xls-line { display: flex; }
+
+/* El rotulo se queda fijo al desplazar: con diez columnas la fila se sale del
+   dialogo, y sin el no se sabe cual de las dos se esta leyendo. */
+.xls-lbl {
+    flex: 0 0 62px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    padding: 4px 6px;
+    background: #F1F3F5;
+    border-right: 1px solid #D5DAE0;
+    border-bottom: 1px solid #E4E8ED;
+    font-size: 8px;
+    font-weight: 700;
+    color: #6B7280;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.xls-hcel {
+    flex: 0 0 76px;
+    padding: 2px 0;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 700;
+    color: #6B7280;
+    background: #F1F3F5;
+    border-right: 1px solid #E2E6EA;
+    border-bottom: 1px solid #D5DAE0;
+}
+
+.xls-cel {
+    flex: 0 0 76px;
+    padding: 4px 6px;
+    font-size: 9px;
+    line-height: 1.25;
+    color: #374151;
+    background: #fff;
+    border-right: 1px solid #E4E8ED;
+    border-bottom: 1px solid #E4E8ED;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* El encabezado que se espera en esa columna, cuando la celda de abajo no lo
+   trae: se marca para que el ojo caiga en la pareja, no en la fila entera. */
+.xls-cel-want { background: #EEF4FF; color: #1E40AF; font-weight: 700; }
+
+/* Perdida: el encabezado no esta en ninguna parte de la fila. */
+.xls-cel-bad  { background: #FDE8E8; color: #C81E1E; font-weight: 700; }
+
+/* Corrida: el encabezado existe, pero cayo en otra columna. */
+.xls-cel-alt  { background: #FFF7E6; color: #B45309; }
+
+/* Las esquinas redondeadas van abajo: la pestana cuelga de la hoja, como en la
+   barra de Excel. */
+.xls-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px 5px;
+    border: 1px solid;
+    border-top: 0;
+    border-radius: 0 0 5px 5px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Verde de Excel sobre pestana blanca: es el aspecto que tiene la hoja activa. */
+.xls-ok {
+    background: #fff;
+    color: #217346;
+    border-color: #BCD9C7;
+}
+
+/* La hoja valida pero de otra pestana. Ni verde ni roja: el archivo esta bien,
+   solo entro por el boton equivocado, y tacharla diria que hay que borrarla. */
+.xls-alt {
+    background: #FFF7E6;
+    color: #B45309;
+    border-color: #F0D399;
+}
+
+/* La hoja que el modulo no reconoce se marca en rojo y tachada: es la que sobra
+   en el archivo, no una que este mal escrita. */
+.xls-bad {
+    background: #FDE8E8;
+    color: #C81E1E;
+    border-color: #F1B9B9;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+.chk-note   { font-size: 11px; color: #6B7280; }
+.chk-strong { color: #D1D5DB; }
+
+/* Resumen del encabezado del bloque: lo perdido pesa mas que lo corrido, porque
+   es el error de origen y lo otro suele ser su consecuencia. */
+.chk-bad-txt  { color: #FCA5A5; font-weight: 700; }
+.chk-warn-txt { color: #FCD34D; }
+
+/* La tabla dice cuatro cosas por renglon y ninguna sobra: la columna, lo que el
+   contrato pide, lo que la celda trajo y si el encabezado esta perdido o solo
+   corrido, que es lo que cambia como se arregla el archivo. */
+.chk-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+
+.chk-table th {
+    text-align: left;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6B7280;
+    font-weight: 700;
+    padding: 4px 6px;
+    border-bottom: 1px solid #374151;
+}
+
+.chk-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(55,65,81,.5);
+    color: #D1D5DB;
+}
+
+.chk-table tr:last-child td { border-bottom: 0; }
+
+/* Los tonos de la celda van calificados con td: contra `.chk-table td` una clase
+   suelta pierde por especificidad y todas las columnas salen del mismo gris. */
+.chk-table td.chk-col {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    color: #9CA3AF;
+    width: 34px;
+}
+
+.chk-table td.chk-empty { color: #6B7280; font-style: italic; }
+
+.chk-safe,
+.chk-partial {
+    font-size: 11px;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #374151;
+}
+
+.chk-safe    { color: #6EE7B7; }
+
+/* Carga a medias: entro una hoja y otra no. Va en ambar y no en verde porque el
+   periodo quedo incompleto y hay trabajo pendiente. */
+.chk-partial { color: #FCD34D; }
+
 /* El numero de parte que acompania al folio no es una etiqueta que se lea: solo
    dice cual de los pagos del ticket es esa fila. Va en la pildora minima, del
    alto del folio, para que no pese mas que el dato al que se pega. */
@@ -453,6 +720,16 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 
 #root .btn-icon-success:hover { background: rgba(16,185,129,.15); color: #A7F3D0; }
 
+/* Los tres glifos van en tonos claros para leerse sobre la fila oscura; en tema
+   claro esos mismos tonos quedan lavados sobre el blanco y hay que bajarlos. */
+html[data-facture-theme="light"] #root .btn-icon-danger  { color: #DC2626; }
+html[data-facture-theme="light"] #root .btn-icon-view    { color: #1C64F2; }
+html[data-facture-theme="light"] #root .btn-icon-success { color: #059669; }
+
+html[data-facture-theme="light"] #root .btn-icon-danger:hover  { background: rgba(220,38,38,.10);  color: #B91C1C; }
+html[data-facture-theme="light"] #root .btn-icon-view:hover    { background: rgba(28,100,242,.10); color: #1A56DB; }
+html[data-facture-theme="light"] #root .btn-icon-success:hover { background: rgba(5,150,105,.10);  color: #047857; }
+
 /* -- Interruptor de marca en tabla --
    Las dos marcas del producto (puente y modificador) se repasan de corrido: la
    celda es el control y guarda al momento, sin abrir el formulario por una sola
@@ -496,8 +773,17 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 
 #root .cs-switch.is-on .cs-switch-knob { transform: translateX(16px); }
 
+/* En claro el apagado se aclara, pero el encendido conserva su color: sin estas
+   dos reglas el selector del tema (mas especifico que .is-on) pintaba de gris a
+   los dos estados y el interruptor parecia no responder. */
 html[data-facture-theme="light"] #root .cs-switch { background: #D1D5DB; }
 html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
+
+html[data-facture-theme="light"] #root .cs-switch.is-on { background: #0E9E6E; }
+html[data-facture-theme="light"] #root .cs-switch.is-on:hover { background: #0B8760; }
+
+html[data-facture-theme="light"] #root .cs-switch-gray.is-on { background: #6B7280; }
+html[data-facture-theme="light"] #root .cs-switch-gray.is-on:hover { background: #4B5563; }
 
 /* -- Catalogos --
    El listado no pagina: se recorre con el scroll de la tarjeta, asi que el
@@ -511,11 +797,10 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
     letter-spacing: .04em;
 }
 
-/* El componente centra todo encabezado; clave, nombre e importe se leen contra su
+/* El componente centra todo encabezado; nombre e importe se leen contra su
    columna, asi que el titulo se alinea con el dato y no al centro de la celda.
    Va con !important porque la clase text-center del th es tambien una utilidad de
    Bootstrap, y ahi si la trae. */
-#root #tbProductos thead th[data-col="1"],
 #root #tbProductos thead th[data-col="2"] { text-align: left !important; }
 
 #root #tbProductos thead th[data-col="3"] { text-align: right !important; }
@@ -529,8 +814,17 @@ html[data-facture-theme="light"] #root .cs-switch:hover { background: #9CA3AF; }
    Las dos cajas viven dentro de la tarjeta del catalogo, que en claro es blanca:
    sin esto conservarian el fondo oscuro de la banda. Sin borde: lo que las separa
    de la tarjeta es el fondo, un tono por debajo (por encima en claro). */
-html[data-facture-theme="light"] #root .note-card {
+html[data-facture-theme="light"] #root .note-card,
+html[data-facture-theme="light"] .cf-modal .note-card {
     background: #F3F4F6;
+}
+
+/* El gris del texto esta calibrado para la caja oscura; sobre la clara se pierde,
+   y la leyenda del formulario de alta vive fuera de #root (el modal cuelga del
+   body), por eso los dos selectores. */
+html[data-facture-theme="light"] #root .note-text,
+html[data-facture-theme="light"] .cf-modal .note-text {
+    color: #4B5563;
 }
 
 /* En tickets los filtros van en su propia caja: la banda superior queda de fondo

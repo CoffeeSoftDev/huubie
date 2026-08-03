@@ -12,7 +12,6 @@ $(async () => {
 
 class App extends Templates {
 
-    // La clase vive aqui y no en el campo: el filterBar se repinta al cambiar de vista.
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
@@ -32,7 +31,6 @@ class App extends Templates {
         this.filterBar();
 
         if (this.view === 'productos') {
-            catalogosView.renderNote();
             catalogos.lsProductos();
         } else {
             catalogosView.renderEmisor(this.dataInit.emisor);
@@ -42,15 +40,15 @@ class App extends Templates {
     // -- Layout --
 
     layout() {
-        const mainPanel = {
-            type:  'div',
-            id:    'mainPanel',
-            class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
-            children: [
-                {
-                    id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
+        const bands = [
+            {
+                id:    'viewHeader',
+                class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+            }
+        ];
+
+        if (this.view === 'productos') {
+            bands.push(
                 {
                     id:    'filterBar',
                     class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
@@ -58,12 +56,20 @@ class App extends Templates {
                 {
                     id:    'kpisRow',
                     class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
-                {
-                    id:    'contentRow',
-                    class: 'p-3 flex-1 min-h-0 flex flex-col'
                 }
-            ]
+            );
+        }
+
+        bands.push({
+            id:    'contentRow',
+            class: 'p-3 flex-1 min-h-0 flex flex-col'
+        });
+
+        const mainPanel = {
+            type:     'div',
+            id:       'mainPanel',
+            class:    'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
+            children: bands
         };
 
         this.createLayout({
@@ -89,11 +95,6 @@ class App extends Templates {
                 container: [
                     {
                         type:  'div',
-                        id:    'viewNote',
-                        class: 'flex-shrink-0'
-                    },
-                    {
-                        type:  'div',
                         id:    'viewBody',
                         class: 'flex-1 min-h-0 overflow-auto scroll-thin'
                     }
@@ -107,42 +108,58 @@ class App extends Templates {
     filterBar() {
         if (this.view === 'emisor') return;
 
+        this.createLayout({
+            parent: 'filterBar',
+            design: false,
+            data: {
+                id:    'filterBarWrap',
+                class: 'flex flex-col lg:flex-row lg:items-center gap-4',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'filterBarRow',
+                        class: 'w-full lg:w-[500px] flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'viewNote',
+                        class: 'flex-1 min-w-0'
+                    }
+                ]
+            }
+        });
+
         this.createfilterBar({
-            parent:     'filterBar',
+            parent:     'filterBarRow',
             id:         `filterBar${this.PROJECT_NAME}`,
             coffeesoft: true,
             theme:      FACTURE_THEME,
-            data:       this.jsonFiltroProductos()
+            data: [
+                {
+                    opc:      'select',
+                    id:       'fClase',
+                    lbl:      'Tipo de producto:',
+                    class:    'col-12 col-md-6 col-lg-7',
+                    value:    this.clase,
+                    required: false,
+                    onchange: 'app.onChangeFilters()',
+                    data:     this.dataInit.tipos
+                },
+                {
+                    opc:       'button',
+                    id:        'btnNuevoProducto',
+                    text:      'Nuevo producto',
+                    icon:      'ic-plus',
+                    color_btn: 'primary',
+                    class:     'col-12 col-md-6 col-lg-5',
+                    onClick:   () => catalogosView.openProductoForm()
+                }
+            ]
         });
+
+        catalogosView.renderNote();
     }
 
-    jsonFiltroProductos() {
-        return [
-            {
-                opc:      'select',
-                id:       'fClase',
-                lbl:      'Tipo de producto:',
-                class:    'col-12 col-md-3 col-lg-2',
-                value:    this.clase,
-                required: false,
-                onchange: 'app.onChangeFilters()',
-                data:     this.dataInit.tipos
-            },
-            {
-                opc:       'button',
-                id:        'btnNuevoProducto',
-                text:      'Nuevo producto',
-                icon:      'ic-plus',
-                color_btn: 'primary',
-                class:     'col-12 col-md-4 col-lg-2',
-                onClick:   () => catalogosView.openProductoForm()
-            }
-        ];
-    }
-
-    // El buscador no esta pintado: q viaja vacio porque el servidor arma el LIKE con el.
-    // La marca viaja como 'clase' y no como 'tipo': createTable reserva esa llave para
-    // el modo de validar_contenedor, y un 'tipo' propio le impediria armar el envio.
     getFilters() {
         return {
             q:     '',
@@ -172,7 +189,7 @@ class App extends Templates {
 
 // -- Catalogos --
 
-class Catalogos extends App {
+class Catalogos extends Templates {
 
     constructor(link, divModule) {
         super(link, divModule);
@@ -181,10 +198,6 @@ class Catalogos extends App {
 
     // -- Data --
 
-    // createTable pide los datos, pinta con createCoffeeTable3 y monta DataTables en
-    // una sola pasada. Los kpis viajan en esa misma respuesta (ctrl:lsProductos), asi
-    // que el interruptor de la celda solo da una vuelta al servidor para refrescar
-    // tabla y tarjetas.
     lsProductos() {
         this.createTable({
             parent:      'viewBody',
@@ -194,7 +207,7 @@ class Catalogos extends App {
             attr: {
                 id:           'tbProductos',
                 theme:        FACTURE_THEME,
-                center:       [4, 5, 6],
+                center:       [1, 4, 5, 6],
                 right:        [3],
                 actionsAlign: 'center',
                 hover:        true,
@@ -204,8 +217,7 @@ class Catalogos extends App {
                 emptyIcon:    'ic-box'
             },
             conf: {
-                fn_datatable: 'dataTableCatalogos',
-                pag:          12
+                pag: 12
             },
             methods: {
                 send: (data) => { if (data.kpis) catalogosView.renderInfoCards(data.kpis); }
@@ -215,9 +227,6 @@ class Catalogos extends App {
 
     // -- Actions --
 
-    // 'previo' localiza la fila cuando la edicion cambia la clave del POS. La marca no
-    // se pregunta en el formulario: en el alta viaja fija y en la edicion la que ya
-    // tiene el producto, que puede no ser auxiliar.
     async saveProducto(code, data, puente) {
         const response = await useFetch({
             url:  apiCatalogos,
@@ -260,9 +269,7 @@ class Catalogos extends App {
             }
         });
 
-        if (response.status === 200) return this.refresh();
-
-        this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message });
+        this.afterSave(response);
     }
 
     editProductoStatus(code, valor) {
@@ -352,24 +359,34 @@ class CatalogosView extends Templates {
         });
     }
 
+    notas() {
+        return {
+            auxiliar: {
+                icon:   'link',
+                accent: '#3FC189',
+                title:  '¿Que es un producto auxiliar?',
+                text:   'La pieza con la que se arma el ticket: el sistema junta sus precios hasta cubrir el total cobrado (para $250, uno de $150 y otro de $100).'
+            },
+            modificador: {
+                icon:   'layers',
+                accent: '#F59E0B',
+                title:  '¿Que es un modificador?',
+                text:   'Acompaña a otro producto —extra de queso, termino de la carne, guarnicion— y nunca arma un ticket por si solo.'
+            }
+        };
+    }
+
     renderNote() {
+        const notas = this.notas();
+
         this.noteCard({
             parent: 'viewNote',
+            class:  'flex flex-col md:flex-row gap-2',
+            classes: {
+                item: 'note-card flex items-start gap-2 flex-1 px-3 py-2 rounded-lg bg-[#0E1521]'
+            },
             json: {
-                items: [
-                    {
-                        icon:   'link',
-                        accent: '#3FC189',
-                        title:  'Producto auxiliar',
-                        text:   'Es el que el generador usa para armar el ticket virtual: se van sumando sus precios hasta cubrir el total cobrado. Solo estos se dan de alta aqui.'
-                    },
-                    {
-                        icon:   'layers',
-                        accent: '#F59E0B',
-                        title:  'Modificador',
-                        text:   'Acompaña a otro producto (extras, terminos, guarniciones) y no arma un ticket por si solo: no entra en la combinacion.'
-                    }
-                ]
+                items: [notas.auxiliar, notas.modificador]
             }
         });
     }
@@ -377,55 +394,114 @@ class CatalogosView extends Templates {
     renderInfoCards(kpis) {
         this.kpisRow({
             parent: 'kpisRow',
-            json:   this.jsonKpisProductos(kpis)
+            json: [
+                {
+                    id:    'kpiProductos',
+                    label: 'Productos',
+                    value: kpis.productos,
+                    tone:  'default'
+                },
+                {
+                    id:    'kpiPuente',
+                    label: 'Productos auxiliares',
+                    value: kpis.puente,
+                    tone:  'success'
+                },
+                {
+                    id:    'kpiModificadores',
+                    label: 'Modificadores',
+                    value: kpis.modificadores,
+                    tone:  'warning'
+                },
+                {
+                    id:    'kpiPrecio',
+                    label: 'Precio promedio',
+                    value: kpis.precioPromedio,
+                    tone:  'info'
+                }
+            ]
         });
     }
 
-    jsonKpisProductos(kpis) {
-        return [
-            {
-                id:    'kpiProductos',
-                label: 'Productos',
-                value: kpis.productos,
-                tone:  'default'
-            },
-            {
-                id:    'kpiPuente',
-                label: 'Productos auxiliares',
-                value: kpis.puente,
-                tone:  'success'
-            },
-            {
-                id:    'kpiModificadores',
-                label: 'Modificadores',
-                value: kpis.modificadores,
-                tone:  'warning'
-            },
-            {
-                id:    'kpiPrecio',
-                label: 'Precio promedio',
-                value: kpis.precioPromedio,
-                tone:  'info'
+    // -- Layout --
+
+    emisorLayout() {
+        this.createLayout({
+            parent: 'viewBody',
+            design: false,
+            data: {
+                id:    'emisorWrap',
+                class: 'lg:h-full flex flex-col min-h-0',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'emisorHead',
+                        class: 'pb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'emisorRow',
+                        class: 'pt-4 lg:flex-1 min-h-0 flex flex-col lg:flex-row gap-4 items-stretch',
+                        children: [
+                            {
+                                id:    'emisorSlot',
+                                class: 'w-full lg:flex-1 min-w-0 flex'
+                            },
+                            {
+                                id:    'previewSlot',
+                                class: 'w-full lg:w-[600px] flex-shrink-0 flex'
+                            }
+                        ]
+                    }
+                ]
             }
-        ];
+        });
+
+        this.createLayout({
+            parent: 'emisorSlot',
+            design: false,
+            data: {
+                id:    'emisorCard',
+                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'emisorCardHead',
+                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type: 'div',
+                        id:   'formEmisor'
+                    }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: 'previewSlot',
+            design: false,
+            data: {
+                id:    'emisorPreview',
+                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'previewHead',
+                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type: 'div',
+                        id:   'ticketPrintArea'
+                    }
+                ]
+            }
+        });
     }
 
     // -- Forms --
 
     renderEmisor(emisor) {
-        $('#viewBody').html(`
-            <div id="emisorHead" class="pb-3 border-b border-[#374151]"></div>
-            <div class="pt-4 flex flex-col lg:flex-row gap-4 items-start">
-                <div id="emisorCard" class="flex-1 min-w-0 w-full bg-[#141d2b] rounded-lg p-4">
-                    <div id="emisorCardHead" class="pb-3 mb-3 border-b border-[#374151]"></div>
-                    <div id="formEmisor"></div>
-                </div>
-                <div id="emisorPreview" class="w-full lg:w-[320px] flex-shrink-0 bg-[#141d2b] rounded-lg p-4">
-                    <div id="previewHead" class="pb-3 mb-3 border-b border-[#374151]"></div>
-                    <div id="ticketPrintArea"></div>
-                </div>
-            </div>
-        `);
+        this.emisorLayout();
 
         this.panelHead({
             parent: 'emisorHead',
@@ -465,13 +541,48 @@ class CatalogosView extends Templates {
             theme:        FACTURE_THEME,
             showRequired: false,
             autofill:     emisor,
-            json:         this.jsonEmisor()
+            json: [
+                {
+                    opc:   'input',
+                    id:    'razon',
+                    lbl:   'Razon social',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'rfc',
+                    lbl:   'RFC',
+                    tipo:  'texto',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'telefono',
+                    lbl:   'Telefono',
+                    tipo:  'tel',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'domicilio',
+                    lbl:   'Domicilio fiscal',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:       'button',
+                    id:        'btnGuardarEmisor',
+                    text:      'Guardar emisor',
+                    color_btn: 'primary',
+                    class:     'col-12 col-md-4',
+                    onClick:   () => catalogos.saveEmisor()
+                }
+            ]
         });
 
         this.renderEmisorPreview(emisor);
 
-        // El papel repite el encabezado que se esta escribiendo: sin esto la
-        // muestra quedaria con los datos guardados hasta recargar la vista.
         $('#frmEmisor').on('input', () => this.renderEmisorPreview(this.getEmisorForm()));
     }
 
@@ -484,8 +595,6 @@ class CatalogosView extends Templates {
         };
     }
 
-    // Los renglones son de muestra: lo que el emisor gobierna es el encabezado del
-    // papel, y el cuerpo esta para leerlo en su contexto.
     renderEmisorPreview(emisor) {
         this.ticketPaper({
             parent: 'ticketPrintArea',
@@ -507,84 +616,6 @@ class CatalogosView extends Templates {
         });
     }
 
-    jsonEmisor() {
-        return [
-            {
-                opc:   'input',
-                id:    'razon',
-                lbl:   'Razon social',
-                tipo:  'texto',
-                class: 'col-12 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'rfc',
-                lbl:   'RFC',
-                tipo:  'texto',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'telefono',
-                lbl:   'Telefono',
-                tipo:  'tel',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'domicilio',
-                lbl:   'Domicilio fiscal',
-                tipo:  'texto',
-                class: 'col-12 mb-3'
-            },
-            {
-                opc:       'button',
-                id:        'btnGuardarEmisor',
-                text:      'Guardar emisor',
-                color_btn: 'primary',
-                class:     'col-12 col-md-4',
-                onClick:   () => catalogos.saveEmisor()
-            }
-        ];
-    }
-
-    jsonProducto() {
-        return [
-            {
-                opc:   'input',
-                id:    'code',
-                lbl:   'Codigo',
-                tipo:  'texto',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'nombre',
-                lbl:   'Nombre del producto',
-                tipo:  'texto',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc:   'input',
-                id:    'precio',
-                lbl:   'Precio',
-                tipo:  'cifra',
-                class: 'col-12 col-md-6 mb-3'
-            },
-            {
-                opc:      'select',
-                id:       'modificador',
-                lbl:      'Es modificador',
-                class:    'col-12 col-md-6 mb-3',
-                value:    '0',
-                required: false,
-                data:     app.dataInit.sino
-            }
-        ];
-    }
-
-    // El registro se pide al servidor: la tabla viene armada como HTML y el formulario
-    // necesita los campos en crudo.
     async openProductoForm(code) {
         const data     = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getProducto', code: code } }) : {};
         const producto = data.producto || null;
@@ -593,8 +624,41 @@ class CatalogosView extends Templates {
             id:       'frmProducto',
             title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto auxiliar',
             autofill: producto || false,
-            json:     this.jsonProducto(),
-            onSave:   (form) => catalogos.saveProducto(code || '', form, producto ? Number(producto.puente) : 1)
+            note:     { items: [this.notas().modificador] },
+            json: [
+                {
+                    opc:      'input',
+                    id:       'code',
+                    lbl:      'Codigo',
+                    tipo:     'text',
+                    required: false,
+                    class:    'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'nombre',
+                    lbl:   'Nombre del producto',
+                    tipo:  'texto',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'precio',
+                    lbl:   'Precio',
+                    tipo:  'cifra',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:      'select',
+                    id:       'modificador',
+                    lbl:      'Es modificador',
+                    class:    'col-12 col-md-6 mb-3',
+                    value:    '0',
+                    required: false,
+                    data:     app.dataInit.sino
+                }
+            ],
+            onSave: (form) => catalogos.saveProducto(code || '', form, producto ? Number(producto.puente) : 1)
         });
     }
 
@@ -611,12 +675,14 @@ class CatalogosView extends Templates {
             size:     'large',
             theme:    FACTURE_THEME,
             autofill: false,
+            note:     null,
             json:     [],
             onSave:   () => { }
         };
 
         const opts = Object.assign({}, defaults, options || {});
         const host = $('<div>', { id: `${opts.id}Host` });
+        const note = $('<div>', { id: `${opts.id}Note` });
 
         let form;
         const modal = this.cfModal({
@@ -626,6 +692,16 @@ class CatalogosView extends Templates {
             closeButton: true,
             onOk:        () => form.trigger('submit')
         });
+
+        if (opts.note) {
+            modal.body.append(note);
+
+            this.noteCard({
+                parent: `${opts.id}Note`,
+                class:  'flex flex-col gap-2 mb-4',
+                json:   opts.note
+            });
+        }
 
         modal.body.append(host);
 
@@ -645,8 +721,6 @@ class CatalogosView extends Templates {
         return modal;
     }
 
-    // El papel se queda blanco aunque el modulo sea dark: representa el ticket
-    // impreso. Los renglones del encabezado sin dato no se pintan vacios.
     ticketPaper(options) {
         const defaults = {
             parent: 'root',
@@ -664,10 +738,6 @@ class CatalogosView extends Templates {
         const opts = Object.assign({}, defaults, o);
         opts.emisor = Object.assign({}, defaults.emisor, o.emisor || {});
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
 
         const wrap = $('<div>', { id: opts.id, class: opts.class });
 
@@ -689,7 +759,6 @@ class CatalogosView extends Templates {
             </tr>
         `).join('');
 
-        // Los dos importes que el papel imprime en un mismo renglon bajo el total.
         const parRow = (k1, v1, k2, v2) => `
             <tr>
                 <td>${esc(k1)}${esc(v1)}</td>
@@ -765,10 +834,6 @@ class CatalogosView extends Templates {
         opts.labels = Object.assign({}, defaults.labels, o.labels || {});
         opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
 
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
         const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
 
         const kpiCard = (kpi, idx) => {
@@ -835,10 +900,6 @@ class CatalogosView extends Templates {
         opts.json    = Object.assign({}, defaults.json,    o.json    || {});
         opts.classes = Object.assign({}, defaults.classes, o.classes || {});
 
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
         const item = (it) => `
             <div class="${opts.classes.item}">
                 ${it.icon ? `
@@ -875,10 +936,6 @@ class CatalogosView extends Templates {
         const opts = Object.assign({}, defaults, o);
         opts.json    = Object.assign({}, defaults.json,    o.json    || {});
         opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
 
         const iconHtml  = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
         const badge     = opts.json.badge;
@@ -921,10 +978,6 @@ class CatalogosView extends Templates {
 
         const state = {};
         (opts.json.toggles || []).forEach(g => { state[g.key] = g.value; });
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
 
         const toggleGroup = (g) => {
             const buttons = (g.options || []).map(op => {
@@ -998,11 +1051,8 @@ class CatalogosView extends Templates {
 
 // -- Complementos --
 
-// createTable la busca en window y la llama despues de pintar. Sin filas
-// createCoffeeTable3 escribe el aviso de vacio y no un <table>: DataTables dejaria
-// la paginacion colgando debajo del mensaje.
-function dataTableCatalogos(id, pag) {
-    if (!$(id).length) return;
-
-    if (typeof simple_data_table === 'function') simple_data_table(id, pag);
+function esc(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 }

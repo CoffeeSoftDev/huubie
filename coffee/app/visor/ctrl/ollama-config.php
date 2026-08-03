@@ -22,7 +22,9 @@ if ($_OLLAMA_ENV === false) {
 
 define('OLLAMA_API_KEY',       $_OLLAMA_ENV['OLLAMA_API_KEY']       ?? '');
 define('OLLAMA_BASE_URL',      $_OLLAMA_ENV['OLLAMA_BASE_URL']      ?? 'https://ollama.com');
-define('OLLAMA_DEFAULT_MODEL', $_OLLAMA_ENV['OLLAMA_DEFAULT_MODEL'] ?? 'qwen3-coder:480b-cloud');
+// Ollama retira modelos sin aviso y devuelve HTTP 410: este respaldo solo entra
+// si el .env no declara la clave, asi que debe apuntar a un modelo vigente.
+define('OLLAMA_DEFAULT_MODEL', $_OLLAMA_ENV['OLLAMA_DEFAULT_MODEL'] ?? 'glm-5.2:cloud');
 define('OLLAMA_VISION_MODEL',  $_OLLAMA_ENV['OLLAMA_VISION_MODEL']  ?? 'kimi-k2.7-code:cloud');
 define('OLLAMA_TIMEOUT',       (int)($_OLLAMA_ENV['OLLAMA_TIMEOUT'] ?? 240));
 // El .env puede traer una ruta de la maquina donde se configuro; si ahi no hay

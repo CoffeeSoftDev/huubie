@@ -215,6 +215,53 @@ class ctrl extends mdl {
 
     // -- Carga de archivo --
 
+    // Abre el Excel recibido sin tocar la base. Devuelve el documento o el error
+    // ya redactado, porque la lectura falla igual en la revision previa y en la
+    // carga y no tiene por que escribirse dos veces.
+    function leerLibro() {
+        if (!file_exists(AUTOLOAD_PATH)) {
+            return ['error' => [
+                'status'  => 500,
+                'message' => 'PhpSpreadsheet (vendor) no esta instalado en este entorno. La subida de Excel solo opera donde el vendor existe.'
+            ]];
+        }
+        require_once AUTOLOAD_PATH;
+
+        if (empty($_FILES)) {
+            return ['error' => ['status' => 400, 'message' => 'No se recibio ningun archivo en la peticion.']];
+        }
+
+        foreach ($_FILES as $fileData) {
+            if ($fileData['error'] !== UPLOAD_ERR_OK) continue;
+
+            try {
+                $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($fileData['tmp_name']);
+                $lector->setReadDataOnly(true);
+
+                return ['documento' => $lector->load($fileData['tmp_name']), 'nombre' => $fileData['name']];
+            } catch (Exception $e) {
+                return ['error' => [
+                    'status'  => 400,
+                    'message' => 'No se pudo leer el archivo "' . $fileData['name'] . '": ' . $e->getMessage()
+                ]];
+            }
+        }
+
+        return ['error' => ['status' => 400, 'message' => 'No se proceso ningun archivo.']];
+    }
+
+    // Revision previa: dice a que pestana pertenece el archivo y si sus columnas
+    // cuadran, sin guardar nada. Con eso el modulo arma una sola pregunta, la
+    // correcta, en vez de confirmar un destino y desdecirse despues.
+    function inspectFile() {
+        $libro = $this->leerLibro();
+        if (isset($libro['error'])) return $libro['error'];
+
+        $importador = new ImportFactureCargas($this);
+
+        return $importador->inspeccionarLibro($libro['documento'], $_POST['tipo'] ?? '');
+    }
+
     function uploadFile() {
         if (!file_exists(AUTOLOAD_PATH)) {
             return [
@@ -267,9 +314,12 @@ class ctrl extends mdl {
                 ];
             }
 
+            // La pestana viaja solo para redactar el aviso cuando el libro no trae
+            // ninguna hoja conocida: sirve para decir que se esperaba ahi.
             $importador = new ImportFactureCargas($this);
             $resultado  = $importador->procesarLibro($documento, [
                 'fileName' => $fichero,
+                'tipo'     => $_POST['tipo'] ?? '',
                 'mes'      => $mes,
                 'anio'     => $anio,
                 'branchId' => $this->branchId(),

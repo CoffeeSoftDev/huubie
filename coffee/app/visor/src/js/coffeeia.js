@@ -1571,6 +1571,24 @@ function ciaCreateAIStream() {
 }
 
 /* ═══════════════════════ Envío + SSE ═══════════════════════ */
+
+const CIA_HTML_OMITTED = '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque de código HTML de la conversación]';
+const CIA_HTML_FENCE   = /```[ \t]*html[ \t]*\r?\n?[\s\S]*?```/gi;
+
+// Contenido de cada fence ```html del mensaje. Se mira el bloque REAL con markup
+// dentro, no la mera mención de la secuencia: un texto que la nombre —como las
+// marcas de omisión guardadas en hilos antiguos— no es un template vigente.
+function ciaHtmlBlocks(content) {
+    const re  = /```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/gi;
+    const out = [];
+    let m;
+    while ((m = re.exec(String(content || '')))) {
+        const b = m[1].trim();
+        if (/<[a-z!]/i.test(b)) out.push(b);
+    }
+    return out;
+}
+
 async function ciaSubmit() {
     const text = $('#ciaInput').val().trim();
 
@@ -1657,18 +1675,20 @@ async function ciaSubmit() {
         ciaToast('Este modelo no tiene visión: la imagen no se enviará. Elige uno con visión (los marcados con "vision").', 'warn');
     }
 
-    // Poda del PAYLOAD (el history NO se toca): solo el ÚLTIMO bloque ```html
-    // viaja completo — es la versión vigente. Los anteriores se sustituyen por
-    // una marca; si no, cada turno reenvía miles de tokens ya obsoletos (Lab).
+    // Poda del PAYLOAD (el history NO se toca): solo el ÚLTIMO bloque ```html con
+    // markup real viaja completo — es la versión vigente. Los anteriores se
+    // sustituyen por una marca; si no, cada turno reenvía miles de tokens ya
+    // obsoletos (Lab). La marca no cita la secuencia del fence: si lo hiciera, ella
+    // misma pasaría por "bloque vigente" en el turno siguiente y el template real
+    // quedaría podado, dejando al modelo sin markup que editar.
     let lastHtmlIdx = -1;
-    CIA.history.forEach((m, i) => { if (/```html/i.test(m.content || '')) lastHtmlIdx = i; });
+    CIA.history.forEach((m, i) => { if (ciaHtmlBlocks(m.content).length) lastHtmlIdx = i; });
 
     const payload = {
         messages: CIA.history.map((m, i) => {
             let content = m.content || '';
-            if (i !== lastHtmlIdx && /```html/i.test(content)) {
-                content = content.replace(/```html[\s\S]*?```/gi,
-                    '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque ```html de la conversación]');
+            if (i !== lastHtmlIdx) {
+                content = content.replace(CIA_HTML_FENCE, CIA_HTML_OMITTED);
             }
             const o = { role: m.role, content };
             if (!dropImages && m.images && m.images.length) o.images = m.images;

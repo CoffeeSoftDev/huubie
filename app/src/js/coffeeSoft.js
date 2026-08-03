@@ -6219,7 +6219,7 @@ class Templates extends Components {
         const themes = {
             light: {
                 backdrop:   'bg-black/40',
-                card:       'bg-white border-gray-200',
+                card:       'bg-white',
                 title:      'text-gray-800',
                 detail:     'text-gray-500',
                 inputLabel: 'text-gray-600',
@@ -6230,7 +6230,7 @@ class Templates extends Components {
             },
             dark: {
                 backdrop:   'bg-black/60',
-                card:       'bg-[#1F2A37] border-[#374151]',
+                card:       'bg-[#1F2A37]',
                 title:      'text-gray-100',
                 detail:     'text-gray-400',
                 inputLabel: 'text-gray-300',
@@ -6340,7 +6340,7 @@ class Templates extends Components {
         const $overlay = $(`
             <div id="${uid}" class="fixed inset-0 z-[10001] flex items-center justify-center">
                 <div class="absolute inset-0 ${skin.backdrop} tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
-                <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] border ${skin.card} rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+                <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] ${skin.card} rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
                         <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
                             <i data-lucide="${opts.icon}" class="w-7 h-7 ${opts.iconColor}"></i>
