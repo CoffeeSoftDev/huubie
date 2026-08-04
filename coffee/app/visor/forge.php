@@ -143,6 +143,10 @@
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
+                <a href="lab.php" class="app-rail-item" title="Lab — afinar al agente probándolo">
+                    <i data-lucide="microscope"></i>
+                    <span class="app-rail-label">Lab</span>
+                </a>
                 <a href="coffeeia.php" class="app-rail-item" title="CoffeeIA — Chat unificado">
                     <i data-lucide="sparkles"></i>
                     <span class="app-rail-label">CoffeeIA</span>

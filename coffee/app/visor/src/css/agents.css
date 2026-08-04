@@ -1,0 +1,710 @@
+/* Pagina de Agentes (agents.php). Prefijo agt-*.
+ *
+ * Reusa el chrome del Playground (pg-header, pg-workspace, pg-modal) y los tokens
+ * --vsr-* del visor, asi el tema claro/oscuro se hereda sin declarar colores propios.
+ * Aqui solo vive lo especifico: el rail de agentes, la ficha con pestanas y el
+ * medidor de contexto del pie. */
+
+.agt-body { overflow: hidden; }
+
+.agt-workspace {
+    display: flex;
+    align-items: stretch;
+    height: calc(100vh - 56px);
+    min-height: 0;
+}
+
+/* ── Rail de agentes ───────────────────────────────────────────────────── */
+
+.agt-list-pane {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    min-width: 260px;
+    background: var(--vsr-bg-chrome);
+    border-right: 1px solid var(--vsr-border);
+    min-height: 0;
+}
+
+.agt-pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--vsr-border-soft);
+}
+
+.agt-pane-title {
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--vsr-text-muted);
+}
+
+.agt-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.agt-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--vsr-text-soft);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+
+.agt-item:hover { background: var(--vsr-bg-hover); }
+
+.agt-item.active {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-accent);
+}
+
+.agt-item.is-off { opacity: .55; }
+
+.agt-item-body { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+
+.agt-item-name {
+    font-size: .84rem;
+    font-weight: 600;
+    color: var(--vsr-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agt-item-name em { font-style: normal; font-size: .72rem; color: var(--vsr-text-muted); }
+
+.agt-item-meta { font-size: .72rem; color: var(--vsr-text-muted); }
+
+.agt-avatar {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--vsr-brand-lo), var(--vsr-brand-hi));
+    color: #fff;
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: .02em;
+}
+
+.agt-avatar.sm { width: 28px; height: 28px; border-radius: 8px; font-size: .68rem; }
+
+/* ── Medidor de contexto ───────────────────────────────────────────────── */
+
+.agt-budget {
+    border-top: 1px solid var(--vsr-border-soft);
+    padding: 12px 14px 14px;
+    background: var(--vsr-bg-soft);
+}
+
+.agt-budget-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--vsr-text-muted);
+    margin-bottom: 6px;
+}
+
+.agt-budget-head b { font-size: .9rem; color: var(--vsr-accent-soft); letter-spacing: 0; text-transform: none; }
+
+.agt-budget-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--vsr-bg-card);
+    overflow: hidden;
+    margin-bottom: 9px;
+}
+
+.agt-budget-bar span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--vsr-brand-lo), var(--vsr-accent));
+}
+
+.agt-budget-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.agt-budget-rows li {
+    display: flex;
+    justify-content: space-between;
+    font-size: .74rem;
+    color: var(--vsr-text-muted);
+}
+
+.agt-budget-rows li b { color: var(--vsr-text-mid); font-weight: 600; }
+
+.agt-budget-pool { border-top: 1px dashed var(--vsr-border-soft); padding-top: 4px; margin-top: 2px; }
+
+.agt-budget-note {
+    margin: 8px 0 0;
+    font-size: .71rem;
+    line-height: 1.4;
+    color: var(--vsr-text-muted);
+}
+
+.agt-budget-note b { color: var(--vsr-accent-soft); }
+
+/* ── Ficha del agente ──────────────────────────────────────────────────── */
+
+.agt-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--vsr-bg-base);
+}
+
+.agt-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--vsr-border-soft);
+}
+
+.agt-detail-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.agt-detail-text { min-width: 0; }
+
+.agt-detail-text h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--vsr-text);
+    line-height: 1.2;
+}
+
+.agt-detail-meta {
+    margin: 2px 0 0;
+    font-size: .76rem;
+    color: var(--vsr-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agt-detail-meta code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--vsr-accent-soft);
+}
+
+.agt-detail-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+.agt-stale {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(234, 179, 8, .14);
+    border: 1px solid rgba(234, 179, 8, .35);
+    color: #EAB308;
+    font-size: .72rem;
+}
+
+.agt-stale-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: .72rem;
+    padding: 0;
+}
+
+/* ── Pestañas ──────────────────────────────────────────────────────────── */
+
+.agt-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--vsr-border-soft);
+    overflow-x: auto;
+    flex: 0 0 auto;
+}
+
+.agt-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--vsr-text-muted);
+    font-size: .8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+}
+
+.agt-tab:hover { color: var(--vsr-text-soft); }
+
+.agt-tab.active {
+    color: var(--vsr-accent-soft);
+    border-bottom-color: var(--vsr-accent);
+}
+
+.agt-panes { flex: 1; min-height: 0; overflow: hidden; }
+
+.agt-pane {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+    padding: 18px;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.agt-pane.active { display: flex; }
+
+/* ── Formularios ───────────────────────────────────────────────────────── */
+
+.agt-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.agt-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.agt-field-wide { grid-column: 1 / -1; }
+
+.agt-field > span {
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--vsr-text-mid);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.agt-field > span small {
+    font-weight: 400;
+    font-size: .71rem;
+    color: var(--vsr-text-muted);
+}
+
+.agt-mono { font-family: 'JetBrains Mono', monospace; font-size: .82rem; }
+
+.agt-switch-row { display: flex; flex-direction: column; gap: 10px; }
+
+.agt-switch {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    cursor: pointer;
+    font-size: .82rem;
+    color: var(--vsr-text-soft);
+}
+
+.agt-switch input { margin-top: 3px; accent-color: var(--vsr-accent); flex: 0 0 auto; }
+
+.agt-switch > span { display: flex; flex-direction: column; gap: 2px; }
+
+.agt-switch small {
+    font-size: .73rem;
+    line-height: 1.45;
+    color: var(--vsr-text-muted);
+    max-width: 62ch;
+}
+
+.agt-source {
+    margin: 0;
+    font-size: .74rem;
+    color: var(--vsr-text-muted);
+}
+
+.agt-source code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--vsr-text-mid);
+    word-break: break-all;
+}
+
+.agt-danger {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--vsr-border-soft);
+}
+
+.agt-danger-btn { color: #F87171 !important; }
+.agt-danger-btn:hover { background: rgba(248, 113, 113, .12) !important; }
+
+/* ── Editores de texto largo ───────────────────────────────────────────── */
+
+.agt-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex: 0 0 auto;
+}
+
+.agt-meter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--vsr-text-muted);
+    white-space: nowrap;
+}
+
+.agt-code {
+    flex: 1;
+    min-height: 260px;
+    resize: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    line-height: 1.6;
+}
+
+.agt-when { resize: vertical; font-size: .82rem; }
+
+/* ── Reglas ────────────────────────────────────────────────────────────── */
+
+.agt-rules-bar,
+.agt-mem-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex: 0 0 auto;
+}
+
+.agt-rules-bar .pg-hint,
+.agt-mem-bar .pg-hint { margin: 0; max-width: 72ch; }
+
+.agt-rules-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+.agt-upload { cursor: pointer; margin: 0; }
+
+.agt-rules-list { display: flex; flex-direction: column; gap: 6px; }
+
+.agt-rule {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-card);
+}
+
+.agt-rule:hover { border-color: var(--vsr-border); }
+.agt-rule.is-off { opacity: .5; }
+.agt-rule.is-borrowed { background: var(--vsr-bg-soft); border-style: dashed; }
+
+.agt-rule-icon { width: 18px; height: 18px; color: var(--vsr-text-muted); flex: 0 0 auto; }
+
+.agt-rule-body { flex: 1; min-width: 0; }
+
+.agt-rule-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--vsr-text);
+}
+
+.agt-rule-meta {
+    font-size: .73rem;
+    color: var(--vsr-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60ch;
+}
+
+.agt-rule-chips { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+
+.agt-pri {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.agt-pri.p1 { background: rgba(239, 68, 68, .14);  border-color: rgba(239, 68, 68, .34);  color: #F87171; }
+.agt-pri.p2 { background: rgba(234, 179, 8, .14);  border-color: rgba(234, 179, 8, .34);  color: #EAB308; }
+.agt-pri.p3 { background: rgba(59, 130, 246, .12); border-color: rgba(59, 130, 246, .30); color: #60A5FA; }
+.agt-pri.p4 { background: rgba(148, 163, 184, .12);border-color: rgba(148, 163, 184, .28);color: #94A3B8; }
+
+.agt-size {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    color: var(--vsr-text-muted);
+    min-width: 58px;
+    text-align: right;
+}
+
+.agt-shared {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(168, 85, 247, .14);
+    border: 1px solid rgba(168, 85, 247, .32);
+    color: #C084FC;
+    font-size: .68rem;
+    font-weight: 600;
+}
+
+.agt-rule-acts { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+
+.agt-sub {
+    margin: 14px 0 8px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--vsr-text-muted);
+}
+
+.agt-borrowed { display: flex; flex-direction: column; gap: 6px; }
+
+.agt-empty { padding: 22px 4px; text-align: center; }
+
+/* ── Memoria ───────────────────────────────────────────────────────────── */
+
+.agt-mem-add { display: flex; gap: 8px; flex: 0 0 auto; }
+.agt-mem-add .cs-input { flex: 1; }
+
+.agt-mem-list { display: flex; flex-direction: column; gap: 5px; }
+
+.agt-mem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    background: var(--vsr-bg-card);
+}
+
+.agt-mem-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--vsr-accent-soft);
+    flex: 0 0 auto;
+}
+
+.agt-mem-text { flex: 1; font-size: .82rem; color: var(--vsr-text-soft); min-width: 0; }
+
+.agt-mem-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .69rem;
+    color: var(--vsr-text-muted);
+    flex: 0 0 auto;
+}
+
+/* ── Herramientas ──────────────────────────────────────────────────────── */
+
+.agt-standalone {
+    padding: 12px 14px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-soft);
+    flex: 0 0 auto;
+}
+
+.agt-tools-hint { margin: 0; flex: 0 0 auto; }
+
+.agt-tools-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+.agt-tool-group { display: flex; flex-direction: column; gap: 5px; }
+.agt-tool-group .agt-sub { margin: 0 0 3px; }
+
+.agt-tool {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    background: var(--vsr-bg-card);
+    cursor: pointer;
+    color: var(--vsr-text-muted);
+}
+
+.agt-tool:hover { border-color: var(--vsr-border); }
+.agt-tool.is-off { opacity: .5; }
+.agt-tool input { accent-color: var(--vsr-accent); flex: 0 0 auto; }
+.agt-tool-body { display: flex; flex-direction: column; min-width: 0; }
+
+.agt-tool-name {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--vsr-text-soft);
+}
+
+.agt-tool-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .68rem;
+    color: var(--vsr-text-muted);
+}
+
+/* ── Editor de una regla ───────────────────────────────────────────────── */
+
+.agt-rule-card { width: min(920px, 94vw); max-height: 90vh; }
+
+.agt-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--vsr-text);
+}
+
+.agt-modal-title i { color: var(--vsr-accent-soft); }
+
+.agt-subtabs { padding: 0 18px; }
+
+.agt-rule-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 16px 18px; }
+
+.agt-rule-pane { display: none; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+.agt-rule-pane.active { display: flex; }
+
+/* Altura fija y no flex: dentro de un pane con overflow, un textarea flexible se
+   colapsa a la altura de sus filas y el editor quedaba en dos lineas. */
+.agt-rule-content { flex: 0 0 auto; height: 340px; min-height: 340px; }
+
+.agt-share-list { display: flex; flex-direction: column; gap: 5px; }
+
+.agt-share-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    background: var(--vsr-bg-card);
+    cursor: pointer;
+    font-size: .84rem;
+    color: var(--vsr-text-soft);
+}
+
+.agt-share-item:hover { border-color: var(--vsr-border); }
+.agt-share-item input { accent-color: var(--vsr-accent); }
+
+/* ── Responsivo ────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .agt-workspace { flex-direction: column; height: auto; overflow-y: auto; }
+    .agt-list-pane { width: 100%; min-width: 0; border-right: 0; border-bottom: 1px solid var(--vsr-border); }
+    .agt-list { max-height: 190px; }
+    .agt-form-grid { grid-template-columns: 1fr; }
+    .agt-panes { overflow: visible; }
+    .agt-pane { height: auto; overflow: visible; }
+}
+
+/* ── Scrollbars ────────────────────────────────────────────────────────────
+   Finas y del color del tema. Sin esto los paneles salian con la barra nativa
+   del sistema, mucho mas gruesa que las del resto del visor. */
+
+.agt-list,
+.agt-pane,
+.agt-rules-list,
+.agt-borrowed,
+.agt-mem-list,
+.agt-tools-list,
+.agt-share-list,
+.agt-code,
+.agt-rule-pane,
+.agt-body .pg-modal-body {
+    /* scrollbar-color SE HEREDA y, estando puesta, Chrome ignora los
+       ::-webkit-scrollbar de abajo. Se devuelve a auto para recuperarlos. */
+    scrollbar-color: auto;
+}
+
+.agt-list::-webkit-scrollbar,
+.agt-pane::-webkit-scrollbar,
+.agt-rules-list::-webkit-scrollbar,
+.agt-borrowed::-webkit-scrollbar,
+.agt-mem-list::-webkit-scrollbar,
+.agt-tools-list::-webkit-scrollbar,
+.agt-share-list::-webkit-scrollbar,
+.agt-code::-webkit-scrollbar,
+.agt-rule-pane::-webkit-scrollbar,
+.agt-body .pg-modal-body::-webkit-scrollbar { width: 5px; height: 5px; }
+
+.agt-list::-webkit-scrollbar-track,
+.agt-pane::-webkit-scrollbar-track,
+.agt-rules-list::-webkit-scrollbar-track,
+.agt-borrowed::-webkit-scrollbar-track,
+.agt-mem-list::-webkit-scrollbar-track,
+.agt-tools-list::-webkit-scrollbar-track,
+.agt-share-list::-webkit-scrollbar-track,
+.agt-code::-webkit-scrollbar-track,
+.agt-rule-pane::-webkit-scrollbar-track,
+.agt-body .pg-modal-body::-webkit-scrollbar-track { background: transparent; }
+
+.agt-list::-webkit-scrollbar-thumb,
+.agt-pane::-webkit-scrollbar-thumb,
+.agt-rules-list::-webkit-scrollbar-thumb,
+.agt-borrowed::-webkit-scrollbar-thumb,
+.agt-mem-list::-webkit-scrollbar-thumb,
+.agt-tools-list::-webkit-scrollbar-thumb,
+.agt-share-list::-webkit-scrollbar-thumb,
+.agt-code::-webkit-scrollbar-thumb,
+.agt-rule-pane::-webkit-scrollbar-thumb,
+.agt-body .pg-modal-body::-webkit-scrollbar-thumb {
+    background: var(--vsr-scrollbar);
+    border-radius: 3px;
+}
+
+.agt-list::-webkit-scrollbar-thumb:hover,
+.agt-pane::-webkit-scrollbar-thumb:hover,
+.agt-rules-list::-webkit-scrollbar-thumb:hover,
+.agt-mem-list::-webkit-scrollbar-thumb:hover,
+.agt-tools-list::-webkit-scrollbar-thumb:hover { background: var(--vsr-scrollbar-hov); }
+
+/* Firefox no implementa ::-webkit-scrollbar: ahi se usa la propiedad estandar.
+   No pueden ir juntas — declarar scrollbar-width apaga los pseudo-elementos
+   en Chrome 121+ y la barra volvia a su grosor nativo. */
+@supports not selector(::-webkit-scrollbar) {
+    .agt-list,
+    .agt-pane,
+    .agt-rules-list,
+    .agt-borrowed,
+    .agt-mem-list,
+    .agt-tools-list,
+    .agt-share-list,
+    .agt-code,
+    .agt-rule-pane,
+    .agt-body .pg-modal-body {
+        scrollbar-width: thin;
+        scrollbar-color: var(--vsr-scrollbar) transparent;
+    }
+}

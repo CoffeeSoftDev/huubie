@@ -332,8 +332,7 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 
 /* ── Scrollbars finas del playground (acordes al sistema del visor) ── */
 .pg-chat-body, .pg-sandbox-code, .pg-console-body, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
-    scrollbar-width: thin;
-    scrollbar-color: var(--vsr-scrollbar) transparent;
+    scrollbar-color: auto;   /* no apagar los ::-webkit-scrollbar de abajo ni los de sus hijos */
 }
 .pg-chat-body::-webkit-scrollbar,
 .pg-sandbox-code::-webkit-scrollbar,

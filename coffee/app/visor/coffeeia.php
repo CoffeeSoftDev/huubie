@@ -55,25 +55,9 @@
                 <span class="cia-title">Coffee<span class="cia-title-ia">IA</span></span>
             </div>
 
-            <!-- Reabrir el visor de templates. Solo existe cuando la conversacion
-                 ya produjo algun template (lo muestra/oculta el JS). -->
-            <button id="ciaViewerBtn" class="cia-iconbtn cia-sb-toggle" title="Mostrar el visor de templates" style="display:none;">
-                <i data-lucide="panel-right"></i>
-            </button>
         </div>
 
-        <button id="ciaHeaderToggle" class="cia-header-toggle" title="Ajustes">
-            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-        </button>
-
         <div class="cia-header-right" id="ciaHeaderRight">
-            <div class="cia-select-wrap" title="Agente activo">
-                <i data-lucide="bot" class="w-4 h-4"></i>
-                <select id="ciaAgentSelect" class="cia-select"></select>
-            </div>
-            <button id="ciaNewBtn" class="cs-btn cs-btn-primary cs-btn-sm flex items-center gap-1.5" title="Nueva conversación">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Nueva</span>
-            </button>
             <button id="ciaThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
                 <i data-lucide="sun" class="w-4 h-4"></i>
             </button>
@@ -99,6 +83,10 @@
                     <i data-lucide="hammer"></i>
                     <span class="app-rail-label">Forge</span>
                 </a>
+                <a href="lab.php" class="app-rail-item" title="Lab — afinar al agente probándolo">
+                    <i data-lucide="microscope"></i>
+                    <span class="app-rail-label">Lab</span>
+                </a>
                 <a href="coffeeia.php" class="app-rail-item active" title="CoffeeIA — Chat">
                     <i data-lucide="sparkles"></i>
                     <span class="app-rail-label">CoffeeIA</span>
@@ -119,29 +107,6 @@
             <!-- Handle para redimensionar arrastrando el borde derecho (mismo patron
                  que el sidebar del Visor). Doble clic = vuelve al ancho por defecto. -->
             <div id="ciaSidebarResize" class="cia-sidebar-resize" title="Arrastra para redimensionar (doble clic: restablecer)"></div>
-
-            <!-- Conversacion abierta + sus acciones. Vive AQUI (no sobre el chat):
-                 el panel del chat queda limpio, solo mensajes y composer. -->
-            <header class="cia-pane-head">
-                <div class="cia-pane-title">
-                    <i data-lucide="message-circle"></i>
-                    <span id="ciaCurrentTitle">Nueva conversación</span>
-                </div>
-                <div class="cia-pane-actions">
-                    <button id="ciaRenameBtn" class="cia-iconbtn" title="Renombrar">
-                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaSaveBtn" class="cia-iconbtn" title="Guardar ahora (también se guarda sola)">
-                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaDownloadBtn" class="cia-iconbtn" title="Descargar .md">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="ciaDeleteBtn" class="cia-iconbtn is-danger" title="Eliminar">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                    </button>
-                </div>
-            </header>
 
             <div class="cia-sidebar-head">
                 <input id="ciaSearchInput" type="text" class="cs-input" placeholder="Buscar conversaciones…">
@@ -209,6 +174,21 @@
                     </button>
 
                     <div id="ciaPlusMenu" class="cia-menu" style="display:none;" role="menu">
+                        <!-- El agente solo aparece aqui en movil: en escritorio su
+                             pastilla vive en esta misma barra, junto a modelo. -->
+                        <div class="cia-menu-item has-sub cia-menu-agent" data-sub="agent" role="menuitem" tabindex="0">
+                            <i data-lucide="bot"></i>
+                            <span class="cia-menu-label">
+                                Agente
+                                <span class="cia-menu-desc" id="ciaAgentDesc">CoffeeIA</span>
+                            </span>
+                            <i data-lucide="chevron-right" class="cia-menu-chev"></i>
+
+                            <div class="cia-submenu" id="ciaAgentSub"></div>
+                        </div>
+
+                        <div class="cia-menu-sep cia-menu-agent"></div>
+
                         <button type="button" class="cia-menu-item" data-act="attach" role="menuitem">
                             <i data-lucide="paperclip"></i>
                             <span class="cia-menu-label">Añadir archivos o fotos</span>
@@ -285,6 +265,8 @@
                     <span id="ciaContextInfo" class="cia-context-info"></span>
                     <span class="cia-spacer"></span>
                     <span id="ciaStatusInfo" class="cia-status">Listo</span>
+                    <!-- Agente, modelo y esfuerzo juntos: las tres deciden como responde. -->
+                    <select id="ciaAgentSelect" class="ia-model-pill cia-agent-pill" title="Agente activo"></select>
                     <select id="ciaEffortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
                         <option value="">Auto</option>
                         <option value="off">R&aacute;pido</option>
@@ -421,6 +403,11 @@
             </footer>
         </div>
     </div>
+
+    <!-- Menu de una conversacion (patron ChatGPT): lo abre el "..." de cada item de
+         la lista y actua sobre ESA conversacion, este abierta o no. Reusa las clases
+         del menu del "+", asi que se ve igual sin CSS nuevo. -->
+    <div id="ciaItemMenu" class="cia-menu cia-item-menu" style="display:none;" role="menu"></div>
 
     <div id="ciaToast" class="visor-toast"></div>
 

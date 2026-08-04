@@ -502,6 +502,40 @@ function coffeeia_build_context(array $body) {
     $surface = isset($body['surface'])  ? trim((string) $body['surface'])  : '';
     $agent   = isset($body['agentKey']) ? trim((string) $body['agentKey']) : '';
 
+    // Cerebro del agente: memoria persistente + indice de sus archivos de reglas.
+    // Va al FINAL y se suma; nunca sustituye lo anterior, asi el Playground puede
+    // seguir mandando su propio prompt en systemOverride sin perder nada.
+    //
+    // El indice solo se emite si el agente podra ABRIR los archivos en este turno:
+    // anunciar una lista que no puede alcanzar es peor que no anunciarla — el modelo
+    // sabe que existen reglas, no las lee, y termina inventando. Cuando no puede,
+    // brain_prompt_extra inyecta completas solo las criticas.
+    //
+    // Que el turno tenga herramientas no lo decide el catalogo sino los endpoints de
+    // chat: hay loop si hay carpeta o base conectada, o si alguna tool se vale sola
+    // (tools_has_standalone). Sin eso el turno va por streaming y NINGUNA tool se
+    // declara, por mas que esten activas en el catalogo.
+    if ($agent !== '') {
+        $sources = [];
+        if ($fsRoot)   $sources[] = 'fs';
+        if ($dbSchema) $sources[] = 'db';
+
+        $declared = [];
+        if (!empty($sources) || tools_has_standalone($surface, $agent)) {
+            foreach (tools_for_turn($sources, $surface, $agent)['specs'] as $spec) {
+                $declared[] = $spec['function']['name'];
+            }
+        }
+
+        $brain = brain_prompt_extra(
+            $agent,
+            agents_user_id(),
+            in_array('read_rules', $declared, true),
+            in_array('save_memory', $declared, true)
+        );
+        if ($brain !== '') $systemBlock .= $brain;
+    }
+
     $prepend = [['role' => 'system', 'content' => $systemBlock]];
     return ['messages' => array_merge($prepend, $messages), 'model' => $model, 'effort' => $effort, 'db' => $dbSchema, 'fs' => $fsRoot, 'canvas' => $canvasMode, 'web' => $webPages, 'surface' => $surface, 'agent' => $agent];
 }

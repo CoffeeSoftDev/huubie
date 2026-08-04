@@ -322,10 +322,16 @@ body.pg-resizing .pg-sandbox-frame { pointer-events: none; }
 .pg-sandbox-code { position: absolute; inset: 0; margin: 0; overflow: auto; padding: 16px; background: var(--vsr-bg-base); }
 .pg-sandbox-code code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--vsr-text); white-space: pre; }
 
-/* ── Scrollbars finas del playground (acordes al sistema del visor) ── */
-.pg-chat-body, .pg-sandbox-code, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
-    scrollbar-width: thin;
-    scrollbar-color: var(--vsr-scrollbar) transparent;
+/* ── Scrollbars finas del playground (acordes al sistema del visor) ──
+   Las dos formas NO pueden convivir: declarar scrollbar-width/color apaga los
+   ::-webkit-scrollbar en Chrome 121+, y ademas scrollbar-color se HEREDA, con lo
+   que tambien apagaba la barra de los hijos (listas y textareas de los modales).
+   La forma estandar queda para el navegador que no entiende los pseudo-elementos. */
+@supports not selector(::-webkit-scrollbar) {
+    .pg-chat-body, .pg-sandbox-code, .pg-styles-panel, .pg-modal-body, .pg-actions-pop {
+        scrollbar-width: thin;
+        scrollbar-color: var(--vsr-scrollbar) transparent;
+    }
 }
 .pg-chat-body::-webkit-scrollbar,
 .pg-sandbox-code::-webkit-scrollbar,

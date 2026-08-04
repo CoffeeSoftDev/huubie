@@ -167,6 +167,24 @@ try {
             break;
         }
 
+        case 'rename': {
+            // Cambiar el titulo sin abrir la conversacion (menu de la lista). No se
+            // toca updated_at a proposito: renombrar no es actividad, asi que la
+            // conversacion no debe saltar al principio del historial.
+            $uid   = trim($_POST['uid'] ?? '');
+            $title = trim($_POST['title'] ?? '');
+            if ($uid === '')   chats_fail('Falta el uid');
+            if ($title === '') chats_fail('El titulo no puede estar vacio');
+            $title = mb_substr($title, 0, 160);
+
+            $st = $pdo->prepare('UPDATE chats SET title = ? WHERE uid = ? AND user_id = ?');
+            $st->execute([$title, $uid, $userId]);
+            if ($st->rowCount() === 0) chats_fail('Conversacion no encontrada', 404);
+
+            echo json_encode(['success' => true, 'uid' => $uid, 'title' => $title], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+
         case 'delete': {
             $uid = trim($_POST['uid'] ?? '');
             if ($uid === '') chats_fail('Falta el uid');

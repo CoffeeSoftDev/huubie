@@ -30,9 +30,14 @@
         // Elegir una app cierra la rejilla y anuncia cual se pidio. Se avisa por
         // evento y no por burbujeo del clic porque el panel corta la propagacion
         // (ver abajo), asi que una app no puede escuchar en document.
+        // Apps que son una PAGINA y no un cajon sobre la actual: no hay nada que
+        // escuche su evento, asi que el launcher las navega el mismo.
+        const PAGES = { agents: 'agents.php', lab: 'lab.php' };
+
         $panel.on('click', '[data-launch]', function () {
             const name = $(this).data('launch');
             close();
+            if (PAGES[name]) { global.location.href = PAGES[name]; return; }
             $(document).trigger('launcher:launch', [name]);
         });
 

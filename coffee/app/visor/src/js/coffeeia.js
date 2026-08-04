@@ -245,6 +245,16 @@ function ciaPopulateAgentSelect() {
     const $sel = $('#ciaAgentSelect').empty();
     Object.values(CIA_AGENTS).forEach(a => $sel.append(`<option value="${a.key}">${a.label}</option>`));
     $sel.val(CIA.agentKey);
+
+    // Mismo catálogo, segunda salida: en móvil el agente se elige desde el menú
+    // del "+", donde el submenú se despliega al tocar (igual que Gráficas).
+    const $sub = $('#ciaAgentSub').empty();
+    Object.values(CIA_AGENTS).forEach(a => $sub.append(`
+        <button type="button" class="cia-menu-item" data-agent="${a.key}" role="menuitemcheckbox">
+            <i data-lucide="bot"></i>
+            <span class="cia-menu-label">${a.label}</span>
+            <i data-lucide="check" class="cia-menu-check"></i>
+        </button>`));
 }
 
 function ciaPopulateModelSelect() {
@@ -271,6 +281,15 @@ function ciaApplyAgent(key, silent) {
     // Personalidad del agente; si su .md no cargó, el backend usa el alma por defecto.
     CIA.systemOverride = CIA._agentPrompts[key] || '';
     if (!silent) { $('#ciaAgentSelect').val(key); ciaSaveSettings(); }
+    ciaSyncAgentMenu();
+}
+
+// El menú del "+" refleja el agente activo aunque se haya elegido en la pastilla.
+function ciaSyncAgentMenu() {
+    $('#ciaAgentDesc').text(ciaAgentLabel());
+    $('#ciaAgentSub [data-agent]').each(function () {
+        $(this).toggleClass('is-on', $(this).data('agent') === CIA.agentKey);
+    });
 }
 
 function ciaAgentLabel() {
@@ -310,10 +329,17 @@ function ciaBind() {
         e.stopPropagation();
         ciaSetGraphMode($(e.currentTarget).data('graph'));
     });
-    // El item padre ("Gráficas") abre/cierra el submenú al pulsarlo (para táctil;
-    // en escritorio ya se despliega al pasar el ratón).
+    // Submenú de agentes: elegir uno lo aplica y cierra el menú (no es un
+    // interruptor, es una elección entre varias).
+    $('#ciaPlusMenu').on('click', '[data-agent]', e => {
+        e.stopPropagation();
+        ciaApplyAgent($(e.currentTarget).data('agent'), false);
+        ciaClosePlusMenu();
+    });
+    // El item padre ("Gráficas", "Agente") abre/cierra el submenú al pulsarlo (para
+    // táctil; en escritorio ya se despliega al pasar el ratón).
     $('#ciaPlusMenu').on('click', '.has-sub', e => {
-        if ($(e.target).closest('[data-graph]').length) return;
+        if ($(e.target).closest('[data-graph], [data-agent]').length) return;
         $(e.currentTarget).toggleClass('is-open');
     });
 
@@ -331,7 +357,7 @@ function ciaBind() {
         }
     });
 
-    $('#ciaNewBtn, #ciaNewSidebarBtn').on('click', () => ciaNewConversation());
+    $('#ciaNewSidebarBtn').on('click', () => ciaNewConversation());
     $('#ciaSearchInput').on('input', function () {
         CIA._filter = String($(this).val() || '').toLowerCase().trim();
         ciaRenderSidebar();
@@ -367,10 +393,7 @@ function ciaBind() {
     });
     $(window).on('resize.ciaMention', () => ciaMentionClose());
 
-    $('#ciaRenameBtn').on('click', () => ciaOpenRenameModal());
-    $('#ciaSaveBtn').on('click', () => ciaSaveConversation());
-    $('#ciaDownloadBtn').on('click', () => ciaDownloadConversation());
-    $('#ciaDeleteBtn').on('click', () => ciaOpenDeleteModal());
+    ciaBindItemMenu();
 
     $('#ciaRenameSave').on('click', () => ciaApplyRename());
     $('#ciaRenameCancel, #ciaRenameCancel2, #ciaRenameBackdrop').on('click', () => $('#ciaRenameModal').addClass('hidden'));
@@ -990,8 +1013,6 @@ function ciaThread() {
 // chat los mensajes se AÑADEN al hilo: la burbuja en streaming se cierra en su
 // sitio, como en el Visor, sin repintar todo (eso rompía la animación).
 function ciaRenderThread() {
-    $('#ciaCurrentTitle').text(CIA.currentTitle);
-
     // Los templates se re-registran al repintar los mensajes (cada burbuja los
     // vuelve a extraer), así que aquí se parte de cero: si no, cambiar de tema
     // duplicaría todas las versiones del visor.
@@ -1186,7 +1207,6 @@ function ciaHookTemplates($text, opts) {
         if ($expand.length) $expand.before($btn);
         else                $block.find('.ia-render-tabs').append($btn);
     });
-    ciaUpdateViewerBtn();
     if (window.lucide) lucide.createIcons();
     return lastIdx;
 }
@@ -1200,7 +1220,6 @@ function ciaOpenViewer(idx) {
     $('.cia-workspace').addClass('is-viewer-open');
     $('#ciaViewer').attr('aria-hidden', 'false');
     ciaRenderViewer();
-    ciaUpdateViewerBtn();
 }
 
 function ciaCloseViewer() {
@@ -1209,12 +1228,6 @@ function ciaCloseViewer() {
     $('#ciaViewer').attr('aria-hidden', 'true');
     $('#ciaViewerFrame').removeAttr('srcdoc');   // suelta el sandbox al cerrar
     ciaSetViewerMaxIcon(false);
-    ciaUpdateViewerBtn();
-}
-
-function ciaToggleViewer() {
-    if (CIA.viewerOpen) ciaCloseViewer();
-    else                ciaOpenViewer(CIA.viewerIdx);
 }
 
 // Tras repintar el hilo: si ya no quedan templates, el visor se cierra; si estaba
@@ -1222,19 +1235,10 @@ function ciaToggleViewer() {
 function ciaSyncViewer(wasOpen, prevIdx) {
     if (!CIA.templates.length) {
         if (wasOpen) ciaCloseViewer();
-        else         ciaUpdateViewerBtn();
         CIA.viewerIdx = -1;
         return;
     }
     if (wasOpen) ciaOpenViewer(Math.min(prevIdx < 0 ? CIA.templates.length - 1 : prevIdx, CIA.templates.length - 1));
-    else         ciaUpdateViewerBtn();
-}
-
-function ciaUpdateViewerBtn() {
-    $('#ciaViewerBtn')
-        .toggle(CIA.templates.length > 0)
-        .toggleClass('is-active', CIA.viewerOpen)
-        .attr('title', CIA.viewerOpen ? 'Ocultar el visor de templates' : 'Mostrar el visor de templates');
 }
 
 /* ── Pintado del visor ── */
@@ -1313,7 +1317,6 @@ function ciaApplyViewerWidth(px) {
 }
 
 function ciaBindViewer() {
-    $('#ciaViewerBtn').on('click', e => { e.stopPropagation(); ciaToggleViewer(); });
     $('#ciaViewerClose').on('click', () => ciaCloseViewer());
     $('#ciaViewerPrev').on('click', () => ciaViewerStep(-1));
     $('#ciaViewerNext').on('click', () => ciaViewerStep(1));
@@ -1636,7 +1639,6 @@ async function ciaSubmit() {
     CIA.dirty = true;
     if (CIA.history.length === 1) {
         CIA.currentTitle = (userMsg.displayText || userMsg.content || 'Nueva conversación').slice(0, 60).trim() || 'Nueva conversación';
-        $('#ciaCurrentTitle').text(CIA.currentTitle);
     }
 
     // Guarda ya, al enviar (no solo al recibir): si se recarga durante la
@@ -1982,16 +1984,86 @@ function ciaRenderSidebar() {
                     <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
                     <span class="item-title">${ciaEscape(c.title)}</span>
                     <span class="item-meta">${ciaRelativeTime(c.mtime)}</span>
-                    <button class="item-del" title="Eliminar conversación"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                    <button class="item-menu" title="Opciones de esta conversación" aria-haspopup="true" aria-expanded="false">
+                        <i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i>
+                    </button>
                 </li>`);
             $li.on('click', () => ciaOpenConversation(c.uid));
-            $li.find('.item-del').on('click', e => { e.stopPropagation(); ciaDeleteSaved(c.uid, c.title); });
+            $li.find('.item-menu').on('click', function (e) {
+                e.stopPropagation();
+                ciaOpenItemMenu(c, this);
+            });
             $ul.append($li);
         });
     });
 
     $('#ciaSidebarEmpty').toggle(list.length === 0);
     if (window.lucide) lucide.createIcons();
+}
+
+/* ── Menú de una conversación (patrón ChatGPT) ──
+ * Las acciones son de la conversación del item, no de la que esté en pantalla:
+ * así se renombra o descarga cualquiera sin tener que abrirla antes. */
+const CIA_ITEM_ACTIONS = [
+    { act: 'rename',   icon: 'pencil',   label: 'Cambiar el nombre' },
+    { act: 'download', icon: 'download', label: 'Descargar .md' },
+    { sep: true },
+    { act: 'delete',   icon: 'trash-2',  label: 'Eliminar', danger: true }
+];
+
+function ciaOpenItemMenu(conv, btnEl) {
+    const $menu = $('#ciaItemMenu');
+    // Segundo clic en el mismo "..." lo cierra, como cualquier menú.
+    if ($menu.is(':visible') && $menu.data('uid') === conv.uid) { ciaCloseItemMenu(); return; }
+    ciaCloseItemMenu();
+
+    $menu.data('uid', conv.uid).data('title', conv.title).html(CIA_ITEM_ACTIONS.map(it => it.sep
+        ? '<div class="cia-menu-sep"></div>'
+        : `<button type="button" class="cia-menu-item${it.danger ? ' is-danger' : ''}" data-item-act="${it.act}" role="menuitem">
+               <i data-lucide="${it.icon}"></i>
+               <span class="cia-menu-label">${it.label}</span>
+           </button>`).join(''));
+
+    // Fixed junto al botón: el panel tiene scroll propio y lo recortaría.
+    $menu.css({ display: 'block', visibility: 'hidden', top: 0, left: 0 });
+    const rect = btnEl.getBoundingClientRect();
+    const mw = $menu.outerWidth(), mh = $menu.outerHeight(), gap = 6;
+    const left = Math.max(8, Math.min(rect.right - mw, window.innerWidth - mw - 8));
+    let top = rect.bottom + gap;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, rect.top - mh - gap);
+    $menu.css({ left: left + 'px', top: top + 'px', visibility: 'visible' });
+
+    $(btnEl).addClass('is-open').attr('aria-expanded', 'true')
+            .closest('.cia-sidebar-item').addClass('is-menu-open');
+    if (window.lucide) lucide.createIcons();
+}
+
+function ciaCloseItemMenu() {
+    $('#ciaItemMenu').hide().removeData('uid').removeData('title');
+    $('.cia-sidebar-item .item-menu').removeClass('is-open').attr('aria-expanded', 'false');
+    $('.cia-sidebar-item').removeClass('is-menu-open');
+}
+
+function ciaBindItemMenu() {
+    $('#ciaItemMenu').on('click', '[data-item-act]', function (e) {
+        e.stopPropagation();
+        const $menu = $('#ciaItemMenu');
+        const uid   = $menu.data('uid');
+        const title = $menu.data('title');
+        const act   = $(this).data('item-act');
+        ciaCloseItemMenu();
+
+        if (act === 'rename')   ciaOpenRenameModal(uid, title);
+        if (act === 'download') ciaDownloadConversation(uid, title);
+        if (act === 'delete')   ciaOpenDeleteModal(uid, title);
+    });
+
+    $(document).on('click.ciaItemMenu', e => {
+        if (!$(e.target).closest('#ciaItemMenu, .cia-sidebar-item .item-menu').length) ciaCloseItemMenu();
+    });
+    $(document).on('keydown.ciaItemMenu', e => { if (e.key === 'Escape') ciaCloseItemMenu(); });
+    $(window).on('resize.ciaItemMenu', () => ciaCloseItemMenu());
+    $('.cia-sidebar-body').on('scroll', () => ciaCloseItemMenu());
 }
 
 function ciaNewConversation() {
@@ -2082,8 +2154,11 @@ function ciaAutoSave() {
     CIA._autoSaveTimer = setTimeout(() => ciaSaveConversation(true), 600);
 }
 
-async function ciaDeleteSaved(uid, title) {
-    if (!uid || !confirm('¿Eliminar "' + (title || 'esta conversación') + '"? Esta acción no se puede deshacer.')) return;
+// `confirmed` viene en true cuando el modal ya preguntó: sin él saldría un
+// confirm nativo encima del que el usuario acaba de aceptar.
+async function ciaDeleteSaved(uid, title, confirmed) {
+    if (!uid) return;
+    if (!confirmed && !confirm('¿Eliminar "' + (title || 'esta conversación') + '"? Esta acción no se puede deshacer.')) return;
     const form = new FormData();
     form.append('action', 'delete');
     form.append('uid', uid);
@@ -2100,52 +2175,105 @@ async function ciaDeleteSaved(uid, title) {
     }
 }
 
-function ciaOpenRenameModal() {
-    $('#ciaRenameInput').val(CIA.currentTitle);
+function ciaOpenRenameModal(uid, title) {
+    $('#ciaRenameModal').data('uid', uid || CIA.currentUid || '');
+    $('#ciaRenameInput').val(title != null ? title : CIA.currentTitle);
     $('#ciaRenameModal').removeClass('hidden');
     setTimeout(() => $('#ciaRenameInput').trigger('focus').select(), 50);
 }
 
-function ciaApplyRename() {
+async function ciaApplyRename() {
     const t = $('#ciaRenameInput').val().trim();
     if (!t) { ciaToast('El título no puede estar vacío', 'error'); return; }
-    CIA.currentTitle = t;
-    CIA.dirty = true;
-    $('#ciaCurrentTitle').text(t);
+    const uid = $('#ciaRenameModal').data('uid') || '';
     $('#ciaRenameModal').addClass('hidden');
-    if (CIA.currentUid) ciaAutoSave();
+
+    // La que está en pantalla se renombra en memoria y el autoguardado la persiste;
+    // cualquier otra se cambia en el servidor sin cargarla.
+    if (!uid || uid === CIA.currentUid) {
+        CIA.currentTitle = t;
+        CIA.dirty = true;
+        if (CIA.currentUid) ciaAutoSave();
+    } else {
+        const form = new FormData();
+        form.append('action', 'rename');
+        form.append('uid', uid);
+        form.append('title', t);
+        try {
+            const res  = await fetch(CIA_API_CHATS, { method: 'POST', body: form });
+            const data = await res.json();
+            if (!data.success) { ciaToast('Error al renombrar: ' + (data.message || ''), 'error'); return; }
+        } catch (err) {
+            console.error(err);
+            ciaToast('Error de red al renombrar', 'error');
+            return;
+        }
+    }
+
+    const row = CIA.conversations.filter(c => c.uid === uid)[0];
+    if (row) row.title = t;
+    ciaRenderSidebar();
     ciaToast('Título actualizado', 'success');
 }
 
-function ciaOpenDeleteModal() {
-    if (!CIA.currentUid) { ciaToast('Esta conversación aún no está guardada', 'info'); return; }
-    $('#ciaDeleteText').text('Vas a eliminar "' + CIA.currentTitle + '". Esta acción no se puede deshacer.');
+function ciaOpenDeleteModal(uid, title) {
+    const id = uid || CIA.currentUid;
+    if (!id) { ciaToast('Esta conversación aún no está guardada', 'info'); return; }
+    $('#ciaDeleteModal').data('uid', id).data('title', title != null ? title : CIA.currentTitle);
+    $('#ciaDeleteText').text('Vas a eliminar "' + (title != null ? title : CIA.currentTitle) + '". Esta acción no se puede deshacer.');
     $('#ciaDeleteModal').removeClass('hidden');
 }
 
 async function ciaApplyDelete() {
-    const uid = CIA.currentUid;
+    const uid   = $('#ciaDeleteModal').data('uid') || CIA.currentUid;
+    const title = $('#ciaDeleteModal').data('title') || CIA.currentTitle;
     $('#ciaDeleteModal').addClass('hidden');
     if (!uid) return;
-    await ciaDeleteSaved(uid, CIA.currentTitle);
+    await ciaDeleteSaved(uid, title, true);
 }
 
-function ciaDownloadConversation() {
-    if (!CIA.history.length) { ciaToast('Nada que descargar', 'info'); return; }
+/* Descarga la conversación del item: la abierta sale de memoria; cualquier otra se
+ * pide al servidor, así que no hace falta abrirla para bajarla. */
+async function ciaDownloadConversation(uid, title) {
+    const id = uid || CIA.currentUid;
+    let messages = CIA.history;
+    let name     = title != null ? title : CIA.currentTitle;
+    let agentKey = CIA.agentKey;
+    let model    = CIA.model || 'default';
+
+    if (id && id !== CIA.currentUid) {
+        try {
+            const res  = await fetch(`${CIA_API_CHATS}?action=get&uid=${encodeURIComponent(id)}`, { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.success) { ciaToast('No se pudo leer la conversación', 'error'); return; }
+            messages = data.chat.messages || [];
+            name     = data.chat.title || name;
+            agentKey = CIA_AGENTS[data.chat.doc] ? data.chat.doc : agentKey;
+            model    = data.chat.model || 'default';
+        } catch (err) {
+            console.error(err);
+            ciaToast('Error de red al descargar', 'error');
+            return;
+        }
+    }
+
+    if (!messages.length) { ciaToast('Nada que descargar', 'info'); return; }
+
+    const agentLabel = (CIA_AGENTS[agentKey] || {}).label || 'CoffeeIA';
     const fm = [
         '---',
-        `name: ${CIA.currentTitle}`,
-        `agent: ${CIA.agentKey}`,
-        `model: ${CIA.model || 'default'}`,
+        `name: ${name}`,
+        `agent: ${agentKey}`,
+        `model: ${model}`,
         `date: ${new Date().toISOString().slice(0, 10)}`,
-        `messages: ${CIA.history.length}`,
+        `messages: ${messages.length}`,
         '---', ''
     ].join('\n');
-    const body = CIA.history.map(m => {
-        const who = m.role === 'user' ? 'Tú' : ciaAgentLabel();
+    const body = messages.map(m => {
+        const who = m.role === 'user' ? 'Tú' : agentLabel;
         return `### ${new Date(m.ts || Date.now()).toISOString()} · ${who}\n\n${m.displayText || m.content || ''}\n`;
     }).join('\n---\n\n');
-    IARender.downloadText((ciaSlugify(CIA.currentTitle) || 'conversacion') + '.md', fm + body);
+    IARender.downloadText((ciaSlugify(name) || 'conversacion') + '.md', fm + body);
     ciaToast('Conversación descargada', 'success');
 }
 
@@ -2204,20 +2332,6 @@ function ciaBindResponsive() {
         if (now === wasMobile) return;
         wasMobile = now;
         ciaSetSidebarOpen(now ? false : CIA.sidebarOpen, false);
-    });
-
-    // Ajustes del header (agente / nueva / tema) en un desplegable cuando no caben.
-    $('#ciaHeaderToggle').on('click', e => {
-        e.stopPropagation();
-        $('#ciaHeaderRight').toggleClass('is-open');
-    });
-    $('#ciaHeaderRight').on('change', 'select', () => {
-        if (ciaIsMobile()) $('#ciaHeaderRight').removeClass('is-open');
-    });
-    $(document).on('click.ciaHeader', e => {
-        if (!$('#ciaHeaderRight').hasClass('is-open')) return;
-        if ($(e.target).closest('#ciaHeaderRight, #ciaHeaderToggle').length) return;
-        $('#ciaHeaderRight').removeClass('is-open');
     });
 }
 

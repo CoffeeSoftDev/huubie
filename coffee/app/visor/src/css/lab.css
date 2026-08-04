@@ -1,0 +1,737 @@
+/* Lab del Agente (lab.php). Prefijo lab-*.
+ *
+ * Reusa el chrome del Playground (pg-header, pg-workspace, pg-modal) y los tokens
+ * --vsr-* del visor: el tema claro/oscuro se hereda sin declarar colores propios.
+ * Aqui vive lo especifico: el panel de configuracion en acordeon, el anillo de
+ * contexto del encabezado y el chat de pruebas. */
+
+.lab-body { overflow: hidden; }
+
+.lab-workspace {
+    display: flex;
+    align-items: stretch;
+    height: calc(100vh - 56px);
+    min-height: 0;
+    position: relative;
+}
+
+/* ── Anillo de contexto ────────────────────────────────────────────────── */
+
+.lab-ctx {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px 3px 4px;
+    border: 1px solid var(--vsr-border);
+    border-radius: 999px;
+    background: var(--vsr-bg-card);
+    font-size: .72rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--vsr-text-muted);
+}
+
+.lab-ctx-ring { width: 20px; height: 20px; transform: rotate(-90deg); flex: 0 0 auto; }
+
+.lab-ctx-track {
+    fill: none;
+    stroke: var(--vsr-border);
+    stroke-width: 2.5;
+}
+
+.lab-ctx-fill {
+    fill: none;
+    stroke: var(--vsr-accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 50.265;          /* 2πr con r=8 */
+    stroke-dashoffset: 50.265;
+    transition: stroke-dashoffset .35s ease, stroke .35s ease;
+}
+
+.lab-ctx.warn   .lab-ctx-fill { stroke: #EAB308; }
+.lab-ctx.danger .lab-ctx-fill { stroke: #F87171; }
+.lab-ctx.warn   { color: #EAB308; }
+.lab-ctx.danger { color: #F87171; }
+
+.lab-ctx-btn {
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 5px;
+    opacity: .6;
+}
+
+.lab-ctx-btn:hover { opacity: 1; background: var(--vsr-bg-hover); }
+
+/* ── Panel de configuración ────────────────────────────────────────────── */
+
+.lab-config {
+    display: flex;
+    flex-direction: column;
+    width: 330px;
+    min-width: 330px;
+    background: var(--vsr-bg-chrome);
+    border-right: 1px solid var(--vsr-border);
+    min-height: 0;
+    transition: width .18s ease, min-width .18s ease;
+}
+
+.lab-config.railed { width: 0; min-width: 0; overflow: hidden; border-right: 0; }
+
+.lab-rail-toggle {
+    position: absolute;
+    top: 50%;
+    left: 330px;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 44px;
+    margin-left: -9px;
+    margin-top: -22px;
+    opacity: .35;
+    border: 1px solid var(--vsr-border);
+    border-radius: 6px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    transition: left .18s ease, color .15s;
+}
+
+.lab-config.railed + .lab-rail-toggle { left: 0; margin-left: 6px; }
+.lab-rail-toggle:hover { color: var(--vsr-accent-soft); opacity: 1; }
+
+/* Selector de agente */
+
+.lab-agent-picker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px 6px;
+}
+
+.lab-agent-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 9px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text);
+    cursor: pointer;
+    text-align: left;
+}
+
+.lab-agent-btn:hover { border-color: var(--vsr-accent); }
+
+.lab-agent-label {
+    flex: 1;
+    min-width: 0;
+    font-size: .84rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lab-agent-caret { color: var(--vsr-text-muted); flex: 0 0 auto; }
+
+.lab-agent-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+
+.lab-hicon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.lab-hicon:hover { color: var(--vsr-text); border-color: var(--vsr-border); }
+
+.lab-hicon-accent { color: var(--vsr-accent-soft); border-color: var(--vsr-accent-tint); }
+
+/* Con cambios pendientes el boton de guardar late: es el unico aviso de que lo
+   que estas probando todavia no vive en el agente. */
+.lab-hicon.is-dirty {
+    background: var(--vsr-accent);
+    border-color: var(--vsr-accent);
+    color: #fff;
+    animation: labPulse 2s ease-in-out infinite;
+}
+
+@keyframes labPulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--vsr-brand-glow); }
+    50%      { box-shadow: 0 0 0 5px transparent; }
+}
+
+.lab-hicon.is-busy { opacity: .6; pointer-events: none; }
+
+.lab-agent-menu {
+    position: absolute;
+    top: 100%;
+    left: 12px;
+    right: 12px;
+    z-index: 20;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--vsr-border);
+    border-radius: 10px;
+    background: var(--vsr-bg-card);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+}
+
+.lab-agent-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--vsr-text-soft);
+    cursor: pointer;
+    text-align: left;
+}
+
+.lab-agent-item:hover { background: var(--vsr-bg-hover); }
+.lab-agent-item-body { display: flex; flex-direction: column; min-width: 0; }
+.lab-agent-item-name { font-size: .82rem; font-weight: 600; color: var(--vsr-text); }
+.lab-agent-item-meta { font-size: .7rem; color: var(--vsr-text-muted); }
+
+.lab-save-msg {
+    margin: 0 12px;
+    min-height: 15px;
+    font-size: .72rem;
+    color: transparent;
+}
+
+.lab-save-msg.ok  { color: #4ADE80; }
+.lab-save-msg.err { color: #F87171; }
+
+.lab-avatar {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--vsr-brand-lo), var(--vsr-brand-hi));
+    color: #fff;
+    font-weight: 700;
+    font-size: .68rem;
+}
+
+.lab-avatar.sm { width: 26px; height: 26px; border-radius: 7px; font-size: .62rem; }
+.lab-avatar.lg { width: 54px; height: 54px; border-radius: 14px; font-size: 1.1rem; }
+
+/* Acordeón */
+
+.lab-config-inner {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.lab-sec { border-radius: 9px; }
+
+.lab-sec-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 9px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--vsr-text-soft);
+    cursor: pointer;
+    text-align: left;
+}
+
+.lab-sec-head:hover { background: var(--vsr-bg-hover); }
+.lab-sec.open > .lab-sec-head { background: var(--vsr-bg-hover); }
+
+.lab-sec-badge {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    border-radius: 7px;
+}
+
+.lab-sec-badge.violet  { background: rgba(139, 92, 246, .16);  color: #A78BFA; }
+.lab-sec-badge.pink    { background: rgba(236, 72, 153, .16);  color: #F472B6; }
+.lab-sec-badge.blue    { background: rgba(59, 130, 246, .16);  color: #60A5FA; }
+.lab-sec-badge.amber   { background: rgba(245, 158, 11, .16);  color: #FBBF24; }
+.lab-sec-badge.emerald { background: rgba(16, 185, 129, .16);  color: #34D399; }
+.lab-sec-badge.indigo  { background: rgba(99, 102, 241, .16);  color: #818CF8; }
+
+.lab-sec-title { flex: 1; min-width: 0; font-size: .82rem; font-weight: 600; }
+
+.lab-sec-meta {
+    font-size: .69rem;
+    color: var(--vsr-text-muted);
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.lab-sec-actions { flex: 0 0 auto; }
+
+.lab-improve {
+    display: none;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(139, 92, 246, .14);
+    border: 1px solid rgba(139, 92, 246, .3);
+    color: #A78BFA;
+    font-size: .67rem;
+    font-weight: 600;
+}
+
+.lab-sec-head:hover .lab-improve,
+.lab-sec.open .lab-improve { display: inline-flex; }
+
+.lab-improve.is-busy { opacity: .55; pointer-events: none; }
+
+.lab-sec-caret { color: var(--vsr-text-muted); flex: 0 0 auto; transition: transform .18s; }
+.lab-sec.open .lab-sec-caret { transform: rotate(180deg); }
+
+.lab-sec-body { display: none; padding: 4px 9px 12px; flex-direction: column; gap: 10px; }
+.lab-sec.open .lab-sec-body { display: flex; }
+
+/* Campos */
+
+.lab-ta-wrap { display: flex; flex-direction: column; gap: 3px; }
+
+.lab-ta {
+    width: 100%;
+    height: 300px;
+    padding: 10px;
+    resize: vertical;
+    border: 1px solid var(--vsr-border-input);
+    border-radius: 9px;
+    background: var(--vsr-bg-input);
+    color: var(--vsr-text-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    line-height: 1.6;
+    outline: none;
+}
+
+.lab-ta:focus { border-color: var(--vsr-accent); }
+.lab-ta-pink:focus { border-color: #F472B6; }
+
+.lab-ta-count {
+    align-self: flex-end;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    color: var(--vsr-text-muted);
+}
+
+.lab-field { display: flex; flex-direction: column; gap: 5px; }
+
+.lab-field > span {
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--vsr-text-mid);
+}
+
+.lab-field-row { display: flex; align-items: baseline; justify-content: space-between; }
+.lab-field-row b { font-family: 'JetBrains Mono', monospace; font-size: .74rem; color: var(--vsr-accent-soft); }
+
+.lab-range { width: 100%; accent-color: var(--vsr-accent); }
+
+.lab-effort { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.lab-eff {
+    padding: 4px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 999px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-muted);
+    font-size: .7rem;
+    cursor: pointer;
+}
+
+.lab-eff.on {
+    background: var(--vsr-accent-tint);
+    border-color: var(--vsr-accent);
+    color: var(--vsr-accent-soft);
+    font-weight: 600;
+}
+
+.lab-hint {
+    margin: 0;
+    font-size: .71rem;
+    line-height: 1.5;
+    color: var(--vsr-text-muted);
+}
+
+.lab-hint code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .68rem;
+    color: var(--vsr-accent-soft);
+}
+
+/* Reglas y memoria del panel */
+
+.lab-rules-actions { display: flex; gap: 6px; }
+
+.lab-rules, .lab-mem { display: flex; flex-direction: column; gap: 3px; max-height: 210px; overflow-y: auto; }
+
+.lab-rule {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-muted);
+}
+
+.lab-rule.is-off { opacity: .45; }
+.lab-rule.is-borrowed { border-left: 2px solid var(--vsr-accent-tint); }
+
+.lab-rule-name {
+    flex: 1;
+    min-width: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .71rem;
+    color: var(--vsr-text-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lab-rule-size { font-family: 'JetBrains Mono', monospace; font-size: .66rem; flex: 0 0 auto; }
+
+.lab-mem-add { display: flex; gap: 6px; }
+.lab-mem-add .cs-input { flex: 1; font-size: .76rem; }
+
+.lab-mem-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: var(--vsr-bg-card);
+}
+
+.lab-mem-id { font-family: 'JetBrains Mono', monospace; font-size: .66rem; color: var(--vsr-accent-soft); flex: 0 0 auto; }
+.lab-mem-text { flex: 1; min-width: 0; font-size: .74rem; color: var(--vsr-text-soft); }
+
+.lab-mem-del {
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+.lab-mem-del:hover { color: #F87171; background: rgba(248, 113, 113, .12); }
+
+/* Herramientas */
+
+.lab-tools { display: flex; flex-direction: column; gap: 9px; max-height: 300px; overflow-y: auto; }
+
+.lab-tool-group h5 {
+    margin: 0 0 3px;
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--vsr-text-muted);
+}
+
+.lab-tool {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 7px;
+    border-radius: 7px;
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    font-size: .75rem;
+}
+
+.lab-tool:hover { background: var(--vsr-bg-hover); }
+.lab-tool.is-off { opacity: .45; }
+.lab-tool input { accent-color: var(--vsr-accent); flex: 0 0 auto; }
+.lab-tool span { flex: 1; min-width: 0; color: var(--vsr-text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Chat de pruebas ───────────────────────────────────────────────────── */
+
+.lab-chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--vsr-bg-base);
+}
+
+.lab-chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--vsr-border-soft);
+    flex: 0 0 auto;
+}
+
+.lab-chat-title { display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 700; color: var(--vsr-text); }
+
+.lab-dirty {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--vsr-accent-tint);
+    border: 1px solid var(--vsr-accent);
+    color: var(--vsr-accent-soft);
+    font-size: .66rem;
+    font-weight: 600;
+}
+
+.lab-chat-actions { display: flex; align-items: center; gap: 8px; }
+
+.lab-spend { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--vsr-text-muted); }
+
+/* El cuerpo del chat es .pg-chat-body y las burbujas .ia-msg (las del Visor y el
+   Playground): aqui solo queda lo propio del Lab. */
+
+.lab-empty-meta {
+    display: inline-block;
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--vsr-text-mute2);
+}
+
+/* ── Dividir en archivos de reglas ─────────────────────────────────────── */
+
+.lab-split-card { width: min(880px, 94vw); max-height: 88vh; }
+
+.lab-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--vsr-text);
+}
+
+.lab-modal-title i { color: var(--vsr-accent-soft); }
+
+.lab-split-body { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+.lab-split-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+}
+
+.lab-lvls { display: flex; align-items: center; gap: 5px; font-size: .74rem; color: var(--vsr-text-muted); }
+
+.lab-lvl {
+    padding: 3px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 7px;
+    background: var(--vsr-bg-card);
+    color: var(--vsr-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    cursor: pointer;
+}
+
+.lab-lvl.on { background: var(--vsr-accent-tint); border-color: var(--vsr-accent); color: var(--vsr-accent-soft); font-weight: 600; }
+
+.lab-split-actions { display: flex; align-items: center; gap: 8px; }
+
+.lab-meter { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--vsr-text-muted); }
+
+.lab-split-text {
+    flex: 0 0 auto;
+    height: 190px;
+    min-height: 190px;
+    resize: vertical;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .74rem;
+    line-height: 1.6;
+}
+
+.lab-split-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+
+.lab-split-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border: 1px solid var(--vsr-border-soft);
+    border-radius: 8px;
+    background: var(--vsr-bg-card);
+    cursor: pointer;
+    font-size: .78rem;
+}
+
+.lab-split-item:hover { border-color: var(--vsr-border); }
+.lab-split-item input { accent-color: var(--vsr-accent); flex: 0 0 auto; }
+
+.lab-split-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--vsr-text);
+    flex: 0 0 auto;
+}
+
+.lab-split-title {
+    flex: 1;
+    min-width: 0;
+    color: var(--vsr-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#labSplitMsg.err { color: #F87171; }
+
+/* ── Responsivo ────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .lab-workspace { flex-direction: column; height: auto; overflow-y: auto; }
+    .lab-config { width: 100%; min-width: 0; border-right: 0; border-bottom: 1px solid var(--vsr-border); }
+    .lab-config.railed { width: 100%; min-width: 0; }
+    .lab-rail-toggle { display: none; }
+    .lab-chat { min-height: 70vh; }
+}
+
+/* ── Scrollbars ────────────────────────────────────────────────────────────
+   Finas y del color del tema en todo lo que scrollea del Lab. Sin esto los
+   paneles propios salian con la barra nativa del sistema, mucho mas gruesa que
+   las del Visor y el Playground. */
+
+.lab-config-inner,
+.lab-rules,
+.lab-mem,
+.lab-tools,
+.lab-agent-menu,
+.lab-ta,
+.lab-split-text,
+.lab-split-list,
+.lab-body .pg-chat-body,
+.lab-body .pg-modal-body,
+.lab-body .ia-msg-text,
+.lab-body .ia-msg-text pre,
+.lab-body .ia-msg-text table,
+.lab-body .ia-input-textarea {
+    /* scrollbar-color SE HEREDA y, estando puesta, Chrome ignora los
+       ::-webkit-scrollbar de abajo. Se devuelve a auto para recuperarlos. */
+    scrollbar-color: auto;
+}
+
+.lab-config-inner::-webkit-scrollbar,
+.lab-rules::-webkit-scrollbar,
+.lab-mem::-webkit-scrollbar,
+.lab-tools::-webkit-scrollbar,
+.lab-agent-menu::-webkit-scrollbar,
+.lab-ta::-webkit-scrollbar,
+.lab-split-text::-webkit-scrollbar,
+.lab-split-list::-webkit-scrollbar,
+.lab-body .pg-chat-body::-webkit-scrollbar,
+.lab-body .pg-modal-body::-webkit-scrollbar,
+.lab-body .ia-msg-text::-webkit-scrollbar,
+.lab-body .ia-msg-text pre::-webkit-scrollbar,
+.lab-body .ia-msg-text table::-webkit-scrollbar,
+.lab-body .ia-input-textarea::-webkit-scrollbar { width: 5px; height: 5px; }
+
+.lab-config-inner::-webkit-scrollbar-track,
+.lab-rules::-webkit-scrollbar-track,
+.lab-mem::-webkit-scrollbar-track,
+.lab-tools::-webkit-scrollbar-track,
+.lab-agent-menu::-webkit-scrollbar-track,
+.lab-ta::-webkit-scrollbar-track,
+.lab-split-text::-webkit-scrollbar-track,
+.lab-split-list::-webkit-scrollbar-track,
+.lab-body .pg-chat-body::-webkit-scrollbar-track,
+.lab-body .pg-modal-body::-webkit-scrollbar-track,
+.lab-body .ia-msg-text::-webkit-scrollbar-track,
+.lab-body .ia-msg-text pre::-webkit-scrollbar-track,
+.lab-body .ia-msg-text table::-webkit-scrollbar-track,
+.lab-body .ia-input-textarea::-webkit-scrollbar-track { background: transparent; }
+
+.lab-config-inner::-webkit-scrollbar-thumb,
+.lab-rules::-webkit-scrollbar-thumb,
+.lab-mem::-webkit-scrollbar-thumb,
+.lab-tools::-webkit-scrollbar-thumb,
+.lab-agent-menu::-webkit-scrollbar-thumb,
+.lab-ta::-webkit-scrollbar-thumb,
+.lab-split-text::-webkit-scrollbar-thumb,
+.lab-split-list::-webkit-scrollbar-thumb,
+.lab-body .pg-chat-body::-webkit-scrollbar-thumb,
+.lab-body .pg-modal-body::-webkit-scrollbar-thumb,
+.lab-body .ia-msg-text::-webkit-scrollbar-thumb,
+.lab-body .ia-msg-text pre::-webkit-scrollbar-thumb,
+.lab-body .ia-msg-text table::-webkit-scrollbar-thumb,
+.lab-body .ia-input-textarea::-webkit-scrollbar-thumb {
+    background: var(--vsr-scrollbar);
+    border-radius: 3px;
+}
+
+.lab-config-inner::-webkit-scrollbar-thumb:hover,
+.lab-rules::-webkit-scrollbar-thumb:hover,
+.lab-mem::-webkit-scrollbar-thumb:hover,
+.lab-tools::-webkit-scrollbar-thumb:hover,
+.lab-body .pg-chat-body::-webkit-scrollbar-thumb:hover,
+.lab-body .pg-modal-body::-webkit-scrollbar-thumb:hover { background: var(--vsr-scrollbar-hov); }
+
+/* Firefox no implementa ::-webkit-scrollbar: ahi se usa la propiedad estandar.
+   No pueden ir juntas — declarar scrollbar-width apaga los pseudo-elementos
+   en Chrome 121+ y la barra volvia a su grosor nativo. */
+@supports not selector(::-webkit-scrollbar) {
+    .lab-config-inner,
+    .lab-rules,
+    .lab-mem,
+    .lab-tools,
+    .lab-agent-menu,
+    .lab-ta,
+    .lab-split-text,
+    .lab-split-list,
+    .lab-body .pg-chat-body,
+    .lab-body .pg-modal-body,
+    .lab-body .ia-msg-text,
+    .lab-body .ia-msg-text pre,
+    .lab-body .ia-msg-text table,
+    .lab-body .ia-input-textarea {
+        scrollbar-width: thin;
+        scrollbar-color: var(--vsr-scrollbar) transparent;
+    }
+}

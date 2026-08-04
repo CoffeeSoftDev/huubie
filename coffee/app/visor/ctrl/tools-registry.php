@@ -24,6 +24,8 @@ require_once __DIR__ . '/db-introspect.php';
 require_once __DIR__ . '/web-fetch.php';
 require_once __DIR__ . '/ftp-introspect.php';
 require_once __DIR__ . '/todo-tool.php';
+require_once __DIR__ . '/agent-tools.php';
+require_once __DIR__ . '/agent-brain.php';
 
 if (!defined('TOOLS_DB_PATH'))      define('TOOLS_DB_PATH', __DIR__ . '/../data/tools.sqlite');
 if (!defined('TOOLS_ENV_PATH'))     define('TOOLS_ENV_PATH', __DIR__ . '/../../credentials/.env');
@@ -43,10 +45,17 @@ function tools_surfaces_catalog() {
 }
 
 /**
- * Agentes disponibles (su identidad es el .md de la carpeta agents). Es lo que
- * coffeeia.js y playground.js mandan como `agentKey`; el Visor usa el primero.
+ * Agentes disponibles. Es lo que coffeeia.js y playground.js mandan como `agentKey`;
+ * el Visor usa el primero.
+ *
+ * Salen del registro (data/agents.sqlite, ver agents-registry.php), donde ademas viven
+ * su prompt, sus reglas y su memoria. La lista de abajo es el respaldo para cuando el
+ * registro no responde: son las mismas tres claves con que se sembraba.
  */
 function tools_agents_catalog() {
+    $fromDb = agents_catalog();
+    if (!empty($fromDb)) return $fromDb;
+
     return [
         ['key' => 'CoffeeIA.md',            'label' => 'CoffeeIA',           'description' => 'Framework y modulos'],
         ['key' => 'CoffeeMagic.md',         'label' => 'CoffeeMagic',        'description' => 'Templates y UI'],
@@ -77,8 +86,9 @@ function tools_scope_match($csv, $value) {
 }
 
 // Nombres reservados: son las builtin, no se pueden pisar con una tool HTTP.
+// Las de source 'brain' (memoria y reglas del agente) viven en agent-tools.php.
 function tools_builtin_catalog() {
-    return [
+    return array_merge([
         [
             'name'        => 'list_dir',
             'label'       => 'Listar carpeta',
@@ -143,7 +153,7 @@ function tools_builtin_catalog() {
             'icon'        => 'file-down',
             'source'      => 'ftp',
         ],
-    ];
+    ], brain_tool_catalog());
 }
 
 /** Spec (formato OpenAI) de una builtin, tomada del codigo que la implementa. */
@@ -155,6 +165,7 @@ function tools_builtin_spec($name) {
         foreach (db_tool_specs() as $spec)  $map[$spec['function']['name']] = $spec;
         foreach (ftp_tool_specs() as $spec) $map[$spec['function']['name']] = $spec;
         foreach (todo_tool_specs() as $spec) $map[$spec['function']['name']] = $spec;
+        foreach (brain_tool_specs() as $spec) $map[$spec['function']['name']] = $spec;
         $web = web_tool_spec();
         $map[$web['function']['name']] = $web;
     }
@@ -360,6 +371,10 @@ function tools_for_turn(array $sources, $surface = '', $agent = '') {
         return ['specs' => [], 'names' => []];
     }
 
+    // Las del cerebro solo tienen sentido con un agente identificado y con algo que
+    // aportar: sin reglas ni memorias, declararlas solo gasta contexto.
+    $hasBrain = tools_brain_available($agent);
+
     $specs = [];
     $names = [];
     foreach ($rows as $row) {
@@ -367,6 +382,7 @@ function tools_for_turn(array $sources, $surface = '', $agent = '') {
         if (($source === 'fs' || $source === 'db') && !in_array($source, $sources, true)) continue;
         // Sin servidores en credentials/.env no tiene sentido ofrecerlas.
         if ($source === 'ftp' && !ftp_has_servers()) continue;
+        if ($source === 'brain' && !$hasBrain) continue;
         if (!tools_scope_match($row['surfaces'] ?? '', (string) $surface)) continue;
         if (!tools_scope_match($row['agents']   ?? '', (string) $agent))   continue;
         $spec = tools_spec_of($row);
@@ -378,6 +394,21 @@ function tools_for_turn(array $sources, $surface = '', $agent = '') {
 }
 
 /**
+ * ¿Vale la pena declararle a este agente las herramientas de su cerebro?
+ *
+ * Solo si esta identificado y tiene algo que leer o recordar. El usuario de la sesion
+ * entra aqui porque la memoria es por (agente, usuario): un agente sin reglas puede
+ * seguir teniendo memorias de ESTE usuario y nada mas.
+ */
+function tools_brain_available($agent) {
+    if ((string) $agent === '') return false;
+    static $cache = [];
+    if (isset($cache[$agent])) return $cache[$agent];
+
+    return $cache[$agent] = brain_has_context($agent, agents_user_id());
+}
+
+/**
  * ¿Hay alguna herramienta activa que funcione SIN carpeta ni base conectada?
  * Es lo que decide si un chat sin conexiones entra al loop agentico: las tools
  * propias (http) y las de servidor remoto (ftp) se valen por si mismas.
@@ -385,8 +416,19 @@ function tools_for_turn(array $sources, $surface = '', $agent = '') {
  * `fetch_url` (source web) queda FUERA a proposito: esta activa por defecto y
  * convertiria cualquier conversacion normal en un turno agentico sin streaming.
  * Cuando hace falta, entra por el pre-fetch de URLs del contexto.
+ *
+ * Las de `brain` siguen el MISMO criterio y por eso tampoco entran solas: un agente
+ * con reglas convertiria todos sus chats en turnos sin streaming. Quien lo prefiera lo
+ * enciende por agente con `brain_standalone` (pestana Herramientas de su ficha); si no,
+ * sus reglas se declaran cuando ya hay otro motivo para abrir el loop (carpeta o base
+ * conectada), y mientras tanto el prompt lleva sus reglas criticas completas.
  */
 function tools_has_standalone($surface = '', $agent = '') {
+    if ((string) $agent !== '' && tools_brain_available($agent)) {
+        $row = agents_get_by_key($agent);
+        if ($row && (int) $row['brain_standalone'] === 1) return true;
+    }
+
     try {
         // `todo` entra aqui aunque no dependa de nada externo: sin ella, pedir "anotame
         // esto" en un chat sin carpeta ni base conectada no abria ningun loop de
@@ -413,6 +455,7 @@ function tools_label($name, array $args, array $row = null) {
     if (in_array($name, ['list_dir', 'read_file', 'grep_files'], true)) return fs_tool_label($name, $args);
     if (in_array($name, ['ftp_list', 'ftp_read'], true)) return ftp_tool_label($name, $args);
     if ($name === 'todo_propose') return todo_tool_label($args);
+    if (in_array($name, ['read_rules', 'save_memory', 'forget_memory', 'write_rule'], true)) return brain_tool_label($name, $args);
     $label = $row && $row['label'] !== '' ? $row['label'] : $name;
     return 'ejecutando ' . $label;
 }
@@ -441,6 +484,10 @@ function tools_run($name, array $args, array $ctx = [], array $row = null) {
         } elseif ($name === 'todo_propose') {
             // No devuelve datos al modelo: aparta la propuesta para la interfaz.
             $result = todo_run_tool($name, $args);
+        } elseif (in_array($name, ['read_rules', 'save_memory', 'forget_memory', 'write_rule'], true)) {
+            $payload = brain_run_tool($name, $args, (string) ($ctx['agent'] ?? ''), agents_user_id());
+            $ok      = !isset($payload['error']);
+            $result  = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         } else {
             if ($row === null) $row = tools_get_by_name($name);
             if (!$row || (int) $row['active'] !== 1) {

@@ -23,10 +23,14 @@
                 <span class="vsr-launcher-badge"><i data-lucide="hard-drive"></i></span>
                 <span class="vsr-launcher-name">Drive</span>
             </button>
-            <span class="vsr-launcher-item is-empty" aria-hidden="true">
-                <span class="vsr-launcher-badge"></span>
-                <span class="vsr-launcher-name">&nbsp;</span>
-            </span>
+            <button type="button" class="vsr-launcher-item" data-launch="agents" data-tone="amber" role="menuitem" title="Prompt, reglas y memoria de cada agente">
+                <span class="vsr-launcher-badge"><i data-lucide="bot"></i></span>
+                <span class="vsr-launcher-name">Agentes</span>
+            </button>
+            <button type="button" class="vsr-launcher-item" data-launch="lab" data-tone="emerald" role="menuitem" title="Afina a un agente probándolo en vivo">
+                <span class="vsr-launcher-badge"><i data-lucide="microscope"></i></span>
+                <span class="vsr-launcher-name">Lab</span>
+            </button>
         </div>
     </div>
 </div>

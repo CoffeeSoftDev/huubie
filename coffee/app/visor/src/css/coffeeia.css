@@ -66,22 +66,6 @@
 .cia-logo .cs-brand-mark.cs-brand-lg svg { width: 44px; height: 44px; }
 
 .cia-header-right { display: flex; align-items: center; gap: 9px; margin-left: auto; }
-.cia-header-toggle { display: none; }
-
-.cia-select-wrap {
-    display: flex; align-items: center; gap: 6px;
-    padding: 5px 10px;
-    border: 1px solid var(--vsr-border);
-    border-radius: 8px;
-    background: var(--vsr-bg-input);
-}
-.cia-select-wrap > i { width: 15px; height: 15px; color: var(--vsr-text-mute2); flex-shrink: 0; }
-.cia-select {
-    background: transparent; border: none; outline: none; cursor: pointer;
-    color: var(--vsr-text-soft); font-size: 12px; font-weight: 600;
-    font-family: inherit; padding-right: 2px;
-}
-.cia-select option { background: var(--vsr-bg-card); color: var(--vsr-text-soft); }
 
 /* ── Workspace: rail | sidebar | chat ── */
 .cia-workspace { flex: 1 1 auto; display: flex; min-height: 0; }
@@ -130,7 +114,7 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
 .cia-sidebar-group ul { list-style: none; margin: 0; padding: 0; }
 
 .cia-sidebar-item {
-    position: relative;            /* ancla del botón eliminar (ver abajo) */
+    position: relative;            /* ancla del botón "..." (ver abajo) */
     display: flex; align-items: center; gap: 8px;
     padding: 8px 9px; border-radius: 8px; cursor: pointer;
     color: var(--vsr-text-mid); font-size: 12.5px;
@@ -155,11 +139,11 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     transition: opacity .12s ease;
 }
 
-/* El botón eliminar va FUERA DEL FLUJO (absolute) y solo se desvanece al entrar.
-   Si entrara al flujo en hover (display:none → inline-flex) empujaría al título y
-   este cambiaría de ancho: ese era el salto molesto al pasar el ratón. Así el
-   layout es idéntico con y sin hover; solo cambia la opacidad. */
-.cia-sidebar-item .item-del {
+/* El "..." va FUERA DEL FLUJO (absolute) y solo se desvanece al entrar. Si entrara
+   al flujo en hover (display:none → inline-flex) empujaría al título y este
+   cambiaría de ancho: ese era el salto molesto al pasar el ratón. Así el layout es
+   idéntico con y sin hover; solo cambia la opacidad. */
+.cia-sidebar-item .item-menu {
     position: absolute;
     top: 50%;
     right: 7px;
@@ -179,9 +163,25 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     pointer-events: none;          /* invisible = no clicable */
     transition: opacity .12s ease, color .12s ease, background-color .12s ease;
 }
-.cia-sidebar-item:hover .item-del { opacity: 1; pointer-events: auto; }
-.cia-sidebar-item:hover .item-meta { opacity: 0; }   /* cede su sitio al botón */
-.cia-sidebar-item .item-del:hover { color: var(--vsr-accent); background: var(--vsr-bg-hover); }
+/* Con el menú abierto se queda visible aunque el ratón se haya ido al menú. */
+.cia-sidebar-item:hover .item-menu,
+.cia-sidebar-item .item-menu.is-open { opacity: 1; pointer-events: auto; }
+.cia-sidebar-item:hover .item-meta,
+.cia-sidebar-item.is-menu-open .item-meta { opacity: 0; }   /* cede su sitio al botón */
+.cia-sidebar-item .item-menu:hover,
+.cia-sidebar-item .item-menu.is-open { color: var(--vsr-text-soft); background: var(--vsr-bg-hover); }
+
+/* Menú de la conversación: mismas piezas que el del "+", pero por encima del
+   cajón móvil (z-index 90) y más estrecho, que son tres acciones cortas.
+   La doble clase gana al `min-width` de .cia-menu, que se declara más abajo. */
+.cia-menu.cia-item-menu {
+    position: fixed;
+    z-index: 100;
+    min-width: 194px;
+}
+.cia-item-menu .cia-menu-item.is-danger { color: var(--vsr-accent-soft); }
+.cia-item-menu .cia-menu-item.is-danger > i { color: var(--vsr-accent-soft); }
+.cia-item-menu .cia-menu-item.is-danger:hover { background: var(--vsr-accent-tint); }
 
 .cia-sidebar-empty {
     text-align: center; padding: 34px 16px;
@@ -192,53 +192,6 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
 
 /* ── Panel del chat ── */
 .cia-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-
-/* Conversación abierta + acciones. Vive en el panel IZQUIERDO (no sobre el chat),
-   así que es estrecho: el título envuelve a dos líneas en vez de recortarse. */
-.cia-pane-head {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 11px 12px;
-    border-bottom: 1px solid var(--vsr-border);
-}
-.cia-pane-title {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    min-width: 0;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.3;
-    color: var(--vsr-text-soft);
-}
-.cia-pane-title > i,
-.cia-pane-title > svg {
-    flex-shrink: 0;
-    width: 15px; height: 15px;
-    margin-top: 1px;
-    color: var(--vsr-text-mute2);
-}
-/* Máx. 2 líneas; a partir de ahí, puntos suspensivos. */
-.cia-pane-title span {
-    min-width: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-}
-.cia-pane-actions {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    flex-shrink: 0;
-}
-.cia-pane-actions .cia-iconbtn { width: 25px; height: 25px; }
-.cia-pane-actions .cia-iconbtn i,
-.cia-pane-actions .cia-iconbtn svg { width: 13px; height: 13px; }
 
 .cia-iconbtn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -349,6 +302,8 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     flex-shrink: 1;
     max-width: 210px;
 }
+/* El agente es un nombre corto: no necesita el ancho del modelo. */
+.cia-inputbar .cia-agent-pill { max-width: 150px; }
 
 .cia-context-info { font-size: 10.5px; color: var(--vsr-text-mute2); flex-shrink: 0; }
 .cia-spacer { flex: 1; min-width: 0; }
@@ -457,6 +412,9 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     display: none !important;
 }
 .cia-menu-item.is-on .cia-menu-check { display: block !important; }
+
+/* El agente solo entra al menú cuando su pastilla no cabe en la barra (móvil). */
+.cia-menu-agent { display: none; }
 
 /* ── Submenú (Gráficas) ── */
 .cia-submenu {
@@ -575,15 +533,9 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
    · Móvil      → VENTANA FLOTANTE sobre el chat (ver el @media de abajo).
    El JS solo abre/cierra: no sabe en cuál de las dos está.                */
 
-/* Botón "Visor" en la barra de la miniatura (el resto lo estiliza .ia-render-btn). */
+/* Botón "Visor" en la barra de la miniatura: la única puerta de entrada al panel
+   (el resto lo estiliza .ia-render-btn). Se sale por la ✕ de su propia cabecera. */
 .cia-render-side.ia-render-btn { color: var(--vsr-accent-soft); }
-
-/* Botón del header: solo aparece cuando la conversación tiene algún template. */
-#ciaViewerBtn.is-active {
-    background: var(--vsr-accent-tint);
-    border-color: var(--vsr-divider);
-    color: var(--vsr-accent-soft);
-}
 
 /* ── El panel ── */
 .cia-viewer {
@@ -730,23 +682,11 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
 @media (max-width: 900px) {
     .cia-header { padding: 9px 12px; gap: 10px; }
 
-    /* Ajustes del header (agente/nueva/tema) pasan a un desplegable. */
-    .cia-header-toggle {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 32px; height: 32px; margin-left: auto; border-radius: 8px; cursor: pointer;
-        background: var(--vsr-bg-input); border: 1px solid var(--vsr-border);
-        color: var(--vsr-text-soft);
-    }
-    .cia-header-right {
-        display: none; position: absolute; top: 54px; right: 12px; z-index: 95;
-        flex-direction: column; align-items: stretch; gap: 8px;
-        padding: 10px; min-width: 210px;
-        background: var(--vsr-bg-card);
-        border: 1px solid var(--vsr-border);
-        border-radius: 10px;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, .4);
-    }
-    .cia-header-right.is-open { display: flex; }
+    /* El agente cambia de sitio, no de existencia: sale de la barra del composer
+       (donde ya no cabe junto al modelo) y entra al menú del "+". */
+    .cia-inputbar .cia-agent-pill { display: none; }
+    .cia-menu-agent { display: flex; }
+    .cia-menu-sep.cia-menu-agent { display: block; }
 
     /* ── El panel de conversaciones se vuelve un CAJÓN ── */
     .cia-sidebar {
@@ -778,8 +718,12 @@ body.cia-sidebar-resizing { cursor: col-resize; user-select: none; }
     /* El chat ocupa todo: el cajón se superpone, no le roba ancho. */
     .cia-main { width: 100%; }
     .cia-body { padding: 16px 12px 8px; }
-    .cia-pane-head { padding: 9px 12px; }
     .cia-composer { padding: 10px 12px; }
+
+    /* En táctil no hay hover: el "..." tiene que estar siempre visible o no habría
+       forma de abrir el menú. Se le reserva sitio para que no tape la hora. */
+    .cia-sidebar-item { padding-right: 34px; }
+    .cia-sidebar-item .item-menu { opacity: 1; pointer-events: auto; }
 
     /* ── El visor deja de ser panel: aquí es una VENTANA FLOTANTE ──
        Un panel lateral en un móvil dejaría el chat en una rendija inservible, así
