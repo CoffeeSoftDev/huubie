@@ -457,7 +457,7 @@
 
 /* Tablas markdown: tarjeta redondeada con scroll horizontal si es ancha,
    header en versalitas, separadores finos, zebra y hover — sin cuadrícula. */
-.chat-msg.assistant .chat-msg-text table {
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) {
     display: block;
     overflow-x: auto;
     width: max-content;
@@ -470,14 +470,14 @@
     border-radius: 10px;
     background: var(--vsr-bg-card);
 }
-.chat-msg.assistant .chat-msg-text th,
-.chat-msg.assistant .chat-msg-text td {
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) th,
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) td {
     padding: 8px 12px;
     text-align: left;
     border: none;
     border-bottom: 1px solid var(--vsr-border-soft);
 }
-.chat-msg.assistant .chat-msg-text th {
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) th {
     background: var(--vsr-bg-chrome);
     color: var(--vsr-text-muted);
     font-weight: 600;
@@ -487,18 +487,18 @@
     white-space: nowrap;
     border-bottom: 1px solid var(--vsr-border);
 }
-.chat-msg.assistant .chat-msg-text td { color: var(--vsr-text-soft); }
-.chat-msg.assistant .chat-msg-text tbody tr:nth-child(even) td {
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) td { color: var(--vsr-text-soft); }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) tbody tr:nth-child(even) td {
     background: color-mix(in srgb, var(--vsr-bg-chrome) 45%, transparent);
 }
-.chat-msg.assistant .chat-msg-text tbody tr:hover td {
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) tbody tr:hover td {
     background: var(--vsr-accent-tint);
 }
-.chat-msg.assistant .chat-msg-text tbody tr:last-child td { border-bottom: none; }
-.chat-msg.assistant .chat-msg-text thead th:first-child { border-top-left-radius: 9px; }
-.chat-msg.assistant .chat-msg-text thead th:last-child  { border-top-right-radius: 9px; }
-.chat-msg.assistant .chat-msg-text tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
-.chat-msg.assistant .chat-msg-text tbody tr:last-child td:last-child  { border-bottom-right-radius: 9px; }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) tbody tr:last-child td { border-bottom: none; }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) thead th:first-child { border-top-left-radius: 9px; }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) thead th:last-child  { border-top-right-radius: 9px; }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) tbody tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+.chat-msg.assistant .chat-msg-text table:not(.ia-xls) tbody tr:last-child td:last-child  { border-bottom-right-radius: 9px; }
 
 .chat-msg.assistant .chat-msg-text hr {
     border: none;

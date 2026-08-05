@@ -839,18 +839,18 @@ html[data-theme="light"] .note i { color: var(--accent); }
             </div>
 
             <div class="card" style="padding:14px 16px">
-                <h2 style="margin-bottom:6px">Qué se toca</h2>
+                <h2 style="margin-bottom:6px">Qué se tocó <span style="font-size:11px;font-weight:500;color:var(--green)">· implementado</span></h2>
                 <ol class="steps">
                     <li><b>La regla del agente</b>
-                        <p>Se agrega una sección a <code>historias-de-usuario.md</code>: "formato de salida <code>```stories</code>", con el esquema y un ejemplo. Se recarga con <code>load-coffee-planner.php --force</code>.</p></li>
+                        <p>Sección §8 en <code>historias-de-usuario.md</code> con el esquema del bloque y el vocabulario cerrado de <code>tipo</code>, más el punto 9 del checklist. Recargada con <code>load-coffee-planner.php --force</code>.</p></li>
                     <li><b>El renderer</b>
-                        <p>Una función <code>renderStories($pre, raw)</code> en <code>ia-render.js</code>, junto a <code>renderMermaid</code> / <code>renderChart</code>, y una línea en <code>postProcess()</code>.</p></li>
+                        <p><code>renderStories()</code> en <code>ia-render.js</code>, junto a <code>renderMermaid</code> / <code>renderChart</code>, con parser propio de YAML (subconjunto) y de JSON. Si el bloque no cumple, se queda como código: nunca rompe el mensaje.</p></li>
                     <li><b>El CSS</b>
-                        <p>Clases <code>.ia-stories-*</code> en <code>visor.css</code>, con las variables <code>--vsr-*</code> ya existentes: funciona en dark y en claro sin trabajo extra.</p></li>
+                        <p>Clases <code>.ia-stories-*</code> en <code>visor.css</code> sobre las variables <code>--vsr-*</code>: dark y claro sin trabajo extra. Las reglas de tablas markdown de <code>chat.css</code> / <code>visor.css</code> se acotaron con <code>:not(.ia-xls)</code> para que no se cuelen.</p></li>
                     <li><b>Las salidas</b>
-                        <p>Copiar tabla markdown (las 8 columnas, para pegar en el Excel), exportar <code>.csv</code>/<code>.xlsx</code> y abrir en pestaña completa reusando <code>openDiagramInTab()</code>.</p></li>
-                    <li><b>Gratis en todas partes</b>
-                        <p>Visor, Chat con agentes, Playground, Forge y Studio usan el mismo <code>ia-render.js</code>: se implementa una vez.</p></li>
+                        <p>Copiar la tabla markdown de 8 columnas, exportar <code>.xlsx</code> con SheetJS (una hoja por sprint, CSV si no está cargado) y expandir a pantalla completa.</p></li>
+                    <li><b>Dónde funciona</b>
+                        <p>Chat con Agentes, drawer CoffeeIA y Lab — las tres páginas que cargan <code>ia-render.js</code>. Se implementó una sola vez.</p></li>
                 </ol>
             </div>
         </div>
@@ -858,10 +858,11 @@ html[data-theme="light"] .note i { color: var(--accent); }
 
     <section class="sec">
         <div class="note" style="align-items:center">
-            <i data-lucide="git-branch" style="width:16px;height:16px"></i>
-            <div><b>Recomendación:</b> arrancar con la <b>variante A (fichas)</b> como render por defecto en el chat,
-            con el botón <b>Tabla</b> del encabezado para saltar a la variante C. El tablero por sprint (B) queda para
-            la pestaña completa, cuando ya haya planeaciones de varios sprints que revisar.</div>
+            <i data-lucide="check-circle-2" style="width:16px;height:16px"></i>
+            <div><b>Estado:</b> implementadas las variantes <b>A (fichas, por defecto)</b> y <b>C (tabla)</b>, con
+            el botón del encabezado para alternar, más expandir a pantalla completa, copiar tabla markdown y exportar
+            a Excel. El tablero por sprint (B) queda pendiente: se agrega cuando haya planeaciones de varios sprints
+            que revisar. Para probar el render sin gastar tokens: <span class="mono">coffee/app/visor/_test-stories.html</span>.</div>
         </div>
     </section>
 

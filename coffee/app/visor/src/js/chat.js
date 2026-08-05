@@ -1154,6 +1154,7 @@ async function chatSubmit() {
             finalText = IARender.normalizeCanvasHtml(finalText, chat.canvasMode);
             finalText = IARender.normalizeDrawioXml(finalText);
             finalText = IARender.normalizeExcalidrawJson(finalText);
+            finalText = IARender.normalizeStoriesYaml(finalText);
         }
         chat.history.push({ role: 'assistant', content: finalText, ts: Date.now(), meta: meta });
     }

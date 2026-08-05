@@ -1552,6 +1552,7 @@ function ciaCreateAIStream() {
                 out = IARender.normalizeCanvasHtml(out, CIA.canvasMode);
                 out = IARender.normalizeDrawioXml(out);
                 out = IARender.normalizeExcalidrawJson(out);
+                out = IARender.normalizeStoriesYaml(out);
             }
             $text.html(IARender.markdownToHtml(out));
             IARender.postProcess($text);

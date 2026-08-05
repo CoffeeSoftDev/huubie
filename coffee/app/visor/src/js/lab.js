@@ -74,7 +74,11 @@
     }
 
     function md(text) {
-        if (window.IARender) return IARender.markdownToHtml(String(text || ''));
+        if (window.IARender) {
+            // Historias de usuario sin cercar: se envuelven para que postProcess
+            // las convierta en la tarjeta en vez de dejarlas como YAML crudo.
+            return IARender.markdownToHtml(IARender.normalizeStoriesYaml(String(text || '')));
+        }
         return '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>';
     }
 

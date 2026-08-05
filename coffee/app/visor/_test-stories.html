@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>Test — render de historias (```stories)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/css/ui-kit.css">
+<script>document.write('<link rel="stylesheet" href="src/css/visor.css?t=' + Date.now() + '">');</script>
+<script>document.write('<link rel="stylesheet" href="src/css/chat.css?t=' + Date.now() + '">');</script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+    body { background: var(--vsr-bg-base); color: var(--vsr-text); font-family: 'Inter', sans-serif; padding: 24px; }
+    .cols { display: flex; gap: 24px; align-items: flex-start; }
+    .drawer { width: 440px; flex-shrink: 0; }
+    .wide { flex: 1; min-width: 0; }
+    h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--vsr-text-mute2); margin-bottom: 8px; }
+    .ia-msg-text { border-left: 2px solid var(--vsr-accent-tint); padding-left: 10px; }
+    .tbtn { position: fixed; top: 12px; right: 14px; z-index: 99; background: var(--vsr-bg-card); color: var(--vsr-text-mid);
+            border: 1px solid var(--vsr-border); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<button class="tbtn" onclick="const h=document.documentElement;h.setAttribute('data-theme',h.getAttribute('data-theme')==='dark'?'light':'dark');">Tema</button>
+
+<div class="cols">
+    <div class="drawer">
+        <h3>Ancho del drawer (440 px)</h3>
+        <div class="ia-msg-text" id="msgA"></div>
+    </div>
+    <div class="wide">
+        <h3>Chat con Agentes (chat.css activo)</h3>
+        <div class="chat-msg assistant"><div class="chat-msg-text" id="msgB"></div></div>
+    </div>
+</div>
+
+<script>document.write('<script src="src/js/ia-render.js?t=' + Date.now() + '"><\/script>');</script>
+<script>
+const RESPUESTA = `Historias del módulo **Admin de documentos**, Sprint 1:
+
+\`\`\`stories
+proyecto: Admin de documentos
+sprint: "1.0"
+fecha: "4 ago - 17 ago"
+historias:
+  - banner: Admin de documentos
+  - usuario: ADMIN
+    apartado: EXPLORADOR DE PROYECTOS
+    quiero: Visualizar los documentos de un proyecto en un árbol de carpetas, pudiendo buscar por nombre de proyecto y por nombre de documento.
+    beneficio: Para localizar rápido el documento que se necesita sin recorrer el disco del servidor.
+    criterios:
+      intro: El apartado debe contener los siguientes elementos
+      bloques:
+        - tipo: filterBar
+          items:
+            - Buscador de proyecto ( placeholder "Buscar proyecto..." )
+            - Buscador de documento por nombre
+            - Botón de nueva carpeta
+            - Botón de subir archivo ( primary )
+        - tipo: cards
+          titulo: Árbol de carpetas del proyecto
+          items:
+            - Nombre de carpeta con contador de documentos
+            - Al seleccionar una carpeta se listan sus documentos
+        - tipo: tabla
+          titulo: Listado de documentos
+          items:
+            - Nombre del documento
+            - Extensión ( badge )
+            - Tamaño
+            - Última modificación
+            - item: Botones de acción
+              sub: [ ver, renombrar, eliminar ]
+      reglas:
+        - nivel: nota
+          texto: Mientras no se elija proyecto se muestra el estado vacío "Selecciona un proyecto"
+        - nivel: nota
+          texto: Solo se listan las rutas dentro de la raíz configurada del proyecto
+    points: ""
+  - usuario: ADMIN
+    apartado: EDITOR DE DOCUMENTO
+    quiero: Abrir un documento markdown, editarlo y guardarlo sin salir del visor.
+    beneficio: Para corregir la documentación en el momento en que se detecta el error.
+    criterios:
+      intro: Al precionar el botón de ver se abre el documento con lo siguiente
+      bloques:
+        - tipo: header
+          items:
+            - Ruta del documento
+            - Fecha de última modificación
+            - Tabs [ Vista, Código ]
+        - tipo: modal
+          titulo: Body
+          items:
+            - "Vista: el markdown renderizado"
+            - "Código: el texto plano editable"
+        - tipo: footer
+          items:
+            - Botón cancelar
+            - Botón guardar
+      reglas:
+        - nivel: nota
+          texto: El botón de guardar solo se habilita si hubo cambios
+        - nivel: importante
+          texto: "Guardar sobreescribe el archivo en disco: se pide confirmación cuando el documento cambió desde que se abrió"
+  - usuario: DEVELOPER
+    apartado: BASE DE DATOS
+    quiero: Realizar un diagrama Entidad-Relación de los documentos y sus permisos.
+    beneficio: Para visualizar las dependencias entre tablas antes de construir la pantalla.
+    criterios:
+      bloques:
+        - tipo: nota
+          titulo: Entregable
+          items:
+            - Crear diagrama en excalidraw
+            - Seguir la nomenclatura de colores y diseños
+    sprint: "2.0"
+    fecha: "18 ago - 31 ago"
+\`\`\`
+
+Supuestos: el módulo tiene un solo perfil operativo (ADMIN).`;
+
+['msgA', 'msgB'].forEach(function (id) {
+    const $m = $('#' + id);
+    $m.html(IARender.markdownToHtml(RESPUESTA));
+    IARender.postProcess($m);
+});
+lucide.createIcons();
+</script>
+</body>
+</html>
