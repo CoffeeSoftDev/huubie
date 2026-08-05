@@ -763,11 +763,11 @@
                 <div id="uploadSheetDrop" class="upload-drop" tabindex="0" role="button" aria-label="Elegir archivo">
                     <i data-lucide="upload-cloud" class="upload-drop-icon"></i>
                     <p class="upload-drop-text">Arrastra el archivo aqu&iacute; o <strong>haz clic para elegirlo</strong></p>
-                    <span class="upload-drop-hint">Markdown &middot; Excel &middot; CSV &middot; PNG &middot; JPG &middot; SVG &middot; PDF &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
+                    <span class="upload-drop-hint">Markdown &middot; Word &middot; Excel &middot; CSV &middot; PNG &middot; JPG &middot; SVG &middot; PDF &nbsp;&mdash;&nbsp; m&aacute;ximo 25 MB</span>
                 </div>
-                <input id="uploadSheetInput" type="file" class="hidden" accept=".md,.markdown,.txt,.json,.yml,.yaml,.toml,.xml,.html,.htm,.css,.scss,.js,.ts,.sql,.ini,.conf,.log,.env,.sh,.py,.rb,.go,.rs,.java,.c,.cpp,.cs,.drawio,.excalidraw,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.pdf">
+                <input id="uploadSheetInput" type="file" class="hidden" accept=".md,.markdown,.txt,.json,.yml,.yaml,.toml,.xml,.html,.htm,.css,.scss,.js,.ts,.sql,.ini,.conf,.log,.env,.sh,.py,.rb,.go,.rs,.java,.c,.cpp,.cs,.drawio,.excalidraw,.docx,.doc,.xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.pdf">
                 <div id="uploadSheetPicked" class="upload-picked hidden"></div>
-                <span class="new-file-hint">Se guarda tal cual y se abre en el visor: las hojas con todas sus pesta&ntilde;as, las im&aacute;genes y los PDF en su propio visor. Desde el visor puedes anclarlo al chat de CoffeeIA.</span>
+                <span class="new-file-hint">Se guarda tal cual y se abre en el visor: las hojas con todas sus pesta&ntilde;as, los .docx como documento, las im&aacute;genes y los PDF en su propio visor. Desde el visor puedes anclarlo al chat de CoffeeIA.</span>
             </div>
             <footer class="folder-browse-footer">
                 <span class="folder-browse-selected">Se guardar&aacute; dentro del sandbox del visor.</span>

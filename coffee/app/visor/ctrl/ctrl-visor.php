@@ -47,6 +47,17 @@ function coffee_visor_media_exts() {
     return array_merge(coffee_visor_image_exts(), coffee_visor_pdf_exts());
 }
 
+// Documentos de Word. El .docx (2007+) es un ZIP de XML y el frontend lo pinta
+// con mammoth.js; el .doc (97-2003) es binario OLE2 y NO hay forma de leerlo en
+// el navegador: se sube y se descarga, pero el visor lo muestra como archivo sin
+// vista previa. Por eso las dos listas estan separadas.
+function coffee_visor_word_view_exts() {
+    return ['docx'];
+}
+function coffee_visor_word_exts() {
+    return array_merge(coffee_visor_word_view_exts(), ['doc']);
+}
+
 // Documentos de texto que se pueden SUBIR (arrastrandolos al explorador). Es la
 // lista editable del visor menos todo lo ejecutable: documents/ cuelga del
 // docroot de Apache, asi que un .php subido se serviria como codigo. Crear un
@@ -60,11 +71,12 @@ function coffee_visor_text_upload_exts() {
     ];
 }
 
-// Todo lo que acepta ?action=upload: hojas + medios + texto.
+// Todo lo que acepta ?action=upload: hojas + medios + Word + texto.
 function coffee_visor_upload_exts() {
     return array_merge(
         coffee_visor_sheet_exts(),
         coffee_visor_media_exts(),
+        coffee_visor_word_exts(),
         coffee_visor_text_upload_exts()
     );
 }
@@ -110,9 +122,12 @@ function coffee_visor_media_mime($fileName) {
 }
 
 // Archivo cuyo contenido NO cabe (o no tiene sentido) en el JSON del arbol:
-// hoja binaria o medio. Todos se leen despues por 'readbin'.
+// hoja binaria, medio o documento de Word. Todos se leen despues por 'readbin'.
 function coffee_visor_is_lazy_binary($fileName) {
-    return coffee_visor_is_binary_sheet($fileName) || coffee_visor_media_kind($fileName) !== '';
+    $ext = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+    return coffee_visor_is_binary_sheet($fileName)
+        || coffee_visor_media_kind($fileName) !== ''
+        || in_array($ext, coffee_visor_word_exts(), true);
 }
 
 // Endpoint lazy-read para archivos de Drive (no devuelve JSON, devuelve el contenido raw)
@@ -373,7 +388,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ], coffee_visor_sheet_exts(), coffee_visor_media_exts());
+    ], coffee_visor_sheet_exts(), coffee_visor_media_exts(), coffee_visor_word_exts());
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
         echo json_encode(['success' => false, 'message' => "Extension no eliminable: .$ext"]);
@@ -444,7 +459,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ], coffee_visor_sheet_exts(), coffee_visor_media_exts());
+    ], coffee_visor_sheet_exts(), coffee_visor_media_exts(), coffee_visor_word_exts());
     $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts, true)) {
         echo json_encode(['success' => false, 'message' => "Extension no movible: .$ext"]);
@@ -713,7 +728,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         'md','markdown','txt','json','yml','yaml','toml','xml','csv','tsv',
         'html','htm','css','scss','js','ts','php','py','rb','go','rs',
         'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'
-    ], coffee_visor_sheet_exts(), coffee_visor_media_exts());
+    ], coffee_visor_sheet_exts(), coffee_visor_media_exts(), coffee_visor_word_exts());
     $origExt = strtolower(pathinfo($fileReal, PATHINFO_EXTENSION));
     $newExt  = strtolower(pathinfo($newName, PATHINFO_EXTENSION));
     if ($newExt === '' && $origExt !== '') {
@@ -985,6 +1000,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     // fiable (.xls BIFF, csv/tsv, .ico, .bmp) se dejan pasar.
     $sigs = [
         'xlsx' => ['PK'],       'xlsm' => ['PK'],        'xlsb' => ['PK'], 'ods' => ['PK'],
+        // .docx es un ZIP de XML; .doc es un contenedor OLE2 (misma firma que los
+        // .xls viejos, que se dejan pasar por no tener una fiable).
+        'docx' => ['PK'],       'doc'  => ["\xD0\xCF\x11\xE0"],
         'png'  => ["\x89PNG"],  'jpg'  => ["\xFF\xD8\xFF"], 'jpeg' => ["\xFF\xD8\xFF"],
         'gif'  => ['GIF87a', 'GIF89a'],
         'pdf'  => ['%PDF-'],
@@ -1372,7 +1390,8 @@ if (($_GET['action'] ?? '') === 'readbin') {
 
     $ext       = strtolower(pathinfo($target, PATHINFO_EXTENSION));
     $mediaKind = coffee_visor_media_kind($target);
-    if ($mediaKind === '' && !in_array($ext, coffee_visor_sheet_exts(), true)) {
+    $isWord    = in_array($ext, coffee_visor_word_exts(), true);
+    if ($mediaKind === '' && !$isWord && !in_array($ext, coffee_visor_sheet_exts(), true)) {
         $fail("Extensión no soportada: .$ext", 400);
     }
 
@@ -1385,6 +1404,14 @@ if (($_GET['action'] ?? '') === 'readbin') {
         header('X-Content-Type-Options: nosniff');
         header('X-Visor-Format: ' . $mediaKind);
         if ($ext === 'svg') header("Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'");
+    } elseif ($isWord) {
+        // Los bytes los consume mammoth.js (fetch -> arrayBuffer), que ignora el
+        // Content-Disposition; el attachment es para el boton "Descargar", que
+        // apunta a esta misma URL y necesita conservar el nombre del archivo.
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($target) . '"');
+        header('X-Content-Type-Options: nosniff');
+        header('X-Visor-Format: word');
     } else {
         header('Content-Type: application/octet-stream');
         header('X-Visor-Format: spreadsheet-binary');
@@ -2037,7 +2064,8 @@ if ($mode === 'drive') {
              'html','htm','css','scss','js','ts','php','py','rb','go','rs',
              'java','c','cpp','cs','sh','sql','ini','conf','log','env','drawio','excalidraw'],
             coffee_visor_sheet_exts(),
-            coffee_visor_media_exts()
+            coffee_visor_media_exts(),
+            coffee_visor_word_exts()
           )
         : ['md','drawio','excalidraw'];
 

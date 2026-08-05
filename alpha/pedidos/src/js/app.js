@@ -1680,7 +1680,7 @@ class App extends Templates {
         const methodPayOptionsHtml = metodosPago.map((m, i) => `
             <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
                 data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
-                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
                     ${window.lucideIcon(m.icon, 'w-4 h-4')}
                 </div>
                 <div class="flex flex-col leading-tight flex-1 min-w-0">
@@ -1694,7 +1694,7 @@ class App extends Templates {
             <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
             <div class="js-dd relative">
                 <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
-                    <div class="js-dd-trigger-icon flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                    <div class="js-dd-trigger-icon flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
                         ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
                     </div>
                     <div class="flex flex-col leading-tight flex-1 min-w-0">
@@ -1730,20 +1730,20 @@ class App extends Templates {
                 {
                     opc: "div",
                     id: "Amount",
-                    class: "col-12",
+                    class: "col-12 mb-2",
                     html: `
-                    <div id="dueAmount" class="p-4 rounded-xl ${isPaidInFull ? 'bg-green-900/30 border border-green-500' : 'bg-[#1E293B]'} text-white text-center">
-                        <p class="text-sm opacity-80">${isPaidInFull ? 'Pedido pagado completamente' : 'Monto restante a pagar'}</p>
-                        <p id="SaldoEvent" class="text-2xl font-bold mt-1">
+                    <div id="dueAmount" class="p-2.5 rounded-xl ${isPaidInFull ? 'bg-green-900/30' : 'bg-[#1E293B]'} text-white text-center">
+                        <p class="text-[13px] opacity-80">${isPaidInFull ? 'Pedido pagado completamente' : 'Monto restante a pagar'}</p>
+                        <p id="SaldoEvent" class="text-lg font-bold leading-tight">
                             ${formatPrice(saldoRestante)}
                         </p>
                         ${discount > 0 ? `
-                            <div class="mt-2 pt-2 border-t border-gray-600">
-                                <p class="text-xs text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
-                                <p class="text-xs text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
+                            <div class="mt-1.5 pt-1.5 border-t border-gray-600">
+                                <p class="text-[11px] text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
+                                <p class="text-[11px] text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
                             </div>
                         ` : ''}
-                        ${isPaidInFull ? lucideIcon('circle-check', 'w-7 h-7 text-green-400 mt-2 inline-block') : ''}
+                        ${isPaidInFull ? lucideIcon('circle-check', 'w-5 h-5 text-green-400 mt-0.5 inline-block') : ''}
                     </div>`
                 },
                 {
@@ -1759,7 +1759,7 @@ class App extends Templates {
                     lbl: "Origen del pedido",
                     class: "col-12 mb-2",
                     html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
-                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                        <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
                             ${lucideIcon('house', 'w-4 h-4')}
                         </div>
                         <div class="flex flex-col leading-tight min-w-0">
@@ -1775,7 +1775,7 @@ class App extends Templates {
                     class: "col-12 mb-3",
                     html: `<div class="relative">
                         <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
-                            <div id="cobroCardIcon" class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
+                            <div id="cobroCardIcon" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
                                 ${lucideIcon('landmark', 'w-4 h-4')}
                             </div>
                             <div class="flex flex-col leading-tight flex-1 min-w-0">
@@ -2003,11 +2003,18 @@ class App extends Templates {
             .toggleClass('text-amber-400', !same);
     }
 
-    deletePay(id, idFolio) {
+    deletePay(id, idFolio, requiereClave = 0) {
         const row = event.target.closest("tr");
         const raw = row.cells[2].textContent;
         const clean = raw.replace(/[^\d.-]/g, "");
         const amount = parseFloat(clean);
+
+        // Pedido liquidado: el controlador exige la contraseña del usuario en
+        // sesión, así que se confirma con ella en vez del sí/no de siempre.
+        if (requiereClave == 1) {
+            this.deletePayWithKey(id, idFolio, amount);
+            return;
+        }
 
         this.swalQuestion({
             opts: {
@@ -2018,37 +2025,79 @@ class App extends Templates {
             data: { opc: "deletePay", id: idFolio, amount: amount, idPay: id },
             methods: {
                 success: (res) => {
-                    const data = res.initHistoryPay;
-
                     if (res.status === 200) {
-                        // Actualizar resumen y lista de pagos
-                        this.renderResumenPagos(data.details);
-                        this.lsPay(idFolio);
-                        this.ls();
-
-                        // Actualizar el formulario con el nuevo saldo
-                        const order = data.order;
-                        const discount = order.discount ?? 0;
-                        const restante = order.total_pay - discount - order.total_paid;
-
-                        // Actualizar totales
-                        this.totalPay = order.total_pay;
-                        this.totalPaid = order.total_paid;
-
-                        // Recargar el formulario para reflejar el nuevo estado
-                        this.addPayment(order, idFolio);
-
-                        // Mostrar mensaje de éxito
-                        alert({
-                            icon: "success",
-                            text: "Pago eliminado correctamente. Saldo actualizado.",
-                            timer: 2000
-                        });
+                        this.afterDeletePay(res, idFolio);
                     } else {
                         alert({ icon: "error", text: res.message });
                     }
                 }
             }
+        });
+    }
+
+    // Borrado autorizado: el saldo del pedido ya es cero, por lo que eliminar un
+    // abono reabre un pedido cerrado. Este modal solo recolecta la contraseña;
+    // quien la valida es deletePay() del controlador.
+    deletePayWithKey(id, idFolio, amount) {
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'lock',
+            title:       'Pedido liquidado',
+            detailHtml:  `Ingresa tu contraseña para eliminar el pago de <b class="text-gray-200">${formatPrice(amount)}</b>.`,
+            input:       'password',
+            inputLabel:  'Contraseña',
+            inputPlaceholder: '••••••••',
+            inputRequired: true,
+            inputError:  'Ingresa tu contraseña',
+            okLabel:     'Eliminar pago',
+            okBg:        'bg-[#E02424] hover:bg-[#C81E1E]',
+            cancelLabel: 'Cancelar',
+            onOk: async (password) => {
+                const res = await useFetch({
+                    url: this._link,
+                    data: { opc: 'deletePay', id: idFolio, amount: amount, idPay: id, password: password }
+                });
+
+                if (res.status !== 200) {
+                    // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
+                    // porque alertBox ya se cerro al confirmar.
+                    this.alertBox({
+                        theme:      'dark',
+                        type:       'error',
+                        title:      'No se eliminó el pago',
+                        detailHtml: res.message || 'Contraseña incorrecta.',
+                        okLabel:    'Reintentar',
+                        onOk:       () => this.deletePayWithKey(id, idFolio, amount)
+                    });
+                    return;
+                }
+
+                this.afterDeletePay(res, idFolio);
+            }
+        });
+    }
+
+    // Refresco comun tras eliminar un pago (con o sin contraseña): resumen, lista,
+    // tabla de pedidos y formulario de cobro con el saldo nuevo.
+    afterDeletePay(res, idFolio) {
+        const data = res.initHistoryPay;
+
+        this.renderResumenPagos(data.details);
+        this.lsPay(idFolio);
+        this.ls();
+
+        const order = data.order;
+        this.totalPay = order.total_pay;
+        this.totalPaid = order.total_paid;
+
+        // Recargar el formulario para reflejar el nuevo estado
+        this.addPayment(order, idFolio);
+
+        alert({
+            icon: "success",
+            text: res.message || "Pago eliminado correctamente. Saldo actualizado.",
+            timer: 2000
         });
     }
 

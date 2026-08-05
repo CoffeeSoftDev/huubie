@@ -376,6 +376,26 @@ class MPedidos extends CRUD {
         return $this->_Read($query,$array);
     }
 
+    // Clave (MD5) del usuario en sesion, para revalidar operaciones sensibles
+    // pidiendo la contrasena (borrar un abono de un pedido ya liquidado).
+    // Los usuarios viven en fayxzvov_alpha, no en la BD operativa ($this->bd).
+    function getUserKeyById($array) {
+        $query = "
+            SELECT
+                usr_users.id,
+                usr_users.key
+            FROM
+                fayxzvov_alpha.usr_users
+            WHERE
+                usr_users.enabled = 1
+                AND usr_users.id = ?
+            LIMIT 1
+        ";
+        $success = $this->_Read($query, $array);
+
+        return (isset($success) && count($success) > 0) ? $success[0] : null;
+    }
+
     // Un solo pago por id (monto, metodo, fecha, sucursal, pedido) — para editar/validar.
     // Nombre distinto a getPaymentByID (existente, de eventos): PHP no distingue mayus/minus.
     function getOrderPaymentById($array) {

@@ -30,11 +30,17 @@
     <!-- ModuleCard renderiza aqui su propio wrapper (saludo + buscador + grid),
          por eso ya no existe el #grid-card ni el layout flex de antes. -->
     <div id="mainContainer"
-        class="w-full h-[calc(100vh-3rem)] bg-[#111928] mt-5 pt-5 transition-all duration-500 text-white p-6"></div>
+        class="w-full h-[calc(100vh-4rem)] bg-[#111928] mt-16 transition-all duration-500 text-white p-6"></div>
     <script src="<?= PATH_BASE ?>access/src/js/session.js?t=<?= time(); ?>"></script>
-    <!-- Hub de menus: la navbar no debe mostrar el selector de sucursal -->
+    <!--
+        Misma navbar que el visor de cierre (/alpha/order-visor/): mide 64px, de ahi
+        el mt-16 del mainContainer. Ella misma corrige el offset del sidebar
+        compartido, que viene calculado para la navbar vieja de 48px.
+        Hub de menus: la navbar no debe mostrar el selector de sucursal; lo respeta
+        via `showSubsidiary: !window.HIDE_SUBSIDIARY_SWITCH`, por eso el flag va antes.
+    -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
+    <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?= time() ?>"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
 
     <!-- Coffee Component (mismo patron que app/menus) -->

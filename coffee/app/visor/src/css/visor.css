@@ -2069,6 +2069,30 @@ body.media-view .md-rendered.is-media { flex: 1 1 auto; min-height: 0; display: 
 }
 .doc-media-error { color: #6B6250; font-size: 13px; padding: 24px; text-align: center; }
 
+/* ── Modo WORD: .docx convertido a HTML ────────────────────────
+   A diferencia de una imagen o un PDF, un Word convertido ES texto: se queda
+   dentro de la hoja del markdown, con su ancho y su tipografia, y solo se le
+   antepone una barra con el nombre y la descarga del original. Colores fijos del
+   papel por lo mismo que en el modo medio: la hoja es clara en dark y en light. */
+.doc-word-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 22px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(44,36,22,.12);
+}
+.doc-word-note { color: #6B6250; font-size: 13px; line-height: 1.6; padding: 18px 0 4px; }
+.doc-word-note strong { color: #2C2416; }
+
+/* El HTML de mammoth no trae clases: hereda la tipografia del markdown. Solo hay
+   que domar lo que Word arrastra de mas — tablas sin ancho, imagenes a tamano
+   original y saltos de pagina que llegan como parrafos vacios. */
+.doc-word-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13.5px; }
+.doc-word-body th,
+.doc-word-body td { border: 1px solid rgba(44,36,22,.16); padding: 7px 10px; text-align: left; vertical-align: top; }
+.doc-word-body th  { background: rgba(44,36,22,.05); font-weight: 600; }
+.doc-word-body img { max-width: 100%; height: auto; }
+.doc-word-body p:empty { display: none; }
+
 /* ── Loaders de Drive ──────────────────────────────────────── */
 /* Solo posicionamiento; el visual lo aporta coffeeLoader() de */
 /* coffeeSoft.js (clase Templates).                            */

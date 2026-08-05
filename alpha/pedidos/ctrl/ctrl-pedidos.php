@@ -807,25 +807,98 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Saldo pendiente de un pedido: total - descuento - abonos. Mismo calculo que
+    // initHistoryPay(), extraido aparte porque el borrado de un abono depende de el.
+    private function orderBalance($orderId) {
+        $ls = $this->getOrderID([$orderId]);
+        if (empty($ls)) return null;
+
+        $totalPaid = array_sum(array_column($this->getMethodPayment([$orderId]), 'pay'));
+        $discount  = $ls[0]['discount'] ?? 0;
+
+        return ($ls[0]['total_pay'] ?? 0) - $discount - $totalPaid;
+    }
+
+    // Pedido liquidado, con margen de un centavo: los totales salen de sumas en
+    // coma flotante y un residuo de 0.0001 no debe contar como saldo pendiente.
+    private function isOrderPaidInFull($orderId) {
+        $balance = $this->orderBalance($orderId);
+
+        return $balance !== null && $balance <= 0.009;
+    }
+
     function deletePay() {
-        
+        // Solo administrador. La papelera solo se pinta para ROLID 1, pero el
+        // endpoint es publico: la regla se decide aqui, no en el front.
+        if (($_SESSION['ROLID'] ?? 0) != 1) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo un administrador puede eliminar un pago.'
+            ];
+        }
+
+        // Pedido liquidado: borrar un abono deja de ser una correccion de captura
+        // y descuadra un pedido cerrado, asi que exige la contrasena del usuario
+        // en sesion. El modal del front la pide; esta es la validacion que manda.
+        $requiereClave = $this->isOrderPaidInFull($_POST['id']);
+
+        if ($requiereClave) {
+            $password = $_POST['password'] ?? '';
+            $user     = $this->getUserKeyById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]);
+
+            if ($password === '' || empty($user) || $user['key'] !== md5($password)) {
+                return [
+                    'status'  => 401,
+                    'message' => 'Contraseña incorrecta. El pedido está liquidado y eliminar un abono requiere autorización.'
+                ];
+            }
+        }
+
         $values = $this->util->sql([
             'id' => $_POST['idPay']
         ], 1);
 
         $delete = $this->deletePayment($values);
 
+        // Al quitar el abono el pedido vuelve a tener saldo: uno marcado como
+        // Pagado (3) regresa a Pendiente (2). Se escribe en las mismas columnas
+        // que mueve addPayment(), para que el badge y el dropdown de la tabla
+        // vuelvan a ofrecer el cobro.
+        $reabierto = false;
+
+        if ($delete) {
+            $ls     = $this->getOrderID([$_POST['id']]);
+            $estado = $ls[0]['status'] ?? null;
+
+            if ($estado == 3 && $this->orderBalance($_POST['id']) > 0.009) {
+                $this->registerPayment($this->util->sql([
+                    'type_id' => 2,
+                    'status'  => 2,
+                    'id'      => $_POST['id']
+                ], 1));
+
+                $reabierto = true;
+            }
+        }
+
           // histories.
         $amount  = evaluar($_POST['amount']);
-        $success = $this->logHistory("Se eliminó un pago de {$amount}", 'payment', 'Eliminar');
+        $nota    = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
+        $nota   .= $reabierto ? '. El pedido regresó a PENDIENTE' : '';
+        $success = $this->logHistory("Se eliminó un pago de {$amount}{$nota}", 'payment', 'Eliminar');
 
 
 
 
+
+        $okMessage = $reabierto
+            ? "Pago eliminado. El pedido regresó a PENDIENTE."
+            : "Pago eliminado correctamente.";
 
         return [
             'status'         => $delete ? 200 : 400,
-            'message'        => $delete ? "Pago eliminado correctamente." : "No se pudo eliminar el pago.",
+            'message'        => $delete ? $okMessage : "No se pudo eliminar el pago.",
+            'reopened'       => $reabierto,
             'initHistoryPay' => $this->initHistoryPay(),
         ];
     }
@@ -850,6 +923,12 @@ class Pedidos extends MPedidos{
         $data  = $this->getListPayment([$_POST['id']]);
         $__row = [];
 
+        // Borrado de un abono: solo administrador. Si ademas el pedido ya quedo
+        // liquidado, el boton pasa a candado y pide la contrasena del usuario en
+        // sesion (el tercer parametro de app.deletePay activa ese modal).
+        $isAdmin       = ($_SESSION['ROLID'] ?? 0) == 1;
+        $requiereClave = $this->isOrderPaidInFull($_POST['id']) ? 1 : 0;
+
         foreach ($data as $key) {
             $icono = '<i class="icon-credit-card"></i>';
 
@@ -861,13 +940,17 @@ class Pedidos extends MPedidos{
 
             $a = [];
 
-            if ($_SESSION['ROLID'] == 1) {
+            if ($isAdmin) {
                 $a[] = [
                     // El hover a red-900 (casi negro) desaparecia sobre el fondo oscuro
                     // del modal: el estado activo debe aclarar, no oscurecer.
-                    'class'   => 'pointer text-red-400 hover:text-red-300 p-2',
-                    'html'    => '<i class="icon-trash" title="Eliminar pago"></i>',
-                    'onClick' => "app.deletePay({$key['id']},{$_POST['id']})"
+                    'class'   => $requiereClave
+                        ? 'pointer text-amber-400 hover:text-amber-300 p-2'
+                        : 'pointer text-red-400 hover:text-red-300 p-2',
+                    'html'    => $requiereClave
+                        ? '<i class="icon-lock" title="Eliminar pago (requiere contraseña)"></i>'
+                        : '<i class="icon-trash" title="Eliminar pago"></i>',
+                    'onClick' => "app.deletePay({$key['id']},{$_POST['id']},{$requiereClave})"
                 ];
             }else{
                 $a[] = [
@@ -2292,8 +2375,17 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
     } elseif ($status == 3) { // Pagado
         $options = [
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
-            ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
         ];
+
+        // El admin conserva el acceso al modal de pagos aunque el pedido ya este
+        // saldado: ahi vive el "Historial de Pagos" y el borrado de un abono mal
+        // capturado. No hay riesgo de doble cobro: el form de registro llega
+        // deshabilitado cuando el saldo es cero (isPaidInFull en addPayment).
+        if ($rolId == 1) {
+            $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
+        }
+
+        $options[] = ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"];
 
         if ($owner == 1) {
             $options[] = ['Historial', 'icon-history', "{$instancia}.showHistory({$id})"];

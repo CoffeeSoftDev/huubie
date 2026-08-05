@@ -43,6 +43,14 @@ const PDF_EXTS   = ['pdf'];
 const MEDIA_EXTS = IMAGE_EXTS.concat(PDF_EXTS);
 const MEDIA_MAX_BYTES = 25 * 1024 * 1024;
 
+// Documentos de Word. El .docx (2007+) es un ZIP de XML y se convierte a HTML en
+// el propio navegador con mammoth.js; el .doc (97-2003) es binario OLE2 y no hay
+// forma de leerlo aqui: se sube y se descarga, pero se abre sin vista previa.
+// Espeja coffee_visor_word_exts() del backend.
+const WORD_VIEW_EXTS = ['docx'];
+const WORD_EXTS      = WORD_VIEW_EXTS.concat(['doc']);
+const WORD_MAX_BYTES = 25 * 1024 * 1024;
+
 // Documentos de texto que tambien se pueden subir (arrastrandolos al explorador).
 // Espeja coffee_visor_text_upload_exts() del backend: sin .php ni ejecutables,
 // porque la biblioteca vive dentro del docroot de Apache.
@@ -52,7 +60,7 @@ const TEXT_UPLOAD_EXTS = [
     'log','env','sh','py','rb','go','rs','java','c','cpp',
     'cs','drawio','excalidraw'
 ];
-const UPLOAD_EXTS     = SHEET_EXTS.concat(MEDIA_EXTS, TEXT_UPLOAD_EXTS);
+const UPLOAD_EXTS     = SHEET_EXTS.concat(MEDIA_EXTS, WORD_EXTS, TEXT_UPLOAD_EXTS);
 const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
 /** 'image' | 'pdf' | '' — clase de medio por nombre de archivo. */
@@ -69,6 +77,20 @@ function visorMediaKind(fileName) {
 function visorFileMediaKind(file) {
     if (!file) return '';
     return file.mediaKind || visorMediaKind(file.file || '');
+}
+
+/** 'docx' (con vista) | 'doc' (solo descarga) | '' — documento de Word por nombre. */
+function visorWordKind(fileName) {
+    const parts = String(fileName || '').split('.');
+    if (parts.length < 2) return '';
+    const ext = parts.pop().toLowerCase();
+    return WORD_EXTS.includes(ext) ? ext : '';
+}
+
+/** Clase de Word de un objeto file del arbol. */
+function visorFileWordKind(file) {
+    if (!file) return '';
+    return visorWordKind(file.file || '');
 }
 
 /** URL del endpoint que sirve los bytes del medio con su Content-Type real. */
@@ -150,6 +172,76 @@ async function visorPdfTextOf(file) {
     file._pdfText  = out.text;
     file._pdfPages = out.pages;
     return file._pdfText;
+}
+
+// ── Word: conversion a HTML para la vista ────────────────────────────────────
+// Un .docx es un ZIP de XML: mammoth.js lo convierte a HTML semantico (titulos,
+// listas, tablas e imagenes embebidas como data URI) dentro del navegador, sin
+// mandar el documento a ningun servicio. Como pdf.js, solo se descarga la primera
+// vez que se abre un Word: quien nunca abre uno no paga su peso.
+const MAMMOTH_SRC = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+let _mammothPromise = null;
+
+function loadMammoth() {
+    if (window.mammoth) return Promise.resolve(window.mammoth);
+    if (_mammothPromise) return _mammothPromise;
+    _mammothPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = MAMMOTH_SRC;
+        s.onload = () => {
+            if (!window.mammoth) { reject(new Error('mammoth.js no se pudo inicializar')); return; }
+            resolve(window.mammoth);
+        };
+        s.onerror = () => { _mammothPromise = null; reject(new Error('No se pudo descargar mammoth.js')); };
+        document.head.appendChild(s);
+    });
+    return _mammothPromise;
+}
+
+/**
+ * HTML de un .docx. El resultado se sanitiza siempre: el documento lo subio un
+ * usuario y su HTML termina dentro de la hoja del visor.
+ *
+ * Los `messages` de mammoth NO se muestran: un Word normal genera varios avisos
+ * de estilos que no tienen equivalente en HTML aunque la conversion salga
+ * perfecta, y enseñarlos solo alarma sin decir nada util.
+ * @returns {Promise<string>}
+ */
+async function wordToHtml(arrayBuffer) {
+    const mammoth = await loadMammoth();
+    // slice(0): mammoth se queda con el buffer, y sin copia un reintento falla.
+    const out  = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer.slice(0) });
+    const html = (out && out.value) || '';
+    return (typeof DOMPurify !== 'undefined')
+        ? DOMPurify.sanitize(html)
+        : html.replace(/<script[\s\S]*?<\/script>/gi, '');
+}
+
+/** Texto plano de un .docx: lo que se le manda al modelo cuando se ancla al chat. */
+async function wordToText(arrayBuffer) {
+    const mammoth = await loadMammoth();
+    const out = await mammoth.extractRawText({ arrayBuffer: arrayBuffer.slice(0) });
+    return String((out && out.value) || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Descarga el .docx del sandbox y devuelve su texto, cacheado en el propio file. */
+async function visorWordTextOf(file) {
+    if (!file) return '';
+    if (typeof file._wordText === 'string') return file._wordText;
+    // El .doc de Word 97-2003 no se puede leer en el navegador: no hay texto que dar.
+    if (visorFileWordKind(file) !== 'docx') return '';
+    // Los bytes pueden estar ya en memoria si el documento se abrio antes.
+    let buf = file._binary;
+    if (!buf) {
+        const url = visorMediaUrl(file);
+        if (!url) return '';
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('No se pudo leer el documento del servidor');
+        buf = await res.arrayBuffer();
+    }
+    if (buf.byteLength > WORD_MAX_BYTES) throw new Error('El documento pesa más de 25 MB');
+    file._wordText = await wordToText(buf);
+    return file._wordText;
 }
 
 $(async () => {
@@ -288,9 +380,9 @@ class App {
             this.pinnedFiles.delete(fileName);
         } else {
             this.pinnedFiles.add(fileName);
-            // Un PDF recien anclado necesita su texto extraido antes de poder
-            // servir de referencia: se adelanta aqui para que al enviar ya este.
-            this.ensurePinnedPdfText();
+            // Un PDF (o un .docx) recien anclado necesita su texto extraido antes
+            // de servir de referencia: se adelanta aqui para que al enviar ya este.
+            this.ensurePinnedDocText();
         }
         this.savePinned();
         visorView.renderSidebar(this.dataInit, this.currentFile, $('#sidebarSearch').val() || '');
@@ -310,22 +402,31 @@ class App {
     }
 
     /**
-     * Extrae (una vez) el texto de los PDF anclados. Se llama al anclar y otra vez
-     * antes de enviar un mensaje, por si el primer intento falló o aún corría.
+     * Extrae (una vez) el texto de los documentos anclados que no lo llevan en el
+     * arbol: PDF y .docx. Se llama al anclar y otra vez antes de enviar un mensaje,
+     * por si el primer intento falló o aún corría.
      */
-    async ensurePinnedPdfText() {
+    async ensurePinnedDocText() {
         const pend = [];
         this.pinnedFiles.forEach(name => {
             const f = (this.allFiles || []).find(x => x.file === name);
-            if (f && visorFileMediaKind(f) === 'pdf' && typeof f._pdfText !== 'string') pend.push(f);
+            if (!f) return;
+            if (visorFileMediaKind(f) === 'pdf' && typeof f._pdfText !== 'string') pend.push(f);
+            else if (visorFileWordKind(f) === 'docx' && typeof f._wordText !== 'string') pend.push(f);
         });
         if (!pend.length) return;
 
         for (const f of pend) {
+            const esPdf = visorFileMediaKind(f) === 'pdf';
             try {
-                await visorPdfTextOf(f);
-                if (!f._pdfText) {
-                    visorView.toast(`"${f.file}" no tiene texto seleccionable (¿es un escaneo?)`, 'warn');
+                if (esPdf) {
+                    await visorPdfTextOf(f);
+                    if (!f._pdfText) {
+                        visorView.toast(`"${f.file}" no tiene texto seleccionable (¿es un escaneo?)`, 'warn');
+                    }
+                } else {
+                    await visorWordTextOf(f);
+                    if (!f._wordText) visorView.toast(`"${f.file}" no tiene texto que leer`, 'warn');
                 }
             } catch (e) {
                 visorView.toast(`No se pudo leer "${f.file}": ${e.message || e}`, 'error');
@@ -345,6 +446,7 @@ class App {
             let content = '';
             if (kind === 'image')     content = '';
             else if (kind === 'pdf')  content = f._pdfText || '';
+            else if (visorFileWordKind(f)) content = f._wordText || '';
             else                      content = iaFileTextForModel(f);
             out.push({
                 file:     f.file,
@@ -4673,13 +4775,19 @@ class VisorView {
         $('#btnEdit, #btnOpenEditor').removeClass('hidden');
         $('body').removeClass('todo-mode');   // restaura el aside (Frontmatter + TOC)
         $('body').removeClass('empty-view');  // ya hay documento: vuelve la hoja y el chrome
-        $('#md-rendered').removeClass('is-media');
+        $('#md-rendered').removeClass('is-media is-word');
         $('body').removeClass('media-view');
         // Los todo.json se pintan como panel dinámico (CRUD), no como markdown.
         if (this._isTodoJson(file)) { this._renderTodoPanel(file); return; }
         // Imagenes y PDF: se ven tal cual, no se convierten a markdown ni a codigo.
         const mediaKind = visorFileMediaKind(file);
         if (mediaKind) { this._renderMedia(file, mediaKind); return; }
+
+        // Word: tambien llega con _binary cargado, asi que hay que sacarlo ANTES de
+        // la rama de hojas de calculo — si no, SheetJS intentaria abrir el .docx
+        // como si fuera un libro de Excel.
+        const wordKind = visorFileWordKind(file);
+        if (wordKind) { this._renderWord(file, wordKind); return; }
 
         const parts = (file.file || '').split('.');
         const ext   = parts.length > 1 ? parts.pop().toLowerCase() : '';
@@ -4723,7 +4831,32 @@ class VisorView {
 
         if (hasXlsxBinary) this._wireSheetTabs();
 
-        const tocItems = [];
+        // Para libros xlsx ocultamos el aside completo y la tabla toma todo el ancho.
+        $('body').toggleClass('xlsx-view', !!hasXlsxBinary);
+        if (!hasXlsxBinary) this._syncToc();
+
+        if (typeof hljs !== 'undefined') {
+            $('#md-rendered pre code').each(function (i, block) {
+                hljs.highlightElement(block);
+            });
+        }
+
+        if (hasXlsxBinary) {
+            $('#md-raw').text('// Archivo binario (.xlsx/.xls/.ods). Vista Raw no disponible.');
+            $('#lineCountChip').text('hoja de calculo');
+        } else {
+            $('#md-raw').text(file.raw);
+            $('#lineCountChip').text(`~ ${visor.countLines(file.raw)} lineas`);
+        }
+
+        const $main = $('.main-content');
+        if ($main.length) $main.scrollTop(0);
+    }
+
+    // Indice lateral a partir de lo que ya esta pintado en #md-rendered. Numera
+    // los slugs repetidos: dos titulos iguales no pueden compartir ancla.
+    _syncToc() {
+        const tocItems  = [];
         const usedSlugs = new Set();
 
         $('#md-rendered').find('h2, h3').each(function () {
@@ -4750,26 +4883,70 @@ class VisorView {
             }
         });
 
-        // Para libros xlsx ocultamos el aside completo y la tabla toma todo el ancho.
-        $('body').toggleClass('xlsx-view', !!hasXlsxBinary);
-        if (!hasXlsxBinary) $('#tocBody').html(this.buildTocHtml(tocItems));
+        $('#tocBody').html(this.buildTocHtml(tocItems));
+    }
 
-        if (typeof hljs !== 'undefined') {
-            $('#md-rendered pre code').each(function (i, block) {
-                hljs.highlightElement(block);
-            });
+    /* ── Word: .docx renderizado, .doc solo descargable ──────────────────────
+       El .docx se convierte a HTML aqui mismo (mammoth) y se pinta como un
+       documento normal — conserva el aside, porque sus titulos si alimentan el
+       TOC. El .doc de Word 97-2003 es binario OLE2: ningun navegador lo abre,
+       asi que se muestra la tarjeta con el boton de descarga. */
+    async _renderWord(file, kind) {
+        const url  = visorMediaUrl(file);
+        const name = visor.escapeHtml(file.file || '');
+        const size = visor.escapeHtml(file.size || '');
+
+        $('#md-rendered').removeClass('is-sheet is-media').addClass('is-word');
+        $('body').removeClass('xlsx-view media-view');
+        $('#md-raw').text('// Documento de Word. Vista Raw no disponible.');
+        $('#lineCountChip').text(kind === 'docx' ? 'documento Word' : 'Word 97-2003');
+
+        const bar = (meta) => `
+            <div class="doc-word-bar">
+                <span class="doc-media-name"><i data-lucide="file-text" class="w-4 h-4"></i>${name}</span>
+                <span class="doc-media-meta">${meta}</span>
+                <div class="doc-media-actions">
+                    <a class="doc-media-btn" href="${url}" title="Descargar el archivo original">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i><span>Descargar</span>
+                    </a>
+                </div>
+            </div>`;
+        const card = (meta, nota) => `<div class="doc-word">${bar(meta)}<p class="doc-word-note">${nota}</p></div>`;
+        const sinToc = () => $('#tocBody').html('<span class="toc-empty">Sin secciones</span>');
+        const listo  = () => {
+            const $main = $('.main-content');
+            if ($main.length) $main.scrollTop(0);
+            if (window.lucide) lucide.createIcons();
+        };
+
+        if (kind !== 'docx') {
+            sinToc();
+            $('#md-rendered').html(card(size,
+                'Los <strong>.doc</strong> de Word 97-2003 no se pueden mostrar en el navegador. '
+                + 'Descárgalo, o guárdalo como <strong>.docx</strong> desde Word y vuelve a subirlo para verlo aquí.'));
+            listo();
+            return;
         }
 
-        if (hasXlsxBinary) {
-            $('#md-raw').text('// Archivo binario (.xlsx/.xls/.ods). Vista Raw no disponible.');
-            $('#lineCountChip').text('hoja de calculo');
-        } else {
-            $('#md-raw').text(file.raw);
-            $('#lineCountChip').text(`~ ${visor.countLines(file.raw)} lineas`);
+        // Los bytes los trae el lazy-load de loadFile; sin ellos no hay nada que convertir.
+        if (!file._binary) {
+            sinToc();
+            $('#md-rendered').html(card(size, 'No se pudieron leer los bytes del documento.'));
+            listo();
+            return;
         }
 
-        const $main = $('.main-content');
-        if ($main.length) $main.scrollTop(0);
+        try {
+            const html = await wordToHtml(file._binary);
+            $('#md-rendered').html(bar(size)
+                + `<div class="doc-word-body">${html || '<p>El documento está vacío.</p>'}</div>`);
+            this._syncToc();
+        } catch (e) {
+            sinToc();
+            $('#md-rendered').html(card(size,
+                'No se pudo convertir el documento: ' + visor.escapeHtml(e.message || String(e))));
+        }
+        listo();
     }
 
     /* ── Medios: imagenes y PDF ──────────────────────────────────────────────
@@ -5207,6 +5384,9 @@ function iaSheetToText(arrayBuffer) {
 function iaFileTextForModel(file) {
     if (!file) return '';
     if (file.raw) return file.raw;
+    // Un Word tambien llega con _binary: sin esta salida, SheetJS intentaria
+    // leerlo como libro de Excel. Su texto lo extrae mammoth (ensurePinnedDocText).
+    if (visorFileWordKind(file)) return file._wordText || '';
     if (file._binary && typeof XLSX !== 'undefined') {
         if (file._sheetText === undefined) {
             try { file._sheetText = iaSheetToText(file._binary).text; }
@@ -6272,12 +6452,13 @@ class CoffeeIA {
             }
         }
 
-        // Los PDF anclados viajan al modelo como texto: si alguno todavia no se ha
-        // leido (o fallo al anclarlo), se resuelve ahora — la primera vez esto
-        // descarga pdf.js. Las imagenes ancladas no pasan por aqui: sus bytes los
-        // lee el backend del disco y los adjunta como vision.
-        if (this._app && this._app.ensurePinnedPdfText) {
-            try { await this._app.ensurePinnedPdfText(); } catch (e) { /* ya se avisa con toast */ }
+        // Los PDF y los .docx anclados viajan al modelo como texto: si alguno
+        // todavia no se ha leido (o fallo al anclarlo), se resuelve ahora — la
+        // primera vez esto descarga pdf.js o mammoth. Las imagenes ancladas no
+        // pasan por aqui: sus bytes los lee el backend del disco y los adjunta
+        // como vision.
+        if (this._app && this._app.ensurePinnedDocText) {
+            try { await this._app.ensurePinnedDocText(); } catch (e) { /* ya se avisa con toast */ }
         }
 
         // Poda del PAYLOAD (this.history no se toca: chat y autoguardado conservan todo).
