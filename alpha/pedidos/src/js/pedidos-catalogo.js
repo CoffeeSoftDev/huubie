@@ -696,6 +696,7 @@ class Pos extends Templates {
             payments: [],
             totalPaid: 0,
             isEdit: false,
+            isPaid: false,
             animateId: null
         };
 
@@ -713,8 +714,9 @@ class Pos extends Templates {
 
         // Lineas "bloqueadas": en edicion, un producto solo es editable si se agrego
         // HOY (item.is_today lo marca el backend). Las lineas de dias anteriores van
-        // de solo lectura: sin −/+, sin editar y sin eliminar.
-        const isLocked = (item) => opts.isEdit && item.is_today === false;
+        // de solo lectura: sin −/+, sin editar y sin eliminar. En un pedido liquidado
+        // va bloqueado todo el armado: subir una cantidad tambien es agregar producto.
+        const isLocked = (item) => opts.isPaid || (opts.isEdit && item.is_today === false);
 
         const isDark = opts.theme === "dark";
         const textColor = isDark ? "text-white" : "text-gray-800";
@@ -1071,6 +1073,9 @@ class CatalogProduct extends Pos {
         this.name_client = '';
         this.discount  = '';
         this.layoutEdit = false;
+        // Pedido liquidado en edicion: el armado queda congelado (catalogo y cobro
+        // bloqueados) y solo siguen abiertos los datos de entrega del formulario.
+        this.layoutPaid = false;
         // Snapshot de cantidades originales por linea (order_package.id -> quantity)
         // al abrir la edicion de un pedido; en edicion no se permite bajar de ahi.
         this.originalQuantities = null;
@@ -1121,12 +1126,14 @@ class CatalogProduct extends Pos {
                 {
                     id: "pedido",
                     tab: isEditMode ? "Información del pedido" : "Crear orden de pedido",
-                    active: !isEditMode
+                    // En un pedido liquidado el catalogo va bloqueado, asi que la vista
+                    // abre en la informacion del pedido, que es lo unico editable.
+                    active: !isEditMode || this.layoutPaid
                 },
                 {
                     id: "package",
                     tab: "Catálogo de productos",
-                    active: isEditMode
+                    active: isEditMode && !this.layoutPaid
                 }
             ]
         });
@@ -1223,12 +1230,34 @@ class CatalogProduct extends Pos {
         this.createProductGrid({
             data: pos.products || [],
             onClick: (item) => {
+                if (this.layoutPaid) return;
                 this.addProduct(item.id)
             }
         });
 
 
         this.showOrder(pos.list || [])
+
+        // Al final: showOrder repinta el panel (y con el, el boton Terminar), asi que
+        // el bloqueo se aplica despues de que existan los dos lados del POS.
+        if (this.layoutPaid) this.lockPaidCatalog();
+    }
+
+    // Pedido liquidado: el armado ya se cobro y no admite productos nuevos, asi que
+    // el catalogo entero (buscador, categorias, grid y armado de pastel) queda de
+    // solo lectura y el cobro deja de aplicar.
+    lockPaidCatalog() {
+        $('#productGrid, #categoryTabs').addClass('opacity-50 pointer-events-none');
+
+        $('#searchProduct, #buildCakeBtn')
+            .prop('disabled', true)
+            .addClass('opacity-50 cursor-not-allowed pointer-events-none');
+
+        $('#finishOrder')
+            .prop('disabled', true)
+            .attr('title', 'El pedido ya está liquidado')
+            .removeClass('hover:bg-[#1a53d4]')
+            .addClass('opacity-50 cursor-not-allowed pointer-events-none');
     }
 
     showOrder(list, animateId = null) {
@@ -1257,6 +1286,7 @@ class CatalogProduct extends Pos {
                 this.quantityProduct(id, newQuantity);
             },
             isEdit: this.layoutEdit,
+            isPaid: this.layoutPaid,
             onPrint: () => {
                 this.printOrder(idFolio);
             },

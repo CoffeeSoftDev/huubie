@@ -458,6 +458,7 @@ class App extends Templates {
         }
         // Entrada al flujo de CREACION: sin modo edicion ni snapshot de cantidades.
         normal.layoutEdit = false;
+        normal.layoutPaid = false;
         normal.originalQuantities = null;
         normal.render();
     }
@@ -664,16 +665,12 @@ class App extends Templates {
         return false;
     }
 
-    async editOrder(id) {
+    async editOrder(id, password = null) {
         if (!this.requireOpenShift()) return;
-        idFolio = id;
-        normal.layoutEdit = true;
-        // Snapshot fresco por sesion de edicion: initPos lo captura en la primera carga.
-        normal.originalQuantities = null;
-        normal.render();
 
-        $("#container-pedido").html(`<div id="formEditPedido"></div>`);
-
+        // El pedido se lee ANTES de renderizar: su estado decide que pestaña abre el
+        // POS y si el catalogo va bloqueado, y eso lo resuelve formCreateOrder() al
+        // pintar, no despues.
         const request = await useFetch({
             url: this._link,
             data: { opc: "getOrder", id }
@@ -681,13 +678,30 @@ class App extends Templates {
 
         const order = request.data;
 
+        idFolio = id;
+        normal.layoutEdit = true;
+        // Pedido liquidado: ya se cobro y se entrego el ticket, asi que el armado
+        // queda congelado; solo siguen abiertos los datos de entrega.
+        normal.layoutPaid = order?.status == 3;
+        // Snapshot fresco por sesion de edicion: initPos lo captura en la primera carga.
+        normal.originalQuantities = null;
+        normal.render();
+
+        $("#container-pedido").html(`<div id="formEditPedido"></div>`);
+
+        // Pedido liquidado: la contraseña se pidió en editOrderPaid() antes de
+        // llegar aquí; se reenvía en data para que editOrder() (ctrl) la
+        // revalide al guardar. No se confía en que el front ya preguntó.
+        const data = password
+            ? { opc: "editOrder", id, password }
+            : { opc: "editOrder", id };
 
         this.createForm({
             parent: "formEditPedido",
             id: "formPedido",
             coffeesoft: true,
             theme: 'dark',
-            data: { opc: "editOrder", id },
+            data: data,
             autofill: order,
             json: this.jsonOrder(),
             success: (response) => {
@@ -706,19 +720,23 @@ class App extends Templates {
                     // 🔒 Bloquear campos tras guardar
                     // $("#formPedido :input, #formPedido textarea").prop("disabled", true);
 
-                    // 🔵 Mostrar pestaña Catálogo de productos
-                    setTimeout(() => {
-                        $("#tab-package")
-                            .attr("data-state", "active")
-                            .addClass("bg-blue-600 text-white")
-                            .removeClass("text-gray-300 hover:bg-gray-700")
-                            .trigger("click");
+                    // 🔵 Mostrar pestaña Catálogo de productos. En un pedido liquidado
+                    // no aplica: el catálogo está bloqueado y la vista se queda en la
+                    // información del pedido, que es lo único que se editó.
+                    if (!normal.layoutPaid) {
+                        setTimeout(() => {
+                            $("#tab-package")
+                                .attr("data-state", "active")
+                                .addClass("bg-blue-600 text-white")
+                                .removeClass("text-gray-300 hover:bg-gray-700")
+                                .trigger("click");
 
-                        $("#tab-pedido")
-                            .attr("data-state", "inactive")
-                            .removeClass("bg-blue-600 text-white")
-                            .addClass("text-gray-300 hover:bg-gray-700");
-                    }, 250);
+                            $("#tab-pedido")
+                                .attr("data-state", "inactive")
+                                .removeClass("bg-blue-600 text-white")
+                                .addClass("text-gray-300 hover:bg-gray-700");
+                        }, 250);
+                    }
 
                     normal.initPos();
 
@@ -777,6 +795,73 @@ class App extends Templates {
             if ($(this).val().trim() === "") {
                 $('#formPedido #phone').val("");
                 $('#formPedido #email').val("");
+            }
+        });
+
+        // Al final: el bloqueo desmonta el autocompletado del nombre, que se acaba
+        // de inicializar unas líneas arriba.
+        if (normal.layoutPaid) this.lockPaidOrderForm();
+    }
+
+    // Pedido liquidado: el cliente ya quedó ligado al pedido cobrado, así que sus
+    // datos son de solo lectura y únicamente siguen abiertos los de entrega (fecha,
+    // hora, tipo y notas). Se usa readonly y no disabled para que los valores viajen
+    // igual en el POST; el candado que manda está en editOrder() del controlador,
+    // que ni siquiera reescribe el cliente cuando el pedido está liquidado.
+    lockPaidOrderForm() {
+        $('#formPedido')
+            .find('#name, #phone, #email, #date_birthday')
+            .prop('readonly', true)
+            .addClass('opacity-60 cursor-not-allowed');
+
+        // readonly no cierra el selector nativo de fecha: ese si necesita quedar
+        // fuera del alcance del click.
+        $('#formPedido #date_birthday').addClass('pointer-events-none');
+
+        $('#formPedido #name').autocomplete('destroy');
+    }
+
+    // Pedido liquidado: pide la contraseña antes de abrir el formulario de edición.
+    // Se valida aquí para no descubrir una clave mal escrita hasta después de
+    // capturar los cambios; la autorización real la vuelve a exigir editOrder()
+    // del controlador al guardar.
+    editOrderPaid(id) {
+        if (!this.requireOpenShift()) return;
+
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'lock',
+            title:       'Pedido liquidado',
+            detailHtml:  'Ingresa tu contraseña para editar este pedido.',
+            input:       'password',
+            inputLabel:  'Contraseña',
+            inputPlaceholder: '••••••••',
+            inputRequired: true,
+            inputError:  'Ingresa tu contraseña',
+            okLabel:     'Continuar',
+            cancelLabel: 'Cancelar',
+            onOk: async (password) => {
+                const res = await useFetch({
+                    url: this._link,
+                    data: { opc: 'verifyOrderEditKey', id: id, password: password }
+                });
+
+                if (res.status !== 200) {
+                    // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
+                    // porque alertBox ya se cerro al confirmar.
+                    this.alertBox({
+                        theme:      'dark',
+                        type:       'error',
+                        title:      'No se puede editar',
+                        detailHtml: res.message || 'Contraseña incorrecta.',
+                        okLabel:    'Reintentar',
+                        onOk:       () => this.editOrderPaid(id)
+                    });
+                    return;
+                }
+
+                this.editOrder(id, password);
             }
         });
     }
@@ -1246,8 +1331,6 @@ class App extends Templates {
    jsonOrder() {
     const orderFields = [];
 
-
-
     if (rol == 1 || rol == 2 || rol == 3 || rol == 6 || rol == 7) {
         // Selector de sucursal del pedido (roles con filtro de navbar: admin,
         // cajero y vendedor rotativo). Durante crear/editar el selector de sucursal
@@ -1274,6 +1357,28 @@ class App extends Templates {
                 <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-2">
                     <i class="icon-shop text-amber-400"></i>
                     <b class="text-xs text-amber-100">${sub_name || 'tu sucursal'}</b>
+                </div>
+            `
+        });
+    }
+
+    // Aviso al lado del filtro de sucursal: comparte fila con el, por eso ocupa las
+    // columnas restantes en pantallas grandes.
+    if (normal.layoutPaid) {
+        orderFields.push({
+            opc: "div",
+            id: "paidOrderNotice",
+            lbl: "",
+            class: "col-12 col-lg-9 mb-1",
+            html: `
+                <div class="h-full flex items-center gap-3 bg-amber-500/10 rounded-lg px-3 py-2">
+                    <i class="icon-lock text-amber-400 text-lg"></i>
+                    <div class="text-xs leading-relaxed">
+                        <b class="text-amber-100 block">Pedido liquidado — no se puede editar sin autorización</b>
+                        <span class="text-amber-200/80">
+                            Solo puedes cambiar fecha de entrega, hora de entrega, tipo de entrega y notas adicionales.
+                        </span>
+                    </div>
                 </div>
             `
         });
@@ -1313,7 +1418,8 @@ class App extends Templates {
             lbl: "Fecha de cumpleaños",
             id: "date_birthday",
             type: "date",
-            class: "col-12 col-sm-6 col-lg-3 mb-3"
+            class: "col-12 col-sm-6 col-lg-3 mb-3",
+            required: false
         },
         {
             opc: "div",
@@ -1376,7 +1482,8 @@ class App extends Templates {
             id: "note",
             lbl: "Notas adicionales",
             rows: 3,
-            class: "col-12 mb-3"
+            class: "col-12 mb-3",
+            required: false
         },
         {
             opc: "btn-submit",
@@ -1562,7 +1669,10 @@ class App extends Templates {
     // Edición: fija la sucursal del pedido y bloquea el cambio del selector.
     lockSubsidiarySelector(id) {
         const sub = subsidiaries.find(s => String(s.id) === String(id));
-        $('#formPedido #subsidiaries_id').val(id).prop('disabled', true);
+        // El hidden NO se deshabilita: un campo disabled no viaja en el FormData y el
+        // guardado llegaría sin sucursal. Lo que se bloquea es el trigger visible, que
+        // es lo único que el usuario puede tocar.
+        $('#formPedido #subsidiaries_id').val(id);
         if (sub) {
             $('#subsidiaryTriggerName').text(sub.valor);
             $('#subsidiaryTriggerAvatar').text(this.subsidiaryInitials(sub.valor));

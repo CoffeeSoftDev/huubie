@@ -51,7 +51,20 @@ if (auth_current_user()) {
             </div>
 
             <form id="loginForm" class="auth-form" novalidate>
-                <label class="auth-field">
+                <!-- Usuario recordado en ESTE navegador. Sustituye al campo de correo:
+                     solo queda pedir la contrasena o el PIN. -->
+                <div id="rememberedUser" class="auth-remembered" hidden>
+                    <span id="rememberedAvatar" class="auth-remembered-avatar"></span>
+                    <span class="auth-remembered-info">
+                        <span id="rememberedName" class="auth-remembered-name"></span>
+                        <span id="rememberedEmail" class="auth-remembered-email"></span>
+                    </span>
+                    <button type="button" id="forgetUserBtn" class="auth-remembered-x" aria-label="Usar otra cuenta" title="Usar otra cuenta">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+
+                <label class="auth-field" data-email-field>
                     <span class="auth-label">Correo</span>
                     <input type="email" name="email" class="auth-input" placeholder="tu@correo.com" required autocomplete="username">
                 </label>
@@ -79,6 +92,11 @@ if (auth_current_user()) {
                             <i data-lucide="eye"></i>
                         </button>
                     </span>
+                </label>
+
+                <label class="auth-remember">
+                    <input type="checkbox" id="rememberMe" class="auth-checkbox" checked>
+                    <span>Recordar mi usuario en este equipo</span>
                 </label>
 
                 <button type="submit" class="auth-btn-primary">

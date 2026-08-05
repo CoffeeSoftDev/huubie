@@ -4761,15 +4761,16 @@ body.ia-drawer-resizing * {
     display: flex; align-items: center; gap: 8px;
     min-width: 0;
 }
-.ia-input-hint .ia-model-pill {
+.ia-input-hint .ia-model-pill,
+.ia-input-hint .ia-agent-pill {
     min-width: 0;        /* permite que el flex item encoja por debajo de su contenido */
     flex-shrink: 1;      /* el selector cede espacio antes de desbordar el drawer */
 }
-/* Esfuerzo + Modelo a la DERECHA (los iconos quedan a la izquierda): el PRIMER pill
-   (Esfuerzo) toma UN solo margin-left:auto y arrastra al Modelo; ambos juntos a la
-   derecha. Por :first-of-type aplica a cualquier .ia-input-hint (Visor y Playground)
-   sin depender del id del selector. */
-.ia-input-hint .ia-model-pill:first-of-type { margin-left: auto; }
+/* Agente + Esfuerzo + Modelo a la DERECHA (los iconos quedan a la izquierda): el
+   PRIMER select toma UN solo margin-left:auto y arrastra a los demas; todos juntos a
+   la derecha. Por :first-of-type sobre el <select> aplica a cualquier .ia-input-hint
+   (Visor y Playground) sin depender del id ni de la clase del selector. */
+.ia-input-hint select:first-of-type { margin-left: auto; }
 /* Botones de accion compactos (solo icono) */
 .ia-editor-toggle.is-icon-only {
     padding: 3px;
@@ -4939,8 +4940,11 @@ body.ia-drawer-resizing * {
 .ia-msg-doc-chip i { width: 12px; height: 12px; color: var(--vsr-accent-soft); flex-shrink: 0; }
 .ia-msg-doc-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Model pill (select) */
-.ia-model-pill {
+/* Model pill (select). La pastilla del AGENTE comparte el estilo pero NO la clase:
+   model-config.js engancha todo select.ia-model-pill y le inyecta el catalogo de
+   modelos, que aqui borraria la lista de agentes. */
+.ia-model-pill,
+.ia-agent-pill {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 22px 3px 10px;
     background: transparent;
@@ -4963,10 +4967,20 @@ body.ia-drawer-resizing * {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.ia-model-pill:hover, .ia-model-pill:focus { border-color: var(--vsr-accent); color: var(--vsr-text); }
-.ia-model-pill option {
+.ia-model-pill:hover, .ia-model-pill:focus,
+.ia-agent-pill:hover, .ia-agent-pill:focus { border-color: var(--vsr-accent); color: var(--vsr-text); }
+.ia-model-pill option,
+.ia-agent-pill option {
     background: var(--vsr-bg-card);
     color: var(--vsr-text-soft);
+}
+/* El agente es "quien contesta": se distingue del resto de pastillas con el acento.
+   min-width porque el <select> se dimensiona por la opcion activa y no por la mas
+   larga: sin el, "CoffeeMagic" se leia "Coffee...". */
+.ia-agent-pill {
+    min-width: 118px;
+    max-width: 150px;
+    color: var(--vsr-accent-soft);
 }
 /* El label del optgroup salia con fondo blanco / texto invisible en dark
    porque heredaba el estilo nativo del SO. Lo forzamos al tema. */
@@ -5705,7 +5719,8 @@ body.ia-drawer-resizing * {
     /* Composer: la fila de herramientas + selector de modelo no se corta;
        el selector baja a su propia línea si no cabe. */
     .ia-input-hint { flex-wrap: wrap; row-gap: 6px; }
-    .ia-input-hint .ia-model-pill { flex-shrink: 0; max-width: 100%; }
+    .ia-input-hint .ia-model-pill,
+    .ia-input-hint .ia-agent-pill { flex-shrink: 0; max-width: 100%; }
 
     /* Documento: menos padding lateral y media que no desborda. */
     .md-rendered { padding: 36px 30px 44px; }

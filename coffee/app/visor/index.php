@@ -591,6 +591,12 @@
                                 </button>
                             </div>
                         </div>
+                        <!-- Agente activo. Se llena con el catalogo de agents.sqlite
+                             (ctrl-agents.php?action=catalog); la opcion de aqui es el
+                             fallback si esa consulta falla. -->
+                        <select id="iaAgentSelect" class="ia-agent-pill" title="Agente activo">
+                            <option value="CoffeeIA.md">CoffeeIA</option>
+                        </select>
                         <select id="iaEffortSelect" class="ia-model-pill" title="Esfuerzo de razonamiento (solo modelos con thinking)">
                             <option value="">Auto</option>
                             <option value="off">R&aacute;pido</option>

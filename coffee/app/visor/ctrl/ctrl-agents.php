@@ -111,6 +111,14 @@ try {
             ]);
         }
 
+        // Catalogo minimo para los selectores de agente del chat (clave, nombre y
+        // descripcion). `list` tambien serviria, pero arrastra el prompt completo de
+        // cada agente: decenas de KB en cada carga de pagina solo para pintar un
+        // <select>.
+        case 'catalog': {
+            agents_out(['success' => true, 'agents' => agents_catalog(true)]);
+        }
+
         case 'get': {
             $agent = agents_get((int) agents_post('id'));
             if (!$agent) agents_fail('Agente no encontrado', 404);

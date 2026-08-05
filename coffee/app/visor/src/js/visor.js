@@ -5276,6 +5276,13 @@ const COFFEEIA_GRAPH_KEY  = 'visor:coffeeia:graphMode';
 const COFFEEIA_EXCALI_KEY = 'visor:coffeeia:excaliMode';
 const COFFEEIA_MODEL_KEY  = 'visor:coffeeia:model';
 const COFFEEIA_EFFORT_KEY = 'visor:coffeeia:effort';   // esfuerzo de razonamiento
+const COFFEEIA_AGENT_KEY  = 'visor:coffeeia:agent';    // agente elegido en la pastilla
+
+// Agente por defecto del Visor. Es el unico que NO manda su prompt: su alma es la
+// del chat (prompts/coffee-system.md), la que el Visor ha usado siempre. Elegir
+// cualquier otro sustituye esa alma por la ficha del agente (useAgentSoul).
+const COFFEEIA_DEFAULT_AGENT = 'CoffeeIA.md';
+const COFFEEIA_AGENTS_API    = 'ctrl/ctrl-agents.php';
 
 // Auto-continuacion (paridad con el Playground): cuando el modelo corta la salida
 // por limite de tokens (templates grandes), el <script> queda a la mitad y el
@@ -5484,6 +5491,8 @@ class CoffeeIA {
         this.pendingDocs   = [];     // [{ name, content, size }] archivos de texto adjuntos al mensaje
         this.model         = this._loadModel();
         this.effort        = this._loadEffort();   // '' (auto) | off | low | medium | high | max
+        this.agentKey      = this._loadAgent();    // agente activo (clave del .md en agents.sqlite)
+        this._agents       = [];                   // catalogo {key,label,description}
         // "Stick to bottom": el auto-scroll durante el streaming solo se mantiene
         // si el usuario esta pegado al fondo. Si sube a leer, se pausa (ver _scrollBottom).
         this._stickBottom  = true;
@@ -5495,7 +5504,93 @@ class CoffeeIA {
         this._applyGraphModeUI();
         this._applyModelUI();
         this._applyEffortUI();
+        this._applyAgentUI();
+        this._loadAgentCatalog();
         this._applyFolderDocUI();
+    }
+
+    /* ── Agente activo ──────────────────────────────────────────────────────────
+     * Quien contesta en el chat. El catalogo sale de agents.sqlite (los agentes con
+     * cerebro: reglas, memoria y herramientas propias), no de los .md sueltos que
+     * lista el explorador. */
+
+    _loadAgent() {
+        try { return localStorage.getItem(COFFEEIA_AGENT_KEY) || COFFEEIA_DEFAULT_AGENT; }
+        catch (e) { return COFFEEIA_DEFAULT_AGENT; }
+    }
+
+    _saveAgent() {
+        try { localStorage.setItem(COFFEEIA_AGENT_KEY, this.agentKey || COFFEEIA_DEFAULT_AGENT); }
+        catch (e) {}
+    }
+
+    // Etiqueta visible del agente activo. Mientras el catalogo no llega se deduce de
+    // la propia clave (el nombre del .md), para no anunciar un agente que no es.
+    _agentLabel() {
+        const hit = this._agents.find(a => a.key === this.agentKey);
+        if (hit) return hit.label;
+        const opt = $('#iaAgentSelect option[value="' + this.agentKey + '"]');
+        if (opt.length) return opt.text();
+        return String(this.agentKey || '').replace(/\.md$/i, '') || 'CoffeeIA';
+    }
+
+    async _loadAgentCatalog() {
+        try {
+            const res  = await fetch(COFFEEIA_AGENTS_API + '?action=catalog', { cache: 'no-store' });
+            const data = await res.json();
+            if (!data || !data.success || !Array.isArray(data.agents) || !data.agents.length) return;
+
+            this._agents = data.agents;
+            const $sel = $('#iaAgentSelect');
+            if (!$sel.length) return;
+            $sel.empty();
+            this._agents.forEach(a => {
+                $sel.append($('<option>').val(a.key).text(a.label).attr('title', a.description || ''));
+            });
+            this._applyAgentUI();
+        } catch (e) {
+            // Sin catalogo se queda la opcion por defecto del HTML: el chat sigue vivo.
+        }
+    }
+
+    // El agente guardado puede haberse borrado o desactivado desde agents.php: si ya
+    // no esta en el catalogo, se vuelve al de siempre en vez de mandar una clave
+    // muerta. Solo se comprueba CON catalogo cargado: en el primer render el select
+    // trae unicamente la opcion de respaldo y descartar ahi la preferencia la
+    // borraria en cada recarga.
+    _applyAgentUI() {
+        const $sel = $('#iaAgentSelect');
+        if (!$sel.length) return;
+
+        if (this._agents.length && !this._agents.some(a => a.key === this.agentKey)) {
+            this.agentKey = this._agents.some(a => a.key === COFFEEIA_DEFAULT_AGENT)
+                ? COFFEEIA_DEFAULT_AGENT
+                : this._agents[0].key;
+            this._saveAgent();
+        }
+        if ($sel.find('option[value="' + this.agentKey + '"]').length) $sel.val(this.agentKey);
+        this._applyAgentBranding();
+    }
+
+    // El nombre del agente manda en la cabecera y en el estado vacio: si escribo a
+    // CoffeeMagic, el panel no puede seguir firmando como CoffeeIA.
+    _applyAgentBranding() {
+        const name = this._agentLabel();
+        const html = /^Coffee/i.test(name)
+            ? `<span class="cs-agent-coffee">${this._escape(name.slice(0, 6))}</span><span class="cs-agent-suffix">${this._escape(name.slice(6))}</span>`
+            : `<span class="cs-agent-coffee">${this._escape(name)}</span>`;
+        $('.ia-drawer-title > span').last().html(html);
+        $('.ia-empty-title').html(html);
+    }
+
+    // Cada agente tiene sus herramientas asignadas: al cambiarlo se recuentan (y se
+    // repinta el submenu si esta abierto).
+    _setAgent(key) {
+        this.agentKey = key || COFFEEIA_DEFAULT_AGENT;
+        this._saveAgent();
+        this._applyAgentUI();
+        if ($('#iaAgentToolsSubmenu').is(':visible')) this._renderAgentToolsList();
+        else this._applyAgentToolsCount();
     }
 
     _loadModel() {
@@ -5683,10 +5778,10 @@ class CoffeeIA {
         const $list = $('#iaAgentToolsList');
         if (!TC || !TC.isLoaded()) { $list.html('<div class="graph-menu-empty">Cargando…</div>'); return; }
 
-        // Solo las asignadas a ESTE chat (Visor + alma por defecto): las que el
-        // usuario reservó para el Playground o para otro agente no salen aquí.
+        // Solo las asignadas a ESTE chat (Visor + agente activo): las que el usuario
+        // reservó para el Playground o para otro agente no salen aquí.
         const all = TC.getTools();
-        const tools = all.filter(t => TC.appliesTo(t, 'visor', 'CoffeeIA.md'));
+        const tools = all.filter(t => TC.appliesTo(t, 'visor', this.agentKey || COFFEEIA_DEFAULT_AGENT));
         const hidden = all.length - tools.length;
         if (!tools.length) {
             $list.html('<div class="graph-menu-empty">Ninguna herramienta asignada a este chat</div>');
@@ -5712,11 +5807,12 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Cuenta solo lo que ESTE chat puede usar: activa y asignada al Visor.
+    // Cuenta solo lo que ESTE chat puede usar: activa y asignada al Visor con el
+    // agente activo.
     _applyAgentToolsCount() {
         const TC = window.CoffeeToolConfig;
         if (!TC || !TC.isLoaded()) return;
-        const n = TC.actives().filter(t => TC.appliesTo(t, 'visor', 'CoffeeIA.md')).length;
+        const n = TC.actives().filter(t => TC.appliesTo(t, 'visor', this.agentKey || COFFEEIA_DEFAULT_AGENT)).length;
         $('#iaAgentToolsDesc').text(n === 1 ? '1 herramienta activa' : `${n} herramientas activas`);
     }
 
@@ -5950,6 +6046,11 @@ class CoffeeIA {
         $('#iaEffortSelect').on('change', (e) => {
             this.effort = $(e.currentTarget).val() || '';
             this._saveEffort();
+        });
+
+        $('#iaAgentSelect').on('change', (e) => {
+            this._setAgent($(e.currentTarget).val());
+            this._toast('Ahora contesta ' + this._agentLabel(), 'info');
         });
 
         $('#iaSendBtn').on('click', () => { if (this.isBusy) this._stop(); else this._submit(); });
@@ -6519,10 +6620,12 @@ class CoffeeIA {
             model:              this.model || '',
             effort:             this.effort || '',  // esfuerzo de razonamiento (think)
             // Quien pregunta: el catalogo declara solo las herramientas asignadas a
-            // esta superficie y a este agente (Configuracion -> Herramientas). El
-            // Visor no tiene selector de agente: siempre es el alma por defecto.
+            // esta superficie y a este agente (Configuracion -> Herramientas).
             surface:            'visor',
-            agentKey:           'CoffeeIA.md'
+            agentKey:           this.agentKey || COFFEEIA_DEFAULT_AGENT,
+            // El agente elegido responde con SU prompt (el backend lo saca de
+            // agents.sqlite). El de siempre no: su alma es la del Visor.
+            useAgentSoul:       (this.agentKey || COFFEEIA_DEFAULT_AGENT) !== COFFEEIA_DEFAULT_AGENT
         };
 
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---

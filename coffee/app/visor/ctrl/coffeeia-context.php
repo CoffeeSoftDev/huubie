@@ -17,6 +17,7 @@ require_once __DIR__ . '/db-introspect.php';
 require_once __DIR__ . '/fs-introspect.php';
 require_once __DIR__ . '/web-fetch.php';
 require_once __DIR__ . '/tools-registry.php';
+require_once __DIR__ . '/agents-registry.php';
 
 if (!defined('COFFEEIA_MAX_FILE_BYTES')) define('COFFEEIA_MAX_FILE_BYTES', 65536);
 if (!defined('COFFEEIA_PROMPTS_DIR'))    define('COFFEEIA_PROMPTS_DIR', __DIR__ . '/../prompts');
@@ -46,6 +47,28 @@ function coffeeia_is_binary_ext($path) {
         'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'ico', 'pdf',
         'xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'zip', 'rar', '7z'
     ], true);
+}
+
+/**
+ * Prompt de sistema del agente elegido: su `prompt_system` mas su `soul` (el alma
+ * es un anexo, no un sustituto). Cadena vacia si el agente no esta registrado o no
+ * tiene prompt — quien llama decide entonces el alma por defecto.
+ */
+function coffeeia_agent_soul($agentKey) {
+    $agentKey = trim((string) $agentKey);
+    if ($agentKey === '') return '';
+
+    try {
+        $agent = agents_get_by_key($agentKey);
+    } catch (Throwable $e) {
+        return '';
+    }
+    if (!$agent) return '';
+
+    $prompt = trim((string) $agent['prompt_system']);
+    $soul   = trim((string) $agent['soul']);
+    if ($prompt === '') return $soul;
+    return $soul === '' ? $prompt : $prompt . "\n\n" . $soul;
 }
 
 /**
@@ -98,7 +121,15 @@ function coffeeia_build_context(array $body) {
     // El Playground puede inyectar el prompt de un agente concreto via
     // `systemOverride`; si no viene, se usa el alma por defecto (coffee-system.md).
     // Cambio puramente aditivo: el Visor nunca manda systemOverride → mismo comportamiento.
+    // El Visor elige agente desde una pastilla y no manda el prompt: pide con
+    // `useAgentSoul` que se resuelva aqui desde agents.sqlite (la ficha que edita
+    // agents.php manda, no el .md de disco). Si el agente no existe o no tiene
+    // prompt, se cae al alma por defecto en vez de dejar al modelo sin identidad.
     $systemOverride = isset($body['systemOverride']) ? trim((string) $body['systemOverride']) : '';
+    if ($systemOverride === '' && !empty($body['useAgentSoul'])) {
+        $agentSoul = coffeeia_agent_soul(isset($body['agentKey']) ? (string) $body['agentKey'] : '');
+        if ($agentSoul !== '') $systemOverride = $agentSoul;
+    }
     if ($systemOverride !== '') {
         $systemPrompt = $systemOverride;
     } else {

@@ -59,7 +59,8 @@ function auth_action_register()
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)auth_pdo()->lastInsertId();
 
-    echo json_encode(['success' => true, 'redirect' => 'visor/index.php']);
+    $u = auth_find_by_id((int)$_SESSION['user_id']);
+    echo json_encode(['success' => true, 'redirect' => 'visor/index.php', 'user' => $u ? auth_public_user($u) : null]);
 }
 
 function auth_action_login()
@@ -82,7 +83,9 @@ function auth_action_login()
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$u['id'];
 
-    echo json_encode(['success' => true, 'redirect' => 'visor/index.php']);
+    // `user` alimenta la tarjeta de "usuario recordado" del proximo inicio de sesion
+    // (nombre e iniciales); el navegador solo guarda lo que el usuario pidio recordar.
+    echo json_encode(['success' => true, 'redirect' => 'visor/index.php', 'user' => auth_public_user($u)]);
 }
 
 function auth_action_login_pin()
@@ -110,7 +113,7 @@ function auth_action_login_pin()
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$u['id'];
 
-    echo json_encode(['success' => true, 'redirect' => 'visor/index.php']);
+    echo json_encode(['success' => true, 'redirect' => 'visor/index.php', 'user' => auth_public_user($u)]);
 }
 
 function auth_action_google()
@@ -188,7 +191,7 @@ function auth_action_google()
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$u['id'];
 
-    echo json_encode(['success' => true, 'redirect' => 'visor/index.php']);
+    echo json_encode(['success' => true, 'redirect' => 'visor/index.php', 'user' => auth_public_user($u)]);
 }
 
 function auth_action_logout()

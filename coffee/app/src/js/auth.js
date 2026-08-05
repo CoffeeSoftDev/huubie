@@ -1,6 +1,78 @@
 (function ($) {
     'use strict';
 
+    // Usuario recordado en ESTE navegador: correo, nombre y avatar para saludar, mas
+    // el metodo con el que suele entrar. Nunca la contrasena ni el PIN — recordar al
+    // usuario es ahorrarle escribir su correo, no saltarse el acceso.
+    const REMEMBER_KEY = 'coffee:auth:remember:v1';
+
+    function loadRemembered() {
+        try {
+            const raw = localStorage.getItem(REMEMBER_KEY);
+            const val = raw ? JSON.parse(raw) : null;
+            return (val && val.email) ? val : null;
+        } catch (e) { return null; }
+    }
+
+    function saveRemembered(user, email, method) {
+        try {
+            localStorage.setItem(REMEMBER_KEY, JSON.stringify({
+                email:    (user && user.email) || email || '',
+                name:     (user && user.name) || '',
+                initials: (user && user.initials) || '',
+                avatar:   (user && user.avatar_url) || '',
+                method:   method === 'pin' ? 'pin' : 'password'
+            }));
+        } catch (e) { /* modo privado o sin cuota: se entra igual, solo no se recuerda */ }
+    }
+
+    function clearRemembered() {
+        try { localStorage.removeItem(REMEMBER_KEY); } catch (e) {}
+    }
+
+    // Iniciales de respaldo cuando el servidor todavia no dijo el nombre (p.ej. se
+    // recordo antes de que el login devolviera la ficha del usuario).
+    function initialsOf(user) {
+        if (user.initials) return user.initials;
+        const src = (user.name || user.email || '').trim();
+        return src ? src.slice(0, 2).toUpperCase() : 'US';
+    }
+
+    // Pinta (o quita) la tarjeta del usuario recordado. Con tarjeta visible el campo
+    // de correo se oculta pero conserva su valor: el POST sigue llevando el correo.
+    function applyRemembered() {
+        const user = loadRemembered();
+        const $card = $('#rememberedUser');
+
+        if (!user) {
+            $card.prop('hidden', true);
+            $('#loginForm [data-email-field]').prop('hidden', false);
+            $('#rememberMe').prop('checked', true);
+            return;
+        }
+
+        $('#loginForm input[name="email"]').val(user.email);
+        $('#loginForm [data-email-field]').prop('hidden', true);
+        $('#rememberedName').text(user.name || user.email);
+        $('#rememberedEmail').text(user.email);
+        const $avatar = $('#rememberedAvatar');
+        if (user.avatar) $avatar.empty().append($('<img>').attr({ src: user.avatar, alt: '' }));
+        else             $avatar.text(initialsOf(user));
+        $card.prop('hidden', false);
+        $('#rememberMe').prop('checked', true);
+
+        switchMethod(user.method === 'pin' ? 'pin' : 'password');
+    }
+
+    // "Usar otra cuenta": olvida al usuario y devuelve el formulario a cero.
+    function forgetUser() {
+        clearRemembered();
+        $('#loginForm input[name="email"]').val('');
+        $('#loginForm input[name="password"], #loginForm input[name="pin"]').val('');
+        applyRemembered();
+        $('#loginForm input[name="email"]').trigger('focus');
+    }
+
     function showError(msg) {
         $('#authError').text(msg).prop('hidden', false);
     }
@@ -27,7 +99,12 @@
         $('.auth-tab').removeClass('active').filter('[data-tab="' + tab + '"]').addClass('active');
         $('#loginForm').prop('hidden', tab !== 'login');
         $('#registerForm').prop('hidden', tab !== 'register');
-        if (tab === 'login') switchMethod('password');   // el login siempre vuelve a contraseña
+        // El login vuelve a contraseña, salvo que este equipo recuerde a alguien que
+        // entra con PIN: ahi se respeta su método.
+        if (tab === 'login') {
+            const user = loadRemembered();
+            switchMethod(user && user.method === 'pin' ? 'pin' : 'password');
+        }
     }
 
     // Alterna el metodo de acceso del login: 'password' o 'pin'. Solo cambia que
@@ -43,6 +120,14 @@
         return $('#loginForm .auth-method-btn.active').data('method') || 'password';
     }
 
+    // Un acceso correcto es lo unico que actualiza (o borra) al usuario recordado: si
+    // la casilla esta desmarcada se olvida, para que desmarcarla surta efecto tambien
+    // cuando ya habia alguien recordado.
+    function rememberFromResponse(res, email, method) {
+        if ($('#rememberMe').is(':checked')) saveRemembered(res.user, email, method);
+        else clearRemembered();
+    }
+
     function submitForm($form, action) {
         clearError();
         setBusy($form, true);
@@ -54,6 +139,7 @@
         $.post('ctrl/ctrl-auth.php', data)
             .done(function (res) {
                 if (res.success) {
+                    rememberFromResponse(res, data.email, action === 'login_pin' ? 'pin' : 'password');
                     window.location.href = res.redirect;
                 } else {
                     showError(res.message || 'Ocurrió un error');
@@ -72,6 +158,7 @@
         $.post('ctrl/ctrl-auth.php', { action: 'google', credential: response.credential })
             .done(function (res) {
                 if (res.success) {
+                    rememberFromResponse(res, (res.user && res.user.email) || '', 'password');
                     window.location.href = res.redirect;
                 } else {
                     showError(res.message || 'No se pudo iniciar sesión con Google');
@@ -133,9 +220,12 @@
     $(function () {
         if (window.lucide) window.lucide.createIcons();
         initGoogle();
+        applyRemembered();
 
         // Delegado: cubre los campos de los dos formularios (login y registro).
         $(document).on('click', '.auth-pass-toggle', togglePassword);
+
+        $('#forgetUserBtn').on('click', forgetUser);
 
         $('.auth-tab').on('click', function () {
             switchTab($(this).data('tab'));

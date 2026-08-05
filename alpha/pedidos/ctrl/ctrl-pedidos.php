@@ -447,23 +447,35 @@ class Pedidos extends MPedidos{
         $message = 'No se pudo actualizar el pedido';
         $statusQuery = false;
 
-        // Estado previo para la bitacora (diff antes -> despues). Se lee ANTES de tocar
-        // cliente y pedido; getOrderID trae fecha/hora ya formateadas y el nombre/telefono
-        // del cliente actual del pedido.
+        // Estado previo para la bitacora (diff antes -> despues) y para el candado de
+        // pedido pagado. Se lee ANTES de tocar cliente y pedido; getOrderID trae
+        // fecha/hora ya formateadas y el nombre/telefono del cliente actual del pedido.
         $prevOrder = $this->getOrderID([$_POST['id']]);
         $prevOrder = is_array($prevOrder) && isset($prevOrder[0]) ? $prevOrder[0] : [];
 
+        $requiereClave = ($prevOrder['status'] ?? null) == 3;
+        $denegado      = $this->paidOrderEditDenial($requiereClave, $_POST['password'] ?? '');
+
+        if ($denegado) return $denegado;
+
+        // El fallback no es cosmetico: si el campo no llega, el aviso de indice
+        // indefinido se imprime antes del json_encode y el front recibe una respuesta
+        // que ya no puede parsear (el guardado parece no hacer nada).
         if ($_SESSION['ROLID'] == 1) {
-            $subsidiaries_id = $_POST['subsidiaries_id'];
+            $subsidiaries_id = $_POST['subsidiaries_id'] ?? ($prevOrder['subsidiaries_id'] ?? $_SESSION['SUB']);
         } else {
             $subsidiaries_id = $_SESSION['SUB'];
         }
 
-        // Buscar si existe un cliente con el nombre proporcionado
-        $client = $this->getClientName([$_POST['name']]);
+        // Pedido liquidado: el cliente queda ligado al pedido ya cobrado y no se
+        // reescribe. El formulario manda sus campos en solo lectura, pero la garantia
+        // esta aqui: solo se actualizan los datos de entrega.
+        $client = $requiereClave ? null : $this->getClientName([$_POST['name']]);
         $client_id = null;
 
-        if (!is_array($client) || empty($client['id'])) {
+        if ($requiereClave) {
+            $client_id = null;
+        } elseif (!is_array($client) || empty($client['id'])) {
             // El cliente no existe, crear uno nuevo
             $data_client = $this->util->sql([
                 'name'            => $_POST['name'],
@@ -502,19 +514,27 @@ class Pedidos extends MPedidos{
         // Actualizar el pedido con el client_id (nuevo o existente)
         // La sucursal (subsidiaries_id) NO se reescribe en edición: queda fija
         // desde la creación del pedido para que un pedido no cambie de sucursal.
-        $update = $this->updateOrder($this->util->sql([
-            'date_order'      => $_POST['date_order'],
-            'time_order'      => $_POST['time_order'],
-            'note'            => $_POST['note'],
-            'delivery_type'   => $_POST['delivery_type'],
-            'client_id'       => $client_id,
-            'id'              => $_POST['id'],
-        ], 1));
+        // Un campo que no llega se omite del update en vez de leerse a ciegas: el aviso
+        // de indice indefinido se imprimiria antes del json_encode y dejaria la
+        // respuesta sin parsear. Tampoco sirve caer a $prevOrder, que trae la fecha y
+        // la hora ya formateadas para pantalla (d/m/Y, h:i A) y no en formato de BD.
+        $orderData = [];
+
+        foreach (['date_order', 'time_order', 'note', 'delivery_type'] as $campo) {
+            if (isset($_POST[$campo])) $orderData[$campo] = $_POST[$campo];
+        }
+
+        if (!$requiereClave) $orderData['client_id'] = $client_id;
+
+        // El id va al final: util->sql lo toma como el WHERE del update.
+        $orderData['id'] = $_POST['id'];
+
+        $update = $this->updateOrder($this->util->sql($orderData, 1));
 
         if ($update) {
             $status  = 200;
             $message = 'Pedido actualizado correctamente';
-            $this->logOrderEditionDiff($prevOrder);
+            $this->logOrderEditionDiff($prevOrder, $requiereClave);
         }
 
         return [
@@ -524,11 +544,66 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // Candado de edicion sobre un pedido liquidado: editar la cabecera deja de ser una
+    // correccion de captura libre, asi que exige admin + la contrasena del usuario en
+    // sesion (mismo criterio que deletePay). Devuelve el error a retornar, o null si
+    // la operacion puede seguir. Una sola definicion de la regla para los dos puntos
+    // que la aplican: verifyOrderEditKey (antes de abrir el formulario) y editOrder
+    // (al guardar, que es la validacion que manda).
+    private function paidOrderEditDenial($requiereClave, $password) {
+        if (!$requiereClave) return null;
+
+        if (($_SESSION['ROLID'] ?? 0) != 1) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo un administrador puede editar un pedido liquidado.'
+            ];
+        }
+
+        $user = $this->getUserKeyById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]);
+
+        if ($password === '' || empty($user) || $user['key'] !== md5($password)) {
+            return [
+                'status'  => 401,
+                'message' => 'Contraseña incorrecta. El pedido está liquidado y editarlo requiere autorización.'
+            ];
+        }
+
+        return null;
+    }
+
+    // El candado se decide por el ESTADO del pedido (3 = PAGADO), no por el saldo:
+    // un pedido sin productos tambien tiene saldo cero sin haberse cobrado nunca, y
+    // ese no es un pedido liquidado. isOrderPaidInFull (saldo) sigue siendo el
+    // criterio correcto para deletePay, donde siempre existe al menos un abono.
+    private function isOrderPaid($orderId) {
+        $ls = $this->getOrderID([$orderId]);
+
+        return !empty($ls) && ($ls[0]['status'] ?? null) == 3;
+    }
+
+    // Valida la contrasena ANTES de abrir el formulario, para no descubrir una clave
+    // mal escrita hasta despues de capturar los cambios. No autoriza por si sola: la
+    // edicion real vuelve a pasar por el mismo candado en editOrder().
+    function verifyOrderEditKey() {
+        $denegado = $this->paidOrderEditDenial(
+            $this->isOrderPaid($_POST['id']),
+            $_POST['password'] ?? ''
+        );
+
+        if ($denegado) return $denegado;
+
+        return [
+            'status'  => 200,
+            'message' => 'Autorización correcta.'
+        ];
+    }
+
     // Registra en la bitacora los campos de cabecera que cambiaron en una edicion.
     // Compara el estado previo (getOrderID, con fecha/hora ya formateadas) contra el
     // $_POST entrante, normalizando fecha/hora al MISMO formato para no marcar como
     // cambio lo que solo difiere en representacion. No registra nada si nada cambio.
-    private function logOrderEditionDiff($prev) {
+    private function logOrderEditionDiff($prev, $requiereClave = false) {
         if (empty($prev)) return;
 
         $fmtDate = function ($ymd) {
@@ -566,7 +641,8 @@ class Pedidos extends MPedidos{
 
         if (!$cambios) return;
 
-        $this->logHistory(implode(' · ', $cambios), 'edition', 'Pedido editado');
+        $nota = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
+        $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
     }
 
     // Permite mutar un pedido si el usuario es admin, si el pedido pertenece a su
@@ -2369,7 +2445,7 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
             $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
         }
 
-        if ($owner == 1) {
+        if ($rolId == 1 || $owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
     } elseif ($status == 3) { // Pagado
@@ -2383,11 +2459,16 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
         // deshabilitado cuando el saldo es cero (isPaidInFull en addPayment).
         if ($rolId == 1) {
             $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
+
+            // Editar un pedido ya liquidado exige contrasena (editOrderPaid la
+            // pide antes de abrir el formulario; editOrder() la revalida al
+            // guardar). Solo admin, mismo criterio que deletePay: no "owner".
+            $options[] = ['Editar', 'icon-pencil', "{$instancia}.editOrderPaid({$id})"];
         }
 
         $options[] = ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"];
 
-        if ($owner == 1) {
+        if ($rolId == 1 || $owner == 1) {
             $options[] = ['Historial', 'icon-history', "{$instancia}.showHistory({$id})"];
         }
     } elseif ($status == 1) { // Cotización
@@ -2409,7 +2490,7 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
             $options[] = ['Aplicar descuento', 'icon-percent', "{$instancia}.addDiscount({$id})"];
         }
 
-        if ($owner == 1) {
+        if ($rolId == 1 || $owner == 1) {
             $options[] = ['Eliminar', 'icon-trash', "{$instancia}.deleteOrder({$id})"];
         }
     } elseif ($status == 4) { // Cancelado
