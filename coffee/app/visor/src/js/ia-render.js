@@ -640,23 +640,21 @@
                 return typeof r === 'string' ? limpiaRegla(r, '') : limpiaRegla(r.texto, r.nivel);
             });
 
+            // La plantilla son cinco columnas: Yo / En el apartado / Quiero /
+            // Beneficio / Criterios. Si el bloque trae sprint, points o fecha se
+            // ignoran a proposito: la planeacion no se pinta aqui.
             return {
                 usuario:   String(h.usuario || ''),
                 apartado:  String(h.apartado || ''),
                 quiero:    String(h.quiero || ''),
                 beneficio: String(h.beneficio || ''),
-                sprint:    String(h.sprint != null ? h.sprint : (src.sprint || '')),
-                points:    String(h.points != null ? h.points : ''),
-                fecha:     String(h.fecha || src.fecha || ''),
                 criterios: { intro: String(c.intro || ''), bloques: bloques, reglas: reglas }
             };
         });
 
         if (!historias.length) return null;
         return {
-            proyecto: String(src.proyecto || src.modulo || 'Historias de usuario'),
-            sprint:   String(src.sprint || ''),
-            fecha:    String(src.fecha || ''),
+            proyecto:  String(src.proyecto || src.modulo || 'Historias de usuario'),
             historias: historias
         };
     }
@@ -720,16 +718,13 @@
         data.historias.forEach(function (h) {
             if (h.banner) { html += `<div class="ia-story-banner">${escape(h.banner)}</div>`; return; }
             n++;
-            const chips = [`<span class="ia-chip is-user"><i data-lucide="user" class="w-3 h-3"></i>${escape(h.usuario || '—')}</span>`];
-            if (h.sprint) chips.push(`<span class="ia-chip is-sprint">Sprint ${escape(h.sprint)}</span>`);
-            if (h.fecha)  chips.push(`<span class="ia-chip is-date">${escape(h.fecha)}</span>`);
-            if (h.points) chips.push(`<span class="ia-chip is-points">${escape(h.points)} pts</span>`);
-
             html += `<article class="ia-story">
                 <div class="ia-story-top">
                     <span class="ia-story-id">${String(n).padStart(2, '0')}</span>
                     <div class="ia-story-main">
-                        <div class="ia-chip-row">${chips.join('')}</div>
+                        <div class="ia-chip-row">
+                            <span class="ia-chip is-user"><i data-lucide="user" class="w-3 h-3"></i>${escape(h.usuario || '—')}</span>
+                        </div>
                         <div class="ia-story-apartado">${escape(h.apartado)}</div>
                         <div class="ia-story-quiero">${escape(h.quiero)}</div>
                         ${h.beneficio ? `<div class="ia-story-benef"><i data-lucide="target" class="w-3 h-3"></i>${escape(h.beneficio)}</div>` : ''}
@@ -744,21 +739,18 @@
 
     function tableHtml(data) {
         const head = ['Yo ( Usuario)', 'En el apartado', 'Quiero (funcionalidad)', 'Beneficio (para qué)',
-                      'Criterios de aceptación', 'Sprint', 'Points', 'Fecha'];
+                      'Criterios de aceptación'];
         let rows = '';
         data.historias.forEach(function (h) {
-            if (h.banner) { rows += `<tr class="ia-xls-banner"><td colspan="8">${escape(h.banner)}</td></tr>`; return; }
+            if (h.banner) { rows += `<tr class="ia-xls-banner"><td colspan="5">${escape(h.banner)}</td></tr>`; return; }
             rows += `<tr class="ia-xls-st">
                 <td><span class="ia-chip is-user">${escape(h.usuario || '—')}</span></td>
                 <td><b>${escape(h.apartado)}</b></td>
                 <td>${escape(h.quiero)}</td>
                 <td>${escape(h.beneficio)}</td>
                 <td class="ia-xls-c"><span class="ia-xls-crit"><i data-lucide="chevron-down" class="w-3 h-3"></i>${escape(critCount(h))}</span></td>
-                <td class="ia-xls-mid">${escape(h.sprint)}</td>
-                <td class="ia-xls-mid">${escape(h.points)}</td>
-                <td>${escape(h.fecha)}</td>
             </tr>
-            <tr class="ia-xls-crit-row"><td colspan="8">${specHtml(h)}</td></tr>`;
+            <tr class="ia-xls-crit-row"><td colspan="5">${specHtml(h)}</td></tr>`;
         });
         return `<div class="ia-xls-scroll"><table class="ia-xls">
             <thead><tr>${head.map(t => `<th>${escape(t)}</th>`).join('')}</tr></thead>
@@ -769,22 +761,21 @@
         const reales   = data.historias.filter(h => !h.banner);
         const perfiles = [];
         reales.forEach(h => { if (h.usuario && perfiles.indexOf(h.usuario) === -1) perfiles.push(h.usuario); });
-        const sprints  = [];
-        reales.forEach(h => { if (h.sprint && sprints.indexOf(h.sprint) === -1) sprints.push(h.sprint); });
-        const sub = [data.sprint ? 'Sprint ' + data.sprint : '', data.fecha].filter(Boolean).join(' · ');
+        const apartados = [];
+        reales.forEach(h => { if (h.apartado && apartados.indexOf(h.apartado) === -1) apartados.push(h.apartado); });
 
         return `
             <div class="ia-stories-head">
                 <div class="ia-stories-ico"><i data-lucide="list-checks" class="w-4 h-4"></i></div>
                 <div class="ia-stories-titles">
                     <div class="ia-stories-title">${escape(data.proyecto)}</div>
-                    ${sub ? `<div class="ia-stories-sub">${escape(sub)}</div>` : ''}
+                    <div class="ia-stories-sub">Historias de usuario</div>
                 </div>
             </div>
             <div class="ia-stories-metrics">
                 <div class="ia-metric"><span class="k">Historias</span><span class="v">${reales.length}</span></div>
+                <div class="ia-metric"><span class="k">Apartados</span><span class="v">${apartados.length}</span></div>
                 <div class="ia-metric"><span class="k">Perfiles</span><span class="v">${perfiles.length}<small>${perfiles.length === 1 ? ' · ' + escape(perfiles[0]) : ''}</small></span></div>
-                <div class="ia-metric"><span class="k">Sprints</span><span class="v">${sprints.length || '—'}</span></div>
             </div>
             <div class="ia-stories-cards">${cardsHtml(data)}</div>
             <div class="ia-stories-table" style="display:none;">${tableHtml(data)}</div>`;
@@ -809,24 +800,23 @@
     }
 
     function storiesToMarkdown(data) {
-        const head = '| Yo ( Usuario) | En el apartado | Quiero (funcionalidad) | Beneficio (para qué) | Criterios de aceptación | Sprint | Points | Fecha |';
-        const sep  = '|---|---|---|---|---|---|---|---|';
+        const head = '| Yo ( Usuario) | En el apartado | Quiero (funcionalidad) | Beneficio (para qué) | Criterios de aceptación |';
+        const sep  = '|---|---|---|---|---|';
         const rows = data.historias.map(function (h) {
-            if (h.banner) return `| **${h.banner.toUpperCase()}** | | | | | | | |`;
+            if (h.banner) return `| **${h.banner.toUpperCase()}** | | | | |`;
             const cell = t => String(t || '').replace(/\|/g, '\\|');
             return `| ${cell(h.usuario)} | ${cell(h.apartado)} | ${cell(h.quiero)} | ${cell(h.beneficio)} | ` +
-                   `${cell(critToText(h, '<br>'))} | ${cell(h.sprint)} | ${cell(h.points)} | ${cell(h.fecha)} |`;
+                   `${cell(critToText(h, '<br>'))} |`;
         });
-        const title = data.sprint ? `## SPRINT ${data.sprint}\n\n` : '';
-        return title + [head, sep].concat(rows).join('\n') + '\n';
+        return [head, sep].concat(rows).join('\n') + '\n';
     }
 
     function storiesToRows(data) {
         const rows = [['Yo ( Usuario)', 'En el apartado', 'Quiero (funcionalidad)', 'Beneficio (para qué)',
-                       'Criterios de aceptación', 'Sprint', 'Points', 'Fecha']];
+                       'Criterios de aceptación']];
         data.historias.forEach(function (h) {
-            if (h.banner) { rows.push([h.banner.toUpperCase(), '', '', '', '', '', '', '']); return; }
-            rows.push([h.usuario, h.apartado, h.quiero, h.beneficio, critToText(h, '\n'), h.sprint, h.points, h.fecha]);
+            if (h.banner) { rows.push([h.banner.toUpperCase(), '', '', '', '']); return; }
+            rows.push([h.usuario, h.apartado, h.quiero, h.beneficio, critToText(h, '\n')]);
         });
         return rows;
     }
@@ -845,17 +835,17 @@
         setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
     }
 
-    // Una hoja por sprint, como el archivo que ya maneja el equipo. Sin SheetJS
-    // en la pagina, se cae a CSV (Excel lo abre igual).
+    // Una hoja con las cinco columnas de la plantilla. Sin SheetJS en la pagina,
+    // se cae a CSV (Excel lo abre igual).
     function exportStories(data, slug) {
         if (typeof XLSX === 'undefined') {
             downloadBlob(slug + '.csv', storiesToCsv(data), 'text/csv;charset=utf-8');
             return;
         }
         const ws = XLSX.utils.aoa_to_sheet(storiesToRows(data));
-        ws['!cols'] = [{ wch: 18 }, { wch: 26 }, { wch: 46 }, { wch: 40 }, { wch: 70 }, { wch: 8 }, { wch: 8 }, { wch: 16 }];
+        ws['!cols'] = [{ wch: 18 }, { wch: 26 }, { wch: 46 }, { wch: 40 }, { wch: 70 }];
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, ('SPRINT ' + (data.sprint || '1')).slice(0, 31));
+        XLSX.utils.book_append_sheet(wb, ws, (data.proyecto || 'Historias').replace(/[\\/*?:[\]]/g, ' ').slice(0, 31));
         XLSX.writeFile(wb, slug + '.xlsx');
     }
 

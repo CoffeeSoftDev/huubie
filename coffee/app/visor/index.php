@@ -800,6 +800,9 @@
     <script src="src/js/drive-hub.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/tools-config.js?t=<?php echo time(); ?>"></script>
+    <!-- Motor de render compartido. El drawer tiene su propio post-procesador, pero
+         delega en IARender el bloque ```stories (historias de usuario). -->
+    <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/visor.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/account-menu.js?t=<?php echo time(); ?>"></script>
 

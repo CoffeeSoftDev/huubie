@@ -186,9 +186,7 @@ html[data-theme="light"] .banner { color: var(--accent); }
 }
 .chip-user   { background: var(--accent-tint); color: var(--accent-soft); }
 html[data-theme="light"] .chip-user { color: var(--accent); }
-.chip-sprint { background: var(--violet-tint); color: var(--violet); }
 .chip-date   { background: transparent; color: var(--text-mute2); border: 1px solid var(--border-soft); }
-.chip-points { background: var(--blue-tint); color: var(--blue); }
 .chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
 
 /* Criterios = especificacion de pantalla */
@@ -219,21 +217,7 @@ html[data-theme="light"] .spec-modal .spec-h { color: var(--accent); }
 .rule-hard span { color: var(--text-soft); }
 html[data-theme="light"] .rule-soft { color: #B45309; }
 
-/* -- Variante B: tablero por sprint -- */
-.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; padding: 12px; }
-.col { background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px; }
-.col-h { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
-.col-h b { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; }
-.col-h .count { margin-left: auto; font-size: 10px; color: var(--text-mute2); background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 20px; padding: 1px 7px; }
-.mini { background: var(--bg-card); border: 1px solid var(--border-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 9px; margin-bottom: 8px; cursor: pointer; }
-.mini:hover { background: var(--bg-hover); }
-.mini-ap { font-size: 11.5px; font-weight: 600; }
-.mini-q { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.mini-f { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
-.mini-f .n { margin-left: auto; font-size: 10px; color: var(--text-mute2); display: inline-flex; align-items: center; gap: 3px; }
-.mini.dev { border-left-color: var(--violet); }
-
-/* -- Variante C: tabla fiel al Excel -- */
+/* -- Variante B: tabla de la plantilla -- */
 .xls-scroll { overflow-x: auto; }
 .xls { width: 100%; min-width: 1020px; border-collapse: collapse; font-size: 11.5px; }
 .xls th {
@@ -244,7 +228,6 @@ html[data-theme="light"] .rule-soft { color: #B45309; }
 .xls tr:hover td { background: var(--bg-hover); }
 .xls .col-user { width: 130px; } .xls .col-ap { width: 180px; } .xls .col-q { width: 260px; } .xls .col-b { width: 220px; }
 .xls .col-c { width: 150px; }
-.xls .col-s, .xls .col-p { width: 62px; text-align: center; } .xls .col-f { width: 108px; }
 .xls .row-banner td { background: var(--accent-tint); color: var(--accent-soft); font-weight: 700; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
 html[data-theme="light"] .xls .row-banner td { color: var(--accent); }
 .xls-crit { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--blue); cursor: pointer; white-space: nowrap; }
@@ -326,7 +309,7 @@ html[data-theme="light"] .note i { color: var(--accent); }
                 <div class="chat-body">
                     <div class="msg-role">CoffeePlanner</div>
                     <div class="msg-text">
-                        <p style="margin:0 0 8px">Historias del módulo <b>Admin de documentos</b>, Sprint 1:</p>
+                        <p style="margin:0 0 8px">Historias del módulo <b>Admin de documentos</b>:</p>
                         <p style="margin:0 0 4px"><b>SPRINT 1</b></p>
                         <table class="md-table">
                             <thead><tr>
@@ -385,8 +368,7 @@ html[data-theme="light"] .note i { color: var(--accent); }
 
         <div class="tabs">
             <button class="tab is-on" data-pane="a"><i data-lucide="layout-list" style="width:14px;height:14px"></i> A · Fichas de historia <span class="tag">recomendada</span></button>
-            <button class="tab" data-pane="b"><i data-lucide="columns-3" style="width:14px;height:14px"></i> B · Tablero por sprint</button>
-            <button class="tab" data-pane="c"><i data-lucide="table-2" style="width:14px;height:14px"></i> C · Tabla fiel al Excel</button>
+            <button class="tab" data-pane="c"><i data-lucide="table-2" style="width:14px;height:14px"></i> B · Tabla de la plantilla</button>
         </div>
 
         <!-- ---------- VARIANTE A ---------- -->
@@ -406,14 +388,14 @@ html[data-theme="light"] .note i { color: var(--accent); }
                     <div class="chat-body">
                         <div class="msg-role">CoffeePlanner</div>
                         <div class="msg-text" style="padding-left:8px">
-                            <p style="margin:0 0 10px">Historias del módulo <b>Admin de documentos</b>, Sprint 1:</p>
+                            <p style="margin:0 0 10px">Historias del módulo <b>Admin de documentos</b>:</p>
 
                             <div class="stories">
                                 <div class="stories-head">
                                     <div class="ico"><i data-lucide="list-checks" style="width:14px;height:14px"></i></div>
                                     <div>
                                         <div class="stories-title">Admin de documentos</div>
-                                        <div class="stories-sub">Sprint 1.0 · 4 ago - 17 ago</div>
+                                        <div class="stories-sub">Historias de usuario</div>
                                     </div>
                                     <div class="stories-actions">
                                         <button class="sbtn icon" title="Copiar tabla markdown"><i data-lucide="copy" style="width:12px;height:12px"></i></button>
@@ -425,7 +407,7 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                 <div class="stories-metrics">
                                     <div class="metric"><div class="k">Historias</div><div class="v">3</div></div>
                                     <div class="metric"><div class="k">Perfiles</div><div class="v">1 <small>· ADMIN</small></div></div>
-                                    <div class="metric"><div class="k">Points</div><div class="v" style="color:var(--text-mute2)">—</div></div>
+                                    <div class="metric"><div class="k">Apartados</div><div class="v">3</div></div>
                                 </div>
 
                                 <div class="stories-body">
@@ -438,8 +420,6 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                             <div class="story-main">
                                                 <div class="chip-row">
                                                     <span class="chip chip-user"><i data-lucide="user" style="width:10px;height:10px"></i> ADMIN</span>
-                                                    <span class="chip chip-sprint">Sprint 1.0</span>
-                                                    <span class="chip chip-date">4 ago - 17 ago</span>
                                                 </div>
                                                 <div class="story-apartado">EXPLORADOR DE PROYECTOS</div>
                                                 <div class="story-quiero">Visualizar los documentos de un proyecto en un árbol de carpetas, pudiendo buscar por nombre de proyecto y por nombre de documento.</div>
@@ -496,7 +476,6 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                             <div class="story-main">
                                                 <div class="chip-row">
                                                     <span class="chip chip-user"><i data-lucide="user" style="width:10px;height:10px"></i> ADMIN</span>
-                                                    <span class="chip chip-sprint">Sprint 1.0</span>
                                                 </div>
                                                 <div class="story-apartado">EDITOR DE DOCUMENTO</div>
                                                 <div class="story-quiero">Abrir un documento markdown, editarlo y guardarlo sin salir del visor.</div>
@@ -531,7 +510,6 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                             <div class="story-main">
                                                 <div class="chip-row">
                                                     <span class="chip chip-user"><i data-lucide="user" style="width:10px;height:10px"></i> ADMIN</span>
-                                                    <span class="chip chip-sprint">Sprint 1.0</span>
                                                 </div>
                                                 <div class="story-apartado">SUBIR Y ELIMINAR DOCUMENTOS</div>
                                                 <div class="story-quiero">Subir documentos a la carpeta seleccionada y eliminar los que ya no aplican.</div>
@@ -564,7 +542,7 @@ html[data-theme="light"] .note i { color: var(--accent); }
                             <li><i data-lucide="check" style="width:15px;height:15px; color:var(--green)"></i><div>
                                 <b>El apartado es el título</b><p>Es la columna con la que el equipo busca la historia después; va en MAYÚSCULAS como en el Excel.</p></div></li>
                             <li><i data-lucide="check" style="width:15px;height:15px; color:var(--green)"></i><div>
-                                <b>Perfil, sprint y fecha como chips</b><p>Las tres columnas cortas del Excel se leen de un golpe sin robar ancho.</p></div></li>
+                                <b>El perfil, como chip</b><p>La columna "Yo ( Usuario)" se lee de un golpe sin robar ancho a la funcionalidad.</p></div></li>
                             <li><i data-lucide="check" style="width:15px;height:15px; color:var(--green)"></i><div>
                                 <b>Criterios plegados y por bloque</b><p>filterBar azul, tabla verde, modal terracota, cards violeta. Se recupera la jerarquía que el markdown aplana.</p></div></li>
                             <li><i data-lucide="check" style="width:15px;height:15px; color:var(--green)"></i><div>
@@ -581,104 +559,20 @@ html[data-theme="light"] .note i { color: var(--accent); }
             </div>
         </div>
 
-        <!-- ---------- VARIANTE B ---------- -->
-        <div class="pane" id="pane-b">
-            <p class="lead" style="margin-bottom:12px">
-                Para cuando la planeación es de varios sprints: una columna por quincena, tarjeta compacta por historia.
-                Sirve para ver el reparto de trabajo, no para leer criterios (se abren al hacer clic).
-                Pensado para la <b>pestaña completa</b>, no para el drawer.
-            </p>
-
-            <div class="stories">
-                <div class="stories-head">
-                    <div class="ico"><i data-lucide="columns-3" style="width:14px;height:14px"></i></div>
-                    <div>
-                        <div class="stories-title">ERP Contable — planeación</div>
-                        <div class="stories-sub">3 sprints · 8 historias · 4 perfiles</div>
-                    </div>
-                    <div class="stories-actions">
-                        <button class="sbtn"><i data-lucide="layout-list" style="width:12px;height:12px"></i> Fichas</button>
-                        <button class="sbtn is-on"><i data-lucide="columns-3" style="width:12px;height:12px"></i> Tablero</button>
-                        <button class="sbtn"><i data-lucide="table-2" style="width:12px;height:12px"></i> Tabla</button>
-                        <button class="sbtn icon" title="Exportar a Excel"><i data-lucide="sheet" style="width:12px;height:12px"></i></button>
-                    </div>
-                </div>
-
-                <div class="board">
-                    <div class="col">
-                        <div class="col-h"><span class="chip chip-sprint">Sprint 1.0</span><b>18 nov - 01 dic</b><span class="count">3</span></div>
-                        <div class="mini dev">
-                            <div class="mini-ap">BASE DE DATOS</div>
-                            <div class="mini-q">Realizar un diagrama Entidad-Relación de los módulos del ERP.</div>
-                            <div class="mini-f"><span class="chip chip-user">DEVELOPER</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 3</span></div>
-                        </div>
-                        <div class="mini">
-                            <div class="mini-ap">INTERFAZ INICIAL</div>
-                            <div class="mini-q">Visualizar el acceso a los módulos y la información inicial por periodo de fechas.</div>
-                            <div class="mini-f"><span class="chip chip-user">GERENTE Y AUXILIAR</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 7</span></div>
-                        </div>
-                        <div class="mini">
-                            <div class="mini-ap">INTERFAZ INICIAL</div>
-                            <div class="mini-q">Visualizar el acceso a los módulos de todas las unidades de negocio.</div>
-                            <div class="mini-f"><span class="chip chip-user">CONTABILIDAD</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 8</span></div>
-                        </div>
-                    </div>
-
-                    <div class="col">
-                        <div class="col-h"><span class="chip chip-sprint">Sprint 2.0</span><b>02 dic - 15 dic</b><span class="count">3</span></div>
-                        <div class="mini">
-                            <div class="mini-ap">CONCENTRADO DE VENTAS</div>
-                            <div class="mini-q">Visualizar el concentrado desglosado por conceptos, filtrado por periodo y unidad de negocio.</div>
-                            <div class="mini-f"><span class="chip chip-user">GERENTE Y AUXILIAR</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 11</span></div>
-                        </div>
-                        <div class="mini">
-                            <div class="mini-ap">CONCENTRADO DE VENTAS</div>
-                            <div class="mini-q">Visualizar el concentrado de todas las unidades con selector de UDN.</div>
-                            <div class="mini-f"><span class="chip chip-user">CONTABILIDAD</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 12</span></div>
-                        </div>
-                        <div class="mini">
-                            <div class="mini-ap">FORMAS DE PAGO</div>
-                            <div class="mini-q">Ver, registrar, editar y eliminar las formas de pago del catálogo.</div>
-                            <div class="mini-f"><span class="chip chip-user">CONTABILIDAD</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 6</span></div>
-                        </div>
-                    </div>
-
-                    <div class="col">
-                        <div class="col-h"><span class="chip chip-sprint">Sprint 3.0</span><b>16 dic - 29 dic</b><span class="count">2</span></div>
-                        <div class="mini">
-                            <div class="mini-ap">MOVIMIENTOS DIARIOS DE CLIENTES</div>
-                            <div class="mini-q">Ver, registrar, editar y eliminar movimientos de clientes a crédito.</div>
-                            <div class="mini-f"><span class="chip chip-user">GERENTE Y AUXILIAR</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 9</span></div>
-                        </div>
-                        <div class="mini dev">
-                            <div class="mini-ap">BITÁCORA</div>
-                            <div class="mini-q">Consultar la bitácora de operaciones por usuario y fecha.</div>
-                            <div class="mini-f"><span class="chip chip-user">DEVELOPER</span><span class="n"><i data-lucide="list" style="width:10px;height:10px"></i> 5</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="note" style="margin-top:14px"><i data-lucide="info" style="width:15px;height:15px"></i>
-                <div>El contador de cada tarjeta es el <b>número de criterios</b>: es el proxy honesto del tamaño de la
-                pantalla en un equipo que no estima con points. Las tarjetas de historias técnicas (<b>DEVELOPER</b>) llevan borde violeta.</div>
-            </div>
-        </div>
-
         <!-- ---------- VARIANTE C ---------- -->
         <div class="pane" id="pane-c">
             <p class="lead" style="margin-bottom:12px">
                 La tabla del Excel, columna por columna. Los criterios viven colapsados en su celda
                 (<span class="mono">3 bloques · 2 reglas</span>) y se despliegan en una fila propia, a todo el ancho.
-                Es la vista para revisar con el cliente y la que se copia a la hoja del sprint.
+                Es la vista para revisar con el cliente y la que se copia al Excel.
             </p>
 
             <div class="stories">
                 <div class="stories-head">
                     <div class="ico"><i data-lucide="table-2" style="width:14px;height:14px"></i></div>
                     <div>
-                        <div class="stories-title">Admin de documentos — Sprint 1</div>
-                        <div class="stories-sub">Mismo orden de columnas que <span class="mono">Historia de usuario.xlsx</span></div>
+                        <div class="stories-title">Admin de documentos</div>
+                        <div class="stories-sub">Cinco columnas: Yo · Apartado · Quiero · Beneficio · Criterios</div>
                     </div>
                     <div class="stories-actions">
                         <button class="sbtn"><i data-lucide="layout-list" style="width:12px;height:12px"></i> Fichas</button>
@@ -696,12 +590,9 @@ html[data-theme="light"] .note i { color: var(--accent); }
                             <th class="col-q">Quiero (funcionalidad)</th>
                             <th class="col-b">Beneficio (para qué)</th>
                             <th class="col-c">Criterios de aceptación</th>
-                            <th class="col-s">Sprint</th>
-                            <th class="col-p">Points</th>
-                            <th class="col-f">Fecha</th>
                         </tr></thead>
                         <tbody>
-                            <tr class="row-banner"><td colspan="8">Admin de documentos</td></tr>
+                            <tr class="row-banner"><td colspan="5">Admin de documentos</td></tr>
 
                             <tr class="st open" onclick="this.classList.toggle('open')">
                                 <td><span class="pill-mini">ADMIN</span></td>
@@ -709,9 +600,8 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                 <td>Visualizar los documentos de un proyecto en un árbol de carpetas, pudiendo buscar por nombre de proyecto y por nombre de documento.</td>
                                 <td>Para localizar rápido el documento que se necesita sin recorrer el disco del servidor.</td>
                                 <td class="col-c"><span class="xls-crit"><i data-lucide="chevron-down" style="width:12px;height:12px"></i> 3 bloques · 2 reglas</span></td>
-                                <td class="col-s">1.0</td><td class="col-p"></td><td class="col-f">4 ago - 17 ago</td>
-                            </tr>
-                            <tr class="crit-row"><td colspan="8">
+                                                            </tr>
+                            <tr class="crit-row"><td colspan="5">
                                 <div class="crit-intro" style="margin-top:0">El apartado debe contener los siguientes elementos:</div>
                                 <div class="crit-cols">
                                     <div class="spec spec-filter">
@@ -737,9 +627,8 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                 <td>Abrir un documento markdown, editarlo y guardarlo sin salir del visor.</td>
                                 <td>Para corregir la documentación en el momento en que se detecta el error.</td>
                                 <td class="col-c"><span class="xls-crit"><i data-lucide="chevron-down" style="width:12px;height:12px"></i> 3 bloques · <span style="color:var(--red)">1 importante</span></span></td>
-                                <td class="col-s">1.0</td><td class="col-p"></td><td class="col-f">4 ago - 17 ago</td>
-                            </tr>
-                            <tr class="crit-row"><td colspan="8">
+                                                            </tr>
+                            <tr class="crit-row"><td colspan="5">
                                 <div class="crit-intro" style="margin-top:0">Al precionar el botón de ver se abre el documento con lo siguiente:</div>
                                 <div class="crit-cols">
                                     <div class="spec spec-modal">
@@ -766,9 +655,8 @@ html[data-theme="light"] .note i { color: var(--accent); }
                                 <td>Subir documentos a la carpeta seleccionada y eliminar los que ya no aplican.</td>
                                 <td>Para mantener la documentación del proyecto al día desde la misma pantalla.</td>
                                 <td class="col-c"><span class="xls-crit"><i data-lucide="chevron-down" style="width:12px;height:12px"></i> 2 bloques · 3 reglas</span></td>
-                                <td class="col-s">1.0</td><td class="col-p"></td><td class="col-f">4 ago - 17 ago</td>
-                            </tr>
-                            <tr class="crit-row"><td colspan="8">
+                                                            </tr>
+                            <tr class="crit-row"><td colspan="5">
                                 <div class="crit-intro" style="margin-top:0">Al precionar el botón de subir archivo se abre un modal con los siguientes campos:</div>
                                 <div class="crit-cols">
                                     <div class="spec spec-modal">
@@ -804,8 +692,6 @@ html[data-theme="light"] .note i { color: var(--accent); }
             <div>
 <pre class="code"><span class="c">```stories</span>
 <span class="k">proyecto:</span> Admin de documentos
-<span class="k">sprint:</span>   <span class="s">"1.0"</span>
-<span class="k">fecha:</span>    <span class="s">"4 ago - 17 ago"</span>
 <span class="k">historias:</span>
   - <span class="k">usuario:</span>  ADMIN
     <span class="k">apartado:</span> EXPLORADOR DE PROYECTOS
@@ -830,7 +716,6 @@ html[data-theme="light"] .note i { color: var(--accent); }
           <span class="k">texto:</span> Solo rutas dentro de la raíz…
         - <span class="k">nivel:</span> importante
           <span class="k">texto:</span> Guardar sobreescribe el archivo…
-    <span class="k">points:</span> <span class="s">""</span>
 <span class="c">```</span></pre>
                 <div class="note" style="margin-top:12px"><i data-lucide="shield-check" style="width:15px;height:15px"></i>
                     <div><b>Tipos de bloque cerrados:</b> <span class="mono">filterBar · cards · tabla · modal · tabs · nota</span>.
@@ -848,7 +733,7 @@ html[data-theme="light"] .note i { color: var(--accent); }
                     <li><b>El CSS</b>
                         <p>Clases <code>.ia-stories-*</code> en <code>visor.css</code> sobre las variables <code>--vsr-*</code>: dark y claro sin trabajo extra. Las reglas de tablas markdown de <code>chat.css</code> / <code>visor.css</code> se acotaron con <code>:not(.ia-xls)</code> para que no se cuelen.</p></li>
                     <li><b>Las salidas</b>
-                        <p>Copiar la tabla markdown de 8 columnas, exportar <code>.xlsx</code> con SheetJS (una hoja por sprint, CSV si no está cargado) y expandir a pantalla completa.</p></li>
+                        <p>Copiar la tabla markdown de 5 columnas, exportar <code>.xlsx</code> con SheetJS (CSV si no está cargado) y expandir a pantalla completa.</p></li>
                     <li><b>Dónde funciona</b>
                         <p>Chat con Agentes, drawer CoffeeIA y Lab — las tres páginas que cargan <code>ia-render.js</code>. Se implementó una sola vez.</p></li>
                 </ol>
@@ -859,10 +744,11 @@ html[data-theme="light"] .note i { color: var(--accent); }
     <section class="sec">
         <div class="note" style="align-items:center">
             <i data-lucide="check-circle-2" style="width:16px;height:16px"></i>
-            <div><b>Estado:</b> implementadas las variantes <b>A (fichas, por defecto)</b> y <b>C (tabla)</b>, con
-            el botón del encabezado para alternar, más expandir a pantalla completa, copiar tabla markdown y exportar
-            a Excel. El tablero por sprint (B) queda pendiente: se agrega cuando haya planeaciones de varios sprints
-            que revisar. Para probar el render sin gastar tokens: <span class="mono">coffee/app/visor/_test-stories.html</span>.</div>
+            <div><b>Estado:</b> implementado. La plantilla son <b>cinco columnas</b> —Yo · En el apartado · Quiero ·
+            Beneficio · Criterios de aceptación—, con <b>fichas</b> por defecto y el botón del encabezado para saltar a
+            la <b>tabla</b>, más expandir a pantalla completa, copiar la tabla markdown y exportar a Excel. Sprint,
+            Points y Fecha quedaron fuera: esa planeación vive en el Excel, no en la tarjeta. Para probar el render sin
+            gastar tokens: <span class="mono">coffee/app/visor/_test-stories.html</span>.</div>
         </div>
     </section>
 

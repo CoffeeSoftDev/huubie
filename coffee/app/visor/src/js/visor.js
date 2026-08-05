@@ -6939,6 +6939,7 @@ class CoffeeIA {
         const HTML_FENCE       = /```[ \t]*html/i;
         const DRAWIO_FENCE     = /```[ \t]*drawio/i;
         const EXCALIDRAW_FENCE = /```[ \t]*excalidraw/i;
+        const STORIES_FENCE    = /```[ \t]*(stories|historias)\b/i;
         // Codigo crudo sin fence (solo diagramas: draw.io/excalidraw). El HTML solo
         // se "conjura" cuando viene en un fence ```html (ver conjureKindFor).
         const RAW_DRAWIO     = /<(mxGraphModel|mxfile)[\s>]/i;
@@ -6947,6 +6948,7 @@ class CoffeeIA {
         const conjureKindFor = (buf) => {
             if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
             if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
+            if (STORIES_FENCE.test(buf)) return 'stories';
             if (HTML_FENCE.test(buf)) return 'html';
             // Modo grafica activo: en cuanto se abre CUALQUIER bloque de codigo
             // (```excalidraw, ```json, ```mermaid, ```xml…) asumimos ese tipo y
@@ -6958,7 +6960,8 @@ class CoffeeIA {
             html:       { icon: 'wand-sparkles', title: 'Conjurando componente…', sub: 'Tejiendo el HTML' },
             mermaid:    { icon: 'git-graph',     title: 'Construyendo diagrama…',  sub: 'Trazando el grafico' },
             drawio:     { icon: 'workflow',      title: 'Construyendo diagrama…',  sub: 'Trazando el lienzo' },
-            excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' }
+            excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' },
+            stories:    { icon: 'list-checks',   title: 'Escribiendo historias…',  sub: 'Desglosando las pantallas' }
         };
         function enterConjuring(kind) {
             conjuring   = true;
@@ -7042,6 +7045,7 @@ class CoffeeIA {
                 if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
                 displayedText = self._normalizeDrawioXml(displayedText);
                 displayedText = self._normalizeExcalidrawJson(displayedText);
+                if (window.IARender) displayedText = IARender.normalizeStoriesYaml(displayedText);
                 let metaHtml = '';
                 if (meta) {
                     metaHtml = `
@@ -7823,7 +7827,14 @@ class CoffeeIA {
             const looksExcalidraw = /\blanguage-excalidraw\b/.test(cls) ||
                 (/\blanguage-json\b/.test(cls) && /"type"\s*:\s*"excalidraw/i.test(raw));
 
-            if (looksDrawio) {
+            // Historias de usuario (CoffeePlanner): lo pinta IARender, que es el unico
+            // sitio donde vive ese componente.
+            const looksStories = /\blanguage-(stories|historias)\b/.test(cls) ||
+                (/\blanguage-(yaml|yml|json)\b/.test(cls) && /(^|[\s{,])"?historias"?\s*:/m.test(raw));
+
+            if (looksStories && window.IARender) {
+                IARender.renderStories($pre, raw);
+            } else if (looksDrawio) {
                 this._renderDrawio($pre, raw);
             } else if (looksExcalidraw) {
                 this._renderExcalidraw($pre, raw);

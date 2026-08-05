@@ -5411,9 +5411,6 @@ body.ia-drawer-resizing * {
 }
 .ia-chip.is-user   { background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
 [data-theme="light"] .ia-chip.is-user { color: var(--vsr-accent); }
-.ia-chip.is-sprint { background: var(--sto-violet-t); color: var(--sto-violet); }
-.ia-chip.is-points { background: var(--sto-blue-t); color: var(--sto-blue); }
-.ia-chip.is-date   { border: 1px solid var(--vsr-border-soft); color: var(--vsr-text-mute2); }
 
 .ia-story-crit { display: none; padding: 0 10px 10px; border-top: 1px dashed var(--vsr-border-soft); }
 .ia-story.is-open .ia-story-crit { display: block; }
@@ -5456,7 +5453,7 @@ body.ia-drawer-resizing * {
    se colarian aqui. Esta seccion va DESPUES en el archivo para ganar el empate. */
 .ia-stories .ia-xls-scroll { overflow-x: auto; }
 .ia-stories .ia-xls {
-    display: table; width: 100%; min-width: 900px; max-width: none;
+    display: table; width: 100%; min-width: 720px; max-width: none;
     border-collapse: collapse; border: none; border-radius: 0; margin: 0;
     font-family: inherit; font-size: 11.5px; overflow: visible;
 }
@@ -5475,7 +5472,6 @@ body.ia-drawer-resizing * {
 .ia-stories .ia-xls tbody td b { color: var(--vsr-text); }
 .ia-stories .ia-xls tbody .ia-xls-st { cursor: pointer; }
 .ia-stories .ia-xls tbody .ia-xls-st:hover td { background: var(--vsr-bg-hover); }
-.ia-stories .ia-xls tbody .ia-xls-mid { text-align: center; white-space: nowrap; }
 .ia-stories .ia-xls tbody .ia-xls-c { width: 150px; }
 .ia-xls-crit { display: inline-flex; align-items: center; gap: 6px; color: var(--sto-blue); white-space: nowrap; }
 .ia-xls-crit i { transition: transform .18s ease; }
