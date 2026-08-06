@@ -533,6 +533,44 @@
     color: var(--vsr-text-mute2);
 }
 
+/* ── Sandbox de render ─────────────────────────────────────────────────────
+   El panel en si (.pg-sandbox, .pg-sandbox-body, .pg-tab, .pg-zoom, el mockup
+   de telefono...) lo viste playground.css, que esta pantalla ya incluye. Aqui
+   solo va lo que cambia por vivir en el Lab: el reparto del ancho entre chat y
+   sandbox, y poder ocultarlo para conversar a pantalla completa. */
+
+/* El porcentaje se mide sobre TODO el workspace, que a la izquierda ya gasta el
+   rail y los 330px del panel de configuracion: por eso el reparto no es 50/50. */
+.lab-workspace.has-sandbox .lab-chat {
+    flex: 0 0 var(--lab-chat-w, 40%);
+    min-width: 320px;
+}
+
+.lab-workspace:not(.has-sandbox) .lab-sandbox,
+.lab-workspace:not(.has-sandbox) #labSplitter { display: none; }
+
+#labSandboxToggle.is-on { color: var(--vsr-accent-soft); background: var(--vsr-accent-tint); }
+
+/* Sin sandbox a la vista, elegirle sistema de diseno no significa nada. La clase
+   la pone applySandboxUI(): el selector vive en la cabecera, fuera del workspace,
+   asi que no hay forma de alcanzarlo por CSS desde .has-sandbox. */
+.lab-sbtheme.is-off { display: none; }
+
+/* El panel es mas estrecho aqui que en el Playground (a su izquierda tambien va
+   la configuracion del agente), asi que su encabezado envuelve a una segunda
+   fila en vez de recortar los ultimos controles fuera del panel. */
+.lab-sandbox .pg-pane-head { flex-wrap: wrap; gap: 8px; row-gap: 6px; }
+.lab-sandbox .pg-sandbox-actions { min-width: 0; flex-wrap: wrap; }
+.lab-sandbox .pg-sandbox-tabs { flex-shrink: 0; }
+
+/* El splitter se ancla al alto del workspace; sin esto el .lab-config de al lado
+   (que si crece) lo dejaria como una franja corta a media altura. */
+.lab-workspace #labSplitter { align-self: stretch; }
+
+/* La leyenda del composer comparte fila con el boton Lienzo: cede espacio en vez
+   de empujarlo fuera del drawer. */
+.lab-chat .ia-input-hint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── Dividir en archivos de reglas ─────────────────────────────────────── */
 
 .lab-split-card { width: min(880px, 94vw); max-height: 88vh; }
@@ -632,6 +670,12 @@
     .lab-config.railed { width: 100%; min-width: 0; }
     .lab-rail-toggle { display: none; }
     .lab-chat { min-height: 70vh; }
+
+    /* Apilados: el ancho ya no se reparte y arrastrar un splitter horizontal no
+       significa nada. El sandbox pasa a ser una banda debajo del chat. */
+    .lab-workspace.has-sandbox .lab-chat { flex: 0 0 auto; min-width: 0; }
+    .lab-workspace #labSplitter { display: none; }
+    .lab-sandbox { min-height: 70vh; border-top: 1px solid var(--vsr-border); }
 }
 
 /* ── Scrollbars ────────────────────────────────────────────────────────────

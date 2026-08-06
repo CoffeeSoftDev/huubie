@@ -500,7 +500,11 @@
         'proyecto', 'modulo', 'sprint', 'fecha', 'historias', 'banner',
         'usuario', 'apartado', 'quiero', 'beneficio', 'points', 'criterios',
         'intro', 'bloques', 'reglas', 'tipo', 'titulo', 'items', 'item', 'sub',
-        'nivel', 'texto'
+        'nivel', 'texto',
+        // Bloque ```ers (documento con el que arranca el proyecto)
+        'sistema', 'resumen', 'descripcion', 'objetivo', 'modulos', 'nombre',
+        'pestana', 'campos', 'usuarios', 'exito', 'fases', 'excepciones',
+        'observaciones', 'archivos', 'ruta', 'lineas', 'aporte'
     ];
 
     function unquote(v) {
@@ -578,6 +582,17 @@
                 if (!kv) { i++; continue; }
                 const myIndent = lines[i].indent;
                 i++;
+
+                // Bloque literal (`|`) o plegado (`>`): el texto son las lineas
+                // siguientes con mas sangria. Lo usan `descripcion` y `objetivo`.
+                const fold = kv.value.trim();
+                if (fold === '|' || fold === '>' || fold === '|-' || fold === '>-') {
+                    const buf = [];
+                    while (i < lines.length && lines[i].indent > myIndent) { buf.push(lines[i].text); i++; }
+                    out[kv.key] = buf.join(fold[0] === '>' ? ' ' : '\n');
+                    continue;
+                }
+
                 if (kv.value.trim() !== '') { out[kv.key] = scalar(kv.value); continue; }
 
                 const childFrom = i;
@@ -938,6 +953,379 @@
         lucide();
     }
 
+    /* ══════════════════════════════════════════════════════════════════
+       ERS (bloque ```ers de CoffeePlanner)
+       El documento con el que arranca un proyecto, presentado como un
+       archivo de repositorio: tema GitHub, modulos plegables, avisos y
+       la tabla de archivos que se leyeron para levantarlo.
+       ══════════════════════════════════════════════════════════════════ */
+
+    function normalizeErs(data) {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+        if (!data.sistema && !data.modulos && !data.descripcion) return null;
+
+        // Un parrafo por linea EN BLANCO: dentro de un bloque `|` los saltos simples
+        // son solo el ancho del YAML, no punto y aparte.
+        const parrafos = t => String(t == null ? '' : t)
+            .split(/\n\s*\n/)
+            .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
+            .filter(Boolean);
+
+        const modulos = asArray(data.modulos).map(function (m) {
+            if (typeof m === 'string') return { nombre: m, pestana: '', descripcion: '', campos: [] };
+            return {
+                nombre:      String(m.nombre || m.titulo || 'Módulo'),
+                pestana:     String(m.pestana || ''),
+                descripcion: String(m.descripcion || ''),
+                campos:      asArray(m.campos || m.items).map(String)
+            };
+        });
+
+        const exito = asArray(data.exito).map(function (e) {
+            if (typeof e === 'string') return { titulo: '', texto: e };
+            return { titulo: String(e.titulo || ''), texto: String(e.texto || '') };
+        });
+
+        const fases = asArray(data.fases).map(function (f, i) {
+            if (typeof f === 'string') return { nombre: f, items: [] };
+            return { nombre: String(f.nombre || f.titulo || ('Fase ' + (i + 1))), items: asArray(f.items).map(String) };
+        });
+
+        const archivos = asArray(data.archivos).map(function (a) {
+            if (typeof a === 'string') return { ruta: a, lineas: '', aporte: '' };
+            return { ruta: String(a.ruta || ''), lineas: String(a.lineas != null ? a.lineas : ''), aporte: String(a.aporte || '') };
+        });
+
+        return {
+            sistema:      String(data.sistema || data.proyecto || 'Sistema'),
+            resumen:      String(data.resumen || ''),
+            fecha:        String(data.fecha || ''),
+            proyecto:     String(data.proyecto || ''),
+            descripcion:  parrafos(data.descripcion),
+            objetivo:     parrafos(data.objetivo),
+            modulos:      modulos,
+            usuarios:     asArray(data.usuarios).map(String),
+            exito:        exito,
+            fases:        fases,
+            excepciones:  asArray(data.excepciones).map(String),
+            observaciones: asArray(data.observaciones).map(String),
+            archivos:     archivos
+        };
+    }
+
+    // Iniciales del puesto para el avatar del bloque de usuarios.
+    function iniciales(txt) {
+        const p = String(txt || '').trim().split(/\s+/).filter(w => w.length > 2);
+        return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase();
+    }
+
+    const ERS_SECCIONES = [
+        { id: 'descripcion',   titulo: 'Descripción breve del proyecto' },
+        { id: 'objetivo',      titulo: 'Objetivo del proyecto' },
+        { id: 'modulos',       titulo: 'Secciones del proyecto' },
+        { id: 'usuarios',      titulo: 'Usuarios que utilizarán el proyecto' },
+        { id: 'exito',         titulo: '¿El éxito del proyecto se da cuándo?' },
+        { id: 'fases',         titulo: 'Acciones a realizar' },
+        { id: 'excepciones',   titulo: 'Excepciones' },
+        { id: 'observaciones', titulo: 'Observaciones' }
+    ];
+
+    function ersHasContent(d, id) {
+        const v = d[id];
+        return Array.isArray(v) ? v.length > 0 : !!v;
+    }
+
+    function ersDocHtml(d, uid) {
+        const secs = ERS_SECCIONES.filter(s => ersHasContent(d, s.id));
+
+        let html = `<h1 class="ia-ers-h1">ERS — ${escape(d.sistema)}</h1>`;
+
+        const labels = [];
+        if (d.fecha)    labels.push(`<span class="ia-ers-label is-accent">${escape(d.fecha)}</span>`);
+        if (d.proyecto) labels.push(`<span class="ia-ers-label">${escape(d.proyecto)}</span>`);
+        labels.push('<span class="ia-ers-label">levantado por CoffeePlanner</span>');
+        html += `<div class="ia-ers-labels">${labels.join('')}</div>`;
+
+        if (d.resumen) html += `<p class="ia-ers-lead">${escape(d.resumen)}</p>`;
+
+        html += `<div class="ia-ers-stats">
+            <div class="ia-ers-stat"><span class="k">Módulos</span><span class="v">${d.modulos.length}</span></div>
+            <div class="ia-ers-stat"><span class="k">Usuarios</span><span class="v">${d.usuarios.length}</span></div>
+            <div class="ia-ers-stat"><span class="k">Fases</span><span class="v">${d.fases.length}</span></div>
+            <div class="ia-ers-stat"><span class="k">Archivos leídos</span><span class="v">${d.archivos.length || '—'}</span></div>
+        </div>`;
+
+        if (secs.length > 1) {
+            html += `<nav class="ia-ers-toc"><div class="ia-ers-toc-h">Contenido</div><ol>` +
+                secs.map(s => `<li><a href="#${uid}-${s.id}">${escape(s.titulo)}</a></li>`).join('') +
+                `</ol></nav>`;
+        }
+
+        secs.forEach(function (s) {
+            html += `<h2 class="ia-ers-h2" id="${uid}-${s.id}">${escape(s.titulo)}</h2>`;
+
+            if (s.id === 'descripcion' || s.id === 'objetivo') {
+                html += d[s.id].map(p => `<p>${escape(p)}</p>`).join('');
+
+            } else if (s.id === 'modulos') {
+                html += d.modulos.map(function (m, i) {
+                    const meta = [
+                        m.campos.length ? m.campos.length + (m.campos.length === 1 ? ' campo' : ' campos') : '',
+                        m.pestana
+                    ].filter(Boolean).join(' · ');
+                    return `<details class="ia-ers-mod"${i === 0 ? ' open' : ''}>
+                        <summary>
+                            <i data-lucide="chevron-right" class="ia-ers-chev w-3.5 h-3.5"></i>
+                            <span class="ia-ers-mod-name">${escape(m.nombre)}</span>
+                            ${meta ? `<span class="ia-ers-mod-meta">${escape(meta)}</span>` : ''}
+                        </summary>
+                        <div class="ia-ers-mod-body">
+                            ${m.descripcion ? `<p class="ia-ers-mod-desc">${escape(m.descripcion)}</p>` : ''}
+                            <ul class="ia-ers-fields${m.campos.length < 6 ? ' is-short' : ''}">` +
+                                m.campos.map(c => `<li>${escape(c)}</li>`).join('') +
+                            `</ul>
+                        </div>
+                    </details>`;
+                }).join('');
+
+            } else if (s.id === 'usuarios') {
+                html += `<div class="ia-ers-people">` +
+                    d.usuarios.map(u => `<span class="ia-ers-person"><span class="av">${escape(iniciales(u))}</span>${escape(u)}</span>`).join('') +
+                    `</div>`;
+
+            } else if (s.id === 'exito') {
+                const conTitulo = d.exito.some(e => e.titulo);
+                html += `<div class="ia-ers-tablewrap"><table class="ia-ers-table">` +
+                    (conTitulo ? '<thead><tr><th>Capacidad</th><th>Cómo se comprueba</th></tr></thead>' : '') +
+                    '<tbody>' +
+                    d.exito.map(e => conTitulo
+                        ? `<tr><td><b>${escape(e.titulo)}</b></td><td>${escape(e.texto)}</td></tr>`
+                        : `<tr><td>${escape(e.texto)}</td></tr>`).join('') +
+                    `</tbody></table></div>`;
+
+            } else if (s.id === 'fases') {
+                html += d.fases.map(function (f, i) {
+                    return `<div class="ia-ers-phase">
+                        <h4><span class="ia-ers-badge">Fase ${i + 1}</span>${escape(f.nombre.replace(/^fase\s*\d+\s*[·:.-]?\s*/i, ''))}</h4>
+                        <ul class="ia-ers-tasks">` +
+                        f.items.map(it => `<li><span class="box"></span>${escape(it)}</li>`).join('') +
+                        `</ul>
+                    </div>`;
+                }).join('');
+
+            } else {
+                const warn = s.id === 'excepciones';
+                html += d[s.id].map(t => `<div class="ia-ers-alert ${warn ? 'is-warning' : 'is-note'}">
+                    <span class="ia-ers-alert-t"><i data-lucide="${warn ? 'alert-triangle' : 'info'}" class="w-3.5 h-3.5"></i>${warn ? 'Warning' : 'Note'}</span>
+                    <p>${escape(t)}</p>
+                </div>`).join('');
+            }
+        });
+
+        if (d.archivos.length) {
+            html += `<hr class="ia-ers-hr">
+                <h3 class="ia-ers-h3">Archivos leídos para levantar este ERS</h3>
+                <div class="ia-ers-tablewrap"><table class="ia-ers-table">
+                    <thead><tr><th>Archivo</th><th>Líneas</th><th>Qué aportó</th></tr></thead>
+                    <tbody>` +
+                    d.archivos.map(a => `<tr>
+                        <td class="path">${escape(a.ruta)}</td>
+                        <td class="num">${escape(a.lineas)}</td>
+                        <td>${escape(a.aporte)}</td>
+                    </tr>`).join('') +
+                    `</tbody></table></div>`;
+        }
+
+        html += `<div class="ia-ers-foot">
+            <i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
+            <span>Siguiente paso: derivar las historias de usuario de este ERS.</span>
+            <button class="ia-render-btn ia-ers-next" type="button"><i data-lucide="list-checks" class="w-3 h-3"></i>Generar historias</button>
+        </div>`;
+
+        return html;
+    }
+
+    function ersFichaHtml(d, uid) {
+        const secs = ERS_SECCIONES.filter(s => ersHasContent(d, s.id));
+        const conteo = {
+            modulos:       d.modulos.length + (d.modulos.length === 1 ? ' módulo' : ' módulos'),
+            usuarios:      d.usuarios.length + (d.usuarios.length === 1 ? ' perfil' : ' perfiles'),
+            fases:         d.fases.length + (d.fases.length === 1 ? ' fase' : ' fases'),
+            exito:         d.exito.length + '',
+            excepciones:   d.excepciones.length + '',
+            observaciones: d.observaciones.length + ''
+        };
+        const resumenDe = function (s) {
+            if (s.id === 'descripcion' || s.id === 'objetivo') return escape(d[s.id].join(' '));
+            if (s.id === 'modulos')  return d.modulos.map(m => `<b>${escape(m.nombre)}</b>${m.campos.length ? ' — ' + m.campos.length + ' campos' : ''}`).join('<br>');
+            if (s.id === 'usuarios') return escape(d.usuarios.join(' · '));
+            if (s.id === 'exito')    return d.exito.map(e => escape(e.titulo || e.texto)).join('<br>');
+            if (s.id === 'fases')    return d.fases.map(f => escape(f.nombre)).join(' · ');
+            return d[s.id].map(t => escape(t)).join('<br>');
+        };
+
+        return `<div class="ia-ers-ficha">
+            <div class="ia-ers-ficha-stats">
+                <div class="ia-ers-stat"><span class="k">Módulos</span><span class="v">${d.modulos.length}</span></div>
+                <div class="ia-ers-stat"><span class="k">Usuarios</span><span class="v">${d.usuarios.length}</span></div>
+                <div class="ia-ers-stat"><span class="k">Fases</span><span class="v">${d.fases.length}</span></div>
+            </div>
+            <div class="ia-ers-rows">` +
+            secs.map(function (s, i) {
+                const n = String(ERS_SECCIONES.indexOf(s) + 1).padStart(2, '0');
+                const c = conteo[s.id] || '';
+                return `<details class="ia-ers-row"${i === 0 || s.id === 'modulos' ? ' open' : ''}>
+                    <summary>
+                        <span class="n">${n}</span>
+                        <span class="t">${escape(s.titulo)}</span>
+                        ${c ? `<span class="c">${escape(c)}</span>` : ''}
+                    </summary>
+                    <div class="rb">${resumenDe(s)}</div>
+                </details>`;
+            }).join('') +
+            `</div>
+        </div>`;
+    }
+
+    /* ── Salidas del ERS: el markdown de las ocho secciones ── */
+    function ersToMarkdown(d) {
+        const out = [];
+        out.push('---', 'name: ERS', 'description: ' + (d.resumen || ''), 'date: ' + (d.fecha || ''), '---', '');
+        out.push('ERS - ' + d.sistema.toUpperCase(), '');
+        const push = (t, cuerpo) => { out.push('## ' + t, ''); out.push.apply(out, cuerpo); out.push(''); };
+
+        if (d.descripcion.length) push('DESCRIPCIÓN BREVE DEL PROYECTO', d.descripcion);
+        if (d.objetivo.length)    push('OBJETIVO DEL PROYECTO', d.objetivo);
+
+        if (d.modulos.length) {
+            const cuerpo = [];
+            d.modulos.forEach(function (m) {
+                cuerpo.push(m.nombre + (m.pestana ? ' [ ' + m.pestana + ' ]' : ''), '');
+                if (m.descripcion) cuerpo.push(m.descripcion, '');
+                m.campos.forEach(c => cuerpo.push('- ' + c));
+                cuerpo.push('');
+            });
+            push('SECCIONES DEL PROYECTO', cuerpo);
+        }
+        if (d.usuarios.length) push('USUARIOS QUE UTILIZARÁN EL PROYECTO', d.usuarios);
+        if (d.exito.length)    push('¿EL ÉXITO DEL PROYECTO SE DA CUÁNDO?',
+            d.exito.map(e => (e.titulo ? e.titulo + ': ' : '') + e.texto));
+        if (d.fases.length) {
+            const cuerpo = [];
+            d.fases.forEach(function (f) {
+                cuerpo.push(f.nombre, '');
+                f.items.forEach(it => cuerpo.push('- ' + it));
+                cuerpo.push('');
+            });
+            push('ACCIONES A REALIZAR', cuerpo);
+        }
+        push('EXCEPCIONES', d.excepciones.map(t => '- ' + t));
+        push('OBSERVACIONES', d.observaciones.map(t => '- ' + t));
+
+        if (d.archivos.length) {
+            out.push('---', '', '**Archivos leídos para levantar este ERS:**', '',
+                     '| Archivo | Líneas | Contenido |', '|---|---|---|');
+            d.archivos.forEach(a => out.push(`| \`${a.ruta}\` | ${a.lineas} | ${a.aporte} |`));
+            out.push('');
+        }
+        return out.join('\n');
+    }
+
+    // Impresion / PDF: el documento en una ventana propia con su hoja de estilo.
+    function printErs($wrap, titulo) {
+        // En papel no hay clic: los modulos van todos desplegados.
+        const doc = ($wrap.find('.ia-ers-doc').html() || '')
+            .replace(/<details class="ia-ers-mod"(?! open)/g, '<details class="ia-ers-mod" open');
+        const css = $('link[rel="stylesheet"]').map(function () { return this.href; }).get()
+            .map(h => `<link rel="stylesheet" href="${h}">`).join('');
+        const w = global.open('', '_blank', 'width=980,height=800');
+        if (!w) return;
+        w.document.write(`<!doctype html><html data-theme="light"><head><meta charset="utf-8">
+            <title>${escape(titulo)}</title>${css}
+            <style>body{margin:0;background:#fff;} .ia-ers-doc{padding:32px;} .ia-ers-foot,.ia-ers-next{display:none;}
+                   .ia-ers-mod{break-inside:avoid;} details{open:true;}</style>
+            </head><body><div class="ia-stories ia-ers"><div class="ia-ers-doc">${doc}</div></div></body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(() => { try { w.print(); } catch (e) {} }, 400);
+    }
+
+    function renderErs($pre, raw) {
+        let data = null;
+        try {
+            const body = String(raw || '').trim();
+            data = normalizeErs(body[0] === '{' ? JSON.parse(body) : parseYamlish(body));
+        } catch (e) { data = null; }
+
+        if (!data) {
+            if (typeof hljs !== 'undefined') { try { hljs.highlightElement($pre.find('code')[0]); } catch (e) {} }
+            return;
+        }
+
+        const uid  = 'ers-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        // Sin acentos antes de cortar: "facturación" -> "facturacion", no "facturaci-n".
+        const slug = data.sistema.toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ers';
+        const $wrap = $(`
+            <div class="ia-render-block ia-render-ers ia-stories ia-ers" data-render-type="ers">
+                <div class="ia-render-toolbar">
+                    <span><i data-lucide="file-text" class="w-3 h-3"></i>ERS-${escape(slug)}.md</span>
+                    <span class="ia-render-tabs">
+                        <button class="ia-render-btn ia-render-tab ia-ers-view is-active" data-view="doc" title="Documento"><i data-lucide="file-text" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn ia-render-tab ia-ers-view" data-view="ficha" title="Ficha"><i data-lucide="layout-list" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn is-icon ia-ers-copy" title="Copiar markdown"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn is-icon ia-ers-download" title="Descargar .md"><i data-lucide="download" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn is-icon ia-ers-print" title="Imprimir o PDF"><i data-lucide="printer" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn is-icon ia-ers-expand" title="Pantalla completa"><i data-lucide="maximize-2" class="w-3 h-3"></i></button>
+                        <button class="ia-render-btn is-icon ia-render-toggle" data-target="${uid}-code" title="Ver codigo"><i data-lucide="code-2" class="w-3 h-3"></i></button>
+                    </span>
+                </div>
+                <div class="ia-render-view">
+                    <div class="ia-ers-doc">${ersDocHtml(data, uid)}</div>
+                    <div class="ia-ers-ficha-wrap" style="display:none;">${ersFichaHtml(data, uid)}</div>
+                </div>
+                <pre id="${uid}-code" class="ia-render-source" style="display:none;"></pre>
+            </div>
+        `);
+        $wrap.find('.ia-render-source').text(raw);
+        $wrap.data('ers', data);
+        $pre.replaceWith($wrap);
+
+        $wrap.find('.ia-ers-copy').on('click', function () { copyText(ersToMarkdown(data), $(this)); });
+        $wrap.find('.ia-ers-download').on('click', function () {
+            downloadBlob('ERS-' + slug + '.md', ersToMarkdown(data), 'text/markdown;charset=utf-8');
+        });
+        $wrap.find('.ia-ers-print').on('click', function () { printErs($wrap, 'ERS — ' + data.sistema); });
+        $wrap.find('.ia-ers-expand').on('click', function () { openErsModal(data, uid); });
+
+        bindCodeToggle($wrap, 'eye', 'Ver documento');
+        lucide();
+    }
+
+    function openErsModal(data, uid) {
+        $('.ia-ers-modal').remove();
+        const $modal = $(`
+            <div class="ia-html-modal ia-ers-modal">
+                <div class="ia-html-modal-box">
+                    <div class="ia-html-modal-head">
+                        <h3><i data-lucide="file-text"></i>ERS — ${escape(data.sistema)}</h3>
+                        <button class="cs-btn cs-btn-ghost cs-btn-sm ia-ers-modal-close" title="Cerrar (Esc)"><i data-lucide="x" class="w-3.5 h-3.5"></i>Cerrar</button>
+                    </div>
+                    <div class="ia-html-modal-body ia-stories ia-ers ia-ers-modal-body">
+                        <div class="ia-ers-doc">${ersDocHtml(data, uid + '-m')}</div>
+                    </div>
+                </div>
+            </div>
+        `);
+        $('body').append($modal);
+        const close = () => { $modal.remove(); $(document).off('keydown.iaErsModal'); };
+        $modal.find('.ia-ers-modal-close').on('click', close);
+        $modal.on('click', (e) => { if (e.target === $modal[0]) close(); });
+        $(document).on('keydown.iaErsModal', (e) => { if (e.key === 'Escape') close(); });
+        lucide();
+    }
+
     /* Interaccion delegada: sirve igual dentro de la tarjeta y del modal. */
     $(document)
         .on('click', '.ia-story-top', function () {
@@ -954,6 +1342,27 @@
             $btn.addClass('is-active');
             $root.find('.ia-stories-cards').toggle(!table);
             $root.find('.ia-stories-table').toggle(table);
+        })
+        .on('click', '.ia-ers-view', function () {
+            const $btn   = $(this);
+            const ficha  = $btn.data('view') === 'ficha';
+            const $block = $btn.closest('.ia-render-block');
+            $btn.siblings('.ia-ers-view').removeClass('is-active');
+            $btn.addClass('is-active');
+            $block.find('.ia-ers-doc').toggle(!ficha);
+            $block.find('.ia-ers-ficha-wrap').toggle(ficha);
+        })
+        // El puente al paso siguiente del flujo: el ERS ya esta, faltan las historias.
+        .on('click', '.ia-ers-next', function () {
+            const data = $(this).closest('.ia-render-block').data('ers');
+            const texto = 'Deriva las historias de usuario del ERS de ' + ((data && data.sistema) || 'este documento') +
+                          ', modulo por modulo.';
+            const $input = $('#iaInputTextarea, #pgChatInput, #sbInput, #chatInput, #labInput').filter(':visible').first();
+            if ($input.length) {
+                $input.val(texto).trigger('input').focus();
+            } else {
+                copyText(texto, $(this));
+            }
         });
 
     /* ── Post-procesador: convierte bloques de codigo en visores ricos ──
@@ -972,10 +1381,13 @@
 
             const looksStories = /\blanguage-(stories|historias)\b/.test(cls) ||
                 (/\blanguage-(yaml|yml|json)\b/.test(cls) && /(^|[\s{,])"?historias"?\s*:/m.test(raw));
+            const looksErs = /\blanguage-ers\b/.test(cls) ||
+                (/\blanguage-(yaml|yml|json)\b/.test(cls) && /(^|[\s{,])"?sistema"?\s*:/m.test(raw) && /(^|[\s{,])"?modulos"?\s*:/m.test(raw));
 
             if (looksDrawio)                                          renderDrawio($pre, raw);
             else if (looksExcalidraw)                                renderExcalidraw($pre, raw);
             else if (looksStories)                                   renderStories($pre, raw);
+            else if (looksErs)                                       renderErs($pre, raw);
             else if (/\blanguage-mermaid\b/.test(cls))               renderMermaid($pre, raw);
             else if (/\blanguage-dot\b|\blanguage-graphviz\b|\blanguage-gv\b/.test(cls)) renderGraphviz($pre, raw);
             else if (/\blanguage-chart\b|\blanguage-chartjs\b/.test(cls)) renderChart($pre, raw);
@@ -1016,6 +1428,16 @@
         return text;
     }
 
+    // Mismo caso que las historias: si TODO el mensaje es el YAML del ERS, se cerca.
+    function normalizeErsYaml(text) {
+        if (!text || /```[ \t]*ers/i.test(text)) return text;
+        const body = text.trim();
+        if (/^sistema\s*:/im.test(body) && /^modulos\s*:/m.test(body)) {
+            return '```ers\n' + body.replace(/^```[a-z]*\s*|\s*```$/gi, '') + '\n```';
+        }
+        return text;
+    }
+
     function normalizeExcalidrawJson(text) {
         if (!text || /```[ \t]*(excalidraw|json)/i.test(text)) return text;
         const body = text.trim();
@@ -1029,9 +1451,11 @@
         escape, getTheme, markdownToHtml, postProcess, downloadText,
         openDiagramInTab, openDiagramModal, openHtmlModal, buildHtmlSrcdoc,
         renderMermaid, renderGraphviz, renderChart, renderHtmlPreview,
-        renderDrawio, renderExcalidraw, renderStories,
+        renderDrawio, renderExcalidraw, renderStories, renderErs,
         parseYamlish, normalizeStories, storiesToMarkdown, storiesToCsv, exportStories, openStoriesModal,
-        normalizeCanvasHtml, normalizeDrawioXml, normalizeExcalidrawJson, normalizeStoriesYaml
+        normalizeErs, ersToMarkdown, openErsModal,
+        normalizeCanvasHtml, normalizeDrawioXml, normalizeExcalidrawJson,
+        normalizeStoriesYaml, normalizeErsYaml
     };
 
 })(window);

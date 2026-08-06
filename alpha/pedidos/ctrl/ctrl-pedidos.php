@@ -600,11 +600,23 @@ class Pedidos extends MPedidos{
     }
 
     // Registra en la bitacora los campos de cabecera que cambiaron en una edicion.
-    // Compara el estado previo (getOrderID, con fecha/hora ya formateadas) contra el
-    // $_POST entrante, normalizando fecha/hora al MISMO formato para no marcar como
-    // cambio lo que solo difiere en representacion. No registra nada si nada cambio.
+    // No registra nada si nada cambio.
     private function logOrderEditionDiff($prev, $requiereClave = false) {
-        if (empty($prev)) return;
+        $cambios = $this->orderEditionChanges($prev);
+
+        if (!$cambios) return;
+
+        $nota = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
+        $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
+    }
+
+    // Campos de cabecera que cambiaron, en formato "Campo: antes » despues". Compara el
+    // estado previo (getOrderID, con fecha/hora ya formateadas) contra el $_POST
+    // entrante, normalizando fecha/hora al MISMO formato para no marcar como cambio lo
+    // que solo difiere en representacion. La edicion acotada del calendario no toca al
+    // cliente, asi que ahi se comparan solo los datos de entrega.
+    private function orderEditionChanges($prev, $incluirCliente = true) {
+        if (empty($prev)) return [];
 
         $fmtDate = function ($ymd) {
             $d = DateTime::createFromFormat('Y-m-d', (string) $ymd);
@@ -621,28 +633,127 @@ class Pedidos extends MPedidos{
         };
 
         // [etiqueta, valor previo, valor nuevo] ya normalizados al mismo formato.
-        $campos = [
-            ['Cliente',  trim((string) ($prev['name']  ?? '')),          trim((string) ($_POST['name']  ?? ''))],
-            ['Teléfono', trim((string) ($prev['phone'] ?? '')),          trim((string) ($_POST['phone'] ?? ''))],
-            ['Entrega',  (string) ($prev['date_order'] ?? ''),           $fmtDate($_POST['date_order'] ?? '')],
-            ['Hora',     (string) ($prev['time_order'] ?? ''),           $fmtTime($_POST['time_order'] ?? '')],
-            ['Tipo',     $deliveryLabel($prev['delivery_type'] ?? ''),   $deliveryLabel($_POST['delivery_type'] ?? '')],
-            ['Nota',     trim((string) ($prev['note'] ?? '')),           trim((string) ($_POST['note'] ?? ''))],
-        ];
+        $campos = [];
+
+        if ($incluirCliente) {
+            $campos[] = ['Cliente',  trim((string) ($prev['name']  ?? '')), trim((string) ($_POST['name']  ?? ''))];
+            $campos[] = ['Teléfono', trim((string) ($prev['phone'] ?? '')), trim((string) ($_POST['phone'] ?? ''))];
+        }
+
+        $campos[] = ['Entrega',  (string) ($prev['date_order'] ?? ''),         $fmtDate($_POST['date_order'] ?? '')];
+        $campos[] = ['Hora',     (string) ($prev['time_order'] ?? ''),         $fmtTime($_POST['time_order'] ?? '')];
+        $campos[] = ['Tipo',     $deliveryLabel($prev['delivery_type'] ?? ''), $deliveryLabel($_POST['delivery_type'] ?? '')];
+        $campos[] = ['Nota',     trim((string) ($prev['note'] ?? '')),         trim((string) ($_POST['note'] ?? ''))];
 
         $cambios = [];
         foreach ($campos as $c) {
             if ($c[1] !== $c[2]) {
                 $antes   = $c[1] === '' ? '—' : $c[1];
                 $despues = $c[2] === '' ? '—' : $c[2];
-                $cambios[] = "{$c[0]}: {$antes} → {$despues}";
+                $cambios[] = "{$c[0]}: {$antes} » {$despues}";
             }
         }
 
-        if (!$cambios) return;
+        return $cambios;
+    }
 
-        $nota = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
-        $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
+    // Datos de entrega del pedido para el formulario del calendario, que solo captura
+    // fecha, hora, tipo de entrega y descripcion.
+    function getOrderDelivery() {
+        $status  = 500;
+        $message = 'Error al obtener el pedido';
+        $data    = null;
+
+        $get = $this->getOrderDeliveryById([$_POST['id']]);
+
+        if ($get) {
+            $status  = 200;
+            $message = 'Datos obtenidos correctamente';
+            $data    = $get[0];
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message,
+            'data'    => $data
+        ];
+    }
+
+    // Edicion acotada del pedido desde el calendario: solo los datos de entrega. No
+    // toca cliente, productos ni cobros, y deja el cambio en la bitacora con el mismo
+    // formato "antes » despues" de la edicion del listado.
+    function editOrderDelivery() {
+        $status  = 500;
+        $message = 'No se pudo actualizar el pedido';
+
+        $id = $_POST['id'];
+
+        if (!$this->canWriteOrder($id)) {
+            return [
+                'status'  => 403,
+                'message' => 'Solo puedes operar pedidos de tu sucursal'
+            ];
+        }
+
+        $prevOrder = $this->getOrderID([$id]);
+        $prevOrder = is_array($prevOrder) && isset($prevOrder[0]) ? $prevOrder[0] : [];
+
+        if (empty($prevOrder)) {
+            return [
+                'status'  => 404,
+                'message' => 'El pedido no existe'
+            ];
+        }
+
+        // Liquidado (3) o cancelado (4): editar la cabecera exige el flujo autorizado
+        // del listado (editOrder), no se abre desde el calendario.
+        if (in_array((string) $prevOrder['status'], ['3', '4'])) {
+            return [
+                'status'  => 403,
+                'message' => 'Un pedido liquidado o cancelado solo se edita desde el listado de pedidos'
+            ];
+        }
+
+        // Un campo que no llega se omite del update en vez de leerse a ciegas: el aviso
+        // de indice indefinido se imprimiria antes del json_encode y dejaria la
+        // respuesta sin parsear.
+        $orderData = [];
+
+        foreach (['date_order', 'time_order', 'note', 'delivery_type'] as $campo) {
+            if (isset($_POST[$campo])) $orderData[$campo] = $_POST[$campo];
+        }
+
+        if (empty($orderData)) {
+            return [
+                'status'  => 400,
+                'message' => 'No se recibió ningún dato de entrega que actualizar'
+            ];
+        }
+
+        // El id va al final: util->sql lo toma como el WHERE del update.
+        $orderData['id'] = $id;
+
+        $update = $this->updateOrder($this->util->sql($orderData, 1));
+
+        if ($update) {
+            $status  = 200;
+            $message = 'Datos de entrega actualizados correctamente';
+
+            $cambios = $this->orderEditionChanges($prevOrder, false);
+
+            if ($cambios) {
+                $this->logHistory(
+                    implode(' · ', $cambios) . ' (editado desde el calendario)',
+                    'edition',
+                    'Pedido editado'
+                );
+            }
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
     }
 
     // Permite mutar un pedido si el usuario es admin, si el pedido pertenece a su
@@ -2312,7 +2423,7 @@ class Pedidos extends MPedidos{
 
         if ($update) {
             $this->logHistory(
-                "Descuento modificado: $" . number_format($oldDiscount, 2) . " → $" . number_format($newDiscount, 2) . ($info ? " - Motivo: {$info}" : ""),
+                "Descuento modificado: $" . number_format($oldDiscount, 2) . " » $" . number_format($newDiscount, 2) . ($info ? " - Motivo: {$info}" : ""),
                 'discount',
                 'Descuento editado'
             );

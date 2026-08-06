@@ -9,7 +9,12 @@
  *
  * La conversación es EFÍMERA a propósito: esto es un laboratorio, no un historial.
  * Lo único que persiste es lo que guardas al agente. Para conversar en serio está
- * CoffeeIA; para generar UI, el Playground.
+ * CoffeeIA.
+ *
+ * A la derecha vive el mismo SANDBOX del Playground: un agente no se afina solo
+ * leyendo su prosa, y si lo que produce es una pantalla hay que verla renderizada
+ * para juzgarla. Cuando la respuesta trae un componente, el chat muestra la card
+ * "Conjurando…" en vez de escupir el código y el resultado se pinta en el iframe.
  *
  * Datos: ctrl/ctrl-agents.php sobre data/agents.sqlite (el mismo registro que
  * administra agents.php). Chat: ctrl/ctrl-coffeeia-stream.php, el motor del visor.
@@ -20,11 +25,82 @@
     const API        = 'ctrl/ctrl-agents.php';
     const API_STREAM = 'ctrl/ctrl-coffeeia-stream.php';
     const API_CHAT   = 'ctrl/ctrl-coffeeia.php';
+    const API_VISOR  = 'ctrl/ctrl-visor.php';
 
     // Presupuesto por defecto cuando el modelo no declara maxTokens en el catálogo.
     const LAB_DEFAULT_MAX_TOKENS = 128000;
     // Mensajes finales que se conservan literales al compactar.
     const LAB_COMPACT_KEEP = 4;
+    const LAB_SANDBOX_KEY  = 'lab:sandbox:v1';
+
+    /* Sistemas de diseño que el sandbox sabe renderizar. Gemelo del catálogo del
+     * Playground —mismas claves y mismos assets— para que un componente se vea
+     * idéntico en las dos pantallas:
+     *   grimoire  → grimorio que se INYECTA al agente para que use sus clases
+     *   cssUrls   → hojas a cargar en el iframe (relativas a lab.php)
+     *   cssFrom   → grimorio del que EXTRAER el <style> embebido (Coffee-Varoch)
+     *   data      → valor de data-theme en <html>
+     *   bodyClass → clase en <body> (Coffee-Varoch usa .coffee-varoch)
+     *   bg/fg     → colores base del lienzo
+     *   note      → directiva breve que se le pasa al agente */
+    const LAB_THEMES = {
+        'huubie-ui': {
+            label: 'Huubie UI (dark)', grimoire: 'grimorio-huubie-ui.md',
+            cssUrls: ['src/css/ui-kit.css'], cssFrom: null,
+            data: 'dark', bodyClass: '', bg: '#111928', fg: '#E5E7EB',
+            note: 'Sistema Huubie UI: usa clases .cs-* y tokens del grimorio. Tema DARK único (no generes toggle light/dark).'
+        },
+        'coffeesoft-light': {
+            label: 'CoffeeSoft · Arcilla Invernal', grimoire: 'grimorio-coffeesoft.md',
+            cssUrls: ['../../../inventory/src/css/colors.css', '../../../inventory/src/css/color-palette.css'],
+            jsUrls: ['../../../inventory/src/js/tailwind-theme.js'], cssFrom: null,
+            data: '', bodyClass: '', bg: '#F2F5F9', fg: '#1A1A1A',
+            note: 'Sistema CoffeeSoft "Arcilla Invernal": Tailwind con la escala blue REMAPEADA a terracota (bg-blue-600 = #C05A40, hover blue-700 = #A84A33) — usa clases blue-* y rendirán terracota, NUNCA azul. También dispones de las variables --primary/--secondary y utilidades .btn-*/.badge-*/.alert-* de color-palette.css. Tema LIGHT únicamente (fondo #F2F5F9, cards #FAFCFF). No generes toggle ni variante oscura.'
+        },
+        'coffee-varoch-light': {
+            label: 'Coffee-Varoch (light)', grimoire: 'grimorio-coffee-varoch.md',
+            cssUrls: [], cssFrom: 'grimorio-coffee-varoch.md',
+            data: '', bodyClass: 'coffee-varoch', bg: '#F2F5F9', fg: '#0f172a',
+            note: 'Sistema Coffee-Varoch (Grupo Varoch): usa clases .cv-* y el <body class="coffee-varoch">. Tema LIGHT.'
+        },
+        'coffee-varoch-dark': {
+            label: 'Coffee-Varoch (dark)', grimoire: 'grimorio-coffee-varoch.md',
+            cssUrls: [], cssFrom: 'grimorio-coffee-varoch.md',
+            data: 'dark', bodyClass: 'coffee-varoch', bg: '#0E1521', fg: '#E5E7EB',
+            note: 'Sistema Coffee-Varoch (Grupo Varoch): clases .cv-* con <body class="coffee-varoch" data-theme="dark">. Tema DARK.'
+        },
+        'free': {
+            label: 'Libre (sin paleta)', grimoire: null,
+            cssUrls: [], cssFrom: null,
+            data: '', bodyClass: '', bg: '#F8FAFC', fg: '#0F172A',
+            note: 'Sin sistema de diseño impuesto. El lienzo es CLARO por defecto: NO generes un componente en tema oscuro salvo que el usuario lo pida explícitamente.'
+        }
+    };
+    const LAB_DEFAULT_THEME = 'huubie-ui';
+
+    /* El agente tiende a devolver maquetas inertes (solo markup) y entonces el
+     * template "no hace nada" en el sandbox. Esta nota le exige el JS que cablea
+     * la interacción dentro del MISMO bloque ```html; el iframe ejecuta los
+     * <script> embebidos, así que basta con que vengan en la respuesta. */
+    const LAB_INTERACTIVITY_NOTE =
+          '\n\n## Funcionalidad obligatoria (no es una maqueta)\n'
+        + 'El componente debe FUNCIONAR, no solo verse. Incluye SIEMPRE, dentro del mismo bloque ```html, '
+        + 'un `<script>` con JavaScript vanilla (sin jQuery ni dependencias externas) que conecte TODA la '
+        + 'interacción que el diseño implique: tabs, abrir/cerrar modales y dropdowns, acordeones, toggles, '
+        + 'steppers, búsqueda/filtrado, validación básica, cálculos en vivo. Reglas:\n'
+        + '- Usa `addEventListener` y `querySelector`/`data-*`; evita IDs globales que choquen.\n'
+        + '- El `<script>` va al final del componente y se autoejecuta (IIFE o `DOMContentLoaded`).\n'
+        + '- Si insertas iconos Lucide dinámicamente, llama a `window.lucide && lucide.createIcons()` tras inyectarlos.\n'
+        + '- El resultado se renderiza en un lienzo a PANTALLA COMPLETA: empieza el markup con un contenedor '
+        + '`<div class="w-full min-h-screen ...">` que llene el lienzo de borde a borde. Si el diseño ES una '
+        + 'tarjeta pequeña, ENVUÉLVELA en ese contenedor con `flex items-center justify-center`.\n'
+        + '- Si es un modal, el overlay (`fixed inset-0`) debe llevar `overflow-y-auto` y la tarjeta `my-8`.\n'
+        + '- NO agregues un toggle de tema claro/oscuro.\n'
+        + '- Si no hay datos reales, usa datos de muestra para que la interacción sea demostrable.';
+
+    // Versiones viejas del template que ya no viajan al modelo (ver payloadMessages).
+    const LAB_HTML_OMITTED = '[versión anterior del template omitida por brevedad; la versión VIGENTE es el último bloque de código HTML de la conversación]';
+    const LAB_HTML_FENCE   = /```[ \t]*html[ \t]*\r?\n?[\s\S]*?```/gi;
 
     const LAB = {
         agents:   [],
@@ -35,8 +111,34 @@
         dirty:    false,
         ctxReal:  0,        // tokens que reportó el servidor en el último turno
         spend:    { tokens: 0, cost: 0 },
-        uiTheme:  'dark'
+        uiTheme:  'dark',
+
+        // ── Sandbox ──
+        theme:       LAB_DEFAULT_THEME,   // sistema de diseño del iframe
+        canvas:      false,               // modo lienzo: exige componente renderizable
+        sandboxOn:   true,                // panel derecho visible
+        lastHtml:    '',                  // último render (descargar / abrir en pestaña)
+        lastTheme:   LAB_DEFAULT_THEME,
+        lastIsDoc:   false,
+        templates:   [],                  // renders de la sesión: {id, html, theme, themeLabel, title}
+        activeTplId: null,
+        pinnedTplId: null,                // template FIJADO: el próximo mensaje lo modifica
+        lastUserText: '',                 // titula las miniaturas
+        splitW:      '',
+        grimoires:   {},                  // file -> {file, raw, fullPath}
+        libraryReq:  null,
+        varochCss:   '',                  // CSS embebido extraído del grimorio Coffee-Varoch
+        abort:       null,                // AbortController del turno en curso
+        aborted:     false                // el turno lo cortó el usuario, no un fallo
     };
+
+    /* pg-core.js —viewport y zoom del preview— es el motor COMPARTIDO con el
+     * Playground y el Forge, y habla con la página anfitriona por un global `pg`
+     * más dos hooks opcionales. El Lab no tiene ese objeto: aquí se le monta el
+     * mínimo del contrato para no duplicar el motor. */
+    window.pg = window.pg || { viewport: 'full', zoom: 100 };
+    window.pgSaveSettings      = saveSandboxPrefs;
+    window.pgOnViewportApplied = onViewportApplied;
 
     const esc = (v) => String(v === null || v === undefined ? '' : v)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -77,7 +179,7 @@
         if (window.IARender) {
             // Historias de usuario sin cercar: se envuelven para que postProcess
             // las convierta en la tarjeta en vez de dejarlas como YAML crudo.
-            return IARender.markdownToHtml(IARender.normalizeStoriesYaml(String(text || '')));
+            return IARender.markdownToHtml(IARender.normalizeErsYaml(IARender.normalizeStoriesYaml(String(text || ''))));
         }
         return '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>';
     }
@@ -114,9 +216,16 @@
             LAB.current = res;
             LAB.history = [];
             LAB.ctxReal = 0;
+            // El render se conserva —sirve para probar otro agente sobre el mismo
+            // template— pero las miniaturas se van con los mensajes que las
+            // contenían: su registro no debe quedar huérfano.
+            LAB.templates   = [];
+            LAB.activeTplId = null;
+            LAB.pinnedTplId = null;
             try { localStorage.setItem('lab:agent', String(id)); } catch (e) {}
             renderConfig();
             renderMessages();
+            renderPinBanner();
             setDirty(false);
         }).catch(e => toast(e.message, 'error'));
     }
@@ -487,10 +596,12 @@
             return;
         }
 
+        // Al repintar el historial (tras compactar) los turnos que trajeron un
+        // template vuelven a mostrar solo su prosa: el markup vive en el sandbox,
+        // no en la conversación.
         LAB.history.forEach(function (m) {
-            $m.append(m.role === 'user'
-                ? bubbleUser(m.content)
-                : bubbleAI(md(m.content)));
+            if (m.role === 'user') { $m.append(bubbleUser(m.content)); return; }
+            $m.append(bubbleAI(md(htmlBlocks(m.content).length ? withRenderNote(m.content) : m.content)));
         });
         $m.find('.ia-msg.ai .ia-msg-text').each(function () { enhance($(this)); });
         scrollDown();
@@ -538,50 +649,77 @@
         const text = $('#labInput').val().trim();
         if (!text) return;
 
+        const pinned = LAB.pinnedTplId ? LAB.templates.find(function (t) { return t.id === LAB.pinnedTplId; }) : null;
+        LAB.lastUserText = text;
         LAB.history.push({ role: 'user', content: text });
         $('#labInput').val('').css('height', '');
         $('#labMessages').find('.pg-empty').remove();
-        $('#labMessages').append(bubbleUser(text));
+
+        const $user = $(bubbleUser(text)).appendTo('#labMessages');
+        if (pinned) {
+            $user.find('.ia-msg-text').append(
+                '<span class="ia-msg-pinref"><i data-lucide="pin" class="w-3 h-3"></i>sobre: ' + esc(pinned.title) + '</span>'
+            );
+        }
 
         const liveId = 'labLive' + Date.now();
         $('#labMessages').append(bubbleAI('', liveId));
         $('#' + liveId).find('.ia-msg-text').addClass('ia-typing-loader').html(loader('Pensando'));
         scrollDown();
         setSending(true);
+        icons();
 
         // El prompt del agente va como systemOverride: es lo que hay EN PANTALLA, no
         // lo guardado. Sin eso no se podría probar un cambio antes de guardarlo — que
         // es el motivo de existir de esta pantalla. El cerebro (memoria + índice) lo
         // añade el servidor por agentKey.
         const payload = {
-            messages:       LAB.history.slice(),
+            messages:       payloadMessages(pinned),
             systemOverride: buildSystem(),
             model:          $('#labModel').val(),
             effort:         currentEffort(),
             surface:        'lab',
-            agentKey:       LAB.current.agent.agent_key
+            agentKey:       LAB.current.agent.agent_key,
+            canvasMode:     !!LAB.canvas,
+            // En modo lienzo el grimorio del tema viaja como contexto anclado: sin
+            // él el agente solo tiene la nota del tema, no sus clases ni tokens.
+            pinnedFiles:    LAB.canvas ? themeContext() : []
         };
 
-        let reply = '';
-        const $body = () => $('#' + liveId).find('.ia-msg-text');
+        let reply = '', conjuring = false, $conjSub = null;
+        const $body = function () { return $('#' + liveId).find('.ia-msg-text'); };
 
         streamChat(payload, {
-            onStatus: (label) => { if (!reply) $body().addClass('ia-typing-loader').html(loader(label)); },
-            onDelta:  function (chunk) {
+            onStatus: function (label) {
+                if (!reply && !conjuring) $body().addClass('ia-typing-loader').html(loader(label));
+            },
+            onDelta: function (chunk) {
                 reply += chunk;
+                if (!conjuring && shouldConjure(reply)) {
+                    conjuring = true;
+                    $conjSub = enterConjuring($('#' + liveId));
+                }
+                if (conjuring) {
+                    const lines = reply.split('\n').length;
+                    if ($conjSub) $conjSub.text('Tejiendo el código · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+                    return;
+                }
                 $body().removeClass('ia-typing-loader').html(md(reply));
                 scrollDown();
             },
             onDone: function (meta) {
+                const $msg = $('#' + liveId);
+                leaveConjuring($msg);
                 if (!reply.trim()) reply = '_(el modelo no devolvió respuesta)_';
                 LAB.history.push({ role: 'assistant', content: reply });
-                $body().removeClass('ia-typing-loader').html(md(reply));
-                enhance($body());
-                $(metaFooter(meta)).appendTo('#' + liveId);
-                $('#' + liveId).find('.ia-copy-btn').on('click', function () {
+
+                finalizeReply($msg, reply);
+                $(metaFooter(meta)).appendTo($msg);
+                $msg.find('.ia-copy-btn').on('click', function () {
                     navigator.clipboard.writeText(reply);
                     toast('Respuesta copiada');
                 });
+
                 if (meta && meta.prompt_tokens) LAB.ctxReal = Number(meta.prompt_tokens) || 0;
                 addSpend(meta);
                 setSending(false);
@@ -591,12 +729,150 @@
                 scrollDown();
             },
             onError: function (msg) {
-                $body().removeClass('ia-typing-loader')
-                       .html('<p style="color:#F87171;margin:0;">' + esc(msg || 'Error en la respuesta') + '</p>');
-                LAB.history.pop();   // el turno no llegó a completarse
+                const $msg = $('#' + liveId);
+                leaveConjuring($msg);
+                // Abortar es una decisión del usuario, no un fallo: lo que llegó se
+                // conserva (y se renderiza si ya era un componente).
+                if (LAB.aborted) {
+                    LAB.aborted = false;
+                    if (reply.trim()) {
+                        LAB.history.push({ role: 'assistant', content: reply });
+                        finalizeReply($msg, reply);
+                    } else {
+                        LAB.history.pop();
+                        $msg.remove();
+                    }
+                    toast('Generación detenida');
+                } else {
+                    $body().removeClass('ia-typing-loader')
+                           .html('<p style="color:#F87171;margin:0;">' + esc(msg || 'Error en la respuesta') + '</p>');
+                    LAB.history.pop();   // el turno no llegó a completarse
+                }
                 setSending(false);
+                icons();
             }
         });
+    }
+
+    /* ── Card "Conjurando…" ──
+     * En cuanto la respuesta empieza a ser código, el chat deja de pintar tokens y
+     * muestra esta tarjeta: volcar cientos de líneas de HTML en la conversación no
+     * le sirve a nadie, y el resultado se va a ver renderizado en el sandbox. */
+    function shouldConjure(buf) {
+        const HTML_FENCE = /```[ \t]*html/i;
+        const ANY_FENCE  = /```[a-z0-9+-]+/i;
+        const RAW_HTML   = /<(!doctype html|html|head|body|section|main|header|nav|article|aside|footer|form|table|ul|ol|div|button|h[1-6])[\s>]/i;
+        // Sin modo lienzo solo un ```html explícito conjura: un agente de documento
+        // que muestra un ```sql debe seguir viéndose como prosa en el chat.
+        return HTML_FENCE.test(buf) || (LAB.canvas && (RAW_HTML.test(buf) || ANY_FENCE.test(buf)));
+    }
+
+    function enterConjuring($msg) {
+        const $b = $msg.find('.ia-msg-text');
+        $b.removeClass('ia-typing-loader').empty().hide();
+        const $card = $(
+            '<div class="ia-conjuring">' +
+                '<span class="ia-conjuring-orb"><i data-lucide="wand-sparkles"></i></span>' +
+                '<div class="ia-conjuring-info">' +
+                    '<span class="ia-conjuring-title">Conjurando componente…</span>' +
+                    '<span class="ia-conjuring-sub">Tejiendo el código</span>' +
+                '</div>' +
+            '</div>'
+        );
+        $card.insertBefore($b);
+        icons();
+        scrollDown();
+        return $card.find('.ia-conjuring-sub');
+    }
+
+    function leaveConjuring($msg) {
+        $msg.find('.ia-conjuring').remove();
+        $msg.find('.ia-msg-text').show();
+    }
+
+    /* Reparte la respuesta entre el chat y el sandbox. Si trae un template
+     * renderable, en la burbuja solo queda la prosa (el código se ve en el
+     * sandbox y en su pestaña "Código") más la miniatura clicable. */
+    function finalizeReply($msg, received) {
+        const $b   = $msg.find('.ia-msg-text').removeClass('ia-typing-loader');
+        const html = renderableHtml(received);
+
+        if (!html) {
+            $b.html(md(received));
+            enhance($b);
+            return;
+        }
+
+        $b.html(md(withRenderNote(received)));
+        enhance($b);
+
+        renderSandbox(html, false);
+        const tpl = pushTemplate(html);
+        if (tpl) appendTemplateCard($msg, tpl);
+    }
+
+    const LAB_RENDER_NOTE = '🪄 *Componente renderizado en el sandbox →*';
+
+    /* La respuesta sin su código: fuera todo bloque ```…``` y, si lo que sobra
+     * sigue siendo markup crudo, fuera también. Queda la explicación. */
+    function proseOnly(received) {
+        const rest = String(received || '').replace(/```[a-z0-9+-]*[ \t]*\r?\n?[\s\S]*?```/gi, '').trim();
+        return looksLikeHtml(rest) ? '' : rest;
+    }
+
+    function withRenderNote(received) {
+        const rest = proseOnly(received);
+        return (rest ? rest + '\n\n' : '') + LAB_RENDER_NOTE;
+    }
+
+    /* Los mensajes que viajan al modelo. El HTML pesa: de todos los bloques
+     * ```html de la conversación solo se conserva íntegro el del template VIGENTE
+     * (el fijado, o el que está en el sandbox); los demás se sustituyen por una
+     * marca. Sin esto cada iteración reenvía todas las versiones anteriores. */
+    function payloadMessages(pinned) {
+        const target  = pinned ? pinned.html : LAB.lastHtml;
+        const vigente = htmlKey(target);
+        let keepIdx = -1;
+        for (let i = LAB.history.length - 1; i >= 0 && keepIdx === -1; i--) {
+            const blocks = htmlBlocks(LAB.history[i].content);
+            // Con render en el sandbox se busca ESE markup; sin render todavía vale
+            // el último bloque real de la conversación.
+            if (vigente ? blocks.some(function (b) { return htmlKey(b) === vigente; }) : blocks.length) keepIdx = i;
+        }
+
+        const msgs = LAB.history.map(function (m, i) {
+            return {
+                role: m.role,
+                content: i === keepIdx ? m.content : String(m.content || '').replace(LAB_HTML_FENCE, LAB_HTML_OMITTED)
+            };
+        });
+
+        const last = msgs[msgs.length - 1];
+        if (vigente && keepIdx === -1 && last) {
+            last.content += '\n\n=== TEMPLATE VIGENTE (el que está renderizado ahora en el sandbox) ===\n'
+                + 'Es el markup sobre el que trabajas. Devuélvelo COMPLETO con el cambio aplicado.\n'
+                + '```html\n' + target + '\n```';
+        }
+        return msgs;
+    }
+
+    // Contenido de cada fence ```html con markup de verdad (descarta las marcas
+    // de omisión antiguas, que citan la secuencia del fence).
+    function htmlBlocks(content) {
+        const re = /```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/gi;
+        const out = [];
+        let m;
+        while ((m = re.exec(String(content || '')))) {
+            const b = m[1].trim();
+            if (/<[a-z!]/i.test(b)) out.push(b);
+        }
+        return out;
+    }
+
+    // Clave laxa: el HTML del sandbox pasó por trim y fusión de bloques hermanos,
+    // así que no coincide byte a byte con el del mensaje.
+    function htmlKey(html) {
+        return String(html || '').replace(/\s+/g, ' ').trim();
     }
 
     /* Prompt + alma tal como están en el panel. Es el equivalente a lo que el
@@ -606,14 +882,46 @@
         const soul   = $('#labSoul').val().trim();
         let out = prompt || 'Eres un asistente del ecosistema CoffeeSoft. Responde en español, claro y directo.';
         if (soul) out += '\n\n## Personalidad\n' + soul;
+        if (LAB.canvas) out += canvasDirective();
         return out;
     }
 
+    /* Modo lienzo: al prompt EN PANTALLA se le anexa qué sistema de diseño usar y
+     * la exigencia de que el componente funcione. Va anexado, no sustituye: lo que
+     * se está afinando sigue siendo el prompt del agente. */
+    function canvasDirective() {
+        const t = LAB_THEMES[LAB.theme] || LAB_THEMES[LAB_DEFAULT_THEME];
+        const head = t.grimoire
+            ? '\n\n## Render en el sandbox del Lab\n'
+              + 'Genera EXCLUSIVAMENTE el componente solicitado siguiendo el grimorio **' + t.label + '** incluido en el contexto. ' + t.note + '\n'
+              + 'Devuelve UN solo bloque ```html con el componente listo para renderizar (sin explicaciones largas).'
+            : '\n\n## Render en el sandbox del Lab (lienzo libre)\n'
+              + 'Genera el componente solicitado con tu propio criterio de diseño. ' + (t.note || '') + '\n'
+              + 'Tienes Tailwind disponible en el lienzo. Devuelve UN solo bloque ```html con el componente listo para renderizar (sin explicaciones largas).';
+        return head + LAB_INTERACTIVITY_NOTE;
+    }
+
+    /* Mientras el agente genera, el botón Enviar se vuelve Detener: al pulsarlo
+     * aborta el fetch y se conserva lo que ya llegó. */
     function setSending(on) {
         LAB.sending = on;
-        $('#labSend').prop('disabled', on).css('opacity', on ? .5 : '');
-        $('#labInput').prop('disabled', on);
-        if (!on) $('#labInput').trigger('focus');
+        const $btn = $('#labSend');
+        if (on) {
+            $btn.addClass('is-stop').attr('title', 'Detener generación')
+                .html('<i data-lucide="square" class="w-3.5 h-3.5"></i>');
+        } else {
+            $btn.removeClass('is-stop').attr('title', 'Enviar (Enter)')
+                .html('<i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>');
+            LAB.abort = null;
+            $('#labInput').trigger('focus');
+        }
+        icons();
+    }
+
+    function stopSending() {
+        if (!LAB.abort) return;
+        LAB.aborted = true;
+        try { LAB.abort.abort(); } catch (e) {}
     }
 
     /* Pie de consumo con el mismo formato del Visor y el Playground: costo real si el
@@ -659,11 +967,14 @@
     /* Streaming SSE con el motor del visor. Si el proveedor no soporta streaming el
      * endpoint responde igual por eventos, así que no hace falta un segundo camino. */
     function streamChat(payload, cb) {
+        const ac = new AbortController();
+        LAB.abort = ac;
         fetch(API_STREAM, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: ac.signal
         }).then(function (res) {
             if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
             const reader = res.body.getReader();
@@ -697,6 +1008,508 @@
                 }).catch(function (e) { cb.onError(e.message); });
             })();
         }).catch(function (e) { cb.onError(e.message); });
+    }
+
+    /* ═══════════════════════ Sandbox ═══════════════════════ */
+
+    function loadSandboxPrefs() {
+        try {
+            const s = JSON.parse(localStorage.getItem(LAB_SANDBOX_KEY) || '{}');
+            if (s.theme && LAB_THEMES[s.theme])   LAB.theme     = s.theme;
+            if (typeof s.canvas === 'boolean')    LAB.canvas    = s.canvas;
+            if (typeof s.sandboxOn === 'boolean') LAB.sandboxOn = s.sandboxOn;
+            if (s.splitW)                         LAB.splitW    = s.splitW;
+            if (typeof s.zoom === 'number')       pg.zoom       = s.zoom;
+            if (s.viewport && PG_VIEWPORTS[s.viewport]) pg.viewport = s.viewport;
+        } catch (e) {}
+        LAB.lastTheme = LAB.theme;
+    }
+
+    function saveSandboxPrefs() {
+        try {
+            localStorage.setItem(LAB_SANDBOX_KEY, JSON.stringify({
+                theme: LAB.theme, canvas: LAB.canvas, sandboxOn: LAB.sandboxOn,
+                splitW: LAB.splitW, zoom: pg.zoom, viewport: pg.viewport
+            }));
+        } catch (e) {}
+    }
+
+    function applySandboxUI() {
+        $('.lab-workspace').toggleClass('has-sandbox', LAB.sandboxOn);
+        $('#labSandboxToggle').toggleClass('is-on', LAB.sandboxOn)
+            .attr('title', LAB.sandboxOn ? 'Ocultar el sandbox' : 'Mostrar el sandbox');
+        $('.lab-sbtheme').toggleClass('is-off', !LAB.sandboxOn);
+        $('#labSandboxTheme').val(LAB.theme);
+        if (LAB.sandboxOn) pgApplyZoom();
+    }
+
+    function applyCanvasUI() {
+        $('#labCanvasToggle').toggleClass('is-active', LAB.canvas).attr('title', LAB.canvas
+            ? 'Modo lienzo ACTIVO — el agente generará componentes HTML renderizables'
+            : 'Activar modo lienzo (el agente generará componentes HTML renderizables)');
+        $('#labInput').attr('placeholder', LAB.canvas
+            ? 'Pídele una pantalla o componente y míralo en el sandbox…'
+            : 'Prueba a tu agente aquí…');
+    }
+
+    /* Ancho del chat frente al sandbox. El chat NO empieza en el borde del
+     * workspace (a su izquierda están el rail y el panel de configuración), así
+     * que se mide desde donde el chat arranca de verdad. */
+    function applySplit(w) {
+        if (w && isFinite(parseInt(w, 10))) {
+            document.documentElement.style.setProperty('--lab-chat-w', parseInt(w, 10) + 'px');
+        }
+    }
+
+    function bindSplitter() {
+        const $sp = $('#labSplitter');
+        const $ws = $('.lab-workspace');
+        if (!$sp.length || !$ws.length) return;
+        let dragging = false;
+
+        $sp.on('mousedown', function (e) {
+            e.preventDefault();
+            dragging = true;
+            $sp.addClass('is-dragging');
+            document.body.classList.add('pg-resizing');
+        });
+        $(document).on('mousemove.labSplit', function (e) {
+            if (!dragging) return;
+            const chat  = $('.lab-chat')[0];
+            if (!chat) return;
+            const left  = chat.getBoundingClientRect().left;
+            const right = $ws[0].getBoundingClientRect().right;
+            const w = Math.max(320, Math.min(right - left - 340, e.clientX - left));
+            document.documentElement.style.setProperty('--lab-chat-w', w + 'px');
+            LAB.splitW = w;
+        });
+        $(document).on('mouseup.labSplit', function () {
+            if (!dragging) return;
+            dragging = false;
+            $sp.removeClass('is-dragging');
+            document.body.classList.remove('pg-resizing');
+            pgApplyZoom();
+            saveSandboxPrefs();
+        });
+    }
+
+    /* Hook de pg-core: al cambiar de viewport el fondo del panel cambia de dueño.
+     * En móvil/laptop lo pinta el CSS (el "escritorio" alrededor del dispositivo);
+     * a ancho completo vuelve a ser el color del tema, porque el iframe es
+     * transparente y sin esto se vería el blanco del contenedor. */
+    function onViewportApplied(mode) {
+        const t = LAB_THEMES[LAB.theme] || LAB_THEMES[LAB_DEFAULT_THEME];
+        $('.pg-sandbox-body').css('background', mode === 'full' ? (t.bg || '#fff') : '');
+        pgApplyZoom();
+    }
+
+    function renderSandbox(html, isDoc) {
+        if (!LAB.sandboxOn) { LAB.sandboxOn = true; applySandboxUI(); saveSandboxPrefs(); }
+        $('#pgSandboxEmpty').hide();
+
+        LAB.lastHtml  = html;
+        LAB.lastTheme = LAB.theme;
+        LAB.lastIsDoc = !!isDoc;
+
+        const t = LAB_THEMES[LAB.theme] || LAB_THEMES[LAB_DEFAULT_THEME];
+        $('.pg-sandbox-body').css('background', (pg.viewport && pg.viewport !== 'full') ? '' : (t.bg || '#fff'));
+
+        const fr = document.getElementById('pgSandboxFrame');
+        fr.onload = function () { pgSyncStageViewport(); pgApplyZoom(); };
+        fr.srcdoc = wrapHtml(html, LAB.theme, isDoc);
+
+        // La pestaña "Código" refleja la fuente de lo que se está renderizando.
+        const $code = $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text(html);
+        if (window.hljs) hljs.highlightElement($code[0]);
+
+        $('.pg-tab[data-sbtab="preview"]').trigger('click');
+    }
+
+    function resetSandbox() {
+        LAB.lastHtml    = '';
+        LAB.lastIsDoc   = false;
+        LAB.templates   = [];
+        LAB.activeTplId = null;
+        LAB.pinnedTplId = null;
+        const fr = document.getElementById('pgSandboxFrame');
+        if (fr) fr.srcdoc = '';
+        $('#pgSandboxCode').find('code').removeAttr('data-highlighted').text('');
+        $('#pgSandboxEmpty').show();
+        $('.pg-sandbox-body').css('background', '');
+        renderPinBanner();
+    }
+
+    /* Reune los assets del sistema de diseño: <link>, <style> embebido y <script>.
+     * Las rutas se absolutizan contra lab.php porque dentro del iframe (srcdoc)
+     * una ruta relativa no resuelve contra esta página. */
+    function themeAssets(t) {
+        const appBase = new URL('.', document.baseURI).href;
+        const links = (t.cssUrls || []).map(function (u) {
+            return '<link rel="stylesheet" href="' + new URL(u, document.baseURI).href + '">';
+        }).join('');
+        // Los scripts del tema (p.ej. tailwind-theme.js) DEBEN ir justo tras el CDN
+        // de Tailwind para que su tailwind.config tenga efecto.
+        const scripts = (t.jsUrls || []).map(function (u) {
+            return '<script src="' + new URL(u, document.baseURI).href + '"><\/script>';
+        }).join('');
+        const style = (t.cssFrom === 'grimorio-coffee-varoch.md' && LAB.varochCss)
+            ? '<style>' + LAB.varochCss + '</style>' : '';
+        return { appBase: appBase, links: links, style: style, scripts: scripts };
+    }
+
+    /* Bridge inyectado en el <head> del preview: con el iframe sandboxeado el
+     * padre no puede tocar su documento, así que el zoom y el modo edge llegan
+     * por postMessage (pg-core los emite). */
+    const LAB_BRIDGE_JS =
+          '<script>(function(){window.addEventListener("message",function(e){var d=e.data||{};'
+        + 'if(d.pgZoom!=null)document.documentElement.style.zoom=d.pgZoom;'
+        + 'if(d.pgEdge!=null&&document.body)document.body.classList.toggle("pg-vp-edge",!!d.pgEdge);'
+        + '});})();<\/script>';
+
+    /* Parches del preview. El scroll horizontal del root es espurio (nace del
+     * gutter de la barra vertical o de algún 100vw del template). Y un overlay
+     * `fixed inset-0` se ancla al viewport del IFRAME sin generar scroll, así que
+     * un modal más alto que el lienzo se recortaba arriba y abajo: aquí se hace
+     * scrollable y su tarjeta se centra con margin auto, que colapsa a 0 al
+     * desbordar en lugar de recortar. */
+    const LAB_PREVIEW_FIX_CSS =
+          'html,body{overflow-x:hidden;}'
+        + '[class*="fixed"][class*="inset-0"]{overflow-y:auto;}'
+        + '[class*="fixed"][class*="inset-0"] > *{margin-top:auto;margin-bottom:auto;}';
+
+    function wrapHtml(body, themeKey, isDoc) {
+        const t = LAB_THEMES[themeKey] || LAB_THEMES[LAB_DEFAULT_THEME];
+        const a = themeAssets(t);
+        const htmlAttr  = t.data ? ' data-theme="' + t.data + '"' : '';
+        const bodyData  = (t.bodyClass && t.data) ? ' data-theme="' + t.data + '"' : '';
+        const bodyClass = t.bodyClass ? ' class="' + t.bodyClass + '"' : '';
+
+        // Documento completo: se conserva su markup, pero en su <head> se inyecta
+        // el CSS del sistema (su <link> relativo suele estar roto dentro del
+        // iframe), el <base> y el data-theme del tema elegido.
+        if (!isDoc && pgIsFullDoc(body)) {
+            let doc = body;
+            if (/<html/i.test(doc)) {
+                doc = doc.replace(/<html(\s[^>]*)?>/i, function (m, attrs) {
+                    attrs = (attrs || '').replace(/\sdata-theme=("[^"]*"|'[^']*'|\S+)/i, '');
+                    return '<html' + attrs + htmlAttr + '>';
+                });
+            } else {
+                doc = '<html' + htmlAttr + '>' + doc + '</html>';
+            }
+            const inject = '<base href="' + a.appBase + '">' + LAB_BRIDGE_JS + a.scripts + a.links + a.style
+                         + '<style>' + LAB_PREVIEW_FIX_CSS + '</style>';
+            if (/<head(\s[^>]*)?>/i.test(doc)) {
+                doc = doc.replace(/<head(\s[^>]*)?>/i, function (m) { return m + inject; });
+            } else {
+                doc = doc.replace(/<html(\s[^>]*)?>/i, function (m) { return m + '<head>' + inject + '</head>'; });
+            }
+            if (t.bodyClass) {
+                if (/<body(\s[^>]*)?>/i.test(doc)) {
+                    doc = doc.replace(/<body(\s[^>]*)?>/i, function (m, attrs) {
+                        attrs = (attrs || '').replace(/\sdata-theme=("[^"]*"|'[^']*'|\S+)/i, '');
+                        attrs = /class=/i.test(attrs)
+                            ? attrs.replace(/class=("|')(.*?)\1/i, function (mm, q, c) { return 'class=' + q + c + ' ' + t.bodyClass + q; })
+                            : ' class="' + t.bodyClass + '"' + attrs;
+                        return '<body' + attrs + bodyData + '>';
+                    });
+                } else {
+                    doc = doc.replace(/<\/head>/i, '</head><body class="' + t.bodyClass + '"' + bodyData + '>');
+                }
+            }
+            return doc;
+        }
+
+        // Fragmento: se envuelve con Tailwind + el CSS del sistema. El stage ocupa
+        // todo el lienzo, así que un componente con w-full lo llena y uno con
+        // ancho propio (max-w-sm) se centra sin estirarse.
+        const stage = isDoc
+            ? 'body{display:block;padding:24px;}.lab-stage{max-width:860px;margin:0 auto;line-height:1.65;}'
+              + '.lab-stage h1,.lab-stage h2,.lab-stage h3{margin:1.2em 0 .5em;font-weight:700;}'
+              + '.lab-stage pre{background:rgba(0,0,0,.25);padding:12px;border-radius:8px;overflow:auto;}'
+              + '.lab-stage table{border-collapse:collapse;}.lab-stage td,.lab-stage th{border:1px solid currentColor;padding:6px 10px;}'
+            : 'body{min-height:100vh;}'
+              + '.lab-stage{box-sizing:border-box;width:100%;min-height:100vh;padding:28px;'
+              +            'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}'
+              + '.lab-stage > *{width:100%;}'
+              // pg-vp-edge la pone pgSyncStageViewport() (full/móvil): el template
+              // ocupa el lienzo de borde a borde, sin el padding de presentación.
+              + 'body.pg-vp-edge .lab-stage{padding:0;}';
+
+        return '<!DOCTYPE html><html' + htmlAttr + '><head><meta charset="utf-8">'
+            + '<base href="' + a.appBase + '">' + LAB_BRIDGE_JS
+            + '<script src="https://cdn.tailwindcss.com"><\/script>'
+            + a.scripts
+            + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">'
+            + a.links + a.style
+            + '<script src="https://unpkg.com/lucide@latest"><\/script>'
+            + '<style>html,body{margin:0;}body{background:' + t.bg + ';color:' + t.fg + ';'
+            + "font-family:'Inter',system-ui,sans-serif;}*{box-sizing:border-box;}" + stage + LAB_PREVIEW_FIX_CSS + '</style>'
+            + '</head><body' + bodyClass + bodyData + '><div class="lab-stage">' + body + '</div>'
+            + '<script>if(window.lucide)lucide.createIcons();<\/script></body></html>';
+    }
+
+    /* Librería de grimorios (.md en .claude/agents/). Se necesita para dos cosas:
+     * inyectar el grimorio del tema al agente en modo lienzo, y extraer el CSS
+     * embebido de Coffee-Varoch, que no tiene archivo que enlazar. Se pide una
+     * sola vez y solo cuando hace falta. */
+    function ensureLibrary() {
+        if (LAB.libraryReq) return LAB.libraryReq;
+        LAB.libraryReq = $.getJSON(API_VISOR + '?folder=agents').then(function (data) {
+            ((data && data.grimoires) || []).forEach(function (f) { LAB.grimoires[f.file] = f; });
+            const varoch = LAB.grimoires['grimorio-coffee-varoch.md'];
+            const m = varoch && varoch.raw ? varoch.raw.match(/```css\s*\n([\s\S]*?)```/i) : null;
+            if (m) LAB.varochCss = m[1];
+        }).fail(function () { LAB.libraryReq = null; });
+        return LAB.libraryReq;
+    }
+
+    /* Grimorio del tema activo, listo para viajar como contexto anclado. */
+    function themeContext() {
+        const t = LAB_THEMES[LAB.theme] || LAB_THEMES[LAB_DEFAULT_THEME];
+        const f = t.grimoire ? LAB.grimoires[t.grimoire] : null;
+        return f ? [{ file: f.file, fullPath: f.fullPath || '', content: f.raw || '' }] : [];
+    }
+
+    /* ── Qué se renderiza ──
+     * Sin modo lienzo solo cuenta un bloque ```html explícito: así una respuesta
+     * que cita un <div> al explicar algo NO pisa lo que ya está en el sandbox. */
+    function renderableHtml(received) {
+        const s = String(received || '');
+        if (!LAB.canvas) return extractCode(s, 'html');
+        const fenced = hasFencedHtml(s) ? extractHtml(s) : '';
+        const raw    = (startsWithHtml(s) || isMostlyHtml(s)) ? extractHtml(s) : '';
+        return fenced || patchLastHtml(s) || raw;
+    }
+
+    /* ¿Hay un bloque ```html (o un fence cuyo contenido sea HTML)? Señal fiable de
+     * "componente construido" frente al ```sql de una consulta. */
+    function hasFencedHtml(s) {
+        if (/```[ \t]*html[ \t]*\r?\n/i.test(s || '')) return true;
+        const m = /```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i.exec(s || '');
+        return !!(m && looksLikeHtml(m[1]));
+    }
+
+    /* ¿La respuesta EMPIEZA por HTML? Acepta un componente crudo sin fence y
+     * descarta la prosa que solo menciona un <tag> a media explicación. */
+    function startsWithHtml(s) {
+        const t = String(s || '').replace(/^﻿/, '').replace(/^```[a-z0-9+-]*[ \t]*\r?\n/i, '').trim();
+        return /^(<!doctype html\b|<html[\s>]|<(?:div|section|main|header|nav|article|aside|footer|form|table|ul|ol|button|h[1-6]|img|svg)[\s>])/i.test(t);
+    }
+
+    // ¿El texto es MAYORITARIAMENTE markup? Un componente trae muchos tags; un
+    // plan en prosa que menciona uno o dos, no.
+    function isMostlyHtml(s) {
+        return (String(s || '').match(/<(?:div|section|main|header|nav|article|aside|footer|form|table|tr|td|th|ul|ol|li|button|h[1-6]|img|svg|input|label|span|p|a)\b/gi) || []).length >= 4;
+    }
+
+    function looksLikeHtml(text) {
+        return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(text || '');
+    }
+
+    function extractCode(text, lang) {
+        const re = lang
+            ? new RegExp('```' + lang + '[ \\t]*\\r?\\n?([\\s\\S]*?)```', 'i')
+            : /```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i;
+        const m = String(text || '').match(re);
+        return m ? m[1].trim() : '';
+    }
+
+    // Extrae HTML renderizable, tolerante a fences mal formados o markup crudo.
+    function extractHtml(text) {
+        const s = String(text || '');
+        let m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*?)```/i);
+        if (m && m[1].trim()) return mergeSideBlocks(s, m[1].trim());
+        m = s.match(/```[a-z0-9+-]*[ \t]*\r?\n?([\s\S]*?)```/i);
+        if (m && looksLikeHtml(m[1])) return mergeSideBlocks(s, m[1].trim());
+        // Fence ```html abierto y sin cerrar (respuesta truncada): tomamos lo que
+        // sigue al fence, sin arrastrar el preámbulo en prosa.
+        m = s.match(/```[ \t]*html[ \t]*\r?\n?([\s\S]*)$/i);
+        if (m && looksLikeHtml(m[1])) return m[1].replace(/```\s*$/, '').trim();
+        if (looksLikeHtml(s)) return s.replace(/```[a-z0-9+-]*[ \t]*/gi, '').trim();
+        return '';
+    }
+
+    /* Fusiona el JS/CSS que el modelo dejó en bloques HERMANOS (```js / ```css,
+     * fuera del ```html) dentro del propio HTML. Sin esto el template se renderiza
+     * mudo: al pedir "agrégale eventos" el modelo suele contestar con el markup y
+     * el script separados, y la interacción se perdía. */
+    function mergeSideBlocks(src, html) {
+        if (!html) return html;
+        const rest = String(src || '').split(html).join(' ');   // solo lo que quedó FUERA del html
+        const grab = function (re) {
+            const out = [];
+            let m;
+            while ((m = re.exec(rest))) if (m[1].trim()) out.push(m[1].trim());
+            return out;
+        };
+        const css = grab(/```[ \t]*css[ \t]*\r?\n?([\s\S]*?)```/gi);
+        const js  = grab(/```[ \t]*(?:javascript|js)[ \t]*\r?\n?([\s\S]*?)```/gi);
+        if (!css.length && !js.length) return html;
+
+        // data-lab-merged marca lo inyectado por nosotros: patchLastHtml lo usa
+        // para que un parche SUSTITUYA al anterior en vez de acumularse.
+        let add = '';
+        if (css.length) add += '\n<style data-lab-merged>\n' + css.join('\n') + '\n</style>';
+        if (js.length)  add += '\n<script data-lab-merged>\n' + js.join('\n\n') + '\n<\/script>';
+        return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, add + '\n</body>') : html + add;
+    }
+
+    /* Ajuste incremental sobre el template ya renderizado: al pedir "agrégale
+     * eventos" el modelo suele contestar SOLO con el <script> del cambio, sin
+     * repetir el markup. Sin esto el render se reemplazaba por el texto en
+     * markdown y el template desaparecía. */
+    function patchLastHtml(received) {
+        if (!LAB.lastHtml) return '';
+        const base    = LAB.lastHtml.replace(/\n?<(script|style) data-lab-merged>[\s\S]*?<\/\1>/gi, '');
+        const patched = mergeSideBlocks(received, base);
+        return patched === base ? '' : patched;
+    }
+
+    /* ── Historial de renders de la sesión ──
+     * Cada componente que se vuelca al sandbox queda como miniatura clicable
+     * DENTRO de la burbuja que lo generó. Vive solo en memoria: se vacía al
+     * limpiar la conversación o al recargar. */
+    function pushTemplate(html) {
+        if (!html) return null;
+        const raw = (LAB.lastUserText || '').trim();
+        const tpl = {
+            id:         'tpl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            html:       html,
+            theme:      LAB.theme,
+            themeLabel: (LAB_THEMES[LAB.theme] || {}).label || LAB.theme,
+            title:      raw ? (raw.length > 46 ? raw.slice(0, 46) + '…' : raw) : 'Componente'
+        };
+        LAB.templates.push(tpl);
+        if (LAB.templates.length > 50) LAB.templates.shift();
+        LAB.activeTplId = tpl.id;
+        return tpl;
+    }
+
+    function appendTemplateCard($msg, tpl) {
+        if (!$msg || !$msg.length || !tpl) return;
+        const pinned = tpl.id === LAB.pinnedTplId;
+        const $card = $(
+            '<div class="pg-chat-tpl' + (tpl.id === LAB.activeTplId ? ' is-active' : '') + '" data-tpl-id="' + tpl.id + '" title="Clic para ver en el sandbox">' +
+                '<div class="pg-chat-tpl-thumb">' +
+                    '<iframe class="pg-chat-tpl-frame" sandbox="allow-scripts" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>' +
+                '</div>' +
+                '<div class="pg-chat-tpl-info">' +
+                    '<span class="pg-chat-tpl-title">' + esc(tpl.title) + '</span>' +
+                    '<span class="pg-chat-tpl-sub">' + esc(tpl.themeLabel) + '</span>' +
+                    '<span class="pg-chat-tpl-actions">' +
+                        '<button type="button" class="pg-tpl-ico pg-chat-tpl-view" title="Ver en el sandbox"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>' +
+                        '<button type="button" class="pg-tpl-ico pg-chat-tpl-pin' + (pinned ? ' is-pinned' : '') + '" title="Fijar como referencia: el próximo mensaje lo modificará"><i data-lucide="pin" class="w-3.5 h-3.5"></i></button>' +
+                        '<button type="button" class="pg-tpl-ico pg-chat-tpl-del" title="Quitar este render del chat"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>' +
+                    '</span>' +
+                '</div>' +
+            '</div>'
+        );
+        $msg.append($card);
+
+        const fr = $card.find('.pg-chat-tpl-frame')[0];
+        if (fr) fr.srcdoc = wrapHtml(tpl.html, tpl.theme, false);
+
+        $card.on('click', function () { restoreTemplate(tpl.id); });
+        $card.find('.pg-chat-tpl-view').on('click', function (e) { e.stopPropagation(); restoreTemplate(tpl.id); });
+        $card.find('.pg-chat-tpl-pin').on('click', function (e) { e.stopPropagation(); togglePin(tpl.id); });
+        $card.find('.pg-chat-tpl-del').on('click', function (e) { e.stopPropagation(); deleteTemplate(tpl.id); });
+        icons();
+        scrollDown();
+    }
+
+    function restoreTemplate(id) {
+        const t = LAB.templates.find(function (x) { return x.id === id; });
+        if (!t) return;
+        LAB.activeTplId = id;
+        // Se restaura el tema con el que se generó: es el sistema con el que ese
+        // markup tiene sentido.
+        if (t.theme && LAB_THEMES[t.theme] && t.theme !== LAB.theme) {
+            LAB.theme = t.theme;
+            $('#labSandboxTheme').val(t.theme);
+            saveSandboxPrefs();
+        }
+        renderSandbox(t.html, false);
+        $('.pg-chat-tpl').removeClass('is-active');
+        $('.pg-chat-tpl[data-tpl-id="' + id + '"]').addClass('is-active');
+    }
+
+    function deleteTemplate(id) {
+        const i = LAB.templates.findIndex(function (x) { return x.id === id; });
+        if (i === -1) return;
+        LAB.templates.splice(i, 1);
+        if (LAB.activeTplId === id) LAB.activeTplId = null;
+        if (LAB.pinnedTplId === id) LAB.pinnedTplId = null;
+        $('.pg-chat-tpl[data-tpl-id="' + id + '"]').remove();
+        renderPinBanner();
+        toast('Render quitado del chat');
+    }
+
+    function togglePin(id) {
+        const t = LAB.templates.find(function (x) { return x.id === id; });
+        if (!t) return;
+        LAB.pinnedTplId = (LAB.pinnedTplId === id) ? null : id;
+        $('.pg-chat-tpl-pin').each(function () {
+            $(this).toggleClass('is-pinned', $(this).closest('.pg-chat-tpl').data('tpl-id') === LAB.pinnedTplId);
+        });
+        renderPinBanner();
+        if (LAB.pinnedTplId) {
+            if (LAB.activeTplId !== id) restoreTemplate(id);
+            toast('Template fijado — el próximo mensaje lo modificará');
+            $('#labInput').trigger('focus');
+        } else {
+            toast('Referencia liberada');
+        }
+    }
+
+    /* Chip "Modificando: <título> ✕" sobre el input, solo si hay algo fijado. */
+    function renderPinBanner() {
+        const t = LAB.pinnedTplId ? LAB.templates.find(function (x) { return x.id === LAB.pinnedTplId; }) : null;
+        $('#labPinBanner').remove();
+        if (!t) return;
+        const $banner = $(
+            '<div id="labPinBanner" class="pg-pin-banner" title="El próximo mensaje modificará este template">' +
+                '<i data-lucide="pin" class="w-3.5 h-3.5"></i>' +
+                '<span class="pg-pin-banner-text">Modificando: <strong>' + esc(t.title || 'Componente') + '</strong></span>' +
+                '<button type="button" class="pg-pin-banner-x" title="Liberar referencia"><i data-lucide="x" class="w-3 h-3"></i></button>' +
+            '</div>'
+        );
+        $('.lab-chat .ia-input-wrap').prepend($banner);
+        $banner.find('.pg-pin-banner-x').on('click', function () {
+            LAB.pinnedTplId = null;
+            $('.pg-chat-tpl-pin').removeClass('is-pinned');
+            renderPinBanner();
+        });
+        icons();
+    }
+
+    /* ── Descargar / abrir ──
+     * Ambas empaquetan el MISMO documento autocontenido que ve el iframe (tema,
+     * CSS del sistema y Tailwind incluidos). */
+    function downloadHtml() {
+        if (!LAB.lastHtml) { toast('Aún no hay nada que descargar', 'error'); return; }
+        const blob  = new Blob([wrapHtml(LAB.lastHtml, LAB.lastTheme, LAB.lastIsDoc)], { type: 'text/html;charset=utf-8' });
+        const url   = URL.createObjectURL(blob);
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'lab-' + (LAB.lastTheme || LAB.theme) + '-' + stamp + '.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+        toast('HTML descargado');
+    }
+
+    function openInTab() {
+        if (!LAB.lastHtml) { toast('Aún no hay nada que abrir', 'error'); return; }
+        const w = window.open('', '_blank');
+        if (w) { w.document.write(wrapHtml(LAB.lastHtml, LAB.lastTheme, LAB.lastIsDoc)); w.document.close(); }
+    }
+
+    function closeSbActions() {
+        $('#labSbActionsPop').removeClass('is-open');
+        $('#labSbActionsToggle').attr('aria-expanded', 'false').removeClass('is-active');
     }
 
     /* ═══════════════════════ Pegar y dividir ═══════════════════════ */
@@ -951,7 +1764,7 @@
         });
 
         // ── Chat ──
-        $('#labSend').on('click', send);
+        $('#labSend').on('click', function () { LAB.sending ? stopSending() : send(); });
         $('#labInput').on('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
         }).on('input', function () {
@@ -968,12 +1781,80 @@
             LAB.ctxReal = 0;
             LAB.spend = { tokens: 0, cost: 0 };
             $('#labSpend').text('—');
+            resetSandbox();
             renderMessages();
             updateCtxBar();
             toast('Conversación vaciada');
         });
 
         $('#labCompact').on('click', function (e) { e.stopPropagation(); compactContext(false); });
+
+        // ── Sandbox ──
+        loadSandboxPrefs();
+        applySplit(LAB.splitW);
+        applySandboxUI();
+        applyCanvasUI();
+        bindSplitter();
+        pgApplyViewport();
+        // Coffee-Varoch trae su CSS dentro del grimorio: sin la librería el preview
+        // saldría sin estilos. En lienzo también hace falta para anclar el grimorio.
+        if (LAB.canvas || (LAB_THEMES[LAB.theme] || {}).cssFrom) ensureLibrary();
+
+        $('#labSandboxToggle').on('click', function () {
+            LAB.sandboxOn = !LAB.sandboxOn;
+            applySandboxUI();
+            saveSandboxPrefs();
+        });
+
+        $('#labCanvasToggle').on('click', function () {
+            LAB.canvas = !LAB.canvas;
+            applyCanvasUI();
+            saveSandboxPrefs();
+            if (LAB.canvas) ensureLibrary();
+        });
+
+        $('.pg-tab').on('click', function () {
+            $('.pg-tab').removeClass('active');
+            $(this).addClass('active');
+            const tab = $(this).data('sbtab');
+            $('#pgSandboxFrame').toggleClass('hidden', tab === 'code');
+            $('#pgSandboxCode').toggleClass('hidden', tab !== 'code');
+        });
+
+        $('#pgZoomIn').on('click', function () { pgSetZoom((pg.zoom || 100) + 10); });
+        $('#pgZoomOut').on('click', function () { pgSetZoom((pg.zoom || 100) - 10); });
+        $('#pgZoomLabel').on('click', function () { pgSetZoom(100); }).text((pg.zoom || 100) + '%');
+        $('.pg-vp-btn').on('click', function () { pgSetViewport($(this).data('vp')); });
+
+        // Cambiar de sistema de diseño re-envuelve el render vigente: el markup no
+        // cambia, cambia el CSS con el que se interpreta.
+        $('#labSandboxTheme').on('change', function () {
+            LAB.theme = this.value;
+            saveSandboxPrefs();
+            const redraw = function () { if (LAB.lastHtml) renderSandbox(LAB.lastHtml, LAB.lastIsDoc); };
+            if ((LAB_THEMES[LAB.theme] || {}).cssFrom && !LAB.varochCss) ensureLibrary().always(redraw);
+            else redraw();
+        });
+
+        $('#labSandboxDownload').on('click', downloadHtml);
+        $('#labSandboxOpen').on('click', openInTab);
+
+        // El menú ⋯ solo existe en móvil (en escritorio los botones van sueltos).
+        $('#labSbActionsToggle').on('click', function (e) {
+            e.stopPropagation();
+            const open = !$('#labSbActionsPop').hasClass('is-open');
+            $('#labSbActionsPop').toggleClass('is-open', open);
+            $(this).attr('aria-expanded', open ? 'true' : 'false').toggleClass('is-active', open);
+        });
+        $('#labSbActionsPop').on('click', '.pg-actionbtn', closeSbActions);
+        $(document).on('click.labSbActions', function (e) {
+            if (!$('#labSbActionsPop').hasClass('is-open')) return;
+            if ($(e.target).closest('.pg-actions-menu').length) return;
+            closeSbActions();
+        });
+
+        let resizeT = null;
+        $(window).on('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(pgApplyZoom, 120); });
 
         // ── Dividir ──
         $('#labSplitOpen').on('click', function () {

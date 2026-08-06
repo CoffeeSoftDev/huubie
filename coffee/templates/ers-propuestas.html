@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propuesta — Vista de documento para el ERS (CoffeePlanner)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+    --bg-base:    #111928;
+    --bg-chrome:  #141d2b;
+    --bg-card:    #1F2A37;
+    --bg-soft:    #172030;
+    --bg-hover:   #1a2332;
+    --text:       #ffffff;
+    --text-soft:  #E5E7EB;
+    --text-mid:   #D1D5DB;
+    --text-muted: #9CA3AF;
+    --text-mute2: #6B7280;
+    --border:      rgba(55,65,81,.6);
+    --border-soft: rgba(55,65,81,.4);
+    --accent:      #C05A40;
+    --accent-soft: #E8A68F;
+    --accent-tint: rgba(192,90,64,.18);
+    --blue:  #60A5FA;  --blue-tint:  rgba(96,165,250,.14);
+    --green: #34D399;  --green-tint: rgba(52,211,153,.14);
+    --amber: #FBBF24;  --amber-tint: rgba(251,191,36,.14);
+    --red:   #F87171;  --red-tint:   rgba(248,113,113,.14);
+    --violet:#A78BFA;  --violet-tint:rgba(167,139,250,.14);
+
+    /* El papel del visor: mismo tono en los dos temas (.md-rendered) */
+    --paper:      #FAF7F2;
+    --paper-ink:  #2C2416;
+    --paper-head: #1A1208;
+    --paper-rule: #D4C9B3;
+    --paper-soft: #6B5D45;
+    --paper-tint: #F1EADD;
+}
+html[data-theme="light"] {
+    --bg-base:    #F3F4F6;
+    --bg-chrome:  #FFFFFF;
+    --bg-card:    #FFFFFF;
+    --bg-soft:    #F9FAFB;
+    --bg-hover:   #F3F4F6;
+    --text:       #111827;
+    --text-soft:  #1F2937;
+    --text-mid:   #374151;
+    --text-muted: #6B7280;
+    --text-mute2: #9CA3AF;
+    --border:      rgba(209,213,219,.9);
+    --border-soft: rgba(229,231,235,.9);
+    --accent-tint: rgba(192,90,64,.10);
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 32px 24px 80px;
+    background: var(--bg-base); color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif; font-size: 13px; line-height: 1.55;
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.kicker { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-mute2); font-weight: 600; }
+h1 { font-size: 22px; font-weight: 700; margin: 6px 0 8px; letter-spacing: -.01em; }
+h2 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+.lead { color: var(--text-muted); font-size: 12.5px; max-width: 760px; margin: 0; }
+.sec { margin-top: 40px; }
+.sec-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 5px; margin-right: 8px;
+    background: var(--accent-tint); color: var(--accent-soft);
+    font-size: 10px; font-weight: 700;
+}
+html[data-theme="light"] .sec-num { color: var(--accent); }
+.theme-btn {
+    position: fixed; top: 18px; right: 20px; z-index: 50;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-card); color: var(--text-mid);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 12px; font-size: 11.5px; cursor: pointer; font-family: inherit;
+}
+.card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 10px; }
+.note { display: flex; gap: 9px; padding: 11px 13px; border-radius: 8px; background: var(--bg-soft); border: 1px solid var(--border-soft); font-size: 12px; color: var(--text-muted); }
+.note i { color: var(--accent-soft); flex-shrink: 0; margin-top: 1px; }
+html[data-theme="light"] .note i { color: var(--accent); }
+.note b { color: var(--text); font-weight: 600; }
+
+/* -- Tabs de variantes -- */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; font-size: 12px; font-family: inherit; cursor: pointer;
+}
+.tab:hover { background: var(--bg-hover); color: var(--text-soft); }
+.tab.is-on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.tab .tag { font-size: 9.5px; padding: 1px 6px; border-radius: 20px; background: rgba(255,255,255,.16); }
+.pane { display: none; }
+.pane.is-on { display: block; }
+
+/* -- Barra de acciones del componente -- */
+.doc-shell { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.doc-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 11px; background: var(--bg-soft); border-bottom: 1px solid var(--border-soft);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-mute2); font-weight: 600;
+}
+.doc-bar .ico { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-tint); color: var(--accent-soft); display: grid; place-items: center; }
+html[data-theme="light"] .doc-bar .ico { color: var(--accent); }
+.doc-bar .right { margin-left: auto; display: flex; gap: 4px; }
+.dbtn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: transparent; color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 10.5px; font-family: inherit; cursor: pointer;
+    text-transform: none; letter-spacing: 0;
+}
+.dbtn:hover { background: var(--bg-hover); color: var(--text); }
+.dbtn.is-on { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-soft); }
+html[data-theme="light"] .dbtn.is-on { color: var(--accent); }
+.dbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.dbtn.icon { padding: 4px 6px; }
+
+/* ═══ LA HOJA — mismo lenguaje que .md-rendered del visor ═══ */
+.paper-stage { padding: 18px; background: var(--bg-chrome); max-height: 720px; overflow: auto; }
+.paper {
+    position: relative;
+    background: var(--paper); color: var(--paper-ink);
+    font-family: 'Lora', Georgia, serif; font-size: 15px; line-height: 1.85;
+    max-width: 860px; margin: 0 auto; padding: 52px 64px 64px;
+    border: 1px solid #E8DFCA; border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+}
+html[data-theme="light"] .paper { box-shadow: 0 8px 32px rgba(17,24,39,.10); }
+.paper::before {
+    content: ''; position: absolute; top: 0; left: 24px; right: 24px; height: 3px;
+    background: linear-gradient(90deg, #C05A40 0%, #E8A68F 100%);
+    border-radius: 0 0 4px 4px; opacity: .8;
+}
+
+/* Portada */
+.pp-kicker { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+.pp-title { font-family: 'Inter', sans-serif; font-size: 27px; font-weight: 800; color: var(--paper-head); line-height: 1.2; margin: 6px 0 10px; letter-spacing: -.01em; }
+.pp-sub { font-size: 15px; font-style: italic; color: var(--paper-soft); margin-bottom: 18px; }
+.pp-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pp-chip {
+    font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px; background: var(--paper-tint); color: var(--paper-soft);
+    display: inline-flex; align-items: center; gap: 5px;
+}
+.pp-chip.is-accent { background: rgba(192,90,64,.12); color: #9A4530; }
+.pp-rule { height: 1px; background: var(--paper-rule); margin: 22px 0 6px; }
+
+/* Datos de cabecera */
+.pp-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 18px 0 4px; border: 1px solid var(--paper-rule); border-radius: 8px; overflow: hidden; }
+.pp-fact { padding: 10px 14px; border-right: 1px solid var(--paper-rule); font-family: 'Inter', sans-serif; }
+.pp-fact:last-child { border-right: none; }
+.pp-fact .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--paper-soft); }
+.pp-fact .v { display: block; font-size: 19px; font-weight: 700; color: var(--paper-head); line-height: 1.3; }
+
+/* Índice */
+.pp-toc { margin: 26px 0 8px; font-family: 'Inter', sans-serif; }
+.pp-toc-h { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-soft); margin-bottom: 8px; }
+.pp-toc ol { margin: 0; padding: 0; list-style: none; counter-reset: toc; columns: 2; column-gap: 32px; }
+.pp-toc li { counter-increment: toc; font-size: 12.5px; padding: 4px 0; display: flex; gap: 8px; align-items: baseline; break-inside: avoid; }
+.pp-toc li::before { content: counter(toc, decimal-leading-zero); font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); font-weight: 600; }
+.pp-toc a { color: var(--paper-ink); text-decoration: none; border-bottom: 1px dotted var(--paper-rule); flex: 1; }
+.pp-toc a:hover { color: var(--accent); }
+
+/* Secciones del documento */
+.pp-h2 {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--paper-head);
+    margin: 34px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--paper-rule);
+    display: flex; align-items: center; gap: 10px;
+}
+.pp-h2 .n { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
+.paper p { margin: 0 0 12px; }
+.paper p:last-child { margin-bottom: 0; }
+
+/* Módulo dentro de SECCIONES DEL PROYECTO */
+.mod { border: 1px solid var(--paper-rule); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: rgba(255,255,255,.5); }
+.mod-h { font-family: 'Inter', sans-serif; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.mod-h b { font-size: 13.5px; color: var(--paper-head); font-weight: 700; }
+.mod-tab { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--paper-tint); color: var(--paper-soft); font-family: 'Inter', sans-serif; }
+.mod-desc { font-size: 14px; color: var(--paper-soft); margin-bottom: 10px; }
+.mod-fields { font-family: 'Inter', sans-serif; columns: 3; column-gap: 24px; font-size: 12.5px; }
+@media (max-width: 720px) { .mod-fields { columns: 2; } .pp-facts { grid-template-columns: repeat(2, 1fr); } }
+.mod-fields span { display: block; padding: 2px 0 2px 12px; position: relative; color: var(--paper-ink); break-inside: avoid; }
+.mod-fields span::before { content: ''; position: absolute; left: 0; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: .6; }
+
+/* Usuarios */
+.pp-users { display: flex; flex-wrap: wrap; gap: 8px; font-family: 'Inter', sans-serif; }
+.pp-user {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--paper-rule); border-radius: 8px; padding: 7px 12px;
+    font-size: 12px; font-weight: 600; color: var(--paper-head); background: rgba(255,255,255,.6);
+}
+.pp-user i { color: var(--accent); }
+
+/* Éxito */
+.pp-goal { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--paper-rule); font-size: 14px; }
+.pp-goal:last-child { border-bottom: none; }
+.pp-goal i { color: #2F7A55; flex-shrink: 0; margin-top: 4px; }
+.pp-goal b { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--paper-head); }
+
+/* Fases */
+.pp-phase { position: relative; padding: 0 0 16px 30px; border-left: 2px solid var(--paper-rule); margin-left: 8px; }
+.pp-phase:last-child { border-left-color: transparent; padding-bottom: 0; }
+.pp-phase::before {
+    content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--paper); border: 2px solid var(--accent);
+}
+.pp-phase h4 { font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--paper-head); margin: 0 0 6px; }
+.pp-phase ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.pp-phase li { margin: 3px 0; }
+
+/* Avisos */
+.pp-alert { display: flex; gap: 10px; padding: 10px 13px; border-radius: 8px; margin: 8px 0; font-size: 13.5px; font-family: 'Inter', sans-serif; }
+.pp-alert i { flex-shrink: 0; margin-top: 2px; }
+.pp-alert.is-warn { background: #FBF3E2; color: #7A5B18; border: 1px solid #EBDCB8; }
+.pp-alert.is-note { background: #F1EADD; color: #5C4F3A; border: 1px solid #E2D7C2; }
+
+/* Trazabilidad */
+.pp-files { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 6px; }
+.pp-files th { text-align: left; font-family: 'Inter', sans-serif; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--paper-soft); padding: 6px 10px; border-bottom: 1px solid var(--paper-rule); }
+.pp-files td { padding: 6px 10px; border-bottom: 1px solid #EDE5D6; color: var(--paper-ink); vertical-align: top; }
+.pp-files td:nth-child(2) { text-align: right; color: var(--paper-soft); white-space: nowrap; }
+.pp-foot { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--paper-rule); font-family: 'Inter', sans-serif; font-size: 11px; color: var(--paper-soft); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pp-next {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent); color: #fff; border: none; border-radius: 7px;
+    padding: 7px 13px; font-size: 11.5px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer;
+}
+
+/* ═══ VARIANTE B — ficha ejecutiva (ancho del chat) ═══ */
+.chat-frame { background: var(--bg-chrome); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-width: 460px; }
+.chat-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); background: var(--bg-card); }
+.chat-top .dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent-tint); color: var(--accent-soft); display: grid; place-items: center; }
+.chat-top b { font-size: 12px; font-weight: 600; }
+.chat-body { padding: 14px 12px; }
+.msg-text { border-left: 2px solid var(--accent-tint); padding-left: 10px; color: var(--text-soft); font-size: 12.5px; }
+
+.ers-mini { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.ers-mini-head { display: flex; gap: 9px; align-items: flex-start; padding: 11px 12px; background: var(--bg-soft); border-bottom: 1px solid var(--border-soft); }
+.ers-mini-head .ico { width: 26px; height: 26px; border-radius: 7px; background: var(--accent-tint); color: var(--accent-soft); display: grid; place-items: center; flex-shrink: 0; }
+html[data-theme="light"] .ers-mini-head .ico { color: var(--accent); }
+.ers-mini-title { font-size: 13px; font-weight: 700; line-height: 1.25; }
+.ers-mini-sub { font-size: 10.5px; color: var(--text-mute2); }
+.ers-metrics { display: flex; border-bottom: 1px solid var(--border-soft); }
+.ers-metric { flex: 1; padding: 9px 11px; border-right: 1px solid var(--border-soft); }
+.ers-metric:last-child { border-right: none; }
+.ers-metric .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-mute2); }
+.ers-metric .v { display: block; font-size: 16px; font-weight: 700; }
+.ers-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ers-row { border: 1px solid var(--border-soft); border-radius: 8px; background: var(--bg-soft); overflow: hidden; }
+.ers-row-top { display: flex; align-items: center; gap: 9px; padding: 9px 10px; cursor: pointer; }
+.ers-row-top:hover { background: var(--bg-hover); }
+.ers-row-n { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--text-mute2); }
+.ers-row-t { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; flex: 1; }
+.ers-row-c { font-size: 10.5px; color: var(--text-mute2); }
+.ers-row-chev { color: var(--text-mute2); transition: transform .18s ease; }
+.ers-row.open .ers-row-chev { transform: rotate(180deg); }
+.ers-row-body { display: none; padding: 0 11px 11px; font-size: 12px; color: var(--text-mid); border-top: 1px dashed var(--border-soft); }
+.ers-row.open .ers-row-body { display: block; }
+.ers-row-body p { margin: 9px 0 0; }
+.ers-mod { border-left: 2px solid var(--accent); padding-left: 9px; margin-top: 9px; }
+.ers-mod b { display: block; font-size: 11.5px; color: var(--text); }
+.ers-mod span { display: block; padding-left: 11px; position: relative; font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.ers-mod span::before { content: ''; position: absolute; left: 1px; top: 8px; width: 3px; height: 3px; border-radius: 50%; background: var(--text-mute2); }
+
+.grid2 { display: grid; grid-template-columns: minmax(0,460px) minmax(0,1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.problems { list-style: none; margin: 0; padding: 0; }
+.problems li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border-soft); }
+.problems li:last-child { border-bottom: none; }
+.problems i { flex-shrink: 0; margin-top: 2px; }
+.problems b { color: var(--text); font-weight: 600; }
+.problems p { margin: 2px 0 0; color: var(--text-muted); font-size: 12px; }
+
+pre.code {
+    background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; color: var(--text-mid); margin: 0; line-height: 1.6;
+}
+pre.code .c { color: var(--text-mute2); }
+pre.code .k { color: var(--blue); }
+.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; }
+.steps li { counter-increment: s; position: relative; padding: 10px 0 10px 34px; border-bottom: 1px dashed var(--border-soft); }
+.steps li:last-child { border-bottom: none; }
+.steps li::before {
+    content: counter(s); position: absolute; left: 0; top: 10px;
+    width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+    background: var(--accent-tint); color: var(--accent-soft); font-size: 10.5px; font-weight: 700;
+}
+html[data-theme="light"] .steps li::before { color: var(--accent); }
+.steps b { font-weight: 600; }
+.steps p { margin: 2px 0 0; color: var(--text-muted); font-size: 12px; }
+.steps code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 4px; padding: 1px 5px; color: var(--accent-soft); }
+html[data-theme="light"] .steps code { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<button class="theme-btn" onclick="toggleTheme()">
+    <i data-lucide="sun-moon" style="width:14px;height:14px"></i><span id="themeLabel">Modo claro</span>
+</button>
+
+<div class="wrap">
+
+    <header>
+        <span class="kicker">Propuesta de interfaz · Visor CoffeeIA · Avatars</span>
+        <h1>Vista de documento para el ERS</h1>
+        <p class="lead">
+            El ERS no es una respuesta de chat: es <b>el documento con el que arranca un proyecto</b> y que se
+            revisa con el cliente. Hoy sale como markdown suelto —y en avatars, dentro de un bloque de código en
+            monoespaciada—. La propuesta es que se vea como lo que es: <b>una hoja de documento</b>, con portada,
+            índice y secciones, reusando el papel que el visor ya usa para los <span class="mono">.md</span>.
+        </p>
+    </header>
+
+    <!-- -- 1. Variantes -- -->
+    <section class="sec">
+        <h2><span class="sec-num">1</span>Tres formas de presentarlo</h2>
+        <p class="lead" style="margin-bottom:14px">Un solo bloque de datos; el botón del encabezado cambia la vista, igual que en las historias.</p>
+
+        <div class="tabs">
+            <button class="tab is-on" data-pane="a"><i data-lucide="file-text" style="width:14px;height:14px"></i> A · Hoja de documento <span class="tag">recomendada</span></button>
+            <button class="tab" data-pane="b"><i data-lucide="layout-list" style="width:14px;height:14px"></i> B · Ficha ejecutiva</button>
+            <button class="tab" data-pane="c"><i data-lucide="code-2" style="width:14px;height:14px"></i> C · Cómo se logra</button>
+        </div>
+
+        <!-- ---------- VARIANTE A ---------- -->
+        <div class="pane is-on" id="pane-a">
+            <div class="doc-shell">
+                <div class="doc-bar">
+                    <span class="ico"><i data-lucide="file-text" style="width:13px;height:13px"></i></span>
+                    <span>Documento · ERS</span>
+                    <span class="right">
+                        <button class="dbtn is-on"><i data-lucide="file-text" style="width:12px;height:12px"></i> Documento</button>
+                        <button class="dbtn"><i data-lucide="layout-list" style="width:12px;height:12px"></i> Ficha</button>
+                        <button class="dbtn icon" title="Copiar markdown"><i data-lucide="copy" style="width:12px;height:12px"></i></button>
+                        <button class="dbtn icon" title="Descargar .md"><i data-lucide="download" style="width:12px;height:12px"></i></button>
+                        <button class="dbtn icon" title="Guardar en documentos del proyecto"><i data-lucide="save" style="width:12px;height:12px"></i></button>
+                        <button class="dbtn icon" title="Imprimir / PDF"><i data-lucide="printer" style="width:12px;height:12px"></i></button>
+                        <button class="dbtn icon" title="Pantalla completa"><i data-lucide="maximize-2" style="width:12px;height:12px"></i></button>
+                    </span>
+                </div>
+
+                <div class="paper-stage">
+                    <article class="paper">
+                        <!-- Portada -->
+                        <div class="pp-kicker">Especificación de requisitos del software</div>
+                        <div class="pp-title">Sistema de Facturación</div>
+                        <div class="pp-sub">Control de tickets y medios de pago con concentrado de facturados y no facturados.</div>
+                        <div class="pp-meta">
+                            <span class="pp-chip is-accent"><i data-lucide="calendar" style="width:11px;height:11px"></i> 6 ago 2026</span>
+                            <span class="pp-chip"><i data-lucide="folder" style="width:11px;height:11px"></i> CoffeeSoft / Facturacion</span>
+                            <span class="pp-chip"><i data-lucide="bot" style="width:11px;height:11px"></i> Levantado por CoffeePlanner</span>
+                        </div>
+
+                        <div class="pp-facts">
+                            <div class="pp-fact"><span class="k">Módulos</span><span class="v">5</span></div>
+                            <div class="pp-fact"><span class="k">Usuarios</span><span class="v">1</span></div>
+                            <div class="pp-fact"><span class="k">Fases</span><span class="v">3</span></div>
+                            <div class="pp-fact"><span class="k">Archivos leídos</span><span class="v">7</span></div>
+                        </div>
+
+                        <div class="pp-toc">
+                            <div class="pp-toc-h">Contenido</div>
+                            <ol>
+                                <li><a href="#s1">Descripción breve del proyecto</a></li>
+                                <li><a href="#s2">Objetivo del proyecto</a></li>
+                                <li><a href="#s3">Secciones del proyecto</a></li>
+                                <li><a href="#s4">Usuarios que utilizarán el proyecto</a></li>
+                                <li><a href="#s5">¿El éxito del proyecto se da cuándo?</a></li>
+                                <li><a href="#s6">Acciones a realizar</a></li>
+                                <li><a href="#s7">Excepciones</a></li>
+                                <li><a href="#s8">Observaciones</a></li>
+                            </ol>
+                        </div>
+
+                        <!-- 1 -->
+                        <div class="pp-h2" id="s1"><span class="n">01</span> Descripción breve del proyecto</div>
+                        <p>Es un sistema que se encarga del control de tickets y sus diferentes medios de pago asociados a cada transacción. Su objetivo principal es generar un concentrado ordenado de tickets, diferenciando claramente entre tickets facturados y no facturados.</p>
+                        <p>El sistema deberá permitir la selección de una fecha para consultar los tickets emitidos: los que se facturaron y los de tarjeta de crédito.</p>
+
+                        <!-- 2 -->
+                        <div class="pp-h2" id="s2"><span class="n">02</span> Objetivo del proyecto</div>
+                        <p>Permitir controlar mediante un sistema un monto correcto de venta aplicando técnicas de cálculo de porcentaje, donde el <b>70%</b> es la meta de venta facturada y el <b>30%</b> restante no lo es.</p>
+
+                        <!-- 3 -->
+                        <div class="pp-h2" id="s3"><span class="n">03</span> Secciones del proyecto</div>
+
+                        <div class="mod">
+                            <div class="mod-h"><b>Módulo de carga de tickets del POS</b> <span class="mod-tab">Pestaña detallado</span></div>
+                            <div class="mod-desc">Sube los tickets seleccionando mes y año; los campos son los del archivo de Excel y las columnas sin dato quedan en null.</div>
+                            <div class="mod-fields">
+                                <span>Día</span><span>Fecha de operación</span><span>Hora de cierre</span><span>Semana</span>
+                                <span>Movimiento PDV</span><span>Orden</span><span>Tipo de orden</span><span>Subtipo de orden</span>
+                                <span>No. Mesa</span><span>No. Personas</span><span>Mesero</span><span>Terminal</span>
+                                <span>Acción</span><span>Subtotal</span><span>Iva</span><span>IEPS</span>
+                                <span>Total</span><span>Descuento</span><span>Cantidad</span><span>Precio unitario</span>
+                            </div>
+                        </div>
+
+                        <div class="mod">
+                            <div class="mod-h"><b>Módulo de ventas por forma de pago</b> <span class="mod-tab">Pestaña pagos</span></div>
+                            <div class="mod-desc">Carga el detalle de cobros del día con su referencia bancaria.</div>
+                            <div class="mod-fields">
+                                <span>Cajero</span><span>Forma de pago</span><span>Fecha de pago</span><span>Referencia</span>
+                                <span>Transacción</span><span>Terminal</span><span>Código de validación</span><span>Total</span>
+                                <span>Propina</span><span>Total cobrado</span>
+                            </div>
+                        </div>
+
+                        <div class="mod">
+                            <div class="mod-h"><b>Módulo de consulta</b></div>
+                            <div class="mod-fields" style="columns:1">
+                                <span>Acumulado total real</span>
+                                <span>No facturados que se van a facturar</span>
+                                <span>Orden facturado</span>
+                            </div>
+                        </div>
+
+                        <div class="mod">
+                            <div class="mod-h"><b>Módulo generador de folios</b></div>
+                            <div class="mod-fields" style="columns:1">
+                                <span>Muestra todos los tickets creados del día</span>
+                                <span>No muestra los tickets en efectivo</span>
+                                <span>Genera tickets al seleccionarlos cuando tienen IVA 0%</span>
+                            </div>
+                        </div>
+
+                        <!-- 4 -->
+                        <div class="pp-h2" id="s4"><span class="n">04</span> Usuarios que utilizarán el proyecto</div>
+                        <div class="pp-users">
+                            <span class="pp-user"><i data-lucide="user" style="width:13px;height:13px"></i> Administrador del POS</span>
+                        </div>
+
+                        <!-- 5 -->
+                        <div class="pp-h2" id="s5"><span class="n">05</span> ¿El éxito del proyecto se da cuándo?</div>
+                        <div class="pp-goal"><i data-lucide="check-circle-2" style="width:15px;height:15px"></i><div><b>Consultar tickets por fecha.</b> Selecciona un día y ve todos los tickets ordenados cronológicamente, identificando los bloqueados (facturados) y los pendientes.</div></div>
+                        <div class="pp-goal"><i data-lucide="check-circle-2" style="width:15px;height:15px"></i><div><b>Calcular el porcentaje de venta al 16%.</b> Ejemplo: de $31,843.90 del día 10, el monto a facturar es $19,312.43 y lo ya facturado, $2,978.30.</div></div>
+                        <div class="pp-goal"><i data-lucide="check-circle-2" style="width:15px;height:15px"></i><div><b>Alcanzar la meta de facturación.</b> Al menos el 70% de ventas facturadas al 16%; si no se llega, el sistema muestra la cifra alcanzada.</div></div>
+                        <div class="pp-goal"><i data-lucide="check-circle-2" style="width:15px;height:15px"></i><div><b>Imprimir tickets virtuales.</b> El sistema genera y muestra un ticket listo para impresión.</div></div>
+
+                        <!-- 6 -->
+                        <div class="pp-h2" id="s6"><span class="n">06</span> Acciones a realizar</div>
+                        <div class="pp-phase">
+                            <h4>Fase 1 · Análisis</h4>
+                            <ul>
+                                <li>Crear la base de datos con los campos requeridos y su diagrama ER.</li>
+                                <li>Definir las tablas principales que no se modificarán.</li>
+                                <li>Desarrollar templates para entender el funcionamiento.</li>
+                            </ul>
+                        </div>
+                        <div class="pp-phase">
+                            <h4>Fase 2 · Administrador</h4>
+                            <ul>
+                                <li>Módulo para subir el archivo de ventas diarias por mes.</li>
+                                <li>Módulo para subir la lista de facturas por mes y año.</li>
+                                <li>Módulo de administración de métodos de pago.</li>
+                            </ul>
+                        </div>
+                        <div class="pp-phase">
+                            <h4>Fase 3 · Resumen de ventas</h4>
+                            <ul>
+                                <li>Apartado de consulta del acumulado total real.</li>
+                                <li>Apartado de no facturado (solo formas de pago bancarias).</li>
+                                <li>Apartado de orden facturado por rango de fechas.</li>
+                            </ul>
+                        </div>
+
+                        <!-- 7 -->
+                        <div class="pp-h2" id="s7"><span class="n">07</span> Excepciones</div>
+                        <div class="pp-alert is-warn"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i>
+                            <div>El sistema no timbra facturas: solo concentra y marca los tickets que se facturaron.</div></div>
+
+                        <!-- 8 -->
+                        <div class="pp-h2" id="s8"><span class="n">08</span> Observaciones</div>
+                        <div class="pp-alert is-note"><i data-lucide="info" style="width:14px;height:14px"></i>
+                            <div>Las notas del día llevan consecutivo y se reinician al día siguiente.</div></div>
+                        <div class="pp-alert is-note"><i data-lucide="info" style="width:14px;height:14px"></i>
+                            <div>Del total de tickets del día no se muestran los pagados en efectivo.</div></div>
+
+                        <!-- Trazabilidad -->
+                        <div class="pp-h2" style="border-bottom-style:dashed"><span class="n">✓</span> Archivos leídos para levantar este ERS</div>
+                        <table class="pp-files">
+                            <thead><tr><th>Archivo</th><th>Líneas</th><th>Qué aportó</th></tr></thead>
+                            <tbody>
+                                <tr><td>ctrl/ctrl-facturacion.php</td><td>412</td><td>Operaciones del módulo</td></tr>
+                                <tr><td>mdl/mdl-facturacion.php</td><td>288</td><td>Tablas y consultas</td></tr>
+                                <tr><td>src/js/facturacion.js</td><td>1,204</td><td>Pestañas, columnas y modales</td></tr>
+                                <tr><td>index.php</td><td>96</td><td>Entrada del módulo</td></tr>
+                            </tbody>
+                        </table>
+
+                        <div class="pp-foot">
+                            <i data-lucide="git-branch" style="width:13px;height:13px"></i>
+                            <span>Siguiente paso del flujo: derivar las historias de usuario de este ERS.</span>
+                            <button class="pp-next"><i data-lucide="list-checks" style="width:13px;height:13px"></i> Generar historias</button>
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <div class="grid2" style="margin-top:16px; grid-template-columns: 1fr 1fr;">
+                <div class="card" style="padding:14px 16px">
+                    <h2 style="margin-bottom:8px">Por qué así</h2>
+                    <ul class="problems">
+                        <li><i data-lucide="check" style="width:15px;height:15px;color:var(--green)"></i><div>
+                            <b>Es el papel que el visor ya usa</b><p>Mismo fondo <span class="mono">#FAF7F2</span>, misma serif Lora y la franja terracota de <span class="mono">.md-rendered</span>. No es un estilo nuevo: es el documento de siempre.</p></div></li>
+                        <li><i data-lucide="check" style="width:15px;height:15px;color:var(--green)"></i><div>
+                            <b>Portada e índice</b><p>El cliente ve de qué va y cuánto hay antes de leer. El índice ancla a cada sección.</p></div></li>
+                        <li><i data-lucide="check" style="width:15px;height:15px;color:var(--green)"></i><div>
+                            <b>Los módulos son fichas, no párrafos</b><p>Nombre, pestaña y campos en columnas: es la parte que después se vuelve criterios de aceptación.</p></div></li>
+                        <li><i data-lucide="check" style="width:15px;height:15px;color:var(--green)"></i><div>
+                            <b>Las fases se leen como plan</b><p>Timeline vertical en vez de tres listas sueltas.</p></div></li>
+                        <li><i data-lucide="check" style="width:15px;height:15px;color:var(--green)"></i><div>
+                            <b>Trazabilidad al pie</b><p>Qué archivos se leyeron para levantarlo: es lo que separa un ERS real de uno inventado.</p></div></li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="note" style="margin-bottom:12px"><i data-lucide="git-branch" style="width:15px;height:15px"></i>
+                        <div><b>El botón que cierra el flujo:</b> "Generar historias" manda al chat <span class="mono">"deriva las historias de este ERS"</span> con el documento como contexto. Carpeta → ERS → historias sin copiar y pegar nada.</div></div>
+                    <div class="note"><i data-lucide="printer" style="width:15px;height:15px"></i>
+                        <div><b>Imprimir sale gratis:</b> al ser una hoja de verdad, <span class="mono">window.print()</span> con un <span class="mono">@media print</span> corto da el PDF que se manda al cliente.</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---------- VARIANTE B ---------- -->
+        <div class="pane" id="pane-b">
+            <p class="lead" style="margin-bottom:12px">
+                Para el ancho del chat: cabecera con los números del proyecto y las ocho secciones plegadas.
+                Se abre la que interesa y, para leerlo completo, el botón <b>Documento</b> lleva a la hoja.
+            </p>
+
+            <div class="grid2">
+                <div class="chat-frame">
+                    <div class="chat-top">
+                        <div class="dot"><i data-lucide="file-text" style="width:13px;height:13px"></i></div>
+                        <b>CoffeePlanner</b>
+                    </div>
+                    <div class="chat-body">
+                        <div class="msg-text">
+                            <p style="margin:0 0 10px">Levanté el ERS leyendo la carpeta del proyecto:</p>
+
+                            <div class="ers-mini">
+                                <div class="ers-mini-head">
+                                    <div class="ico"><i data-lucide="file-text" style="width:14px;height:14px"></i></div>
+                                    <div style="flex:1;min-width:0">
+                                        <div class="ers-mini-title">ERS — Sistema de Facturación</div>
+                                        <div class="ers-mini-sub">6 ago 2026 · levantado de 7 archivos</div>
+                                    </div>
+                                    <button class="dbtn" style="flex-shrink:0"><i data-lucide="file-text" style="width:12px;height:12px"></i> Documento</button>
+                                </div>
+                                <div class="ers-metrics">
+                                    <div class="ers-metric"><span class="k">Módulos</span><span class="v">5</span></div>
+                                    <div class="ers-metric"><span class="k">Usuarios</span><span class="v">1</span></div>
+                                    <div class="ers-metric"><span class="k">Fases</span><span class="v">3</span></div>
+                                </div>
+                                <div class="ers-body">
+                                    <div class="ers-row open">
+                                        <div class="ers-row-top" onclick="this.parentNode.classList.toggle('open')">
+                                            <span class="ers-row-n">03</span>
+                                            <span class="ers-row-t">Secciones del proyecto</span>
+                                            <span class="ers-row-c">5 módulos</span>
+                                            <i data-lucide="chevron-down" class="ers-row-chev" style="width:14px;height:14px"></i>
+                                        </div>
+                                        <div class="ers-row-body">
+                                            <div class="ers-mod">
+                                                <b>Módulo de carga de tickets del POS</b>
+                                                <span>Día · Fecha de operación · Hora de cierre</span>
+                                                <span>Subtotal · Iva · IEPS · Total · Descuento</span>
+                                                <span>+ 12 campos más</span>
+                                            </div>
+                                            <div class="ers-mod">
+                                                <b>Módulo de ventas por forma de pago</b>
+                                                <span>Cajero · Forma de pago · Referencia</span>
+                                                <span>+ 7 campos más</span>
+                                            </div>
+                                            <div class="ers-mod">
+                                                <b>Módulo de consulta</b>
+                                                <span>Acumulado total real</span>
+                                                <span>No facturados / Orden facturado</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="ers-row">
+                                        <div class="ers-row-top" onclick="this.parentNode.classList.toggle('open')">
+                                            <span class="ers-row-n">01</span><span class="ers-row-t">Descripción breve</span>
+                                            <i data-lucide="chevron-down" class="ers-row-chev" style="width:14px;height:14px"></i>
+                                        </div>
+                                        <div class="ers-row-body"><p>Control de tickets y medios de pago con concentrado de facturados y no facturados.</p></div>
+                                    </div>
+                                    <div class="ers-row">
+                                        <div class="ers-row-top" onclick="this.parentNode.classList.toggle('open')">
+                                            <span class="ers-row-n">04</span><span class="ers-row-t">Usuarios</span>
+                                            <span class="ers-row-c">1 perfil</span>
+                                            <i data-lucide="chevron-down" class="ers-row-chev" style="width:14px;height:14px"></i>
+                                        </div>
+                                        <div class="ers-row-body"><p>ADMINISTRADOR DEL POS</p></div>
+                                    </div>
+                                    <div class="ers-row">
+                                        <div class="ers-row-top" onclick="this.parentNode.classList.toggle('open')">
+                                            <span class="ers-row-n">06</span><span class="ers-row-t">Acciones a realizar</span>
+                                            <span class="ers-row-c">3 fases</span>
+                                            <i data-lucide="chevron-down" class="ers-row-chev" style="width:14px;height:14px"></i>
+                                        </div>
+                                        <div class="ers-row-body"><p>Fase 1 análisis · Fase 2 administrador · Fase 3 resumen de ventas</p></div>
+                                    </div>
+                                    <div class="ers-row">
+                                        <div class="ers-row-top" onclick="this.parentNode.classList.toggle('open')">
+                                            <span class="ers-row-n">08</span><span class="ers-row-t">Observaciones</span>
+                                            <span class="ers-row-c">2</span>
+                                            <i data-lucide="chevron-down" class="ers-row-chev" style="width:14px;height:14px"></i>
+                                        </div>
+                                        <div class="ers-row-body"><p>Consecutivo diario de notas · No se muestran tickets en efectivo.</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="padding:14px 16px">
+                    <h2 style="margin-bottom:8px">Cuándo cada una</h2>
+                    <ul class="problems">
+                        <li><i data-lucide="message-square" style="width:15px;height:15px;color:var(--blue)"></i><div>
+                            <b>Ficha en el chat</b><p>El drawer tiene 420 px: una hoja de 860 px ahí no se lee. La ficha da los números y el acceso a cada sección.</p></div></li>
+                        <li><i data-lucide="maximize-2" style="width:15px;height:15px;color:var(--blue)"></i><div>
+                            <b>Hoja al expandir</b><p>El botón <b>Documento</b> abre la vista A a pantalla completa: es la que se revisa con el cliente y la que se imprime.</p></div></li>
+                        <li><i data-lucide="save" style="width:15px;height:15px;color:var(--blue)"></i><div>
+                            <b>Guardar sigue igual</b><p>El ERS se guarda como <span class="mono">.md</span> en los documentos del proyecto; la vista es solo la presentación.</p></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---------- VARIANTE C ---------- -->
+        <div class="pane" id="pane-c">
+            <p class="lead" style="margin-bottom:12px">
+                Mismo mecanismo que las historias: el agente entrega datos, el visor los pinta. Si el bloque no llega,
+                el markdown de siempre sigue funcionando.
+            </p>
+            <div class="grid2" style="grid-template-columns: minmax(0,1fr) minmax(0,1fr)">
+                <div>
+<pre class="code"><span class="c">```ers</span>
+<span class="k">sistema:</span>   Sistema de Facturación
+<span class="k">resumen:</span>   Control de tickets y medios de pago…
+<span class="k">fecha:</span>     2026-08-06
+<span class="k">proyecto:</span>  CoffeeSoft / Facturacion
+<span class="k">descripcion:</span> |
+  Es un sistema que se encarga del control de…
+<span class="k">objetivo:</span> |
+  Permitir controlar un monto correcto de venta…
+<span class="k">modulos:</span>
+  - <span class="k">nombre:</span> Módulo de carga de tickets del POS
+    <span class="k">pestana:</span> Pestaña detallado
+    <span class="k">descripcion:</span> Sube los tickets del mes…
+    <span class="k">campos:</span>
+      - Día
+      - Fecha de operación
+      - Subtotal
+<span class="k">usuarios:</span>
+  - ADMINISTRADOR DEL POS
+<span class="k">exito:</span>
+  - <span class="k">titulo:</span> Consultar tickets por fecha
+    <span class="k">texto:</span> Selecciona un día y ve todos…
+<span class="k">fases:</span>
+  - <span class="k">nombre:</span> FASE 1 · ANÁLISIS
+    <span class="k">items:</span>
+      - Crear la base de datos y su diagrama ER
+<span class="k">excepciones:</span>
+  - El sistema no timbra facturas
+<span class="k">observaciones:</span>
+  - Las notas del día llevan consecutivo
+<span class="k">archivos:</span>
+  - <span class="k">ruta:</span> ctrl/ctrl-facturacion.php
+    <span class="k">lineas:</span> 412
+    <span class="k">aporte:</span> Operaciones del módulo
+<span class="c">```</span></pre>
+                </div>
+
+                <div class="card" style="padding:14px 16px">
+                    <h2 style="margin-bottom:6px">Qué habría que tocar</h2>
+                    <ol class="steps">
+                        <li><b>La regla del agente</b>
+                            <p>Una sección en <code>ers.md</code> con el bloque <code>```ers</code>: las mismas ocho secciones que ya escribe, pero como datos. El campo <code>archivos</code> formaliza la trazabilidad que hoy pone a mano.</p></li>
+                        <li><b>El renderer</b>
+                            <p><code>renderErs()</code> en <code>ia-render.js</code>, junto a <code>renderStories()</code>. Reusa su parser YAML: no hay motor nuevo.</p></li>
+                        <li><b>El CSS</b>
+                            <p>Clases <code>.ia-ers-*</code> heredando de <code>.md-rendered</code> (papel, serif, franja). Se agrega el <code>@media print</code> para el PDF.</p></li>
+                        <li><b>Las salidas</b>
+                            <p>Copiar markdown, descargar <code>.md</code>, guardar en los documentos del proyecto e imprimir. Y el botón <b>Generar historias</b>, que encadena con el paso siguiente.</p></li>
+                        <li><b>Las tres superficies</b>
+                            <p>Visor, avatars-sandbox y avatars-playground comparten <code>ia-render.js</code>: se implementa una vez.</p></li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="note" style="margin-top:14px"><i data-lucide="shield-check" style="width:15px;height:15px"></i>
+                <div><b>Degradación:</b> si el modelo entrega el ERS en markdown plano (sin el bloque), se sigue viendo como hoy.
+                El render nunca rompe el mensaje: si el bloque no cumple el esquema, queda como código.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sec">
+        <div class="note" style="align-items:center">
+            <i data-lucide="git-branch" style="width:16px;height:16px"></i>
+            <div><b>Recomendación:</b> implementar <b>A + B</b> como una sola tarjeta con el botón para alternar —ficha por
+            defecto en el chat, hoja al expandir—, y dejar el <b>Generar historias</b> del pie: es lo que convierte
+            carpeta → ERS → historias en un flujo continuo en vez de tres pasos sueltos.</div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(function (t) {
+    t.addEventListener('click', function () {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('is-on'));
+        document.querySelectorAll('.pane').forEach(x => x.classList.remove('is-on'));
+        t.classList.add('is-on');
+        document.getElementById('pane-' + t.dataset.pane).classList.add('is-on');
+        lucide.createIcons();
+    });
+});
+function toggleTheme() {
+    const html = document.documentElement;
+    const dark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', dark ? 'light' : 'dark');
+    document.getElementById('themeLabel').textContent = dark ? 'Modo oscuro' : 'Modo claro';
+    lucide.createIcons();
+}
+lucide.createIcons();
+</script>
+</body>
+</html>

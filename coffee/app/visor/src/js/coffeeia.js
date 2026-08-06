@@ -1553,6 +1553,7 @@ function ciaCreateAIStream() {
                 out = IARender.normalizeDrawioXml(out);
                 out = IARender.normalizeExcalidrawJson(out);
                 out = IARender.normalizeStoriesYaml(out);
+                out = IARender.normalizeErsYaml(out);
             }
             $text.html(IARender.markdownToHtml(out));
             IARender.postProcess($text);

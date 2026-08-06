@@ -16,7 +16,23 @@ require_once __DIR__ . '/../visor/ctrl/agents-registry.php';
 
 const PLANNER_KEY  = 'coffee-planner.md';
 const PLANNER_NAME = 'CoffeePlanner';
-const PLANNER_RULE = 'historias-de-usuario.md';
+
+// Las reglas del agente, en el orden del flujo de trabajo: primero el documento con
+// el que arranca el proyecto (ERS), luego las historias que se derivan de el.
+function planner_rules() {
+    return [
+        [
+            'file' => 'ers.md',
+            'desc' => 'Formato del ERS de la casa: las ocho secciones (descripcion, objetivo, secciones/modulos con sus campos, usuarios, criterios de exito, fases, excepciones, observaciones) y el procedimiento para levantarlo leyendo una carpeta de proyecto con list_dir/read_file/grep_files',
+            'when' => 'SIEMPRE que se pida un ERS, analizar un proyecto o detectar los modulos de una carpeta conectada. Se lee ANTES de escribir el documento',
+        ],
+        [
+            'file' => 'historias-de-usuario.md',
+            'desc' => 'Formato Varoch de historias de usuario: tabla de cinco columnas (Yo / En el apartado / Quiero / Beneficio / Criterios), criterios como especificacion de pantalla (filterBar, cards, columnas, modales), una historia por perfil, bloque ```stories del visor, derivacion desde un ERS y checklist',
+            'when' => 'SIEMPRE que se pidan historias de usuario, backlog, criterios de aceptacion o el desglose funcional de un modulo. Se lee ANTES de escribir la primera historia',
+        ],
+    ];
+}
 
 $force = in_array('--force', $argv, true);
 $now   = date('Y-m-d H:i:s');
@@ -65,39 +81,39 @@ if ($agent === false) {
     }
 }
 
-// ── 2) Su archivo de reglas ─────────────────────────────────────────────────
-$rulePath = $home . '/grimorios/' . PLANNER_RULE;
-if (!is_file($rulePath)) {
-    echo "ERROR: no existe $rulePath\n";
-    exit(1);
-}
+// ── 2) Sus archivos de reglas ───────────────────────────────────────────────
+foreach (planner_rules() as $rule) {
+    $rulePath = $home . '/grimorios/' . $rule['file'];
+    if (!is_file($rulePath)) {
+        echo "ERROR: no existe $rulePath\n";
+        exit(1);
+    }
 
-$content = (string) file_get_contents($rulePath);
-$desc    = 'Formato Varoch de historias de usuario: tabla (Yo / En el apartado / Quiero / Beneficio / Criterios / Sprint / Points / Fecha), criterios como especificacion de pantalla (filterBar, cards, columnas, modales), una historia por perfil y checklist';
-$when    = 'SIEMPRE que se pidan historias de usuario, backlog, criterios de aceptacion, planeacion de sprint o el desglose funcional de un modulo. Se lee ANTES de escribir la primera historia';
+    $content = (string) file_get_contents($rulePath);
 
-$st = $pdo->prepare('SELECT id FROM agent_knowledge WHERE agent_id = ? AND name = ?');
-$st->execute([$agentId, PLANNER_RULE]);
-$ruleId = $st->fetchColumn();
+    $st = $pdo->prepare('SELECT id FROM agent_knowledge WHERE agent_id = ? AND name = ?');
+    $st->execute([$agentId, $rule['file']]);
+    $ruleId = $st->fetchColumn();
 
-if ($ruleId === false) {
-    $ins = $pdo->prepare('
-        INSERT INTO agent_knowledge
-            (name, description, tags, content, when_to_use, rules, examples, evals,
-             priority, source_file, active, date_creation, date_update, agent_id)
-        VALUES (?, ?, "[]", ?, ?, "[]", "[]", "[]", "critical", ?, 1, ?, ?, ?)
-    ');
-    $ins->execute([PLANNER_RULE, $desc, $content, $when, $rulePath, $now, $now, $agentId]);
-    echo "INSERT regla  " . PLANNER_RULE . " (id " . $pdo->lastInsertId() . ", " . strlen($content) . " bytes)\n";
-} else {
-    $up = $pdo->prepare('
-        UPDATE agent_knowledge
-        SET content = ?, description = ?, when_to_use = ?, priority = "critical",
-            source_file = ?, date_update = ?
-        WHERE id = ?
-    ');
-    $up->execute([$content, $desc, $when, $rulePath, $now, (int) $ruleId]);
-    echo "UPDATE regla  " . PLANNER_RULE . " (id $ruleId, " . strlen($content) . " bytes)\n";
+    if ($ruleId === false) {
+        $ins = $pdo->prepare('
+            INSERT INTO agent_knowledge
+                (name, description, tags, content, when_to_use, rules, examples, evals,
+                 priority, source_file, active, date_creation, date_update, agent_id)
+            VALUES (?, ?, "[]", ?, ?, "[]", "[]", "[]", "critical", ?, 1, ?, ?, ?)
+        ');
+        $ins->execute([$rule['file'], $rule['desc'], $content, $rule['when'], $rulePath, $now, $now, $agentId]);
+        echo "INSERT regla  " . $rule['file'] . " (id " . $pdo->lastInsertId() . ", " . strlen($content) . " bytes)\n";
+    } else {
+        $up = $pdo->prepare('
+            UPDATE agent_knowledge
+            SET content = ?, description = ?, when_to_use = ?, priority = "critical",
+                source_file = ?, date_update = ?
+            WHERE id = ?
+        ');
+        $up->execute([$content, $rule['desc'], $rule['when'], $rulePath, $now, (int) $ruleId]);
+        echo "UPDATE regla  " . $rule['file'] . " (id $ruleId, " . strlen($content) . " bytes)\n";
+    }
 }
 
 echo "Listo.\n";

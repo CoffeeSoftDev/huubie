@@ -121,6 +121,27 @@ class MPedidos extends CRUD {
 
     }
 
+    // Datos de entrega en crudo: la fecha y la hora salen en el formato que aceptan
+    // los inputs date/time del formulario, no en el de pantalla que devuelve
+    // getOrderID (d/m/Y, h:i A).
+    function getOrderDeliveryById($array){
+        $sql = "
+        SELECT
+            order.id,
+            order.status,
+            order.note,
+            order.delivery_type,
+            DATE_FORMAT(date_order, '%Y-%m-%d') AS date_order,
+            TIME_FORMAT(time_order, '%H:%i') AS time_order
+        FROM
+            {$this->bd}order
+
+        WHERE order.id = ?
+
+        ";
+        return $this->_Read($sql,$array);
+    }
+
     function getMaxOrder() {
 
 

@@ -566,38 +566,14 @@ class App extends Templates {
             const orderData = response.data.order || {};
             const products = response.data.products || [];
             const paymentMethods = response.data.paymentMethods || [];
+            const payments = response.data.payments || [];
 
             const container = $('#orderDetailsContainer');
             container.html(`
                 <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
                     <div class="lg:sticky lg:top-4">
-                        ${(orderData.is_delivered != '2') && (orderData.status != '3' && orderData.status != '4') ? `
-                            <div class="grid ${this.actionGridCols()} gap-2 mb-3">
-                                ${this.isSupervisor ? '' : `
-                                <button onclick="app.historyPay(${orderId})"
-                                    class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
-                                </button>`}
-                                <button onclick="app.printOrder(${orderId})"
-                                    class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
-                                </button>
-                                ${this.canDiscount ? `
-                                <button onclick="app.addDiscount(${orderId})"
-                                    class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
-                                </button>` : ''}
-                            </div>
-                        ` : ''}
-                        ${!this.isSupervisor && (orderData.is_delivered == '0' || orderData.is_delivered == null ) && (orderData.status != '4') ? `
-                            <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
-                                    class="w-full mb-3 flex items-center justify-center gap-1.5
-                                        text-white text-[11px] font-medium px-2 py-2 rounded-md
-                                        glass-purple-btn">
-                                Entregar productos
-                            </button>
-                        ` : ''}
-                        ${this.detailsCard(orderData, paymentMethods)}
+                        ${this.orderActions(orderData, orderId)}
+                        ${this.detailsCard(orderData, paymentMethods, payments)}
                     </div>
                 </div>
 
@@ -662,21 +638,72 @@ class App extends Templates {
         return '<span class="px-3 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-700 inline-block w-24 text-center">Sin especificar</span>';
     }
 
-    detailsCard(orderData, paymentMethods = []) {
+    detailsCard(orderData, paymentMethods = [], payments = []) {
         return `
             <div class="space-y-3">
                 ${this.infoOrder(orderData)}
-                ${this.infoSales(orderData, paymentMethods)}
+                ${this.infoSales(orderData, paymentMethods, payments)}
             </div>
         `;
     }
 
-    // Columnas del grid de acciones del pedido segun los botones visibles por rol:
-    // normal = Pagar+Imprimir+Descuento (3), supervisor = Imprimir+Descuento (2),
-    // supervisor restringido = solo Imprimir (1).
-    actionGridCols() {
-        const visibles = 1 + (this.isSupervisor ? 0 : 1) + (this.canDiscount ? 1 : 0);
-        return ['grid-cols-1', 'grid-cols-2', 'grid-cols-3'][visibles - 1];
+    // Acciones del pedido en el panel de detalles. Se pintan igual al abrir el modal y
+    // al refrescarlo despues de un cambio, por eso viven en un solo lugar.
+    // Un pedido "para producir" (is_delivered 2) ya no admite cobro ni descuento, pero
+    // sus datos de entrega si se pueden corregir. Liquidado (3) o cancelado (4) no
+    // admite ninguna: esa edicion vive en el listado, que pide autorizacion.
+    orderActions(orderData, orderId) {
+        const cerrado    = orderData.status == '3' || orderData.status == '4';
+        const operable   = !cerrado && orderData.is_delivered != '2';
+        const entregable = !this.isSupervisor && (orderData.is_delivered == '0' || orderData.is_delivered == null) && (orderData.status != '4');
+
+        const botones = [];
+
+        if (operable && !this.isSupervisor) botones.push(`
+            <button onclick="app.historyPay(${orderId})"
+                class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
+            </button>`);
+
+        if (!cerrado && !this.isSupervisor) botones.push(`
+            <button onclick="app.editOrderDelivery(${orderId})"
+                class="flex items-center justify-center gap-1.5 bg-slate-600 hover:bg-slate-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                ${lucideIcon('pencil', 'w-3.5 h-3.5')} Editar
+            </button>`);
+
+        if (operable) botones.push(`
+            <button onclick="app.printOrder(${orderId})"
+                class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
+            </button>`);
+
+        if (operable && this.canDiscount) botones.push(`
+            <button onclick="app.addDiscount(${orderId})"
+                class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
+                ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
+            </button>`);
+
+        return `
+            ${botones.length ? `
+                <div class="grid ${this.actionGridCols(botones.length)} gap-2 mb-3">
+                    ${botones.join('')}
+                </div>
+            ` : ''}
+            ${entregable ? `
+                <button onclick="app.handleDeliveryClick(${orderId}, ${orderData.is_delivered || 0}, '${orderData.folio || ''}')"
+                        class="w-full mb-3 flex items-center justify-center gap-1.5
+                            text-white text-[11px] font-medium px-2 py-2 rounded-md
+                            glass-purple-btn">
+                    Entregar productos
+                </button>
+            ` : ''}
+        `;
+    }
+
+    // Columnas del grid de acciones segun cuantos botones quedaron visibles por rol y
+    // estado del pedido: hasta 2 caben en una fila, de 3 en adelante van en dos columnas.
+    actionGridCols(visibles) {
+        return visibles > 2 ? 'grid-cols-2' : ['grid-cols-1', 'grid-cols-2'][visibles - 1];
     }
 
     handleDeliveryClick(orderId, currentStatus, folio) {
@@ -807,14 +834,69 @@ class App extends Templates {
         }
     }
 
-    infoSales(orderData, paymentMethods = []) {
+    formatPaymentDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return dateStr;
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+    }
+
+    paymentMethodStyle(method) {
+        const m = String(method || '').toLowerCase();
+        if (m.includes('efect')) return { icon: 'banknote', bg: 'bg-green-500/15', text: 'text-green-400', dot: 'bg-green-400' };
+        if (m.includes('tarj') || m.includes('tdc') || m.includes('tarjeta')) return { icon: 'credit-card', bg: 'bg-blue-500/15', text: 'text-blue-400', dot: 'bg-blue-400' };
+        if (m.includes('transf')) return { icon: 'arrow-right-left', bg: 'bg-purple-500/15', text: 'text-purple-400', dot: 'bg-purple-400' };
+        return { icon: 'wallet', bg: 'bg-gray-500/15', text: 'text-gray-300', dot: 'bg-gray-400' };
+    }
+
+    infoSales(orderData, paymentMethods = [], payments = []) {
         const totalPay = parseFloat(orderData.total_pay || 0);
         const discount = parseFloat(orderData.discount || 0);
         const totalPaid = parseFloat(orderData.total_paid || 0);
         const balance = parseFloat(orderData.balance || 0);
         const infoDiscount = orderData.info_discount || '';
 
-        const methodsHtml = (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
+        // Historial detallado: cada abono con su fecha y metodo, sin agrupar.
+        // Si no llega el historial, se cae al resumen agrupado por metodo.
+        const methodsHtml = (Array.isArray(payments) && payments.length > 0) ? `
+                    <div class="space-y-1">
+                        <span class="text-gray-400 text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                            ${lucideIcon('history', 'w-3.5 h-3.5 text-gray-400')}
+                            Abonos (${payments.length})
+                        </span>
+                        <div>
+                            ${payments.map((p, idx) => {
+                                const st = this.paymentMethodStyle(p.method_pay);
+                                const isLast = idx === payments.length - 1;
+                                return `
+                            <div class="flex gap-2.5">
+                                <div class="flex flex-col items-center w-3 shrink-0">
+                                    <span class="w-3 h-3 mt-1 rounded-full ${st.bg} border-2 border-[#2C3E50] flex items-center justify-center shrink-0">
+                                        <span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>
+                                    </span>
+                                    ${!isLast ? `<span class="w-px grow bg-gray-600/70 my-1"></span>` : ''}
+                                </div>
+                                <div class="flex-1 flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
+                                    <div class="flex flex-col min-w-0">
+                                        <span class="text-white text-xs font-medium flex items-center gap-1.5">
+                                            ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
+                                            ${p.method_pay || 'Sin método'}
+                                        </span>
+                                        <span class="text-gray-500 text-[11px]">${this.formatPaymentDate(p.date_pay)}</span>
+                                    </div>
+                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">$${parseFloat(p.pay || 0).toFixed(2)}</span>
+                                </div>
+                            </div>
+                            `;
+                            }).join('')}
+                        </div>
+                    </div>
+        ` : (Array.isArray(paymentMethods) && paymentMethods.length > 0) ? `
                     <div class="pl-2 space-y-1 border-l-2 border-gray-600">
                         ${paymentMethods.map(m => `
                         <div class="flex items-center justify-between">
@@ -1123,8 +1205,12 @@ class App extends Templates {
     // Migrado desde app.js - Descuentos
     // =============================================
 
+    // El guardado de los modales (createModalForm) sale por this._link, asi que se
+    // apunta al ctrl de pedidos y se restaura al cerrar. Solo se recuerda el link del
+    // calendario si no estaba ya cambiado: dos modales seguidos (pagar y luego editar)
+    // lo perderian y el calendario dejaria de recargar.
     _switchToPedidos() {
-        this._calendarLink = this._link;
+        if (this._link !== this._pedidosLink) this._calendarLink = this._link;
         this._link = this._pedidosLink;
     }
 
@@ -1139,25 +1225,144 @@ class App extends Templates {
         });
         const orderData = response.data.order || {};
         const paymentMethods = response.data.paymentMethods || [];
+        const payments = response.data.payments || [];
         $('#orderInfoPanel .lg\\:sticky').html(`
-            <div class="grid ${this.actionGridCols()} gap-2 mb-3">
-                ${this.isSupervisor ? '' : `
-                <button onclick="app.historyPay(${orderId})"
-                    class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
-                </button>`}
-                <button onclick="app.printOrder(${orderId})"
-                    class="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('printer', 'w-3.5 h-3.5')} Imprimir
-                </button>
-                ${this.canDiscount ? `
-                <button onclick="app.addDiscount(${orderId})"
-                    class="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                    ${lucideIcon('percent', 'w-3.5 h-3.5')} Descuento
-                </button>` : ''}
-            </div>
-            ${this.detailsCard(orderData, paymentMethods)}
+            ${this.orderActions(orderData, orderId)}
+            ${this.detailsCard(orderData, paymentMethods, payments)}
         `);
+    }
+
+    // Edicion acotada desde el calendario: solo los datos de entrega (fecha, hora,
+    // tipo y descripcion). Cliente, productos y cobros se siguen editando desde el
+    // listado de pedidos, que tiene el flujo completo y sus autorizaciones.
+    async editOrderDelivery(id) {
+        const response = await useFetch({
+            url: this._pedidosLink,
+            data: { opc: 'getOrderDelivery', id: id }
+        });
+
+        if (response.status != 200) {
+            alert({
+                icon: 'error',
+                title: 'Error',
+                text: response.message,
+                btn1: true,
+                btn1Text: 'Ok'
+            });
+            return;
+        }
+
+        // El tipo de entrega queda fuera del autofill: sus dos radios comparten name y
+        // el autofill hace .val() sobre TODOS los inputs que lo comparten, con lo que
+        // los dos acabarian con el mismo value. Se marca a mano al final.
+        const order = response.data;
+        const { delivery_type, ...autofill } = order;
+
+        this._switchToPedidos();
+
+        this.createModalForm({
+            id: 'formEditDelivery',
+            data: { opc: 'editOrderDelivery', id: id },
+            autofill: autofill,
+            bootbox: {
+                title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
+                            ${lucideIcon('calendar', 'w-5 h-5 text-blue-400')}
+                            Editar datos de entrega
+                        </div>`,
+                size: 'medium'
+            },
+            json: [
+                {
+                    opc: "input",
+                    id: "date_order",
+                    lbl: "Fecha de entrega",
+                    type: "date",
+                    class: "col-12 col-sm-6 mb-3",
+                    required: true
+                },
+                {
+                    opc: "input",
+                    id: "time_order",
+                    lbl: "Hora de entrega",
+                    type: "time",
+                    class: "col-12 col-sm-6 mb-3",
+                    required: true
+                },
+                {
+                    opc: "div",
+                    id: "radioDeliveryType",
+                    lbl: "Tipo de entrega",
+                    class: "col-12 mb-3",
+                    html: `
+                        <div class="flex gap-2 mt-2">
+                            <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                                <input
+                                    class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                                    type="radio"
+                                    name="delivery_type"
+                                    id="local"
+                                    value="0"
+                                    onclick="this.value='0'"
+                                >
+                                ${lucideIcon('store', 'w-4 h-4')}
+                                <span class="text-sm font-medium">Local</span>
+                            </label>
+
+                            <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                                <input
+                                    class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                                    type="radio"
+                                    name="delivery_type"
+                                    id="domicilio"
+                                    value="1"
+                                    onclick="this.value='1'"
+                                >
+                                <i class="icon-motorcycle text-amber-500"></i>
+                                <span class="text-sm font-medium">A domicilio</span>
+                            </label>
+                        </div>
+                    `
+                },
+                {
+                    opc: "textarea",
+                    id: "note",
+                    lbl: "Descripción",
+                    rows: 3,
+                    class: "col-12 mb-3",
+                    required: false
+                }
+            ],
+            success: (response) => {
+                this._restoreLink();
+
+                if (response.status == 200) {
+                    alert({
+                        icon: "success",
+                        title: "Pedido actualizado",
+                        text: response.message,
+                        btn1: true,
+                        btn1Text: "Aceptar"
+                    });
+
+                    this.refreshOrderDetails(id);
+                    // La fecha de entrega manda la posicion del pedido en el calendario.
+                    this.createCalendar();
+                } else {
+                    alert({
+                        icon: "error",
+                        title: "Error",
+                        text: response.message,
+                        btn1: true,
+                        btn1Text: "Ok"
+                    });
+                }
+            }
+        });
+
+        // El link vuelve al calendario aunque se cierre el modal sin guardar.
+        $('#formEditDelivery').closest('.bootbox').one('hidden.bs.modal', () => this._restoreLink());
+
+        $(`#formEditDelivery input[name="delivery_type"][value="${String(delivery_type ?? 0)}"]`).prop('checked', true);
     }
 
     async addDiscount(id) {

@@ -38,6 +38,17 @@
     </div>
 </div>
 
+<div class="cols" style="margin-top:28px">
+    <div class="drawer">
+        <h3>ERS · ancho del drawer</h3>
+        <div class="ia-msg-text" id="msgC"></div>
+    </div>
+    <div class="wide">
+        <h3>ERS · ancho completo</h3>
+        <div class="chat-msg assistant"><div class="chat-msg-text" id="msgD"></div></div>
+    </div>
+</div>
+
 <script>document.write('<script src="src/js/ia-render.js?t=' + Date.now() + '"><\/script>');</script>
 <script>
 const RESPUESTA = `Historias del módulo **Admin de documentos**:
@@ -119,9 +130,96 @@ historias:
 
 Supuestos: el módulo tiene un solo perfil operativo (ADMIN).`;
 
+const ERS = `Levanté el ERS leyendo la carpeta del proyecto:
+
+\`\`\`ers
+sistema:  Sistema de Facturación
+resumen:  Control de tickets y de los medios de pago asociados a cada transacción.
+fecha:    "2026-08-06"
+proyecto: CoffeeSoft / Facturacion
+descripcion: |
+  Es un sistema que se encarga del control de tickets y sus diferentes medios de pago
+  asociados a cada transacción. Su objetivo principal es generar un concentrado ordenado
+  de tickets, diferenciando entre facturados y no facturados.
+objetivo: |
+  Permitir controlar un monto correcto de venta aplicando cálculo de porcentaje, donde el
+  70% es la meta de venta facturada y el 30% restante no lo es.
+modulos:
+  - nombre: Módulo de carga de tickets del POS
+    pestana: Pestaña detallado
+    descripcion: Sube los tickets seleccionando mes y año; las columnas sin dato quedan en null.
+    campos:
+      - Día
+      - Fecha de operación
+      - Hora de cierre
+      - Semana
+      - Movimiento PDV
+      - Orden
+      - Tipo de orden
+      - No. Mesa
+      - Mesero
+      - Terminal
+      - Subtotal
+      - Iva
+      - IEPS
+      - Total
+      - Descuento
+  - nombre: Módulo de ventas por forma de pago
+    pestana: Pestaña pagos
+    descripcion: Carga el detalle de cobros del día con su referencia bancaria.
+    campos:
+      - Cajero
+      - Forma de pago
+      - Fecha de pago
+      - Referencia
+      - Transacción
+      - Total cobrado
+  - nombre: Módulo de consulta
+    campos:
+      - Acumulado total real
+      - No facturados que se van a facturar
+      - Orden facturado
+usuarios:
+  - ADMINISTRADOR DEL POS
+exito:
+  - titulo: Consultar tickets por fecha
+    texto: Selecciona un día y ve todos los tickets ordenados, distinguiendo los facturados de los pendientes.
+  - titulo: Calcular el porcentaje al 16%
+    texto: "De $31,843.90 del día 10: a facturar $19,312.43, ya facturado $2,978.30."
+fases:
+  - nombre: FASE 1 · ANÁLISIS
+    items:
+      - Crear la base de datos con los campos requeridos y su diagrama ER
+      - Definir las tablas principales que no se modificarán
+  - nombre: FASE 2 · ADMINISTRADOR
+    items:
+      - Módulo para subir el archivo de ventas diarias por mes
+      - Módulo de administración de métodos de pago
+excepciones:
+  - "El sistema no timbra facturas: solo concentra y marca los tickets facturados"
+observaciones:
+  - Las notas del día llevan consecutivo y se reinician al día siguiente
+  - Del total de tickets del día no se muestran los pagados en efectivo
+archivos:
+  - ruta: ctrl/ctrl-facturacion.php
+    lineas: 412
+    aporte: Operaciones del módulo
+  - ruta: src/js/facturacion.js
+    lineas: 1204
+    aporte: Pestañas, columnas y modales
+\`\`\`
+
+Supuestos: los campos salieron del Excel de ventas que ya usa el POS.`;
+
 ['msgA', 'msgB'].forEach(function (id) {
     const $m = $('#' + id);
     $m.html(IARender.markdownToHtml(RESPUESTA));
+    IARender.postProcess($m);
+});
+['msgC', 'msgD'].forEach(function (id) {
+    const $m = $('#' + id);
+    if (!$m.length) return;
+    $m.html(IARender.markdownToHtml(ERS));
     IARender.postProcess($m);
 });
 lucide.createIcons();

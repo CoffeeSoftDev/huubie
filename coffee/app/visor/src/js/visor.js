@@ -6940,6 +6940,7 @@ class CoffeeIA {
         const DRAWIO_FENCE     = /```[ \t]*drawio/i;
         const EXCALIDRAW_FENCE = /```[ \t]*excalidraw/i;
         const STORIES_FENCE    = /```[ \t]*(stories|historias)\b/i;
+        const ERS_FENCE        = /```[ \t]*ers\b/i;
         // Codigo crudo sin fence (solo diagramas: draw.io/excalidraw). El HTML solo
         // se "conjura" cuando viene en un fence ```html (ver conjureKindFor).
         const RAW_DRAWIO     = /<(mxGraphModel|mxfile)[\s>]/i;
@@ -6949,6 +6950,7 @@ class CoffeeIA {
             if (DRAWIO_FENCE.test(buf) || RAW_DRAWIO.test(buf)) return 'drawio';
             if (EXCALIDRAW_FENCE.test(buf) || RAW_EXCALIDRAW.test(buf)) return 'excalidraw';
             if (STORIES_FENCE.test(buf)) return 'stories';
+            if (ERS_FENCE.test(buf)) return 'ers';
             if (HTML_FENCE.test(buf)) return 'html';
             // Modo grafica activo: en cuanto se abre CUALQUIER bloque de codigo
             // (```excalidraw, ```json, ```mermaid, ```xml…) asumimos ese tipo y
@@ -6961,7 +6963,8 @@ class CoffeeIA {
             mermaid:    { icon: 'git-graph',     title: 'Construyendo diagrama…',  sub: 'Trazando el grafico' },
             drawio:     { icon: 'workflow',      title: 'Construyendo diagrama…',  sub: 'Trazando el lienzo' },
             excalidraw: { icon: 'pencil-ruler',  title: 'Bosquejando…',            sub: 'Trazando el boceto' },
-            stories:    { icon: 'list-checks',   title: 'Escribiendo historias…',  sub: 'Desglosando las pantallas' }
+            stories:    { icon: 'list-checks',   title: 'Creando historias de usuario…', sub: 'Desglosando las pantallas' },
+            ers:        { icon: 'file-text',     title: 'Redactando el ERS…',            sub: 'Ordenando lo que se leyó' }
         };
         function enterConjuring(kind) {
             conjuring   = true;
@@ -7030,9 +7033,25 @@ class CoffeeIA {
                 }
                 if (conjuring) {
                     // No pintamos el código crudo: solo avanzamos el progreso de la card.
-                    const lines = fullBuf.split('\n').length;
-                    const sub   = (CONJURE_UI[conjureKind] || CONJURE_UI.html).sub;
-                    if ($conjSub) $conjSub.text(sub + ' · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+                    const sub = (CONJURE_UI[conjureKind] || CONJURE_UI.html).sub;
+                    if ($conjSub) {
+                        if (conjureKind === 'ers') {
+                            // Avance del ERS: los modulos que ya escribio.
+                            const n = (fullBuf.match(/^\s*-\s+nombre\s*:/gim) || []).length;
+                            $conjSub.text(n ? n + (n === 1 ? ' módulo' : ' módulos') : sub);
+                        } else if (conjureKind === 'stories') {
+                            // El avance util aqui son las historias escritas, no las lineas.
+                            const n = (fullBuf.match(/^\s*-\s+usuario\s*:/gim) || []).length;
+                            const ap = fullBuf.match(/^\s*apartado\s*:\s*(.+)$/gim) || [];
+                            const ultimo = ap.length ? ap[ap.length - 1].split(':').slice(1).join(':').trim() : '';
+                            $conjSub.text(n
+                                ? n + (n === 1 ? ' historia' : ' historias') + (ultimo ? ' · ' + ultimo : '')
+                                : sub);
+                        } else {
+                            const lines = fullBuf.split('\n').length;
+                            $conjSub.text(sub + ' · ' + lines + (lines === 1 ? ' línea' : ' líneas'));
+                        }
+                    }
                     return;
                 }
                 pending += piece; kick();
@@ -7045,7 +7064,10 @@ class CoffeeIA {
                 if (conjuring) { $msg.find('.ia-conjuring').remove(); $text.show(); }
                 displayedText = self._normalizeDrawioXml(displayedText);
                 displayedText = self._normalizeExcalidrawJson(displayedText);
-                if (window.IARender) displayedText = IARender.normalizeStoriesYaml(displayedText);
+                if (window.IARender) {
+                    displayedText = IARender.normalizeStoriesYaml(displayedText);
+                    displayedText = IARender.normalizeErsYaml(displayedText);
+                }
                 let metaHtml = '';
                 if (meta) {
                     metaHtml = `

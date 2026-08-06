@@ -126,6 +126,12 @@
             display: none;
         }
 
+        /* Gestión de pagos: mismo <label> vacio del plugin, aqui sobre la tarjeta del
+           monto restante y el boton de guardar, que abria un hueco bajo las pestañas. */
+        #modalAdvance label:empty {
+            display: none;
+        }
+
         /* Específico para las tablas */
       /*  #tbPedidos_wrapper,
         #tbPedidos_wrapper .dataTables_scrollBody,

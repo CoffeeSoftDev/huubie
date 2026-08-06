@@ -707,6 +707,22 @@ class App extends Templates {
             success: (response) => {
                 if (response.status == 200) {
 
+                    // Pedido liquidado: no queda nada más que tocar (catálogo y cobro
+                    // bloqueados), así que se confirma el guardado y se vuelve al listado.
+                    if (normal.layoutPaid) {
+                        this.getListClients();
+
+                        alert({
+                            icon: "success",
+                            title: "Pedido guardado correctamente",
+                            text: response.message,
+                            btn1: true,
+                            btn1Text: "Aceptar"
+                        }).then(() => this.render());
+
+                        return;
+                    }
+
                     alert({
                         icon: "success",
                         title: "Pedido actualizado",
@@ -720,23 +736,19 @@ class App extends Templates {
                     // 🔒 Bloquear campos tras guardar
                     // $("#formPedido :input, #formPedido textarea").prop("disabled", true);
 
-                    // 🔵 Mostrar pestaña Catálogo de productos. En un pedido liquidado
-                    // no aplica: el catálogo está bloqueado y la vista se queda en la
-                    // información del pedido, que es lo único que se editó.
-                    if (!normal.layoutPaid) {
-                        setTimeout(() => {
-                            $("#tab-package")
-                                .attr("data-state", "active")
-                                .addClass("bg-blue-600 text-white")
-                                .removeClass("text-gray-300 hover:bg-gray-700")
-                                .trigger("click");
+                    // 🔵 Mostrar pestaña Catálogo de productos
+                    setTimeout(() => {
+                        $("#tab-package")
+                            .attr("data-state", "active")
+                            .addClass("bg-blue-600 text-white")
+                            .removeClass("text-gray-300 hover:bg-gray-700")
+                            .trigger("click");
 
-                            $("#tab-pedido")
-                                .attr("data-state", "inactive")
-                                .removeClass("bg-blue-600 text-white")
-                                .addClass("text-gray-300 hover:bg-gray-700");
-                        }, 250);
-                    }
+                        $("#tab-pedido")
+                            .attr("data-state", "inactive")
+                            .removeClass("bg-blue-600 text-white")
+                            .addClass("text-gray-300 hover:bg-gray-700");
+                    }, 250);
 
                     normal.initPos();
 
@@ -786,9 +798,14 @@ class App extends Templates {
 
         });
 
-        // ✅ Asignar radio seleccionado
-        // console.log(order.delivery_type);
-        // $(`input[name="delivery_type"][value="${order.delivery_type}"]`).prop("checked", true);
+        // Tipo de entrega del pedido. cfAutofill hace .val() sobre TODOS los inputs que
+        // comparten el name, de modo que los dos radios acaban con el mismo value y
+        // ninguno queda marcado por el pedido (siempre se veía "Local"). Se devuelven
+        // sus valores y se marca el que corresponde.
+        const deliveryType = String(order.delivery_type ?? 0);
+        $('#formPedido #local').val('0');
+        $('#formPedido #domicilio').val('1');
+        $(`#formPedido input[name="delivery_type"][value="${deliveryType}"]`).prop('checked', true);
 
         // 🔄 Si borra el nombre, limpiar teléfono y correo
         $('#formPedido #name').on("input", function () {
@@ -1471,7 +1488,7 @@ class App extends Templates {
                             value="1"
                             onclick="this.value='1'"
                         >
-                        ${lucideIcon('truck', 'w-4 h-4')}
+                        <i class="icon-motorcycle text-amber-500"></i>
                         <span class="text-sm font-medium">A domicilio</span>
                     </label>
                 </div>
@@ -2666,11 +2683,27 @@ class App extends Templates {
                     <div class="flex items-center gap-2">
                         ${lucideIcon('truck', 'w-4 h-4 text-gray-400 shrink-0')}
                         <span class="text-gray-400 text-xs">Estado de entrega:</span>
-                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.delivery_status || 'N/A'}</span>
+                        <span class="ml-auto">${this.statusDelivery(orderData.is_delivered)}</span>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    statusDelivery(is_delivered) {
+        if (is_delivered == '1') {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-flex items-center gap-1">
+                        ${lucideIcon('check', 'w-3.5 h-3.5')} Entregado
+                    </span>`;
+        } else if (is_delivered == '2') {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-flex items-center gap-1">
+                        ${lucideIcon('cake', 'w-3.5 h-3.5')} Para Producir
+                    </span>`;
+        } else {
+            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-flex items-center gap-1">
+                        ${lucideIcon('x', 'w-3.5 h-3.5')} No entregado
+                    </span>`;
+        }
     }
 
     formatPaymentDate(dateStr) {

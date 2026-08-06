@@ -98,6 +98,14 @@
             scrollbar-width: none !important;
         }
 
+        /* El plugin de formularios inyecta un <label> vacio en los campos sin etiqueta
+           (tarjeta del monto restante, botones), que abria un hueco bajo las pestañas
+           del modal de pagos y sobre los botones del de edicion. */
+        #modalAdvance label:empty,
+        #formEditDelivery label:empty {
+            display: none;
+        }
+
         /* 🔮 Glassmorphism púrpura — cristal real */
         .glass-purple-btn {
             background: linear-gradient(

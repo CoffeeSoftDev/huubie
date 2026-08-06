@@ -5494,6 +5494,213 @@ body.ia-drawer-resizing * {
 .ia-stories-modal .ia-story-specs { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .ia-render-tab.is-active { background: var(--vsr-accent-tint); border-color: var(--vsr-accent); color: var(--vsr-accent-soft); }
 
+/* ── ERS (bloque ```ers de CoffeePlanner) ──
+   El documento con el que arranca un proyecto, presentado como un archivo de
+   repositorio: paleta Primer de GitHub y fuentes del sistema, para que se lea
+   igual que un README. Es el UNICO componente del chat que no usa los tokens
+   --vsr-*: el documento tiene su propio mundo y no debe teñirse con el tema. */
+.ia-ers {
+    --gh-canvas:        #ffffff;
+    --gh-subtle:        #f6f8fa;
+    --gh-border:        #d0d7de;
+    --gh-border-muted:  #d8dee4;
+    --gh-fg:            #1f2328;
+    --gh-fg-muted:      #59636e;
+    --gh-fg-subtle:     #6e7781;
+    --gh-accent:        #0969da;
+    --gh-accent-subtle: #ddf4ff;
+    --gh-success:       #1a7f37;
+    --gh-attention:     #9a6700;
+    --gh-done:          #8250df;
+    --gh-mute:          rgba(175,184,193,.2);
+    --gh-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    --gh-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+[data-theme="dark"] .ia-ers, [data-theme="midnight"] .ia-ers {
+    --gh-canvas:        #0d1117;
+    --gh-subtle:        #161b22;
+    --gh-border:        #30363d;
+    --gh-border-muted:  #21262d;
+    --gh-fg:            #e6edf3;
+    --gh-fg-muted:      #8b949e;
+    --gh-fg-subtle:     #6e7681;
+    --gh-accent:        #4493f8;
+    --gh-accent-subtle: rgba(56,139,253,.15);
+    --gh-success:       #3fb950;
+    --gh-attention:     #d29922;
+    --gh-done:          #a371f7;
+    --gh-mute:          rgba(110,118,129,.4);
+}
+.ia-render-ers .ia-render-view { padding: 0; overflow: visible; background: var(--gh-canvas); }
+.ia-ers-doc, .ia-ers-ficha {
+    font-family: var(--gh-sans); color: var(--gh-fg);
+    font-size: 15px; line-height: 1.5; text-transform: none; letter-spacing: 0;
+}
+.ia-ers-doc { padding: 26px 28px 22px; }
+.ia-ers-doc > :first-child { margin-top: 0; }
+.ia-ers-doc p { margin: 0 0 14px; max-width: 72ch; color: var(--gh-fg); }
+/* El chat estiliza los encabezados del markdown (versalitas, tracking): dentro del
+   documento mandan los del tema GitHub, por eso se re-declaran con mas peso. */
+.ia-ers .ia-ers-doc h1, .ia-ers .ia-ers-doc h2,
+.ia-ers .ia-ers-doc h3, .ia-ers .ia-ers-doc h4 {
+    font-family: var(--gh-sans); text-transform: none; letter-spacing: normal;
+    color: var(--gh-fg); border-color: var(--gh-border-muted);
+}
+/* Nombre del archivo en la barra: es una ruta, no un titulo. */
+.ia-render-ers > .ia-render-toolbar > span:first-child {
+    text-transform: none; letter-spacing: 0;
+    font-family: var(--gh-mono, ui-monospace, monospace); font-size: 11.5px;
+}
+
+.ia-ers-h1 {
+    font-size: 1.7em; font-weight: 600; line-height: 1.25; margin: 0 0 12px;
+    padding-bottom: .3em; border-bottom: 1px solid var(--gh-border-muted); color: var(--gh-fg);
+}
+.ia-ers-h2 {
+    font-size: 1.25em; font-weight: 600; line-height: 1.25; margin: 26px 0 14px;
+    padding-bottom: .3em; border-bottom: 1px solid var(--gh-border-muted); color: var(--gh-fg);
+}
+.ia-ers-h3 { font-size: 1.05em; font-weight: 600; margin: 22px 0 12px; color: var(--gh-fg); }
+.ia-ers-hr { height: 1px; border: 0; background: var(--gh-border); margin: 24px 0; }
+.ia-ers-lead { color: var(--gh-fg-muted); }
+
+.ia-ers-labels { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.ia-ers-label {
+    font-size: 11.5px; font-weight: 500; line-height: 18px; padding: 0 10px;
+    border-radius: 2em; border: 1px solid var(--gh-border); color: var(--gh-fg-muted);
+}
+.ia-ers-label.is-accent { border-color: rgba(9,105,218,.4); color: var(--gh-accent); background: var(--gh-accent-subtle); }
+
+.ia-ers-stats, .ia-ers-ficha-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--gh-border); border-radius: 6px; overflow: hidden; margin-bottom: 20px;
+}
+.ia-ers-ficha-stats { grid-template-columns: repeat(3, 1fr); border-radius: 0; border-width: 0 0 1px; margin-bottom: 0; }
+.ia-ers-stat { padding: 10px 14px; border-right: 1px solid var(--gh-border); }
+.ia-ers-stat:last-child { border-right: none; }
+.ia-ers-stat .k { display: block; font-size: 11.5px; color: var(--gh-fg-muted); }
+.ia-ers-stat .v { display: block; font-size: 21px; font-weight: 600; color: var(--gh-fg); line-height: 1.3; font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) { .ia-ers-stats { grid-template-columns: repeat(2, 1fr); } }
+
+.ia-ers-toc { border: 1px solid var(--gh-border); border-radius: 6px; padding: 12px 16px; margin-bottom: 22px; background: var(--gh-subtle); }
+.ia-ers-toc-h { font-size: 11.5px; font-weight: 600; color: var(--gh-fg-muted); margin-bottom: 6px; }
+.ia-ers-toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 28px; font-size: 13.5px; color: var(--gh-fg); }
+.ia-ers-toc li { margin: 3px 0; break-inside: avoid; }
+.ia-ers-toc a { color: var(--gh-accent); text-decoration: none; }
+.ia-ers-toc a:hover { text-decoration: underline; }
+@media (max-width: 620px) { .ia-ers-toc ol { columns: 1; } }
+
+/* Modulos plegables */
+.ia-ers-mod { border: 1px solid var(--gh-border); border-radius: 6px; margin-bottom: 8px; background: var(--gh-canvas); }
+.ia-ers-mod > summary {
+    padding: 9px 13px; cursor: pointer; list-style: none;
+    display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--gh-fg);
+}
+.ia-ers-mod > summary::-webkit-details-marker { display: none; }
+.ia-ers-mod > summary:hover { background: var(--gh-subtle); }
+.ia-ers-mod[open] > summary { border-bottom: 1px solid var(--gh-border-muted); }
+.ia-ers-chev { color: var(--gh-fg-muted); transition: transform .15s ease; flex-shrink: 0; }
+.ia-ers-mod[open] .ia-ers-chev { transform: rotate(90deg); }
+.ia-ers-mod-name { min-width: 0; }
+.ia-ers-mod-meta { margin-left: auto; font-size: 11.5px; font-weight: 400; color: var(--gh-fg-muted); white-space: nowrap; }
+.ia-ers-mod-body { padding: 13px; }
+.ia-ers-mod-desc { color: var(--gh-fg-muted); font-size: 13.5px; margin: 0 0 10px !important; }
+.ia-ers-fields { columns: 3; column-gap: 22px; margin: 0; padding: 0; list-style: none; }
+.ia-ers-fields.is-short { columns: 1; }
+.ia-ers-fields li {
+    break-inside: avoid; position: relative; padding: 3px 0 3px 19px;
+    font-family: var(--gh-mono); font-size: 12px; color: var(--gh-fg);
+}
+.ia-ers-fields li::before {
+    content: ''; position: absolute; left: 3px; top: 9px; width: 6px; height: 6px;
+    border: 1px solid var(--gh-fg-subtle); border-radius: 2px;
+}
+@media (max-width: 760px) { .ia-ers-fields { columns: 2; } }
+@media (max-width: 480px) { .ia-ers-fields { columns: 1; } }
+
+/* Tablas del documento */
+.ia-ers-tablewrap { overflow-x: auto; margin-bottom: 16px; }
+.ia-ers .ia-ers-table {
+    display: table; width: max-content; max-width: 100%;
+    border-collapse: collapse; border-spacing: 0; margin: 0; border: none; border-radius: 0;
+    font-family: var(--gh-sans); font-size: 13.5px;
+}
+.ia-ers .ia-ers-table th, .ia-ers .ia-ers-table td {
+    padding: 6px 13px; border: 1px solid var(--gh-border); vertical-align: top;
+    white-space: normal; color: var(--gh-fg); background: var(--gh-canvas);
+}
+.ia-ers .ia-ers-table th { background: var(--gh-subtle); font-weight: 600; text-align: left; white-space: nowrap; }
+.ia-ers .ia-ers-table tbody tr:nth-child(2n) td { background: var(--gh-subtle); }
+.ia-ers .ia-ers-table td.num { text-align: right; font-family: var(--gh-mono); font-size: 12px; color: var(--gh-fg-muted); font-variant-numeric: tabular-nums; }
+.ia-ers .ia-ers-table td.path { font-family: var(--gh-mono); font-size: 12px; }
+
+/* Avisos estilo GitHub */
+.ia-ers-alert { padding: 8px 16px; margin-bottom: 12px; border-left: .25em solid; }
+.ia-ers-alert p { margin: 0 !important; color: var(--gh-fg); }
+.ia-ers-alert-t { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+.ia-ers-alert.is-note { border-color: var(--gh-accent); }
+.ia-ers-alert.is-note .ia-ers-alert-t { color: var(--gh-accent); }
+.ia-ers-alert.is-warning { border-color: var(--gh-attention); }
+.ia-ers-alert.is-warning .ia-ers-alert-t { color: var(--gh-attention); }
+
+/* Usuarios y fases */
+.ia-ers-people { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.ia-ers-person {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--gh-border); border-radius: 6px; padding: 6px 12px;
+    font-size: 13.5px; font-weight: 500; color: var(--gh-fg); background: var(--gh-canvas);
+}
+.ia-ers-person .av {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--gh-accent-subtle); color: var(--gh-accent);
+    display: grid; place-items: center; font-size: 9.5px; font-weight: 700;
+}
+.ia-ers-phase { margin-bottom: 18px; }
+.ia-ers-phase h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--gh-fg); }
+.ia-ers-badge {
+    font-size: 10.5px; font-weight: 600; padding: 1px 8px; border-radius: 2em;
+    background: var(--gh-accent-subtle); color: var(--gh-accent); border: 1px solid rgba(9,105,218,.3);
+}
+.ia-ers-tasks { list-style: none; margin: 0; padding: 0; }
+.ia-ers-tasks li { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 14px; color: var(--gh-fg); }
+.ia-ers-tasks .box { width: 13px; height: 13px; border: 1px solid var(--gh-border); border-radius: 3px; margin-top: 4px; flex-shrink: 0; background: var(--gh-subtle); }
+
+/* Pie con el puente a las historias */
+.ia-ers-foot {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--gh-border);
+    font-size: 12.5px; color: var(--gh-fg-muted);
+}
+.ia-ers-foot .ia-ers-next {
+    margin-left: auto; background: var(--gh-success); border-color: rgba(31,35,40,.15); color: #fff;
+    text-transform: none; letter-spacing: 0; font-size: 11.5px;
+}
+.ia-ers-foot .ia-ers-next:hover { filter: brightness(1.08); background: var(--gh-success); color: #fff; }
+
+/* Ficha compacta (ancho del chat) */
+.ia-ers-rows { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.ia-ers-row { border: 1px solid var(--gh-border); border-radius: 6px; background: var(--gh-canvas); }
+.ia-ers-row > summary {
+    list-style: none; cursor: pointer; padding: 8px 10px;
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--gh-fg);
+}
+.ia-ers-row > summary::-webkit-details-marker { display: none; }
+.ia-ers-row > summary:hover { background: var(--gh-subtle); }
+.ia-ers-row .n { font-family: var(--gh-mono); font-size: 11px; color: var(--gh-fg-subtle); }
+.ia-ers-row .t { min-width: 0; }
+.ia-ers-row .c { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--gh-fg-muted); white-space: nowrap; }
+.ia-ers-row .rb { padding: 0 10px 10px; font-size: 12.5px; color: var(--gh-fg-muted); line-height: 1.6; }
+.ia-ers-row .rb b { color: var(--gh-fg); }
+
+/* Modal a pantalla completa */
+.ia-ers-modal-body { padding: 0; overflow: auto; background: var(--gh-canvas); }
+.ia-ers-modal-body .ia-ers-doc { max-width: 1012px; margin: 0 auto; padding: 32px; }
+
+@media print {
+    .ia-render-toolbar, .ia-ers-foot { display: none !important; }
+    .ia-ers-mod > summary { border-bottom: 1px solid var(--gh-border-muted); }
+    .ia-ers-mod, .ia-ers-phase, .ia-ers-tablewrap { break-inside: avoid; }
+}
+
 /* Modal fullscreen para HTML preview */
 .ia-html-modal {
     position: fixed; inset: 0;

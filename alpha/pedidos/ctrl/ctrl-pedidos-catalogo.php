@@ -305,8 +305,8 @@ class ctrl extends MPedidos{
                     $newTotal  = $unit * $quantity;
                     if ($prevQty !== $quantity) {
                         $title = $newTotal >= $prevTotal ? 'Aumento de precio' : 'Reducción de precio';
-                        $msg   = "{$prevProd['name']}: {$prevQty} → {$quantity} uds ("
-                               . evaluar($prevTotal) . ' → ' . evaluar($newTotal) . ')';
+                        $msg   = "{$prevProd['name']}: {$prevQty} » {$quantity} uds ("
+                               . evaluar($prevTotal) . ' » ' . evaluar($newTotal) . ')';
                         $this->logOrderHistory($pedidos_id, $msg, 'price', $title);
                     }
                 }
@@ -505,7 +505,7 @@ class ctrl extends MPedidos{
                 }
                 // Diff de total respecto al estado previo (util al re-guardar una edicion).
                 if ($prevRow && floatval($prevRow['total_pay']) != $total_pay) {
-                    $msg .= ' (total ' . evaluar($prevRow['total_pay']) . ' → ' . evaluar($total_pay) . ')';
+                    $msg .= ' (total ' . evaluar($prevRow['total_pay']) . ' » ' . evaluar($total_pay) . ')';
                 }
                 $this->logOrderHistory($id, $msg, 'edition');
             }

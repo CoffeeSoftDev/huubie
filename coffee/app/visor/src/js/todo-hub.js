@@ -1558,21 +1558,24 @@
             this.render();
         }
 
+        // Solo lo pendiente: una tarea ya hecha en el prompt invita al modelo a
+        // rehacerla. Si no queda nada por hacer devuelve '' y quien llama avisa.
         promptOf(list, sec) {
             const source = sec ? [sec] : (list.sections || []);
             const lines  = [];
             source.forEach((s) => {
                 const pend = (s.tasks || []).filter((t) => !t.done);
-                const use  = pend.length ? pend : (s.tasks || []);
-                if (!use.length) return;
+                if (!pend.length) return;
                 if (!sec) lines.push('', '## ' + s.title);
-                use.forEach((t) => lines.push('- [' + (t.done ? 'x' : ' ') + '] ' + t.text));
+                pend.forEach((t) => lines.push('- [ ] ' + t.text));
             });
+            if (!lines.length) return '';
 
             return 'Trabajemos en las tareas pendientes de "' + list.title + '"' +
                    (sec ? ' · sección "' + sec.title + '"' : '') + ':\n' + lines.join('\n') + '\n\n' +
-                   'Impleméntalas en orden, respetando las convenciones y el stack del proyecto. ' +
-                   'No agregues nada que no esté en la lista y al terminar dime qué tareas quedaron listas.';
+                   'Impleméntalas en orden. No agregues nada que no esté en la lista y al terminar ' +
+                   'dime qué tareas quedaron listas.\n\n' +
+                   'Usando las reglas de CoffeeSoft /coffee-ia';
         }
 
         // La Bandeja se copia agrupada por lista: sin el encabezado de cada una, un
@@ -1586,9 +1589,11 @@
                 });
                 if (pend.length) blocks.push('## ' + list.title + ' (' + list.pathLabel + ')\n' + pend.join('\n'));
             });
+            if (!blocks.length) return '';
 
             return 'Estos son todos mis pendientes:\n\n' + blocks.join('\n\n') +
-                   '\n\nDime en que orden los atacarias y por que.';
+                   '\n\nDime en qué orden los atacarías y por qué.\n\n' +
+                   'Usando las reglas de CoffeeSoft /coffee-ia';
         }
 
         // ── Mejorar la tarea con IA ─────────────────────────────────────────
@@ -1843,11 +1848,16 @@
 
             $v.on('click', '[data-tdw="prompt"]', function () {
                 const list = self.listOf($(this));
-                if (list) self.copy(self.promptOf(list), 'Prompt de la lista copiado', $(this));
+                if (!list) return;
+                const txt = self.promptOf(list);
+                if (!txt) return self.flash('Esta lista no tiene tareas pendientes', 'error');
+                self.copy(txt, 'Prompt de la lista copiado', $(this));
             });
 
             $v.on('click', '[data-tdw="inboxprompt"]', function () {
-                self.copy(self.inboxPrompt(), 'Pendientes copiados como prompt', $(this));
+                const txt = self.inboxPrompt();
+                if (!txt) return self.flash('No tienes tareas pendientes', 'error');
+                self.copy(txt, 'Pendientes copiados como prompt', $(this));
             });
 
             $v.on('click', '[data-tdw="clearcompleted"]', function () {
@@ -1863,7 +1873,10 @@
 
             $v.on('click', '[data-tdw="secprompt"]', function () {
                 const ref = self.refOf($(this));
-                if (ref) self.copy(self.promptOf(ref.list, ref.sec), 'Prompt de la sección copiado', $(this));
+                if (!ref) return;
+                const txt = self.promptOf(ref.list, ref.sec);
+                if (!txt) return self.flash('Esta sección no tiene tareas pendientes', 'error');
+                self.copy(txt, 'Prompt de la sección copiado', $(this));
             });
 
             $v.on('click', '[data-tdw="archive"]',   () => this.archive(this.openKey));

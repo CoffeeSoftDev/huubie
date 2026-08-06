@@ -53,6 +53,21 @@
                 </button>
             </div>
 
+            <!-- Sistema de diseño con el que el sandbox envuelve el render. Vive
+                 aquí y no en el panel del sandbox porque ese encabezado ya carga
+                 pestañas, zoom y viewport, y en el Lab es más estrecho que en el
+                 Playground (a su izquierda va el panel de configuración). -->
+            <div class="pg-select-wrap lab-sbtheme" title="Sistema de diseño del sandbox">
+                <i data-lucide="palette" class="w-4 h-4"></i>
+                <select id="labSandboxTheme" class="pg-select">
+                    <option value="huubie-ui">Huubie UI (dark)</option>
+                    <option value="coffeesoft-light">CoffeeSoft · Arcilla Invernal</option>
+                    <option value="coffee-varoch-light">Coffee-Varoch (light)</option>
+                    <option value="coffee-varoch-dark">Coffee-Varoch (dark)</option>
+                    <option value="free">Libre (sin paleta)</option>
+                </select>
+            </div>
+
             <?php include __DIR__ . '/partials/launcher.php'; ?>
 
             <button id="labThemeToggle" class="theme-toggle" title="Cambiar tema claro/oscuro">
@@ -256,6 +271,9 @@
                 </div>
                 <div class="lab-chat-actions">
                     <span id="labSpend" class="lab-spend" title="Consumo de esta sesión">—</span>
+                    <button id="labSandboxToggle" class="pg-iconbtn" title="Mostrar u ocultar el sandbox">
+                        <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button id="labReset" class="pg-iconbtn" title="Vaciar la conversación">
                         <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                     </button>
@@ -275,7 +293,77 @@
                     </button>
                 </div>
                 <div class="ia-input-hint">
+                    <button id="labCanvasToggle" class="ia-editor-toggle" title="Activar modo lienzo (la IA generará componentes HTML renderizables)">
+                        <i data-lucide="layout-template" class="w-3 h-3"></i>
+                        <span>Lienzo</span>
+                    </button>
                     <span>La conversación es <b>efímera</b>. Lo que persiste es la configuración cuando pulsas guardar.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Splitter redimensionable (chat ↔ sandbox) ── -->
+        <div id="labSplitter" class="pg-splitter" title="Arrastra para redimensionar"></div>
+
+        <!-- ── Extremo derecho: sandbox de render ──
+             Mismo motor que el Playground: los ids pg* (#pgSandboxFrame,
+             .pg-sandbox-body, .pg-vp-btn, #pgZoomLabel) son el contrato que
+             pg-core.js espera para el viewport y el zoom; renombrarlos aquí
+             obligaría a duplicar ese motor. -->
+        <section class="pg-sandbox lab-sandbox">
+            <header class="pg-pane-head">
+                <div class="pg-sandbox-tabs">
+                    <button class="pg-tab active" data-sbtab="preview">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview
+                    </button>
+                    <button class="pg-tab" data-sbtab="code">
+                        <i data-lucide="code-2" class="w-3.5 h-3.5"></i> Código
+                    </button>
+                </div>
+                <div class="pg-sandbox-actions">
+                    <div class="pg-zoom" title="Zoom del preview">
+                        <button id="pgZoomOut" class="pg-iconbtn" title="Alejar"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                        <button id="pgZoomLabel" class="pg-zoom-label" title="Restablecer a 100%">100%</button>
+                        <button id="pgZoomIn" class="pg-iconbtn" title="Acercar"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                    </div>
+
+                    <div class="pg-viewport" title="Ancho del preview">
+                        <button class="pg-vp-btn" data-vp="mobile" title="Vista móvil (390 px)"><i data-lucide="smartphone" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn" data-vp="laptop" title="Vista laptop (1280 px)"><i data-lucide="laptop" class="w-3.5 h-3.5"></i></button>
+                        <button class="pg-vp-btn is-active" data-vp="full" title="Ancho completo"><i data-lucide="monitor" class="w-3.5 h-3.5"></i></button>
+                    </div>
+
+                    <div class="pg-actions-menu">
+                        <button id="labSbActionsToggle" class="pg-iconbtn pg-actions-toggle" title="Más acciones" aria-expanded="false">
+                            <i data-lucide="more-vertical" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <div class="pg-actions-pop" id="labSbActionsPop">
+                            <button id="labSandboxDownload" class="pg-iconbtn pg-actionbtn" title="Descargar HTML">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Descargar HTML</span>
+                            </button>
+                            <button id="labSandboxOpen" class="pg-iconbtn pg-actionbtn" title="Abrir render en pestaña nueva">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                <span class="pg-actionbtn-label">Abrir en pestaña</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="pg-sandbox-body">
+                <!-- sandbox SIN allow-same-origin: el código que genera el agente corre
+                     en un origen opaco (no puede leer localStorage ni llamar a los ctrl). -->
+                <div id="pgDeviceShell" class="pg-device-shell">
+                    <iframe id="pgSandboxFrame" class="pg-sandbox-frame" title="Sandbox"
+                            sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+                </div>
+                <pre id="pgSandboxCode" class="pg-sandbox-code hidden"><code></code></pre>
+
+                <div id="pgSandboxEmpty" class="pg-empty pg-sandbox-empty">
+                    <i data-lucide="layout-template"></i>
+                    <div class="pg-empty-title">Sandbox vacío</div>
+                    <div class="pg-empty-sub">Lo que genere el agente se renderizará aquí con el tema elegido.</div>
                 </div>
             </div>
         </section>
@@ -337,6 +425,7 @@
     <div id="labToast" class="visor-toast"></div>
 
     <?php include __DIR__ . '/partials/user-context.php'; ?>
+    <script src="src/js/pg-core.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/model-config.js?t=<?php echo time(); ?>"></script>
     <script src="src/js/ia-render.js?t=<?php echo time(); ?>"></script>
