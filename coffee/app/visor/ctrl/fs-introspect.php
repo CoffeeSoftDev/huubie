@@ -190,7 +190,20 @@ function fs_resolve_folder($name) {
         $matches = array_values(array_unique($matches));
     }
 
-    // 4) Si el usuario dio pistas de ruta, refinamos entre los homonimos.
+    // 4) La ruta escrita manda: si alguna candidata TERMINA exactamente en
+    //    "<pistas>/<carpeta>", esa gana sola. Sin esto, "ERP-GV/DEV/costsys" seguia
+    //    ambiguo — las pistas se contaban sueltas y las otras cuatro costsys de ese
+    //    proyecto (coffee/, docs/, produccion/, kpi/marketing/) tambien las tenian.
+    if (count($matches) > 1 && !empty($hints)) {
+        $suffix = '/' . implode('/', array_merge($hints, [$target]));
+        $exact  = [];
+        foreach ($matches as $p) {
+            if (substr(strtolower(fs_norm($p)), -strlen($suffix)) === $suffix) $exact[] = $p;
+        }
+        if ($exact) return ['matches' => array_values(array_unique($exact))];
+    }
+
+    // 5) Si aun asi hay homonimos, se refina contando pistas sueltas en la ruta.
     if (count($matches) > 1 && !empty($hints)) {
         $matches = fs_refine_by_hints($matches, $hints);
     }

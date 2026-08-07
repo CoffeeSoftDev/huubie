@@ -91,6 +91,11 @@ function agents_tools_for($agentKey) {
             'source'   => $t['source'],
             'active'   => $t['active'],
             'assigned' => in_array($agentKey, $t['agents'], true),
+            // Abierta = la fila no limita a nadie, asi que tambien la heredan los
+            // agentes que se creen despues. Limitada = solo los que estan listados
+            // hoy; uno nuevo naceria sin ella.
+            'open'     => !empty($t['agents_open']),
+            'shared'   => count($t['agents']),
         ];
     }
     return $out;

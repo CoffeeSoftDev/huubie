@@ -114,6 +114,30 @@ function tools_builtin_catalog() {
             'source'      => 'fs',
         ],
         [
+            'name'        => 'todo_list',
+            'label'       => 'Ver las listas TODO',
+            'description' => 'Indice de las listas TODO del usuario con sus contadores, sin el texto de las tareas.',
+            'category'    => 'TODO',
+            'icon'        => 'list',
+            'source'      => 'todo',
+        ],
+        [
+            'name'        => 'todo_read',
+            'label'       => 'Leer una lista TODO',
+            'description' => 'Lee una lista completa: secciones, tareas y su estado. Solo lectura.',
+            'category'    => 'TODO',
+            'icon'        => 'file-text',
+            'source'      => 'todo',
+        ],
+        [
+            'name'        => 'todo_stats',
+            'label'       => 'Cuentas del cajon',
+            'description' => 'Totales, verbos y terminos que se repiten entre listas, ya calculados.',
+            'category'    => 'TODO',
+            'icon'        => 'chart-no-axes-column',
+            'source'      => 'todo',
+        ],
+        [
             'name'        => 'todo_propose',
             'label'       => 'Proponer tareas',
             'description' => 'Propone tareas para la lista TODO. No las guarda: el usuario elige cuales acepta.',
@@ -260,6 +284,11 @@ function tools_all() {
         $r['spec']     = $spec;
         $r['params']   = tools_params_of($spec);
         $r['headers']  = tools_json_array($r['headers']);
+        // Al expandir se pierde la diferencia entre "abierta a todos" (fila vacia) y
+        // "limitada a estos, que hoy son todos": se ven igual, pero solo la primera
+        // la hereda un agente que se cree despues. El UI necesita distinguirlas.
+        $r['agents_open']   = trim((string) ($r['agents']   ?? '')) === '';
+        $r['surfaces_open'] = trim((string) ($r['surfaces'] ?? '')) === '';
         // Asignacion como listas para el UI (vacio en la fila = a todos).
         $r['surfaces'] = tools_scope_list($r['surfaces'] ?? '', tools_surfaces_catalog());
         $r['agents']   = tools_scope_list($r['agents']   ?? '', tools_agents_catalog());
@@ -454,6 +483,9 @@ function tools_label($name, array $args, array $row = null) {
     if ($name === 'fetch_url')  return web_tool_label($args);
     if (in_array($name, ['list_dir', 'read_file', 'grep_files'], true)) return fs_tool_label($name, $args);
     if (in_array($name, ['ftp_list', 'ftp_read'], true)) return ftp_tool_label($name, $args);
+    if ($name === 'todo_list')   return 'buscando tus listas';
+    if ($name === 'todo_read')   return 'leyendo ' . (isset($args['key']) ? $args['key'] : 'la lista');
+    if ($name === 'todo_stats')  return 'sacando cuentas del cajon';
     if ($name === 'todo_propose') return todo_tool_label($args);
     if (in_array($name, ['read_rules', 'save_memory', 'forget_memory', 'write_rule'], true)) return brain_tool_label($name, $args);
     $label = $row && $row['label'] !== '' ? $row['label'] : $name;
@@ -481,6 +513,9 @@ function tools_run($name, array $args, array $ctx = [], array $row = null) {
             $result = web_run_tool($args);
         } elseif (in_array($name, ['ftp_list', 'ftp_read'], true)) {
             $result = ftp_run_tool($name, $args);
+        } elseif (in_array($name, ['todo_list', 'todo_read', 'todo_stats'], true)) {
+            // Lectura del cajon: mismas raices y permisos que la ventana del TODO.
+            $result = todo_run_tool($name, $args);
         } elseif ($name === 'todo_propose') {
             // No devuelve datos al modelo: aparta la propuesta para la interfaz.
             $result = todo_run_tool($name, $args);

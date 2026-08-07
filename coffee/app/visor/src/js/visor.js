@@ -7794,6 +7794,12 @@ class CoffeeIA {
     }
 
     _appendAIMessage(text, meta) {
+        // Mismos normalizadores que en complete(): al reabrir una conversacion
+        // guardada, el ERS y las historias deben volver como tarjeta, no como YAML.
+        if (window.IARender) {
+            text = IARender.normalizeStoriesYaml(text);
+            text = IARender.normalizeErsYaml(text);
+        }
         const htmlText = this._markdownToHtml(text);
         const msgId    = 'iaMsg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
         let metaHtml = '';
@@ -7849,13 +7855,17 @@ class CoffeeIA {
             const looksExcalidraw = /\blanguage-excalidraw\b/.test(cls) ||
                 (/\blanguage-json\b/.test(cls) && /"type"\s*:\s*"excalidraw/i.test(raw));
 
-            // Historias de usuario (CoffeePlanner): lo pinta IARender, que es el unico
-            // sitio donde vive ese componente.
+            // Entregables de CoffeePlanner (historias y ERS): los pinta IARender, que
+            // es el unico sitio donde viven esos componentes.
             const looksStories = /\blanguage-(stories|historias)\b/.test(cls) ||
                 (/\blanguage-(yaml|yml|json)\b/.test(cls) && /(^|[\s{,])"?historias"?\s*:/m.test(raw));
+            const looksErs = /\blanguage-ers\b/.test(cls) ||
+                (/\blanguage-(yaml|yml|json)\b/.test(cls) && /(^|[\s{,])"?sistema"?\s*:/m.test(raw) && /(^|[\s{,])"?modulos"?\s*:/m.test(raw));
 
             if (looksStories && window.IARender) {
                 IARender.renderStories($pre, raw);
+            } else if (looksErs && window.IARender) {
+                IARender.renderErs($pre, raw);
             } else if (looksDrawio) {
                 this._renderDrawio($pre, raw);
             } else if (looksExcalidraw) {

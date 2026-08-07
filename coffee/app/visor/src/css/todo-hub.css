@@ -286,6 +286,52 @@
 [data-theme="light"] .tdw-count.is-clear { background: #D1FAE5; color: #059669; }
 .tdw-item.is-archived b { opacity: .68; }
 
+/* ── Carpeta del rail ──
+   El rail agrupa por proyecto y solo despliega uno: ver de golpe las listas de
+   cinco carpetas es justo lo que abruma. La fila lleva el total pendiente del
+   grupo, para saber donde hay trabajo sin abrirlo. */
+.tdw-folder {
+    width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 4px; margin-bottom: 2px;
+    border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit;
+    font: inherit; cursor: pointer; text-align: left;
+}
+.tdw-folder:hover { background: var(--vsr-bg-hover); }
+.tdw-folder-caret {
+    width: 16px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tdw-dim); transition: color .13s ease;
+}
+.tdw-folder-caret svg { width: 13px; height: 13px; }
+.tdw-folder:hover .tdw-folder-caret { color: var(--tdw-mute); }
+.tdw-folder.is-open .tdw-folder-caret { color: var(--tdw-sky); }
+.tdw-folder.is-open .tdw-item-dot { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-folder.is-open .tdw-item-main b { color: var(--vsr-text); }
+.tdw-folder .tdw-item-main b { font-size: 12.5px; font-weight: 700; }
+
+/* Las listas de la carpeta abierta cuelgan de ella: sangria y una guia fina que
+   dice hasta donde llega el grupo. */
+.tdw-item.is-child { margin-left: 14px; width: calc(100% - 14px); border-left: 1px solid var(--tdw-line); border-radius: 0 10px 10px 0; }
+.tdw-item.is-child:last-of-type { margin-bottom: 6px; }
+.tdw-item.is-child.is-on { border-left-color: var(--tdw-sky); }
+
+/* Eleccion de carpeta cuando no hay lista abierta. */
+.tdw-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 9px; padding: 14px 0 4px; }
+.tdw-pick {
+    display: flex; align-items: center; gap: 11px; padding: 13px 14px;
+    border: 1px solid var(--tdw-line); border-radius: 12px; background: transparent;
+    color: inherit; font: inherit; cursor: pointer; text-align: left; transition: all .13s ease;
+}
+.tdw-pick:hover { border-color: var(--tdw-sky-line); background: var(--tdw-sky-soft); }
+.tdw-pick-dot {
+    width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(148, 163, 184, .14); color: var(--tdw-mute);
+}
+.tdw-pick:hover .tdw-pick-dot { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-pick-dot svg { width: 17px; height: 17px; }
+.tdw-pick-main { flex: 1; min-width: 0; }
+.tdw-pick-main b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tdw-pick-main small { display: block; margin-top: 2px; font-size: 11px; color: var(--tdw-dim); }
+
 .tdw-group {
     display: flex; align-items: center; gap: 6px; width: 100%; padding: 12px 6px 6px;
     border: 0; background: transparent; color: var(--tdw-dim);
@@ -540,6 +586,144 @@
 .tdw-send:hover { filter: brightness(1.08); }
 .tdw-send svg { width: 16px; height: 16px; stroke-width: 2.4; }
 [data-theme="light"] .tdw-send { color: #fff; }
+
+/* ══ CoffeeClown: el chat del cajon ═════════════════════════════════════════
+   El switch de la barra decide si lo que escribes se anota en la lista o se lo
+   preguntas al agente. Cuando pregunta, la conversacion ocupa el panel entero:
+   el cajon nunca es dos cosas a la vez. */
+
+/* El switch: dos caras siempre visibles, para saber en cual estas y a cual vas. */
+.tdw-swap { flex: none; display: flex; gap: 2px; padding: 3px; background: var(--vsr-bg-input); border: 1px solid var(--tdw-line); border-radius: 9px; }
+.tdw-swap button {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px;
+    border: 0; border-radius: 7px; background: transparent; color: var(--tdw-mute);
+    font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background .14s ease, color .14s ease;
+}
+.tdw-swap button svg { width: 13px; height: 13px; }
+.tdw-swap button:hover { color: var(--vsr-text); }
+.tdw-swap button[aria-pressed="true"] { background: var(--vsr-bg-hover); color: var(--vsr-text); }
+[data-theme="light"] .tdw-swap button[aria-pressed="true"] { background: #fff; color: var(--tdw-sky); box-shadow: 0 1px 2px rgba(17,24,39,.08); }
+/* La cara del agente se enciende con el acento: es la que cambia el panel. */
+.tdw-swap button.is-ia[aria-pressed="true"] { background: var(--tdw-sky); color: var(--tdw-on-sky); box-shadow: none; }
+[data-theme="light"] .tdw-swap button.is-ia[aria-pressed="true"] { color: #fff; }
+.tdw-quick.is-ask .tdw-quick-in { border-color: var(--tdw-sky-line); background: rgba(56, 189, 248, .07); }
+[data-theme="light"] .tdw-quick.is-ask .tdw-quick-in { background: #F0F9FF; }
+
+/* Cabecera de la conversacion: misma fila de titulo que cualquier vista del panel. */
+.tdw-chathead .tdw-mh-row { align-items: center; }
+.tdw-chathead .tdw-badge { width: 34px; height: 34px; border-radius: 11px; }
+.tdw-chathead .tdw-badge svg { width: 18px; height: 18px; }
+
+.tdw-thread {
+    flex: 1; overflow-y: auto; overscroll-behavior: contain;
+    padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 15px;
+}
+
+/* Lo que preguntaste */
+.tdw-me {
+    align-self: flex-end; max-width: 74%; margin: 0;
+    padding: 8px 13px; border-radius: 13px 13px 4px 13px;
+    background: var(--tdw-sky-soft); color: var(--vsr-text);
+    font-size: 12.5px; line-height: 1.5;
+}
+
+/* Lo que responde */
+.tdw-msg { display: flex; gap: 11px; }
+.tdw-msg-av {
+    width: 26px; height: 26px; flex: none; border-radius: 9px; margin-top: 1px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--tdw-sky-soft); color: var(--tdw-sky);
+}
+.tdw-msg-av svg { width: 14px; height: 14px; }
+.tdw-msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.tdw-msg-body p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--vsr-text-soft); }
+.tdw-msg-body p b { color: var(--vsr-text); font-weight: 650; }
+.tdw-msg-body code {
+    background: var(--vsr-bg-input); color: var(--tdw-sky); padding: 1px 5px; border-radius: 3px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px;
+}
+
+/* Que herramienta esta usando: se ve el trabajo, no un punto girando. */
+.tdw-tool {
+    display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+    padding: 4px 11px; border-radius: 999px; background: var(--tdw-sky-soft);
+    color: var(--tdw-sky); font-size: 10.5px; font-weight: 600;
+}
+.tdw-tool svg { width: 11px; height: 11px; }
+.tdw-tool code { background: transparent; color: inherit; font-size: 10px; padding: 0; }
+.tdw-tool.is-live svg { animation: tdwSpin 1.6s linear infinite; }
+
+/* Estado inicial: las dos preguntas que el cajon no sabia responder. */
+.tdw-chat-empty { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.tdw-chat-big {
+    width: 54px; height: 54px; border-radius: 17px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--tdw-sky-soft); color: var(--tdw-sky); margin-bottom: 2px;
+}
+.tdw-chat-big svg { width: 26px; height: 26px; }
+.tdw-chat-empty h4 { margin: 0; font-size: 15px; font-weight: 700; }
+.tdw-chat-empty p { margin: 0; font-size: 12px; color: var(--tdw-mute); line-height: 1.6; max-width: 42ch; }
+.tdw-sugg { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 7px; width: 100%; margin-top: 8px; }
+.tdw-sugg button {
+    text-align: left; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--tdw-line); background: transparent; color: var(--vsr-text-soft);
+    font: inherit; font-size: 12px; cursor: pointer; line-height: 1.45; transition: all .13s ease;
+}
+.tdw-sugg button:hover { border-color: var(--tdw-sky-line); background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-sugg button em { display: block; font-style: normal; font-size: 10.5px; color: var(--tdw-dim); margin-top: 2px; }
+.tdw-sugg button:hover em { color: inherit; opacity: .8; }
+
+/* ── Lo que mas se repite ──
+   Ordenado por cuantos proyectos alcanza: lo que cruza cuatro pesa mas que lo
+   que se repite mucho en uno solo. */
+.tdw-reps { border: 1px solid var(--tdw-line); border-radius: 11px; overflow: hidden; background: var(--tdw-tint); }
+.tdw-reps-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 13px; border-bottom: 1px solid var(--tdw-line);
+    color: var(--tdw-mute); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+}
+.tdw-reps-head svg { width: 12px; height: 12px; color: var(--tdw-sky); }
+.tdw-reps-head em { margin-left: auto; font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 10.5px; }
+
+.tdw-rep {
+    display: grid; grid-template-columns: 1.7rem 1fr; gap: 3px 11px;
+    padding: 11px 13px; border-bottom: 1px solid var(--tdw-line);
+}
+.tdw-rep:last-child { border-bottom: 0; }
+.tdw-rep:hover { background: rgba(148, 163, 184, .06); }
+.tdw-rep-n {
+    grid-row: span 4; font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; color: var(--tdw-dim); font-variant-numeric: tabular-nums; padding-top: 2px;
+}
+.tdw-rep.is-first .tdw-rep-n { color: var(--tdw-sky); font-weight: 700; }
+.tdw-rep-t { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); line-height: 1.4; }
+.tdw-rep-m { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 10.5px; color: var(--tdw-mute); }
+.tdw-rep-m b { color: var(--tdw-sky); font-weight: 700; font-variant-numeric: tabular-nums; }
+.tdw-rep-m i { font-style: normal; padding: 1px 7px; border-radius: 999px; background: rgba(148, 163, 184, .16); font-weight: 600; font-size: 9.5px; }
+.tdw-rep-q { font-size: 11px; color: var(--tdw-dim); line-height: 1.45; font-style: italic; }
+.tdw-rep-bar { height: 3px; border-radius: 999px; background: rgba(148, 163, 184, .14); overflow: hidden; margin-top: 4px; }
+.tdw-rep-bar i { display: block; height: 100%; background: var(--tdw-sky); opacity: .5; border-radius: 999px; }
+.tdw-rep.is-first .tdw-rep-bar i { opacity: 1; }
+
+/* Tareas citadas: se pulsan y el cajon salta a ellas. */
+.tdw-cites { display: flex; flex-direction: column; gap: 6px; }
+.tdw-cite {
+    display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 8px 11px; border-radius: 9px;
+    border: 1px solid var(--tdw-line); background: var(--tdw-tint); color: var(--vsr-text-soft);
+    font: inherit; font-size: 12px; line-height: 1.45; text-align: left; cursor: pointer;
+}
+.tdw-cite:hover { border-color: var(--tdw-sky-line); background: var(--tdw-sky-soft); }
+.tdw-cite svg { width: 12px; height: 12px; flex: none; margin-top: 2px; color: var(--tdw-mute); }
+.tdw-cite:hover svg { color: var(--tdw-sky); }
+
+/* La tarea a la que acaba de saltar: se marca un momento y se apaga sola. */
+.tdw-task.is-cited { background: var(--tdw-sky-soft); box-shadow: inset 2px 0 0 var(--tdw-sky); }
+
+@media (max-width: 640px) {
+    .tdw-swap button span { display: none; }
+    .tdw-thread { padding: 14px 12px 16px; }
+    .tdw-me { max-width: 86%; font-size: 14px; }
+    .tdw-msg-body p { font-size: 14px; }
+}
 
 /* ── Estados ── */
 .tdw-empty { padding: 44px 24px; text-align: center; }

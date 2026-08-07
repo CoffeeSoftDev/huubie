@@ -275,7 +275,10 @@
                         <option value="high">Alto</option>
                         <option value="max">M&aacute;ximo</option>
                     </select>
-                    <select id="ciaModelSelect" class="ia-model-pill" title="Modelo activo"></select>
+                    <!-- data-model-sync="off": esta pagina puebla el select con SOLO los
+                         modelos habilitados (ENABLED_CATALOG). Sin esto, model-config le
+                         reinyecta el catalogo entero y se limita a ocultar el resto. -->
+                    <select id="ciaModelSelect" class="ia-model-pill" data-model-sync="off" title="Modelo activo"></select>
 
                     <!-- Enviar: ya no flota sobre el textarea, vive en la barra. -->
                     <button id="ciaSendBtn" class="ia-send-btn" title="Enviar (Enter)">

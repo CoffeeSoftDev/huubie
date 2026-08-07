@@ -126,9 +126,11 @@
             display: none;
         }
 
-        /* Gestión de pagos: mismo <label> vacio del plugin, aqui sobre la tarjeta del
-           monto restante y el boton de guardar, que abria un hueco bajo las pestañas. */
-        #modalAdvance label:empty {
+        /* Mismo <label> vacio del plugin: en Gestión de Pagos sobre la tarjeta del monto
+           restante y el boton de guardar (abria un hueco bajo las pestañas), y en el
+           formulario de datos de entrega sobre sus botones. */
+        #modalAdvance label:empty,
+        #formEditDelivery label:empty {
             display: none;
         }
 

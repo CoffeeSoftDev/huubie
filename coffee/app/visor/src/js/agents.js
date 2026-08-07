@@ -386,12 +386,17 @@
         Object.keys(groups).sort().forEach(function (g) {
             const $g = $('<div class="agt-tool-group"></div>').append('<h4 class="agt-sub">' + esc(g) + '</h4>');
             groups[g].forEach(function (t) {
+                // Abierta y limitada se ven igual en la casilla, pero solo la abierta
+                // la hereda un agente nuevo: se dice cual es cual.
+                const alcance = t.open
+                    ? '<span class="agt-tool-scope" title="Sin límite: la heredan también los agentes que crees después">todos</span>'
+                    : `<span class="agt-tool-scope is-limited" title="Limitada a ${t.shared} agente(s). Un agente nuevo NO la tendría hasta marcarla aquí">solo ${t.shared}</span>`;
                 $g.append(`
                     <label class="agt-tool${t.active ? '' : ' is-off'}">
                         <input type="checkbox" class="agt-tool-cb" value="${esc(t.name)}" ${t.assigned ? 'checked' : ''}>
                         <i data-lucide="${esc(t.icon || 'wrench')}" class="w-4 h-4"></i>
                         <span class="agt-tool-body">
-                            <span class="agt-tool-name">${esc(t.label || t.name)}</span>
+                            <span class="agt-tool-name">${esc(t.label || t.name)}${alcance}</span>
                             <span class="agt-tool-key">${esc(t.name)}${t.active ? '' : ' · desactivada en el catálogo'}</span>
                         </span>
                     </label>

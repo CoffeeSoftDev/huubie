@@ -1,0 +1,27 @@
+{
+  "title": "CoffeeSoft - IA",
+  "sections": [
+    {
+      "id": "s9kqsrda",
+      "title": "Todo",
+      "tasks": [
+        {
+          "id": "t9ui8zet",
+          "text": "en el agente cuando esta razonando, corregir el loader",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "s9frb4e7",
+      "title": "Interfaz",
+      "tasks": [
+        {
+          "id": "t3622p09",
+          "text": "Mantener el tema seleccionado en todo el modulo de coffee/app/",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

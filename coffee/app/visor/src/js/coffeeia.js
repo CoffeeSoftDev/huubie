@@ -26,7 +26,9 @@ const CIA_API_CHATS  = 'ctrl/ctrl-chats.php';   // persistencia SQLite (misma qu
 const CIA_AGENTS = {
     'CoffeeIA.md':            { key: 'CoffeeIA.md',            label: 'CoffeeIA',           slug: 'CoffeeIA' },
     'CoffeeMagic.md':         { key: 'CoffeeMagic.md',         label: 'CoffeeMagic',        slug: 'CoffeeMagic' },
-    'coffee-intelligence.md': { key: 'coffee-intelligence.md', label: 'CoffeeIntelligence', slug: 'coffee-intelligence' }
+    'coffee-intelligence.md': { key: 'coffee-intelligence.md', label: 'CoffeeIntelligence', slug: 'coffee-intelligence' },
+    'coffee-planner.md':      { key: 'coffee-planner.md',      label: 'CoffeePlanner',      slug: 'coffee-planner' },
+    'coffee-clown.md':        { key: 'coffee-clown.md',        label: 'CoffeeClown',        slug: 'coffee-clown' }
 };
 const CIA_DEFAULT_AGENT = 'CoffeeIA.md';
 
@@ -58,7 +60,9 @@ const CIA = {
     canvasMode:     false,     // la IA genera componentes HTML renderizables
     graphMode:      '',        // '' | 'mermaid' | 'drawio' | 'excalidraw'
     dbToolsOn:      false,     // tools de base de datos (run_select)
-    fsToolsOn:      false,     // tools de archivos (list_dir/read_file/grep_files)
+    // Las de archivos vienen ENCENDIDAS: casi toda consulta de trabajo acaba pidiendo
+    // leer codigo, y tenerlas apagadas obligaba a activarlas cada vez.
+    fsToolsOn:      true,      // tools de archivos (list_dir/read_file/grep_files)
     sidebarWidth:   CIA_SIDEBAR_DEFAULT,   // ancho ajustable del panel de conversaciones
     sidebarOpen:    true,                  // panel visible (solo se recuerda en escritorio)
     // Visor de templates: los ```html de la conversación, en orden (cada uno es
@@ -103,6 +107,11 @@ $(async () => {
     ciaPopulateModelSelect();
     ciaBind();
     ciaApplyModeUI();
+    // Chips de lo que quedo conectado antes de recargar (los repinta ya, aunque no
+    // haya conversacion que retomar).
+    ciaRenderFolderChip();
+    ciaRenderDbChip();
+    if (CIA._fsJustMigrated) { delete CIA._fsJustMigrated; ciaSaveSettings(); }
     ciaRenderThread();
     await ciaLoadAgents();
     await ciaLoadConversations();
@@ -119,7 +128,17 @@ async function ciaRestoreLastConversation() {
     try { uid = localStorage.getItem('coffeeia:lastUid') || ''; } catch (_) { /* noop */ }
     if (!uid) return;
     if (!CIA.conversations.some(c => c.uid === uid)) { ciaRememberActive(null); return; }
+
+    // Abrir una conversacion SUELTA las conexiones, porque son suyas y no se heredan
+    // entre chats. Pero esta no es otra: es la misma que estaba en pantalla, asi que
+    // se le devuelven la carpeta y la base que tenia. Sin toast: no acaba de conectarse,
+    // solo se retoma lo que ya estaba.
+    const folder = CIA.activeFolder;
+    const db     = CIA.activeDb;
     await ciaOpenConversation(uid);
+    if (folder) { CIA.activeFolder = folder; ciaRenderFolderChip(); }
+    if (db)     { CIA.activeDb     = db;     ciaRenderDbChip(); }
+    if (folder || db) ciaSaveSettings();
 }
 
 /* Recuerda (o limpia) el uid de la conversación abierta para poder retomarla al
@@ -155,7 +174,16 @@ function ciaLoadSettings() {
         CIA.canvasMode = !!s.canvasMode;
         CIA.graphMode  = CIA_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
         CIA.dbToolsOn  = !!s.dbToolsOn;
-        CIA.fsToolsOn  = !!s.fsToolsOn;
+        // Las de archivos pasaron a venir encendidas. Quien ya tenia ajustes guardados
+        // los tenia en false (el default viejo), asi que se encienden UNA vez y desde
+        // ahi manda lo que el usuario elija.
+        if (!s.fsDefaultOn) { CIA.fsToolsOn = true; CIA._fsJustMigrated = true; }
+        else                { CIA.fsToolsOn = (s.fsToolsOn === undefined) ? true : !!s.fsToolsOn; }
+        // Conexiones: la carpeta y la base sobreviven a recargar la pagina. El chip
+        // decia a que estaba conectado el chat y al recargar se perdia, aunque el
+        // servidor seguia resolviendo la misma ruta.
+        CIA.activeFolder = s.activeFolder || null;
+        CIA.activeDb     = s.activeDb     || null;
         // Ancho del panel de conversaciones (se descarta si viene fuera de rango).
         const w = Number(s.sidebarWidth);
         CIA.sidebarWidth = (isFinite(w) && w >= CIA_SIDEBAR_MIN && w <= CIA_SIDEBAR_MAX) ? w : CIA_SIDEBAR_DEFAULT;
@@ -169,7 +197,8 @@ function ciaSaveSettings() {
     localStorage.setItem('coffeeia:settings:v1', JSON.stringify({
         agentKey: CIA.agentKey, model: CIA.model, effort: CIA.effort, uiTheme: CIA.uiTheme,
         canvasMode: CIA.canvasMode, graphMode: CIA.graphMode,
-        dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn,
+        dbToolsOn: CIA.dbToolsOn, fsToolsOn: CIA.fsToolsOn, fsDefaultOn: true,
+        activeFolder: CIA.activeFolder, activeDb: CIA.activeDb,
         sidebarWidth: CIA.sidebarWidth, sidebarOpen: CIA.sidebarOpen,
         viewerWidth: CIA.viewerWidth
     }));
@@ -301,6 +330,21 @@ function ciaBind() {
     $('#ciaAgentSelect').on('change', e => ciaApplyAgent(e.target.value, false));
     $('#ciaModelSelect').on('change', e => { CIA.model = e.target.value || ''; ciaSaveSettings(); ciaWarnModelTools(); });
     $('#ciaEffortSelect').val(CIA.effort || '').on('change', e => { CIA.effort = e.target.value || ''; ciaSaveSettings(); });
+
+    // Los modelos habilitados son POR CUENTA y llegan del servidor despues de pintar:
+    // hasta entonces `getEnabled()` los da todos, asi que el select se poblaba con el
+    // catalogo entero y solo se ocultaba lo demas. Se repuebla cuando la configuracion
+    // esta lista — asi el select CONTIENE unicamente lo habilitado — y tambien cuando
+    // se edita en vivo desde Configuracion.
+    const ciaResyncModels = () => {
+        ciaPopulateModelSelect();
+        // El esfuerzo lo gobierna model-config a partir del selector de modelo: se le
+        // pide que lo reajuste a lo que admita el que quedo elegido.
+        if (window.CoffeeModelConfig && CoffeeModelConfig.refreshAll) CoffeeModelConfig.refreshAll(false);
+        ciaWarnModelTools();
+    };
+    if (window.CoffeeModelConfig) window.addEventListener(CoffeeModelConfig.EVENT, ciaResyncModels);
+    if (window.CoffeePrefs)       window.addEventListener(CoffeePrefs.EVENT, ciaResyncModels);
     $('#ciaThemeToggle').on('click', () => ciaApplyUiTheme((window.CoffeeTheme ? CoffeeTheme.next(CIA.uiTheme) : (CIA.uiTheme === 'dark' ? 'light' : 'dark'))));
 
     /* ── Menú "+" : todas las herramientas en un solo sitio (patrón Claude) ── */
@@ -559,6 +603,7 @@ function ciaSetActiveDb(schema) {
     const changed = next !== CIA.activeDb;
     CIA.activeDb = next;
     ciaRenderDbChip();
+    if (changed) ciaSaveSettings();   // sobrevive a recargar la pagina
     if (changed && next) { ciaToast('🛢 Conectado a la base ' + next, 'success'); ciaWarnModelTools(); }
 }
 
@@ -579,6 +624,7 @@ function ciaSetActiveFolder(path) {
     const changed = next !== CIA.activeFolder;
     CIA.activeFolder = next;
     ciaRenderFolderChip();
+    if (changed) ciaSaveSettings();   // sobrevive a recargar la pagina
     if (changed && next) {
         const fname = String(next).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
         ciaToast('📁 Conectado a la carpeta ' + fname, 'success');
@@ -1085,10 +1131,18 @@ function ciaAppendUserMessage(text, images, docsMeta) {
 }
 
 function ciaAppendAIMessage(text, meta, idx) {
+    // Mismos normalizadores que al cerrar el streaming (complete): sin ellos, un ERS
+    // o unas historias que SI se vieron como tarjeta vuelven como YAML crudo al
+    // reabrir la conversacion guardada.
+    let body = text || '';
+    if (window.IARender) {
+        body = IARender.normalizeStoriesYaml(body);
+        body = IARender.normalizeErsYaml(body);
+    }
     const $msg = $(`
         <div class="ia-msg ai">
             <div class="ia-msg-role"><span class="dot"></span><span>${ciaEscape(ciaAgentLabel())}</span></div>
-            <div class="ia-msg-text">${IARender.markdownToHtml(text || '')}</div>
+            <div class="ia-msg-text">${IARender.markdownToHtml(body)}</div>
         </div>`);
     ciaThread().append($msg);
     if (meta) ciaAttachMetaFooter($msg, meta, text || '', idx);

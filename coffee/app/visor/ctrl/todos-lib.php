@@ -5,11 +5,11 @@
 //   - ctrl-todos.php      -> el cajon del visor, con la sesion del navegador
 //   - ctrl-todo-sync.php  -> la sincronizacion con avatars, servidor a servidor por token
 // Aqui no se emite salida ni se decide nada de HTTP: eso es de cada entrada.
+// Las cabeceras las pone cada entrada, no esta libreria: tambien la cargan las
+// herramientas del chat, y ahi la respuesta puede ser un stream (text/event-stream).
+// Un Content-Type declarado aqui pisaba el del stream y lo dejaba mudo.
 require_once __DIR__ . '/library-roots.php';
 require_once __DIR__ . '/todo-shares.php';
-
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
 
 const TODOS_MAX_DEPTH = 6;          // hasta donde baja el barrido
 const TODOS_MAX_BYTES = 524288;     // 512 KB por lista

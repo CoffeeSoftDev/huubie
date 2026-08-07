@@ -345,6 +345,11 @@
         // NO son de modelo: excluirlos para no inyectarles el catálogo. Los gobierna
         // syncEffortFor a partir de su selector de modelo hermano.
         if (/EffortSelect$/.test(el.id) || /effortSelect$/.test(el.id)) return;
+        // Lo mismo con el de AGENTE: lo llena cada pagina con su catalogo de agentes.
+        // Sin esta salida, aqui se le inyectaban modelos y el observador de abajo los
+        // volvia a poner cada vez que la pagina intentaba repoblarlo.
+        if (/AgentSelect$/i.test(el.id) || el.classList.contains('ia-agent-pill') ||
+            el.classList.contains('cia-agent-pill')) return;
         _bound.push(el);
         applyToSelect(el, false);
         applySelectActive(el);

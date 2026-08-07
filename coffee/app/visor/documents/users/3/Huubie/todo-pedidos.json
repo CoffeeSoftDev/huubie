@@ -1,0 +1,16 @@
+{
+  "title": "Pedidos",
+  "sections": [
+    {
+      "id": "s7ij42sm",
+      "title": "Gestión de pagos",
+      "tasks": [
+        {
+          "id": "t4k8nuzy",
+          "text": "Rediseñar el modal de registro de pagos para mejorar su usabilidad y presentación visual",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

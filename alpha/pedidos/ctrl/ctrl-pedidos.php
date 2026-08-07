@@ -657,6 +657,61 @@ class Pedidos extends MPedidos{
         return $cambios;
     }
 
+    // Roles que corrigen datos de entrega desde el calendario sin importar la sucursal:
+    // admin (1) y supervisores (6, 7), que ven el calendario completo. El resto sigue
+    // con el candado de siempre, su sucursal.
+    private function canEditDelivery($orderId) {
+        if (in_array($_SESSION['ROLID'] ?? 0, [1, 6, 7])) return true;
+
+        return $this->canWriteOrder($orderId);
+    }
+
+    // Candado de la edicion de entrega sobre un pedido liquidado: exige la contrasena
+    // del usuario en sesion y lo limita a admin (1) y supervisores (6, 7). Es mas
+    // abierto que paidOrderEditDenial (solo admin) porque aqui la edicion no toca al
+    // cliente ni el cobro: solo fecha, hora, tipo de entrega y descripcion. Devuelve el
+    // error a retornar, o null si la operacion puede seguir. Una sola definicion para
+    // los dos puntos que la aplican: verifyOrderDeliveryKey (antes de abrir el
+    // formulario) y editOrderDelivery (al guardar, que es la validacion que manda).
+    private function deliveryEditDenial($requiereClave, $password) {
+        if (!$requiereClave) return null;
+
+        if (!in_array($_SESSION['ROLID'] ?? 0, [1, 6, 7])) {
+            return [
+                'status'  => 403,
+                'message' => 'No tienes permiso para editar un pedido liquidado.'
+            ];
+        }
+
+        $user = $this->getUserKeyById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]);
+
+        if ($password === '' || empty($user) || $user['key'] !== md5($password)) {
+            return [
+                'status'  => 401,
+                'message' => 'Contraseña incorrecta. El pedido está liquidado y editarlo requiere autorización.'
+            ];
+        }
+
+        return null;
+    }
+
+    // Valida la contrasena ANTES de abrir el formulario de entrega, para no descubrir
+    // una clave mal escrita hasta despues de capturar los cambios. No autoriza por si
+    // sola: editOrderDelivery vuelve a exigir el mismo candado al guardar.
+    function verifyOrderDeliveryKey() {
+        $denegado = $this->deliveryEditDenial(
+            $this->isOrderPaid($_POST['id']),
+            $_POST['password'] ?? ''
+        );
+
+        if ($denegado) return $denegado;
+
+        return [
+            'status'  => 200,
+            'message' => 'Autorización correcta.'
+        ];
+    }
+
     // Datos de entrega del pedido para el formulario del calendario, que solo captura
     // fecha, hora, tipo de entrega y descripcion.
     function getOrderDelivery() {
@@ -688,7 +743,7 @@ class Pedidos extends MPedidos{
 
         $id = $_POST['id'];
 
-        if (!$this->canWriteOrder($id)) {
+        if (!$this->canEditDelivery($id)) {
             return [
                 'status'  => 403,
                 'message' => 'Solo puedes operar pedidos de tu sucursal'
@@ -705,14 +760,20 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Liquidado (3) o cancelado (4): editar la cabecera exige el flujo autorizado
-        // del listado (editOrder), no se abre desde el calendario.
-        if (in_array((string) $prevOrder['status'], ['3', '4'])) {
+        // Cancelado (4): no hay entrega que corregir.
+        if ((string) $prevOrder['status'] === '4') {
             return [
                 'status'  => 403,
-                'message' => 'Un pedido liquidado o cancelado solo se edita desde el listado de pedidos'
+                'message' => 'Un pedido cancelado no se puede editar'
             ];
         }
+
+        // Liquidado (3): pide contrasena. La validacion que manda es esta, no la que el
+        // front hizo antes de abrir el formulario (verifyOrderDeliveryKey).
+        $requiereClave = $prevOrder['status'] == 3;
+        $denegado      = $this->deliveryEditDenial($requiereClave, $_POST['password'] ?? '');
+
+        if ($denegado) return $denegado;
 
         // Un campo que no llega se omite del update en vez de leerse a ciegas: el aviso
         // de indice indefinido se imprimiria antes del json_encode y dejaria la
@@ -742,11 +803,11 @@ class Pedidos extends MPedidos{
             $cambios = $this->orderEditionChanges($prevOrder, false);
 
             if ($cambios) {
-                $this->logHistory(
-                    implode(' · ', $cambios) . ' (editado desde el calendario)',
-                    'edition',
-                    'Pedido editado'
-                );
+                $nota = $requiereClave
+                    ? ' (editado desde el calendario; pedido liquidado, autorizado con contraseña)'
+                    : ' (editado desde el calendario)';
+
+                $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
             }
         }
 

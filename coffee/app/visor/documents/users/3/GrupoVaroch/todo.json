@@ -1,0 +1,31 @@
+{
+  "title": "Costsys",
+  "sections": [
+    {
+      "id": "s8kqnnsi",
+      "title": "Documentación",
+      "tasks": [
+        {
+          "id": "tw9doipr",
+          "text": "Historias de usuario de costo potencial",
+          "done": false
+        },
+        {
+          "id": "t0okowq5",
+          "text": "Historias de usuario de proyeccion costo potencial",
+          "done": false
+        },
+        {
+          "id": "tlfgs8rw",
+          "text": "Entidad Relación Costsys",
+          "done": false
+        },
+        {
+          "id": "tigsjw88",
+          "text": "GitHub - tareas",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

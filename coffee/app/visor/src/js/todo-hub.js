@@ -21,6 +21,7 @@
     const PREF_KEY   = 'visor:todoArchived:v1';
     const ACCENT_KEY = 'visor:todoAccent:v1';
     const CHIPS_KEY  = 'visor:todoChips:v1';
+    const GROUP_KEY  = 'visor:todoGroup:v1';   // carpeta abierta en el rail
 
     // Campos opcionales de una tarea que se pintan como chip. Solo se ven si el
     // todo.json los trae: el cajon los conserva pero no los inventa.
@@ -51,7 +52,6 @@
 
     const ICON = {
         list:    'list-checks',
-        inbox:   'inbox',
         plus:    'plus',
         close:   'x',
         wide:    'maximize-2',
@@ -157,7 +157,8 @@
         constructor() {
             this.lists    = [];
             this.archived = this.readArchived();
-            this.openKey  = null;       // lista abierta; null = Bandeja
+            this.openKey  = null;       // lista abierta; null = ninguna todavia
+            this.openGroup = this.readGroup();   // carpeta desplegada en el rail
             this.destKey  = null;       // destino de la captura rapida: "listKey::secId"
             this.query    = '';
             this.filter   = 'pending';  // pending | all | done
@@ -175,6 +176,13 @@
             this.accent     = this.readAccent();
             this.chips      = this.readChips();   // que campos opcionales se pintan
             this.fieldsId   = null;               // tarea abierta en el editor de campos
+
+            // Conversacion con CoffeeClown. Vive en memoria: al cerrar la ventana se
+            // pierde, como cualquier chat que no se guarda.
+            this.chatOn   = false;      // el switch: false anota en la lista, true pregunta
+            this.chatMsgs = [];         // [{ role, text, tool }]
+            this.chatCtx  = null;       // key de la lista que lee; null = todas
+            this.chatBusy = false;
         }
 
         // ── Preferencia de archivado ────────────────────────────────────────
@@ -202,6 +210,86 @@
         }
 
         isArchived(key) { return this.archived.indexOf(key) !== -1; }
+
+        // ── Carpeta abierta ─────────────────────────────────────────────────
+        // El rail agrupa por carpeta y solo despliega una a la vez. Cual estaba
+        // abierta se recuerda entre sesiones: se vuelve al mismo sitio de trabajo
+        // sin volver a buscarlo.
+        groupKey() {
+            return global.coffeeScopedKey ? global.coffeeScopedKey(GROUP_KEY) : GROUP_KEY;
+        }
+
+        readGroup() {
+            try { return localStorage.getItem(this.groupKey()) || null; } catch (e) { return null; }
+        }
+
+        writeGroup() {
+            const value = this.openGroup || '';
+            try { localStorage.setItem(this.groupKey(), value); } catch (e) {}
+            if (global.CoffeePrefs) global.CoffeePrefs.push(GROUP_KEY, value);
+        }
+
+        // La carpeta a la que pertenece una lista. `crumbs` ya viene resuelto por el
+        // servidor: el primer tramo es el proyecto para lo propio, el nombre de la
+        // carpeta comun para lo compartido y el del dueño para lo prestado.
+        groupOf(list) {
+            return (list.crumbs && list.crumbs[0]) || 'Biblioteca';
+        }
+
+        // Carpetas con su contenido, en el orden en que llegan las listas (el
+        // servidor ya las manda con mas pendientes primero).
+        groups(lists) {
+            const orden = [];
+            const mapa  = {};
+            lists.forEach((l) => {
+                const g = this.groupOf(l);
+                if (!mapa[g]) { mapa[g] = []; orden.push(g); }
+                mapa[g].push(l);
+            });
+            return orden.map((name) => ({
+                name:    name,
+                lists:   mapa[name],
+                pending: mapa[name].reduce((n, l) => n + l.pending, 0)
+            }));
+        }
+
+        // Primera lista con trabajo de una carpeta: es la que se abre al entrar en
+        // ella, para no dejar el panel en blanco.
+        firstOf(name) {
+            const dentro = this.visibleLists().filter((l) => this.groupOf(l) === name);
+            const conWork = dentro.filter((l) => l.total > 0);
+            return (conWork[0] || dentro[0] || null);
+        }
+
+        // Al abrir el cajon se vuelve a la carpeta donde se estaba trabajando y a su
+        // primera lista con tareas. Si esa carpeta ya no existe (se renombro, se
+        // vacio), se olvida en vez de dejar el rail sin nada desplegado.
+        restoreGroup() {
+            if (this.openKey !== null) return;
+            if (!this.openGroup) return;
+
+            const first = this.firstOf(this.openGroup);
+            if (!first) { this.openGroup = null; this.writeGroup(); return; }
+
+            this.openKey = first.key;
+            this.aimQuick(first);
+        }
+
+        // Abrir una lista deja desplegada su carpeta y la recuerda para la proxima.
+        rememberGroup(list) {
+            const g = this.groupOf(list);
+            if (this.openGroup === g) return;
+            this.openGroup = g;
+            this.writeGroup();
+        }
+
+        // Abrir una lista apunta ahi la captura rapida, salvo que el usuario haya
+        // fijado otro destino a mano.
+        aimQuick(list) {
+            if (!list || !this.canEdit(list) || !(list.sections || []).length) return;
+            if (this.destOf()) return;
+            this.destKey = list.key + '::' + list.sections[list.sections.length - 1].id;
+        }
 
         // ── Color de acento ─────────────────────────────────────────────────
         // Se pisan las tres variables --tdw-sky* sobre el propio velo: el CSS las
@@ -561,6 +649,7 @@
                 .done((res) => {
                     if (!res || !res.success) { this.fail(res && res.message); return; }
                     this.lists = res.lists || [];
+                    this.restoreGroup();
                     this.render();
                 })
                 .fail((xhr) => this.fail(this.reasonOf(xhr)))
@@ -706,18 +795,19 @@
             const withWork = mine.filter((l) => l.total > 0 || l.key === this.openKey);
             const empty    = mine.filter((l) => l.total === 0 && l.key !== this.openKey);
             const archived = this.lists.filter((l) => this.isArchived(l.key)).filter(matches);
-            const pending  = this.visibleLists().reduce((n, l) => n + l.pending, 0);
 
-            let html =
-                '<button class="tdw-item' + (this.openKey === null && !this.formOpen ? ' is-on' : '') + '" data-tdw="inbox" type="button">' +
-                  '<span class="tdw-item-dot">' + ico(ICON.inbox) + '</span>' +
-                  '<span class="tdw-item-main"><b>Bandeja</b><small>Pendientes de todas las carpetas</small></span>' +
-                  '<span class="tdw-count">' + pending + '</span>' +
-                '</button>';
+            let html = '';
 
-            if (withWork.length) {
-                html += '<div class="tdw-group" data-tdw="nogroup">Listas<span>' + withWork.length + '</span></div>';
-                html += withWork.map((l) => this.railItem(l)).join('');
+            // Carpetas: se ve el proyecto, no las 25 tareas de golpe. Solo se
+            // despliega una — la que se estaba usando.
+            const carpetas = this.groups(withWork);
+            if (carpetas.length) {
+                html += '<div class="tdw-group" data-tdw="nogroup">Carpetas<span>' + carpetas.length + '</span></div>';
+                html += carpetas.map((g) => {
+                    const abierta = this.openGroup === g.name || !!q;   // al buscar se abren todas
+                    return this.folderRow(g, abierta) +
+                           (abierta ? g.lists.map((l) => this.railItem(l, false, true)).join('') : '');
+                }).join('');
             }
             if (invited.length) {
                 html += this.groupRow('invited', 'Compartidas conmigo', invited.length, this.showInvited, ICON.users);
@@ -739,10 +829,28 @@
             this.icons();
         }
 
-        railItem(list, archived) {
+        // Fila de carpeta: nombre, cuantas listas tiene y cuanto queda dentro. El
+        // conteo va en el grupo y no en cada lista para que el rail se lea de un
+        // vistazo cuando esta plegado.
+        folderRow(group, open) {
+            const cls = 'tdw-folder' + (open ? ' is-open' : '') +
+                        (this.openGroup === group.name ? ' is-current' : '');
+            return '<button class="' + cls + '" data-tdw="folder" data-name="' + esc(group.name) + '" type="button">' +
+                     '<span class="tdw-folder-caret">' + ico(open ? ICON.down : ICON.right) + '</span>' +
+                     '<span class="tdw-item-dot">' + ico(ICON.folder) + '</span>' +
+                     '<span class="tdw-item-main">' +
+                       '<b>' + esc(group.name) + '</b>' +
+                       '<small>' + plural(group.lists.length, 'lista', 'listas') + '</small>' +
+                     '</span>' +
+                     '<span class="tdw-count' + (group.pending === 0 ? ' is-clear' : '') + '">' + group.pending + '</span>' +
+                   '</button>';
+        }
+
+        railItem(list, archived, nested) {
             const on = this.openKey === list.key && !this.formOpen;
             const countCls = 'tdw-count' + (list.total > 0 && list.pending === 0 ? ' is-clear' : '');
-            return '<button class="tdw-item' + (on ? ' is-on' : '') + (archived ? ' is-archived' : '') + '" ' +
+            return '<button class="tdw-item' + (on ? ' is-on' : '') + (archived ? ' is-archived' : '') +
+                        (nested ? ' is-child' : '') + '" ' +
                         'data-tdw="pick" data-key="' + esc(list.key) + '" type="button" title="' + esc(list.pathLabel) + '">' +
                      '<span class="tdw-item-dot">' + ico(this.isInvited(list) ? ICON.users : ICON.list) + '</span>' +
                      '<span class="tdw-item-main"><b>' + esc(list.title) + '</b><small>' + esc(list.pathLabel) + '</small></span>' +
@@ -788,12 +896,14 @@
         }
 
         paintMain() {
+            // El chat ocupa el panel entero: es una conversacion, no una franja.
+            if (this.chatOn)           { this.renderChat(); return; }
             if (this.formOpen)         { this.renderForm(); return; }
             if (this.query.length >= 2) { this.renderSearch(); return; }
-            if (this.openKey === null)  { this.renderInbox(); return; }
+            if (this.openKey === null)  { this.renderPick(); return; }
 
             const list = this.listByKey(this.openKey);
-            if (!list) { this.openKey = null; this.renderInbox(); return; }
+            if (!list) { this.openKey = null; this.renderPick(); return; }
             if (this.shareOpen)         { this.renderShare(list); return; }
 
             this.$main.attr('data-listkey', list.key).html(this.listViewHtml(list) + this.quickBar());
@@ -1200,34 +1310,36 @@
 
         // Bandeja: los pendientes de todas las listas en una sola corriente, cada
         // uno con el chip de donde vive. Es lo que se ve al entrar sin elegir nada.
-        renderInbox() {
-            const rows = [];
-            this.visibleLists().forEach((list) => {
-                (list.sections || []).forEach((sec) => {
-                    (sec.tasks || []).forEach((task) => {
-                        if (!this.keeps(task)) return;
-                        rows.push(this.taskRow(task, { key: list.key, secId: sec.id, label: list.title + ' · ' + sec.title }, this.canEdit(list)));
-                    });
-                });
-            });
+        // Sin lista abierta. Antes aqui vivia la Bandeja, que juntaba los pendientes
+        // de todas las carpetas: ver 25 tareas sueltas de cinco proyectos a la vez
+        // abruma mas de lo que ayuda. Ahora se elige carpeta y se trabaja en una.
+        renderPick() {
+            const carpetas = this.groups(this.visibleLists().filter((l) => l.total > 0));
 
-            const label = this.filter === 'done' ? 'hechas' : (this.filter === 'all' ? 'tareas' : 'pendientes');
-            this.$main.html(
+            this.$main.removeAttr('data-listkey').html(
                 '<div class="tdw-main-head">' +
                   '<div class="tdw-mh-row">' +
                     '<div class="tdw-mh-title">' +
-                      '<h3>Bandeja</h3>' +
-                      '<div class="tdw-crumb">' + ico(ICON.layers) + rows.length + ' ' + label + ' de ' +
-                        plural(this.visibleLists().filter((l) => l.total > 0).length, 'lista', 'listas') + ' · agrupadas por lista</div>' +
-                    '</div>' +
-                    '<div class="tdw-mh-actions">' +
-                      '<button class="tdw-btn" data-tdw="inboxprompt" type="button" title="Copiar todo como prompt">' + ico(ICON.copy) + '<span>Copiar prompt</span></button>' +
+                      '<h3>Tus carpetas</h3>' +
+                      '<div class="tdw-crumb">' + ico(ICON.folder) +
+                        plural(carpetas.length, 'carpeta', 'carpetas') + ' · elige en cuál trabajar' +
+                      '</div>' +
                     '</div>' +
                   '</div>' +
                 '</div>' +
                 '<div class="tdw-scroll">' +
-                  (rows.length ? rows.join('') : this.emptyBlock(ICON.inbox, 'Nada por hacer aquí',
-                        this.filter === 'pending' ? 'No te queda ningún pendiente en la biblioteca.' : 'Ninguna tarea coincide con este filtro.')) +
+                  (carpetas.length
+                    ? '<div class="tdw-picks">' + carpetas.map((g) =>
+                        '<button class="tdw-pick" data-tdw="folder" data-name="' + esc(g.name) + '" type="button">' +
+                          '<span class="tdw-pick-dot">' + ico(ICON.folder) + '</span>' +
+                          '<span class="tdw-pick-main">' +
+                            '<b>' + esc(g.name) + '</b>' +
+                            '<small>' + plural(g.lists.length, 'lista', 'listas') + '</small>' +
+                          '</span>' +
+                          '<span class="tdw-count' + (g.pending === 0 ? ' is-clear' : '') + '">' + g.pending + '</span>' +
+                        '</button>').join('') + '</div>'
+                    : this.emptyBlock(ICON.empty, 'Todavía no hay listas con tareas',
+                        'Crea una lista o abre un todo.json de tu biblioteca.')) +
                 '</div>' +
                 this.quickBar()
             );
@@ -1276,15 +1388,38 @@
             this.icons();
         }
 
+        // La barra de abajo es una sola para los dos modos: el switch decide si lo
+        // que escribes se guarda en la lista o se lo preguntas a CoffeeClown.
         quickBar() {
-            return '<div class="tdw-quick">' +
-                     '<div class="tdw-quick-in">' + ico(ICON.zap) +
-                       '<input type="text" id="tdwQuick" placeholder="Capturar tarea rápida…" maxlength="240" autocomplete="off">' +
-                       '<button class="tdw-dest" data-tdw="dest" type="button">' + ico(ICON.dest) + '<span>Elegir destino</span></button>' +
-                       '<span class="tdw-kbd">↵</span>' +
+            const ask = this.chatOn;
+            return '<div class="tdw-quick' + (ask ? ' is-ask' : '') + '">' +
+                     '<div class="tdw-swap" role="group" aria-label="A dónde va lo que escribes">' +
+                       '<button type="button" data-tdw="mode" data-mode="note" aria-pressed="' + (!ask) + '">' +
+                         ico(ICON.zap) + '<span>Anotar</span>' +
+                       '</button>' +
+                       '<button type="button" class="is-ia" data-tdw="mode" data-mode="ask" aria-pressed="' + ask + '">' +
+                         ico(ICON.wand) + '<span>Preguntar</span>' +
+                       '</button>' +
                      '</div>' +
-                     '<button class="tdw-send" data-tdw="send" type="button" title="Anotar">' + ico(ICON.send) + '</button>' +
+                     '<div class="tdw-quick-in">' + ico(ask ? ICON.wand : ICON.zap) +
+                       '<input type="text" id="tdwQuick" maxlength="' + (ask ? 500 : 240) + '" autocomplete="off"' +
+                         ' placeholder="' + (ask ? 'Pregunta sobre tus listas…' : 'Capturar tarea rápida…') + '">' +
+                       (ask
+                         ? '<button class="tdw-dest" data-tdw="chatctx" type="button" title="Qué listas lee">' +
+                             ico(ICON.dest) + '<span>' + esc(this.chatCtxLabel()) + '</span></button>'
+                         : '<button class="tdw-dest" data-tdw="dest" type="button">' + ico(ICON.dest) + '<span>Elegir destino</span></button>' +
+                           '<span class="tdw-kbd">↵</span>') +
+                     '</div>' +
+                     '<button class="tdw-send" data-tdw="send" type="button" title="' + (ask ? 'Preguntar' : 'Anotar') + '">' +
+                       ico(this.chatBusy ? ICON.spin : ICON.send) +
+                     '</button>' +
                    '</div>';
+        }
+
+        chatCtxLabel() {
+            if (!this.chatCtx) return 'Lee: todas';
+            const list = this.listByKey(this.chatCtx);
+            return 'Lee: ' + (list ? list.title : 'todas');
         }
 
         // ── Destino de la captura rapida ────────────────────────────────────
@@ -1578,22 +1713,270 @@
                    'Usando las reglas de CoffeeSoft /coffee-ia';
         }
 
-        // La Bandeja se copia agrupada por lista: sin el encabezado de cada una, un
-        // pegote de 33 renglones no dice de que proyecto es cada tarea.
-        inboxPrompt() {
-            const blocks = [];
-            this.visibleLists().forEach((list) => {
-                const pend = [];
-                (list.sections || []).forEach((sec) => {
-                    (sec.tasks || []).forEach((t) => { if (!t.done) pend.push('- [ ] ' + sec.title + ': ' + t.text); });
-                });
-                if (pend.length) blocks.push('## ' + list.title + ' (' + list.pathLabel + ')\n' + pend.join('\n'));
-            });
-            if (!blocks.length) return '';
 
-            return 'Estos son todos mis pendientes:\n\n' + blocks.join('\n\n') +
-                   '\n\nDime en qué orden los atacarías y por qué.\n\n' +
-                   'Usando las reglas de CoffeeSoft /coffee-ia';
+        // ── CoffeeClown: la conversacion ────────────────────────────────────
+        // El agente LEE el cajon (todo_list / todo_read / todo_stats) y responde.
+        // Nunca escribe: para eso esta todo_propose, que sigue pasando por la
+        // tarjeta de casillas que aprueba el usuario.
+        renderChat() {
+            this.$main.removeAttr('data-listkey').html(
+                this.chatHeadHtml() + '<div class="tdw-thread" id="tdwThread">' + this.threadHtml() + '</div>' + this.quickBar()
+            );
+            this.icons();
+            this.scrollChat();
+        }
+
+        chatHeadHtml() {
+            const list = this.chatCtx ? this.listByKey(this.chatCtx) : null;
+            return '<div class="tdw-main-head tdw-chathead">' +
+                     '<div class="tdw-mh-row">' +
+                       '<span class="tdw-badge">' + ico(ICON.wand) + '</span>' +
+                       '<div class="tdw-mh-title">' +
+                         '<h3>CoffeeClown</h3>' +
+                         '<div class="tdw-crumb">' + ico(ICON.list) +
+                           '<span>Leyendo ' + esc(list
+                             ? list.pathLabel
+                             : 'tus ' + plural(this.visibleLists().length, 'lista', 'listas')) + '</span>' +
+                         '</div>' +
+                       '</div>' +
+                       '<div class="tdw-mh-actions">' +
+                         (this.chatMsgs.length
+                           ? '<button class="tdw-btn" data-tdw="chatnew" type="button">' + ico(ICON.plus) + '<span>Nueva</span></button>'
+                           : '') +
+                         '<button class="tdw-btn" data-tdw="mode" data-mode="note" type="button">' +
+                           ico(ICON.back) + '<span>Volver a la lista</span>' +
+                         '</button>' +
+                       '</div>' +
+                     '</div>' +
+                   '</div>';
+        }
+
+        threadHtml() {
+            if (!this.chatMsgs.length) return this.chatEmptyHtml();
+
+            return this.chatMsgs.map((m) => {
+                if (m.role === 'user') return '<p class="tdw-me">' + esc(m.text) + '</p>';
+                return '<div class="tdw-msg">' +
+                         '<span class="tdw-msg-av">' + ico(ICON.wand) + '</span>' +
+                         '<div class="tdw-msg-body">' +
+                           (m.tool ? '<span class="tdw-tool' + (m.pending ? ' is-live' : '') + '">' + ico(ICON.list) +
+                                       '<code>' + esc(m.tool) + '</code></span>' : '') +
+                           this.replyHtml(m.text) +
+                         '</div>' +
+                       '</div>';
+            }).join('');
+        }
+
+        // Las sugerencias son las dos preguntas que el cajon no sabia responder:
+        // que se repite entre proyectos, y como va uno concreto.
+        chatEmptyHtml() {
+            const list = this.listByKey(this.openKey);
+            const sugerencias = [
+                ['¿Qué es lo que más corrijo?', 'lee todas tus listas y agrupa'],
+                list ? ['¿Cómo va ' + list.title + '?', 'estado y lo que falta'] : null,
+                ['¿Qué se repite entre proyectos?', 'lo que ya merece ser regla'],
+                ['¿Qué tengo pendiente hoy?', 'todo lo abierto, junto']
+            ].filter(Boolean);
+
+            return '<div class="tdw-chat-empty">' +
+                     '<span class="tdw-chat-big">' + ico(ICON.wand) + '</span>' +
+                     '<h4>CoffeeClown</h4>' +
+                     '<p>Leo tus listas y te digo qué se está repitiendo. También respondo por proyecto: qué falta y qué bloquea.</p>' +
+                     '<div class="tdw-sugg">' +
+                       sugerencias.map((s) =>
+                         '<button type="button" data-tdw="sugg" data-q="' + esc(s[0]) + '">' +
+                           esc(s[0]) + '<em>' + esc(s[1]) + '</em>' +
+                         '</button>').join('') +
+                     '</div>' +
+                   '</div>';
+        }
+
+        // ── Respuesta del modelo ────────────────────────────────────────────
+        // Markdown minimo (negritas, `codigo`) mas los dos bloques propios del
+        // cajon: ```repeticiones (patrones) y ```tareas (citas de tareas reales).
+        replyHtml(raw) {
+            const txt = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            if (!txt) return '<p>—</p>';
+
+            const out   = [];
+            const bloque = /```(repeticiones|tareas)\s*([\s\S]*?)```/g;
+            let last = 0, m;
+
+            while ((m = bloque.exec(txt)) !== null) {
+                const antes = txt.slice(last, m.index).trim();
+                if (antes) out.push(this.proseHtml(antes));
+                out.push(m[1] === 'repeticiones' ? this.repsHtml(m[2]) : this.citesHtml(m[2]));
+                last = bloque.lastIndex;
+            }
+            const resto = txt.slice(last).trim();
+            if (resto) out.push(this.proseHtml(resto));
+
+            return out.join('') || this.proseHtml(txt);
+        }
+
+        proseHtml(txt) {
+            return txt.split(/\n{2,}/).map((p) =>
+                '<p>' + esc(p.trim())
+                    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>') +
+                '</p>'
+            ).join('');
+        }
+
+        // El bloque de patrones: lo que el modelo emite como JSON, pintado como
+        // lista ordenada por cuantos proyectos alcanza cada uno.
+        repsHtml(json) {
+            let data = null;
+            try { data = JSON.parse(String(json).trim()); } catch (e) { data = null; }
+            const pats = data && Array.isArray(data.patrones) ? data.patrones : [];
+            if (!pats.length) return this.proseHtml(String(json).trim());
+
+            const max = Math.max.apply(null, pats.map((p) => Number(p.listas) || 0).concat([1]));
+
+            return '<div class="tdw-reps">' +
+                     '<div class="tdw-reps-head">' + ico(ICON.layers) +
+                       esc(data.titulo || 'Lo que más se repite') +
+                       '<em>ordenado por proyectos alcanzados</em>' +
+                     '</div>' +
+                     pats.slice(0, 6).map((p, i) => {
+                         const listas = Number(p.listas) || 0;
+                         const donde  = Array.isArray(p.donde) ? p.donde : [];
+                         return '<div class="tdw-rep' + (i === 0 ? ' is-first' : '') + '">' +
+                                  '<span class="tdw-rep-n">' + (i < 9 ? '0' : '') + (i + 1) + '</span>' +
+                                  '<span class="tdw-rep-t">' + esc(p.nombre || '') + '</span>' +
+                                  '<span class="tdw-rep-m"><b>' + (Number(p.tareas) || 0) + '</b> tareas · ' +
+                                    donde.slice(0, 4).map((d) => '<i>' + esc(d) + '</i>').join('') +
+                                    (donde.length > 4 ? '<i>+' + (donde.length - 4) + '</i>' : '') +
+                                  '</span>' +
+                                  (p.ejemplo ? '<span class="tdw-rep-q">“' + esc(p.ejemplo) + '”</span>' : '') +
+                                  '<span class="tdw-rep-bar"><i style="width:' + Math.round(listas / max * 100) + '%"></i></span>' +
+                                '</div>';
+                     }).join('') +
+                   '</div>';
+        }
+
+        // Tareas citadas: se pulsan y el cajon salta a esa tarea, resaltada.
+        citesHtml(json) {
+            let arr = null;
+            try { arr = JSON.parse(String(json).trim()); } catch (e) { arr = null; }
+            if (!Array.isArray(arr) || !arr.length) return '';
+
+            return '<div class="tdw-cites">' +
+                     arr.slice(0, 8).map((t) => {
+                         const text = typeof t === 'string' ? t : String(t && t.text || '');
+                         if (!text) return '';
+                         return '<button class="tdw-cite" type="button" data-tdw="cite" data-text="' + esc(text) + '">' +
+                                  ico(ICON.dest) + '<span>' + esc(text) + '</span>' +
+                                '</button>';
+                     }).join('') +
+                   '</div>';
+        }
+
+        // ── Envio ───────────────────────────────────────────────────────────
+        ask(text) {
+            if (this.chatBusy || !text) return;
+
+            this.chatMsgs.push({ role: 'user', text: text });
+            this.chatMsgs.push({ role: 'ai', text: '', tool: 'leyendo tus listas…', pending: true });
+            this.chatBusy = true;
+            this.renderChat();
+
+            const historial = this.chatMsgs
+                .filter((m) => !m.pending && String(m.text).trim() !== '')
+                .slice(-8)
+                .map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+            fetch(API_IA, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    messages:     historial,
+                    model:        IA_MODEL,
+                    agentKey:     'coffee-clown.md',
+                    useAgentSoul: true,
+                    surface:      'todo',
+                    systemExtra:  this.chatCtx
+                        ? 'El usuario esta mirando la lista "' + this.chatCtxLabel().replace('Lee: ', '') +
+                          '". Si pregunta sin nombrar otra, se refiere a esa.'
+                        : ''
+                })
+            })
+                .then((r) => r.json())
+                .then((data) => {
+                    const last = this.chatMsgs[this.chatMsgs.length - 1];
+                    last.pending = false;
+                    if (!data || !data.ok) {
+                        last.text = 'No pude responder: ' + ((data && data.error) || 'la IA no contestó');
+                        last.tool = '';
+                    } else {
+                        last.text = String(data.reply || '').trim() || 'Me quedé sin respuesta. Vuelve a preguntar.';
+                        last.tool = data.model || IA_MODEL;
+                    }
+                    // El modelo tambien puede proponer tareas: la tarjeta de casillas
+                    // es la misma de siempre, nada se escribe sin que la aceptes.
+                    if (data && data.proposal) {
+                        this.chatBusy = false;
+                        this.renderChat();
+                        this.proposal(data.proposal, $('#tdwThread'), {});
+                        this.scrollChat();
+                        return;
+                    }
+                    this.chatBusy = false;
+                    this.renderChat();
+                })
+                .catch((e) => {
+                    const last = this.chatMsgs[this.chatMsgs.length - 1];
+                    last.pending = false;
+                    last.tool = '';
+                    last.text = 'No pude responder: ' + (e.message || 'falló la conexión');
+                    this.chatBusy = false;
+                    this.renderChat();
+                });
+        }
+
+        scrollChat() {
+            const el = document.getElementById('tdwThread');
+            if (el) el.scrollTop = el.scrollHeight;
+        }
+
+        setMode(mode) {
+            const ask = mode === 'ask';
+            if (this.chatOn === ask) return;
+            this.chatOn  = ask;
+            // Al encender, lee la lista abierta; en la Bandeja las lee todas.
+            if (ask && this.chatCtx === null) this.chatCtx = this.openKey;
+            this.renderMain();
+            $('#tdwQuick').trigger('focus');
+        }
+
+        // Salta a la tarea que el agente cito: apaga el chat y la resalta.
+        gotoTask(text) {
+            const needle = String(text || '').trim().toLowerCase();
+            if (!needle) return;
+
+            let destino = null;
+            this.visibleLists().forEach((list) => {
+                (list.sections || []).forEach((sec) => {
+                    (sec.tasks || []).forEach((t) => {
+                        if (!destino && String(t.text || '').trim().toLowerCase() === needle) {
+                            destino = { key: list.key, id: t.id };
+                        }
+                    });
+                });
+            });
+
+            if (!destino) { this.flash('Esa tarea ya no está en tus listas', 'error'); return; }
+
+            this.chatOn  = false;
+            this.openKey = destino.key;
+            this.render();
+
+            const $row = this.$main.find('.tdw-task[data-id="' + destino.id + '"]');
+            if (!$row.length) return;
+            $row.addClass('is-cited');
+            $row.get(0).scrollIntoView({ block: 'center', behavior: 'smooth' });
+            setTimeout(() => $row.removeClass('is-cited'), 2600);
         }
 
         // ── Mejorar la tarea con IA ─────────────────────────────────────────
@@ -1808,33 +2191,44 @@
 
             $v.on('click', '[data-tdw="back"]', () => this.backToRail());
 
-            $v.on('click', '[data-tdw="inbox"]', function () {
+            // Carpeta: se despliega y se entra en su primera lista. Volver a
+            // pulsarla la pliega y deja el panel en la eleccion de carpeta.
+            $v.on('click', '[data-tdw="folder"]', function () {
+                const name = String($(this).data('name') || '');
                 self.closeForm();
                 self.closeShare();
-                self.openKey = null;
+
+                if (self.openGroup === name && self.openKey !== null) {
+                    self.openGroup = null;
+                    self.openKey   = null;
+                } else {
+                    self.openGroup = name;
+                    const first = self.firstOf(name);
+                    self.openKey = first ? first.key : null;
+                    if (first) self.aimQuick(first);
+                }
+                self.writeGroup();
                 self.render();
-                self.showDetail();
+                if (self.openKey !== null) self.showDetail();
             });
 
             $v.on('click', '[data-tdw="pick"]', function () {
                 self.closeForm();
                 self.closeShare();
                 self.openKey = $(this).data('key');
-                // Abrir una lista apunta ahi la captura rapida, salvo que el
-                // usuario haya fijado otro destino a mano.
                 const list = self.listByKey(self.openKey);
-                if (list && self.canEdit(list) && (list.sections || []).length && !self.destOf()) {
-                    self.destKey = list.key + '::' + list.sections[list.sections.length - 1].id;
-                }
+                if (list) { self.aimQuick(list); self.rememberGroup(list); }
                 self.render();
                 self.showDetail();
             });
 
-            // Chip de origen en la Bandeja / busqueda: salta a esa lista.
+            // Chip de origen en la busqueda: salta a esa lista y a su carpeta.
             $v.on('click', '[data-tdw="goto"]', function (e) {
                 e.stopPropagation();
                 self.closeShare();
                 self.openKey = $(this).closest('.tdw-task').data('key');
+                const list = self.listByKey(self.openKey);
+                if (list) self.rememberGroup(list);
                 self.query = '';
                 $('#tdwSearch').val('');
                 self.render();
@@ -1852,12 +2246,6 @@
                 const txt = self.promptOf(list);
                 if (!txt) return self.flash('Esta lista no tiene tareas pendientes', 'error');
                 self.copy(txt, 'Prompt de la lista copiado', $(this));
-            });
-
-            $v.on('click', '[data-tdw="inboxprompt"]', function () {
-                const txt = self.inboxPrompt();
-                if (!txt) return self.flash('No tienes tareas pendientes', 'error');
-                self.copy(txt, 'Pendientes copiados como prompt', $(this));
             });
 
             $v.on('click', '[data-tdw="clearcompleted"]', function () {
@@ -2157,14 +2545,54 @@
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
                 const v = this.value.trim();
-                if (v && self.quickAdd(v)) this.value = '';
+                if (!v) return;
+                // El switch decide el destino de lo que acabas de escribir.
+                if (self.chatOn)            { this.value = ''; self.ask(v); return; }
+                if (self.quickAdd(v))       this.value = '';
             });
 
             $v.on('click', '[data-tdw="send"]', function () {
                 const $in = $('#tdwQuick');
                 const v = String($in.val() || '').trim();
-                if (v && self.quickAdd(v)) $in.val('');
+                if (!v) { $in.trigger('focus'); return; }
+                if (self.chatOn)      { $in.val(''); self.ask(v); return; }
+                if (self.quickAdd(v)) $in.val('');
                 $in.trigger('focus');
+            });
+
+            // ── CoffeeClown ──────────────────────────────────────────────────
+            $v.on('click', '[data-tdw="mode"]', function () {
+                self.setMode($(this).data('mode'));
+            });
+
+            $v.on('click', '[data-tdw="sugg"]', function () {
+                self.ask(String($(this).data('q') || ''));
+            });
+
+            $v.on('click', '[data-tdw="cite"]', function () {
+                self.gotoTask($(this).data('text'));
+            });
+
+            $v.on('click', '[data-tdw="chatnew"]', function () {
+                self.chatMsgs = [];
+                self.renderChat();
+            });
+
+            // Que listas lee: todas, o una sola. Menu nativo, como el destino de la
+            // captura rapida — es una eleccion ocasional.
+            $v.on('click', '[data-tdw="chatctx"]', function () {
+                const opciones = ['<option value="">Todas mis listas</option>'].concat(
+                    self.visibleLists().map((l) =>
+                        '<option value="' + esc(l.key) + '"' + (self.chatCtx === l.key ? ' selected' : '') + '>' +
+                        esc(l.title + ' — ' + l.pathLabel) + '</option>')
+                );
+                const $sel = $('<select class="tdw-dest"></select>').html(opciones.join(''));
+                $(this).replaceWith($sel);
+                $sel.trigger('focus');
+                $sel.on('change blur', () => {
+                    self.chatCtx = String($sel.val() || '') || null;
+                    self.renderChat();
+                });
             });
         }
 

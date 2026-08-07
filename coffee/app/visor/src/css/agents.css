@@ -566,6 +566,29 @@
     font-size: .8rem;
     font-weight: 600;
     color: var(--vsr-text-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Alcance de la herramienta. La casilla no distingue "abierta a todos" de
+   "limitada a estos, que hoy son todos": se ven iguales, pero solo la abierta la
+   hereda un agente creado despues. */
+.agt-tool-scope {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    background: rgba(148, 163, 184, .16);
+    color: var(--vsr-text-muted);
+    cursor: help;
+}
+.agt-tool-scope.is-limited {
+    background: var(--vsr-accent-tint);
+    color: var(--vsr-accent-soft);
 }
 
 .agt-tool-key {

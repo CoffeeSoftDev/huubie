@@ -455,12 +455,24 @@ function coffeeia_build_context(array $body) {
                 $fsRoot = $det['path'];
                 $fsFromMessage = true;
             } elseif ($det && !empty($det['candidates'])) {
-                $systemBlock .= "\n\n=== CARPETA ===\n"
-                    . "El usuario menciono una carpeta ambigua (varias con el mismo nombre). "
-                    . "Candidatos (ruta relativa): "
-                    . implode(', ', array_map('fs_rel_to_root', $det['candidates']))
-                    . ". Pide que elija una escribiendo un fragmento distintivo de la ruta "
-                    . "(p.ej. la carpeta padre) antes de continuar.\n";
+                // Ambiguo: hay varias carpetas con ese nombre. Sin raiz elegida no se
+                // habilitan list_dir/read_file/grep_files, y el modelo tiende a
+                // concluir que "no tiene herramientas" o a buscar el proyecto en
+                // GitHub. Por eso el aviso es explicito sobre que SI las tendra.
+                $rel = array_map('fs_rel_to_root', $det['candidates']);
+                $lista = '';
+                foreach (array_values($rel) as $i => $r) $lista .= "\n  " . ($i + 1) . ". " . $r;
+                $systemBlock .= "\n\n=== CARPETA AMBIGUA — PIDE QUE ELIJA ===\n"
+                    . "La carpeta que nombro el usuario EXISTE, pero hay " . count($rel)
+                    . " con ese mismo nombre y todavia no se eligio cual:" . $lista . "\n"
+                    . "En cuanto responda con una (basta la carpeta padre, p.ej. \"la de "
+                    . (isset($rel[0]) ? explode('/', $rel[0])[max(0, count(explode('/', $rel[0])) - 2)] : 'esa ruta')
+                    . "\"), quedaras conectado y tendras list_dir, read_file y grep_files\n"
+                    . "para leer su codigo real.\n"
+                    . "En este turno: pregunta cual de esas rutas es, y nada mas.\n"
+                    . "NO digas que no tienes herramientas de lectura de archivos ni que el proyecto\n"
+                    . "no esta disponible. NO busques el proyecto en internet ni con fetch_url. NO pidas\n"
+                    . "que te peguen el contenido de los archivos.\n";
             } elseif ($folderConnect !== '') {
                 // Sin carpeta nombrada en este mensaje: mantiene la conexion pegajosa.
                 $fsRoot = fs_canonical_folder($folderConnect);
@@ -719,6 +731,23 @@ function coffeeia_inject_sample_rows(array $messages, $schema, $maxTables = 3, $
  * @param callable $onStatus  fn(string) opcional para avisar al UI.
  * @return array{final: string, usage: array, rounds: int, truncated: bool}
  */
+/**
+ * Devuelve las llamadas del modelo listas para reenviarse en el historial.
+ *
+ * Una herramienta SIN argumentos llega como `arguments: {}`; json_decode lo deja en
+ * un array PHP vacio y al re-serializarlo sale `[]`, que ya no es un objeto. Ollama
+ * rechaza ese turno con "Value looks like object, but can't find closing '}' symbol"
+ * y el loop muere despues de la primera llamada. Se fuerza el objeto vacio.
+ */
+function coffeeia_tool_calls_safe(array $toolCalls) {
+    foreach ($toolCalls as $i => $tc) {
+        if (!isset($tc['function']['arguments'])) continue;
+        $args = $tc['function']['arguments'];
+        if (is_array($args) && empty($args)) $toolCalls[$i]['function']['arguments'] = (object) [];
+    }
+    return $toolCalls;
+}
+
 function coffeeia_run_tool_loop($client, array $messages, $model, array $ctx, array $phases, $closing, callable $onStatus = null, $maxRounds = 6) {
     $sources = [];
     if (!empty($ctx['fs'])) $sources[] = 'fs';
@@ -771,7 +800,7 @@ function coffeeia_run_tool_loop($client, array $messages, $model, array $ctx, ar
         $messages[] = [
             'role'       => 'assistant',
             'content'    => (string)($res['content'] ?? ''),
-            'tool_calls' => $toolCalls,
+            'tool_calls' => coffeeia_tool_calls_safe($toolCalls),
         ];
         foreach ($toolCalls as $tc) {
             $fn  = $tc['function']['name'] ?? '';

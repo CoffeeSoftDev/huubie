@@ -528,7 +528,7 @@ class App extends Templates {
                     <div>
                         <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
                         <div class="flex items-center gap-2 mt-1">
-                            ${badgeTipo}
+                            <span id="orderDeliveryBadge">${badgeTipo}</span>
                             <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
                                 ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
                             </span>
@@ -648,10 +648,9 @@ class App extends Templates {
     }
 
     // Acciones del pedido en el panel de detalles. Se pintan igual al abrir el modal y
-    // al refrescarlo despues de un cambio, por eso viven en un solo lugar.
-    // Un pedido "para producir" (is_delivered 2) ya no admite cobro ni descuento, pero
-    // sus datos de entrega si se pueden corregir. Liquidado (3) o cancelado (4) no
-    // admite ninguna: esa edicion vive en el listado, que pide autorizacion.
+    // al refrescarlo despues de un cambio, por eso viven en un solo lugar. Editar los
+    // datos de entrega no esta aqui: es el icono del titulo de la tarjeta que los
+    // muestra (editDeliveryIcon).
     orderActions(orderData, orderId) {
         const cerrado    = orderData.status == '3' || orderData.status == '4';
         const operable   = !cerrado && orderData.is_delivered != '2';
@@ -663,12 +662,6 @@ class App extends Templates {
             <button onclick="app.historyPay(${orderId})"
                 class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                 ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
-            </button>`);
-
-        if (!cerrado && !this.isSupervisor) botones.push(`
-            <button onclick="app.editOrderDelivery(${orderId})"
-                class="flex items-center justify-center gap-1.5 bg-slate-600 hover:bg-slate-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
-                ${lucideIcon('pencil', 'w-3.5 h-3.5')} Editar
             </button>`);
 
         if (operable) botones.push(`
@@ -775,12 +768,32 @@ class App extends Templates {
         });
     }
 
+    // Editar los datos de entrega vive junto al titulo de la tarjeta que los muestra,
+    // no en la barra de acciones. Un pedido liquidado (3) lo corrigen admin y
+    // supervisores, y ahi la edicion pide contraseña; el resto de los pedidos, cualquiera
+    // que opere el calendario. El cancelado (4) no se edita.
+    editDeliveryIcon(orderData) {
+        const liquidado  = orderData.status == '3';
+        const autorizado = this.isAdmin || this.isSupervisor;
+        const editable   = orderData.status != '4' && (!liquidado || autorizado);
+
+        if (!editable) return '';
+
+        return `
+            <button onclick="app.editOrderDelivery(${orderData.id})"
+                title="${liquidado ? 'Editar datos de entrega (requiere contraseña)' : 'Editar datos de entrega'}"
+                class="ml-auto flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                ${lucideIcon('pencil', 'w-4 h-4')}
+            </button>`;
+    }
+
     infoOrder(orderData) {
         return `
             <div class="bg-[#2C3E50] rounded-lg p-3">
                 <h3 class="text-white font-semibold text-base mb-2 flex items-center">
                     ${lucideIcon('info', 'w-4 h-4 text-blue-400 mr-2')}
                     Información del Pedido
+                    ${this.editDeliveryIcon(orderData)}
                 </h3>
 
                 <div class="space-y-1.5">
@@ -794,6 +807,12 @@ class App extends Templates {
                         ${lucideIcon('user', 'w-4 h-4 text-gray-400 shrink-0')}
                         <span class="text-gray-400 text-xs">Cliente:</span>
                         <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.name || 'N/A'}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        ${lucideIcon('history', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Creado:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${this.formatDateTime(orderData.date_creation) || 'N/A'}</span>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -834,7 +853,7 @@ class App extends Templates {
         }
     }
 
-    formatPaymentDate(dateStr) {
+    formatDateTime(dateStr) {
         if (!dateStr) return '';
         const d = new Date(String(dateStr).replace(' ', 'T'));
         if (isNaN(d.getTime())) return dateStr;
@@ -887,7 +906,7 @@ class App extends Templates {
                                             ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
                                             ${p.method_pay || 'Sin método'}
                                         </span>
-                                        <span class="text-gray-500 text-[11px]">${this.formatPaymentDate(p.date_pay)}</span>
+                                        <span class="text-gray-500 text-[11px]">${this.formatDateTime(p.date_pay)}</span>
                                     </div>
                                     <span class="text-green-400 font-bold text-sm whitespace-nowrap">$${parseFloat(p.pay || 0).toFixed(2)}</span>
                                 </div>
@@ -1230,12 +1249,14 @@ class App extends Templates {
             ${this.orderActions(orderData, orderId)}
             ${this.detailsCard(orderData, paymentMethods, payments)}
         `);
+        // El tipo de entrega se muestra en el encabezado del modal, fuera del panel.
+        $('#orderDeliveryBadge').html(this.getBadgeDeliveryType(orderData.delivery_type));
     }
 
     // Edicion acotada desde el calendario: solo los datos de entrega (fecha, hora,
     // tipo y descripcion). Cliente, productos y cobros se siguen editando desde el
     // listado de pedidos, que tiene el flujo completo y sus autorizaciones.
-    async editOrderDelivery(id) {
+    async editOrderDelivery(id, password = null) {
         const response = await useFetch({
             url: this._pedidosLink,
             data: { opc: 'getOrderDelivery', id: id }
@@ -1258,11 +1279,22 @@ class App extends Templates {
         const order = response.data;
         const { delivery_type, ...autofill } = order;
 
+        // Pedido liquidado: la contraseña se pide antes de abrir el formulario y se
+        // reenvia en data para que editOrderDelivery (ctrl) la revalide al guardar.
+        const liquidado = order.status == 3;
+
+        if (liquidado && !password) {
+            this.editOrderDeliveryPaid(id);
+            return;
+        }
+
         this._switchToPedidos();
 
         this.createModalForm({
             id: 'formEditDelivery',
-            data: { opc: 'editOrderDelivery', id: id },
+            data: password
+                ? { opc: 'editOrderDelivery', id: id, password: password }
+                : { opc: 'editOrderDelivery', id: id },
             autofill: autofill,
             bootbox: {
                 title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
@@ -1272,6 +1304,20 @@ class App extends Templates {
                 size: 'medium'
             },
             json: [
+                ...(liquidado ? [{
+                    opc: "div",
+                    id: "paidOrderNotice",
+                    class: "col-12 mb-3",
+                    html: `
+                        <div class="flex items-center gap-3 bg-amber-500/10 rounded-lg px-3 py-2">
+                            <i class="icon-lock text-amber-400 text-lg"></i>
+                            <div class="text-xs leading-relaxed">
+                                <b class="text-amber-100 block">Pedido liquidado — edición autorizada</b>
+                                <span class="text-amber-200/80">Solo se guardarán los datos de entrega.</span>
+                            </div>
+                        </div>
+                    `
+                }] : []),
                 {
                     opc: "input",
                     id: "date_order",
@@ -1363,6 +1409,49 @@ class App extends Templates {
         $('#formEditDelivery').closest('.bootbox').one('hidden.bs.modal', () => this._restoreLink());
 
         $(`#formEditDelivery input[name="delivery_type"][value="${String(delivery_type ?? 0)}"]`).prop('checked', true);
+    }
+
+    // Pedido liquidado: pide la contraseña antes de abrir el formulario de entrega, el
+    // mismo flujo que editOrderPaid en el listado. Se valida aqui para no descubrir una
+    // clave mal escrita hasta despues de capturar los cambios; la autorizacion real la
+    // vuelve a exigir editOrderDelivery() del controlador al guardar.
+    editOrderDeliveryPaid(id) {
+        this.alertBox({
+            theme:       'dark',
+            type:        'cancel',
+            icon:        'lock',
+            title:       'Pedido liquidado',
+            detailHtml:  'Ingresa tu contraseña para editar los datos de entrega.',
+            input:       'password',
+            inputLabel:  'Contraseña',
+            inputPlaceholder: '••••••••',
+            inputRequired: true,
+            inputError:  'Ingresa tu contraseña',
+            okLabel:     'Continuar',
+            cancelLabel: 'Cancelar',
+            onOk: async (password) => {
+                const res = await useFetch({
+                    url: this._pedidosLink,
+                    data: { opc: 'verifyOrderDeliveryKey', id: id, password: password }
+                });
+
+                if (res.status !== 200) {
+                    // Contraseña rechazada: se avisa y se vuelve a abrir el dialogo,
+                    // porque alertBox ya se cerro al confirmar.
+                    this.alertBox({
+                        theme:      'dark',
+                        type:       'error',
+                        title:      'No se puede editar',
+                        detailHtml: res.message || 'Contraseña incorrecta.',
+                        okLabel:    'Reintentar',
+                        onOk:       () => this.editOrderDeliveryPaid(id)
+                    });
+                    return;
+                }
+
+                this.editOrderDelivery(id, password);
+            }
+        });
     }
 
     async addDiscount(id) {
