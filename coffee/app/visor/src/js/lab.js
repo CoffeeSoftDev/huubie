@@ -117,6 +117,7 @@
         theme:       LAB_DEFAULT_THEME,   // sistema de diseño del iframe
         canvas:      false,               // modo lienzo: exige componente renderizable
         sandboxOn:   true,                // panel derecho visible
+        sbCollapsed: false,               // plegado a una franja (sigue visible)
         lastHtml:    '',                  // último render (descargar / abrir en pestaña)
         lastTheme:   LAB_DEFAULT_THEME,
         lastIsDoc:   false,
@@ -1018,6 +1019,7 @@
             if (s.theme && LAB_THEMES[s.theme])   LAB.theme     = s.theme;
             if (typeof s.canvas === 'boolean')    LAB.canvas    = s.canvas;
             if (typeof s.sandboxOn === 'boolean') LAB.sandboxOn = s.sandboxOn;
+            if (typeof s.sbCollapsed === 'boolean') LAB.sbCollapsed = s.sbCollapsed;
             if (s.splitW)                         LAB.splitW    = s.splitW;
             if (typeof s.zoom === 'number')       pg.zoom       = s.zoom;
             if (s.viewport && PG_VIEWPORTS[s.viewport]) pg.viewport = s.viewport;
@@ -1029,18 +1031,23 @@
         try {
             localStorage.setItem(LAB_SANDBOX_KEY, JSON.stringify({
                 theme: LAB.theme, canvas: LAB.canvas, sandboxOn: LAB.sandboxOn,
+                sbCollapsed: LAB.sbCollapsed,
                 splitW: LAB.splitW, zoom: pg.zoom, viewport: pg.viewport
             }));
         } catch (e) {}
     }
 
     function applySandboxUI() {
-        $('.lab-workspace').toggleClass('has-sandbox', LAB.sandboxOn);
+        // Contraido es distinto de oculto: el panel sigue en pantalla como franja.
+        // Solo aplica cuando el sandbox esta a la vista.
+        const collapsed = LAB.sandboxOn && LAB.sbCollapsed;
+        $('.lab-workspace').toggleClass('has-sandbox', LAB.sandboxOn)
+                           .toggleClass('sb-collapsed', collapsed);
         $('#labSandboxToggle').toggleClass('is-on', LAB.sandboxOn)
             .attr('title', LAB.sandboxOn ? 'Ocultar el sandbox' : 'Mostrar el sandbox');
-        $('.lab-sbtheme').toggleClass('is-off', !LAB.sandboxOn);
+        $('.lab-sbtheme').toggleClass('is-off', !LAB.sandboxOn || collapsed);
         $('#labSandboxTheme').val(LAB.theme);
-        if (LAB.sandboxOn) pgApplyZoom();
+        if (LAB.sandboxOn && !collapsed) pgApplyZoom();
     }
 
     function applyCanvasUI() {
@@ -1104,7 +1111,14 @@
     }
 
     function renderSandbox(html, isDoc) {
-        if (!LAB.sandboxOn) { LAB.sandboxOn = true; applySandboxUI(); saveSandboxPrefs(); }
+        // Llega algo que ver: el panel se abre y se despliega solo. Renderizar en una
+        // franja de 34px no le sirve a nadie.
+        if (!LAB.sandboxOn || LAB.sbCollapsed) {
+            LAB.sandboxOn   = true;
+            LAB.sbCollapsed = false;
+            applySandboxUI();
+            saveSandboxPrefs();
+        }
         $('#pgSandboxEmpty').hide();
 
         LAB.lastHtml  = html;
@@ -1802,6 +1816,24 @@
 
         $('#labSandboxToggle').on('click', function () {
             LAB.sandboxOn = !LAB.sandboxOn;
+            // Volver a mostrarlo lo trae desplegado: si no, reaparecia como una
+            // franja y parecia que el boton no habia hecho nada.
+            if (LAB.sandboxOn) LAB.sbCollapsed = false;
+            applySandboxUI();
+            saveSandboxPrefs();
+        });
+
+        // Contraer / desplegar. Al contraer, el chat se queda con todo el ancho y
+        // el sandbox deja su franja para volver.
+        $('#labSandboxCollapse').on('click', function (e) {
+            e.stopPropagation();
+            LAB.sbCollapsed = true;
+            applySandboxUI();
+            saveSandboxPrefs();
+        });
+        $('#labSandboxExpand').on('click', function (e) {
+            e.stopPropagation();
+            LAB.sbCollapsed = false;
             applySandboxUI();
             saveSandboxPrefs();
         });

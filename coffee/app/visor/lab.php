@@ -311,7 +311,16 @@
              pg-core.js espera para el viewport y el zoom; renombrarlos aquí
              obligaría a duplicar ese motor. -->
         <section class="pg-sandbox lab-sandbox">
+            <!-- Contraido: el panel se pliega a una franja con su asa, para conversar
+                 ancho sin perder de vista que el sandbox sigue ahi. -->
+            <button id="labSandboxExpand" class="lab-sb-rail" title="Volver a abrir el sandbox">
+                <i data-lucide="chevrons-left" class="w-4 h-4"></i>
+                <span class="lab-sb-rail-txt">Sandbox</span>
+            </button>
             <header class="pg-pane-head">
+                <button id="labSandboxCollapse" class="pg-iconbtn lab-sb-collapse" title="Contraer el sandbox">
+                    <i data-lucide="chevrons-right" class="w-3.5 h-3.5"></i>
+                </button>
                 <div class="pg-sandbox-tabs">
                     <button class="pg-tab active" data-sbtab="preview">
                         <i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview

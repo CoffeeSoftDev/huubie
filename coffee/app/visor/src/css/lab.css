@@ -567,6 +567,61 @@
    (que si crece) lo dejaria como una franja corta a media altura. */
 .lab-workspace #labSplitter { align-self: stretch; }
 
+/* ── Sandbox contraido ──────────────────────────────────────────────────────
+   Distinto de ocultarlo (el boton de la cabecera): contraido el panel sigue en
+   pantalla como una franja con su asa, asi que se recupera desde donde estaba y
+   no hay que acordarse de que existe un interruptor arriba. */
+.lab-sb-rail { display: none; }
+
+.lab-workspace.sb-collapsed .lab-sandbox {
+    flex: 0 0 34px;
+    min-width: 34px;
+    width: 34px;
+    overflow: hidden;
+    cursor: pointer;
+}
+.lab-workspace.sb-collapsed .lab-sandbox > *:not(.lab-sb-rail) { display: none; }
+.lab-workspace.sb-collapsed #labSplitter { display: none; }
+/* El chat se queda con el hueco que suelta el sandbox. */
+.lab-workspace.sb-collapsed .lab-chat { flex: 1 1 auto; }
+
+.lab-workspace.sb-collapsed .lab-sb-rail {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+    padding: 12px 0;
+    border: 0;
+    background: transparent;
+    color: var(--vsr-text-muted);
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    transition: color .13s ease, background .13s ease;
+}
+.lab-workspace.sb-collapsed .lab-sb-rail:hover {
+    color: var(--vsr-accent-soft);
+    background: var(--vsr-accent-tint);
+}
+.lab-sb-rail-txt {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+/* `writing-mode` pone en vertical TODO el contenido, tambien el icono. El texto es
+   lo que debe ir girado; la flecha vuelve a la horizontal para seguir apuntando a la
+   izquierda, que es hacia donde se despliega el panel. */
+.lab-workspace.sb-collapsed .lab-sb-rail svg {
+    writing-mode: horizontal-tb;
+    transform: none;
+    flex-shrink: 0;
+}
+
+/* El asa de contraer solo tiene sentido con el panel desplegado. */
+.lab-sb-collapse { flex-shrink: 0; }
+
 /* La leyenda del composer comparte fila con el boton Lienzo: cede espacio en vez
    de empujarlo fuera del drawer. */
 .lab-chat .ia-input-hint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
