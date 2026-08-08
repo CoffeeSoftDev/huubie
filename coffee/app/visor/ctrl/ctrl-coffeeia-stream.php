@@ -75,7 +75,7 @@ $scope       = ['surface' => $ctx['surface'] ?? '', 'agent' => $ctx['agent'] ?? 
 $toolsFallback = null;
 
 $t0       = microtime(true);
-$provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
+$provider = llm_provider_label($model);
 
 // URLs pegadas en el mensaje: ya se descargaron e inyectaron al contexto en
 // coffeeia_build_context (clonar paginas web). Se avisa para que el usuario
@@ -85,11 +85,11 @@ if (!empty($webPages)) {
     $send('thinking', ['t' => "\n[página web consultada: " . implode(', ', $webPages) . "]\n"]);
 }
 
-// Tope de rondas de herramientas POR PROVEEDOR. Ollama Cloud es tarifa plana:
-// se le da margen amplio para que explore la base/carpeta lo que haga falta y
-// SIEMPRE llegue a una respuesta. OpenRouter cobra por token (y el prompt crece
-// con cada ronda), así que ahí el tope es conservador.
-$isOR         = llm_is_openrouter_model($model);
+// Tope de rondas de herramientas POR PROVEEDOR. Ollama Cloud y OpenCode Go son
+// tarifa plana: se les da margen amplio para que exploren la base/carpeta lo que
+// haga falta y SIEMPRE lleguen a una respuesta. OpenRouter cobra por token (y el
+// prompt crece con cada ronda), así que ahí el tope es conservador.
+$isOR         = llm_is_metered_model($model);
 $dbRounds     = $isOR ? 6 : 12;
 $fsRounds     = $isOR ? ($canvasMode ? 10 : 6)  : ($canvasMode ? 14 : 10);
 $hybridRounds = $isOR ? ($canvasMode ? 12 : 8)  : ($canvasMode ? 16 : 12);

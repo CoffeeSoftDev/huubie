@@ -112,6 +112,11 @@
         ctxReal:  0,        // tokens que reportó el servidor en el último turno
         spend:    { tokens: 0, cost: 0 },
         uiTheme:  'dark',
+        // Carpeta local conectada. Es pegajosa: el backend solo entrega
+        // list_dir/read_file/grep_files si el turno viaja con una carpeta o si el
+        // mensaje nombra una. Reenviarla en cada turno evita que el agente pierda
+        // la lectura en cuanto dejas de nombrar el proyecto.
+        activeFolder: null,
 
         // ── Sandbox ──
         theme:       LAB_DEFAULT_THEME,   // sistema de diseño del iframe
@@ -223,8 +228,11 @@
             LAB.templates   = [];
             LAB.activeTplId = null;
             LAB.pinnedTplId = null;
+            // Cambiar de agente abre conversación nueva: la carpeta no se hereda.
+            LAB.activeFolder = null;
             try { localStorage.setItem('lab:agent', String(id)); } catch (e) {}
             renderConfig();
+            renderFolderChip();
             renderMessages();
             renderPinBanner();
             setDirty(false);
@@ -682,6 +690,9 @@
             surface:        'lab',
             agentKey:       LAB.current.agent.agent_key,
             canvasMode:     !!LAB.canvas,
+            // Conexion pegajosa a la carpeta: mientras haya una, el agente lee su
+            // codigo real aunque el mensaje no la vuelva a nombrar.
+            folderConnect:  LAB.activeFolder || '',
             // En modo lienzo el grimorio del tema viaja como contexto anclado: sin
             // él el agente solo tiene la nota del tema, no sus clases ni tokens.
             pinnedFiles:    LAB.canvas ? themeContext() : []
@@ -720,6 +731,10 @@
                     navigator.clipboard.writeText(reply);
                     toast('Respuesta copiada');
                 });
+
+                // El backend resolvio una carpeta (la nombro el usuario o venia
+                // pegajosa): la recordamos para los turnos siguientes.
+                if (meta && meta.fs) setActiveFolder(meta.fs);
 
                 if (meta && meta.prompt_tokens) LAB.ctxReal = Number(meta.prompt_tokens) || 0;
                 addSpend(meta);
@@ -949,6 +964,45 @@
                        '<button class="meta-iconbtn ia-copy-btn" title="Copiar respuesta"><i data-lucide="copy" class="w-3 h-3"></i></button>' +
                    '</span>' +
                '</div>';
+    }
+
+    /* ── Carpeta conectada (pegajosa por conversación) ──
+     * El backend solo entrega list_dir/read_file/grep_files si el turno viaja con
+     * una carpeta o si el mensaje nombra una. Guardarla aquí y reenviarla en cada
+     * payload es lo que evita que el agente pierda la lectura del proyecto en
+     * cuanto dejas de nombrarlo. */
+    function setActiveFolder(path) {
+        const antes = LAB.activeFolder;
+        LAB.activeFolder = path || null;
+        renderFolderChip();
+        if (LAB.activeFolder && LAB.activeFolder !== antes) {
+            toast('📁 Conectado a la carpeta ' + folderName(LAB.activeFolder));
+        }
+    }
+
+    function folderName(path) {
+        return String(path).replace(/[\/\\]+$/, '').split(/[\/\\]/).pop();
+    }
+
+    function renderFolderChip() {
+        const $chip = $('#labFolderChip');
+        if (!$chip.length) return;
+        if (!LAB.activeFolder) { $chip.hide().empty(); return; }
+
+        $chip.html(
+            '<i data-lucide="folder-open" class="w-3 h-3"></i>' +
+            '<span class="ia-db-chip-name" title="' + esc(LAB.activeFolder) + '">' + esc(folderName(LAB.activeFolder)) + '</span>' +
+            '<button type="button" class="ia-db-chip-x" title="Desconectar de la carpeta">' +
+                '<i data-lucide="x" class="w-3 h-3"></i>' +
+            '</button>'
+        ).show();
+
+        $chip.find('.ia-db-chip-x').off('click').on('click', function () {
+            LAB.activeFolder = null;
+            renderFolderChip();
+            toast('Desconectado de la carpeta');
+        });
+        icons();
     }
 
     function addSpend(meta) {
@@ -1795,6 +1849,9 @@
             LAB.ctxReal = 0;
             LAB.spend = { tokens: 0, cost: 0 };
             $('#labSpend').text('—');
+            // La conexión vive con la conversación: al vaciarla se suelta.
+            LAB.activeFolder = null;
+            renderFolderChip();
             resetSandbox();
             renderMessages();
             updateCtxBar();

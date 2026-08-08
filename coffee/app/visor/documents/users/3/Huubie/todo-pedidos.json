@@ -9,6 +9,22 @@
           "id": "t4k8nuzy",
           "text": "Rediseñar el modal de registro de pagos para mejorar su usabilidad y presentación visual",
           "done": false
+        },
+        {
+          "id": "tvy283tg",
+          "text": "Revisar si el pago se hace doble al darle clic al boton de registrar pago",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sk5nzodm",
+      "title": "Editar datos de entrega en detalles del pedido",
+      "tasks": [
+        {
+          "id": "tp3mgmcy",
+          "text": "Reemplazar el formulario de \"edición de datos de entrega\" por el componente de modales de coffeesoft js en  \"detalles del pedido\"",
+          "done": false
         }
       ]
     }

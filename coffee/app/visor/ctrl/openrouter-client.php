@@ -20,20 +20,66 @@ require_once __DIR__ . '/openrouter-config.php';
 class OpenRouterException extends Exception {}
 
 class OpenRouterClient {
-    private $apiKey;
-    private $baseUrl;
-    private $defaultModel;
+    // protected: OpencodeClient hereda este motor y solo cambia el destino.
+    protected $apiKey;
+    protected $baseUrl;
+    protected $defaultModel;
+    protected $timeout;
+    protected $caBundle;
+    protected $appTitle;
+    protected $referer;
     // Esfuerzo de razonamiento -> se mapea al parametro 'reasoning' de OpenRouter.
     // null = no se envia (default del modelo).
     private $reasoning = null;
 
-    public function __construct() {
+    /**
+     * Sin argumentos habla con OpenRouter (constantes OPENROUTER_*). Con $cfg
+     * apunta al gateway que se le indique — mismo dialecto, otra direccion.
+     * Claves de $cfg: apiKey, baseUrl, defaultModel, timeout, caBundle, appTitle, referer.
+     */
+    public function __construct(array $cfg = []) {
+        if ($cfg !== []) {
+            $this->apiKey       = (string)($cfg['apiKey'] ?? '');
+            $this->baseUrl      = rtrim((string)($cfg['baseUrl'] ?? ''), '/');
+            $this->defaultModel = (string)($cfg['defaultModel'] ?? '');
+            $this->timeout      = (int)($cfg['timeout'] ?? 240);
+            $this->caBundle     = (string)($cfg['caBundle'] ?? '');
+            $this->appTitle     = (string)($cfg['appTitle'] ?? 'Huubie Visor');
+            $this->referer      = (string)($cfg['referer'] ?? '');
+            if ($this->baseUrl === '') {
+                throw new OpenRouterException('baseUrl vacia al construir el cliente.');
+            }
+            return;
+        }
         if (!defined('OPENROUTER_API_KEY') || OPENROUTER_API_KEY === '') {
             throw new OpenRouterException('OPENROUTER_API_KEY no definida. Revisa coffee/app/credentials/.env');
         }
         $this->apiKey       = OPENROUTER_API_KEY;
         $this->baseUrl      = rtrim(OPENROUTER_BASE_URL, '/');
         $this->defaultModel = OPENROUTER_DEFAULT_MODEL;
+        $this->timeout      = OPENROUTER_TIMEOUT;
+        $this->caBundle     = defined('OPENROUTER_CA_BUNDLE') ? OPENROUTER_CA_BUNDLE : '';
+        $this->appTitle     = defined('OPENROUTER_APP_TITLE') ? OPENROUTER_APP_TITLE : 'Huubie Visor';
+        $this->referer      = defined('OPENROUTER_APP_REFERER') ? OPENROUTER_APP_REFERER : '';
+    }
+
+    /**
+     * Cabeceras comunes. La API key es OPCIONAL: los modelos *-free de OpenCode Zen
+     * responden sin credencial, y mandar un Bearer vacio es peor que no mandarlo.
+     */
+    protected function buildHeaders($accept) {
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: ' . $accept,
+            'X-Title: ' . $this->appTitle,
+        ];
+        if ($this->apiKey !== '') {
+            array_unshift($headers, 'Authorization: Bearer ' . $this->apiKey);
+        }
+        if ($this->referer !== '') {
+            $headers[] = 'HTTP-Referer: ' . $this->referer;
+        }
+        return $headers;
     }
 
     /**
@@ -192,23 +238,14 @@ class OpenRouterClient {
 
     private function request($method, $path, $body = null) {
         $ch = curl_init($this->baseUrl . $path);
-        $headers = [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'X-Title: ' . (defined('OPENROUTER_APP_TITLE') ? OPENROUTER_APP_TITLE : 'Huubie Visor'),
-        ];
-        if (defined('OPENROUTER_APP_REFERER') && OPENROUTER_APP_REFERER !== '') {
-            $headers[] = 'HTTP-Referer: ' . OPENROUTER_APP_REFERER;
-        }
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_TIMEOUT        => OPENROUTER_TIMEOUT,
+            CURLOPT_HTTPHEADER     => $this->buildHeaders('application/json'),
+            CURLOPT_TIMEOUT        => $this->timeout,
         ]);
-        if (defined('OPENROUTER_CA_BUNDLE') && OPENROUTER_CA_BUNDLE !== '' && file_exists(OPENROUTER_CA_BUNDLE)) {
-            curl_setopt($ch, CURLOPT_CAINFO, OPENROUTER_CA_BUNDLE);
+        if ($this->caBundle !== '' && file_exists($this->caBundle)) {
+            curl_setopt($ch, CURLOPT_CAINFO, $this->caBundle);
         }
         if ($body !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE));
@@ -238,15 +275,7 @@ class OpenRouterClient {
      */
     private function requestStream($path, $body, callable $onChunk = null) {
         $ch = curl_init($this->baseUrl . $path);
-        $headers = [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/json',
-            'Accept: text/event-stream',
-            'X-Title: ' . (defined('OPENROUTER_APP_TITLE') ? OPENROUTER_APP_TITLE : 'Huubie Visor'),
-        ];
-        if (defined('OPENROUTER_APP_REFERER') && OPENROUTER_APP_REFERER !== '') {
-            $headers[] = 'HTTP-Referer: ' . OPENROUTER_APP_REFERER;
-        }
+        $headers = $this->buildHeaders('text/event-stream');
 
         $buffer       = '';
         $full         = '';
@@ -262,7 +291,7 @@ class OpenRouterClient {
             // si el upstream se queda mudo OPENROUTER_TIMEOUT segundos.
             CURLOPT_CONNECTTIMEOUT  => 30,
             CURLOPT_LOW_SPEED_LIMIT => 1,
-            CURLOPT_LOW_SPEED_TIME  => OPENROUTER_TIMEOUT,
+            CURLOPT_LOW_SPEED_TIME  => $this->timeout,
             CURLOPT_POSTFIELDS    => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
             CURLOPT_WRITEFUNCTION => function ($c, $data) use (&$buffer, &$full, &$usage, &$modelSeen, &$finishReason, $onChunk) {
                 $buffer .= $data;
@@ -293,8 +322,8 @@ class OpenRouterClient {
                 return strlen($data);
             },
         ]);
-        if (defined('OPENROUTER_CA_BUNDLE') && OPENROUTER_CA_BUNDLE !== '' && file_exists(OPENROUTER_CA_BUNDLE)) {
-            curl_setopt($ch, CURLOPT_CAINFO, OPENROUTER_CA_BUNDLE);
+        if ($this->caBundle !== '' && file_exists($this->caBundle)) {
+            curl_setopt($ch, CURLOPT_CAINFO, $this->caBundle);
         }
 
         $ok   = curl_exec($ch);

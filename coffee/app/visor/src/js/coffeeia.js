@@ -1797,7 +1797,7 @@ async function ciaSubmit() {
         fsTools:        !!CIA.fsToolsOn
     };
 
-    const provider = (CIA.model && CIA.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
+    const provider = window.CoffeeModelConfig.providerLabel(CIA.model);
     const idx = CIA.history.length;   // índice que ocupará la respuesta
 
     let stream = null, received = '', meta = {}, streamErr = null;

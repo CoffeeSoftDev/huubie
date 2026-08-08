@@ -1410,7 +1410,9 @@
                          : '<button class="tdw-dest" data-tdw="dest" type="button">' + ico(ICON.dest) + '<span>Elegir destino</span></button>' +
                            '<span class="tdw-kbd">↵</span>') +
                      '</div>' +
-                     '<button class="tdw-send" data-tdw="send" type="button" title="' + (ask ? 'Preguntar' : 'Anotar') + '">' +
+                     '<button class="tdw-send' + (this.chatBusy ? ' is-busy' : '') + '" data-tdw="send" type="button"' +
+                       (this.chatBusy ? ' disabled aria-busy="true"' : '') +
+                       ' title="' + (this.chatBusy ? 'Preguntando…' : (ask ? 'Preguntar' : 'Anotar')) + '">' +
                        ico(this.chatBusy ? ICON.spin : ICON.send) +
                      '</button>' +
                    '</div>';
@@ -1756,12 +1758,14 @@
 
             return this.chatMsgs.map((m) => {
                 if (m.role === 'user') return '<p class="tdw-me">' + esc(m.text) + '</p>';
-                return '<div class="tdw-msg">' +
+                return '<div class="tdw-msg' + (m.pending ? ' is-pending' : '') + '">' +
                          '<span class="tdw-msg-av">' + ico(ICON.wand) + '</span>' +
                          '<div class="tdw-msg-body">' +
                            (m.tool ? '<span class="tdw-tool' + (m.pending ? ' is-live' : '') + '">' + ico(ICON.list) +
                                        '<code>' + esc(m.tool) + '</code></span>' : '') +
-                           this.replyHtml(m.text) +
+                           (m.pending
+                             ? '<span class="tdw-wait" role="status" aria-label="Pensando la respuesta"><i></i><i></i><i></i></span>'
+                             : this.replyHtml(m.text)) +
                          '</div>' +
                        '</div>';
             }).join('');
@@ -1878,7 +1882,7 @@
             if (this.chatBusy || !text) return;
 
             this.chatMsgs.push({ role: 'user', text: text });
-            this.chatMsgs.push({ role: 'ai', text: '', tool: 'leyendo tus listas…', pending: true });
+            this.chatMsgs.push({ role: 'ai', text: '', tool: 'leyendo tus listas', pending: true });
             this.chatBusy = true;
             this.renderChat();
 

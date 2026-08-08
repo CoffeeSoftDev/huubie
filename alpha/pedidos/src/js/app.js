@@ -1706,27 +1706,8 @@ class App extends Templates {
     async historyPay(id) {
         if (!this.requireOpenShift()) return;
 
-        const data = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
+        const data  = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
-
-        // Modal con información mejorada
-        bootbox.dialog({
-            title: `
-                <div class="flex items-center gap-3">
-
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Gestión de Pagos</h2>
-                        <p class="text-sm text-gray-400">
-                            <i class="icon-doc-text-1"></i> Folio: ${order.folio} |
-                            <i class="icon-calendar-1"></i> Creado: ${order.formatted_date_order || order.date_order}
-                        </p>
-                    </div>
-                </div>
-            `,
-            id: 'modalAdvance',
-            closeButton: true,
-            message: '<div id="containerChat"></div>'
-        });
 
         // El ancho lo manda el tab: el formulario de pago se descuadra si el modal se
         // estira, y el historial son 6 columnas (fecha, metodo, monto, sucursal,
@@ -1734,31 +1715,77 @@ class App extends Templates {
         // por vw evita que el modal se salga en pantallas chicas.
         const WIDTH_PAY     = '600px';
         const WIDTH_HISTORY = 'min(820px, 95vw)';
-        const setModalWidth = width => $('#modalAdvance .modal-dialog').css('max-width', width);
+        // La tarjeta del modal es ANCESTRO de #modalAdvance, no descendiente: el ancho
+        // se toca por la referencia que devuelve el componente.
+        const setModalWidth = width => this.payModal?.el.find('.cf-card').css('max-width', width);
 
-        $('#modalAdvance .modal-dialog').css('transition', 'max-width .2s ease');
-        setModalWidth(WIDTH_PAY);
+        // createCoffeeModalForm no maneja pestañas, asi que el contenido va como bloque
+        // 'html' y el tabLayout se monta dentro. El wrapper conserva el id modalAdvance
+        // porque index.php cuelga de el la regla que colapsa los <label> vacios del
+        // plugin de formularios.
+        const modal = createCoffeeModalForm({
+            id: 'frmHistoryPay',
+            title: 'Gestión de Pagos',
+            iconSvg: lucideIcon('wallet', 'w-5 h-5'),
+            iconBg: 'bg-blue-600',
+            theme: 'dark',
+            width: 600,
+            confirmText: 'Registrar Pago',
+            confirmBg: 'bg-blue-600 hover:bg-blue-700',
+            json: [
+                {
+                    opc: 'html',
+                    html: `
+                    <div id="modalAdvance">
+                        <p class="text-sm text-gray-400 flex items-center gap-3 -mt-2 mb-3">
+                            <span class="flex items-center gap-1.5">
+                                ${lucideIcon('file-text', 'w-3.5 h-3.5')}
+                                Folio <b class="text-blue-400 font-semibold">${order.folio}</b>
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                ${lucideIcon('calendar', 'w-3.5 h-3.5')}
+                                ${order.formatted_date_order || order.date_order}
+                            </span>
+                        </p>
+                        <div id="containerChat"></div>
+                    </div>`
+                }
+            ],
+            // El submit del formulario ya trae su propia confirmacion, asi que el boton
+            // del modal solo lo dispara. Se devuelve false para que el modal siga abierto:
+            // lo cierra el flujo de exito del pago.
+            onConfirm: () => {
+                document.getElementById('form-payment')?.requestSubmit();
+                return false;
+            }
+        });
+
+        this.payModal = modal;
+        modal.el.find('.cf-card').css('transition', 'max-width .2s ease');
+
+        // Se elimina el boton cancelar del componente: el modal ya se cierra con la X,
+        // Escape o clic fuera, y sin el hermano el de registrar (flex-1) toma el ancho
+        // completo. El footer entero se oculta en el historial, donde no hay que
+        // registrar nada y un boton suelto solo estorba.
+        modal.el.find('.cf-cancel').remove();
+        const footerBtns = modal.el.find('.cf-confirm').parent();
 
         this.tabLayout({
             parent: 'containerChat',
             theme: 'dark',
             class: '',
             json: [
-                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true, onClick: () => setModalWidth(WIDTH_PAY) },
-                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => setModalWidth(WIDTH_HISTORY) },
+                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true, onClick: () => { setModalWidth(WIDTH_PAY); footerBtns.show(); } },
+                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { setModalWidth(WIDTH_HISTORY); footerBtns.hide(); } },
             ]
         });
 
         // Renders
-        $('#container-listPayment').html(`
-            <div id="container-info-payment"></div>
-            <div id="container-methodPay"></div>
-        `);
+        $('#container-listPayment').html('<div id="container-info-payment"></div><div id="container-methodPay"></div>');
 
         this.addPayment(order, id);
         this.renderResumenPagos(data.details);
         this.lsPay(id);
-
     }
 
     async addPayment(order, id) {
@@ -1936,14 +1963,9 @@ class App extends Templates {
                     lbl: "Observación",
                     class: "col-12 mb-2",
                     disabled: isPaidInFull
-                },
-                {
-                    opc: "btn-submit",
-                    id: "btnSuccess",
-                    class: "col-12",
-                    text: isPaidInFull ? "Pedido Pagado" : "Registrar Pago",
-                    disabled: isPaidInFull
                 }
+                // Sin btn-submit: el boton de registrar es el del footer del modal
+                // (.cf-confirm), que dispara el submit de este formulario.
             ],
             success: async (response) => {
                 if (response.status === 200) {
@@ -2109,6 +2131,7 @@ class App extends Templates {
         if (isPaidInFull) {
             setTimeout(() => {
                 $("#advanced_pay, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $('.cf-confirm').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').text('Pedido Pagado');
             }, 100);
         }
     }
@@ -2239,11 +2262,11 @@ class App extends Templates {
         if (!response.row || response.row.length === 0) {
             // Mostrar mensaje cuando no hay pagos
             $("#container-methodPay").html(`
-                <div class="flex flex-col items-center justify-center py-12 text-center">
-                    <div class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                        <i class="icon-money text-gray-400 text-3xl"></i>
+                <div class="flex flex-col items-center justify-center py-12 text-center bg-[#1E293B] border border-slate-700 rounded-xl">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-700/60 flex items-center justify-center mb-4">
+                        ${lucideIcon('history', 'w-7 h-7 text-gray-400')}
                     </div>
-                    <p class="text-gray-400 text-lg font-semibold mb-2">Aún no se ha realizado ningún abono</p>
+                    <p class="text-gray-300 text-base font-semibold mb-1">Aún no se ha realizado ningún abono</p>
                     <p class="text-gray-500 text-sm">Los pagos registrados aparecerán aquí</p>
                 </div>
             `);
@@ -2286,38 +2309,46 @@ class App extends Templates {
             minimumFractionDigits: 2
         });
 
-        let originalHTML = `<p class="text-lg font-bold text-blue-900" id="totalEvento">${formatPrice(totalEvento)}</p>`;
+        // Liquidado: el restante deja de ser una alerta y se pinta en verde como el
+        // total pagado, para que la tarjeta no siga en rojo con saldo cero.
+        const liquidado = restante <= 0;
+
+        let originalHTML = `<p class="text-lg font-bold text-blue-400 mt-1" id="totalEvento">${formatPrice(totalEvento)}</p>`;
 
         // Si hay descuento, mostrar desglose visual
         if (discount > 0) {
             originalHTML = `
-            <p class="text-lg font-bold text-blue-900" id="totalEvento">${fmt(totalConDescuento)}</p>
-            <p class="text-sm text-gray-400 line-through -mt-1">${fmt(totalEvento)}</p>
-            <p class="text-sm text-blue-700 mt-1">
-                <i class="icon-tag"></i> Descuento:
+            <p class="text-lg font-bold text-blue-400 mt-1" id="totalEvento">${fmt(totalConDescuento)}</p>
+            <p class="text-xs text-gray-500 line-through">${fmt(totalEvento)}</p>
+            <p class="text-xs text-emerald-400 mt-1 flex items-center justify-center gap-1">
+                ${lucideIcon('tag', 'w-3 h-3')} Descuento:
                 <span class="font-semibold">${fmt(discount)}</span>
             </p>
         `;
         }
 
-
-
         $('#container-info-payment').html(`
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
 
-            <div class="bg-green-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-green-700">Total Pagado</p>
-                <p class="text-lg font-bold text-green-900" id="totalPagado">${fmt(totalPagado)}</p>
+            <div class="bg-emerald-500/10 rounded-xl p-3 text-center">
+                <p class="text-xs text-emerald-400/80 flex items-center justify-center gap-1.5">
+                    ${lucideIcon('circle-check', 'w-3.5 h-3.5')} Total pagado
+                </p>
+                <p class="text-lg font-bold text-emerald-400 mt-1" id="totalPagado">${fmt(totalPagado)}</p>
             </div>
 
-            <div class="bg-blue-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-blue-700">Total</p>
+            <div class="bg-blue-500/10 rounded-xl p-3 text-center">
+                <p class="text-xs text-blue-400/80 flex items-center justify-center gap-1.5">
+                    ${lucideIcon('wallet', 'w-3.5 h-3.5')} Total
+                </p>
                 ${originalHTML}
             </div>
 
-            <div class="bg-red-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-red-700">Restante</p>
-                <p class="text-lg font-bold text-red-900" id="totalRestante">${fmt(restante)}</p>
+            <div class="${liquidado ? 'bg-emerald-500/10' : 'bg-red-500/10'} rounded-xl p-3 text-center">
+                <p class="text-xs ${liquidado ? 'text-emerald-400/80' : 'text-red-400/80'} flex items-center justify-center gap-1.5">
+                    ${lucideIcon(liquidado ? 'circle-check' : 'clock', 'w-3.5 h-3.5')} Restante
+                </p>
+                <p class="text-lg font-bold ${liquidado ? 'text-emerald-400' : 'text-red-400'} mt-1" id="totalRestante">${fmt(restante)}</p>
             </div>
 
         </div>
@@ -3406,7 +3437,9 @@ class App extends Templates {
         const tp = typeof totalPaid === 'number' ? totalPaid : (this.totalPaid || 0);
         const d = this.discount || 0;
         const restante = (t - d - (tp || 0)) - val;
-        const btn = $("#btnSuccess");
+        // .cf-confirm: en Gestion de Pagos el boton de registrar vive en el footer del
+        // modal, no dentro del formulario.
+        const btn = $("#btnSuccess").add('.cf-confirm');
         const display = $("#SaldoEvent");
         if (display && display.length) {
             display.text(formatPrice(restante < 0 ? 0 : restante));

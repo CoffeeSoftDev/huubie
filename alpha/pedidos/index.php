@@ -134,6 +134,17 @@
             display: none;
         }
 
+        /* Dialogos abiertos DESDE el modal propio del framework (createCoffeeModalForm),
+           que monta su overlay en z-index 100000: SweetAlert vive en 1060 y alertBox en
+           10001, asi que la confirmacion de pago quedaba por debajo y no se veia. */
+        .swal2-container {
+            z-index: 100010 !important;
+        }
+
+        .z-\[10001\] {
+            z-index: 100005 !important;
+        }
+
         /* Específico para las tablas */
       /*  #tbPedidos_wrapper,
         #tbPedidos_wrapper .dataTables_scrollBody,

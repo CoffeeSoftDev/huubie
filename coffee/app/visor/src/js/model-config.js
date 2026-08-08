@@ -22,30 +22,24 @@
     // acortarla en el editor). effortLevels no vacío = el modelo acepta reasoning_effort.
     const SEED = [
         // Ollama Cloud
-        { id: 'qwen3-coder:480b-cloud',       name: 'Qwen3 Coder 480B (código · módulos ⭐)', group: 'Ollama Cloud', tools: true, tags: ['code'] },
-        { id: 'glm-5.2:cloud',                name: 'GLM 5.2 (código)', group: 'Ollama Cloud', tools: true, tags: ['code'] },
-        { id: 'glm-5:cloud',                  name: 'GLM 5 (flagship)', group: 'Ollama Cloud', tools: true, tags: ['flagship'] },
-        { id: 'glm-5.1:cloud',                name: 'GLM 5.1 (código)', group: 'Ollama Cloud', tools: true, tags: ['code'] },
-        { id: 'glm-4.7:cloud',                name: 'GLM 4.7 (código)', group: 'Ollama Cloud', tools: true, tags: ['code'] },
-        { id: 'qwen3-coder-next:cloud',       name: 'Qwen3 Coder Next (código)', group: 'Ollama Cloud', tools: true, tags: ['code'] },
+        { id: 'glm-5.2:cloud',                name: 'GLM 5.2 (código ⭐)', group: 'Ollama Cloud', tools: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['code'] },
         { id: 'deepseek-v4-pro:cloud',        name: 'DeepSeek V4 Pro (razonamiento)', group: 'Ollama Cloud', thinking: true, effortLevels: ['low', 'medium', 'high', 'max'], tags: ['reasoning'] },
-        { id: 'deepseek-v4-flash:cloud',      name: 'DeepSeek V4 Flash (razonamiento rápido)', group: 'Ollama Cloud', thinking: true, effortLevels: ['low', 'medium', 'high', 'max'], tags: ['reasoning'] },
         { id: 'gpt-oss:120b-cloud',           name: 'GPT-OSS 120B (razonamiento)', group: 'Ollama Cloud', tools: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['reasoning'] },
-        { id: 'kimi-k2.7-code:cloud',         name: 'Kimi K2.7 Code (código · vision)', group: 'Ollama Cloud', tools: true, vision: true, tags: ['code', 'vision'] },
-        { id: 'kimi-k2.6:cloud',              name: 'Kimi K2.6 (agéntico · vision)', group: 'Ollama Cloud', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high', 'max'], tags: ['agentic', 'vision'] },
-        { id: 'kimi-k2.5:cloud',              name: 'Kimi K2.5 (agéntico · vision)', group: 'Ollama Cloud', tools: true, vision: true, tags: ['agentic', 'vision'] },
-        { id: 'gemma4:31b-cloud',             name: 'Gemma4 31B (vision)', group: 'Ollama Cloud', vision: true, tags: ['vision', '31b'] },
-        { id: 'gemini-3-flash-preview:cloud', name: 'Gemini 3 Flash (rápido · vision)', group: 'Ollama Cloud', vision: true, tags: ['fast', 'vision'] },
-        { id: 'minimax-m3:cloud',             name: 'MiniMax M3 (vision · débil en módulos)', group: 'Ollama Cloud', tools: true, vision: true, tags: ['vision'] },
-        // OpenRouter (free)
-        { id: 'openai/gpt-oss-120b:free',               name: 'GPT-OSS 120B (free)', group: 'OpenRouter (free)', provider: 'openrouter', tools: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['reasoning', 'free'] },
-        { id: 'z-ai/glm-4.5-air:free',                  name: 'GLM 4.5 Air (free)', group: 'OpenRouter (free)', provider: 'openrouter', tools: true, tags: ['free'] },
-        { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron 3 Super 120B (free)', group: 'OpenRouter (free)', provider: 'openrouter', tags: ['free'] },
-        { id: 'google/gemma-4-31b-it:free',             name: 'Gemma 4 31B (free, vision)', group: 'OpenRouter (free)', provider: 'openrouter', vision: true, tags: ['free', 'vision'] },
-        { id: 'nvidia/nemotron-nano-12b-v2-vl:free',    name: 'Nemotron Nano 12B VL (free, vision)', group: 'OpenRouter (free)', provider: 'openrouter', vision: true, tags: ['free', 'vision'] },
-        // OpenRouter (de pago)
-        { id: 'qwen/qwen3.7-max', name: 'Qwen3.7 Max (pago)', group: 'OpenRouter (de pago)', provider: 'openrouter', tools: true, tags: ['paid'] },
-        { id: 'qwen/qwen3.6-27b', name: 'Qwen3.6 27B (pago)', group: 'OpenRouter (de pago)', provider: 'openrouter', tools: true, tags: ['paid'] }
+        { id: 'kimi-k2.7-code:cloud',         name: 'Kimi K2.7 Code (código · vision)', group: 'Ollama Cloud', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['code', 'vision'] },
+        { id: 'gemma4:31b-cloud',             name: 'Gemma4 31B (vision)', group: 'Ollama Cloud', vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['vision', '31b'] },
+        { id: 'minimax-m3:cloud',             name: 'MiniMax M3 (vision · débil en módulos)', group: 'Ollama Cloud', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['vision'] },
+        // OpenCode Zen (free) — responden SIN API key y con costo 0. OJO: el tier free
+        // entrena con lo que se le manda; no mandar código de clientes.
+        { id: 'opencode/deepseek-v4-flash-free', name: 'DeepSeek V4 Flash (free)', group: 'OpenCode Zen (free)', provider: 'opencode', thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['reasoning', 'free'] },
+        { id: 'opencode/mimo-v2.5-free',         name: 'MiMo V2.5 (free · vision)', group: 'OpenCode Zen (free)', provider: 'opencode', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['free', 'vision'] },
+        { id: 'opencode/big-pickle',             name: 'Big Pickle (free)', group: 'OpenCode Zen (free)', provider: 'opencode', tools: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['free'] },
+        { id: 'opencode/nemotron-3-ultra-free',  name: 'Nemotron 3 Ultra (free · sin razonamiento)', group: 'OpenCode Zen (free)', provider: 'opencode', tags: ['free'] },
+        { id: 'opencode/laguna-s-2.1-free',      name: 'Laguna S 2.1 (free · razona mucho)', group: 'OpenCode Zen (free)', provider: 'opencode', thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['reasoning', 'free'] },
+        // OpenCode Go — suscripción de tarifa plana (topes en dólares). Requiere key.
+        { id: 'opencode/kimi-k3',      name: 'Kimi K3 (agéntico · vision)', group: 'OpenCode Go', provider: 'opencode', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high', 'max'], tags: ['agentic', 'vision'] },
+        { id: 'opencode/qwen3.8-max',  name: 'Qwen3.8 Max (razonamiento)', group: 'OpenCode Go', provider: 'opencode', tools: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['flagship', 'reasoning'] },
+        { id: 'opencode/gpt-5.6-luna', name: 'GPT-5.6 Luna (vision · razonamiento)', group: 'OpenCode Go', provider: 'opencode', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['vision', 'reasoning'] },
+        { id: 'opencode/grok-4.5',     name: 'Grok 4.5 (vision · razonamiento)', group: 'OpenCode Go', provider: 'opencode', tools: true, vision: true, thinking: true, effortLevels: ['low', 'medium', 'high'], tags: ['vision', 'reasoning'] }
     ];
 
     const ENABLED_KEY = 'coffeeia:global:enabledModels';
@@ -58,8 +52,12 @@
     function normalizeModel(m) {
         m = m || {};
         const id = String(m.id || '').trim();
-        const provider = m.provider || (id.indexOf('/') !== -1 ? 'openrouter' : 'ollama');
-        const group = m.group || (provider === 'openrouter' ? 'OpenRouter' : 'Ollama Cloud');
+        // El prefijo 'opencode/' se revisa antes que la diagonal suelta: los ids de
+        // OpenCode son pelones ('glm-5.2') y sin él no se distinguirían de Ollama.
+        const provider = m.provider || (id.indexOf('opencode/') === 0 ? 'opencode'
+                                     : (id.indexOf('/') !== -1 ? 'openrouter' : 'ollama'));
+        const GROUP_BY_PROVIDER = { opencode: 'OpenCode Go', openrouter: 'OpenRouter', ollama: 'Ollama Cloud' };
+        const group = m.group || GROUP_BY_PROVIDER[provider] || 'Ollama Cloud';
         const effortLevels = Array.isArray(m.effortLevels)
             ? m.effortLevels.filter(function (l) { return EFFORT_LEVELS.indexOf(l) !== -1; })
             : [];
@@ -85,20 +83,66 @@
     }
     const _seed = SEED.map(function (m) { m.builtin = true; return normalizeModel(m); });
 
+    // Etiqueta del proveedor a partir del id. Gemela de llm_provider_label() en
+    // ctrl/llm-client.php: el prefijo 'opencode/' manda sobre la diagonal suelta.
+    function providerLabel(id) {
+        id = String(id || '');
+        if (id.indexOf('opencode/') === 0) return 'OpenCode';
+        return id.indexOf('/') !== -1 ? 'OpenRouter' : 'Ollama';
+    }
+
     // ── Persistencia ─────────────────────────────────────────────────────────────
     function persist(key, raw) { if (global.CoffeePrefs) global.CoffeePrefs.push(key, raw); }
 
-    // Catálogo vivo: el guardado por el usuario o el SEED. Si el guardado existe pero
-    // es inválido/vacío, cae al SEED (dejar la app sin modelos sería peor).
+    function readList(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            const arr = raw ? JSON.parse(raw) : null;
+            return Array.isArray(arr) ? arr : null;
+        } catch (e) { return null; }
+    }
+    function writeList(key, arr) {
+        const raw = JSON.stringify(arr);
+        try { localStorage.setItem(key, raw); } catch (e) {}
+        persist(key, raw);
+    }
+
+    // Ids del SEED que el usuario todavía no tenía. getEnabled() los da por
+    // habilitados: un modelo nuevo que nace apagado se ve igual que uno que no existe.
+    let _fresh = [];
+
+    /**
+     * Catálogo vivo. EL SEED MANDA: los modelos de fábrica son siempre los que
+     * declara este archivo, con sus nombres y capacidades al día. Del catálogo
+     * guardado solo sobreviven los modelos PROPIOS del usuario — lo suyo se respeta,
+     * lo del sistema no se bifurca.
+     *
+     * Consecuencias buscadas: un modelo agregado aquí aparece en todos lados sin que
+     * nadie tenga que restablecer nada, y uno retirado desaparece de verdad. Para
+     * quitar de la vista un modelo de fábrica se DESHABILITA, no se borra.
+     */
     let _catalog = null;
     function loadCatalog() {
-        try {
-            const raw = localStorage.getItem(CATALOG_KEY);
-            if (!raw) return _seed.slice();
-            const arr = JSON.parse(raw);
-            if (!Array.isArray(arr) || !arr.length) return _seed.slice();
-            return arr.map(normalizeModel).filter(function (m) { return m.id; });
-        } catch (e) { return _seed.slice(); }
+        _fresh = [];
+        const saved = readList(CATALOG_KEY);
+        if (!saved || !saved.length) return _seed.slice();
+
+        const previos = saved.map(normalizeModel).filter(function (m) { return m.id; });
+        const enSeed  = {};
+        _seed.forEach(function (m) { enSeed[m.id] = true; });
+
+        // Propios = los que creó el usuario. Un builtin guardado que ya no está en el
+        // SEED se retiró a propósito del producto: no se conserva.
+        const propios = previos.filter(function (m) { return !enSeed[m.id] && !m.builtin; });
+        const list    = _seed.slice().concat(propios);
+
+        const tenia = {};
+        previos.forEach(function (m) { tenia[m.id] = true; });
+        _fresh = _seed.filter(function (m) { return !tenia[m.id]; }).map(function (m) { return m.id; });
+
+        // Se realinea lo guardado con el catálogo del sistema.
+        if (_fresh.length || list.length !== previos.length) writeList(CATALOG_KEY, list);
+        return list;
     }
     function getModels() { if (!_catalog) _catalog = loadCatalog(); return _catalog; }
     function saveCatalog(models) {
@@ -124,7 +168,15 @@
         return _catalog;
     }
     function deleteModel(id) {
-        saveCatalog(getModels().filter(function (m) { return m.id !== id; }));
+        const m = getModel(id);
+        // Un modelo de fábrica no se puede borrar: el SEED lo repondría en la
+        // siguiente carga y parecería que la acción no sirvió. Sobre esos, "eliminar"
+        // es apagarlo — que sí perdura y es reversible.
+        if (m && m.builtin) {
+            setEnabled(getEnabled().filter(function (v) { return v !== id; }));
+            return;
+        }
+        saveCatalog(getModels().filter(function (x) { return x.id !== id; }));
         // Si el borrado estaba habilitado/activo, se limpia solo por getEnabled/firstEnabled.
     }
     function resetCatalog() { saveCatalog(_seed.slice()); }
@@ -172,6 +224,17 @@
             if (!known.length) return discard('ninguno de los ' + arr.length + ' modelos guardados existe en el catálogo actual');
             if (known.length !== arr.length) {
                 console.warn('[modelos] ' + (arr.length - known.length) + ' modelo(s) habilitados ya no existen en el catálogo y se ignoran.');
+            }
+            // Novedades de fábrica: nacen habilitadas. isCatalog() de arriba ya forzó
+            // la carga del catálogo, así que _fresh viene poblado.
+            if (_fresh.length) {
+                const nuevos = _fresh.filter(function (id) { return known.indexOf(id) === -1; });
+                if (nuevos.length) {
+                    console.info('[modelos] ' + nuevos.length + ' modelo(s) nuevos de fábrica se habilitaron solos: ' + nuevos.join(', '));
+                    writeList(ENABLED_KEY, known.concat(nuevos));
+                    _fresh = [];
+                    return known.concat(nuevos);
+                }
             }
             _issue = null;
             return known;
@@ -230,13 +293,18 @@
         eff.style.display = '';
         let html = '<option value="">Auto</option><option value="off">Rápido</option>';
         levels.forEach(function (lv) { html += '<option value="' + lv + '">' + (EFFORT_LABELS[lv] || lv) + '</option>'; });
+        // Se conserva el nivel elegido si el modelo nuevo también lo acepta. Si no lo
+        // acepta —o si nadie ha elegido nada (Auto)— manda el "Nivel por defecto" que
+        // el modelo declara en el catálogo; sin él, Auto.
+        const def  = effortDefaultFor(modelEl.value);
+        const prev = eff.value;
         if (eff.innerHTML !== html) {
-            const prev = eff.value;
             eff.innerHTML = html;
-            const ok = Array.prototype.some.call(eff.options, function (o) { return o.value === prev; });
-            const next = ok ? prev : '';
-            if (eff.value !== next) { eff.value = next; notifyApp(eff); }
         }
+        const sirve = Array.prototype.some.call(eff.options, function (o) { return o.value === prev; });
+        const next  = (sirve && prev !== '') ? prev
+                    : (def && levels.indexOf(def) !== -1 ? def : '');
+        if (eff.value !== next) { eff.value = next; notifyApp(eff); }
     }
 
     // ── Selects: sincronización + filtrado ───────────────────────────────────────
@@ -313,8 +381,11 @@
             const enabled = getEnabled();
             let selHidden = false;
             Array.prototype.forEach.call(el.options, function (opt) {
-                const managed = isCatalog(opt.value);
-                const on = !managed || enabled.indexOf(opt.value) !== -1;
+                // El catálogo manda también aquí: una <option> escrita a mano en el HTML
+                // cuyo modelo ya no existe se OCULTA. Antes se daba por buena por no estar
+                // catalogada, y así seguían saliendo modelos retirados del producto.
+                // Única excepción: la opción sin valor ("— Default del proveedor —").
+                const on = opt.value === '' || enabled.indexOf(opt.value) !== -1;
                 opt.hidden = !on;
                 opt.disabled = !on;
                 if (!on && opt.selected) selHidden = true;
@@ -402,6 +473,8 @@
         get ENABLED_CATALOG() { return catalogGrouped(true); },
         // Motivo por el que se ignoró la preferencia guardada (null = todo en orden).
         lastIssue: function () { return _issue; },
+        // Nombre del proveedor a partir del id, para las metas de cada respuesta.
+        providerLabel: providerLabel,
         // catálogo rico + CRUD
         getModels: getModels,
         getModel: getModel,

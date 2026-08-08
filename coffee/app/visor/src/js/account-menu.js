@@ -9,6 +9,11 @@
     const DEFAULT_NAME = 'CoffeeSoft Dev';
     const PLAN_LABEL   = 'Go';
 
+    // Proveedores que entiende el catálogo. La clave es la que guarda el modelo.
+    const PROVIDER_NAMES = { ollama: 'Ollama', openrouter: 'OpenRouter', opencode: 'OpenCode' };
+    const PROVIDER_MARKS = { ollama: 'OL',     openrouter: 'OR',         opencode: 'OC' };
+    function providerName(key) { return PROVIDER_NAMES[key] || 'Ollama'; }
+
     // Usuario real de la sesion (cargado via AJAX en init). Si la llamada falla
     // o aun no responde, se cae al nombre guardado en localStorage.
     let _currentUser = null;
@@ -315,8 +320,8 @@
                 if (on) activeInGroup++;
 
                 const provider = model.provider || 'ollama';
-                const providerName = provider === 'openrouter' ? 'OpenRouter' : 'Ollama';
-                const providerMark = provider === 'openrouter' ? 'OR' : 'OL';
+                const label = providerName(provider);
+                const providerMark = PROVIDER_MARKS[provider] || 'OL';
                 const capabilities = []
                     .concat(model.vision ? [{ key: 'vision', icon: 'eye', label: 'Visión' }] : [])
                     .concat(model.tools ? [{ key: 'tools', icon: 'wrench', label: 'Tools' }] : [])
@@ -333,7 +338,7 @@
                 const pricing = Number(model.priceIn) || Number(model.priceOut)
                     ? '<span><i data-lucide="circle-dollar-sign"></i>$' + Number(model.priceIn || 0).toFixed(2) + ' / $' + Number(model.priceOut || 0).toFixed(2) + ' por M</span>'
                     : '';
-                const searchValue = [option.label, option.value, providerName, group.group].concat(model.tags || []).join(' ').toLowerCase();
+                const searchValue = [option.label, option.value, label, group.group].concat(model.tags || []).join(' ').toLowerCase();
 
                 return '<article class="acct-model-item acct-tool-card' + (on ? ' is-on' : '') + '" data-id="' + escAttr(option.value) + '" data-provider="' + escAttr(provider) + '" data-search="' + escAttr(searchValue) + '" aria-label="' + escAttr(option.label) + '">'
                      +   '<div class="acct-tool-card-top">'
@@ -346,7 +351,7 @@
                      +   '<span class="acct-model-desc">' + escHtml(model.desc || 'Sin descripción') + '</span>'
                      +   '<span class="acct-model-caps">' + capabilities + tags + '</span>'
                      +   '<span class="acct-model-meta">'
-                     +     '<span><i data-lucide="cloud"></i>' + providerName + '</span>'
+                     +     '<span><i data-lucide="cloud"></i>' + label + '</span>'
                      +     (context ? '<span><i data-lucide="braces"></i>' + context + ' tokens</span>' : '')
                      +     pricing
                      +   '</span>'
@@ -360,7 +365,9 @@
                      +       '<summary title="Acciones de ' + escAttr(option.label) + '"><i data-lucide="more-horizontal"></i></summary>'
                      +       '<span class="acct-model-menu-pop">'
                      +         '<button type="button" data-model-edit><i data-lucide="pencil"></i>Editar</button>'
-                     +         '<button type="button" class="is-danger" data-model-del><i data-lucide="trash-2"></i>Eliminar</button>'
+                     +         (model.builtin
+                                  ? '<button type="button" data-model-del><i data-lucide="eye-off"></i>Ocultar</button>'
+                                  : '<button type="button" class="is-danger" data-model-del><i data-lucide="trash-2"></i>Eliminar</button>')
                      +       '</span>'
                      +     '</details>'
                      +   '</div>'
@@ -377,8 +384,7 @@
         }).join('');
 
         const providerButtons = providers.map(function (provider) {
-            const label = provider === 'openrouter' ? 'OpenRouter' : 'Ollama';
-            return '<button type="button" class="acct-provider-chip" data-provider-filter="' + escAttr(provider) + '">' + label + '</button>';
+            return '<button type="button" class="acct-provider-chip" data-provider-filter="' + escAttr(provider) + '">' + providerName(provider) + '</button>';
         }).join('');
         const head = '<div class="acct-model-hero">'
                    +   '<div><div class="acct-sec-title">Modelos de CoffeeIA</div><div class="acct-sec-sub">Configura los modelos disponibles en todas tus conversaciones. Es una preferencia tuya: no cambia lo que ven otros usuarios.</div></div>'
@@ -490,9 +496,11 @@
           +   fieldRow('Descripción', '<textarea class="acct-input" id="mfDesc" rows="2" placeholder="Fortalezas, uso recomendado...">' + escHtml(m.desc || '') + '</textarea>')
           +   '<div class="acct-grid2">'
           +     fieldRow('Proveedor', '<select class="acct-input" id="mfProvider">'
-                  + '<option value="ollama"' + (m.provider === 'openrouter' ? '' : ' selected') + '>ollama</option>'
-                  + '<option value="openrouter"' + (m.provider === 'openrouter' ? ' selected' : '') + '>openrouter</option>'
-                  + '</select>')
+                  + Object.keys(PROVIDER_NAMES).map(function (key) {
+                        const sel = ((m.provider || 'ollama') === key) ? ' selected' : '';
+                        return '<option value="' + key + '"' + sel + '>' + key + '</option>';
+                    }).join('')
+                  + '</select>', 'opencode: el id debe llevar el prefijo opencode/')
           +     fieldRow('Grupo', '<input type="text" class="acct-input" id="mfGroup" value="' + escAttr(m.group || '') + '" placeholder="Ollama Cloud">', 'Encabezado bajo el que aparece en los selectores')
           +   '</div>'
           +   fieldRow('Etiquetas', '<div class="acct-tags"><span id="mfTagChips">' + renderTagChips() + '</span><input type="text" class="acct-tag-input" id="mfTagInput" placeholder="Escribe una etiqueta y presiona Enter..."></div>')

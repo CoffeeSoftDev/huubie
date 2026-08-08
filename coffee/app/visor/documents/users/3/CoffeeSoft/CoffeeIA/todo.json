@@ -7,7 +7,7 @@
       "tasks": [
         {
           "id": "t9ui8zet",
-          "text": "en el agente cuando esta razonando, corregir el loader",
+          "text": "Corregir el estilo del loader que se muestra al presionar el botón de preguntar y enviar una pregunta en CoffeeSoft IA",
           "done": false
         }
       ]
@@ -19,16 +19,31 @@
         {
           "id": "t3622p09",
           "text": "Mantener el tema seleccionado en todo el modulo de coffee/app/",
-          "done": false
+          "done": true
         },
         {
           "id": "thi00m9z",
           "text": "Corregir que al cambiar tema no se pierda la configuracion que tiene el formato ERS, ni las historias de usuario",
-          "done": false
+          "done": true
         },
         {
           "id": "tsknenvu",
-          "text": "El formato de ERS e Historias de usuario debe tener el tema de github",
+          "text": "Aplicar el tema de GitHub en modo claro (incluso cuando el tema oscuro esté activo) al formato de ERS e Historias de Usuario en visor, lab y coffeeia",
+          "done": false
+        },
+        {
+          "id": "tgpa5m6t",
+          "text": "Permitir ampliar el ancho del chat en el visor de forma horizontal",
+          "done": false
+        },
+        {
+          "id": "t3elcddp",
+          "text": "Visor,Lab,CoffeeIA, la tools de archivos siempre iniciar encendida",
+          "done": false
+        },
+        {
+          "id": "tvnrs2iu",
+          "text": "Revisar porque aparecen todos los modelos en el selector del modelo aplica para lab,visor,coffeeIA",
           "done": false
         }
       ]

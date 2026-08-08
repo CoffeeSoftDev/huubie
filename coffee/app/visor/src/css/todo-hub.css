@@ -585,6 +585,9 @@
 }
 .tdw-send:hover { filter: brightness(1.08); }
 .tdw-send svg { width: 16px; height: 16px; stroke-width: 2.4; }
+.tdw-send.is-busy { cursor: default; opacity: .78; }
+.tdw-send.is-busy:hover { filter: none; }
+.tdw-send.is-busy svg { animation: tdwSpin .85s linear infinite; }
 [data-theme="light"] .tdw-send { color: #fff; }
 
 /* ══ CoffeeClown: el chat del cajon ═════════════════════════════════════════
@@ -653,6 +656,32 @@
 .tdw-tool svg { width: 11px; height: 11px; }
 .tdw-tool code { background: transparent; color: inherit; font-size: 10px; padding: 0; }
 .tdw-tool.is-live svg { animation: tdwSpin 1.6s linear infinite; }
+/* Los puntos que siguen al chip: dicen que la respuesta sigue viniendo. Antes
+   aqui caia el guion de "respuesta vacia", que se leia como un fallo. */
+.tdw-tool.is-live code::after {
+    content: ''; display: inline-block; width: 12px; text-align: left;
+    animation: tdwDots 1.4s steps(4, end) infinite;
+}
+@keyframes tdwDots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
+}
+.tdw-wait { display: inline-flex; align-items: center; gap: 5px; height: 18px; }
+.tdw-wait i {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--tdw-sky);
+    animation: tdwWait 1.25s ease-in-out infinite;
+}
+.tdw-wait i:nth-child(2) { animation-delay: .16s; }
+.tdw-wait i:nth-child(3) { animation-delay: .32s; }
+@keyframes tdwWait {
+    0%, 62%, 100% { opacity: .26; transform: translateY(0); }
+    31%           { opacity: 1;   transform: translateY(-3px); }
+}
+.tdw-msg.is-pending .tdw-msg-av { animation: tdwWaitAv 1.6s ease-in-out infinite; }
+@keyframes tdwWaitAv { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 
 /* Estado inicial: las dos preguntas que el cajon no sabia responder. */
 .tdw-chat-empty { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }

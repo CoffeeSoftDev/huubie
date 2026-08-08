@@ -143,7 +143,7 @@ try {
     $result = $client->chat($allMessages, $model);
 } catch (Throwable $e) {
     http_response_code(500);
-    $provider = llm_is_openrouter_model($model) ? 'OpenRouter' : 'Ollama';
+    $provider = llm_provider_label($model);
     echo json_encode(['ok' => false, 'error' => "Error al conectar con $provider: " . $e->getMessage()]);
     exit;
 }

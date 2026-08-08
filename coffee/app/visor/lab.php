@@ -286,6 +286,10 @@
             <div id="labMessages" class="pg-chat-body"></div>
 
             <div class="ia-drawer-input">
+                <!-- Carpeta conectada: mismo chip del Visor. Mientras esta puesto, el
+                     agente recibe list_dir/read_file/grep_files sobre esa carpeta en
+                     cada turno, sin tener que volver a nombrarla. -->
+                <div id="labFolderChip" class="ia-db-chip ia-folder-chip" style="display:none;"></div>
                 <div class="ia-input-wrap">
                     <textarea id="labInput" class="ia-input-textarea" rows="1" placeholder="Prueba a tu agente aquí…"></textarea>
                     <button id="labSend" class="ia-send-btn" title="Enviar (Enter)">

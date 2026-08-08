@@ -1808,61 +1808,74 @@ class App extends Templates {
     // Migrado desde app.js - Historial de Pagos
     // =============================================
 
-    async historyPay(id) {
+    historyPay(id) {
         this._switchToPedidos();
-        const data = await useFetch({
-            url: this._pedidosLink,
-            data: { opc: 'initHistoryPay', id }
-        });
-        const order = data.order;
 
-        bootbox.dialog({
-            title: `
-                <div class="flex items-center gap-3">
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Gestión de Pagos</h2>
-                        <p class="text-sm text-gray-400">
-                            <i class="icon-doc-text-1"></i> Folio: ${order.folio} |
-                            <i class="icon-calendar-1"></i> Creado: ${order.formatted_date_order || order.date_order}
-                        </p>
-                    </div>
-                </div>
-            `,
+        // createModal resuelve el fetch antes de abrir el dialogo, por eso el folio y
+        // la fecha del encabezado se rellenan en success: al construir el title todavia
+        // no hay datos del pedido.
+        this.createModal({
             id: 'modalAdvance',
-            closeButton: true,
-            message: '<div id="containerChat"></div>'
+            data: { opc: 'initHistoryPay', id },
+            bootbox: {
+                id: 'modalAdvance',
+                closeButton: true,
+                title: `
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 shrink-0">
+                            ${lucideIcon('wallet', 'w-5 h-5 text-blue-400')}
+                        </div>
+                        <div class="min-w-0">
+                            <h2 class="text-lg font-semibold text-white leading-tight">Gestión de Pagos</h2>
+                            <p class="text-sm text-gray-400 flex items-center gap-3 mt-0.5">
+                                <span class="flex items-center gap-1.5">
+                                    ${lucideIcon('file-text', 'w-3.5 h-3.5')}
+                                    Folio <b id="lblFolioPay" class="text-blue-400 font-semibold">—</b>
+                                </span>
+                                <span class="flex items-center gap-1.5">
+                                    ${lucideIcon('calendar', 'w-3.5 h-3.5')}
+                                    <span id="lblFechaPay">—</span>
+                                </span>
+                            </p>
+                        </div>
+                    </div>`,
+                message: '<div id="containerChat"></div>'
+            },
+            success: (data) => {
+                const order = data.order;
+
+                $('#lblFolioPay').text(order.folio);
+                $('#lblFechaPay').text(order.formatted_date_order || order.date_order);
+
+                $('#modalAdvance .modal-dialog').css('max-width', '600px');
+
+                this.tabLayout({
+                    parent: 'containerChat',
+                    theme: 'dark',
+                    class: '',
+                    json: [
+                        {
+                            id: 'payment',
+                            tab: 'Registrar Pago',
+                            icon: 'icon-plus-circled',
+                            active: true
+                        },
+                        {
+                            id: 'listPayment',
+                            tab: 'Historial de Pagos',
+                            icon: 'icon-list',
+                            onClick: () => { }
+                        },
+                    ]
+                });
+
+                $('#container-listPayment').html('<div id="container-info-payment"></div><div id="container-methodPay"></div>');
+
+                this.addPayment(order, id);
+                this.renderResumenPagos(data.details);
+                this.lsPay(id);
+            }
         });
-
-        $('#modalAdvance .modal-dialog').css('max-width', '600px');
-
-        this.tabLayout({
-            parent: 'containerChat',
-            theme: 'dark',
-            class: '',
-            json: [
-                {
-                    id: 'payment',
-                    tab: 'Registrar Pago',
-                    icon: 'icon-plus-circled',
-                    active: true
-                },
-                {
-                    id: 'listPayment',
-                    tab: 'Historial de Pagos',
-                    icon: 'icon-list',
-                    onClick: () => { }
-                },
-            ]
-        });
-
-        $('#container-listPayment').html(`
-            <div id="container-info-payment"></div>
-            <div id="container-methodPay"></div>
-        `);
-
-        this.addPayment(order, id);
-        this.renderResumenPagos(data.details);
-        this.lsPay(id);
     }
 
     async addPayment(order, id) {
@@ -2253,11 +2266,11 @@ class App extends Templates {
 
         if (!response.row || response.row.length === 0) {
             $("#container-methodPay").html(`
-                <div class="flex flex-col items-center justify-center py-12 text-center">
-                    <div class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                        <i class="icon-money text-gray-400 text-3xl"></i>
+                <div class="flex flex-col items-center justify-center py-12 text-center bg-[#1E293B] border border-slate-700 rounded-xl">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-700/60 flex items-center justify-center mb-4">
+                        ${lucideIcon('history', 'w-7 h-7 text-gray-400')}
                     </div>
-                    <p class="text-gray-400 text-lg font-semibold mb-2">Aún no se ha realizado ningún abono</p>
+                    <p class="text-gray-300 text-base font-semibold mb-1">Aún no se ha realizado ningún abono</p>
                     <p class="text-gray-500 text-sm">Los pagos registrados aparecerán aquí</p>
                 </div>
             `);
@@ -2295,32 +2308,42 @@ class App extends Templates {
             minimumFractionDigits: 2
         });
 
-        let originalHTML = `<p class="text-lg font-bold text-blue-900" id="totalEvento">${formatPrice(totalEvento)}</p>`;
+        // Liquidado: el restante deja de ser una alerta y se pinta en verde como el
+        // total pagado, para que la tarjeta no siga en rojo con saldo cero.
+        const liquidado = restante <= 0;
+
+        let originalHTML = `<p class="text-lg font-bold text-blue-400 mt-1" id="totalEvento">${formatPrice(totalEvento)}</p>`;
 
         if (discount > 0) {
             originalHTML = `
-            <p class="text-lg font-bold text-blue-900" id="totalEvento">${fmt(totalConDescuento)}</p>
-            <p class="text-sm text-gray-400 line-through -mt-1">${fmt(totalEvento)}</p>
-            <p class="text-sm text-blue-700 mt-1">
-                <i class="icon-tag"></i> Descuento:
+            <p class="text-lg font-bold text-blue-400 mt-1" id="totalEvento">${fmt(totalConDescuento)}</p>
+            <p class="text-xs text-gray-500 line-through">${fmt(totalEvento)}</p>
+            <p class="text-xs text-emerald-400 mt-1 flex items-center justify-center gap-1">
+                ${lucideIcon('tag', 'w-3 h-3')} Descuento:
                 <span class="font-semibold">${fmt(discount)}</span>
             </p>
         `;
         }
 
         $('#container-info-payment').html(`
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div class="bg-green-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-green-700">Total Pagado</p>
-                <p class="text-lg font-bold text-green-900" id="totalPagado">${fmt(totalPagado)}</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div class="bg-emerald-500/10 rounded-xl p-3 text-center">
+                <p class="text-xs text-emerald-400/80 flex items-center justify-center gap-1.5">
+                    ${lucideIcon('circle-check', 'w-3.5 h-3.5')} Total pagado
+                </p>
+                <p class="text-lg font-bold text-emerald-400 mt-1" id="totalPagado">${fmt(totalPagado)}</p>
             </div>
-            <div class="bg-blue-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-blue-700">Total</p>
+            <div class="bg-blue-500/10 rounded-xl p-3 text-center">
+                <p class="text-xs text-blue-400/80 flex items-center justify-center gap-1.5">
+                    ${lucideIcon('wallet', 'w-3.5 h-3.5')} Total
+                </p>
                 ${originalHTML}
             </div>
-            <div class="bg-red-100 p-4 rounded-lg text-center shadow">
-                <p class="text-sm text-red-700">Restante</p>
-                <p class="text-lg font-bold text-red-900" id="totalRestante">${fmt(restante)}</p>
+            <div class="${liquidado ? 'bg-emerald-500/10' : 'bg-red-500/10'} rounded-xl p-3 text-center">
+                <p class="text-xs ${liquidado ? 'text-emerald-400/80' : 'text-red-400/80'} flex items-center justify-center gap-1.5">
+                    ${lucideIcon(liquidado ? 'circle-check' : 'clock', 'w-3.5 h-3.5')} Restante
+                </p>
+                <p class="text-lg font-bold ${liquidado ? 'text-emerald-400' : 'text-red-400'} mt-1" id="totalRestante">${fmt(restante)}</p>
             </div>
         </div>
     `);

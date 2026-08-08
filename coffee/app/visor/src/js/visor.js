@@ -17,6 +17,12 @@ const VISOR_QA_UI_KEY          = 'visor:qa:ui:v1';          // colapsado + pesta
 const VISOR_LAST_OPEN_KEY      = 'visor:lastOpen:v1';
 const LAST_OPEN_MAX  = 30;   // carpetas recordadas; se descartan las mas viejas
 const QA_RECENT_MAX  = 25;
+// Ancho del chat de CoffeeIA. El tope no es un numero fijo: es la ventana menos
+// lo que el documento necesita para seguir siendo legible, asi que en pantallas
+// anchas el chat se puede ensanchar de verdad y en angostas no se come la vista.
+const IA_DRAWER_MIN  = 380;
+const IA_DRAWER_BASE = 900;   // tope de siempre: en pantallas chicas se conserva
+const IA_DRAWER_KEEP = 320;   // columna que se le deja al documento al ensanchar
 // Iconos (claves lucide) ofrecidos al crear un acceso directo.
 const SHORTCUT_ICONS = ['link','globe','external-link','kanban-square','database','table','folder','github','layout-dashboard','book-open','file-text','server'];
 // Colores del icono de un acceso directo (el primero, terracota, es el default).
@@ -797,7 +803,9 @@ class App {
                 sidebarCollapsed: !!parsed.sidebarCollapsed,
                 // Panel del documento plegado (Frontmatter + Contenido).
                 metaCollapsed:    !!parsed.metaCollapsed,
-                iaDrawerWidth:    (isFinite(drawerW) && drawerW >= 380 && drawerW <= 900) ? drawerW : 420,
+                // Sin tope aqui: el ancho guardado puede venir de un monitor mas
+                // grande y se recorta al aplicarlo (applyIaDrawerWidth).
+                iaDrawerWidth:    (isFinite(drawerW) && drawerW >= IA_DRAWER_MIN) ? drawerW : 420,
                 sidebarWidth:     (isFinite(sidebarW) && sidebarW >= 200 && sidebarW <= 680) ? sidebarW : 320
             };
         } catch (e) {
@@ -1141,9 +1149,23 @@ class App {
         $('#btnMetaShow').off('click').on('click', () => set(false));
     }
 
+    // Hasta donde puede crecer el chat: lo que sobra de la ventana despues del
+    // rail, el sidebar y la columna del documento. En una pantalla ancha eso da
+    // mucho mas que el tope clasico de 900, y en una angosta el tope clasico
+    // sigue mandando: ensanchar nunca da menos margen del que ya habia.
+    iaDrawerMax() {
+        const ancho = (sel) => {
+            const el = document.querySelector(sel);
+            return el ? el.getBoundingClientRect().width : 0;
+        };
+        const ocupado = ancho('.app-rail') + ancho('.visor-sidebar');
+        return Math.max(IA_DRAWER_BASE, window.innerWidth - ocupado - IA_DRAWER_KEEP);
+    }
+
     applyIaDrawerWidth(px) {
-        const w = Math.min(900, Math.max(380, Number(px) || 420));
+        const w = Math.min(this.iaDrawerMax(), Math.max(IA_DRAWER_MIN, Number(px) || 420));
         document.getElementById('iaDrawer')?.style.setProperty('--ia-drawer-width', w + 'px');
+        return w;
     }
 
     applySidebarWidth(px) {
@@ -1183,9 +1205,7 @@ class App {
             if (!dragging) return;
             // El drawer vive a la izquierda y crece a la DERECHA → mover mouse a la DERECHA aumenta el ancho
             const dx = e.clientX - startX;
-            const next = Math.min(900, Math.max(380, startW + dx));
-            this.applyIaDrawerWidth(next);
-            this.settings.iaDrawerWidth = next;
+            this.settings.iaDrawerWidth = this.applyIaDrawerWidth(startW + dx);
         });
 
         $(document).off('mouseup.iaResize').on('mouseup.iaResize', () => {
@@ -1194,6 +1214,13 @@ class App {
             $drawer.removeClass('is-resizing');
             document.body.classList.remove('ia-drawer-resizing');
             this.saveSettings();
+        });
+
+        // Al achicar la ventana el chat se recorta a lo que quepa, pero la
+        // preferencia guardada no se toca: al volver a una pantalla ancha vuelve
+        // al ancho que el usuario habia elegido.
+        $(window).off('resize.iaResize').on('resize.iaResize', () => {
+            this.applyIaDrawerWidth(this.settings.iaDrawerWidth);
         });
     }
 
@@ -6629,7 +6656,7 @@ class CoffeeIA {
         };
 
         // --- Streaming SSE + typewriter por palabras (estilo Claude) ---
-        const provider = (this.model && this.model.indexOf('/') !== -1) ? 'OpenRouter' : 'Ollama';
+        const provider = window.CoffeeModelConfig.providerLabel(this.model);
         const finish = () => {
             // Layout: si quedo loading sin resultado (error/abort/sin respuesta),
             // restaura el documento abierto para no dejar el panel en "generando".

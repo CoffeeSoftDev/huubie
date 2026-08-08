@@ -4288,9 +4288,12 @@ body.ia-drawer-resizing * {
 
 /* Tablas markdown dentro del chat (p.ej. resultados de SELECT). Sin esto las
    columnas se amontonan sin bordes ni padding y se ven "desordenadas".
-   Se excluye .ia-xls: esa tabla la dibuja un componente (historias de usuario)
-   y trae su propio layout. */
-.ia-msg-text table:not(.ia-xls) {
+   Se excluyen las tablas que dibuja un componente con su propio layout y su
+   propia paleta: .ia-xls (historias de usuario) y .ia-ers-table (documento
+   ERS). Sin excluirlas, estas reglas les ganan en especificidad y les meten
+   los tokens --vsr-* del chat: sobre la hoja blanca del documento el texto
+   quedaba gris claro sobre blanco, ilegible. */
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) {
     display: block;                 /* permite scroll horizontal en tablas anchas */
     width: max-content;
     max-width: 100%;
@@ -4302,28 +4305,28 @@ body.ia-drawer-resizing * {
     border: 1px solid var(--vsr-border-soft);
     border-radius: 6px;
 }
-.ia-msg-text table:not(.ia-xls) thead th {
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) thead th {
     background: var(--vsr-bg-input);
     color: var(--vsr-text);
     font-weight: 600;
     text-align: left;
     border-bottom: 2px solid var(--vsr-border);
 }
-.ia-msg-text table:not(.ia-xls) th,
-.ia-msg-text table:not(.ia-xls) td {
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) th,
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) td {
     padding: 6px 12px;
     white-space: nowrap;            /* cada celda en una sola linea */
     border-right: 1px solid var(--vsr-border-soft);
     vertical-align: top;
 }
-.ia-msg-text table:not(.ia-xls) th:last-child,
-.ia-msg-text table:not(.ia-xls) td:last-child { border-right: none; }
-.ia-msg-text table:not(.ia-xls) tbody td {
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) th:last-child,
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) td:last-child { border-right: none; }
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) tbody td {
     color: var(--vsr-text-soft);
     border-top: 1px solid var(--vsr-border-soft);
 }
-.ia-msg-text table:not(.ia-xls) tbody tr:nth-child(even) td { background: rgba(127, 127, 127, 0.06); }
-.ia-msg-text table:not(.ia-xls) tbody tr:hover td { background: var(--vsr-accent-tint); }
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) tbody tr:nth-child(even) td { background: rgba(127, 127, 127, 0.06); }
+.ia-msg-text table:not(.ia-xls):not(.ia-ers-table) tbody tr:hover td { background: var(--vsr-accent-tint); }
 
 /* Usuario: burbuja gris a la derecha */
 .ia-msg.user { align-items: flex-end; }
@@ -5338,8 +5341,16 @@ body.ia-drawer-resizing * {
 /* ── Paleta GitHub (Primer) — la comparten el ERS y las historias ──
    Los dos son entregables de CoffeePlanner y se leen como un archivo de
    repositorio, asi que no usan los tokens --vsr-* del chat: tienen su propio
-   mundo y no se tiñen con el acento del tema. Solo siguen al tema en el par
-   claro/oscuro, igual que GitHub. */
+   mundo y no se tiñen con el acento del tema.
+
+   Van SIEMPRE en claro, aunque el visor este en oscuro: son documentos que se
+   leen largo, se imprimen y se pegan en el repositorio, y ahi la hoja es
+   blanca. El tema de la app manda en el chat, no dentro del documento.
+
+   Los tokens se declaran tambien en el envoltorio .ia-render-* y en el modal:
+   el fondo de la hoja lo pintan ellos, no el .ia-ers/.ia-stories interior. */
+.ia-render-ers, .ia-render-stories,
+.ia-ers-modal, .ia-stories-modal,
 .ia-ers, .ia-stories {
     --gh-canvas:        #ffffff;
     --gh-subtle:        #f6f8fa;
@@ -5361,25 +5372,16 @@ body.ia-drawer-resizing * {
     --gh-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
     --gh-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
-[data-theme="dark"] .ia-ers,     [data-theme="midnight"] .ia-ers,
-[data-theme="dark"] .ia-stories, [data-theme="midnight"] .ia-stories {
-    --gh-canvas:        #0d1117;
-    --gh-subtle:        #161b22;
-    --gh-border:        #30363d;
-    --gh-border-muted:  #21262d;
-    --gh-fg:            #e6edf3;
-    --gh-fg-muted:      #8b949e;
-    --gh-fg-subtle:     #6e7681;
-    --gh-accent:        #4493f8;
-    --gh-accent-subtle: rgba(56,139,253,.15);
-    --gh-success:       #3fb950;
-    --gh-success-subtle:rgba(63,185,80,.15);
-    --gh-attention:     #d29922;
-    --gh-attention-subtle: rgba(210,153,34,.15);
-    --gh-done:          #a371f7;
-    --gh-danger:        #f85149;
-    --gh-danger-subtle: rgba(248,81,73,.15);
-    --gh-mute:          rgba(110,118,129,.4);
+/* La hoja del documento: aqui empieza el mundo claro, y de aqui no sale.
+   El .ia-render-toolbar de arriba sigue siendo cromo del chat y conserva el
+   tema de la app, igual que la barra de un archivo en el repositorio. */
+.ia-render-ers > .ia-render-view,
+.ia-render-stories > .ia-render-view,
+.ia-ers-modal .ia-html-modal-body,
+.ia-stories-modal .ia-html-modal-body {
+    color-scheme: light;
+    background: var(--gh-canvas);
+    color: var(--gh-fg);
 }
 
 /* ── Historias de usuario (bloque ```stories de CoffeePlanner) ──

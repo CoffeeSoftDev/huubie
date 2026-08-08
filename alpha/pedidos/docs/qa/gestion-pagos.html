@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html class="bg-[#111928]" lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QA · Gestión de Pagos</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="../../../src/plugins/fontello/css/fontello.css" />
+    <link rel="stylesheet" href="../../../eventos/src/css/style.css" />
+    <link rel="stylesheet" href="../../../src/css/buttons.css" />
+    <link rel="stylesheet" href="../../../src/css/colors.css" />
+
+    <link rel="stylesheet" href="../../../src/plugins/sweetalert2/sweetalert2.min.css" />
+    <script src="../../../src/plugins/sweetalert2/sweetalert2.all.min.js"></script>
+
+    <script src="../../../src/plugins/jquery/jquery-3.7.0.js"></script>
+    <script src="../../../src/plugins/moment.js"></script>
+    <script src="../../../src/plugins/bootbox.min.js"></script>
+    <script src="../../../src/js/complementos.js"></script>
+    <script src="../../../src/js/plugins.js"></script>
+    <script src="../../../src/js/coffeeSoft.js"></script>
+
+    <link rel="stylesheet" href="../../../src/plugins/datatables/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="../../../src/plugins/datatables/datatables.min.js"></script>
+    <script src="../../../src/plugins/datatables/dataTables.responsive.min.js"></script>
+    <script src="../../../src/plugins/datatables/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <link rel="stylesheet" href="../../../src/plugins/bootstrap-5/css/bootstrap.min.css" />
+    <script src="../../../src/plugins/bootstrap-5/js/bootstrap.bundle.js"></script>
+
+    <!-- Copia de las reglas que index.php aplica al modulo. -->
+    <style>
+        #modalAdvance label:empty,
+        #formEditDelivery label:empty { display: none; }
+
+        .swal2-container { z-index: 100010 !important; }
+        .z-\[10001\]     { z-index: 100005 !important; }
+    </style>
+</head>
+
+<body class="bg-[#111928] text-white">
+
+<div class="max-w-6xl mx-auto p-6">
+
+    <div class="flex items-start justify-between gap-4 flex-wrap mb-5">
+        <div>
+            <h1 class="text-xl font-bold">QA · Gestión de Pagos</h1>
+            <p class="text-sm text-gray-400 mt-1">
+                Página de pruebas con datos simulados. No toca la base de datos: las peticiones
+                están interceptadas y respondidas localmente.
+            </p>
+        </div>
+        <a href="#checklist" class="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-2">Ir al checklist ↓</a>
+    </div>
+
+    <!-- Casos -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+
+        <button onclick="abrir('parcial')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-blue-400">1 · Abono parcial</p>
+            <p class="text-xs text-gray-400 mt-1">Total $3,000 · pagado $500 · restante $2,500</p>
+            <p class="text-[11px] text-gray-500 mt-2">Caso base para registrar un pago.</p>
+        </button>
+
+        <button onclick="abrir('sinpagos')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-gray-300">2 · Sin pagos</p>
+            <p class="text-xs text-gray-400 mt-1">Total $1,500 · sin abonos</p>
+            <p class="text-[11px] text-gray-500 mt-2">Revisa el estado vacío del historial.</p>
+        </button>
+
+        <button onclick="abrir('liquidado')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-emerald-400">3 · Liquidado</p>
+            <p class="text-xs text-gray-400 mt-1">Total $890 · pagado $890 · restante $0</p>
+            <p class="text-[11px] text-gray-500 mt-2">Formulario bloqueado y borrado con contraseña.</p>
+        </button>
+
+        <button onclick="abrir('descuento')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-purple-400">4 · Con descuento</p>
+            <p class="text-xs text-gray-400 mt-1">Total $3,200 · descuento $200 · pagado $700</p>
+            <p class="text-[11px] text-gray-500 mt-2">Desglose del descuento en el resumen.</p>
+        </button>
+
+        <button onclick="abrir('cruzado')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-amber-400">5 · Cobro cruzado</p>
+            <p class="text-xs text-gray-400 mt-1">Pedido de Reginas Norte · se cobra en otra</p>
+            <p class="text-[11px] text-gray-500 mt-2">Cambia "Sucursal que cobrará" y observa el aviso.</p>
+        </button>
+
+        <button onclick="abrir('multiple')" class="text-left bg-[#1F2A37] hover:bg-[#25313f] rounded-xl p-4 transition-colors">
+            <p class="font-semibold text-cyan-400">6 · Varios abonos</p>
+            <p class="text-xs text-gray-400 mt-1">Total $5,000 · 3 abonos · restante $1,900</p>
+            <p class="text-[11px] text-gray-500 mt-2">Historial con varias filas y métodos distintos.</p>
+        </button>
+    </div>
+
+    <!-- Inspector -->
+    <div class="bg-[#1F2A37] rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between mb-2">
+            <p class="font-semibold text-sm">Última petición enviada al servidor</p>
+            <button onclick="limpiarLog()" class="text-xs text-gray-400 hover:text-gray-200">Limpiar</button>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-2">
+            Aquí aparece lo que el formulario mandaría al controlador. Sirve para confirmar que
+            el importe, el método y la sucursal de cobro viajan correctos.
+        </p>
+        <pre id="logPayload" class="text-xs bg-[#111928] rounded-lg p-3 overflow-x-auto text-emerald-300 min-h-[3rem]">— sin peticiones todavía —</pre>
+    </div>
+
+    <!-- Checklist -->
+    <div id="checklist" class="bg-[#1F2A37] rounded-xl p-4">
+        <p class="font-semibold mb-3">Qué revisar</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm" id="listaChecks"></div>
+    </div>
+
+    <p class="text-[11px] text-gray-600 mt-6">
+        Contraseña válida para el borrado del pedido liquidado: <b class="text-gray-400">1234</b>
+        (cualquier otra simula el rechazo del servidor).
+    </p>
+</div>
+
+<div id="root"></div>
+
+<script>
+    // -- Sample --
+
+    const SAMPLE_ORDER = {
+        parcial:   { id: 1, folio: 'S4-1042', formatted_date_order: '12 de junio de 2026', date_order: '2026-06-12',
+                     total_pay: 3000, total_paid: 500,  discount: 0,   subsidiaries_id: 4 },
+        sinpagos:  { id: 2, folio: 'S4-1043', formatted_date_order: '13 de junio de 2026', date_order: '2026-06-13',
+                     total_pay: 1500, total_paid: 0,    discount: 0,   subsidiaries_id: 4 },
+        liquidado: { id: 3, folio: 'S4-1044', formatted_date_order: '14 de junio de 2026', date_order: '2026-06-14',
+                     total_pay: 890,  total_paid: 890,  discount: 0,   subsidiaries_id: 4 },
+        descuento: { id: 4, folio: 'S4-1045', formatted_date_order: '15 de junio de 2026', date_order: '2026-06-15',
+                     total_pay: 3200, total_paid: 700,  discount: 200, subsidiaries_id: 4 },
+        cruzado:   { id: 5, folio: 'S5-1046', formatted_date_order: '16 de junio de 2026', date_order: '2026-06-16',
+                     total_pay: 2400, total_paid: 400,  discount: 0,   subsidiaries_id: 5 },
+        multiple:  { id: 6, folio: 'S4-1047', formatted_date_order: '17 de junio de 2026', date_order: '2026-06-17',
+                     total_pay: 5000, total_paid: 3100, discount: 0,   subsidiaries_id: 4 }
+    };
+
+    const SAMPLE_PAYMENTS = {
+        parcial: [
+            { id: 91, fecha: '12 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+              monto: 500, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' }
+        ],
+        sinpagos: [],
+        liquidado: [
+            { id: 92, fecha: '14 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+              monto: 400, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' },
+            { id: 93, fecha: '14 de junio de 2026', metodo: 'Tarjeta', icono: 'icon-credit-card',
+              monto: 490, sub: 'Reginas Norte', cruzado: true, desc: 'Liquidación' }
+        ],
+        descuento: [
+            { id: 94, fecha: '15 de junio de 2026', metodo: 'Transferencia', icono: 'icon-exchange',
+              monto: 700, sub: 'Reginas Centro', cruzado: false, desc: 'SPEI' }
+        ],
+        cruzado: [
+            { id: 95, fecha: '16 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+              monto: 400, sub: 'Reginas Centro', cruzado: true, desc: 'Cobrado en Centro' }
+        ],
+        multiple: [
+            { id: 96, fecha: '17 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+              monto: 1000, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' },
+            { id: 97, fecha: '17 de junio de 2026', metodo: 'Tarjeta', icono: 'icon-credit-card',
+              monto: 1500, sub: 'Reginas Centro', cruzado: false, desc: 'Segundo abono' },
+            { id: 98, fecha: '18 de junio de 2026', metodo: 'Transferencia', icono: 'icon-exchange',
+              monto: 600, sub: 'Reginas Norte', cruzado: true, desc: 'Depósito' }
+        ]
+    };
+
+    // Estado vivo del caso: los abonos registrados en la sesion se acumulan aqui,
+    // para que el historial y el resumen se comporten como con datos reales.
+    let CASO  = 'parcial';
+    let ESTADO = null;
+
+    function resetEstado(caso) {
+        ESTADO = {
+            order: Object.assign({}, SAMPLE_ORDER[caso]),
+            pagos: SAMPLE_PAYMENTS[caso].map(p => Object.assign({}, p))
+        };
+    }
+
+    const SUBS = { 4: 'Reginas Centro', 5: 'Reginas Norte' };
+
+    function samplePaymentRows() {
+        const requiereClave = (ESTADO.order.total_pay - ESTADO.order.discount - ESTADO.order.total_paid) <= 0.009 ? 1 : 0;
+
+        return ESTADO.pagos.map(p => ({
+            id: p.id,
+            'Fecha de Pago': { html: '<i class="icon-calendar-2"></i> ' + p.fecha },
+            'Método':        { html: '<i class="' + p.icono + '"></i> ' + p.metodo },
+            'Monto':         { html: '$ ' + p.monto.toFixed(2) },
+            'Sucursal':      { html: p.cruzado
+                                ? '<span class="px-2 py-0.5 rounded bg-amber-900/40 text-amber-300 text-xs" title="Cobrado en sucursal distinta"><i class="icon-exchange"></i> ' + p.sub + '</span>'
+                                : '<span class="px-2 py-0.5 rounded bg-slate-700 text-gray-200 text-xs">' + p.sub + '</span>' },
+            'Observación':   p.desc,
+            a: [{
+                class:   requiereClave ? 'pointer text-amber-400 hover:text-amber-300 p-2' : 'pointer text-red-400 hover:text-red-300 p-2',
+                html:    requiereClave
+                            ? '<i class="icon-lock" title="Eliminar pago (requiere contraseña)"></i>'
+                            : '<i class="icon-trash" title="Eliminar pago"></i>',
+                onClick: `app.deletePay(${p.id},${ESTADO.order.id},${requiereClave})`
+            }]
+        }));
+    }
+
+    function detalles() {
+        const o = ESTADO.order;
+        return {
+            pagado:   o.total_paid,
+            total:    o.total_pay,
+            discount: o.discount,
+            restante: o.total_pay - o.discount - o.total_paid
+        };
+    }
+
+    function initHistoryPay() { return { order: Object.assign({}, ESTADO.order), details: detalles() }; }
+
+    function pintarLog(titulo, obj) {
+        document.getElementById('logPayload').textContent =
+            titulo + '\n' + JSON.stringify(obj, null, 2);
+    }
+    function limpiarLog() {
+        document.getElementById('logPayload').textContent = '— sin peticiones todavía —';
+    }
+
+    // -- Stubs de red: responden como el controlador, sin tocar la BD --
+
+    window.useFetch = (options) => {
+        const d = options?.data || {}, opc = d.opc;
+
+        // El arranque del modulo (getModifiers/init) pide datos de sesion que aqui no
+        // existen. Se deja la promesa sin resolver para que no monte la pantalla de
+        // pedidos por detras, y sin lanzar para no ensuciar la consola.
+        if (opc === 'getModifiers' || opc === 'init') return new Promise(() => {});
+
+        if (opc === 'initHistoryPay') return Promise.resolve(initHistoryPay());
+        if (opc === 'listPayment')    return Promise.resolve({ row: samplePaymentRows() });
+
+        if (opc === 'deletePay') {
+            pintarLog('opc: deletePay', d);
+
+            const liquidado = (ESTADO.order.total_pay - ESTADO.order.discount - ESTADO.order.total_paid) <= 0.009;
+            if (liquidado && d.password !== '1234') {
+                return Promise.resolve({ status: 401, message: 'Contraseña incorrecta. El pedido está liquidado y eliminar un abono requiere autorización.' });
+            }
+
+            const i = ESTADO.pagos.findIndex(p => String(p.id) === String(d.idPay));
+            if (i >= 0) {
+                ESTADO.order.total_paid -= ESTADO.pagos[i].monto;
+                ESTADO.pagos.splice(i, 1);
+            }
+            return Promise.resolve({ status: 200, message: 'Pago eliminado correctamente. Saldo actualizado.', initHistoryPay: initHistoryPay() });
+        }
+
+        console.warn('[QA] sin stub para opc=' + opc);
+        return Promise.resolve({});
+    };
+
+    window.fn_ajax = (datos) => {
+        let plano = {};
+        if (datos instanceof FormData) datos.forEach((v, k) => plano[k] = v);
+        else if (typeof datos === 'string') plano = Object.fromEntries(new URLSearchParams(datos));
+        else plano = datos || {};
+
+        const opc = plano.opc;
+
+        if (opc === 'initHistoryPay') return Promise.resolve(initHistoryPay());
+        if (opc === 'listPayment')    return Promise.resolve({ row: samplePaymentRows(), 0: [] });
+
+        // El formulario legacy envia por aqui: este es el alta de pago real.
+        if (opc === 'addPayment') {
+            pintarLog('opc: addPayment', plano);
+
+            const monto  = parseFloat(plano.advanced_pay) || 0;
+            const subId  = String(plano.payment_subsidiaries_id || '');
+            const metodo = { '1': ['Efectivo', 'icon-money'], '2': ['Tarjeta', 'icon-credit-card'], '3': ['Transferencia', 'icon-exchange'] }[String(plano.method_pay_id)] || ['Efectivo', 'icon-money'];
+
+            ESTADO.pagos.push({
+                id: Math.floor(Math.random() * 9000) + 1000,
+                fecha: 'hoy',
+                metodo: metodo[0],
+                icono: metodo[1],
+                monto: monto,
+                sub: SUBS[subId] || '—',
+                cruzado: subId !== String(ESTADO.order.subsidiaries_id),
+                desc: plano.description || '—'
+            });
+            ESTADO.order.total_paid += monto;
+
+            return Promise.resolve({
+                status: 200,
+                message: 'Pago registrado correctamente',
+                data: { order: Object.assign({}, ESTADO.order), details: detalles() }
+            });
+        }
+
+        return Promise.resolve({ row: [], 0: [] });
+    };
+</script>
+
+<script src="../../src/js/lucide-icons.js"></script>
+<script src="../../src/js/app.js"></script>
+
+<script>
+    // Globales que el modulo espera de la sesion.
+    rol = 1;
+    udn = 4;
+    subsidiaries      = [{ id: 4, valor: 'Reginas Centro' }, { id: 5, valor: 'Reginas Norte' }];
+    subsidiariesCobro = [{ id: 4, valor: 'Reginas Centro' }, { id: 5, valor: 'Reginas Norte' }];
+
+    function abrir(caso) {
+        CASO = caso;
+        resetEstado(caso);
+        limpiarLog();
+
+        $('.cf-overlay, .modal, .modal-backdrop, .swal2-container').remove();
+
+        app = new App('ctrl/ctrl-pedidos.php', 'root');
+        app.requireOpenShift = () => true;   // sin turno de caja en esta pagina
+        app.ls = () => {};                   // no hay tabla de pedidos detras
+
+        app.historyPay(SAMPLE_ORDER[caso].id);
+    }
+
+    // -- Checklist --
+
+    const CHECKS = [
+        'El modal abre sin bootbox (overlay propio, esquinas redondeadas).',
+        'En "Registrar Pago" hay UN solo botón, a todo el ancho.',
+        'En "Historial de Pagos" no aparece ningún botón abajo.',
+        'El modal cierra con la X, con Escape y haciendo clic fuera.',
+        'Al registrar, la confirmación se ve ENCIMA del modal (no detrás).',
+        'Importe en 0 o vacío: avisa y no registra nada.',
+        'Observación vacía: sí deja registrar.',
+        'Importe mayor al restante: el botón se deshabilita.',
+        'Al teclear el importe, el "Monto restante" baja en vivo.',
+        'Cambiar el método de pago actualiza la tarjeta (Efectivo/Tarjeta/Transferencia).',
+        'Cambiar "Sucursal que cobrará" pone la tarjeta en ámbar.',
+        'En cobro cruzado, la confirmación muestra el aviso naranja.',
+        'El historial se ancha al cambiar de pestaña (tabla de 6 columnas).',
+        'Tras registrar, el pago aparece en el historial y el resumen se recalcula.',
+        'Pedido liquidado: campos bloqueados y botón "Pedido Pagado".',
+        'Pedido liquidado: el borrado pide contraseña (prueba con 1234 y con otra).',
+        'Pedido con saldo: el borrado pide confirmación simple.',
+        'Sin pagos: el historial muestra el estado vacío con su ícono.'
+    ];
+
+    document.getElementById('listaChecks').innerHTML = CHECKS.map((t, i) => `
+        <label class="flex items-start gap-2 py-1 cursor-pointer hover:text-white text-gray-300">
+            <input type="checkbox" class="mt-1 accent-blue-600 shrink-0">
+            <span>${t}</span>
+        </label>`).join('');
+</script>
+
+</body>
+</html>
