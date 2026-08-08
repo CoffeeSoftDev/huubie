@@ -170,7 +170,7 @@ function ciaLoadSettings() {
         CIA.agentKey   = CIA_AGENTS[s.agentKey] ? s.agentKey : CIA_DEFAULT_AGENT;
         CIA.model      = s.model || '';
         CIA.effort     = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : '';
-        CIA.uiTheme    = (window.CoffeeTheme ? CoffeeTheme.normalize(s.uiTheme) : (s.uiTheme === 'light' ? 'light' : 'dark'));
+        CIA.uiTheme    = (window.CoffeeTheme ? CoffeeTheme.load('coffeeia:settings:v1') : (s.uiTheme === 'light' ? 'light' : 'dark'));
         CIA.canvasMode = !!s.canvasMode;
         CIA.graphMode  = CIA_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
         CIA.dbToolsOn  = !!s.dbToolsOn;
@@ -252,7 +252,7 @@ function ciaBindSidebarResize() {
 }
 
 function ciaApplyUiTheme(theme) {
-    CIA.uiTheme = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
+    CIA.uiTheme = (window.CoffeeTheme ? CoffeeTheme.set(theme) : (theme === 'light' ? 'light' : 'dark'));
     document.documentElement.setAttribute('data-theme', CIA.uiTheme);
     document.body.setAttribute('data-theme', CIA.uiTheme);
     // Mermaid no conoce el tema 'light': su equivalente claro es 'default'.
@@ -265,8 +265,10 @@ function ciaApplyUiTheme(theme) {
         if (window.lucide) lucide.createIcons();
     }
     ciaSaveSettings();
-    // Los diagramas ya renderizados siguen el tema: se repintan al cambiarlo.
-    if (CIA.history.length) ciaRenderThread();
+    // Solo se repintan los diagramas que llevan el tema dentro. Rehacer el hilo
+    // entero tambien reconstruia el ERS y las historias de usuario, que perdian
+    // la vista elegida y los apartados desplegados.
+    ciaRepaintThemed();
 }
 
 /* ═══════════════════════ Selects ═══════════════════════ */
@@ -1249,20 +1251,48 @@ function ciaHookTemplates($text, opts) {
         const idx = ciaRegisterTemplate($block.find('.ia-render-source').text(), opts.msgIdx);
         if (idx < 0) return;
         lastIdx = idx;
-
-        const $btn = $(`
-            <button class="ia-render-btn cia-render-side" title="Verlo en grande (a la derecha)">
-                <i data-lucide="panel-right" class="w-3 h-3"></i>Visor
-            </button>`);
-        $btn.on('click', () => ciaOpenViewer(idx));
-
-        // Antes de "Expandir": las dos son formas de verlo en grande, juntas.
-        const $expand = $block.find('.ia-render-expand');
-        if ($expand.length) $expand.before($btn);
-        else                $block.find('.ia-render-tabs').append($btn);
+        ciaAddViewerBtn($block, idx);
     });
     if (window.lucide) lucide.createIcons();
     return lastIdx;
+}
+
+// El indice queda en el DOM para poder rearmar el boton tras un repintado por
+// tema sin volver a registrar el template (se duplicaria en el visor).
+function ciaAddViewerBtn($block, idx) {
+    $block.attr('data-cia-template', idx);
+
+    const $btn = $(`
+        <button class="ia-render-btn cia-render-side" title="Verlo en grande (a la derecha)">
+            <i data-lucide="panel-right" class="w-3 h-3"></i>Visor
+        </button>`);
+    $btn.on('click', () => ciaOpenViewer(idx));
+
+    // Antes de "Expandir": las dos son formas de verlo en grande, juntas.
+    const $expand = $block.find('.ia-render-expand');
+    if ($expand.length) $expand.before($btn);
+    else                $block.find('.ia-render-tabs').append($btn);
+}
+
+/* Repinta lo que depende del tema conservando lo demas. Los bloques HTML se
+   rehacen (el tema viaja dentro del srcdoc), asi que hay que devolverles el
+   boton "Visor": su indice de template se lee del DOM y no se re-registra. */
+function ciaRepaintThemed() {
+    if (!window.IARender || !IARender.reRenderThemedBlocks) return;
+
+    const $body = $('#ciaBody');
+    const idxs  = $body.find('.ia-render-block[data-render-type="html"]')
+                       .map(function () { return $(this).attr('data-cia-template'); }).get();
+
+    IARender.reRenderThemedBlocks($body);
+
+    $body.find('.ia-render-block[data-render-type="html"]').each(function (i) {
+        const idx = parseInt(idxs[i], 10);
+        if (isNaN(idx)) return;
+        $(this).data('cia-hooked', true);
+        ciaAddViewerBtn($(this), idx);
+    });
+    if (window.lucide) lucide.createIcons();
 }
 
 /* ── Abrir / cerrar ── */

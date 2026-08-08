@@ -1398,6 +1398,49 @@
         });
     }
 
+    /* ── Repintado al cambiar de tema ──────────────────────────────────────
+       Solo se rehacen los bloques cuyo dibujo se genero con el tema dentro:
+       mermaid recibe el theme en initialize() y el preview HTML lo lleva
+       cocido en el srcdoc del iframe.
+
+       Los demas visores (historias, ERS, chart, graphviz, drawio, excalidraw)
+       toman el tema del CSS por `[data-theme]`, asi que ya cambiaron solos: si
+       se rehicieran perderian lo que el usuario tenia puesto en pantalla —la
+       vista de fichas o tabla, los modulos y criterios desplegados, el toggle
+       de codigo—, y el ERS y las historias se rearmarian desde cero.
+
+       Antes esta funcion vivia en visor.js y reemplazaba el bloque por un
+       <pre><code> ANTES de mirar el tipo, de modo que a los cuatro que no
+       re-renderizaba les borraba el visor entero y dejaba el YAML crudo. */
+    const THEME_DEPENDENT = ['mermaid', 'html'];
+
+    /**
+     * @param $scope     Donde buscar los bloques. Sin el, todo el documento.
+     * @param renderers  { mermaid, html } para quien tenga los suyos — el visor
+     *                   dibuja esos dos bloques con sus propias funciones y
+     *                   repintarlos con las de aqui le cambiaria la tarjeta.
+     */
+    function reRenderThemedBlocks($scope, renderers) {
+        const $root = $scope && $scope.length ? $scope : $(document);
+        const fns   = renderers || {};
+
+        $root.find('.ia-render-block').each(function () {
+            const $blk = $(this);
+            const type = String($blk.attr('data-render-type') || '');
+            if (THEME_DEPENDENT.indexOf(type) === -1) return;
+
+            const src = $blk.find('.ia-render-source').text();
+            if (!src) return;
+
+            const $stub = $('<pre><code></code></pre>');
+            $stub.find('code').addClass('language-' + type).text(src);
+            $blk.replaceWith($stub);
+
+            const fn = fns[type] || (type === 'mermaid' ? renderMermaid : renderHtmlPreview);
+            fn($stub, src);
+        });
+    }
+
     /* ── Normalizadores de salida cruda (modo lienzo / grafica) ── */
     function looksLikeHtml(t) {
         return /<!doctype html|<html[\s>]|<head[\s>]|<body[\s>]|<(div|section|main|header|nav|table|article|ul|ol|form|button|span|img|svg|h[1-6]|p)[\s>]/i.test(t || '');
@@ -1452,6 +1495,7 @@
         openDiagramInTab, openDiagramModal, openHtmlModal, buildHtmlSrcdoc,
         renderMermaid, renderGraphviz, renderChart, renderHtmlPreview,
         renderDrawio, renderExcalidraw, renderStories, renderErs,
+        reRenderThemedBlocks,
         parseYamlish, normalizeStories, storiesToMarkdown, storiesToCsv, exportStories, openStoriesModal,
         normalizeErs, ersToMarkdown, openErsModal,
         normalizeCanvasHtml, normalizeDrawioXml, normalizeExcalidrawJson,

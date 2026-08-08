@@ -53,18 +53,25 @@ async function setSource(newSource) {
 
 function loadTheme() {
     const settings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const theme = (window.CoffeeTheme ? CoffeeTheme.normalize(settings.theme) : (settings.theme === 'light' ? 'light' : 'dark'));
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
+    const theme = (window.CoffeeTheme ? CoffeeTheme.load(STORAGE_KEY, 'theme') : (settings.theme === 'light' ? 'light' : 'dark'));
+    if (window.CoffeeTheme) CoffeeTheme.apply(theme);
+    else {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.body.setAttribute('data-theme', theme);
+    }
     const icon = (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(theme)).icon : (theme === 'dark' ? 'sun' : 'moon'));
     $('#btnThemeToggle').html(`<i data-lucide="${icon}" class="w-4 h-4"></i>`);
     if (window.lucide) lucide.createIcons();
 }
 
 function toggleTheme() {
+    if (window.CoffeeTheme) {
+        CoffeeTheme.set(CoffeeTheme.next(CoffeeTheme.load(STORAGE_KEY, 'theme')));
+        loadTheme();
+        return;
+    }
     const settings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const next = settings.theme === 'light' ? 'dark' : 'light';
-    settings.theme = next;
+    settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     loadTheme();
 }

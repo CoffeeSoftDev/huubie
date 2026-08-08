@@ -255,7 +255,7 @@ function pgBindSplitter() {
 
 /* ── Tema de la UI (claro/oscuro) — mismo mecanismo que el Visor ── */
 function pgApplyUiTheme(theme) {
-    const t = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
+    const t = (window.CoffeeTheme ? CoffeeTheme.set(theme) : (theme === 'light' ? 'light' : 'dark'));
     pg.uiTheme = t;
     document.documentElement.setAttribute('data-theme', t);
     document.body.setAttribute('data-theme', t);
@@ -264,7 +264,7 @@ function pgApplyUiTheme(theme) {
     const hljs = document.getElementById('hljsTheme');
     if (hljs) {
         const base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
-        hljs.href = base + (t === 'dark' ? 'github-dark.min.css' : 'github.min.css');
+        hljs.href = base + ((window.CoffeeTheme ? CoffeeTheme.isDark(t) : t === 'dark') ? 'github-dark.min.css' : 'github.min.css');
     }
     if (window.lucide) lucide.createIcons();
 }
@@ -275,7 +275,7 @@ function pgLoadSettings() {
         const s = JSON.parse(localStorage.getItem(PG_STORE_KEY) || '{}');
         if (s.agentKey && PG_AGENTS[s.agentKey]) pg.agentKey = s.agentKey;
         if (s.theme && PG_THEMES[s.theme])       pg.theme    = s.theme;
-        if (s.uiTheme === 'light' || s.uiTheme === 'dark') pg.uiTheme = s.uiTheme;
+        pg.uiTheme = (window.CoffeeTheme ? CoffeeTheme.load(PG_STORE_KEY) : (s.uiTheme === 'light' ? 'light' : 'dark'));
         if (s.splitW) pg.splitW = s.splitW;
         if (typeof s.zoom === 'number')          pg.zoom     = s.zoom;
         if (PG_VIEWPORTS[s.viewport])            pg.viewport = s.viewport;

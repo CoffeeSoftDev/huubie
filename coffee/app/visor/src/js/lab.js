@@ -1647,11 +1647,11 @@
     /* ═══════════════════════ Tema ═══════════════════════ */
 
     function applyTheme(theme) {
-        LAB.uiTheme = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
+        LAB.uiTheme = (window.CoffeeTheme ? CoffeeTheme.set(theme) : (theme === 'light' ? 'light' : 'dark'));
         $('html, body').attr('data-theme', LAB.uiTheme);
-        $('#labThemeToggle i').attr('data-lucide', LAB.uiTheme === 'dark' ? 'sun' : 'moon');
-        $('#hljsTheme').attr('href', 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github' + (LAB.uiTheme === 'dark' ? '-dark' : '') + '.min.css');
-        try { localStorage.setItem('lab:theme', LAB.uiTheme); } catch (e) {}
+        const dark = (window.CoffeeTheme ? CoffeeTheme.isDark(LAB.uiTheme) : LAB.uiTheme === 'dark');
+        $('#labThemeToggle i').attr('data-lucide', (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(LAB.uiTheme)).icon : (dark ? 'sun' : 'moon')));
+        $('#hljsTheme').attr('href', 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github' + (dark ? '-dark' : '') + '.min.css');
         icons();
     }
 
@@ -1677,9 +1677,9 @@
     /* ═══════════════════════ Arranque ═══════════════════════ */
 
     $(function () {
-        try { applyTheme(localStorage.getItem('lab:theme') || 'dark'); } catch (e) { applyTheme('dark'); }
+        try { applyTheme(window.CoffeeTheme ? CoffeeTheme.load() : (localStorage.getItem('lab:theme') || 'dark')); } catch (e) { applyTheme('dark'); }
 
-        $('#labThemeToggle').on('click', () => applyTheme(LAB.uiTheme === 'dark' ? 'light' : 'dark'));
+        $('#labThemeToggle').on('click', () => applyTheme(window.CoffeeTheme ? CoffeeTheme.next(LAB.uiTheme) : (LAB.uiTheme === 'dark' ? 'light' : 'dark')));
         $('#labHeaderToggle').on('click', function () {
             const open = $('#labHeaderRight').toggleClass('open').hasClass('open');
             $(this).attr('aria-expanded', open ? 'true' : 'false');

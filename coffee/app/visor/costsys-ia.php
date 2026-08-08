@@ -23,6 +23,9 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- CoffeeTheme: el tema es el mismo para todo coffee/app/. Esta pagina no lleva jQuery,
+     asi que prefs-store queda en modo solo-localStorage (no sincroniza con SQLite). -->
+<script src="src/js/prefs-store.js?t=<?php echo time(); ?>"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 
 <style>
@@ -520,18 +523,26 @@
   });
 
   document.getElementById('themeToggle').addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    const cur  = document.documentElement.getAttribute('data-theme');
+    const next = window.CoffeeTheme ? CoffeeTheme.set(CoffeeTheme.next(cur)) : (cur === 'dark' ? 'light' : 'dark');
     document.documentElement.setAttribute('data-theme', next);
     document.body.setAttribute('data-theme', next);
-    document.getElementById('themeToggle').innerHTML = `<i data-lucide="${next==='dark'?'sun':'moon'}" class="w-4 h-4"></i>`;
+    const icon = window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(next)).icon : (next === 'dark' ? 'sun' : 'moon');
+    document.getElementById('themeToggle').innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i>`;
     lucide.createIcons();
-    try { localStorage.setItem('costsys_ia_theme', next); } catch(_){}
   });
 
   /* ---------- init ---------- */
   (function init(){
-    const savedTheme = (function(){ try { return localStorage.getItem('costsys_ia_theme'); } catch(_){ return null; } })();
-    if (savedTheme){ document.documentElement.setAttribute('data-theme', savedTheme); document.body.setAttribute('data-theme', savedTheme); document.getElementById('themeToggle').innerHTML = `<i data-lucide="${savedTheme==='dark'?'sun':'moon'}" class="w-4 h-4"></i>`; }
+    const savedTheme = window.CoffeeTheme
+        ? CoffeeTheme.load()
+        : (function(){ try { return localStorage.getItem('costsys_ia_theme'); } catch(_){ return null; } })();
+    if (savedTheme){
+      if (window.CoffeeTheme) CoffeeTheme.apply(savedTheme);
+      else { document.documentElement.setAttribute('data-theme', savedTheme); document.body.setAttribute('data-theme', savedTheme); }
+      const icon = window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(savedTheme)).icon : (savedTheme==='dark'?'sun':'moon');
+      document.getElementById('themeToggle').innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i>`;
+    }
     load();
     currentId = convos.length ? convos[0].id : null;
     renderConvList();

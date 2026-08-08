@@ -5335,72 +5335,113 @@ body.ia-drawer-resizing * {
     display: block;
 }
 
+/* ── Paleta GitHub (Primer) — la comparten el ERS y las historias ──
+   Los dos son entregables de CoffeePlanner y se leen como un archivo de
+   repositorio, asi que no usan los tokens --vsr-* del chat: tienen su propio
+   mundo y no se tiñen con el acento del tema. Solo siguen al tema en el par
+   claro/oscuro, igual que GitHub. */
+.ia-ers, .ia-stories {
+    --gh-canvas:        #ffffff;
+    --gh-subtle:        #f6f8fa;
+    --gh-border:        #d0d7de;
+    --gh-border-muted:  #d8dee4;
+    --gh-fg:            #1f2328;
+    --gh-fg-muted:      #59636e;
+    --gh-fg-subtle:     #6e7781;
+    --gh-accent:        #0969da;
+    --gh-accent-subtle: #ddf4ff;
+    --gh-success:       #1a7f37;
+    --gh-success-subtle:rgba(26,127,55,.12);
+    --gh-attention:     #9a6700;
+    --gh-attention-subtle: rgba(154,103,0,.12);
+    --gh-done:          #8250df;
+    --gh-danger:        #cf222e;
+    --gh-danger-subtle: rgba(207,34,46,.1);
+    --gh-mute:          rgba(175,184,193,.2);
+    --gh-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    --gh-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+[data-theme="dark"] .ia-ers,     [data-theme="midnight"] .ia-ers,
+[data-theme="dark"] .ia-stories, [data-theme="midnight"] .ia-stories {
+    --gh-canvas:        #0d1117;
+    --gh-subtle:        #161b22;
+    --gh-border:        #30363d;
+    --gh-border-muted:  #21262d;
+    --gh-fg:            #e6edf3;
+    --gh-fg-muted:      #8b949e;
+    --gh-fg-subtle:     #6e7681;
+    --gh-accent:        #4493f8;
+    --gh-accent-subtle: rgba(56,139,253,.15);
+    --gh-success:       #3fb950;
+    --gh-success-subtle:rgba(63,185,80,.15);
+    --gh-attention:     #d29922;
+    --gh-attention-subtle: rgba(210,153,34,.15);
+    --gh-done:          #a371f7;
+    --gh-danger:        #f85149;
+    --gh-danger-subtle: rgba(248,81,73,.15);
+    --gh-mute:          rgba(110,118,129,.4);
+}
+
 /* ── Historias de usuario (bloque ```stories de CoffeePlanner) ──
    Una ficha por historia con los criterios plegados y agrupados por bloque
    (filterBar / cards / tabla / modal), mas la vista de tabla fiel al Excel
-   del equipo. Colores propios: el visor no tiene tokens de estado. */
+   del equipo. Misma paleta Primer que el ERS: los bloques de criterios se
+   distinguen con los colores de estado de GitHub (accent / success / done). */
 .ia-stories {
-    --sto-blue:   #60A5FA;  --sto-blue-t:   rgba(96,165,250,.14);
-    --sto-green:  #34D399;  --sto-green-t:  rgba(52,211,153,.14);
-    --sto-violet: #A78BFA;  --sto-violet-t: rgba(167,139,250,.14);
-    --sto-amber:  #FBBF24;  --sto-amber-t:  rgba(251,191,36,.14);
-    --sto-red:    #F87171;  --sto-red-t:    rgba(248,113,113,.14);
+    font-family: var(--gh-sans);
     font-size: 12.5px;
-    color: var(--vsr-text-soft);
+    color: var(--gh-fg);
     text-transform: none;
     letter-spacing: 0;
 }
-[data-theme="light"] .ia-stories { --sto-amber: #B45309; }
 /* El scroll horizontal lo maneja .ia-xls-scroll: sin esto salen dos barras. */
-.ia-render-stories .ia-render-view { padding: 0; overflow: visible; background: var(--vsr-bg-card); }
+.ia-render-stories .ia-render-view { padding: 0; overflow: visible; background: var(--gh-canvas); }
 
 .ia-stories-head {
     display: flex; align-items: center; gap: 9px;
     padding: 9px 11px;
-    background: var(--vsr-bg-soft);
-    border-bottom: 1px solid var(--vsr-border-soft);
+    background: var(--gh-subtle);
+    border-bottom: 1px solid var(--gh-border);
 }
 .ia-stories-ico {
     width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
+    background: var(--gh-accent-subtle); color: var(--gh-accent);
 }
-[data-theme="light"] .ia-stories-ico { color: var(--vsr-accent); }
-.ia-stories-title { font-size: 12.5px; font-weight: 600; color: var(--vsr-text); line-height: 1.25; }
-.ia-stories-sub   { font-size: 10.5px; color: var(--vsr-text-mute2); }
+.ia-stories-title { font-size: 12.5px; font-weight: 600; color: var(--gh-fg); line-height: 1.25; }
+.ia-stories-sub   { font-size: 10.5px; color: var(--gh-fg-subtle); }
 
-.ia-stories-metrics { display: flex; border-bottom: 1px solid var(--vsr-border-soft); }
-.ia-metric { flex: 1; padding: 8px 11px; border-right: 1px solid var(--vsr-border-soft); }
+.ia-stories-metrics { display: flex; border-bottom: 1px solid var(--gh-border); }
+.ia-metric { flex: 1; padding: 8px 11px; border-right: 1px solid var(--gh-border); }
 .ia-metric:last-child { border-right: none; }
-.ia-metric .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--vsr-text-mute2); }
-.ia-metric .v { display: block; font-size: 15px; font-weight: 700; color: var(--vsr-text); line-height: 1.3; }
-.ia-metric .v small { font-size: 10.5px; font-weight: 500; color: var(--vsr-text-muted); }
+.ia-metric .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--gh-fg-subtle); }
+.ia-metric .v { display: block; font-size: 15px; font-weight: 700; color: var(--gh-fg); line-height: 1.3; font-variant-numeric: tabular-nums; }
+.ia-metric .v small { font-size: 10.5px; font-weight: 500; color: var(--gh-fg-muted); }
 
 .ia-stories-cards { padding: 11px; display: flex; flex-direction: column; gap: 9px; }
 
 .ia-story-banner {
     display: flex; align-items: center; gap: 8px;
     font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--vsr-accent-soft);
+    color: var(--gh-fg-muted);
 }
-[data-theme="light"] .ia-story-banner { color: var(--vsr-accent); }
-.ia-story-banner::after { content: ''; flex: 1; height: 1px; background: var(--vsr-border-soft); }
+.ia-story-banner::after { content: ''; flex: 1; height: 1px; background: var(--gh-border); }
 
 .ia-story {
-    border: 1px solid var(--vsr-border-soft);
-    border-radius: 8px;
-    background: var(--vsr-bg-soft);
+    border: 1px solid var(--gh-border);
+    border-radius: 6px;
+    background: var(--gh-canvas);
     overflow: hidden;
 }
 .ia-story-top { display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px; cursor: pointer; }
-.ia-story-top:hover { background: var(--vsr-bg-hover); }
-.ia-story-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--vsr-text-mute2); padding-top: 2px; }
+.ia-story-top:hover { background: var(--gh-subtle); }
+.ia-story-id { font-family: var(--gh-mono); font-size: 10px; font-weight: 700; color: var(--gh-fg-subtle); padding-top: 2px; }
 .ia-story-main { flex: 1; min-width: 0; }
-.ia-story-apartado { font-size: 12px; font-weight: 600; color: var(--vsr-text); letter-spacing: .02em; }
-.ia-story-quiero { font-size: 12px; color: var(--vsr-text-mid); margin-top: 3px; }
-.ia-story-benef { display: flex; gap: 5px; font-size: 11.5px; font-style: italic; color: var(--vsr-text-muted); margin-top: 4px; }
-.ia-story-benef i { color: var(--sto-green); flex-shrink: 0; margin-top: 2px; }
-.ia-story-chev { color: var(--vsr-text-mute2); flex-shrink: 0; transition: transform .18s ease; }
+.ia-story-apartado { font-size: 12px; font-weight: 600; color: var(--gh-fg); letter-spacing: .02em; }
+.ia-story-quiero { font-size: 12px; color: var(--gh-fg); margin-top: 3px; }
+.ia-story-benef { display: flex; gap: 5px; font-size: 11.5px; font-style: italic; color: var(--gh-fg-muted); margin-top: 4px; }
+.ia-story-benef i { color: var(--gh-success); flex-shrink: 0; margin-top: 2px; }
+.ia-story-chev { color: var(--gh-fg-subtle); flex-shrink: 0; transition: transform .18s ease; }
 .ia-story.is-open .ia-story-chev { transform: rotate(180deg); }
 
 .ia-chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
@@ -5409,43 +5450,41 @@ body.ia-drawer-resizing * {
     font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 20px; white-space: nowrap;
 }
-.ia-chip.is-user   { background: var(--vsr-accent-tint); color: var(--vsr-accent-soft); }
-[data-theme="light"] .ia-chip.is-user { color: var(--vsr-accent); }
+.ia-chip.is-user   { background: var(--gh-accent-subtle); color: var(--gh-accent); }
 
-.ia-story-crit { display: none; padding: 0 10px 10px; border-top: 1px dashed var(--vsr-border-soft); }
+.ia-story-crit { display: none; padding: 0 10px 10px; border-top: 1px solid var(--gh-border-muted); }
 .ia-story.is-open .ia-story-crit { display: block; }
-.ia-story-intro { font-size: 11.5px; color: var(--vsr-text-muted); margin: 9px 0 8px; }
+.ia-story-intro { font-size: 11.5px; color: var(--gh-fg-muted); margin: 9px 0 8px; }
 .ia-story-specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 18px; align-items: start; }
 
-.ia-story-spec { border-left: 2px solid var(--vsr-border-soft); padding-left: 10px; margin-bottom: 8px; }
+.ia-story-spec { border-left: 2px solid var(--gh-border); padding-left: 10px; margin-bottom: 8px; }
 .ia-story-spec-h {
     display: flex; align-items: center; gap: 6px;
     font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--vsr-text-muted); margin-bottom: 4px;
+    color: var(--gh-fg-muted); margin-bottom: 4px;
 }
-.ia-spec-item { position: relative; padding-left: 13px; font-size: 12px; color: var(--vsr-text-mid); margin: 2px 0; }
+.ia-spec-item { position: relative; padding-left: 13px; font-size: 12px; color: var(--gh-fg); margin: 2px 0; }
 .ia-spec-item::before {
     content: ''; position: absolute; left: 2px; top: 8px;
-    width: 4px; height: 4px; border-radius: 50%; background: var(--vsr-text-mute2);
+    width: 4px; height: 4px; border-radius: 50%; background: var(--gh-fg-subtle);
 }
 .ia-spec-sub { margin-top: 2px; padding-left: 12px; }
-.ia-spec-sub .ia-spec-item { font-size: 11.5px; color: var(--vsr-text-muted); }
-.ia-story-spec.is-filter { border-left-color: var(--sto-blue); }   .ia-story-spec.is-filter .ia-story-spec-h { color: var(--sto-blue); }
-.ia-story-spec.is-table  { border-left-color: var(--sto-green); }  .ia-story-spec.is-table  .ia-story-spec-h { color: var(--sto-green); }
-.ia-story-spec.is-cards  { border-left-color: var(--sto-violet); } .ia-story-spec.is-cards  .ia-story-spec-h { color: var(--sto-violet); }
-.ia-story-spec.is-modal  { border-left-color: var(--vsr-accent); } .ia-story-spec.is-modal  .ia-story-spec-h { color: var(--vsr-accent-soft); }
-[data-theme="light"] .ia-story-spec.is-modal .ia-story-spec-h { color: var(--vsr-accent); }
+.ia-spec-sub .ia-spec-item { font-size: 11.5px; color: var(--gh-fg-muted); }
+/* Cada bloque de criterios con un color de estado de Primer. */
+.ia-story-spec.is-filter { border-left-color: var(--gh-accent); }  .ia-story-spec.is-filter .ia-story-spec-h { color: var(--gh-accent); }
+.ia-story-spec.is-table  { border-left-color: var(--gh-success); } .ia-story-spec.is-table  .ia-story-spec-h { color: var(--gh-success); }
+.ia-story-spec.is-cards  { border-left-color: var(--gh-done); }    .ia-story-spec.is-cards  .ia-story-spec-h { color: var(--gh-done); }
+.ia-story-spec.is-modal  { border-left-color: var(--gh-attention); } .ia-story-spec.is-modal .ia-story-spec-h { color: var(--gh-attention); }
 
 .ia-story-rule {
     display: flex; align-items: flex-start; gap: 7px;
     font-size: 11.5px; padding: 6px 9px; border-radius: 6px; margin-top: 5px;
 }
 .ia-story-rule i { flex-shrink: 0; margin-top: 1px; }
-.ia-story-rule span { color: var(--vsr-text-mid); }
-.ia-story-rule.is-soft { background: var(--sto-amber-t); color: var(--sto-amber); }
-.ia-story-rule.is-hard { background: var(--sto-red-t);   color: var(--sto-red); }
-.ia-story-rule.is-hard span { color: var(--vsr-text-soft); }
-.ia-story-rule.is-hard b { color: var(--sto-red); }
+.ia-story-rule span { color: var(--gh-fg); }
+.ia-story-rule.is-soft { background: var(--gh-attention-subtle); color: var(--gh-attention); }
+.ia-story-rule.is-hard { background: var(--gh-danger-subtle);   color: var(--gh-danger); }
+.ia-story-rule.is-hard b { color: var(--gh-danger); }
 
 /* Vista tabla: mismo orden de columnas que la hoja del sprint.
    Los selectores llevan el prefijo .ia-stories a proposito: el chat ya estiliza
@@ -5459,78 +5498,44 @@ body.ia-drawer-resizing * {
 }
 .ia-stories .ia-xls thead th {
     position: sticky; top: 0; z-index: 1;
-    background: var(--vsr-bg-soft); color: var(--vsr-text);
+    background: var(--gh-subtle); color: var(--gh-fg);
     text-align: left; font-weight: 600; font-size: 10.5px; white-space: nowrap;
     padding: 8px 10px;
-    border-bottom: 2px solid var(--vsr-border); border-right: 1px solid var(--vsr-border-soft);
+    border-bottom: 1px solid var(--gh-border); border-right: 1px solid var(--gh-border);
 }
 .ia-stories .ia-xls tbody td {
     padding: 9px 10px; vertical-align: top; white-space: normal;
-    background: transparent; color: var(--vsr-text-mid);
-    border-top: 1px solid var(--vsr-border-soft); border-right: 1px solid var(--vsr-border-soft);
+    background: transparent; color: var(--gh-fg);
+    border-top: 1px solid var(--gh-border-muted); border-right: 1px solid var(--gh-border-muted);
 }
-.ia-stories .ia-xls tbody td b { color: var(--vsr-text); }
+.ia-stories .ia-xls tbody td b { color: var(--gh-fg); }
 .ia-stories .ia-xls tbody .ia-xls-st { cursor: pointer; }
-.ia-stories .ia-xls tbody .ia-xls-st:hover td { background: var(--vsr-bg-hover); }
+.ia-stories .ia-xls tbody .ia-xls-st:hover td { background: var(--gh-subtle); }
 .ia-stories .ia-xls tbody .ia-xls-c { width: 150px; }
-.ia-xls-crit { display: inline-flex; align-items: center; gap: 6px; color: var(--sto-blue); white-space: nowrap; }
+.ia-xls-crit { display: inline-flex; align-items: center; gap: 6px; color: var(--gh-accent); white-space: nowrap; }
 .ia-xls-crit i { transition: transform .18s ease; }
 .ia-xls-st.is-open .ia-xls-crit i { transform: rotate(180deg); }
 .ia-stories .ia-xls tbody .ia-xls-banner td {
-    background: var(--vsr-accent-tint); color: var(--vsr-accent-soft);
+    background: var(--gh-accent-subtle); color: var(--gh-accent);
     font-weight: 700; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
 }
-[data-theme="light"] .ia-stories .ia-xls tbody .ia-xls-banner td { color: var(--vsr-accent); }
 /* Los criterios se despliegan en su propia fila, a todo el ancho de la tabla. */
 .ia-stories .ia-xls tbody .ia-xls-crit-row { display: none; }
 .ia-stories .ia-xls tbody .ia-xls-st.is-open + .ia-xls-crit-row { display: table-row; }
-.ia-stories .ia-xls tbody .ia-xls-crit-row > td { background: var(--vsr-bg-soft); padding: 12px 14px 14px; }
-.ia-stories .ia-xls tbody .ia-xls-crit-row:hover > td { background: var(--vsr-bg-soft); }
+.ia-stories .ia-xls tbody .ia-xls-crit-row > td { background: var(--gh-subtle); padding: 12px 14px 14px; }
+.ia-stories .ia-xls tbody .ia-xls-crit-row:hover > td { background: var(--gh-subtle); }
 
 /* Modal a pantalla completa */
 .ia-stories-modal-tools { display: inline-flex; align-items: center; gap: 6px; }
-.ia-stories-modal-body { padding: 0; overflow: auto; background: var(--vsr-bg-card); }
+.ia-stories-modal-body { padding: 0; overflow: auto; background: var(--gh-canvas); }
 .ia-stories-modal .ia-stories-cards { padding: 14px; }
 .ia-stories-modal .ia-story-specs { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .ia-render-tab.is-active { background: var(--vsr-accent-tint); border-color: var(--vsr-accent); color: var(--vsr-accent-soft); }
 
 /* ── ERS (bloque ```ers de CoffeePlanner) ──
    El documento con el que arranca un proyecto, presentado como un archivo de
-   repositorio: paleta Primer de GitHub y fuentes del sistema, para que se lea
-   igual que un README. Es el UNICO componente del chat que no usa los tokens
-   --vsr-*: el documento tiene su propio mundo y no debe teñirse con el tema. */
-.ia-ers {
-    --gh-canvas:        #ffffff;
-    --gh-subtle:        #f6f8fa;
-    --gh-border:        #d0d7de;
-    --gh-border-muted:  #d8dee4;
-    --gh-fg:            #1f2328;
-    --gh-fg-muted:      #59636e;
-    --gh-fg-subtle:     #6e7781;
-    --gh-accent:        #0969da;
-    --gh-accent-subtle: #ddf4ff;
-    --gh-success:       #1a7f37;
-    --gh-attention:     #9a6700;
-    --gh-done:          #8250df;
-    --gh-mute:          rgba(175,184,193,.2);
-    --gh-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-    --gh-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-}
-[data-theme="dark"] .ia-ers, [data-theme="midnight"] .ia-ers {
-    --gh-canvas:        #0d1117;
-    --gh-subtle:        #161b22;
-    --gh-border:        #30363d;
-    --gh-border-muted:  #21262d;
-    --gh-fg:            #e6edf3;
-    --gh-fg-muted:      #8b949e;
-    --gh-fg-subtle:     #6e7681;
-    --gh-accent:        #4493f8;
-    --gh-accent-subtle: rgba(56,139,253,.15);
-    --gh-success:       #3fb950;
-    --gh-attention:     #d29922;
-    --gh-done:          #a371f7;
-    --gh-mute:          rgba(110,118,129,.4);
-}
+   repositorio, para que se lea igual que un README. Los tokens --gh-* estan
+   arriba, compartidos con las historias de usuario. */
 .ia-render-ers .ia-render-view { padding: 0; overflow: visible; background: var(--gh-canvas); }
 .ia-ers-doc, .ia-ers-ficha {
     font-family: var(--gh-sans); color: var(--gh-fg);

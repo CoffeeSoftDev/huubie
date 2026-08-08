@@ -32,6 +32,7 @@
         'coffeeia:global:enabledModels',
         'coffeeia:global:activeModel',
         'coffeeia:global:modelCatalog',
+        'coffeeia:global:uiTheme',
         'visor:shortcuts:v1',
         'visor:recentViews:v1',
         'visor:recentCreated:v1',
@@ -68,6 +69,7 @@
     // confirme; si falla, se reintenta en la próxima carga y la sync no la pisa.
     function push(key, value) {
         if (KEYS.indexOf(key) === -1) return;
+        if (!global.jQuery) return;                     // pagina sin backend: solo localStorage
         if (!_ready) { _queued[key] = true; return; }   // aún sincronizando: se envía al terminar
         _dirty[key] = true;
         global.jQuery.post(API, { action: 'set', key: key, value: String(value == null ? '' : value) })
@@ -153,6 +155,12 @@
      * `dark` es el navy de siempre con terracota; `midnight`, azul noche con
      * celeste; `light`, el claro. Los dos primeros son oscuros, asi que un modulo
      * que solo distinga claro/oscuro puede usar `isDark()`.
+     *
+     * El tema se guarda en UNA sola clave para todo coffee/app/. Antes cada pagina
+     * tenia la suya (`agents:theme`, `lab:theme`, `costsys_ia_theme`, el `uiTheme`
+     * dentro del settings de cada modulo), asi que cambiarlo en el Visor y navegar
+     * a Agentes devolvia al usuario al tema anterior. `LEGACY_KEYS` existe para no
+     * perder lo que ya habia elegido: la primera vez se adopta la clave vieja.
      */
     const THEMES = [
         { key: 'dark',     label: 'Oscuro',     icon: 'moon',  dark: true  },
@@ -160,13 +168,33 @@
         { key: 'light',    label: 'Claro',      icon: 'sun',   dark: false }
     ];
 
+    const THEME_KEY   = 'coffeeia:global:uiTheme';
+    const THEME_EVT   = 'coffeeia:theme-changed';
+    const LEGACY_KEYS = ['agents:theme', 'lab:theme', 'costsys_ia_theme'];
+
     function themeOf(key) {
         const k = String(key || '');
         return THEMES.filter(function (t) { return t.key === k; })[0] || THEMES[0];
     }
 
+    // Preferencia previa de esta pagina, para migrarla la primera vez. `settings`
+    // es el JSON de modulos como visor/chat/coffeeia, donde el tema es un campo.
+    function legacyTheme(settingsKey, field) {
+        for (let i = 0; i < LEGACY_KEYS.length; i++) {
+            const v = lsGet(LEGACY_KEYS[i]);
+            if (v) return v;
+        }
+        if (!settingsKey) return '';
+        try {
+            const s = JSON.parse(lsGet(settingsKey) || '{}');
+            return String(s[field || 'uiTheme'] || s.theme || '');
+        } catch (e) { return ''; }
+    }
+
     global.CoffeeTheme = {
         LIST: THEMES,
+        KEY:   THEME_KEY,
+        EVENT: THEME_EVT,
         /** Valor valido a partir de cualquier cosa guardada. */
         normalize: function (key) { return themeOf(key).key; },
         /** Ficha del tema (label, icono, si es oscuro). */
@@ -178,14 +206,49 @@
             const i = THEMES.indexOf(themeOf(key));
             return THEMES[(i + 1) % THEMES.length].key;
         },
+        /**
+         * Tema vigente para toda la app. Si aun no hay clave global adopta la que
+         * tuviera esta pagina, para que el primer arranque no cambie lo que el
+         * usuario veia.
+         */
+        load: function (settingsKey, field) {
+            const saved = lsGet(THEME_KEY);
+            if (saved) return themeOf(saved).key;
+            return themeOf(legacyTheme(settingsKey, field)).key;
+        },
+        /** Persiste el tema para todas las paginas (localStorage + SQLite). */
+        save: function (key) {
+            const t = themeOf(key).key;
+            lsSet(THEME_KEY, t);
+            push(THEME_KEY, t);
+            return t;
+        },
         /** Lo escribe en el documento. Devuelve el tema aplicado. */
         apply: function (key) {
             const t = themeOf(key).key;
             document.documentElement.setAttribute('data-theme', t);
             document.body.setAttribute('data-theme', t);
             return t;
+        },
+        /**
+         * Aplica + persiste + avisa. El evento lo escucha quien tenga contenido ya
+         * pintado que dependa del tema y no pueda repintarse desde cero sin perder
+         * el estado del usuario (ver ia-render.js: ERS e historias de usuario).
+         */
+        set: function (key) {
+            const t = this.apply(key);
+            this.save(t);
+            try { global.dispatchEvent(new CustomEvent(THEME_EVT, { detail: { theme: t } })); } catch (e) {}
+            return t;
         }
     };
+
+    // Si el servidor traia otro tema (el usuario lo cambio en otro navegador), la sync
+    // ya piso el localStorage: falta reflejarlo en la pagina que ya esta pintada.
+    global.addEventListener(EVT, function (e) {
+        const keys = (e.detail && e.detail.keys) || [];
+        if (keys.indexOf(THEME_KEY) !== -1) global.CoffeeTheme.set(lsGet(THEME_KEY));
+    });
 
     if (global.jQuery) {
         global.jQuery(sync);

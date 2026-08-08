@@ -7,14 +7,17 @@ La fuente unica de las convenciones (JS, ctrl, mdl) es **`~/.claude/steering/`**
 generar codigo CoffeeSoft, leer de ahi.
 
 - Indice con `offset`/`limit` por seccion: el **embebido al final de `~/.claude/agents/CoffeeIA.md`**
-  (17 archivos / 474 secciones, incluye `steering/grimorios/`). Leer solo la seccion necesaria
-  con `Read(file, offset, limit)`, no el archivo completo. Se regenera con
+  (23 archivos / 553 secciones, incluye `steering/grimorios/` y `steering/pivotes/`). Leer solo
+  la seccion necesaria con `Read(file, offset, limit)`, no el archivo completo. Se regenera con
   `python ~/.claude/steering/regenerar_indice.py` tras editar cualquier steering file.
   (El viejo `steering/INDICE-STEERING.md` era un huerfano sin mantenimiento y fue eliminado.)
 - Frontend JS -> `steering/FRONT-JS.md` (incluye nomenclatura, ciclo de vida
-  `init/render/layout/filterBar/ls[Entidad]` y el formato de comentarios separadores `// -- Nombre --`).
+  `init/render/layout/filterBar/ls[Entidad]`, el formato de comentarios separadores `// -- Nombre --`,
+  el render perezoso de tabs y la regla de theme de `tabLayout`).
 - Controlador -> `steering/CTRL.md` · Modelo -> `steering/MDL.md`
 - Que se puede comentar -> `steering/CoffeeIA.md` seccion "Reglas de Comentarios".
+- Patrones probados de modulo -> `steering/pivotes/INDEX-PIVOTES.md` (consultar ANTES de generar
+  un modulo con `tabLayout`; define los tokens de theme `light`/`dark` a aplicar).
 
 **No usar `~/.claude/agents/*.md` como fuente de reglas:** son definiciones de
 subagentes, y sus copias de FRONT-JS/CTRL/MDL quedaron desactualizadas y recortadas

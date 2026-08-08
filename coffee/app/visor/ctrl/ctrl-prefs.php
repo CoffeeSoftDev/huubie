@@ -27,6 +27,7 @@ const PREFS_ALLOWED = [
     'coffeeia:global:enabledModels',  // LLM: modelos habilitados
     'coffeeia:global:activeModel',    // LLM: modelo activo
     'coffeeia:global:modelCatalog',   // LLM: catalogo editable de modelos (CRUD del admin)
+    'coffeeia:global:uiTheme',        // tema de la interfaz, compartido por todo coffee/app/
     'visor:shortcuts:v1',             // sidebar: accesos directos (URLs configurables)
     'visor:recentViews:v1',           // sidebar: documentos vistos recientemente
     'visor:recentCreated:v1',         // sidebar: documentos creados recientemente

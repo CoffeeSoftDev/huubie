@@ -500,20 +500,19 @@
     /* ═══════════════════════ Tema ═══════════════════════ */
 
     function applyTheme(theme) {
-        AGT.uiTheme = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
+        AGT.uiTheme = (window.CoffeeTheme ? CoffeeTheme.set(theme) : (theme === 'light' ? 'light' : 'dark'));
         $('html, body').attr('data-theme', AGT.uiTheme);
         const $i = $('#agtThemeToggle i');
-        $i.attr('data-lucide', AGT.uiTheme === 'dark' ? 'sun' : 'moon');
-        try { localStorage.setItem('agents:theme', AGT.uiTheme); } catch (e) {}
+        $i.attr('data-lucide', (window.CoffeeTheme ? CoffeeTheme.info(CoffeeTheme.next(AGT.uiTheme)).icon : (AGT.uiTheme === 'dark' ? 'sun' : 'moon')));
         icons();
     }
 
     /* ═══════════════════════ Arranque ═══════════════════════ */
 
     $(function () {
-        try { applyTheme(localStorage.getItem('agents:theme') || 'dark'); } catch (e) { applyTheme('dark'); }
+        try { applyTheme(window.CoffeeTheme ? CoffeeTheme.load() : (localStorage.getItem('agents:theme') || 'dark')); } catch (e) { applyTheme('dark'); }
 
-        $('#agtThemeToggle').on('click', () => applyTheme(AGT.uiTheme === 'dark' ? 'light' : 'dark'));
+        $('#agtThemeToggle').on('click', () => applyTheme(window.CoffeeTheme ? CoffeeTheme.next(AGT.uiTheme) : (AGT.uiTheme === 'dark' ? 'light' : 'dark')));
         $('#agtHeaderToggle').on('click', function () {
             const open = $('#agtHeaderRight').toggleClass('open').hasClass('open');
             $(this).attr('aria-expanded', open ? 'true' : 'false');

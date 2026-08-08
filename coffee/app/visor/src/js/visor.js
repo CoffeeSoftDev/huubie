@@ -791,7 +791,7 @@ class App {
                 // Camino recorrido dentro de Drive: [{ id, name }, …]. Sobrevive a la
                 // recarga porque los ids de Drive son estables.
                 drivePath:  Array.isArray(parsed.drivePath) ? parsed.drivePath : [],
-                theme:      (window.CoffeeTheme ? CoffeeTheme.normalize(parsed.theme) : (parsed.theme === 'light' ? 'light' : 'dark')),
+                theme:      (window.CoffeeTheme ? CoffeeTheme.load(VISOR_STORAGE_KEY, 'theme') : (parsed.theme === 'light' ? 'light' : 'dark')),
                 docStyle:   validStyles.includes(parsed.docStyle) ? parsed.docStyle : 'github',
                 docZoom:    (isFinite(zoom) && zoom >= 0.7 && zoom <= 1.8) ? zoom : 1,
                 sidebarCollapsed: !!parsed.sidebarCollapsed,
@@ -3619,7 +3619,7 @@ class VisorView {
     }
 
     applyTheme(theme) {
-        const t = (window.CoffeeTheme ? CoffeeTheme.normalize(theme) : (theme === 'light' ? 'light' : 'dark'));
+        const t = (window.CoffeeTheme ? CoffeeTheme.set(theme) : (theme === 'light' ? 'light' : 'dark'));
         document.documentElement.setAttribute('data-theme', t);
         document.body.setAttribute('data-theme', t);
         // El icono anuncia a que tema se salta, no en cual estas.
@@ -8611,23 +8611,16 @@ class CoffeeIA {
         if (window.lucide) lucide.createIcons();
     }
 
-    /* Re-renderiza todos los bloques (mermaid + html) tras cambiar de tema */
+    /* Repinta lo que dependa del tema. Lo decide IARender: los visores que se
+       colorean por CSS (historias, ERS, chart, graphviz…) se quedan como estan
+       y conservan lo que el usuario tenia abierto. */
     _reRenderBlocksOnThemeChange() {
-        $('#iaBodyChat .ia-render-block').each((_, el) => {
-            const $blk  = $(el);
-            const type  = $blk.data('render-type');
-            const src   = $blk.find('.ia-render-source').text();
-            if (!src) return;
-            // Reconstruimos un <pre><code> equivalente y reusamos los renderers
-            const $stub = $('<pre><code></code></pre>');
-            $stub.find('code').addClass('language-' + (type === 'html' ? 'html' : type)).text(src);
-            $blk.replaceWith($stub);
-            if (type === 'mermaid') this._renderMermaid($stub, src);
-            else if (type === 'html') this._renderHtmlPreview($stub, src);
-            else if (type === 'drawio') this._renderDrawio($stub, src);
-            else if (type === 'excalidraw') this._renderExcalidraw($stub, src);
-            // Charts no dependen del tema del visor, los dejamos como estan
-        });
+        if (window.IARender && IARender.reRenderThemedBlocks) {
+            IARender.reRenderThemedBlocks($('#iaBodyChat'), {
+                mermaid: ($pre, src) => this._renderMermaid($pre, src),
+                html:    ($pre, src) => this._renderHtmlPreview($pre, src)
+            });
+        }
         // El template abierto a la derecha tambien sigue el tema del visor.
         if (typeof htmlStage !== 'undefined' && htmlStage && htmlStage.active) htmlStage._render();
     }

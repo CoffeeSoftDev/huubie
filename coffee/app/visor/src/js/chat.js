@@ -88,7 +88,7 @@ function chatLoadSettings() {
         chat.agentKey   = s.agentKey || CHAT_DEFAULT_AGENT;
         chat.model      = s.model || '';
         chat.effort     = ['off', 'low', 'medium', 'high', 'max'].indexOf(s.effort) !== -1 ? s.effort : '';
-        chat.uiTheme    = s.uiTheme || 'dark';
+        chat.uiTheme    = (window.CoffeeTheme ? CoffeeTheme.load('chat:settings:v1') : (s.uiTheme || 'dark'));
         chat.canvasMode = !!s.canvasMode;
         chat.graphMode  = CHAT_GRAPH_TYPES.indexOf(s.graphMode) !== -1 ? s.graphMode : '';
         chat.dbToolsOn  = !!s.dbToolsOn;
@@ -110,7 +110,8 @@ function chatSaveSettings() {
 }
 
 function chatApplyUiTheme(theme) {
-    chat.uiTheme = theme;
+    chat.uiTheme = (window.CoffeeTheme ? CoffeeTheme.set(theme) : theme);
+    theme = chat.uiTheme;
     document.body.setAttribute('data-theme', theme);
     const $icon = $('#chatThemeToggle i');
     if ($icon.length) {
@@ -118,8 +119,10 @@ function chatApplyUiTheme(theme) {
         if (window.lucide) lucide.createIcons();
     }
     chatSaveSettings();
-    // Re-render para que los diagramas Mermaid/HTML adopten el tema nuevo.
-    if (chat.history && chat.history.length) chatRenderMain();
+    // Solo los diagramas Mermaid/HTML llevan el tema dentro. Repintar el hilo
+    // completo rehacia tambien el ERS y las historias, que perdian la vista
+    // elegida y los apartados desplegados.
+    if (window.IARender && IARender.reRenderThemedBlocks) IARender.reRenderThemedBlocks($('#chatBody'));
 }
 
 /* ---------- Populate selects ---------- */

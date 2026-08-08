@@ -20,6 +20,16 @@
           "id": "t3622p09",
           "text": "Mantener el tema seleccionado en todo el modulo de coffee/app/",
           "done": false
+        },
+        {
+          "id": "thi00m9z",
+          "text": "Corregir que al cambiar tema no se pierda la configuracion que tiene el formato ERS, ni las historias de usuario",
+          "done": false
+        },
+        {
+          "id": "tsknenvu",
+          "text": "El formato de ERS e Historias de usuario debe tener el tema de github",
+          "done": false
         }
       ]
     }
