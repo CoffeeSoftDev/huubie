@@ -37,6 +37,9 @@
 
         .swal2-container { z-index: 100010 !important; }
         .z-\[10001\]     { z-index: 100005 !important; }
+
+        body:has(.cf-overlay) .swal2-popup,
+        body:has(.cf-overlay) [id^="alertBox_"] .tf-alert-card { zoom: 0.75; }
     </style>
 </head>
 
@@ -142,30 +145,30 @@
 
     const SAMPLE_PAYMENTS = {
         parcial: [
-            { id: 91, fecha: '12 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+            { id: 91, fecha: '12/Junio/2026 10:15am', metodo: 'Efectivo', icono: 'icon-money',
               monto: 500, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' }
         ],
         sinpagos: [],
         liquidado: [
-            { id: 92, fecha: '14 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+            { id: 92, fecha: '14/Junio/2026 1:40pm', metodo: 'Efectivo', icono: 'icon-money',
               monto: 400, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' },
-            { id: 93, fecha: '14 de junio de 2026', metodo: 'Tarjeta', icono: 'icon-credit-card',
+            { id: 93, fecha: '14/Junio/2026 1:40pm', metodo: 'Tarjeta', icono: 'icon-credit-card',
               monto: 490, sub: 'Reginas Norte', cruzado: true, desc: 'Liquidación' }
         ],
         descuento: [
-            { id: 94, fecha: '15 de junio de 2026', metodo: 'Transferencia', icono: 'icon-exchange',
+            { id: 94, fecha: '15/Junio/2026 9:05am', metodo: 'Transferencia', icono: 'icon-exchange',
               monto: 700, sub: 'Reginas Centro', cruzado: false, desc: 'SPEI' }
         ],
         cruzado: [
-            { id: 95, fecha: '16 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+            { id: 95, fecha: '16/Junio/2026 4:22pm', metodo: 'Efectivo', icono: 'icon-money',
               monto: 400, sub: 'Reginas Centro', cruzado: true, desc: 'Cobrado en Centro' }
         ],
         multiple: [
-            { id: 96, fecha: '17 de junio de 2026', metodo: 'Efectivo', icono: 'icon-money',
+            { id: 96, fecha: '17/Junio/2026 11:30am', metodo: 'Efectivo', icono: 'icon-money',
               monto: 1000, sub: 'Reginas Centro', cruzado: false, desc: 'Anticipo' },
-            { id: 97, fecha: '17 de junio de 2026', metodo: 'Tarjeta', icono: 'icon-credit-card',
+            { id: 97, fecha: '17/Junio/2026 11:30am', metodo: 'Tarjeta', icono: 'icon-credit-card',
               monto: 1500, sub: 'Reginas Centro', cruzado: false, desc: 'Segundo abono' },
-            { id: 98, fecha: '18 de junio de 2026', metodo: 'Transferencia', icono: 'icon-exchange',
+            { id: 98, fecha: '18/Junio/2026 8:47pm', metodo: 'Transferencia', icono: 'icon-exchange',
               monto: 600, sub: 'Reginas Norte', cruzado: true, desc: 'Depósito' }
         ]
     };
@@ -190,6 +193,7 @@
         return ESTADO.pagos.map(p => ({
             id: p.id,
             'Fecha de Pago': { html: '<i class="icon-calendar-2"></i> ' + p.fecha },
+            // formatSpanishDateTime() del servidor: 08/Agosto/2026 11:30am
             'Método':        { html: '<i class="' + p.icono + '"></i> ' + p.metodo },
             'Monto':         { html: '$ ' + p.monto.toFixed(2) },
             'Sucursal':      { html: p.cruzado
@@ -204,6 +208,15 @@
                 onClick: `app.deletePay(${p.id},${ESTADO.order.id},${requiereClave})`
             }]
         }));
+    }
+
+    // Replica de formatSpanishDateTime() del servidor para el pago recien creado.
+    function nuevaFechaHora() {
+        const M = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const d = new Date();
+        const h12 = d.getHours() % 12 || 12;
+        const ampm = d.getHours() < 12 ? 'am' : 'pm';
+        return `${String(d.getDate()).padStart(2,'0')}/${M[d.getMonth()]}/${d.getFullYear()} ${h12}:${String(d.getMinutes()).padStart(2,'0')}${ampm}`;
     }
 
     function detalles() {
@@ -280,7 +293,7 @@
 
             ESTADO.pagos.push({
                 id: Math.floor(Math.random() * 9000) + 1000,
-                fecha: 'hoy',
+                fecha: nuevaFechaHora(),
                 metodo: metodo[0],
                 icono: metodo[1],
                 monto: monto,
@@ -301,8 +314,12 @@
     };
 </script>
 
-<script src="../../src/js/lucide-icons.js"></script>
-<script src="../../src/js/app.js"></script>
+<!-- Cache-buster: index.php usa ?t=time(); aqui se replica para no probar
+     contra una version vieja de app.js guardada por el navegador. -->
+<script>
+    document.write('<scr' + 'ipt src="../../src/js/lucide-icons.js?t=' + Date.now() + '"></scr' + 'ipt>');
+    document.write('<scr' + 'ipt src="../../src/js/app.js?t=' + Date.now() + '"></scr' + 'ipt>');
+</script>
 
 <script>
     // Globales que el modulo espera de la sesion.

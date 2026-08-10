@@ -8,11 +8,16 @@
         {
           "id": "t4k8nuzy",
           "text": "Rediseñar el modal de registro de pagos para mejorar su usabilidad y presentación visual",
-          "done": false
+          "done": true
         },
         {
           "id": "tvy283tg",
           "text": "Revisar si el pago se hace doble al darle clic al boton de registrar pago",
+          "done": true
+        },
+        {
+          "id": "tad2fdu2",
+          "text": "en historial de pagos , en la columna de fecha de pago quitar el icono del lado izquierdo",
           "done": false
         }
       ]
@@ -24,6 +29,65 @@
         {
           "id": "tp3mgmcy",
           "text": "Reemplazar el formulario de \"edición de datos de entrega\" por el componente de modales de coffeesoft js en  \"detalles del pedido\"",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "stiettww",
+      "title": "Lista de pedidos",
+      "tasks": [
+        {
+          "id": "tqpxxv8q",
+          "text": "No se puede realizar un pago si un pedido no tiene un turno abierto del dia actual, si existe un turno abierto de un dia anterior no debe permitirlo",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "slpen07q",
+      "title": "Cierre del día",
+      "tasks": [
+        {
+          "id": "ttuwtpei",
+          "text": "Ajustar el alto del contenedor del ticket para que sea proporcional al contenedor izquierdo de operaciones en lugar de mantener un tamaño fijo",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sv92u2t8",
+      "title": "Detalles del pedido - Lista de pedidos",
+      "tasks": [
+        {
+          "id": "tdcnfrpz",
+          "text": "Agrupar los botones ( pagar,imprimir,descuento) para que entren en 1 misma fila",
+          "done": true
+        },
+        {
+          "id": "tb2l5im5",
+          "text": "Rediseñar la etiqueta de estado \"no entregado\" en la sección de *información del pedido* para mejorar su presentación visual",
+          "done": true
+        },
+        {
+          "id": "tnpmcmbm",
+          "text": "Migrar el formulario de edición de datos de entrega para construirlo con coffeeModalForm",
+          "done": false
+        },
+        {
+          "id": "tgdemawx",
+          "text": "Aplicar el mismo diseño de las pildas de estado de entrega que se aplicaron en calendario",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sqfj758z",
+      "title": "Calendario",
+      "tasks": [
+        {
+          "id": "tcsz67po",
+          "text": "El filtro por sucursal no deberia existir en el row , debe funcionar unicamente con la de la navbar",
           "done": false
         }
       ]

@@ -694,9 +694,9 @@ class App extends Templates {
     }
 
     // Columnas del grid de acciones segun cuantos botones quedaron visibles por rol y
-    // estado del pedido: hasta 2 caben en una fila, de 3 en adelante van en dos columnas.
+    // estado del pedido: una columna por boton, de modo que todos comparten fila.
     actionGridCols(visibles) {
-        return visibles > 2 ? 'grid-cols-2' : ['grid-cols-1', 'grid-cols-2'][visibles - 1];
+        return ['grid-cols-1', 'grid-cols-2', 'grid-cols-3'][visibles - 1] || 'grid-cols-3';
     }
 
     handleDeliveryClick(orderId, currentStatus, folio) {
@@ -837,20 +837,23 @@ class App extends Templates {
         `;
     }
 
+    // border-1 no existe en Tailwind (la utilidad es `border`), por eso las etiquetas
+    // quedaban sin contorno. El ancho va como border-[1px] y no como `border` porque
+    // bootstrap.min.css se carga despues y su .border lleva !important, con lo que el
+    // contorno salia gris en lugar del color del estado. Las clases se guardan enteras
+    // y no armadas por concatenacion, que Tailwind no detecta.
     statusDelivery(is_delivered) {
-        if (is_delivered == '1') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-flex items-center gap-1">
-                        ${lucideIcon('check', 'w-3.5 h-3.5')} Entregado
-                    </span>`;
-        } else if (is_delivered == '2') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-flex items-center gap-1">
-                        ${lucideIcon('cake', 'w-3.5 h-3.5')} Para Producir
-                    </span>`;
-        } else {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-flex items-center gap-1">
-                        ${lucideIcon('x', 'w-3.5 h-3.5')} No entregado
-                    </span>`;
-        }
+        const estados = {
+            '1': { tono: 'bg-green-500/10 border-green-500/50 text-green-300',   icono: 'circle-check', texto: 'Entregado' },
+            '2': { tono: 'bg-purple-500/10 border-purple-500/50 text-purple-300', icono: 'cake',         texto: 'Para Producir' }
+        };
+
+        const estado = estados[is_delivered]
+            || { tono: 'bg-red-500/10 border-red-500/50 text-red-300', icono: 'circle-x', texto: 'No entregado' };
+
+        return `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap leading-none">
+                    ${lucideIcon(estado.icono, 'w-3 h-3')} ${estado.texto}
+                </span>`;
     }
 
     formatDateTime(dateStr) {
@@ -1808,77 +1811,122 @@ class App extends Templates {
     // Migrado desde app.js - Historial de Pagos
     // =============================================
 
-    historyPay(id) {
+    async historyPay(id) {
         this._switchToPedidos();
 
-        // createModal resuelve el fetch antes de abrir el dialogo, por eso el folio y
-        // la fecha del encabezado se rellenan en success: al construir el title todavia
-        // no hay datos del pedido.
-        this.createModal({
-            id: 'modalAdvance',
-            data: { opc: 'initHistoryPay', id },
-            bootbox: {
-                id: 'modalAdvance',
-                closeButton: true,
-                title: `
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 shrink-0">
-                            ${lucideIcon('wallet', 'w-5 h-5 text-blue-400')}
-                        </div>
-                        <div class="min-w-0">
-                            <h2 class="text-lg font-semibold text-white leading-tight">Gestión de Pagos</h2>
-                            <p class="text-sm text-gray-400 flex items-center gap-3 mt-0.5">
-                                <span class="flex items-center gap-1.5">
-                                    ${lucideIcon('file-text', 'w-3.5 h-3.5')}
-                                    Folio <b id="lblFolioPay" class="text-blue-400 font-semibold">—</b>
-                                </span>
-                                <span class="flex items-center gap-1.5">
-                                    ${lucideIcon('calendar', 'w-3.5 h-3.5')}
-                                    <span id="lblFechaPay">—</span>
-                                </span>
-                            </p>
-                        </div>
-                    </div>`,
-                message: '<div id="containerChat"></div>'
-            },
-            success: (data) => {
-                const order = data.order;
+        const data  = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
+        const order = data.order;
 
-                $('#lblFolioPay').text(order.folio);
-                $('#lblFechaPay').text(order.formatted_date_order || order.date_order);
+        // Escala del modal. El diseño no cambia: se dibuja mas chico, igual que con el
+        // zoom del navegador al 75%. Los anchos de abajo van en coordenadas sin escalar,
+        // asi que el ancho real en pantalla es el valor por ZOOM.
+        const ZOOM = 0.75;
 
-                $('#modalAdvance .modal-dialog').css('max-width', '600px');
+        // El ancho lo manda el tab: el formulario de pago se descuadra si el modal se
+        // estira, y el historial son 6 columnas (fecha, metodo, monto, sucursal,
+        // observacion y acciones) que no caben en el ancho del formulario. El tope
+        // por vw evita que el modal se salga en pantallas chicas.
+        const WIDTH_PAY     = '600px';
+        // En px: con la transicion activa el navegador no interpola entre una longitud
+        // y una funcion como min(), y el ancho se quedaba clavado en el valor anterior.
+        const WIDTH_HISTORY = Math.min(820, Math.round(window.innerWidth * 0.95 / ZOOM)) + 'px';
+        // La tarjeta del modal es ANCESTRO de #modalAdvance, no descendiente: el ancho
+        // se toca por la referencia que devuelve el componente.
+        const setModalWidth = width => this.payModal?.el.find('.cf-card').css('max-width', width);
 
-                this.tabLayout({
-                    parent: 'containerChat',
-                    theme: 'dark',
-                    class: '',
-                    json: [
-                        {
-                            id: 'payment',
-                            tab: 'Registrar Pago',
-                            icon: 'icon-plus-circled',
-                            active: true
-                        },
-                        {
-                            id: 'listPayment',
-                            tab: 'Historial de Pagos',
-                            icon: 'icon-list',
-                            onClick: () => { }
-                        },
-                    ]
-                });
-
-                $('#container-listPayment').html('<div id="container-info-payment"></div><div id="container-methodPay"></div>');
-
-                this.addPayment(order, id);
-                this.renderResumenPagos(data.details);
-                this.lsPay(id);
+        // createCoffeeModalForm no maneja pestañas, asi que el contenido va como bloque
+        // 'html' y el tabLayout se monta dentro. El wrapper conserva el id modalAdvance
+        // porque index.php cuelga de el la regla que colapsa los <label> vacios del
+        // plugin de formularios.
+        const modal = createCoffeeModalForm({
+            id: 'frmHistoryPay',
+            title: 'Gestión de Pagos',
+            iconSvg: lucideIcon('wallet', 'w-5 h-5'),
+            iconBg: 'bg-blue-600',
+            theme: 'dark',
+            width: 600,
+            confirmText: 'Registrar Pago',
+            confirmBg: 'bg-blue-600 hover:bg-blue-700',
+            json: [
+                {
+                    opc: 'html',
+                    html: '<div id="modalAdvance"><div id="containerChat"></div></div>'
+                }
+            ],
+            // El submit del formulario ya trae su propia confirmacion, asi que el boton
+            // del modal solo lo dispara. Se devuelve false para que el modal siga abierto:
+            // lo cierra el flujo de exito del pago.
+            onConfirm: () => {
+                document.getElementById('form-payment')?.requestSubmit();
+                return false;
             }
         });
+
+        this.payModal = modal;
+
+        // El diseño se mantiene tal cual y se dibuja al 75%, que es como se ve bien con
+        // el zoom del navegador en esa escala. zoom (no transform: scale) porque rehace
+        // el layout: la tarjeta ocupa de verdad menos espacio y los clics siguen cayendo
+        // donde toca. El max-height es solo una red de seguridad para pantallas bajas.
+        const $card = modal.el.find('.cf-card');
+
+        $card.css({
+            'zoom':           ZOOM,
+            'max-height':     Math.round(92 / ZOOM) + 'vh',
+            'display':        'flex',
+            'flex-direction': 'column',
+            'overflow':       'hidden',
+            'transition':     'max-width .2s ease'
+        });
+
+        $card.children('.space-y-3').css({ 'overflow-y': 'auto', 'flex': '1 1 auto', 'min-height': '0' });
+
+        // Folio y fecha como subtitulo del encabezado, aprovechando el hueco que deja el
+        // icono: en su propia linea gastaban una fila entera del cuerpo. El componente no
+        // admite subtitulo por opciones, asi que se inserta sobre el header ya montado.
+        const $header = $card.children().first();
+        const $titulo = $header.find('span').first();
+
+        $header.removeClass('items-center mb-3').addClass('items-start mb-2');
+        $titulo.wrap('<div class="flex-1 min-w-0"></div>').after(`
+            <p class="text-[13px] text-gray-400 flex items-center gap-3 mt-0.5">
+                <span class="flex items-center gap-1.5">
+                    ${lucideIcon('file-text', 'w-3.5 h-3.5')}
+                    Folio <b class="text-blue-400 font-semibold">${order.folio}</b>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    ${lucideIcon('calendar', 'w-3.5 h-3.5')}
+                    ${order.formatted_date_order || order.date_order}
+                </span>
+            </p>`);
+
+        // Se elimina el boton cancelar del componente: el modal ya se cierra con la X,
+        // Escape o clic fuera, y sin el hermano el de registrar (flex-1) toma el ancho
+        // completo. El footer entero se oculta en el historial, donde no hay que
+        // registrar nada y un boton suelto solo estorba.
+        modal.el.find('.cf-cancel').remove();
+        const footerBtns = modal.el.find('.cf-confirm').parent();
+
+        this.tabLayout({
+            parent: 'containerChat',
+            theme: 'dark',
+            class: '',
+            json: [
+                { id: 'payment', tab: 'Registrar Pago', icon: 'icon-plus-circled', active: true, onClick: () => { setModalWidth(WIDTH_PAY); footerBtns.show(); } },
+                { id: 'listPayment', tab: 'Historial de Pagos', icon: 'icon-list', onClick: () => { setModalWidth(WIDTH_HISTORY); footerBtns.hide(); } },
+            ]
+        });
+
+        // Renders
+        $('#container-listPayment').html('<div id="container-info-payment"></div><div id="container-methodPay"></div>');
+
+        this.addPayment(order, id);
+        this.renderResumenPagos(data.details);
+        this.lsPay(id);
     }
 
     async addPayment(order, id) {
+        // Totales base
         this.totalPay = order.total_pay;
         this.totalPaid = order.total_paid;
         this.discount = order.discount ?? 0;
@@ -1888,29 +1936,68 @@ class App extends Templates {
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
 
-        // Sucursal de cobro (cobro cruzado): default = sucursal activa del usuario.
-        // Admin -> sucursal de sesión; cajero -> su sucursal de sesión.
-        // Fallback final: la sucursal del pedido.
+        // Sucursal de cobro (cobro cruzado). El calendario no tiene el filtro de sucursal
+        // de la navbar, asi que el default es la sucursal activa que entrega su init();
+        // si no hay, la del pedido.
         const defaultCobroSub = this.subsidiaryId
             ? String(this.subsidiaryId)
             : String(order.subsidiaries_id ?? '');
 
-        const subsidiariesCobro = this.subsidiariesCobro || [];
-
         // Sucursal de origen del pedido (referencia para el cobro cruzado).
-        const origenSub    = subsidiariesCobro.find(s => String(s.id) === String(order.subsidiaries_id));
+        const origenSub    = (this.subsidiariesCobro || []).find(s => String(s.id) === String(order.subsidiaries_id));
         const origenNombre = origenSub ? origenSub.valor : '—';
 
         // Estado inicial de la tarjeta "Sucursal que cobrará".
-        const origenSubId     = String(order.subsidiaries_id ?? '');
-        const cobroSubSel     = subsidiariesCobro.find(s => String(s.id) === String(defaultCobroSub));
-        const cobroNombre     = cobroSubSel ? cobroSubSel.valor : origenNombre;
-        const cobroEsMismaSuc = String(defaultCobroSub) === origenSubId;
-        const cobroSubtitulo  = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
-        const cobroOptionsHtml = subsidiariesCobro
+        const origenSubId      = String(order.subsidiaries_id ?? '');
+        const cobroSubSel      = (this.subsidiariesCobro || []).find(s => String(s.id) === String(defaultCobroSub));
+        const cobroNombre      = cobroSubSel ? cobroSubSel.valor : origenNombre;
+        const cobroEsMismaSuc  = String(defaultCobroSub) === origenSubId;
+        const cobroSubtitulo   = cobroEsMismaSuc ? 'Misma sucursal de origen' : 'Cobro en otra sucursal';
+        const cobroOptionsHtml = (this.subsidiariesCobro || [])
             .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
             .join('');
 
+        // Metodos de pago del dropdown custom (.js-dd). El value es el id que espera
+        // el backend (1=Efectivo, 2=Tarjeta, 3=Transferencia) y vive en el input
+        // hidden #method_pay_id que lee el form al registrar el pago.
+        const metodosPago = [
+            { id: '1', label: 'Efectivo',      sub: 'Pago en efectivo', icon: 'banknote' },
+            { id: '2', label: 'Tarjeta',       sub: 'Débito o crédito', icon: 'credit-card' },
+            { id: '3', label: 'Transferencia', sub: 'Depósito o SPEI',  icon: 'arrow-right-left' }
+        ];
+        const metodoDefault = metodosPago[0];
+        const methodPayOptionsHtml = metodosPago.map((m, i) => `
+            <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
+                data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                    ${window.lucideIcon(m.icon, 'w-4 h-4')}
+                </div>
+                <div class="flex flex-col leading-tight flex-1 min-w-0">
+                    <span class="text-sm text-white font-semibold truncate">${m.label}</span>
+                    <span class="text-[11px] text-gray-400">${m.sub}</span>
+                </div>
+                <span class="js-dd-check text-emerald-400 shrink-0 ${i === 0 ? '' : 'opacity-0'}">${window.lucideIcon('check', 'w-4 h-4')}</span>
+            </div>`).join('');
+
+        const methodPayCardHtml = `
+            <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
+            <div class="js-dd relative">
+                <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
+                    <div class="js-dd-trigger-icon flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
+                        ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
+                    </div>
+                    <div class="flex flex-col leading-tight flex-1 min-w-0">
+                        <span class="js-dd-trigger-label text-sm text-white font-semibold truncate">${metodoDefault.label}</span>
+                        <span class="js-dd-trigger-sub text-[11px] text-gray-400">${metodoDefault.sub}</span>
+                    </div>
+                    <span class="js-dd-chevron text-gray-400 shrink-0 transition-transform">${window.lucideIcon('chevron-down', 'w-4 h-4')}</span>
+                </div>
+                <div class="js-dd-menu hidden absolute left-0 right-0 mt-1 z-20 bg-[#1E293B] border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+                    ${methodPayOptionsHtml}
+                </div>
+            </div>`;
+
+        // Contenedor del formulario centrado y reducido
         $("#container-payment").html(`
             <div class="flex justify-center items-start">
                 <div class="w-full">
@@ -1942,36 +2029,18 @@ class App extends Templates {
                         ${discount > 0 ? `
                             <div class="mt-1.5 pt-1.5 border-t border-gray-600">
                                 <p class="text-[11px] text-gray-400">Total original: <span class="line-through">${formatPrice(saldoOriginal)}</span></p>
-                                <p class="text-[11px] text-green-400"><i class="icon-tag"></i> Descuento aplicado: -${formatPrice(discount)}</p>
+                                <p class="text-[11px] text-green-400 flex items-center justify-center gap-1">${lucideIcon('tag', 'w-3 h-3')} Descuento aplicado: -${formatPrice(discount)}</p>
                             </div>
                         ` : ''}
-                        ${isPaidInFull ? '<i class="icon-ok-circled text-green-400 text-lg mt-0.5"></i>' : ''}
+                        ${isPaidInFull ? lucideIcon('circle-check', 'w-5 h-5 text-green-400 mt-0.5 inline-block') : ''}
                     </div>`
                 },
                 {
-                    opc: "input",
-                    type: "number",
-                    id: "advanced_pay",
-                    lbl: "Importe",
-                    class: "col-12 mb-3",
-                    placeholder: "0.00",
-                    required: true,
-                    min: 0,
-                    onkeyup: "app.updateTotal()",
-                    disabled: isPaidInFull
-                },
-                {
-                    opc: "select",
-                    id: "method_pay_id",
+                    opc: "div",
+                    id: "cardMethodPay",
+                    class: "col-12 mb-2",
                     lbl: "Método de pago",
-                    class: "col-12 mb-3",
-                    data: [
-                        { id: "1", valor: "Efectivo" },
-                        { id: "2", valor: "Tarjeta" },
-                        { id: "3", valor: "Transferencia" }
-                    ],
-                    required: true,
-                    disabled: isPaidInFull
+                    html: methodPayCardHtml
                 },
                 {
                     opc: "div",
@@ -1980,7 +2049,7 @@ class App extends Templates {
                     class: "col-12 mb-2",
                     html: `<div class="flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5">
                         <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
-                            <i class="icon-shop text-sm"></i>
+                            ${lucideIcon('house', 'w-4 h-4')}
                         </div>
                         <div class="flex flex-col leading-tight min-w-0">
                             <span class="text-sm text-white font-semibold truncate">${origenNombre}</span>
@@ -1992,17 +2061,18 @@ class App extends Templates {
                     opc: "div",
                     id: "cobroWrapper",
                     lbl: "Sucursal que cobrará",
-                    class: "col-12 mb-3",
+                    // mb-2 como el resto: el mb-3 abria un hueco mayor justo antes de Importe.
+                    class: "col-12 mb-2",
                     html: `<div class="relative">
                         <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
                             <div id="cobroCardIcon" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
-                                <i class="icon-bank text-sm"></i>
+                                ${lucideIcon('landmark', 'w-4 h-4')}
                             </div>
                             <div class="flex flex-col leading-tight flex-1 min-w-0">
                                 <span id="cobroCardName" class="text-sm text-white font-semibold truncate">${cobroNombre}</span>
                                 <span id="cobroCardSub" class="text-[11px] text-gray-400">${cobroSubtitulo}</span>
                             </div>
-                            <i class="icon-down-open text-gray-400 text-xs shrink-0"></i>
+                            ${lucideIcon('chevron-down', 'w-4 h-4 text-gray-400 shrink-0')}
                         </div>
                         <select id="payment_subsidiaries_id" name="payment_subsidiaries_id" data-origen="${origenSubId}" required
                             class="absolute inset-0 w-full h-full opacity-0 ${isPaidInFull ? 'cursor-not-allowed' : 'cursor-pointer'}"
@@ -2012,34 +2082,47 @@ class App extends Templates {
                     </div>`
                 },
                 {
-                    opc: "textarea",
-                    id: "description",
-                    lbl: "Observación",
-                    class: "col-12 mb-3",
+                    opc: "input",
+                    type: "number",
+                    id: "advanced_pay",
+                    lbl: "Importe",
+                    class: "col-12 mb-2",
+                    placeholder: "0.00",
+                    required: true,
+                    min: 0,
+                    onkeyup: "app.updateTotal()",
                     disabled: isPaidInFull
                 },
                 {
-                    opc: "btn-submit",
-                    id: "btnSuccess",
-                    class: "col-12",
-                    text: isPaidInFull ? "Pedido Pagado" : "Registrar Pago",
+                    opc: "textarea",
+                    id: "description",
+                    lbl: "Observación",
+                    class: "col-12 mb-2",
                     disabled: isPaidInFull
                 }
+                // Sin btn-submit: el boton de registrar es el del footer del modal
+                // (.cf-confirm), que dispara el submit de este formulario.
             ],
             success: async (response) => {
                 if (response.status === 200) {
+
                     const data = response.data;
 
+                    // ✅ Alert con cierre automático
                     alert({
                         icon: "success",
-                        text: "Pago registrado correctamente",
+                        text: "Pago registrado correctamente ✅",
                         timer: 1000
                     });
 
+                    // Refrescar pagos y vista general. Aqui no hay tabla de pedidos que
+                    // recargar (el ls() de pedidos): lo que se actualiza es la ficha del
+                    // pedido abierta detras del modal.
                     this.lsPay(id);
                     this.refreshOrderDetails(id);
                     this.renderResumenPagos(data.details);
 
+                    // Recalcular saldo restante sin redibujar
                     const order = data.order;
                     const discount = order.discount ?? 0;
                     const restante2 = order.total_pay - discount - order.total_paid;
@@ -2047,7 +2130,9 @@ class App extends Templates {
                     this.totalPaid = order.total_paid;
                     this.discount = discount;
 
+                    // Verificar si se pagó completamente
                     if (restante2 <= 0) {
+                        // Recargar el formulario para mostrar estado pagado
                         this.addPayment(order, id);
                     } else {
                         $("#SaldoEvent").text(formatPrice(restante2));
@@ -2064,16 +2149,72 @@ class App extends Templates {
                         btn1Text: "Ok"
                     });
                 }
+
             }
         });
 
-        // Confirmación antes de registrar el pago.
+        // ── Interacción de los dropdowns (abrir/cerrar, seleccionar) ───────────
+        const $payRoot = $('#container-payment');
+        $payRoot.off('click.dd');
+
+        // Abrir / cerrar al pulsar el trigger.
+        $payRoot.on('click.dd', '.js-dd-trigger:not([disabled])', function (e) {
+            e.stopPropagation();
+            const $menu = $(this).siblings('.js-dd-menu');
+            const willOpen = $menu.hasClass('hidden');
+            // Cerrar cualquier otro menú abierto.
+            $payRoot.find('.js-dd-menu').addClass('hidden');
+            $payRoot.find('.js-dd-chevron').removeClass('rotate-180');
+            if (willOpen) {
+                $menu.removeClass('hidden');
+                $(this).find('.js-dd-chevron').addClass('rotate-180');
+            }
+        });
+
+        // Seleccionar una opción: actualiza hidden + trigger + check y cierra.
+        $payRoot.on('click.dd', '.js-dd-option', function (e) {
+            e.stopPropagation();
+            const $opt = $(this);
+            const $dd = $opt.closest('.js-dd');
+            const value = $opt.attr('data-value');
+            const label = $opt.attr('data-label');
+            const sub = $opt.attr('data-sub') || '';
+            const icon = $opt.attr('data-icon');
+
+            // Valor real (id) para el envío del formulario.
+            $dd.prevAll('input[type="hidden"]').first().val(value);
+
+            // Reflejar la selección en el trigger.
+            const $trigger = $dd.find('.js-dd-trigger');
+            $trigger.find('.js-dd-trigger-icon').html(window.lucideIcon(icon, 'w-4 h-4'));
+            $trigger.find('.js-dd-trigger-label').text(label);
+            $trigger.find('.js-dd-trigger-sub').text(sub);
+
+            // Mover el check a la opción elegida.
+            $dd.find('.js-dd-check').addClass('opacity-0');
+            $opt.find('.js-dd-check').removeClass('opacity-0');
+
+            // Cerrar.
+            $dd.find('.js-dd-menu').addClass('hidden');
+            $trigger.find('.js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Cerrar al hacer click fuera de cualquier dropdown.
+        $(document).off('click.payDD').on('click.payDD', function () {
+            $('#container-payment .js-dd-menu').addClass('hidden');
+            $('#container-payment .js-dd-chevron').removeClass('rotate-180');
+        });
+
+        // Confirmación antes de registrar el pago. Se intercepta el submit en fase
+        // de captura (antes de validation_form): si no está confirmado, se bloquea,
+        // se valida el importe y se pregunta; al confirmar se reenvía con bandera
+        // para que el flujo normal (validación + AJAX) continúe.
         const formEl = document.getElementById('form-payment');
         if (formEl) {
             formEl.addEventListener('submit', async (e) => {
                 if (formEl.dataset.payConfirmed === '1') {
                     formEl.dataset.payConfirmed = '';
-                    return;
+                    return; // ya confirmado: dejar pasar a validation_form
                 }
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -2084,11 +2225,13 @@ class App extends Templates {
                     return;
                 }
 
+                // Datos legibles para que el usuario entienda cómo se registrará el pago.
                 const metodos = { '1': 'Efectivo', '2': 'Tarjeta', '3': 'Transferencia' };
                 const metodoTxt = metodos[String($('#method_pay_id').val())] || '—';
                 const subCobroId = String($('#payment_subsidiaries_id').val() || '');
-                const subCobroObj = subsidiariesCobro.find(s => String(s.id) === subCobroId);
+                const subCobroObj = (this.subsidiariesCobro || []).find(s => String(s.id) === subCobroId);
                 const subCobroNombre = subCobroObj ? subCobroObj.valor : origenNombre;
+                // Cobro cruzado: la sucursal que cobra es distinta a la de origen del pedido.
                 const esCruzado = subCobroId !== '' && String(order.subsidiaries_id ?? '') !== subCobroId;
 
                 const row = (lbl, val, color = '#fff') => `
@@ -2107,21 +2250,12 @@ class App extends Templates {
                         </div>` : ''}
                     </div>`;
 
-                const res = await Swal.fire({
+                const res = await alert({
                     icon: 'question',
                     title: '¿Registrar pago?',
                     html: htmlConfirm,
-                    confirmButtonText: 'Sí, registrar',
-                    cancelButtonText: 'Cancelar',
-                    showCancelButton: true,
-                    background: '#1F2A37',
-                    color: '#fff',
-                    customClass: {
-                        popup: 'rounded-lg shadow-lg',
-                        title: 'text-white',
-                        confirmButton: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white py-2 px-4 rounded',
-                        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded'
-                    }
+                    btn1Text: 'Sí, registrar',
+                    btn2Text: 'Cancelar'
                 });
 
                 if (res && res.isConfirmed) {
@@ -2131,9 +2265,11 @@ class App extends Templates {
             }, true);
         }
 
+        // Aplicar estilos disabled si está pagado
         if (isPaidInFull) {
             setTimeout(() => {
-                $("#advanced_pay, #method_pay_id, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $("#advanced_pay, #description, #btnSuccess").prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+                $('.cf-confirm').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').text('Pedido Pagado');
             }, 100);
         }
     }
@@ -2355,7 +2491,9 @@ class App extends Templates {
         const tp = typeof totalPaid === 'number' ? totalPaid : (this.totalPaid || 0);
         const d = this.discount || 0;
         const restante = (t - d - (tp || 0)) - val;
-        const btn = $("#btnSuccess");
+        // .cf-confirm: en Gestion de Pagos el boton de registrar vive en el footer del
+        // modal, no dentro del formulario.
+        const btn = $("#btnSuccess").add('.cf-confirm');
         const display = $("#SaldoEvent");
         if (display && display.length) {
             display.text(formatPrice(restante < 0 ? 0 : restante));

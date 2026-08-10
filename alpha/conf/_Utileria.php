@@ -375,5 +375,31 @@ function formatSpanishDate($fecha = null, $type = 'short') {
     return strftime($formatoFecha, $marcaTiempo);
 }
 
+// Fecha con hora para historiales y bitacoras: 08/Agosto/2026 11:30am.
+// A diferencia de formatSpanishDate() no colapsa el dia a "Hoy"/"Ayer" (en una
+// bitacora interesa el momento exacto) y no usa strftime, deprecado desde PHP 8.1,
+// asi que tampoco depende de que el locale es_ES este instalado en el servidor.
+function formatSpanishDateTime($fecha = null) {
+    // La fecha cero de MySQL no la rechaza strtotime: devuelve un timestamp negativo
+    // que se imprimiria como "30/Noviembre/-0001", por eso se descarta aparte.
+    if (empty($fecha) || strpos($fecha, '0000-00-00') === 0) return '-';
+
+    $marcaTiempo = strtotime($fecha);
+    if ($marcaTiempo === false) return '-';
+
+    $meses = [
+        1 => 'Enero',   2 => 'Febrero',   3 => 'Marzo',      4 => 'Abril',
+        5 => 'Mayo',    6 => 'Junio',     7 => 'Julio',      8 => 'Agosto',
+        9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+    ];
+
+    $dia  = date('d', $marcaTiempo);
+    $mes  = $meses[(int) date('n', $marcaTiempo)];
+    $anio = date('Y', $marcaTiempo);
+    $hora = date('g:i', $marcaTiempo) . strtolower(date('A', $marcaTiempo));
+
+    return "{$dia}/{$mes}/{$anio} {$hora}";
+}
+
 
 ?>

@@ -106,6 +106,24 @@
             display: none;
         }
 
+        /* Gestion de Pagos usa el modal propio del framework (createCoffeeModalForm),
+           que monta su overlay en z-index 100000: SweetAlert vive en 1060 y alertBox en
+           10001, asi que la confirmacion del cobro quedaba por debajo y no se veia. */
+        .swal2-container {
+            z-index: 100010 !important;
+        }
+
+        .z-\[10001\] {
+            z-index: 100005 !important;
+        }
+
+        /* Ese modal se dibuja al 75%; los dialogos que abre encima salen a tamano
+           completo y quedarian mas grandes que el propio modal. */
+        body:has(.cf-overlay) .swal2-popup,
+        body:has(.cf-overlay) [id^="alertBox_"] .tf-alert-card {
+            zoom: 0.75;
+        }
+
         /* 🔮 Glassmorphism púrpura — cristal real */
         .glass-purple-btn {
             background: linear-gradient(

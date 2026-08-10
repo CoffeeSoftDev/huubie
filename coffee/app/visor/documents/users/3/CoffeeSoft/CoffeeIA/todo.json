@@ -29,22 +29,22 @@
         {
           "id": "tsknenvu",
           "text": "Aplicar el tema de GitHub en modo claro (incluso cuando el tema oscuro esté activo) al formato de ERS e Historias de Usuario en visor, lab y coffeeia",
-          "done": false
+          "done": true
         },
         {
           "id": "tgpa5m6t",
           "text": "Permitir ampliar el ancho del chat en el visor de forma horizontal",
-          "done": false
+          "done": true
         },
         {
           "id": "t3elcddp",
           "text": "Visor,Lab,CoffeeIA, la tools de archivos siempre iniciar encendida",
-          "done": false
+          "done": true
         },
         {
           "id": "tvnrs2iu",
           "text": "Revisar porque aparecen todos los modelos en el selector del modelo aplica para lab,visor,coffeeIA",
-          "done": false
+          "done": true
         }
       ]
     }

@@ -145,6 +145,15 @@
             z-index: 100005 !important;
         }
 
+        /* Gestion de Pagos se dibuja al 75%. Los dialogos que abre por encima salen a
+           tamano completo y quedan mas grandes que el propio modal, asi que se escalan
+           igual mientras ese modal (.cf-overlay) este abierto. Si el navegador no
+           soporta :has(), la regla se ignora y el dialogo sigue funcionando. */
+        body:has(.cf-overlay) .swal2-popup,
+        body:has(.cf-overlay) [id^="alertBox_"] .tf-alert-card {
+            zoom: 0.75;
+        }
+
         /* Específico para las tablas */
       /*  #tbPedidos_wrapper,
         #tbPedidos_wrapper .dataTables_scrollBody,

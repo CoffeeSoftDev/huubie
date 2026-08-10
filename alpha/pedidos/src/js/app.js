@@ -1709,12 +1709,19 @@ class App extends Templates {
         const data  = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
 
+        // Escala del modal. El diseño no cambia: se dibuja mas chico, igual que con el
+        // zoom del navegador al 75%. Los anchos de abajo van en coordenadas sin escalar,
+        // asi que el ancho real en pantalla es el valor por ZOOM.
+        const ZOOM = 0.75;
+
         // El ancho lo manda el tab: el formulario de pago se descuadra si el modal se
         // estira, y el historial son 6 columnas (fecha, metodo, monto, sucursal,
         // observacion y acciones) que no caben en el ancho del formulario. El tope
         // por vw evita que el modal se salga en pantallas chicas.
         const WIDTH_PAY     = '600px';
-        const WIDTH_HISTORY = 'min(820px, 95vw)';
+        // En px: con la transicion activa el navegador no interpola entre una longitud
+        // y una funcion como min(), y el ancho se quedaba clavado en el valor anterior.
+        const WIDTH_HISTORY = Math.min(820, Math.round(window.innerWidth * 0.95 / ZOOM)) + 'px';
         // La tarjeta del modal es ANCESTRO de #modalAdvance, no descendiente: el ancho
         // se toca por la referencia que devuelve el componente.
         const setModalWidth = width => this.payModal?.el.find('.cf-card').css('max-width', width);
@@ -1735,20 +1742,7 @@ class App extends Templates {
             json: [
                 {
                     opc: 'html',
-                    html: `
-                    <div id="modalAdvance">
-                        <p class="text-sm text-gray-400 flex items-center gap-3 -mt-2 mb-3">
-                            <span class="flex items-center gap-1.5">
-                                ${lucideIcon('file-text', 'w-3.5 h-3.5')}
-                                Folio <b class="text-blue-400 font-semibold">${order.folio}</b>
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                ${lucideIcon('calendar', 'w-3.5 h-3.5')}
-                                ${order.formatted_date_order || order.date_order}
-                            </span>
-                        </p>
-                        <div id="containerChat"></div>
-                    </div>`
+                    html: '<div id="modalAdvance"><div id="containerChat"></div></div>'
                 }
             ],
             // El submit del formulario ya trae su propia confirmacion, asi que el boton
@@ -1761,7 +1755,42 @@ class App extends Templates {
         });
 
         this.payModal = modal;
-        modal.el.find('.cf-card').css('transition', 'max-width .2s ease');
+
+        // El diseño se mantiene tal cual y se dibuja al 75%, que es como se ve bien con
+        // el zoom del navegador en esa escala. zoom (no transform: scale) porque rehace
+        // el layout: la tarjeta ocupa de verdad menos espacio y los clics siguen cayendo
+        // donde toca. El max-height es solo una red de seguridad para pantallas bajas.
+        const $card = modal.el.find('.cf-card');
+
+        $card.css({
+            'zoom':           ZOOM,
+            'max-height':     Math.round(92 / ZOOM) + 'vh',
+            'display':        'flex',
+            'flex-direction': 'column',
+            'overflow':       'hidden',
+            'transition':     'max-width .2s ease'
+        });
+
+        $card.children('.space-y-3').css({ 'overflow-y': 'auto', 'flex': '1 1 auto', 'min-height': '0' });
+
+        // Folio y fecha como subtitulo del encabezado, aprovechando el hueco que deja el
+        // icono: en su propia linea gastaban una fila entera del cuerpo. El componente no
+        // admite subtitulo por opciones, asi que se inserta sobre el header ya montado.
+        const $header = $card.children().first();
+        const $titulo = $header.find('span').first();
+
+        $header.removeClass('items-center mb-3').addClass('items-start mb-2');
+        $titulo.wrap('<div class="flex-1 min-w-0"></div>').after(`
+            <p class="text-[13px] text-gray-400 flex items-center gap-3 mt-0.5">
+                <span class="flex items-center gap-1.5">
+                    ${lucideIcon('file-text', 'w-3.5 h-3.5')}
+                    Folio <b class="text-blue-400 font-semibold">${order.folio}</b>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    ${lucideIcon('calendar', 'w-3.5 h-3.5')}
+                    ${order.formatted_date_order || order.date_order}
+                </span>
+            </p>`);
 
         // Se elimina el boton cancelar del componente: el modal ya se cierra con la X,
         // Escape o clic fuera, y sin el hermano el de registrar (flex-1) toma el ancho
@@ -1926,7 +1955,8 @@ class App extends Templates {
                     opc: "div",
                     id: "cobroWrapper",
                     lbl: "Sucursal que cobrará",
-                    class: "col-12 mb-3",
+                    // mb-2 como el resto: el mb-3 abria un hueco mayor justo antes de Importe.
+                    class: "col-12 mb-2",
                     html: `<div class="relative">
                         <div id="cobroCard" class="flex items-center gap-2.5 bg-[#1E293B] border ${cobroEsMismaSuc ? 'border-slate-700' : 'border-amber-500/60'} rounded-lg px-2.5 py-1.5 pointer-events-none">
                             <div id="cobroCardIcon" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 ${cobroEsMismaSuc ? 'text-blue-400' : 'text-amber-400'} shrink-0">
@@ -2698,11 +2728,8 @@ class App extends Templates {
             return;
         }
 
-        // El tipo de entrega queda fuera del autofill: sus dos radios comparten name y
-        // el autofill hace .val() sobre TODOS los inputs que lo comparten, con lo que
-        // los dos acabarian con el mismo value. Se marca a mano al final.
-        const order = response.data;
-        const { delivery_type, ...autofill } = order;
+        const order         = response.data;
+        const delivery_type = order.delivery_type;
 
         // Pedido liquidado: la contraseña se pide antes de abrir el formulario y se
         // reenvia en data para que editOrderDelivery (ctrl) la revalide al guardar.
@@ -2713,24 +2740,23 @@ class App extends Templates {
             return;
         }
 
-        this.createModalForm({
+        // El tipo de entrega marcado se resuelve aqui, al construir el HTML: los radios
+        // van dentro de un bloque libre y el componente no los autocompleta.
+        const esDomicilio = String(delivery_type ?? 0) === '1';
+
+        createCoffeeModalForm({
             id: 'formEditDelivery',
-            data: password
-                ? { opc: 'editOrderDelivery', id: id, password: password }
-                : { opc: 'editOrderDelivery', id: id },
-            autofill: autofill,
-            bootbox: {
-                title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
-                            ${lucideIcon('calendar', 'w-5 h-5 text-blue-400')}
-                            Editar datos de entrega
-                        </div>`,
-                size: 'medium'
-            },
+            title: 'Editar datos de entrega',
+            iconSvg: lucideIcon('calendar', 'w-5 h-5'),
+            iconBg: 'bg-blue-600',
+            theme: 'dark',
+            width: 460,
+            confirmText: 'Guardar',
+            cancelText: 'Cancelar',
+            confirmBg: 'bg-blue-600 hover:bg-blue-700',
             json: [
                 ...(liquidado ? [{
-                    opc: "div",
-                    id: "paidOrderNotice",
-                    class: "col-12 mb-3",
+                    opc: 'html',
                     html: `
                         <div class="flex items-center gap-3 bg-amber-500/10 rounded-lg px-3 py-2">
                             <i class="icon-lock text-amber-400 text-lg"></i>
@@ -2738,70 +2764,75 @@ class App extends Templates {
                                 <b class="text-amber-100 block">Pedido liquidado — edición autorizada</b>
                                 <span class="text-amber-200/80">Solo se guardarán los datos de entrega.</span>
                             </div>
-                        </div>
-                    `
+                        </div>`
                 }] : []),
                 {
-                    opc: "input",
-                    id: "date_order",
-                    lbl: "Fecha de entrega",
-                    type: "date",
-                    class: "col-12 col-sm-6 mb-3",
+                    opc: 'text',
+                    type: 'date',
+                    id: 'date_order',
+                    lbl: 'Fecha de entrega',
+                    value: order.date_order,
                     required: true
                 },
                 {
-                    opc: "input",
-                    id: "time_order",
-                    lbl: "Hora de entrega",
-                    type: "time",
-                    class: "col-12 col-sm-6 mb-3",
+                    opc: 'text',
+                    type: 'time',
+                    id: 'time_order',
+                    lbl: 'Hora de entrega',
+                    value: order.time_order,
                     required: true
                 },
                 {
-                    opc: "div",
-                    id: "radioDeliveryType",
-                    lbl: "Tipo de entrega",
-                    class: "col-12 mb-3",
+                    opc: 'html',
                     html: `
-                        <div class="flex gap-2 mt-2">
-                            <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
-                                <input
-                                    class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
-                                    type="radio"
-                                    name="delivery_type"
-                                    id="local"
-                                    value="0"
-                                    onclick="this.value='0'"
-                                >
-                                ${lucideIcon('store', 'w-4 h-4')}
-                                <span class="text-sm font-medium">Local</span>
-                            </label>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1.5">Tipo de entrega</label>
+                            <div class="flex gap-2">
+                                <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                                    <input class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                                        type="radio" name="delivery_type" value="0" ${esDomicilio ? '' : 'checked'}>
+                                    ${lucideIcon('store', 'w-4 h-4')}
+                                    <span class="text-sm font-medium">Local</span>
+                                </label>
 
-                            <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
-                                <input
-                                    class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
-                                    type="radio"
-                                    name="delivery_type"
-                                    id="domicilio"
-                                    value="1"
-                                    onclick="this.value='1'"
-                                >
-                                <i class="icon-motorcycle text-amber-500"></i>
-                                <span class="text-sm font-medium">A domicilio</span>
-                            </label>
-                        </div>
-                    `
+                                <label class="w-1/2 shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-white/5 px-3 py-1.5 cursor-pointer select-none transition-colors text-gray-300 hover:bg-white/10 has-[:checked]:bg-indigo-500/[12.5%] has-[:checked]:text-white">
+                                    <input class="h-4 w-4 shrink-0 accent-indigo-500 cursor-pointer"
+                                        type="radio" name="delivery_type" value="1" ${esDomicilio ? 'checked' : ''}>
+                                    <i class="icon-motorcycle text-amber-500"></i>
+                                    <span class="text-sm font-medium">A domicilio</span>
+                                </label>
+                            </div>
+                        </div>`
                 },
                 {
-                    opc: "textarea",
-                    id: "note",
-                    lbl: "Descripción",
-                    rows: 3,
-                    class: "col-12 mb-3",
-                    required: false
+                    // El id sigue el patron que arma el componente para sus campos, con
+                    // lo que collect() recoge la descripcion junto al resto.
+                    opc: 'html',
+                    id: 'note',
+                    html: `
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1.5">Descripción</label>
+                            <textarea id="formEditDelivery-note" data-field="note" rows="3"
+                                class="w-full bg-[#1a2332] border border-gray-600 text-white focus:border-emerald-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none">${order.note ?? ''}</textarea>
+                        </div>`
                 }
             ],
-            success: (response) => {
+            onConfirm: async (data, modal) => {
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc: 'editOrderDelivery',
+                        id: id,
+                        ...(password ? { password: password } : {}),
+                        date_order: data.date_order,
+                        time_order: data.time_order,
+                        note: data.note,
+                        delivery_type: $('input[name="delivery_type"]:checked').val() ?? '0'
+                    }
+                });
+
+                modal.close();
+
                 if (response.status == 200) {
                     alert({
                         icon: "success",
@@ -2825,8 +2856,6 @@ class App extends Templates {
                 }
             }
         });
-
-        $(`#formEditDelivery input[name="delivery_type"][value="${String(delivery_type ?? 0)}"]`).prop('checked', true);
     }
 
     // Pedido liquidado: pide la contraseña antes de abrir el formulario de entrega, el
@@ -2958,20 +2987,23 @@ class App extends Templates {
         `;
     }
 
+    // border-1 no existe en Tailwind (la utilidad es `border`), por eso las etiquetas
+    // quedaban sin contorno. El ancho va como border-[1px] y no como `border` porque
+    // bootstrap.min.css se carga despues y su .border lleva !important, con lo que el
+    // contorno salia gris en lugar del color del estado. Las clases se guardan enteras
+    // y no armadas por concatenacion, que Tailwind no detecta.
     statusDelivery(is_delivered) {
-        if (is_delivered == '1') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-green-600 text-green-600 inline-flex items-center gap-1">
-                        ${lucideIcon('check', 'w-3.5 h-3.5')} Entregado
-                    </span>`;
-        } else if (is_delivered == '2') {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-purple-600 text-purple-600 inline-flex items-center gap-1">
-                        ${lucideIcon('cake', 'w-3.5 h-3.5')} Para Producir
-                    </span>`;
-        } else {
-            return `<span class="px-2 py-0.5 text-xs font-medium rounded border-1 border-red-600 text-red-600 inline-flex items-center gap-1">
-                        ${lucideIcon('x', 'w-3.5 h-3.5')} No entregado
-                    </span>`;
-        }
+        const estados = {
+            '1': { tono: 'bg-green-500/10 border-green-500/50 text-green-300',   icono: 'circle-check', texto: 'Entregado' },
+            '2': { tono: 'bg-purple-500/10 border-purple-500/50 text-purple-300', icono: 'cake',         texto: 'Para Producir' }
+        };
+
+        const estado = estados[is_delivered]
+            || { tono: 'bg-red-500/10 border-red-500/50 text-red-300', icono: 'circle-x', texto: 'No entregado' };
+
+        return `<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full border-[1px] ${estado.tono} inline-flex items-center gap-1 whitespace-nowrap leading-none">
+                    ${lucideIcon(estado.icono, 'w-3 h-3')} ${estado.texto}
+                </span>`;
     }
 
     formatDateTime(dateStr) {

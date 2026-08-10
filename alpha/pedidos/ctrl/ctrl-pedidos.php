@@ -1216,7 +1216,7 @@ class Pedidos extends MPedidos{
             $__row[] = [
                 'id'            => $key['id'],
                 'Fecha de Pago' => [
-                    'html' => '<i class="icon-calendar-2"></i> ' . formatSpanishDate($key['date_pay']),
+                    'html' => '<i class="icon-calendar-2"></i> ' . formatSpanishDateTime($key['date_pay']),
                 ],
                 'Método' => [
                     'html' => $icono . ' ' . $key['method_pay'],
