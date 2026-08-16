@@ -287,31 +287,48 @@
 .tdw-item.is-archived b { opacity: .68; }
 
 /* ── Carpeta del rail ──
-   El rail agrupa por proyecto y solo despliega uno: ver de golpe las listas de
-   cinco carpetas es justo lo que abruma. La fila lleva el total pendiente del
-   grupo, para saber donde hay trabajo sin abrirlo. */
+   La raiz solo enseña carpetas: al entrar en una, las demas desaparecen y la
+   columna es unicamente su contenido. La fila lleva el total pendiente del
+   grupo, para saber donde hay trabajo sin llegar a entrar. */
 .tdw-folder {
-    width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 4px; margin-bottom: 2px;
+    width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 8px 9px 10px; margin-bottom: 2px;
     border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit;
     font: inherit; cursor: pointer; text-align: left;
 }
-.tdw-folder:hover { background: var(--vsr-bg-hover); }
+.tdw-folder:hover { background: var(--vsr-bg-hover); border-color: var(--tdw-line); }
+.tdw-folder:hover .tdw-item-dot { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
+.tdw-folder .tdw-item-main b { font-size: 12.5px; font-weight: 700; }
 .tdw-folder-caret {
-    width: 16px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-    color: var(--tdw-dim); transition: color .13s ease;
+    width: 14px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--tdw-dim); transition: color .13s ease, transform .13s ease;
 }
 .tdw-folder-caret svg { width: 13px; height: 13px; }
-.tdw-folder:hover .tdw-folder-caret { color: var(--tdw-mute); }
-.tdw-folder.is-open .tdw-folder-caret { color: var(--tdw-sky); }
-.tdw-folder.is-open .tdw-item-dot { background: var(--tdw-sky-soft); color: var(--tdw-sky); }
-.tdw-folder.is-open .tdw-item-main b { color: var(--vsr-text); }
-.tdw-folder .tdw-item-main b { font-size: 12.5px; font-weight: 700; }
+.tdw-folder:hover .tdw-folder-caret { color: var(--tdw-sky); transform: translateX(2px); }
 
-/* Las listas de la carpeta abierta cuelgan de ella: sangria y una guia fina que
-   dice hasta donde llega el grupo. */
-.tdw-item.is-child { margin-left: 14px; width: calc(100% - 14px); border-left: 1px solid var(--tdw-line); border-radius: 0 10px 10px 0; }
-.tdw-item.is-child:last-of-type { margin-bottom: 6px; }
-.tdw-item.is-child.is-on { border-left-color: var(--tdw-sky); }
+/* ── Barra de vuelta ──
+   Solo aparece cuando el rail no esta en la raiz: dice donde se esta y devuelve
+   al indice de carpetas. */
+.tdw-railnav {
+    display: flex; align-items: center; gap: 9px; padding: 6px 8px 9px; margin-bottom: 5px;
+    border-bottom: 1px solid var(--tdw-line);
+}
+.tdw-railnav .tdw-item-main b { font-size: 12.5px; font-weight: 700; }
+.tdw-railback {
+    width: 26px; height: 26px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--tdw-line); border-radius: 8px; background: transparent;
+    color: var(--tdw-mute); cursor: pointer; transition: all .13s ease;
+}
+.tdw-railback:hover { border-color: var(--tdw-sky-line); color: var(--tdw-sky); }
+.tdw-railback svg { width: 14px; height: 14px; }
+
+/* Carpeta que se quedo sin listas, o busqueda sin resultados. */
+.tdw-railnote { padding: 16px 10px; font-size: 11.5px; line-height: 1.6; color: var(--tdw-dim); text-align: center; }
+.tdw-raillink {
+    display: block; margin: 8px auto 0; padding: 0; border: 0; background: transparent;
+    font: inherit; font-size: 11.5px; font-weight: 600; color: var(--tdw-sky); cursor: pointer;
+}
+.tdw-raillink:hover { text-decoration: underline; }
 
 /* Eleccion de carpeta cuando no hay lista abierta. */
 .tdw-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 9px; padding: 14px 0 4px; }
@@ -339,6 +356,9 @@
     cursor: pointer; text-align: left;
 }
 .tdw-group:hover { color: var(--tdw-mute); }
+/* Rotulo, no boton: desde que se entra en las carpetas ya no pliega nada. */
+.tdw-group.is-static { cursor: default; }
+.tdw-group.is-static:hover { color: var(--tdw-dim); }
 .tdw-group svg { width: 12px; height: 12px; flex-shrink: 0; }
 .tdw-group span { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 11px; font-weight: 600; }
 
@@ -655,20 +675,10 @@
 }
 .tdw-tool svg { width: 11px; height: 11px; }
 .tdw-tool code { background: transparent; color: inherit; font-size: 10px; padding: 0; }
-.tdw-tool.is-live svg { animation: tdwSpin 1.6s linear infinite; }
-/* Los puntos que siguen al chip: dicen que la respuesta sigue viniendo. Antes
-   aqui caia el guion de "respuesta vacia", que se leia como un fallo. */
-.tdw-tool.is-live code::after {
-    content: ''; display: inline-block; width: 12px; text-align: left;
-    animation: tdwDots 1.4s steps(4, end) infinite;
-}
-@keyframes tdwDots {
-    0%   { content: ''; }
-    25%  { content: '.'; }
-    50%  { content: '..'; }
-    75%  { content: '...'; }
-    100% { content: ''; }
-}
+/* El aro de carga es lo unico que gira dentro del chip: la espera ya la cuentan
+   los tres puntos de abajo, y animar ademas el `content` del texto no funciona
+   en todos los navegadores. */
+.tdw-tool.is-live svg { animation: tdwSpin 1.1s linear infinite; }
 .tdw-wait { display: inline-flex; align-items: center; gap: 5px; height: 18px; }
 .tdw-wait i {
     width: 6px; height: 6px; border-radius: 50%; background: var(--tdw-sky);

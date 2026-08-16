@@ -1,0 +1,88 @@
+{
+  "title": "Valores",
+  "sections": [
+    {
+      "id": "sli8rst4",
+      "title": "Tabulacion",
+      "tasks": [
+        {
+          "id": "tibo2vgb",
+          "text": "Agregar la leyenda de desempeño con sus indicadores de colores al apartado de tabulación",
+          "done": true
+        },
+        {
+          "id": "tl1t2nfx",
+          "text": "Agregar los colores de desempeño a la tabla de tabulación",
+          "done": true
+        },
+        {
+          "id": "tspa4gtd",
+          "text": "Tabla tabulación: Corregir los decimales de promedio obtenido",
+          "done": true
+        },
+        {
+          "id": "twp79ar2",
+          "text": "Implementar el selector de paginación (10, 20, 30 registros) del archivo coffeesoft.js en el DataTable de la lista de tabulación",
+          "done": true
+        },
+        {
+          "id": "t91qbg3e",
+          "text": "Ordenar la tabla de tabulacion de mayor a menor promedio",
+          "done": true
+        },
+        {
+          "id": "tiu67t1i",
+          "text": "Corregir el contador de tabulador",
+          "done": true
+        },
+        {
+          "id": "t2m7udmm",
+          "text": "Agregar un botón de retroceso que regrese a la pantalla principal al seleccionar una tabulación",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "soqk6eci",
+      "title": "Incidencias",
+      "tasks": [
+        {
+          "id": "teokn0mw",
+          "text": "Cambiar el breadcrum a Capital Humano / Valores / Tabulación",
+          "done": true
+        },
+        {
+          "id": "t3zstx0w",
+          "text": "Que las obervaciones se vean en la tabla, que den un saldo de pagina",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "sqhdo0x8",
+      "title": "Vacantes",
+      "tasks": [
+        {
+          "id": "tnh4at94",
+          "text": "Al darle activar de nuevo a una vacante, que se resetee de nuevo los dias que lleva de creacion",
+          "done": false
+        },
+        {
+          "id": "tmu05qa2",
+          "text": "Cuando se inactive una vacante que no rechace a todos, ponerlos en pausa",
+          "done": false
+        },
+        {
+          "id": "tssk3w8z",
+          "text": "Imeplementar un historial de vacantes",
+          "done": false
+        },
+        {
+          "id": "tw6za09g",
+          "text": "API WHATSAPP: al enviar una postulación mencionar que revisar erp para documentacion",
+          "done": false
+        }
+      ]
+    }
+  ]
+}

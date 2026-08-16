@@ -84,6 +84,15 @@
         broom:   'eraser'
     };
 
+    // Los tres cajones fijos del rail. Se recorren igual que una carpeta del disco:
+    // se entra y se sale. La clave lleva @ para que jamas choque con el nombre de
+    // una carpeta real.
+    const BUCKETS = [
+        { key: '@invited',  label: 'Compartidas conmigo', icon: ICON.users },
+        { key: '@empty',    label: 'Sin tareas',          icon: ICON.list  },
+        { key: '@archived', label: 'Archivadas',          icon: ICON.archive }
+    ];
+
     // Color de acento del hub. Cada uno trae su tono para fondo oscuro y para claro:
     // el celeste que se lee bien sobre #1F2A37 pierde contraste sobre blanco.
     const ACCENTS = [
@@ -158,13 +167,10 @@
             this.lists    = [];
             this.archived = this.readArchived();
             this.openKey  = null;       // lista abierta; null = ninguna todavia
-            this.openGroup = this.readGroup();   // carpeta desplegada en el rail
+            this.openGroup = this.readGroup();   // carpeta en la que se esta; null = indice
             this.destKey  = null;       // destino de la captura rapida: "listKey::secId"
             this.query    = '';
             this.filter   = 'pending';  // pending | all | done
-            this.showEmpty    = false;
-            this.showArchived = false;
-            this.showInvited  = true;   // lo que otros me prestan se ve de entrada
             this.formOpen = false;
             this.shareOpen = false;     // panel de comparticion de la lista abierta
             this.folders  = null;
@@ -212,9 +218,10 @@
         isArchived(key) { return this.archived.indexOf(key) !== -1; }
 
         // ── Carpeta abierta ─────────────────────────────────────────────────
-        // El rail agrupa por carpeta y solo despliega una a la vez. Cual estaba
-        // abierta se recuerda entre sesiones: se vuelve al mismo sitio de trabajo
-        // sin volver a buscarlo.
+        // El rail se recorre como un cajon de archivo: en la raiz solo se ven las
+        // carpetas, y al entrar en una desaparece todo lo demas. En cual se estaba
+        // se recuerda entre sesiones, para volver al mismo sitio de trabajo sin
+        // buscarlo otra vez.
         groupKey() {
             return global.coffeeScopedKey ? global.coffeeScopedKey(GROUP_KEY) : GROUP_KEY;
         }
@@ -236,34 +243,72 @@
             return (list.crumbs && list.crumbs[0]) || 'Biblioteca';
         }
 
-        // Carpetas con su contenido, en el orden en que llegan las listas (el
-        // servidor ya las manda con mas pendientes primero).
-        groups(lists) {
+        // Donde vive una lista por su naturaleza: su carpeta del disco, o uno de los
+        // tres cajones fijos. Lo prestado no se mezcla con lo propio, y lo vacio o
+        // archivado se aparta para que las carpetas solo enseñen trabajo.
+        homeOf(list) {
+            if (this.isArchived(list.key)) return '@archived';
+            if (this.isInvited(list))      return '@invited';
+            if (list.total === 0)          return '@empty';
+            return this.groupOf(list);
+        }
+
+        // Donde se pinta ahora mismo en el rail. La lista abierta es la excepcion:
+        // se queda en la carpeta desde la que se entro, porque palomear su ultima
+        // tarea la haria saltar al cajon de vacias con el usuario dentro de ella.
+        bucketOf(list) {
+            if (this.openGroup && list.key === this.openKey) return this.openGroup;
+            return this.homeOf(list);
+        }
+
+        // El indice del rail: una entrada por carpeta con lo que contiene. Las
+        // carpetas salen en el orden en que llegan las listas (el servidor ya las
+        // manda con mas pendientes primero) y los cajones fijos siempre al final.
+        index() {
             const orden = [];
             const mapa  = {};
-            lists.forEach((l) => {
-                const g = this.groupOf(l);
-                if (!mapa[g]) { mapa[g] = []; orden.push(g); }
-                mapa[g].push(l);
+            this.lists.forEach((l) => {
+                const k = this.bucketOf(l);
+                if (!mapa[k]) { mapa[k] = []; orden.push(k); }
+                mapa[k].push(l);
             });
-            return orden.map((name) => ({
-                name:    name,
-                lists:   mapa[name],
-                pending: mapa[name].reduce((n, l) => n + l.pending, 0)
-            }));
+
+            const propias = orden.filter((k) => k.charAt(0) !== '@')
+                                 .map((k) => this.bucketInfo(k, mapa[k]));
+            const fijos   = BUCKETS.filter((b) => mapa[b.key])
+                                   .map((b) => this.bucketInfo(b.key, mapa[b.key]));
+            return propias.concat(fijos);
+        }
+
+        bucketInfo(key, lists) {
+            const fijo = BUCKETS.filter((b) => b.key === key)[0];
+            const dentro = lists || [];
+            return {
+                key:     key,
+                label:   fijo ? fijo.label : key,
+                icon:    fijo ? fijo.icon : ICON.folder,
+                lists:   dentro,
+                pending: dentro.reduce((n, l) => n + l.pending, 0)
+            };
+        }
+
+        // La carpeta por su clave. Si ya no existe (se vacio, se renombro) devuelve
+        // una vacia en vez de nada: quien la pinta no tiene que comprobar el nulo.
+        bucket(key) {
+            return this.index().filter((g) => g.key === key)[0] || this.bucketInfo(key, []);
         }
 
         // Primera lista con trabajo de una carpeta: es la que se abre al entrar en
         // ella, para no dejar el panel en blanco.
         firstOf(name) {
-            const dentro = this.visibleLists().filter((l) => this.groupOf(l) === name);
+            const dentro  = this.bucket(name).lists;
             const conWork = dentro.filter((l) => l.total > 0);
             return (conWork[0] || dentro[0] || null);
         }
 
         // Al abrir el cajon se vuelve a la carpeta donde se estaba trabajando y a su
         // primera lista con tareas. Si esa carpeta ya no existe (se renombro, se
-        // vacio), se olvida en vez de dejar el rail sin nada desplegado.
+        // vacio), se olvida y el rail abre en el indice.
         restoreGroup() {
             if (this.openKey !== null) return;
             if (!this.openGroup) return;
@@ -275,9 +320,12 @@
             this.aimQuick(first);
         }
 
-        // Abrir una lista deja desplegada su carpeta y la recuerda para la proxima.
+        // Abrir una lista deja al rail dentro de su carpeta y la recuerda para la
+        // proxima sesion.
         rememberGroup(list) {
-            const g = this.groupOf(list);
+            // Su carpeta de verdad, no la del rail: quien llama viene de abrir esta
+            // lista, y la excepcion de `bucketOf` devolveria la carpeta anterior.
+            const g = this.homeOf(list);
             if (this.openGroup === g) return;
             this.openGroup = g;
             this.writeGroup();
@@ -785,72 +833,97 @@
         }
 
         renderRail() {
-            const q        = this.query.toLowerCase();
-            const matches  = (l) => !q || String(l.title + ' ' + l.pathLabel).toLowerCase().indexOf(q) !== -1;
-            const visible  = this.visibleLists().filter(matches);
-            // Lo prestado va en su propio grupo: mezclarlo con las carpetas
-            // propias haria dudar de donde vive cada archivo.
-            const mine     = visible.filter((l) => !this.isInvited(l));
-            const invited  = visible.filter((l) => this.isInvited(l));
-            const withWork = mine.filter((l) => l.total > 0 || l.key === this.openKey);
-            const empty    = mine.filter((l) => l.total === 0 && l.key !== this.openKey);
-            const archived = this.lists.filter((l) => this.isArchived(l.key)).filter(matches);
+            const q       = this.query.toLowerCase();
+            const matches = (l) => String(l.title + ' ' + l.pathLabel).toLowerCase().indexOf(q) !== -1;
 
-            let html = '';
-
-            // Carpetas: se ve el proyecto, no las 25 tareas de golpe. Solo se
-            // despliega una — la que se estaba usando.
-            const carpetas = this.groups(withWork);
-            if (carpetas.length) {
-                html += '<div class="tdw-group" data-tdw="nogroup">Carpetas<span>' + carpetas.length + '</span></div>';
-                html += carpetas.map((g) => {
-                    const abierta = this.openGroup === g.name || !!q;   // al buscar se abren todas
-                    return this.folderRow(g, abierta) +
-                           (abierta ? g.lists.map((l) => this.railItem(l, false, true)).join('') : '');
-                }).join('');
-            }
-            if (invited.length) {
-                html += this.groupRow('invited', 'Compartidas conmigo', invited.length, this.showInvited, ICON.users);
-                if (this.showInvited) html += invited.map((l) => this.railItem(l)).join('');
-            }
-            if (empty.length) {
-                html += this.groupRow('empty', 'Sin tareas', empty.length, this.showEmpty);
-                if (this.showEmpty) html += empty.map((l) => this.railItem(l)).join('');
-            }
-            if (archived.length) {
-                html += this.groupRow('archived', 'Archivadas', archived.length, this.showArchived, ICON.archive);
-                if (this.showArchived) html += archived.map((l) => this.railItem(l, true)).join('');
-            }
-            if (!this.lists.length) {
-                html += '<div style="padding:14px 8px;font-size:11.5px;color:var(--tdw-dim);line-height:1.6">Todavía no hay listas en tu biblioteca.</div>';
+            // Buscar atraviesa la biblioteca entera: los resultados llegan en plano
+            // y con su ruta debajo, sin sacar al usuario de donde estaba. Al limpiar
+            // el buscador el rail vuelve solo a su carpeta.
+            if (q) {
+                const hits = this.lists.filter(matches);
+                this.$rail.html(
+                    this.railNav('Resultados', plural(hits.length, 'lista', 'listas'), ICON.search, 'clearsearch') +
+                    (hits.length
+                        ? hits.map((l) => this.railItem(l, this.isArchived(l.key))).join('')
+                        : '<div class="tdw-railnote">Ninguna lista coincide con “' + esc(this.query) + '”.</div>')
+                );
+                this.icons();
+                return;
             }
 
-            this.$rail.html(html);
+            this.$rail.html(this.openGroup ? this.folderHtml() : this.indexHtml());
             this.icons();
         }
 
+        // Raiz del rail: una fila por carpeta y nada mas. Las listas se ven al
+        // entrar, para que el trabajo de un proyecto no comparta columna con el de
+        // los otros cuatro.
+        indexHtml() {
+            if (!this.lists.length) {
+                return '<div class="tdw-railnote">Todavía no hay listas en tu biblioteca.</div>';
+            }
+
+            const carpetas = this.index();
+            const propias  = carpetas.filter((g) => g.key.charAt(0) !== '@');
+            const fijos    = carpetas.filter((g) => g.key.charAt(0) === '@');
+
+            let html = '';
+            if (propias.length) {
+                html += '<div class="tdw-group is-static">Carpetas<span>' + propias.length + '</span></div>';
+                html += propias.map((g) => this.folderRow(g)).join('');
+            }
+            if (fijos.length) {
+                html += '<div class="tdw-group is-static">Otras</div>';
+                html += fijos.map((g) => this.folderRow(g)).join('');
+            }
+            return html;
+        }
+
+        // Dentro de una carpeta: la barra de vuelta y sus listas, sin sangria ni
+        // guia — ya no cuelgan de nada, son todo lo que hay.
+        folderHtml() {
+            const grupo = this.bucket(this.openGroup);
+            return this.railNav(grupo.label, plural(grupo.lists.length, 'lista', 'listas'), grupo.icon, 'upfolder') +
+                   (grupo.lists.length
+                       ? grupo.lists.map((l) => this.railItem(l, this.isArchived(l.key))).join('')
+                       : '<div class="tdw-railnote">Esta carpeta ya no tiene listas.' +
+                           '<button class="tdw-raillink" data-tdw="upfolder" type="button">Volver a las carpetas</button>' +
+                         '</div>');
+        }
+
+        // Cabecera del rail cuando no se esta en la raiz: de donde es lo que se ve y
+        // el boton para salir. `action` decide a que se vuelve — a las carpetas o al
+        // listado completo si lo que se esta viendo es una busqueda.
+        railNav(label, sub, iconName, action) {
+            const title = action === 'clearsearch' ? 'Limpiar la búsqueda' : 'Volver a las carpetas';
+            return '<div class="tdw-railnav">' +
+                     '<button class="tdw-railback" data-tdw="' + action + '" type="button" title="' + title + '">' +
+                       ico(ICON.back) +
+                     '</button>' +
+                     '<span class="tdw-item-dot">' + ico(iconName) + '</span>' +
+                     '<span class="tdw-item-main"><b>' + esc(label) + '</b><small>' + esc(sub) + '</small></span>' +
+                   '</div>';
+        }
+
         // Fila de carpeta: nombre, cuantas listas tiene y cuanto queda dentro. El
-        // conteo va en el grupo y no en cada lista para que el rail se lea de un
-        // vistazo cuando esta plegado.
-        folderRow(group, open) {
-            const cls = 'tdw-folder' + (open ? ' is-open' : '') +
-                        (this.openGroup === group.name ? ' is-current' : '');
-            return '<button class="' + cls + '" data-tdw="folder" data-name="' + esc(group.name) + '" type="button">' +
-                     '<span class="tdw-folder-caret">' + ico(open ? ICON.down : ICON.right) + '</span>' +
-                     '<span class="tdw-item-dot">' + ico(ICON.folder) + '</span>' +
+        // conteo va en la carpeta y no en cada lista para saber donde hay trabajo
+        // sin llegar a entrar.
+        folderRow(group) {
+            return '<button class="tdw-folder" data-tdw="folder" data-name="' + esc(group.key) + '" type="button">' +
+                     '<span class="tdw-item-dot">' + ico(group.icon) + '</span>' +
                      '<span class="tdw-item-main">' +
-                       '<b>' + esc(group.name) + '</b>' +
+                       '<b>' + esc(group.label) + '</b>' +
                        '<small>' + plural(group.lists.length, 'lista', 'listas') + '</small>' +
                      '</span>' +
                      '<span class="tdw-count' + (group.pending === 0 ? ' is-clear' : '') + '">' + group.pending + '</span>' +
+                     '<span class="tdw-folder-caret">' + ico(ICON.right) + '</span>' +
                    '</button>';
         }
 
-        railItem(list, archived, nested) {
+        railItem(list, archived) {
             const on = this.openKey === list.key && !this.formOpen;
             const countCls = 'tdw-count' + (list.total > 0 && list.pending === 0 ? ' is-clear' : '');
-            return '<button class="tdw-item' + (on ? ' is-on' : '') + (archived ? ' is-archived' : '') +
-                        (nested ? ' is-child' : '') + '" ' +
+            return '<button class="tdw-item' + (on ? ' is-on' : '') + (archived ? ' is-archived' : '') + '" ' +
                         'data-tdw="pick" data-key="' + esc(list.key) + '" type="button" title="' + esc(list.pathLabel) + '">' +
                      '<span class="tdw-item-dot">' + ico(this.isInvited(list) ? ICON.users : ICON.list) + '</span>' +
                      '<span class="tdw-item-main"><b>' + esc(list.title) + '</b><small>' + esc(list.pathLabel) + '</small></span>' +
@@ -873,14 +946,6 @@
             return '<span class="tdw-tag" title="' + esc('Compartida con ' + plural(n, 'cuenta', 'cuentas')) + '">' +
                      ico(ICON.users) + n +
                    '</span>';
-        }
-
-        groupRow(kind, label, count, open, iconName) {
-            return '<button class="tdw-group" data-tdw="group" data-kind="' + kind + '" type="button">' +
-                     ico(open ? ICON.down : ICON.right) +
-                     (iconName ? ico(iconName) : '') +
-                     esc(label) + '<span>' + count + '</span>' +
-                   '</button>';
         }
 
         renderMain() {
@@ -917,10 +982,13 @@
         // igual en los dos sitios. `embedded` retira lo que solo tiene sentido dentro
         // del cajon (compartir, archivar, abrir el archivo).
         listViewHtml(list, embedded) {
-            const rw   = this.canEdit(list);
-            const secs = list.sections || [];
+            const rw    = this.canEdit(list);
+            const secs  = list.sections || [];
+            const vivas = secs.filter((sec) => this.showsSection(sec));
             const body = secs.length
-                ? secs.map((sec) => this.secBlock(sec, rw)).join('')
+                ? (vivas.length
+                    ? vivas.map((sec) => this.secBlock(sec, rw)).join('')
+                    : this.filterEmptyBlock())
                 : (rw
                     ? '<div class="tdw-sec" data-sec="">' +
                         '<div class="tdw-add">' +
@@ -1238,6 +1306,41 @@
                    '</span>';
         }
 
+        // Si ninguna tarea de la seccion entra en el filtro activo, la seccion no se
+        // pinta: en "Pendientes", una seccion terminada dejaba su cabecera y su caja
+        // de captura ocupando sitio sin nada que enseñar. La que todavia no tiene
+        // ninguna tarea se queda siempre — es el hueco donde se escribe la primera.
+        showsSection(sec) {
+            const tasks = sec.tasks || [];
+            return !tasks.length || tasks.some((t) => this.keeps(t));
+        }
+
+        // Retira una fila y, si su seccion se queda sin nada que enseñar bajo el
+        // filtro activo, la seccion detras. Cuando ya no queda ninguna a la vista se
+        // repinta: mejor el aviso de "nada pendiente" que un panel en blanco.
+        dropRow($row, ref) {
+            const $sec = $row.closest('.tdw-sec');
+            const $box = $sec.parent();
+            $row.slideUp(140, () => {
+                $row.remove();
+                if (this.showsSection(ref.sec)) return;
+                $sec.slideUp(160, () => {
+                    $sec.remove();
+                    if (!$box.find('.tdw-sec').length) this.repaint(ref.list);
+                });
+            });
+        }
+
+        // Lista con tareas, pero ninguna del filtro que se esta mirando.
+        filterEmptyBlock() {
+            if (this.filter === 'done') {
+                return this.emptyBlock(ICON.check, 'Todavía no hay tareas hechas',
+                    'Lo que vayas palomeando aparece aquí.');
+            }
+            return this.emptyBlock(ICON.check, 'Nada pendiente en esta lista',
+                'Cambia a “Todas” o “Hechas” para ver lo que ya está resuelto.');
+        }
+
         // `rw` (read-write) apaga los controles de escritura cuando la lista es
         // prestada en modo consulta: sin caja de captura, sin renombrar, sin borrar.
         secBlock(sec, rw) {
@@ -1314,7 +1417,7 @@
         // de todas las carpetas: ver 25 tareas sueltas de cinco proyectos a la vez
         // abruma mas de lo que ayuda. Ahora se elige carpeta y se trabaja en una.
         renderPick() {
-            const carpetas = this.groups(this.visibleLists().filter((l) => l.total > 0));
+            const carpetas = this.index().filter((g) => g.lists.length);
 
             this.$main.removeAttr('data-listkey').html(
                 '<div class="tdw-main-head">' +
@@ -1330,10 +1433,10 @@
                 '<div class="tdw-scroll">' +
                   (carpetas.length
                     ? '<div class="tdw-picks">' + carpetas.map((g) =>
-                        '<button class="tdw-pick" data-tdw="folder" data-name="' + esc(g.name) + '" type="button">' +
-                          '<span class="tdw-pick-dot">' + ico(ICON.folder) + '</span>' +
+                        '<button class="tdw-pick" data-tdw="folder" data-name="' + esc(g.key) + '" type="button">' +
+                          '<span class="tdw-pick-dot">' + ico(g.icon) + '</span>' +
                           '<span class="tdw-pick-main">' +
-                            '<b>' + esc(g.name) + '</b>' +
+                            '<b>' + esc(g.label) + '</b>' +
                             '<small>' + plural(g.lists.length, 'lista', 'listas') + '</small>' +
                           '</span>' +
                           '<span class="tdw-count' + (g.pending === 0 ? ' is-clear' : '') + '">' + g.pending + '</span>' +
@@ -1546,6 +1649,10 @@
                         if (!r2 || !r2.success) return;
                         this.lists = r2.lists || [];
                         this.openKey = key;
+                        // La lista nueva puede estar en otra carpeta: el rail entra en
+                        // ella para no quedarse enseñando la anterior.
+                        const nueva = this.listByKey(key);
+                        if (nueva) this.rememberGroup(nueva);
                         this.render();
                     });
                 })
@@ -1761,7 +1868,11 @@
                 return '<div class="tdw-msg' + (m.pending ? ' is-pending' : '') + '">' +
                          '<span class="tdw-msg-av">' + ico(ICON.wand) + '</span>' +
                          '<div class="tdw-msg-body">' +
-                           (m.tool ? '<span class="tdw-tool' + (m.pending ? ' is-live' : '') + '">' + ico(ICON.list) +
+                           // Mientras trabaja gira el aro de carga; el icono de lista
+                           // entra al terminar. Rotar el de lista lo deja de lado y
+                           // se lee como un glifo torcido, no como espera.
+                           (m.tool ? '<span class="tdw-tool' + (m.pending ? ' is-live' : '') + '">' +
+                                       ico(m.pending ? ICON.spin : ICON.list) +
                                        '<code>' + esc(m.tool) + '</code></span>' : '') +
                            (m.pending
                              ? '<span class="tdw-wait" role="status" aria-label="Pensando la respuesta"><i></i><i></i><i></i></span>'
@@ -2185,35 +2296,34 @@
                 }, 160);
             });
 
-            $v.on('click', '[data-tdw="group"]', function () {
-                const kind = $(this).data('kind');
-                if (kind === 'empty') self.showEmpty = !self.showEmpty;
-                else if (kind === 'invited') self.showInvited = !self.showInvited;
-                else self.showArchived = !self.showArchived;
-                self.renderRail();
-            });
-
             $v.on('click', '[data-tdw="back"]', () => this.backToRail());
 
-            // Carpeta: se despliega y se entra en su primera lista. Volver a
-            // pulsarla la pliega y deja el panel en la eleccion de carpeta.
+            // Entrar en una carpeta: el rail pasa a mostrar solo sus listas y se abre
+            // la primera con trabajo, para no dejar el panel en blanco.
             $v.on('click', '[data-tdw="folder"]', function () {
                 const name = String($(this).data('name') || '');
                 self.closeForm();
                 self.closeShare();
 
-                if (self.openGroup === name && self.openKey !== null) {
-                    self.openGroup = null;
-                    self.openKey   = null;
-                } else {
-                    self.openGroup = name;
-                    const first = self.firstOf(name);
-                    self.openKey = first ? first.key : null;
-                    if (first) self.aimQuick(first);
-                }
+                self.openGroup = name;
+                const first = self.firstOf(name);
+                self.openKey = first ? first.key : null;
+                if (first) self.aimQuick(first);
+
                 self.writeGroup();
                 self.render();
                 if (self.openKey !== null) self.showDetail();
+            });
+
+            // Salir: el rail vuelve al indice de carpetas y el panel a la eleccion.
+            $v.on('click', '[data-tdw="upfolder"]', function () {
+                self.closeForm();
+                self.closeShare();
+                self.openGroup = null;
+                self.openKey   = null;
+                self.writeGroup();
+                self.render();
+                self.backToRail();
             });
 
             $v.on('click', '[data-tdw="pick"]', function () {
@@ -2306,7 +2416,7 @@
                 self.persist(ref.list, true);
                 // La tarea deja de pertenecer al filtro activo: se retira en vez de
                 // repintar toda la vista bajo el cursor.
-                if (self.filter !== 'all') $row.slideUp(140, function () { $(this).remove(); });
+                if (self.filter !== 'all') self.dropRow($row, ref);
             });
 
             $v.on('click', '[data-tdw="deltask"]', function () {
@@ -2314,7 +2424,7 @@
                 if (!ref || !ref.task) return;
                 ref.sec.tasks = ref.sec.tasks.filter((t) => t.id !== ref.task.id);
                 self.persist(ref.list, true);
-                $(this).closest('.tdw-task').slideUp(140, function () { $(this).remove(); });
+                self.dropRow($(this).closest('.tdw-task'), ref);
             });
 
             // ── Mejorar con IA ──

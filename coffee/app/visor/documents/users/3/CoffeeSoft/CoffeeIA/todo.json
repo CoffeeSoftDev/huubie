@@ -8,7 +8,7 @@
         {
           "id": "t9ui8zet",
           "text": "Corregir el estilo del loader que se muestra al presionar el botón de preguntar y enviar una pregunta en CoffeeSoft IA",
-          "done": false
+          "done": true
         }
       ]
     },
@@ -45,6 +45,22 @@
           "id": "tvnrs2iu",
           "text": "Revisar porque aparecen todos los modelos en el selector del modelo aplica para lab,visor,coffeeIA",
           "done": true
+        }
+      ]
+    },
+    {
+      "id": "snm2hb3a",
+      "title": "Avatars - sandbox",
+      "tasks": [
+        {
+          "id": "t0b2x1dz",
+          "text": "los badges de carpeta , proponer un diseño en artefacto para poder visualizar una opcion de diseño",
+          "done": false
+        },
+        {
+          "id": "t0gexhpg",
+          "text": "en el visor de plantilla esta colapnso con el plan y los iconos  proponer un diseño en arfacto para ver como se puede mejorar el diseño",
+          "done": false
         }
       ]
     }
