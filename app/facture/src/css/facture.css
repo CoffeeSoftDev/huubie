@@ -888,44 +888,12 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 }
 
 /* -- Tipografia de la termica --
-   Cousine (metricas de Liberation Mono) es la que mas se acerca a la Lucida
-   Console con la que imprime el POS, y a diferencia de aquella se puede
-   redistribuir: va bajo SIL Open Font License 1.1, cuyo texto acompana a los
-   archivos en src/fonts/OFL-Cousine.txt.
+   Sin @font-face a proposito: la tira va con la pila monoespaciada del sistema.
+   La Cousine que se usaba antes (metricas de Liberation Mono) dibuja el cero con
+   un punto al centro, y en el papel ese punto se lee como otro caracter.
 
-   Los unicode-range separan latin de latin-ext para no bajar los 55 KB del
-   segundo archivo cuando el ticket solo tiene texto sin acentos. */
-@font-face {
-    font-family: 'Cousine';
-    src: url('/app/facture/src/fonts/cousine-400.woff2') format('woff2');
-    font-weight: 400;
-    font-display: block;
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: 'Cousine';
-    src: url('/app/facture/src/fonts/cousine-700.woff2') format('woff2');
-    font-weight: 700;
-    font-display: block;
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: 'Cousine';
-    src: url('/app/facture/src/fonts/cousine-ext-400.woff2') format('woff2');
-    font-weight: 400;
-    font-display: block;
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: 'Cousine';
-    src: url('/app/facture/src/fonts/cousine-ext-700.woff2') format('woff2');
-    font-weight: 700;
-    font-display: block;
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF;
-}
+   Lucida Console es la que imprime el POS en Windows; las demas son el relevo en
+   Linux y Mac, donde esa no existe. */
 
 /* -- Ticket virtual (papel termico) --
    Se queda BLANCO a proposito aunque el modulo sea dark: representa el papel
@@ -973,6 +941,20 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
    con el texto de arriba. Va con doble clase para ganarle a las reglas de arriba,
    que son de id. */
 #root .ticket-paper.tk-pos {
+    /* -- Proporcion de la letra --
+       La termica dibuja cada caracter en una celda de 12x24 puntos: sus letras
+       salen casi al doble de altas que anchas. Ninguna monoespaciada del sistema
+       llega a esa proporcion (Lucida Console apenas 1.2 de alto por ancho), asi
+       que la tira se compone con la letra mas grande y se comprime en horizontal:
+       la altura crece, el ancho vuelve a su medida de siempre y la columna sigue
+       midiendo 40ch.
+
+       --tk-cond es la perilla: bajarlo estira mas la letra, subirlo la ensancha.
+       Los 11px son el tamano al que se ve la tira una vez comprimida, el mismo
+       con el que se venia pintando. */
+    --tk-cond: 0.8;
+    font-size: calc(11px / var(--tk-cond));
+
     /* El papel es la tira de 80mm y sale de la impresora con el canto recto: sin
        borde ni esquinas redondeadas. Lo unico que lo despega del fondo es la
        sombra, que no dibuja contorno. */
@@ -985,7 +967,7 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
     color: #000;
     text-align: center;
     line-height: 1.35;
-    font-family: 'Cousine', 'Lucida Console', ui-monospace, monospace;
+    font-family: 'Lucida Console', 'DejaVu Sans Mono', 'Liberation Mono', Consolas, ui-monospace, monospace;
 
     /* El texto de la termica no lleva antialias y pesa un poco mas de lo que su
        tamano sugiere: sin esto la replica se ve como un texto de pantalla. */
@@ -995,11 +977,24 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 
 /* El papel generico impone Courier New con un selector universal, y ese gana por
    especificidad sobre la familia heredada: la variante tiene que repetirla. */
-#root .ticket-paper.tk-pos * { font-family: 'Cousine', 'Lucida Console', ui-monospace, monospace; }
+#root .ticket-paper.tk-pos * { font-family: 'Lucida Console', 'DejaVu Sans Mono', 'Liberation Mono', Consolas, ui-monospace, monospace; }
+
+/* Se comprime la rejilla, no el papel: asi los 80mm, el acolchado y la sombra
+   del papel se quedan como estan. scaleX no toca la maquetacion, solo el pintado,
+   de modo que la caja sigue midiendo 40ch sin comprimir (mas ancha que el papel)
+   y el margen negativo la recentra para que lo que se ve quede al centro. Como el
+   alto no se transforma, el papel crece con el texto y la paginacion al imprimir
+   sigue cuadrando. */
+#root .ticket-paper.tk-pos > div {
+    margin-left: calc((100% - 40ch) / 2);
+    margin-right: 0;
+    transform: scaleX(var(--tk-cond));
+    transform-origin: top center;
+}
 
 #root .ticket-paper.tk-pos table { border-collapse: collapse; }
 #root .ticket-paper.tk-pos th,
-#root .ticket-paper.tk-pos td { padding: 1px 0; font-size: 11px; color: #000; line-height: 1.35; }
+#root .ticket-paper.tk-pos td { padding: 1px 0; font-size: 1em; color: #000; line-height: 1.35; }
 #root .ticket-paper.tk-pos thead th { padding: 2px 0; }
 
 @media print {
