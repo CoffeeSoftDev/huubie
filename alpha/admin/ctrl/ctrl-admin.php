@@ -77,6 +77,38 @@ class User extends MUser{
         ];
     }
 
+    function deletePhotoCompany() {
+        $status = 500;
+        $message = 'Error al eliminar el logo de la empresa';
+
+        $companyId = $_POST['id'];
+
+        $prevData = $this->getCompanyById($companyId);
+        if (!empty($prevData['logo'])) {
+            $oldFile = $_SERVER['DOCUMENT_ROOT'] . '/alpha' . $prevData['logo'];
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
+        }
+
+        $data = [
+            'logo' => '',
+            'id'   => $companyId,
+        ];
+
+        $update = $this->updateCompany($this->util->sql($data, 1));
+
+        if ($update) {
+            $status = 200;
+            $message = 'Logo eliminado correctamente';
+        }
+
+        return [
+            'status'  => $status,
+            'message' => $message
+        ];
+    }
+
     function editCompany() {
         $status = 500;
         $message = 'Error al editar la empresa';
@@ -99,7 +131,8 @@ class User extends MUser{
     // Users
     function lsUsers(){
         $__row = [];
-        $ls = $this->listUsers([$_POST['active'], $_POST['idCompany']]);
+        $filterSucursal = !empty($_POST['filterSucursal']) ? $_POST['filterSucursal'] : null;
+        $ls = $this->listUsers([$_POST['active'], $_POST['idCompany']], $filterSucursal);
 
         foreach ($ls as $user) {
             $a = [];
@@ -131,7 +164,10 @@ class User extends MUser{
                     'class' => 'px-2'
                 ],
                     'User'    => $user['user'],
-                'Sucursal'     => $user['sucursal'],
+                'Sucursal' => [
+                    'html'  => subsidiaryBadges($user['sucursal']),
+                    'class' => ''
+                ],
                 'Rol'     => [
                     'html'  => rolBadge($user['rols']),
                     'class' => ''
@@ -167,7 +203,19 @@ class User extends MUser{
     function addUser() {
         $status  = 500;
         $message = 'No se pudo insertar el usuario';
-        $user = $_POST['user']; 
+
+        // Normalizar a minúsculas antes de cualquier validación
+        $user = strtolower(trim($_POST['user']));
+        $_POST['user'] = $user;
+
+        // Validar que sea un correo electrónico válido
+        if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'status'  => 422,
+                'message' => 'El usuario debe ser un correo electrónico válido (Ej. luis@huubie.com).'
+            ];
+        }
+
         // Validar que el correo no exista en toda la base de datos
         $exists = $this->existsUserByName([$user]);
         if ($exists) {
@@ -177,16 +225,27 @@ class User extends MUser{
             ];
         }
 
+        // El modal manda las sucursales en un solo campo separado por comas. La primera
+        // queda como sucursal de arranque de sesión y la lista completa va al pivote.
+        $subsidiaries = array_values(array_filter(array_map('trim', explode(',', $_POST['subsidiaries_id'])), 'strlen'));
+
+        if (empty($subsidiaries)) {
+            return [
+                'status'  => 422,
+                'message' => 'Selecciona al menos una sucursal para el usuario.'
+            ];
+        }
+
         $__values = [
             $_POST['fullname'],
             date('Y-m-d H:i:s'),
             $_POST['usr_rols_id'],
             $user,
-            $_POST['subsidiaries_id'],
+            $subsidiaries[0],
             $_POST['key'],
         ];
         // Crear el usuario
-        $create = $this->createUser($__values);
+        $create = $this->createUser($__values, $subsidiaries);
 
         if ($create) {
             $status  = 200;
@@ -565,6 +624,26 @@ function userBadge($fullname, $sucursal) {
          . '<div class="text-xs text-gray-400">' . $sucursal . '</div>'
          . '</div>'
          . '</div>';
+}
+
+function subsidiaryBadges($sucursales) {
+    if (empty($sucursales)) {
+        return '<span class="text-xs text-gray-500">Sin sucursal</span>';
+    }
+
+    $html = '';
+
+    foreach (explode(',', $sucursales) as $sucursal) {
+        $sucursal = trim($sucursal);
+
+        if ($sucursal !== '') {
+            $html .= '<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded-full bg-gray-500/15 text-gray-300 border border-gray-500/30 me-1 mb-1">'
+                   . $sucursal
+                   . '</span>';
+        }
+    }
+
+    return $html;
 }
 
 function rolBadge($rol) {

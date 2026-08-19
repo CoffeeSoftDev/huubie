@@ -19,13 +19,21 @@ class Paquetes extends Templates {
     }
 
     layout() {
-        this.primaryLayout({
-            parent: `root`,
-            id: this.PROJECT_NAME,
-            class: 'd-flex mx-2 my-2 h-100 mt-5 p-2',
-            card: {
-                filterBar: { class: 'w-full my-3', id: 'filterBar' + this.PROJECT_NAME },
-                container: { class: 'w-full my-3 bg-[#1F2A37] rounded-lg p-3', id: 'container' + this.PROJECT_NAME }
+        // Sin filterBar de modulo: cada tab monta el suyo dentro de su panel, y una banda
+        // vacia dejaria una franja con padding y borde sin contenido.
+        this.createLayout({
+            parent: 'root',
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'w-full min-h-screen p-3',
+                container: [
+                    {
+                        type: 'div',
+                        id: `container${this.PROJECT_NAME}`,
+                        class: 'w-full bg-[#1F2A37] rounded-lg p-3 min-h-screen'
+                    }
+                ]
             }
         });
 
@@ -33,31 +41,72 @@ class Paquetes extends Templates {
     }
 
     layoutTabs() {
-        $("#container" + this.PROJECT_NAME).simple_json_tab({
-            class: "pb-4 px-4 bg-[#1F2A37]",
-            id: "tabsPaquetes",
-            data: [
-                { tab: "Paquetes", id: "tab-paquetes", active: true },
-                { tab: "Productos", id: "tab-productos" },
-                { tab: "Clasificaciones", id: "tab-clasificaciones" }
+        // -- Encabezado y hueco de los tabs --
+        this.createLayout({
+            parent: `container${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id: `header${this.PROJECT_NAME}`,
+                class: 'w-full',
+                container: [
+                    {
+                        type:  'h2',
+                        class: 'text-2xl font-semibold text-white px-4 pt-3',
+                        text:  '📘 Catálogos'
+                    },
+                    {
+                        type:  'p',
+                        class: 'text-gray-400 px-4 pb-3',
+                        text:  'Administra los paquetes y productos de tu sistema.'
+                    },
+                    {
+                        type:  'div',
+                        id:    `tabs${this.PROJECT_NAME}`,
+                        class: 'w-full px-4'
+                    }
+                ]
+            }
+        });
+
+        this.tabLayout({
+            parent: `tabs${this.PROJECT_NAME}`,
+            id: `tabsContent${this.PROJECT_NAME}`,
+            theme: "dark",
+            type: "short",
+            showBorder: false,
+            json: [
+                {
+                    id: "tab-paquetes",
+                    tab: "Paquetes",
+                    lucideIcon: "package",
+                    iconColor: "text-white",
+                    active: true,
+                    onClick: () => this.filterBarPaquetes()
+                },
+                {
+                    id: "tab-productos",
+                    tab: "Productos",
+                    lucideIcon: "shopping-cart",
+                    iconColor: "text-white",
+                    onClick: () => this.filterBarProductos()
+                },
+                {
+                    id: "tab-clasificaciones",
+                    tab: "Clasificaciones",
+                    lucideIcon: "tags",
+                    iconColor: "text-white",
+                    onClick: () => this.filterBarClasificaciones()
+                }
             ]
         });
 
-        $("#container" + this.PROJECT_NAME).prepend(`
-            <div class="px-4 pt-3 pb-3">
-                <h2 class="text-2xl font-semibold text-white">📘 Catálogos</h2>
-                <p class="text-gray-400">Administra los paquetes y productos de tu sistema.</p>
-            </div>
-        `);
-
+        // Render perezoso: los otros dos tabs se arman en su onClick.
         this.filterBarPaquetes();
-        this.filterBarProductos();
-        this.filterBarClasificaciones();
     }
 
     // INFORMACION DE PAQUETES
     filterBarPaquetes() {
-        const container = $("#tab-paquetes");
+        const container = $("#container-tab-paquetes");
         container.html('<div id="filterbar-paquetes" class="mb-2"></div><div id="tabla-paquetes"></div>');
 
         this.createfilterBar({
@@ -91,7 +140,7 @@ class Paquetes extends Templates {
         this.createTable({
             parent: "tabla-paquetes",
             idFilterBar: "filterbar-paquetes",
-            data: { opc: "listPaquetes" },
+            data: { opc: "listPaquetes", 'estado-paquetes': $('#estado-paquetes').val() ?? '1' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
@@ -495,7 +544,7 @@ class Paquetes extends Templates {
 
     // INFORMACION DE PRODUCTOS
     filterBarProductos() {
-        const container = $("#tab-productos");
+        const container = $("#container-tab-productos");
         container.html('<div id="filterbar-productos" class="mb-2"></div><div id="tabla-productos"></div>');
 
         this.createfilterBar({
@@ -530,7 +579,7 @@ class Paquetes extends Templates {
         this.createTable({
             parent: "tabla-productos",
             idFilterBar: "filterbar-productos",
-            data: { opc: "listProductos" },
+            data: { opc: "listProductos", estado_productos: $('#estado_productos').val() ?? '1' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {
@@ -683,7 +732,7 @@ class Paquetes extends Templates {
 
     // INFORMACION DE CLASIFICACIONES
     filterBarClasificaciones() {
-        const container = $("#tab-clasificaciones");
+        const container = $("#container-tab-clasificaciones");
         container.html('<div id="filterbar-clasificaciones" class="mb-2"></div><div id="tabla-clasificaciones"></div>');
 
         this.createfilterBar({
@@ -718,7 +767,7 @@ class Paquetes extends Templates {
         this.createTable({
             parent: "tabla-clasificaciones",
             idFilterBar: "filterbar-clasificaciones",
-            data: { opc: "listClasificaciones" },
+            data: { opc: "listClasificaciones", estado_clasificaciones: $('#estado_clasificaciones').val() ?? '1' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
             attr: {

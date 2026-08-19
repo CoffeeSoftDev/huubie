@@ -53,6 +53,7 @@
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/rrule@6.1.14/index.global.min.js'></script>
 
     <!-- PRINCIPAL -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
     <!-- Admin es una vista global: la navbar no muestra el selector de sucursal. -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>

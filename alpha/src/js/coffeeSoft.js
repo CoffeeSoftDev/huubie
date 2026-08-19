@@ -2634,15 +2634,17 @@ class Components extends Complements {
         const defaults = {
             parent: "root",
             id: "tabComponent",
-            type: "large", // 'short' | 'large'
+            type: "large", // 'short' | 'large' | 'button'
             theme: "light", // 'dark' | 'light'
             class: "",
+            showBorder: false,
             tab: {
                 size: 'px-3 py-2',
             },
-            content: { class:'',id:''},
+            content: { class: '', id: '' },
             renderContainer: true,
-
+            tab_container: { class: '' },
+            onChange: null,
             json: [
                 { id: "TAB1", tab: "TAB1", icon: "", active: true, onClick: () => { } },
                 { id: "TAB2", tab: "TAB2", icon: "", onClick: () => { } },
@@ -2655,49 +2657,135 @@ class Components extends Complements {
             dark: {
                 base: "bg-[#19232D] text-white",
                 active: "bg-blue-600 text-white",
-                inactive: "text-gray-300 hover:bg-gray-700"
+                inactive: "text-gray-300 hover:bg-gray-700",
+                iconActive: "text-white"
             },
             light: {
                 base: "bg-gray-200 text-black",
                 active: "bg-white text-black",
-                inactive: "text-gray-600 hover:bg-white"
+                inactive: "text-gray-600 hover:bg-white",
+                iconActive: "text-blue-600"
+            },
+            button: {
+                base: "bg-gray-100  p-1 rounded-lg inline-flex shadow-blue-500/50",
+                active: "bg-blue-600 text-white",
+                inactive: " text-gray-600 hover:bg-gray-50",
+                iconActive: "text-white"
             }
         };
 
         const sizes = {
-            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm ",
-            short: "rounded-lg flex  gap-1 p-1  px-1 py-1 text-sm "
+            large: "rounded-lg flex gap-1 px-1 py-1 w-full text-sm overflow-x-auto",
+            short: "rounded-lg flex gap-1 px-1 py-1 text-sm overflow-x-auto",
+            button: "gap-1 overflow-x-auto flex-nowrap"
         };
+
+        const scrollbarThinCSS = `
+            <style>
+                #${opts.id}::-webkit-scrollbar { height: 2px; }
+                #${opts.id}::-webkit-scrollbar-track { background: transparent; }
+                #${opts.id}::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+                #${opts.id}::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+            </style>
+        `;
+        $('head').append(scrollbarThinCSS);
+
+        const themeStyle = themes[opts.type] || themes[opts.theme];
+        const sizeStyle = sizes[opts.type] || sizes['large'];
 
         const container = $("<div>", {
             id: opts.id,
-            class: `${themes[opts.theme].base} ${sizes[opts.type]} ${opts.class}`
+            class: `${themeStyle.base} ${sizeStyle} ${opts.class}`,
+            css: {
+                'scrollbar-width': 'thin',
+                'scrollbar-color': '#d1d5db transparent'
+            }
         });
-
-        const equalWidth = opts.type === "short" ? `` : `flex-1`;
 
         opts.json.forEach(tab => {
             const isActive = tab.active || false;
 
+            const buttonClass = opts.type === 'button'
+                ? `transition-all duration-200 text-sm md:text-sm font-medium rounded-md px-4 md:px-4 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
+                   ${isActive ? themeStyle.active : themeStyle.inactive}`
+                : `transition text-sm md:text-sm font-medium rounded px-3 md:px-3 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
+                   ${isActive ? themeStyle.active : themeStyle.inactive}`;
+
+            let iconHtml = '';
+            const inactiveIconColor = opts.theme === 'dark' ? 'text-gray-400' : 'text-gray-800';
+            const iconColorClass = isActive ? (tab.iconColor || themeStyle.iconActive || '') : inactiveIconColor;
+            let baseIconClasses = '';
+
+            if (tab.lucideIcon) {
+                baseIconClasses = 'w-4 h-4 md:w-4 md:h-4 inline-block mr-2 md:mr-2';
+                iconHtml = `<i data-lucide="${tab.lucideIcon}" class="${baseIconClasses} ${iconColorClass}" data-base-classes="${baseIconClasses}"></i>`;
+            } else if (tab.icon) {
+                baseIconClasses = `${tab.icon} mr-2 md:mr-2 text-sm md:text-sm`;
+                iconHtml = `<i class='${baseIconClasses} ${iconColorClass}' data-base-classes="${baseIconClasses}"></i>`;
+            }
+
             const tabButton = $("<button>", {
                 id: `tab-${tab.id}`,
-                html: tab.icon ? `<i class='${tab.icon} mr-2 h-4 w-4'></i>${tab.tab}` : tab.tab,
-                class: `${opts.type === "short" ? "" : "flex-1"} flex items-center justify-center gap-2 ${opts.tab.size} rounded-lg text-sm font-medium transition
-                 data-[state=active]:${themes[opts.theme].active} ${themes[opts.theme].inactive}`,
+                name: `${tab.id}`,
+                html: iconHtml + tab.tab,
+                class: buttonClass,
                 "data-state": isActive ? "active" : "inactive",
+                "data-icon-color": tab.iconColor || '',
                 click: () => {
                     $(`#${opts.id} button`).each(function () {
-                        $(this).attr("data-state", "inactive").removeClass(themes[opts.theme].active).addClass(themes[opts.theme].inactive);
+                        $(this).attr("data-state", "inactive")
+                            .removeClass(themeStyle.active)
+                            .addClass(themeStyle.inactive);
+
+                        const $icon = $(this).find('i, svg');
+                        if ($icon.length) {
+                            const baseClasses = $icon.data('base-classes') || '';
+                            const currentIconColor = $(this).data('icon-color');
+                            if (currentIconColor) {
+                                const colorClasses = currentIconColor.split(' ');
+                                colorClasses.forEach(cls => $icon.removeClass(cls));
+                            }
+                            if (themeStyle.iconActive) {
+                                $icon.removeClass(themeStyle.iconActive);
+                            }
+                            $icon.removeClass('text-gray-800 text-gray-400 text-blue-600 text-blue-400 text-white').addClass(opts.theme === 'dark' ? 'text-gray-400' : 'text-gray-800');
+                        }
                     });
 
-                    tabButton.attr("data-state", "active").removeClass(themes[opts.theme].inactive).addClass(themes[opts.theme].active);
+                    tabButton.attr("data-state", "active")
+                        .removeClass(themeStyle.inactive)
+                        .addClass(themeStyle.active);
+
+                    setTimeout(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+
+                        const $activeIcon = tabButton.find('i, svg');
+                        if ($activeIcon.length) {
+                            const iconColor = tabButton.data('icon-color');
+                            $activeIcon.removeClass('text-gray-800 text-gray-400');
+                            if (iconColor) {
+                                const colorClasses = iconColor.split(' ');
+                                colorClasses.forEach(cls => $activeIcon.addClass(cls));
+                            } else if (themeStyle.iconActive) {
+                                $activeIcon.addClass(themeStyle.iconActive);
+                            }
+                        }
+                    }, 10);
 
                     if (opts.renderContainer) {
                         $(`#content-${opts.id} > div`).addClass("hidden");
                         $(`#container-${tab.id}`).removeClass("hidden");
                     }
 
-                    if (typeof tab.onClick === "function") tab.onClick(tab.id);
+                    if (typeof opts.onChange === "function") {
+                        opts.onChange(tab.id, tab);
+                    }
+
+                    if (typeof tab.onClick === "function") {
+                        tab.onClick(tab.id);
+                    }
                 }
             });
 
@@ -2706,6 +2794,12 @@ class Components extends Complements {
 
         $(`#${opts.parent}`).html(container);
 
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 50);
+
         if (opts.renderContainer) {
             const contentContainer = $("<div>", {
                 id: `content-${opts.id}`,
@@ -2713,9 +2807,10 @@ class Components extends Complements {
             });
 
             opts.json.forEach(tab => {
+                const borderClass = opts.showBorder ? 'border p-3' : 'p-3 h-full';
                 const contentView = $("<div>", {
                     id: `container-${tab.id}`,
-                    class: `hidden  p-3 h-full rounded-lg`,
+                    class: `hidden  ${borderClass} ${tab.class ?? ''} rounded-lg`,
                     html: tab.content || ""
                 });
                 contentContainer.append(contentView);

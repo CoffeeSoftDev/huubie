@@ -87,12 +87,18 @@ class MUser extends CRUD {
     }
 
     // Users
-    function listUsers($array){
-        $rol = $_SESSION['ROLID'];
+    function listUsers($array, $filterSuc = null){
+        // La empresa se resuelve por la FK directa usr_users.subsidiaries_id, no por el
+        // pivote: asi un usuario sin sucursales asignadas sigue apareciendo en el listado.
         $query = "
         SELECT
             usr_users.id,
-            subsidiaries.name as sucursal,
+            (
+                SELECT GROUP_CONCAT(sub_pivote.name ORDER BY sub_pivote.name SEPARATOR ', ')
+                FROM usr_user_subsidiaries
+                INNER JOIN subsidiaries sub_pivote ON sub_pivote.id = usr_user_subsidiaries.subsidiaries_id
+                WHERE usr_user_subsidiaries.usr_users_id = usr_users.id
+            ) as sucursal,
             usr_users.fullname,
             usr_users.user,
             usr_users.active,
@@ -106,6 +112,17 @@ class MUser extends CRUD {
         AND usr_users.usr_rols_id NOT IN (5)
         AND fayxzvov_admin.companies.id = ?";
 
+        if (!empty($filterSuc)) {
+            $query .= "
+        AND EXISTS (
+            SELECT 1
+            FROM usr_user_subsidiaries
+            WHERE usr_user_subsidiaries.usr_users_id = usr_users.id
+            AND usr_user_subsidiaries.subsidiaries_id = ?
+        )";
+            $array[] = $filterSuc;
+        }
+
         return $this->_Read($query, $array);
     }
 
@@ -113,19 +130,30 @@ class MUser extends CRUD {
         $query = "
         SELECT
             usr_users.user,
-            subsidiaries_id,
+            usr_users.subsidiaries_id,
             usr_users.fullname,
-
             usr_users.usr_rols_id
-            FROM
+        FROM
             usr_users
-            INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
-            INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
-            WHERE usr_users.id = ?
+        INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id
+        INNER JOIN usr_rols ON usr_users.usr_rols_id = usr_rols.id
+        WHERE usr_users.id = ?";
 
-            ";
+        $user = $this->_Read($query, $array);
 
-        return $this->_Read($query, $array);
+        // El modal edita varias sucursales: subsidiaries_id deja de ser la FK directa y
+        // pasa a ser la lista del pivote, en ids separados por coma.
+        if (!empty($user)) {
+            $subsidiaries = $this->_Read("
+                SELECT subsidiaries_id
+                FROM usr_user_subsidiaries
+                WHERE usr_users_id = ?", $array);
+
+            $ids = array_column($subsidiaries, 'subsidiaries_id');
+            $user[0]['subsidiaries_id'] = implode(',', $ids);
+        }
+
+        return $user;
     }
 
     function existsUserByName($array){
@@ -153,24 +181,39 @@ class MUser extends CRUD {
         return count($res) > 0;
     }
 
-    function createUser($array){
+    function createUser($array, $subsidiariesIds = []){
            $query	=
             "INSERT INTO
             usr_users
             (fullname, date_creation, usr_rols_id, user, subsidiaries_id, `key`)
             VALUE (?,?,?,?,?,MD5(?))";
 
-           return  $this->_CUD($query,$array);
+           $result = $this->_CUD($query,$array);
+
+           // _CUD cierra la conexion al terminar, asi que lastInsertId() siempre daria 0.
+           // El id se relee por el correo, que el controlador ya valido como unico.
+           if ($result && !empty($subsidiariesIds)) {
+               $user = $this->_Read("
+                   SELECT id
+                   FROM usr_users
+                   WHERE LOWER(user) = LOWER(?)", [$array[3]]);
+
+               if (!empty($user)) {
+                   $this->syncUserSubsidiaries($user[0]['id'], $subsidiariesIds);
+               }
+           }
+
+           return $result;
     }
 
     function updateUser($array){
-        $query = "UPDATE usr_users SET usr_rols_id = ?, user = ?, fullname = ?, subsidiaries_id = ?";
+        // subsidiaries_id ya no se escribe aqui: lo gobierna el pivote via syncUserSubsidiaries.
+        $query = "UPDATE usr_users SET usr_rols_id = ?, user = ?, fullname = ?";
 
         $data = [
             $array['usr_rols_id'],
             $array['user'],
-            $array['fullname'],
-            $array['subsidiaries_id']
+            $array['fullname']
         ];
 
         // Si hay nueva contraseña, agregar al update
@@ -182,7 +225,44 @@ class MUser extends CRUD {
         $query .= " WHERE id = ?";
         $data[] = $array['id'];
 
-        return $this->_CUD($query, $data);
+        $result = $this->_CUD($query, $data);
+
+        if ($result && !empty($array['subsidiaries_id'])) {
+            $this->syncUserSubsidiaries($array['id'], explode(',', $array['subsidiaries_id']));
+        }
+
+        return $result;
+    }
+
+    function syncUserSubsidiaries($userId, $subsidiariesIds){
+        $ids = array_values(array_filter(array_map('trim', $subsidiariesIds), 'strlen'));
+
+        // Sin sucursales no se borra nada: _CRUD no expone transacciones y un DELETE
+        // suelto dejaria al usuario sin ninguna asignada.
+        if (empty($ids)) {
+            return false;
+        }
+
+        $this->_CUD("DELETE FROM usr_user_subsidiaries WHERE usr_users_id = ?", [$userId]);
+
+        $query = "INSERT INTO usr_user_subsidiaries (usr_users_id, subsidiaries_id) VALUES (?, ?)";
+
+        foreach ($ids as $subsidiaryId) {
+            $this->_CUD($query, [$userId, $subsidiaryId]);
+        }
+
+        // La sucursal de arranque de sesion tiene que seguir entre las asignadas: el login
+        // hace INNER JOIN contra usr_users.subsidiaries_id y dejaria al usuario sin entrar.
+        $login = $this->_Read("
+            SELECT subsidiaries_id
+            FROM usr_users
+            WHERE id = ?", [$userId]);
+
+        if (empty($login) || !in_array((string) $login[0]['subsidiaries_id'], $ids, true)) {
+            $this->_CUD("UPDATE usr_users SET subsidiaries_id = ? WHERE id = ?", [$ids[0], $userId]);
+        }
+
+        return true;
     }
 
     function deleteUsr($array){

@@ -28,41 +28,101 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.renderTabs();
+        this.renderActiveTab();
     }
 
     layout() {
-        this.primaryLayout({
-            parent: `root`,
-            id: this.PROJECT_NAME,
-            class: "flex mx-2 my-2 h-full mt-5 p-2",
-            card: {
-                filterBar: { class: "w-full my-3 ", id: "filterBar" + this.PROJECT_NAME },
-                container: { class: "w-full my-3 h-auto bg-[#1F2A37] rounded-lg p-3", id: "container" + this.PROJECT_NAME },
-            },
+        // Admin no lleva filterBar propio: cada tab monta el suyo dentro de su panel.
+        this.createLayout({
+            parent: 'root',
+            design: false,
+            data: {
+                id: this.PROJECT_NAME,
+                class: 'w-full min-h-screen p-3',
+                container: [
+                    {
+                        type: 'div',
+                        id: `container${this.PROJECT_NAME}`,
+                        class: 'w-full bg-[#1F2A37] rounded-lg p-3 min-h-screen'
+                    }
+                ]
+            }
         });
 
-        $("#containerAdmin").simple_json_tab({
-            class: "pb-4 px-4 bg-[#1F2A37]",
-            id: "tabss",
-            data: [
-                { tab: "Empresa", id: "tab-company", active: true },
-                { tab: "Usuarios", id: "tab-usuarios" },
-                { tab: "Sucursal", id: "tab-sucursales" },
-                { tab: "Clausulas", id: "tab-clausules", onClick: () => clausulas.ls() },
-            ],
+        // -- Encabezado y hueco de los tabs --
+        this.createLayout({
+            parent: `container${this.PROJECT_NAME}`,
+            design: false,
+            data: {
+                id: `header${this.PROJECT_NAME}`,
+                class: 'w-full',
+                container: [
+                    {
+                        type:  'h2',
+                        class: 'text-2xl font-semibold text-white px-4 pt-3',
+                        text:  `⚙️ Configuración de ${nameCompany}`
+                    },
+                    {
+                        type:  'p',
+                        class: 'text-gray-400 px-4 pb-3',
+                        text:  'Administra los datos de la empresa, los usuarios y sucursales de la aplicación.'
+                    },
+                    {
+                        type:  'div',
+                        id:    `tabs${this.PROJECT_NAME}`,
+                        class: 'w-full p-3'
+                    }
+                ]
+            }
         });
+    }
 
-        $("#containerAdmin").prepend(`
-            <div class="px-4 pt-3 pb-3">
-                <h2 class="text-2xl font-semibold text-white">⚙️ Configuración de ${nameCompany}</h2>
-                <p class="text-gray-400">Administra los datos de la empresa, los usuarios y sucursales de la aplicación.</p>
-            </div>
-        `);
+    renderTabs() {
+        this.tabLayout({
+            parent: `tabs${this.PROJECT_NAME}`,
+            id: `tabsContent${this.PROJECT_NAME}`,
+            theme: "dark",
+            type: "short",
+            showBorder: false,
+            json: [
+                {
+                    id: "tab-company",
+                    tab: "Empresa",
+                    lucideIcon: "building-2",
+                    iconColor: "text-white",
+                    active: true,
+                    onClick: () => company.render()
+                },
+                {
+                    id: "tab-usuarios",
+                    tab: "Usuarios",
+                    lucideIcon: "users",
+                    iconColor: "text-white",
+                    onClick: () => usuarios.render()
+                },
+                {
+                    id: "tab-sucursales",
+                    tab: "Sucursal",
+                    lucideIcon: "map-pin",
+                    iconColor: "text-white",
+                    onClick: () => sucursales.render()
+                },
+                {
+                    id: "tab-clausules",
+                    tab: "Clausulas",
+                    lucideIcon: "file-text",
+                    iconColor: "text-white",
+                    onClick: () => clausulas.render()
+                }
+            ]
+        });
+    }
 
-        usuarios.render();
-        sucursales.render();
+    renderActiveTab() {
+        // Render perezoso: en el arranque solo se pinta el tab activo. Los demas se crean
+        // en el onClick de su tab, para no disparar cuatro createTable de golpe.
         company.render();
-        clausulas.render();
     }
 }
 
@@ -77,26 +137,40 @@ class Company extends Templates {
     }
 
     async layoutCompanies() {
+        let self = this;
         let data = await useFetch({
             url: api,
             data: { opc: 'init' }
         });
 
         let companie = data.companies;
-        $("#tab-company").html(`
+        // Ruta relativa: la pagina vive en /alpha/admin, asi que '..' resuelve a /alpha.
+        let logoSrc = companie.logo ? '..' + companie.logo + '?v=' + Date.now() : '';
+
+        let avatarContent = logoSrc
+            ? `<img src="${logoSrc}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`
+            : `<i data-lucide="building-2" class="w-20 h-20 text-slate-400" id="logo"></i>`;
+
+        let removeOverlay = logoSrc
+            ? `<button id="btnRemoveLogo" type="button" title="Quitar logo"
+                    onmouseenter="this.style.opacity='1'"
+                    onmouseleave="this.style.opacity='0'"
+                    style="background-color: rgba(15, 23, 42, 0.85); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 1;"
+                    class="absolute inset-0 rounded-full flex items-center justify-center">
+                    <i class="icon-trash text-white" style="font-size: 2rem;"></i>
+                </button>`
+            : '';
+
+        $("#container-tab-company").html(`
             <div class="grid md:grid-cols-[180px_1fr] gap-8">
                 <div class=" rounded-lg md:p-6 lg:p-8">
                     <div class="flex flex-col items-center gap-4">
                         <div class="relative">
-                            <div class="w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
-                                <img
-                                    src="https://huubie.com.mx/alpha/src/img/logo/huubie.svg"
-                                    alt="Foto de perfil"
-                                    class="w-full h-full object-cover"
-                                    id="logo"
-                                />
+                            <div class="relative w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
+                                ${avatarContent}
+                                ${removeOverlay}
                             </div>
-                            <button class="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center" id="btnEditLogo">
+                            <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo" style="z-index: 20;">
                                 <i class="icon-pencil text-white text-sm"></i>
                             </button>
                             <input type="file" accept="image/*" id="inputLogoUpload" class="hidden" />
@@ -109,14 +183,35 @@ class Company extends Templates {
             </div>
         `);
 
-        if (companie.id) {
-            let fotito = 'https://huubie.com.mx/alpha' + companie.logo;
-            $('#logo').attr('src', fotito);
+        if (!logoSrc && window.lucide) {
+            lucide.createIcons();
         }
 
         // Activar input file al hacer clic en el botón
         $('#btnEditLogo').on('click', function () {
             $('#inputLogoUpload').click();
+        });
+
+        // Quitar el logo, con confirmación
+        $('#btnRemoveLogo').on('click', function () {
+            self.swalQuestion({
+                opts: {
+                    title: '¿Quitar logo?',
+                    text: 'Se eliminará el logo actual de la empresa.',
+                    icon: 'warning',
+                },
+                data: { opc: 'deletePhotoCompany', id: companie.id },
+                methods: {
+                    send: (response) => {
+                        if (response.status == 200) {
+                            alert({ icon: "success", title: "Listo", text: response.message, btn1: true, btn1Text: "Ok" });
+                            self.layoutCompanies();
+                        } else {
+                            alert({ icon: "error", title: "Oops...", text: response.message, btn1: true, btn1Text: "Ok" });
+                        }
+                    }
+                }
+            });
         });
 
         // Subir imagen y mostrar preview
@@ -125,7 +220,13 @@ class Company extends Templates {
             if (!file) return;
 
             let url = URL.createObjectURL(file);
-            $('#logo').attr('src', url);
+            let logoElement = $('#logo');
+
+            if (logoElement.is('img')) {
+                logoElement.attr('src', url);
+            } else {
+                logoElement.replaceWith(`<img src="${url}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`);
+            }
 
             let formData = new FormData();
             formData.append('opc', 'editPhotoCompany');
@@ -228,7 +329,7 @@ class Usuarios extends Templates {
     }
 
     layout() {
-        const container = $("#tab-usuarios");
+        const container = $("#container-tab-usuarios");
         container.html('<div id="filterbar-usuarios" class="mb-2"></div><div id="tabla-usuarios" class="row"></div>');
 
         this.createfilterBar({
@@ -245,6 +346,13 @@ class Usuarios extends Templates {
                     'onchange': 'usuarios.ls()'
                 },
                 {
+                    opc: "select",
+                    id: "filterSucursal",
+                    class: "col-12 col-md-3",
+                    data: [{ id: "", valor: "Todas las sucursales" }, ...sucursal],
+                    'onchange': 'usuarios.ls()'
+                },
+                {
                     opc: "button",
                     class: "col-12 col-md-3",
                     id: "btnNuevoUsuario",
@@ -257,7 +365,7 @@ class Usuarios extends Templates {
         this.ls();
     }
 
-    json() {
+    json(mode = 'add') {
         return [
             {
                 opc: "select",
@@ -268,7 +376,7 @@ class Usuarios extends Templates {
             },
             {
                 opc: "select",
-                lbl: "Sucursal",
+                lbl: "Sucursales asignadas",
                 id: "subsidiaries_id",
                 class: "col-12 mb-3",
                 data: sucursal,
@@ -293,13 +401,13 @@ class Usuarios extends Templates {
             },
             {
                 opc: "input-group",
-                lbl: "Contraseña",
+                lbl: mode === 'edit' ? 'Nueva contraseña (vacío = sin cambio)' : 'Contraseña',
                 id: "key",
                 icon: "icon-key",
                 type: "password",
                 onkeyup: "validarPassword(this)",
                 class: "col-12",
-                required: true
+                required: mode === 'add'
             },
         ]
     }
@@ -309,7 +417,7 @@ class Usuarios extends Templates {
             parent: "tabla-usuarios",
             idFilterBar: "filterbar-usuarios",
             coffeesoft: true,
-            data: { opc: "lsUsers", idCompany: idCompany },
+            data: { opc: "lsUsers", idCompany: idCompany, filterSucursal: $('#filterSucursal').val() || '' },
             conf: { datatable: true, pag: 10 },
             attr: {
                 id: "tbUsuarios",
@@ -319,206 +427,88 @@ class Usuarios extends Templates {
     }
 
     add() {
-        const rolOptions      = rol.map(r      => `<option value="${r.id}">${r.valor}</option>`).join('');
-        const sucursalOptions = sucursal.map(s => `<option value="${s.id}">${s.valor}</option>`).join('');
-
-        bootbox.dialog({
-            title: '<strong>Nuevo Usuario</strong>',
-            message: `
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Rol</label>
-                        <select class="form-select bg-[#1F2A37]" id="add_rol" required>
-                            ${rolOptions}
-                        </select>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Sucursal</label>
-                        <select class="form-select bg-[#1F2A37]" id="add_sub" required>
-                            ${sucursalOptions}
-                        </select>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Nombre completo</label>
-                        <input type="text" class="form-control bg-[#1F2A37]" id="add_fullname" placeholder="" required>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label font-bold">Usuario (correo electrónico)</label>
-                        <input type="email" class="form-control bg-[#1F2A37]" id="add_user" placeholder="Ej. luis@huubie.com"
-                            oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._%+\\-@]/g,'')">
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label font-bold">Contraseña</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="icon-key"></i></span>
-                            <input type="password" class="form-control bg-[#1F2A37]" id="add_key">
-                            <button type="button" class="btn btn-outline-secondary" id="add_toggle_key"
-                                onclick="const i=$('#add_key');const t=i.attr('type')==='password';i.attr('type',t?'text':'password');$('#add_toggle_key i').toggleClass('icon-eye-off icon-eye');">
-                                <i class="icon-eye-off"></i>
-                            </button>
-                        </div>
-                        <div id="add_msg_pass" class="text-danger small mt-1"></div>
-                    </div>
-                </div>
-            `,
-            buttons: {
-                cancelar: {
-                    label: 'Cancelar',
-                    className: 'btn-secondary',
-                },
-                guardar: {
-                    label: 'Guardar',
-                    className: 'btn-primary',
-                    callback: () => {
-                        const usr_rols_id     = $('#add_rol').val();
-                        const subsidiaries_id = $('#add_sub').val();
-                        const fullname        = $('#add_fullname').val().trim();
-                        const user            = $('#add_user').val().trim();
-                        const key             = $('#add_key').val();
-
-                        if (!usr_rols_id || !subsidiaries_id || !fullname || !user || !key) {
-                            alert({ icon: 'warning', text: 'Por favor completa todos los campos requeridos.' });
-                            return false;
-                        }
-
-                        if (key.length < 5) {
-                            alert({ icon: 'warning', text: 'La contraseña debe tener al menos 5 caracteres.' });
-                            return false;
-                        }
-
-                        if (!/^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(user)) {
-                            alert({ icon: 'warning', text: 'El usuario debe ser un correo electrónico válido.', btn1: true, btn1Text: 'Ok' });
-                            return false;
-                        }
-
-                        $.ajax({
-                            url: this._link,
-                            method: 'POST',
-                            data: { opc: 'addUser', usr_rols_id, subsidiaries_id, fullname, user, key },
-                            success: (res) => {
-                                if (res.status == 200) {
-                                    bootbox.hideAll();
-                                    alert({ icon: 'success', text: res.message });
-                                    this.ls();
-                                } else {
-                                    alert({ icon: 'error', title: 'Oops...', text: res.message, btn1: true, btn1Text: 'Ok' });
-                                }
-                            },
-                            dataType: 'json',
-                        });
-                        return false; // mantener modal abierto hasta que responda el servidor
-                    }
+        this.createModalForm({
+            id: "formModalUsuario",
+            data: { opc: "addUser" },
+            bootbox: { title: "<strong>Nuevo Usuario</strong>" },
+            json: this.json('add'),
+            success: (res) => {
+                if (res.status === 200) {
+                    alert({ icon: 'success', text: res.message });
+                    this.ls();
+                } else {
+                    alert({ icon: 'error', title: 'Oops...', text: res.message, btn1: true, btn1Text: 'Ok' });
                 }
-            }
+            },
         });
 
+        this.injectChips('add_sucursales_chips', []);
     }
 
     async editar(id) {
-        
         const res = await useFetch({ url: this._link, data: { opc: "getUser", id: id } });
-        const u   = res.data;
+        const user = res.data;
+        const currentSubs = user.subsidiaries_id ? String(user.subsidiaries_id).split(',').map(id => id.trim()) : [];
 
-        const rolOptions = rol.map(r =>
-            `<option value="${r.id}" ${r.id == u.usr_rols_id ? 'selected' : ''}>${r.valor}</option>`
-        ).join('');
-
-        const sucursalOptions = sucursal.map(s =>
-            `<option value="${s.id}" ${s.id == u.subsidiaries_id ? 'selected' : ''}>${s.valor}</option>`
-        ).join('');
-
-        bootbox.dialog({
-            title: '<strong>Editar Usuario</strong>',
-            message: `
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Rol</label>
-                        <select class="form-select bg-[#1F2A37]" id="edit_rol" required>
-                            ${rolOptions}
-                        </select>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Sucursal</label>
-                        <select class="form-select bg-[#1F2A37]" id="edit_sub" required>
-                            ${sucursalOptions}
-                        </select>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label">Nombre completo</label>
-                        <input type="text" class="form-control bg-[#1F2A37]" id="edit_fullname"
-                            value="${u.fullname ?? ''}" required>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label font-bold">Usuario (correo electrónico)</label>
-                        <input type="email" class="form-control bg-[#1F2A37]" id="edit_user"
-                            value="${u.user ?? ''}" placeholder="Ej. luis@huubie.com"
-                            oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._%+\\-@]/g,'')">
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="form-label font-bold">Nueva contraseña <span class="text-muted small">(dejar vacío para no cambiar)</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="icon-key"></i></span>
-                            <input type="password" class="form-control bg-[#1F2A37]" id="edit_key">
-                            <button type="button" class="btn btn-outline-secondary" id="edit_toggle_key"
-                                onclick="const i=$('#edit_key');const t=i.attr('type')==='password';i.attr('type',t?'text':'password');$('#edit_toggle_key i').toggleClass('icon-eye-off icon-eye');">
-                                <i class="icon-eye-off"></i>
-                            </button>
-                        </div>
-                        <div id="edit_msg_pass" class="text-danger small mt-1"></div>
-                    </div>
-                </div>
-            `,
-            buttons: {
-                cancelar: {
-                    label: 'Cancelar',
-                    className: 'btn-secondary',
-                },
-                guardar: {
-                    label: 'Guardar',
-                    className: 'btn-primary',
-                    callback: () => {
-                        const usr_rols_id     = $('#edit_rol').val();
-                        const subsidiaries_id = $('#edit_sub').val();
-                        const fullname        = $('#edit_fullname').val().trim();
-                        const user            = $('#edit_user').val().trim();
-                        const key             = $('#edit_key').val();
-
-                        if (!usr_rols_id || !subsidiaries_id || !fullname || !user) {
-                            alert({ icon: 'warning', text: 'Por favor completa todos los campos requeridos.' });
-                            return false;
-                        }
-
-                        if (!/^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(user)) {
-                            alert({ icon: 'warning', text: 'El usuario debe ser un correo electrónico válido.' });
-                            return false;
-                        }
-
-                        if (key && key.length < 5) {
-                            alert({ icon: 'warning', text: 'La contraseña debe tener al menos 5 caracteres.' });
-                            return false;
-                        }
-
-                        $.ajax({
-                            url: this._link,
-                            method: 'POST',
-                            data: { opc: 'editUser', id, usr_rols_id, subsidiaries_id, fullname, user, key },
-                            success: (res) => {
-                                if (res.status == 200) {
-                                    bootbox.hideAll();
-                                    alert({ icon: 'success', text: res.message });
-                                    this.ls();
-                                } else {
-                                    alert({ icon: 'error', title: 'Oops...', text: res.message, btn1: true, btn1Text: 'Ok' });
-                                }
-                            },
-                            dataType: 'json',
-                        });
-
-                        return false;
-                    }
+        this.createModalForm({
+            id: "formModalUsuario",
+            data: { opc: "editUser", id },
+            bootbox: { title: "<strong>Editar Usuario</strong>" },
+            autofill: user,
+            json: this.json('edit'),
+            success: (res) => {
+                if (res.status === 200) {
+                    alert({ icon: 'success', text: res.message });
+                    this.ls();
+                } else {
+                    alert({ icon: 'error', title: 'Oops...', text: res.message, btn1: true, btn1Text: 'Ok' });
                 }
-            }
+            },
         });
+
+        this.injectChips('edit_sucursales_chips', currentSubs);
+    }
+
+    injectChips(chipsId, selectedIds = []) {
+        // El framework no tiene select multiple: el select de sucursales se cambia por un
+        // hidden con los ids separados por coma, que es lo que el controlador espera.
+        $('#subsidiaries_id').replaceWith(
+            `<input type="hidden" id="subsidiaries_id" name="subsidiaries_id" value="${selectedIds.join(',')}">` +
+            `<div id="${chipsId}" class="bg-[#1F2A37] border border-secondary rounded p-2 d-flex flex-wrap"></div>`
+        );
+
+        this.renderSucursalChips(chipsId, selectedIds);
+    }
+
+    renderSucursalChips(containerId, selectedIds = []) {
+        const container = $(`#${containerId}`);
+        container.empty();
+
+        sucursal.forEach(sucursalItem => {
+            const isSelected = selectedIds.includes(String(sucursalItem.id));
+
+            const chip = $("<span>", {
+                class: `d-inline-flex align-items-center me-1 mb-1 px-3 py-1 rounded-pill text-sm user-select-none ${isSelected ? 'bg-primary text-white fw-semibold' : 'text-light'}`,
+                text: sucursalItem.valor,
+                css: { cursor: 'pointer', opacity: isSelected ? 1 : .5 },
+                click: () => {
+                    const idx = selectedIds.indexOf(String(sucursalItem.id));
+
+                    if (idx > -1) {
+                        selectedIds.splice(idx, 1);
+                    } else {
+                        selectedIds.push(String(sucursalItem.id));
+                    }
+
+                    this.renderSucursalChips(containerId, selectedIds);
+                }
+            });
+
+            container.append(chip);
+        });
+
+        container.data('selected', selectedIds);
+        $('#subsidiaries_id').val(selectedIds.join(','));
     }
 
     toggleStatus(id, active) {
@@ -560,7 +550,7 @@ class Sucursales extends Templates {
     }
 
     layout() {
-        const container = $("#tab-sucursales");
+        const container = $("#container-tab-sucursales");
         container.html('<div id="filterbar-sucursales" class="mb-2"></div><div id="tabla-sucursales"></div>');
 
         this.createfilterBar({
@@ -705,7 +695,7 @@ class Clausulas extends Templates {
     }
 
     layout() {
-        const container = $("#tab-clausules");
+        const container = $("#container-tab-clausules");
         container.html('<div id="filterbar-clausules" class="mb-2"></div><div id="tabla-clausules"></div>');
 
         this.createfilterBar({

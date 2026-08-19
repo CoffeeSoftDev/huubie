@@ -58,6 +58,7 @@
     <!--SELECT2-->
     <script src="<?=PATH_BASE?>src/plugins/select2/bootstrap/select2.min.js"></script>
     <!-- PRINCIPAL -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
     <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
