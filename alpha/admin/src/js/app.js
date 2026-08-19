@@ -144,19 +144,20 @@ class Company extends Templates {
         });
 
         let companie = data.companies;
-        // Ruta relativa: la pagina vive en /alpha/admin, asi que '..' resuelve a /alpha.
-        let logoSrc = companie.logo ? '..' + companie.logo + '?v=' + Date.now() : '';
+        // Ruta absoluta desde la raiz web, igual que el resto de alpha (ver navbar.js):
+        // con '..' la ruta dependia de si la URL traia o no la barra final.
+        let logoSrc = companie.logo ? '/alpha' + companie.logo + '?v=' + Date.now() : '';
 
         let avatarContent = logoSrc
             ? `<img src="${logoSrc}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`
             : `<i data-lucide="building-2" class="w-20 h-20 text-slate-400" id="logo"></i>`;
 
+        // El overlay solo captura clics mientras esta visible: con opacity 0 seguia
+        // siendo clickeable y cualquier clic sobre el logo disparaba el borrado.
         let removeOverlay = logoSrc
             ? `<button id="btnRemoveLogo" type="button" title="Quitar logo"
-                    onmouseenter="this.style.opacity='1'"
-                    onmouseleave="this.style.opacity='0'"
-                    style="background-color: rgba(15, 23, 42, 0.85); opacity: 0; transition: opacity 0.2s; border: 0; cursor: pointer; z-index: 1;"
-                    class="absolute inset-0 rounded-full flex items-center justify-center">
+                    style="background-color: rgba(15, 23, 42, 0.85); border: 0; cursor: pointer; z-index: 1;"
+                    class="absolute inset-0 rounded-full flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200">
                     <i class="icon-trash text-white" style="font-size: 2rem;"></i>
                 </button>`
             : '';
@@ -166,9 +167,12 @@ class Company extends Templates {
                 <div class=" rounded-lg md:p-6 lg:p-8">
                     <div class="flex flex-col items-center gap-4">
                         <div class="relative">
-                            <div class="relative w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
+                            <div id="logoAvatar" class="relative w-48 h-48 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center overflow-hidden">
                                 ${avatarContent}
                                 ${removeOverlay}
+                                <div id="logoLoader" class="absolute inset-0 rounded-full hidden items-center justify-center" style="background-color: rgba(15, 23, 42, 0.75); z-index: 10;">
+                                    <div class="w-12 h-12 rounded-full border-4 border-slate-500 border-t-blue-500 animate-spin"></div>
+                                </div>
                             </div>
                             <button class="absolute top-1/2 right-0 translate-x-2 translate-y-2 rounded-full w-10 h-10 p-0 bg-blue-700 hover:bg-blue-800 flex items-center justify-center shadow-lg" id="btnEditLogo" title="Cambiar logo" style="z-index: 20;">
                                 <i class="icon-pencil text-white text-sm"></i>
@@ -192,6 +196,13 @@ class Company extends Templates {
             $('#inputLogoUpload').click();
         });
 
+        // Mostrar el icono de eliminar al pasar el cursor sobre el logo
+        $('#logoAvatar').on('mouseenter', function () {
+            self.toggleRemoveLogo(true);
+        }).on('mouseleave', function () {
+            self.toggleRemoveLogo(false);
+        });
+
         // Quitar el logo, con confirmación
         $('#btnRemoveLogo').on('click', function () {
             self.swalQuestion({
@@ -204,7 +215,7 @@ class Company extends Templates {
                 methods: {
                     send: (response) => {
                         if (response.status == 200) {
-                            alert({ icon: "success", title: "Listo", text: response.message, btn1: true, btn1Text: "Ok" });
+                            alert({ icon: "success", title: "Listo", text: response.message });
                             self.layoutCompanies();
                         } else {
                             alert({ icon: "error", title: "Oops...", text: response.message, btn1: true, btn1Text: "Ok" });
@@ -214,53 +225,12 @@ class Company extends Templates {
             });
         });
 
-        // Subir imagen y mostrar preview
-        $('#inputLogoUpload').on('change', async function (e) {
+        // Subir imagen
+        $('#inputLogoUpload').on('change', function (e) {
             let file = e.target.files[0];
             if (!file) return;
 
-            let url = URL.createObjectURL(file);
-            let logoElement = $('#logo');
-
-            if (logoElement.is('img')) {
-                logoElement.attr('src', url);
-            } else {
-                logoElement.replaceWith(`<img src="${url}" alt="Logo de la empresa" class="w-full h-full object-cover" id="logo" />`);
-            }
-
-            let formData = new FormData();
-            formData.append('opc', 'editPhotoCompany');
-            formData.append('id', companie.id);
-            const fileC = $('#inputLogoUpload')[0].files[0];
-            if (fileC) {
-                formData.append('logo', fileC); // ✅ Asegura que sea con el mismo nombre usado en PHP ($_FILES['photo'])
-            }
-
-            Swal.fire({
-                title: 'Subiendo imagen...',
-                text: 'Por favor, espera un momento. 😊',
-                background: '#1f2937',
-                color: '#f9fafb',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch(api, {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                Swal.close();
-                if (response.status == 200) {
-                    alert({ icon: "success", title: "Éxito", text: response.message, btn1: true, btn1Text: "Ok" });
-                } else {
-                    alert({ icon: "error", title: "Oops!...", text: response.message, btn1: true, btn1Text: "Ok" });
-                }
-            }).catch(error => {
-                console.error('Error:', error);
-                alert({ icon: "error", title: "Error", text: "No se pudo completar la solicitud." });
-            });
+            self.uploadLogo(file, companie.id);
         });
 
         this.createForm({
@@ -314,6 +284,48 @@ class Company extends Templates {
                 }
             },
         });
+    }
+
+    // -- Logo --
+
+    async uploadLogo(file, id) {
+        let formData = new FormData();
+        formData.append('opc', 'editPhotoCompany');
+        formData.append('id', id);
+        formData.append('logo', file);
+
+        this.toggleLogoLoader(true);
+
+        try {
+            let response = await fetch(api, {
+                method: 'POST',
+                body: formData
+            });
+
+            // El status del ctrl viaja en el JSON, no en el HTTP: sin leer el cuerpo
+            // toda respuesta parecia exitosa aunque el logo no se hubiera guardado.
+            let res = await response.json();
+
+            if (res.status != 200) {
+                alert({ icon: "error", title: "Oops!...", text: res.message, btn1: true, btn1Text: "Ok" });
+            }
+
+            // Se repinta desde el servidor para mostrar el logo realmente guardado.
+            await this.layoutCompanies();
+        } catch (error) {
+            this.toggleLogoLoader(false);
+            alert({ icon: "error", title: "Error", text: "No se pudo completar la solicitud.", btn1: true, btn1Text: "Ok" });
+        }
+    }
+
+    toggleLogoLoader(show) {
+        $('#logoLoader').toggleClass('hidden', !show).toggleClass('flex', show);
+    }
+
+    toggleRemoveLogo(show) {
+        $('#btnRemoveLogo')
+            .toggleClass('opacity-0 pointer-events-none', !show)
+            .toggleClass('opacity-100 pointer-events-auto', show);
     }
 }
 
