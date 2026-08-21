@@ -23,6 +23,7 @@ $(async () => {
     // Clic en un pedido del Corte Z -> abre su ticket en la vista previa con "Volver".
     // Solo el visor de cierre registra este callback; en alpha/pedidos las filas no son clicables.
     cierre.onOrderClick = (id) => orderVisor.renderTicketReport({ id }, orderVisor.selectedKey);
+    
 });
 
 // ctrl-access no filtra por rol; el init de pedidos si.
