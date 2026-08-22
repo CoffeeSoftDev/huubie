@@ -1,0 +1,391 @@
+/* Tema Wansoft del Facturador 2.
+   Aqui viven TODOS los colores del modulo. El JS no escribe un solo hex: pinta
+   clases de este archivo (regla TRM-007). La paleta sale del boceto original
+   —templates/inicio.png, home.png y menu.png— no de la escala azul de Tailwind.
+
+   El scope es #root, igual que facture.css, para no pisar navbar ni rail: esos
+   consumen WANSOFT_PALETTE desde el JS del tema. */
+
+:root {
+    --ws-blue:     #2B4FD8;
+    --ws-blue-dk:  #2340BC;
+    --ws-blue-lt:  #4667E0;
+    --ws-key:      #DCE3F3;
+    --ws-key-on:   #C7D3EC;
+    --ws-ink:      #1F2937;
+    --ws-muted:    #6B7280;
+    --ws-line:     #E5E7EB;
+    --ws-paper:    #FFFFFF;
+    --ws-orange:   #F4511E;
+    --ws-arc:      #93A4C6;
+
+    /* Los cuatro semaforos de la fila de filtros de la pantalla de cuentas. */
+    --ws-red:      #E02424;
+    --ws-green:    #31C48D;
+    --ws-yellow:   #FACA15;
+    --ws-cyan:     #3F83F8;
+}
+
+/* -- Superficie -- */
+
+.ws-app       { background: var(--ws-paper); color: var(--ws-ink); }
+.ws-band      { background: var(--ws-blue); color: #FFFFFF; }
+.ws-band-line { border-bottom: 1px solid var(--ws-blue-lt); }
+.ws-canvas    { background: var(--ws-paper); }
+
+/* Estetica plana de terminal tactil: sin seleccion de texto ni destello al tocar. */
+#root, #root button { -webkit-tap-highlight-color: transparent; user-select: none; }
+
+/* -- Tipografia de banda -- */
+
+.ws-meta       { font-size: 11px; line-height: 1; color: #FFFFFF; }
+.ws-meta-muted { font-size: 11px; line-height: 1; color: rgba(255, 255, 255, .78); }
+.ws-brand      { font-size: 15px; font-weight: 700; letter-spacing: .01em; color: #FFFFFF; }
+
+/* -- Teclado numerico -- */
+
+.ws-keypad { grid-auto-rows: 38px; }
+
+.ws-key {
+    background: var(--ws-key);
+    color: var(--ws-ink);
+    border-radius: 6px;
+    font-size: 19px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ws-key:active   { background: var(--ws-key-on); }
+.ws-key-act      { font-size: 14px; font-weight: 700; }
+.ws-key-wide     { grid-row: span 2 / span 2; }
+
+.ws-field-lbl {
+    color: var(--ws-red);
+    font-size: 11px;
+    text-align: center;
+}
+
+.ws-field {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--ws-blue);
+    text-align: center;
+    font-size: 18px;
+    letter-spacing: .35em;
+    color: var(--ws-ink);
+    padding: 4px 0;
+}
+
+.ws-field:focus { outline: none; }
+
+/* -- Botones -- */
+
+.ws-btn {
+    background: var(--ws-blue);
+    color: #FFFFFF;
+    font-size: 12px;
+    line-height: 1.15;
+    text-align: center;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ws-btn:active   { background: var(--ws-blue-dk); }
+.ws-btn-tile     { height: 58px; }
+.ws-btn-ghost    { background: transparent; border: 1px solid var(--ws-line); color: var(--ws-muted); }
+
+/* -- Toolbar de la pantalla de cuentas -- */
+
+.ws-tool          { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #FFFFFF; padding: 0 6px; }
+.ws-tool:active   { opacity: .7; }
+.ws-tool-lbl      { font-size: 9px; line-height: 1; color: rgba(255, 255, 255, .8); }
+.ws-tool-ico      { width: 34px; height: 34px; border-radius: 9999px; background: rgba(255, 255, 255, .18);
+                    display: flex; align-items: center; justify-content: center; }
+.ws-tool-flat     { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+
+/* Los cuatro puntos de estado. El activo se marca con aro, no con otro color:
+   el color ya significa el estado de la cuenta. */
+.ws-dot           { width: 15px; height: 15px; border-radius: 9999px; border: 2px solid transparent; }
+.ws-dot.is-on     { border-color: #FFFFFF; }
+.ws-dot-red       { background: var(--ws-red); }
+.ws-dot-green     { background: var(--ws-green); }
+.ws-dot-yellow    { background: var(--ws-yellow); }
+.ws-dot-cyan      { background: var(--ws-cyan); }
+
+/* -- Pie de paginacion -- */
+
+.ws-pager      { font-size: 12px; color: var(--ws-ink); }
+.ws-pager-btn  { width: 26px; height: 26px; border-radius: 9999px; background: var(--ws-blue); color: #FFFFFF;
+                 display: flex; align-items: center; justify-content: center; }
+.ws-pager-btn:disabled { opacity: .35; }
+
+/* -- Marca del pie de la pantalla de acceso -- */
+
+.ws-logo-arc   { color: var(--ws-arc); }
+.ws-logo-ring  { color: var(--ws-orange); }
+.ws-logo-clip  { color: var(--ws-orange); font-weight: 700; }
+.ws-foot       { font-size: 10px; letter-spacing: .04em; color: rgba(255, 255, 255, .85); }
+
+/* -- SweetAlert --
+   head.php sirve un swal oscuro para todo Huubie. La terminal es blanca, asi que
+   sobre ella ese popup se leeria como el de otro sistema. Se devuelve a claro solo
+   bajo este tema, sin tocar el head compartido. */
+
+html[data-wansoft-theme] .swal2-popup         { background-color: var(--ws-paper) !important; color: var(--ws-ink) !important; }
+html[data-wansoft-theme] .swal2-title         { color: var(--ws-ink) !important; }
+html[data-wansoft-theme] .swal2-html-container { color: var(--ws-muted) !important; }
+html[data-wansoft-theme] .swal2-close         { color: var(--ws-muted) !important; }
+
+html[data-wansoft-theme] .swal2-popup .swal2-input,
+html[data-wansoft-theme] .swal2-popup .swal2-textarea,
+html[data-wansoft-theme] .swal2-popup .swal2-select {
+    background-color: var(--ws-paper) !important;
+    color: var(--ws-ink) !important;
+    border: 1px solid var(--ws-line) !important;
+}
+
+/* -- Modulos compartidos del Facturador --
+
+   Importacion, Ventas, Tickets y Catalogos corren en la terminal con su mismo JS
+   y su mismo facture.css. facture-theme.css ya los pasa de oscuro a claro (lo
+   activa el data-facture-theme que pone wansoft-theme.js); lo que falta es el
+   color de marca: el Facturador es azul Flowbite #1C64F2 y la terminal es azul
+   Wansoft. Aqui se repinta solo eso, sin tocar un archivo del otro modulo.
+
+   Nota: #1C64F2 no pertenece a ninguna paleta del ecosistema (TRM-007), es el
+   azul por defecto de Tailwind/Flowbite. Que quede fuera es correcto. */
+
+/* Los botones primary del core salen de --primary: redefinirla los repinta todos
+   de una vez, en vez de perseguir cada .btn-primary del modulo. */
+html[data-wansoft-theme] {
+    --primary: #2B4FD8;
+    --primarydark: #2340BC;
+}
+
+html[data-wansoft-theme] #root .btn-ticket-dia:hover {
+    background: #EEF2FD;
+    border-color: var(--ws-blue);
+    color: var(--ws-blue);
+}
+
+html[data-wansoft-theme] #root .btn-icon-view    { color: var(--ws-blue); }
+html[data-wansoft-theme] #root #btnGuardarEmisor { background: var(--ws-blue); }
+html[data-wansoft-theme] #root #btnGuardarEmisor:hover { background: var(--ws-blue-dk); }
+
+html[data-wansoft-theme] #root .prog-fill {
+    background: linear-gradient(90deg, var(--ws-blue), var(--ws-blue-lt));
+}
+
+html[data-wansoft-theme] #root .prog-fill.indeterminate {
+    background: linear-gradient(90deg, transparent, var(--ws-blue), transparent);
+}
+
+html[data-wansoft-theme] #mainContainer .spinner-ring { border-top-color: var(--ws-blue); }
+
+html[data-wansoft-theme] #root .xls-cel-want { background: #EEF2FD; color: var(--ws-blue-dk); }
+
+/* La pildora azul del modulo (b-terra / b-blue) tenia el tono Flowbite. */
+html[data-wansoft-theme] #mainContainer .b-terra,
+html[data-wansoft-theme] #mainContainer .b-blue {
+    background: rgba(43, 79, 216, .10);
+    color: var(--ws-blue-dk);
+    border-color: rgba(43, 79, 216, .30);
+}
+
+/* El rango activo del calendario. */
+html[data-wansoft-theme] .daterangepicker td.active,
+html[data-wansoft-theme] .daterangepicker td.active:hover,
+html[data-wansoft-theme] .daterangepicker .ranges li.active {
+    background: var(--ws-blue);
+    color: #FFFFFF;
+}
+
+/* -- Regreso de la banda --
+   Solo aparece en las paginas de modulo: la terminal no tiene a donde volver. */
+
+.ws-back {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, .18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ws-back:active { background: rgba(255, 255, 255, .32); }
+
+/* -- Tarjetas KPI de los modulos compartidos --
+
+   El kpisRow de facture pinta sus tarjetas con bg-[var(--cs-bg-input,#1F2937)].
+   Esas variables --cs-* no las define ningun CSS que cargue el Facturador, asi
+   que siempre cae al fallback oscuro: en el tema claro las tarjetas quedaban
+   negras sobre fondo blanco. Definirlas aqui las aclara sin tocar el modulo.
+
+   Con el fondo ya claro, el valor en .text-white lo pasa a oscuro la regla que
+   facture-theme.css trae para eso, y los tonos de color se bajan un paso para
+   que tengan contraste sobre blanco. */
+
+html[data-wansoft-theme] {
+    --cs-bg-input:     #F3F4F6;
+    --cs-bg-header:    #E5E7EB;
+    --cs-bg-card:      #FFFFFF;
+    --cs-text-muted:   #6B7280;
+    --cs-success:      #047857;
+    --cs-warning:      #B45309;
+    --cs-danger:       #B91C1C;
+    --cs-info:         #2B4FD8;
+    --cs-accent-purple: #6D28D9;
+}
+
+/* La tarjeta se separa de su banda con una sombra de un pixel, no con un borde:
+   es la misma regla que el modulo aplica a sus KPI en claro. */
+html[data-wansoft-theme] #mainContainer .cs-kpi-card {
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+}
+
+/* -- Azul corporativo del core --
+
+   Los botones que arma coffeeSoft.js (tw-btn) traen el azul institucional
+   #003360 escrito como clase arbitraria de Tailwind. Ese color es del core y no
+   se toca; aqui se repinta solo mientras el documento este bajo el tema wansoft,
+   que es donde desentona. */
+
+html[data-wansoft-theme] #root .bg-\[\#003360\]\/90,
+html[data-wansoft-theme] #root .bg-\[\#003360\],
+html[data-wansoft-theme] #root .hover\:bg-\[\#003360\]:hover,
+html[data-wansoft-theme] #root .active\:bg-\[\#003360\]:active {
+    background-color: var(--ws-blue) !important;
+}
+
+html[data-wansoft-theme] #root .hover\:bg-\[\#003360\]:hover,
+html[data-wansoft-theme] #root .active\:bg-\[\#003360\]:active {
+    background-color: var(--ws-blue-dk) !important;
+}
+
+html[data-wansoft-theme] #root .focus\:ring-\[\#003360\]:focus {
+    --tw-ring-color: var(--ws-blue) !important;
+}
+
+html[data-wansoft-theme] #root .text-\[\#003360\] { color: var(--ws-blue) !important; }
+html[data-wansoft-theme] #root .border-\[\#003360\] { border-color: var(--ws-blue) !important; }
+
+/* -- Cuadros de la pantalla principal --
+   Mas altos que los del menu de administracion porque llevan icono arriba y
+   nombre abajo. El menu admin sigue con .ws-btn-tile, de una sola linea. */
+
+.ws-btn-card {
+    height: 112px;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+/* -- Regreso propio de los modulos compartidos --
+
+   El panelHead de cargas/ventas/tickets/catalogos pinta un boton circular de
+   regreso que apunta a /app/facture/index.php: dentro de la terminal eso saca al
+   usuario al hub del Facturador, que es otro sistema y otro tema. La salida de
+   estas paginas es la flecha de la banda, que vuelve al menu de la terminal.
+
+   Se oculta por CSS y no quitando el back del json porque esos archivos son los
+   del Facturador: alli el boton es correcto y debe seguir. */
+
+html[data-wansoft-theme] #root button[id$="_back"] { display: none; }
+
+/* -- Encabezado de tabla --
+
+   El tema light del framework pinta el thead en bg-gray-200 con texto gris: es
+   correcto en el Facturador, pero en la terminal deja la tabla sin identidad y
+   sin separacion clara entre encabezado y filas. Aqui se lleva al azul de la
+   banda, que es el mismo remate que tiene la pantalla arriba.
+
+   Va por CSS y no por color_th en el JS por dos razones: cubre de una vez las
+   tablas del POS y las de los modulos compartidos —cuyo js no se toca— y deja el
+   color en el CSS, que es donde debe vivir (TRM-007). */
+
+html[data-wansoft-theme] #root table thead th {
+    background-color: var(--ws-blue) !important;
+    color: #FFFFFF !important;
+    border-color: var(--ws-blue-lt) !important;
+}
+
+/* Los iconos de orden y cualquier glifo del encabezado heredan el blanco: en gris
+   oscuro desaparecerian sobre el azul. */
+html[data-wansoft-theme] #root table thead th i,
+html[data-wansoft-theme] #root table thead th svg,
+html[data-wansoft-theme] #root table thead th span { color: #FFFFFF !important; }
+
+html[data-wansoft-theme] #root table thead th svg { fill: currentColor; }
+
+/* La franja azul llega hasta el borde de la tarjeta: sin esto las esquinas del
+   contenedor redondeado se ven cortadas por el color. */
+html[data-wansoft-theme] #root table thead tr th:first-child { border-top-left-radius: .5rem; }
+html[data-wansoft-theme] #root table thead tr th:last-child  { border-top-right-radius: .5rem; }
+
+/* El cuerpo va en blanco. El framework deja las filas sin fondo propio, asi que
+   se transparentaban sobre el panel gris del modulo y la tabla se leia gris.
+   Tambien se neutraliza el gris de la fila alterna: bajo el encabezado azul el
+   zebra ensuciaba mas de lo que ayudaba a seguir el renglon. */
+html[data-wansoft-theme] #root table tbody tr,
+html[data-wansoft-theme] #root table tbody tr td,
+html[data-wansoft-theme] #root table tbody tr.bg-gray-50,
+html[data-wansoft-theme] #root table tbody tr .bg-gray-50 {
+    background-color: var(--ws-paper) !important;
+}
+
+/* El renglon se sigue con el subrayado y con el resalte al pasar el cursor, que
+   ahora es el unico gris que aparece en el cuerpo. */
+html[data-wansoft-theme] #root table tbody tr:hover td { background-color: #F3F5FB !important; }
+
+/* -- Lineas dentro de las tarjetas KPI --
+
+   facture-theme.css da sombra a las tarjetas con [id^="kpis"] > div. El selector
+   alcanza mas de lo que pretende: la tarjeta tambien tiene un id que empieza por
+   "kpis" (kpisTickets_0), asi que sus propias filas internas reciben la sombra y
+   se dibujan como rayas horizontales cruzando la tarjeta.
+
+   No se corrige el selector en facture porque ese archivo es del Facturador; alli
+   el fallo solo asoma en su tema claro.
+
+   Los ids lo resuelven sin ambiguedad: infoCard nombra cada tarjeta <id>_<n>, y
+   ningun contenedor de la fila (#kpisRow, #kpisTickets) lleva guion bajo. Asi que
+   la sombra se apaga en todo lo que no sea tarjeta —contenedores y filas internas—
+   y se enciende solo en la tarjeta, que es donde el relieve significa algo. */
+
+html[data-wansoft-theme] #mainContainer [id^="kpis"]:not([id*="_"]),
+html[data-wansoft-theme] #mainContainer [id^="kpis"] > div > div {
+    box-shadow: none !important;
+}
+
+html[data-wansoft-theme] #mainContainer div[id^="kpis"][id*="_"] {
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .08) !important;
+}
+
+/* -- El ticket queda fuera del tema --
+
+   El ticket virtual es papel de impresora termica: monocromo por definicion, y
+   debe verse identico al del Facturador porque representa lo que sale fisicamente
+   de la caja. Las reglas de tabla de arriba lo alcanzaban —encabezado azul, fondo
+   forzado, resalte al pasar el cursor— y lo convertian en otra cosa.
+
+   Aqui se le devuelve su aspecto: sin color de marca y sin interaccion. Va al
+   final del archivo para ganar por orden a las reglas de tabla. */
+
+html[data-wansoft-theme] #root .ticket-paper table thead th,
+html[data-wansoft-theme] #root .ticket-paper table tbody tr,
+html[data-wansoft-theme] #root .ticket-paper table tbody tr td,
+html[data-wansoft-theme] #root .ticket-paper table tbody tr:hover td {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-color: inherit !important;
+    border-radius: 0 !important;
+}

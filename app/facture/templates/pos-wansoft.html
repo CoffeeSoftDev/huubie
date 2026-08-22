@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS Wansoft · Boceto</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+    colors: {
+      pos: {
+        blue:   '#2B4FD8',
+        blueDk: '#2340BC',
+        blueLt: '#4667E0',
+        key:    '#DCE3F3',
+        keyOn:  '#C7D3EC',
+        ink:    '#1F2937',
+        orange: '#F4511E',
+        arc:    '#93A4C6'
+      }
+    }
+  }}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { height: 100%; }
+  body { font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+  /* Estetica plana tipo POS: sin seleccion de texto ni highlight tactil */
+  body, button { -webkit-tap-highlight-color: transparent; user-select: none; }
+  button { outline: none; }
+
+  /* Vistas */
+  .view { display: none; height: 100%; }
+  .view.is-active { display: flex; }
+
+  /* Teclado numerico */
+  .key { background: #DCE3F3; color: #1F2937; border-radius: 6px; font-size: 19px; font-weight: 600; }
+  .key:active { background: #C7D3EC; }
+  .key-act { font-size: 14px; font-weight: 700; }
+
+  /* Toolbar de la vista de mesas */
+  .tb { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #fff; padding: 0 6px; }
+  .tb:active { opacity: .7; }
+  .tb-lb { font-size: 9px; line-height: 1; color: rgba(255,255,255,.8); }
+  .tb-ci { width: 34px; height: 34px; border-radius: 9999px; background: rgba(255,255,255,.18);
+           display: flex; align-items: center; justify-content: center; }
+
+  /* Botones del menu de administracion */
+  .adm { background: #2B4FD8; color: #fff; font-size: 12px; line-height: 1.15; text-align: center;
+         padding: 6px 8px; height: 58px; display: flex; align-items: center; justify-content: center; }
+  .adm:active { background: #2340BC; }
+</style>
+</head>
+<body class="bg-white text-pos-ink">
+
+<!-- ==================== VISTA: LOGIN ==================== -->
+<section id="view-login" class="view is-active flex-col">
+
+  <!-- Area blanca: contrasena + teclado + reloj checador + huella -->
+  <div class="flex-1 relative bg-white flex flex-col items-center">
+
+    <div class="w-[380px] mt-[13vh]">
+
+      <!-- Campo de contrasena -->
+      <p class="text-center text-[12px] text-red-600 mb-1">Contraseña</p>
+      <input id="pwd" type="password" inputmode="none" autocomplete="off"
+             class="w-full h-9 bg-transparent border-0 border-b-2 border-pos-blue text-center
+                    text-[20px] tracking-[8px] text-pos-ink focus:outline-none focus:ring-0">
+
+      <!-- Teclado numerico 3x3 + 0, con Enter (dos filas) y CLR -->
+      <div id="keypad" class="mt-5 grid grid-cols-4 auto-rows-[58px] gap-1.5">
+        <button class="key" data-num="7">7</button>
+        <button class="key" data-num="8">8</button>
+        <button class="key" data-num="9">9</button>
+        <button class="key key-act row-span-2 h-full" data-act="enter">Enter</button>
+
+        <button class="key" data-num="4">4</button>
+        <button class="key" data-num="5">5</button>
+        <button class="key" data-num="6">6</button>
+
+        <button class="key" data-num="1">1</button>
+        <button class="key" data-num="2">2</button>
+        <button class="key" data-num="3">3</button>
+        <button class="key key-act" data-act="clr">CLR</button>
+
+        <button class="key col-start-2" data-num="0">0</button>
+      </div>
+
+      <!-- Reloj checador -->
+      <button class="mt-8 w-full h-[52px] bg-pos-blue active:bg-pos-blueDk text-white text-[13px] font-medium">
+        Reloj checador
+      </button>
+
+    </div>
+
+    <!-- Huella digital -->
+    <button class="absolute right-8 bottom-8 w-[72px] h-[72px] border border-gray-400 bg-white
+                   flex items-center justify-center active:bg-gray-100">
+      <i data-lucide="fingerprint" class="w-11 h-11 text-pos-blue"></i>
+    </button>
+
+  </div>
+
+  <!-- Franja azul inferior: logo clip + wansoft y pie -->
+  <div class="h-[30%] bg-pos-blue relative flex items-center justify-center">
+
+    <svg viewBox="0 0 280 120" class="w-[250px] h-auto" aria-label="clip + wansoft">
+      <!-- Trazo naranja -->
+      <path d="M62 16 L246 6 q16 -1 14 15 l-10 62 q-2 16 -18 17 L52 112 q-16 1 -18 -15 L26 36 q-2 -16 14 -17 Z"
+            fill="none" stroke="#F4511E" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Arco gris-azulado inferior izquierdo -->
+      <path d="M27 58 l5 42 q2 14 20 12 l26 -2"
+            fill="none" stroke="#93A4C6" stroke-width="9" stroke-linecap="round"/>
+      <!-- Lockup: clip + wansoft -->
+      <text x="72"  y="72" font-family="Inter, sans-serif" font-size="30" font-weight="700" fill="#F4511E">clip</text>
+      <text x="129" y="70" font-family="Inter, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF">+</text>
+      <text x="148" y="72" font-family="Inter, sans-serif" font-size="30" font-weight="700" fill="#FFFFFF">wansoft</text>
+    </svg>
+
+    <!-- Pie de la franja azul -->
+    <div class="absolute inset-x-0 bottom-0 px-4 pb-2 flex items-center justify-between
+                text-[10px] tracking-wide text-white/90 uppercase">
+      <span>Versión: 25.0.6.4 &nbsp;&nbsp;&nbsp; Soporte: (81) 4445 3800</span>
+      <span>Viernes, 21 Agosto 2026 10:49</span>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ==================== VISTA: MESAS / CUENTAS ==================== -->
+<section id="view-mesas" class="view flex-col">
+
+  <!-- Header fila 1: datos de operacion -->
+  <div class="bg-pos-blue h-[34px] px-3 flex items-center text-white text-[11px]">
+    <div class="flex flex-col leading-none mr-8">
+      <span class="text-[15px] font-bold tracking-tight">wansoft</span>
+      <span class="h-[2px] w-full bg-white/70 mt-[2px]"></span>
+    </div>
+    <span class="mr-10">Usuario:Pruebas</span>
+    <span class="mr-10">Turno: 1</span>
+    <span class="mr-16">Fecha Op:21-08-2026</span>
+    <span>MESA(S):</span>
+    <div class="flex-1"></div>
+    <span class="mr-3">viernes, 21 agosto 2026 10:49</span>
+    <i data-lucide="chevrons-left-right" class="w-4 h-4"></i>
+  </div>
+
+  <!-- Header fila 2: toolbar de acciones -->
+  <div class="bg-pos-blue h-[62px] px-3 flex items-center relative border-t border-white/15">
+
+    <!-- Acciones de cuenta -->
+    <div class="flex items-end">
+      <button class="tb">
+        <i data-lucide="menu" class="w-7 h-7"></i>
+        <span class="tb-lb">Opciones</span>
+      </button>
+      <button class="tb">
+        <span class="tb-ci"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+        <span class="tb-lb">Editar</span>
+      </button>
+      <button class="tb">
+        <span class="tb-ci"><i data-lucide="printer" class="w-4 h-4"></i></span>
+        <span class="tb-lb">Imprimir</span>
+      </button>
+      <button class="tb">
+        <span class="tb-ci"><i data-lucide="dollar-sign" class="w-4 h-4"></i></span>
+        <span class="tb-lb">Cobrar</span>
+      </button>
+    </div>
+
+    <!-- Embudo, separado y sin etiqueta -->
+    <button class="tb ml-10">
+      <i data-lucide="filter" class="w-7 h-7"></i>
+    </button>
+
+    <!-- Filtros de color, centrados en la pantalla -->
+    <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
+      <div class="flex items-center gap-3">
+        <span class="w-[18px] h-[18px] rounded-full bg-[#E74C3C]"></span>
+        <span class="w-[18px] h-[18px] rounded-full bg-[#27AE60]"></span>
+        <span class="w-[18px] h-[18px] rounded-full bg-[#F1C40F]"></span>
+        <span class="w-[18px] h-[18px] rounded-full bg-[#3B9BE8]"></span>
+      </div>
+      <span class="tb-lb">Filtros</span>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- Acciones de sistema -->
+    <div class="flex items-end">
+      <button class="tb">
+        <i data-lucide="log-in" class="w-6 h-6"></i>
+        <span class="tb-lb">Nueva</span>
+      </button>
+      <button class="tb">
+        <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+        <span class="tb-lb">Actualizar</span>
+      </button>
+      <button class="tb" data-go="menu">
+        <i data-lucide="settings" class="w-6 h-6"></i>
+        <span class="tb-lb">Admón</span>
+      </button>
+      <button class="tb" data-go="login">
+        <i data-lucide="lock" class="w-6 h-6"></i>
+        <span class="tb-lb">Bloquear</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Cuerpo: listado de cuentas, sin registros -->
+  <div class="flex-1 bg-white"></div>
+
+  <!-- Pie: paginacion -->
+  <div class="h-[46px] bg-white flex items-center justify-center gap-3 text-[12px] text-pos-ink">
+    <span>Sin registros que mostrar</span>
+    <button class="w-[26px] h-[26px] rounded-full bg-pos-blue text-white flex items-center justify-center">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    <span>Pág. 0 de 0</span>
+    <button class="w-[26px] h-[26px] rounded-full bg-pos-blue text-white flex items-center justify-center">
+      <i data-lucide="arrow-right" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+</section>
+
+
+<!-- ==================== VISTA: MENU DE ADMINISTRACION ==================== -->
+<section id="view-menu" class="view flex-col">
+
+  <!-- Header -->
+  <div class="bg-pos-blue h-[34px] px-3 flex items-center text-white text-[11px]">
+    <div class="flex flex-col leading-none mr-8">
+      <span class="text-[15px] font-bold tracking-tight">wansoft</span>
+      <span class="h-[2px] w-full bg-white/70 mt-[2px]"></span>
+    </div>
+    <span class="mr-16">Administración</span>
+    <span class="mr-24">Turno: 1</span>
+    <span>MESA(S):</span>
+    <div class="flex-1"></div>
+    <span class="mr-3">viernes, 21 agosto 2026 10:50</span>
+    <i data-lucide="chevrons-left-right" class="w-4 h-4"></i>
+  </div>
+
+  <!-- Cuerpo: rejilla de opciones -->
+  <div class="flex-1 bg-white flex flex-col items-center pt-[17vh]">
+
+    <div class="w-[64%] max-w-[900px] grid grid-cols-4 gap-x-[10px] gap-y-[16px]">
+      <button class="adm">Configurar netsilver</button>
+      <button class="adm">Realizar corte</button>
+      <button class="adm">Emitir factura</button>
+      <button class="adm">Huella digital</button>
+
+      <button class="adm">Reimprimir ticket</button>
+      <button class="adm">Cambiar forma de pago</button>
+      <button class="adm">Registrar vale</button>
+      <button class="adm">Cambiar No. Personas</button>
+
+      <button class="adm">Cancelaciones</button>
+      <button class="adm">Reimprimir factura</button>
+      <button class="adm">Propinas</button>
+      <div></div>
+
+      <button class="adm">Reportes locales</button>
+      <button class="adm">Depurar BD</button>
+      <button class="adm">Abrir Cajón</button>
+      <button class="adm">Depósitos</button>
+
+      <button class="adm">Retiros</button>
+      <button class="adm">Reimpresión de voucher</button>
+      <button class="adm">Pagos anticipados</button>
+      <div></div>
+    </div>
+
+    <!-- Salidas, alineadas a los extremos de la rejilla -->
+    <div class="w-[64%] max-w-[900px] mt-[16vh] flex justify-between">
+      <button class="adm w-[calc((100%-30px)/4)]" data-go="login">Salir del sistema</button>
+      <button class="adm w-[calc((100%-30px)/4)]" data-go="mesas">Regresar</button>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ==================== SCRIPT: NAVEGACION Y TECLADO ==================== -->
+<script>
+(function () {
+
+  var pwd = document.getElementById('pwd');
+
+  // -- Navegacion entre vistas --
+  function show(name) {
+    document.querySelectorAll('.view').forEach(function (v) {
+      v.classList.toggle('is-active', v.id === 'view-' + name);
+    });
+    if (name === 'login') { clearPwd(); }
+  }
+
+  document.querySelectorAll('[data-go]').forEach(function (btn) {
+    btn.addEventListener('click', function () { show(btn.dataset.go); });
+  });
+
+  // -- Teclado numerico del login --
+  function pushDigit(d) { if (pwd.value.length < 12) { pwd.value += d; } }
+  function clearPwd()   { pwd.value = ''; }
+  function enter()      { show('mesas'); }
+
+  document.getElementById('keypad').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) { return; }
+    if (btn.dataset.num) { pushDigit(btn.dataset.num); return; }
+    if (btn.dataset.act === 'clr')   { clearPwd(); return; }
+    if (btn.dataset.act === 'enter') { enter(); }
+  });
+
+  // -- Teclado fisico, solo mientras el login esta visible --
+  document.addEventListener('keydown', function (e) {
+    if (!document.getElementById('view-login').classList.contains('is-active')) { return; }
+    if (e.key >= '0' && e.key <= '9') { pushDigit(e.key); e.preventDefault(); return; }
+    if (e.key === 'Backspace') { pwd.value = pwd.value.slice(0, -1); e.preventDefault(); return; }
+    if (e.key === 'Escape')    { clearPwd(); e.preventDefault(); return; }
+    if (e.key === 'Enter')     { enter(); e.preventDefault(); }
+  });
+
+  // -- Iconos --
+  lucide.createIcons();
+
+})();
+</script>
+
+</body>
+</html>
