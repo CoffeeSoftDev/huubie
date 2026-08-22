@@ -81,9 +81,25 @@ class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'pos';
-        this.view         = 'acceso';
+        this.view         = this.initialView();
         this.previous     = 'inicio';
         this.estado       = '';
+    }
+
+    // La terminal arranca bloqueada, pero al volver de una pagina de modulo ya se
+    // habia entrado: la flecha de la banda trae en la url la vista de destino
+    // (?view=inicio) para no pedir la contraseña otra vez. La pista se consume al
+    // leerla —se borra de la barra de direcciones— para que recargar vuelva a
+    // dejar la terminal en acceso, que es como debe quedar si nadie la usa.
+    initialView() {
+        const hint  = new URLSearchParams(window.location.search).get('view');
+        const views = ['inicio', 'cuentas', 'admin'];
+
+        if (!views.includes(hint)) return 'acceso';
+
+        window.history.replaceState({}, '', window.location.pathname);
+
+        return hint;
     }
 
     get filters() {
@@ -664,10 +680,10 @@ class Inicio extends Templates {
                 fn:   () => app.go('cuentas')
             },
             {
-                id:   'tcCargas',
-                icon: 'upload',
-                text: 'Importación',
-                fn:   () => this.open('/app/facture2/cargas.php')
+                id:   'tcCatalogos',
+                icon: 'book-open',
+                text: 'Catálogos',
+                fn:   () => this.open('/app/facture2/catalogos.php')
             },
             {
                 id:   'tcVentas',
@@ -682,10 +698,10 @@ class Inicio extends Templates {
                 fn:   () => this.open('/app/facture2/tickets.php')
             },
             {
-                id:   'tcCatalogos',
-                icon: 'book-open',
-                text: 'Catálogos',
-                fn:   () => this.open('/app/facture2/catalogos.php')
+                id:   'tcCargas',
+                icon: 'upload',
+                text: 'Importación',
+                fn:   () => this.open('/app/facture2/cargas.php')
             },
             {
                 id:   'tcAdmin',
@@ -928,33 +944,14 @@ class Admin extends Templates {
         });
     }
 
-    // Los nulos son los huecos de la rejilla del boceto: sin ellos, "Reportes
-    // locales" subiria de fila y el menu dejaria de leerse por bloques. El primero
-    // se ocupo con Catalogos, que no tiene rotulo equivalente en el boceto.
-    //
     // Los tiles con url abren el modulo real del Facturador —el mismo js, servido
     // con el tema de la terminal—; el resto sigue sin backend.
     tilesJson() {
         return [
             {
-                id:   'tlNetsilver',
-                text: 'Configurar netsilver',
-                fn:   () => this.pending('Configurar netsilver')
-            },
-            {
-                id:   'tlCorte',
-                text: 'Realizar corte',
-                fn:   () => this.pending('Realizar corte')
-            },
-            {
-                id:   'tlFactura',
-                text: 'Emitir factura',
-                fn:   () => this.open('/app/facture2/ventas.php')
-            },
-            {
-                id:   'tlHuella',
-                text: 'Huella digital',
-                fn:   () => this.pending('Huella digital')
+                id:   'tlUsuario',
+                text: 'Crear usuario',
+                fn:   () => this.pending('Crear usuario')
             },
             {
                 id:   'tlTicket',
@@ -962,34 +959,9 @@ class Admin extends Templates {
                 fn:   () => this.open('/app/facture2/tickets.php')
             },
             {
-                id:   'tlFormaPago',
-                text: 'Cambiar forma de pago',
-                fn:   () => this.pending('Cambiar forma de pago')
-            },
-            {
-                id:   'tlVale',
-                text: 'Registrar vale',
-                fn:   () => this.pending('Registrar vale')
-            },
-            {
-                id:   'tlPersonas',
-                text: 'Cambiar No. Personas',
-                fn:   () => this.pending('Cambiar No. Personas')
-            },
-            {
-                id:   'tlCancelaciones',
-                text: 'Cancelaciones',
-                fn:   () => this.pending('Cancelaciones')
-            },
-            {
-                id:   'tlReimpFactura',
-                text: 'Reimprimir factura',
-                fn:   () => this.open('/app/facture2/tickets.php')
-            },
-            {
-                id:   'tlPropinas',
-                text: 'Propinas',
-                fn:   () => this.pending('Propinas')
+                id:   'tlHuella',
+                text: 'Huella digital',
+                fn:   () => this.pending('Huella digital')
             },
             {
                 id:   'tlCatalogos',
@@ -997,41 +969,10 @@ class Admin extends Templates {
                 fn:   () => this.open('/app/facture2/catalogos.php')
             },
             {
-                id:   'tlReportes',
-                text: 'Reportes locales',
-                fn:   () => this.open('/app/facture2/cargas.php')
-            },
-            {
-                id:   'tlDepurar',
-                text: 'Depurar BD',
-                fn:   () => this.pending('Depurar BD')
-            },
-            {
                 id:   'tlCajon',
                 text: 'Abrir Cajón',
                 fn:   () => this.pending('Abrir Cajón')
-            },
-            {
-                id:   'tlDepositos',
-                text: 'Depósitos',
-                fn:   () => this.pending('Depósitos')
-            },
-            {
-                id:   'tlRetiros',
-                text: 'Retiros',
-                fn:   () => this.pending('Retiros')
-            },
-            {
-                id:   'tlVoucher',
-                text: 'Reimpresión de voucher',
-                fn:   () => this.pending('Reimpresión de voucher')
-            },
-            {
-                id:   'tlAnticipados',
-                text: 'Pagos anticipados',
-                fn:   () => this.pending('Pagos anticipados')
-            },
-            null
+            }
         ];
     }
 

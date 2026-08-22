@@ -16,13 +16,13 @@ const WANSOFT_THEME = 'light';
 
 document.documentElement.setAttribute('data-wansoft-theme', WANSOFT_THEME);
 
-// -- Puente con los modulos de facture --
+// -- Globales de tema que consumen los modulos --
 
-// Importacion, Ventas, Tickets y Catalogos corren aqui con SU MISMO archivo js:
-// facture2 los sirve desde /app/facture/src/js/ en vez de copiarlos, para que un
-// arreglo en el Facturador llegue tambien a la terminal. Esos modulos leen dos
-// globales del tema de facture, asi que se declaran aqui —no se carga
-// facture-theme.js, que las resolveria por localStorage y podria abrirlos oscuros.
+// Importacion, Ventas, Tickets y Catalogos viven en /app/facture2/src/js/ y son
+// copias propias de la terminal: un cambio aqui no toca el Facturador. Nacieron de
+// facture y siguen leyendo sus dos globales de tema, asi que se declaran aqui —no
+// se carga facture-theme.js, que las resolveria por localStorage y podria abrirlos
+// oscuros.
 const FACTURE_THEME          = WANSOFT_THEME;
 const FACTURE_THEME_IS_LIGHT = true;
 

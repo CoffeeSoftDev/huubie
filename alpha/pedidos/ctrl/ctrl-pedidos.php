@@ -117,10 +117,10 @@ class Pedidos extends MPedidos{
     // Snapshot fresco de sucursales con su shift_opened_at, para resincronizar la
     // tarjeta "Esta sucursal vende como" tras abrir/cerrar un turno sin recargar la
     // pagina (misma fuente que el init: getSubsidiariesByCompany).
+    // Sin filtro de rol: es la misma lista que el init entrega a todos como
+    // 'sucursales_cobro', y con ella el modal de pagos decide el candado de turno.
     function getSubsidiariesShift() {
-        $data = in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])
-            ? $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']])
-            : [];
+        $data = $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]);
 
         return [
             'status' => 200,
@@ -983,6 +983,12 @@ class Pedidos extends MPedidos{
                 $sucursalCobro = $_SESSION['SUB'] ?? null;
             }
 
+            // El dinero entra al corte de la sucursal que cobra: sin turno abierto ahi
+            // el abono quedaria fuera de todo corte. El candado del modal es la primera
+            // linea; esta es la que manda.
+            $guard = $this->cobroShiftGuard($sucursalCobro);
+            if ($guard) return $guard;
+
             $values_pay = [
                 'pay'             => $pay,
                 'date_pay'        => date('Y-m-d H:i:s'),
@@ -1026,6 +1032,39 @@ class Pedidos extends MPedidos{
             'insert'  => ['ok'=>$insert, 'data' => $values]
          
         ];
+    }
+
+    // Candado de turno para cobrar. Devuelve null si la sucursal puede recibir el
+    // pago, o la respuesta de error lista para regresar al cliente. Mismo criterio
+    // que el alta de pedidos: turno abierto y del dia de hoy.
+    private function cobroShiftGuard($subsidiaryId) {
+        if (empty($subsidiaryId)) {
+            return [
+                'status'  => 403,
+                'message' => 'No se pudo determinar la sucursal que cobra el pago.'
+            ];
+        }
+
+        $sucursal = $this->getSucursalByID([$subsidiaryId]);
+        $nombre   = $sucursal['sucursal'] ?? "sucursal {$subsidiaryId}";
+        $shift    = $this->getOpenShiftBySubsidiary([$subsidiaryId]);
+
+        if (empty($shift)) {
+            return [
+                'status'  => 403,
+                'message' => "La sucursal {$nombre} no tiene turno abierto. Debe abrir su turno de caja para registrar este pago."
+            ];
+        }
+
+        if (!empty($shift['opened_at']) && date('Y-m-d', strtotime($shift['opened_at'])) !== date('Y-m-d')) {
+            $fecha = date('d/m/Y', strtotime($shift['opened_at']));
+            return [
+                'status'  => 403,
+                'message' => "La sucursal {$nombre} tiene un turno del {$fecha} sin cerrar. Debe cerrarlo y abrir el turno de hoy para registrar este pago."
+            ];
+        }
+
+        return null;
     }
 
     function initHistoryPay(){
@@ -1216,7 +1255,7 @@ class Pedidos extends MPedidos{
             $__row[] = [
                 'id'            => $key['id'],
                 'Fecha de Pago' => [
-                    'html' => '<i class="icon-calendar-2"></i> ' . formatSpanishDateTime($key['date_pay']),
+                    'html' => formatSpanishDateTime($key['date_pay']),
                 ],
                 'Método' => [
                     'html' => $icono . ' ' . $key['method_pay'],

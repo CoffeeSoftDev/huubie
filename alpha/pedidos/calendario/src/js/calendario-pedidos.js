@@ -1817,6 +1817,9 @@ class App extends Templates {
         const data  = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
 
+        // El candado de turno de la sucursal que cobra se decide con este snapshot.
+        await this.refreshSubsidiariesCobro();
+
         // Escala del modal. El diseño no cambia: se dibuja mas chico, igual que con el
         // zoom del navegador al 75%. Los anchos de abajo van en coordenadas sin escalar,
         // asi que el ancho real en pantalla es el valor por ZOOM.
@@ -1935,6 +1938,9 @@ class App extends Templates {
         const discount = order.discount ?? 0;
         const saldoRestante = order.total_pay - discount - order.total_paid;
         const isPaidInFull = saldoRestante <= 0;
+
+        // El candado de turno no debe reactivar el formulario de un pedido ya pagado.
+        this.payIsPaidInFull = isPaidInFull;
 
         // Sucursal de cobro (cobro cruzado). El calendario no tiene el filtro de sucursal
         // de la navbar, asi que el default es la sucursal activa que entrega su init();
@@ -2079,7 +2085,8 @@ class App extends Templates {
                             ${isPaidInFull ? 'disabled' : ''} onchange="app.onCobroChange(this)">
                             ${cobroOptionsHtml}
                         </select>
-                    </div>`
+                    </div>
+                    <div id="cobroShiftAlert" class="hidden mt-1.5"></div>`
                 },
                 {
                     opc: "input",
@@ -2219,6 +2226,10 @@ class App extends Templates {
                 e.preventDefault();
                 e.stopImmediatePropagation();
 
+                // Sin turno abierto en la sucursal que cobra el dinero no entra a
+                // ningun corte: se bloquea aqui y tambien en el backend.
+                if (!this.requireCobroShift()) return;
+
                 const importe = parseFloat($('#advanced_pay').val()) || 0;
                 if (importe <= 0) {
                     alert({ icon: 'error', text: 'Ingresa un importe válido para registrar el pago.', btn1: true, btn1Text: 'Ok' });
@@ -2272,6 +2283,83 @@ class App extends Templates {
                 $('.cf-confirm').prop('disabled', true).addClass('opacity-50 cursor-not-allowed').text('Pedido Pagado');
             }, 100);
         }
+
+        // Estado inicial del candado de turno. Va despues del bloque de "pagado" para
+        // no pelearse con el, y con retraso porque el boton vive en el footer del modal.
+        setTimeout(() => this.applyCobroShiftLock(), 120);
+    }
+
+    // Snapshot fresco de las sucursales de cobro con su shift_opened_at. Sale por el
+    // ctrl de pedidos porque el init del calendario entrega la lista sin el turno.
+    async refreshSubsidiariesCobro() {
+        const res = await useFetch({ url: this._pedidosLink, data: { opc: 'getSubsidiariesShift' } });
+        if (res && Array.isArray(res.data) && res.data.length) this.subsidiariesCobro = res.data;
+    }
+
+    // Estado de turno de una sucursal a partir del snapshot (sub.shift_opened_at):
+    // sin turno, turno abierto hoy o turno de otro dia sin cerrar.
+    subsidiaryShift(sub) {
+        const opened = sub && sub.shift_opened_at;
+        if (!opened) return { status: 'none', canSell: false };
+        if (moment(opened).isSame(moment(), 'day')) return { status: 'open', canSell: true };
+        return { status: 'old', canSell: false };
+    }
+
+    // Turno de la sucursal que cobra: sin turno abierto de hoy el pago no puede
+    // registrarse (el dinero no caeria en ningun corte). Pinta el aviso bajo el
+    // selector y bloquea importe, observacion y el boton de registrar.
+    applyCobroShiftLock() {
+        const sub = (this.subsidiariesCobro || []).find(s => String(s.id) === String($('#payment_subsidiaries_id').val() || ''));
+        const st  = this.subsidiaryShift(sub);
+
+        const $alert = $('#cobroShiftAlert');
+
+        if (st.canSell) {
+            $alert.addClass('hidden').empty();
+        } else {
+            const nombre  = sub ? sub.valor : 'seleccionada';
+            const titulo  = st.status === 'old' ? 'Turno sin cerrar' : 'Sucursal sin turno abierto';
+            const detalle = st.status === 'old'
+                ? `La sucursal <b class="text-gray-300">${nombre}</b> tiene un turno de otro día sin cerrar; no se puede registrar este pago.`
+                : `La sucursal <b class="text-gray-300">${nombre}</b> debe abrir su turno para poder registrar este pago.`;
+
+            $alert.removeClass('hidden').html(`
+                <div class="flex items-start gap-2 bg-amber-500/10 rounded-lg px-2.5 py-1.5">
+                    <span class="text-amber-400 shrink-0 mt-0.5">${lucideIcon('circle-alert', 'w-4 h-4')}</span>
+                    <div class="flex flex-col leading-tight min-w-0">
+                        <span class="text-[12px] font-semibold text-amber-300">${titulo}</span>
+                        <span class="text-[11px] text-gray-400">${detalle}</span>
+                    </div>
+                </div>`);
+        }
+
+        if (this.payIsPaidInFull) return st;
+
+        const locked = !st.canSell;
+        $('#advanced_pay, #description').prop('disabled', locked).toggleClass('opacity-50 cursor-not-allowed', locked);
+        $('.cf-confirm').prop('disabled', locked).toggleClass('opacity-50 cursor-not-allowed', locked);
+
+        return st;
+    }
+
+    requireCobroShift() {
+        const st = this.applyCobroShiftLock();
+        if (st.canSell) return true;
+
+        const sub    = (this.subsidiariesCobro || []).find(s => String(s.id) === String($('#payment_subsidiaries_id').val() || ''));
+        const nombre = sub ? sub.valor : 'seleccionada';
+
+        alert({
+            icon: 'warning',
+            title: st.status === 'old' ? 'Turno sin cerrar' : 'Sucursal sin turno abierto',
+            text: st.status === 'old'
+                ? `La sucursal ${nombre} tiene un turno de otro día sin cerrar. Debe cerrarlo y abrir el turno de hoy para registrar este pago.`
+                : `La sucursal ${nombre} debe abrir su turno de caja para poder registrar este pago.`,
+            btn1: true,
+            btn1Text: 'Entendido'
+        });
+
+        return false;
     }
 
     onCobroChange(sel) {
@@ -2289,6 +2377,8 @@ class App extends Templates {
         $('#cobroCardIcon')
             .toggleClass('text-blue-400', same)
             .toggleClass('text-amber-400', !same);
+
+        this.applyCobroShiftLock();
     }
 
     deletePay(id, idFolio, requiereClave = 0) {
@@ -2498,7 +2588,11 @@ class App extends Templates {
         if (display && display.length) {
             display.text(formatPrice(restante < 0 ? 0 : restante));
         }
-        if (restante < 0) {
+        // Sin turno en la sucursal que cobra el boton se queda bloqueado: este metodo
+        // corre en cada tecla y despues de cada pago, y sin esto reabriria el candado.
+        const shiftLocked = $('#cobroShiftAlert').length && !$('#cobroShiftAlert').hasClass('hidden');
+
+        if (restante < 0 || shiftLocked) {
             btn.prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
         } else {
             btn.prop("disabled", false).removeClass("opacity-50 cursor-not-allowed");

@@ -426,6 +426,42 @@ class ctrl extends MPedidos{
         return ['row' => $__row];
     }
 
+    // Candado de turno para cobrar. Aqui el pago se inserta sin sucursal propia, asi
+    // que el dinero cae en la sucursal del pedido (COALESCE del cierre): es ahi donde
+    // debe haber turno abierto de hoy. Mismo criterio que ctrl-pedidos.php::addPayment.
+    private function cobroShiftGuard($orderId) {
+        $order = $this->getOrderID([$orderId]);
+        $subId = $order[0]['subsidiaries_id'] ?? null;
+
+        if (empty($subId)) {
+            return [
+                'status'  => 403,
+                'message' => 'No se pudo determinar la sucursal que cobra el pago.'
+            ];
+        }
+
+        $sucursal = $this->getSucursalByID([$subId]);
+        $nombre   = $sucursal['sucursal'] ?? "sucursal {$subId}";
+        $shift    = $this->getOpenShiftBySubsidiary([$subId]);
+
+        if (empty($shift)) {
+            return [
+                'status'  => 403,
+                'message' => "La sucursal {$nombre} no tiene turno abierto. Debe abrir su turno de caja para registrar este pago."
+            ];
+        }
+
+        if (!empty($shift['opened_at']) && date('Y-m-d', strtotime($shift['opened_at'])) !== date('Y-m-d')) {
+            $fecha = date('d/m/Y', strtotime($shift['opened_at']));
+            return [
+                'status'  => 403,
+                'message' => "La sucursal {$nombre} tiene un turno del {$fecha} sin cerrar. Debe cerrarlo y abrir el turno de hoy para registrar este pago."
+            ];
+        }
+
+        return null;
+    }
+
     // payment.
     function addPayment() {
 
@@ -438,6 +474,13 @@ class ctrl extends MPedidos{
         $saldo      = floatval($_POST['saldo'] ?? 0);
         $total_paid = floatval($_POST['total_paid'] ?? 0);
         $discount   = floatval($_POST['discount'] ?? 0);
+
+        // Sin turno abierto en la sucursal donde cae el dinero el abono quedaria
+        // fuera de todo corte. El guardado SIN cobro si pasa (cotizacion/pendiente).
+        if ($pay > 0) {
+            $guard = $this->cobroShiftGuard($id);
+            if ($guard) return $guard;
+        }
 
         if ($total_paid > 0) {
             $type_id = 2;

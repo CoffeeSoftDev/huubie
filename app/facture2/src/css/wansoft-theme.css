@@ -16,6 +16,7 @@
     --ws-muted:    #6B7280;
     --ws-line:     #E5E7EB;
     --ws-paper:    #FFFFFF;
+    --ws-hover:    #F3F4F6;
     --ws-orange:   #F4511E;
     --ws-arc:      #93A4C6;
 
@@ -147,6 +148,58 @@ html[data-wansoft-theme] .swal2-popup .swal2-select {
     background-color: var(--ws-paper) !important;
     color: var(--ws-ink) !important;
     border: 1px solid var(--ws-line) !important;
+}
+
+/* Los botones los viste el core: el de confirmar nace azul Flowbite y vira a
+   verde al pasar el cursor, y el de cancelar es azul marino, que sobre el papel
+   blanco de la terminal se lee negro. No se pueden corregir por llamada porque
+   swalQuestion declara su customClass despues del spread de options, asi que se
+   repintan aqui —y de paso alcanzan a los popups de los modulos compartidos, sin
+   tocar el js de ninguno. */
+
+html[data-wansoft-theme] .swal2-styled.swal2-confirm {
+    background-color: var(--ws-blue) !important;
+    border: 1px solid var(--ws-blue) !important;
+    color: #FFFFFF !important;
+}
+
+html[data-wansoft-theme] .swal2-styled.swal2-confirm:hover {
+    background-color: var(--ws-blue-dk) !important;
+    border-color: var(--ws-blue-dk) !important;
+}
+
+/* Cancelar es la salida discreta: papel con filete, no un bloque de color que
+   compita con el confirmar. */
+html[data-wansoft-theme] .swal2-styled.swal2-cancel {
+    background-color: var(--ws-paper) !important;
+    border: 1px solid var(--ws-line) !important;
+    color: var(--ws-ink) !important;
+}
+
+html[data-wansoft-theme] .swal2-styled.swal2-cancel:hover {
+    background-color: var(--ws-hover) !important;
+}
+
+/* -- alertBox --
+
+   No es SweetAlert: lo dibuja el core con clases de Tailwind y lo cuelga del
+   body, no de #root. En tema claro su boton de aceptar sale terracota —el acento
+   de Arcilla Invernal, que es de otro sistema— igual que el foco de su campo de
+   captura. Se repinta por atributo, lo unico estable que tienen esas piezas.
+
+   El boton de cancelar ya nace claro en ese tema, asi que no se toca. */
+
+html[data-wansoft-theme] [data-ab-ok] {
+    background-color: var(--ws-blue) !important;
+}
+
+html[data-wansoft-theme] [data-ab-ok]:hover {
+    background-color: var(--ws-blue-dk) !important;
+}
+
+html[data-wansoft-theme] [data-ab-input]:focus {
+    border-color: var(--ws-blue) !important;
+    --tw-ring-color: rgba(43, 79, 216, .40) !important;
 }
 
 /* -- Modulos compartidos del Facturador --
@@ -289,15 +342,11 @@ html[data-wansoft-theme] #root .border-\[\#003360\] { border-color: var(--ws-blu
     border-radius: 4px;
 }
 
-/* -- Regreso propio de los modulos compartidos --
+/* -- Regreso propio de los modulos --
 
    El panelHead de cargas/ventas/tickets/catalogos pinta un boton circular de
-   regreso que apunta a /app/facture/index.php: dentro de la terminal eso saca al
-   usuario al hub del Facturador, que es otro sistema y otro tema. La salida de
-   estas paginas es la flecha de la banda, que vuelve al menu de la terminal.
-
-   Se oculta por CSS y no quitando el back del json porque esos archivos son los
-   del Facturador: alli el boton es correcto y debe seguir. */
+   regreso al index de la terminal. Es el mismo destino que la flecha de la banda,
+   asi que en pantalla queda una salida duplicada y se oculta la del panelHead. */
 
 html[data-wansoft-theme] #root button[id$="_back"] { display: none; }
 

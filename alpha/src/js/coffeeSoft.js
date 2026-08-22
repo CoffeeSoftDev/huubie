@@ -2705,10 +2705,17 @@ class Components extends Complements {
         opts.json.forEach(tab => {
             const isActive = tab.active || false;
 
+            // 'large' reparte el ancho entre los tabs (el contenedor ya va w-full);
+            // 'short' y 'button' conservan el ancho del contenido y se desbordan
+            // con scroll horizontal.
+            const widthClass = opts.type === 'large'
+                ? 'flex-1 inline-flex items-center justify-center'
+                : 'flex-shrink-0';
+
             const buttonClass = opts.type === 'button'
-                ? `transition-all duration-200 text-sm md:text-sm font-medium rounded-md px-4 md:px-4 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
+                ? `transition-all duration-200 text-sm md:text-sm font-medium rounded-md px-4 md:px-4 py-2.5 md:py-2 whitespace-nowrap ${widthClass}
                    ${isActive ? themeStyle.active : themeStyle.inactive}`
-                : `transition text-sm md:text-sm font-medium rounded px-3 md:px-3 py-2.5 md:py-2 whitespace-nowrap flex-shrink-0
+                : `transition text-sm md:text-sm font-medium rounded px-3 md:px-3 py-2.5 md:py-2 whitespace-nowrap ${widthClass}
                    ${isActive ? themeStyle.active : themeStyle.inactive}`;
 
             let iconHtml = '';

@@ -1,0 +1,1002 @@
+let apiCatalogos = '/app/facture/ctrl/ctrl-facture-catalogos.php';
+let app, catalogos, catalogosView;
+
+$(async () => {
+    catalogosView = new CatalogosView(apiCatalogos, 'root');
+    catalogos     = new Catalogos(apiCatalogos, 'root');
+    app           = new App(apiCatalogos, 'root');
+    await app.init();
+});
+
+// -- Clase principal --
+
+class App extends Templates {
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'catalogos';
+        this.view         = 'productos';
+        this.clase        = 'puente';
+    }
+
+    async init() {
+        this.dataInit = await useFetch({ url: apiCatalogos, data: { opc: 'init' } });
+
+        this.render();
+    }
+
+    render() {
+        this.layout();
+        catalogosView.renderHeader();
+        this.filterBar();
+
+        if (this.view === 'productos') {
+            catalogos.lsProductos();
+        } else {
+            catalogosView.renderEmisor(this.dataInit.emisor);
+        }
+    }
+
+    // -- Layout --
+
+    layout() {
+        const bands = [
+            {
+                id:    'viewHeader',
+                class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+            }
+        ];
+
+        if (this.view === 'productos') {
+            bands.push(
+                {
+                    id:    'filterBar',
+                    class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
+                },
+                {
+                    id:    'kpisRow',
+                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                }
+            );
+        }
+
+        bands.push({
+            id:    'contentRow',
+            class: 'p-3 flex-1 min-h-0 flex flex-col'
+        });
+
+        const mainPanel = {
+            type:     'div',
+            id:       'mainPanel',
+            class:    'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
+            children: bands
+        };
+
+        this.createLayout({
+            parent: 'root',
+            design: false,
+            data: {
+                id:        this.PROJECT_NAME,
+                class:     'flex-1 min-h-0 w-full flex flex-col overflow-hidden',
+                container: [mainPanel]
+            }
+        });
+
+        this.cardLayout();
+    }
+
+    cardLayout() {
+        this.createLayout({
+            parent: 'contentRow',
+            design: false,
+            data: {
+                id:        'cardCatalogo',
+                class:     'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col overflow-hidden',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'viewBody',
+                        class: 'flex-1 min-h-0 overflow-auto scroll-thin'
+                    }
+                ]
+            }
+        });
+    }
+
+    // -- Filter bar --
+
+    filterBar() {
+        if (this.view === 'emisor') return;
+
+        this.createLayout({
+            parent: 'filterBar',
+            design: false,
+            data: {
+                id:    'filterBarWrap',
+                class: 'flex flex-col lg:flex-row lg:items-center gap-4',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'filterBarRow',
+                        class: 'w-full lg:w-[500px] flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'viewNote',
+                        class: 'flex-1 min-w-0'
+                    }
+                ]
+            }
+        });
+
+        this.createfilterBar({
+            parent:     'filterBarRow',
+            id:         `filterBar${this.PROJECT_NAME}`,
+            coffeesoft: true,
+            theme:      FACTURE_THEME,
+            data: [
+                {
+                    opc:      'select',
+                    id:       'fClase',
+                    lbl:      'Tipo de producto:',
+                    class:    'col-12 col-md-6 col-lg-7',
+                    value:    this.clase,
+                    required: false,
+                    onchange: 'app.onChangeFilters()',
+                    data:     this.dataInit.tipos
+                },
+                {
+                    opc:       'button',
+                    id:        'btnNuevoProducto',
+                    text:      'Nuevo producto',
+                    icon:      'ic-plus',
+                    color_btn: 'primary',
+                    class:     'col-12 col-md-6 col-lg-5',
+                    onClick:   () => catalogosView.openProductoForm()
+                }
+            ]
+        });
+
+        catalogosView.renderNote();
+    }
+
+    getFilters() {
+        return {
+            q:     '',
+            clase: this.clase
+        };
+    }
+
+    onChangeFilters() {
+        this.clase = $('#fClase').val() || '';
+
+        catalogos.lsProductos();
+    }
+
+    emptyMessage() {
+        return this.clase === 'puente'
+            ? 'Aun no hay productos auxiliares dados de alta'
+            : 'No hay productos con el filtro aplicado';
+    }
+
+    // -- Vistas --
+
+    setView(view) {
+        this.view = view;
+        this.render();
+    }
+}
+
+// -- Catalogos --
+
+class Catalogos extends Templates {
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'catalogos';
+    }
+
+    // -- Data --
+
+    lsProductos() {
+        this.createTable({
+            parent:      'viewBody',
+            idFilterBar: `filterBar${this.PROJECT_NAME}`,
+            coffeesoft:  true,
+            data:        Object.assign({ opc: 'lsProductos' }, app.getFilters()),
+            attr: {
+                id:           'tbProductos',
+                theme:        FACTURE_THEME,
+                center:       [1, 4, 5, 6],
+                right:        [3],
+                actionsAlign: 'center',
+                hover:        true,
+                f_size:       11,
+                border_table: 'border-0',
+                emptyMessage: app.emptyMessage(),
+                emptyIcon:    'ic-box'
+            },
+            conf: {
+                pag: 12
+            },
+            methods: {
+                send: (data) => { if (data.kpis) catalogosView.renderInfoCards(data.kpis); }
+            }
+        });
+    }
+
+    // -- Actions --
+
+    async saveProducto(code, data, puente) {
+        const response = await useFetch({
+            url:  apiCatalogos,
+            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data, { puente: puente })
+        });
+
+        this.afterSave(response);
+    }
+
+    async saveEmisor() {
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: Object.assign({ opc: 'saveEmisor' }, catalogosView.getEmisorForm())
+        });
+
+        if (response.status === 200) app.dataInit.emisor = response.emisor;
+
+        this.alertBox({
+            theme: FACTURE_THEME,
+            type:  response.status === 200 ? 'success' : 'error',
+            title: response.message,
+            timer: response.status === 200 ? 1600 : 0
+        });
+    }
+
+    async editProductoFlag(code, campo, valor) {
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: {
+                opc:   'editProductoFlag',
+                code:  code,
+                campo: campo,
+                valor: valor
+            }
+        });
+
+        this.afterSave(response);
+    }
+
+    editProductoStatus(code, valor) {
+        if (valor === 1) return this.saveStatus('editProductoStatus', code, valor);
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             'Dar de baja el producto',
+                text:              `Se retirara la clave ${code} del catalogo activo. Los renglones ya cargados la conservan y podras volver a activarla.`,
+                icon:              'warning',
+                confirmButtonText: 'Si, dar de baja',
+                cancelButtonText:  'No'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) this.saveStatus('editProductoStatus', code, valor);
+        });
+    }
+
+    async saveStatus(opc, code, valor) {
+        const response = await useFetch({
+            url: apiCatalogos,
+            data: {
+                opc:   opc,
+                code:  code,
+                valor: valor
+            }
+        });
+
+        this.afterSave(response);
+    }
+
+    afterSave(response) {
+        if (response.status === 200) this.refresh();
+
+        this.alertBox({
+            theme: FACTURE_THEME,
+            type:  response.status === 200 ? 'success' : 'error',
+            title: response.message,
+            timer: response.status === 200 ? 1600 : 0
+        });
+    }
+
+    refresh() {
+        this.lsProductos();
+    }
+}
+
+// -- Vista --
+
+class CatalogosView extends Templates {
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'catalogos';
+    }
+
+    // -- Render helpers --
+
+    renderHeader() {
+        this.viewHeader({
+            parent: 'viewHeader',
+            id:     'hdrCatalogos',
+            json: {
+                title:    'Catalogos',
+                subtitle: 'Productos auxiliares y datos del ticket virtual',
+                back:     { href: '/app/facture2/index.php', title: 'Regresar a la Terminal' },
+                toggles: [
+                    {
+                        key:   'vista',
+                        label: '',
+                        value: app.view,
+                        options: [
+                            {
+                                value: 'productos',
+                                label: 'Productos'
+                            },
+                            {
+                                value: 'emisor',
+                                label: 'Ticket / Emisor'
+                            }
+                        ]
+                    }
+                ]
+            },
+            onToggle: (key, value) => app.setView(value)
+        });
+    }
+
+    notas() {
+        return {
+            auxiliar: {
+                icon:   'link',
+                accent: '#3FC189',
+                title:  '¿Que es un producto auxiliar?',
+                text:   'La pieza con la que se arma el ticket: el sistema junta sus precios hasta cubrir el total cobrado (para $250, uno de $150 y otro de $100).'
+            },
+            modificador: {
+                icon:   'layers',
+                accent: '#F59E0B',
+                title:  '¿Que es un modificador?',
+                text:   'Acompaña a otro producto —extra de queso, termino de la carne, guarnicion— y nunca arma un ticket por si solo.'
+            }
+        };
+    }
+
+    renderNote() {
+        const notas = this.notas();
+
+        this.noteCard({
+            parent: 'viewNote',
+            class:  'flex flex-col md:flex-row gap-2',
+            classes: {
+                item: 'note-card flex items-start gap-2 flex-1 px-3 py-2 rounded-lg bg-[#0E1521]'
+            },
+            json: {
+                items: [notas.auxiliar, notas.modificador]
+            }
+        });
+    }
+
+    renderInfoCards(kpis) {
+        this.kpisRow({
+            parent: 'kpisRow',
+            json: [
+                {
+                    id:    'kpiProductos',
+                    label: 'Productos',
+                    value: kpis.productos,
+                    tone:  'default'
+                },
+                {
+                    id:    'kpiPuente',
+                    label: 'Productos auxiliares',
+                    value: kpis.puente,
+                    tone:  'success'
+                },
+                {
+                    id:    'kpiModificadores',
+                    label: 'Modificadores',
+                    value: kpis.modificadores,
+                    tone:  'warning'
+                },
+                {
+                    id:    'kpiPrecio',
+                    label: 'Precio promedio',
+                    value: kpis.precioPromedio,
+                    tone:  'info'
+                }
+            ]
+        });
+    }
+
+    // -- Layout --
+
+    emisorLayout() {
+        this.createLayout({
+            parent: 'viewBody',
+            design: false,
+            data: {
+                id:    'emisorWrap',
+                class: 'lg:h-full flex flex-col min-h-0',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'emisorHead',
+                        class: 'pb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type:  'div',
+                        id:    'emisorRow',
+                        class: 'pt-4 lg:flex-1 min-h-0 flex flex-col lg:flex-row gap-4 items-stretch',
+                        children: [
+                            {
+                                id:    'emisorSlot',
+                                class: 'w-full lg:flex-1 min-w-0 flex'
+                            },
+                            {
+                                id:    'previewSlot',
+                                class: 'w-full lg:w-[600px] flex-shrink-0 flex'
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: 'emisorSlot',
+            design: false,
+            data: {
+                id:    'emisorCard',
+                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'emisorCardHead',
+                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type: 'div',
+                        id:   'formEmisor'
+                    }
+                ]
+            }
+        });
+
+        this.createLayout({
+            parent: 'previewSlot',
+            design: false,
+            data: {
+                id:    'emisorPreview',
+                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'previewHead',
+                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
+                    },
+                    {
+                        type: 'div',
+                        id:   'ticketPrintArea'
+                    }
+                ]
+            }
+        });
+    }
+
+    // -- Forms --
+
+    renderEmisor(emisor) {
+        this.emisorLayout();
+
+        this.panelHead({
+            parent: 'emisorHead',
+            json: {
+                icon:  'building-2',
+                title: 'Emisor del ticket virtual',
+                badge: {
+                    text: 'sucursal',
+                    tone: 'b-gray'
+                }
+            }
+        });
+
+        this.panelHead({
+            parent: 'emisorCardHead',
+            json: {
+                icon:  'building-2',
+                title: 'Datos de la empresa'
+            }
+        });
+
+        this.panelHead({
+            parent: 'previewHead',
+            json: {
+                icon:  'printer',
+                title: 'Vista previa del ticket',
+                badge: {
+                    text: 'muestra',
+                    tone: 'b-gray'
+                }
+            }
+        });
+
+        this.coffeeForm({
+            parent:       'formEmisor',
+            id:           'frmEmisor',
+            theme:        FACTURE_THEME,
+            showRequired: false,
+            autofill:     emisor,
+            json: [
+                {
+                    opc:   'input',
+                    id:    'razon',
+                    lbl:   'Razon social',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                // El lema es el renglon que va bajo la razon social. Se guarda en la
+                // empresa, igual que el domicilio fiscal: son los dos datos del
+                // membrete que no cambian de una sucursal a otra.
+                {
+                    opc:   'input',
+                    id:    'lema',
+                    lbl:   'Lema',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'rfc',
+                    lbl:   'RFC',
+                    tipo:  'texto',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'telefono',
+                    lbl:   'Telefono',
+                    tipo:  'tel',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'domicilio',
+                    lbl:   'Domicilio fiscal (empresa)',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'expedicion',
+                    lbl:   'Lugar de expedicion (sucursal)',
+                    tipo:  'texto',
+                    class: 'col-12 mb-3'
+                },
+                {
+                    opc:       'button',
+                    id:        'btnGuardarEmisor',
+                    text:      'Guardar emisor',
+                    color_btn: 'primary',
+                    class:     'col-12 col-md-4',
+                    onClick:   () => catalogos.saveEmisor()
+                }
+            ]
+        });
+
+        this.renderEmisorPreview(emisor);
+
+        $('#frmEmisor').on('input', () => this.renderEmisorPreview(this.getEmisorForm()));
+    }
+
+    getEmisorForm() {
+        return {
+            razon:      $('#razon').val(),
+            lema:       $('#lema').val(),
+            rfc:        $('#rfc').val(),
+            telefono:   $('#telefono').val(),
+            domicilio:  $('#domicilio').val(),
+            expedicion: $('#expedicion').val()
+        };
+    }
+
+    // La muestra trae todos los renglones que imprime un ticket real: se captura el
+    // membrete mirando el papel completo, no una version recortada de el.
+    renderEmisorPreview(emisor) {
+        this.ticketPaper({
+            parent: 'ticketPrintArea',
+            emisor: emisor,
+            json: {
+                nota:      'A-1024',
+                folio:     'MUESTRA',
+                fechaHora: '01/07/2026 02:32:10 PM',
+                mesa:      '12',
+                mesero:    'MAFER',
+                personas:  '2',
+                orden:     '13',
+                cajero:    'ADMINISTRACION',
+                subtotal:  '$260.00',
+                descuento: '$10.00',
+                total:     '$250.00',
+                propina:   '$0.00',
+                letras:    'DOSCIENTOS CINCUENTA PESOS 00/100 M.N.',
+                metodo:    'efectivo',
+                lineas: [
+                    { cant: 2, nombre: 'Producto auxiliar A', importe: '$120.00' },
+                    { cant: 1, nombre: 'Producto auxiliar B', importe: '$140.00' }
+                ]
+            }
+        });
+    }
+
+    async openProductoForm(code) {
+        const data     = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getProducto', code: code } }) : {};
+        const producto = data.producto || null;
+
+        this.formModal({
+            id:       'frmProducto',
+            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto auxiliar',
+            autofill: producto || false,
+            note:     { items: [this.notas().modificador] },
+            json: [
+                {
+                    opc:      'input',
+                    id:       'code',
+                    lbl:      'Codigo',
+                    tipo:     'text',
+                    required: false,
+                    class:    'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'nombre',
+                    lbl:   'Nombre del producto',
+                    tipo:  'texto',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:   'input',
+                    id:    'precio',
+                    lbl:   'Precio',
+                    tipo:  'cifra',
+                    class: 'col-12 col-md-6 mb-3'
+                },
+                {
+                    opc:      'select',
+                    id:       'modificador',
+                    lbl:      'Es modificador',
+                    class:    'col-12 col-md-6 mb-3',
+                    value:    '0',
+                    required: false,
+                    data:     app.dataInit.sino
+                }
+            ],
+            onSave: (form) => catalogos.saveProducto(code || '', form, producto ? Number(producto.puente) : 1)
+        });
+    }
+
+    editProducto(code) {
+        this.openProductoForm(code);
+    }
+
+    // -- Components --
+
+    formModal(options) {
+        const defaults = {
+            id:       'frmModal',
+            title:    '',
+            size:     'large',
+            theme:    FACTURE_THEME,
+            autofill: false,
+            note:     null,
+            json:     [],
+            onSave:   () => { }
+        };
+
+        const opts = Object.assign({}, defaults, options || {});
+        const host = $('<div>', { id: `${opts.id}Host` });
+        const note = $('<div>', { id: `${opts.id}Note` });
+
+        let form;
+        const modal = this.cfModal({
+            title:       opts.title,
+            size:        opts.size,
+            theme:       opts.theme,
+            closeButton: true,
+            onOk:        () => form.trigger('submit')
+        });
+
+        if (opts.note) {
+            modal.body.append(note);
+
+            this.noteCard({
+                parent: `${opts.id}Note`,
+                class:  'flex flex-col gap-2 mb-4',
+                json:   opts.note
+            });
+        }
+
+        modal.body.append(host);
+
+        form = this.coffeeForm({
+            parent:   `${opts.id}Host`,
+            id:       opts.id,
+            Element:  'form',
+            theme:    opts.theme,
+            autofill: opts.autofill,
+            json:     opts.json,
+            onSave:   (data) => {
+                opts.onSave(data);
+                modal.close();
+            }
+        });
+
+        return modal;
+    }
+
+    // El papel de la vista previa es el mismo que imprime el modulo Tickets, asi
+    // que sale del componente compartido: si aqui se viera distinto, el usuario
+    // estaria capturando el emisor mirando un ticket que no existe.
+    ticketPaper(options) {
+        TicketPaper.render(options);
+    }
+
+    kpisRow(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'kpisRow',
+            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
+            json:   [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-white',
+                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
+                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
+                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
+                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
+            },
+            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
+            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
+            valueClass:    'cs-kpi-value text-sm font-bold',
+            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
+            onClick:       () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+
+            return `
+                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
+                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
+                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
+                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}">${esc(kpi.subtitle)}</p>` : ''}
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+
+            return $(`#${opts.parent}`).html(grid);
+        }
+
+        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
+
+        $(`#${opts.parent}`).html(grid);
+
+        grid.find('[data-kpi-idx]').on('click', (e) => {
+            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
+
+            opts.onClick(opts.json[idx], idx);
+        });
+    }
+
+    noteCard(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'flex flex-col md:flex-row gap-2 mb-3',
+            json:   { items: [] },
+            classes: {
+                item:  'note-card flex items-start gap-2.5 flex-1 px-3 py-2.5 rounded-lg bg-[#0E1521]',
+                chip:  'note-chip flex items-center justify-center w-6 h-6 rounded-md flex-shrink-0',
+                icon:  'w-3.5 h-3.5',
+                body:  'flex-1 min-w-0',
+                text:  'note-text text-[10px] text-gray-400 leading-relaxed mb-0',
+                title: 'note-title text-[11px] font-bold mb-0.5'
+            }
+        };
+
+        const tint = (hex, alpha) => {
+            const n = parseInt(String(hex || '').replace('#', ''), 16);
+
+            if (isNaN(n)) return 'transparent';
+
+            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+
+        const item = (it) => `
+            <div class="${opts.classes.item}">
+                ${it.icon ? `
+                    <span class="${opts.classes.chip}" style="background: ${tint(it.accent, .15)};">
+                        <i data-lucide="${esc(it.icon)}" class="${opts.classes.icon}" style="color: ${esc(it.accent || 'currentColor')};"></i>
+                    </span>
+                ` : ''}
+                <div class="${opts.classes.body}">
+                    <p class="${opts.classes.title}" style="color: ${esc(it.accent || 'currentColor')};">${esc(it.title)}</p>
+                    <p class="${opts.classes.text}">${esc(it.text)}</p>
+                </div>
+            </div>
+        `;
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html((opts.json.items || []).map(item).join(''));
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    panelHead(options) {
+        const defaults = {
+            parent: 'root',
+            id:     '',
+            class:  'flex items-center justify-between w-full',
+            json:   { icon: '', iconClass: 'w-4 h-4 text-gray-400', title: '', badge: null },
+            classes: {
+                title: 'text-[12px] font-bold text-gray-300 flex items-center gap-2'
+            }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+
+        const iconHtml  = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
+        const badge     = opts.json.badge;
+        const badgeHtml = badge ? `<span class="badge-base ${esc(badge.tone || 'b-gray')}">${esc(badge.text)}</span>` : '';
+
+        const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
+        wrap.html(`
+            <h3 class="${opts.classes.title}">${iconHtml}${esc(opts.json.title)}</h3>
+            ${badgeHtml}
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    viewHeader(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'viewHeader',
+            class:  'flex items-center justify-between w-full',
+            json:   { title: '', titleHtml: '', subtitle: '', toggles: [], back: null },
+            classes: {
+                title:    'text-lg font-bold text-white',
+                subtitle: 'text-xs text-gray-400',
+                groupLbl: 'text-[9px] text-gray-400 uppercase tracking-wider font-bold',
+                group:    'flex items-center gap-1 p-1 rounded-lg border border-[#374151] bg-[#141d2b]',
+                btn:      'demo-toggle px-3 py-1.5 rounded-md text-[12px] text-gray-400 hover:bg-[#1F2A37] hover:text-white transition-colors',
+                btnActive:'demo-toggle active px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#1C64F2] text-white',
+                sep:      'text-gray-300',
+                backBtn:  'w-8 h-8 rounded-full bg-[#1F2A37] hover:bg-[rgba(28,100,242,0.12)] border border-[#374151] hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-300 transition-colors flex-shrink-0'
+            },
+            onToggle: () => { },
+            onBack:   null
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
+        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
+
+        const state = {};
+        (opts.json.toggles || []).forEach(g => { state[g.key] = g.value; });
+
+        const toggleGroup = (g) => {
+            const buttons = (g.options || []).map(op => {
+                const active = state[g.key] === op.value;
+                return `<button type="button"
+                                data-toggle-key="${esc(g.key)}"
+                                data-toggle-value="${esc(op.value)}"
+                                class="${active ? opts.classes.btnActive : opts.classes.btn}">${esc(op.label)}</button>`;
+            }).join('');
+            const label = g.label ? `<span class="${opts.classes.groupLbl}">${esc(g.label)}</span>` : '';
+            return `
+                ${label}
+                <div class="${opts.classes.group}">
+                    ${buttons}
+                </div>
+            `;
+        };
+
+        const backCfg   = opts.json.back;
+        const backHref  = typeof backCfg === 'string' ? backCfg : (backCfg && backCfg.href) || '';
+        const backTitle = (backCfg && backCfg.title) || 'Regresar';
+        const backHtml  = backCfg ? `
+            <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+        ` : '';
+
+        const wrap = $('<div>', { id: opts.id, class: opts.class });
+        const togglesHtml = (opts.json.toggles || [])
+            .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
+            .join('');
+
+        wrap.html(`
+            <div class="flex items-center gap-3">
+                ${backHtml}
+                <div>
+                    <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
+                    ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                ${togglesHtml}
+            </div>
+        `);
+
+        $(`#${opts.parent}`).html(wrap);
+        if (window.lucide) lucide.createIcons();
+
+        wrap.on('click', '[data-toggle-key]', (e) => {
+            const $btn = $(e.currentTarget);
+            const key  = $btn.attr('data-toggle-key');
+            const val  = $btn.attr('data-toggle-value');
+            state[key] = val;
+
+            $btn.siblings('[data-toggle-key="' + key + '"]').addBack().each(function () {
+                const isActive = $(this).attr('data-toggle-value') === val;
+                this.className = isActive ? opts.classes.btnActive : opts.classes.btn;
+            });
+
+            opts.onToggle(key, val, Object.assign({}, state));
+        });
+
+        if (backCfg) {
+            $(`#${opts.id}_back`).on('click', () => {
+                if (typeof opts.onBack === 'function') return opts.onBack();
+                if (backHref) window.location.href = backHref;
+            });
+        }
+    }
+}
+
+// -- Complementos --
+
+function esc(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
