@@ -2,8 +2,16 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
-require_once '../mdl/mdl-facture-cargas.php';
+// El modelo de Wansoft extiende al de Soft Restaurant, asi que este require trae
+// los dos: el controlador hereda las dos familias de consultas y puede correr
+// cualquiera de los dos importadores sin preguntar de quien es cada una.
+require_once '../mdl/mdl-facture2-cargas.php';
+
+// Los dos parsers conviven en memoria. Los helpers de mecanica (normalizeHeader,
+// numVal, cleanDate, columnLetter, step…) los declara el de Soft y el de Wansoft
+// los reusa, por eso este require va primero y no al reves.
 require_once 'import-facture-cargas.php';
+require_once 'import-facture2-cargas.php';
 
 // PhpSpreadsheet (vendor) solo es necesario para procesar Excel en uploadFile().
 // Se carga bajo demanda para que el resto del modulo opere sin el. La ruta se
@@ -16,15 +24,46 @@ foreach ([__DIR__ . '/../../src/vendor/autoload.php', __DIR__ . '/../vendor/auto
 }
 define('AUTOLOAD_PATH', $__autoload);
 
-class ctrl extends mdl {
+class ctrl extends mdl2 {
 
     public $branch;
     public $userId;
+
+    // El importador se resuelve una vez por peticion: la sucursal no cambia a
+    // media carga y preguntarlo seis veces seria seis consultas identicas.
+    private $import;
 
     public function __construct() {
         parent::__construct();
         $this->branch = $this->resolveBranch();
         $this->userId = (int) ($_SESSION['USR'] ?? $_POST['user_id'] ?? 1);
+    }
+
+    // -- Que POS esta operando --
+
+    // El unico punto del modulo donde se decide con que parser se lee el Excel.
+    // La respuesta sale de la SUCURSAL (branch.pos_id -> pos.code), no de la
+    // sesion ni del nombre del archivo: cada sucursal opera un solo software de
+    // punto de venta y de ese dato dependen el layout del reporte y el formato del
+    // ticket.
+    //
+    // Sin POS definido se lee como Soft Restaurant, que es el que ya estaba: una
+    // sucursal dada de alta antes del catalogo de POS sigue cargando como siempre
+    // en vez de romperse.
+    function posCode() {
+        $ls = $this->getPosCode([$this->branchId()]);
+
+        return strtolower((string) ($ls[0]['code'] ?? '')) ?: 'soft-restaurant';
+    }
+
+    function importador() {
+        if ($this->import !== null) return $this->import;
+
+        $this->import = $this->posCode() === 'wansoft'
+            ? new ImportFacture2Cargas($this)
+            : new ImportFactureCargas($this);
+
+        return $this->import;
     }
 
     // El facturador tiene su propia tabla branch: el id de sucursal de la sesion
@@ -57,14 +96,18 @@ class ctrl extends mdl {
             $anios = [['id' => date('Y'), 'valor' => date('Y')]];
         }
 
-        $importador = new ImportFactureCargas($this);
+        $importador = $this->importador();
         $contrato   = $importador->contrato();
 
+        // El POS viaja al front para que la pantalla pueda decir con que sistema
+        // esta operando: el usuario tiene que saber por que se le pide un archivo
+        // y no otro.
         return [
             'meses'    => mesesCatalogo(),
             'anios'    => $anios,
+            'pos'      => $this->posCode(),
             'tabs'     => tabsContrato($contrato),
-            'archivos' => archivosContrato($contrato),
+            'archivos' => archivosContrato($contrato, $this->posCode()),
             'hojas'    => hojasContrato($contrato),
             'roadmap'  => roadmapContrato()
         ];
@@ -77,7 +120,7 @@ class ctrl extends mdl {
         $mes  = (int) $_POST['mes'];
         $anio = (int) $_POST['anio'];
 
-        $importador = new ImportFactureCargas($this);
+        $importador = $this->importador();
         $contrato   = $importador->contrato();
 
         $__row  = [];
@@ -142,7 +185,7 @@ class ctrl extends mdl {
         }
 
         $batch    = $batch[0];
-        $importador = new ImportFactureCargas($this);
+        $importador = $this->importador();
         $contract   = $importador->contrato();
         $target     = isset($contract[$batch['sheet_name']]) ? $contract[$batch['sheet_name']]['target'] : '';
 
@@ -208,6 +251,70 @@ class ctrl extends mdl {
             }
         }
 
+        // -- Hojas de Wansoft --
+
+        // La hoja de detalle produjo ventas Y pagos de una sola pasada, y lo que se
+        // muestra es el PAGO: es lo que tiene una fila por cada fila del Excel. El
+        // ticket se ve agrupado en el modulo de ventas.
+        if ($target === 'wansoft-detail') {
+            $center = [1, 2, 8];
+            $right  = [3, 4];
+
+            foreach ($this->listPaymentWansoftByBatch([$id]) as $item) {
+                $__row[] = [
+                    'id'          => $item['sale_folio'],
+                    'Movimiento'  => '<span class="font-semibold text-gray-300">' . $item['sale_folio'] . '</span>',
+                    'Forma'       => '<span class="text-gray-400">' . $item['method_name'] . '</span>',
+                    'Terminal'    => '<span class="text-gray-400">' . $item['terminal'] . '</span>',
+                    'Importe'     => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
+                    'Propina'     => tipCell($item['tip']),
+                    'Referencia'  => '<span class="text-gray-400">' . $item['reference'] . '</span>',
+                    'Transaccion' => '<span class="text-gray-400 font-mono text-[10px]">' . $item['transaction_code'] . '</span>',
+                    'Validacion'  => '<span class="text-gray-400 font-mono text-[10px]">' . $item['validation_code'] . '</span>',
+                    'Pagado'      => dateCell($item['paid_at'])
+                ];
+            }
+        }
+
+        if ($target === 'card' || $target === 'card-refund') {
+            $center = [1, 2, 3, 4, 5];
+            $right  = [7];
+
+            foreach ($this->listPaymentCardByBatch([$id]) as $item) {
+                $__row[] = [
+                    'id'             => $item['pdv_order'],
+                    'Orden'          => '<span class="font-semibold text-gray-300">' . $item['pdv_order'] . '</span>',
+                    'Terminal'       => '<span class="text-gray-400">' . $item['terminal'] . '</span>',
+                    'Operacion'      => '<span class="text-gray-400">' . $item['operation_type'] . '</span>',
+                    'Banco'          => '<span class="text-gray-400">' . $item['bank'] . '</span>',
+                    'Tarjeta'        => '<span class="text-gray-400">' . $item['card_type'] . '</span>',
+                    'Numero'         => '<span class="text-gray-400 font-mono text-[10px]">' . $item['card_number'] . '</span>',
+                    'Autorizacion'   => '<span class="text-gray-400 font-mono text-[10px]">' . $item['authorization_code'] . '</span>',
+                    'Monto'          => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
+                    'Fecha'          => dateCell($item['operation_date'])
+                ];
+            }
+        }
+
+        if ($target === 'deleted') {
+            $center = [1, 2, 3, 4];
+            $right  = [5, 6];
+
+            foreach ($this->listDeletedPaymentByBatch([$id]) as $item) {
+                $__row[] = [
+                    'id'        => $item['pdv_order'],
+                    'Orden'     => '<span class="font-semibold text-gray-300">' . $item['pdv_order'] . '</span>',
+                    'Mesero'    => '<span class="text-gray-400">' . $item['waiter_name'] . '</span>',
+                    'Cajero'    => '<span class="text-gray-400">' . $item['cashier_name'] . '</span>',
+                    'Forma'     => '<span class="text-gray-400">' . $item['method_name'] . '</span>',
+                    'Borro'     => '<span class="text-gray-400">' . $item['modified_by'] . '</span>',
+                    'Total'     => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
+                    'Propina'   => tipCell($item['tip']),
+                    'Operacion' => dateCell($item['operation_date'])
+                ];
+            }
+        }
+
         // El nombre del archivo no viaja: el encabezado del detalle titula con la
         // hoja, que es lo que distingue lo que se esta viendo.
         return [
@@ -266,7 +373,7 @@ class ctrl extends mdl {
 
         // El periodo viaja con la revision: sin el no se puede saber si el mes
         // destino ya tiene notas emitidas, que es lo primero que se comprueba.
-        $importador = new ImportFactureCargas($this);
+        $importador = $this->importador();
 
         return $importador->inspeccionarLibro($libro['documento'], [
             'tipo'     => $_POST['tipo'] ?? '',
@@ -330,7 +437,7 @@ class ctrl extends mdl {
 
             // La pestana viaja solo para redactar el aviso cuando el libro no trae
             // ninguna hoja conocida: sirve para decir que se esperaba ahi.
-            $importador = new ImportFactureCargas($this);
+            $importador = $this->importador();
             $resultado  = $importador->procesarLibro($documento, [
                 'fileName' => $fichero,
                 'tipo'     => $_POST['tipo'] ?? '',
@@ -352,7 +459,7 @@ class ctrl extends mdl {
         $batch = $this->getImportBatchById([$id]);
         if (empty($batch)) return ['status' => 404, 'message' => 'La carga no existe'];
 
-        $importador = new ImportFactureCargas($this);
+        $importador = $this->importador();
         $contract   = $importador->contrato();
         $sheet      = $batch[0]['sheet_name'];
         $target     = isset($contract[$sheet]) ? $contract[$sheet]['target'] : '';
@@ -370,6 +477,19 @@ class ctrl extends mdl {
 
         if ($target === 'payment') $this->deleteSalePaymentByBatch($where);
         if ($target === 'detail')  $this->deleteSaleDetailByBatch($where);
+
+        // La hoja de detalle de Wansoft dejo ventas, pagos y el resumen del dia en
+        // el mismo lote, asi que se van los tres. Los pagos se borran antes que las
+        // ventas aunque el CASCADE de sale_id se los llevaria igual: hacerlo
+        // explicito deja el conteo del lote correcto si manana esa FK cambia.
+        if ($target === 'wansoft-detail') {
+            $this->deleteDailySummaryByBatch($where);
+            $this->deleteSalePaymentByBatch($where);
+            $this->deleteSaleByBatch($where);
+        }
+
+        if ($target === 'card' || $target === 'card-refund') $this->deletePaymentCardByBatch($where);
+        if ($target === 'deleted')                           $this->deleteDeletedPaymentByBatch($where);
 
         $delete = $this->deleteImportBatchById($this->util->sql(['id' => $id], 1));
 
@@ -427,7 +547,23 @@ function tabsContrato($contrato) {
 // La fila de carga de cada pestana: que archivo se espera, con que nombre lo
 // exporta el POS y el patron con el que se avisa cuando el que se sube no
 // corresponde. El patron viaja como texto porque cruza en JSON; el JS lo arma.
-function archivosContrato($contrato) {
+function archivosContrato($contrato, $posCode = 'soft-restaurant') {
+    // Cada POS exporta su propio archivo y con su propio nombre, asi que la fila
+    // de carga cambia con el: anunciar "Reporte_De_Ventas_YYYYMMDD.xlsx" a una
+    // sucursal de Wansoft seria pedirle un archivo que su sistema no genera.
+    $porPos = [
+        'wansoft' => [
+            'sales-report' => [
+                'titulo'    => 'Reporte de ventas por forma de pago',
+                'subtitulo' => 'Sube un solo archivo. De la hoja "Detalle por forma de pago" salen los tickets y sus pagos —con propina, mesero y cajero— y el resumen del dia. Las hojas de terminal bancaria y de pagos eliminados se cargan si el archivo las trae con movimientos.',
+                'esperado'  => 'ReporteVentasPorFormaDePagoYYYY-MM-DD.xlsx',
+                'ejemplo'   => 'ReporteVentasPorFormaDePago2026-08-23',
+                'patron'    => 'reporte|venta|forma|pago',
+                'formato'   => 'XLSX'
+            ]
+        ]
+    ];
+
     $archivos = [
         'sales-report' => [
             'titulo'    => 'Reporte de ventas',
@@ -446,6 +582,8 @@ function archivosContrato($contrato) {
             'formato'   => 'XLS'
         ]
     ];
+
+    if (isset($porPos[$posCode])) $archivos = array_merge($archivos, $porPos[$posCode]);
 
     $__row = [];
     foreach ($contrato as $nombre => $config) {
@@ -552,6 +690,15 @@ function invoiceCell($series) {
     if (empty($series)) return '<span class="cell-null">Sin factura</span>';
 
     return '<span class="font-mono text-[10px] text-gray-300">' . $series . '</span>';
+}
+
+// La propina en cero es informacion, no un hueco: en Wansoft la mayoria de los
+// pagos no la llevan y hay que poder distinguir "no dejo propina" de "este POS no
+// reporta propinas".
+function tipCell($tip) {
+    if ((float) $tip <= 0) return '<span class="cell-null">Sin propina</span>';
+
+    return '<span class="text-gray-300">$' . number_format($tip, 2) . '</span>';
 }
 
 function saleStatusBadge($name) {

@@ -1,0 +1,1079 @@
+<?php
+
+// Logica de importacion del export de Wansoft, hermana de import-facture-cargas.php
+// (Soft Restaurant). Misma interfaz publica —contrato(), inspeccionarLibro(),
+// procesarLibro()— para que el controlador pueda intercambiarlas sin saber cual
+// tiene enfrente.
+//
+// Se escribio aparte y no como una rama dentro del otro por el mismo motivo que
+// aquel se separo de contabilidad2: cada POS tiene su propio layout y mezclar los
+// parsers termina leyendo una hoja con el mapeo de la otra. Los dos exports no se
+// parecen en casi nada:
+//
+//   Soft Restaurant           Wansoft
+//   ---------------           -------
+//   3 hojas                   6 hojas (4 se cargan, 2 son resumen derivable)
+//   encabezados en fila 7     fila 15 en el detalle, fila 6 en las bancarias
+//   columnas desde la A       desde la B o la C segun la hoja
+//   ventas y pagos separados  una sola hoja produce las dos tablas
+//   folio fiscal              movimiento PDV
+//   sin propina               propina por pago
+//
+// Layout verificado contra docs/ReporteVentasPorFormaDePago2026-08-23.xlsx.
+//
+// Los helpers de mecanica pura (normalizeHeader, numVal, cleanDate, columnLetter,
+// step, hojasDelTab, tabDelLibro, resumenColumnas, mensajeCarga, ordenarPorHoja)
+// NO se redeclaran: viven en import-facture-cargas.php, que el controlador carga
+// siempre. Son de leer Excel, no de un POS en particular.
+
+// Tasa a la que se cae cuando el bloque de resumen no permite deducirla. El
+// archivo medido da 7312.42 / 45702.58 = 0.16 exacto, pero la tasa se lee del
+// propio archivo y esto es solo la red.
+define('WANSOFT_TASA_DEFAULT', 0.16);
+
+class ImportFacture2Cargas {
+
+    private $mdl;
+    private $util;
+
+    // Resultado de los cruces de la hoja en curso y filas que el motor rechazo.
+    private $rechazadas = 0;
+    private $ventas     = 0;
+    private $pagos      = 0;
+    private $meseros    = 0;
+    private $cajeros    = 0;
+    private $ligados    = 0;
+    private $resumenes  = 0;
+
+    function __construct($mdl) {
+        $this->mdl  = $mdl;
+        $this->util = $mdl->util;
+    }
+
+    /*
+        Cada hoja declara su layout. Sobre el contrato de Soft Restaurant hay dos
+        campos mas, y son los que obligan a tener parser propio:
+
+          startIndex   columna fisica donde empieza la tabla. Wansoft deja la A (y
+                       a veces la B) vacias como margen del reporte, asi que el
+                       indice 0 del contrato NO es la columna A.
+
+          dateIndex    columna que debe traer una fecha valida para que la fila
+                       cuente como dato. Wansoft cierra sus hojas con un PIE DE
+                       TOTALES —«TOTAL COBRADO:», «PROPINAS:», «IVA:»— que escribe
+                       la etiqueta y el importe en las MISMAS columnas de la
+                       tabla. En el archivo medido son 6 filas debajo del ultimo
+                       pago, con «$54,541.04» justo donde va el movimiento PDV: sin
+                       este corte entran como seis pagos fantasma y cinco tickets
+                       que no existieron.
+
+                       El pie no lleva fecha y ningun pago real deja de llevarla,
+                       asi que la fecha es lo que los separa. Es el equivalente al
+                       corte que el importador de Soft hace con el relleno de su
+                       tabla dinamica.
+
+        Las otras dos hojas del libro —"Ventas por forma de pago" y "Propinas por
+        mesero"— no estan aqui a proposito: las dos son sumas de la hoja de
+        detalle y guardarlas seria guardar dos veces el mismo dato. El total por
+        forma de pago sale de agrupar los pagos; las propinas por mesero, de
+        sumarlas por su mesero.
+
+        El orden del array es el orden de carga y NO es libre: el detalle va
+        primero porque crea las ventas de las que cuelgan los movimientos
+        bancarios y los pagos eliminados.
+    */
+    function contrato() {
+        return [
+            'Detalle por forma de pago' => [
+                'tab'          => 'sales-report',
+                'target'       => 'wansoft-detail',
+                'orden'        => 1,
+                'headerRow'    => 15,
+                'startIndex'   => 0,
+                'keyIndex'     => 5,   // Movimiento PDV: la llave estable del ticket
+                'dateIndex'    => 3,   // Fecha: corta el pie de totales
+                'controlIndex' => 15,  // Total del pago
+                'columns' => [
+                    'Total', 'Propina', 'Participacion del dia', 'Fecha', 'Orden',
+                    'Movimiento PDV', 'Estatus', 'Mesero', 'Cajero', 'Forma de pago',
+                    'Fecha de pago', 'Referencia', 'Transaccion', 'Terminal',
+                    'Codigo de validacion', 'Total', 'Propina', 'Total Cobrado'
+                ]
+            ],
+            'Pagos por terminal bancaria' => [
+                'tab'          => 'sales-report',
+                'target'       => 'card',
+                'orden'        => 2,
+                'headerRow'    => 6,
+                'startIndex'   => 1,
+                'keyIndex'     => 0,
+                'dateIndex'    => 1,
+                'controlIndex' => 15,
+                'columns' => [
+                    'Orden', 'Fecha operacion', 'OrdenId', 'Transaccion', 'ARQC',
+                    'Fecha de autorizacion', 'Terminal', 'APN', 'Tipo pinPad',
+                    'Tipo operacion', 'Banco', 'Tipo tarjeta', 'Numero de tarjeta',
+                    'Mensaje de respuesta', 'Numero de autorizacion', 'Monto',
+                    'Pago Anticipado'
+                ]
+            ],
+            'Can y Dev por terminal bancaria' => [
+                'tab'          => 'sales-report',
+                'target'       => 'card-refund',
+                'orden'        => 3,
+                'headerRow'    => 6,
+                'startIndex'   => 1,
+                'keyIndex'     => 0,
+                'dateIndex'    => 1,
+                'controlIndex' => 15,
+                'columns' => [
+                    'Orden', 'Fecha operacion', 'OrdenId', 'Transaccion', 'ARQC',
+                    'Fecha de autorizacion', 'Terminal', 'APN', 'Tipo pinPad',
+                    'Tipo operacion', 'Banco', 'Tipo tarjeta', 'Numero de tarjeta',
+                    'Mensaje de respuesta', 'Numero de autorizacion', 'Monto'
+                ]
+            ],
+            'Pagos Eliminados' => [
+                'tab'          => 'sales-report',
+                'target'       => 'deleted',
+                'orden'        => 4,
+                'headerRow'    => 6,
+                'startIndex'   => 1,
+                'keyIndex'     => 2,
+                'dateIndex'    => 0,
+                'controlIndex' => 8,
+                'columns' => [
+                    'Fecha registro', 'Fecha de operacion', 'Orden', 'Mesero',
+                    'Cajero', 'Usuario Modifica', 'Forma de pago', 'Terminal',
+                    'Total', 'Propina', 'Total cobrado'
+                ]
+            ]
+        ];
+    }
+
+    // Revision sin escribir nada: a que pestana pertenece el libro y si sus
+    // columnas cuadran. Mismo contrato de salida que el importador de Soft, porque
+    // el modulo pinta el aviso igual venga de donde venga.
+    function inspeccionarLibro($documento, $ctx) {
+        $tipo       = isset($ctx['tipo']) ? $ctx['tipo'] : '';
+        $contrato   = $this->contrato();
+        $hojasLibro = $documento->getSheetNames();
+        $destino    = $tipo;
+
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            return [
+                'status'     => 200,
+                'destino'    => $tipo,
+                'movido'     => false,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
+
+        $presentes = $this->hojasPresentes($contrato, $hojasLibro, $destino);
+
+        if (empty($presentes)) {
+            return [
+                'status'  => 200,
+                'destino' => $tipo,
+                'movido'  => false,
+                'hojas'   => [],
+                'validacion' => [
+                    'motivo'    => 'hojas',
+                    'esperadas' => hojasDelTab($contrato, $tipo),
+                    'libro'     => $hojasLibro,
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        $malas = [];
+        foreach ($presentes as $nombre) {
+            $config   = $contrato[$nombre];
+            $columnas = $this->validarEncabezados($documento->getSheetByName($nombre), $config);
+            $faltan   = $this->columnasMalas($columnas);
+
+            if (empty($faltan)) continue;
+
+            $malas[] = [
+                'hoja'      => $nombre,
+                'headerRow' => $config['headerRow'],
+                'columnas'  => $columnas,
+                'faltan'    => $faltan
+            ];
+        }
+
+        $revision = [
+            'status'  => 200,
+            'destino' => $destino,
+            'movido'  => false,
+            'hojas'   => $presentes,
+            'suyas'   => hojasDelTab($contrato, $destino),
+            'libro'   => $hojasLibro
+        ];
+
+        if (!empty($malas)) {
+            $revision['validacion'] = [
+                'motivo'    => 'columnas',
+                'esperadas' => [],
+                'libro'     => $hojasLibro,
+                'columnas'  => $malas,
+                'cargadas'  => []
+            ];
+        }
+
+        return $revision;
+    }
+
+    // Notas ya emitidas sobre el periodo al que va la carga. El corte es el mismo
+    // que el de Soft y por la misma razon: un ticket virtual es un documento
+    // entregado y su respaldo son las ventas del periodo. Recargar las reemplaza y
+    // las notas se irian con ellas por el CASCADE de virtual_ticket.sale_id.
+    private function notasDelPeriodo($ctx) {
+        $mes  = isset($ctx['mes'])  ? (int) $ctx['mes']  : 0;
+        $anio = isset($ctx['anio']) ? (int) $ctx['anio'] : 0;
+
+        if ($mes < 1 || $anio < 2000) return null;
+
+        $branchId = isset($ctx['branchId']) ? $ctx['branchId'] : null;
+        $conteo   = $this->mdl->countVirtualTicketByPeriod([$branchId, $anio, $mes]);
+        $total    = (int) ($conteo[0]['total'] ?? 0);
+
+        if ($total === 0) return null;
+
+        return [
+            'motivo'    => 'tickets',
+            'total'     => $total,
+            'notaMin'   => (int) ($conteo[0]['nota_min'] ?? 0),
+            'notaMax'   => (int) ($conteo[0]['nota_max'] ?? 0),
+            'notas'     => $this->mdl->listVirtualTicketByPeriod([$branchId, $anio, $mes]),
+            'esperadas' => [],
+            'libro'     => [],
+            'columnas'  => [],
+            'cargadas'  => []
+        ];
+    }
+
+    private function hojasPresentes($contrato, $hojasLibro, $tab) {
+        $__row = [];
+
+        foreach (hojasDelTab($contrato, $tab) as $nombre) {
+            if (in_array($nombre, $hojasLibro)) $__row[] = $nombre;
+        }
+
+        return $__row;
+    }
+
+    // Router: recorre las hojas del contrato que trae el libro, valida su
+    // estructura y guarda las que pasan.
+    //
+    // Las tres hojas bancarias del export medido vinieron VACIAS (solo
+    // encabezados). Eso no es un error: una hoja con encabezados correctos y cero
+    // filas se reporta como cargada con 0 registros y no arrastra a las demas.
+    function procesarLibro($documento, $ctx) {
+        $contrato   = $this->contrato();
+        $tipo       = isset($ctx['tipo']) ? $ctx['tipo'] : '';
+        $esperadas  = hojasDelTab($contrato, $tipo);
+        $hojasLibro = $documento->getSheetNames();
+
+        $presentes = $this->hojasPresentes($contrato, $hojasLibro, $tipo);
+        $steps     = $ctx['steps'];
+
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            $steps[] = step('Revisar periodo', 'error', $notas['total'] . ' nota(s) ya emitidas');
+
+            return [
+                'status'     => 409,
+                'message'    => 'El periodo ya tiene tickets virtuales emitidos',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
+
+        $steps[] = step(
+            'Detectar hojas',
+            count($presentes) ? 'ok' : 'error',
+            count($presentes) ? implode(' · ', $presentes) : 'El libro trae: ' . implode(' · ', $hojasLibro)
+        );
+
+        if (empty($presentes)) {
+            return [
+                'status'  => 400,
+                'message' => 'Este no es el reporte que espera Wansoft',
+                'steps'   => $steps,
+                'hojas'   => [],
+                'validacion' => [
+                    'motivo'    => 'hojas',
+                    'esperadas' => $esperadas,
+                    'libro'     => $hojasLibro,
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        $hojas    = [];
+        $cargadas = 0;
+        $malas    = [];
+        $entraron = [];
+
+        foreach ($presentes as $nombre) {
+            $config   = $contrato[$nombre];
+            $hoja     = $documento->getSheetByName($nombre);
+            $columnas = $this->validarEncabezados($hoja, $config);
+            $faltan   = $this->columnasMalas($columnas);
+
+            if (!empty($faltan)) {
+                $steps[] = step('Validar columnas de "' . $nombre . '"', 'error', resumenColumnas($faltan));
+
+                $malas[] = [
+                    'hoja'      => $nombre,
+                    'headerRow' => $config['headerRow'],
+                    'columnas'  => $columnas,
+                    'faltan'    => $faltan
+                ];
+
+                $hojas[] = [
+                    'nombre'  => $nombre,
+                    'estado'  => 'error',
+                    'detalle' => resumenColumnas($faltan),
+                    'filas'   => 0
+                ];
+                continue;
+            }
+
+            $primera = columnLetter($config['startIndex']);
+            $ultima  = columnLetter($config['startIndex'] + count($config['columns']) - 1);
+            $steps[] = step(
+                'Validar columnas de "' . $nombre . '"',
+                'ok',
+                count($config['columns']) . ' columnas ' . $primera . ':' . $ultima
+            );
+
+            $carga     = $this->guardarHoja($nombre, $config, $hoja, $ctx);
+            $cargadas += $carga['insertadas'] > 0 ? 1 : 0;
+
+            if ($carga['insertadas'] > 0) $entraron[] = $nombre;
+
+            if ($carga['reemplazadas'] > 0) {
+                $steps[] = step(
+                    'Sobreescribir "' . $nombre . '"',
+                    'ok',
+                    number_format($carga['reemplazadas']) . ' filas de la carga anterior del periodo'
+                );
+            }
+
+            // Una hoja vacia con encabezados buenos no es un fallo: el POS no
+            // registro movimientos de ese tipo en el periodo y hay que decirlo asi.
+            $vacia  = $carga['leidas'] === 0;
+            $estado = $vacia ? 'ok' : ($carga['insertadas'] > 0 ? 'ok' : 'error');
+
+            $steps[] = step(
+                'Guardar "' . $nombre . '"',
+                $estado,
+                $vacia
+                    ? 'La hoja no trae movimientos en el periodo'
+                    : number_format($carga['insertadas']) . ' registros en base de datos' . $this->detalleCruce($carga)
+            );
+
+            $hojas[] = [
+                'nombre'  => $nombre,
+                'estado'  => $estado,
+                'detalle' => $vacia
+                    ? 'columnas ' . $primera . ':' . $ultima . ' · sin movimientos'
+                    : 'columnas ' . $primera . ':' . $ultima . ' · fila ' . ($config['headerRow'] + 1) . ' · ' . number_format($carga['insertadas']) . ' de ' . number_format($carga['leidas']) . ' filas',
+                'filas'   => $carga['insertadas'],
+                'leidas'  => $carga['leidas'],
+                'avance'  => $carga['leidas'] > 0 ? round($carga['insertadas'] * 100 / $carga['leidas']) : 100
+            ];
+        }
+
+        $resultado = [
+            'status'  => $cargadas > 0 ? 200 : ($malas ? 422 : 500),
+            'message' => mensajeCarga($cargadas, $malas),
+            'steps'   => $steps,
+            'hojas'   => ordenarPorHoja($hojas, $contrato, 'nombre')
+        ];
+
+        if (!empty($malas)) {
+            $resultado['validacion'] = [
+                'motivo'    => 'columnas',
+                'esperadas' => [],
+                'libro'     => $hojasLibro,
+                'columnas'  => $malas,
+                'cargadas'  => $entraron
+            ];
+        }
+
+        return $resultado;
+    }
+
+    // Cola del paso "Guardar": lo que la hoja hizo mas alla de insertar.
+    private function detalleCruce($carga) {
+        $cola = '';
+
+        if ($carga['rechazadas'] > 0) $cola .= ' · ' . number_format($carga['rechazadas']) . ' filas rechazadas';
+        if ($carga['ventas']     > 0) $cola .= ' · ' . number_format($carga['ventas']) . ' tickets';
+        if ($carga['pagos']      > 0) $cola .= ' · ' . number_format($carga['pagos']) . ' pagos';
+        if ($carga['meseros']    > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
+        if ($carga['cajeros']    > 0) $cola .= ' · ' . number_format($carga['cajeros']) . ' cajeros nuevos al catalogo';
+        if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' movimientos ligados a su pago';
+        if ($carga['resumenes']  > 0) $cola .= ' · resumen del dia guardado';
+
+        return $cola;
+    }
+
+    // Devuelve la fila de encabezados COMPLETA con el estado de cada celda, igual
+    // que la del importador de Soft. La diferencia es `startIndex`: la lectura
+    // arranca donde la hoja pone su tabla, no en la columna A.
+    private function validarEncabezados($hoja, $config) {
+        $columns = $config['columns'];
+        $inicio  = $config['startIndex'];
+        $total   = count($columns);
+        $limite  = $inicio + ($total * 2);
+
+        $fila = [];
+        for ($i = $inicio; $i < $limite; $i++) {
+            $letra        = columnLetter($i);
+            $fila[$letra] = (string) $hoja->getCell($letra . $config['headerRow'])->getValue();
+        }
+
+        $normal = array_map('normalizeHeader', $fila);
+        $__row  = [];
+
+        foreach ($columns as $i => $name) {
+            $letra    = columnLetter($inicio + $i);
+            $esperada = normalizeHeader($name);
+            $cuadra   = isset($normal[$letra]) && $normal[$letra] === $esperada;
+
+            $en = $cuadra ? false : array_search($esperada, $normal, true);
+
+            $__row[] = [
+                'letra'      => $letra,
+                'esperada'   => $name,
+                'encontrada' => isset($fila[$letra]) ? trim($fila[$letra]) : '',
+                'estado'     => $cuadra ? 'ok' : ($en === false ? 'ausente' : 'movida'),
+                'en'         => $en === false ? '' : $en
+            ];
+        }
+
+        return $__row;
+    }
+
+    private function columnasMalas($columnas) {
+        $__row = [];
+
+        foreach ($columnas as $c) {
+            if ($c['estado'] !== 'ok') $__row[] = $c;
+        }
+
+        return $__row;
+    }
+
+    // Crea el lote de la hoja y vuelca sus filas.
+    //
+    // A diferencia del importador de Soft, aqui la hoja viaja entera hasta el
+    // guardado: el detalle necesita leer el bloque de resumen de las filas 8-12,
+    // que esta FUERA de la tabla y no aparece en las filas limpias.
+    private function guardarHoja($sheetName, $config, $hoja, $ctx) {
+        $inicio     = $config['startIndex'];
+        $total      = count($config['columns']);
+        $totalFilas = $hoja->getHighestRow();
+        $limpias    = [];
+
+        $this->rechazadas = 0;
+        $this->ventas     = 0;
+        $this->pagos      = 0;
+        $this->meseros    = 0;
+        $this->cajeros    = 0;
+        $this->ligados    = 0;
+        $this->resumenes  = 0;
+
+        $claveCol = columnLetter($inicio + $config['keyIndex']);
+        $fechaCol = isset($config['dateIndex']) ? columnLetter($inicio + $config['dateIndex']) : '';
+
+        for ($fila = $config['headerRow'] + 1; $fila <= $totalFilas; $fila++) {
+            $clave = trim((string) $hoja->getCell($claveCol . $fila)->getValue());
+            if ($clave === '') continue; // corta el relleno con formato de la hoja
+
+            // Y esto corta el pie de totales, que si trae valor en la columna
+            // clave: «$54,541.04» donde va el movimiento PDV. Lo que no trae es
+            // fecha, y ningun movimiento real deja de traerla.
+            if ($fechaCol !== '') {
+                $marca = trim((string) $hoja->getCell($fechaCol . $fila)->getValue());
+                if ($marca === '' || cleanDate($marca) === null) continue;
+            }
+
+            $valores = [];
+            for ($i = 0; $i < $total; $i++) {
+                $valores[$i] = trim((string) $hoja->getCell(columnLetter($inicio + $i) . $fila)->getValue());
+            }
+            $valores['source_row'] = $fila;
+
+            $limpias[] = $valores;
+        }
+
+        // Una hoja sin filas no borra el periodo: no hay nada con que reemplazar y
+        // los datos buenos se quedan. Se reporta como cargada sin movimientos.
+        if (empty($limpias)) return $this->resultadoHoja(0, 0, 0);
+
+        $reemplazadas = $this->borrarPeriodo($sheetName, $config['target'], $ctx);
+
+        $control = 0;
+        foreach ($limpias as $v) $control += numVal($v[$config['controlIndex']]);
+
+        $batch = $this->util->sql([
+            'file_name'     => $ctx['fileName'],
+            'sheet_name'    => $sheetName,
+            'period_year'   => $ctx['anio'],
+            'period_month'  => $ctx['mes'],
+            'row_count'     => count($limpias),
+            'control_total' => $control,
+            'created_at'    => date('Y-m-d H:i:s'),
+            'branch_id'     => $ctx['branchId']
+        ]);
+
+        if (!$this->mdl->createImportBatch($batch)) return $this->resultadoHoja(0, count($limpias), $reemplazadas);
+
+        $max     = $this->mdl->getMaxImportBatchId();
+        $batchId = (int) $max[0]['id'];
+
+        if     ($config['target'] === 'wansoft-detail') $insertadas = $this->guardarDetalle($limpias, $hoja, $batchId, $ctx);
+        elseif ($config['target'] === 'card')           $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 0);
+        elseif ($config['target'] === 'card-refund')    $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 1);
+        else                                            $insertadas = $this->guardarEliminados($limpias, $batchId, $ctx);
+
+        if ($insertadas === 0) {
+            $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
+        }
+
+        return $this->resultadoHoja($insertadas, count($limpias), $reemplazadas);
+    }
+
+    private function resultadoHoja($insertadas, $leidas, $reemplazadas) {
+        return [
+            'insertadas'   => $insertadas,
+            'leidas'       => $leidas,
+            'reemplazadas' => $reemplazadas,
+            'rechazadas'   => $this->rechazadas,
+            'ventas'       => $this->ventas,
+            'pagos'        => $this->pagos,
+            'meseros'      => $this->meseros,
+            'cajeros'      => $this->cajeros,
+            'ligados'      => $this->ligados,
+            'resumenes'    => $this->resumenes
+        ];
+    }
+
+    // Sobreescritura del periodo: la carga reemplaza a la anterior de la misma
+    // hoja, no se suma a ella.
+    //
+    // El detalle borra ventas Y pagos porque los produce los dos de una sola hoja.
+    // Las ventas se llevan sus pagos por el CASCADE de sale_id, asi que basta con
+    // borrar las ventas del lote.
+    private function borrarPeriodo($sheetName, $target, $ctx) {
+        $previos = $this->mdl->listImportBatchBySheet([
+            $ctx['branchId'], $ctx['anio'], $ctx['mes'], $sheetName
+        ]);
+
+        if (empty($previos)) return 0;
+
+        $filas = 0;
+        foreach ($previos as $lote) {
+            $where = $this->util->sql(['import_batch_id' => $lote['id']], 1);
+
+            if ($target === 'wansoft-detail') {
+                $this->mdl->deleteDailySummaryByBatch($where);
+                $this->mdl->deleteSalePaymentByBatch($where);
+                $this->mdl->deleteSaleByBatch($where);
+            } elseif ($target === 'card' || $target === 'card-refund') {
+                $this->mdl->deletePaymentCardByBatch($where);
+            } else {
+                $this->mdl->deleteDeletedPaymentByBatch($where);
+            }
+
+            $this->mdl->deleteImportBatchById($this->util->sql(['id' => $lote['id']], 1));
+            $filas += (int) $lote['row_count'];
+        }
+
+        return $filas;
+    }
+
+    // ---------------------------------------------------------------------
+    //  Hoja "Detalle por forma de pago"
+    // ---------------------------------------------------------------------
+
+    // La hoja principal, y la unica que produce DOS tablas: cada fila es un pago y
+    // varias filas comparten ticket (el movimiento 6275 del archivo medido son dos
+    // pagos de la misma cuenta, 236 + 1070).
+    //
+    // El orden importa: primero los catalogos, porque la venta entra ya con el id
+    // de su mesero y su cajero resueltos. Es el mismo patron de ventasPorFolio() en
+    // el importador de Soft: un mapa en memoria antes de insertar, en vez de un
+    // UPDATE por fila despues. Aqui es todavia mas barato, porque los meseros de un
+    // dia se cuentan con los dedos.
+    private function guardarDetalle($rows, $hoja, $batchId, $ctx) {
+        $this->meseros = $this->sembrarMeseros($rows, $ctx);
+        $this->cajeros = $this->sembrarCajeros($rows, $ctx);
+
+        $meseros = $this->mapaPorNombre($this->mdl->listWaiterByName([$ctx['branchId']]));
+        $cajeros = $this->mapaPorNombre($this->mdl->listCashier([$ctx['branchId']]));
+        $estados = $this->mapaEstados();
+        $metodos = $this->mapaMetodos($ctx);
+
+        $resumen = $this->leerResumen($hoja);
+        $tasa    = $this->tasaDelResumen($resumen);
+
+        $this->ventas = $this->guardarVentas($rows, $batchId, $ctx, $meseros, $cajeros, $estados, $tasa);
+        $this->pagos  = $this->guardarPagos($rows, $batchId, $metodos);
+
+        // Los pagos entran con el movimiento PDV en sale_folio y se cuelgan de su
+        // venta en una sola sentencia, ya con las ventas del lote en base.
+        if ($this->pagos > 0) $this->mdl->linkPaymentToSaleByPdv([$ctx['branchId'], $batchId]);
+
+        $this->resumenes = $this->guardarResumen($rows, $resumen, $batchId, $ctx);
+
+        // Lo que cuenta como "insertadas" de esta hoja son los pagos: es lo que
+        // tiene una fila por cada fila del Excel. Las ventas son agrupaciones.
+        return $this->pagos;
+    }
+
+    // El catalogo de meseros se cruza por NOMBRE porque Wansoft no manda codigo. El
+    // que no existe se da de alta con code en nulo; el que ya venia de una carga de
+    // Soft Restaurant conserva el suyo y no se toca.
+    private function sembrarMeseros($rows, $ctx) {
+        $existen = $this->mapaPorNombre($this->mdl->listWaiterByName([$ctx['branchId']]));
+
+        $nuevos = [];
+        foreach ($rows as $v) {
+            $nombre = limpiarNombre($v[7]);
+            if ($nombre === '' || isset($existen[claveNombre($nombre)])) continue;
+
+            $nuevos[claveNombre($nombre)] = $nombre;
+        }
+
+        if (empty($nuevos)) return 0;
+
+        $data = [];
+        foreach ($nuevos as $nombre) {
+            $data[] = ['name' => $nombre, 'branch_id' => $ctx['branchId']];
+        }
+
+        return $this->insertarCatalogo($data, 'waiter');
+    }
+
+    private function sembrarCajeros($rows, $ctx) {
+        $existen = $this->mapaPorNombre($this->mdl->listCashier([$ctx['branchId']]));
+
+        $nuevos = [];
+        foreach ($rows as $v) {
+            $nombre = limpiarNombre($v[8]);
+            if ($nombre === '' || isset($existen[claveNombre($nombre)])) continue;
+
+            $nuevos[claveNombre($nombre)] = $nombre;
+        }
+
+        if (empty($nuevos)) return 0;
+
+        $data = [];
+        foreach ($nuevos as $nombre) {
+            $data[] = ['name' => $nombre, 'branch_id' => $ctx['branchId']];
+        }
+
+        return $this->insertarCatalogo($data, 'cashier');
+    }
+
+    // Una venta por movimiento PDV. El total del ticket es la SUMA de sus pagos:
+    // la columna P es del pago, no de la cuenta, y en un ticket partido ninguna de
+    // las dos filas trae el total real.
+    private function guardarVentas($rows, $batchId, $ctx, $meseros, $cajeros, $estados, $tasa) {
+        $tickets = [];
+
+        foreach ($rows as $v) {
+            $pdv = $v[5];
+            if ($pdv === '') continue;
+
+            if (!isset($tickets[$pdv])) {
+                $tickets[$pdv] = [
+                    'pdv'     => $pdv,
+                    'orden'   => (int) numVal($v[4]),
+                    'fecha'   => cleanDate($v[3]),
+                    'estatus' => $v[6],
+                    'mesero'  => limpiarNombre($v[7]),
+                    'cajero'  => limpiarNombre($v[8]),
+                    'total'   => 0,
+                    'fila'    => $v['source_row']
+                ];
+            }
+
+            $tickets[$pdv]['total'] += numVal($v[15]);
+        }
+
+        if (empty($tickets)) return 0;
+
+        $data = [];
+        foreach ($tickets as $t) {
+            // Wansoft solo desglosa el IVA por dia, nunca por ticket. Se deriva con
+            // la tasa que el propio archivo declara en su bloque de resumen, para
+            // que tasaDe() del modulo de tickets —que divide impuesto entre
+            // subtotal— siga leyendo la venta al 16 % y no al 0 %.
+            $subtotal = $tasa > 0 ? round($t['total'] / (1 + $tasa), 2) : $t['total'];
+            $impuesto = round($t['total'] - $subtotal, 2);
+
+            $data[] = [
+                'folio'               => $t['pdv'],
+                'billing_code'        => null,
+                'pdv_movement'        => $t['pdv'],
+                'order_number'        => $t['orden'],
+                'subtotal'            => $subtotal,
+                'tax'                 => $impuesto,
+                'total'               => $t['total'],
+                'operation_date'      => $t['fecha'],
+                'operation_status_id' => $this->idDe($estados, $t['estatus']),
+                'waiter_id'           => $this->idDe($meseros, $t['mesero']),
+                'cashier_id'          => $this->idDe($cajeros, $t['cajero']),
+                'source_row'          => $t['fila'],
+                'branch_id'           => $ctx['branchId'],
+                'import_batch_id'     => $batchId
+            ];
+        }
+
+        return $this->insertarPorBloques($data, 'sale');
+    }
+
+    // Un pago por fila del Excel. `sale_folio` lleva el movimiento PDV, que es con
+    // lo que se cruza contra la venta un paso despues.
+    private function guardarPagos($rows, $batchId, $metodos) {
+        $data = [];
+
+        foreach ($rows as $v) {
+            if ($v[5] === '') continue;
+
+            $data[] = [
+                'sale_folio'        => $v[5],
+                'terminal'          => $v[13] === '' ? null : $v[13],
+                'reference'         => $v[11] === '' ? null : $v[11],
+                'transaction_code'  => $v[12] === '' ? null : $v[12],
+                'validation_code'   => $v[14] === '' ? null : $v[14],
+                'amount'            => numVal($v[15]),
+                'tip'               => numVal($v[16]),
+                'paid_at'           => cleanDate($v[10]),
+                'payment_method_id' => $this->idDe($metodos, $v[9]),
+                'source_row'        => $v['source_row'],
+                'import_batch_id'   => $batchId
+            ];
+        }
+
+        return $this->insertarPorBloques($data, 'payment');
+    }
+
+    // El bloque de resumen vive FUERA de la tabla, en las filas 8 a 12, como pares
+    // etiqueta/valor en tres columnas (A-B, D-E, H-I). Se lee por etiqueta y no por
+    // posicion fija: el POS mueve los pares de sitio segun lo que tenga que decir.
+    private function leerResumen($hoja) {
+        $pares = [[0, 1], [3, 4], [7, 8]];
+        $__row = [];
+
+        for ($fila = 8; $fila <= 12; $fila++) {
+            foreach ($pares as $par) {
+                $etiqueta = trim((string) $hoja->getCell(columnLetter($par[0]) . $fila)->getValue());
+                if ($etiqueta === '') continue;
+
+                $valor = $hoja->getCell(columnLetter($par[1]) . $fila)->getValue();
+                $__row[normalizeHeader($etiqueta)] = numVal($valor);
+            }
+        }
+
+        return $__row;
+    }
+
+    // La tasa se DEDUCE del archivo en vez de darla por sentada: el bloque trae el
+    // subtotal y el IVA del dia, y su cociente es la tasa con la que se factura esa
+    // sucursal. Si el bloque no vino, se cae a la del negocio.
+    private function tasaDelResumen($resumen) {
+        $subtotal = isset($resumen['subtotal']) ? (float) $resumen['subtotal'] : 0;
+        $impuesto = isset($resumen['iva'])      ? (float) $resumen['iva']      : 0;
+
+        if ($subtotal <= 0 || $impuesto <= 0) return WANSOFT_TASA_DEFAULT;
+
+        return round($impuesto / $subtotal, 4);
+    }
+
+    // Una fila por dia y sucursal con lo que no se puede derivar de las ventas:
+    // comensales, cortesias y platillos cancelados son conteos que el POS calcula y
+    // que ningun renglon nuestro reconstruye.
+    //
+    // El bloque de resumen es del RANGO COMPLETO del reporte, no de un dia. Cuando
+    // el export trae un solo dia —el caso medido— se guarda entero. Cuando trae
+    // varios, los conteos no se pueden repartir entre ellos y solo se guardan los
+    // montos, que si salen dia por dia de las propias filas.
+    private function guardarResumen($rows, $resumen, $batchId, $ctx) {
+        $dias = [];
+
+        foreach ($rows as $v) {
+            $fecha = cleanDate($v[3]);
+            if ($fecha === null) continue;
+
+            $dia = substr($fecha, 0, 10);
+
+            if (!isset($dias[$dia])) $dias[$dia] = ['total' => 0, 'tip' => 0, 'tickets' => []];
+
+            $dias[$dia]['total'] += numVal($v[15]);
+            $dias[$dia]['tip']   += numVal($v[16]);
+            $dias[$dia]['tickets'][$v[5]] = true;
+        }
+
+        if (empty($dias)) return 0;
+
+        $unico = count($dias) === 1;
+        $tasa  = $this->tasaDelResumen($resumen);
+        $data  = [];
+
+        foreach ($dias as $dia => $d) {
+            // Con un solo dia manda el bloque de resumen, que trae el desglose
+            // LITERAL del POS. Derivarlo daria 45,702.59 donde el archivo dice
+            // 45,702.58: un centavo de redondeo que no hay por que inventar
+            // teniendo el dato. Con varios dias no queda mas remedio que derivar,
+            // porque el bloque es del rango completo.
+            $subtotal = $unico && valorDe($resumen, 'subtotal') > 0
+                ? valorDe($resumen, 'subtotal')
+                : ($tasa > 0 ? round($d['total'] / (1 + $tasa), 2) : $d['total']);
+
+            $impuesto = $unico && valorDe($resumen, 'iva') > 0
+                ? valorDe($resumen, 'iva')
+                : round($d['total'] - $subtotal, 2);
+
+            $data[] = [
+                'order_count'          => count($d['tickets']),
+                'guest_count'          => $unico ? (int) valorDe($resumen, 'no personas') : 0,
+                'courtesy_count'       => $unico ? (int) valorDe($resumen, 'cortesias completas') : 0,
+                'free_dish_count'      => $unico ? (int) valorDe($resumen, 'platillos gratis') : 0,
+                'cancelled_dish_count' => $unico ? (int) valorDe($resumen, 'platillos cancelados') : 0,
+                'cancelled_sale_count' => $unico ? (int) valorDe($resumen, 'ventas canceladas') : 0,
+                'subtotal'             => $subtotal,
+                'tax'                  => $impuesto,
+                'total'                => $d['total'],
+                'tip'                  => round($d['tip'], 2),
+                'courtesy_total'       => $unico ? valorDe($resumen, 'total cortesias') : 0,
+                'cancellation_total'   => $unico ? valorDe($resumen, 'total cancelaciones') : 0,
+                'operation_date'       => $dia,
+                'branch_id'            => $ctx['branchId'],
+                'import_batch_id'      => $batchId
+            ];
+
+            // El UNIQUE es (operation_date, branch_id): la fila del dia se borra
+            // antes de escribirla aunque venga de otro lote, o el INSERT choca.
+            $this->mdl->deleteDailySummaryByDate([$dia, $ctx['branchId']]);
+        }
+
+        return $this->insertarPorBloques($data, 'summary');
+    }
+
+    // ---------------------------------------------------------------------
+    //  Hojas bancarias y de eliminados
+    // ---------------------------------------------------------------------
+
+    // Las dos hojas de terminal caen en la misma tabla y las distingue `is_refund`:
+    // la cancelacion y la devolucion son la misma operacion con signo contrario.
+    // La hoja de cancelaciones no trae "Pago Anticipado", por eso ese campo se lee
+    // solo cuando la columna existe.
+    private function guardarTarjetas($rows, $batchId, $ctx, $esDevolucion) {
+        $data = [];
+
+        foreach ($rows as $v) {
+            $data[] = [
+                'pdv_order'          => $v[0],
+                'pdv_order_id'       => $v[2] === '' ? null : $v[2],
+                'transaction_code'   => $v[3] === '' ? null : $v[3],
+                'authorization_code' => $v[14] === '' ? null : $v[14],
+                'arqc'               => $v[4] === '' ? null : $v[4],
+                'terminal'           => $v[6] === '' ? null : $v[6],
+                'apn'                => $v[7] === '' ? null : $v[7],
+                'pinpad_type'        => $v[8] === '' ? null : $v[8],
+                'operation_type'     => $v[9] === '' ? null : $v[9],
+                'bank'               => $v[10] === '' ? null : $v[10],
+                'card_type'          => $v[11] === '' ? null : $v[11],
+                'card_number'        => $v[12] === '' ? null : $v[12],
+                'response_message'   => $v[13] === '' ? null : $v[13],
+                'is_prepaid'         => isset($v[16]) ? banderaDe($v[16]) : 0,
+                'is_refund'          => $esDevolucion,
+                'amount'             => numVal($v[15]),
+                'operation_date'     => cleanDate($v[1]),
+                'authorized_at'      => cleanDate($v[5]),
+                'import_batch_id'    => $batchId
+            ];
+        }
+
+        $insertadas = $this->insertarPorBloques($data, 'card');
+
+        if ($insertadas > 0) {
+            $this->mdl->linkPaymentCardByBatch([$ctx['branchId'], $batchId]);
+
+            $conteo        = $this->mdl->countPaymentCardByBatch([$batchId]);
+            $this->ligados = (int) ($conteo[0]['ligados'] ?? 0);
+        }
+
+        return $insertadas;
+    }
+
+    // Bitacora de pagos borrados en el POS. Se cruza contra los catalogos por
+    // nombre igual que el detalle, pero SIN sembrar: un pago que ya no existe no
+    // justifica dar de alta a un mesero que nunca aparecio en una venta.
+    private function guardarEliminados($rows, $batchId, $ctx) {
+        $meseros = $this->mapaPorNombre($this->mdl->listWaiterByName([$ctx['branchId']]));
+        $cajeros = $this->mapaPorNombre($this->mdl->listCashier([$ctx['branchId']]));
+        $metodos = $this->mapaMetodos($ctx);
+
+        $data = [];
+        foreach ($rows as $v) {
+            $data[] = [
+                'pdv_order'         => $v[2],
+                'terminal'          => $v[7] === '' ? null : $v[7],
+                'modified_by'       => $v[5] === '' ? null : $v[5],
+                'amount'            => numVal($v[8]),
+                'tip'               => numVal($v[9]),
+                'operation_date'    => cleanDate($v[1]),
+                'registered_at'     => cleanDate($v[0]),
+                'waiter_id'         => $this->idDe($meseros, limpiarNombre($v[3])),
+                'cashier_id'        => $this->idDe($cajeros, limpiarNombre($v[4])),
+                'payment_method_id' => $this->idDe($metodos, $v[6]),
+                'branch_id'         => $ctx['branchId'],
+                'import_batch_id'   => $batchId
+            ];
+        }
+
+        return $this->insertarPorBloques($data, 'deleted');
+    }
+
+    // ---------------------------------------------------------------------
+    //  Mapas de catalogo
+    // ---------------------------------------------------------------------
+
+    // Los catalogos se resuelven en memoria y no con un UPDATE posterior: son
+    // decenas de filas, no miles, y asi la venta entra con su id desde el primer
+    // INSERT.
+    private function mapaPorNombre($filas) {
+        $__row = [];
+
+        foreach ($filas as $item) {
+            $__row[claveNombre($item['name'])] = (int) $item['id'];
+        }
+
+        return $__row;
+    }
+
+    private function mapaEstados() {
+        $__row = [];
+
+        foreach ($this->mdl->lsSaleOperationStatus() as $item) {
+            $__row[claveNombre($item['valor'])] = (int) $item['id'];
+        }
+
+        return $__row;
+    }
+
+    // Las formas de pago se cruzan por su nombre NORMALIZADO, no con strtoupper:
+    // esa funcion no es multibyte y dejaria «Tarjeta de credito» como «TARJETA DE
+    // CRéDITO», que no empata con ningun seed. El catalogo se guarda sin acentos y
+    // aqui se compara igual.
+    private function mapaMetodos($ctx) {
+        $__row = [];
+
+        foreach ($this->mdl->lsPaymentMethod([$ctx['branchId']]) as $item) {
+            $__row[claveNombre($item['valor'])] = (int) $item['id'];
+        }
+
+        return $__row;
+    }
+
+    private function idDe($mapa, $texto) {
+        $clave = claveNombre($texto);
+
+        return isset($mapa[$clave]) ? $mapa[$clave] : null;
+    }
+
+    // ---------------------------------------------------------------------
+    //  Insercion
+    // ---------------------------------------------------------------------
+
+    // Un INSERT por cada 400 filas, y el bloque que falla se reintenta fila por
+    // fila: PDO tumba las 400 por una sola invalida, y asi entra el archivo
+    // completo quedando fuera solo lo que el motor rechaza de verdad.
+    private function insertarPorBloques($data, $target) {
+        $insertadas = 0;
+
+        foreach (array_chunk($data, 400) as $chunk) {
+            if ($this->insertarBloque($chunk, $target) === true) {
+                $insertadas += count($chunk);
+                continue;
+            }
+
+            foreach ($chunk as $fila) {
+                if ($this->insertarBloque([$fila], $target) === true) $insertadas++;
+                else $this->rechazadas++;
+            }
+        }
+
+        return $insertadas;
+    }
+
+    // Las altas de catalogo no son filas de la hoja: lo que rechace el motor no
+    // cuenta como fila rechazada del Excel.
+    private function insertarCatalogo($data, $target) {
+        $previas    = $this->rechazadas;
+        $insertadas = $this->insertarPorBloques($data, $target);
+
+        $this->rechazadas = $previas;
+
+        return $insertadas;
+    }
+
+    private function insertarBloque($chunk, $target) {
+        $values = $this->util->sql($chunk);
+
+        if ($target === 'sale')    return $this->mdl->createSale($values);
+        if ($target === 'payment') return $this->mdl->createSalePayment($values);
+        if ($target === 'waiter')  return $this->mdl->createWaiter($values);
+        if ($target === 'cashier') return $this->mdl->createCashier($values);
+        if ($target === 'summary') return $this->mdl->createDailySummary($values);
+        if ($target === 'card')    return $this->mdl->createPaymentCard($values);
+
+        return $this->mdl->createDeletedPayment($values);
+    }
+}
+
+// Complements
+
+// La llave con la que se cruzan los nombres del POS contra el catalogo. Sin
+// acentos, sin mayusculas y sin espacios de mas: «RAMÓN  PÉREZ» y «Ramon Perez»
+// son la misma persona y el POS los escribe de las dos formas entre exports.
+//
+// Reusa normalizeHeader porque hace exactamente eso, y ademas quita la puntuacion
+// que a veces cuelga de los nombres capturados a mano.
+function claveNombre($texto) {
+    return normalizeHeader((string) $texto);
+}
+
+// El nombre TAL COMO se guarda: se respetan mayusculas y acentos del POS —es lo
+// que se va a imprimir en el ticket— pero se colapsan los espacios, que es lo
+// unico que crearia un duplicado que el UNIQUE si dejaria pasar.
+function limpiarNombre($texto) {
+    return trim(preg_replace('/\s+/', ' ', (string) $texto));
+}
+
+// Las banderas del POS llegan como texto y no siempre en el mismo idioma.
+function banderaDe($valor) {
+    $limpio = strtolower(trim((string) $valor));
+
+    return in_array($limpio, ['1', 'si', 'sí', 'true', 'x', 'yes'], true) ? 1 : 0;
+}
+
+function valorDe($resumen, $clave) {
+    return isset($resumen[$clave]) ? $resumen[$clave] : 0;
+}
