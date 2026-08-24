@@ -19,15 +19,21 @@ const FACTURE_MODULOS = [
     },
     {
         titulo:      'Tickets',
-        descripcion: 'Tickets virtuales con productos auxiliares para lo cobrado por banco',
+        descripcion: 'Tickets virtuales con productos de tasa 0% para lo cobrado por banco',
         icon:        'printer',
         enlace:      '/app/facture/tickets.php'
     },
     {
         titulo:      'Catalogos',
-        descripcion: 'Productos auxiliares y datos del emisor que aparecen en el ticket virtual',
+        descripcion: 'Catalogos de productos de tasa 0% e IVA 16%',
         icon:        'library',
         enlace:      '/app/facture/catalogos.php'
+    },
+    {
+        titulo:      'Ticket / Emisor',
+        descripcion: 'Datos de la empresa que encabezan el ticket virtual',
+        icon:        'building-2',
+        enlace:      '/app/facture/emisor.php'
     }
 ];
 

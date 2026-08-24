@@ -15,7 +15,6 @@ class App extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'catalogos';
-        this.view         = 'productos';
         this.clase        = 'puente';
     }
 
@@ -30,46 +29,30 @@ class App extends Templates {
         catalogosView.renderHeader();
         this.filterBar();
 
-        if (this.view === 'productos') {
-            catalogos.lsProductos();
-        } else {
-            catalogosView.renderEmisor(this.dataInit.emisor);
-        }
+        catalogos.lsProductos();
     }
 
     // -- Layout --
 
     layout() {
-        const bands = [
-            {
-                id:    'viewHeader',
-                class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-            }
-        ];
-
-        if (this.view === 'productos') {
-            bands.push(
+        const mainPanel = {
+            type:  'div',
+            id:    'mainPanel',
+            class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
+            children: [
+                {
+                    id:    'viewHeader',
+                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                },
                 {
                     id:    'filterBar',
                     class: 'px-4 py-3 bg-[#141d2b] border-b border-[#374151] flex-shrink-0'
                 },
                 {
-                    id:    'kpisRow',
-                    class: 'px-3 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
+                    id:    'contentRow',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col'
                 }
-            );
-        }
-
-        bands.push({
-            id:    'contentRow',
-            class: 'p-3 flex-1 min-h-0 flex flex-col'
-        });
-
-        const mainPanel = {
-            type:     'div',
-            id:       'mainPanel',
-            class:    'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
-            children: bands
+            ]
         };
 
         this.createLayout({
@@ -106,8 +89,6 @@ class App extends Templates {
     // -- Filter bar --
 
     filterBar() {
-        if (this.view === 'emisor') return;
-
         this.createLayout({
             parent: 'filterBar',
             design: false,
@@ -138,7 +119,7 @@ class App extends Templates {
                 {
                     opc:      'select',
                     id:       'fClase',
-                    lbl:      'Tipo de producto:',
+                    lbl:      'Catalogo:',
                     class:    'col-12 col-md-6 col-lg-7',
                     value:    this.clase,
                     required: false,
@@ -173,17 +154,20 @@ class App extends Templates {
         catalogos.lsProductos();
     }
 
-    emptyMessage() {
-        return this.clase === 'puente'
-            ? 'Aun no hay productos auxiliares dados de alta'
-            : 'No hay productos con el filtro aplicado';
+    // El listado de modificadores va sin la columna de tasa, asi que el Estatus
+    // recorre un lugar y las columnas centradas son otras. El ctrl aplica la misma
+    // regla al armar la tabla.
+    verTasa() {
+        return this.clase !== 'modificador';
     }
 
-    // -- Vistas --
+    emptyMessage() {
+        const vacios = {
+            puente: 'Aun no hay productos de tasa 0% dados de alta',
+            normal: 'Aun no hay productos de IVA 16% dados de alta'
+        };
 
-    setView(view) {
-        this.view = view;
-        this.render();
+        return vacios[this.clase] || 'No hay productos con el filtro aplicado';
     }
 }
 
@@ -207,7 +191,7 @@ class Catalogos extends Templates {
             attr: {
                 id:           'tbProductos',
                 theme:        FACTURE_THEME,
-                center:       [1, 4, 5, 6],
+                center:       app.verTasa() ? [1, 4, 5] : [1, 4],
                 right:        [3],
                 actionsAlign: 'center',
                 hover:        true,
@@ -218,38 +202,19 @@ class Catalogos extends Templates {
             },
             conf: {
                 pag: 12
-            },
-            methods: {
-                send: (data) => { if (data.kpis) catalogosView.renderInfoCards(data.kpis); }
             }
         });
     }
 
     // -- Actions --
 
-    async saveProducto(code, data, puente) {
+    async saveProducto(code, data) {
         const response = await useFetch({
             url:  apiCatalogos,
-            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data, { puente: puente })
+            data: Object.assign({ opc: 'saveProducto', previo: code || '' }, data)
         });
 
         this.afterSave(response);
-    }
-
-    async saveEmisor() {
-        const response = await useFetch({
-            url: apiCatalogos,
-            data: Object.assign({ opc: 'saveEmisor' }, catalogosView.getEmisorForm())
-        });
-
-        if (response.status === 200) app.dataInit.emisor = response.emisor;
-
-        this.alertBox({
-            theme: FACTURE_THEME,
-            type:  response.status === 200 ? 'success' : 'error',
-            title: response.message,
-            timer: response.status === 200 ? 1600 : 0
-        });
     }
 
     async editProductoFlag(code, campo, valor) {
@@ -329,37 +294,25 @@ class CatalogosView extends Templates {
             id:     'hdrCatalogos',
             json: {
                 title:    'Catalogos',
-                subtitle: 'Productos auxiliares y datos del ticket virtual',
-                back:     { href: '/app/facture2/index.php', title: 'Regresar a la Terminal' },
-                toggles: [
-                    {
-                        key:   'vista',
-                        label: '',
-                        value: app.view,
-                        options: [
-                            {
-                                value: 'productos',
-                                label: 'Productos'
-                            },
-                            {
-                                value: 'emisor',
-                                label: 'Ticket / Emisor'
-                            }
-                        ]
-                    }
-                ]
-            },
-            onToggle: (key, value) => app.setView(value)
+                subtitle: 'Productos de tasa 0% e IVA 16%',
+                back:     { href: '/app/facture2/admin.php', title: 'Regresar a Configuracion' }
+            }
         });
     }
 
     notas() {
         return {
-            auxiliar: {
-                icon:   'link',
+            tasaCero: {
+                icon:   'percent',
                 accent: '#3FC189',
-                title:  '¿Que es un producto auxiliar?',
-                text:   'La pieza con la que se arma el ticket: el sistema junta sus precios hasta cubrir el total cobrado (para $250, uno de $150 y otro de $100).'
+                title:  'Catalogo tasa 0%',
+                text:   'Con estos productos se arma la parte del ticket a tasa 0%: el sistema junta sus precios hasta cubrir el total cobrado (para $250, uno de $150 y otro de $100).'
+            },
+            tasaIva: {
+                icon:   'receipt',
+                accent: '#60A5FA',
+                title:  'Catalogo IVA 16%',
+                text:   'Los productos sin marcar son los de tasa 16% y arman esa parte del ticket. La tasa se cambia desde la columna Tasa de la tabla.'
             },
             modificador: {
                 icon:   'layers',
@@ -380,262 +333,12 @@ class CatalogosView extends Templates {
                 item: 'note-card flex items-start gap-2 flex-1 px-3 py-2 rounded-lg bg-[#0E1521]'
             },
             json: {
-                items: [notas.auxiliar, notas.modificador]
-            }
-        });
-    }
-
-    renderInfoCards(kpis) {
-        this.kpisRow({
-            parent: 'kpisRow',
-            json: [
-                {
-                    id:    'kpiProductos',
-                    label: 'Productos',
-                    value: kpis.productos,
-                    tone:  'default'
-                },
-                {
-                    id:    'kpiPuente',
-                    label: 'Productos auxiliares',
-                    value: kpis.puente,
-                    tone:  'success'
-                },
-                {
-                    id:    'kpiModificadores',
-                    label: 'Modificadores',
-                    value: kpis.modificadores,
-                    tone:  'warning'
-                },
-                {
-                    id:    'kpiPrecio',
-                    label: 'Precio promedio',
-                    value: kpis.precioPromedio,
-                    tone:  'info'
-                }
-            ]
-        });
-    }
-
-    // -- Layout --
-
-    emisorLayout() {
-        this.createLayout({
-            parent: 'viewBody',
-            design: false,
-            data: {
-                id:    'emisorWrap',
-                class: 'lg:h-full flex flex-col min-h-0',
-                container: [
-                    {
-                        type:  'div',
-                        id:    'emisorHead',
-                        class: 'pb-3 border-b border-[#374151] flex-shrink-0'
-                    },
-                    {
-                        type:  'div',
-                        id:    'emisorRow',
-                        class: 'pt-4 lg:flex-1 min-h-0 flex flex-col lg:flex-row gap-4 items-stretch',
-                        children: [
-                            {
-                                id:    'emisorSlot',
-                                class: 'w-full lg:flex-1 min-w-0 flex'
-                            },
-                            {
-                                id:    'previewSlot',
-                                class: 'w-full lg:w-[600px] flex-shrink-0 flex'
-                            }
-                        ]
-                    }
-                ]
-            }
-        });
-
-        this.createLayout({
-            parent: 'emisorSlot',
-            design: false,
-            data: {
-                id:    'emisorCard',
-                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
-                container: [
-                    {
-                        type:  'div',
-                        id:    'emisorCardHead',
-                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
-                    },
-                    {
-                        type: 'div',
-                        id:   'formEmisor'
-                    }
-                ]
-            }
-        });
-
-        this.createLayout({
-            parent: 'previewSlot',
-            design: false,
-            data: {
-                id:    'emisorPreview',
-                class: 'w-full bg-[#141d2b] rounded-lg p-4 flex flex-col min-h-0 overflow-auto scroll-thin',
-                container: [
-                    {
-                        type:  'div',
-                        id:    'previewHead',
-                        class: 'pb-3 mb-3 border-b border-[#374151] flex-shrink-0'
-                    },
-                    {
-                        type: 'div',
-                        id:   'ticketPrintArea'
-                    }
-                ]
+                items: [notas.tasaCero, notas.tasaIva]
             }
         });
     }
 
     // -- Forms --
-
-    renderEmisor(emisor) {
-        this.emisorLayout();
-
-        this.panelHead({
-            parent: 'emisorHead',
-            json: {
-                icon:  'building-2',
-                title: 'Emisor del ticket virtual',
-                badge: {
-                    text: 'sucursal',
-                    tone: 'b-gray'
-                }
-            }
-        });
-
-        this.panelHead({
-            parent: 'emisorCardHead',
-            json: {
-                icon:  'building-2',
-                title: 'Datos de la empresa'
-            }
-        });
-
-        this.panelHead({
-            parent: 'previewHead',
-            json: {
-                icon:  'printer',
-                title: 'Vista previa del ticket',
-                badge: {
-                    text: 'muestra',
-                    tone: 'b-gray'
-                }
-            }
-        });
-
-        this.coffeeForm({
-            parent:       'formEmisor',
-            id:           'frmEmisor',
-            theme:        FACTURE_THEME,
-            showRequired: false,
-            autofill:     emisor,
-            json: [
-                {
-                    opc:   'input',
-                    id:    'razon',
-                    lbl:   'Razon social',
-                    tipo:  'texto',
-                    class: 'col-12 mb-3'
-                },
-                // El lema es el renglon que va bajo la razon social. Se guarda en la
-                // empresa, igual que el domicilio fiscal: son los dos datos del
-                // membrete que no cambian de una sucursal a otra.
-                {
-                    opc:   'input',
-                    id:    'lema',
-                    lbl:   'Lema',
-                    tipo:  'texto',
-                    class: 'col-12 mb-3'
-                },
-                {
-                    opc:   'input',
-                    id:    'rfc',
-                    lbl:   'RFC',
-                    tipo:  'texto',
-                    class: 'col-12 col-md-6 mb-3'
-                },
-                {
-                    opc:   'input',
-                    id:    'telefono',
-                    lbl:   'Telefono',
-                    tipo:  'tel',
-                    class: 'col-12 col-md-6 mb-3'
-                },
-                {
-                    opc:   'input',
-                    id:    'domicilio',
-                    lbl:   'Domicilio fiscal (empresa)',
-                    tipo:  'texto',
-                    class: 'col-12 mb-3'
-                },
-                {
-                    opc:   'input',
-                    id:    'expedicion',
-                    lbl:   'Lugar de expedicion (sucursal)',
-                    tipo:  'texto',
-                    class: 'col-12 mb-3'
-                },
-                {
-                    opc:       'button',
-                    id:        'btnGuardarEmisor',
-                    text:      'Guardar emisor',
-                    color_btn: 'primary',
-                    class:     'col-12 col-md-4',
-                    onClick:   () => catalogos.saveEmisor()
-                }
-            ]
-        });
-
-        this.renderEmisorPreview(emisor);
-
-        $('#frmEmisor').on('input', () => this.renderEmisorPreview(this.getEmisorForm()));
-    }
-
-    getEmisorForm() {
-        return {
-            razon:      $('#razon').val(),
-            lema:       $('#lema').val(),
-            rfc:        $('#rfc').val(),
-            telefono:   $('#telefono').val(),
-            domicilio:  $('#domicilio').val(),
-            expedicion: $('#expedicion').val()
-        };
-    }
-
-    // La muestra trae todos los renglones que imprime un ticket real: se captura el
-    // membrete mirando el papel completo, no una version recortada de el.
-    renderEmisorPreview(emisor) {
-        this.ticketPaper({
-            parent: 'ticketPrintArea',
-            emisor: emisor,
-            json: {
-                nota:      'A-1024',
-                folio:     'MUESTRA',
-                fechaHora: '01/07/2026 02:32:10 PM',
-                mesa:      '12',
-                mesero:    'MAFER',
-                personas:  '2',
-                orden:     '13',
-                cajero:    'ADMINISTRACION',
-                subtotal:  '$260.00',
-                descuento: '$10.00',
-                total:     '$250.00',
-                propina:   '$0.00',
-                letras:    'DOSCIENTOS CINCUENTA PESOS 00/100 M.N.',
-                metodo:    'efectivo',
-                lineas: [
-                    { cant: 2, nombre: 'Producto auxiliar A', importe: '$120.00' },
-                    { cant: 1, nombre: 'Producto auxiliar B', importe: '$140.00' }
-                ]
-            }
-        });
-    }
 
     async openProductoForm(code) {
         const data     = code ? await useFetch({ url: apiCatalogos, data: { opc: 'getProducto', code: code } }) : {};
@@ -643,7 +346,7 @@ class CatalogosView extends Templates {
 
         this.formModal({
             id:       'frmProducto',
-            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto auxiliar',
+            title:    producto ? `Editar ${producto.nombre}` : 'Nuevo producto',
             autofill: producto || false,
             note:     { items: [this.notas().modificador] },
             json: [
@@ -653,34 +356,72 @@ class CatalogosView extends Templates {
                     lbl:      'Codigo',
                     tipo:     'text',
                     required: false,
-                    class:    'col-12 col-md-6 mb-3'
+                    class:    'col-12 col-md-4 mb-3'
                 },
                 {
                     opc:   'input',
                     id:    'nombre',
-                    lbl:   'Nombre del producto',
+                    lbl:   'Descripcion',
                     tipo:  'texto',
-                    class: 'col-12 col-md-6 mb-3'
+                    class: 'col-12 col-md-8 mb-3'
                 },
                 {
                     opc:   'input',
                     id:    'precio',
                     lbl:   'Precio',
                     tipo:  'cifra',
-                    class: 'col-12 col-md-6 mb-3'
+                    class: 'col-12 col-md-4 mb-3'
                 },
                 {
                     opc:      'select',
                     id:       'modificador',
                     lbl:      'Es modificador',
-                    class:    'col-12 col-md-6 mb-3',
+                    class:    'col-12 col-md-4 mb-3',
                     value:    '0',
                     required: false,
                     data:     app.dataInit.sino
+                },
+                // La tasa decide en cual de los dos catalogos cae el producto. En un
+                // alta se propone la del catalogo que se esta viendo, que es el que
+                // se vino a llenar.
+                {
+                    opc:      'select',
+                    id:       'puente',
+                    lbl:      'Tasa',
+                    class:    'col-12 col-md-4 mb-3',
+                    value:    app.clase === 'normal' ? '0' : '1',
+                    required: false,
+                    data:     app.dataInit.tasas
                 }
             ],
-            onSave: (form) => catalogos.saveProducto(code || '', form, producto ? Number(producto.puente) : 1)
+            onSave: (form) => catalogos.saveProducto(code || '', form)
         });
+
+        this.toggleTasa();
+
+        $('#modificador').on('change', () => this.toggleTasa());
+    }
+
+    // El modificador acompaña a otro producto y nunca arma un ticket por si solo,
+    // asi que no elige catalogo: se le esconde la tasa y se guarda fuera del de
+    // tasa 0%, que es el unico que se consume para armar papel.
+    //
+    // La tasa que traia se recuerda para devolverla si se desmarca: quien entro al
+    // catalogo de tasa 0% no deberia salir con un producto al 16% por haber pasado
+    // un momento por el modificador.
+    toggleTasa() {
+        const esModificador = $('#modificador').val() === '1';
+        const tasa          = $('#puente');
+
+        tasa.closest('[class*="col-"]').toggle(!esModificador);
+
+        if (esModificador) {
+            this.tasaPrevia = tasa.val();
+
+            return tasa.val('0');
+        }
+
+        if (this.tasaPrevia !== undefined) tasa.val(this.tasaPrevia);
     }
 
     editProducto(code) {
@@ -714,16 +455,6 @@ class CatalogosView extends Templates {
             onOk:        () => form.trigger('submit')
         });
 
-        if (opts.note) {
-            modal.body.append(note);
-
-            this.noteCard({
-                parent: `${opts.id}Note`,
-                class:  'flex flex-col gap-2 mb-4',
-                json:   opts.note
-            });
-        }
-
         modal.body.append(host);
 
         form = this.coffeeForm({
@@ -739,80 +470,19 @@ class CatalogosView extends Templates {
             }
         });
 
-        return modal;
-    }
+        // La nota va bajo los campos: es la aclaracion de lo que se acaba de
+        // capturar, no la portada del formulario.
+        if (opts.note) {
+            modal.body.append(note);
 
-    // El papel de la vista previa es el mismo que imprime el modulo Tickets, asi
-    // que sale del componente compartido: si aqui se viera distinto, el usuario
-    // estaria capturando el emisor mirando un ticket que no existe.
-    ticketPaper(options) {
-        TicketPaper.render(options);
-    }
-
-    kpisRow(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'kpisRow',
-            class:  'grid grid-cols-2 md:grid-cols-4 gap-3',
-            json:   [],
-            labels: {
-                empty: 'Sin indicadores'
-            },
-            tones: {
-                default: 'text-white',
-                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
-                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
-                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
-                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]',
-                purple:  'cs-text-purple  text-[var(--cs-accent-purple,#7C3AED)]'
-            },
-            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-3 cursor-pointer hover:bg-[var(--cs-bg-header,#141d2b)] transition-colors',
-            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)]',
-            valueClass:    'cs-kpi-value text-sm font-bold',
-            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)]',
-            onClick:       () => { }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
-        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
-
-        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
-
-        const kpiCard = (kpi, idx) => {
-            const cardId = kpi.id || `${opts.id}_${idx}`;
-
-            return `
-                <div id="${cardId}" data-kpi-idx="${idx}" class="${opts.cardClass}">
-                    <p class="${opts.labelClass}">${esc(kpi.label)}</p>
-                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}" id="${cardId}_value">${esc(kpi.value)}</p>
-                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}">${esc(kpi.subtitle)}</p>` : ''}
-                </div>
-            `;
-        };
-
-        const grid = $('<div>', { id: opts.id, class: opts.class });
-
-        if (!opts.json || opts.json.length === 0) {
-            grid.html(`
-                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
-                    ${esc(opts.labels.empty)}
-                </p>
-            `);
-
-            return $(`#${opts.parent}`).html(grid);
+            this.noteCard({
+                parent: `${opts.id}Note`,
+                class:  'flex flex-col gap-2 mt-2',
+                json:   opts.note
+            });
         }
 
-        grid.html(opts.json.map((kpi, idx) => kpiCard(kpi, idx)).join(''));
-
-        $(`#${opts.parent}`).html(grid);
-
-        grid.find('[data-kpi-idx]').on('click', (e) => {
-            const idx = parseInt($(e.currentTarget).attr('data-kpi-idx'), 10);
-
-            opts.onClick(opts.json[idx], idx);
-        });
+        return modal;
     }
 
     noteCard(options) {

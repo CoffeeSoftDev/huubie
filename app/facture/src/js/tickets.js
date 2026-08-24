@@ -543,7 +543,7 @@ class TicketsView extends Templates {
     renderListNote() {
         this.noteBox({
             parent: 'listNote',
-            json:   { text: 'Al generar, el sistema arma una lista de productos auxiliares que suman el total del ticket. Los auxiliares se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
+            json:   { text: 'Al generar, el sistema arma una lista de productos de tasa 0% que suman el total del ticket. Esos productos se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
         });
     }
 
@@ -674,7 +674,7 @@ class TicketsView extends Templates {
                 <span class="block text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
                 ${conteo('al IVA 16%', r.cuenta16Total, `${esc(r.facturados)} facturados + ${esc(r.cuenta16)} reales`)}
                 ${conteo('al IVA 0%',  r.cuenta0, 'con ticket virtual')}
-                ${r.sinPapel ? conteo('sin papel', r.sinPapel, '<span class="text-amber-400">faltan productos auxiliares</span>') : ''}
+                ${r.sinPapel ? conteo('sin papel', r.sinPapel, '<span class="text-amber-400">faltan productos de tasa 0%</span>') : ''}
             `
         });
     }
@@ -715,7 +715,7 @@ class TicketsView extends Templates {
     }
 
     // El aviso del pie explica el ticket que se esta viendo: cuando no se pudo
-    // armar (sin productos auxiliares dados de alta) dice por que en vez de
+    // armar (sin productos de tasa 0% dados de alta) dice por que en vez de
     // quedarse mudo.
     renderPreview(ticket, motivo) {
         this.ticketPaper({
@@ -747,10 +747,10 @@ class TicketsView extends Templates {
             json: {
                 icon: '',
                 // El copy depende de que papel se esta viendo: el inventado explica
-                // el cuadre con auxiliares y el real explica su desglose fiscal.
+                // el cuadre con la tasa 0% y el real explica su desglose fiscal.
                 text: ticket
                     ? (ticket.grupo === 'cero'
-                        ? `${ticket.lineas.length} renglon(es) de productos auxiliares suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
+                        ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
                         : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.`)
                     : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }

@@ -342,6 +342,28 @@ html[data-wansoft-theme] #root .border-\[\#003360\] { border-color: var(--ws-blu
     border-radius: 4px;
 }
 
+/* -- Cuadros sin modulo --
+   Los que todavia no llevan a ningun lado se pintan cerrados: mismo azul de la
+   rejilla, solo lavado, con su candado y sin respuesta al tacto. Se atenua con
+   opacity y no con otro color de fondo para que sigan leyendose como parte del
+   menu —apagados, no ajenos—, igual que hace .ws-pager-btn:disabled. */
+
+.ws-btn.is-locked {
+    position: relative;
+    background: var(--ws-blue);
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.ws-btn.is-locked:active { background: var(--ws-blue); }
+
+.ws-card-lock {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    opacity: .85;
+}
+
 /* -- Regreso propio de los modulos --
 
    El panelHead de cargas/ventas/tickets/catalogos pinta un boton circular de

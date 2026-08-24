@@ -5,6 +5,10 @@
 > **Esto documenta el esquema que YA existe**, no propone uno nuevo: las cajas son fieles
 > a la BD viva y las flechas `←` marcan cada punto donde el esquema se separa de la regla.
 > La auto-revisión de la sección 4 traduce esas marcas al checklist de `db-rules.md §7`.
+>
+> **Documento hermano:** [er-usuarios-sucursales.md](er-usuarios-sucursales.md) cubre la
+> capa de identidad y multi-tenencia (`usr_users`, `subsidiaries`, `companies`, roles y
+> permisos) que este esquema referencia cross-schema pero no define.
 
 ---
 

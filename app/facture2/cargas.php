@@ -26,7 +26,7 @@
 <body class="h-screen flex flex-col overflow-hidden ws-app" data-bs-theme="light">
     <!-- La banda se rotula con el modulo y ofrece el regreso al menu. Sin rail: en
          la terminal se navega por el menu de administracion, no por un costado. -->
-    <div id="menu-navbar" data-modulo="Importación" data-back="/app/facture2/?view=inicio"></div>
+    <div id="menu-navbar" data-modulo="Importación" data-back="/app/facture2/inicio.php"></div>
 
     <div id="mainContainer" class="flex-1 w-full overflow-hidden flex flex-col min-h-0 ws-app">
         <div class="flex-1 flex flex-col min-h-0" id="root"></div>

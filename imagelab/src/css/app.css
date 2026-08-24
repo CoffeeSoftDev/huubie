@@ -1,0 +1,243 @@
+/* ImageLab. Dark propio y autocontenido: sin Tailwind ni dependencias de otro
+   proyecto, para que la carpeta se pueda mover tal cual. */
+
+:root {
+    --il-bg:       #0d1117;
+    --il-panel:    #161b22;
+    --il-panel-2:  #1c2230;
+    --il-border:   #262d3a;
+    --il-text:     #e6edf3;
+    --il-muted:    #8b949e;
+    --il-accent:   #3b82f6;
+    --il-accent-2: #60a5fa;
+    --il-ok:       #34d399;
+    --il-warn:     #fbbf24;
+    --il-err:      #f87171;
+}
+
+* { box-sizing: border-box; }
+
+/* El atributo hidden pierde contra cualquier display explicito (flex, grid...).
+   Sin esta regla, ocultar un panel desde JS no surte efecto. */
+[hidden] { display: none !important; }
+
+.il-body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--il-bg);
+    color: var(--il-text);
+    font-family: 'Inter', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.il-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 20px;
+    background: var(--il-panel);
+    border-bottom: 1px solid var(--il-border);
+}
+.il-header-left  { display: flex; align-items: center; gap: 12px; }
+.il-header-right { display: flex; align-items: center; gap: 8px; }
+.il-logo {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--il-accent), #8b5cf6);
+    font-weight: 800; font-size: 13px; letter-spacing: .5px;
+}
+.il-titles   { display: flex; flex-direction: column; line-height: 1.2; }
+.il-title    { font-weight: 700; font-size: 15px; }
+.il-subtitle { font-size: 11px; color: var(--il-muted); font-family: 'JetBrains Mono', monospace; }
+
+.il-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--il-border);
+    background: var(--il-panel-2);
+    font-size: 11.5px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--il-muted);
+    text-decoration: none;
+}
+.il-chip-link { color: var(--il-text); }
+.il-chip-link:hover { border-color: var(--il-accent); color: var(--il-accent-2); }
+.il-chip.is-ok   { color: var(--il-ok);   border-color: rgba(52, 211, 153, .4); }
+.il-chip.is-work { color: var(--il-warn); border-color: rgba(251, 191, 36, .4); }
+.il-chip.is-err  { color: var(--il-err);  border-color: rgba(248, 113, 113, .4); }
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.il-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr) 380px;
+    gap: 14px;
+    padding: 14px;
+    min-height: 0;
+}
+@media (max-width: 1200px) {
+    .il-main { grid-template-columns: 1fr; }
+}
+
+.il-panel {
+    background: var(--il-panel);
+    border: 1px solid var(--il-border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+.il-panel-title {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 14px;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .6px;
+    color: var(--il-muted);
+}
+.il-mini-btn {
+    margin-left: auto;
+    background: none; border: none; cursor: pointer;
+    color: var(--il-muted); padding: 2px;
+}
+.il-mini-btn:hover { color: var(--il-text); }
+
+/* ── Controles ──────────────────────────────────────────────────────────── */
+.il-field  { margin-bottom: 14px; }
+.il-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.il-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px; font-weight: 600;
+    color: var(--il-muted);
+    text-transform: uppercase; letter-spacing: .4px;
+}
+.il-textarea, .il-select {
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 8px;
+    border: 1px solid var(--il-border);
+    background: var(--il-panel-2);
+    color: var(--il-text);
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+}
+.il-textarea:focus, .il-select:focus { outline: none; border-color: var(--il-accent); }
+
+.il-alias-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.il-alias {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--il-border);
+    background: var(--il-panel-2);
+    color: var(--il-text);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+.il-alias:hover:not(:disabled) { border-color: var(--il-accent); }
+.il-alias.is-active { border-color: var(--il-accent); background: rgba(59, 130, 246, .12); }
+.il-alias:disabled  { opacity: .4; cursor: not-allowed; }
+.il-alias-name { font-size: 12.5px; font-weight: 600; }
+.il-alias-meta { font-size: 10px; color: var(--il-muted); font-family: 'JetBrains Mono', monospace; }
+
+.il-drop {
+    position: relative;
+    border: 1.5px dashed var(--il-border);
+    border-radius: 10px;
+    min-height: 130px;
+    display: grid; place-items: center;
+    cursor: pointer;
+    overflow: hidden;
+    background: var(--il-panel-2);
+}
+.il-drop:hover, .il-drop.is-over { border-color: var(--il-accent); }
+.il-drop-hint {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    color: var(--il-muted); font-size: 12px; text-align: center; padding: 12px;
+}
+.il-drop-hint small { font-size: 10px; opacity: .7; font-family: 'JetBrains Mono', monospace; }
+.il-drop-preview { width: 100%; max-height: 220px; object-fit: contain; display: block; }
+
+.il-run {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%;
+    padding: 11px;
+    border: none; border-radius: 9px;
+    background: var(--il-accent);
+    color: #fff;
+    font-family: inherit; font-size: 13.5px; font-weight: 600;
+    cursor: pointer;
+}
+.il-run:hover:not(:disabled) { background: var(--il-accent-2); }
+.il-run:disabled { opacity: .55; cursor: progress; }
+
+.il-note { margin: 12px 0 0; font-size: 11px; line-height: 1.5; color: var(--il-muted); }
+.il-note code {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--il-panel-2);
+    padding: 1px 4px; border-radius: 4px;
+}
+
+/* ── Escenario ──────────────────────────────────────────────────────────── */
+.il-panel-stage { min-height: 420px; }
+.il-stage {
+    flex: 1;
+    display: grid; place-items: center;
+    background:
+        linear-gradient(45deg, #11151d 25%, transparent 25%, transparent 75%, #11151d 75%),
+        linear-gradient(45deg, #11151d 25%, #0f131a 25%, #0f131a 75%, #11151d 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+    border-radius: 10px;
+    overflow: auto;
+    padding: 12px;
+}
+.il-stage-empty {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    color: var(--il-muted); font-size: 13px;
+}
+.il-result { max-width: 100%; max-height: 62vh; border-radius: 8px; display: block; }
+.il-stage-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+
+/* ── Traza ──────────────────────────────────────────────────────────────── */
+.il-trace { flex: 1; overflow: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.il-trace-empty { color: var(--il-muted); font-size: 12px; font-family: 'Inter', sans-serif; }
+.il-step {
+    border: 1px solid var(--il-border);
+    border-left: 3px solid var(--il-border);
+    border-radius: 8px;
+    margin-bottom: 7px;
+    background: var(--il-panel-2);
+    overflow: hidden;
+}
+.il-step.is-ok   { border-left-color: var(--il-ok); }
+.il-step.is-err  { border-left-color: var(--il-err); }
+.il-step.is-work { border-left-color: var(--il-warn); }
+.il-step-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+}
+.il-step-name { font-weight: 600; color: var(--il-text); }
+.il-step-time { margin-left: auto; color: var(--il-muted); }
+.il-step-code { color: var(--il-muted); }
+.il-step-body {
+    margin: 0;
+    padding: 8px 10px 10px;
+    border-top: 1px solid var(--il-border);
+    color: #a5b4c8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+}
+.il-step-body[hidden] { display: none; }

@@ -12,9 +12,8 @@ class ctrl extends mdl {
         parent::__construct();
         $this->branch = $this->resolveBranch();
 
-        // La tabla y los kpis se piden juntos tras cada escritura: sin cerrar la
-        // sesion aqui, el lock de sesion de PHP los serializa aunque el navegador
-        // los dispare al mismo tiempo.
+        // Sin cerrar la sesion aqui, el lock de sesion de PHP serializa las
+        // peticiones del modulo aunque el navegador las dispare al mismo tiempo.
         session_write_close();
     }
 
@@ -37,23 +36,28 @@ class ctrl extends mdl {
         return $this->branch > 0 ? $this->branch : null;
     }
 
-    // Los auxiliares encabezan la lista porque son la marca con la que abre el
-    // modulo: el resto del catalogo se consulta desde aqui, pero no es lo que se
-    // viene a ver. El id de cada opcion es la clave del mapa de whereClase().
+    // La tasa 0% encabeza la lista porque es la marca con la que abre el modulo:
+    // el resto del catalogo se consulta desde aqui, pero no es lo que se viene a
+    // ver. El id de cada opcion es la clave del mapa de whereClase().
+    //
+    // Los dos catalogos de producto son las dos caras de is_bridge: marcado es el
+    // de tasa 0% y sin marcar el de IVA 16%.
     function init() {
         return [
             'tipos' => [
-                ['id' => 'puente',      'valor' => 'Productos auxiliares'],
+                ['id' => 'puente',      'valor' => 'Catalogo tasa 0%'],
+                ['id' => 'normal',      'valor' => 'Catalogo IVA 16%'],
                 ['id' => 'modificador', 'valor' => 'Modificadores'],
-                ['id' => 'normal',      'valor' => 'Sin marcar'],
-                ['id' => 'inactivos',   'valor' => 'Inactivos'],
-                ['id' => '',            'valor' => 'Todos']
+                ['id' => 'inactivos',   'valor' => 'Inactivos']
+            ],
+            'tasas' => [
+                ['id' => '0', 'valor' => 'IVA 16%'],
+                ['id' => '1', 'valor' => 'Tasa 0%']
             ],
             'sino' => [
                 ['id' => '1', 'valor' => 'Si'],
                 ['id' => '0', 'valor' => 'No']
-            ],
-            'emisor' => $this->emisor()
+            ]
         ];
     }
 
@@ -83,110 +87,49 @@ class ctrl extends mdl {
         return $mapa[$_POST['clase'] ?? ''] ?? '';
     }
 
-    // -- Emisor --
-
-    // Lo que se imprime en el ticket sale de la sucursal. Si no tiene razon social
-    // propia se encabeza con la de la empresa, que es la dueña del RFC.
-    // El membrete se arma con las dos filas: la sucursal encabeza el papel y pone el
-    // LUGAR DE EXPEDICION, y la empresa pone el lema y el domicilio fiscal, que es
-    // el que va bajo el RFC. Es el mismo arreglo que devuelve el modulo Tickets.
-    function emisor() {
-        $ls = $this->getEmisor([$this->branchId()]);
-
-        if (empty($ls)) {
-            return ['razon' => '', 'lema' => '', 'rfc' => '', 'telefono' => '', 'domicilio' => '', 'expedicion' => ''];
-        }
-
-        $item = $ls[0];
-
-        return [
-            'razon'      => $item['business_name'] ?: $item['company_name'],
-            'lema'       => $item['company_name'],
-            'rfc'        => $item['rfc'] ?: $item['company_rfc'],
-            'telefono'   => $item['phone'] ?: $item['company_phone'],
-            'domicilio'  => $item['company_address'] ?: $item['fiscal_address'],
-            'expedicion' => $item['fiscal_address']
-        ];
-    }
-
-    // El formulario es uno solo pero cae en dos tablas. La empresa se actualiza
-    // aparte y no bloquea: una sucursal sin empresa resuelta igual guarda lo suyo.
-    function saveEmisor() {
-        $status  = 500;
-        $message = 'No se pudieron guardar los datos del emisor';
-
-        if (!$this->branchId()) {
-            return ['status' => 400, 'message' => 'No hay sucursal dada de alta en el facturador'];
-        }
-
-        $update = $this->updateBranch($this->util->sql([
-            'business_name'  => $_POST['razon']      ?? '',
-            'rfc'            => $_POST['rfc']        ?? '',
-            'phone'          => $_POST['telefono']   ?? '',
-            'fiscal_address' => $_POST['expedicion'] ?? '',
-            'id'             => $this->branchId()
-        ], 1));
-
-        $this->saveCompany();
-
-        if ($update) {
-            $status  = 200;
-            $message = 'Datos del emisor actualizados';
-        }
-
-        return [
-            'status'  => $status,
-            'message' => $message,
-            'emisor'  => $this->emisor()
-        ];
-    }
-
-    // Lema y domicilio fiscal son de la empresa. Si el lema llega vacio no se pisa:
-    // company.business_name es la razon social del membrete y borrarla dejaria al
-    // papel sin encabezado cuando la sucursal tampoco tiene nombre propio.
-    function saveCompany() {
-        $ls = $this->getEmisor([$this->branchId()]);
-
-        if (empty($ls) || empty($ls[0]['company_id'])) return false;
-
-        $campos = ['fiscal_address' => $_POST['domicilio'] ?? ''];
-
-        if (trim($_POST['lema'] ?? '') !== '') $campos['business_name'] = $_POST['lema'];
-
-        $campos['id'] = $ls[0]['company_id'];
-
-        return $this->updateCompany($this->util->sql($campos, 1));
-    }
-
     // -- Productos --
 
-    // Las dos marcas del producto se cambian con el interruptor de su celda, sin
-    // abrir el formulario: son las dos columnas que se repasan de corrido cuando se
-    // arma el catalogo de auxiliares.
+    // La tasa se cambia desde la propia celda, sin abrir el formulario: es la
+    // columna que se repasa de corrido cuando se reparte el catalogo entre las dos
+    // tasas.
     //
-    // Los kpis viajan en la misma respuesta: el switch de la celda dispara esta
-    // consulta para refrescar la tabla, y sin esto necesitaria una segunda vuelta
-    // al servidor solo para las tarjetas.
+    // El catalogo se lee por tasa, no por marca: la del modificador se captura en
+    // el formulario y tiene su propio filtro, asi que no ocupa una columna.
     function lsProductos() {
+        $verTasa = $this->verTasa();
+
         $__row = [];
         foreach ($this->listProduct($this->filtros(), $this->whereClase()) as $item) {
-            $__row[] = [
-                'id'                => $item['code'],
-                'Codigo'            => cellCodigo($item['code']),
-                'Nombre'            => cellNombre($item['name'], $item['active']),
-                'Precio'            => cellPrecio($item['price']),
-                'Producto auxiliar' => switchCell($item['code'], 'puente', $item['is_bridge']),
-                'Modificador'       => switchCell($item['code'], 'modificador', $item['is_modifier']),
-                'Estatus'           => statusBadge($item['active']),
-                'a'                 => productoButtons($item['code'], $item['active'])
+            $fila = [
+                'id'          => $item['code'],
+                'Codigo'      => cellCodigo($item['code']),
+                'Descripcion' => cellNombre($item['name'], $item['active']),
+                'Precio'      => cellPrecio($item['price'])
             ];
+
+            if ($verTasa) $fila['Tasa'] = tasaCell($item['code'], $item['is_bridge'], $item['is_modifier']);
+
+            $fila['Estatus'] = statusBadge($item['active']);
+            $fila['a']       = productoButtons($item['code'], $item['active']);
+
+            $__row[] = $fila;
         }
+
+        $thead = ['Codigo', 'Descripcion', 'Precio'];
+
+        if ($verTasa) $thead[] = 'Tasa';
 
         return [
             'row'   => $__row,
-            'thead' => ['Codigo', 'Nombre', 'Precio', 'Producto auxiliar', 'Modificador', 'Estatus', 'Acciones'],
-            'kpis'  => $this->productKpis()
+            'thead' => array_merge($thead, ['Estatus', 'Acciones'])
         ];
+    }
+
+    // El modificador no pertenece a ninguno de los dos catalogos por tasa, asi que
+    // en su listado la columna no dice nada de la fila. En los demas filtros se
+    // queda: es la marca con la que se reparte el catalogo.
+    function verTasa() {
+        return ($_POST['clase'] ?? '') !== 'modificador';
     }
 
     function getProducto() {
@@ -226,6 +169,11 @@ class ctrl extends mdl {
         $isBridge   = (int) ($_POST['puente'] ?? 0);
         $isModifier = (int) ($_POST['modificador'] ?? 0);
 
+        // El modificador acompaña a otro producto y nunca arma un ticket por si
+        // solo, asi que no entra al catalogo de tasa 0%. El formulario ya le
+        // esconde la tasa; aqui se cierra la puerta para lo que llegue por fuera.
+        if ($isModifier === 1) $isBridge = 0;
+
         $existe = $previo !== '' ? $previo : $code;
         $actual = $this->getProductByCode([$existe, $this->branchId()]);
 
@@ -239,9 +187,14 @@ class ctrl extends mdl {
         ];
     }
 
-    // El interruptor de la fila manda que marca toca y con que valor se queda. La
-    // columna se resuelve contra un mapa fijo (nunca texto libre del usuario) y
-    // viaja como literal seguro en el SET de la consulta dedicada.
+    // La celda de la fila manda que marca toca y con que valor se queda. La columna
+    // se resuelve contra un mapa fijo (nunca texto libre del usuario) y viaja como
+    // literal seguro en el SET de la consulta dedicada.
+    //
+    // Las dos marcas se excluyen: un modificador no elige catalogo, y el que entra
+    // al de tasa 0% deja de ser modificador. Marcar una desmarca la otra en la
+    // misma escritura, y el intento de meter un modificador al 0% se rechaza para
+    // que se vea por que no cambio nada.
     function editProductoFlag() {
         $columnas = ['puente' => 'is_bridge', 'modificador' => 'is_modifier'];
         $columna  = $columnas[$_POST['campo'] ?? ''] ?? '';
@@ -252,8 +205,20 @@ class ctrl extends mdl {
 
         if (empty($ls)) return ['status' => 404, 'message' => 'El producto no existe'];
 
-        $valor    = (int) ($_POST['valor'] ?? 0);
+        $valor = (int) ($_POST['valor'] ?? 0);
+
+        if ($columna === 'is_bridge' && $valor === 1 && (int) $ls[0]['is_modifier'] === 1) {
+            return [
+                'status'  => 400,
+                'message' => 'Un modificador no entra al catalogo de tasa 0%: quitale la marca de modificador primero'
+            ];
+        }
+
         $guardado = $this->updateProductFlag($columna, [$valor, $ls[0]['id']]);
+
+        if ($guardado && $columna === 'is_modifier' && $valor === 1) {
+            $this->updateProductFlag('is_bridge', [0, $ls[0]['id']]);
+        }
 
         return [
             'status'  => $guardado ? 200 : 500,
@@ -365,36 +330,6 @@ class ctrl extends mdl {
         ];
     }
 
-    // -- Indicadores --
-
-    // Compartida por lsProductos() (viaja en la misma respuesta que la tabla) y por
-    // showKpis() (cifras de producto + mesero juntas para cuando la vista lo pida
-    // aparte). El buscador es comun a las dos vistas.
-    function productKpis() {
-        $producto = $this->getProductCounts($this->filtros(), $this->whereClase());
-        $p = $producto[0] ?? ['productos' => 0, 'puente' => 0, 'modificadores' => 0, 'precio_promedio' => 0];
-
-        return [
-            'productos'      => (int) $p['productos'],
-            'puente'         => (int) $p['puente'],
-            'modificadores'  => (int) $p['modificadores'],
-            'precioPromedio' => money($p['precio_promedio'])
-        ];
-    }
-
-    // Las dos vistas se sirven de una sola consulta: el buscador es comun a las dos
-    // y el cambio de pestaña no vuelve a pedir cifras al servidor.
-    function showKpis() {
-        $mesero = $this->getWaiterCounts($this->filtros());
-        $m = $mesero[0] ?? ['meseros' => 0, 'activos' => 0, 'sin_nombre' => 0];
-
-        return array_merge($this->productKpis(), [
-            'meseros'          => (int) $m['meseros'],
-            'meserosActivos'   => (int) $m['activos'],
-            'meserosBaja'      => (int) $m['meseros'] - (int) $m['activos'],
-            'meserosSinNombre' => (int) $m['sin_nombre']
-        ]);
-    }
 }
 
 // Complements
@@ -427,17 +362,27 @@ function cellMesero($name, $code, $active) {
     return cellNombre($name, $active) . $pendiente;
 }
 
-// Interruptor de la marca: escribe el valor contrario al que muestra, de modo que
-// la celda es el control y no hace falta abrir el formulario para una sola casilla.
-function switchCell($code, $campo, $valor) {
-    $on   = (int) $valor === 1;
-    $tono = $campo === 'modificador' ? ' cs-switch-gray' : '';
+// La tasa es la cara visible de is_bridge: marcado es el catalogo de tasa 0% y sin
+// marcar el de IVA 16%. La celda muestra en que catalogo esta el producto y con un
+// clic lo pasa al otro, que es el unico cambio posible entre dos tasas.
+//
+// El modificador es la excepcion: no elige catalogo, asi que su tasa se muestra
+// pero no se ofrece cambiarla. Un boton que el servidor va a rechazar no es un
+// control, es una trampa.
+function tasaCell($code, $isBridge, $isModifier) {
+    $cero  = (int) $isBridge === 1;
+    $tono  = $cero ? 'b-green' : 'b-blue';
+    $texto = $cero ? '0%' : '16%';
+
+    if ((int) $isModifier === 1) {
+        return '<span class="badge-base ' . $tono . '" title="Los modificadores no cambian de catalogo">' . $texto . '</span>';
+    }
 
     return '<button type="button"
-                    class="cs-switch' . $tono . ($on ? ' is-on' : '') . '"
-                    title="' . ($on ? 'Quitar marca' : 'Marcar') . '"
-                    onclick="catalogos.editProductoFlag(\'' . $code . '\', \'' . $campo . '\', ' . ($on ? 0 : 1) . ')">
-                <span class="cs-switch-knob"></span>
+                    class="badge-base ' . $tono . '"
+                    title="' . ($cero ? 'Pasar al catalogo de IVA 16%' : 'Pasar al catalogo de tasa 0%') . '"
+                    onclick="catalogos.editProductoFlag(\'' . $code . '\', \'puente\', ' . ($cero ? 0 : 1) . ')">
+                ' . $texto . '
             </button>';
 }
 

@@ -23,3 +23,10 @@ coffee/app/visor/_todo_backups_*/
 
 # Snapshots de Playwright MCP - runtime, no versionar
 .playwright-mcp/
+
+# ImageLab: credenciales, imagenes generadas y base de trabajos. Todo runtime.
+imagelab/.env
+imagelab/uploads/
+imagelab/data/*.sqlite
+imagelab/data/*.sqlite-wal
+imagelab/data/*.sqlite-shm

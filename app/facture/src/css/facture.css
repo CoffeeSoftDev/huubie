@@ -822,7 +822,7 @@ html[data-facture-theme="light"] #root .cs-switch-gray.is-on:hover { background:
 
 #root #tbProductos thead th[data-col="3"] { text-align: right !important; }
 
-/* El catalogo no se busca: son los auxiliares dados de alta, unas cuantas filas.
+/* El catalogo no se busca: son los productos dados de alta, unas cuantas filas.
    simple_data_table arma DataTables con su propio buscador (su searching gana al
    bFilter que lo apagaba), y esa es la fila que se oculta. */
 #root #tbProductos_wrapper > .row:first-child { display: none; }

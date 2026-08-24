@@ -281,8 +281,8 @@ class ctrl extends mdl {
         ];
     }
 
-    // Arma los renglones que suman el total del ticket con los productos marcados
-    // como puente en Catalogos: del mas caro al mas barato se mete la cantidad que
+    // Arma los renglones que suman el total del ticket con los productos del
+    // catalogo de tasa 0%: del mas caro al mas barato se mete la cantidad que
     // cabe, y cuando ya no cabe ninguno completo se agrega una pieza mas del mas
     // barato. Esa ultima pieza se pasa del monto a proposito: el excedente se
     // descuenta para que el papel cuadre EXACTO con lo que se cobro.
@@ -292,7 +292,7 @@ class ctrl extends mdl {
         if (empty($puente)) {
             return [
                 'status'  => 400,
-                'message' => 'No hay productos auxiliares dados de alta. Registralos en Catalogos para poder armar el ticket.'
+                'message' => 'No hay productos de tasa 0% dados de alta. Registralos en Catalogos para poder armar el ticket.'
             ];
         }
 
@@ -446,7 +446,7 @@ class ctrl extends mdl {
         if (empty($puente)) {
             return [
                 'status'  => 400,
-                'message' => 'No hay productos marcados como puente. Marcalos en Catalogos para poder armar los tickets.'
+                'message' => 'No hay productos de tasa 0% dados de alta. Registralos en Catalogos para poder armar los tickets.'
             ];
         }
 

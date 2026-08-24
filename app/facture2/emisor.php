@@ -6,7 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/app/src/img/logo/logo.ico" />
-    <title>Huubie · Terminal Wansoft — Catálogos</title>
+    <title>Huubie · Terminal Wansoft — Ticket / Emisor</title>
 
     <?php require_once(__DIR__ . '/../layout/head.php'); ?>
     <?php require_once(__DIR__ . '/layout/wansoft-libraries.php'); ?>
@@ -26,7 +26,7 @@
 <body class="h-screen flex flex-col overflow-hidden ws-app" data-bs-theme="light">
     <!-- La banda se rotula con el modulo y ofrece el regreso al menu. Sin rail: en
          la terminal se navega por el menu de administracion, no por un costado. -->
-    <div id="menu-navbar" data-modulo="Catálogos" data-back="/app/facture2/inicio.php"></div>
+    <div id="menu-navbar" data-modulo="Ticket / Emisor" data-back="/app/facture2/admin.php"></div>
 
     <div id="mainContainer" class="flex-1 w-full overflow-hidden flex flex-col min-h-0 ws-app">
         <div class="flex-1 flex flex-col min-h-0" id="root"></div>
@@ -35,8 +35,11 @@
     <!-- Banda superior propia de la terminal (sin fetch) -->
     <script src="/app/facture2/src/js/navbar-wansoft.js?t=<?php echo time(); ?>"></script>
 
-    <!-- Modulo Catálogos: el archivo del Facturador, sin duplicar -->
-    <script src="/app/facture2/src/js/catalogos.js?t=<?php echo time(); ?>"></script>
+    <!-- Papel del ticket: compartido con el modulo Tickets del Facturador -->
+    <script src="/app/facture2/src/js/components/ticketPaper.js?t=<?php echo time(); ?>"></script>
+
+    <!-- Modulo Ticket / Emisor -->
+    <script src="/app/facture2/src/js/emisor.js?t=<?php echo time(); ?>"></script>
 </body>
 
 </html>

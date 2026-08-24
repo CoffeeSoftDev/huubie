@@ -197,14 +197,17 @@ class mdl extends CRUD {
 
     // -- Productos puente --
 
-    // Los puente son los que arman el ticket virtual: se marcan a mano en Catalogos
-    // y solo sirven los que tienen precio. Del mas caro al mas barato, que es el
-    // orden en que se van acomodando para llegar al total.
+    // Los del catalogo de tasa 0% son los que arman el ticket virtual: se marcan a
+    // mano en Catalogos y solo sirven los que tienen precio. Del mas caro al mas
+    // barato, que es el orden en que se van acomodando para llegar al total.
+    //
+    // El modificador queda fuera aunque estuviera marcado: acompaña a otro producto
+    // y un ticket armado con el saldria con un renglon que nadie pide solo.
     function listBridgeProducts($array) {
         $query = "
             SELECT id, code, name, price
             FROM {$this->bd}product
-            WHERE active = 1 AND is_bridge = 1 AND price > 0 AND branch_id <=> ?
+            WHERE active = 1 AND is_bridge = 1 AND is_modifier = 0 AND price > 0 AND branch_id <=> ?
             ORDER BY price DESC, name ASC
         ";
         return $this->_Read($query, $array);

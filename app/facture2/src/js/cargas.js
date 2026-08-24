@@ -838,7 +838,7 @@ class CargasView extends Templates {
             json: {
                 title:    'Importación mensual',
                 subtitle: 'Sube los exports del POS en orden. Cada pestana indica el archivo exacto y las hojas que se leeran',
-                back:     { href: '/app/facture2/index.php', title: 'Regresar a la Terminal' }
+                back:     { href: '/app/facture2/inicio.php', title: 'Regresar a la Terminal' }
             }
         });
     }

@@ -10,7 +10,8 @@ const FACTURE_MENU = [
     { icon: 'upload',           title: 'Importación', url: '/app/facture/cargas.php'    },
     { icon: 'receipt-text',     title: 'Ventas',      url: '/app/facture/ventas.php'    },
     { icon: 'file-text',        title: 'Tickets',     url: '/app/facture/tickets.php'   },
-    { icon: 'book-open',        title: 'Catalogos',   url: '/app/facture/catalogos.php' }
+    { icon: 'book-open',        title: 'Catalogos',   url: '/app/facture/catalogos.php' },
+    { icon: 'building-2',       title: 'Ticket / Emisor', url: '/app/facture/emisor.php' }
 ];
 
 // Alto real del navbar (nav h-12 en navbar-huubie.js). El rail arranca debajo.

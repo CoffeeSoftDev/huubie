@@ -529,7 +529,7 @@ class VentasView extends Templates {
             json: {
                 title:    'Ventas y pagos',
                 subtitle: 'Explora las ventas, sus pagos y su estado fiscal. Filtra por periodo, forma de pago o estado',
-                back:     { href: '/app/facture2/index.php', title: 'Regresar a la Terminal' }
+                back:     { href: '/app/facture2/inicio.php', title: 'Regresar a la Terminal' }
             }
         });
     }

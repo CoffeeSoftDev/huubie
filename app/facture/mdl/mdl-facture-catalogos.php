@@ -26,48 +26,6 @@ class mdl extends CRUD {
         return $this->_Read($query);
     }
 
-    // -- Emisor del ticket virtual --
-
-    // Los datos con los que se imprime el ticket son los de la sucursal; la razon
-    // social de la empresa se trae junto porque es la que encabeza el papel cuando
-    // la sucursal no tiene nombre propio.
-    //
-    // Del lado de la empresa viajan tambien el lema y su domicilio fiscal: son dos
-    // renglones del membrete que no son de la sucursal, la cual aporta su direccion
-    // como LUGAR DE EXPEDICION.
-    function getEmisor($array) {
-        $query = "
-            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone, b.company_id,
-                   c.business_name AS company_name, c.rfc AS company_rfc,
-                   c.fiscal_address AS company_address, c.phone AS company_phone
-            FROM {$this->bd}branch b
-            LEFT JOIN {$this->bd}company c ON c.id = b.company_id
-            WHERE b.id <=> ?
-            LIMIT 1
-        ";
-        return $this->_Read($query, $array);
-    }
-
-    function updateBranch($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}branch",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data']
-        ]);
-    }
-
-    // El membrete se guarda en dos tablas: el formulario del emisor es uno solo,
-    // pero el lema y el domicilio fiscal viven en la empresa.
-    function updateCompany($array) {
-        return $this->_Update([
-            'table'  => "{$this->bd}company",
-            'values' => $array['values'],
-            'where'  => $array['where'],
-            'data'   => $array['data']
-        ]);
-    }
-
     // -- Productos --
 
     // El catalogo lo siembra la carga de comandas con las claves del POS; aqui se
@@ -95,23 +53,6 @@ class mdl extends CRUD {
             FROM {$this->bd}product
             WHERE code = ? AND branch_id <=> ?
             LIMIT 1
-        ";
-        return $this->_Read($query, $array);
-    }
-
-    // Conteos del catalogo para las tarjetas del modulo. El promedio se calcula
-    // sobre el mismo conjunto que la tabla muestra: es el precio tipico de lo que
-    // se esta viendo, no el del catalogo entero.
-    function getProductCounts($array, $where = '') {
-        $query = "
-            SELECT COUNT(*) AS productos,
-                   COALESCE(SUM(is_bridge), 0)   AS puente,
-                   COALESCE(SUM(is_modifier), 0) AS modificadores,
-                   COALESCE(AVG(price), 0)       AS precio_promedio
-            FROM {$this->bd}product
-            WHERE branch_id <=> ?
-              AND (code LIKE ? OR name LIKE ?)
-              {$where}
         ";
         return $this->_Read($query, $array);
     }
@@ -171,20 +112,6 @@ class mdl extends CRUD {
             FROM {$this->bd}waiter
             WHERE code = ? AND branch_id <=> ?
             LIMIT 1
-        ";
-        return $this->_Read($query, $array);
-    }
-
-    // Los que siguen con el codigo por nombre son los que la carga de comandas
-    // dio de alta y nadie ha bautizado: es el pendiente del catalogo.
-    function getWaiterCounts($array) {
-        $query = "
-            SELECT COUNT(*) AS meseros,
-                   COALESCE(SUM(active), 0)              AS activos,
-                   COALESCE(SUM(name = code), 0)         AS sin_nombre
-            FROM {$this->bd}waiter
-            WHERE branch_id <=> ?
-              AND (code LIKE ? OR name LIKE ?)
         ";
         return $this->_Read($query, $array);
     }
