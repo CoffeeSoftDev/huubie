@@ -16,7 +16,7 @@ class App extends Templates {
     }
 
     // El dia lo resuelve el servidor: el Excel del POS se sube en diferido, asi que
-    // el modulo abre en el ultimo dia con cobros por banco. Con ?dia= entra a ese.
+    // el modulo abre en el ultimo dia con cobros con tarjeta. Con ?dia= entra a ese.
     async init() {
         this.dataInit = await useFetch({ url: apiTickets, data: { opc: 'init', dia: this.getParam('dia') } });
 
@@ -289,7 +289,7 @@ class App extends Templates {
     updateHeaderTitle() {
         const header = {
             title:    'Tickets',
-            subtitle: 'Tickets virtuales del dia, de lo cobrado por banco. Lo pagado en efectivo no se muestra. Las notas se reinician cada dia',
+            subtitle: 'Tickets virtuales del dia, de lo pagado con tarjeta de credito. Las demas formas de pago no se muestran. Las notas se reinician cada dia',
             back:     { href: '/app/facture2/inicio.php', title: 'Regresar a la Terminal' }
         };
 
@@ -352,8 +352,7 @@ class Tickets extends Templates {
             scrollable:   false,
             hover:        true,
             f_size:       11,
-            border_table: 'border-0',
-            emptyMessage: 'No hay cobros por banco en el dia seleccionado',
+            emptyMessage: 'No hay cobros con tarjeta de credito en el dia seleccionado',
             emptyIcon:    'ic-file-text',
             data:         data
         });
@@ -370,7 +369,7 @@ class Tickets extends Templates {
         ticketsView.renderKpis(app.dataKpis);
         app.syncActionButtons(counts);
 
-        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
+        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} pagados con tarjeta de credito`);
     }
 
     // Paginado, buscador y ordenamiento de la tabla ya pintada. Sin filas
@@ -547,7 +546,7 @@ class TicketsView extends Templates {
         });
     }
 
-    // Tarjetas del dia: la venta por banco, la meta a la que hay que llegar, lo que
+    // Tarjetas del dia: la venta con tarjeta, la meta a la que hay que llegar, lo que
     // ya quedo cubierto y lo que falta. Los montos llegan escritos del servidor; lo
     // unico que se arma aqui es el copy que los acompana.
     //
@@ -570,7 +569,7 @@ class TicketsView extends Templates {
             : k.objetivoCeroTexto;
         const subtituloCero = k.ceroGenerado
             ? `${pctCero}% de la venta · ${k.difCeroTexto} vs objetivo`
-            : `${pctCero}% de la venta por banco`;
+            : `${pctCero}% de la venta con tarjeta`;
 
         this.infoCard({
             parent: 'kpisRow',
@@ -579,13 +578,13 @@ class TicketsView extends Templates {
             style:  'file',
             cols:   5,
             json: [
-                // El subtitulo dice "solo banco" porque es justo lo que separa este
-                // total del de Resumen, que suma tambien el efectivo.
+                // El subtitulo dice "solo tarjeta" porque es justo lo que separa este
+                // total del de Resumen, que suma todas las formas de pago.
                 card('kpiTotalDia', 'Venta del dia', 'banknote', k.totalTexto,
-                     `${k.tickets || 0} tickets · solo banco`, textColor),
+                     `${k.tickets || 0} tickets · solo tarjeta de credito`, textColor),
 
                 card('kpiMeta', 'Monto objetivo para IVA 16%', 'target', k.objetivoTexto,
-                     `${k.metaPct || 70}% de la venta por banco`, textColor),
+                     `${k.metaPct || 70}% de la venta con tarjeta`, textColor),
 
                 card('kpiFacturado', 'Ya facturado', 'lock', k.facturadoTexto,
                      `${k.facturados || 0} tickets facturados realmente`, 'text-green-600'),
@@ -704,7 +703,7 @@ class TicketsView extends Templates {
             parent: 'listHead',
             json: {
                 icon:  'receipt',
-                title: 'Tickets del dia cobrados por banco',
+                title: 'Tickets del dia pagados con tarjeta de credito',
                 badges: [
                     { text: `${counts.generados} generados`,   tone: 'b-blue'   },
                     { text: `${counts.facturados} bloqueados`, tone: 'b-green'  },

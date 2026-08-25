@@ -16,7 +16,20 @@ class ctrl extends mdl {
 
     public function __construct() {
         parent::__construct();
-        $this->branch = $this->resolveBranch();
+        $this->branch  = $this->resolveBranch();
+        $this->posCode = $this->resolvePos();
+    }
+
+    // Las reglas de elegibilidad cambian segun el POS del que salio el Excel, y el
+    // modelo las arma dentro del SQL: el code tiene que estar resuelto antes de la
+    // primera consulta, por eso se hace aqui y no en cada opcion.
+    //
+    // No se cachea en sesion como la sucursal: cambiar el POS del emisor tiene que
+    // reflejarse en el listado sin volver a entrar al sistema.
+    function resolvePos() {
+        $ls = $this->getPosCode([$this->branchId()]);
+
+        return strtolower((string) ($ls[0]['code'] ?? ''));
     }
 
     // El facturador tiene su propia tabla branch: el id de sucursal de la sesion
@@ -39,8 +52,8 @@ class ctrl extends mdl {
     }
 
     // El dia no se elige solo: el Excel del POS se sube en diferido, asi que el
-    // modulo abre en el ultimo dia que tiene cobros por banco. Con ?dia= entra
-    // directo a ese dia si tiene ventas.
+    // modulo abre en el ultimo dia con ventas elegibles (ver ventaElegible en el
+    // modelo). Con ?dia= entra directo a ese dia si tiene ventas.
     function init() {
         $dias = $this->lsDias([$this->branchId()]);
         $pide = $_POST['dia'] ?? '';
@@ -122,9 +135,9 @@ class ctrl extends mdl {
     // Las tarjetas del encabezado. Los montos viajan ya escritos: la pantalla los
     // imprime, no los calcula, igual que el papel del ticket.
     //
-    // El universo es el mismo que lista la tabla (lo cobrado por banco), asi que
-    // estos numeros NO cuadran con los de Resumen, que suma tambien el efectivo. Es
-    // a proposito y las tarjetas lo dicen.
+    // El universo es el mismo que lista la tabla (lo que ventaElegible deja pasar),
+    // asi que estos numeros NO cuadran con los de Resumen, que suma todas las formas
+    // de pago. Es a proposito y las tarjetas lo dicen.
     //
     // Lo facturado son las ventas congeladas: las que el POS reporta FACTURADO y ya
     // traen folio de factura. El ticket virtual no mueve esta cifra, porque generar
@@ -438,7 +451,9 @@ class ctrl extends mdl {
         $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
 
         if (empty($ventas)) {
-            return ['status' => 400, 'message' => 'No hay ventas cobradas por banco en el dia'];
+            $criterio = $this->esWansoft() ? 'pagadas con tarjeta de credito' : 'cobradas por banco';
+
+            return ['status' => 400, 'message' => 'No hay ventas ' . $criterio . ' en el dia'];
         }
 
         $puente = $this->listBridgeProducts([$this->branchId()]);
@@ -645,6 +660,19 @@ class ctrl extends mdl {
     // Un papel de la hoja. El del cero ya trae su subtotal y su descuento
     // guardados; el real los saca de sus propios renglones, que es lo que el POS
     // cobro. Los importes salen escritos: el papel imprime, no calcula.
+    // Base gravable e impuesto del papel al 16%, que no salen del mismo lado en los
+    // dos POS. Soft Restaurant los exporta calculados en la venta y se respetan tal
+    // cual, porque ahi el par puede no cuadrar contra el total cuando hubo cortesia.
+    // En Wansoft se deducen del total que se esta imprimiendo, que es solo la parte
+    // cobrada con tarjeta. En la cuenta no dividida ambas formas dan lo mismo.
+    function desgloseFiscal($item, $total, $tasa) {
+        if (!$this->esWansoft()) return [(float) $item['subtotal'], (float) $item['tax']];
+
+        $base = $tasa > 0 ? round($total / (1 + $tasa), 2) : $total;
+
+        return [$base, round($total - $base, 2)];
+    }
+
     function papelDe($item, $lineas, $esCero) {
         $total = (float) $item['total'];
 
@@ -663,15 +691,20 @@ class ctrl extends mdl {
         //
         //   0%  el papel es inventado y no traslada impuesto. Su subtotal es lo que
         //       suman los puente y el excedente se va como descuento de cuadre.
-        //   16% el papel es el consumo real y SI traslada: la base gravable y el
-        //       impuesto ya vienen calculados en la venta del POS (937.93 + 150.07
-        //       = 1,088.00), asi que se imprimen tal cual en vez de deducirlos. El
-        //       descuento solo aparece cuando los renglones suman mas que el total,
-        //       que es como el POS registra una cortesia.
+        //   16% el papel es el consumo real y SI traslada. El descuento solo aparece
+        //       cuando los renglones suman mas que el total, que es como el POS
+        //       registra una cortesia.
+        //
+        // De donde sale el desglose del 16% depende del POS: ver desgloseFiscal. En
+        // Wansoft el total del papel es solo la parte cobrada con tarjeta, asi que
+        // imprimir el subtotal de la venta completa dejaria un papel donde la base
+        // mas el IVA no dan el total.
         $tasa      = $esCero ? 0 : tasaDe($item);
-        $subtotal  = $esCero ? (float) $item['virtual_subtotal'] : (float) $item['subtotal'];
         $descuento = $esCero ? (float) $item['virtual_discount'] : max(0, $suma - $total);
-        $iva       = $esCero ? 0 : (float) $item['tax'];
+
+        list($subtotal, $iva) = $esCero
+            ? [(float) $item['virtual_subtotal'], 0]
+            : $this->desgloseFiscal($item, $total, $tasa);
 
         return array_merge($this->cabecera($item), [
             'nota'      => $esCero ? '#' . $item['note_number'] : $item['folio'],
@@ -744,6 +777,13 @@ class ctrl extends mdl {
         if (esFacturado($item['status_name'])) {
             return ['status' => 400, 'message' => 'El ticket ya esta facturado con el folio ' . $item['invoice_series']];
         }
+
+        // El listado ya solo ofrece ventas elegibles, pero generarFolio se alcanza
+        // con un folio cualquiera. En Wansoft la venta que no cumple las dos reglas
+        // se niega aqui en vez de terminar con un papel que no debio existir; Soft
+        // Restaurant no las tiene y se queda como estaba.
+        $veto = $this->esWansoft() ? vetoDeGeneracion($item) : '';
+        if ($veto) return ['status' => 400, 'message' => $veto];
 
         $armado = $this->armarTicket($item);
         if ($armado['status'] !== 200) return $armado;
@@ -853,6 +893,28 @@ function cantidad($valor) {
 
 function esFacturado($statusName) {
     return strtoupper((string) $statusName) === 'FACTURADO';
+}
+
+// Las dos reglas que deciden si una venta puede recibir papel, leidas del veredicto
+// que getTicketByFolio ya calculo en la base. Devuelve el motivo del rechazo, o
+// cadena vacia cuando la venta es elegible.
+//
+// El mensaje nombra el dato que la descalifica (la forma de pago, el estado) porque
+// quien pide el ticket a mano necesita saber por que no salio.
+function vetoDeGeneracion($item) {
+    if (empty($item['es_credito'])) {
+        $formas = $item['payment_name'] ?: 'sin pago registrado';
+
+        return 'La venta se cobro con ' . $formas . ': solo se generan tickets de lo pagado con tarjeta de credito.';
+    }
+
+    if (empty($item['esta_pagada'])) {
+        $estado = $item['operation_status'] ?: 'sin estado de operacion';
+
+        return 'La venta esta ' . $estado . ': solo se generan tickets de las ventas Pagadas.';
+    }
+
+    return '';
 }
 
 function emisorVacio() {

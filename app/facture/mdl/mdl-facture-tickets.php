@@ -7,12 +7,31 @@ class mdl extends CRUD {
     public $util;
     public $bd;
 
+    // El POS del que salio el Excel de la sucursal ('wansoft', 'soft-restaurant').
+    // De el dependen las reglas de ventaElegible(), porque cada sistema exporta
+    // cosas distintas. Lo resuelve el controlador al arrancar.
+    public $posCode = '';
+
     public function __construct() {
         $this->util = new Utileria;
         $this->bd   = 'fayxzvov_facturacion.';
     }
 
     // -- Catalogos --
+
+    // El sistema de punto de venta con el que opera la sucursal. Es un dato de la
+    // sucursal y no de la sesion: de el dependen las reglas de elegibilidad, igual
+    // que en Cargas depende el layout del archivo que se espera.
+    function getPosCode($array) {
+        $query = "
+            SELECT p.code
+            FROM {$this->bd}branch b
+            LEFT JOIN {$this->bd}pos p ON p.id = b.pos_id
+            WHERE b.id <=> ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
 
     // La sucursal del modulo vive en este esquema, no en la sesion de Huubie.
     function getBranch() {
@@ -45,8 +64,9 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
-    // Dias que tienen ventas cobradas por banco: son los unicos que pueden pedir
-    // ticket virtual, asi que el filtro no ofrece dias que abririan en vacio.
+    // Dias que tienen ventas elegibles (ver ventaElegible): son los unicos que
+    // pueden pedir ticket virtual, asi que el filtro no ofrece dias que abririan
+    // en vacio.
     function lsDias($array) {
         $query = "
             SELECT DATE(s.operation_date) AS id, DATE(s.operation_date) AS valor
@@ -54,7 +74,7 @@ class mdl extends CRUD {
             WHERE s.active = 1
               AND s.branch_id <=> ?
               AND s.operation_date IS NOT NULL
-              AND EXISTS ({$this->sinEfectivo()})
+              AND {$this->ventaElegible()}
             GROUP BY DATE(s.operation_date)
             ORDER BY DATE(s.operation_date) DESC
         ";
@@ -63,15 +83,93 @@ class mdl extends CRUD {
 
     // -- Tickets del dia --
 
-    // El ticket virtual solo aplica a lo que NO se cobro en efectivo: el efectivo no
-    // deja rastro bancario y no se factura por esta via. Un ticket multipago entra
-    // si alguno de sus pagos fue por banco.
+    // Que venta entra a la generacion de tickets. El criterio no es uno solo: cada
+    // POS exporta cosas distintas y por eso se decide por el sistema de la sucursal.
+    //
+    //   wansoft  desglosa la forma de pago y trae el estado de operacion, asi que
+    //            se le exigen las dos reglas: TARJETA DE CREDITO y estado Pagada.
+    //   el resto (Soft Restaurant) no exporta estado de operacion —la columna queda
+    //            en NULL— y conserva el criterio de siempre: todo lo que no sea
+    //            efectivo. Pedirle Pagada dejaria el modulo vacio.
+    //
+    // Se expone como un solo predicado para que ninguna consulta pueda aplicar una
+    // de las reglas y olvidarse de la otra.
+    function ventaElegible() {
+        if ($this->esWansoft()) {
+            return "EXISTS ({$this->soloCredito()}) AND EXISTS ({$this->estaPagada()})";
+        }
+
+        return "EXISTS ({$this->sinEfectivo()})";
+    }
+
+    function esWansoft() {
+        return $this->posCode === 'wansoft';
+    }
+
+    // Criterio de Soft Restaurant: el efectivo no deja rastro bancario y no se
+    // factura por esta via. Un ticket multipago entra si alguno de sus pagos fue
+    // por banco.
     function sinEfectivo() {
         return "
             SELECT 1
             FROM {$this->bd}detail_sale_payment p
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
             WHERE p.active = 1 AND p.sale_folio = s.folio AND UPPER(pm.name) <> 'EFECTIVO'
+        ";
+    }
+
+    // Criterio de Wansoft: solo lo cobrado con TARJETA DE CREDITO. El efectivo, el
+    // debito, la transferencia y cualquier otra forma del catalogo quedan fuera del
+    // monto que se reparte.
+    //
+    // La comparacion va sin UPPER(): la columna es utf8mb4_general_ci y ya ignora
+    // mayusculas y acentos. UPPER() no es multibyte y convertiria «Tarjeta de
+    // credito» en «TARJETA DE CRéDITO», que no empata con el seed. Es el mismo
+    // cuidado que el importador toma con claveNombre().
+    function soloCredito() {
+        return "
+            SELECT 1
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.active = 1 AND p.sale_folio = s.folio AND pm.name = 'TARJETA DE CREDITO'
+        ";
+    }
+
+    // El monto que el modulo procesa de una venta: SOLO lo que entro por tarjeta de
+    // credito. Wansoft exporta un pago por fila, asi que una cuenta dividida deja
+    // varios pagos con el mismo folio; el efectivo, el debito y la transferencia no
+    // se facturan por esta via y no pueden viajar en el total del ticket.
+    //
+    // En la venta cobrada toda con tarjeta —el caso normal— esto da exactamente
+    // s.total. La diferencia solo aparece cuando la cuenta se partio.
+    function montoCredito() {
+        return "
+            SELECT COALESCE(SUM(p.amount), 0)
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.active = 1 AND p.sale_folio = s.folio AND pm.name = 'TARJETA DE CREDITO'
+        ";
+    }
+
+    // El total con el que trabajan las tarjetas del encabezado, el reparto 16/0 y el
+    // papel. Se pide siempre con el alias `total` para que el controlador siga
+    // leyendo $item['total'] sin enterarse de que POS viene.
+    function totalProcesable() {
+        return $this->esWansoft() ? "({$this->montoCredito()})" : "s.total";
+    }
+
+    // La venta que no se cobro no se factura: de los cuatro estados de operacion
+    // que exporta Wansoft (Abierta, Pagada, Cancelada, Eliminada) solo Pagada llega
+    // a ticket.
+    //
+    // El estado de operacion no es el estado fiscal: sale_status dice si la venta ya
+    // se facturo (FACTURADO) o vencio, lo llena Soft Restaurant y se lee aparte. Un
+    // POS llena una columna y el otro la otra, nunca las dos.
+    function estaPagada() {
+        return "
+            SELECT 1
+            FROM {$this->bd}sale_operation_status os
+            WHERE os.id = s.operation_status_id AND os.name = 'Pagada'
         ";
     }
 
@@ -98,7 +196,8 @@ class mdl extends CRUD {
     // queda de desempate para lo que no sea numero.
     function listTicketsByDay($array) {
         $query = "
-            SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax, s.total,
+            SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
+                   {$this->totalProcesable()} AS total,
                    s.invoice_series, st.name AS status_name,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount,
@@ -109,7 +208,7 @@ class mdl extends CRUD {
             WHERE s.active = 1
               AND s.branch_id <=> ?
               AND DATE(s.operation_date) = ?
-              AND EXISTS ({$this->sinEfectivo()})
+              AND {$this->ventaElegible()}
               AND (s.folio LIKE ? OR EXISTS (
                     SELECT 1
                     FROM {$this->bd}detail_sale d
@@ -128,8 +227,10 @@ class mdl extends CRUD {
     // De la misma pasada salen los montos de las tarjetas: la venta del dia y lo que
     // ya esta facturado. Facturado es SOLO la venta que el POS reporto FACTURADO, la
     // que quedo congelada con su folio de factura. Tener ticket virtual no cuenta:
-    // el ticket es el papel con el que se va a facturar, no la factura. El monto
-    // sale de s.total, que es lo que se cobro.
+    // el ticket es el papel con el que se va a facturar, no la factura.
+    //
+    // El monto sale de totalProcesable(), no de s.total: en una cuenta dividida solo
+    // cuenta la parte cobrada con tarjeta.
     //
     // total_cero es lo que el reparto dejo realmente en la tasa cero: la venta que
     // se quedo con papel. Es el mismo monto que suma generateDay(), y sirve para
@@ -140,29 +241,40 @@ class mdl extends CRUD {
                    COALESCE(SUM(st.name = 'FACTURADO'), 0) AS facturados,
                    COALESCE(SUM(s.tax = 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
                    COALESCE(SUM(v.id IS NOT NULL), 0) AS generados,
-                   COALESCE(SUM(s.total), 0) AS total,
-                   COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN s.total ELSE 0 END), 0) AS total_facturado,
-                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL THEN s.total ELSE 0 END), 0) AS total_cero
+                   COALESCE(SUM({$this->totalProcesable()}), 0) AS total,
+                   COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_facturado,
+                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_cero
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
             WHERE s.active = 1
               AND s.branch_id <=> ?
               AND DATE(s.operation_date) = ?
-              AND EXISTS ({$this->sinEfectivo()})
+              AND {$this->ventaElegible()}
         ";
         return $this->_Read($query, $array);
     }
 
+    // La venta suelta que se pide por folio, para verla en el panel o generarle su
+    // ticket. A diferencia del listado no se filtra: una venta en efectivo o
+    // cancelada se puede seguir consultando, pero viaja con el veredicto de las
+    // reglas para que el controlador se niegue a generarle papel y diga por que.
+    // Los EXISTS salen de los mismos helpers que filtran el listado, asi que el
+    // criterio no se escribe dos veces.
     function getTicketByFolio($array) {
         $query = "
-            SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax, s.total,
+            SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
+                   {$this->totalProcesable()} AS total,
                    s.invoice_series, st.name AS status_name,
+                   os.name AS operation_status,
+                   EXISTS ({$this->soloCredito()}) AS es_credito,
+                   EXISTS ({$this->estaPagada()})  AS esta_pagada,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount,
                    {$this->ticketSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
+            LEFT JOIN {$this->bd}sale_operation_status os ON os.id = s.operation_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
             WHERE s.active = 1 AND s.folio = ? AND s.branch_id <=> ?
             LIMIT 1
@@ -189,7 +301,7 @@ class mdl extends CRUD {
               AND s.tax = 0
               AND (st.name IS NULL OR st.name <> 'FACTURADO')
               AND v.id IS NULL
-              AND EXISTS ({$this->sinEfectivo()})
+              AND {$this->ventaElegible()}
             ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
         ";
         return $this->_Read($query, $array);
@@ -258,12 +370,13 @@ class mdl extends CRUD {
 
     // -- Reparto del dia --
 
-    // Insumo del reparto 16%/0%: la venta del dia por banco con lo unico que el
+    // Insumo del reparto 16%/0%: la venta del dia elegible con lo unico que el
     // algoritmo necesita mirar. La nota viaja porque el ticket que sigue en el
     // grupo del cero conserva la suya, que ya se entrego.
     function listSaleDayForSplit($array) {
         $query = "
-            SELECT s.id, s.folio, s.total, s.operation_date,
+            SELECT s.id, s.folio, s.operation_date,
+                   {$this->totalProcesable()} AS total,
                    st.name AS status_name,
                    v.id AS virtual_id, v.note_number
             FROM {$this->bd}sale s
@@ -272,7 +385,7 @@ class mdl extends CRUD {
             WHERE s.active = 1
               AND s.branch_id <=> ?
               AND DATE(s.operation_date) = ?
-              AND EXISTS ({$this->sinEfectivo()})
+              AND {$this->ventaElegible()}
             ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
         ";
         return $this->_Read($query, $array);

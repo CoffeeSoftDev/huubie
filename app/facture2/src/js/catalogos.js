@@ -196,7 +196,6 @@ class Catalogos extends Templates {
                 actionsAlign: 'center',
                 hover:        true,
                 f_size:       11,
-                border_table: 'border-0',
                 emptyMessage: app.emptyMessage(),
                 emptyIcon:    'ic-box'
             },

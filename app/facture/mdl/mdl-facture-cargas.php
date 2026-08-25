@@ -245,6 +245,30 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    // Lo que entro con esos lotes, agrupado por forma de pago.
+    //
+    // El lote guarda su total de control pero no COMO se cobro: la forma de pago
+    // vive en el pago. Sin esta consulta no se puede decir cuanto del periodo se
+    // cobro con tarjeta, que es la cifra con la que se cuadra contra el banco.
+    //
+    // Los pagos sin forma de pago salen con is_cash en NULL en vez de caer de un
+    // lado: no se sabe como se cobraron, y contarlos como tarjeta inflaria justo
+    // esa cifra.
+    function sumPaymentByMethod($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
+        $query = "
+            SELECT pm.name AS method_name, pm.is_cash,
+                   COUNT(*)      AS pagos,
+                   SUM(p.amount) AS total
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.active = 1 AND p.import_batch_id IN ({$marks})
+            GROUP BY pm.id, pm.name, pm.is_cash
+            ORDER BY SUM(p.amount) DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
 
     function deleteSalePaymentByBatch($array) {
         return $this->_Delete([

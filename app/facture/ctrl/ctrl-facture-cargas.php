@@ -267,7 +267,141 @@ class ctrl extends mdl2 {
             'right'   => [5, 6],
             'lotes'   => ordenarPorHoja(array_reverse($lotes), $contrato, 'sheet_name'),
             'ajenos'  => avisoAjenos($ajenos, $this->posInfo()),
-            'archivo' => uploadState($ultimo, $filas)
+            'archivo' => uploadState($ultimo, $filas),
+            'kpis'    => $this->kpisBitacora($lotes)
+        ];
+    }
+
+    // -- Cifras del periodo --
+
+    // Lo que suman las cargas que la bitacora esta listando, para la fila de
+    // tarjetas que va arriba de la tabla.
+    //
+    // Se calcula sobre esos MISMOS lotes y no con una consulta aparte: lo que
+    // dicen las tarjetas es el total de las filas que van debajo, y un resumen
+    // que no cuadra con su propia tabla no se puede explicar.
+    //
+    // El total de tarjeta es la unica excepcion y si baja a la base: la forma de
+    // pago vive en el pago, no en el lote.
+    function kpisBitacora($lotes) {
+        $movimientos = 0;
+        $archivo     = 0;
+        $duplicados  = 0;
+        $total       = 0;
+
+        foreach ($lotes as $lote) {
+            $movimientos += (int)   $lote['row_count'];
+            $archivo     += (int)   $lote['source_rows'];
+            $duplicados  += (int)   $lote['duplicated'];
+            $total       += (float) $lote['control_total'];
+        }
+
+        $ids     = array_column($lotes, 'id');
+        $tarjeta = $this->totalTarjeta($ids);
+
+        $fiscal   = $this->desgloseFiscal($ids, $total);
+        $subtotal = $fiscal['subtotal'];
+        $impuesto = $fiscal['iva'];
+        $tasa     = $fiscal['tasa'];
+
+        return [
+            'lotes'            => count($lotes),
+            'movimientos'      => $movimientos,
+            'movimientosTexto' => number_format($movimientos),
+            'archivoTexto'     => number_format($archivo),
+            'duplicados'       => $duplicados,
+            'duplicadosTexto'  => number_format($duplicados),
+            'tarjeta'          => round($tarjeta['total'], 2),
+            'tarjetaTexto'     => money($tarjeta['total']),
+            'tarjetaLabel'     => $tarjeta['nombre'],
+            'tarjetaPagos'     => $tarjeta['pagos'],
+            'tarjetaPagosTexto' => number_format($tarjeta['pagos']),
+            'subtotal'         => $subtotal,
+            'subtotalTexto'    => money($subtotal),
+            'iva'              => $impuesto,
+            'ivaTexto'         => money($impuesto),
+            'tasaTexto'        => round($tasa * 100) . '%',
+            'total'            => round($total, 2),
+            'totalTexto'       => money($total)
+        ];
+    }
+
+    // Lo que se cobro con tarjeta en esos lotes.
+    //
+    // "Tarjeta" es toda forma de pago que no es efectivo: es lo que este modulo
+    // factura —el generador oculta los tickets en efectivo— y lo unico que
+    // aparece en el estado de cuenta del banco. Los pagos que entraron sin forma
+    // de pago no cuentan de ningun lado, porque no se sabe como se cobraron.
+    function totalTarjeta($ids) {
+        $total   = 0;
+        $pagos   = 0;
+        $nombres = [];
+
+        if (!empty($ids)) {
+            foreach ($this->sumPaymentByMethod($ids) as $forma) {
+                if ($forma['is_cash'] === null || (int) $forma['is_cash'] === 1) continue;
+
+                $total    += (float) $forma['total'];
+                $pagos    += (int)   $forma['pagos'];
+                $nombres[] = $forma['method_name'];
+            }
+        }
+
+        // Con una sola forma de pago la tarjeta se rotula como la nombra el POS
+        // ("Tarjeta de credito"); con varias no hay un nombre honesto que darle y
+        // la etiqueta la pone la pantalla.
+        return [
+            'total'  => $total,
+            'pagos'  => $pagos,
+            'nombre' => count($nombres) === 1 ? nombreForma($nombres[0]) : ''
+        ];
+    }
+
+    // El subtotal y el IVA del total que suma la bitacora.
+    //
+    // Se prefiere el LITERAL que dejo la carga: el bloque de totales del archivo
+    // trae los dos escritos por el POS, y derivarlos daria 45,702.59 donde el
+    // Excel dice 45,702.58 —un centavo de redondeo que no hay por que inventar
+    // teniendo el dato. Es el mismo criterio con el que se guardo ese resumen.
+    //
+    // Solo vale si el resumen cubre EXACTAMENTE lo que suma la tabla. Cuando no
+    // —un periodo con hojas bancarias, o cargas cuyo resumen quedo fuera— se
+    // deriva del total con la tasa medida, y asi subtotal mas IVA sigue dando el
+    // total que la bitacora tiene escrito fila por fila.
+    //
+    // Sin resumen que medir —un POS que no lo exporta— la tasa es la del negocio,
+    // la misma con la que el importador lee un archivo sin bloque de totales.
+    function desgloseFiscal($ids, $total) {
+        $subtotal = 0;
+        $impuesto = 0;
+        $resumen  = 0;
+
+        $dias = empty($ids) ? [] : $this->listDailySummaryByBatch($ids);
+
+        foreach ($dias as $dia) {
+            $subtotal += (float) $dia['subtotal'];
+            $impuesto += (float) $dia['tax'];
+            $resumen  += (float) $dia['total'];
+        }
+
+        $tasa = ($subtotal > 0 && $impuesto > 0)
+            ? round($impuesto / $subtotal, 4)
+            : WANSOFT_TASA_DEFAULT;
+
+        if ($resumen > 0 && abs($resumen - $total) < 0.01) {
+            return [
+                'subtotal' => round($subtotal, 2),
+                'iva'      => round($impuesto, 2),
+                'tasa'     => $tasa
+            ];
+        }
+
+        $base = $tasa > 0 ? round($total / (1 + $tasa), 2) : round($total, 2);
+
+        return [
+            'subtotal' => $base,
+            'iva'      => round($total - $base, 2),
+            'tasa'     => $tasa
         ];
     }
 
@@ -1067,6 +1201,19 @@ function userCell($nombre, $id) {
     }
 
     return '<span class="text-gray-400">' . $nombre . '</span>';
+}
+
+// Importes de las tarjetas del periodo. Mismo formato que el resto del modulo:
+// siempre dos decimales, porque son cifras que se comparan contra el Excel.
+function money($valor) {
+    return '$' . number_format((float) $valor, 2);
+}
+
+// El catalogo guarda la forma de pago como la exporta el POS, en mayusculas. En
+// la etiqueta de una tarjeta eso se lee como un grito: se baja a capital inicial.
+// strtolower basta porque el importador ya normaliza el nombre sin acentos.
+function nombreForma($nombre) {
+    return ucfirst(strtolower((string) $nombre));
 }
 
 // Los duplicados en cero no se pintan como un dato mas: la carga limpia es el

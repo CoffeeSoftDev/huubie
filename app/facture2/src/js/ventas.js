@@ -384,7 +384,6 @@ class Ventas extends Templates {
             collapsed:    true,
             color_group:  'ct-group',
             f_size:       11,
-            border_table: 'border-0',
             emptyMessage: 'No se encontraron ventas con los filtros aplicados',
             emptyIcon:    'ic-file-text',
             data:         data

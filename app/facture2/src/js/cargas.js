@@ -465,8 +465,13 @@ class App extends Templates {
         // min-w-0 en el cuerpo: sin el, una hoja de muchas columnas se desborda
         // fuera del panel en vez de scrollear dentro. El wrapper va con h-full y no
         // flex-1 porque el contenedor del tab cerrado lleva `hidden`.
-        const sheetShell = (id) => `
+        //
+        // El hueco de cifras lo abre solo la bitacora: ahi las tarjetas resumen
+        // TODAS las cargas del periodo. Una hoja es un solo conjunto de filas, y
+        // repetir sobre ella los mismos totales no diria nada nuevo.
+        const sheetShell = (id, kpis) => `
             <div class="h-full flex flex-col">
+                ${kpis ? `<div id="sheetKpis-${id}" class="flex-shrink-0 pb-3"></div>` : ''}
                 <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
                 <div id="sheetFoot-${id}" class="flex-shrink-0"></div>
             </div>
@@ -518,7 +523,7 @@ class App extends Templates {
             lucideIcon: 'activity',
             active:     activa === this.logKey(tabId),
             class:      'flex-1 min-h-0',
-            content:    sheetShell(this.logKey(tabId)),
+            content:    sheetShell(this.logKey(tabId), true),
             onClick:    () => this.onSelectSheet(tabId, null)
         };
 
@@ -675,6 +680,10 @@ class Cargas extends Templates {
             };
         };
 
+        // Las cifras del periodo van antes que la tabla, que es como se leen: el
+        // total y su desglose primero, y debajo carga por carga de donde salio.
+        cargasView.renderKpis(log, data.kpis);
+
         this.createCoffeeTable3({
             parent:        `sheetBody-${log}`,
             id:            `tbLog-${tipo}`,
@@ -686,7 +695,6 @@ class Cargas extends Templates {
             scrollable:    false,
             hover:         true,
             f_size:        11,
-            border_table:  'border-0',
             emptyMessage:  'Sin registros en la bitacora de carga',
             emptyIcon:     'ic-file-text',
             data:          data
@@ -720,8 +728,6 @@ class Cargas extends Templates {
             extends:      true,
             scrollable:   false,
             f_size:       10,
-            border_table: 'border-0',
-            border_row:   'border-0',
             emptyMessage: 'Selecciona una hoja para ver sus columnas',
             emptyIcon:    'ic-list',
             data:         columnasTable(hoja)
@@ -752,7 +758,6 @@ class Cargas extends Templates {
             scrollable:    false,
             hover:         true,
             f_size:        11,
-            border_table:  'border-0',
             emptyMessage:  'Esta carga no tiene registros',
             emptyIcon:     'ic-file-text',
             data:          { row: data.row }
@@ -792,7 +797,6 @@ class Cargas extends Templates {
             scrollable:    false,
             hover:         true,
             f_size:        11,
-            border_table:  'border-0',
             emptyMessage:  'La carga no tiene propinas registradas',
             emptyIcon:     'ic-file-text',
             data:          { row: data.row }
@@ -1129,6 +1133,59 @@ class CargasView extends Templates {
         this.sheetFootBar({
             parent: `sheetFoot-${sheetId}`,
             json:   json
+        });
+    }
+
+    // Las cifras del periodo, arriba de la bitacora. Van en el orden en que se
+    // preguntan: cuantos movimientos entraron, cuanto de eso se cobro con tarjeta,
+    // y como se desglosa ese total en subtotal e IVA.
+    renderKpis(sheetId, kpis) {
+        if (!kpis) return $(`#sheetKpis-${sheetId}`).empty();
+
+        // Lo que traia el archivo y lo que se omitio por repetido explican por que
+        // los movimientos validos no son las filas del Excel. Sin duplicados no se
+        // nombran: la carga limpia es el caso normal y decir "0 duplicadas" en cada
+        // una esconderia a las que si omitieron algo.
+        const origen = kpis.duplicados > 0
+            ? `${kpis.archivoTexto} filas · ${kpis.duplicadosTexto} duplicadas`
+            : `${kpis.archivoTexto} filas del archivo`;
+
+        this.kpisRow({
+            parent: `sheetKpis-${sheetId}`,
+            id:     `kpis-${sheetId}`,
+            json: [
+                {
+                    id:       `kpiMovimientos-${sheetId}`,
+                    label:    'Movimientos',
+                    value:    kpis.movimientosTexto,
+                    subtitle: origen
+                },
+                {
+                    id:       `kpiTarjeta-${sheetId}`,
+                    label:    kpis.tarjetaLabel || 'Tarjeta',
+                    value:    kpis.tarjetaTexto,
+                    subtitle: `${kpis.tarjetaPagosTexto} movimiento(s)`,
+                    tone:     'info'
+                },
+                {
+                    id:    `kpiSubtotal-${sheetId}`,
+                    label: 'Subtotal',
+                    value: kpis.subtotalTexto
+                },
+                {
+                    id:    `kpiIva-${sheetId}`,
+                    label: `IVA ${kpis.tasaTexto}`,
+                    value: kpis.ivaTexto,
+                    tone:  'warning'
+                },
+                {
+                    id:       `kpiTotal-${sheetId}`,
+                    label:    'Total',
+                    value:    kpis.totalTexto,
+                    subtitle: `${kpis.lotes} carga(s) en el periodo`,
+                    tone:     'success'
+                }
+            ]
         });
     }
 
@@ -1596,6 +1653,75 @@ class CargasView extends Templates {
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
+    }
+
+    // Tarjetas de cifras. Gemelo del kpisRow de Ventas y con sus mismas clases a
+    // proposito: el tema claro de la terminal ya repinta `.cs-kpi-card` y las
+    // variables --cs-*, asi que estas tarjetas nacen traducidas.
+    //
+    // Lo que si cambia es el click: en Ventas cada tarjeta mueve el filtro, y aqui
+    // no hay a donde ir. Son el resumen de la tabla que esta debajo, y un cursor de
+    // mano prometeria una pantalla que no existe.
+    kpisRow(options) {
+        const defaults = {
+            parent: 'root',
+            id:     'kpisRow',
+            class:  'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3',
+            json:   [],
+            labels: {
+                empty: 'Sin indicadores'
+            },
+            tones: {
+                default: 'text-white',
+                success: 'cs-text-success text-[var(--cs-success,#3FC189)]',
+                warning: 'cs-text-warning text-[var(--cs-warning,#FBBF24)]',
+                danger:  'cs-text-danger  text-[var(--cs-danger,#E02424)]',
+                info:    'cs-text-info    text-[var(--cs-info,#1C64F2)]'
+            },
+            cardClass:     'cs-kpi-card bg-[var(--cs-bg-input,#1F2937)] rounded-lg px-3 py-2.5',
+            labelClass:    'cs-kpi-label text-[10px] uppercase tracking-wider font-bold text-[var(--cs-text-muted,#9CA3AF)] truncate',
+            valueClass:    'cs-kpi-value text-sm font-bold',
+            subtitleClass: 'cs-kpi-subtitle text-[10px] text-[var(--cs-text-muted,#9CA3AF)] truncate'
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.labels = Object.assign({}, defaults.labels, o.labels || {});
+        opts.tones  = Object.assign({}, defaults.tones,  o.tones  || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const toneClass = (tone) => opts.tones[tone] || opts.tones.default;
+
+        const kpiCard = (kpi, idx) => {
+            const cardId = kpi.id || `${opts.id}_${idx}`;
+
+            return `
+                <div id="${cardId}" class="${opts.cardClass}">
+                    <p class="${opts.labelClass}" title="${esc(kpi.label)}">${esc(kpi.label)}</p>
+                    <p class="${opts.valueClass} ${toneClass(kpi.tone)}">${esc(kpi.value)}</p>
+                    ${kpi.subtitle ? `<p class="${opts.subtitleClass}" title="${esc(kpi.subtitle)}">${esc(kpi.subtitle)}</p>` : ''}
+                </div>
+            `;
+        };
+
+        const grid = $('<div>', { id: opts.id, class: opts.class });
+
+        if (!opts.json || opts.json.length === 0) {
+            grid.html(`
+                <p class="col-span-full text-[10px] text-[var(--cs-text-muted,#9CA3AF)] italic text-center py-2">
+                    ${esc(opts.labels.empty)}
+                </p>
+            `);
+
+            return $(`#${opts.parent}`).html(grid);
+        }
+
+        grid.html(opts.json.map(kpiCard).join(''));
+
+        $(`#${opts.parent}`).html(grid);
     }
 
     roadmap(options) {
