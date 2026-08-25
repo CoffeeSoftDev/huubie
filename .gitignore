@@ -19,6 +19,11 @@ coffee/app/_import_backup_*/
 coffee/app/visor/_migracion_backup_*/
 coffee/app/visor/_todo_backups_*/
 
+# Respaldos de la base del Facturador: son volcados con datos reales de ventas y
+# se regeneran cuando hagan falta. El esquema si viaja en el repo, en los .sql de
+# migracion que estan al lado.
+app/facture/sql/backup/
+
 .vscode/settings.json
 
 # Snapshots de Playwright MCP - runtime, no versionar
