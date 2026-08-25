@@ -540,14 +540,20 @@ class ImportFactureCargas {
         $control = 0;
         foreach ($limpias as $v) $control += numVal($v[$config['controlIndex']]);
 
+        // Ficha de auditoria del lote. Aqui source_rows y row_count coinciden
+        // siempre: esta carga reemplaza el periodo y guarda el archivo entero, sin
+        // omitir nada por duplicidad.
         $batch = $this->util->sql([
             'file_name'       => $ctx['fileName'],
             'sheet_name'      => $sheetName,
             'period_year'     => $ctx['anio'],
             'period_month'    => $ctx['mes'],
+            'source_rows'     => count($limpias),
             'row_count'       => count($limpias),
             'control_total'   => $control,
             'created_at'      => date('Y-m-d H:i:s'),
+            'user_name'       => $ctx['userName'] ?? '',
+            'user_id'         => $ctx['userId'] ?? null,
             'branch_id'       => $ctx['branchId']
         ]);
 

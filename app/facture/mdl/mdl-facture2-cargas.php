@@ -20,12 +20,25 @@ class mdl2 extends mdl {
     // El identificador con el que el controlador decide que importador usar. Es un
     // dato de la sucursal, no de la sesion: cambiar de sucursal cambia el POS que
     // esta operando y por lo tanto el layout del archivo que se espera.
+    // `color` viaja con el code porque vive en el catalogo y no en el CSS: un POS
+    // nuevo trae el suyo sin tocar la hoja de estilos del modulo.
     function getPosCode($array) {
         $query = "
-            SELECT p.code, p.name
+            SELECT p.code, p.name, p.color
             FROM {$this->bd}branch b
             LEFT JOIN {$this->bd}pos p ON p.id = b.pos_id
             WHERE b.id <=> ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // La comision sobre propina que cobra la sucursal, para la vista de propinas.
+    function getBranchCommission($array) {
+        $query = "
+            SELECT tip_commission_rate
+            FROM {$this->bd}branch
+            WHERE id <=> ?
             LIMIT 1
         ";
         return $this->_Read($query, $array);
@@ -47,6 +60,26 @@ class mdl2 extends mdl {
         return $this->_Read($query, $array);
     }
 
+    // Los movimientos del archivo que YA estan en base, con su total y su fecha.
+    //
+    // Es la consulta que sostiene la carga incremental: con ella el importador sabe
+    // cuales tiene que saltarse antes de insertar nada. Se trae el total ademas del
+    // id para poder distinguir un duplicado identico de uno que el POS corrigio
+    // despues, que es informacion distinta aunque los dos se omitan.
+    //
+    // Sin filtro de periodo a proposito: un movimiento ya procesado lo esta aunque
+    // el usuario elija otro mes en el filtro. La duplicidad es del dato, no del
+    // periodo con el que se sube.
+    function listSaleByPdvList($array) {
+        $marks = implode(',', array_fill(0, count($array) - 1, '?'));
+        $query = "
+            SELECT id, pdv_movement, total, operation_date, import_batch_id
+            FROM {$this->bd}sale
+            WHERE branch_id <=> ? AND pdv_movement IN ({$marks})
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // Cruce de los pagos del lote contra las ventas recien cargadas. Una sola
     // sentencia por lote: un UPDATE por fila no termina dentro del tiempo de la
     // peticion (mismo motivo que linkSalePaymentByBatch del modelo de Soft).
@@ -60,6 +93,19 @@ class mdl2 extends mdl {
               ON s.pdv_movement = p.sale_folio AND s.active = 1 AND s.branch_id <=> ?
             SET p.sale_id = s.id
             WHERE p.active = 1 AND p.sale_id IS NULL AND p.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // El lote se crea antes de insertar porque las filas necesitan su id, asi que
+    // su conteo nace con las filas LEIDAS del archivo. En una carga incremental eso
+    // no es lo que el lote contiene: se corrige al terminar con las que de verdad
+    // entraron, o la bitacora diria 100 donde hay 20.
+    function updateImportBatchRows($array) {
+        $query = "
+            UPDATE {$this->bd}import_batch
+            SET row_count = ?, control_total = ?, duplicated_rows = ?
+            WHERE id = ?
         ";
         return $this->_CUD($query, $array);
     }
@@ -179,11 +225,12 @@ class mdl2 extends mdl {
     }
 
     function listPaymentCardByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT pdv_order, terminal, operation_type, bank, card_type, card_number,
                    authorization_code, amount, is_refund, operation_date
             FROM {$this->bd}detail_sale_payment_card
-            WHERE import_batch_id = ?
+            WHERE import_batch_id IN ({$marks})
             ORDER BY id ASC
         ";
         return $this->_Read($query, $array);
@@ -208,6 +255,7 @@ class mdl2 extends mdl {
     }
 
     function listDeletedPaymentByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT d.pdv_order, d.terminal, d.modified_by, d.amount, d.tip,
                    d.operation_date, d.registered_at,
@@ -216,7 +264,7 @@ class mdl2 extends mdl {
             LEFT JOIN {$this->bd}waiter w          ON w.id  = d.waiter_id
             LEFT JOIN {$this->bd}cashier c         ON c.id  = d.cashier_id
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = d.payment_method_id
-            WHERE d.import_batch_id = ?
+            WHERE d.import_batch_id IN ({$marks})
             ORDER BY d.id ASC
         ";
         return $this->_Read($query, $array);
@@ -236,6 +284,7 @@ class mdl2 extends mdl {
     // movimiento, el mesero y el cajero. billing_code y expires_at van siempre en
     // nulo aqui, asi que no se piden.
     function listSaleWansoftByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT s.pdv_movement, s.order_number, s.operation_date, s.subtotal,
                    s.tax, s.total, s.guest_count,
@@ -244,34 +293,78 @@ class mdl2 extends mdl {
             LEFT JOIN {$this->bd}sale_operation_status os ON os.id = s.operation_status_id
             LEFT JOIN {$this->bd}waiter w                 ON w.id  = s.waiter_id
             LEFT JOIN {$this->bd}cashier c                ON c.id  = s.cashier_id
-            WHERE s.import_batch_id = ?
+            WHERE s.import_batch_id IN ({$marks})
             ORDER BY s.order_number ASC
         ";
         return $this->_Read($query, $array);
     }
 
-    // Los pagos de un lote de Wansoft: propina y terminal son lo que distingue a
-    // este POS y por eso encabezan el listado.
+    // El renglon del lote tal como venia en la hoja: una fila por pago, con los
+    // datos del ticket al que pertenece.
+    //
+    // La venta se trae por JOIN y no se repite en el pago porque la hoja SI los
+    // repite —fecha, orden, mesero y cajero salen iguales en las dos filas de un
+    // ticket partido— y guardarlos dos veces seria copiar esa redundancia a la
+    // base. Aqui se reconstruye para mostrar la hoja como el usuario la subio.
     function listPaymentWansoftByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
-            SELECT p.sale_folio, p.amount, p.tip, p.terminal, p.reference,
+            SELECT s.operation_date, s.order_number, s.pdv_movement,
+                   p.sale_folio, p.amount, p.tip, p.terminal, p.reference,
                    p.transaction_code, p.validation_code, p.paid_at,
+                   os.name AS operation_status,
+                   w.name  AS waiter_name,
+                   c.name  AS cashier_name,
                    pm.name AS method_name
             FROM {$this->bd}detail_sale_payment p
-            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-            WHERE p.import_batch_id = ?
+            LEFT JOIN {$this->bd}sale s                   ON s.id  = p.sale_id
+            LEFT JOIN {$this->bd}sale_operation_status os ON os.id = s.operation_status_id
+            LEFT JOIN {$this->bd}waiter w                 ON w.id  = s.waiter_id
+            LEFT JOIN {$this->bd}cashier c                ON c.id  = s.cashier_id
+            LEFT JOIN {$this->bd}payment_method pm        ON pm.id = p.payment_method_id
+            WHERE p.import_batch_id IN ({$marks})
             ORDER BY p.id ASC
         ";
         return $this->_Read($query, $array);
     }
 
+    // Propinas por mesero: la hoja de control del POS, reconstruida desde los pagos
+    // del lote en vez de guardarse aparte.
+    //
+    // Wansoft la exporta ya sumada, pero no aporta un solo dato que no este en el
+    // detalle: guardarla seria escribir dos veces lo mismo y arriesgarse a que las
+    // dos copias dejen de coincidir. Calculandola aqui, ademas, la pantalla vale
+    // como CUADRE: si lo que sale no empata con la hoja del Excel, la carga tiene
+    // algo mal y se ve al instante.
+    //
+    // El mesero vive en la venta, no en el pago, asi que se llega a el por sale_id.
+    // Los pagos que no cruzaron su venta caen en un grupo aparte en vez de
+    // desaparecer: un total que no cuadra tiene que poder explicarse.
+    function listTipsByWaiter($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
+        $query = "
+            SELECT COALESCE(w.name, '(sin mesero)') AS waiter_name,
+                   COUNT(*)         AS pagos,
+                   SUM(p.amount)    AS ventas,
+                   SUM(p.tip)       AS propina
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}sale s   ON s.id = p.sale_id
+            LEFT JOIN {$this->bd}waiter w ON w.id = s.waiter_id
+            WHERE p.active = 1 AND p.import_batch_id IN ({$marks})
+            GROUP BY w.id, w.name
+            ORDER BY SUM(p.tip) DESC, SUM(p.amount) DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function listDailySummaryByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT operation_date, order_count, guest_count, subtotal, tax, total, tip,
                    courtesy_count, free_dish_count, cancelled_dish_count,
                    cancelled_sale_count, courtesy_total, cancellation_total
             FROM {$this->bd}daily_sale_summary
-            WHERE import_batch_id = ?
+            WHERE import_batch_id IN ({$marks})
             ORDER BY operation_date ASC
         ";
         return $this->_Read($query, $array);

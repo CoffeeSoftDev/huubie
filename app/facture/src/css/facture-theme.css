@@ -23,9 +23,25 @@ html[data-facture-theme="light"] .bg-\[\#0E1521\] { background-color: #F9FAFB !i
 
 html[data-facture-theme="light"] .bg-\[\#141d2b\] { background-color: #FFFFFF !important; }
 
-html[data-facture-theme="light"] .bg-\[\#1F2A37\] { background-color: #E5E7EB !important; }
+/* El panel de contenido va MAS CLARO que la pagina, no mas oscuro: en el tema
+   oscuro #1F2A37 destaca por ser mas claro que el fondo #111928, y al traducirlo
+   a #E5E7EB quedaba por debajo de la pagina (#F3F4F6), invirtiendo la jerarquia
+   y dejando el container gris sucio sobre un fondo mas claro que el.
+   Con #F9FAFB el panel vuelve a levantarse sobre su fondo, y la linea de un pixel
+   lo delimita sin necesidad de oscurecerlo. */
+html[data-facture-theme="light"] .bg-\[\#1F2A37\] {
+    background-color: #F9FAFB !important;
+    border: 1px solid #E5E7EB;
+}
 
 html[data-facture-theme="light"] .border-\[\#374151\] { border-color: #E5E7EB !important; }
+
+/* -- Avisos de los dialogos --
+   Sobre el popup blanco los tonos claros del tema oscuro se pierden, asi que en
+   claro bajan a ambar y azul de texto. Van sin scope de #mainContainer porque
+   SweetAlert monta su popup al final del <body>, fuera del contenedor. */
+html[data-facture-theme="light"] .facture-warn { color: #B45309; }
+html[data-facture-theme="light"] .facture-info { color: #1D4ED8; }
 
 /* Las tarjetas de KPI van sin borde por regla del modulo: en claro se separan
    de su banda con una sombra de un pixel, no con una linea. */

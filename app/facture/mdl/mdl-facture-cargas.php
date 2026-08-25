@@ -65,7 +65,8 @@ class mdl extends CRUD {
     function listImportBatch($array) {
         $query = "
             SELECT id, file_name, sheet_name, period_year, period_month,
-                   row_count, control_total, created_at
+                   source_rows, row_count, duplicated_rows, control_total,
+                   created_at, user_id, user_name
             FROM {$this->bd}import_batch
             WHERE active = 1
               AND branch_id <=> ?
@@ -79,7 +80,8 @@ class mdl extends CRUD {
     function getImportBatchById($array) {
         $query = "
             SELECT id, file_name, sheet_name, period_year, period_month,
-                   row_count, control_total, created_at
+                   source_rows, row_count, duplicated_rows, control_total,
+                   created_at, user_id, user_name
             FROM {$this->bd}import_batch
             WHERE id = ?
         ";
@@ -153,13 +155,14 @@ class mdl extends CRUD {
     // Sin LIMIT: el lote se ve completo (3 821 tickets del reporte de junio) porque
     // la tabla la pagina DataTables en el cliente.
     function listSaleByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT s.folio, s.billing_code, s.invoice_series, s.operation_date,
                    s.discount_percent, s.subtotal, s.tax, s.total, s.expires_at,
                    st.name AS status_name
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
-            WHERE s.active = 1 AND s.import_batch_id = ?
+            WHERE s.active = 1 AND s.import_batch_id IN ({$marks})
             ORDER BY s.id ASC
         ";
         return $this->_Read($query, $array);
@@ -230,12 +233,13 @@ class mdl extends CRUD {
     // mentir. Son 3 909 pagos del mismo orden que los 3 821 tickets, y DataTables
     // los pagina en el cliente.
     function listSalePaymentByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT p.sale_folio, p.currency, p.amount, p.exchange_rate,
                    p.sale_subtotal, p.sale_tax, p.sale_total, pm.name AS method_name
             FROM {$this->bd}detail_sale_payment p
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-            WHERE p.active = 1 AND p.import_batch_id = ?
+            WHERE p.active = 1 AND p.import_batch_id IN ({$marks})
             ORDER BY p.id ASC
         ";
         return $this->_Read($query, $array);
@@ -443,11 +447,12 @@ class mdl extends CRUD {
     // Sin LIMIT por la misma razon que los pagos: la pestana de la hoja anuncia el
     // total del lote y la tabla debe traerlo completo.
     function listSaleDetailByBatch($array) {
+        $marks = implode(',', array_fill(0, count($array), '?'));
         $query = "
             SELECT sale_folio, table_number, waiter_code, product_code,
                    description, quantity, amount, closed_at
             FROM {$this->bd}detail_sale
-            WHERE active = 1 AND import_batch_id = ?
+            WHERE active = 1 AND import_batch_id IN ({$marks})
             ORDER BY id ASC
         ";
         return $this->_Read($query, $array);

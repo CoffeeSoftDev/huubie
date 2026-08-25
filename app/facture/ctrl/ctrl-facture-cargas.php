@@ -29,9 +29,10 @@ class ctrl extends mdl2 {
     public $branch;
     public $userId;
 
-    // El importador se resuelve una vez por peticion: la sucursal no cambia a
-    // media carga y preguntarlo seis veces seria seis consultas identicas.
+    // El importador y el POS se resuelven una vez por peticion: la sucursal no
+    // cambia a media carga y preguntarlo seis veces seria seis consultas identicas.
     private $import;
+    private $pos;
 
     public function __construct() {
         parent::__construct();
@@ -50,10 +51,31 @@ class ctrl extends mdl2 {
     // Sin POS definido se lee como Soft Restaurant, que es el que ya estaba: una
     // sucursal dada de alta antes del catalogo de POS sigue cargando como siempre
     // en vez de romperse.
-    function posCode() {
-        $ls = $this->getPosCode([$this->branchId()]);
+    // El POS de la sucursal, resuelto una sola vez: la ficha completa porque la
+    // pantalla necesita ademas su nombre y su color para anunciarlo.
+    function posInfo() {
+        if ($this->pos !== null) return $this->pos;
 
-        return strtolower((string) ($ls[0]['code'] ?? '')) ?: 'soft-restaurant';
+        $ls   = $this->getPosCode([$this->branchId()]);
+        $item = $ls[0] ?? [];
+        $code = strtolower((string) ($item['code'] ?? ''));
+
+        // Sin POS definido se cae en Soft Restaurant, que es el que ya estaba, pero
+        // el nombre se deja en claro que es un supuesto: una sucursal sin capturar
+        // no debe verse igual que una capturada.
+        $this->pos = $code === ''
+            ? ['code' => 'soft-restaurant', 'name' => 'Sin definir', 'color' => '#6B7280']
+            : [
+                'code'  => $code,
+                'name'  => $item['name']  ?: $code,
+                'color' => $item['color'] ?: '#6B7280'
+            ];
+
+        return $this->pos;
+    }
+
+    function posCode() {
+        return $this->posInfo()['code'];
     }
 
     function importador() {
@@ -64,6 +86,34 @@ class ctrl extends mdl2 {
             : new ImportFactureCargas($this);
 
         return $this->import;
+    }
+
+    // Los contratos de TODOS los puntos de venta, no solo el que opera.
+    //
+    // Listar y cargar son operaciones del POS activo, pero BORRAR no: un lote
+    // cargado con el otro sistema sigue ocupando el periodo y tiene que poder
+    // limpiarse. Resolviendo su target contra el contrato activo se quedaba vacio,
+    // y deleteCarga borraba la fila de la bitacora dejando huerfanos sus 13 mil
+    // renglones, que ya nadie podia alcanzar.
+    //
+    // Las hojas de los dos POS tienen nombres distintos, asi que la union no pisa
+    // nada: el contrato del que opera manda en caso de coincidir.
+    function contratoCompleto() {
+        $otro = $this->posCode() === 'wansoft'
+            ? new ImportFactureCargas($this)
+            : new ImportFacture2Cargas($this);
+
+        return array_merge($otro->contrato(), $this->importador()->contrato());
+    }
+
+    // Las pestanas que el POS anuncia sin tener todavia el contrato de sus hojas.
+    // Se pregunta con method_exists y no como parte de la interfaz: el importador
+    // de Soft Restaurant no las necesita y no hay por que tocarlo para agregarle
+    // un metodo que siempre devolveria un array vacio.
+    function tabsReservados() {
+        $importador = $this->importador();
+
+        return method_exists($importador, 'tabsReservados') ? $importador->tabsReservados() : [];
     }
 
     // El facturador tiene su propia tabla branch: el id de sucursal de la sesion
@@ -99,16 +149,34 @@ class ctrl extends mdl2 {
         $importador = $this->importador();
         $contrato   = $importador->contrato();
 
+        // Pestanas que el POS declara aunque su contrato de hojas no exista
+        // todavia. Van al final, despues de las que si tienen hojas.
+        $reservados = $this->tabsReservados();
+
         // El POS viaja al front para que la pantalla pueda decir con que sistema
         // esta operando: el usuario tiene que saber por que se le pide un archivo
         // y no otro.
+        // El periodo con el que abre el modulo: el mes en curso.
+        //
+        // Sale del SERVIDOR y no del reloj del navegador, que es el mismo criterio
+        // con el que se guardan las cargas: si la maquina del usuario tiene otra
+        // fecha, el filtro apuntaria a un periodo distinto del que se escribiria en
+        // el lote. El anio se limita a los que el select ofrece, para no arrancar
+        // con un valor que no esta en la lista.
+        $anioActual = date('Y');
+        $enLista    = in_array($anioActual, array_column($anios, 'id'));
+
         return [
             'meses'    => mesesCatalogo(),
             'anios'    => $anios,
-            'pos'      => $this->posCode(),
-            'tabs'     => tabsContrato($contrato),
-            'archivos' => archivosContrato($contrato, $this->posCode()),
-            'hojas'    => hojasContrato($contrato),
+            'hoy'      => [
+                'mes'  => date('m'),
+                'anio' => $enLista ? $anioActual : (string) ($anios[0]['id'] ?? $anioActual)
+            ],
+            'pos'      => $this->posInfo(),
+            'tabs'     => tabsContrato($contrato, $reservados),
+            'archivos' => archivosContrato($contrato, $this->posCode(), $reservados),
+            'hojas'    => hojasContrato($contrato, $reservados),
             'roadmap'  => roadmapContrato()
         ];
     }
@@ -127,12 +195,24 @@ class ctrl extends mdl2 {
         $lotes  = [];
         $filas  = 0;
         $ultimo = null;
+        $ajenos = [];
         $ls = $this->listImportBatch([$this->branchId(), $anio, $mes]);
 
         foreach ($ls as $item) {
+            $tab = sheetTab($contrato, $item['sheet_name']);
+
+            // Los lotes de OTRO punto de venta no se listan aqui, pero tampoco se
+            // callan: siguen ocupando el periodo y una recarga no los va a
+            // reemplazar, porque la sobreescritura es por hoja. Se cuentan para
+            // que el pie del panel pueda decir que estan.
+            if ($tab === '') {
+                $ajenos[$item['sheet_name']] = ($ajenos[$item['sheet_name']] ?? 0) + (int) $item['row_count'];
+                continue;
+            }
+
             // La bitacora esta separada por pestana: la hoja de comandas nunca
             // aparece en el tab de ventas y viceversa.
-            if (sheetTab($contrato, $item['sheet_name']) !== $tipo) continue;
+            if ($tab !== $tipo) continue;
 
             // El listado viene ordenado por fecha DESC: el primero que pasa el
             // filtro es la carga mas reciente del periodo.
@@ -141,14 +221,22 @@ class ctrl extends mdl2 {
 
             // El archivo abre la fila, que es el dato con el que se busca una carga
             // en la bitacora; la hora queda como su acompanante.
+            // La fila de la bitacora es la ficha de auditoria de la carga: quien la
+            // hizo, que traia el archivo, que entro y que se descarto por repetido.
+            // Sin las tres cifras juntas, un lote de 18 sobre un archivo de 36 no
+            // se puede explicar.
             $__row[] = [
-                'id'      => $item['id'],
-                'Archivo' => '<span class="font-semibold text-gray-300">' . $item['file_name'] . '</span>',
-                'Hora'    => rowStamp($item['id'], $item['created_at']),
-                'Hoja'    => '<span class="text-gray-400">' . $item['sheet_name'] . '</span>',
-                'Filas'   => '<span class="text-gray-400">' . number_format($item['row_count']) . '</span>',
-                'Estado'  => '<span class="badge-base b-green">OK</span>',
-                'a'       => actionButtons($item['id'])
+                'id'         => $item['id'],
+                'Archivo'    => '<span class="font-semibold text-gray-300">' . $item['file_name'] . '</span>',
+                'Hora'       => rowStamp($item['id'], $item['created_at']),
+                'Usuario'    => userCell($item['user_name'], $item['user_id']),
+                'Hoja'       => '<span class="text-gray-400">' . $item['sheet_name'] . '</span>',
+                'Archivo (filas)' => '<span class="text-gray-400">' . number_format($item['source_rows']) . '</span>',
+                'Validos'    => '<span class="font-semibold text-gray-300">' . number_format($item['row_count']) . '</span>',
+                'Duplicados' => dupCell($item['duplicated_rows']),
+                'Total'      => '<span class="text-gray-400">$' . number_format($item['control_total'], 2) . '</span>',
+                'Estado'     => '<span class="badge-base b-green">OK</span>',
+                'a'          => actionButtons($item['id'])
             ];
 
             // Los mismos lotes en crudo: con ellos el JS arma la tira de hojas
@@ -156,6 +244,12 @@ class ctrl extends mdl2 {
             $lotes[] = [
                 'id'            => (int) $item['id'],
                 'sheet_name'    => $item['sheet_name'],
+                'source_rows'   => (int) $item['source_rows'],
+                'duplicated'    => (int) $item['duplicated_rows'],
+                // Solo la hoja que trae los pagos puede resumirse por mesero. Sale
+                // del contrato y no del nombre de la hoja: si manana se renombra,
+                // la pestana sigue apareciendo donde debe.
+                'tips'          => ($contrato[$item['sheet_name']]['target'] ?? '') === 'wansoft-detail',
                 'file_name'     => $item['file_name'],
                 'row_count'     => (int) $item['row_count'],
                 'control_total' => (float) $item['control_total'],
@@ -169,17 +263,110 @@ class ctrl extends mdl2 {
         return [
             'row'     => $__row,
             'thead'   => '',
+            'center'  => [2, 3, 4, 7, 8],
+            'right'   => [5, 6],
             'lotes'   => ordenarPorHoja(array_reverse($lotes), $contrato, 'sheet_name'),
+            'ajenos'  => avisoAjenos($ajenos, $this->posInfo()),
             'archivo' => uploadState($ultimo, $filas)
+        ];
+    }
+
+    // Los lotes que la pestana esta mostrando.
+    //
+    // Una pestana es una HOJA, no una carga: desde que el detalle es incremental,
+    // el mismo periodo puede tener varias cargas de la misma hoja y las tres
+    // juntas son lo que el usuario entiende por "Detalle por forma de pago". El
+    // front manda sus ids y aqui se leen como un solo conjunto.
+    //
+    // Se admite `id` suelto ademas de `ids` porque el borrado de una carga sigue
+    // siendo de UNA, y comparte endpoint.
+    function loteIds() {
+        $crudo = $_POST['ids'] ?? $_POST['id'] ?? '';
+        $__row = [];
+
+        foreach (explode(',', (string) $crudo) as $id) {
+            $id = (int) trim($id);
+            if ($id > 0) $__row[] = $id;
+        }
+
+        return $__row;
+    }
+
+    // -- Propinas por mesero --
+
+    // La hoja "Propinas por mesero" del libro de Wansoft, reconstruida desde los
+    // pagos del lote. No se carga como las otras porque no trae nada propio: es la
+    // suma del detalle, y calcularla convierte la pestana en un cuadre contra el
+    // Excel en vez de en una copia suya.
+    //
+    // El porcentaje es la PARTICIPACION en la propina del dia —lo que se lleva cada
+    // mesero del bote— y no la propina sobre sus ventas: es como lo reporta el POS
+    // y como se reparte en la practica.
+    function lsPropinas() {
+        $ids = $this->loteIds();
+
+        if (empty($ids)) {
+            return ['status' => 404, 'message' => 'La carga no existe', 'row' => []];
+        }
+
+        $ls    = $this->listTipsByWaiter($ids);
+        $bote  = 0;
+        $venta = 0;
+
+        foreach ($ls as $item) {
+            $bote  += (float) $item['propina'];
+            $venta += (float) $item['ventas'];
+        }
+
+        // La comision sobre propina es del negocio y vive en la sucursal: con 0 la
+        // columna neta repite la propina, que es lo que reporta el export medido.
+        $emisor   = $this->getBranchCommission([$this->branchId()]);
+        $comision = (float) ($emisor[0]['tip_commission_rate'] ?? 0);
+
+        $__row = [];
+        foreach ($ls as $item) {
+            $propina = (float) $item['propina'];
+            $resta   = round($propina * $comision / 100, 2);
+
+            $__row[] = [
+                'id'          => $item['waiter_name'],
+                'Mesero'      => nameCell($item['waiter_name'] === '(sin mesero)' ? '' : $item['waiter_name']),
+                'Pagos'       => '<span class="text-gray-400">' . (int) $item['pagos'] . '</span>',
+                'Ventas'      => '<span class="text-gray-400">$' . number_format($item['ventas'], 2) . '</span>',
+                'Propina'     => tipCell($propina),
+                'Participa'   => porcentajeCell($bote > 0 ? $propina * 100 / $bote : 0),
+                'Comision'    => '<span class="text-gray-400">$' . number_format($resta, 2) . '</span>',
+                'Neto'        => '<span class="font-semibold text-gray-300">$' . number_format($propina - $resta, 2) . '</span>'
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'hoja'   => 'Propinas por mesero',
+            'total'  => count($__row),
+            'center' => [1, 4],
+            'right'  => [2, 3, 5, 6],
+            'row'    => $__row,
+            'pie'    => [
+                'meseros'  => count($__row),
+                'ventas'   => $venta,
+                'propinas' => round($bote, 2),
+                'comision' => $comision
+            ]
         ];
     }
 
     // -- Registros cargados de un lote --
 
     function lsRegistros() {
-        $id = (int) $_POST['id'];
+        $ids = $this->loteIds();
 
-        $batch = $this->getImportBatchById([$id]);
+        if (empty($ids)) {
+            return ['status' => 404, 'message' => 'La carga no existe', 'row' => []];
+        }
+
+        // La ficha de la hoja sale del primer lote; el conteo, de la suma de todos.
+        $batch = $this->getImportBatchById([$ids[0]]);
         if (empty($batch)) {
             return ['status' => 404, 'message' => 'La carga no existe', 'row' => []];
         }
@@ -199,7 +386,7 @@ class ctrl extends mdl2 {
             $center = [1, 2, 3, 8, 9, 10];
             $right  = [4, 5, 6, 7];
 
-            foreach ($this->listSaleByBatch([$id]) as $item) {
+            foreach ($this->listSaleByBatch($ids) as $item) {
                 $__row[] = [
                     'id'                  => $item['folio'],
                     'Folio'               => '<span class="font-semibold text-gray-300">' . $item['folio'] . '</span>',
@@ -222,7 +409,7 @@ class ctrl extends mdl2 {
             $center = [1, 2, 3];
             $right  = [4, 5, 6, 7, 8];
 
-            foreach ($this->listSalePaymentByBatch([$id]) as $item) {
+            foreach ($this->listSalePaymentByBatch($ids) as $item) {
                 $__row[] = [
                     'id'              => $item['sale_folio'],
                     'Folio'           => '<span class="font-semibold text-gray-300">' . $item['sale_folio'] . '</span>',
@@ -238,7 +425,7 @@ class ctrl extends mdl2 {
         }
 
         if ($target === 'detail') {
-            foreach ($this->listSaleDetailByBatch([$id]) as $item) {
+            foreach ($this->listSaleDetailByBatch($ids) as $item) {
                 $__row[] = [
                     'id'          => $item['sale_folio'],
                     'Cuenta'      => '<span class="font-semibold text-gray-300">' . $item['sale_folio'] . '</span>',
@@ -254,24 +441,32 @@ class ctrl extends mdl2 {
         // -- Hojas de Wansoft --
 
         // La hoja de detalle produjo ventas Y pagos de una sola pasada, y lo que se
-        // muestra es el PAGO: es lo que tiene una fila por cada fila del Excel. El
+        // lista es el PAGO: es lo que tiene una fila por cada fila del Excel. El
         // ticket se ve agrupado en el modulo de ventas.
+        //
+        // Las columnas van en el mismo orden que la hoja del POS —de Fecha a
+        // Total— para que revisar una carga sea leer el Excel en pantalla, sin
+        // tener que buscar donde quedo cada campo.
         if ($target === 'wansoft-detail') {
-            $center = [1, 2, 8];
-            $right  = [3, 4];
+            $center = [1, 2, 3, 4, 5, 6, 8, 11];
+            $right  = [13];
 
-            foreach ($this->listPaymentWansoftByBatch([$id]) as $item) {
+            foreach ($this->listPaymentWansoftByBatch($ids) as $item) {
                 $__row[] = [
                     'id'          => $item['sale_folio'],
-                    'Movimiento'  => '<span class="font-semibold text-gray-300">' . $item['sale_folio'] . '</span>',
+                    'Fecha'       => dateShortCell($item['operation_date']),
+                    'Orden'       => '<span class="text-gray-400">' . $item['order_number'] . '</span>',
+                    'Movimiento'  => '<span class="font-semibold text-gray-300">' . $item['pdv_movement'] . '</span>',
+                    'Estatus'     => operationBadge($item['operation_status']),
+                    'Mesero'      => nameCell($item['waiter_name']),
+                    'Cajero'      => nameCell($item['cashier_name']),
                     'Forma'       => '<span class="text-gray-400">' . $item['method_name'] . '</span>',
-                    'Terminal'    => '<span class="text-gray-400">' . $item['terminal'] . '</span>',
-                    'Importe'     => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
-                    'Propina'     => tipCell($item['tip']),
+                    'Fecha pago'  => dateShortCell($item['paid_at']),
                     'Referencia'  => '<span class="text-gray-400">' . $item['reference'] . '</span>',
-                    'Transaccion' => '<span class="text-gray-400 font-mono text-[10px]">' . $item['transaction_code'] . '</span>',
-                    'Validacion'  => '<span class="text-gray-400 font-mono text-[10px]">' . $item['validation_code'] . '</span>',
-                    'Pagado'      => dateCell($item['paid_at'])
+                    'Transaccion' => monoCell($item['transaction_code']),
+                    'Terminal'    => '<span class="text-gray-400">' . $item['terminal'] . '</span>',
+                    'Validacion'  => monoCell($item['validation_code']),
+                    'Total'       => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>'
                 ];
             }
         }
@@ -280,7 +475,7 @@ class ctrl extends mdl2 {
             $center = [1, 2, 3, 4, 5];
             $right  = [7];
 
-            foreach ($this->listPaymentCardByBatch([$id]) as $item) {
+            foreach ($this->listPaymentCardByBatch($ids) as $item) {
                 $__row[] = [
                     'id'             => $item['pdv_order'],
                     'Orden'          => '<span class="font-semibold text-gray-300">' . $item['pdv_order'] . '</span>',
@@ -300,7 +495,7 @@ class ctrl extends mdl2 {
             $center = [1, 2, 3, 4];
             $right  = [5, 6];
 
-            foreach ($this->listDeletedPaymentByBatch([$id]) as $item) {
+            foreach ($this->listDeletedPaymentByBatch($ids) as $item) {
                 $__row[] = [
                     'id'        => $item['pdv_order'],
                     'Orden'     => '<span class="font-semibold text-gray-300">' . $item['pdv_order'] . '</span>',
@@ -317,10 +512,16 @@ class ctrl extends mdl2 {
 
         // El nombre del archivo no viaja: el encabezado del detalle titula con la
         // hoja, que es lo que distingue lo que se esta viendo.
+        $total = 0;
+        foreach ($ids as $loteId) {
+            $b = $this->getImportBatchById([$loteId]);
+            $total += (int) ($b[0]['row_count'] ?? 0);
+        }
+
         return [
             'status'  => 200,
             'hoja'    => $batch['sheet_name'],
-            'total'   => (int) $batch['row_count'],
+            'total'   => $total,
             'center'  => $center,
             'right'   => $right,
             'row'     => $__row
@@ -437,6 +638,10 @@ class ctrl extends mdl2 {
 
             // La pestana viaja solo para redactar el aviso cuando el libro no trae
             // ninguna hoja conocida: sirve para decir que se esperaba ahi.
+            // El usuario viaja con la carga para quedar en la bitacora. El nombre se
+            // manda ademas del id porque se guarda como copia: el catalogo de
+            // usuarios vive en otro esquema y una bitacora de auditoria no puede
+            // depender de que ese usuario siga existiendo para poder leerse.
             $importador = $this->importador();
             $resultado  = $importador->procesarLibro($documento, [
                 'fileName' => $fichero,
@@ -444,6 +649,8 @@ class ctrl extends mdl2 {
                 'mes'      => $mes,
                 'anio'     => $anio,
                 'branchId' => $this->branchId(),
+                'userId'   => $this->userId,
+                'userName' => $_SESSION['NAME'] ?? '',
                 'steps'    => $steps
             ]);
         }
@@ -459,10 +666,21 @@ class ctrl extends mdl2 {
         $batch = $this->getImportBatchById([$id]);
         if (empty($batch)) return ['status' => 404, 'message' => 'La carga no existe'];
 
-        $importador = $this->importador();
-        $contract   = $importador->contrato();
-        $sheet      = $batch[0]['sheet_name'];
-        $target     = isset($contract[$sheet]) ? $contract[$sheet]['target'] : '';
+        // El target se resuelve contra los DOS contratos: hay que poder borrar un
+        // lote del otro POS, que es justo el que no aparece en la bitacora.
+        $contract = $this->contratoCompleto();
+        $sheet    = $batch[0]['sheet_name'];
+        $target   = isset($contract[$sheet]) ? $contract[$sheet]['target'] : '';
+
+        // Una hoja que ningun contrato conoce no se borra a ciegas: sin target no
+        // se sabe en que tabla viven sus filas, y quitar el lote las dejaria
+        // huerfanas sin forma de volver a alcanzarlas.
+        if ($target === '') {
+            return [
+                'status'  => 409,
+                'message' => 'La hoja "' . $sheet . '" no pertenece a ningun punto de venta conocido. Revisa el lote antes de borrarlo.'
+            ];
+        }
 
         $where = $this->util->sql(['import_batch_id' => $id], 1);
 
@@ -520,14 +738,26 @@ function mesesCatalogo() {
     return $__row;
 }
 
-// La pestana a la que pertenece cada hoja del export.
+// La pestana a la que pertenece cada hoja del export, o cadena vacia si la hoja
+// no es de este POS.
+//
+// Antes lo desconocido caia en 'sales-report' por defecto, y con un solo punto de
+// venta eso era inofensivo: cualquier hoja que no estuviera en el contrato era de
+// una version vieja del mismo reporte. Con dos POS deja de serlo. Una sucursal
+// que cambia de Soft Restaurant a Wansoft conserva sus lotes viejos, y ese
+// default los colaba en la bitacora del POS nuevo: la pestana "comandas" aparecia
+// dentro de la Terminal Wansoft, que no tiene comandas.
+//
+// Un lote cuya hoja no esta en el contrato activo no se puede ni mostrar: su
+// pestana de detalle no sabria que columnas pintar, porque el target sale del
+// mismo contrato.
 function sheetTab($contrato, $sheetName) {
-    return isset($contrato[$sheetName]) ? $contrato[$sheetName]['tab'] : 'sales-report';
+    return isset($contrato[$sheetName]) ? $contrato[$sheetName]['tab'] : '';
 }
 
 // Las pestanas del modulo: una por archivo del POS. El contrato agrupa sus hojas
 // por tab, asi que de ahi salen sin escribirlas dos veces.
-function tabsContrato($contrato) {
+function tabsContrato($contrato, $reservados = []) {
     $meta = [
         'sales-report' => ['tab' => 'Reporte de ventas', 'lucideIcon' => 'sheet'],
         'commands'     => ['tab' => 'Comandas',          'lucideIcon' => 'utensils']
@@ -541,13 +771,25 @@ function tabsContrato($contrato) {
         $__row[$tab] = array_merge(['id' => $tab, 'tab' => $tab, 'lucideIcon' => 'sheet'], $meta[$tab] ?? []);
     }
 
+    // Las reservadas cierran la tira: existen en la pantalla pero todavia no
+    // tienen hojas que leer, asi que no pueden ir antes de las que si operan.
+    foreach ($reservados as $tab => $config) {
+        if (isset($__row[$tab])) continue;
+
+        $__row[$tab] = array_merge(
+            ['id' => $tab, 'tab' => $tab, 'lucideIcon' => 'sheet'],
+            $meta[$tab] ?? [],
+            ['pendiente' => true]
+        );
+    }
+
     return array_values($__row);
 }
 
 // La fila de carga de cada pestana: que archivo se espera, con que nombre lo
 // exporta el POS y el patron con el que se avisa cuando el que se sube no
 // corresponde. El patron viaja como texto porque cruza en JSON; el JS lo arma.
-function archivosContrato($contrato, $posCode = 'soft-restaurant') {
+function archivosContrato($contrato, $posCode = 'soft-restaurant', $reservados = []) {
     // Cada POS exporta su propio archivo y con su propio nombre, asi que la fila
     // de carga cambia con el: anunciar "Reporte_De_Ventas_YYYYMMDD.xlsx" a una
     // sucursal de Wansoft seria pedirle un archivo que su sistema no genera.
@@ -590,9 +832,23 @@ function archivosContrato($contrato, $posCode = 'soft-restaurant') {
         $tab = $config['tab'];
         if (isset($__row[$tab])) continue;
 
+        // El modo de carga viaja con la ficha del archivo: la pantalla tiene que
+        // avisar cosas distintas segun el periodo se reemplace o se complete.
         $__row[$tab] = array_merge(
             ['id' => $tab, 'titulo' => $tab, 'esperado' => '', 'formato' => '', 'patron' => '.'],
             $archivos[$tab] ?? [],
+            ['estado' => 'pendiente', 'modo' => $config['modo'] ?? 'reemplazo']
+        );
+    }
+
+    // La ficha de una pestana reservada la escribe el propio importador: es el que
+    // sabe por que todavia no tiene contrato y que se puede hacer mientras tanto.
+    foreach ($reservados as $tab => $config) {
+        if (isset($__row[$tab])) continue;
+
+        $__row[$tab] = array_merge(
+            ['id' => $tab, 'titulo' => $tab, 'esperado' => '', 'formato' => '', 'patron' => '.'],
+            $config,
             ['estado' => 'pendiente']
         );
     }
@@ -616,18 +872,27 @@ function roadmapContrato() {
 // el Excel: asi lo que el panel anuncia y lo que el importador exige no se separan.
 // Cada hoja viaja con su mapeo columna -> campo, que es lo que hace falta para
 // migrar la informacion.
-function hojasContrato($contrato) {
+function hojasContrato($contrato, $reservados = []) {
     $__row = [];
 
     foreach ($contrato as $nombre => $config) {
+        // La tabla no siempre arranca en la columna A: las hojas de Wansoft dejan
+        // la A (y a veces la B) como margen del reporte. Sin respetar startIndex el
+        // panel anunciaria "A:Q" donde el importador lee "B:R", y quien fuera a
+        // revisar el Excel buscaria las columnas una de mas a la izquierda.
+        $inicio   = isset($config['startIndex']) ? $config['startIndex'] : 0;
         $columnas = [];
+
         foreach ($config['columns'] as $i => $campo) {
-            $columnas[] = ['letra' => columnLetter($i), 'campo' => $campo];
+            $columnas[] = ['letra' => columnLetter($inicio + $i), 'campo' => $campo];
         }
+
+        $primera = columnLetter($inicio);
+        $ultima  = columnLetter($inicio + count($config['columns']) - 1);
 
         $__row[$config['tab']][] = [
             'nombre'   => $nombre,
-            'detalle'  => 'columnas A:' . columnLetter(count($config['columns']) - 1) . ' · header fila ' . $config['headerRow'],
+            'detalle'  => 'columnas ' . $primera . ':' . $ultima . ' · header fila ' . $config['headerRow'],
             'columnas' => $columnas
         ];
     }
@@ -637,6 +902,18 @@ function hojasContrato($contrato) {
     // listas distintas del mismo archivo.
     foreach ($__row as $tab => $hojas) {
         $__row[$tab] = ordenarPorHoja($hojas, $contrato, 'nombre');
+    }
+
+    // El aside de una pestana reservada no puede quedarse en blanco: diria que el
+    // archivo no tiene hojas, cuando lo que pasa es que todavia no se han medido.
+    foreach ($reservados as $tab => $config) {
+        if (isset($__row[$tab])) continue;
+
+        $__row[$tab] = [[
+            'nombre'   => 'Layout por definir',
+            'detalle'  => 'Sube el archivo y el modulo listara sus hojas y columnas',
+            'columnas' => []
+        ]];
     }
 
     return $__row;
@@ -664,6 +941,31 @@ function fechaLarga($fecha) {
     return date('d', $time) . '/ ' . $meses[(int) date('n', $time)] . '/ ' . date('Y h:i a', $time);
 }
 
+// Lo que el periodo tiene cargado de OTRO punto de venta. Un lote asi no se
+// puede listar —sus columnas no son las de este contrato— pero ocultarlo sin
+// decir nada seria peor: sus filas siguen en la base, cuentan en los totales del
+// modulo y la carga del POS actual no las va a reemplazar, porque la
+// sobreescritura del periodo es hoja por hoja.
+function avisoAjenos($ajenos, $pos) {
+    if (empty($ajenos)) return null;
+
+    $partes = [];
+    $filas  = 0;
+
+    foreach ($ajenos as $hoja => $conteo) {
+        $partes[] = $hoja;
+        $filas   += $conteo;
+    }
+
+    return [
+        'hojas' => $partes,
+        'filas' => $filas,
+        'texto' => count($partes) . ' hoja(s) de otro punto de venta en este periodo · '
+                 . implode(' · ', $partes) . ' · ' . number_format($filas) . ' filas',
+        'nota'  => 'La sucursal opera ' . $pos['name'] . ' y estas cargas son de otro sistema. No se listan aqui porque sus columnas no son las de este contrato.'
+    ];
+}
+
 // El estado de la fila de carga sale de la propia bitacora: si el periodo ya
 // tiene lotes, la pestana deja de estar "pendiente" y dice que trae datos, con
 // que archivo entraron y cuando.
@@ -674,6 +976,32 @@ function uploadState($ultimo, $filas) {
         'estado'  => 'ok',
         'cargado' => $ultimo['file_name'] . ' · ' . number_format($filas) . ' filas · ' . fechaLarga($ultimo['created_at'])
     ];
+}
+
+// Fecha en tres letras y sin hora: 22/ago/2026.
+//
+// Wansoft exporta la fecha SIN hora, asi que el formato largo le pegaba un
+// "12:00 a. m." que no estaba en el archivo: una precision inventada. Ademas la
+// hoja de detalle son trece columnas y dos de ellas son fechas; en formato largo
+// cada celda se partia en dos lineas y empujaba al resto.
+function fechaCorta($fecha) {
+    if (empty($fecha)) return '';
+
+    $meses = [
+        1 => 'ene', 2  => 'feb', 3  => 'mar', 4  => 'abr',
+        5 => 'may', 6  => 'jun', 7  => 'jul', 8  => 'ago',
+        9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dic'
+    ];
+
+    $time = strtotime($fecha);
+
+    return date('d', $time) . '/' . $meses[(int) date('n', $time)] . '/' . date('Y', $time);
+}
+
+function dateShortCell($fecha) {
+    if (empty($fecha)) return '<span class="cell-null">Sin fecha</span>';
+
+    return '<span class="text-gray-400 whitespace-nowrap">' . fechaCorta($fecha) . '</span>';
 }
 
 // El POS no siempre exporta la fecha de expiracion: la celda vacia se dice, para
@@ -690,6 +1018,63 @@ function invoiceCell($series) {
     if (empty($series)) return '<span class="cell-null">Sin factura</span>';
 
     return '<span class="font-mono text-[10px] text-gray-300">' . $series . '</span>';
+}
+
+// Un nombre que no llego no es lo mismo que uno vacio: el POS pudo no exportarlo,
+// o el cruce contra el catalogo pudo fallar. En los dos casos hay algo que
+// revisar, y una celda en blanco no lo dice.
+function nameCell($nombre) {
+    if (empty($nombre)) return '<span class="cell-null">Sin asignar</span>';
+
+    return '<span class="text-gray-400">' . $nombre . '</span>';
+}
+
+// Referencias, transacciones y codigos de validacion son cadenas del banco: en
+// monoespaciado se comparan de un vistazo contra el voucher, que es para lo que
+// se miran.
+function monoCell($valor) {
+    if ($valor === null || $valor === '') return '<span class="cell-null">—</span>';
+
+    return '<span class="text-gray-400 font-mono text-[10px]">' . $valor . '</span>';
+}
+
+// El estatus operativo del ticket (Pagada / Cancelada / Eliminada), que no es el
+// fiscal. Solo "Pagada" se pinta en verde: el resto son estados que piden mirar.
+function operationBadge($name) {
+    if (empty($name)) return '<span class="cell-null">Sin estado</span>';
+
+    $tone = strcasecmp($name, 'Pagada') === 0 ? 'b-green' : 'b-yellow';
+
+    return '<span class="badge-base ' . $tone . '">' . $name . '</span>';
+}
+
+// El reparto de la propina del dia. Con un decimal basta: la hoja del POS trae
+// cuatro y nadie reparte un bote con esa precision.
+function porcentajeCell($valor) {
+    if ($valor <= 0) return '<span class="cell-null">0%</span>';
+
+    return '<span class="text-gray-400">' . number_format($valor, 1) . '%</span>';
+}
+
+// Quien subio el archivo. El nombre se guarda copiado en el lote, asi que la
+// bitacora se lee sin cruzar contra el esquema de usuarios —que es de otro modulo
+// y puede no existir el dia de la auditoria.
+function userCell($nombre, $id) {
+    if (empty($nombre)) {
+        return $id
+            ? '<span class="text-gray-400">usuario ' . (int) $id . '</span>'
+            : '<span class="cell-null">Sin registrar</span>';
+    }
+
+    return '<span class="text-gray-400">' . $nombre . '</span>';
+}
+
+// Los duplicados en cero no se pintan como un dato mas: la carga limpia es el
+// caso normal y llenar la columna de ceros esconderia las que si omitieron algo.
+function dupCell($duplicados) {
+    if ((int) $duplicados === 0) return '<span class="cell-null">—</span>';
+
+    return '<span class="badge-base b-yellow">' . number_format($duplicados) . '</span>';
 }
 
 // La propina en cero es informacion, no un hueco: en Wansoft la mayoria de los

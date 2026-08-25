@@ -45,6 +45,15 @@ class ImportFacture2Cargas {
     private $ligados    = 0;
     private $resumenes  = 0;
 
+    // Movimientos que ya estaban en base y no se volvieron a cargar, y cuantos de
+    // ellos ademas traen un total distinto del que se guardo en su dia.
+    private $omitidos   = 0;
+    private $difieren   = 0;
+
+    // Suma de control de lo que quedo en base, que en una carga incremental no es
+    // la del archivo completo.
+    private $controlInsertado = 0;
+
     function __construct($mdl) {
         $this->mdl  = $mdl;
         $this->util = $mdl->util;
@@ -93,6 +102,28 @@ class ImportFacture2Cargas {
                 'keyIndex'     => 5,   // Movimiento PDV: la llave estable del ticket
                 'dateIndex'    => 3,   // Fecha: corta el pie de totales
                 'controlIndex' => 15,  // Total del pago
+
+                // Las columnas SIN las cuales la carga no puede seguir:
+                //   3  Fecha           5  Movimiento PDV   9  Forma de pago
+                //   4  Orden           6  Estatus         15  Total
+                //
+                // Sin ellas no hay ticket que armar: la fecha y el movimiento lo
+                // identifican, el total es lo que se cobro y la forma de pago
+                // decide si la venta entra siquiera al modulo de tickets.
+                //
+                // El resto son datos de acompanamiento —mesero, cajero, terminal,
+                // referencias— y su ausencia se avisa sin detener nada: entran en
+                // nulo, que es lo mismo que pasa cuando el POS los exporta vacios.
+                //
+                // Una hoja SIN esta lista exige todas sus columnas, que es como se
+                // comportaba el importador antes de que existiera la distincion.
+                'required'     => [3, 4, 5, 6, 9, 15],
+
+                // Carga INCREMENTAL: los movimientos que ya estan en base se
+                // omiten uno a uno en vez de borrar el periodo y reescribirlo.
+                // Volver a subir el mismo archivo no duplica nada, y subir uno mas
+                // completo del mismo dia solo agrega lo que falta.
+                'modo'         => 'incremental',
                 'columns' => [
                     'Total', 'Propina', 'Participacion del dia', 'Fecha', 'Orden',
                     'Movimiento PDV', 'Estatus', 'Mesero', 'Cajero', 'Forma de pago',
@@ -151,10 +182,55 @@ class ImportFacture2Cargas {
         ];
     }
 
+    /*
+        Pestanas que el modulo YA muestra aunque su contrato de hojas todavia no
+        exista. Wansoft va a exportar comandas, pero ese archivo aun no se ha
+        medido: no se sabe como se llaman sus hojas ni en que fila arrancan sus
+        encabezados, y adivinarlo seria escribir un contrato que la primera carga
+        real tiraria a la basura.
+
+        Mientras tanto la pestana no esta muerta: acepta el archivo y lo
+        RADIOGRAFIA —dice que hojas trae, en que fila estan sus encabezados y
+        cuales son— sin guardar una sola fila. Con esa lectura se cierra el
+        contrato de verdad, medido y no supuesto, que es como se escribio el resto
+        de este archivo.
+    */
+    function tabsReservados() {
+        return [
+            'commands' => [
+                'titulo'    => 'Archivo de comandas',
+                'subtitulo' => 'Renglones del POS: que se consumio, mesa, mesero y tiempos. El layout de Wansoft todavia no se ha medido, asi que por ahora el archivo se lee para radiografiarlo: el modulo dira que hojas y columnas trae, sin guardar nada.',
+                'esperado'  => 'por definir',
+                'ejemplo'   => 'comandas',
+                'patron'    => '.',
+                'formato'   => 'XLS · XLSX',
+                'pendiente' => true
+            ]
+        ];
+    }
+
+    function esReservado($tipo) {
+        return isset($this->tabsReservados()[$tipo]);
+    }
+
     // Revision sin escribir nada: a que pestana pertenece el libro y si sus
     // columnas cuadran. Mismo contrato de salida que el importador de Soft, porque
     // el modulo pinta el aviso igual venga de donde venga.
     function inspeccionarLibro($documento, $ctx) {
+        // En una pestana reservada no hay columnas contra que comparar: la revision
+        // previa no tiene nada que objetar y el archivo pasa directo a la
+        // radiografia.
+        if ($this->esReservado($ctx['tipo'] ?? '')) {
+            return [
+                'status'  => 200,
+                'destino' => $ctx['tipo'],
+                'movido'  => false,
+                'hojas'   => $documento->getSheetNames(),
+                'suyas'   => [],
+                'libro'   => $documento->getSheetNames()
+            ];
+        }
+
         $tipo       = isset($ctx['tipo']) ? $ctx['tipo'] : '';
         $contrato   = $this->contrato();
         $hojasLibro = $documento->getSheetNames();
@@ -190,19 +266,22 @@ class ImportFacture2Cargas {
             ];
         }
 
+        // La revision previa solo objeta lo que DETIENE la carga. Lo que se puede
+        // leer igual —una columna corrida, una accesoria que no vino— se avisa
+        // cuando el archivo entra, no antes: aqui solo estorbaria.
         $malas = [];
         foreach ($presentes as $nombre) {
             $config   = $contrato[$nombre];
             $columnas = $this->validarEncabezados($documento->getSheetByName($nombre), $config);
-            $faltan   = $this->columnasMalas($columnas);
+            $faltan   = $this->columnasMalas($columnas, $config);
 
-            if (empty($faltan)) continue;
+            if (empty($faltan['criticas'])) continue;
 
             $malas[] = [
                 'hoja'      => $nombre,
                 'headerRow' => $config['headerRow'],
                 'columnas'  => $columnas,
-                'faltan'    => $faltan
+                'faltan'    => $faltan['criticas']
             ];
         }
 
@@ -279,6 +358,12 @@ class ImportFacture2Cargas {
         $esperadas  = hojasDelTab($contrato, $tipo);
         $hojasLibro = $documento->getSheetNames();
 
+        // Pestana reservada: se lee el archivo para describirlo y no se escribe
+        // nada. Sin este corte, hojasDelTab caeria en su fallback —el contrato
+        // completo— y el modulo buscaria las hojas del reporte de ventas dentro
+        // del archivo de comandas.
+        if ($this->esReservado($tipo)) return $this->radiografia($documento, $ctx);
+
         $presentes = $this->hojasPresentes($contrato, $hojasLibro, $tipo);
         $steps     = $ctx['steps'];
 
@@ -327,22 +412,29 @@ class ImportFacture2Cargas {
             $config   = $contrato[$nombre];
             $hoja     = $documento->getSheetByName($nombre);
             $columnas = $this->validarEncabezados($hoja, $config);
-            $faltan   = $this->columnasMalas($columnas);
+            $faltan   = $this->columnasMalas($columnas, $config);
 
-            if (!empty($faltan)) {
-                $steps[] = step('Validar columnas de "' . $nombre . '"', 'error', resumenColumnas($faltan));
+            // Solo las criticas rechazan la hoja: son las columnas obligatorias que
+            // no aparecen en ninguna parte de la fila.
+            if (!empty($faltan['criticas'])) {
+                $nombres = [];
+                foreach ($faltan['criticas'] as $c) $nombres[] = $c['esperada'];
+
+                $detalle = 'No se encontro la columna "' . implode('", "', $nombres) . '"';
+
+                $steps[] = step('Validar columnas de "' . $nombre . '"', 'error', $detalle);
 
                 $malas[] = [
                     'hoja'      => $nombre,
                     'headerRow' => $config['headerRow'],
                     'columnas'  => $columnas,
-                    'faltan'    => $faltan
+                    'faltan'    => $faltan['criticas']
                 ];
 
                 $hojas[] = [
                     'nombre'  => $nombre,
                     'estado'  => 'error',
-                    'detalle' => resumenColumnas($faltan),
+                    'detalle' => $detalle,
                     'filas'   => 0
                 ];
                 continue;
@@ -350,14 +442,20 @@ class ImportFacture2Cargas {
 
             $primera = columnLetter($config['startIndex']);
             $ultima  = columnLetter($config['startIndex'] + count($config['columns']) - 1);
+
+            // Las columnas menores no detienen nada, pero se dicen: un export que
+            // empieza a venir incompleto tiene que notarse el primer dia, no cuando
+            // alguien eche de menos el dato tres meses despues.
             $steps[] = step(
                 'Validar columnas de "' . $nombre . '"',
-                'ok',
-                count($config['columns']) . ' columnas ' . $primera . ':' . $ultima
+                empty($faltan['menores']) ? 'ok' : 'warn',
+                empty($faltan['menores'])
+                    ? count($config['columns']) . ' columnas ' . $primera . ':' . $ultima
+                    : count($config['columns']) . ' columnas ' . $primera . ':' . $ultima . ' · ' . $this->resumenMenores($faltan['menores'])
             );
 
-            $carga     = $this->guardarHoja($nombre, $config, $hoja, $ctx);
-            $cargadas += $carga['insertadas'] > 0 ? 1 : 0;
+            $carga     = $this->guardarHoja($nombre, $config, $hoja, $ctx, $this->mapaIndices($columnas, $config));
+            $cargadas += ($carga['insertadas'] > 0 || $carga['omitidos'] > 0 || $carga['leidas'] === 0) ? 1 : 0;
 
             if ($carga['insertadas'] > 0) $entraron[] = $nombre;
 
@@ -371,26 +469,36 @@ class ImportFacture2Cargas {
 
             // Una hoja vacia con encabezados buenos no es un fallo: el POS no
             // registro movimientos de ese tipo en el periodo y hay que decirlo asi.
-            $vacia  = $carga['leidas'] === 0;
-            $estado = $vacia ? 'ok' : ($carga['insertadas'] > 0 ? 'ok' : 'error');
+            //
+            // Y una hoja entera repetida tampoco lo es: significa que el archivo ya
+            // se habia procesado. Es el caso de quien vuelve a subir el mismo Excel,
+            // y merece una respuesta que lo diga en esos terminos y no un error.
+            $vacia   = $carga['leidas'] === 0;
+            $repetida = $carga['insertadas'] === 0 && $carga['omitidos'] > 0;
+            $estado  = ($vacia || $repetida || $carga['insertadas'] > 0) ? 'ok' : 'error';
 
-            $steps[] = step(
-                'Guardar "' . $nombre . '"',
-                $estado,
-                $vacia
-                    ? 'La hoja no trae movimientos en el periodo'
-                    : number_format($carga['insertadas']) . ' registros en base de datos' . $this->detalleCruce($carga)
-            );
+            if     ($vacia)    $detalle = 'La hoja no trae movimientos en el periodo';
+            elseif ($repetida) $detalle = 'Sin registros nuevos: los ' . number_format($carga['omitidos'])
+                                        . ' movimientos del archivo ya estaban procesados';
+            else               $detalle = number_format($carga['insertadas']) . ' registros en base de datos' . $this->detalleCruce($carga);
+
+            $steps[] = step('Guardar "' . $nombre . '"', $estado, $detalle);
 
             $hojas[] = [
                 'nombre'  => $nombre,
                 'estado'  => $estado,
                 'detalle' => $vacia
                     ? 'columnas ' . $primera . ':' . $ultima . ' · sin movimientos'
-                    : 'columnas ' . $primera . ':' . $ultima . ' · fila ' . ($config['headerRow'] + 1) . ' · ' . number_format($carga['insertadas']) . ' de ' . number_format($carga['leidas']) . ' filas',
+                    : ($repetida
+                        ? 'columnas ' . $primera . ':' . $ultima . ' · ' . number_format($carga['omitidos']) . ' movimientos ya procesados'
+                        : 'columnas ' . $primera . ':' . $ultima . ' · fila ' . ($config['headerRow'] + 1) . ' · ' . number_format($carga['insertadas']) . ' de ' . number_format($carga['leidas']) . ' filas'),
                 'filas'   => $carga['insertadas'],
                 'leidas'  => $carga['leidas'],
-                'avance'  => $carga['leidas'] > 0 ? round($carga['insertadas'] * 100 / $carga['leidas']) : 100
+                // Un archivo ya procesado esta al 100 %: se leyo entero, no quedo a
+                // medias. La barra al 0 se leeria como que algo fallo.
+                'avance'  => ($repetida || $carga['leidas'] === 0)
+                    ? 100
+                    : round($carga['insertadas'] * 100 / $carga['leidas'])
             ];
         }
 
@@ -414,6 +522,94 @@ class ImportFacture2Cargas {
         return $resultado;
     }
 
+    // ---------------------------------------------------------------------
+    //  Radiografia: leer un archivo cuyo contrato todavia no existe
+    // ---------------------------------------------------------------------
+
+    // Describe el libro sin guardar nada. Es lo que convierte una pestana
+    // reservada en algo util: en vez de "todavia no se puede", el usuario sube su
+    // archivo y obtiene la medicion con la que se escribe el contrato.
+    //
+    // De cada hoja se busca la fila de encabezados y se leen sus columnas, que es
+    // justo lo que un contrato necesita: headerRow, startIndex y columns.
+    function radiografia($documento, $ctx) {
+        $steps = isset($ctx['steps']) ? $ctx['steps'] : [];
+        $hojas = [];
+
+        $steps[] = step('Detectar hojas', 'ok', implode(' · ', $documento->getSheetNames()));
+
+        foreach ($documento->getSheetNames() as $nombre) {
+            $ficha = $this->radiografiarHoja($documento->getSheetByName($nombre));
+
+            $steps[] = step(
+                'Leer "' . $nombre . '"',
+                $ficha['columnas'] ? 'ok' : 'error',
+                $ficha['resumen']
+            );
+
+            $hojas[] = [
+                'nombre'  => $nombre,
+                'estado'  => $ficha['columnas'] ? 'ok' : 'error',
+                'detalle' => $ficha['resumen'],
+                'filas'   => 0,
+                'leidas'  => $ficha['filas'],
+                'avance'  => 100
+            ];
+        }
+
+        $steps[] = step(
+            'Guardar en base',
+            'error',
+            'No se guardo nada: esta pestana todavia no tiene contrato'
+        );
+
+        return [
+            'status'  => 200,
+            'message' => 'Radiografia del archivo: ' . count($hojas) . ' hoja(s) leidas. No se guardo ningun registro.',
+            'steps'   => $steps,
+            'hojas'   => $hojas
+        ];
+    }
+
+    // La fila de encabezados de una hoja desconocida: la primera con al menos tres
+    // celdas de texto seguidas. Es el patron que cumplen las cuatro hojas ya
+    // medidas de Wansoft, cuyos encabezados caen en la fila 6 o en la 15 segun la
+    // hoja, siempre despues de un membrete de texto suelto.
+    private function radiografiarHoja($hoja) {
+        $ultima = min($hoja->getHighestRow(), 40);
+        $ancho  = min(columnIndex($hoja->getHighestColumn()), 40);
+
+        for ($fila = 1; $fila <= $ultima; $fila++) {
+            $celdas = [];
+
+            for ($i = 0; $i < $ancho; $i++) {
+                $valor = trim((string) $hoja->getCell(columnLetter($i) . $fila)->getValue());
+                if ($valor !== '') $celdas[$i] = $valor;
+            }
+
+            if (count($celdas) < 3) continue;
+
+            $indices = array_keys($celdas);
+            $inicio  = $indices[0];
+            $fin     = $indices[count($indices) - 1];
+
+            return [
+                'filas'    => $hoja->getHighestRow(),
+                'columnas' => $celdas,
+                'resumen'  => 'encabezados en la fila ' . $fila
+                            . ' · columnas ' . columnLetter($inicio) . ':' . columnLetter($fin)
+                            . ' · ' . count($celdas) . ' campos · ' . implode(' | ', array_slice($celdas, 0, 8))
+                            . (count($celdas) > 8 ? ' | …' : '')
+            ];
+        }
+
+        return [
+            'filas'    => $hoja->getHighestRow(),
+            'columnas' => [],
+            'resumen'  => 'no se encontro una fila de encabezados en las primeras ' . $ultima . ' filas'
+        ];
+    }
+
     // Cola del paso "Guardar": lo que la hoja hizo mas alla de insertar.
     private function detalleCruce($carga) {
         $cola = '';
@@ -425,6 +621,16 @@ class ImportFacture2Cargas {
         if ($carga['cajeros']    > 0) $cola .= ' · ' . number_format($carga['cajeros']) . ' cajeros nuevos al catalogo';
         if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' movimientos ligados a su pago';
         if ($carga['resumenes']  > 0) $cola .= ' · resumen del dia guardado';
+
+        // Los omitidos van al final y siempre que existan: son la respuesta a "por
+        // que subi 100 y solo entraron 20".
+        if ($carga['omitidos'] > 0) {
+            $cola .= ' · ' . number_format($carga['omitidos']) . ' ya estaban y se omitieron';
+
+            if ($carga['difieren'] > 0) {
+                $cola .= ' (' . number_format($carga['difieren']) . ' con un total distinto al guardado)';
+            }
+        }
 
         return $cola;
     }
@@ -466,14 +672,72 @@ class ImportFacture2Cargas {
         return $__row;
     }
 
-    private function columnasMalas($columnas) {
-        $__row = [];
+    // Las celdas de la fila que no cuadran, separadas por lo que significan.
+    //
+    //   criticas  una columna OBLIGATORIA que no esta donde debe. Detiene la
+    //             carga: sin ella no hay ticket que armar.
+    //
+    //   menores   una columna de acompanamiento que no cuadra. Se avisa y se lee
+    //             VACIA, que es lo mismo que pasa cuando el POS la exporta en
+    //             blanco. No detiene la carga.
+    //
+    // Da igual si la columna falta o si esta corrida: en los dos casos su posicion
+    // no es de fiar y no se lee. Se intento mapearla por nombre para tolerar hojas
+    // desplazadas, y se quito: el contrato repite "Total" y "Propina" —una vez para
+    // el total del dia y otra para el del pago— asi que la busqueda por nombre
+    // devolvia la primera y cargaba el total del dia en cada renglon.
+    private function columnasMalas($columnas, $config = null) {
+        $criticas = [];
+        $menores  = [];
 
-        foreach ($columnas as $c) {
-            if ($c['estado'] !== 'ok') $__row[] = $c;
+        foreach ($columnas as $i => $c) {
+            if ($c['estado'] === 'ok') continue;
+
+            if ($this->esRequerida($config, $i)) $criticas[] = $c;
+            else                                 $menores[]  = $c;
+        }
+
+        return ['criticas' => $criticas, 'menores' => $menores];
+    }
+
+    private function esRequerida($config, $indice) {
+        if (!isset($config['required'])) return true;
+
+        return in_array($indice, $config['required'], true);
+    }
+
+    // De que columna se lee cada campo del contrato.
+    //
+    // Solo se leen las que estan EN SU SITIO. Una columna que no cuadra queda en
+    // null y su celda se lee vacia: leerla de su posicion daria el dato de la
+    // columna vecina, que es peor que no tenerlo, porque entra en base con pinta
+    // de bueno.
+    private function mapaIndices($columnas, $config) {
+        $inicio = $config['startIndex'];
+        $__row  = [];
+
+        foreach ($columnas as $i => $c) {
+            $__row[$i] = $c['estado'] === 'ok' ? $inicio + $i : null;
         }
 
         return $__row;
+    }
+
+    // Como se resume en una linea lo que no cuadro, para el roadmap y la tarjeta.
+    private function resumenMenores($menores) {
+        $ausentes = [];
+        $movidas  = [];
+
+        foreach ($menores as $c) {
+            if ($c['estado'] === 'ausente') $ausentes[] = $c['esperada'];
+            else                            $movidas[]  = $c['esperada'] . ' en ' . $c['en'];
+        }
+
+        $partes = [];
+        if ($ausentes) $partes[] = 'sin ' . implode(', ', $ausentes);
+        if ($movidas)  $partes[] = 'fuera de lugar: ' . implode(', ', $movidas);
+
+        return implode(' · ', $partes) . ' · se cargan vacias';
     }
 
     // Crea el lote de la hoja y vuelca sus filas.
@@ -481,11 +745,22 @@ class ImportFacture2Cargas {
     // A diferencia del importador de Soft, aqui la hoja viaja entera hasta el
     // guardado: el detalle necesita leer el bloque de resumen de las filas 8-12,
     // que esta FUERA de la tabla y no aparece en las filas limpias.
-    private function guardarHoja($sheetName, $config, $hoja, $ctx) {
+    private function guardarHoja($sheetName, $config, $hoja, $ctx, $mapa = null) {
         $inicio     = $config['startIndex'];
         $total      = count($config['columns']);
         $totalFilas = $hoja->getHighestRow();
         $limpias    = [];
+
+        // Sin mapa se lee por posicion, que es lo que vale cuando la fila de
+        // encabezados cuadra entera. Con mapa, cada campo viene de la columna en la
+        // que aparecio de verdad, y las que no vinieron quedan en cadena vacia:
+        // desde el punto de vista del resto del importador es lo mismo que una
+        // celda que el POS exporto en blanco.
+        $indice = function ($i) use ($mapa, $inicio) {
+            if ($mapa === null) return $inicio + $i;
+
+            return array_key_exists($i, $mapa) ? $mapa[$i] : null;
+        };
 
         $this->rechazadas = 0;
         $this->ventas     = 0;
@@ -494,9 +769,18 @@ class ImportFacture2Cargas {
         $this->cajeros    = 0;
         $this->ligados    = 0;
         $this->resumenes  = 0;
+        $this->omitidos   = 0;
+        $this->difieren   = 0;
 
-        $claveCol = columnLetter($inicio + $config['keyIndex']);
-        $fechaCol = isset($config['dateIndex']) ? columnLetter($inicio + $config['dateIndex']) : '';
+        $claveIdx = $indice($config['keyIndex']);
+        $fechaIdx = isset($config['dateIndex']) ? $indice($config['dateIndex']) : null;
+
+        $claveCol = $claveIdx === null ? '' : columnLetter($claveIdx);
+        $fechaCol = $fechaIdx === null ? '' : columnLetter($fechaIdx);
+
+        // La columna clave es obligatoria en las cuatro hojas: si no se pudo
+        // localizar no hay forma de saber que filas traen datos.
+        if ($claveCol === '') return $this->resultadoHoja(0, 0, 0);
 
         for ($fila = $config['headerRow'] + 1; $fila <= $totalFilas; $fila++) {
             $clave = trim((string) $hoja->getCell($claveCol . $fila)->getValue());
@@ -512,7 +796,11 @@ class ImportFacture2Cargas {
 
             $valores = [];
             for ($i = 0; $i < $total; $i++) {
-                $valores[$i] = trim((string) $hoja->getCell(columnLetter($inicio + $i) . $fila)->getValue());
+                $col = $indice($i);
+
+                $valores[$i] = $col === null
+                    ? ''
+                    : trim((string) $hoja->getCell(columnLetter($col) . $fila)->getValue());
             }
             $valores['source_row'] = $fila;
 
@@ -528,14 +816,22 @@ class ImportFacture2Cargas {
         $control = 0;
         foreach ($limpias as $v) $control += numVal($v[$config['controlIndex']]);
 
+        $this->controlInsertado = $control;
+
+        // La ficha de auditoria del lote. `source_rows` queda fijo con lo que traia
+        // el archivo; `row_count` y `duplicated_rows` se corrigen al terminar,
+        // cuando se sabe cuanto entro y cuanto se omitio por repetido.
         $batch = $this->util->sql([
             'file_name'     => $ctx['fileName'],
             'sheet_name'    => $sheetName,
             'period_year'   => $ctx['anio'],
             'period_month'  => $ctx['mes'],
+            'source_rows'   => count($limpias),
             'row_count'     => count($limpias),
             'control_total' => $control,
             'created_at'    => date('Y-m-d H:i:s'),
+            'user_name'     => $ctx['userName'] ?? '',
+            'user_id'       => $ctx['userId'] ?? null,
             'branch_id'     => $ctx['branchId']
         ]);
 
@@ -549,8 +845,19 @@ class ImportFacture2Cargas {
         elseif ($config['target'] === 'card-refund')    $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 1);
         else                                            $insertadas = $this->guardarEliminados($limpias, $batchId, $ctx);
 
+        // Un lote sin filas no deja rastro: pasa cuando el archivo entero ya estaba
+        // procesado, que no es un fallo pero tampoco una carga.
         if ($insertadas === 0) {
             $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
+
+            return $this->resultadoHoja(0, count($limpias), $reemplazadas);
+        }
+
+        // El lote nacio contando las filas del archivo; ahora se ajusta a las que
+        // realmente entraron, junto con su total de control y los duplicados que
+        // explican la diferencia.
+        if ($insertadas !== count($limpias) || $this->omitidos > 0) {
+            $this->mdl->updateImportBatchRows([$insertadas, $this->controlInsertado, $this->omitidos, $batchId]);
         }
 
         return $this->resultadoHoja($insertadas, count($limpias), $reemplazadas);
@@ -567,17 +874,25 @@ class ImportFacture2Cargas {
             'meseros'      => $this->meseros,
             'cajeros'      => $this->cajeros,
             'ligados'      => $this->ligados,
-            'resumenes'    => $this->resumenes
+            'resumenes'    => $this->resumenes,
+            'omitidos'     => $this->omitidos,
+            'difieren'     => $this->difieren
         ];
     }
 
-    // Sobreescritura del periodo: la carga reemplaza a la anterior de la misma
-    // hoja, no se suma a ella.
+    // Sobreescritura del periodo para las hojas que NO se cargan de forma
+    // incremental.
     //
-    // El detalle borra ventas Y pagos porque los produce los dos de una sola hoja.
-    // Las ventas se llevan sus pagos por el CASCADE de sale_id, asi que basta con
-    // borrar las ventas del lote.
+    // La hoja de detalle quedo fuera: sus movimientos se comparan uno a uno contra
+    // lo que ya esta en base y los repetidos se omiten, asi que borrar la carga
+    // anterior seria tirar datos buenos para volver a escribir los mismos. Las
+    // hojas bancarias y la de eliminados si se reemplazan: no tienen una llave
+    // estable con la que reconocer un movimiento ya visto —la hoja bancaria del
+    // export medido vino vacia y no hay con que medirlo—, y hasta que la haya
+    // reemplazar es lo unico que no deja duplicados.
     private function borrarPeriodo($sheetName, $target, $ctx) {
+        if ($target === 'wansoft-detail') return 0;
+
         $previos = $this->mdl->listImportBatchBySheet([
             $ctx['branchId'], $ctx['anio'], $ctx['mes'], $sheetName
         ]);
@@ -588,11 +903,7 @@ class ImportFacture2Cargas {
         foreach ($previos as $lote) {
             $where = $this->util->sql(['import_batch_id' => $lote['id']], 1);
 
-            if ($target === 'wansoft-detail') {
-                $this->mdl->deleteDailySummaryByBatch($where);
-                $this->mdl->deleteSalePaymentByBatch($where);
-                $this->mdl->deleteSaleByBatch($where);
-            } elseif ($target === 'card' || $target === 'card-refund') {
+            if ($target === 'card' || $target === 'card-refund') {
                 $this->mdl->deletePaymentCardByBatch($where);
             } else {
                 $this->mdl->deleteDeletedPaymentByBatch($where);
@@ -619,8 +930,35 @@ class ImportFacture2Cargas {
     // UPDATE por fila despues. Aqui es todavia mas barato, porque los meseros de un
     // dia se cuentan con los dedos.
     private function guardarDetalle($rows, $hoja, $batchId, $ctx) {
-        $this->meseros = $this->sembrarMeseros($rows, $ctx);
-        $this->cajeros = $this->sembrarCajeros($rows, $ctx);
+        // Los movimientos que ya se procesaron se apartan ANTES de tocar nada: la
+        // carga es incremental, no un reemplazo. Volver a subir el mismo archivo no
+        // duplica una sola venta, y subir uno mas grande del mismo dia solo agrega
+        // lo que falta.
+        $conocidos = $this->movimientosConocidos($rows, $ctx);
+        $nuevos    = [];
+
+        foreach ($rows as $v) {
+            if ($v[5] === '' || isset($conocidos[$v[5]])) continue;
+
+            $nuevos[] = $v;
+        }
+
+        $this->omitidos = count($conocidos);
+        $this->difieren = $this->contarDiferencias($rows, $conocidos);
+
+        // Todo el archivo ya estaba: no se crea catalogo ni resumen por algo que no
+        // aporta un dato nuevo.
+        if (empty($nuevos)) return 0;
+
+        // El total de control del lote es el de lo que ENTRA, no el del archivo: un
+        // lote que agrego 18 movimientos no cuadra contra la suma de los 36 que
+        // traia el Excel, y esa cifra es justo la que se usa para comprobar una
+        // carga contra su origen.
+        $this->controlInsertado = 0;
+        foreach ($nuevos as $v) $this->controlInsertado += numVal($v[15]);
+
+        $this->meseros = $this->sembrarMeseros($nuevos, $ctx);
+        $this->cajeros = $this->sembrarCajeros($nuevos, $ctx);
 
         $meseros = $this->mapaPorNombre($this->mdl->listWaiterByName([$ctx['branchId']]));
         $cajeros = $this->mapaPorNombre($this->mdl->listCashier([$ctx['branchId']]));
@@ -630,8 +968,8 @@ class ImportFacture2Cargas {
         $resumen = $this->leerResumen($hoja);
         $tasa    = $this->tasaDelResumen($resumen);
 
-        $this->ventas = $this->guardarVentas($rows, $batchId, $ctx, $meseros, $cajeros, $estados, $tasa);
-        $this->pagos  = $this->guardarPagos($rows, $batchId, $metodos);
+        $this->ventas = $this->guardarVentas($nuevos, $batchId, $ctx, $meseros, $cajeros, $estados, $tasa);
+        $this->pagos  = $this->guardarPagos($nuevos, $batchId, $metodos);
 
         // Los pagos entran con el movimiento PDV en sale_folio y se cuelgan de su
         // venta en una sola sentencia, ya con las ventas del lote en base.
@@ -642,6 +980,54 @@ class ImportFacture2Cargas {
         // Lo que cuenta como "insertadas" de esta hoja son los pagos: es lo que
         // tiene una fila por cada fila del Excel. Las ventas son agrupaciones.
         return $this->pagos;
+    }
+
+    // Los movimientos del archivo que ya estan en base, indexados por su PDV.
+    //
+    // Se pregunta en bloques de 400 por el mismo motivo que ventasPorFolio en el
+    // importador de Soft: un IN con miles de marcadores revienta el limite de PDO.
+    private function movimientosConocidos($rows, $ctx) {
+        $pdvs = [];
+        foreach ($rows as $v) {
+            if ($v[5] !== '') $pdvs[$v[5]] = true;
+        }
+
+        if (empty($pdvs)) return [];
+
+        $__row = [];
+        foreach (array_chunk(array_keys($pdvs), 400) as $chunk) {
+            foreach ($this->mdl->listSaleByPdvList(array_merge([$ctx['branchId']], $chunk)) as $s) {
+                $__row[$s['pdv_movement']] = $s;
+            }
+        }
+
+        return $__row;
+    }
+
+    // De los movimientos omitidos, cuantos traen HOY un total distinto del que se
+    // guardo cuando entraron.
+    //
+    // No se actualiza ninguno: la carga es incremental y lo ya procesado no se
+    // vuelve a tocar. Pero un ticket que cambio de importe despues de cargarse es
+    // otra cosa que un duplicado exacto —alguien lo corrigio en el POS— y quien
+    // sube el archivo tiene que poder enterarse.
+    private function contarDiferencias($rows, $conocidos) {
+        if (empty($conocidos)) return 0;
+
+        $totales = [];
+        foreach ($rows as $v) {
+            if ($v[5] === '' || !isset($conocidos[$v[5]])) continue;
+
+            if (!isset($totales[$v[5]])) $totales[$v[5]] = 0;
+            $totales[$v[5]] += numVal($v[15]);
+        }
+
+        $distintos = 0;
+        foreach ($totales as $pdv => $total) {
+            if (abs($total - (float) $conocidos[$pdv]['total']) > 0.009) $distintos++;
+        }
+
+        return $distintos;
     }
 
     // El catalogo de meseros se cruza por NOMBRE porque Wansoft no manda codigo. El
@@ -1076,4 +1462,17 @@ function banderaDe($valor) {
 
 function valorDe($resumen, $clave) {
     return isset($resumen[$clave]) ? $resumen[$clave] : 0;
+}
+
+// El inverso de columnLetter: 'A' -> 1, 'R' -> 18, 'AA' -> 27. La radiografia lo
+// necesita para saber hasta donde leer una hoja que no conoce.
+function columnIndex($letra) {
+    $letra = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $letra));
+    $total = 0;
+
+    for ($i = 0; $i < strlen($letra); $i++) {
+        $total = $total * 26 + (ord($letra[$i]) - 64);
+    }
+
+    return $total;
 }

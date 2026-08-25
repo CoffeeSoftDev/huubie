@@ -21,6 +21,10 @@ class App extends Templates {
 
         // Cada tab recuerda en que hoja se quedo: volver a el no lo devuelve a la bitacora.
         this.lotes   = {};
+
+        // Los lotes agrupados por hoja: una pestana muestra TODAS las cargas de la
+        // misma hoja en el periodo, no una por carga.
+        this.grupos  = {};
         this.hojaTab = {};
     }
 
@@ -33,6 +37,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.resizePanel();
         this.filterBar();
         this.renderTabs();
         cargasView.renderHeader();
@@ -58,12 +63,23 @@ class App extends Templates {
             ]
         };
 
+        // El tirador que separa las dos columnas. Va como <button> y no como <div>
+        // para que entre en el orden de tabulacion: quien no puede arrastrar con el
+        // raton mueve el panel con las flechas.
+        const detailResizer = {
+            type:  'button',
+            id:    'detailResizer'
+        };
+
         // createLayout solo itera children en type 'div': para un aside caen en el
         // default y jQuery los toma como metodo. Las zonas del panel se arman aparte.
+        //
+        // El ancho ya no vive aqui: lo pone --detail-w desde el CSS, que es quien
+        // sabe si la pantalla esta en una columna o en dos.
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
+            class: 'w-full flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -72,7 +88,7 @@ class App extends Templates {
             data: {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
-                container: [mainPanel, detailPanel]
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
 
@@ -157,14 +173,20 @@ class App extends Templates {
 
     // -- Filter bar --
 
+    // El modulo abre en el mes en curso, que es al que va a ir la proxima carga.
+    // El periodo lo resuelve el servidor: es el mismo reloj con el que se sella el
+    // lote, y con el del navegador el filtro podria apuntar a un mes distinto del
+    // que se escribiria en base.
     filterBar() {
+        const hoy = this.dataInit.hoy || {};
+
         const filters = [
             {
                 opc:      'select',
                 id:       'fMes',
                 lbl:      'Mes:',
                 class:    'col-6',
-                value:    '06',
+                value:    hoy.mes || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.meses
@@ -174,7 +196,7 @@ class App extends Templates {
                 id:       'fAnio',
                 lbl:      'Anio:',
                 class:    'col-6',
-                value:    '2026',
+                value:    hoy.anio || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.anios
@@ -231,11 +253,133 @@ class App extends Templates {
         cargasView.renderUploadRow(id, archivo);
         cargas.lsBitacora(id);
 
-        cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas' });
+        cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas', badge: this.posBadge() });
         this.asideLayout();
 
         this.hojaActiva = -1;
         this.renderHojas(id);
+    }
+
+    // -- Ancho del panel de detalle --
+
+    // Limites del arrastre. El minimo es el ancho al que una tarjeta de hoja
+    // todavia lee su nombre en una linea; el maximo evita que el panel se coma la
+    // tabla, que es lo que se vino a ver.
+    static get PANEL_MIN() { return 260; }
+    static get PANEL_MAX() { return 620; }
+
+    panelKey() {
+        return `facture:detailWidth:${this.PROJECT_NAME}`;
+    }
+
+    // El ancho se guarda por modulo y sobrevive a la recarga: reajustarlo cada vez
+    // que se entra a Cargas seria pedirle al usuario que repita la misma decision.
+    aplicarAncho(px, guardar) {
+        const ancho = Math.round(Math.min(App.PANEL_MAX, Math.max(App.PANEL_MIN, px)));
+
+        document.documentElement.style.setProperty('--detail-w', `${ancho}px`);
+
+        const tirador = document.getElementById('detailResizer');
+        if (tirador) tirador.setAttribute('aria-valuenow', ancho);
+
+        if (guardar) {
+            try { localStorage.setItem(this.panelKey(), ancho); } catch (e) { /* sin storage se pierde al salir, nada mas */ }
+        }
+
+        return ancho;
+    }
+
+    anchoGuardado() {
+        try {
+            const px = Number(localStorage.getItem(this.panelKey()));
+            return px > 0 ? px : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Arrastrar el borde del panel. Se escucha con pointer events y no con mouse:
+    // asi el mismo gesto sirve con dedo y con lapiz, y setPointerCapture mantiene
+    // el arrastre aunque el puntero se salga del tirador o de la ventana.
+    resizePanel() {
+        const tirador = document.getElementById('detailResizer');
+        const panel   = document.getElementById('detailPanel');
+        if (!tirador || !panel) return;
+
+        const guardado = this.anchoGuardado();
+        this.aplicarAncho(guardado || panel.getBoundingClientRect().width || 340, false);
+
+        tirador.setAttribute('role', 'separator');
+        tirador.setAttribute('aria-orientation', 'vertical');
+        tirador.setAttribute('aria-label', 'Ancho del panel de hojas detectadas');
+        tirador.setAttribute('aria-valuemin', App.PANEL_MIN);
+        tirador.setAttribute('aria-valuemax', App.PANEL_MAX);
+        tirador.setAttribute('type', 'button');
+
+        // El ancho se mide desde el borde derecho de la ventana hasta el puntero,
+        // no como un delta acumulado: si el arrastre se sale de los limites y
+        // vuelve, el panel sigue pegado al cursor en vez de quedar desfasado.
+        const mover = (e) => this.aplicarAncho(window.innerWidth - e.clientX, false);
+
+        tirador.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            tirador.setPointerCapture(e.pointerId);
+            tirador.classList.add('is-dragging');
+            document.body.classList.add('is-resizing');
+
+            const soltar = () => {
+                tirador.classList.remove('is-dragging');
+                document.body.classList.remove('is-resizing');
+                tirador.removeEventListener('pointermove', mover);
+                this.aplicarAncho(panel.getBoundingClientRect().width, true);
+            };
+
+            tirador.addEventListener('pointermove', mover);
+            tirador.addEventListener('pointerup', soltar, { once: true });
+            tirador.addEventListener('pointercancel', soltar, { once: true });
+        });
+
+        // Teclado: el panel se mueve de 16 en 16, y de 64 con Shift. Home y End
+        // van a los topes.
+        tirador.addEventListener('keydown', (e) => {
+            const paso = e.shiftKey ? 64 : 16;
+            const hoy  = panel.getBoundingClientRect().width;
+
+            const destino = {
+                ArrowLeft:  hoy + paso,
+                ArrowRight: hoy - paso,
+                Home:       App.PANEL_MAX,
+                End:        App.PANEL_MIN
+            }[e.key];
+
+            if (destino === undefined) return;
+
+            e.preventDefault();
+            this.aplicarAncho(destino, true);
+        });
+
+        // Doble clic devuelve el ancho de fabrica: es la salida para quien arrastro
+        // de mas y no sabe con que numero volver.
+        tirador.addEventListener('dblclick', () => this.aplicarAncho(340, true));
+    }
+
+    // El punto de venta de la sucursal, listo para el encabezado del aside. Es lo
+    // que decide que archivo se espera y como se lee, asi que se anuncia junto a
+    // las hojas: sin el, dos sucursales con contratos distintos se ven iguales.
+    posBadge() {
+        const pos = this.dataInit.pos;
+        if (!pos || !pos.name) return null;
+
+        return { text: pos.name, icon: 'monitor', color: pos.color };
+    }
+
+    // El color del POS activo, para resaltar con el lo que pertenece a su mundo.
+    // Sale del catalogo igual que el badge, asi que la Terminal Wansoft se pinta
+    // azul y el Facturador naranja sin que ninguno de los dos lo escriba a mano.
+    posColor() {
+        return (this.dataInit.pos || {}).color || '#6B7280';
     }
 
     asideLayout() {
@@ -270,14 +414,51 @@ class App extends Templates {
         return `log-${tabId}`;
     }
 
-    sheetKey(loteId) {
-        return `sheet-${loteId}`;
+    // La llave de la pestana es la HOJA, no la carga. Desde que el detalle entra de
+    // forma incremental, un periodo puede tener varias cargas de la misma hoja y
+    // antes cada una abria su propia pestana: dos "Detalle por forma de pago" y dos
+    // "Propinas por mesero" para lo que el usuario lee como un solo conjunto.
+    //
+    // El nombre se limpia para poder usarlo como id de elemento.
+    hojaSlug(nombre) {
+        return String(nombre || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    sheetKey(hoja) {
+        return `sheet-${this.hojaSlug(hoja)}`;
+    }
+
+    tipsKey(hoja) {
+        return `tips-${this.hojaSlug(hoja)}`;
+    }
+
+    // Los lotes del periodo agrupados por hoja, en el orden del contrato. Cada
+    // grupo lleva sus ids —el listado los consulta juntos— y la suma de sus filas.
+    agruparHojas(lotes) {
+        const grupos = [];
+        const indice = {};
+
+        (lotes || []).forEach(lote => {
+            if (indice[lote.sheet_name] === undefined) {
+                indice[lote.sheet_name] = grupos.length;
+                grupos.push({ nombre: lote.sheet_name, ids: [], filas: 0, tips: false });
+            }
+
+            const g = grupos[indice[lote.sheet_name]];
+
+            g.ids.push(lote.id);
+            g.filas += Number(lote.row_count || 0);
+            g.tips   = g.tips || !!lote.tips;
+        });
+
+        return grupos;
     }
 
     // La tira se monta desde lsBitacora y no en el layout: antes de la consulta no
     // se sabe que hojas tiene cargado el periodo.
-    sheetTabs(tabId, lotes, filas) {
-        this.lotes[tabId] = lotes || [];
+    sheetTabs(tabId, lotes, filas, ajenos) {
+        this.lotes[tabId]  = lotes || [];
+        this.grupos[tabId] = this.agruparHojas(lotes);
 
         const conLog = (filas || []).length > 0;
 
@@ -294,23 +475,42 @@ class App extends Templates {
         // La hoja abierta se conserva al repintar mientras su lote siga existiendo;
         // si se elimino, la tira vuelve a abrir en la bitacora.
         const previa  = this.hojaTab[tabId];
-        const vive    = this.lotes[tabId].some(l => this.sheetKey(l.id) === previa);
-        const primera = this.lotes[tabId][0];
+        const vive    = this.grupos[tabId].some(g => this.sheetKey(g.nombre) === previa || this.tipsKey(g.nombre) === previa);
+        const primera = this.grupos[tabId][0];
         const activa  = vive
             ? previa
-            : ((conLog || !primera) ? this.logKey(tabId) : this.sheetKey(primera.id));
+            : ((conLog || !primera) ? this.logKey(tabId) : this.sheetKey(primera.nombre));
 
         this.hojaTab[tabId] = activa;
 
-        const hojas = this.lotes[tabId].map(lote => ({
-            id:         this.sheetKey(lote.id),
-            tab:        `${lote.sheet_name} <span class="badge-base b-gray ml-2">${Number(lote.row_count).toLocaleString('en-US')}</span>`,
-            lucideIcon: cargasView.sheetTone(lote.sheet_name).icon,
-            active:     this.sheetKey(lote.id) === activa,
-            class:      'flex-1 min-h-0',
-            content:    sheetShell(this.sheetKey(lote.id)),
-            onClick:    () => this.onSelectSheet(tabId, lote)
-        }));
+        const hojas = [];
+
+        this.grupos[tabId].forEach(grupo => {
+            hojas.push({
+                id:         this.sheetKey(grupo.nombre),
+                tab:        `${grupo.nombre} <span class="badge-base b-gray ml-2">${Number(grupo.filas).toLocaleString('en-US')}</span>`,
+                lucideIcon: cargasView.sheetTone(grupo.nombre).icon,
+                active:     this.sheetKey(grupo.nombre) === activa,
+                class:      'flex-1 min-h-0',
+                content:    sheetShell(this.sheetKey(grupo.nombre)),
+                onClick:    () => this.onSelectSheet(tabId, grupo)
+            });
+
+            // Las propinas van detras de su hoja, como en el libro del POS. No son
+            // una carga: se calculan sobre los pagos del periodo, y por eso la
+            // pestana no lleva conteo de filas del Excel.
+            if (!grupo.tips) return;
+
+            hojas.push({
+                id:         this.tipsKey(grupo.nombre),
+                tab:        'Propinas por mesero',
+                lucideIcon: 'hand-coins',
+                active:     this.tipsKey(grupo.nombre) === activa,
+                class:      'flex-1 min-h-0',
+                content:    sheetShell(this.tipsKey(grupo.nombre)),
+                onClick:    () => this.onSelectTips(tabId, grupo)
+            });
+        });
 
         const bitacora = {
             id:         this.logKey(tabId),
@@ -327,7 +527,7 @@ class App extends Templates {
         // Sin pestanas que mostrar la tira no se pinta: tabLayout dejaria la barra
         // de botones vacia sobre el panel.
         if (!json.length) {
-            cargasView.renderEmptySheets(tabId);
+            cargasView.renderEmptySheets(tabId, ajenos);
             return;
         }
 
@@ -358,15 +558,23 @@ class App extends Templates {
 
     // Render perezoso: la hoja se consulta la primera vez que se abre. Despues su
     // panel ya vive en el DOM y cambiar de pestana no cuesta una peticion.
-    onSelectSheet(tabId, lote) {
-        this.hojaTab[tabId] = lote ? this.sheetKey(lote.id) : this.logKey(tabId);
+    onSelectSheet(tabId, grupo) {
+        this.hojaTab[tabId] = grupo ? this.sheetKey(grupo.nombre) : this.logKey(tabId);
 
-        if (!lote) return;
+        if (!grupo) return;
 
-        const parent = `sheetBody-${this.sheetKey(lote.id)}`;
+        const parent = `sheetBody-${this.sheetKey(grupo.nombre)}`;
         if ($(`#${parent}`).children().length) return;
 
-        cargas.lsRegistros(lote.id);
+        cargas.lsRegistros(grupo);
+    }
+
+    onSelectTips(tabId, grupo) {
+        this.hojaTab[tabId] = this.tipsKey(grupo.nombre);
+
+        if ($(`#sheetBody-${this.tipsKey(grupo.nombre)}`).children().length) return;
+
+        cargas.lsPropinas(grupo);
     }
 
     // -- Hojas del panel --
@@ -433,7 +641,7 @@ class Cargas extends Templates {
         const data = await useFetch({ url: apiCargas, data: Object.assign({ opc: 'lsBitacora', tipo: tipo }, app.getFilters()) });
         const rows = data.row || [];
 
-        app.sheetTabs(tipo, data.lotes, rows);
+        app.sheetTabs(tipo, data.lotes, rows, data.ajenos);
 
         if (data.archivo) {
             cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
@@ -445,17 +653,25 @@ class Cargas extends Templates {
 
         const log = app.logKey(tipo);
 
-        const logFoot = (lotes) => {
-            const ls    = lotes || [];
-            const filas = ls.reduce((a, l) => a + Number(l.row_count || 0), 0);
+        // El aviso de cargas ajenas manda sobre la nota normal: son filas que estan
+        // en el periodo, no se van a reemplazar con la proxima carga y no aparecen
+        // en ninguna pestana. Callarlas dejaria un periodo que se ve vacio y no lo
+        // esta.
+        const logFoot = (data) => {
+            const ls     = data.lotes || [];
+            const ajenos = data.ajenos;
+            const filas  = ls.reduce((a, l) => a + Number(l.row_count || 0), 0);
 
             if (!ls.length) {
-                return { text: 'El periodo no tiene cargas', note: 'Sube el Excel para que aparezcan sus hojas' };
+                return {
+                    text: ajenos ? ajenos.texto : 'El periodo no tiene cargas',
+                    note: ajenos ? ajenos.nota  : 'Sube el Excel para que aparezcan sus hojas'
+                };
             }
 
             return {
                 text: `<span class="text-gray-400 font-semibold">${ls.length}</span> lote(s) en el periodo · <span class="text-gray-400">${this.miles(filas)}</span> filas`,
-                note: 'Cada hoja abre en su propia pestana'
+                note: ajenos ? ajenos.texto : 'Cada hoja abre en su propia pestana'
             };
         };
 
@@ -476,7 +692,7 @@ class Cargas extends Templates {
             data:          data
         });
 
-        cargasView.renderSheetFoot(log, logFoot(data.lotes));
+        cargasView.renderSheetFoot(log, logFoot(data));
 
         if (window.lucide) lucide.createIcons();
 
@@ -512,12 +728,13 @@ class Cargas extends Templates {
         });
     }
 
-    async lsRegistros(id) {
-        const hoja = app.sheetKey(id);
+    async lsRegistros(grupo) {
+        const hoja = app.sheetKey(grupo.nombre);
+        const ids  = grupo.ids.join(',');
 
         cargasView.renderLoader(`sheetBody-${hoja}`, 'Leyendo los registros de la carga...');
 
-        const data = await useFetch({ url: apiCargas, data: { opc: 'lsRegistros', id: id } });
+        const data = await useFetch({ url: apiCargas, data: { opc: 'lsRegistros', ids: ids } });
 
         if (data.status !== 200) {
             $(`#sheetBody-${hoja}`).empty();
@@ -527,7 +744,7 @@ class Cargas extends Templates {
 
         this.createCoffeeTable3({
             parent:        `sheetBody-${hoja}`,
-            id:            `tbRegistros-${id}`,
+            id:            `tbRegistros-${hoja}`,
             theme:         FACTURE_THEME,
             center:        data.center || [],
             right:         data.right  || [],
@@ -544,8 +761,55 @@ class Cargas extends Templates {
         if (window.lucide) lucide.createIcons();
 
         if (data.row.length > 0 && typeof simple_data_table === 'function') {
-            simple_data_table(`#tbRegistros-${id}`, 12);
+            simple_data_table(`#tbRegistros-${hoja}`, 12);
         }
+    }
+
+    // Propinas por mesero del lote. No es una hoja cargada: el servidor las suma
+    // sobre los pagos que ya estan en base, asi que la tabla vale como cuadre
+    // contra la hoja del Excel.
+    async lsPropinas(grupo) {
+        const hoja = app.tipsKey(grupo.nombre);
+        const ids  = grupo.ids.join(',');
+
+        cargasView.renderLoader(`sheetBody-${hoja}`, 'Sumando las propinas por mesero...');
+
+        const data = await useFetch({ url: apiCargas, data: { opc: 'lsPropinas', ids: ids } });
+
+        if (data.status !== 200) {
+            $(`#sheetBody-${hoja}`).empty();
+            alert({ icon: 'error', title: data.message, timer: 2000 });
+            return;
+        }
+
+        this.createCoffeeTable3({
+            parent:        `sheetBody-${hoja}`,
+            id:            `tbPropinas-${hoja}`,
+            theme:         FACTURE_THEME,
+            center:        data.center || [],
+            right:         data.right  || [],
+            extends:       true,
+            scrollable:    false,
+            hover:         true,
+            f_size:        11,
+            border_table:  'border-0',
+            emptyMessage:  'La carga no tiene propinas registradas',
+            emptyIcon:     'ic-file-text',
+            data:          { row: data.row }
+        });
+
+        if (window.lucide) lucide.createIcons();
+
+        const pie = data.pie || {};
+
+        cargasView.renderSheetFoot(hoja, {
+            text: `<span class="text-gray-400 font-semibold">${this.miles(pie.meseros)}</span> mesero(s) ·
+                   propinas <span class="text-gray-400">$${Number(pie.propinas || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                   sobre ventas de <span class="text-gray-400">$${Number(pie.ventas || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>`,
+            note: pie.comision > 0
+                ? `Comision sobre propina: ${pie.comision}% · se descuenta en la columna Neto`
+                : 'Calculado sobre los pagos cargados · debe cuadrar con la hoja "Propinas por mesero" del Excel'
+        });
     }
 
     // -- Roadmap en vivo --
@@ -658,23 +922,41 @@ class Cargas extends Templates {
         const existe  = archivo.estado === 'ok';
 
         const origen = desde
-            ? `<p class="text-[12px] text-blue-300 mb-2">Este archivo es de
+            ? `<p class="text-[12px] facture-info mb-2">Este archivo es de
                    <strong>${archivo.titulo}</strong>, no de
                    <strong>${app.dataInit.archivos[desde].titulo}</strong>. Sus columnas ya se revisaron y estan bien.</p>`
             : '';
 
+        // Lo que pasa con lo ya cargado depende del POS, no del boton: Wansoft
+        // compara movimiento por movimiento y solo agrega lo que falta, mientras
+        // que Soft Restaurant reemplaza el periodo entero. Prometer "se
+        // sobreescriben" en el primer caso seria asustar por algo que no ocurre.
+        const incremental = archivo.modo === 'incremental';
+
         const aviso = existe
-            ? `<p class="text-[12px] text-yellow-300 mt-2">Este periodo ya tiene datos cargados
-                   (<strong>${archivo.cargado}</strong>) y se <strong>sobreescriben</strong> con este archivo.</p>`
+            ? (incremental
+                ? `<p class="text-[12px] facture-info mt-2">Este periodo ya tiene datos cargados
+                       (<strong>${archivo.cargado}</strong>). Los movimientos que ya se procesaron
+                       <strong>se omiten</strong>: solo entran los nuevos.</p>`
+                : `<p class="text-[12px] facture-warn mt-2">Este periodo ya tiene datos cargados
+                       (<strong>${archivo.cargado}</strong>) y se <strong>sobreescriben</strong> con este archivo.</p>`)
             : '';
 
+        // El periodo va en el color del POS: es el dato que decide donde caen las
+        // filas y el unico del aviso que el usuario puede haber dejado mal en el
+        // filtro. Resaltarlo lo pone por delante del nombre del archivo, que es lo
+        // que la vista tiende a leer primero.
+        const mes = `<span style="color:${app.posColor()}">${periodo}</span>`;
+
         alert({
-            icon:     existe ? 'warning' : 'question',
-            title:    desde ? 'Este archivo va en otra pestana' : `Cargar en ${periodo}`,
+            icon:     (existe && !incremental) ? 'warning' : 'question',
+            title:    desde ? 'Este archivo va en otra pestana' : `Cargar en ${mes}`,
             html:     `${origen}<p class="text-[12px]">Se va a subir <strong>${file.name}</strong> a
-                           <strong>${archivo.titulo}</strong> del periodo <strong>${periodo}</strong>.</p>${aviso}`,
+                           <strong>${archivo.titulo}</strong> del periodo <strong>${mes}</strong>.</p>${aviso}`,
             btn1:     true,
-            btn1Text: existe ? 'Sobreescribir periodo' : (desde ? `Cargar en ${archivo.titulo}` : 'Subir archivo'),
+            btn1Text: existe
+                ? (incremental ? 'Cargar los nuevos' : 'Sobreescribir periodo')
+                : (desde ? `Cargar en ${archivo.titulo}` : 'Subir archivo'),
             btn2:     true,
             btn2Text: 'Cancelar'
         }).then(result => {
@@ -1120,21 +1402,51 @@ class CargasView extends Templates {
         return promesa;
     }
 
-    renderEmptySheets(tabId) {
+    // El periodo puede estar vacio PARA ESTE POS y aun asi tener filas cargadas por
+    // el otro. Decirlo aqui evita la lectura falsa de "no hay nada": el usuario iba
+    // a subir un archivo creyendo que el mes estaba limpio.
+    renderEmptySheets(tabId, ajenos) {
         const archivo = app.dataInit.archivos[tabId] || {};
         const periodo = `${$('#fMes option:selected').text()} ${$('#fAnio').val()}`;
 
         this.emptyBox({
             parent: `sheetsHost-${tabId}`,
             json: {
-                icon:  'folder-open',
-                title: `Sin cargas de ${archivo.titulo} en ${periodo}`,
-                text:  `Sube ${archivo.esperado} con el boton "Subir Excel" para ver aqui las hojas del archivo y sus registros.`
+                icon:  ajenos ? 'file-question' : 'folder-open',
+                title: ajenos ? ajenos.texto : `Sin cargas de ${archivo.titulo} en ${periodo}`,
+                text:  ajenos ? ajenos.nota  : `Sube ${archivo.esperado} con el boton "Subir Excel" para ver aqui las hojas del archivo y sus registros.`
             }
         });
     }
 
     // -- Components --
+
+    // Icono de hoja de calculo, dibujado aqui y no tomado de lucide.
+    //
+    // El set trae `file-spreadsheet`, pero es un documento con una cuadricula
+    // generica: se lee igual que un CSV o un archivo de tabla cualquiera. Lo que
+    // esta fila pide es un Excel concreto, y lo que hace reconocible a ese formato
+    // es la X sobre el bloque verde. Es un glifo descriptivo de tipo de archivo,
+    // no el logotipo de nadie.
+    //
+    // El bloque de la X desborda la esquina inferior izquierda del documento en vez
+    // de vivir dentro de el: encerrado quedaba del tamano de una unia y a 16px se
+    // perdia. Saliendose gana superficie sin agrandar el icono, que es el mismo
+    // recurso que usan los iconos de tipo de archivo del sistema.
+    //
+    // Va solo en el recuadro de la fila, que es donde se identifica el ARCHIVO. El
+    // boton de al lado no lo repite: ahi lo que se anuncia es la accion de subir, y
+    // el mismo glifo dos veces no decia nada nuevo.
+    excelIcon(size) {
+        const px = size || 23;
+
+        return `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" aria-hidden="true" focusable="false">`
+            + '<path d="M14.4 2H8.2A1.7 1.7 0 0 0 6.5 3.7v16.6A1.7 1.7 0 0 0 8.2 22h10.6a1.7 1.7 0 0 0 1.7-1.7V7.9L14.4 2Z" fill="#ffffff" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'
+            + '<path d="M14.4 2v5.9h5.9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'
+            + '<path d="M2.6 12.2h9.2a1.9 1.9 0 0 1 1.9 1.9v6.2a1.9 1.9 0 0 1-1.9 1.9H2.6a1.9 1.9 0 0 1-1.9-1.9v-6.2a1.9 1.9 0 0 1 1.9-1.9Z" fill="#1D6F42"/>'
+            + '<path d="M4.6 15.4 9.8 19.8M9.8 15.4 4.6 19.8" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round"/>'
+            + '</svg>';
+    }
 
     uploadRow(options) {
         const defaults = {
@@ -1169,7 +1481,7 @@ class CargasView extends Templates {
 
         wrap.html(`
             <div class="upload-row-icon">
-                <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                ${this.excelIcon(23)}
             </div>
             <div class="flex-1 min-w-0">
                 <h3 class="text-[13px] font-bold text-white truncate">${esc(opts.json.titulo)}</h3>
@@ -1178,7 +1490,7 @@ class CargasView extends Templates {
             ${badges[estado] || badges.pendiente}
             <input type="file" id="${inputId}" accept=".xlsx,.xls" class="hidden">
             <button type="button" class="upload-row-btn" ${cargando ? 'disabled' : ''}>
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>Subir Excel
+                <i data-lucide="upload" class="w-4 h-4"></i>Subir Excel
             </button>
         `);
 
@@ -1427,9 +1739,20 @@ class CargasView extends Templates {
             ? opts.json.badges
             : (opts.json.badge ? [opts.json.badge] : []);
 
+        // El badge puede traer su propio color en vez de un tono del sistema: el del
+        // POS vive en el catalogo (pos.color) y no en el CSS, para que un punto de
+        // venta nuevo se distinga sin tocar la hoja de estilos. Solo se acepta hex
+        // de 6 digitos, que es lo que guarda la columna; cualquier otra cosa cae al
+        // tono y no se inyecta en el style.
+        const tinte = (color) => {
+            if (!/^#[0-9a-f]{6}$/i.test(String(color || ''))) return '';
+
+            return ` style="color:${color};border-color:${color};background:${color}1F"`;
+        };
+
         // Sin saltos de linea dentro del span: badge-base es nowrap y el espacio en
         // blanco se colaparia contra el padding de la pildora.
-        const badgeHtml = lista.map(b => `<span class="badge-base ${esc(b.tone || 'b-gray')}">${b.icon ? `<i data-lucide="${esc(b.icon)}" class="w-3 h-3"></i>` : ''}${esc(b.text)}</span>`).join('');
+        const badgeHtml = lista.map(b => `<span class="badge-base ${esc(b.tone || 'b-gray')}"${tinte(b.color)}>${b.icon ? `<i data-lucide="${esc(b.icon)}" class="w-3 h-3"></i>` : ''}${esc(b.text)}</span>`).join('');
 
         const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
         wrap.html(`

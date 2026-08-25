@@ -1068,3 +1068,84 @@ body.swal2-height-auto {
     height: 100vh !important;
     padding-right: 0 !important;
 }
+
+/* -- Panel de detalle redimensionable --
+   El aside de "Hojas detectadas" tenia un ancho fijo en la clase del layout, y
+   ese numero no le sirve igual a todos: la tira de hojas de Wansoft son cuatro
+   tarjetas cortas, mientras que el roadmap de una carga larga pide sitio.
+
+   El ancho vive en una variable y no en un `style` inline para que el responsive
+   siga siendo del CSS: por debajo de md el aside se apila a lo ancho y la
+   variable ni se mira, asi que arrastrar en escritorio no deja un ancho fijo
+   pegado al movil. */
+:root { --detail-w: 340px; }
+
+@media (min-width: 768px) {
+    #root #detailPanel {
+        width: var(--detail-w);
+        /* El maximo se cierra tambien aqui y no solo en el JS: si la ventana se
+           encoge despues de haber arrastrado, el panel cede en vez de empujar al
+           contenido principal fuera de la pantalla. */
+        max-width: min(var(--detail-w), 62vw);
+    }
+
+    #root #detailResizer {
+        display: block;
+        position: relative;
+        z-index: 5;
+        flex-shrink: 0;
+        width: 6px;
+        margin: 0 -3px;   /* se monta sobre el borde: no roba ancho al contenido */
+        cursor: col-resize;
+        background: transparent;
+        border: 0;
+        padding: 0;
+        touch-action: none;
+    }
+
+    /* La barra visible es mas fina que el area de agarre: el raton perdona 6px,
+       pero una linea de 6px partiria el panel en dos. */
+    #root #detailResizer::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        border-radius: 2px;
+        background: transparent;
+        transition: background .15s ease;
+    }
+
+    #root #detailResizer:hover::after,
+    #root #detailResizer:focus-visible::after,
+    #root #detailResizer.is-dragging::after {
+        background: var(--pos-color, #6B7280);
+    }
+
+    #root #detailResizer:focus-visible { outline: none; }
+
+    /* Mientras se arrastra, el cursor manda en toda la pagina y nada se
+       selecciona: sin esto el texto del panel se pinta de azul al pasar sobre el
+       y el gesto se lee como un intento de copiar. */
+    body.is-resizing,
+    body.is-resizing * {
+        cursor: col-resize !important;
+        user-select: none !important;
+    }
+}
+
+/* -- Avisos dentro de los dialogos --
+   El popup de SweetAlert no vive dentro de #mainContainer y su fondo cambia con
+   el tema: blanco en la Terminal Wansoft, oscuro en el Facturador. Los avisos se
+   escribian con utilidades de Tailwind pensadas para un solo fondo
+   (text-yellow-300, text-blue-300), y sobre el popup claro el amarillo
+   desaparecia: justo el aviso de que un periodo se va a SOBREESCRIBIR, que es el
+   que no se puede perder de vista.
+
+   Estos dos tonos son los del tema oscuro; el claro los reescribe en
+   facture-theme.css. El peso ayuda tanto como el color: una advertencia que solo
+   se distingue por matiz no se distingue en una pantalla mal calibrada. */
+.facture-warn { color: #FCD34D; font-weight: 600; }
+.facture-info { color: #93C5FD; }
