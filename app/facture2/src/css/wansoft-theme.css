@@ -150,6 +150,29 @@ html[data-wansoft-theme] .swal2-popup .swal2-select {
     border: 1px solid var(--ws-line) !important;
 }
 
+/* -- El detalle de los avisos (.tf-alert-card, no swal) --
+
+   El resumen del reparto arma su cuadro con la escala de grises del tema oscuro,
+   donde gray-200 es el tono mas claro y por eso el mas visible. Sobre el papel
+   blanco de la tarjeta esa escala queda al reves: los montos —que son el dato del
+   cuadro— casi desaparecen y las etiquetas se leen mas que ellos.
+
+   Aqui se invierte la escala, solo dentro de la tarjeta de aviso. El JS del modulo
+   es compartido con el Facturador, donde esos mismos grises son correctos. */
+
+html[data-wansoft-theme] .tf-alert-card .text-gray-200 { color: #111928 !important; }
+html[data-wansoft-theme] .tf-alert-card .text-gray-300 { color: #374151 !important; }
+html[data-wansoft-theme] .tf-alert-card .text-gray-400 { color: #4B5563 !important; }
+html[data-wansoft-theme] .tf-alert-card .text-gray-500 { color: var(--ws-muted) !important; }
+
+/* El ambar de las diferencias que se quedan cortas es de tema oscuro: sobre blanco
+   se lava. Va al tono de aviso del tema claro, que ya esta definido arriba. */
+html[data-wansoft-theme] .tf-alert-card .text-amber-400 { color: var(--cs-warning) !important; }
+
+/* El separador entre bloques se dibuja con el borde del tema oscuro y sobre blanco
+   no se ve: pasa a la linea clara. */
+html[data-wansoft-theme] .tf-alert-card .border-\[\#374151\] { border-color: var(--ws-line) !important; }
+
 /* Los botones los viste el core: el de confirmar nace azul Flowbite y vira a
    verde al pasar el cursor, y el de cancelar es azul marino, que sobre el papel
    blanco de la terminal se lee negro. No se pueden corregir por llamada porque
@@ -301,6 +324,40 @@ html[data-wansoft-theme] {
    es la misma regla que el modulo aplica a sus KPI en claro. */
 html[data-wansoft-theme] #mainContainer .cs-kpi-card {
     box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+}
+
+/* -- La tarjeta del total de tarjeta de credito --
+
+   Es el unico monto que el modulo procesa: la suma de los movimientos validos del
+   dia, de la que salen el objetivo del 16% y el del 0%. En una fila de cinco cajas
+   iguales un numero de color no basta —ya hay dos en azul y una en verde—, asi que
+   lo que la destaca es el contraste de la caja completa: esta va con el fondo de
+   marca y las otras cuatro en blanco.
+
+   El JS solo pone las clases kpi-hero*; el color vive aqui (TRM-007). */
+
+html[data-wansoft-theme] #mainContainer .kpi-hero    { background: var(--ws-blue) !important; }
+html[data-wansoft-theme] #mainContainer .kpi-hero-bd { border-color: var(--ws-blue-dk) !important; }
+
+/* El titulo y el subtitulo los escribe infoCard en gris fijo, que sobre el azul no
+   se lee. Aqui es el unico lugar donde se pueden aclarar sin tocar el componente. */
+html[data-wansoft-theme] #mainContainer .kpi-hero p         { color: #FFFFFF !important; }
+html[data-wansoft-theme] #mainContainer .kpi-hero p.text-xs { color: rgba(255, 255, 255, .78) !important; }
+
+/* El monto sube un cuerpo respecto de las otras cuatro: es el dato principal de la
+   pantalla y compite con cifras del mismo tamano. */
+html[data-wansoft-theme] #mainContainer .kpi-hero-val      { color: #FFFFFF !important; }
+html[data-wansoft-theme] #mainContainer span.kpi-hero-val  { font-size: 1.5rem; line-height: 2rem; }
+
+/* El cuadro del icono hereda el fondo de la tarjeta y desaparece contra ella: se
+   aclara para que se recorte. */
+html[data-wansoft-theme] #mainContainer .kpi-hero .kpi-hero {
+    background: rgba(255, 255, 255, .16) !important;
+}
+
+/* Las demas tarjetas quedan al ras con una sombra de un pixel; esta se levanta. */
+html[data-wansoft-theme] #mainContainer div[id^="kpis"][id*="_"].kpi-hero {
+    box-shadow: 0 4px 12px rgba(43, 79, 216, .32) !important;
 }
 
 /* -- Azul corporativo del core --

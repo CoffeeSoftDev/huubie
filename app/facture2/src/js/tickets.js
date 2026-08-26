@@ -1,6 +1,11 @@
 let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
 let app, tickets, ticketsView;
 
+// La meta con la que se cerro el ultimo dia sobrevive al refresco: es un acuerdo
+// del mes, no del momento, y volver a capturarla en cada entrada invitaria a
+// repartir un dia con la meta de otro sin notarlo.
+const META_KEY = 'facture2.tickets.meta';
+
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
     tickets     = new Tickets(apiTickets, 'root');
@@ -13,15 +18,40 @@ class App extends Templates {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
         this.selectedId   = null;
+        this.dataKpis     = {};
     }
 
     // El dia lo resuelve el servidor: el Excel del POS se sube en diferido, asi que
     // el modulo abre en el ultimo dia con cobros con tarjeta. Con ?dia= entra a ese.
     async init() {
         this.dataInit = await useFetch({ url: apiTickets, data: { opc: 'init', dia: this.getParam('dia') } });
+        this.meta     = this.loadMeta();
 
         this.hideTitleOnPrint();
         this.render();
+    }
+
+    // -- Meta de facturacion --
+
+    // El default lo manda el servidor, que es donde vive la politica de la casa.
+    // Lo guardado solo se acepta si esta completo: un localStorage a medias dejaria
+    // el dia repartiendose contra una meta vacia.
+    loadMeta() {
+        const base = { modo: 'pct', valor: this.dataInit.metaPct };
+
+        try {
+            const guardado = JSON.parse(localStorage.getItem(META_KEY));
+
+            if (guardado && (guardado.modo === 'pct' || guardado.modo === 'monto') && guardado.valor >= 0) {
+                return guardado;
+            }
+        } catch (e) { }
+
+        return base;
+    }
+
+    saveMeta() {
+        localStorage.setItem(META_KEY, JSON.stringify(this.meta));
     }
 
     getParam(name) {
@@ -179,10 +209,37 @@ class App extends Templates {
                 id:       'fDia',
                 lbl:      'Dia:',
                 type:     'date',
-                class:    'col-12 col-md-4 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 value:    this.dataInit.dia,
                 required: false,
                 onchange: 'app.onChangeFilters()'
+            },
+            // Cuanto de la venta se factura al 16%. Son dos campos y no uno porque
+            // la meta se acuerda de las dos formas —"el 70%" o "$15,000 cerrados"—
+            // y obligar a traducirla a mano es donde se cuelan los errores.
+            {
+                opc:      'select',
+                id:       'fMetaModo',
+                lbl:      'Aplicar por:',
+                class:    'col-12 col-md-4 col-lg-2',
+                value:    this.meta.modo,
+                required: false,
+                onchange: 'app.onChangeMetaModo()',
+                data: [
+                    { id: 'pct',   valor: 'Porcentaje (%)' },
+                    { id: 'monto', valor: 'Cantidad ($)'   }
+                ]
+            },
+            {
+                opc:      'input',
+                id:       'fMetaValor',
+                lbl:      'Cuanto se aplica:',
+                type:     'number',
+                tipo:     'numero',
+                class:    'col-12 col-md-4 col-lg-2',
+                value:    this.meta.valor,
+                required: false,
+                onchange: 'app.onChangeMeta()'
             },
             {
                 opc:       'button',
@@ -262,13 +319,49 @@ class App extends Templates {
         });
     }
 
+    // La meta viaja con el dia en todas las peticiones: decide que ticket va a que
+    // tasa, asi que el listado, el cierre y la hoja tienen que verla igual.
     getFilters() {
         return {
-            dia: $('#fDia').val()    || this.dataInit.dia
+            dia:       $('#fDia').val() || this.dataInit.dia,
+            metaModo:  this.meta.modo,
+            metaValor: this.meta.valor
         };
     }
 
     // -- Event handlers --
+
+    onChangeMeta() {
+        const valor = parseFloat($('#fMetaValor').val());
+
+        this.meta = {
+            modo:  $('#fMetaModo').val(),
+            valor: isNaN(valor) || valor < 0 ? 0 : valor
+        };
+
+        this.saveMeta();
+        tickets.lsTickets();
+    }
+
+    // Cambiar de unidad no cambia la meta: la traduce. El 70% de la venta y su
+    // importe son el mismo acuerdo escrito de dos formas, y quien alterna el
+    // selector espera ver la conversion, no un campo que se reinicia.
+    onChangeMetaModo() {
+        const modo  = $('#fMetaModo').val();
+        const total = parseFloat(this.dataKpis.total) || 0;
+        const valor = parseFloat($('#fMetaValor').val()) || 0;
+
+        // Sin venta en el dia no hay de que sacar el porcentaje: se vuelve al
+        // default en vez de dejar el campo en cero, que repartiria todo al 0%.
+        const convertido = modo === 'monto'
+            ? total * valor / 100
+            : (total > 0 ? valor / total * 100 : this.dataInit.metaPct);
+
+        $('#fMetaValor').val(Math.round(convertido * 100) / 100);
+
+        this.onChangeMeta();
+    }
+
     onChangeFilters() {
         this.updateHeaderTitle();
         tickets.lsTickets();
@@ -571,6 +664,13 @@ class TicketsView extends Templates {
             ? `${pctCero}% de la venta · ${k.difCeroTexto} vs objetivo`
             : `${pctCero}% de la venta con tarjeta`;
 
+        // Cuando la meta se fija como cantidad, el porcentaje sigue siendo cierto
+        // pero ya no es lo que se capturo: la tarjeta lo dice para que nadie lea un
+        // 44.8% como si alguien lo hubiera elegido asi.
+        const subtituloMeta = k.metaModo === 'monto'
+            ? `cantidad fija · ${k.metaPct || 70}% de la venta con tarjeta`
+            : `${k.metaPct || 70}% de la venta con tarjeta`;
+
         this.infoCard({
             parent: 'kpisRow',
             id:     'kpisTickets',
@@ -578,13 +678,29 @@ class TicketsView extends Templates {
             style:  'file',
             cols:   5,
             json: [
-                // El subtitulo dice "solo tarjeta" porque es justo lo que separa este
-                // total del de Resumen, que suma todas las formas de pago.
-                card('kpiTotalDia', 'Venta del dia', 'banknote', k.totalTexto,
-                     `${k.tickets || 0} tickets · solo tarjeta de credito`, textColor),
+                // De las cinco tarjetas esta es la unica cifra que el modulo procesa
+                // de verdad —la suma de los movimientos validos— y de ella salen los
+                // dos objetivos. Por eso va destacada y no como las demas: el nombre
+                // es el del documento y el subtitulo dice las dos reglas que la
+                // forman, que es justo lo que la separa del total de Resumen.
+                //
+                // Las clases kpi-hero* no pintan aqui: el color vive en
+                // wansoft-theme.css, que es donde debe estar (TRM-007).
+                {
+                    id:          'kpiTotalDia',
+                    title:       'Total Tarjeta de Credito',
+                    lucideIcon:  'credit-card',
+                    bgColor:     'kpi-hero',
+                    borderColor: 'kpi-hero-bd',
+                    data: {
+                        value:    k.totalTexto || '$0.00',
+                        subtitle: `${k.tickets || 0} movimientos validos · Pagada + tarjeta de credito`,
+                        color:    'kpi-hero-val'
+                    }
+                },
 
                 card('kpiMeta', 'Monto objetivo para IVA 16%', 'target', k.objetivoTexto,
-                     `${k.metaPct || 70}% de la venta con tarjeta`, textColor),
+                     subtituloMeta, textColor),
 
                 card('kpiFacturado', 'Ya facturado', 'lock', k.facturadoTexto,
                      `${k.facturados || 0} tickets facturados realmente`, 'text-green-600'),

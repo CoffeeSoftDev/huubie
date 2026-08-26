@@ -5,9 +5,8 @@ if (empty($_POST['opc'])) exit(0);
 require_once '../mdl/mdl-facture-tickets.php';
 
 // Que parte de la venta del dia se factura es politica de la casa, no un dato de
-// la base: por eso vive aqui y no en una tabla. Resumen ofrece el mismo numero
-// como selector (60/80/100); en Tickets es fijo porque el modulo trabaja el
-// cierre del dia contra una sola meta.
+// la base: por eso vive aqui y no en una tabla. Es el valor con el que abre el
+// dia; desde la barra se puede aplicar otro (ver metaDelDia).
 define('META_FACTURACION', 0.7);
 
 class ctrl extends mdl {
@@ -64,10 +63,37 @@ class ctrl extends mdl {
         }
 
         return [
-            'dias'   => $dias,
-            'dia'    => $dia ?: ($dias[0]['id'] ?? date('Y-m-d')),
-            'emisor' => $this->emisor()
+            'dias'    => $dias,
+            'dia'     => $dia ?: ($dias[0]['id'] ?? date('Y-m-d')),
+            // El default de la meta lo pone el servidor: es politica de la casa y
+            // escribirlo tambien en el JS lo dejaria divergir en cuanto uno cambie.
+            'metaPct' => round(META_FACTURACION * 100),
+            'emisor'  => $this->emisor()
         ];
+    }
+
+    // -- Meta de facturacion --
+
+    // Cuanto de la venta del dia se factura al 16%. El acuerdo se escribe de dos
+    // formas —un porcentaje de la venta o una cantidad cerrada— y las dos dicen lo
+    // mismo: un importe objetivo. Aqui se resuelve a ese importe, y de el sale todo
+    // lo demas (el objetivo del 0%, el porcentaje que se muestra, el reparto).
+    //
+    // Viaja en cada peticion en vez de guardarse: la meta decide que ticket va a
+    // que tasa, asi que el listado, el cierre y la hoja tienen que verla igual.
+    // Sin nada capturado se aplica el default de la casa.
+    function metaDelDia($total) {
+        $total = (float) $total;
+        $modo  = $_POST['metaModo']  ?? 'pct';
+        $valor = $_POST['metaValor'] ?? '';
+
+        if ($valor === '' || !is_numeric($valor)) return $total * META_FACTURACION;
+
+        $objetivo = $modo === 'monto' ? (float) $valor : $total * ((float) $valor / 100);
+
+        // Facturar mas de lo que se vendio no existe, y una meta negativa tampoco:
+        // el objetivo se acota al monto procesable del dia.
+        return max(0, min($objetivo, $total));
     }
 
     // El membrete del papel se reparte entre las dos tablas: la sucursal encabeza y
@@ -145,12 +171,12 @@ class ctrl extends mdl {
     function kpisDelDia($c) {
         $total     = (float) $c['total'];
         $facturado = (float) $c['total_facturado'];
-        $objetivo  = $total * META_FACTURACION;
+        $objetivo  = $this->metaDelDia($total);
 
         // Lo que no va al 16% va al 0%: el objetivo de la tasa cero es el
         // complemento de la meta, no un porcentaje aparte. Derivarlo asi mantiene
         // las dos tarjetas sumando la venta del dia si la meta cambia.
-        $objetivoCero = $total * (1 - META_FACTURACION);
+        $objetivoCero = $total - $objetivo;
 
         // Lo que el reparto dejo de verdad en el cero, contra lo que debio dejar. El
         // mejor ajuste toma ventas completas y no puede partir un ticket, asi que la
@@ -159,8 +185,15 @@ class ctrl extends mdl {
         $difCero      = $obtenidoCero - $objetivoCero;
 
         return [
-            'metaPct'           => round(META_FACTURACION * 100),
-            'metaCeroPct'       => round((1 - META_FACTURACION) * 100),
+            // El porcentaje sale del objetivo, no al reves: capturado como cantidad
+            // es el que resulta, y casi nunca es redondo.
+            'metaPct'           => pctTexto($total > 0 ? $objetivo / $total * 100 : 0),
+            'metaCeroPct'       => pctTexto($total > 0 ? $objetivoCero / $total * 100 : 0),
+            // La pantalla lo dice en el subtitulo: una cantidad fija no se mueve
+            // aunque el dia siga vendiendo, y un porcentaje si.
+            'metaModo'          => ($_POST['metaModo'] ?? 'pct') === 'monto' ? 'monto' : 'pct',
+            'total'             => $total,
+            'objetivo'          => $objetivo,
             'totalTexto'        => money($total),
             'objetivoTexto'     => money($objetivo),
             'objetivoCeroTexto' => money($objetivoCero),
@@ -478,7 +511,7 @@ class ctrl extends mdl {
             $cuentaFac++;
         }
 
-        $objetivo = $total * META_FACTURACION;
+        $objetivo = $this->metaDelDia($total);
 
         // Los facturados ya estan dentro del 16%, asi que la cuenta arranca con
         // ellos: sobre ese piso se van sumando las ventas en orden de folio.
@@ -555,15 +588,15 @@ class ctrl extends mdl {
     // El logrado del 16% incluye lo facturado, porque el objetivo del 70% es de la
     // tasa completa y no solo de lo que el reparto movio.
     function resumenReparto($r) {
-        $objetivoCero = $r['total'] * (1 - META_FACTURACION);
+        $objetivoCero = $r['total'] - $r['objetivo'];
         $logrado16    = $r['facturado'] + $r['monto16'];
         $dif16        = $logrado16 - $r['objetivo'];
         $dif0         = $r['monto0'] - $objetivoCero;
 
         return [
             'fechaTexto'        => date('d/m/Y', strtotime($r['dia'] ?? date('Y-m-d'))),
-            'metaPct'           => round(META_FACTURACION * 100),
-            'metaCeroPct'       => round((1 - META_FACTURACION) * 100),
+            'metaPct'           => pctTexto($r['total'] > 0 ? $r['objetivo'] / $r['total'] * 100 : 0),
+            'metaCeroPct'       => pctTexto($r['total'] > 0 ? $objetivoCero / $r['total'] * 100 : 0),
             'totalTexto'        => money($r['total']),
             'objetivoTexto'     => money($r['objetivo']),
             'objetivoCeroTexto' => money($objetivoCero),
@@ -880,6 +913,13 @@ function money($valor) {
 
 function porcentaje($tasa) {
     return round($tasa * 100) . '%';
+}
+
+// El porcentaje de la meta, que a diferencia de la tasa casi nunca es redondo:
+// capturada como cantidad, $10,000 de una venta de $22,331 da 44.8%. Se imprime
+// con un decimal solo cuando lo necesita, para no leer "70.0%" el resto del tiempo.
+function pctTexto($pct) {
+    return rtrim(rtrim(number_format(round((float) $pct, 1), 1), '0'), '.');
 }
 
 // La cantidad se imprime entera cuando lo es: los puente se venden por pieza.
