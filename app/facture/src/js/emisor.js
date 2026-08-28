@@ -327,6 +327,16 @@ class EmisorView extends Templates {
                     data:     this.posList,
                     class:    'col-12 mb-3'
                 },
+                // Tampoco se imprime en el ticket: es hasta cuanto acepta la casa
+                // que el ticket virtual se cuadre con un descuento. El papel que se
+                // pase igual se genera, pero sale marcado en Tickets.
+                {
+                    opc:   'input',
+                    id:    'tolerancia',
+                    lbl:   'Tolerancia del ajuste de cuadre ($)',
+                    tipo:  'cifra',
+                    class: 'col-12 col-md-6 mb-3'
+                },
                 {
                     opc:       'button',
                     id:        'btnGuardarEmisor',
@@ -357,7 +367,8 @@ class EmisorView extends Templates {
             telefono:   $('#telefono').val(),
             domicilio:  $('#domicilio').val(),
             expedicion: $('#expedicion').val(),
-            pos_id:     $('#pos_id').val()
+            pos_id:     $('#pos_id').val(),
+            tolerancia: $('#tolerancia').val()
         };
     }
 

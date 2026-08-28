@@ -46,7 +46,7 @@ class Navbar {
         const p = this.settings.palette;
 
         const band = $('<div>', {
-            class: 'w-full flex items-center justify-between px-3 h-8 shrink-0',
+            class: 'w-full flex items-center justify-between px-3 h-11 shrink-0',
             css: {
                 backgroundColor: p.bg,
                 borderBottom:    `1px solid ${p.border}`

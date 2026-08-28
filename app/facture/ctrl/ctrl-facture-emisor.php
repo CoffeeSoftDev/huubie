@@ -58,7 +58,7 @@ class ctrl extends mdl {
         if (empty($ls)) {
             return [
                 'razon' => '', 'lema' => '', 'rfc' => '', 'telefono' => '', 'domicilio' => '', 'expedicion' => '',
-                'pos_id' => '', 'pos_name' => '', 'pos_code' => '', 'pos_color' => ''
+                'pos_id' => '', 'pos_name' => '', 'pos_code' => '', 'pos_color' => '', 'tolerancia' => ''
             ];
         }
 
@@ -74,7 +74,10 @@ class ctrl extends mdl {
             'pos_id'     => $item['pos_id']    ?? '',
             'pos_name'   => $item['pos_name']  ?? '',
             'pos_code'   => $item['pos_code']  ?? '',
-            'pos_color'  => $item['pos_color'] ?? ''
+            'pos_color'  => $item['pos_color'] ?? '',
+            // Tampoco se imprime: dice hasta donde acepta la casa que el ticket
+            // virtual se cuadre con un descuento (ver ajusteDe en Tickets).
+            'tolerancia' => $item['adjustment_tolerance'] ?? 0
         ];
     }
 
@@ -116,6 +119,13 @@ class ctrl extends mdl {
         if (array_key_exists('pos_id', $_POST)) {
             $posId = (int) $_POST['pos_id'];
             $campos['pos_id'] = $posId > 0 ? $posId : '';
+        }
+
+        // La tolerancia se guarda igual de condicionada que el punto de venta, y
+        // nunca negativa: un tope en negativo marcaria como fuera de rango todos
+        // los papeles, incluidos los que cuadraron exacto.
+        if (array_key_exists('tolerancia', $_POST)) {
+            $campos['adjustment_tolerance'] = max(0, (float) $_POST['tolerancia']);
         }
 
         $campos['id'] = $this->branchId();

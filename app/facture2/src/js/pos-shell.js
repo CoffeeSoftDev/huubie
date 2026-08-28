@@ -19,13 +19,6 @@ function posGo(page) {
     window.location.href = POS_PAGES[page] || page;
 }
 
-// Al menu de administracion se llega desde el inicio y desde el listado de cuentas:
-// regresar tiene que devolver a la que se estaba viendo, no a una fija. Eso ya lo
-// sabe el historial del navegador.
-function posBack() {
-    window.history.back();
-}
-
 function posExit() {
     app.swalQuestion({
         extends: true,

@@ -31,6 +31,112 @@ class App extends Templates {
         this.render();
     }
 
+    // -- Ancho del panel del ticket --
+
+    // Limites del arrastre. El minimo no baja de lo que mide el papel: la tira son
+    // 340px fijos (.ticket-paper en facture.css) mas el aire de su contenedor, y por
+    // debajo el ticket se leeria con scroll horizontal. El maximo evita que el panel
+    // se coma el listado, que es lo que se vino a ver.
+    static get PANEL_MIN() { return 380; }
+    static get PANEL_MAX() { return 720; }
+    static get PANEL_DEF() { return 420; }
+
+    panelKey() {
+        return `facture:detailWidth:${this.PROJECT_NAME}`;
+    }
+
+    // El ancho se guarda por modulo y sobrevive a la recarga: reajustarlo cada vez
+    // que se entra a Tickets seria pedirle al usuario que repita la misma decision.
+    aplicarAncho(px, guardar) {
+        const ancho = Math.round(Math.min(App.PANEL_MAX, Math.max(App.PANEL_MIN, px)));
+
+        document.documentElement.style.setProperty('--detail-w', `${ancho}px`);
+
+        const tirador = document.getElementById('detailResizer');
+        if (tirador) tirador.setAttribute('aria-valuenow', ancho);
+
+        if (guardar) {
+            try { localStorage.setItem(this.panelKey(), ancho); } catch (e) { /* sin storage se pierde al salir, nada mas */ }
+        }
+
+        return ancho;
+    }
+
+    anchoGuardado() {
+        try {
+            const px = Number(localStorage.getItem(this.panelKey()));
+            return px > 0 ? px : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Arrastrar el borde del panel. Se escucha con pointer events y no con mouse:
+    // asi el mismo gesto sirve con dedo y con lapiz, y setPointerCapture mantiene
+    // el arrastre aunque el puntero se salga del tirador o de la ventana.
+    resizePanel() {
+        const tirador = document.getElementById('detailResizer');
+        const panel   = document.getElementById('detailPanel');
+        if (!tirador || !panel) return;
+
+        this.aplicarAncho(this.anchoGuardado() || App.PANEL_DEF, false);
+
+        tirador.setAttribute('role', 'separator');
+        tirador.setAttribute('aria-orientation', 'vertical');
+        tirador.setAttribute('aria-label', 'Ancho del panel del ticket');
+        tirador.setAttribute('aria-valuemin', App.PANEL_MIN);
+        tirador.setAttribute('aria-valuemax', App.PANEL_MAX);
+        tirador.setAttribute('type', 'button');
+
+        // El ancho se mide desde el borde derecho de la ventana hasta el puntero,
+        // no como un delta acumulado: si el arrastre se sale de los limites y
+        // vuelve, el panel sigue pegado al cursor en vez de quedar desfasado.
+        const mover = (e) => this.aplicarAncho(window.innerWidth - e.clientX, false);
+
+        tirador.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            tirador.setPointerCapture(e.pointerId);
+            tirador.classList.add('is-dragging');
+            document.body.classList.add('is-resizing');
+
+            const soltar = () => {
+                tirador.classList.remove('is-dragging');
+                document.body.classList.remove('is-resizing');
+                tirador.removeEventListener('pointermove', mover);
+                this.aplicarAncho(panel.getBoundingClientRect().width, true);
+            };
+
+            tirador.addEventListener('pointermove', mover);
+            tirador.addEventListener('pointerup', soltar, { once: true });
+            tirador.addEventListener('pointercancel', soltar, { once: true });
+        });
+
+        // Teclado: el panel se mueve de 16 en 16, y de 64 con Shift. Home y End
+        // van a los topes.
+        tirador.addEventListener('keydown', (e) => {
+            const paso = e.shiftKey ? 64 : 16;
+            const hoy  = panel.getBoundingClientRect().width;
+
+            const destino = {
+                ArrowLeft:  hoy + paso,
+                ArrowRight: hoy - paso,
+                Home:       App.PANEL_MAX,
+                End:        App.PANEL_MIN
+            }[e.key];
+
+            if (destino === undefined) return;
+
+            e.preventDefault();
+            this.aplicarAncho(destino, true);
+        });
+
+        // Doble clic devuelve el ancho de fabrica: es la salida para quien arrastro
+        // de mas y no sabe con que numero volver.
+        tirador.addEventListener('dblclick', () => this.aplicarAncho(App.PANEL_DEF, true));
+    }
+
     // -- Meta de facturacion --
 
     // El default lo manda el servidor, que es donde vive la politica de la casa.
@@ -75,6 +181,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.resizePanel();
         this.filterBar();
         this.previewActions();
         ticketsView.renderFooter();
@@ -127,12 +234,24 @@ class App extends Templates {
             ]
         };
 
+        // El tirador que separa las dos columnas. Va como <button> y no como <div>
+        // para que entre en el orden de tabulacion: quien no puede arrastrar con el
+        // raton mueve el panel con las flechas. Lo viste facture.css por id, igual
+        // que en Cargas.
+        const detailResizer = {
+            type:  'button',
+            id:    'detailResizer'
+        };
+
         // createLayout solo itera children en type 'div': para un aside caen en el
         // default y jQuery los toma como metodo. Las zonas del panel se arman aparte.
+        //
+        // El ancho no vive aqui: lo pone --detail-w desde el CSS, que es quien sabe
+        // si la pantalla esta en una columna o en dos.
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
+            class: 'w-full flex-shrink-0 bg-[#141d2b] border-t md:border-t-0 md:border-l border-[#374151] flex flex-col overflow-hidden'
         };
 
         this.createLayout({
@@ -141,7 +260,7 @@ class App extends Templates {
             data: {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden',
-                container: [mainPanel, detailPanel]
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
 
@@ -214,37 +333,10 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()'
             },
-            // Cuanto de la venta se factura al 16%. Son dos campos y no uno porque
-            // la meta se acuerda de las dos formas —"el 70%" o "$15,000 cerrados"—
-            // y obligar a traducirla a mano es donde se cuelan los errores.
-            {
-                opc:      'select',
-                id:       'fMetaModo',
-                lbl:      'Aplicar por:',
-                class:    'col-12 col-md-4 col-lg-2',
-                value:    this.meta.modo,
-                required: false,
-                onchange: 'app.onChangeMetaModo()',
-                data: [
-                    { id: 'pct',   valor: 'Porcentaje (%)' },
-                    { id: 'monto', valor: 'Cantidad ($)'   }
-                ]
-            },
-            {
-                opc:      'input',
-                id:       'fMetaValor',
-                lbl:      'Cuanto se aplica:',
-                type:     'number',
-                tipo:     'numero',
-                class:    'col-12 col-md-4 col-lg-2',
-                value:    this.meta.valor,
-                required: false,
-                onchange: 'app.onChangeMeta()'
-            },
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
-                text:      'Generar tickets IVA 0%',
+                text:      'Generar tickets del dia',
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => tickets.generateDay()
@@ -264,6 +356,23 @@ class App extends Templates {
                 color_btn: 'secondary',
                 class:     'col-12 col-md-4 col-lg-3',
                 onClick:   () => tickets.redoDay()
+            },
+            // Cuanto de la venta se factura al 16% es un acuerdo del mes, no un filtro
+            // del dia: vive detras del engrane y no en la barra, donde dos campos mas
+            // competian por el renglon con la fecha y las acciones.
+            //
+            // Va al final y en la ultima columna (col-start-12) para quedar pegado al
+            // borde, separado de las acciones: se toca una vez al mes y no compite con
+            // los botones que se usan a diario. La meta vigente la sigue mostrando la
+            // tarjeta del objetivo al 16%, no este boton.
+            {
+                opc:       'button',
+                id:        'btnMetaConfig',
+                text:      '',
+                color_btn: 'light',
+                class:     'col-6 col-lg-1 lg:col-start-12 flex flex-col items-end',
+                className: '!w-10 !h-9 !px-0 flex items-center justify-center',
+                onClick:   () => app.openMetaModal()
             }
         ];
 
@@ -273,6 +382,8 @@ class App extends Templates {
             theme:      FACTURE_THEME,
             data:       filters
         });
+
+        this.decorateMetaButton();
     }
 
     // Repartir el dia y sacar el papel son dos momentos distintos, y solo uno de los
@@ -284,6 +395,11 @@ class App extends Templates {
     syncActionButtons(counts) {
         const repartido = (counts.generados || 0) > 0;
         const columna   = (id) => $(`#${id}`).closest('[class*="col-"]');
+
+        // El panel no sobrevive a un dia sin reparto: si se cambia de fecha, el
+        // papel que quedaba en pantalla es el de otro dia y ya no se puede abrir
+        // ninguno para reemplazarlo.
+        if (!repartido && this.selectedId) this.selectTicket(null);
 
         columna('btnGenerarTodos').toggle(!repartido);
         columna('btnImprimirTodos').toggle(repartido);
@@ -331,16 +447,84 @@ class App extends Templates {
 
     // -- Event handlers --
 
-    onChangeMeta() {
-        const valor = parseFloat($('#fMetaValor').val());
-
-        this.meta = {
-            modo:  $('#fMetaModo').val(),
-            valor: isNaN(valor) || valor < 0 ? 0 : valor
-        };
-
-        this.saveMeta();
+    onChangeFilters() {
+        this.updateHeaderTitle();
         tickets.lsTickets();
+
+        if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
+            this.selectTicket(null);
+        }
+    }
+
+    // El listado ya viene filtrado del servidor: basta con ver si el folio
+    // seleccionado sobrevivio al repintado.
+    isVisibleAfterFilters(folio) {
+        return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
+    }
+
+    // -- Distribucion IVA 16% / IVA 0% --
+
+    // El acuerdo se escribe de dos formas —"el 70%" o "$15,000 cerrados"— y las dos
+    // dicen lo mismo: cuanto de la venta con tarjeta se factura al 16%. Solo se
+    // captura esa mitad; la del 0% es el resto, asi que las dos siempre suman el
+    // Total Tarjeta de Credito y el reparto no se puede dejar sin cuadrar.
+    //
+    // El modal muestra lo que la barra no podia: las dos tasas con su monto mientras
+    // se captura, y no solo el campo suelto de la que se escribe.
+    openMetaModal() {
+        if (this.metaModal) return;
+
+        this.metaModal = this.cfModal({
+            title:         'Distribucion IVA 16% / IVA 0%',
+            size:          'small',
+            theme:         FACTURE_THEME,
+            okLabel:       'Aplicar',
+            cancelLabel:   'Cancelar',
+            backdropClose: true,
+            onOk:          () => this.applyMeta(),
+            onClose:       () => { this.metaModal = null; }
+        });
+
+        this.metaModal.body.append($('<div>', { id: 'metaModalForm' }));
+        this.metaModal.body.append($('<div>', { id: 'metaModalPreview' }));
+
+        this.createfilterBar({
+            parent:     'metaModalForm',
+            id:         'frmMetaTickets',
+            coffeesoft: true,
+            theme:      FACTURE_THEME,
+            data: [
+                {
+                    opc:      'select',
+                    id:       'fMetaModo',
+                    lbl:      'Aplicar por:',
+                    class:    'col-12',
+                    value:    this.meta.modo,
+                    required: false,
+                    onchange: 'app.onChangeMetaModo()',
+                    data: [
+                        { id: 'pct',   valor: 'Porcentaje (%)' },
+                        { id: 'monto', valor: 'Cantidad ($)'   }
+                    ]
+                },
+                {
+                    opc:      'input',
+                    id:       'fMetaValor',
+                    lbl:      'Cuanto se factura al IVA 16%:',
+                    type:     'number',
+                    tipo:     'numero',
+                    class:    'col-12',
+                    value:    this.meta.valor,
+                    required: false
+                }
+            ]
+        });
+
+        // El reparto se recalcula tecla a tecla: es lo que se esta mirando mientras
+        // se captura, y con onchange solo aparece al salir del campo.
+        $('#fMetaValor').on('input', () => this.renderMetaPreview());
+
+        this.renderMetaPreview();
     }
 
     // Cambiar de unidad no cambia la meta: la traduce. El 70% de la venta y su
@@ -359,22 +543,80 @@ class App extends Templates {
 
         $('#fMetaValor').val(Math.round(convertido * 100) / 100);
 
-        this.onChangeMeta();
+        this.renderMetaPreview();
     }
 
-    onChangeFilters() {
-        this.updateHeaderTitle();
+    // El reparto que se va a aplicar, con la misma cuenta que metaDelDia() hace en el
+    // servidor: el 16% se acota a la venta del dia y el 0% es el complemento. Es la
+    // unica cifra que el modulo calcula en pantalla, y solo porque se mira antes de
+    // que exista la peticion que la confirmaria.
+    renderMetaPreview() {
+        const total     = parseFloat(this.dataKpis.total) || 0;
+        const modo      = $('#fMetaModo').val();
+        const valor     = parseFloat($('#fMetaValor').val()) || 0;
+        const capturado = modo === 'monto' ? valor : total * valor / 100;
+        const objetivo  = Math.max(0, Math.min(capturado, total));
+
+        ticketsView.renderMetaPreview({
+            totalTexto: this.moneyText(total),
+            texto16:    this.moneyText(objetivo),
+            texto0:     this.moneyText(total - objetivo),
+            pct16:      this.pctText(total > 0 ? objetivo / total * 100 : 0),
+            pct0:       this.pctText(total > 0 ? (total - objetivo) / total * 100 : 0),
+            // Pedir mas de lo que se vendio es la unica captura que el reparto no
+            // puede respetar: se acota, y se avisa, porque el campo sigue mostrando
+            // lo que se escribio.
+            recortado:  capturado > total
+        });
+    }
+
+    // Aplicar cierra el modal y vuelve a pedir el dia: la meta viaja en cada
+    // peticion, asi que el listado, los KPIs y el reparto tienen que verla igual.
+    applyMeta() {
+        const valor = parseFloat($('#fMetaValor').val());
+
+        this.meta = {
+            modo:  $('#fMetaModo').val(),
+            valor: isNaN(valor) || valor < 0 ? 0 : valor
+        };
+
+        this.saveMeta();
+        this.metaModal.close();
         tickets.lsTickets();
-
-        if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
-            this.selectTicket(null);
-        }
     }
 
-    // El listado ya viene filtrado del servidor: basta con ver si el folio
-    // seleccionado sobrevivio al repintado.
-    isVisibleAfterFilters(folio) {
-        return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
+    // El boton nace vacio: opc:'button' pinta su icono como clase CSS y aqui los
+    // iconos son Lucide, que se monta por atributo.
+    decorateMetaButton() {
+        $('#btnMetaConfig')
+            .empty()
+            .append($('<i>', { 'data-lucide': 'settings', class: 'w-4 h-4' }));
+
+        if (window.lucide) lucide.createIcons();
+
+        this.syncMetaButton();
+    }
+
+    // Sin etiqueta el boton no puede rotular la meta, asi que la dice al pasar por
+    // encima, y en la unidad con la que se capturo: un porcentaje se mueve con la
+    // venta y una cantidad no, y esa diferencia importa a media jornada. En pantalla
+    // el monto sigue estando en la tarjeta del objetivo al 16%.
+    syncMetaButton() {
+        const valor = this.meta.modo === 'monto'
+            ? (this.dataKpis.objetivoTexto || this.moneyText(this.meta.valor))
+            : `${this.pctText(this.meta.valor)}%`;
+
+        $('#btnMetaConfig').attr('title', `Distribucion IVA 16% / IVA 0% · al 16%: ${valor}`);
+    }
+
+    // Gemelos de money() y pctTexto() del controlador, para el reparto que el modal
+    // muestra antes de mandarlo. Todo lo demas llega escrito del servidor.
+    moneyText(n) {
+        return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    pctText(pct) {
+        return String(Math.round((Number(pct) || 0) * 10) / 10);
     }
 
     // Copy de la cabecera del modulo. No son datos: tickets, emisor y renglones del
@@ -428,6 +670,35 @@ class Tickets extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
+        this.generating   = false;
+    }
+
+    // Una corrida de tickets a la vez.
+    //
+    // Generar el dia son decenas de papeles y la peticion tarda segundos sin avisar
+    // nada en pantalla, asi que el segundo clic entra cuando el primero todavia no
+    // guarda: las dos peticiones leen "esta venta no tiene ticket" y las dos se lo
+    // arman. La base no lo impide —virtual_ticket.sale_id no es UNIQUE— y el mismo
+    // cobro termina con dos notas.
+    //
+    // El candado va en el metodo y no en el boton porque las tres formas de generar
+    // (el dia, los del 0% y el ticket seleccionado) escriben en la misma tabla. Los
+    // botones se apagan de paso, para que se vea que la corrida ya arranco.
+    async runLocked(task) {
+        if (this.generating) return;
+
+        this.generating = true;
+
+        const botones = $('#btnGenerarTodos, #btnRehacer, #btnRegenerar')
+            .prop('disabled', true)
+            .addClass('opacity-60 cursor-not-allowed');
+
+        try {
+            await task();
+        } finally {
+            this.generating = false;
+            botones.prop('disabled', false).removeClass('opacity-60 cursor-not-allowed');
+        }
     }
 
     // Tabla de tickets
@@ -438,8 +709,8 @@ class Tickets extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [1, 2, 3,  4, 5],
-            right:        [6],
+            center:       [1, 2, 3, 4],
+            right:        [5],
             actionsAlign: 'right',
             extends:      true,
             scrollable:   false,
@@ -460,7 +731,9 @@ class Tickets extends Templates {
 
         ticketsView.renderListHead(counts);
         ticketsView.renderKpis(app.dataKpis);
+        ticketsView.renderListNote(data.corte);
         app.syncActionButtons(counts);
+        app.syncMetaButton();
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} pagados con tarjeta de credito`);
     }
@@ -477,39 +750,71 @@ class Tickets extends Templates {
     // -- Actions --
 
     // El cierre del dia: el servidor decide que se factura al 16% y que se manda al
-    // 0% y arma el papel de los segundos. No imprime nada; el papel sale con el otro
-    // boton, que aparece justo cuando esto termina.
+    // 0%, y arma el papel que a cada grupo le falte —el del cero siempre, el del 16%
+    // solo cuando la venta llego sin su comanda—. No imprime nada; el papel sale con
+    // el otro boton, que aparece justo cuando esto termina.
     //
     // Va sin preguntar porque solo se ofrece en el dia que todavia no se reparte: no
     // hay nada que reemplazar. El que si pregunta es redoDay().
     async generateDay() {
-        const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
 
-        if (response.status !== 200) {
-            this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
-            return;
-        }
+            if (response.status !== 200) {
+                this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
+                return;
+            }
 
-        await this.lsTickets();
+            await this.lsTickets();
 
-        ticketsView.renderResumenReparto(response);
+            ticketsView.renderResumenReparto(response);
+        });
     }
 
-    // Volver a repartir un dia ya cerrado. La confirmacion dice lo que esta en juego
-    // porque la corrida REEMPLAZA el reparto anterior: un ticket que estaba al 0%
-    // puede pasar al 16% y soltar su papel.
+    // Las dos maneras de deshacer un dia ya cerrado, en la misma pregunta: rehacerlo
+    // o eliminarlo. Salen juntas porque parten del mismo estado —el dia repartido— y
+    // el usuario decide entre ellas, no entre dos botones separados de la barra.
+    //
+    // El texto dice lo que hace cada una porque no son reversibles: rehacer REEMPLAZA
+    // el reparto anterior (un ticket que estaba al 0% puede pasar al 16% y soltar su
+    // papel) y eliminar no deja nada en su lugar.
     redoDay() {
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Rehacer el reparto del dia',
-                text:              'Se vuelve a repartir la venta del dia entre IVA 16% e IVA 0%, y se reemplazan los tickets que ya se generaron. Las notas no cambian.',
+                text:              'Rehacer vuelve a repartir la venta del dia entre IVA 16% e IVA 0% y reemplaza los tickets ya generados; las notas no cambian. Solo eliminar borra los tickets del dia y la corrida que los genero, y deja el dia sin repartir.',
                 icon:              'question',
+                showDenyButton:    true,
                 confirmButtonText: 'Si, rehacer',
+                denyButtonText:    'Solo eliminar',
                 cancelButtonText:  'No'
             }
         }).then((result) => {
-            if (result.isConfirmed) this.generateDay();
+            if (result.isConfirmed)   this.generateDay();
+            else if (result.isDenied) this.deleteDay();
+        });
+    }
+
+    // Deshacer el reparto del dia. El panel se vacia junto con la tabla: el papel que
+    // estuviera abierto es de un ticket que acaba de dejar de existir.
+    async deleteDay() {
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'deleteDay' }, app.getFilters()) });
+
+            if (response.status === 200) {
+                app.selectedId = null;
+                ticketsView.renderPreview(null);
+
+                await this.lsTickets();
+            }
+
+            this.alertBox({
+                theme: FACTURE_THEME,
+                type:  response.status === 200 ? 'success' : 'error',
+                title: response.message,
+                timer: response.status === 200 ? 1800 : 0
+            });
         });
     }
 
@@ -549,9 +854,11 @@ class Tickets extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateAllZero' }, app.getFilters()) });
+            await this.runLocked(async () => {
+                const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateAllZero' }, app.getFilters()) });
 
-            this.afterGenerate(response, response.folio);
+                this.afterGenerate(response, response.folio);
+            });
         });
     }
 
@@ -563,9 +870,11 @@ class Tickets extends Templates {
             return;
         }
 
-        const response = await useFetch({ url: apiTickets, data: { opc: 'generate', folio: app.selectedId } });
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: { opc: 'generate', folio: app.selectedId } });
 
-        this.afterGenerate(response, app.selectedId);
+            this.afterGenerate(response, app.selectedId);
+        });
     }
 
     afterGenerate(response, folio) {
@@ -587,6 +896,16 @@ class Tickets extends Templates {
             return;
         }
         window.print();
+    }
+
+    // El ojo esta apagado mientras el dia no se reparte. El aviso dice con que
+    // boton aparece el papel, que es lo unico que quien hizo clic necesita saber.
+    pendingNotice() {
+        this.alertBox({
+            theme: FACTURE_THEME,
+            type:  'message',
+            title: 'Genera los tickets del dia para ver el papel de cada ticket'
+        });
     }
 
     async lockedNotice(folio) {
@@ -624,7 +943,8 @@ class TicketsView extends Templates {
                 info: '',
                 legends: [
                     { tone: 'success', label: 'Facturado (bloqueado)'   },
-                    { tone: 'info',    label: 'IVA 0% · ticket generado' },
+                    { tone: 'info',    label: 'Ticket IVA 16%'  },
+                    { tone: 'default', label: 'Ticket IVA 0%'   },
                     { tone: 'warning', label: 'Requiere ticket virtual' },
                     { tone: 'default', label: 'No facturado'   }
                 ]
@@ -632,10 +952,21 @@ class TicketsView extends Templates {
         });
     }
 
-    renderListNote() {
+    // El pie del listado. Cuando el dia tiene corte previsto la nota lo dice primero:
+    // la linea de la tabla es una marca muda sin los numeros que la ponen ahi.
+    //
+    // Sin corte no hay linea que explicar —toda la venta cabe en el 16%— y la nota
+    // se queda con lo de siempre.
+    renderListNote(corte) {
+        const base = 'Al generar, los que caen al IVA 0% estrenan una lista de productos de tasa 0% que suma su total. Los del IVA 16% conservan lo que trae su comanda, y solo los que llegaron sin detalle se arman con el catalogo de IVA. Los productos se dan de alta en Catalogos; el sistema busca la combinacion que da el total exacto y el descuento solo aparece cuando ninguna cuadra. El ticket cuyo descuento pase la tolerancia capturada en Emisor lo dice al abrirlo.';
+
+        const linea = corte && corte.hay
+            ? `La linea ambar marca hasta donde llega el IVA 16%: las ${corte.cuenta16} ventas de arriba suman ${corte.logradoTexto} para un objetivo de ${corte.objetivoTexto}, y las ${corte.cuenta0} de abajo (${corte.monto0Texto}) caen al IVA 0%. `
+            : '';
+
         this.noteBox({
             parent: 'listNote',
-            json:   { text: 'Al generar, el sistema arma una lista de productos de tasa 0% que suman el total del ticket. Esos productos se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
+            json:   { text: linea + base }
         });
     }
 
@@ -656,12 +987,10 @@ class TicketsView extends Templates {
         });
 
         const pctCero      = k.metaCeroPct || 30;
-        const tituloCero   = k.ceroGenerado ? 'IVA 0% obtenido / objetivo' : 'Monto objetivo para IVA 0%';
-        const valorCero    = k.ceroGenerado
-            ? `${k.obtenidoCeroTexto} / ${k.objetivoCeroTexto}`
-            : k.objetivoCeroTexto;
+        const tituloCero   = k.ceroGenerado ? 'Generado al IVA 0%' : 'Monto objetivo para IVA 0%';
+        const valorCero    = k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto;
         const subtituloCero = k.ceroGenerado
-            ? `${pctCero}% de la venta · ${k.difCeroTexto} vs objetivo`
+            ? `${pctCero}% de la venta · objetivo ${k.objetivoCeroTexto}`
             : `${pctCero}% de la venta con tarjeta`;
 
         // Cuando la meta se fija como cantidad, el porcentaje sigue siendo cierto
@@ -708,13 +1037,73 @@ class TicketsView extends Templates {
                 card('kpiPorFacturar', 'Por facturar al IVA 16%', 'alert-circle', k.porFacturarTexto,
                      `${k.metaPct || 70}% de la venta - Facturado`, 'text-[#1C64F2]'),
 
-                // La unica tarjeta con dos montos: el 0% es lo que el reparto arma,
-                // asi que se muestra lo que se obtuvo contra lo que se debio obtener.
-                // Mientras el dia no tenga reparto corrido solo se muestra el objetivo.
+                // El monto que el reparto armo al 0%. El objetivo baja al subtitulo:
+                // el dato que se lee es lo generado, no la comparacion.
+                // Mientras el dia no tenga reparto corrido se muestra el objetivo.
                 card('kpiObjetivoCero', tituloCero, 'alert-circle', valorCero,
                      subtituloCero, 'text-[#1C64F2]')
             ]
         });
+    }
+
+    // El cuadre del modal de distribucion: las dos tasas y su suma contra el Total
+    // Tarjeta de Credito. El 0% no se captura, se deriva del 16%, asi que la suma
+    // siempre da el total; mostrarla es lo que deja ver que el reparto cuadra antes
+    // de aplicarlo.
+    //
+    // Va con las clases de tema resueltas aqui y no con los tokens del modulo:
+    // facture-theme traduce la paleta bajo #mainContainer, y cfModal monta su panel
+    // al final del <body>, fuera de ese scope, igual que el popup de SweetAlert.
+    renderMetaPreview(p) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const panel = FACTURE_THEME_IS_LIGHT ? 'bg-gray-50 border-gray-200' : 'bg-[#141d2b] border-[#374151]';
+        const linea = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+        const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
+
+        // El punto de color es el mismo par que separa las dos tasas en el resto del
+        // modulo: azul la que se factura, ambar la que pide ticket virtual.
+        const fila = (color, texto, pct, monto) => `
+            <div class="flex items-center justify-between py-1.5">
+                <span class="flex items-center gap-2 text-[11px] ${label}">
+                    <span class="w-2 h-2 rounded-full" style="background:${color};"></span>
+                    ${esc(texto)}
+                    <span class="text-[10px] opacity-70">${esc(pct)}%</span>
+                </span>
+                <span class="text-[12px] font-semibold ${valor}">${esc(monto)}</span>
+            </div>
+        `;
+
+        const aviso = p.recortado ? `
+            <p class="mt-2 text-[10px] facture-warn flex items-start gap-1.5">
+                <i data-lucide="alert-triangle" class="w-3 h-3 shrink-0 mt-[1px]"></i>
+                Se capturo mas que la venta del dia: el reparto se acota al total y no queda nada al IVA 0%.
+            </p>
+        ` : '';
+
+        $('#metaModalPreview').html(`
+            <div class="mt-4 rounded-lg border ${panel} px-3 py-2">
+                <div class="flex items-center justify-between pb-1.5 border-b ${linea}">
+                    <span class="text-[11px] ${label}">Total Tarjeta de Credito</span>
+                    <span class="text-[12px] font-bold ${valor}">${esc(p.totalTexto)}</span>
+                </div>
+                ${fila('#1C64F2', 'IVA 16%', p.pct16, p.texto16)}
+                ${fila('#F59E0B', 'IVA 0%',  p.pct0,  p.texto0)}
+                <div class="flex items-center justify-between pt-1.5 border-t ${linea}">
+                    <span class="flex items-center gap-1.5 text-[11px] ${label}">
+                        <i data-lucide="check" class="w-3 h-3 text-green-600"></i>
+                        Suma de las dos tasas
+                    </span>
+                    <span class="text-[12px] font-semibold ${valor}">${esc(p.totalTexto)}</span>
+                </div>
+            </div>
+            ${aviso}
+        `);
+
+        if (window.lucide) lucide.createIcons();
     }
 
     // El corte que se muestra al terminar el reparto. Todos los montos llegan
@@ -752,18 +1141,42 @@ class TicketsView extends Templates {
             </span>
         `;
 
-        // Los conteos no son montos: el numero va pegado a su etiqueta y el desglose
-        // queda a la derecha, para no leerlos como una columna de dinero.
-        const conteo = (etiqueta, cuantos, detalle) => `
-            <span class="block flex items-baseline justify-between gap-3 pl-3">
+        // Los conteos no son montos: el numero va pegado a su etiqueta y no en la
+        // columna de la derecha, para no leerlos como una cifra de dinero.
+        const conteo = (etiqueta, cuantos) => `
+            <span class="block text-left pl-3">
                 <span class="text-gray-500">${esc(etiqueta)}
                     <span class="font-mono text-gray-300 font-semibold ml-1">${esc(cuantos)}</span>
                 </span>
-                <span class="text-gray-500">${detalle}</span>
             </span>
         `;
 
+        // De que se compone cada grupo. Va debajo del conteo y no a su derecha: con
+        // tres cifras (facturados, con comanda, armados) no cabe en el ancho del
+        // modal y la frase se partia a media palabra.
+        const detalle = (texto, tono) => `
+            <span class="block text-left pl-6 text-[11px] ${tono || 'text-gray-500'}">${esc(texto)}</span>
+        `;
+
         const separador = '<span class="block border-t border-[#374151] my-2.5"></span>';
+
+        // El 16% se compone de hasta tres cosas y solo se nombran las que hay: los
+        // que ya venian facturados, los que imprimen su comanda y los que estrenan
+        // papel del catalogo.
+        const conComanda = Math.max(0, (r.cuenta16 || 0) - (r.armados16 || 0));
+        const partes16   = [];
+
+        if (r.facturados) partes16.push(`${r.facturados} ya facturados`);
+        if (conComanda)   partes16.push(`${conComanda} con su comanda`);
+        if (r.armados16)  partes16.push(`${r.armados16} con papel armado`);
+
+        // Rebasar el objetivo no es un error y el modal tiene que decirlo, que es lo
+        // que mas se pregunta al ver el resumen: la venta no se parte, asi que el
+        // ticket que cruza la meta entra completo al 16% y esa misma cantidad es la
+        // que le falta al 0%.
+        const desfase = parseFloat(String(r.dif16Texto || '').replace(/[^0-9.]/g, '')) > 0
+            ? `<span class="block text-left text-[11px] text-gray-500 mt-2">Los tickets no se parten: el que cruza la meta entra completo, asi que el 16% se pasa ${esc(r.dif16Texto)} y al 0% le falta lo mismo.</span>`
+            : '';
 
         this.alertBox({
             theme:   FACTURE_THEME,
@@ -779,17 +1192,19 @@ class TicketsView extends Templates {
                 </span>
                 ${separador}
                 ${titulo('Objetivo IVA 16%', r.metaPct, r.objetivoTexto)}
-                ${renglon('ya facturado', r.facturadoTexto)}
-                ${renglon('por cubrir con tickets', r.porCubrirTexto)}
+                ${r.facturados ? renglon('ya facturado', r.facturadoTexto) + renglon('por cubrir con tickets', r.porCubrirTexto) : ''}
                 ${renglon('logrado', r.logrado16Texto, dif(r.dif16Texto))}
                 ${separador}
                 ${titulo('Objetivo IVA 0%', r.metaCeroPct, r.objetivoCeroTexto)}
                 ${renglon('logrado', r.logrado0Texto, dif(r.dif0Texto))}
+                ${desfase}
                 ${separador}
-                <span class="block text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
-                ${conteo('al IVA 16%', r.cuenta16Total, `${esc(r.facturados)} facturados + ${esc(r.cuenta16)} reales`)}
-                ${conteo('al IVA 0%',  r.cuenta0, 'con ticket virtual')}
-                ${r.sinPapel ? conteo('sin papel', r.sinPapel, '<span class="text-amber-400">faltan productos de tasa 0%</span>') : ''}
+                <span class="block text-left text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
+                ${conteo('al IVA 16%', r.cuenta16Total)}
+                ${partes16.length ? detalle(partes16.join(' · ')) : ''}
+                ${conteo('al IVA 0%', r.cuenta0)}
+                ${detalle('con ticket virtual del catalogo de tasa 0%')}
+                ${r.sinPapel ? conteo('sin papel', r.sinPapel) + detalle('faltan productos en el catalogo', 'text-amber-500') : ''}
             `
         });
     }
@@ -848,9 +1263,18 @@ class TicketsView extends Templates {
                 badges: ticket
                     ? [
                         { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
-                        // El que no se genero ya no es una propuesta: es el consumo
-                        // real con el que la venta se factura al 16%.
-                        { text: ticket.generado ? 'papel guardado' : 'consumo real', tone: ticket.generado ? 'b-blue' : 'b-gray' }
+                        // Tres estados y no dos: el papel guardado, el consumo real
+                        // con el que la venta se factura al 16%, y la propuesta que
+                        // se le arma a la venta que llego sin comanda y todavia no
+                        // se guarda.
+                        ticket.generado
+                            ? { text: 'papel guardado', tone: 'b-blue' }
+                            : (ticket.grupo === 'ivaGenerado'
+                                ? { text: 'propuesta', tone: 'b-yellow' }
+                                : { text: 'consumo real', tone: 'b-gray' }),
+                        // El ajuste que se paso del tope se ve sin leer la nota: es
+                        // el mismo aviso que lleva la fila en el listado.
+                        ...(ticket.fueraTolerancia ? [{ text: `Descuento ${ticket.descuento}`, tone: 'b-yellow' }] : [])
                       ]
                     : []
             }
@@ -861,15 +1285,50 @@ class TicketsView extends Templates {
             class:  'text-[10px] text-gray-400 text-center',
             json: {
                 icon: '',
-                // El copy depende de que papel se esta viendo: el inventado explica
-                // el cuadre con la tasa 0% y el real explica su desglose fiscal.
-                text: ticket
-                    ? (ticket.grupo === 'cero'
-                        ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
-                        : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.`)
-                    : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
+                text: ticket ? this.previewNote(ticket) : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });
+    }
+
+    // El copy depende de que papel se esta viendo:
+    //
+    //   cero         inventado con productos de tasa 0%, explica el cuadre.
+    //   ivaGenerado  inventado con el catalogo de IVA, para la venta que llego sin
+    //                comanda: explica de donde salieron los renglones y su desglose.
+    //   real         el consumo que trajo el POS, explica solo el desglose.
+    previewNote(ticket) {
+        if (ticket.grupo === 'cero') {
+            return `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal} contra los ${ticket.total} del ticket.` + this.ajusteText(ticket);
+        }
+
+        const desglose = `${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.`;
+
+        if (ticket.grupo === 'ivaGenerado') {
+            return `Papel armado del catalogo de IVA porque la venta llego sin su comanda: ${ticket.lineas.length} renglon(es) suman el total del ticket. ${desglose}` + this.ajusteText(ticket);
+        }
+
+        return `Consumo real del ticket: ${desglose}` + this.ajusteText(ticket);
+    }
+
+    // Lo que se dice del ajuste con el que se cuadro el papel. Se dice SIEMPRE que
+    // exista, y no solo en el del 0%: el armado con el catalogo de IVA tambien puede
+    // cerrar con diferencia, y una diferencia que no se ve es una silenciosa.
+    //
+    // Solo el papel inventado se cuadra con un ajuste. El descuento de un papel real
+    // es una cortesia que el POS ya cobro asi, y llamarle ajuste de cuadre seria
+    // decir que el sistema lo puso, cuando no lo puso.
+    //
+    // Sin tope capturado la tolerancia llega en cero y la frase solo informa el
+    // ajuste, sin veredicto que no se pidio.
+    ajusteText(ticket) {
+        if (!ticket.conAjuste) return '';
+        if (ticket.grupo !== 'cero' && ticket.grupo !== 'ivaGenerado') return '';
+
+        if (ticket.fueraTolerancia) {
+            return ` Se cuadro con un descuento de ${ticket.descuento}, que pasa la tolerancia de ${ticket.tolerancia}.`;
+        }
+
+        return ` Se cuadro con un descuento de ${ticket.descuento}.`;
     }
 
     // -- Components --

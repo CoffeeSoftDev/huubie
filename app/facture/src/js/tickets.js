@@ -335,6 +335,35 @@ class Tickets extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
+        this.generating   = false;
+    }
+
+    // Una corrida de tickets a la vez.
+    //
+    // Generar el dia son decenas de papeles y la peticion tarda segundos sin avisar
+    // nada en pantalla, asi que el segundo clic entra cuando el primero todavia no
+    // guarda: las dos peticiones leen "esta venta no tiene ticket" y las dos se lo
+    // arman. La base no lo impide —virtual_ticket.sale_id no es UNIQUE— y el mismo
+    // cobro termina con dos notas.
+    //
+    // El candado va en el metodo y no en el boton porque las tres formas de generar
+    // (el dia, los del 0% y el ticket seleccionado) escriben en la misma tabla. Los
+    // botones se apagan de paso, para que se vea que la corrida ya arranco.
+    async runLocked(task) {
+        if (this.generating) return;
+
+        this.generating = true;
+
+        const botones = $('#btnGenerarTodos, #btnRehacer, #btnRegenerar')
+            .prop('disabled', true)
+            .addClass('opacity-60 cursor-not-allowed');
+
+        try {
+            await task();
+        } finally {
+            this.generating = false;
+            botones.prop('disabled', false).removeClass('opacity-60 cursor-not-allowed');
+        }
     }
 
     // Tabla de tickets
@@ -345,8 +374,8 @@ class Tickets extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        FACTURE_THEME,
-            center:       [1, 2, 3,  4, 5],
-            right:        [6],
+            center:       [1, 2, 3, 4],
+            right:        [5],
             actionsAlign: 'right',
             extends:      true,
             scrollable:   false,
@@ -368,6 +397,7 @@ class Tickets extends Templates {
 
         ticketsView.renderListHead(counts);
         ticketsView.renderKpis(app.dataKpis);
+        ticketsView.renderListNote(data.corte);
         app.syncActionButtons(counts);
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
@@ -391,33 +421,64 @@ class Tickets extends Templates {
     // Va sin preguntar porque solo se ofrece en el dia que todavia no se reparte: no
     // hay nada que reemplazar. El que si pregunta es redoDay().
     async generateDay() {
-        const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateDay' }, app.getFilters()) });
 
-        if (response.status !== 200) {
-            this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
-            return;
-        }
+            if (response.status !== 200) {
+                this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
+                return;
+            }
 
-        await this.lsTickets();
+            await this.lsTickets();
 
-        ticketsView.renderResumenReparto(response);
+            ticketsView.renderResumenReparto(response);
+        });
     }
 
-    // Volver a repartir un dia ya cerrado. La confirmacion dice lo que esta en juego
-    // porque la corrida REEMPLAZA el reparto anterior: un ticket que estaba al 0%
-    // puede pasar al 16% y soltar su papel.
+    // Las dos maneras de deshacer un dia ya cerrado, en la misma pregunta: rehacerlo
+    // o eliminarlo. Salen juntas porque parten del mismo estado —el dia repartido— y
+    // el usuario decide entre ellas, no entre dos botones separados de la barra.
+    //
+    // El texto dice lo que hace cada una porque no son reversibles: rehacer REEMPLAZA
+    // el reparto anterior (un ticket que estaba al 0% puede pasar al 16% y soltar su
+    // papel) y eliminar no deja nada en su lugar.
     redoDay() {
         this.swalQuestion({
             extends: true,
             opts: {
                 title:             'Rehacer el reparto del dia',
-                text:              'Se vuelve a repartir la venta del dia entre IVA 16% e IVA 0%, y se reemplazan los tickets que ya se generaron. Las notas no cambian.',
+                text:              'Rehacer vuelve a repartir la venta del dia entre IVA 16% e IVA 0% y reemplaza los tickets ya generados; las notas no cambian. Solo eliminar borra los tickets del dia y la corrida que los genero, y deja el dia sin repartir.',
                 icon:              'question',
+                showDenyButton:    true,
                 confirmButtonText: 'Si, rehacer',
+                denyButtonText:    'Solo eliminar',
                 cancelButtonText:  'No'
             }
         }).then((result) => {
-            if (result.isConfirmed) this.generateDay();
+            if (result.isConfirmed)   this.generateDay();
+            else if (result.isDenied) this.deleteDay();
+        });
+    }
+
+    // Deshacer el reparto del dia. El panel se vacia junto con la tabla: el papel que
+    // estuviera abierto es de un ticket que acaba de dejar de existir.
+    async deleteDay() {
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'deleteDay' }, app.getFilters()) });
+
+            if (response.status === 200) {
+                app.selectedId = null;
+                ticketsView.renderPreview(null);
+
+                await this.lsTickets();
+            }
+
+            this.alertBox({
+                theme: FACTURE_THEME,
+                type:  response.status === 200 ? 'success' : 'error',
+                title: response.message,
+                timer: response.status === 200 ? 1800 : 0
+            });
         });
     }
 
@@ -457,9 +518,11 @@ class Tickets extends Templates {
         }).then(async (result) => {
             if (!result.isConfirmed) return;
 
-            const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateAllZero' }, app.getFilters()) });
+            await this.runLocked(async () => {
+                const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'generateAllZero' }, app.getFilters()) });
 
-            this.afterGenerate(response, response.folio);
+                this.afterGenerate(response, response.folio);
+            });
         });
     }
 
@@ -471,9 +534,11 @@ class Tickets extends Templates {
             return;
         }
 
-        const response = await useFetch({ url: apiTickets, data: { opc: 'generate', folio: app.selectedId } });
+        await this.runLocked(async () => {
+            const response = await useFetch({ url: apiTickets, data: { opc: 'generate', folio: app.selectedId } });
 
-        this.afterGenerate(response, app.selectedId);
+            this.afterGenerate(response, app.selectedId);
+        });
     }
 
     afterGenerate(response, folio) {
@@ -532,7 +597,8 @@ class TicketsView extends Templates {
                 info: '',
                 legends: [
                     { tone: 'success', label: 'Facturado (bloqueado)'   },
-                    { tone: 'info',    label: 'IVA 0% · ticket generado' },
+                    { tone: 'info',    label: 'Ticket IVA 16%'  },
+                    { tone: 'default', label: 'Ticket IVA 0%'   },
                     { tone: 'warning', label: 'Requiere ticket virtual' },
                     { tone: 'default', label: 'No facturado'   }
                 ]
@@ -540,10 +606,21 @@ class TicketsView extends Templates {
         });
     }
 
-    renderListNote() {
+    // El pie del listado. Cuando el dia tiene corte previsto la nota lo dice primero:
+    // la linea de la tabla es una marca muda sin los numeros que la ponen ahi.
+    //
+    // Sin corte no hay linea que explicar —toda la venta cabe en el 16%— y la nota
+    // se queda con lo de siempre.
+    renderListNote(corte) {
+        const base = 'Al generar, el sistema arma una lista de productos de tasa 0% que suman el total del ticket. Esos productos se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar. El ticket cuyo descuento pase la tolerancia capturada en Emisor lo dice al abrirlo.';
+
+        const linea = corte && corte.hay
+            ? `La linea ambar marca hasta donde llega el IVA 16%: las ${corte.cuenta16} ventas de arriba suman ${corte.logradoTexto} para un objetivo de ${corte.objetivoTexto}, y las ${corte.cuenta0} de abajo (${corte.monto0Texto}) caen al IVA 0%. `
+            : '';
+
         this.noteBox({
             parent: 'listNote',
-            json:   { text: 'Al generar, el sistema arma una lista de productos de tasa 0% que suman el total del ticket. Esos productos se dan de alta en Catalogos; si la combinacion excede el monto, se aplica un descuento para cuadrar.' }
+            json:   { text: linea + base }
         });
     }
 
@@ -564,12 +641,10 @@ class TicketsView extends Templates {
         });
 
         const pctCero      = k.metaCeroPct || 30;
-        const tituloCero   = k.ceroGenerado ? 'IVA 0% obtenido / objetivo' : 'Monto objetivo para IVA 0%';
-        const valorCero    = k.ceroGenerado
-            ? `${k.obtenidoCeroTexto} / ${k.objetivoCeroTexto}`
-            : k.objetivoCeroTexto;
+        const tituloCero   = k.ceroGenerado ? 'Generado al IVA 0%' : 'Monto objetivo para IVA 0%';
+        const valorCero    = k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto;
         const subtituloCero = k.ceroGenerado
-            ? `${pctCero}% de la venta · ${k.difCeroTexto} vs objetivo`
+            ? `${pctCero}% de la venta · objetivo ${k.objetivoCeroTexto}`
             : `${pctCero}% de la venta por banco`;
 
         this.infoCard({
@@ -593,9 +668,9 @@ class TicketsView extends Templates {
                 card('kpiPorFacturar', 'Por facturar al IVA 16%', 'alert-circle', k.porFacturarTexto,
                      `${k.metaPct || 70}% de la venta - Facturado`, 'text-[#1C64F2]'),
 
-                // La unica tarjeta con dos montos: el 0% es lo que el reparto arma,
-                // asi que se muestra lo que se obtuvo contra lo que se debio obtener.
-                // Mientras el dia no tenga reparto corrido solo se muestra el objetivo.
+                // El monto que el reparto armo al 0%. El objetivo baja al subtitulo:
+                // el dato que se lee es lo generado, no la comparacion.
+                // Mientras el dia no tenga reparto corrido se muestra el objetivo.
                 card('kpiObjetivoCero', tituloCero, 'alert-circle', valorCero,
                      subtituloCero, 'text-[#1C64F2]')
             ]
@@ -735,7 +810,10 @@ class TicketsView extends Templates {
                         { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
                         // El que no se genero ya no es una propuesta: es el consumo
                         // real con el que la venta se factura al 16%.
-                        { text: ticket.generado ? 'papel guardado' : 'consumo real', tone: ticket.generado ? 'b-blue' : 'b-gray' }
+                        { text: ticket.generado ? 'papel guardado' : 'consumo real', tone: ticket.generado ? 'b-blue' : 'b-gray' },
+                        // El ajuste que se paso del tope se ve sin leer la nota: es
+                        // el mismo aviso que lleva la fila en el listado.
+                        ...(ticket.fueraTolerancia ? [{ text: `Descuento ${ticket.descuento}`, tone: 'b-yellow' }] : [])
                       ]
                     : []
             }
@@ -750,11 +828,31 @@ class TicketsView extends Templates {
                 // el cuadre con la tasa 0% y el real explica su desglose fiscal.
                 text: ticket
                     ? (ticket.grupo === 'cero'
-                        ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal}, con un descuento de ${ticket.descuento} para cuadrar los ${ticket.total} del ticket.`
-                        : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.`)
+                        ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal} contra los ${ticket.total} del ticket.` + this.ajusteText(ticket)
+                        : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.` + this.ajusteText(ticket))
                     : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });
+    }
+
+    // Lo que se dice del ajuste con el que se cuadro el papel. Se dice SIEMPRE que
+    // exista, y no solo en el del 0%: el armado con IVA tambien puede cerrar con
+    // diferencia, y una diferencia que no se ve es una diferencia silenciosa.
+    //
+    // Sin tope capturado la tolerancia llega en cero y la frase solo informa el
+    // ajuste, sin veredicto que no se pidio.
+    ajusteText(ticket) {
+        // Solo el papel inventado se cuadra con un ajuste. El descuento de un papel
+        // real es una cortesia que el POS ya cobro asi, y llamarle ajuste de cuadre
+        // seria decir que el sistema lo puso, cuando no lo puso.
+        if (!ticket.conAjuste) return '';
+        if (ticket.grupo !== 'cero' && ticket.grupo !== 'ivaGenerado') return '';
+
+        if (ticket.fueraTolerancia) {
+            return ` Se cuadro con un descuento de ${ticket.descuento}, que pasa la tolerancia de ${ticket.tolerancia}.`;
+        }
+
+        return ` Se cuadro con un descuento de ${ticket.descuento}.`;
     }
 
     // -- Components --

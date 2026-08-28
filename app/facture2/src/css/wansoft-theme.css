@@ -39,9 +39,9 @@
 
 /* -- Tipografia de banda -- */
 
-.ws-meta       { font-size: 11px; line-height: 1; color: #FFFFFF; }
-.ws-meta-muted { font-size: 11px; line-height: 1; color: rgba(255, 255, 255, .78); }
-.ws-brand      { font-size: 15px; font-weight: 700; letter-spacing: .01em; color: #FFFFFF; }
+.ws-meta       { font-size: 13px; line-height: 1; color: #FFFFFF; }
+.ws-meta-muted { font-size: 13px; line-height: 1; color: rgba(255, 255, 255, .78); }
+.ws-brand      { font-size: 17px; font-weight: 700; letter-spacing: .01em; color: #FFFFFF; }
 
 /* -- Teclado numerico -- */
 
@@ -191,6 +191,20 @@ html[data-wansoft-theme] .swal2-styled.swal2-confirm:hover {
     border-color: var(--ws-blue-dk) !important;
 }
 
+/* Denegar es la tercera salida —la que borra— y va en rojo del tema: el que trae
+   SweetAlert de fabrica es otro rojo y aqui seria el unico color del popup que no
+   sale de la paleta. */
+html[data-wansoft-theme] .swal2-styled.swal2-deny {
+    background-color: var(--ws-red) !important;
+    border: 1px solid var(--ws-red) !important;
+    color: #FFFFFF !important;
+}
+
+html[data-wansoft-theme] .swal2-styled.swal2-deny:hover {
+    background-color: #C81E1E !important;
+    border-color: #C81E1E !important;
+}
+
 /* Cancelar es la salida discreta: papel con filete, no un bloque de color que
    compita con el confirmar. */
 html[data-wansoft-theme] .swal2-styled.swal2-cancel {
@@ -273,6 +287,14 @@ html[data-wansoft-theme] #mainContainer .b-blue {
     border-color: rgba(43, 79, 216, .30);
 }
 
+/* La pildora gris (b-gray) venia del tema oscuro: sobre el papel blanco de
+   Wansoft su texto claro no se leia. */
+html[data-wansoft-theme] #mainContainer .b-gray {
+    background: rgba(107, 114, 128, .10);
+    color: var(--ws-muted);
+    border-color: rgba(107, 114, 128, .28);
+}
+
 /* El rango activo del calendario. */
 html[data-wansoft-theme] .daterangepicker td.active,
 html[data-wansoft-theme] .daterangepicker td.active:hover,
@@ -285,8 +307,8 @@ html[data-wansoft-theme] .daterangepicker .ranges li.active {
    Solo aparece en las paginas de modulo: la terminal no tiene a donde volver. */
 
 .ws-back {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 4px;
     color: #FFFFFF;
     background: rgba(255, 255, 255, .18);

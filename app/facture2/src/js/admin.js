@@ -143,14 +143,14 @@ class Admin extends Templates {
     footerJson() {
         return [
             {
+                id:   'tlRegresar',
+                text: 'Regresar',
+                fn:   () => posGo('inicio')
+            },
+            {
                 id:   'tlSalir',
                 text: 'Salir del sistema',
                 fn:   () => posExit()
-            },
-            {
-                id:   'tlRegresar',
-                text: 'Regresar',
-                fn:   () => posBack()
             }
         ];
     }

@@ -155,6 +155,19 @@ html[data-facture-theme="light"] #root #tbventas tr:has(.ct-subgrupo) > td { bac
 
 html[data-facture-theme="light"] #root .ct-group { background: #D1D5DB; color: #374151; }
 
+/* -- Linea de corte del reparto --
+   La fila que el servidor marca con opc 3 es la primera que ya no cabe en el 16%:
+   hasta ahi llega la tasa completa y de ahi para abajo empieza el 0%.
+
+   Va por la fila y no por la celda, por lo mismo que la banda de subgrupo: el
+   componente pinta el borde de opc 3 solo en las celdas de datos y arma la de
+   acciones aparte, asi que la linea se cortaba antes de la ultima columna.
+
+   Ambar, el tono con el que el modulo pinta el IVA 0%, porque marca donde empieza.
+   El color vive aqui y no en el JS (TRM-007), y el selector con #root gana a la
+   utilidad de borde que el componente deja en las celdas. */
+#root #tbtickets tr[data-opc="3"] > td { border-top: 2px solid #F59E0B; }
+
 /* -- Boton de tickets del dia --
    Unica accion de la banda del grupo, y con rotulo: sobre el encabezado no hay
    otra accion con la que comparar un icono suelto, asi que el boton dice a donde

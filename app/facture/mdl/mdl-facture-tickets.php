@@ -53,7 +53,7 @@ class mdl extends CRUD {
     // sucursal es el LUGAR DE EXPEDICION.
     function getEmisor($array) {
         $query = "
-            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone,
+            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone, b.adjustment_tolerance,
                    c.business_name AS company_name, c.rfc AS company_rfc,
                    c.fiscal_address AS company_address, c.phone AS company_phone
             FROM {$this->bd}branch b
@@ -175,6 +175,18 @@ class mdl extends CRUD {
 
     // Mesa, mesero y formas de pago del ticket viven en otras tablas y se resuelven
     // por folio: son las que completan el papel del ticket virtual.
+    // La venta trae su comanda cargada o no. Es lo que decide con que se imprime
+    // el ticket al 16%: con los productos que el POS exporto, o con los del
+    // catalogo cuando el detallado del dia no esta en el sistema. El detalle se
+    // enlaza por folio, igual que en listSaleDetailByDay.
+    function conDetalle() {
+        return "
+            SELECT 1
+              FROM {$this->bd}detail_sale d
+             WHERE d.active = 1 AND d.sale_folio = s.folio
+        ";
+    }
+
     function ticketSelect() {
         return "
             (SELECT GROUP_CONCAT(DISTINCT pm.name ORDER BY pm.name SEPARATOR ' + ')
@@ -200,7 +212,8 @@ class mdl extends CRUD {
                    {$this->totalProcesable()} AS total,
                    s.invoice_series, st.name AS status_name,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
-                   v.discount AS virtual_discount,
+                   v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
+                   EXISTS ({$this->conDetalle()}) AS tiene_detalle,
                    {$this->ticketSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
@@ -241,9 +254,10 @@ class mdl extends CRUD {
                    COALESCE(SUM(st.name = 'FACTURADO'), 0) AS facturados,
                    COALESCE(SUM(s.tax = 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
                    COALESCE(SUM(v.id IS NOT NULL), 0) AS generados,
+                   COALESCE(SUM(v.id IS NOT NULL AND v.tax_rate = 0), 0) AS generados_cero,
                    COALESCE(SUM({$this->totalProcesable()}), 0) AS total,
                    COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_facturado,
-                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_cero
+                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL AND v.tax_rate = 0 THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_cero
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
@@ -269,8 +283,9 @@ class mdl extends CRUD {
                    os.name AS operation_status,
                    EXISTS ({$this->soloCredito()}) AS es_credito,
                    EXISTS ({$this->estaPagada()})  AS esta_pagada,
+                   EXISTS ({$this->conDetalle()})  AS tiene_detalle,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
-                   v.discount AS virtual_discount,
+                   v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
                    {$this->ticketSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
@@ -325,6 +340,19 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    // Los del otro catalogo: todo lo que no es puente lleva IVA y con ellos se
+    // arma el papel de la venta al 16% que llego sin su comanda. Mismo orden que
+    // los puente, de mas caro a mas barato.
+    function listTaxProducts($array) {
+        $query = "
+            SELECT id, code, name, price
+            FROM {$this->bd}product
+            WHERE active = 1 AND is_bridge = 0 AND is_modifier = 0 AND price > 0 AND branch_id <=> ?
+            ORDER BY price DESC, name ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // -- Ticket virtual --
 
     function listVirtualDetail($array) {
@@ -368,17 +396,46 @@ class mdl extends CRUD {
         ]);
     }
 
+    // Todas las notas del dia de una sola sentencia: es lo que deshace el reparto.
+    // Los renglones de cada una se van con ella por el CASCADE de
+    // virtual_ticket_id, igual que al regenerar una suelta.
+    //
+    // Va en consulta cruda y no por _Delete porque la sucursal se compara con <=>:
+    // branch_id admite NULL en este esquema y `= ?` no casa con nulo, asi que el
+    // dia de una base sin sucursal dada de alta no borraria nada.
+    function deleteVirtualTicketByDay($array) {
+        $query = "
+            DELETE FROM {$this->bd}virtual_ticket
+            WHERE issue_date = ? AND branch_id <=> ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // La corrida que armo esas notas. Se borra DESPUES de ellas y no al reves: la
+    // FK fk_vt_run es RESTRICT, asi que mientras le cuelgue un solo papel MySQL
+    // rechaza la sentencia.
+    function deleteGenerationRunByDay($array) {
+        $query = "
+            DELETE FROM {$this->bd}generation_run
+            WHERE issue_date = ? AND branch_id <=> ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
     // -- Reparto del dia --
 
-    // Insumo del reparto 16%/0%: la venta del dia elegible con lo unico que el
-    // algoritmo necesita mirar. La nota viaja porque el ticket que sigue en el
-    // grupo del cero conserva la suya, que ya se entrego.
+    // Insumo del reparto 16%/0%: la venta del dia elegible con lo que el algoritmo
+    // necesita mirar. La nota viaja porque el ticket que sigue en el grupo del cero
+    // conserva la suya, que ya se entrego; el par subtotal/impuesto porque de ahi
+    // sale la tasa de la venta (ver tasaDe), y tiene_detalle porque el papel del
+    // 16% solo se arma cuando la venta llego sin su comanda.
     function listSaleDayForSplit($array) {
         $query = "
-            SELECT s.id, s.folio, s.operation_date,
+            SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
                    {$this->totalProcesable()} AS total,
                    st.name AS status_name,
-                   v.id AS virtual_id, v.note_number
+                   v.id AS virtual_id, v.note_number, v.tax_rate AS virtual_tax_rate,
+                   EXISTS ({$this->conDetalle()}) AS tiene_detalle
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
@@ -444,5 +501,60 @@ class mdl extends CRUD {
             'where' => $array['where'],
             'data'  => $array['data']
         ]);
+    }
+
+    // -- Corrida de generacion --
+
+    // Cada cierre de dia deja aqui con que meta se repartio, que salio de cada
+    // lado y donde corto. Sin esta fila el 70/30 no se puede auditar: la meta se
+    // lee de la barra en cada peticion, asi que la pantalla de manana puede
+    // recalcular un corte distinto al que de verdad se aplico.
+    function createGenerationRun($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}generation_run",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    // La corrida se abre antes de armar los papeles, porque cada ticket necesita
+    // su id, y se cierra al terminar con lo que de verdad quedo armado: el plan
+    // dice a que tasa cae cada venta, pero un papel puede no llegar a armarse.
+    function updateGenerationRun($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}generation_run",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function getMaxGenerationRunId() {
+        $query = "SELECT MAX(id) AS id FROM {$this->bd}generation_run";
+        return $this->_Read($query);
+    }
+
+    // Las corridas de un dia, de la mas reciente a la mas vieja. Un dia puede
+    // tener varias: el cierre completo y despues los tickets sueltos que se
+    // regeneraron, y la auditoria tiene que poder verlas todas.
+    //
+    // El folio de corte se resuelve aqui y no en la pantalla: la corrida guarda el
+    // id de la venta, pero lo que se audita es el folio que el POS imprimio.
+    function listGenerationRuns($array) {
+        $query = "
+            SELECT r.id, r.kind, r.issue_date, r.goal_mode, r.goal_value, r.goal_amount,
+                   r.day_total, r.billed_16, r.billed_0, r.count_16, r.count_0, r.no_paper,
+                   r.adjustment_tolerance, r.user_name, r.user_id, r.created_at,
+                   s.folio AS cut_folio,
+                   (SELECT COUNT(*) FROM {$this->bd}virtual_ticket v
+                     WHERE v.generation_run_id = r.id AND v.active = 1) AS tickets
+            FROM {$this->bd}generation_run r
+            LEFT JOIN {$this->bd}sale s ON s.id = r.cut_sale_id
+            WHERE r.active = 1
+              AND r.branch_id <=> ?
+              AND r.issue_date = ?
+            ORDER BY r.id DESC
+        ";
+        return $this->_Read($query, $array);
     }
 }
