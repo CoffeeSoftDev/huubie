@@ -102,7 +102,7 @@ class Inicio extends Templates {
             {
                 id:   'tcGenerar',
                 icon: 'ticket',
-                text: 'Generar Tickets',
+                text: 'Tickets',
                 fn:   () => posGo('/app/facture2/tickets.php')
             },
             {
@@ -112,16 +112,16 @@ class Inicio extends Templates {
                 fn:   () => posGo('/app/facture2/tickets.php')
             },
             {
-                id:   'tcConfiguracion',
-                icon: 'settings',
-                text: 'Configuración',
-                fn:   () => posGo('admin')
+                id:     'tcConfiguracion',
+                icon:   'settings',
+                text:   'Configuración',
+                locked: true
             },
             {
-                id:   'tcReportes',
-                icon: 'chart-column',
-                text: 'Reportes',
-                fn:   () => posGo('/app/facture2/ventas.php')
+                id:     'tcReportes',
+                icon:   'chart-column',
+                text:   'Reportes',
+                locked: true
             },
             {
                 id:     'tcConsultas',

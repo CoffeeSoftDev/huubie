@@ -210,10 +210,6 @@ class App extends Templates {
                     class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
                 },
                 {
-                    id:    'listHead',
-                    class: 'px-4 py-3 bg-[#0E1521] flex items-center justify-between flex-wrap gap-2 flex-shrink-0'
-                },
-                {
                     id:    'tableRow',
                     class: 'p-3 flex-1 min-h-0 flex flex-col'
                 },
@@ -729,7 +725,6 @@ class Tickets extends Templates {
 
         app.dataKpis = data.kpis || {};
 
-        ticketsView.renderListHead(counts);
         ticketsView.renderKpis(app.dataKpis);
         ticketsView.renderListNote(data.corte);
         app.syncActionButtons(counts);
@@ -1226,21 +1221,6 @@ class TicketsView extends Templates {
                 json:   ticket,
                 emisor: emisor
             });
-        });
-    }
-
-    renderListHead(counts) {
-        this.panelHead({
-            parent: 'listHead',
-            json: {
-                icon:  'receipt',
-                title: 'Tickets del dia pagados con tarjeta de credito',
-                badges: [
-                    { text: `${counts.generados} generados`,   tone: 'b-blue'   },
-                    { text: `${counts.facturados} bloqueados`, tone: 'b-green'  },
-                    { text: `${counts.cero} con IVA 0%`,       tone: 'b-yellow' }
-                ]
-            }
         });
     }
 
