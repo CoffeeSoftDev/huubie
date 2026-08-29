@@ -34,6 +34,9 @@ class App extends Templates {
     // La pantalla de bloqueo no lleva banda de datos ni barra de filtros: en el
     // boceto la terminal solo se identifica despues de entrar. La franja de marca
     // es propia de esta pantalla y no aparece en ninguna otra.
+    //
+    // contentRow va relativo porque el lector de huella se ancla a su esquina
+    // inferior derecha, no al flujo de la tarjeta.
     layout() {
         this.createLayout({
             parent: 'root',
@@ -45,12 +48,12 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'contentRow',
-                        class: 'flex-1 min-h-0 flex flex-col items-center justify-center gap-5'
+                        class: 'flex-1 min-h-0 relative flex items-center justify-center px-4 py-10'
                     },
                     {
                         type:  'div',
                         id:    'brandRow',
-                        class: 'ws-band flex-shrink-0 flex flex-col items-center justify-center gap-6 py-6'
+                        class: 'ws-band flex-shrink-0 flex flex-col'
                     }
                 ]
             }
@@ -64,10 +67,15 @@ class Acceso extends Templates {
 
     // -- Initial --
 
+    // El campo se corta a 12 digitos: con el interletrado del boceto, mas texto se
+    // sale de la tarjeta de 280px.
+    static get MAX_PASS() { return 12; }
+
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'acceso';
         this.pass         = '';
+        this.clockTimer   = null;
     }
 
     // -- Interface --
@@ -82,11 +90,13 @@ class Acceso extends Templates {
         keypad({
             parent: 'keypadRow',
             id:     'keypadAcceso',
+            class:  'ws-keypad grid grid-cols-4 gap-1.5 w-full',
             json:   this.keysJson(),
             onKey:  (key) => this.onKeyPress(key)
         });
 
         this.renderActions();
+        this.renderPrint();
         this.renderBrand();
     }
 
@@ -96,21 +106,30 @@ class Acceso extends Templates {
             design: false,
             data: {
                 id:    'accessWrap',
-                class: 'flex flex-col items-center gap-4',
+                class: 'w-full h-full flex items-center justify-center',
                 container: [
                     {
                         type:  'div',
-                        id:    'fieldRow',
-                        class: 'w-[300px]'
+                        id:    'accessCard',
+                        class: 'w-full max-w-[280px] select-none',
+                        children: [
+                            {
+                                id: 'fieldRow'
+                            },
+                            {
+                                id:    'keypadRow',
+                                class: 'mt-3'
+                            },
+                            {
+                                id:    'actionsRow',
+                                class: 'mt-9'
+                            }
+                        ]
                     },
                     {
                         type:  'div',
-                        id:    'keypadRow'
-                    },
-                    {
-                        type:  'div',
-                        id:    'actionsRow',
-                        class: 'w-[300px] flex flex-col items-center gap-4 pt-2'
+                        id:    'printRow',
+                        class: 'absolute bottom-6 right-6'
                     }
                 ]
             }
@@ -118,10 +137,10 @@ class Acceso extends Templates {
     }
 
     renderField() {
-        const wrap = $('<div>', { class: 'flex flex-col gap-1' });
+        const wrap = $('<div>');
 
         wrap.append($('<label>', {
-            class: 'ws-field-lbl',
+            class: 'ws-field-lbl block text-center mb-1.5',
             for:   'passAcceso',
             text:  'Contraseña'
         }));
@@ -129,7 +148,7 @@ class Acceso extends Templates {
         wrap.append($('<input>', {
             id:       'passAcceso',
             type:     'password',
-            class:    'ws-field',
+            class:    'ws-field w-full h-9 px-3',
             readonly: true
         }));
 
@@ -196,98 +215,103 @@ class Acceso extends Templates {
     }
 
     renderActions() {
-        const wrap = $('<div>', { class: 'w-full flex flex-col items-center gap-5' });
-
         const reloj = $('<button>', {
             type:  'button',
             id:    'btnReloj',
-            class: 'ws-btn w-full h-[30px]',
+            class: 'ws-btn ws-btn-access w-full h-11',
             text:  'Reloj checador'
         });
 
         reloj.on('click', () => this.checkClock());
 
+        $('#actionsRow').empty().append(reloj);
+    }
+
+    // El recuadro del lector va vertical, en la proporcion del que trae la
+    // terminal fisica; el dibujo de la huella es una imagen, no un icono de
+    // libreria, para que sea el mismo trazo del boceto.
+    renderPrint() {
         const huella = $('<button>', {
-            type:  'button',
-            id:    'btnHuella',
-            class: 'ws-btn-ghost w-[42px] h-[42px] flex items-center justify-center rounded self-end'
+            type:         'button',
+            id:           'btnHuella',
+            class:        'ws-print w-14 h-[72px] flex items-center justify-center',
+            'aria-label': 'Acceso con huella digital'
         });
 
-        huella.append($('<i>', {
-            'data-lucide': 'fingerprint',
-            class:         'w-6 h-6'
+        huella.append($('<img>', {
+            src:   '/app/facture2/src/img/huella.png',
+            alt:   '',
+            class: 'w-11'
         }));
 
         huella.on('click', () => this.readFingerprint());
 
-        wrap.append(reloj);
-        wrap.append(huella);
-
-        $('#actionsRow').empty().append(wrap);
-
-        lucide.createIcons();
+        $('#printRow').empty().append(huella);
     }
 
-    // Franja inferior con la marca y el pie de version. El trazo del logo se dibuja
-    // en SVG con currentColor para que el color siga viviendo en el CSS del tema.
+    // Franja inferior: marca, linea de corte y pie de version. La linea no llega a
+    // las orillas —se recorta 0.3 cm por lado— como en el boceto.
     renderBrand() {
-        const wrap = $('<div>', { class: 'flex flex-col items-center gap-4 w-full px-4' });
+        this.createLayout({
+            parent: 'brandRow',
+            design: false,
+            data: {
+                id:    'brandWrap',
+                class: 'w-full',
+                container: [
+                    {
+                        type:  'div',
+                        id:    'brandLogo',
+                        class: 'flex items-center justify-center py-2'
+                    },
+                    {
+                        type:  'div',
+                        id:    'brandLine',
+                        class: 'ws-band-div mx-[0.3cm]'
+                    },
+                    {
+                        type:  'div',
+                        id:    'brandFoot',
+                        class: 'flex items-center justify-between px-4 py-2.5'
+                    }
+                ]
+            }
+        });
 
-        const logo = $('<div>', { class: 'relative flex items-center justify-center h-[80px] w-[228px]' });
+        this.renderLogo();
+        this.renderFoot();
+    }
 
-        // El lazo es un rectangulo redondeado inclinado, no una elipse: asi rodea
-        // el texto sin cruzarlo, que es como cae en el boceto.
-        const ring = $(
-            '<svg viewBox="0 0 228 80" class="absolute inset-0 w-full h-full ws-logo-ring" fill="none">' +
-            '<rect x="16" y="14" width="196" height="52" rx="24" transform="rotate(-6 114 40)" ' +
-            'stroke="currentColor" stroke-width="5"/>' +
-            '</svg>'
-        );
-
-        const arc = $(
-            '<svg viewBox="0 0 228 80" class="absolute inset-0 w-full h-full ws-logo-arc" fill="none">' +
-            '<path d="M22 42 Q6 62 28 74" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>' +
-            '</svg>'
-        );
-
-        const text = $('<div>', { class: 'relative flex items-baseline gap-1' });
-
-        text.append($('<span>', {
-            class: 'ws-logo-clip text-2xl',
-            text:  'clip'
+    renderLogo() {
+        $('#brandLogo').empty().append($('<img>', {
+            src:   '/app/facture2/src/img/wansoft-logo.png',
+            alt:   `clip + ${WANSOFT_TERMINAL.marca}`,
+            class: 'w-52 h-auto drop-shadow-lg'
         }));
+    }
 
-        text.append($('<span>', {
-            class: 'text-white text-lg',
-            text:  '+'
-        }));
+    renderFoot() {
+        const datos = $('<div>', { class: 'flex items-center gap-5' });
 
-        text.append($('<span>', {
-            class: 'text-white text-2xl font-bold',
-            text:  WANSOFT_TERMINAL.marca
-        }));
-
-        logo.append(arc);
-        logo.append(ring);
-        logo.append(text);
-
-        const foot = $('<div>', { class: 'w-full flex items-center justify-between' });
-
-        foot.append($('<span>', {
+        datos.append($('<span>', {
             class: 'ws-foot',
-            text:  `VERSIÓN: ${WANSOFT_TERMINAL.version}    SOPORTE: ${WANSOFT_TERMINAL.soporte}`
+            text:  `VERSIÓN: ${WANSOFT_TERMINAL.version}`
         }));
 
-        foot.append($('<span>', {
+        datos.append($('<span>', {
+            class: 'ws-foot',
+            text:  `SOPORTE: ${WANSOFT_TERMINAL.soporte}`
+        }));
+
+        const reloj = $('<span>', {
             id:    'accessClock',
             class: 'ws-foot',
             text:  this.stamp()
-        }));
+        });
 
-        wrap.append(logo);
-        wrap.append(foot);
+        $('#brandFoot').empty().append(datos).append(reloj);
 
-        $('#brandRow').empty().append(wrap);
+        this.startClock();
     }
 
     // -- Complements --
@@ -296,6 +320,8 @@ class Acceso extends Templates {
         if (key.value === 'clr') return this.clearPass();
 
         if (key.value === 'enter') return this.enter();
+
+        if (this.pass.length >= Acceso.MAX_PASS) return;
 
         this.pass += String(key.value);
 
@@ -309,16 +335,28 @@ class Acceso extends Templates {
     }
 
     enter() {
-        if (!this.pass) {
-            return this.alertBox({
-                theme: WANSOFT_THEME,
-                type:  'warning',
-                title: 'Captura tu contraseña',
-                timer: 1600
-            });
-        }
+        if (!this.pass) return this.shakeField();
 
         posGo('inicio');
+    }
+
+    shakeField() {
+        const field = $('#passAcceso');
+
+        field.removeClass('ws-shake');
+
+        // Entre quitar y poner la clase hace falta forzar un reflow: sin el, un
+        // segundo toque seguido no vuelve a arrancar la animacion.
+        void field[0].offsetWidth;
+
+        field.addClass('ws-shake');
+
+        this.alertBox({
+            theme: WANSOFT_THEME,
+            type:  'warning',
+            title: 'Captura tu contraseña',
+            timer: 1600
+        });
     }
 
     checkClock() {
@@ -339,19 +377,26 @@ class Acceso extends Templates {
         });
     }
 
+    startClock() {
+        clearInterval(this.clockTimer);
+
+        this.clockTimer = setInterval(() => $('#accessClock').text(this.stamp()), 1000);
+    }
+
     stamp() {
         const now = new Date();
 
         const fecha = now.toLocaleDateString('es-MX', {
             weekday: 'long',
-            day:     'numeric',
+            day:     '2-digit',
             month:   'long',
             year:    'numeric'
         });
 
         const hora = now.toLocaleTimeString('es-MX', {
             hour:   '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            hour12: false
         });
 
         return `${fecha} ${hora}`.toUpperCase();
