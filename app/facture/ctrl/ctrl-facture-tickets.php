@@ -9,6 +9,12 @@ require_once '../mdl/mdl-facture-tickets.php';
 // dia; desde la barra se puede aplicar otro (ver metaDelDia).
 define('META_FACTURACION', 0.7);
 
+// Como se llama lo que ampara el folio que no cobro con tarjeta. Su papel no lleva
+// productos —no hay nada que facturar en el— y en su lugar imprime este unico
+// renglon en cero. Es el nombre con el que la casa se refiere a esas cuentas, y
+// sale impreso: vive aqui y no repartido por el codigo.
+define('CONCEPTO_SERVICIO', 'SERVICIO DE MESA');
+
 class ctrl extends mdl {
 
     public $branch;
@@ -154,7 +160,8 @@ class ctrl extends mdl {
 
         $c = $conteo[0] ?? [
             'tickets' => 0, 'facturados'      => 0, 'cero'       => 0, 'generados'      => 0,
-            'total'   => 0, 'total_facturado' => 0, 'total_cero' => 0, 'generados_cero' => 0
+            'total'   => 0, 'total_facturado' => 0, 'total_cero' => 0, 'generados_cero' => 0,
+            'servicio' => 0, 'movimientos'    => 0, 'generados_servicio' => 0
         ];
 
         // Un solo papel guardado ya dice que el dia se repartio: el reparto es de
@@ -175,14 +182,45 @@ class ctrl extends mdl {
             'thead'  => '',
             'counts' => [
                 'tickets'    => (int) $c['tickets'],
+                // Las cuentas que se cobraron sin tarjeta. Viajan aparte de
+                // 'tickets' porque no facturan, y el pie de la tabla las nombra:
+                // el usuario tiene que poder ver de un vistazo que el listado
+                // muestra el dia completo y no solo lo facturable.
+                'servicio'   => (int) $c['servicio'],
                 'facturados' => (int) $c['facturados'],
                 'cero'       => (int) $c['cero'],
                 'generados'  => (int) $c['generados'],
                 'mostrados'  => count($__row)
             ],
-            'kpis'   => $this->kpisDelDia($c),
-            'corte'  => $this->resumenCorte($plan)
+            'kpis'    => $this->kpisDelDia($c),
+            'corte'   => $this->resumenCorte($plan),
+            // El registro de cargos que cambiaron de folio viaja con el listado y no
+            // en una peticion aparte: son un punado de renglones en el peor dia, y
+            // asi el cuadro que los muestra abre sin esperar nada.
+            'mudados' => $this->mudadosDelDia($dia)
         ];
+    }
+
+    // Los cargos que hoy estan amparados por un folio distinto del que los cobro.
+    // Cada renglon se explica solo: de que cuenta salio, que folio lo factura,
+    // cuanto es y con que se cobro esa cuenta destino —que es la razon por la que
+    // puede amparar un cargo ajeno—.
+    //
+    // Solo Wansoft desglosa vouchers, asi que en el otro POS esto viene vacio y el
+    // modulo no ensena el registro.
+    function mudadosDelDia($dia) {
+        if (!$this->esWansoft()) return [];
+
+        $ls = $this->listReassignedByDay([$this->branchId(), $dia]);
+
+        return array_map(function ($mov) {
+            return [
+                'origen'      => $mov['origen'],
+                'destino'     => $mov['destino'],
+                'montoTexto'  => money($mov['monto']),
+                'pagoDestino' => strtolower($mov['pago_destino'] ?: 'otra forma de pago')
+            ];
+        }, $ls);
     }
 
     // El pie de la tabla explica la linea con los numeros del reparto previsto: sin
@@ -247,6 +285,7 @@ class ctrl extends mdl {
             // Rebasar la meta no deja un negativo en pantalla: ya no falta nada.
             'porFacturarTexto'  => money(max(0, $objetivo - $facturado)),
             'tickets'           => (int) $c['tickets'],
+            'servicio'          => (int) $c['servicio'],
             'facturados'        => (int) $c['facturados']
         ];
     }
@@ -281,8 +320,8 @@ class ctrl extends mdl {
             'id'     => $item['folio'],
             'Nota'   => notaCelda($nota, !empty($item['virtual_id'])),
             'Folio'  => '<span data-folio="' . $item['folio'] . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
-            'Estado' => badgeEstado($item, $tasa),
-            'Monto'  => '<span class="font-semibold text-white">' . money($item['total']) . '</span>',
+            'Estado' => badgeEstado($item, $tasa) . badgeReasignacion($item),
+            'Monto'  => montoCelda($item),
             'a'      => accionTicket($item, $tasa, $repartido)
         ];
 
@@ -321,9 +360,19 @@ class ctrl extends mdl {
         // del papel con un solo CONSUMO se muestra la propuesta armada del catalogo
         // de IVA, que es exactamente la que guardaria el reparto: las dos se
         // siembran con el folio.
+        //
+        // La que si la tiene pero por otro monto —cedio o recibio un cargo— tampoco
+        // puede ensenarla: sumaria una cifra distinta a la del papel. Se le arma la
+        // misma propuesta, que es tambien lo que el cierre le va a guardar.
         $propuesta = false;
 
-        if (!$generado && empty($lineas) && tasaDe($item) > 0) {
+        // El servicio de mesa no ensena consumo aunque su comanda este cargada: su
+        // papel ampara la cuenta, no lo que se comio en ella, y con los productos a
+        // la vista se leeria como un ticket facturable, que es justo lo que no es.
+        // Sin renglones, papelDe le pone el suyo.
+        if (!$generado && esServicio($item)) {
+            $lineas = [];
+        } elseif (!$generado && (empty($lineas) || !comandaCuadra($item)) && tasaDe($item) > 0) {
             $armado    = $this->armarPapel($item['total'], $this->catalogo(0.16), semillaFolio($item['folio']));
             $lineas    = $armado['lineas'];
             $propuesta = !empty($lineas);
@@ -352,6 +401,7 @@ class ctrl extends mdl {
     function cabecera($item) {
         $tasa    = tasaEfectiva($item);
         $semilla = semillaFolio($item['folio']);
+        $total   = totalDelPapel($item);
 
         return [
             'folio'     => $item['folio'],
@@ -364,17 +414,33 @@ class ctrl extends mdl {
             'personas'  => personasFicticias($semilla),
             'orden'     => ordenFicticia($semilla),
             'cajero'    => 'ADMINISTRACION',
-            'metodo'    => $item['payment_name'] ?: 'SIN PAGO REGISTRADO',
+            'metodo'    => $this->metodoDelPapel($item),
             'tasa'      => $tasa,
             'tasaText'  => porcentaje($tasa),
-            'total'     => money($item['total']),
+            'total'     => money($total),
             // El POS no exporta propina y el ticket la imprime siempre, en cero
             // cuando no la hubo.
             'propina'   => money(0),
-            'letras'    => letras($item['total']),
+            'letras'    => letras($total),
             'estado'    => estadoTexto($item, $tasa),
             'factura'   => $item['invoice_series'] ?: ''
         ];
+    }
+
+    // La forma de pago que imprime el papel es la del cargo que AMPARA, no la lista
+    // de todo lo que se cobro en ese folio.
+    //
+    // La diferencia se ve en el folio que recibio un voucher mudado: la cuenta se
+    // cobro en efectivo y ademas ampara un cargo con tarjeta, pero el papel se
+    // emite solo por ese cargo, asi que anunciar el efectivo diria que respalda un
+    // dinero que no viaja en el. Al reves pasa con el servicio de mesa, que ampara
+    // exactamente lo que la cuenta cobro y lo dice tal cual.
+    function metodoDelPapel($item) {
+        if (esServicio($item)) return $item['payment_real'] ?: 'SIN PAGO REGISTRADO';
+
+        if ($this->esWansoft()) return 'TARJETA DE CREDITO';
+
+        return $item['payment_name'] ?: 'SIN PAGO REGISTRADO';
     }
 
     function ticketGuardado($item) {
@@ -453,6 +519,144 @@ class ctrl extends mdl {
         $conteos['id'] = $runId;
 
         return $this->updateGenerationRun($this->util->sql($conteos, 1));
+    }
+
+    // -- Reasignacion de cargos --
+
+    // Un folio ampara UN cargo con tarjeta. Wansoft exporta un renglon por voucher,
+    // asi que la cuenta que se partio entre dos tarjetas deja dos cargos con el
+    // mismo folio, y hoy el modulo los suma en un solo ticket:
+    //
+    //     6275  TARJETA DE CREDITO    236.00
+    //     6275  TARJETA DE CREDITO  1,070.00   ->  un ticket de 1,306.00
+    //
+    // Ese ticket no se puede entregar: son dos clientes y cada uno pide su
+    // comprobante del voucher que firmo, pero el folio es uno solo. La regla de la
+    // casa es que el folio se queda con el primer cargo y los demas se mudan a un
+    // folio que ese dia se cobro sin tarjeta —el servicio de mesa—, que es el que
+    // no va a pedir factura:
+    //
+    //     6275 conserva 236.00  ·  los 1,070.00 se van al 6279, que era EFECTIVO
+    //
+    // La mudanza vive en la base (assigned_folio, ver migra-09) y no se recalcula
+    // en cada pantalla: el destino tiene que ser el mismo hoy y al reimprimir.
+    //
+    // Es el primer paso del cierre y se recalcula entero, nunca en capas: los
+    // cargos vuelven primero a su folio y desde ahi se reparten otra vez. Rehacer
+    // el dia sobre un reparto anterior iria mudando cargos ya mudados hasta que
+    // ningun folio guarde relacion con lo que el POS cobro.
+    //
+    // Solo Wansoft: Soft Restaurant no desglosa vouchers y su universo se arma con
+    // otro criterio (ver ventaElegible).
+    function reasignarCargos($dia) {
+        if (!$this->esWansoft()) return [];
+
+        $this->clearReassignmentsByDay([$this->branchId(), $dia]);
+
+        $movimientos = $this->planReasignacion(
+            $this->listSaleDayForSplit([$this->branchId(), $dia]),
+            $this->listCardPaymentsByDay([$this->branchId(), $dia])
+        );
+
+        foreach ($movimientos as $mov) {
+            if ($mov['destino'] === null) continue;
+
+            $this->reassignPayment([$mov['destino'], $mov['id']]);
+        }
+
+        return $movimientos;
+    }
+
+    // Que cargo se muda y a donde. No toca nada: devuelve la lista para que el
+    // cierre la aplique y la pueda contar en su resumen.
+    //
+    // Se queda el primero que el POS capturo, no el mas grande: es el cobro con el
+    // que la cuenta se cerro y el que la conciliacion bancaria va a encontrar
+    // primero bajo ese folio.
+    function planReasignacion($ventas, $pagos) {
+        $porFolio = [];
+
+        foreach ($pagos as $pago) $porFolio[$pago['sale_folio']][] = $pago;
+
+        $sobrantes = [];
+
+        foreach ($porFolio as $folio => $cargos) {
+            for ($i = 1; $i < count($cargos); $i++) {
+                $sobrantes[] = [
+                    'id'      => (int) $cargos[$i]['id'],
+                    'origen'  => (string) $folio,
+                    'monto'   => (float) $cargos[$i]['amount'],
+                    'destino' => null
+                ];
+            }
+        }
+
+        if (empty($sobrantes)) return [];
+
+        $libres      = $this->foliosLibres($ventas);
+        $movimientos = [];
+
+        foreach ($sobrantes as $mov) {
+            $mov['destino'] = $this->receptorProximo($libres, $mov['origen']);
+
+            $movimientos[] = $mov;
+        }
+
+        return $movimientos;
+    }
+
+    // Los folios que pueden recibir un cargo: los que ese dia cobraron sin tarjeta.
+    // Vienen en orden de folio, que es el orden en que se van tomando.
+    //
+    // El facturado no entra aunque no tenga tarjeta: ya salio con su folio de
+    // factura y su monto esta congelado, asi que colgarle un cargo ajeno cambiaria
+    // un documento que ya se entrego.
+    function foliosLibres($ventas) {
+        $libres = [];
+
+        foreach ($ventas as $item) {
+            if (esFacturado($item['status_name'])) continue;
+            if (!esServicio($item))                continue;
+
+            $libres[] = $item['folio'];
+        }
+
+        return $libres;
+    }
+
+    // El folio libre mas cercano, y se lo lleva: la lista se pasa por referencia
+    // para que dos cargos no caigan en el mismo destino.
+    //
+    // Primero hacia adelante, que es como el ejemplo de la casa lo describe —"el
+    // ticket proximo"— y como se lee un corte de caja: el cliente que no cabe en su
+    // folio sale amparado por uno posterior, nunca por uno que se imprimio antes de
+    // que llegara. Solo cuando ya no queda ninguno adelante se busca atras, porque
+    // un folio raro es mejor que un cargo duplicado.
+    function receptorProximo(&$libres, $origen) {
+        $numero   = (int) $origen;
+        $adelante = null;
+        $atras    = null;
+
+        foreach ($libres as $i => $folio) {
+            if ((int) $folio > $numero) {
+                $adelante = $i;
+                break;
+            }
+
+            $atras = $i;
+        }
+
+        $elegido = $adelante !== null ? $adelante : $atras;
+
+        if ($elegido === null) return null;
+
+        $folio = $libres[$elegido];
+
+        unset($libres[$elegido]);
+
+        $libres = array_values($libres);
+
+        return $folio;
     }
 
     // -- Ajuste de cuadre --
@@ -840,6 +1044,11 @@ class ctrl extends mdl {
         $cuenta0  = 0;
 
         foreach ($ventas as $item) {
+            // El servicio de mesa no se reparte: vale $0.00 de cara al reparto, y
+            // meterlo en un grupo solo inflaria el conteo de esa tasa con ventas
+            // que no aportan un peso a su objetivo.
+            if (esServicio($item)) continue;
+
             if (esFacturado($item['status_name'])) {
                 $grupo[$item['id']] = '16';
                 continue;
@@ -892,11 +1101,17 @@ class ctrl extends mdl {
     // ahora que los dos pueden tener ticket guardado: antes bastaba con que el
     // ticket existiera.
     function generateDay() {
-        $dia    = $_POST['dia'] ?? date('Y-m-d');
-        $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+        $dia = $_POST['dia'] ?? date('Y-m-d');
+
+        // La mudanza de cargos va PRIMERO, antes de leer el dia: cambia el monto de
+        // dos folios —el que cede y el que recibe— y el reparto se calcula sobre
+        // esos montos. Repartir antes y mudar despues dejaria el corte apuntando a
+        // un dia que ya no existe.
+        $reasignados = $this->reasignarCargos($dia);
+        $ventas      = $this->listSaleDayForSplit([$this->branchId(), $dia]);
 
         if (empty($ventas)) {
-            $criterio = $this->esWansoft() ? 'pagadas con tarjeta de credito' : 'cobradas por banco';
+            $criterio = $this->esWansoft() ? 'pagadas' : 'cobradas por banco';
 
             return ['status' => 400, 'message' => 'No hay ventas ' . $criterio . ' en el dia'];
         }
@@ -922,30 +1137,63 @@ class ctrl extends mdl {
         // corte con la meta que tenga puesta la barra.
         $runId = $this->abrirCorrida('dia', $dia, $plan);
 
+        // Las mudanzas quedan firmadas por esta corrida. Se sellan aqui y no al
+        // aplicarlas porque la corrida nace despues: guarda el reparto, y el
+        // reparto solo se puede calcular con los cargos ya en su sitio.
+        $this->stampReassignmentsByDay([$runId, $this->branchId(), $dia]);
+
         // Los papeles se cuentan aqui y no en el plan: el plan dice a que tasa cae
         // la venta, pero el papel puede no armarse (sin productos que cuadren el
         // monto), y el resumen tiene que contar lo que de verdad quedo con ticket.
         $monto0    = 0;
         $cuenta0   = 0;
         $armados16 = 0;
+        $servicio  = 0;
         $sinPapel  = 0;
         $lugar     = 0;
+
+        // Los papeles de la corrida anterior se sueltan TODOS antes de armar
+        // ninguno, en una pasada aparte. Borrarlos sobre la marcha —como se hacia—
+        // funciona solo mientras la numeracion no se mueva, y se mueve: la nota es
+        // el lugar de la venta en el dia, asi que una carga nueva del Excel o un
+        // cambio en el universo del listado recorren todas las notas.
+        //
+        // Cuando eso pasa, la venta que estrena la nota 3 choca con el papel viejo
+        // de la que hoy es la 6 y que todavia no se ha recorrido: el UNIQUE
+        // (issue_date, note_number, branch_id) rechaza la insercion y esa venta se
+        // queda sin papel, en silencio y contada como si le faltaran productos.
+        foreach ($ventas as $item) {
+            if (esFacturado($item['status_name'])) continue;
+            if (empty($item['virtual_id']))        continue;
+
+            $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
+        }
 
         foreach ($ventas as $item) {
             $lugar++;
 
             if (esFacturado($item['status_name'])) continue;
 
-            // El papel de la corrida anterior se suelta siempre: la venta pudo
-            // cambiar de grupo, y si se queda en el mismo se rehace igual.
-            if (!empty($item['virtual_id'])) {
-                $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
+            // El servicio de mesa queda fuera del reparto: no ampara ningun cargo
+            // con tarjeta, asi que no tiene nada que mandar al 16% ni al 0%. Su
+            // papel es el unico del dia que no se arma con productos, y por eso se
+            // atiende antes de preguntarle al plan, que ni siquiera lo agrupo.
+            if (esServicio($item)) {
+                if ($this->guardarTicketServicio($item, $lugar, $dia, $runId)) $servicio++;
+                else                                                          $sinPapel++;
+
+                continue;
             }
 
             if ($plan['grupo'][$item['id']] === '16') {
                 // Con su comanda cargada el ticket imprime lo que de verdad
                 // consumieron: ese papel manda y no se inventa nada encima.
-                if (!empty($item['tiene_detalle'])) continue;
+                //
+                // Salvo que el monto del papel ya no sea el de la cuenta —el folio
+                // que cedio o recibio un cargo, la cuenta partida entre dos formas
+                // de pago—: ahi la comanda suma otra cifra y hay que armarle papel
+                // del catalogo aunque la tenga (ver comandaCuadra).
+                if (!empty($item['tiene_detalle']) && comandaCuadra($item)) continue;
 
                 // La venta que el POS no reporta con impuesto no puede recibir un
                 // papel al 16%: se queda como esta y el listado la sigue marcando.
@@ -984,18 +1232,23 @@ class ctrl extends mdl {
                 'dia'     => $dia
             ],
             $this->resumenReparto([
-                'dia'        => $dia,
-                'total'      => $plan['total'],
-                'objetivo'   => $plan['objetivo'],
-                'facturado'  => $plan['facturado'],
-                'monto16'    => $plan['monto16'],
-                'monto0'     => $monto0,
-                'tickets'    => count($ventas),
-                'facturados' => $plan['facturados'],
-                'cuenta16'   => $plan['cuenta16'],
-                'cuenta0'    => $cuenta0,
-                'armados16'  => $armados16,
-                'sinPapel'   => $sinPapel
+                'dia'         => $dia,
+                'total'       => $plan['total'],
+                'objetivo'    => $plan['objetivo'],
+                'facturado'   => $plan['facturado'],
+                'monto16'     => $plan['monto16'],
+                'monto0'      => $monto0,
+                // Los tickets del reparto son los que traen monto: el servicio de
+                // mesa se cuenta aparte para que la suma de los grupos siga
+                // cuadrando contra el numero que encabeza el resumen.
+                'tickets'     => count($ventas) - $servicio,
+                'facturados'  => $plan['facturados'],
+                'cuenta16'    => $plan['cuenta16'],
+                'cuenta0'     => $cuenta0,
+                'armados16'   => $armados16,
+                'servicio'    => $servicio,
+                'reasignados' => $reasignados,
+                'sinPapel'    => $sinPapel
             ])
         );
     }
@@ -1024,6 +1277,12 @@ class ctrl extends mdl {
         if (!$this->deleteVirtualTicketByDay($donde)) {
             return ['status' => 500, 'message' => 'No se pudieron eliminar los tickets del dia'];
         }
+
+        // Los cargos vuelven a su folio antes de que se vaya la corrida que los
+        // mudo: dejar el dia sin repartir es dejarlo como lo mando el POS, y un
+        // cargo mudado sin corrida que lo explique seria un monto movido de folio
+        // que ya nadie puede rastrear.
+        $this->clearReassignmentsByDay([$this->branchId(), $dia]);
 
         $this->deleteGenerationRunByDay($donde);
 
@@ -1070,6 +1329,21 @@ class ctrl extends mdl {
             'armados16'         => $r['armados16'] ?? 0,
             'cuenta16Total'     => $r['cuenta16'] + $r['facturados'],
             'cuenta0'           => $r['cuenta0'],
+            // El servicio de mesa no es un tercer grupo del reparto: son las
+            // cuentas que se cobraron sin tarjeta y solo recibieron su papel. Se
+            // reporta para que el conteo del dia cuadre a la vista.
+            'servicio'          => $r['servicio'] ?? 0,
+            // Los cargos que cambiaron de folio, escritos como los va a leer quien
+            // audite el dia: de donde salio, a donde entro y por cuanto. El que se
+            // quedo sin folio libre viaja con destino vacio y la pantalla lo dice,
+            // porque es el unico caso en que la regla no se pudo cumplir.
+            'reasignados'       => array_map(function ($mov) {
+                return [
+                    'origen'      => $mov['origen'],
+                    'destino'     => $mov['destino'] ?: '',
+                    'montoTexto'  => money($mov['monto'])
+                ];
+            }, $r['reasignados'] ?? []),
             'sinPapel'          => $r['sinPapel']
         ];
     }
@@ -1129,6 +1403,47 @@ class ctrl extends mdl {
         return (bool) $this->createVirtualDetail($this->util->sql($renglones));
     }
 
+    // El papel del servicio de mesa. Es el unico del dia que no se arma con
+    // productos, y no por falta de catalogo: la cuenta que se cobro sin tarjeta no
+    // va a pedir factura, asi que buscarle una combinacion que cuadre el monto
+    // seria inventarle un consumo a un documento que nadie va a deducir.
+    //
+    // Un solo renglon en cero: aqui el renglon ES el total, y el total no ampara
+    // ningun cargo por definicion. Que la cuenta haya cobrado dinero real (ver
+    // sale_total) solo decide si existe papel que guardar, no cuanto imprime.
+    function guardarTicketServicio($item, $nota, $dia, $runId = null) {
+        if ((float) ($item['sale_total'] ?? 0) <= 0) return false;
+
+        $creado = $this->createVirtualTicket($this->util->sql([[
+            'note_number' => $nota,
+            'subtotal'    => 0,
+            'discount'    => 0,
+            'tax_rate'    => 0,
+            'tax'         => 0,
+            'total'       => 0,
+            'issue_date'  => $dia,
+            'sale_id'     => $item['id'],
+            'generation_run_id' => $runId ?: null,
+            'branch_id'   => $this->branchId()
+        ]]));
+
+        if (!$creado) return false;
+
+        $max      = $this->getMaxVirtualTicketId();
+        $ticketId = (int) ($max[0]['id'] ?? 0);
+
+        // El renglon va sin producto: no salio del catalogo, y apuntarlo a uno
+        // cualquiera ensuciaria lo que ese producto reporta haber vendido.
+        return (bool) $this->createVirtualDetail($this->util->sql([[
+            'description'       => CONCEPTO_SERVICIO,
+            'quantity'          => 1,
+            'unit_price'        => 0,
+            'amount'            => 0,
+            'product_id'        => null,
+            'virtual_ticket_id' => $ticketId
+        ]]));
+    }
+
 
     // -- Hoja imprimible --
 
@@ -1179,15 +1494,23 @@ class ctrl extends mdl {
     }
 
     function papelDe($item, $lineas, $esVirtual) {
-        $total = (float) $item['total'];
+        $total = totalDelPapel($item);
 
         // El ticket real de un dia sin comandas cargadas se quedaria sin renglones:
         // el papel saldria en blanco y con el descuento en negativo. Se imprime
         // entonces el consumo como una sola partida, que es lo unico que la venta
         // sabe de si misma cuando su detalle no esta en el sistema y todavia no se
         // le armo papel.
+        //
+        // El servicio de mesa llega aqui sin renglones a proposito y no por falta
+        // de datos (ver getTicket), y su partida se llama por su nombre: lo que
+        // ampara es la cuenta, no lo que se consumio en ella.
         if (!$esVirtual && empty($lineas)) {
-            $lineas = [['description' => 'CONSUMO', 'quantity' => 1, 'amount' => $total]];
+            $lineas = [[
+                'description' => esServicio($item) ? CONCEPTO_SERVICIO : 'CONSUMO',
+                'quantity'    => 1,
+                'amount'      => $total
+            ]];
         }
 
         $suma = 0;
@@ -1219,11 +1542,16 @@ class ctrl extends mdl {
         return array_merge($this->cabecera($item), [
             'nota'      => $esVirtual ? '#' . $item['note_number'] : $item['folio'],
             'tasaText'  => porcentaje($tasa),
-            // Tres papeles distintos, y el copy de la pantalla los nombra: el
-            // inventado al 0%, el inventado con IVA y el consumo real.
-            'grupo'     => $esVirtual
-                ? ($tasa > 0 ? 'ivaGenerado' : 'cero')
-                : (esFacturado($item['status_name']) ? 'facturado' : 'real'),
+            // Cuatro papeles distintos, y el copy de la pantalla los nombra: el
+            // inventado al 0%, el inventado con IVA, el consumo real y el servicio
+            // de mesa. Este ultimo se pregunta primero porque tambien se guarda
+            // como ticket virtual al 0%, y sin la pregunta se leeria como uno del
+            // reparto.
+            'grupo'     => esServicio($item)
+                ? 'servicio'
+                : ($esVirtual
+                    ? ($tasa > 0 ? 'ivaGenerado' : 'cero')
+                    : (esFacturado($item['status_name']) ? 'facturado' : 'real')),
             'lineas'    => array_map(function ($linea) {
                 return [
                     'cant'    => cantidad($linea['quantity']),
@@ -1409,6 +1737,12 @@ function tasaEfectiva($item) {
         return isset($item['virtual_tax_rate']) ? (float) $item['virtual_tax_rate'] : 0;
     }
 
+    // El servicio de mesa no traslada impuesto aunque la venta que lo respalda si
+    // lo traiga: su papel no ampara un cargo con tarjeta, asi que no hay IVA que
+    // acreditar. Sin esto la fila lo anunciaria al 16% hasta que se genere el dia,
+    // y despues al 0%, como si hubiera cambiado de tasa.
+    if (esServicio($item)) return 0;
+
     return tasaDe($item);
 }
 
@@ -1440,6 +1774,49 @@ function esFacturado($statusName) {
     return strtoupper((string) $statusName) === 'FACTURADO';
 }
 
+// El folio que se cobro, pero no con tarjeta: el servicio de mesa. Su monto
+// procesable es cero —no ampara ningun cargo que facturar— aunque la cuenta si
+// haya cobrado dinero, y esa distancia entre las dos cifras es justo lo que lo
+// define.
+//
+// No se pregunta por la forma de pago sino por el monto, porque el monto ya
+// incorpora la mudanza de cargos: el folio de efectivo que recibio un voucher deja
+// de ser servicio de mesa sin que su forma de pago original haya cambiado, y el
+// folio que cedio su unico cargo se convierte en uno.
+//
+// Solo existe en Wansoft: en Soft Restaurant el monto procesable es el total de la
+// venta y las dos cifras nunca se separan.
+function esServicio($item) {
+    return (float) $item['total'] <= 0 && (float) ($item['sale_total'] ?? 0) > 0;
+}
+
+// El importe que imprime un papel. Es el monto procesable —lo que el folio va a
+// facturar— y en el servicio de mesa eso es cero: su papel no ampara ningun cargo
+// con tarjeta, asi que no tiene nada que imprimir aunque la cuenta si haya
+// cobrado dinero real (ver sale_total).
+function totalDelPapel($item) {
+    return esServicio($item) ? 0 : (float) $item['total'];
+}
+
+// Si el papel puede imprimir la comanda que trajo el POS. Solo cuando el monto que
+// ampara es el de la cuenta entera: entonces los renglones reales suman el total
+// del papel y el ticket es el consumo, sin nada que cuadrar.
+//
+// Cuando no coinciden hay que armarle papel del catalogo aunque su comanda este
+// cargada, o el ticket sale con un descuento inventado del tamano de la
+// diferencia. Pasa en tres casos, y los tres son de Wansoft:
+//
+//   la cuenta partida entre la tarjeta y otra forma de pago, donde solo la parte
+//   con tarjeta viaja en el papel;
+//   el folio que CEDIO un cargo, que bajo de monto y su comanda se quedo arriba;
+//   el folio que lo RECIBIO, que subio de monto y su comanda se quedo abajo.
+//
+// En Soft Restaurant nunca se separan: ahi el monto procesable ES el total de la
+// venta, asi que esto siempre da cierto y la comanda manda como siempre.
+function comandaCuadra($item) {
+    return abs(totalDelPapel($item) - (float) ($item['sale_total'] ?? 0)) < 0.005;
+}
+
 // Las dos reglas que deciden si una venta puede recibir papel, leidas del veredicto
 // que getTicketByFolio ya calculo en la base. Devuelve el motivo del rechazo, o
 // cadena vacia cuando la venta es elegible.
@@ -1448,9 +1825,10 @@ function esFacturado($statusName) {
 // quien pide el ticket a mano necesita saber por que no salio.
 function vetoDeGeneracion($item) {
     if (empty($item['es_credito'])) {
-        $formas = $item['payment_name'] ?: 'sin pago registrado';
+        $formas = $item['payment_real'] ?: $item['payment_name'] ?: 'sin pago registrado';
 
-        return 'La venta se cobro con ' . $formas . ': solo se generan tickets de lo pagado con tarjeta de credito.';
+        return 'La venta se cobro con ' . $formas . ': su papel es el de ' . strtolower(CONCEPTO_SERVICIO)
+             . ' y sale con el cierre del dia, no se arma por separado.';
     }
 
     if (empty($item['esta_pagada'])) {
@@ -1572,11 +1950,30 @@ function notaCelda($nota, $generado) {
     return '<span class="' . $clase . '">#' . $nota . '</span>';
 }
 
-// Tres estados: el facturado esta bloqueado (no se le arma nada), el de tasa 0
-// pide ticket virtual y el resto queda pendiente de facturar.
+// Cuatro estados: el facturado esta bloqueado (no se le arma nada), el servicio de
+// mesa no factura, el de tasa 0 pide ticket virtual y el resto queda pendiente de
+// facturar.
+// Cada estado sale con su tono del core (b-green, b-blue, b-gray, b-yellow) y ademas
+// con una clase propia —st-fact, st-serv, st-16, st-0, st-req, st-nof—. El tono no
+// alcanza para distinguirlos: "IVA 0%", "Servicio" y "No facturado" comparten b-gray
+// y significan cosas distintas, asi que sin ese gancho la hoja de estilos no puede
+// darles trato aparte. La terminal Wansoft lo usa para pintarlos sin pildora; el
+// Facturador no declara reglas para esas clases y se ve igual que siempre.
 function badgeEstado($item, $tasa) {
     if (esFacturado($item['status_name'])) {
-        return '<span class="badge-base b-green"><i data-lucide="lock" class="w-3 h-3"></i>Facturado ' . $item['invoice_series'] . '</span>';
+        return '<span class="badge-base b-green st-fact"><i data-lucide="lock" class="w-3 h-3"></i>Facturado ' . $item['invoice_series'] . '</span>';
+    }
+
+    // El folio que no ampara ningun cargo con tarjeta. Va en gris y no en ambar
+    // porque no es un pendiente: nadie tiene que hacer nada con el, y su papel sale
+    // solo con el cierre del dia como el de todos los demas.
+    //
+    // La pildora dice "Servicio" a secas y no el CONCEPTO_SERVICIO completo: en una
+    // columna de badges cortos el nombre entero pesaba de mas, y aqui basta para
+    // distinguirlo de las tasas. El papel si lo imprime completo, que es donde el
+    // nombre se entrega.
+    if (esServicio($item)) {
+        return '<span class="badge-base b-gray st-serv">Servicio</span>';
     }
 
     // El ticket generado dice a que tasa se armo su papel: al 0% el que el reparto
@@ -1584,21 +1981,63 @@ function badgeEstado($item, $tasa) {
     // del catalogo de IVA. El color separa las dos tasas de un vistazo: azul el
     // 16%, gris el 0%.
     if (!empty($item['virtual_id'])) {
-        $tono = $tasa == 0 ? 'b-gray' : 'b-blue';
+        $tono = $tasa == 0 ? 'b-gray st-0' : 'b-blue st-16';
 
         return '<span class="badge-base ' . $tono . '">IVA ' . porcentaje($tasa) . '</span>';
     }
 
-    if ($tasa == 0) return '<span class="badge-base b-yellow">Requiere ticket virtual</span>';
+    if ($tasa == 0) return '<span class="badge-base b-yellow st-req">Requiere ticket virtual</span>';
 
-    return '<span class="badge-base b-gray">No facturado</span>';
+    return '<span class="badge-base b-gray st-nof">No facturado</span>';
 }
 
 function estadoTexto($item, $tasa) {
     if (esFacturado($item['status_name'])) return 'FACTURADO';
+    if (esServicio($item))                 return CONCEPTO_SERVICIO;
     if ($tasa == 0)                        return 'IVA 0%';
 
     return $item['status_name'] ? strtoupper($item['status_name']) : 'SIN ESTADO';
+}
+
+// La marca de la mudanza, en la fila de los dos folios que participan: el que
+// recibio el cargo y el que lo cedio. Sin ella el listado mostraria un folio de
+// efectivo cobrando mil pesos con tarjeta sin decir de donde salieron, que es
+// exactamente la clase de cifra que nadie se atreve a facturar.
+//
+// Azul el que recibe —es el que ahora factura— y ambar el que cede, que es el que
+// bajo de monto respecto de lo que dice su ticket impreso.
+function badgeReasignacion($item) {
+    $badges = '';
+
+    if (!empty($item['recibido_de'])) {
+        $badges .= '<span class="badge-base b-blue ml-1" title="Ampara un cargo con tarjeta que se cobro en el folio '
+                 . htmlspecialchars($item['recibido_de'], ENT_QUOTES) . '">&larr; ' . htmlspecialchars($item['recibido_de'], ENT_QUOTES) . '</span>';
+    }
+
+    if (!empty($item['cedido_a'])) {
+        $badges .= '<span class="badge-base b-yellow ml-1" title="Traia mas de un cargo con tarjeta: el resto se mudo al folio '
+                 . htmlspecialchars($item['cedido_a'], ENT_QUOTES) . '">&rarr; ' . htmlspecialchars($item['cedido_a'], ENT_QUOTES) . '</span>';
+    }
+
+    return $badges;
+}
+
+// El monto de la fila es lo que ese folio va a facturar, no lo que la cuenta
+// cobro. En el servicio de mesa las dos cifras se separan: no factura nada aunque
+// haya cobrado dos mil pesos en efectivo.
+//
+// Ese guion va en gris y con el cobro real en el title, porque un monto vacio sin
+// explicacion se lee como un dato que falta —y el reflejo es ir a buscarlo a la
+// carga del Excel, donde esta perfectamente.
+function montoCelda($item) {
+    if (!esServicio($item)) {
+        return '<span class="font-semibold text-white">' . money($item['total']) . '</span>';
+    }
+
+    $cobro = $item['payment_real'] ? strtolower($item['payment_real']) : 'sin pago registrado';
+
+    return '<span class="text-gray-500" title="No factura: la cuenta se cobro en ' . htmlspecialchars($cobro, ENT_QUOTES)
+         . ' por ' . money($item['sale_total']) . '">-</span>';
 }
 
 // Una accion por fila y segun el estado: el facturado solo avisa que esta

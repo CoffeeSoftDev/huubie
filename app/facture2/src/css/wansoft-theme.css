@@ -23,6 +23,10 @@
     /* Los cuatro semaforos de la fila de filtros de la pantalla de cuentas. */
     --ws-red:      #E02424;
     --ws-green:    #31C48D;
+
+    /* El verde de los puntos se lava como texto sobre el papel blanco: este es el
+       mismo semaforo en el tono que si se lee escrito. */
+    --ws-ok:       #057A55;
     --ws-yellow:   #FACA15;
     --ws-cyan:     #3F83F8;
 }
@@ -348,38 +352,310 @@ html[data-wansoft-theme] #mainContainer .cs-kpi-card {
     box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
 }
 
-/* -- La tarjeta del total de tarjeta de credito --
+/* -- La franja de cifras del dia --
 
-   Es el unico monto que el modulo procesa: la suma de los movimientos validos del
-   dia, de la que salen el objetivo del 16% y el del 0%. En una fila de cinco cajas
-   iguales un numero de color no basta —ya hay dos en azul y una en verde—, asi que
-   lo que la destaca es el contraste de la caja completa: esta va con el fondo de
-   marca y las otras cuatro en blanco.
+   Antes esto eran cinco tarjetas de KPI heredadas del Facturador, y las cinco
+   contaban el mismo reparto: el total con tarjeta, su 70%, su 30% y lo ya
+   facturado salen todos de la misma cuenta. Una banda entera de pantalla para un
+   dato que se lee de un vistazo. Ahora van en un solo renglon —rotulo chico
+   arriba, monto abajo, una linea entre cada par— y la tabla empieza donde antes
+   terminaban las tarjetas.
 
-   El JS solo pone las clases kpi-hero*; el color vive aqui (TRM-007). */
+   El total de tarjeta sigue siendo el unico monto que el modulo procesa, asi que
+   conserva su distincion, pero en cuerpo de letra y no en color de caja.
 
-html[data-wansoft-theme] #mainContainer .kpi-hero    { background: var(--ws-blue) !important; }
-html[data-wansoft-theme] #mainContainer .kpi-hero-bd { border-color: var(--ws-blue-dk) !important; }
+   El JS solo pone las clases; el color vive aqui (TRM-007). */
 
-/* El titulo y el subtitulo los escribe infoCard en gris fijo, que sobre el azul no
-   se lee. Aqui es el unico lugar donde se pueden aclarar sin tocar el componente. */
-html[data-wansoft-theme] #mainContainer .kpi-hero p         { color: #FFFFFF !important; }
-html[data-wansoft-theme] #mainContainer .kpi-hero p.text-xs { color: rgba(255, 255, 255, .78) !important; }
-
-/* El monto sube un cuerpo respecto de las otras cuatro: es el dato principal de la
-   pantalla y compite con cifras del mismo tamano. */
-html[data-wansoft-theme] #mainContainer .kpi-hero-val      { color: #FFFFFF !important; }
-html[data-wansoft-theme] #mainContainer span.kpi-hero-val  { font-size: 1.5rem; line-height: 2rem; }
-
-/* El cuadro del icono hereda el fondo de la tarjeta y desaparece contra ella: se
-   aclara para que se recorte. */
-html[data-wansoft-theme] #mainContainer .kpi-hero .kpi-hero {
-    background: rgba(255, 255, 255, .16) !important;
+html[data-wansoft-theme] #root .ws-stat {
+    padding: 0 22px;
+    border-left: 1px solid var(--ws-line);
 }
 
-/* Las demas tarjetas quedan al ras con una sombra de un pixel; esta se levanta. */
-html[data-wansoft-theme] #mainContainer div[id^="kpis"][id*="_"].kpi-hero {
-    box-shadow: 0 4px 12px rgba(43, 79, 216, .32) !important;
+html[data-wansoft-theme] #root .ws-stat:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+
+html[data-wansoft-theme] #root .ws-stat-lbl {
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ws-muted);
+}
+
+html[data-wansoft-theme] #root .ws-stat-val {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ws-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+html[data-wansoft-theme] #root .ws-stat-hero .ws-stat-val { font-size: 18px; font-weight: 700; }
+html[data-wansoft-theme] #root .ws-stat-blue .ws-stat-val { color: var(--ws-blue-dk); }
+html[data-wansoft-theme] #root .ws-stat-ok   .ws-stat-val { color: var(--ws-ok); }
+
+/* -- El boton de accion del encabezado del panel --
+
+   Blanco y no azul: el azul de la terminal es el de las acciones del dia —generar
+   el reparto, imprimir la hoja completa— y este opera sobre un solo ticket. Sube
+   al encabezado, junto al nombre del papel que va a salir, y con eso el panel se
+   queda sin la banda de 118px que ocupaba abajo. */
+
+html[data-wansoft-theme] #root .ws-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-line);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--ws-ink);
+    white-space: nowrap;
+}
+
+html[data-wansoft-theme] #root .ws-act:hover {
+    background: var(--ws-hover);
+    border-color: var(--ws-blue);
+    color: var(--ws-blue-dk);
+}
+
+html[data-wansoft-theme] #root .ws-act:active { background: var(--ws-key); }
+
+/* -- El globo del aviso del pie --
+
+   Sale del propio aviso —"1 cargo cambio de folio"— y no en medio de la pantalla:
+   lo que cuenta es un detalle de esa linea, no una interrupcion del trabajo. Por eso
+   es un globo con punta y no un cuadro con fondo oscuro detras.
+
+   Va anclado a #mudadosWrap, que es lo unico que hay entre el boton y el pie. */
+
+html[data-wansoft-theme] #root .ws-toast {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    z-index: 30;
+    width: 300px;
+    padding: 9px 11px;
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-line);
+    border-radius: 8px;
+    box-shadow: 0 10px 26px -12px rgba(17, 25, 40, .38);
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--ws-ink);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .16s ease, transform .16s ease;
+    pointer-events: none;
+}
+
+html[data-wansoft-theme] #root .ws-toast.is-on {
+    opacity: 1;
+    transform: none;
+}
+
+/* La punta que lo ata al aviso. Dos triangulos, uno encima del otro: el de abajo
+   hace de borde y el de arriba tapa la linea de la caja. */
+html[data-wansoft-theme] #root .ws-toast::before,
+html[data-wansoft-theme] #root .ws-toast::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 22px;
+    border: 6px solid transparent;
+}
+
+html[data-wansoft-theme] #root .ws-toast::before { border-top-color: var(--ws-line); }
+html[data-wansoft-theme] #root .ws-toast::after  { border-top-color: var(--ws-paper); margin-top: -1px; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-wansoft-theme] #root .ws-toast { transition: none; transform: none; }
+}
+
+/* -- La tabla del dia, compacta --
+
+   La fila de una nota es un renglon de datos —numero, folio, tasa y monto—, no una
+   tarjeta: con el py-2 que trae createCoffeeTable3 y el badge a tamano de formulario
+   cada una medía 45px y en pantalla entraban cinco de las diecinueve del dia. Aqui
+   se aprieta a poco mas de la mitad, sin tocar el componente del core: las reglas
+   van por el id de esta tabla y solo alcanzan a este listado.
+
+   El buscador de DataTables se declara con los dos nombres de clase porque el
+   plugin cambio de .dataTables_filter a .dt-search entre versiones. */
+
+/* El !important no es capricho: createCoffeeTable3 escribe el padding como
+   utilidades de Tailwind (px-2 py-2) y en este proyecto salen marcadas, asi que la
+   especificidad sola no las mueve. Es la misma razon por la que lo llevan las
+   reglas de tabla de mas abajo. */
+html[data-wansoft-theme] #root #tbtickets thead th {
+    padding: 5px 10px !important;
+}
+
+/* La fila mide 35px: el alto lo marca el boton de la accion —23px con su caja de
+   linea— mas 5.5 de aire arriba y abajo y la linea que separa. El medio pixel es
+   lo que la deja clavada en 35 y no en 36. */
+html[data-wansoft-theme] #root #tbtickets tbody td {
+    padding: 5.5px 10px !important;
+    line-height: 1.5 !important;
+}
+
+/* -- El estado, al modo de la terminal --
+
+   Wansoft no pinta pildoras: en su pantalla de cuentas el estado va en texto y el
+   color vive en los cuatro puntos del filtro. Aqui se hace lo mismo —punto de 6px
+   y palabra— y la columna deja de ser una fila de cajas de colores compitiendo con
+   los montos, que es el dato que se lee.
+
+   Cada estado trae su clase propia desde badgeEstado() (st-16, st-0, st-fact,
+   st-req, st-nof, st-serv) porque tres de ellos comparten el b-gray del core y aqui
+   necesitan punto distinto. */
+html[data-wansoft-theme] #root #tbtickets .badge-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font-size: 9.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #4B5563;
+}
+
+html[data-wansoft-theme] #root #tbtickets .badge-base::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    flex: none;
+    background: #B6BECC;
+}
+
+/* Los seis puntos. Azul el 16% —el que suma al objetivo—, verde azulado el 0%,
+   verde el que ya se facturo de verdad, ambar el unico que pide accion, y los dos
+   que no cargan nada en gris: el que espera reparto, mas claro todavia el servicio
+   de mesa. */
+html[data-wansoft-theme] #root #tbtickets .st-16::before   { background: var(--ws-blue); }
+html[data-wansoft-theme] #root #tbtickets .st-0::before    { background: #12A594; }
+html[data-wansoft-theme] #root #tbtickets .st-fact::before { background: var(--ws-ok); }
+html[data-wansoft-theme] #root #tbtickets .st-req::before  { background: #E08600; }
+html[data-wansoft-theme] #root #tbtickets .st-nof::before  { background: #B6BECC; }
+html[data-wansoft-theme] #root #tbtickets .st-serv::before { background: #E2E6EE; }
+
+/* El facturado es el unico estado cerrado del listado y se dice tambien con el
+   texto; el servicio de mesa, que no participa, se apaga. */
+html[data-wansoft-theme] #root #tbtickets .st-fact { color: var(--ws-ok); font-weight: 600; }
+/* Apagado, pero no ilegible: a 9.5px un gris mas claro que este ya no se lee sobre
+   el papel blanco. */
+html[data-wansoft-theme] #root #tbtickets .st-serv { color: #8B95A6; }
+
+/* El candado sobra: el punto verde y la serie ya dicen que esta facturado, y a este
+   cuerpo de letra el icono solo ensucia. */
+html[data-wansoft-theme] #root #tbtickets .badge-base svg,
+html[data-wansoft-theme] #root #tbtickets .badge-base i {
+    display: none;
+}
+
+/* Ancho comun para que los puntos caigan en columna: sin caja, cada estado mediria
+   lo que mide su palabra y la fila de puntos saldria en zigzag. El texto arranca a
+   la izquierda del bloque, no centrado, por lo mismo. */
+html[data-wansoft-theme] #root #tbtickets .badge-base:not(.ml-1) {
+    min-width: 118px;
+    justify-content: flex-start;
+}
+
+/* La celda del Estado va centrada, y el badge de estado se centra solo: las marcas
+   de reasignacion se sacan del flujo y se cuelgan al borde derecho de la celda, de
+   modo que la fila que trae mudanza no corre su estado para hacerles sitio. Asi los
+   estados quedan alineados entre filas —que es lo que se lee de arriba abajo— y la
+   marca sigue leyendose despues, como el anexo que es.
+
+   Se posicionan por orden dentro de la celda: el estado es el primer span, y las
+   marcas —cuando hay dos, el folio que recibe y el que cede— son la segunda y la
+   tercera, escalonadas para que no se encimen. */
+html[data-wansoft-theme] #root #tbtickets tbody td:nth-child(3) {
+    position: relative;
+}
+
+html[data-wansoft-theme] #root #tbtickets tbody td:nth-child(3) .badge-base.ml-1 {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0;
+    font-size: 8.5px;
+    color: #9CA3AF;
+}
+
+/* La marca de mudanza tampoco lleva punto: es un folio, no un estado. La flecha ya
+   dice el sentido. */
+html[data-wansoft-theme] #root #tbtickets tbody td:nth-child(3) .badge-base.ml-1::before {
+    display: none;
+}
+
+html[data-wansoft-theme] #root #tbtickets tbody td:nth-child(3) .badge-base.ml-1:nth-of-type(2) { right: 8px; }
+html[data-wansoft-theme] #root #tbtickets tbody td:nth-child(3) .badge-base.ml-1:nth-of-type(3) { right: 56px; }
+
+html[data-wansoft-theme] #root #tbtickets .btn-icon-view {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+}
+
+html[data-wansoft-theme] #root #tbtickets_wrapper .dataTables_filter,
+html[data-wansoft-theme] #root #tbtickets_wrapper .dt-search {
+    margin: 0 0 6px;
+    font-size: 11px;
+}
+
+html[data-wansoft-theme] #root #tbtickets_wrapper .dataTables_filter input,
+html[data-wansoft-theme] #root #tbtickets_wrapper .dt-search input {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+/* Lo mismo con el pie del plugin: el conteo de registros repite lo que ya dice el
+   pie del modulo, asi que se queda en el cuerpo mas chico que admite. */
+html[data-wansoft-theme] #root #tbtickets_wrapper .dataTables_info,
+html[data-wansoft-theme] #root #tbtickets_wrapper .dt-info,
+html[data-wansoft-theme] #root #tbtickets_wrapper .dataTables_paginate,
+html[data-wansoft-theme] #root #tbtickets_wrapper .dt-paging {
+    font-size: 11px;
+    padding-top: 4px;
+}
+
+/* -- El aviso del pie --
+
+   Las 87 palabras que explicaban el reparto vivian fijas bajo la tabla; se leen
+   una vez y estorban el resto del ano. Ahora el pie deja una frase —la del corte
+   del dia, que si cambia cada dia— y el manual se abre desde este boton. */
+
+html[data-wansoft-theme] #root .ws-help {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--ws-muted);
+}
+
+html[data-wansoft-theme] #root .ws-help:hover { color: var(--ws-blue-dk); }
+
+html[data-wansoft-theme] #root .ws-help i {
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--ws-line);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-style: normal;
+    font-size: 10px;
 }
 
 /* -- Azul corporativo del core --

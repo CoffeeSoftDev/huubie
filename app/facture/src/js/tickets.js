@@ -140,7 +140,11 @@ class App extends Templates {
                     {
                         type:  'div',
                         id:    'detailActions',
-                        class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
+                        // El pie del panel respira mas abajo que arriba: el boton
+                        // es lo ultimo del aside y con el acolchado parejo quedaba
+                        // pegado al canto de la ventana, como si lo hubieran
+                        // recortado.
+                        class: 'px-3 pt-2 pb-5 bg-[#0E1521] flex-shrink-0'
                     }
                 ]
             }
@@ -382,7 +386,7 @@ class Tickets extends Templates {
             hover:        true,
             f_size:       11,
             border_table: 'border-0',
-            emptyMessage: 'No hay cobros por banco en el dia seleccionado',
+            emptyMessage: 'No hay ventas que mostrar en el dia seleccionado',
             emptyIcon:    'ic-file-text',
             data:         data
         });
@@ -391,7 +395,7 @@ class Tickets extends Templates {
 
         this.dataTable(`#tb${this.PROJECT_NAME}`, data);
 
-        const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0 };
+        const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0, servicio: 0 };
 
         app.dataKpis = data.kpis || {};
 
@@ -400,7 +404,13 @@ class Tickets extends Templates {
         ticketsView.renderListNote(data.corte);
         app.syncActionButtons(counts);
 
-        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} cobrados por banco`);
+        // El pie nombra las dos poblaciones del listado. Sin la segunda cifra, un
+        // dia con veinte tickets en $0.00 se lee como un dia sin ventas. En Soft
+        // Restaurant no hay servicio de mesa y la frase se queda como estaba.
+        const servicio = counts.servicio || 0;
+        const aparte   = servicio > 0 ? `, ${servicio} de servicio de mesa` : '';
+
+        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} del dia${aparte}`);
     }
 
     // Paginado, buscador y ordenamiento de la tabla ya pintada. Sin filas
@@ -657,7 +667,7 @@ class TicketsView extends Templates {
                 // El subtitulo dice "solo banco" porque es justo lo que separa este
                 // total del de Resumen, que suma tambien el efectivo.
                 card('kpiTotalDia', 'Venta del dia', 'banknote', k.totalTexto,
-                     `${k.tickets || 0} tickets · solo banco`, textColor),
+                     `${k.tickets || 0} tickets${k.servicio ? ` · ${k.servicio} de servicio de mesa` : ' · solo banco'}`, textColor),
 
                 card('kpiMeta', 'Monto objetivo para IVA 16%', 'target', k.objetivoTexto,
                      `${k.metaPct || 70}% de la venta por banco`, textColor),
@@ -725,6 +735,22 @@ class TicketsView extends Templates {
 
         const separador = '<span class="block border-t border-[#374151] my-2.5"></span>';
 
+        // Los cargos que cambiaron de folio. Es lo primero que hace el cierre y lo
+        // unico que reescribe un dato del POS, asi que se enseña movimiento por
+        // movimiento y no como un conteo: quien cierra el dia tiene que poder
+        // reconocer cada folio que quedo distinto de su ticket impreso.
+        //
+        // En Soft Restaurant la lista llega vacia y el bloque no se pinta.
+        const movidos = r.reasignados || [];
+
+        const mudanza = movidos.length ? `
+            <span class="block text-gray-300 font-semibold mt-1">${esc(movidos.length)} cargo(s) con tarjeta reasignados</span>
+            ${movidos.map(m => m.destino
+                ? renglon(`${m.origen} → ${m.destino}`, m.montoTexto)
+                : renglon(`${m.origen} · sin folio libre`, m.montoTexto)).join('')}
+            ${separador}
+        ` : '';
+
         this.alertBox({
             theme:   FACTURE_THEME,
             type:    'success',
@@ -738,6 +764,7 @@ class TicketsView extends Templates {
                     <span class="font-mono text-gray-200 font-semibold">${esc(r.totalTexto)}</span>
                 </span>
                 ${separador}
+                ${mudanza}
                 ${titulo('Objetivo IVA 16%', r.metaPct, r.objetivoTexto)}
                 ${renglon('ya facturado', r.facturadoTexto)}
                 ${renglon('por cubrir con tickets', r.porCubrirTexto)}
@@ -749,6 +776,7 @@ class TicketsView extends Templates {
                 <span class="block text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
                 ${conteo('al IVA 16%', r.cuenta16Total, `${esc(r.facturados)} facturados + ${esc(r.cuenta16)} reales`)}
                 ${conteo('al IVA 0%',  r.cuenta0, 'con ticket virtual')}
+                ${r.servicio ? conteo('servicio de mesa', r.servicio, 'cobrados sin tarjeta') : ''}
                 ${r.sinPapel ? conteo('sin papel', r.sinPapel, '<span class="text-amber-400">faltan productos de tasa 0%</span>') : ''}
             `
         });
@@ -807,7 +835,12 @@ class TicketsView extends Templates {
                 title:  ticket ? `Ticket virtual · Nota ${ticket.nota}` : 'Ticket virtual',
                 badges: ticket
                     ? [
-                        { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
+                        // El servicio de mesa se rotula por lo que es y no por su
+                        // tasa: dice 0% como los del reparto, pero no salio de una
+                        // decision de reparto sino de no haber cobrado con tarjeta.
+                        ticket.grupo === 'servicio'
+                            ? { text: 'Servicio de mesa', tone: 'b-gray' }
+                            : { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
                         // El que no se genero ya no es una propuesta: es el consumo
                         // real con el que la venta se factura al 16%.
                         { text: ticket.generado ? 'papel guardado' : 'consumo real', tone: ticket.generado ? 'b-blue' : 'b-gray' },
@@ -827,9 +860,11 @@ class TicketsView extends Templates {
                 // El copy depende de que papel se esta viendo: el inventado explica
                 // el cuadre con la tasa 0% y el real explica su desglose fiscal.
                 text: ticket
-                    ? (ticket.grupo === 'cero'
-                        ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal} contra los ${ticket.total} del ticket.` + this.ajusteText(ticket)
-                        : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.` + this.ajusteText(ticket))
+                    ? (ticket.grupo === 'servicio'
+                        ? `La cuenta se cobro con ${String(ticket.metodo || '').toLowerCase()}: el papel no ampara ningun cargo con tarjeta, asi que no factura y sale en ${ticket.total}. Imprime un solo renglon de servicio de mesa, en vez del consumo.`
+                        : (ticket.grupo === 'cero'
+                            ? `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal} contra los ${ticket.total} del ticket.` + this.ajusteText(ticket)
+                            : `Consumo real del ticket: ${ticket.subtotal} de base mas ${ticket.iva} de IVA ${ticket.tasaText} dan los ${ticket.total} que se cobraron.` + this.ajusteText(ticket)))
                     : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
             }
         });

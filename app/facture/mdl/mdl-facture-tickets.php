@@ -83,23 +83,43 @@ class mdl extends CRUD {
 
     // -- Tickets del dia --
 
-    // Que venta entra a la generacion de tickets. El criterio no es uno solo: cada
-    // POS exporta cosas distintas y por eso se decide por el sistema de la sucursal.
+    // Que venta entra al modulo. El criterio no es uno solo: cada POS exporta
+    // cosas distintas y por eso se decide por el sistema de la sucursal.
     //
-    //   wansoft  desglosa la forma de pago y trae el estado de operacion, asi que
-    //            se le exigen las dos reglas: TARJETA DE CREDITO y estado Pagada.
+    //   wansoft  trae el estado de operacion, y esa es la unica regla: todo lo
+    //            que se cobro ese dia, con la forma de pago que sea.
     //   el resto (Soft Restaurant) no exporta estado de operacion —la columna queda
     //            en NULL— y conserva el criterio de siempre: todo lo que no sea
     //            efectivo. Pedirle Pagada dejaria el modulo vacio.
     //
+    // En Wansoft la forma de pago DEJO de filtrar el universo. Antes se pedia
+    // ademas TARJETA DE CREDITO y el listado mostraba solo la mitad del dia; el
+    // resto —el efectivo, la transferencia, el debito— no existia en pantalla, y
+    // son justo los folios a los que se muda un cargo duplicado (ver
+    // listCardPaymentsByDay). No se puede reasignar hacia un folio que no se ve.
+    //
+    // Lo que no cambio es el dinero: totalProcesable() sigue contando SOLO lo
+    // cobrado con tarjeta, asi que la venta en efectivo entra al listado valiendo
+    // $0.00 y no mueve ni las cifras del dia ni el reparto 16%/0%.
+    //
     // Se expone como un solo predicado para que ninguna consulta pueda aplicar una
     // de las reglas y olvidarse de la otra.
     function ventaElegible() {
-        if ($this->esWansoft()) {
-            return "EXISTS ({$this->soloCredito()}) AND EXISTS ({$this->estaPagada()})";
-        }
+        if ($this->esWansoft()) return "EXISTS ({$this->estaPagada()})";
 
         return "EXISTS ({$this->sinEfectivo()})";
+    }
+
+    // El folio al que cuenta un cargo. Normalmente el suyo; cuando el cierre lo
+    // mudo (ver migra-09) manda assigned_folio, y el cargo deja de sumar en su
+    // folio original para sumar en el de destino.
+    //
+    // Toda la aritmetica del modulo pasa por aqui —el criterio de elegibilidad, el
+    // monto procesable, las formas de pago que imprime el papel— para que la
+    // mudanza no se tenga que escribir en cuatro consultas distintas y se pueda
+    // olvidar en una.
+    function folioDelPago() {
+        return "COALESCE(p.assigned_folio, p.sale_folio)";
     }
 
     function esWansoft() {
@@ -131,7 +151,7 @@ class mdl extends CRUD {
             SELECT 1
             FROM {$this->bd}detail_sale_payment p
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-            WHERE p.active = 1 AND p.sale_folio = s.folio AND pm.name = 'TARJETA DE CREDITO'
+            WHERE p.active = 1 AND {$this->folioDelPago()} = s.folio AND pm.name = 'TARJETA DE CREDITO'
         ";
     }
 
@@ -142,12 +162,16 @@ class mdl extends CRUD {
     //
     // En la venta cobrada toda con tarjeta —el caso normal— esto da exactamente
     // s.total. La diferencia solo aparece cuando la cuenta se partio.
+    //
+    // Y da CERO en la venta que se cobro sin tarjeta, que desde la apertura del
+    // universo (ver ventaElegible) tambien se lista: es el "servicio de mesa", el
+    // folio que no factura nada mientras no reciba un cargo mudado.
     function montoCredito() {
         return "
             SELECT COALESCE(SUM(p.amount), 0)
             FROM {$this->bd}detail_sale_payment p
             LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-            WHERE p.active = 1 AND p.sale_folio = s.folio AND pm.name = 'TARJETA DE CREDITO'
+            WHERE p.active = 1 AND {$this->folioDelPago()} = s.folio AND pm.name = 'TARJETA DE CREDITO'
         ";
     }
 
@@ -175,6 +199,16 @@ class mdl extends CRUD {
 
     // Mesa, mesero y formas de pago del ticket viven en otras tablas y se resuelven
     // por folio: son las que completan el papel del ticket virtual.
+    //
+    // Las formas de pago salen dos veces y no es un descuido:
+    //
+    //   payment_name  las del folio DESPUES de la mudanza. Es lo que imprime el
+    //                 papel, porque describe el cargo que ese folio ampara.
+    //   payment_real  las que el POS cobro en ese folio, sin mudanzas. Es lo que
+    //                 la pantalla dice del servicio de mesa ("se cobro en
+    //                 EFECTIVO") y lo que la conciliacion bancaria va a buscar.
+    //
+    // En el dia sin cargos mudados —el 99% de los dias— las dos dan lo mismo.
     // La venta trae su comanda cargada o no. Es lo que decide con que se imprime
     // el ticket al 16%: con los productos que el POS exporto, o con los del
     // catalogo cuando el detallado del dia no esta en el sistema. El detalle se
@@ -192,7 +226,11 @@ class mdl extends CRUD {
             (SELECT GROUP_CONCAT(DISTINCT pm.name ORDER BY pm.name SEPARATOR ' + ')
                FROM {$this->bd}detail_sale_payment p
                LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
-              WHERE p.active = 1 AND p.sale_folio = s.folio) AS payment_name,
+              WHERE p.active = 1 AND {$this->folioDelPago()} = s.folio) AS payment_name,
+            (SELECT GROUP_CONCAT(DISTINCT pm.name ORDER BY pm.name SEPARATOR ' + ')
+               FROM {$this->bd}detail_sale_payment p
+               LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+              WHERE p.active = 1 AND p.sale_folio = s.folio) AS payment_real,
             (SELECT MIN(d.table_number)
                FROM {$this->bd}detail_sale d
               WHERE d.active = 1 AND d.sale_folio = s.folio) AS table_number,
@@ -203,6 +241,27 @@ class mdl extends CRUD {
         ";
     }
 
+    // Los dos lados de la mudanza, para que la fila pueda decir de donde salio o a
+    // donde se fue su cargo. Sin esto el listado mostraria un folio en efectivo
+    // cobrando $1,070.00 sin explicar de donde, que es exactamente la clase de
+    // cifra que nadie se atreve a facturar.
+    //
+    // Van como lista y no como folio suelto: nada impide que una cuenta se haya
+    // partido en tres vouchers y ceda dos.
+    function reasignacionSelect() {
+        return "
+            (SELECT GROUP_CONCAT(DISTINCT p.sale_folio ORDER BY p.sale_folio SEPARATOR ', ')
+               FROM {$this->bd}detail_sale_payment p
+              WHERE p.active = 1 AND p.assigned_folio = s.folio) AS recibido_de,
+            (SELECT GROUP_CONCAT(DISTINCT p.assigned_folio ORDER BY p.assigned_folio SEPARATOR ', ')
+               FROM {$this->bd}detail_sale_payment p
+              WHERE p.active = 1 AND p.sale_folio = s.folio AND p.assigned_folio IS NOT NULL) AS cedido_a,
+            (SELECT COALESCE(SUM(p.amount), 0)
+               FROM {$this->bd}detail_sale_payment p
+              WHERE p.active = 1 AND p.assigned_folio = s.folio) AS monto_recibido
+        ";
+    }
+
     // El listado va por folio ascendente. folio es VARCHAR, asi que se ordena por
     // su valor numerico: en texto el '9' cae despues del '10'. El folio en texto
     // queda de desempate para lo que no sea numero.
@@ -210,11 +269,13 @@ class mdl extends CRUD {
         $query = "
             SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
                    {$this->totalProcesable()} AS total,
+                   s.total AS sale_total,
                    s.invoice_series, st.name AS status_name,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
                    EXISTS ({$this->conDetalle()}) AS tiene_detalle,
-                   {$this->ticketSelect()}
+                   {$this->ticketSelect()},
+                   {$this->reasignacionSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
@@ -248,16 +309,32 @@ class mdl extends CRUD {
     // total_cero es lo que el reparto dejo realmente en la tasa cero: la venta que
     // se quedo con papel. Es el mismo monto que suma generateDay(), y sirve para
     // contrastarlo contra el objetivo en la tarjeta del 0%.
+    //
+    // Desde que el listado muestra el dia completo hay dos poblaciones y hay que
+    // contarlas por separado, porque solo una factura:
+    //
+    //   tickets      los que traen monto con tarjeta. Son los que se reparten
+    //                entre el 16% y el 0%, y los unicos que mueven las cifras.
+    //   servicio     los que quedaron en $0.00 —el servicio de mesa—, que ni se
+    //                reparten ni entran a los objetivos.
+    //   movimientos  la suma de los dos: lo que el POS cobro ese dia.
+    //
+    // Por eso `generados_cero` pide ademas monto: el servicio de mesa tambien
+    // recibe papel al 0% en el cierre, y sin acotarlo la tarjeta del 0% se leeria
+    // como si el reparto hubiera mandado ahi el doble de tickets.
     function getTicketDayCounts($array) {
         $query = "
-            SELECT COUNT(*) AS tickets,
+            SELECT COALESCE(SUM({$this->totalProcesable()} > 0), 0) AS tickets,
+                   COALESCE(SUM({$this->totalProcesable()} = 0), 0) AS servicio,
+                   COUNT(*) AS movimientos,
                    COALESCE(SUM(st.name = 'FACTURADO'), 0) AS facturados,
-                   COALESCE(SUM(s.tax = 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
+                   COALESCE(SUM(s.tax = 0 AND {$this->totalProcesable()} > 0 AND (st.name IS NULL OR st.name <> 'FACTURADO')), 0) AS cero,
                    COALESCE(SUM(v.id IS NOT NULL), 0) AS generados,
-                   COALESCE(SUM(v.id IS NOT NULL AND v.tax_rate = 0), 0) AS generados_cero,
+                   COALESCE(SUM(v.id IS NOT NULL AND v.tax_rate = 0 AND {$this->totalProcesable()} > 0), 0) AS generados_cero,
+                   COALESCE(SUM(v.id IS NOT NULL AND {$this->totalProcesable()} = 0), 0) AS generados_servicio,
                    COALESCE(SUM({$this->totalProcesable()}), 0) AS total,
                    COALESCE(SUM(CASE WHEN st.name = 'FACTURADO' THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_facturado,
-                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL AND v.tax_rate = 0 THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_cero
+                   COALESCE(SUM(CASE WHEN v.id IS NOT NULL AND v.tax_rate = 0 AND {$this->totalProcesable()} > 0 THEN {$this->totalProcesable()} ELSE 0 END), 0) AS total_cero
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1
@@ -279,6 +356,7 @@ class mdl extends CRUD {
         $query = "
             SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
                    {$this->totalProcesable()} AS total,
+                   s.total AS sale_total,
                    s.invoice_series, st.name AS status_name,
                    os.name AS operation_status,
                    EXISTS ({$this->soloCredito()}) AS es_credito,
@@ -286,7 +364,8 @@ class mdl extends CRUD {
                    EXISTS ({$this->conDetalle()})  AS tiene_detalle,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
-                   {$this->ticketSelect()}
+                   {$this->ticketSelect()},
+                   {$this->reasignacionSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}sale_operation_status os ON os.id = s.operation_status_id
@@ -316,10 +395,123 @@ class mdl extends CRUD {
               AND s.tax = 0
               AND (st.name IS NULL OR st.name <> 'FACTURADO')
               AND v.id IS NULL
+              AND {$this->totalProcesable()} > 0
               AND {$this->ventaElegible()}
             ORDER BY CAST(s.folio AS UNSIGNED) ASC, s.folio ASC
         ";
         return $this->_Read($query, $array);
+    }
+
+    // -- Reasignacion de cargos --
+
+    // Los cargos con tarjeta del dia, uno por renglon y en el orden en que el POS
+    // los capturo. De aqui sale la lista de los que hay que mudar: el folio que
+    // aparece dos veces cede todos menos el primero.
+    //
+    // Se agrupan por sale_folio y NO por el folio efectivo: lo que se decide aqui
+    // es a donde va cada cargo, asi que mirar el destino que ya tienen seria
+    // repartir sobre el resultado del reparto anterior. El cierre limpia las
+    // mudanzas antes de recalcularlas (ver clearReassignmentsByDay), y esta
+    // consulta ve entonces el dia como lo mando el Excel.
+    //
+    // El cargo en $0.00 no cuenta: Wansoft exporta vouchers vacios —el folio 6284
+    // del 22/08 trae uno— y si se colara como "el primero" el folio se quedaria
+    // valiendo nada mientras su cobro real se muda a otro lado.
+    function listCardPaymentsByDay($array) {
+        $query = "
+            SELECT p.id, p.sale_folio, p.amount
+            FROM {$this->bd}detail_sale_payment p
+            INNER JOIN {$this->bd}sale s ON s.id = p.sale_id
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.active = 1
+              AND s.active = 1
+              AND s.branch_id <=> ?
+              AND DATE(s.operation_date) = ?
+              AND pm.name = 'TARJETA DE CREDITO'
+              AND p.amount > 0
+            ORDER BY CAST(p.sale_folio AS UNSIGNED) ASC, p.sale_folio ASC, p.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Los cargos que hoy estan mudados, para el registro que el modulo muestra. Se
+    // lee de la base y no del plan porque el plan solo existe mientras corre el
+    // cierre: al volver a entrar al dia, esto es lo unico que queda.
+    //
+    // Trae ademas cuanto cobro el folio que recibe y con que forma de pago, que es
+    // lo que explica por que puede amparar un cargo ajeno: no va a pedir factura.
+    function listReassignedByDay($array) {
+        $query = "
+            SELECT
+                p.sale_folio     AS origen,
+                p.assigned_folio AS destino,
+                p.amount         AS monto,
+                (SELECT GROUP_CONCAT(DISTINCT pm2.name ORDER BY pm2.name SEPARATOR ', ')
+                   FROM {$this->bd}detail_sale_payment p2
+                   INNER JOIN {$this->bd}sale s2 ON s2.id = p2.sale_id
+                   LEFT JOIN {$this->bd}payment_method pm2 ON pm2.id = p2.payment_method_id
+                  WHERE p2.active = 1
+                    AND s2.active = 1
+                    AND s2.branch_id <=> s.branch_id
+                    AND DATE(s2.operation_date) = DATE(s.operation_date)
+                    AND p2.sale_folio = p.assigned_folio
+                    AND p2.amount > 0) AS pago_destino
+            FROM {$this->bd}detail_sale_payment p
+            INNER JOIN {$this->bd}sale s ON s.id = p.sale_id
+            WHERE p.active = 1
+              AND s.active = 1
+              AND s.branch_id <=> ?
+              AND DATE(s.operation_date) = ?
+              AND p.assigned_folio IS NOT NULL
+            ORDER BY CAST(p.sale_folio AS UNSIGNED) ASC, p.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Muda un cargo. Se escribe uno por uno y no en bloque porque cada cargo va a
+    // un folio distinto, y son un punado en el peor dia.
+    function reassignPayment($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale_payment
+               SET assigned_folio = ?
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Firma las mudanzas del dia con la corrida que las decidio. Va en una sola
+    // sentencia y despues de abrirla, porque el orden lo impone la dependencia: el
+    // reparto 16%/0% se calcula sobre los montos YA mudados y la corrida guarda ese
+    // reparto, asi que cuando nace la corrida los cargos llevan rato en su sitio.
+    function stampReassignmentsByDay($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale_payment p
+            INNER JOIN {$this->bd}sale s ON s.id = p.sale_id
+               SET p.reassignment_run_id = ?
+             WHERE s.branch_id <=> ?
+               AND DATE(s.operation_date) = ?
+               AND p.assigned_folio IS NOT NULL
+               AND p.reassignment_run_id IS NULL
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Devuelve todos los cargos del dia a su folio original. Es lo primero que hace
+    // el cierre —el reparto se recalcula entero, no se acumula sobre el anterior— y
+    // lo que deja deshacer el dia sin rastro.
+    //
+    // Va por sale_id y no por folio: el folio se repite entre sucursales y la tabla
+    // de pagos no tiene branch_id propio, asi que el dia se acota por la venta.
+    function clearReassignmentsByDay($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale_payment p
+            INNER JOIN {$this->bd}sale s ON s.id = p.sale_id
+               SET p.assigned_folio = NULL, p.reassignment_run_id = NULL
+             WHERE s.branch_id <=> ?
+               AND DATE(s.operation_date) = ?
+               AND p.assigned_folio IS NOT NULL
+        ";
+        return $this->_CUD($query, $array);
     }
 
     // -- Productos puente --
@@ -433,9 +625,11 @@ class mdl extends CRUD {
         $query = "
             SELECT s.id, s.folio, s.operation_date, s.subtotal, s.tax,
                    {$this->totalProcesable()} AS total,
+                   s.total AS sale_total,
                    st.name AS status_name,
                    v.id AS virtual_id, v.note_number, v.tax_rate AS virtual_tax_rate,
-                   EXISTS ({$this->conDetalle()}) AS tiene_detalle
+                   EXISTS ({$this->conDetalle()}) AS tiene_detalle,
+                   {$this->reasignacionSelect()}
             FROM {$this->bd}sale s
             LEFT JOIN {$this->bd}sale_status st ON st.id = s.sale_status_id
             LEFT JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id AND v.active = 1

@@ -1005,6 +1005,28 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
     transform-origin: top center;
 }
 
+/* -- El papel sin nada impreso --
+   Sin ticket abierto el papel se quedaba del alto de su aviso: un rectangulo de
+   dos dedos flotando arriba del panel, que no se lee como una tira de papel sino
+   como una tarjeta a medio cargar. Vacio o no, es el mismo papel, y lo que cambia
+   es que no tiene nada impreso.
+
+   El alto lo toma del panel y no de un numero fijo: un ticket de verdad mide lo
+   que midan sus renglones —de 30 a 40 lineas— y clavar esa medida dejaria el
+   papel corto en una pantalla grande y con scroll en una chica. El 100% se
+   resuelve contra el area de contenido de #ticketPrintArea, que ya descuenta su
+   propio acolchado, asi que llena el hueco exacto sin desbordarlo. */
+#root .ticket-paper.tk-empty {
+    /* El acolchado del papel entra DENTRO de la medida: sin esto sus 24px se suman
+       al 100% y el papel vacio sobresale del panel justo lo que mide su padding,
+       estrenando una barra de scroll para no ensenar nada. */
+    box-sizing: border-box;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 #root .ticket-paper.tk-pos table { border-collapse: collapse; }
 #root .ticket-paper.tk-pos th,
 #root .ticket-paper.tk-pos td { padding: 1px 0; font-size: 1em; color: #000; line-height: 1.35; }

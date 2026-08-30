@@ -109,7 +109,12 @@ class TicketPaper {
             // tira, no se encoge al tamano del aviso. El aviso no se comprime (no
             // es la rejilla), asi que sus 40ch se miden con los 11px de siempre y
             // no con la base agrandada del papel.
-            wrap.html(`<p class="w-[40ch] mx-auto text-center text-[11px] text-gray-400 py-8">${esc(opts.labels.empty)}</p>`);
+            //
+            // Y tampoco se encoge de alto: tk-empty le da el del panel (ver
+            // facture.css) para que siga siendo una tira de papel sin nada impreso
+            // y no una tarjeta suelta a media altura. El aviso se centra solo.
+            wrap.addClass('tk-empty');
+            wrap.html(`<p class="w-[40ch] text-center text-[11px] text-gray-400">${esc(opts.labels.empty)}</p>`);
             $(`#${opts.parent}`).html(wrap);
             return;
         }

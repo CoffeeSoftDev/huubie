@@ -6,6 +6,7 @@ let app, tickets, ticketsView;
 // repartir un dia con la meta de otro sin notarlo.
 const META_KEY = 'facture2.tickets.meta';
 
+
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
     tickets     = new Tickets(apiTickets, 'root');
@@ -183,14 +184,18 @@ class App extends Templates {
         this.layout();
         this.resizePanel();
         this.filterBar();
-        this.previewActions();
         ticketsView.renderFooter();
-        ticketsView.renderListNote();
-        this.updateHeaderTitle();
         ticketsView.renderPreview(null);
         tickets.lsTickets();
     }
 
+    // Tres bandas y no siete. La banda azul de la terminal ya rotula la pantalla y
+    // ya ofrece el regreso al menu, asi que el encabezado del modulo repetia el
+    // nombre, la fecha y el boton de volver un renglon mas abajo; y la nota del
+    // reparto era un parrafo fijo que ahora vive detras del boton del pie.
+    //
+    // Queda: la barra de operacion (fecha y acciones), la franja de cifras del dia
+    // y la tabla, que empieza donde antes terminaban las tarjetas.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -198,24 +203,16 @@ class App extends Templates {
             class: 'flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 w-full',
             children: [
                 {
-                    id:    'viewHeader',
-                    class: 'flex items-center justify-between px-4 py-3 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
-                },
-                {
                     id:    'filterBar',
                     class: 'px-3 pt-3 pb-1 bg-[#0E1521] flex-shrink-0'
                 },
                 {
-                    id:    'kpisRow',
-                    class: 'px-3 pt-1 pb-3 bg-[#0E1521] flex-shrink-0'
+                    id:    'statsRow',
+                    class: 'px-4 py-2 bg-[#0E1521] border-b border-[#374151] flex-shrink-0'
                 },
                 {
                     id:    'tableRow',
-                    class: 'p-3 flex-1 min-h-0 flex flex-col'
-                },
-                {
-                    id:    'listNote',
-                    class: 'px-4 py-2 bg-[#141d2b] flex-shrink-0'
+                    class: 'px-3 py-2 flex-1 min-h-0 flex flex-col'
                 },
                 // La hoja del dia solo existe para el papel: en pantalla no se ve y
                 // @media print la saca a imprimir, igual que #ticketPrintArea.
@@ -281,11 +278,6 @@ class App extends Templates {
                         type:  'div',
                         id:    'detailNote',
                         class: 'px-4 py-2 flex-shrink-0'
-                    },
-                    {
-                        type:  'div',
-                        id:    'detailActions',
-                        class: 'px-3 py-2 bg-[#0E1521] flex-shrink-0'
                     }
                 ]
             }
@@ -302,7 +294,7 @@ class App extends Templates {
             design: false,
             data: {
                 id:    'cardTable',
-                class: 'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg p-4 flex flex-col',
+                class: 'w-full flex-1 min-h-0 bg-[#1F2A37] rounded-lg px-3 py-2 flex flex-col',
                 container: [
                     {
                         type:  'div',
@@ -329,45 +321,67 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()'
             },
+            // Las acciones se agrupan a la derecha y la fecha se queda sola a la
+            // izquierda: en un renglon unico eso separa lo que se consulta de lo que
+            // se ejecuta, sin necesidad de un titulo que lo explique.
+            //
+            // Cada boton lleva su col-start fijo porque no se muestran los tres a la
+            // vez (ver syncActionButtons): con el sitio reservado, el que aparece cae
+            // siempre en la misma columna y la barra no baila al repartir el dia.
+            //
+            // El primario va pegado al engrane y el secundario a su izquierda, en el
+            // mismo orden en que estan aqui: asi la lectura y el orden de tabulacion
+            // coinciden.
             {
                 opc:       'button',
                 id:        'btnGenerarTodos',
-                text:      'Generar tickets del dia',
+                text:      'Generar ticket',
                 color_btn: 'invernal',
-                class:     'col-12 col-md-4 col-lg-3',
+                class:     'col-12 col-md-4 col-lg-3 lg:col-start-9',
                 onClick:   () => tickets.generateDay()
-            },
-            {
-                opc:       'button',
-                id:        'btnImprimirTodos',
-                text:      'Imprimir tickets',
-                color_btn: 'invernal',
-                class:     'col-12 col-md-4 col-lg-3',
-                onClick:   () => tickets.printSheet()
             },
             {
                 opc:       'button',
                 id:        'btnRehacer',
                 text:      'Rehacer reparto',
                 color_btn: 'secondary',
-                class:     'col-12 col-md-4 col-lg-3',
+                class:     'col-12 col-md-4 col-lg-3 lg:col-start-6',
                 onClick:   () => tickets.redoDay()
+            },
+            {
+                opc:       'button',
+                id:        'btnImprimirTodos',
+                text:      'Imprimir tickets',
+                color_btn: 'invernal',
+                class:     'col-12 col-md-4 col-lg-3 lg:col-start-9',
+                onClick:   () => tickets.printSheet()
             },
             // Cuanto de la venta se factura al 16% es un acuerdo del mes, no un filtro
             // del dia: vive detras del engrane y no en la barra, donde dos campos mas
             // competian por el renglon con la fecha y las acciones.
             //
-            // Va al final y en la ultima columna (col-start-12) para quedar pegado al
-            // borde, separado de las acciones: se toca una vez al mes y no compite con
-            // los botones que se usan a diario. La meta vigente la sigue mostrando la
-            // tarjeta del objetivo al 16%, no este boton.
+            // Va al final, en la ultima columna (col-start-12) y pegado al boton que
+            // le precede: alineado al borde derecho de su columna quedaba un hueco de
+            // medio ancho de columna que lo dejaba flotando lejos de las acciones.
+            // La meta vigente la sigue diciendo la cifra del IVA 16% de la franja, no
+            // este boton.
+            //
+            // El flex-col no sobra: cada celda de la barra trae una etiqueta vacia
+            // que reserva el renglon del rotulo, y solo apilando —etiqueta arriba,
+            // control abajo— este boton cae a la misma altura que los demas. En fila
+            // se centraba en la celda y quedaba diez pixeles mas alto.
+            //
+            // Y ocupa su columna entera en vez de ser un cuadro de 40px: la columna
+            // mide casi el doble, asi que un boton mas estrecho dejaba sobrando ese
+            // resto —a un lado o al otro, segun se alineara— y se leia como un hueco
+            // en la barra. Ancho completo, cero sobrante.
             {
                 opc:       'button',
                 id:        'btnMetaConfig',
                 text:      '',
                 color_btn: 'light',
-                class:     'col-6 col-lg-1 lg:col-start-12 flex flex-col items-end',
-                className: '!w-10 !h-9 !px-0 flex items-center justify-center',
+                class:     'col-6 col-lg-1 lg:col-start-12 flex flex-col items-stretch',
+                className: '!h-9 !px-0 flex items-center justify-center',
                 onClick:   () => app.openMetaModal()
             }
         ];
@@ -402,34 +416,6 @@ class App extends Templates {
         columna('btnRehacer').toggle(repartido);
     }
 
-    // Acciones del ticket virtual: viven en el pie del aside, no en la filterBar,
-    // porque operan sobre el ticket seleccionado y no sobre el listado.
-    previewActions() {
-        this.createfilterBar({
-            parent:     'detailActions',
-            id:         'frmActionsTickets',
-            coffeesoft: true,
-            theme:      FACTURE_THEME,
-            data: [
-                {
-                    opc:       'button',
-                    id:        'btnRegenerar',
-                    text:      'Generar',
-                    color_btn: 'secondary',
-                    class:     'col-6',
-                    onClick:   () => tickets.generate()
-                },
-                {
-                    opc:       'button',
-                    id:        'btnImprimir',
-                    text:      'Imprimir',
-                    color_btn: 'invernal',
-                    class:     'col-6',
-                    onClick:   () => tickets.printTicket()
-                }
-            ]
-        });
-    }
 
     // La meta viaja con el dia en todas las peticiones: decide que ticket va a que
     // tasa, asi que el listado, el cierre y la hoja tienen que verla igual.
@@ -444,7 +430,6 @@ class App extends Templates {
     // -- Event handlers --
 
     onChangeFilters() {
-        this.updateHeaderTitle();
         tickets.lsTickets();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
@@ -615,28 +600,19 @@ class App extends Templates {
         return String(Math.round((Number(pct) || 0) * 10) / 10);
     }
 
-    // Copy de la cabecera del modulo. No son datos: tickets, emisor y renglones del
-    // ticket virtual se consultan al servidor.
-    updateHeaderTitle() {
-        const header = {
-            title:    'Tickets',
-            subtitle: 'Tickets virtuales del dia, de lo pagado con tarjeta de credito. Las demas formas de pago no se muestran. Las notas se reinician cada dia',
-            back:     { href: '/app/facture2/inicio.php', title: 'Regresar a la Terminal' }
-        };
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const f         = this.getFilters();
-        const fecha     = String(f.dia || '').split('-').reverse().join('/');
-        const titleHtml = `${header.title} <span class="font-bold" style="color:#1C64F2;">&middot; ${esc(fecha)}</span>`;
-
-        ticketsView.renderHeader(Object.assign({}, header, { titleHtml }));
-    }
-
     updateFooterInfo(text) {
         $('#viewFooter_info').text(text);
+    }
+
+
+    // Que se hizo con los cargos que cambiaron de folio. Va en un globo colgado del
+    // propio aviso del pie, no en un cuadro en medio de la pantalla: es el detalle
+    // de esa linea y no interrumpe nada. Se arma con lo que ya vino en el listado,
+    // asi que no pide nada al servidor.
+    avisoMudados() {
+        if (!(this.dataMudados || []).length) return;
+
+        ticketsView.toggleMudadosToast(this.dataMudados);
     }
 
     // -- Facade --
@@ -685,7 +661,7 @@ class Tickets extends Templates {
 
         this.generating = true;
 
-        const botones = $('#btnGenerarTodos, #btnRehacer, #btnRegenerar')
+        const botones = $('#btnGenerarTodos, #btnRehacer')
             .prop('disabled', true)
             .addClass('opacity-60 cursor-not-allowed');
 
@@ -712,7 +688,7 @@ class Tickets extends Templates {
             scrollable:   false,
             hover:        true,
             f_size:       11,
-            emptyMessage: 'No hay cobros con tarjeta de credito en el dia seleccionado',
+            emptyMessage: 'No hay ventas pagadas en el dia seleccionado',
             emptyIcon:    'ic-file-text',
             data:         data
         });
@@ -721,16 +697,24 @@ class Tickets extends Templates {
 
         this.dataTable(`#tb${this.PROJECT_NAME}`, data);
 
-        const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0 };
+        const counts = data.counts || { facturados: 0, cero: 0, generados: 0, mostrados: 0, servicio: 0 };
 
         app.dataKpis = data.kpis || {};
 
-        ticketsView.renderKpis(app.dataKpis);
-        ticketsView.renderListNote(data.corte);
+        app.dataMudados = data.mudados || [];
+
+        ticketsView.renderStats(app.dataKpis, counts);
+        ticketsView.renderCutNote(data.corte);
+        ticketsView.renderMudadosLink(app.dataMudados);
         app.syncActionButtons(counts);
         app.syncMetaButton();
 
-        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} pagados con tarjeta de credito`);
+        // El pie nombra las dos poblaciones del listado. Sin la segunda cifra, un
+        // dia con veinte tickets en $0.00 se lee como un dia sin ventas.
+        const servicio = counts.servicio || 0;
+        const aparte   = servicio > 0 ? `, ${servicio} de servicio de mesa` : '';
+
+        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} del dia${aparte}`);
     }
 
     // Paginado, buscador y ordenamiento de la tabla ya pintada. Sin filas
@@ -922,123 +906,174 @@ class TicketsView extends Templates {
 
     // -- Render helpers --
 
-    renderHeader(data) {
-        this.viewHeader({
-            parent: 'viewHeader',
-            id:     'hdrTickets',
-            json:   data
-        });
-    }
-
+    // El pie: a la izquierda lo que se esta viendo, a la derecha la puerta al manual
+    // del reparto. Las cinco leyendas de color que vivian aqui repetian lo que ya
+    // dice el badge de la columna Estado, fila por fila.
     renderFooter() {
-        this.viewFooter({
-            parent: 'viewFooterRow',
-            id:     'viewFooter',
-            json: {
-                info: '',
-                legends: [
-                    { tone: 'success', label: 'Facturado (bloqueado)'   },
-                    { tone: 'info',    label: 'Ticket IVA 16%'  },
-                    { tone: 'default', label: 'Ticket IVA 0%'   },
-                    { tone: 'warning', label: 'Requiere ticket virtual' },
-                    { tone: 'default', label: 'No facturado'   }
-                ]
-            }
+        const info = $('<div>', { class: 'flex items-center gap-3 min-w-0 text-[10px] text-gray-400' });
+
+        info.append($('<span>', { id: 'viewFooter_info' }));
+        info.append($('<span>', { id: 'viewFooter_cut' }));
+
+        // El dia con cargos cambiados de folio lo dice aqui y no fila por fila: es
+        // un hecho del dia, no de una venta, y asi la tabla se queda como esta.
+        // Nace escondido porque la mayoria de los dias no hay ninguno.
+        const mudados = $('<button>', {
+            type:  'button',
+            id:    'btnMudados',
+            class: 'ws-help flex-shrink-0',
+            css:   { display: 'none' }
         });
+
+        mudados.append($('<span>', { id: 'btnMudados_txt' }));
+        mudados.append($('<span>', { text: '›' }));
+
+        mudados.on('click', () => app.avisoMudados());
+
+        // El globo del aviso se cuelga de aqui, para que salga del propio boton.
+        const wrap = $('<div>', { id: 'mudadosWrap', class: 'relative flex-shrink-0' });
+
+        wrap.append(mudados);
+
+        $('#viewFooterRow').empty().append(info).append(wrap);
     }
 
-    // El pie del listado. Cuando el dia tiene corte previsto la nota lo dice primero:
-    // la linea de la tabla es una marca muda sin los numeros que la ponen ahi.
-    //
-    // Sin corte no hay linea que explicar —toda la venta cabe en el 16%— y la nota
-    // se queda con lo de siempre.
-    renderListNote(corte) {
-        const base = 'Al generar, los que caen al IVA 0% estrenan una lista de productos de tasa 0% que suma su total. Los del IVA 16% conservan lo que trae su comanda, y solo los que llegaron sin detalle se arman con el catalogo de IVA. Los productos se dan de alta en Catalogos; el sistema busca la combinacion que da el total exacto y el descuento solo aparece cuando ninguna cuadra. El ticket cuyo descuento pase la tolerancia capturada en Emisor lo dice al abrirlo.';
+    // El aviso del pie: cuantas cuentas se cobraron con mas de una tarjeta hoy.
+    renderMudadosLink(mudados) {
+        const n = (mudados || []).length;
 
-        const linea = corte && corte.hay
-            ? `La linea ambar marca hasta donde llega el IVA 16%: las ${corte.cuenta16} ventas de arriba suman ${corte.logradoTexto} para un objetivo de ${corte.objetivoTexto}, y las ${corte.cuenta0} de abajo (${corte.monto0Texto}) caen al IVA 0%. `
+        $('#btnMudados').toggle(n > 0);
+        $('#btnMudados_txt').text(n === 1 ? '1 cargo cambio de folio' : `${n} cargos cambiaron de folio`);
+    }
+
+    // Las lineas del aviso: una por cargo, cada una dicha como se diria en voz alta.
+    // Se cortan en tres porque esto es un aviso, no un reporte: con mas movimientos
+    // la ultima linea dice cuantos quedan.
+    mudadosLineas(mudados) {
+        const lineas = (mudados || []).slice(0, 3).map((mov) =>
+            `El cargo de ${mov.montoTexto} de la cuenta ${mov.origen} lo factura ahora el folio ${mov.destino}, que se cobro en ${mov.pagoDestino}.`
+        );
+
+        const resto = (mudados || []).length - lineas.length;
+
+        if (resto > 0) lineas.push(`Y ${resto} cargo${resto !== 1 ? 's' : ''} mas.`);
+
+        return lineas;
+    }
+
+    // El globo del pie. Sale del aviso, se va solo a los seis segundos y se cierra
+    // con un toque fuera o volviendo a tocar el aviso.
+    toggleMudadosToast(mudados) {
+        let toast = $('#mudadosToast');
+
+        if (toast.hasClass('is-on')) return this.hideMudadosToast();
+
+        if (!toast.length) {
+            toast = $('<div>', { id: 'mudadosToast', class: 'ws-toast' });
+            $('#mudadosWrap').append(toast);
+        }
+
+        toast.empty();
+
+        this.mudadosLineas(mudados).forEach((linea, i) => {
+            toast.append($('<div>', { class: i ? 'mt-1.5' : '', text: linea }));
+        });
+
+        // La caja tiene que estar puesta antes de la clase que la anima; si no, el
+        // navegador pinta las dos cosas a la vez y no hay transicion que ver.
+        requestAnimationFrame(() => toast.addClass('is-on'));
+
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => this.hideMudadosToast(), 6000);
+
+        // El cierre por toque fuera se engancha en el siguiente ciclo: si no, el
+        // mismo clic que abrio el globo lo cerraria al llegar al documento.
+        setTimeout(() => $(document).one('click.mudados', () => this.hideMudadosToast()), 0);
+    }
+
+    hideMudadosToast() {
+        clearTimeout(this.toastTimer);
+
+        $(document).off('click.mudados');
+        $('#mudadosToast').removeClass('is-on');
+    }
+
+    // La linea del corte, que es lo unico del manual que cambia cada dia: sin ella
+    // la marca ambar de la tabla es una raya muda. Sin corte previsto no hay nada
+    // que explicar —toda la venta cabe en el 16%— y el hueco se queda vacio.
+    renderCutNote(corte) {
+        const texto = corte && corte.hay
+            ? `· la linea ambar corta el IVA 16%: ${corte.cuenta16} ventas por ${corte.logradoTexto} de ${corte.objetivoTexto}, y ${corte.cuenta0} al IVA 0% (${corte.monto0Texto})`
             : '';
 
-        this.noteBox({
-            parent: 'listNote',
-            json:   { text: linea + base }
-        });
+        $('#viewFooter_cut').text(texto);
     }
 
-    // Tarjetas del dia: la venta con tarjeta, la meta a la que hay que llegar, lo que
-    // ya quedo cubierto y lo que falta. Los montos llegan escritos del servidor; lo
-    // unico que se arma aqui es el copy que los acompana.
+    // Las cuatro cifras del dia en un renglon: la venta con tarjeta, las dos tasas
+    // en que se reparte y lo que ya quedo facturado. Antes eran cinco tarjetas de
+    // infoCard —una banda entera— y las cinco salian de la misma cuenta.
     //
-    // El fondo se elige por tema: Resumen lo trae fijo en oscuro y en la vista clara
-    // se le ven tarjetas negras. Aqui no.
-    renderKpis(k) {
-        const bgColor     = FACTURE_THEME_IS_LIGHT ? 'bg-white' : 'bg-[#141d2b]';
-        const borderColor = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-transparent';
-        const textColor   = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+    // El total de tarjeta abre la fila y va un cuerpo mas grande: es el unico monto
+    // que el modulo procesa y de el salen los dos objetivos. Los montos llegan
+    // escritos del servidor; aqui solo se arma el rotulo que los acompana.
+    //
+    // Los tamanos y los colores viven en wansoft-theme.css (TRM-007): el JS pone
+    // .ws-stat y sus variantes.
+    renderStats(k, counts) {
+        const pctCero = k.metaCeroPct || 30;
 
-        const card = (id, title, lucideIcon, value, subtitle, color) => ({
-            id, title, lucideIcon, bgColor, borderColor,
-            data: { value: value || '$0.00', subtitle: subtitle, color: color }
-        });
+        // Cada cifra ocupa dos renglones —rotulo y monto— y nada mas: el reparto que
+        // las relaciona cabe en el propio rotulo. Lo que no cabe ahi (el objetivo del
+        // 0% una vez generado, cuantos movimientos suman el total) viaja en el title
+        // de la celda, que es donde se consulta un detalle sin pedirle sitio a la
+        // pantalla todos los dias.
+        //
+        // Cuando la meta se fija como cantidad el porcentaje sigue siendo cierto pero
+        // ya no es lo que se capturo: el rotulo lo dice para que nadie lea un 44.8%
+        // como si alguien lo hubiera elegido asi.
+        const rotulo16 = k.metaModo === 'monto'
+            ? `IVA 16% · cantidad fija`
+            : `IVA 16% · ${k.metaPct || 70}%`;
 
-        const pctCero      = k.metaCeroPct || 30;
-        const tituloCero   = k.ceroGenerado ? 'Generado al IVA 0%' : 'Monto objetivo para IVA 0%';
-        const valorCero    = k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto;
-        const subtituloCero = k.ceroGenerado
-            ? `${pctCero}% de la venta · objetivo ${k.objetivoCeroTexto}`
-            : `${pctCero}% de la venta con tarjeta`;
+        const row = $('<div>', { class: 'w-full flex items-center flex-wrap gap-y-2' });
 
-        // Cuando la meta se fija como cantidad, el porcentaje sigue siendo cierto
-        // pero ya no es lo que se capturo: la tarjeta lo dice para que nadie lea un
-        // 44.8% como si alguien lo hubiera elegido asi.
-        const subtituloMeta = k.metaModo === 'monto'
-            ? `cantidad fija · ${k.metaPct || 70}% de la venta con tarjeta`
-            : `${k.metaPct || 70}% de la venta con tarjeta`;
+        // El detalle del hero dice de cuantos folios sale la cifra y cuantos se
+        // quedaron fuera: el listado muestra el dia completo, pero solo la tarjeta
+        // de credito construye este monto.
+        const servicio = k.servicio
+            ? ` · ${k.servicio} de servicio de mesa, que no facturan`
+            : '';
 
-        this.infoCard({
-            parent: 'kpisRow',
-            id:     'kpisTickets',
-            theme:  FACTURE_THEME,
-            style:  'file',
-            cols:   5,
-            json: [
-                // De las cinco tarjetas esta es la unica cifra que el modulo procesa
-                // de verdad —la suma de los movimientos validos— y de ella salen los
-                // dos objetivos. Por eso va destacada y no como las demas: el nombre
-                // es el del documento y el subtitulo dice las dos reglas que la
-                // forman, que es justo lo que la separa del total de Resumen.
-                //
-                // Las clases kpi-hero* no pintan aqui: el color vive en
-                // wansoft-theme.css, que es donde debe estar (TRM-007).
-                {
-                    id:          'kpiTotalDia',
-                    title:       'Total Tarjeta de Credito',
-                    lucideIcon:  'credit-card',
-                    bgColor:     'kpi-hero',
-                    borderColor: 'kpi-hero-bd',
-                    data: {
-                        value:    k.totalTexto || '$0.00',
-                        subtitle: `${k.tickets || 0} movimientos validos · Pagada + tarjeta de credito`,
-                        color:    'kpi-hero-val'
-                    }
-                },
+        row.append(this.statCell('Tarjeta de credito', k.totalTexto, 'ws-stat-hero',
+            `${k.tickets || 0} folios con cargo a tarjeta${servicio}`));
 
-                card('kpiMeta', 'Monto objetivo para IVA 16%', 'target', k.objetivoTexto,
-                     subtituloMeta, textColor),
+        row.append(this.statCell(rotulo16, k.objetivoTexto, 'ws-stat-blue',
+            `${k.metaPct || 70}% de la venta con tarjeta`));
 
-                card('kpiFacturado', 'Ya facturado', 'lock', k.facturadoTexto,
-                     `${k.facturados || 0} tickets facturados realmente`, 'text-green-600'),
+        // Mientras el dia no tenga reparto corrido se muestra el objetivo del 0%; ya
+        // repartido, lo que el reparto armo de verdad.
+        row.append(this.statCell(`IVA 0% · ${pctCero}%`,
+            k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto, '',
+            k.ceroGenerado ? `generado · objetivo ${k.objetivoCeroTexto}` : `${pctCero}% de la venta con tarjeta`));
 
-                card('kpiPorFacturar', 'Por facturar al IVA 16%', 'alert-circle', k.porFacturarTexto,
-                     `${k.metaPct || 70}% de la venta - Facturado`, 'text-[#1C64F2]'),
+        row.append(this.statCell('Ya facturado', k.facturadoTexto, 'ws-stat-ok',
+            `${k.facturados || 0} tickets facturados realmente`));
 
-                // El monto que el reparto armo al 0%. El objetivo baja al subtitulo:
-                // el dato que se lee es lo generado, no la comparacion.
-                // Mientras el dia no tenga reparto corrido se muestra el objetivo.
-                card('kpiObjetivoCero', tituloCero, 'alert-circle', valorCero,
-                     subtituloCero, 'text-[#1C64F2]')
-            ]
-        });
+        row.append($('<div>', { class: 'ml-auto' }).append($('<span>', {
+            class: `badge-base ${(counts.generados || 0) > 0 ? 'b-blue' : 'b-gray'}`,
+            text:  (counts.generados || 0) > 0 ? `${counts.generados} generados` : 'sin repartir'
+        })));
+
+        $('#statsRow').empty().append(row);
+    }
+
+    statCell(label, value, tone, detalle) {
+        const cell = $('<div>', { class: `ws-stat ${tone}`.trim(), title: detalle || '' });
+
+        cell.append($('<div>', { class: 'ws-stat-lbl', text: label }));
+        cell.append($('<div>', { class: 'ws-stat-val', text: value || '$0.00' }));
+
+        return cell;
     }
 
     // El cuadre del modal de distribucion: las dos tasas y su suma contra el Total
@@ -1173,6 +1208,27 @@ class TicketsView extends Templates {
             ? `<span class="block text-left text-[11px] text-gray-500 mt-2">Los tickets no se parten: el que cruza la meta entra completo, asi que el 16% se pasa ${esc(r.dif16Texto)} y al 0% le falta lo mismo.</span>`
             : '';
 
+        // Los cargos que cambiaron de folio. Es lo primero que hace el cierre y lo
+        // unico que reescribe un dato del POS, asi que se enseña movimiento por
+        // movimiento y no como un conteo: quien cierra el dia tiene que poder
+        // reconocer cada folio que quedo distinto de su ticket impreso.
+        //
+        // Va arriba del reparto porque es lo que lo precede: los montos que el
+        // reparto acaba de repartir ya salieron de aqui.
+        const movidos = r.reasignados || [];
+
+        const mudanza = movidos.length ? `
+            <span class="block text-left text-gray-300 font-semibold mt-1">${esc(movidos.length)} cargo(s) con tarjeta reasignados</span>
+            ${movidos.map(m => m.destino
+                ? renglon(`${m.origen} → ${m.destino}`, m.montoTexto)
+                : renglon(`${m.origen} · sin folio libre`, m.montoTexto)).join('')}
+            ${detalle('el folio se queda con su primer cargo · el resto pasa al proximo que no cobro con tarjeta')}
+            ${movidos.some(m => !m.destino)
+                ? detalle('los que dicen «sin folio libre» se quedaron donde estaban: ese dia no hubo servicio de mesa disponible', 'text-amber-500')
+                : ''}
+            ${separador}
+        ` : '';
+
         this.alertBox({
             theme:   FACTURE_THEME,
             type:    'success',
@@ -1186,6 +1242,7 @@ class TicketsView extends Templates {
                     <span class="font-mono text-gray-200 font-semibold">${esc(r.totalTexto)}</span>
                 </span>
                 ${separador}
+                ${mudanza}
                 ${titulo('Objetivo IVA 16%', r.metaPct, r.objetivoTexto)}
                 ${r.facturados ? renglon('ya facturado', r.facturadoTexto) + renglon('por cubrir con tickets', r.porCubrirTexto) : ''}
                 ${renglon('logrado', r.logrado16Texto, dif(r.dif16Texto))}
@@ -1194,11 +1251,12 @@ class TicketsView extends Templates {
                 ${renglon('logrado', r.logrado0Texto, dif(r.dif0Texto))}
                 ${desfase}
                 ${separador}
-                <span class="block text-left text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets del dia</span>
+                <span class="block text-left text-gray-300 font-semibold mt-1">${esc(r.tickets)} tickets con cargo a tarjeta</span>
                 ${conteo('al IVA 16%', r.cuenta16Total)}
                 ${partes16.length ? detalle(partes16.join(' · ')) : ''}
                 ${conteo('al IVA 0%', r.cuenta0)}
                 ${detalle('con ticket virtual del catalogo de tasa 0%')}
+                ${r.servicio ? conteo('servicio de mesa', r.servicio) + detalle('cuentas cobradas sin tarjeta · su papel no factura') : ''}
                 ${r.sinPapel ? conteo('sin papel', r.sinPapel) + detalle('faltan productos en el catalogo', 'text-amber-500') : ''}
             `
         });
@@ -1238,18 +1296,31 @@ class TicketsView extends Templates {
         this.panelHead({
             parent: 'detailHead',
             json: {
-                icon:   'printer',
+                // El icono del titulo deja la impresora al boton de imprimir y se
+                // queda con el del documento, que es lo que el panel ensena.
+                icon:   'receipt',
                 title:  ticket ? `Ticket virtual · Nota ${ticket.nota}` : 'Ticket virtual',
+                // Imprimir vive en el encabezado, junto al ticket que va a salir, y
+                // solo aparece cuando hay uno abierto: sin papel no hay nada que
+                // mandar a la impresora.
+                action: ticket
+                    ? { id: 'btnImprimir', icon: 'printer', text: 'Imprimir', title: 'Imprimir este ticket', fn: () => tickets.printTicket() }
+                    : null,
                 badges: ticket
                     ? [
-                        { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
+                        // El servicio de mesa se rotula por lo que es y no por su
+                        // tasa: dice 0% como los del reparto, pero no salio de una
+                        // decision de reparto sino de no haber cobrado con tarjeta.
+                        ticket.grupo === 'servicio'
+                            ? { text: 'Servicio de mesa', tone: 'b-gray' }
+                            : { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
                         // Tres estados y no dos: el papel guardado, el consumo real
                         // con el que la venta se factura al 16%, y la propuesta que
                         // se le arma a la venta que llego sin comanda y todavia no
                         // se guarda.
                         ticket.generado
                             ? { text: 'papel guardado', tone: 'b-blue' }
-                            : (ticket.grupo === 'ivaGenerado'
+                            : (ticket.grupo === 'ivaGenerado' || ticket.grupo === 'servicio'
                                 ? { text: 'propuesta', tone: 'b-yellow' }
                                 : { text: 'consumo real', tone: 'b-gray' }),
                         // El ajuste que se paso del tope se ve sin leer la nota: es
@@ -1260,23 +1331,41 @@ class TicketsView extends Templates {
             }
         });
 
+        // Sin ticket abierto la banda de la nota no se pinta: el papel ya dice "Sin
+        // ticket seleccionado" en su propio hueco, y repetirlo debajo era decir dos
+        // veces lo mismo en la misma columna. El aviso vuelve en cuanto hay algo que
+        // explicar —la nota del papel abierto, o el motivo por el que no se pudo
+        // armar—, y mientras tanto el div se esconde para no dejar una franja con
+        // padding y sin contenido.
+        const nota = ticket ? this.previewNote(ticket) : motivo;
+
+        $('#detailNote').toggle(!!nota).empty();
+
+        if (!nota) return;
+
         this.noteBox({
             parent: 'detailNote',
             class:  'text-[10px] text-gray-400 text-center',
             json: {
                 icon: '',
-                text: ticket ? this.previewNote(ticket) : (motivo || 'Selecciona un ticket de la lista para armar su ticket virtual.')
+                text: nota
             }
         });
     }
 
     // El copy depende de que papel se esta viendo:
     //
+    //   servicio     la cuenta que no se cobro con tarjeta: dice por que su papel
+    //                no lleva productos.
     //   cero         inventado con productos de tasa 0%, explica el cuadre.
     //   ivaGenerado  inventado con el catalogo de IVA, para la venta que llego sin
     //                comanda: explica de donde salieron los renglones y su desglose.
     //   real         el consumo que trajo el POS, explica solo el desglose.
     previewNote(ticket) {
+        if (ticket.grupo === 'servicio') {
+            return `La cuenta se cobro con ${String(ticket.metodo || '').toLowerCase()}: el papel no ampara ningun cargo con tarjeta, asi que no factura y sale en ${ticket.total}. Imprime un solo renglon de servicio de mesa, en vez del consumo.`;
+        }
+
         if (ticket.grupo === 'cero') {
             return `${ticket.lineas.length} renglon(es) de productos de tasa 0% suman ${ticket.subtotal} contra los ${ticket.total} del ticket.` + this.ajusteText(ticket);
         }
@@ -1367,167 +1456,47 @@ class TicketsView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        const iconHtml   = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
-        const badgesHtml = (opts.json.badges || [])
-            .map(b => `<span class="badge-base ${esc(b.tone || 'b-gray')}">${esc(b.text)}</span>`)
-            .join('');
+        const iconHtml = opts.json.icon ? `<i data-lucide="${esc(opts.json.icon)}" class="${opts.json.iconClass}"></i>` : '';
 
         const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
-        wrap.html(`
-            <h3 class="${opts.classes.title}">${iconHtml}${esc(opts.json.title)}</h3>
-            <div class="flex items-center gap-2">${badgesHtml}</div>
-        `);
+
+        wrap.html(`<h3 class="${opts.classes.title}">${iconHtml}${esc(opts.json.title)}</h3>`);
+
+        // La derecha del encabezado: primero lo que el ticket es —sus badges— y al
+        // final lo que se puede hacer con el. La accion se arma aparte y no con el
+        // resto del html porque lleva handler.
+        const derecha = $('<div>', { class: 'flex items-center gap-2' });
+
+        (opts.json.badges || []).forEach((b) => derecha.append($('<span>', {
+            class: `badge-base ${b.tone || 'b-gray'}`,
+            text:  b.text
+        })));
+
+        if (opts.json.action) derecha.append(this.panelAction(opts.json.action));
+
+        wrap.append(derecha);
 
         $(`#${opts.parent}`).html(wrap);
         if (window.lucide) lucide.createIcons();
     }
 
-    viewHeader(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'viewHeader',
-            class:  'flex items-center justify-between w-full',
-            json:   { title: '', titleHtml: '', subtitle: '', toggles: [], back: null },
-            classes: {
-                title:    'text-lg font-bold text-white',
-                subtitle: 'text-xs text-gray-400',
-                groupLbl: 'text-[9px] text-gray-400 uppercase tracking-wider font-bold',
-                btn:      'demo-toggle px-2.5 py-1 rounded text-[11px] border border-[#374151] text-gray-400 hover:bg-[#1F2A37] transition-colors',
-                btnActive:'demo-toggle active px-2.5 py-1 rounded text-[11px] border border-blue-400 bg-[rgba(28,100,242,0.12)] text-blue-300',
-                sep:      'text-gray-300',
-                backBtn:  'w-8 h-8 rounded-full bg-[#1F2A37] hover:bg-[rgba(28,100,242,0.12)] border border-[#374151] hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-300 transition-colors flex-shrink-0'
-            },
-            onToggle: () => { },
-            onBack:   null
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const state = {};
-        (opts.json.toggles || []).forEach(g => { state[g.key] = g.value; });
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toggleGroup = (g) => {
-            const buttons = (g.options || []).map(op => {
-                const active = state[g.key] === op.value;
-                return `<button type="button"
-                                data-toggle-key="${esc(g.key)}"
-                                data-toggle-value="${esc(op.value)}"
-                                class="${active ? opts.classes.btnActive : opts.classes.btn}">${esc(op.label)}</button>`;
-            }).join('');
-            return `
-                <div class="flex items-center gap-2">
-                    <span class="${opts.classes.groupLbl}">${esc(g.label)}</span>
-                    ${buttons}
-                </div>
-            `;
-        };
-
-        const backCfg   = opts.json.back;
-        const backHref  = typeof backCfg === 'string' ? backCfg : (backCfg && backCfg.href) || '';
-        const backTitle = (backCfg && backCfg.title) || 'Regresar';
-        const backHtml  = backCfg ? `
-            <button type="button" id="${opts.id}_back" class="${opts.classes.backBtn}" title="${esc(backTitle)}">
-                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
-        ` : '';
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-        const togglesHtml = (opts.json.toggles || [])
-            .map((g, i, arr) => toggleGroup(g) + (i < arr.length - 1 ? `<span class="${opts.classes.sep}">|</span>` : ''))
-            .join('');
-
-        wrap.html(`
-            <div class="flex items-center gap-3">
-                ${backHtml}
-                <div>
-                    <h1 class="${opts.classes.title}">${opts.json.titleHtml || esc(opts.json.title)}</h1>
-                    ${opts.json.subtitle ? `<p class="${opts.classes.subtitle}">${esc(opts.json.subtitle)}</p>` : ''}
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                ${togglesHtml}
-            </div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
-        if (window.lucide) lucide.createIcons();
-
-        wrap.on('click', '[data-toggle-key]', (e) => {
-            const $btn = $(e.currentTarget);
-            const key  = $btn.attr('data-toggle-key');
-            const val  = $btn.attr('data-toggle-value');
-            state[key] = val;
-
-            $btn.siblings('[data-toggle-key="' + key + '"]').addBack().each(function () {
-                const isActive = $(this).attr('data-toggle-value') === val;
-                this.className = isActive ? opts.classes.btnActive : opts.classes.btn;
-            });
-
-            opts.onToggle(key, val, Object.assign({}, state));
+    // El boton de accion del encabezado. Va en blanco y no en azul: el azul de la
+    // terminal es el de las acciones del dia —generar, imprimir el dia— y esta
+    // opera sobre un ticket, que es una escala mas chica. Los colores viven en
+    // wansoft-theme.css (.ws-act).
+    panelAction(action) {
+        const btn = $('<button>', {
+            type:  'button',
+            id:    action.id || 'panelAction',
+            class: 'ws-act',
+            title: action.title || action.text || ''
         });
 
-        if (backCfg) {
-            $(`#${opts.id}_back`).on('click', () => {
-                if (typeof opts.onBack === 'function') return opts.onBack();
-                if (backHref) window.location.href = backHref;
-            });
-        }
-    }
+        if (action.icon) btn.append($('<i>', { 'data-lucide': action.icon, class: 'w-3.5 h-3.5' }));
+        if (action.text) btn.append($('<span>', { text: action.text }));
 
-    viewFooter(options) {
-        const defaults = {
-            parent: 'root',
-            id:     'viewFooter',
-            class:  'flex items-center justify-between w-full',
-            json:   { info: '', legends: [] },
-            tones: {
-                default: '#9CA3AF',
-                success: 'var(--cs-success,#3FC189)',
-                warning: 'var(--cs-warning,#FBBF24)',
-                danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#1C64F2)',
-                purple:  'var(--cs-accent-purple,#7C3AED)'
-            },
-            classes: {
-                info:   'text-[10px] text-gray-400',
-                legend: 'flex items-center gap-3 text-[10px] text-gray-400',
-                item:   'flex items-center gap-1'
-            }
-        };
+        if (action.fn) btn.on('click', action.fn);
 
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json    = Object.assign({}, defaults.json,    o.json    || {});
-        opts.tones   = Object.assign({}, defaults.tones,   o.tones   || {});
-        opts.classes = Object.assign({}, defaults.classes, o.classes || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const toneColor  = (tone) => opts.tones[tone] || opts.tones.default;
-        const legendItem = (lg) => `
-            <span class="${opts.classes.item}">
-                <span class="w-2 h-2 rounded-full" style="background:${toneColor(lg.tone)};"></span>
-                ${esc(lg.label)}
-            </span>
-        `;
-
-        const wrap = $('<div>', { id: opts.id, class: opts.class });
-        const legendsHtml = (opts.json.legends || []).map(legendItem).join('');
-
-        wrap.html(`
-            <p id="${opts.id}_info" class="${opts.classes.info}">${esc(opts.json.info)}</p>
-            <div class="${opts.classes.legend}">${legendsHtml}</div>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
+        return btn;
     }
 }
