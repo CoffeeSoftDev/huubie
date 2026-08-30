@@ -7,28 +7,27 @@
    consumen WANSOFT_PALETTE desde el JS del tema. */
 
 :root {
-    --ws-blue:     #2B4FD8;
-    --ws-blue-dk:  #2340BC;
-    --ws-blue-lt:  #4667E0;
-    --ws-key:      #DCE3F3;
-    --ws-key-on:   #C7D3EC;
-    --ws-ink:      #1F2937;
-    --ws-muted:    #6B7280;
-    --ws-line:     #E5E7EB;
-    --ws-paper:    #FFFFFF;
-    --ws-hover:    #F3F4F6;
-    --ws-orange:   #F4511E;
-    --ws-arc:      #93A4C6;
+    --ws-blue:       #2B4FD8;
+    --ws-blue-dk:    #2340BC;
+    --ws-blue-lt:    #4667E0;
+    --ws-key:        #E4E8F8;
+    --ws-key-hv:     #D3D9F5;
+    --ws-key-on:     #C3CBF0;
+    --ws-key-act:    #D6DCF6;
+    --ws-key-act-hv: #C6CFF2;
+    --ws-ink:        #1F2937;
+    --ws-muted:      #6B7280;
+    --ws-line:       #E5E7EB;
+    --ws-line-dk:    #D1D5DB;
+    --ws-ink-soft:   #334155;
+    --ws-paper:      #FFFFFF;
+    --ws-hover:      #F3F4F6;
 
     /* Los cuatro semaforos de la fila de filtros de la pantalla de cuentas. */
-    --ws-red:      #E02424;
-    --ws-green:    #31C48D;
-
-    /* El verde de los puntos se lava como texto sobre el papel blanco: este es el
-       mismo semaforo en el tono que si se lee escrito. */
-    --ws-ok:       #057A55;
-    --ws-yellow:   #FACA15;
-    --ws-cyan:     #3F83F8;
+    --ws-red:        #E02424;
+    --ws-green:      #31C48D;
+    --ws-yellow:     #FACA15;
+    --ws-cyan:       #3F83F8;
 }
 
 /* -- Superficie -- */
@@ -49,42 +48,52 @@
 
 /* -- Teclado numerico -- */
 
-.ws-keypad { grid-auto-rows: 38px; }
+.ws-keypad { grid-auto-rows: 3rem; }
 
 .ws-key {
     background: var(--ws-key);
     color: var(--ws-ink);
-    border-radius: 6px;
-    font-size: 19px;
-    font-weight: 600;
+    font-size: .8rem;
+    font-weight: 500;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color .15s ease, transform .1s ease;
 }
 
-.ws-key:active   { background: var(--ws-key-on); }
-.ws-key-act      { font-size: 14px; font-weight: 700; }
-.ws-key-wide     { grid-row: span 2 / span 2; }
+.ws-key:hover      { background: var(--ws-key-hv); }
+.ws-key:active     { background: var(--ws-key-on); transform: scale(.96); }
+.ws-key-act        { background: var(--ws-key-act); font-weight: 600; }
+.ws-key-act:hover  { background: var(--ws-key-act-hv); }
+
+/* Enter cubre la fila del 789 y la del 456. */
+.ws-key-wide       { grid-row: span 2 / span 2; }
 
 .ws-field-lbl {
-    color: var(--ws-red);
-    font-size: 11px;
-    text-align: center;
+    color: var(--ws-ink-soft);
+    font-size: 13px;
 }
 
 .ws-field {
-    width: 100%;
-    background: transparent;
-    border: 0;
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-line-dk);
     border-bottom: 2px solid var(--ws-blue);
     text-align: center;
     font-size: 18px;
     letter-spacing: .35em;
     color: var(--ws-ink);
-    padding: 4px 0;
 }
 
 .ws-field:focus { outline: none; }
+
+/* Contrasena vacia al tocar Enter: el campo se sacude para senalar donde falta. */
+@keyframes ws-shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+.ws-shake { animation: ws-shake .4s ease; }
 
 /* -- Botones -- */
 
@@ -101,8 +110,16 @@
 }
 
 .ws-btn:active   { background: var(--ws-blue-dk); }
+
+/* Unica accion de la pantalla de acceso: va un punto mas grande que los mosaicos
+   del menu, que comparten .ws-btn. */
+.ws-btn-access   { font-size: 13px; font-weight: 500; }
 .ws-btn-tile     { height: 58px; }
 .ws-btn-ghost    { background: transparent; border: 1px solid var(--ws-line); color: var(--ws-muted); }
+
+.ws-print        { background: var(--ws-paper); border: 2px solid var(--ws-line-dk); transition: border-color .15s ease; }
+.ws-print:hover,
+.ws-print:active { border-color: var(--ws-blue-lt); }
 
 /* -- Toolbar de la pantalla de cuentas -- */
 
@@ -129,12 +146,10 @@
                  display: flex; align-items: center; justify-content: center; }
 .ws-pager-btn:disabled { opacity: .35; }
 
-/* -- Marca del pie de la pantalla de acceso -- */
+/* -- Franja de marca de la pantalla de acceso -- */
 
-.ws-logo-arc   { color: var(--ws-arc); }
-.ws-logo-ring  { color: var(--ws-orange); }
-.ws-logo-clip  { color: var(--ws-orange); font-weight: 700; }
-.ws-foot       { font-size: 10px; letter-spacing: .04em; color: rgba(255, 255, 255, .85); }
+.ws-band-div   { border-top: 1px solid rgba(255, 255, 255, .4); }
+.ws-foot       { font-size: 11px; letter-spacing: .025em; color: rgba(255, 255, 255, .9); }
 
 /* -- SweetAlert --
    head.php sirve un swal oscuro para todo Huubie. La terminal es blanca, asi que
