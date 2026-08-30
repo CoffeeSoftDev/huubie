@@ -1337,6 +1337,11 @@ class TicketsView extends Templates {
         // explicar —la nota del papel abierto, o el motivo por el que no se pudo
         // armar—, y mientras tanto el div se esconde para no dejar una franja con
         // padding y sin contenido.
+        // El hueco del papel va gris con un ticket abierto —es la mesa sobre la que
+        // se apoya la hoja— y blanco mientras no hay ninguno, que es cuando no hay
+        // hoja que despegar. El color vive en wansoft-theme.css (.tk-vacio).
+        $('#ticketPrintArea').toggleClass('tk-vacio', !ticket);
+
         const nota = ticket ? this.previewNote(ticket) : motivo;
 
         $('#detailNote').toggle(!!nota).empty();

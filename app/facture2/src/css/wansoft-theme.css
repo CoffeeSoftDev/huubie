@@ -23,6 +23,10 @@
     --ws-paper:      #FFFFFF;
     --ws-hover:      #F3F4F6;
 
+    /* El gris sobre el que se apoya el ticket en el panel: un punto mas marcado
+       que el fondo de las bandas, para que la tira blanca se recorte. */
+    --ws-mesa:       #EDEFF3;
+
     /* Los cuatro semaforos de la fila de filtros de la pantalla de cuentas. */
     --ws-red:        #E02424;
     --ws-green:      #31C48D;
@@ -829,4 +833,56 @@ html[data-wansoft-theme] #root .ticket-paper table tbody tr:hover td {
     color: inherit !important;
     border-color: inherit !important;
     border-radius: 0 !important;
+}
+
+/* -- La tira llena el panel, con ticket o sin el --
+
+   El papel vacio ya se estiraba al alto del panel (.tk-empty en facture.css): sin
+   nada abierto, el aside se ve blanco de arriba abajo, como una tira de papel sin
+   imprimir. Al abrir un ticket corto —cuatro renglones— el papel medía lo que
+   median sus lineas y debajo asomaba el gris del contenedor, asi que el panel
+   cambiaba de aspecto segun el largo de la cuenta.
+
+   Con el minimo al 100% la tira se comporta igual en los dos estados: llena el
+   hueco y, si el ticket es largo, crece y aparece el scroll. El box-sizing es lo
+   que mete el acolchado del papel DENTRO de esa medida; sin el, el papel sobresale
+   justo lo que mide su padding y estrena una barra de scroll para no ensenar nada.
+
+   Solo en el panel: la hoja del dia (#printSheet) y la vista previa del emisor
+   siguen midiendo lo que miden. */
+
+html[data-wansoft-theme] #root #ticketPrintArea .ticket-paper {
+    box-sizing: border-box;
+    min-height: 100%;
+}
+
+/* Al imprimir manda el papel, no el panel: la tira vuelve a medir sus renglones o
+   la impresora sacaria una hoja con el blanco del hueco de pantalla. */
+@media print {
+    html[data-wansoft-theme] #root #ticketPrintArea .ticket-paper { min-height: 0; }
+}
+
+/* -- La mesa donde se apoya el ticket --
+
+   Con un ticket abierto el hueco va en gris: es lo que despega la tira blanca del
+   panel y la deja ver como una hoja. Sin ticket no hay hoja que despegar —solo el
+   aviso de que no hay nada seleccionado— y el gris ahi sobra, asi que el panel se
+   queda blanco.
+
+   Quien manda la clase es renderPreview(): pone tk-vacio en el hueco mientras no
+   haya ticket. El !important es para ganarle a facture-theme.css, que traduce el
+   bg-[#0E1521] del layout a #F9FAFB para todo el modulo. */
+
+html[data-wansoft-theme] #root #ticketPrintArea {
+    background: var(--ws-mesa) !important;
+}
+
+html[data-wansoft-theme] #root #ticketPrintArea.tk-vacio {
+    background: var(--ws-paper) !important;
+}
+
+/* El papel vacio no proyecta sombra: sobre el blanco del panel solo dibujaria un
+   halo alrededor de un aviso. */
+html[data-wansoft-theme] #root #ticketPrintArea.tk-vacio .ticket-paper {
+    box-shadow: none;
 }
