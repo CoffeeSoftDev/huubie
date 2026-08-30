@@ -145,14 +145,26 @@ class Acceso extends Templates {
             text:  'Contraseña'
         }));
 
-        wrap.append($('<input>', {
-            id:       'passAcceso',
-            type:     'password',
-            class:    'ws-field w-full h-9 px-3',
-            readonly: true
-        }));
+        // El campo acepta teclado fisico y tactil: la terminal se usa con dedo, pero
+        // en escritorio se captura desde el teclado. inputmode numeric levanta el
+        // teclado de digitos en pantallas tactiles.
+        const field = $('<input>', {
+            id:           'passAcceso',
+            type:         'password',
+            class:        'ws-field w-full h-9 px-3',
+            inputmode:    'numeric',
+            autocomplete: 'off',
+            maxlength:    Acceso.MAX_PASS
+        });
+
+        field.on('input',   () => this.onFieldInput());
+        field.on('keydown', (event) => this.onFieldKey(event));
+
+        wrap.append(field);
 
         $('#fieldRow').empty().append(wrap);
+
+        field.trigger('focus');
     }
 
     // El 0 arranca en la segunda columna para quedar centrado bajo el 1-2-3, y
@@ -325,13 +337,30 @@ class Acceso extends Templates {
 
         this.pass += String(key.value);
 
-        $('#passAcceso').val(this.pass);
+        $('#passAcceso').val(this.pass).trigger('focus');
+    }
+
+    // this.pass es la unica fuente de verdad; el input solo la refleja. Se filtran
+    // los no digitos porque el teclado tactil solo produce numeros y el pass debe
+    // ser el mismo por los dos caminos.
+    onFieldInput() {
+        const field = $('#passAcceso');
+
+        this.pass = String(field.val()).replace(/\D/g, '').slice(0, Acceso.MAX_PASS);
+
+        field.val(this.pass);
+    }
+
+    onFieldKey(event) {
+        if (event.key === 'Enter')  return this.enter();
+
+        if (event.key === 'Escape') return this.clearPass();
     }
 
     clearPass() {
         this.pass = '';
 
-        $('#passAcceso').val('');
+        $('#passAcceso').val('').trigger('focus');
     }
 
     enter() {

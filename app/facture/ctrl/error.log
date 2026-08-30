@@ -1,0 +1,18 @@
+[ 2026-08-30 13:03:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-O7AOGR9$
+[ INFO ] ::  
+            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone, b.company_id,
+                   b.adjustment_tolerance,
+                   c.business_name AS company_name, c.rfc AS company_rfc,
+                   c.fiscal_address AS company_address, c.phone AS company_phone,
+                   b.pos_id, p.name AS pos_name, p.code AS pos_code, p.color AS pos_color
+            FROM fayxzvov_facturacion.branch b
+            LEFT JOIN fayxzvov_facturacion.company c ON c.id = b.company_id
+            LEFT JOIN fayxzvov_facturacion.pos     p ON p.id = b.pos_id
+            WHERE b.id <=> ?
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.adjustment_tolerance' in 'field list'
+
+

@@ -112,10 +112,10 @@ class Inicio extends Templates {
                 fn:   () => posGo('/app/facture2/tickets.php')
             },
             {
-                id:     'tcConfiguracion',
-                icon:   'settings',
-                text:   'Configuración',
-                locked: true
+                id:   'tcConfiguracion',
+                icon: 'settings',
+                text: 'Configuración',
+                fn:   () => posGo('admin')
             },
             {
                 id:     'tcReportes',
