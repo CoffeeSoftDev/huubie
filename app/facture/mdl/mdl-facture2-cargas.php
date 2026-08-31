@@ -33,6 +33,18 @@ class mdl2 extends mdl {
         return $this->_Read($query, $array);
     }
 
+    // El id del POS de la sucursal, que es con lo que se separa el catalogo: dos
+    // sistemas pueden llamar igual a productos distintos y los dos tienen razon.
+    function getPosId($array) {
+        $query = "
+            SELECT pos_id
+            FROM {$this->bd}branch
+            WHERE id <=> ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // La comision sobre propina que cobra la sucursal, para la vista de propinas.
     function getBranchCommission($array) {
         $query = "
@@ -366,6 +378,103 @@ class mdl2 extends mdl {
             FROM {$this->bd}daily_sale_summary
             WHERE import_batch_id IN ({$marks})
             ORDER BY operation_date ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // -- Catalogo de productos por punto de venta --
+
+    // El catalogo del POS que opera, no el de la sucursal entera. Una sucursal que
+    // migro de sistema conserva el catalogo viejo mientras el nuevo entra, y
+    // cruzar sin este filtro devolveria claves de los dos.
+    //
+    // Sin filtro de active por el mismo motivo que listWaiterByName: el renglon de
+    // una comanda de agosto tiene que poder ligarse a su platillo aunque hoy este
+    // dado de baja del menu.
+    function listProductByPos($array) {
+        $query = "
+            SELECT id, code, name, is_modifier
+            FROM {$this->bd}product
+            WHERE branch_id <=> ? AND pos_id <=> ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // -- Renglones de comanda --
+
+    // Los renglones del lote se cuelgan de su venta por el movimiento PDV, igual
+    // que linkPaymentToSaleByPdv hace con los pagos y por el mismo motivo: un
+    // UPDATE por fila no termina dentro del tiempo de la peticion.
+    //
+    // Solo toca los que aun no tienen venta, asi que volver a lanzarla no deshace
+    // nada.
+    function linkDetailToSaleByPdv($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s
+              ON s.pdv_movement = d.sale_folio AND s.active = 1 AND s.branch_id <=> ?
+            SET d.sale_id = s.id
+            WHERE d.active = 1 AND d.sale_id IS NULL AND d.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // El gemelo del anterior mirando al reves: engancha los renglones que llegaron
+    // ANTES que su venta.
+    //
+    // Es lo que hace que el orden en que se suben los archivos deje de importar.
+    // Sin filtro de lote a proposito: la carga de ventas de hoy puede completar
+    // comandas que entraron huerfanas hace tres semanas, y acotarlo al lote en
+    // curso las dejaria sueltas para siempre.
+    function linkOrphanDetailToSale($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s
+              ON s.pdv_movement = d.sale_folio AND s.active = 1 AND s.branch_id <=> ?
+            SET d.sale_id = s.id
+            WHERE d.active = 1 AND d.sale_id IS NULL
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Resuelve product_id contra el catalogo del POS. Se hace en una sentencia por
+    // lote y despues de sembrar el catalogo, para que los productos que nacieron
+    // con esta misma carga tambien queden ligados.
+    function linkDetailProductByBatch($array) {
+        $query = "
+            UPDATE {$this->bd}detail_sale d
+            JOIN {$this->bd}product p
+              ON p.code = d.product_code AND p.branch_id <=> ? AND p.pos_id <=> ?
+            SET d.product_id = p.id
+            WHERE d.product_id IS NULL AND d.import_batch_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Los movimientos PDV que YA tienen renglones cargados, para que la carga sea
+    // incremental: volver a subir el mismo archivo no duplica una sola comanda.
+    //
+    // Se pregunta por movimiento y no por lote porque la duplicidad es del dato:
+    // el mismo ticket puede venir en dos exports distintos.
+    function listDetailPdvLoaded($array) {
+        $marks = implode(',', array_fill(0, count($array) - 1, '?'));
+        $query = "
+            SELECT DISTINCT sale_folio
+            FROM {$this->bd}detail_sale
+            WHERE active = 1 AND sale_folio IN ({$marks})
+              AND import_batch_id IN (
+                  SELECT id FROM {$this->bd}import_batch WHERE branch_id <=> ?
+              )
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Cuantos renglones quedaron sin su venta, para poder decirlo en la bitacora.
+    function countOrphanDetail($array) {
+        $query = "
+            SELECT COUNT(*) AS total, COUNT(DISTINCT sale_folio) AS tickets
+            FROM {$this->bd}detail_sale
+            WHERE active = 1 AND sale_id IS NULL AND import_batch_id = ?
         ";
         return $this->_Read($query, $array);
     }

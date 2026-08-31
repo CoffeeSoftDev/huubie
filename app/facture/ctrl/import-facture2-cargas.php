@@ -44,6 +44,10 @@ class ImportFacture2Cargas {
     private $cajeros    = 0;
     private $ligados    = 0;
     private $resumenes  = 0;
+    private $productos  = 0;
+
+    // Renglones de comanda que estaban esperando su venta y esta carga engancho.
+    private $renglones  = 0;
 
     // Movimientos que ya estaban en base y no se volvieron a cargar, y cuantos de
     // ellos ademas traen un total distinto del que se guardo en su dia.
@@ -178,35 +182,114 @@ class ImportFacture2Cargas {
                     'Cajero', 'Usuario Modifica', 'Forma de pago', 'Terminal',
                     'Total', 'Propina', 'Total cobrado'
                 ]
+            ],
+
+            /*
+                El renglon de la comanda: que se consumio, en que mesa y a que hora.
+                Medido sobre el export de RYORI RYOKAN de agosto 2026 —8 719 filas,
+                759 comandas— y no supuesto.
+
+                Es la hoja MAS PESADA que recibe el modulo: 46 columnas por casi
+                nueve mil filas, unas 420 000 celdas. Cargada de golpe pide 160 MB y
+                revienta un PHP de 128; por eso esta hoja se lee por bloques y no
+                como las demas (ver `leePorBloques`).
+
+                El libro trae una segunda hoja —"Tiempo de orden", la cabecera de
+                cada comanda— que NO esta aqui a proposito: sus 13 columnas son
+                atributos del ticket y de ellas solo el tiempo de servicio no llega
+                ya por otro lado. Se deja fuera hasta que alguien la necesite.
+
+                CUATRO bloques de montos y solo uno viene lleno por fila. Cual, lo
+                decide la columna «Accion»:
+
+                    Venta                    8672 filas  ->  37..40  (Detalles de venta)
+                    Anulacion de platillo      34        ->  45..48  (Anulaciones)
+                    Cancelacion de platillo     9        ->  41..44  (Cortesias y canc.)
+                    Cortesia de platillo        3        ->  ambos
+                    Cortesia de orden           1        ->  ambos
+
+                Las 43 filas de anulacion y cancelacion vienen SIN el total del
+                ticket (columnas 13..16 vacias): el POS no se lo asigna a lo que
+                nunca se cobro. No son filas corruptas y no se descartan —son la
+                bitacora de lo que se tiro— pero tampoco pueden sumarse como venta.
+            */
+            'Detalle de ventas' => [
+                'tab'          => 'commands',
+                'target'       => 'wansoft-command',
+                'orden'        => 1,
+                'headerRow'    => 9,
+                'startIndex'   => 2,   // la tabla arranca en la columna C
+                'keyIndex'     => 4,   // Movimiento PDV: cruza con sale.pdv_movement
+                'dateIndex'    => 1,   // Fecha de operacion
+                'controlIndex' => 37,  // Total del renglon, el unico monto sumable
+
+                // Sin estas no hay renglon que armar: el movimiento lo ancla a su
+                // ticket, la clave y la cantidad dicen que se consumio, y la accion
+                // decide de que bloque de montos se lee el importe.
+                //
+                // El resto entra en nulo si falta, que es lo mismo que pasa cuando
+                // el POS lo exporta vacio.
+                'required'     => [1, 4, 12, 18, 29],
+
+                // Incremental como el resto de Wansoft: los movimientos que ya
+                // tienen renglones se omiten enteros en vez de borrar el periodo.
+                'modo'         => 'incremental',
+                'columns' => [
+                    'Dia', 'Fecha de operacion', 'Hora de cierre', 'Semana',
+                    'Movimiento PDV', 'Orden', 'Tipo de orden', 'Subtipo de orden',
+                    'No. Mesa', 'No. Personas', 'Mesero', 'Terminal', 'Accion',
+                    'Subtotal', 'IVA', 'IEPS', 'Total', 'Descuento',
+                    'Cantidad', 'Precio unitario', 'Precio unitario con modificador',
+                    'Costo real', 'Costo con modificadores', 'Costo ideal',
+                    'Tipo de grupo', 'Grupo', 'Descripcion', 'Platillo / Articulo',
+                    'Modificador', 'Clave platillo', 'Codigo de barras',
+                    'Es modificador', 'Hora de captura', 'Terminal de captura',
+                    'Subtotal', 'IVA', 'IEPS', 'Total',   // Detalles de venta
+                    'Subtotal', 'IVA', 'IEPS', 'Total',   // Cortesias y cancelaciones
+                    'Subtotal', 'IVA', 'IEPS', 'Total'    // Anulaciones
+                ]
             ]
         ];
     }
 
-    /*
-        Pestanas que el modulo YA muestra aunque su contrato de hojas todavia no
-        exista. Wansoft va a exportar comandas, pero ese archivo aun no se ha
-        medido: no se sabe como se llaman sus hojas ni en que fila arrancan sus
-        encabezados, y adivinarlo seria escribir un contrato que la primera carga
-        real tiraria a la basura.
+    // Hojas que NO caben en memoria de una sola pieza y se leen por bloques.
+    //
+    // El resto del modulo carga el libro entero antes de mirarlo, que es lo
+    // razonable para un reporte de pagos de 112 KB. La hoja de comandas pesa 15
+    // veces mas y ese camino la mata, asi que el controlador pregunta aqui antes
+    // de abrir el archivo: si la pestana esta en esta lista, no lo carga y le pasa
+    // la RUTA al importador para que la lea de a poco.
+    //
+    // Medido sobre el archivo real, con el limite de 128 MB del servidor:
+    //
+    //     todo de golpe   15 s   160 MB   <- truena
+    //     bloques 4000    20 s    86 MB
+    //     bloques 2000    25 s    54 MB   <- el elegido
+    //     bloques 1000    36 s    42 MB
+    //     bloques  500    61 s    34 MB
+    //
+    // 2 000 deja holgura de sobra sobre los 128 MB y cabe con comodidad en los 120
+    // segundos de max_execution_time. Bajar mas solo compra memoria que no hace
+    // falta a cambio de duplicar el tiempo.
+    function leePorBloques($tipo) {
+        return $tipo === 'commands';
+    }
 
-        Mientras tanto la pestana no esta muerta: acepta el archivo y lo
-        RADIOGRAFIA —dice que hojas trae, en que fila estan sus encabezados y
-        cuales son— sin guardar una sola fila. Con esa lectura se cierra el
-        contrato de verdad, medido y no supuesto, que es como se escribio el resto
-        de este archivo.
+    const FILAS_POR_BLOQUE = 2000;
+
+    /*
+        Pestanas que el modulo muestra sin tener todavia contrato de hojas.
+
+        No estan muertas: aceptan el archivo y lo RADIOGRAFIAN —dicen que hojas
+        trae, en que fila estan sus encabezados y cuales son— sin guardar una sola
+        fila. Con esa lectura se escribe el contrato de verdad, medido y no
+        supuesto, que es como se escribio todo este archivo.
+
+        Hoy esta vacia. 'commands' vivio aqui hasta que se midio el export real de
+        comandas: su contrato esta arriba y la pestana ya guarda.
     */
     function tabsReservados() {
-        return [
-            'commands' => [
-                'titulo'    => 'Archivo de comandas',
-                'subtitulo' => 'Renglones del POS: que se consumio, mesa, mesero y tiempos. El layout de Wansoft todavia no se ha medido, asi que por ahora el archivo se lee para radiografiarlo: el modulo dira que hojas y columnas trae, sin guardar nada.',
-                'esperado'  => 'por definir',
-                'ejemplo'   => 'comandas',
-                'patron'    => '.',
-                'formato'   => 'XLS · XLSX',
-                'pendiente' => true
-            ]
-        ];
+        return [];
     }
 
     function esReservado($tipo) {
@@ -620,6 +703,7 @@ class ImportFacture2Cargas {
         if ($carga['meseros']    > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
         if ($carga['cajeros']    > 0) $cola .= ' · ' . number_format($carga['cajeros']) . ' cajeros nuevos al catalogo';
         if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' movimientos ligados a su pago';
+        if ($carga['renglones']  > 0) $cola .= ' · ' . number_format($carga['renglones']) . ' renglones de comanda que esperaban su venta';
         if ($carga['resumenes']  > 0) $cola .= ' · resumen del dia guardado';
 
         // Los omitidos van al final y siempre que existan: son la respuesta a "por
@@ -840,10 +924,16 @@ class ImportFacture2Cargas {
         $max     = $this->mdl->getMaxImportBatchId();
         $batchId = (int) $max[0]['id'];
 
-        if     ($config['target'] === 'wansoft-detail') $insertadas = $this->guardarDetalle($limpias, $hoja, $batchId, $ctx);
-        elseif ($config['target'] === 'card')           $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 0);
-        elseif ($config['target'] === 'card-refund')    $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 1);
-        else                                            $insertadas = $this->guardarEliminados($limpias, $batchId, $ctx);
+        // Cada target dice a que metodo va su hoja. El default NO es un guardado:
+        // una hoja cuyo target nadie atiende se queda en cero y lo dice, en vez de
+        // caer en el ultimo metodo de la lista y escribir sus filas en la tabla
+        // equivocada.
+        if     ($config['target'] === 'wansoft-detail')  $insertadas = $this->guardarDetalle($limpias, $hoja, $batchId, $ctx);
+        elseif ($config['target'] === 'wansoft-command') $insertadas = $this->guardarComandas($limpias, $batchId, $ctx);
+        elseif ($config['target'] === 'card')            $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 0);
+        elseif ($config['target'] === 'card-refund')     $insertadas = $this->guardarTarjetas($limpias, $batchId, $ctx, 1);
+        elseif ($config['target'] === 'deleted')         $insertadas = $this->guardarEliminados($limpias, $batchId, $ctx);
+        else                                             $insertadas = 0;
 
         // Un lote sin filas no deja rastro: pasa cuando el archivo entero ya estaba
         // procesado, que no es un fallo pero tampoco una carga.
@@ -974,6 +1064,17 @@ class ImportFacture2Cargas {
         // Los pagos entran con el movimiento PDV en sale_folio y se cuelgan de su
         // venta en una sola sentencia, ya con las ventas del lote en base.
         if ($this->pagos > 0) $this->mdl->linkPaymentToSaleByPdv([$ctx['branchId'], $batchId]);
+
+        // Y aqui se rescatan las comandas que llegaron ANTES que su venta.
+        //
+        // El archivo de comandas cubre un mes entero y el de ventas se sube por
+        // dias, asi que lo normal es que los renglones esperen: en la primera
+        // carga real fueron 8 719 renglones de 759 comandas sin ticket todavia.
+        //
+        // Sin esta llamada, el orden en que el usuario sube los dos archivos
+        // decidiria si los datos se cruzan o no, que es una trampa silenciosa: la
+        // carga diria «ok» y la comanda se quedaria colgando para siempre.
+        $this->renglones = (int) $this->mdl->linkOrphanDetailToSale([$ctx['branchId']]);
 
         $this->resumenes = $this->guardarResumen($rows, $resumen, $batchId, $ctx);
 
@@ -1423,14 +1524,518 @@ class ImportFacture2Cargas {
     private function insertarBloque($chunk, $target) {
         $values = $this->util->sql($chunk);
 
-        if ($target === 'sale')    return $this->mdl->createSale($values);
-        if ($target === 'payment') return $this->mdl->createSalePayment($values);
-        if ($target === 'waiter')  return $this->mdl->createWaiter($values);
-        if ($target === 'cashier') return $this->mdl->createCashier($values);
-        if ($target === 'summary') return $this->mdl->createDailySummary($values);
-        if ($target === 'card')    return $this->mdl->createPaymentCard($values);
+        if ($target === 'sale')     return $this->mdl->createSale($values);
+        if ($target === 'payment')  return $this->mdl->createSalePayment($values);
+        if ($target === 'waiter')   return $this->mdl->createWaiter($values);
+        if ($target === 'cashier')  return $this->mdl->createCashier($values);
+        if ($target === 'summary')  return $this->mdl->createDailySummary($values);
+        if ($target === 'card')     return $this->mdl->createPaymentCard($values);
+        if ($target === 'product')  return $this->mdl->createProduct($values);
+        if ($target === 'detail')   return $this->mdl->createSaleDetail($values);
+        if ($target === 'deleted')  return $this->mdl->createDeletedPayment($values);
 
-        return $this->mdl->createDeletedPayment($values);
+        return false;
+    }
+
+    // ---------------------------------------------------------------------
+    //  Hojas grandes: se leen por bloques
+    // ---------------------------------------------------------------------
+
+    /*
+        Camino alterno para las hojas que no caben en memoria de una pieza.
+
+        A diferencia de `procesarLibro`, este metodo NO recibe el libro cargado:
+        recibe la RUTA, porque cargarlo es justo lo que hay que evitar. Abre el
+        archivo una vez por bloque de filas, procesa ese bloque y lo suelta.
+
+        Lo unico que sobrevive de un bloque al siguiente son cosas diminutas: el
+        catalogo visto (174 productos), los meseros (9) y los contadores. Los
+        renglones se insertan y se sueltan, asi que la memoria se mantiene plana
+        sin importar si el archivo trae nueve mil filas o noventa mil.
+
+        Los renglones entran aunque su venta todavia no exista —el reporte de
+        ventas de ese dia puede no haberse subido— y se enganchan al final. Ver
+        `linkOrphanDetailToSale` en el modelo.
+    */
+    function procesarArchivo($ruta, $ctx) {
+        $contrato = $this->contrato();
+        $tipo     = isset($ctx['tipo']) ? $ctx['tipo'] : '';
+        $steps    = isset($ctx['steps']) ? $ctx['steps'] : [];
+
+        $nombre = '';
+        foreach ($contrato as $hoja => $config) {
+            if ($config['tab'] === $tipo) { $nombre = $hoja; break; }
+        }
+
+        if ($nombre === '') {
+            return [
+                'status'  => 400,
+                'message' => 'No hay contrato para esta pestana',
+                'steps'   => $steps,
+                'hojas'   => []
+            ];
+        }
+
+        $config = $contrato[$nombre];
+
+        // Cuantas filas trae, SIN cargar el archivo: 1.4 s y 18 MB contra los 160
+        // que costaria abrirlo. Ademas sirve para avisar cuanto va a tardar antes
+        // de empezar.
+        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+        $total  = 0;
+
+        foreach ($lector->listWorksheetInfo($ruta) as $info) {
+            if ($info['worksheetName'] === $nombre) $total = (int) $info['totalRows'];
+        }
+
+        if ($total === 0) {
+            $steps[] = step('Detectar hojas', 'error', 'El libro no trae la hoja "' . $nombre . '"');
+
+            return [
+                'status'     => 400,
+                'message'    => 'Este no es el reporte que espera Wansoft',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => [
+                    'motivo'    => 'hojas',
+                    'esperadas' => [$nombre],
+                    'libro'     => $this->hojasDelArchivo($lector, $ruta),
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        $steps[] = step('Detectar hojas', 'ok', $nombre . ' · ' . number_format($total) . ' filas');
+
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            $steps[] = step('Revisar periodo', 'error', $notas['total'] . ' nota(s) ya emitidas');
+
+            return [
+                'status'     => 409,
+                'message'    => 'El periodo ya tiene tickets virtuales emitidos',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
+
+        // Los encabezados se validan leyendo SOLO su fila: no hace falta el archivo
+        // entero para saber si las columnas estan donde el contrato dice.
+        $docEnc   = $this->leerBloque($ruta, $nombre, $config['headerRow'], 1);
+        $columnas = $this->validarEncabezados($docEnc->getSheetByName($nombre), $config);
+        $faltan   = $this->columnasMalas($columnas, $config);
+
+        $this->soltarLibro($docEnc);
+        unset($docEnc);
+
+        if (!empty($faltan['criticas'])) {
+            $nombres = [];
+            foreach ($faltan['criticas'] as $c) $nombres[] = $c['esperada'];
+
+            $detalle  = 'No se encontro la columna "' . implode('", "', $nombres) . '"';
+            $steps[]  = step('Validar columnas de "' . $nombre . '"', 'error', $detalle);
+
+            return [
+                'status'     => 400,
+                'message'    => 'El archivo no trae las columnas que espera la comanda',
+                'steps'      => $steps,
+                'hojas'      => [['nombre' => $nombre, 'estado' => 'error', 'detalle' => $detalle, 'filas' => 0]],
+                'validacion' => [
+                    'motivo'    => 'columnas',
+                    'esperadas' => [$nombre],
+                    'libro'     => [$nombre],
+                    'columnas'  => [['hoja' => $nombre, 'headerRow' => $config['headerRow'], 'columnas' => $columnas, 'faltan' => $faltan['criticas']]],
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        $primera = columnLetter($config['startIndex']);
+        $ultima  = columnLetter($config['startIndex'] + count($config['columns']) - 1);
+
+        $steps[] = step(
+            'Validar columnas de "' . $nombre . '"',
+            empty($faltan['menores']) ? 'ok' : 'warn',
+            empty($faltan['menores'])
+                ? count($config['columns']) . ' columnas ' . $primera . ':' . $ultima
+                : count($config['columns']) . ' columnas ' . $primera . ':' . $ultima . ' · ' . $this->resumenMenores($faltan['menores'])
+        );
+
+        $mapa = $this->mapaIndices($columnas, $config);
+
+        return $this->cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps);
+    }
+
+    // El ciclo. Crea el lote, recorre el archivo de a bloques insertando lo que
+    // lee, y al terminar resuelve los enlaces que necesitan verlo todo.
+    private function cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps) {
+        /*
+            Aqui NO se llama a `borrarPeriodo`, y es a proposito.
+
+            Esa funcion implementa el modo REEMPLAZO —la carga del mes pisa a la
+            anterior— y esta hoja es INCREMENTAL: los movimientos ya cargados se
+            omiten uno a uno. Las dos cosas juntas se muerden, y ademas la segunda
+            no puede deshacer lo que hace la primera:
+
+            `fk_detail_sale_batch` es ON DELETE SET NULL, asi que borrar el lote no
+            borra sus renglones —los deja con `import_batch_id` en nulo—. Un
+            renglon suelto asi ya no lo ve `listDetailPdvLoaded`, que pregunta por
+            lote, y la siguiente carga lo daria por nuevo: 8 719 renglones se
+            volvieron 17 438 en la primera prueba con las dos logicas encendidas.
+
+            Sin reemplazo el problema no existe: los renglones conservan su lote,
+            se les reconoce y se omiten.
+        */
+
+        // `row_count` y `control_total` NO se declaran aqui y no es un olvido: se
+        // sabran al terminar de leer, y `Utileria::sql` convierte el cero en NULL
+        // —compara con `==`, y en PHP `0 == ''` es cierto— contra tres columnas
+        // NOT NULL. Omitidas toman su DEFAULT 0, que es el valor que se queria.
+        $batch = $this->util->sql([
+            'file_name'    => $ctx['fileName'],
+            'sheet_name'   => $nombre,
+            'period_year'  => $ctx['anio'],
+            'period_month' => $ctx['mes'],
+            'source_rows'  => $total,
+            'created_at'   => date('Y-m-d H:i:s'),
+            'user_name'    => $ctx['userName'] ?? '',
+            'user_id'      => $ctx['userId'] ?? null,
+            'branch_id'    => $ctx['branchId']
+        ]);
+
+        if (!$this->mdl->createImportBatch($batch)) {
+            $steps[] = step('Guardar en base', 'error', 'No se pudo abrir el lote de carga');
+
+            return ['status' => 500, 'message' => 'No se pudo abrir el lote de carga', 'steps' => $steps, 'hojas' => []];
+        }
+
+        $max     = $this->mdl->getMaxImportBatchId();
+        $batchId = (int) $max[0]['id'];
+
+        // Lo unico que cruza de un bloque al siguiente. Todo diminuto: 174
+        // productos, 9 meseros y un punado de contadores.
+        $catalogo   = $this->mapaProductos($ctx);
+        $vistos     = [];
+        $leidas     = 0;
+        $insertadas = 0;
+        $control    = 0;
+        $bloques    = 0;
+
+        $desde = $config['headerRow'] + 1;
+
+        for (; $desde <= $total; $desde += self::FILAS_POR_BLOQUE) {
+            $doc   = $this->leerBloque($ruta, $nombre, $desde, self::FILAS_POR_BLOQUE);
+            $hoja  = $doc->getSheetByName($nombre);
+            $hasta = min($desde + self::FILAS_POR_BLOQUE - 1, $total);
+            $filas = [];
+
+            for ($f = $desde; $f <= $hasta; $f++) {
+                $fila = $this->filaDeHoja($hoja, $f, $config, $mapa);
+                if ($fila === null) continue;
+
+                $filas[] = $fila;
+                $leidas++;
+            }
+
+            if (!empty($filas)) {
+                $nuevas      = $this->comandasNuevas($filas, $vistos, $ctx);
+                $insertadas += $this->guardarComandas($nuevas, $batchId, $ctx, $catalogo);
+
+                foreach ($nuevas as $v) $control += numVal($v[$config['controlIndex']]);
+            }
+
+            // El bloque se suelta ANTES de pedir el siguiente, o los dos coinciden
+            // en memoria y la ventaja de leer por partes se pierde.
+            $this->soltarLibro($doc);
+            unset($doc, $hoja, $filas);
+            $bloques++;
+        }
+
+        $steps[] = step(
+            'Leer "' . $nombre . '"',
+            $leidas > 0 ? 'ok' : 'error',
+            number_format($leidas) . ' filas en ' . $bloques . ' bloque(s) de ' . number_format(self::FILAS_POR_BLOQUE)
+        );
+
+        if ($insertadas === 0) {
+            $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
+            $steps[] = step('Guardar en base', $this->omitidos > 0 ? 'ok' : 'error',
+                $this->omitidos > 0
+                    ? 'Todas las comandas del archivo ya estaban cargadas'
+                    : 'No entro ninguna fila');
+
+            return [
+                'status'  => 200,
+                'message' => $this->omitidos > 0
+                    ? 'El archivo ya estaba cargado: no habia comandas nuevas'
+                    : 'No se guardo ninguna fila',
+                'steps'   => $steps,
+                'hojas'   => [['nombre' => $nombre, 'estado' => 'ok', 'detalle' => 'sin filas nuevas', 'filas' => 0]]
+            ];
+        }
+
+        // El catalogo que nacio con esta carga ya esta en base: ahora se resuelven
+        // los enlaces del renglon. Los tres van en una sentencia por lote, no una
+        // por fila: son miles de renglones y no terminarian dentro de la peticion.
+        $this->productos = $this->sembrarProductos($catalogo, $ctx);
+
+        $this->mdl->linkDetailProductByBatch([$ctx['branchId'], $this->posId($ctx), $batchId]);
+        $this->ligados = (int) $this->mdl->linkDetailToSaleByPdv([$ctx['branchId'], $batchId]);
+
+        $huerfanos = $this->mdl->countOrphanDetail([$batchId]);
+        $sueltos   = (int) ($huerfanos[0]['total'] ?? 0);
+        $tickets   = (int) ($huerfanos[0]['tickets'] ?? 0);
+
+        $this->mdl->updateImportBatchRows([$insertadas, $control, $this->omitidos, $batchId]);
+
+        $steps[] = step('Guardar en base', 'ok',
+            number_format($insertadas) . ' renglones' .
+            ($this->productos > 0 ? ' · ' . number_format($this->productos) . ' productos nuevos al catalogo' : '') .
+            ($this->meseros   > 0 ? ' · ' . number_format($this->meseros) . ' meseros nuevos' : '') .
+            ($this->ligados   > 0 ? ' · ' . number_format($this->ligados) . ' ligados a su venta' : '') .
+            ($this->omitidos  > 0 ? ' · ' . number_format($this->omitidos) . ' comandas ya cargadas' : '')
+        );
+
+        // Un renglon sin venta no es un fallo: el reporte de ventas de ese dia
+        // puede subirse despues y engancharlo. Pero tiene que decirse, o el
+        // usuario cree que cargo completo.
+        if ($sueltos > 0) {
+            $steps[] = step('Cruzar con las ventas', 'warn',
+                number_format($sueltos) . ' renglones de ' . number_format($tickets) .
+                ' comanda(s) esperan su venta · se enlazan solos al cargar el reporte de ventas de esos dias');
+        }
+
+        return [
+            'status'  => 200,
+            'message' => number_format($insertadas) . ' renglones de comanda cargados',
+            'steps'   => $steps,
+            'hojas'   => [[
+                'nombre'  => $nombre,
+                'estado'  => 'ok',
+                'detalle' => number_format($insertadas) . ' renglones',
+                'filas'   => $insertadas
+            ]]
+        ];
+    }
+
+    /*
+        Un bloque de filas de UNA hoja. El resto del libro no se instancia siquiera.
+
+        Devuelve el LIBRO y no la hoja, aunque quien llama solo quiera la hoja: una
+        hoja guarda una referencia a su libro y el libro a sus hojas, y ese ciclo
+        impide que PHP libere nada al soltar la variable. Sin el `soltarLibro` que
+        va despues, el segundo bloque arranca con la memoria del primero encima y
+        el tercero revienta —medido: 93 MB en el bloque 3 de 5—.
+    */
+    private function leerBloque($ruta, $nombre, $desde, $filas) {
+        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+        $lector->setReadDataOnly(true);
+        $lector->setLoadSheetsOnly($nombre);
+        $lector->setReadFilter(filtroDeBloque($nombre, $desde, $filas));
+
+        return $lector->load($ruta);
+    }
+
+    // Rompe el ciclo hoja <-> libro para que el recolector pueda llevarse el
+    // bloque que ya se proceso. Es lo que mantiene la memoria plana.
+    private function soltarLibro($doc) {
+        if ($doc === null) return;
+
+        $doc->disconnectWorksheets();
+    }
+
+    private function hojasDelArchivo($lector, $ruta) {
+        $__row = [];
+        foreach ($lector->listWorksheetInfo($ruta) as $info) $__row[] = $info['worksheetName'];
+
+        return $__row;
+    }
+
+    // Una fila del Excel con los indices del contrato. Devuelve null cuando la fila
+    // no es dato: sin fecha en `dateIndex` es el pie de totales o una fila en
+    // blanco, el mismo corte que usa el resto del importador.
+    private function filaDeHoja($hoja, $numero, $config, $mapa) {
+        $fila = [];
+
+        // `mapaIndices` ya devuelve el indice ABSOLUTO de la columna (startIndex
+        // incluido). Volver a sumarlo aqui correria la lectura dos columnas y el
+        // renglon saldria con los datos del vecino.
+        foreach ($mapa as $i => $indiceReal) {
+            if ($indiceReal === null) { $fila[$i] = null; continue; }
+
+            $fila[$i] = $hoja->getCell(columnLetter($indiceReal) . $numero)->getValue();
+        }
+
+        if (cleanDate($fila[$config['dateIndex']] ?? '') === null) return null;
+        if (trim((string) ($fila[$config['keyIndex']] ?? '')) === '') return null;
+
+        $fila['source_row'] = $numero;
+
+        return $fila;
+    }
+
+    // Las comandas que no estan ya en base. Se pregunta por bloque y no de una vez
+    // por la misma razon que movimientosConocidos: un IN con miles de marcadores
+    // revienta el limite de PDO.
+    private function comandasNuevas($filas, &$vistos, $ctx) {
+        $pdvs = [];
+        foreach ($filas as $v) {
+            $pdv = trim((string) $v[4]);
+            if ($pdv !== '' && !isset($vistos[$pdv])) $pdvs[$pdv] = true;
+        }
+
+        $cargados = [];
+        if (!empty($pdvs)) {
+            foreach (array_chunk(array_keys($pdvs), 400) as $chunk) {
+                foreach ($this->mdl->listDetailPdvLoaded(array_merge($chunk, [$ctx['branchId']])) as $d) {
+                    $cargados[$d['sale_folio']] = true;
+                }
+            }
+        }
+
+        foreach ($pdvs as $pdv => $x) $vistos[$pdv] = isset($cargados[$pdv]);
+
+        $__row = [];
+        foreach ($filas as $v) {
+            $pdv = trim((string) $v[4]);
+
+            if ($pdv !== '' && !empty($vistos[$pdv])) { $this->omitidos++; continue; }
+
+            $__row[] = $v;
+        }
+
+        return $__row;
+    }
+
+    /*
+        De filas del Excel a renglones de comanda.
+
+        Dos decisiones que solo se entienden con el archivo medido delante:
+
+        EL IMPORTE sale de uno de los cuatro bloques de montos segun «Accion». Con
+        el bloque fijo, las 34 anulaciones y las 9 cancelaciones entrarian en cero
+        —sus columnas de venta vienen vacias— y desapareceria del historial lo que
+        se tiro.
+
+        EL NOMBRE del producto NO es la columna «Descripcion», aunque lo parezca:
+        ahi el capturista escribe texto libre («PEDIDO DEL ING LUIS AUTORIZO EL
+        CHEF») y tiene 1 267 valores distintos contra 157 platillos reales. El
+        nombre esta en «Platillo / Articulo», salvo cuando la fila es un
+        modificador: entonces «Platillo» trae al PADRE y el nombre esta en
+        «Modificador».
+    */
+    private function guardarComandas($rows, $batchId, $ctx, &$catalogo) {
+        if (empty($rows)) return 0;
+
+        $data = [];
+
+        foreach ($rows as $v) {
+            $esMod  = claveNombre($v[31]) === 'si';
+            $clave  = trim((string) $v[29]);
+            $nombre = limpiarNombre($esMod ? $v[28] : $v[27]);
+            $padre  = $esMod ? trim((string) $v[27]) : '';
+
+            // El catalogo se acumula mientras se lee y se siembra al final: son 174
+            // productos en todo el archivo y caben de sobra en memoria.
+            if ($clave !== '' && !isset($catalogo[$clave])) {
+                $catalogo[$clave] = [
+                    'name'        => $nombre,
+                    'is_modifier' => $esMod ? 1 : 0,
+                    'group_type'  => limpiarNombre($v[24]),
+                    'group_name'  => limpiarNombre($v[25]),
+                    'price'       => numVal($v[20]),
+                    'nuevo'       => true
+                ];
+            }
+
+            $data[] = [
+                'sale_folio'          => trim((string) $v[4]),
+                'table_number'        => trim((string) $v[8]) !== '' ? trim((string) $v[8]) : null,
+                'waiter_code'         => null,
+                'product_code'        => $clave !== '' ? $clave : null,
+                'parent_product_name' => $padre !== '' ? $padre : null,
+                'description'         => limpiarNombre($v[26]),
+                'action'              => limpiarNombre($v[12]),
+                'capture_terminal'    => limpiarNombre($v[33]),
+                'is_modifier'         => $esMod ? 1 : 0,
+                'source_row'          => $v['source_row'],
+                'quantity'            => numVal($v[18]),
+                'unit_price'          => numVal($v[20]),
+                'discount_percent'    => numVal($v[17]),
+                'amount'              => $this->importeDelRenglon($v),
+                'closed_at'           => cleanDate($v[2]),
+                'captured_at'         => cleanDate($v[32]),
+                'import_batch_id'     => $batchId
+            ];
+        }
+
+        return $this->insertarPorBloques($data, 'detail');
+    }
+
+    // El bloque de montos que corresponde a la accion de la fila.
+    private function importeDelRenglon($v) {
+        $accion = claveNombre($v[12]);
+
+        if (strpos($accion, 'anulacion')   === 0) return numVal($v[45]);
+        if (strpos($accion, 'cancelacion') === 0) return numVal($v[41]);
+        if (strpos($accion, 'cortesia')    === 0) return numVal($v[41]);
+
+        return numVal($v[37]);
+    }
+
+    // El catalogo del POS que opera, indexado por clave.
+    private function mapaProductos($ctx) {
+        $__row = [];
+
+        foreach ($this->mdl->listProductByPos([$ctx['branchId'], $this->posId($ctx)]) as $p) {
+            $__row[$p['code']] = [
+                'name'        => $p['name'],
+                'is_modifier' => (int) $p['is_modifier'],
+                'nuevo'       => false
+            ];
+        }
+
+        return $__row;
+    }
+
+    // Da de alta lo que el archivo trajo y el catalogo no tenia. El precio entra
+    // como referencia: el que de verdad se cobro vive en el renglon, porque hay
+    // productos que se venden a varios precios.
+    private function sembrarProductos($catalogo, $ctx) {
+        $data = [];
+
+        foreach ($catalogo as $code => $p) {
+            if (empty($p['nuevo'])) continue;
+
+            $data[] = [
+                'code'        => $code,
+                'name'        => $p['name'],
+                'is_modifier' => $p['is_modifier'],
+                'is_bridge'   => 0,
+                'group_type'  => $p['group_type'] ?? null,
+                'group_name'  => $p['group_name'] ?? null,
+                'price'       => $p['price'] ?? 0,
+                'branch_id'   => $ctx['branchId'],
+                'pos_id'      => $this->posId($ctx)
+            ];
+        }
+
+        if (empty($data)) return 0;
+
+        return $this->insertarCatalogo($data, 'product');
+    }
+
+    // El POS de la sucursal. Viaja en el contexto cuando el controlador lo sabe;
+    // si no, se pregunta.
+    private function posId($ctx) {
+        if (isset($ctx['posId'])) return (int) $ctx['posId'];
+
+        $ls = $this->mdl->getPosId([$ctx['branchId']]);
+
+        return isset($ls[0]['pos_id']) ? (int) $ls[0]['pos_id'] : null;
     }
 }
 
@@ -1475,4 +2080,42 @@ function columnIndex($letra) {
     }
 
     return $total;
+}
+
+/*
+    El filtro que hace posible leer un archivo mas grande que la memoria.
+
+    PhpSpreadsheet pregunta por CADA celda del XML si debe instanciarla. Las que
+    responden `false` se leen y se tiran sin convertirse en objeto, que es donde
+    esta todo el costo: 420 000 celdas convertidas son 160 MB, y las de un bloque
+    de 2 000 filas son 54.
+
+    Va en una funcion y como clase ANONIMA, no como clase con nombre al final del
+    archivo, porque implementa una interfaz de PhpSpreadsheet y el vendor se carga
+    BAJO DEMANDA: declararla al incluir este archivo obligaria a tener la libreria
+    presente para listar cargas o borrar un lote, que hoy funcionan sin ella.
+
+    El nombre de la hoja llega vacio en algunos formatos, y ahi no se puede
+    descartar por hoja: se deja pasar y decide el rango de filas. Descartar por
+    defecto perderia el archivo entero.
+*/
+function filtroDeBloque($hoja, $desde, $filas) {
+    return new class($hoja, $desde, $filas) implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
+
+        private $hoja;
+        private $desde;
+        private $hasta;
+
+        public function __construct($hoja, $desde, $filas) {
+            $this->hoja  = $hoja;
+            $this->desde = $desde;
+            $this->hasta = $desde + $filas - 1;
+        }
+
+        public function readCell($column, $row, $worksheetName = '') {
+            if ($worksheetName !== '' && $worksheetName !== $this->hoja) return false;
+
+            return $row >= $this->desde && $row <= $this->hasta;
+        }
+    };
 }

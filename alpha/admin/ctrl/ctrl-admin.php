@@ -139,18 +139,18 @@ class User extends MUser{
 
             if ($user['active'] == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 me-1',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 me-1',
                     'html'    => '<i class="icon-pencil"></i>',
                     'onclick' => 'usuarios.editar('.$user['id'].')'
                 ];
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'usuarios.toggleStatus('.$user['id'].',0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'usuarios.toggleStatus('.$user['id'].',1)'
                 ];
@@ -158,7 +158,7 @@ class User extends MUser{
 
             $__row[] = [
                 'id'      => $user['id'],
-            
+
                 'Nombre'  => [
                     'html'  => userBadge($user['fullname'],'' ),
                     'class' => 'px-2'
@@ -325,13 +325,13 @@ class User extends MUser{
             if ($key['active'] == 1) {
                 // Activa: permite editar y desactivar
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 me-1',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 me-1',
                     'html'    => '<i class="icon-pencil"></i>',
                     'onclick' => 'sucursales.edit('.$key['id'].')'
                 ];
 
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'sucursales.toggleStatus('.$key['id'].',0)'
                 ];
@@ -339,7 +339,7 @@ class User extends MUser{
 
                 // Inactiva: solo opción de reactivar
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'sucursales.toggleStatus('.$key['id'].',1)'
                 ];
@@ -465,20 +465,20 @@ class User extends MUser{
             if ($key['active'] == 1) {
                 // Activa: permite editar y desactivar
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 me-1',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 me-1',
                     'html'    => '<i class="icon-pencil"></i>',
                     'onclick' => 'clausulas.edit('.$key['id'].')'
                 ];
 
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'clausulas.toggleStatus('.$key['id'].',0)'
                 ];
             } else {
                 // Inactiva: solo opción de reactivar
                 $a[] = [
-                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded bg-red-500/15 hover:bg-red-500/25 text-red-400',
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'clausulas.toggleStatus('.$key['id'].',1)'
                 ];
@@ -637,7 +637,7 @@ function subsidiaryBadges($sucursales) {
         $sucursal = trim($sucursal);
 
         if ($sucursal !== '') {
-            $html .= '<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded-full bg-gray-500/15 text-gray-300 border border-gray-500/30 me-1 mb-1">'
+            $html .= '<span class="inline-flex items-center px-2 py-0.5 text-[11px] rounded-full bg-gray-500/15 text-gray-300 me-1 mb-1">'
                    . $sucursal
                    . '</span>';
         }
@@ -648,13 +648,14 @@ function subsidiaryBadges($sucursales) {
 
 function rolBadge($rol) {
     $map = [
-        'Administrador' => 'bg-purple-500/15 text-purple-400',
-        'Cajero'        => 'bg-blue-500/15 text-blue-400',
-        'default'      => 'bg-orange-500/15 text-orange-400',
-        'Vendedor'     => 'bg-yellow-500/15 text-yellow-500',
+        'Administrador' => 'bg-purple-500/15 text-purple-300',
+        'Supervisor'    => 'bg-indigo-500/15 text-indigo-300',
+        'Cajero'        => 'bg-cyan-500/15 text-cyan-300',
+        'Vendedor'      => 'bg-emerald-500/15 text-emerald-300',
+        'Lectura'       => 'bg-slate-500/15 text-slate-300',
     ];
 
-    $colors = $map[$rol] ?? 'bg-gray-500/15 text-gray-400';
+    $colors = $map[$rol] ?? 'bg-gray-500/15 text-gray-300';
 
     return '<span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ' . $colors . '">'
          . $rol

@@ -78,6 +78,15 @@ class ctrl extends mdl2 {
         return $this->posInfo()['code'];
     }
 
+    // El id del POS de la sucursal. Viaja con la carga porque el catalogo de
+    // productos se separa por punto de venta: una sucursal que migro de sistema
+    // conserva el catalogo viejo mientras el nuevo entra.
+    function posIdActual() {
+        $ls = $this->getPosId([$this->branchId()]);
+
+        return isset($ls[0]['pos_id']) ? (int) $ls[0]['pos_id'] : null;
+    }
+
     function importador() {
         if ($this->import !== null) return $this->import;
 
@@ -758,6 +767,29 @@ class ctrl extends mdl2 {
             $fichero = $fileData['name'];
             $steps   = [step('Recibir archivo', 'ok', $fichero)];
 
+            $importador = $this->importador();
+            $tipo       = $_POST['tipo'] ?? '';
+
+            $ctx = [
+                'fileName' => $fichero,
+                'tipo'     => $tipo,
+                'mes'      => $mes,
+                'anio'     => $anio,
+                'branchId' => $this->branchId(),
+                'posId'    => $this->posIdActual(),
+                'userId'   => $this->userId,
+                'userName' => $_SESSION['NAME'] ?? '',
+                'steps'    => $steps
+            ];
+
+            // La hoja de comandas no cabe en memoria de una pieza: son 420 000
+            // celdas que piden 160 MB, y el servidor da 128. Esa pestana recibe la
+            // RUTA en vez del libro cargado y lo lee por bloques, que es justo lo
+            // que este `load()` haria imposible.
+            if (method_exists($importador, 'leePorBloques') && $importador->leePorBloques($tipo)) {
+                return $importador->procesarArchivo($fileData['tmp_name'], $ctx);
+            }
+
             try {
                 $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($fileData['tmp_name']);
                 $lector->setReadDataOnly(true);
@@ -776,17 +808,7 @@ class ctrl extends mdl2 {
             // manda ademas del id porque se guarda como copia: el catalogo de
             // usuarios vive en otro esquema y una bitacora de auditoria no puede
             // depender de que ese usuario siga existiendo para poder leerse.
-            $importador = $this->importador();
-            $resultado  = $importador->procesarLibro($documento, [
-                'fileName' => $fichero,
-                'tipo'     => $_POST['tipo'] ?? '',
-                'mes'      => $mes,
-                'anio'     => $anio,
-                'branchId' => $this->branchId(),
-                'userId'   => $this->userId,
-                'userName' => $_SESSION['NAME'] ?? '',
-                'steps'    => $steps
-            ]);
+            $resultado = $importador->procesarLibro($documento, $ctx);
         }
 
         return $resultado;

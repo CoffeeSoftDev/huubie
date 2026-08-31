@@ -333,7 +333,6 @@ class Usuarios extends Templates {
     constructor(link, div_modulo) {
         super(link, div_modulo);
         this.PROJECT_NAME = "Usuarios";
-
     }
 
     render() {
@@ -367,6 +366,7 @@ class Usuarios extends Templates {
                 {
                     opc: "button",
                     class: "col-12 col-md-3",
+                    className: "border-0",
                     id: "btnNuevoUsuario",
                     text: "Nuevo Usuario",
                     onClick: () => this.add(),

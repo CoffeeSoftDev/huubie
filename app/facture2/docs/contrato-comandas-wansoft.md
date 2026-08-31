@@ -460,13 +460,89 @@ correcto: mejor no generar nota que generarla mal.
 
 ## 8. Estado
 
+Sólo se implementó la hoja **Detalle de ventas**. `Tiempo de orden` queda fuera
+por decisión explícita: de sus 13 columnas, lo único que no llega por otro lado
+es el tiempo de servicio. Las columnas `opened_at` y `service_minutes` de
+`migra-10` se quedan en NULL hasta que alguien las pida.
+
 | Paso | Estado |
 |---|---|
-| Medición del archivo y contrato (§1–§4) | ✅ hecho |
-| `migra-10-wansoft-comandas.sql` + rollback | ✅ escrita, **aplicada en local**, idempotente verificada |
-| Decisión de sucursal (§7) | ✅ sucursal propia para Ryori Ryokan |
-| Remapeo de los datos de prueba (§7) | ⏸ pendiente de respaldo + confirmación |
-| Contrato en `import-facture2-cargas.php` | ⏳ por hacer |
-| Parser del bloque de montos por `Acción` | ⏳ por hacer |
-| `linkDetailToSaleByPdv()` + llamada al cerrar ventas | ⏳ por hacer |
-| Alta de `product` / `waiter` en `branch 2` | ⏳ por hacer |
+| Medición del archivo y contrato (§1–§4) | ✅ |
+| `migra-10` · columnas del renglón | ✅ aplicada, idempotente |
+| `migra-11` · `pos_id` + grupo al catálogo | ✅ aplicada, idempotente |
+| `migra-12` · el padre va por nombre | ✅ aplicada, idempotente |
+| `limpia-01` · fuera los datos de prueba | ✅ ejecutada, base en cero |
+| Contrato de la hoja + salir de `tabsReservados` | ✅ |
+| Lector por bloques de 2 000 filas | ✅ probado con 128 MB |
+| Parser del bloque de montos por `Acción` | ✅ |
+| Alta de `product` y `waiter` | ✅ 174 + 3 |
+| Rescate de huérfanos al cargar ventas | ✅ probado: 448 renglones |
+| Nombre y RFC de la sucursal | ⏸ **pendiente**: dato de negocio |
+
+### Lo que dio la carga real
+
+```
+8 719 renglones   ·   174 productos   ·   759 comandas
+suma de ventas    1,004,680.00   (cuadra al centavo con el Excel)
+memoria           74 MB de 128        tiempo   39 s
+recarga           "ya estaba cargado" · 0 duplicados
+```
+
+---
+
+## 9. Lo que sólo se supo al ejecutarlo
+
+Seis defectos que no se veían leyendo el código. Se listan porque cada uno
+describe una trampa del entorno, no un descuido puntual, y la siguiente hoja
+grande se va a encontrar las mismas.
+
+**1 · PhpSpreadsheet no libera memoria al soltar la variable.** Una hoja
+referencia a su libro y el libro a sus hojas; ese ciclo impide al recolector
+llevarse nada. Sin `disconnectWorksheets()` explícito, el bloque 3 arrancaba con
+93 MB encima y moría. Es el defecto que anulaba la técnica entera: leer por
+bloques sin soltar es leer el archivo completo, más lento.
+
+**2 · `mapaIndices` devuelve el índice ABSOLUTO de la columna**, con `startIndex`
+ya sumado. Volver a sumarlo corría la lectura dos columnas y el renglón salía con
+los datos del vecino. Se notó porque el catálogo daba 2 productos en vez de 174 —
+una cifra absurda delata lo que una plausible habría escondido.
+
+**3 · Reemplazo e incremental no pueden convivir.** `borrarPeriodo` borra el lote,
+y `fk_detail_sale_batch` es `ON DELETE SET NULL`: los renglones no se van, se
+quedan con `import_batch_id` en nulo. Así ya no los ve la consulta que pregunta
+por lote, la siguiente carga los da por nuevos y 8 719 se vuelven 17 438.
+
+**4 · `Utileria::sql` convierte el cero en NULL.** Compara con `==`, y en PHP
+`0 == ''` es cierto. Contra una columna `NOT NULL` el insert falla entero. No se
+tocó la utilería —la usa todo el ecosistema—: no se declaran los ceros y se deja
+que la columna tome su DEFAULT.
+
+**5 · El vendor se carga bajo demanda, a propósito.** Una clase que implemente una
+interfaz de PhpSpreadsheet no puede declararse al incluir el archivo: obligaría a
+tener la librería presente para listar cargas o borrar un lote, que hoy funcionan
+sin ella. Va como clase anónima dentro de la función que la usa.
+
+**6 · El archivo declara al platillo padre por NOMBRE, no por clave.** Diez
+caracteres no alcanzan: guardaba «YAKIMESHI » por «YAKIMESHI DE CAMARON
+AGRIDULCE». Y resolverlo a clave durante la carga no es opción, porque en 238 de
+1 008 casos el modificador aparece antes que su platillo.
+
+---
+
+## 10. Lo que queda pendiente
+
+**El nombre y el RFC de la sucursal.** `branch 1` sigue diciendo «CAFE DE CHIAPAS
+SUC. POLIFORUM» / `ASSDFCCEEAS` mientras dentro vive el menú de Ryori Ryokan. No
+es cosmético: ese nombre y ese RFC son los que se imprimen en la nota que se
+entrega al cliente. Es dato de negocio y no se inventa.
+
+**Una comanda corregida no se actualiza.** La carga incremental salta el
+movimiento que ya conoce, así que un ticket que el POS corrigió después vuelve a
+exportarse pero no entra. Para rehacerlo hay que borrar su lote desde el módulo.
+Es el precio de no reemplazar, y es el correcto mientras el archivo cubra un mes
+y las ventas se suban por días.
+
+**El error de memoria sigue sin atraparse.** Ya no se dispara en esta hoja, pero
+el `catch (Exception)` del módulo no cubre el agotamiento de memoria —en PHP 7 es
+un `Error`, otra jerarquía—, así que un archivo bastante más grande daría una
+pantalla rota en vez de un aviso. Se resuelve con un `shutdown handler`.
