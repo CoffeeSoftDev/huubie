@@ -183,7 +183,7 @@ class ctrl extends mdl2 {
                 'anio' => $enLista ? $anioActual : (string) ($anios[0]['id'] ?? $anioActual)
             ],
             'pos'      => $this->posInfo(),
-            'tabs'     => tabsContrato($contrato, $reservados),
+            'tabs'     => tabsContrato($contrato, $reservados, $this->posCode()),
             'archivos' => archivosContrato($contrato, $this->posCode(), $reservados),
             'hojas'    => hojasContrato($contrato, $reservados),
             'roadmap'  => roadmapContrato()
@@ -305,8 +305,10 @@ class ctrl extends mdl2 {
             $total       += (float) $lote['control_total'];
         }
 
-        $ids     = array_column($lotes, 'id');
-        $tarjeta = $this->totalTarjeta($ids);
+        $ids      = array_column($lotes, 'id');
+        $formas   = $this->totalesPorForma($ids);
+        $efectivo = $formas['efectivo'];
+        $tarjeta  = $formas['tarjeta'];
 
         $fiscal   = $this->desgloseFiscal($ids, $total);
         $subtotal = $fiscal['subtotal'];
@@ -320,11 +322,20 @@ class ctrl extends mdl2 {
             'archivoTexto'     => number_format($archivo),
             'duplicados'       => $duplicados,
             'duplicadosTexto'  => number_format($duplicados),
+            'efectivo'          => round($efectivo['total'], 2),
+            'efectivoTexto'     => money($efectivo['total']),
+            'efectivoLabel'     => $efectivo['nombre'],
+            'efectivoPagos'     => $efectivo['pagos'],
+            'efectivoPagosTexto' => number_format($efectivo['pagos']),
             'tarjeta'          => round($tarjeta['total'], 2),
             'tarjetaTexto'     => money($tarjeta['total']),
             'tarjetaLabel'     => $tarjeta['nombre'],
             'tarjetaPagos'     => $tarjeta['pagos'],
             'tarjetaPagosTexto' => number_format($tarjeta['pagos']),
+            // Si efectivo + tarjeta no llega al total, hay pagos con una forma que
+            // el catalogo no tiene marcada como efectivo o no-efectivo. La
+            // pantalla lo dice en vez de dejar la diferencia sin nombre.
+            'sinClasificar'     => round($total - $efectivo['total'] - $tarjeta['total'], 2),
             'subtotal'         => $subtotal,
             'subtotalTexto'    => money($subtotal),
             'iva'              => $impuesto,
@@ -335,35 +346,52 @@ class ctrl extends mdl2 {
         ];
     }
 
-    // Lo que se cobro con tarjeta en esos lotes.
-    //
-    // "Tarjeta" es toda forma de pago que no es efectivo: es lo que este modulo
-    // factura —el generador oculta los tickets en efectivo— y lo unico que
-    // aparece en el estado de cuenta del banco. Los pagos que entraron sin forma
-    // de pago no cuentan de ningun lado, porque no se sabe como se cobraron.
-    function totalTarjeta($ids) {
-        $total   = 0;
-        $pagos   = 0;
-        $nombres = [];
+    /*
+        Lo cobrado en esos lotes, partido en efectivo y no-efectivo.
+
+        "Tarjeta" es toda forma de pago que no es efectivo: es lo que este modulo
+        factura —el generador oculta los tickets en efectivo— y lo unico que
+        aparece en el estado de cuenta del banco.
+
+        El EFECTIVO se devuelve aunque el modulo no lo facture, porque la pantalla
+        lo necesita para cuadrar: con solo la tarjeta a la vista, un total de
+        53,015 junto a una tarjeta de 22,331 parece un error de carga cuando lo
+        unico que pasa es que faltaba nombrar los otros 30,684.
+
+        Los pagos que entraron SIN forma de pago no caen en ninguno de los dos,
+        porque no se sabe como se cobraron. Por eso `cuadra` compara la suma de
+        ambos contra el total: si no da, hay pagos sin clasificar y la pantalla
+        puede decirlo en vez de dejar el hueco sin explicar.
+    */
+    function totalesPorForma($ids) {
+        $caja = [
+            'efectivo' => ['total' => 0, 'pagos' => 0, 'nombres' => []],
+            'tarjeta'  => ['total' => 0, 'pagos' => 0, 'nombres' => []]
+        ];
 
         if (!empty($ids)) {
             foreach ($this->sumPaymentByMethod($ids) as $forma) {
-                if ($forma['is_cash'] === null || (int) $forma['is_cash'] === 1) continue;
+                // Sin `is_cash` capturado no se puede decir de que lado va.
+                if ($forma['is_cash'] === null) continue;
 
-                $total    += (float) $forma['total'];
-                $pagos    += (int)   $forma['pagos'];
-                $nombres[] = $forma['method_name'];
+                $lado = (int) $forma['is_cash'] === 1 ? 'efectivo' : 'tarjeta';
+
+                $caja[$lado]['total']    += (float) $forma['total'];
+                $caja[$lado]['pagos']    += (int)   $forma['pagos'];
+                $caja[$lado]['nombres'][] = $forma['method_name'];
             }
         }
 
-        // Con una sola forma de pago la tarjeta se rotula como la nombra el POS
-        // ("Tarjeta de credito"); con varias no hay un nombre honesto que darle y
-        // la etiqueta la pone la pantalla.
-        return [
-            'total'  => $total,
-            'pagos'  => $pagos,
-            'nombre' => count($nombres) === 1 ? nombreForma($nombres[0]) : ''
-        ];
+        // Con una sola forma de pago se rotula como la nombra el POS ("Tarjeta de
+        // credito"); con varias no hay un nombre honesto que darle y la etiqueta
+        // la pone la pantalla.
+        foreach ($caja as $lado => $datos) {
+            $caja[$lado]['nombre'] = count($datos['nombres']) === 1
+                ? nombreForma($datos['nombres'][0])
+                : '';
+        }
+
+        return $caja;
     }
 
     // El subtotal y el IVA del total que suma la bitacora.
@@ -583,6 +611,28 @@ class ctrl extends mdl2 {
 
         // -- Hojas de Wansoft --
 
+        // Los renglones de "Detalle de ventas": lo que se consumio, platillo por
+        // platillo. Viven en la misma tabla que el detalle de Soft Restaurant pero
+        // se listan aparte, porque Wansoft no trae el mesero en el renglon —lo
+        // lleva el ticket— y esa columna se veria siempre vacia.
+        if ($target === 'wansoft-command') {
+            $center = [1, 2, 3, 5, 7];
+            $right  = [6];
+
+            foreach ($this->listSaleDetailByBatch($ids) as $item) {
+                $__row[] = [
+                    'id'       => $item['sale_folio'],
+                    'Cuenta'   => '<span class="font-semibold text-gray-300">' . $item['sale_folio'] . '</span>',
+                    'Mesa'     => tableCell($item['table_number']),
+                    'Clave'    => monoCell($item['product_code']),
+                    'Producto' => '<span class="text-gray-400">' . $item['description'] . '</span>',
+                    'Cantidad' => '<span class="text-gray-400">' . (float) $item['quantity'] . '</span>',
+                    'Importe'  => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
+                    'Fecha'    => dateShortCell($item['closed_at'])
+                ];
+            }
+        }
+
         // La hoja de detalle produjo ventas Y pagos de una sola pasada, y lo que se
         // lista es el PAGO: es lo que tiene una fila por cada fila del Excel. El
         // ticket se ve agrupado en el modulo de ventas.
@@ -592,9 +642,17 @@ class ctrl extends mdl2 {
         // tener que buscar donde quedo cada campo.
         if ($target === 'wansoft-detail') {
             $center = [1, 2, 3, 4, 5, 6, 8, 11];
-            $right  = [13];
+            // Las tres de dinero van a la derecha, juntas: asi los importes se leen
+            // en columna y el ojo comprueba la suma sin buscarlas.
+            $right  = [13, 14, 15];
 
             foreach ($this->listPaymentWansoftByBatch($ids) as $item) {
+                // «Total cobrado» es lo que de verdad paso por la caja: el importe
+                // de la cuenta mas la propina. No se guarda —seria un tercer numero
+                // que puede dejar de cuadrar con los otros dos— y se deriva aqui,
+                // que es como lo compone el propio Excel (Total + Propina).
+                $cobrado = (float) $item['amount'] + (float) $item['tip'];
+
                 $__row[] = [
                     'id'          => $item['sale_folio'],
                     'Fecha'       => dateShortCell($item['operation_date']),
@@ -609,7 +667,14 @@ class ctrl extends mdl2 {
                     'Transaccion' => monoCell($item['transaction_code']),
                     'Terminal'    => '<span class="text-gray-400">' . $item['terminal'] . '</span>',
                     'Validacion'  => monoCell($item['validation_code']),
-                    'Total'       => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>'
+                    'Total'       => '<span class="font-semibold text-gray-300">$' . number_format($item['amount'], 2) . '</span>',
+                    // La propina en cero se apaga: en una columna donde la mayoria
+                    // son ceros, pintarlos todos igual que los importes buenos hace
+                    // que los que si tienen valor dejen de saltar a la vista.
+                    'Propina'     => (float) $item['tip'] > 0
+                        ? '<span class="text-gray-400">$' . number_format($item['tip'], 2) . '</span>'
+                        : '<span class="text-gray-600">—</span>',
+                    'Total cobrado' => '<span class="font-semibold text-gray-300">$' . number_format($cobrado, 2) . '</span>'
                 ];
             }
         }
@@ -673,6 +738,62 @@ class ctrl extends mdl2 {
 
     // -- Carga de archivo --
 
+    /*
+        Cuantas filas trae el libro si es demasiado para abrirlo entero, o 0 si
+        cabe. `listWorksheetInfo` responde sin cargar nada: 1.5 s y 18 MB contra
+        los 160 que costaria el `load()`.
+
+        Se cuenta por CELDAS y no por filas: mil filas de cuatro columnas no pesan
+        como mil de cincuenta, y es el ancho lo que dispara el gasto —cada celda se
+        convierte en un objeto de PHP—.
+
+        Las dos constantes salen de medir los dos archivos reales, no de estimar:
+
+            reporte de pagos    224 680 celdas ->  26 MB   (116 bytes/celda)
+            comandas            567 320 celdas -> 160 MB   (282 bytes/celda)
+
+        No es lineal: el segundo trae fechas y textos largos, que pesan mas que un
+        importe. Por eso el calculo usa el PEOR caso medido con holgura (300) y no
+        el promedio, que dejaria pasar libros que luego no caben.
+
+        Con los 128 MB del servidor el tope queda en ~290 000 celdas, y eso separa
+        bien los dos casos: el reporte de pagos entra con margen y el de comandas
+        se queda fuera, que es exactamente lo que hace falta.
+    */
+    const BYTES_POR_CELDA = 300;
+    const MARGEN_MEMORIA  = 0.7;
+
+    function libroDemasiadoGrande($lector, $ruta) {
+        $limite = $this->memoriaDisponible();
+        if ($limite <= 0) return 0;
+
+        $cabe = (int) (($limite * self::MARGEN_MEMORIA) / self::BYTES_POR_CELDA);
+
+        foreach ($lector->listWorksheetInfo($ruta) as $info) {
+            $celdas = (int) $info['totalRows'] * (int) $info['totalColumns'];
+
+            if ($celdas > $cabe) return (int) $info['totalRows'];
+        }
+
+        return 0;
+    }
+
+    // La memoria que le queda a esta peticion. Sin limite —o con uno ilimitado—
+    // devuelve 0 y la comprobacion se salta: no hay techo contra el que medir.
+    function memoriaDisponible() {
+        $ini = trim((string) ini_get('memory_limit'));
+
+        if ($ini === '' || $ini === '-1') return 0;
+
+        $n    = (int) $ini;
+        $mult = ['k' => 1024, 'm' => 1048576, 'g' => 1073741824];
+        $suf  = strtolower(substr($ini, -1));
+
+        $total = isset($mult[$suf]) ? $n * $mult[$suf] : $n;
+
+        return max(0, $total - memory_get_usage(true));
+    }
+
     // Abre el Excel recibido sin tocar la base. Devuelve el documento o el error
     // ya redactado, porque la lectura falla igual en la revision previa y en la
     // carga y no tiene por que escribirse dos veces.
@@ -696,6 +817,25 @@ class ctrl extends mdl2 {
                 $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($fileData['tmp_name']);
                 $lector->setReadDataOnly(true);
 
+                // Se mide ANTES de abrir. Un libro que no cabe en memoria no da un
+                // error atrapable: mata el proceso con «Allowed memory size
+                // exhausted», y `catch` no lo ve —en PHP 7 es un Error, no una
+                // Exception—. La peticion muere sin respuesta y la pantalla no
+                // puede decir mas que "no se pudo leer".
+                //
+                // Pasa cuando el archivo de comandas se sube por la pestana
+                // equivocada: esa hoja se lee por bloques en la suya, pero aqui
+                // entraria por el camino que lo abre entero.
+                $grande = $this->libroDemasiadoGrande($lector, $fileData['tmp_name']);
+
+                if ($grande) {
+                    return ['error' => [
+                        'status'  => 400,
+                        'message' => 'El archivo "' . $fileData['name'] . '" trae ' . number_format($grande) .
+                                     ' filas: son mas de las que este importador puede abrir de una vez.'
+                    ]];
+                }
+
                 return ['documento' => $lector->load($fileData['tmp_name']), 'nombre' => $fileData['name']];
             } catch (Exception $e) {
                 return ['error' => [
@@ -712,19 +852,59 @@ class ctrl extends mdl2 {
     // cuadran, sin guardar nada. Con eso el modulo arma una sola pregunta, la
     // correcta, en vez de confirmar un destino y desdecirse despues.
     function inspectFile() {
-        $libro = $this->leerLibro();
-        if (isset($libro['error'])) return $libro['error'];
+        if (!file_exists(AUTOLOAD_PATH)) {
+            return ['status' => 500, 'message' => 'PhpSpreadsheet (vendor) no esta instalado en este entorno.'];
+        }
+        require_once AUTOLOAD_PATH;
 
-        // El periodo viaja con la revision: sin el no se puede saber si el mes
-        // destino ya tiene notas emitidas, que es lo primero que se comprueba.
         $importador = $this->importador();
+        $tipo       = $_POST['tipo'] ?? '';
 
-        return $importador->inspeccionarLibro($libro['documento'], [
-            'tipo'     => $_POST['tipo'] ?? '',
+        $ctx = [
+            'tipo'     => $tipo,
             'mes'      => (int) ($_POST['mes'] ?? 0),
             'anio'     => (int) ($_POST['anio'] ?? 0),
             'branchId' => $this->branchId()
-        ]);
+        ];
+
+        // La revision NO abre el libro. Le basta con los nombres de las hojas y la
+        // fila de encabezados de cada una, y las dos cosas se leen sin cargar nada.
+        //
+        // Abrirlo tenia dos costes. El de comandas moria de memoria antes de
+        // llegar a la carga —«Allowed memory size exhausted»— y, para esquivarlo,
+        // la revision acababa preguntando por la PESTANA en vez de por el archivo.
+        // Y la pestana no manda: el modulo identifica el export por su contenido y
+        // lo lleva a donde va, se suelte donde se suelte.
+        //
+        // El periodo viaja en el contexto: sin el no se puede saber si el mes
+        // destino ya tiene notas emitidas, que es lo primero que se comprueba.
+        if (method_exists($importador, 'inspeccionarArchivo')) {
+            $archivo = $this->archivoRecibido();
+            if (isset($archivo['error'])) return $archivo['error'];
+
+            return $importador->inspeccionarArchivo($archivo['ruta'], $ctx);
+        }
+
+        $libro = $this->leerLibro();
+        if (isset($libro['error'])) return $libro['error'];
+
+        return $importador->inspeccionarLibro($libro['documento'], $ctx);
+    }
+
+    // El archivo que llego, sin abrirlo: la revision trabaja con la RUTA, no con
+    // el libro cargado.
+    function archivoRecibido() {
+        if (empty($_FILES)) {
+            return ['error' => ['status' => 400, 'message' => 'No se recibio ningun archivo en la peticion.']];
+        }
+
+        foreach ($_FILES as $fileData) {
+            if ($fileData['error'] !== UPLOAD_ERR_OK) continue;
+
+            return ['ruta' => $fileData['tmp_name'], 'nombre' => $fileData['name']];
+        }
+
+        return ['error' => ['status' => 400, 'message' => 'No se proceso ningun archivo.']];
     }
 
     function uploadFile() {
@@ -757,6 +937,21 @@ class ctrl extends mdl2 {
             ];
         }
 
+        // Todo lo que esta carga necesita de la sesion se lee AHORA, y despues se
+        // suelta el candado.
+        //
+        // PHP bloquea el archivo de sesion mientras la peticion corre, asi que
+        // cualquier otra del mismo usuario espera a que esta termine. Con una carga
+        // de minutos eso deja mudo justo lo que hace falta: la consulta que pregunta
+        // cuanto lleva guardado se quedaba encolada y solo respondia al final, para
+        // decir el 100 %.
+        //
+        // No se pierde nada al cerrarla: la sucursal ya se resolvio y se cacheo en el
+        // constructor, y de aqui en adelante nadie vuelve a escribir en $_SESSION.
+        $userName = $_SESSION['NAME'] ?? '';
+
+        if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+
         $resultado = ['status' => 400, 'message' => 'No se proceso ningun archivo.'];
 
         // Se lee directo del tmp_name: el Excel es la fuente de la carga, no un
@@ -778,7 +973,11 @@ class ctrl extends mdl2 {
                 'branchId' => $this->branchId(),
                 'posId'    => $this->posIdActual(),
                 'userId'   => $this->userId,
-                'userName' => $_SESSION['NAME'] ?? '',
+                'userName' => $userName,
+                // Los meses que la pantalla dejo marcados, como 'YYYY-MM'. Vacio
+                // significa el archivo entero: la lista solo llega cuando el usuario
+                // descarto alguno.
+                'meses'    => array_filter(array_map('trim', explode(',', $_POST['meses'] ?? ''))),
                 'steps'    => $steps
             ];
 
@@ -814,6 +1013,93 @@ class ctrl extends mdl2 {
         return $resultado;
     }
 
+    // Cuanto lleva escrito la carga que esta corriendo ahora mismo.
+    //
+    // La pantalla lo pregunta cada par de segundos mientras espera la respuesta de
+    // uploadFile, que con un archivo de comandas tarda minutos. Lo que devuelve no
+    // es una estimacion: son las filas que ya estan en base.
+    //
+    // `desdeId` es el ultimo lote que existia al empezar. Sin el, una carga anterior
+    // del mismo archivo se contaria como si fuera esta y el avance saldria completo
+    // desde el primer segundo.
+    function uploadProgress() {
+        $lotes = $this->listImportBatchProgress([
+            $this->branchId(),
+            $_POST['fileName'] ?? '',
+            (int) ($_POST['desdeId'] ?? 0)
+        ]);
+
+        $filas  = 0;
+        $total  = 0;
+        $meses  = [];
+
+        foreach ($lotes as $lote) {
+            $filas += (int) $lote['renglones'] + (int) $lote['pagos'];
+            $meses[] = periodoTexto((int) $lote['period_month'], (int) $lote['period_year']);
+
+            // El denominador es el del archivo, no la suma de los lotes: todos nacen
+            // con las mismas filas de origen porque el archivo es uno, y sumarlas
+            // haria crecer la meta cada vez que un mes abre el suyo.
+            $total = max($total, (int) $lote['source_rows']);
+        }
+
+        return [
+            'status'  => 200,
+            'lotes'   => count($lotes),
+            'meses'   => array_values(array_unique($meses)),
+            'filas'   => $filas,
+            'total'   => $total,
+            'ultimo'  => $this->ultimoLoteId()
+        ];
+    }
+
+    // Las notas que se apoyan en un lote, o null si no hay ninguna.
+    //
+    // Cada tipo de lote se pregunta por su lado: el de ventas sostiene la nota
+    // directamente —es su respaldo— y el de comandas sostiene el DETALLE que esa
+    // nota ya impresa enseña. Los lotes que no son ni una cosa ni otra —hojas
+    // bancarias, pagos eliminados— no sujetan ninguna nota y se borran sin mas.
+    function notasDelLote($id, $target) {
+        $deVentas   = $target === 'sale' || $target === 'wansoft-detail';
+        $deComandas = $target === 'detail' || $target === 'wansoft-command';
+
+        if (!$deVentas && !$deComandas) return null;
+
+        $conteo = $deVentas
+            ? $this->countVirtualTicketBySaleBatch([$id])
+            : $this->countVirtualTicketByDetailBatch([$id]);
+
+        $total = (int) ($conteo[0]['total'] ?? 0);
+
+        if ($total === 0) return null;
+
+        return [
+            'motivo'    => 'tickets',
+            // Lo que se estaba intentando. El aviso lo dibuja el mismo componente
+            // que el de las cargas, y sin esto diria que hay que corregir el
+            // archivo cuando aqui no hay ningun archivo de por medio.
+            'accion'    => 'borrar',
+            'total'     => $total,
+            'notaMin'   => (int) ($conteo[0]['nota_min'] ?? 0),
+            'notaMax'   => (int) ($conteo[0]['nota_max'] ?? 0),
+            'notas'     => $deVentas
+                ? $this->listVirtualTicketBySaleBatch([$id])
+                : $this->listVirtualTicketByDetailBatch([$id]),
+            'esperadas' => [],
+            'libro'     => [],
+            'columnas'  => [],
+            'cargadas'  => []
+        ];
+    }
+
+    // El id del lote mas reciente. La pantalla lo pide ANTES de subir para saber
+    // desde donde contar.
+    function ultimoLoteId() {
+        $max = $this->getMaxImportBatchId();
+
+        return (int) ($max[0]['id'] ?? 0);
+    }
+
     function deleteCarga() {
         $status  = 500;
         $message = 'Error al eliminar la carga';
@@ -838,6 +1124,25 @@ class ctrl extends mdl2 {
             ];
         }
 
+        // Un lote que sostiene tickets ya emitidos no se borra.
+        //
+        // Mientras nadie ha cerrado nada, la carga es material de trabajo y se puede
+        // deshacer: es lo normal al probar. En cuanto se genera el primer ticket, ese
+        // papel salio, y sus ventas son su respaldo: borrarlas se las llevaria por el
+        // CASCADE de virtual_ticket.sale_id y la nota quedaria sin nada detras.
+        //
+        // Es el mismo criterio con el que el periodo con notas rechaza una recarga,
+        // aplicado a la carga concreta que se quiere quitar.
+        $notas = $this->notasDelLote($id, $target);
+
+        if ($notas) {
+            return [
+                'status'     => 409,
+                'message'    => 'Esta carga tiene tickets emitidos y no se puede eliminar',
+                'validacion' => $notas
+            ];
+        }
+
         $where = $this->util->sql(['import_batch_id' => $id], 1);
 
         // Pagos y renglones de comanda son la base del cruce y no se van con las
@@ -852,11 +1157,37 @@ class ctrl extends mdl2 {
         if ($target === 'payment') $this->deleteSalePaymentByBatch($where);
         if ($target === 'detail')  $this->deleteSaleDetailByBatch($where);
 
+        // Los renglones de comandas de Wansoft viven en la misma tabla que los de
+        // Soft, pero su target se llama distinto —`wansoft-command`— y aqui no lo
+        // reconocia nadie: el lote se borraba y sus renglones se quedaban.
+        //
+        // No es que sobrevivieran intactos: `fk_detail_sale_batch` es ON DELETE SET
+        // NULL, asi que quedaban con el lote en nulo. Un renglon asi ya no lo ve
+        // `countOrphanDetail`, que pregunta por lote, ni la bitacora, que lista por
+        // periodo. Quedaban dentro de la base sin forma de alcanzarlos y sin nadie
+        // que los contara, y la siguiente carga del mismo archivo los daba por
+        // nuevos y los escribia otra vez.
+        //
+        // Es el mismo accidente que ya paso una vez por el default de `borrarPeriodo`
+        // (ver el comentario de ese metodo en el importador de Wansoft).
+        if ($target === 'wansoft-command') $this->deleteSaleDetailByBatch($where);
+
         // La hoja de detalle de Wansoft dejo ventas, pagos y el resumen del dia en
         // el mismo lote, asi que se van los tres. Los pagos se borran antes que las
         // ventas aunque el CASCADE de sale_id se los llevaria igual: hacerlo
         // explicito deja el conteo del lote correcto si manana esa FK cambia.
         if ($target === 'wansoft-detail') {
+            // Los renglones de comandas se desligan ANTES de tocar las ventas, igual
+            // que en la rama de Soft y por el mismo motivo: cuelgan de `sale` con
+            // ON DELETE CASCADE, asi que borrar el lote de ventas se llevaria por
+            // delante renglones que son de OTRA carga —la del detalle de ventas—,
+            // que nadie pidio borrar y que no se pueden recuperar.
+            //
+            // Desligados quedan sin venta, que es como nacen cuando las comandas se
+            // suben antes que su reporte: al volver a cargar el de ventas se
+            // enganchan solos.
+            $this->unlinkSaleDetailByBatch([$id]);
+
             $this->deleteDailySummaryByBatch($where);
             $this->deleteSalePaymentByBatch($where);
             $this->deleteSaleByBatch($where);
@@ -881,17 +1212,31 @@ class ctrl extends mdl2 {
 
 // Complements
 
-function mesesCatalogo() {
-    $nombres = [
+function nombresDeMes() {
+    return [
         '01' => 'Enero',   '02' => 'Febrero',   '03' => 'Marzo',      '04' => 'Abril',
         '05' => 'Mayo',    '06' => 'Junio',     '07' => 'Julio',      '08' => 'Agosto',
         '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre'
     ];
+}
 
+function mesesCatalogo() {
     $__row = [];
-    foreach ($nombres as $id => $valor) $__row[] = ['id' => $id, 'valor' => $valor];
+    foreach (nombresDeMes() as $id => $valor) $__row[] = ['id' => $id, 'valor' => $valor];
 
     return $__row;
+}
+
+// El periodo escrito como lo escribe el modulo: "Agosto 2026".
+//
+// Sale del mismo catalogo que llena el selector, y por eso lo resuelve el
+// servidor y no la pantalla: las claves del selector llevan cero a la izquierda
+// —'08', no '8'— y buscarlas desde el JS con el numero del mes devolvia vacio.
+function periodoTexto($mes, $anio) {
+    $nombres = nombresDeMes();
+    $clave   = str_pad((string) (int) $mes, 2, '0', STR_PAD_LEFT);
+
+    return isset($nombres[$clave]) ? $nombres[$clave] . ' ' . (int) $anio : $clave . '/' . (int) $anio;
 }
 
 // La pestana a la que pertenece cada hoja del export, o cadena vacia si la hoja
@@ -913,11 +1258,35 @@ function sheetTab($contrato, $sheetName) {
 
 // Las pestanas del modulo: una por archivo del POS. El contrato agrupa sus hojas
 // por tab, asi que de ahi salen sin escribirlas dos veces.
-function tabsContrato($contrato, $reservados = []) {
+//
+// El ROTULO depende del POS, aunque la pestana sea la misma. Cada sistema llama a
+// su export como quiere y rotularlo «Comandas» a un usuario de Wansoft es pedirle
+// un archivo que su POS no nombra.
+//
+// En Wansoft las dos pestanas se leen por lo que traen y no por como se llama el
+// reporte: una dice COMO se cobro y la otra QUE se vendio. Nombrarla «Detalle de
+// ventas» —que es como Wansoft titula esa hoja— la dejaba a un caracter de su
+// vecina, «Reporte de ventas», y de reojo las dos se leian igual.
+//
+// El id de la pestana NO cambia: sigue siendo 'commands' en los dos. Es la llave
+// con la que el contrato agrupa sus hojas y con la que el JS pide sus datos; lo
+// que cambia es como se lee.
+function tabsContrato($contrato, $reservados = [], $posCode = 'soft-restaurant') {
     $meta = [
         'sales-report' => ['tab' => 'Reporte de ventas', 'lucideIcon' => 'sheet'],
         'commands'     => ['tab' => 'Comandas',          'lucideIcon' => 'utensils']
     ];
+
+    // En Wansoft las dos pestanas son dos TABLAS del mismo export —una dice como se
+    // cobro y la otra que se vendio—, y el icono lo tiene que decir igual que el
+    // rotulo: los cubiertos rotulaban «Productos vendidos» como si fuera una carta,
+    // y la hoja generica no separaba a su vecina de ninguna otra pantalla.
+    if ($posCode === 'wansoft') {
+        $meta['commands']['tab'] = 'Productos vendidos';
+
+        $meta['sales-report']['lucideIcon'] = 'table-2';
+        $meta['commands']['lucideIcon']     = 'table-2';
+    }
 
     $__row = [];
     foreach ($contrato as $config) {
@@ -957,6 +1326,22 @@ function archivosContrato($contrato, $posCode = 'soft-restaurant', $reservados =
                 'esperado'  => 'ReporteVentasPorFormaDePagoYYYY-MM-DD.xlsx',
                 'ejemplo'   => 'ReporteVentasPorFormaDePago2026-08-23',
                 'patron'    => 'reporte|venta|forma|pago',
+                'formato'   => 'XLSX'
+            ],
+            // Wansoft no exporta "comandas". Sin esta ficha, la pestana heredaba la
+            // de Soft Restaurant y le pedia al usuario un «comandas.xls» que su POS
+            // no genera.
+            //
+            // El titulo dice lo que la pestana TRAE y no como Wansoft llama a la
+            // hoja: «Detalle de ventas» quedaba a un caracter de la vecina,
+            // «Reporte de ventas». El nombre del POS igual aparece dos renglones
+            // mas abajo, en el archivo que se pide.
+            'commands' => [
+                'titulo'    => 'Productos vendidos',
+                'subtitulo' => 'Sube un solo archivo. De la hoja "Detalle de ventas" sale lo que se vendio renglon por renglon —platillo, cantidad, mesa y mesero—, junto con las cortesias, cancelaciones y anulaciones del dia. Da de alta los productos y meseros que el catalogo no conoce y liga cada renglon con su ticket.',
+                'esperado'  => 'ReporteDetalleDeVentasYYYY-MM-DD.xlsx',
+                'ejemplo'   => 'ReporteDetalleDeVentas2026-08-23',
+                'patron'    => 'reporte|detalle|venta',
                 'formato'   => 'XLSX'
             ]
         ]
@@ -1183,6 +1568,14 @@ function nameCell($nombre) {
     if (empty($nombre)) return '<span class="cell-null">Sin asignar</span>';
 
     return '<span class="text-gray-400">' . $nombre . '</span>';
+}
+
+// Un renglon puede venir sin mesa —para llevar, barra— y eso no es un dato que
+// falte: la celda lo dice con un guion en vez de quedarse en blanco.
+function tableCell($mesa) {
+    if ($mesa === null || $mesa === '') return '<span class="cell-null">—</span>';
+
+    return '<span class="text-gray-400">' . $mesa . '</span>';
 }
 
 // Referencias, transacciones y codigos de validacion son cadenas del banco: en

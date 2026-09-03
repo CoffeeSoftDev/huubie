@@ -55,7 +55,26 @@ class Access extends MAccess {
         return $result;
     }
 
+    /*
+        Todo lo que devuelve sale de la sesion: sin ella no hay empresa, ni rol, ni
+        rutas que listar. Se corta antes de tocar nada y se dice.
+
+        Sin este corte, cada `$_SESSION[...]` de abajo lanzaba su Notice, y esos
+        avisos se imprimen ANTES del JSON: el navegador recibia "<br /><font..." y
+        moria con «Unexpected token '<'». La navbar y el menu lateral se quedaban
+        en null y la pantalla aparecia vacia, sin decir que faltaba la sesion.
+
+        La guarda pregunta por ROLID y COMPANY_ID, no por USR, y la diferencia
+        importa: en el mismo navegador puede haber una sesion de OTRO modulo. El
+        facturador deja `USR` y `NAME` pero ninguna de las claves de alpha, asi que
+        preguntando solo por `USR` la sesion pasaba el filtro y reventaba dos
+        lineas mas abajo. Cada guarda comprueba lo que su metodo va a usar.
+    */
     function company(){
+        if (empty($_SESSION['ROLID']) || empty($_SESSION['COMPANY_ID'])) {
+            return ['status' => 401, 'message' => 'Tu sesion no es de este modulo. Vuelve a iniciar sesion.'];
+        }
+
         $sql = $this->getUserById([$_SESSION['USR']]);
         $photo = '';
         if (!empty($sql['photo'])) {
@@ -98,6 +117,12 @@ class Access extends MAccess {
     //   'stale' -> turno abierto pero de un dia anterior (sin cerrar)
     //   'none'  -> sin turno abierto
     function branches(){
+        // Mismo corte que en company(): la empresa de la que colgar las sucursales
+        // vive en la sesion.
+        if (empty($_SESSION['COMPANY_ID'])) {
+            return ['status' => 401, 'message' => 'La sesion expiro. Vuelve a iniciar sesion.'];
+        }
+
         $list = $this->getBranchesForNavbar([$_SESSION['COMPANY_ID']]);
 
         $today        = date('Y-m-d');
@@ -170,6 +195,13 @@ class Access extends MAccess {
     }
 
     function sidebar(){
+        // El menu se arma con el rol y la empresa del usuario. Sin sesion no hay
+        // ninguno de los dos, y devolver una lista a medias pintaria un menu que
+        // no corresponde a nadie.
+        if (empty($_SESSION['ROLID'])) {
+            return ['status' => 401, 'message' => 'La sesion expiro. Vuelve a iniciar sesion.'];
+        }
+
         $routes = [];
         if($_SESSION['ROLID'] != 5){
             $routes = $this->getRoutesByCompany([$_SESSION['COMPANY_ID']]);

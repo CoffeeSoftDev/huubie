@@ -100,6 +100,12 @@ class Sidebar {
 $(async () => {
     rutes = await useFetch({ url: "/alpha/access/ctrl/ctrl-access.php", data: { opc: 'sidebar' } });
 
+    // Sin sesion el menu no se pinta: `sesionCaducada` (navbar.js) ya esta
+    // llevando al login. Sin este corte, `rutes` llega en null y createMenuItems
+    // revienta con "Cannot read properties of null (reading 'map')".
+    if (typeof sesionCaducada === 'function' && sesionCaducada(rutes)) return;
+    if (!Array.isArray(rutes)) return;
+
     let sidebar = new Sidebar();
     sidebar.init({
         parent: "#menu-sidebar", // Si deseas cambiar el contenedor padre

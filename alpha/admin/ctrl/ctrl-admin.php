@@ -9,15 +9,35 @@ header("Access-Control-Allow-Headers: Content-Type"); // Encabezados permitidos
 require_once '../mdl/mdl-admin.php';
 class User extends MUser{
 
+    // Sin sesion el modulo no puede armar nada: la empresa y el usuario salen de
+    // ella. Se corta aqui y se dice, en vez de seguir con los campos vacios.
+    //
+    // Antes las dos primeras lineas se protegian con isset() y las dos ultimas no,
+    // asi que sin sesion `$_SESSION['COMPANY']` lanzaba un Notice. Ese aviso se
+    // imprime ANTES del JSON y la respuesta deja de serlo: el navegador recibe
+    // "<br /><font..." y falla con «Unexpected token '<'». La pantalla quedaba en
+    // blanco sin decir que lo unico que pasaba era que la sesion no estaba.
+    // Se pregunta por COMPANY, que es lo que este metodo usa, y no por USR: en el
+    // mismo navegador puede haber una sesion de otro modulo —el facturador deja
+    // `USR` sin ninguna de las claves de alpha— y preguntando por `USR` esa sesion
+    // ajena pasaba el filtro para morir dos lineas mas abajo.
     function init(){
-       $id_subsidiarie = isset($_SESSION['SUB']) ? $_SESSION['SUB'] : 1;
-       $id_company = isset($_SESSION['COMPANY_ID']) ? $_SESSION['COMPANY_ID'] : 1;
+        if (empty($_SESSION['USR']) || !isset($_SESSION['COMPANY'])) {
+            return [
+                'status'  => 401,
+                'message' => 'Tu sesion no es de este modulo. Vuelve a iniciar sesion.'
+            ];
+        }
+
+        $id_subsidiarie = isset($_SESSION['SUB']) ? $_SESSION['SUB'] : 1;
+        $id_company = isset($_SESSION['COMPANY_ID']) ? $_SESSION['COMPANY_ID'] : 1;
 
         return [
+            'status'      => 200,
             'sucursal'    => $this -> lsSucursal([$id_company]),
             'rol'         => $this -> lsRol(),
             'companies'   => $this -> lsCompany([$_SESSION['USR']]),
-            'nameCompany' => $_SESSION['COMPANY'],
+            'nameCompany' => $_SESSION['COMPANY'] ?? '',
         ];
 
     }

@@ -109,7 +109,7 @@ class Inicio extends Templates {
                 id:   'tcReimprimir',
                 icon: 'printer',
                 text: 'Reimpresión de Tickets',
-                fn:   () => posGo('/app/facture2/tickets.php')
+                fn:   () => posGo('/app/facture2/reimpresion.php')
             },
             {
                 id:   'tcConfiguracion',

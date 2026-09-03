@@ -165,7 +165,7 @@ class ctrl extends mdl {
         if ($code === '') return ['status' => 400, 'message' => 'La clave del producto es obligatoria'];
 
         $nombre     = trim($_POST['nombre'] ?? '');
-        $precio     = (float) ($_POST['precio'] ?? 0);
+        $precio     = numVal($_POST['precio'] ?? 0);
         $isBridge   = (int) ($_POST['puente'] ?? 0);
         $isModifier = (int) ($_POST['modificador'] ?? 0);
 
@@ -336,6 +336,16 @@ class ctrl extends mdl {
 
 function money($valor) {
     return '$' . number_format((float) $valor, 2);
+}
+
+// Un importe puede llegar como "$1,138.00" y el casteo directo lo deja en 1.0:
+// el signo y los separadores se quitan antes, para que valga lo mismo escribirlo
+// con formato o sin el. El front ya lo limpia al teclear; esto cubre lo que
+// llega por fuera del formulario.
+function numVal($value) {
+    $limpio = str_replace(['%', ',', '$', ' '], '', (string) $value);
+
+    return is_numeric($limpio) ? (float) $limpio : 0;
 }
 
 function cellCodigo($code) {

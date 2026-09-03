@@ -1,6 +1,37 @@
 <?php
+// El front consume estas respuestas con response.json(): cualquier aviso de PHP
+// impreso antes del json_encode deja de ser JSON valido, useFetch devuelve null y
+// la accion muere en silencio. En el servidor el nivel de errores no es el del
+// entorno local, asi que el silenciado se fija aqui y no se hereda del php.ini.
+// Va antes de session_start porque el propio arranque de sesion es una de las
+// fuentes de avisos (permisos del directorio de sesiones, cookie ya enviada).
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED);
+ini_set('display_errors', 0);
+
 session_start();
+
 if (empty($_POST['opc'])) exit(0);
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Un error fatal cortaria la ejecucion sin llegar al json_encode y el front lo veria
+// igual que un fallo de red: la accion no abre y no dice nada. El cierre convierte
+// ese caso en una respuesta con el motivo, y lo deja tambien en el log del servidor.
+register_shutdown_function(function () {
+    $fatal = error_get_last();
+
+    if (!$fatal || !in_array($fatal['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+
+    while (ob_get_level()) ob_end_clean();
+
+    $detalle = $fatal['message'] . ' (' . basename($fatal['file']) . ':' . $fatal['line'] . ')';
+    error_log("[ctrl-pedidos] fatal :: {$detalle}");
+
+    echo json_encode([
+        'status'  => 500,
+        'message' => 'Error del servidor: ' . $detalle
+    ]);
+});
 
 header("Access-Control-Allow-Origin: *"); // Permite solicitudes de cualquier origen
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitidos
@@ -422,23 +453,24 @@ class Pedidos extends MPedidos{
         ];
     }
 
+    // El pedido inexistente se responde como tal en vez de leer $data[0] a ciegas: el
+    // aviso por indexar null se imprimia antes del json_encode y dejaba la respuesta
+    // sin parsear, con lo que el boton Editar no abria nada ni mostraba error.
     function getOrder() {
-        $status  = 500;
-        $message = 'Error al obtener el pedido';
-        $data    = null;
+        $get = $this->getOrderID([$_POST['id'] ?? 0]);
 
-        $get = $this->getOrderID([$_POST['id']]);
-        
-        if ($get) {
-            $status  = 200;
-            $message = 'Datos obtenidos correctamente';
-            $data    = $get;
+        if (empty($get) || empty($get[0])) {
+            return [
+                'status'  => 404,
+                'message' => 'No se encontró el pedido solicitado.',
+                'data'    => null
+            ];
         }
 
         return [
-            'status'  => $status,
-            'message' => $message,
-            'data'    => $data[0]
+            'status'  => 200,
+            'message' => 'Datos obtenidos correctamente',
+            'data'    => $get[0]
         ];
     }
 
@@ -2812,11 +2844,30 @@ function formatDateTime($date, $time) {
 
 
 
-$obj    = new Pedidos();
-$fn     = $_POST['opc'];
+$obj = new Pedidos();
+$fn  = $_POST['opc'];
 
-$encode = [];
+// Un opc que no existe en esta version del controlador produciria un fatal error, y
+// el front recibiria HTML en vez de JSON: la accion no abre y no avisa de nada. Con
+// la guarda, un despliegue donde el JS va por delante del PHP se ve como un mensaje.
+if (!method_exists($obj, $fn)) {
+    echo json_encode([
+        'status'  => 400,
+        'message' => "La operación '{$fn}' no existe en el servidor. Revisa que ctrl-pedidos.php esté actualizado."
+    ]);
+    exit;
+}
+
+// Todo lo que la operacion imprima por su cuenta se aparta del cuerpo de la
+// respuesta y se manda al log: el JSON llega limpio y la causa no se pierde.
+ob_start();
 $encode = $obj->$fn();
+$ruido  = trim(ob_get_clean());
+
+if ($ruido !== '') {
+    error_log("[ctrl-pedidos::{$fn}] salida inesperada antes del JSON :: {$ruido}");
+}
+
 echo json_encode($encode);
 
 

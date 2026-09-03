@@ -58,6 +58,18 @@ class ImportFacture2Cargas {
     // la del archivo completo.
     private $controlInsertado = 0;
 
+    // Cuales de los movimientos omitidos traen hoy un importe distinto del guardado.
+    // Es una muestra, no la lista entera: cabe en el aviso y sirve para ir a
+    // buscarlos, que es para lo que esta.
+    const MUESTRA_DIFERENCIAS = 8;
+
+    private $diferencias = [];
+
+    // Filas que se fueron con la carga anterior del periodo que acaba de escribirse.
+    // Vive en la instancia porque una hoja puede escribir varios periodos —uno por
+    // mes del archivo— y el total de la hoja es la suma de todos.
+    private $reemplazadas = 0;
+
     function __construct($mdl) {
         $this->mdl  = $mdl;
         $this->util = $mdl->util;
@@ -385,7 +397,16 @@ class ImportFacture2Cargas {
                 'columnas'  => $malas,
                 'cargadas'  => []
             ];
+
+            return $revision;
         }
+
+        // El periodo se comprueba con las columnas ya validadas: la fecha se
+        // localiza por el mapa de encabezados, y con una columna critica rota ese
+        // mapa todavia no es de fiar.
+        $ajeno = $this->fechasAjenas($documento, $presentes, $contrato, $ctx);
+
+        if ($ajeno) $revision['validacion'] = $ajeno;
 
         return $revision;
     }
@@ -417,6 +438,81 @@ class ImportFacture2Cargas {
             'columnas'  => [],
             'cargadas'  => []
         ];
+    }
+
+    // Si el archivo pertenece al periodo al que se esta subiendo.
+    //
+    // El periodo del lote lo escriben dos selectores de la pantalla, y hasta aqui
+    // nadie lo comparaba contra el contenido del Excel. Cada venta guardaba su
+    // fecha correcta —eso nunca fallo—, pero el LOTE quedaba sellado con un mes
+    // que no contiene, y de ese sello cuelgan las dos operaciones que borran: la
+    // sobreescritura del periodo de las hojas bancarias y el candado de notas
+    // emitidas.
+    //
+    // La fecha se lee por el MAPA de columnas y no por posicion: en este export
+    // las columnas se corren de sitio, y mirar la celda equivocada haria rechazar
+    // archivos buenos por un dato que ni siquiera es una fecha.
+    private function fechasAjenas($documento, $presentes, $contrato, $ctx) {
+        $mes  = isset($ctx['mes'])  ? (int) $ctx['mes']  : 0;
+        $anio = isset($ctx['anio']) ? (int) $ctx['anio'] : 0;
+
+        if ($mes < 1 || $anio < 2000) return null;
+
+        foreach ($presentes as $nombre) {
+            $config = $contrato[$nombre];
+
+            // La hoja sin fecha propia no dice nada del periodo: no se pregunta.
+            if (!isset($config['dateIndex'])) continue;
+
+            $hoja     = $documento->getSheetByName($nombre);
+            $columnas = $this->validarEncabezados($hoja, $config);
+            $faltan   = $this->columnasMalas($columnas, $config);
+
+            // La hoja con columnas criticas rotas no se juzga aqui: el bucle de
+            // carga la rechaza con su propio detalle, que dice cual falta.
+            if (!empty($faltan['criticas'])) continue;
+
+            $ajeno = periodoAjeno(
+                conteoDeFechas(
+                    $this->columnaDeFechas($hoja, $config, $this->mapaIndices($columnas, $config)),
+                    $mes,
+                    $anio
+                ),
+                $mes,
+                $anio
+            );
+
+            if ($ajeno) {
+                $ajeno['hoja'] = $nombre;
+
+                return $ajeno;
+            }
+        }
+
+        return null;
+    }
+
+    // Los valores crudos de la columna de fecha de una hoja. Se lee solo esa
+    // columna y la clave: la comprobacion corre antes de la carga, y recorrer el
+    // ancho entero de la tabla para preguntar por un dato la haria costar lo mismo
+    // que guardarla.
+    private function columnaDeFechas($hoja, $config, $mapa) {
+        $claveIdx = array_key_exists($config['keyIndex'],  $mapa) ? $mapa[$config['keyIndex']]  : null;
+        $fechaIdx = array_key_exists($config['dateIndex'], $mapa) ? $mapa[$config['dateIndex']] : null;
+
+        if ($claveIdx === null || $fechaIdx === null) return [];
+
+        $claveCol = columnLetter($claveIdx);
+        $fechaCol = columnLetter($fechaIdx);
+        $__row    = [];
+
+        for ($fila = $config['headerRow'] + 1; $fila <= $hoja->getHighestRow(); $fila++) {
+            if (trim((string) $hoja->getCell($claveCol . $fila)->getValue()) === '') continue;
+
+            $__row[] = trim((string) $hoja->getCell($fechaCol . $fila)->getValue());
+        }
+
+        return $__row;
     }
 
     private function hojasPresentes($contrato, $hojasLibro, $tab) {
@@ -483,6 +579,23 @@ class ImportFacture2Cargas {
                     'columnas'  => [],
                     'cargadas'  => []
                 ]
+            ];
+        }
+
+        // El mismo corte que hace la revision previa, repetido aqui por lo mismo
+        // que el de las notas: uploadFile se puede llamar sin haber pasado por
+        // ella, y este es el punto donde se empieza a escribir el periodo.
+        $ajeno = $this->fechasAjenas($documento, $presentes, $contrato, $ctx);
+
+        if ($ajeno) {
+            $steps[] = step('Revisar periodo', 'error', resumenPeriodoAjeno($ajeno));
+
+            return [
+                'status'     => 409,
+                'message'    => 'El archivo no es del periodo seleccionado',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => $ajeno
             ];
         }
 
@@ -581,7 +694,12 @@ class ImportFacture2Cargas {
                 // medias. La barra al 0 se leeria como que algo fallo.
                 'avance'  => ($repetida || $carga['leidas'] === 0)
                     ? 100
-                    : round($carga['insertadas'] * 100 / $carga['leidas'])
+                    : round($carga['insertadas'] * 100 / $carga['leidas']),
+                // Los movimientos que ya estaban pero traen otro importe. No se
+                // tocan: viajan para que la pantalla pueda nombrarlos y el usuario
+                // decida que hacer con ellos en el POS.
+                'difieren'    => $carga['difieren'],
+                'diferencias' => $carga['diferencias']
             ];
         }
 
@@ -703,7 +821,7 @@ class ImportFacture2Cargas {
         if ($carga['meseros']    > 0) $cola .= ' · ' . number_format($carga['meseros']) . ' meseros nuevos al catalogo';
         if ($carga['cajeros']    > 0) $cola .= ' · ' . number_format($carga['cajeros']) . ' cajeros nuevos al catalogo';
         if ($carga['ligados']    > 0) $cola .= ' · ' . number_format($carga['ligados']) . ' movimientos ligados a su pago';
-        if ($carga['renglones']  > 0) $cola .= ' · ' . number_format($carga['renglones']) . ' renglones de comanda que esperaban su venta';
+        if ($carga['renglones']  > 0) $cola .= ' · ' . number_format($carga['renglones']) . ' renglones que esperaban su venta';
         if ($carga['resumenes']  > 0) $cola .= ' · resumen del dia guardado';
 
         // Los omitidos van al final y siempre que existan: son la respuesta a "por
@@ -846,15 +964,7 @@ class ImportFacture2Cargas {
             return array_key_exists($i, $mapa) ? $mapa[$i] : null;
         };
 
-        $this->rechazadas = 0;
-        $this->ventas     = 0;
-        $this->pagos      = 0;
-        $this->meseros    = 0;
-        $this->cajeros    = 0;
-        $this->ligados    = 0;
-        $this->resumenes  = 0;
-        $this->omitidos   = 0;
-        $this->difieren   = 0;
+        $this->reiniciarContadores();
 
         $claveIdx = $indice($config['keyIndex']);
         $fechaIdx = isset($config['dateIndex']) ? $indice($config['dateIndex']) : null;
@@ -895,7 +1005,140 @@ class ImportFacture2Cargas {
         // los datos buenos se quedan. Se reporta como cargada sin movimientos.
         if (empty($limpias)) return $this->resultadoHoja(0, 0, 0);
 
-        $reemplazadas = $this->borrarPeriodo($sheetName, $config['target'], $ctx);
+        // El archivo no es un mes: es un rango, y el POS lo exporta como se le
+        // pida. Uno que va de junio a septiembre produce CUATRO lotes —uno por
+        // mes—, cada uno con las filas de su mes, en vez de un solo lote sellado
+        // con el periodo que diga el filtro.
+        //
+        // Es lo que vuelve cierto el periodo del lote, del que cuelgan la
+        // sobreescritura de las hojas bancarias y la bitacora del mes.
+        $grupos = $this->agruparPorPeriodo($limpias, $config, $ctx);
+
+        $insertadas   = 0;
+        $reemplazadas = 0;
+        $leidas       = 0;
+
+        // Los contadores del cruce viven en la instancia y cada grupo los reescribe:
+        // se suman aqui para que el paso del roadmap cuente el archivo entero y no
+        // solo su ultimo mes.
+        $suma    = [];
+        $difieren = [];
+
+        foreach ($grupos as $clave => $filas) {
+            $suCtx = $this->ctxDelPeriodo($ctx, $clave);
+
+            $insertadas   += $this->guardarGrupo($sheetName, $config, $hoja, $suCtx, $filas);
+            $reemplazadas += $this->reemplazadas;
+            $leidas       += count($filas);
+
+            foreach ($this->contadores() as $campo => $valor) {
+                $suma[$campo] = ($suma[$campo] ?? 0) + $valor;
+            }
+
+            // Los movimientos con importe distinto se juntan de todos los meses: son
+            // una lista, no un contador, y cada grupo la reescribe al empezar.
+            $difieren = array_merge($difieren, $this->diferencias);
+        }
+
+        foreach ($suma as $campo => $valor) $this->$campo = $valor;
+
+        $this->diferencias = array_slice($difieren, 0, self::MUESTRA_DIFERENCIAS);
+
+        return $this->resultadoHoja($insertadas, $leidas, $reemplazadas);
+    }
+
+    // Las filas de la hoja repartidas por el mes al que pertenecen, de la mas
+    // antigua a la mas reciente.
+    //
+    // El mes sale de la fecha de cada fila, que es el dato que dice cuando ocurrio
+    // el movimiento. La hoja que no trae fecha propia no se puede repartir y se
+    // queda entera en el periodo del filtro, igual que antes; lo mismo la fila
+    // suelta cuya fecha no se pudo leer, que va con el resto en vez de perderse.
+    private function agruparPorPeriodo($limpias, $config, $ctx) {
+        $delFiltro = sprintf('%04d-%02d', (int) $ctx['anio'], (int) $ctx['mes']);
+
+        if (!isset($config['dateIndex'])) return [$delFiltro => $limpias];
+
+        $grupos = [];
+
+        foreach ($limpias as $v) {
+            $fecha = cleanDate($v[$config['dateIndex']]);
+            $clave = $fecha === null ? $delFiltro : substr($fecha, 0, 7);
+
+            $grupos[$clave][] = $v;
+        }
+
+        ksort($grupos);
+
+        return $this->soloLosElegidos($grupos, $ctx);
+    }
+
+    // Los meses que la pantalla dejo marcados. El resto del archivo se lee igual
+    // —hay que leerlo para saber de que mes es cada fila— pero no se guarda.
+    //
+    // Una lista vacia no es "ninguno" sino "todos": es como llega cuando el usuario
+    // no descarto nada, que es el caso normal.
+    private function soloLosElegidos($grupos, $ctx) {
+        $elegidos = isset($ctx['meses']) ? $ctx['meses'] : [];
+
+        if (empty($elegidos)) return $grupos;
+
+        $__row = [];
+
+        foreach ($grupos as $clave => $filas) {
+            if (in_array($clave, $elegidos, true)) $__row[$clave] = $filas;
+        }
+
+        return $__row;
+    }
+
+    // El contexto de la carga, apuntando al mes de este grupo. Todo lo demas —el
+    // archivo, la sucursal, el usuario— es del mismo envio y no cambia.
+    private function ctxDelPeriodo($ctx, $clave) {
+        $ctx['anio'] = (int) substr($clave, 0, 4);
+        $ctx['mes']  = (int) substr($clave, 5, 2);
+
+        return $ctx;
+    }
+
+    // Cada grupo de mes mide lo suyo: los metodos de guardado ASIGNAN estos
+    // contadores, no los acumulan, asi que sin ponerlos a cero antes de cada lote
+    // la suma del final contaria dos veces lo del grupo anterior.
+    private function reiniciarContadores() {
+        $this->rechazadas = 0;
+        $this->ventas     = 0;
+        $this->pagos      = 0;
+        $this->meseros    = 0;
+        $this->cajeros    = 0;
+        $this->ligados    = 0;
+        $this->resumenes  = 0;
+        $this->renglones  = 0;
+        $this->omitidos   = 0;
+        $this->difieren   = 0;
+        $this->diferencias = [];
+    }
+
+    private function contadores() {
+        return [
+            'rechazadas' => $this->rechazadas,
+            'ventas'     => $this->ventas,
+            'pagos'      => $this->pagos,
+            'meseros'    => $this->meseros,
+            'cajeros'    => $this->cajeros,
+            'ligados'    => $this->ligados,
+            'resumenes'  => $this->resumenes,
+            'renglones'  => $this->renglones,
+            'omitidos'   => $this->omitidos,
+            'difieren'   => $this->difieren
+        ];
+    }
+
+    // El lote de UN mes y sus filas. Devuelve cuantas entraron y deja en
+    // `$this->reemplazadas` las que se fueron con la carga anterior de ese periodo.
+    private function guardarGrupo($sheetName, $config, $hoja, $ctx, $limpias) {
+        $this->reiniciarContadores();
+
+        $this->reemplazadas = $this->borrarPeriodo($sheetName, $config['target'], $ctx);
 
         $control = 0;
         foreach ($limpias as $v) $control += numVal($v[$config['controlIndex']]);
@@ -919,7 +1162,7 @@ class ImportFacture2Cargas {
             'branch_id'     => $ctx['branchId']
         ]);
 
-        if (!$this->mdl->createImportBatch($batch)) return $this->resultadoHoja(0, count($limpias), $reemplazadas);
+        if (!$this->mdl->createImportBatch($batch)) return 0;
 
         $max     = $this->mdl->getMaxImportBatchId();
         $batchId = (int) $max[0]['id'];
@@ -940,7 +1183,7 @@ class ImportFacture2Cargas {
         if ($insertadas === 0) {
             $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
 
-            return $this->resultadoHoja(0, count($limpias), $reemplazadas);
+            return 0;
         }
 
         // El lote nacio contando las filas del archivo; ahora se ajusta a las que
@@ -950,7 +1193,7 @@ class ImportFacture2Cargas {
             $this->mdl->updateImportBatchRows([$insertadas, $this->controlInsertado, $this->omitidos, $batchId]);
         }
 
-        return $this->resultadoHoja($insertadas, count($limpias), $reemplazadas);
+        return $insertadas;
     }
 
     private function resultadoHoja($insertadas, $leidas, $reemplazadas) {
@@ -965,8 +1208,15 @@ class ImportFacture2Cargas {
             'cajeros'      => $this->cajeros,
             'ligados'      => $this->ligados,
             'resumenes'    => $this->resumenes,
+            // Renglones de comanda que estaban esperando su venta y esta carga
+            // engancho. Va en el resultado porque `detalleCruce` lo lee para
+            // redactar el paso, y una clave que falta ahi no es un dato menos: es
+            // un Notice impreso ANTES del JSON que deja la respuesta ilegible
+            // para el navegador («Unexpected token '<'»).
+            'renglones'    => $this->renglones,
             'omitidos'     => $this->omitidos,
-            'difieren'     => $this->difieren
+            'difieren'     => $this->difieren,
+            'diferencias'  => $this->diferencias
         ];
     }
 
@@ -993,11 +1243,20 @@ class ImportFacture2Cargas {
         foreach ($previos as $lote) {
             $where = $this->util->sql(['import_batch_id' => $lote['id']], 1);
 
-            if ($target === 'card' || $target === 'card-refund') {
-                $this->mdl->deletePaymentCardByBatch($where);
-            } else {
-                $this->mdl->deleteDeletedPaymentByBatch($where);
-            }
+            // Cada target dice de que tabla son sus filas. Un target que nadie
+            // reconoce NO cae en el ultimo de la lista: se salta el lote entero.
+            //
+            // Ese default era un borrado real y silencioso. Con `detail` —las
+            // comandas— la carga terminaba llamando a `deleteDeletedPaymentByBatch`,
+            // que vacia la tabla de pagos eliminados: no borraba un solo renglon de
+            // comanda, pero si se llevaba el lote. Y como la llave es ON DELETE SET
+            // NULL, los 8 719 renglones se quedaban sin lote y sin forma de volver
+            // a alcanzarlos, asi que la siguiente carga los daba por nuevos.
+            if     ($target === 'card' || $target === 'card-refund') $this->mdl->deletePaymentCardByBatch($where);
+            elseif ($target === 'detail')                            $this->mdl->deleteSaleDetailByBatch($where);
+            elseif ($target === 'payment')                           $this->mdl->deleteSalePaymentByBatch($where);
+            elseif ($target === 'deleted')                           $this->mdl->deleteDeletedPaymentByBatch($where);
+            else                                                     continue;
 
             $this->mdl->deleteImportBatchById($this->util->sql(['id' => $lote['id']], 1));
             $filas += (int) $lote['row_count'];
@@ -1074,13 +1333,31 @@ class ImportFacture2Cargas {
         // Sin esta llamada, el orden en que el usuario sube los dos archivos
         // decidiria si los datos se cruzan o no, que es una trampa silenciosa: la
         // carga diria «ok» y la comanda se quedaria colgando para siempre.
-        $this->renglones = (int) $this->mdl->linkOrphanDetailToSale([$ctx['branchId']]);
+        //
+        // Cuantos engancho se sabe restando, no por lo que devuelve el UPDATE:
+        // `_CUD` entrega el booleano de `execute()` y castearlo daba siempre 1.
+        $this->renglones = $this->rescatarHuerfanos($ctx);
 
         $this->resumenes = $this->guardarResumen($rows, $resumen, $batchId, $ctx);
 
         // Lo que cuenta como "insertadas" de esta hoja son los pagos: es lo que
         // tiene una fila por cada fila del Excel. Las ventas son agrupaciones.
         return $this->pagos;
+    }
+
+    // Engancha las comandas que esperaban su venta y devuelve CUANTAS engancho.
+    private function rescatarHuerfanos($ctx) {
+        $antes = $this->mdl->countOrphanDetailByBranch([$ctx['branchId']]);
+        $antes = (int) ($antes[0]['total'] ?? 0);
+
+        if ($antes === 0) return 0;
+
+        $this->mdl->linkOrphanDetailToSale([$ctx['branchId']]);
+
+        $ahora = $this->mdl->countOrphanDetailByBranch([$ctx['branchId']]);
+        $ahora = (int) ($ahora[0]['total'] ?? 0);
+
+        return max(0, $antes - $ahora);
     }
 
     // Los movimientos del archivo que ya estan en base, indexados por su PDV.
@@ -1113,6 +1390,8 @@ class ImportFacture2Cargas {
     // otra cosa que un duplicado exacto —alguien lo corrigio en el POS— y quien
     // sube el archivo tiene que poder enterarse.
     private function contarDiferencias($rows, $conocidos) {
+        $this->diferencias = [];
+
         if (empty($conocidos)) return 0;
 
         $totales = [];
@@ -1125,7 +1404,22 @@ class ImportFacture2Cargas {
 
         $distintos = 0;
         foreach ($totales as $pdv => $total) {
-            if (abs($total - (float) $conocidos[$pdv]['total']) > 0.009) $distintos++;
+            if (abs($total - (float) $conocidos[$pdv]['total']) <= 0.009) continue;
+
+            $distintos++;
+
+            // Se guardan los primeros, no todos: la lista es para poder ir a
+            // buscarlos en el POS, y con veinte en pantalla ya no se busca nada. El
+            // conteo de arriba sigue siendo el total, asi que el aviso puede decir
+            // cuantos quedan fuera de la muestra.
+            if (count($this->diferencias) >= self::MUESTRA_DIFERENCIAS) continue;
+
+            $this->diferencias[] = [
+                'pdv'      => (string) $pdv,
+                'folio'    => (string) ($conocidos[$pdv]['folio'] ?? ''),
+                'guardado' => (float) $conocidos[$pdv]['total'],
+                'archivo'  => $total
+            ];
         }
 
         return $distintos;
@@ -1608,19 +1902,28 @@ class ImportFacture2Cargas {
 
         $steps[] = step('Detectar hojas', 'ok', $nombre . ' · ' . number_format($total) . ' filas');
 
+        /*
+            El periodo con tickets emitidos NO rechaza la carga: le cambia el modo.
+
+            Mientras nadie haya generado un ticket, el mes es material de trabajo y
+            la carga REEMPLAZA: se borra lo que habia y se escribe el archivo
+            completo. Es lo que permite corregir —un ticket que el POS arreglo
+            despues entra con su valor bueno— y es el caso normal.
+
+            En cuanto se genera el primer ticket, ese papel ya salio y sus
+            renglones dejan de poder moverse: la carga pasa a solo AGREGAR los
+            movimientos que no estaban. Lo ya emitido se queda como se emitio.
+        */
         $notas = $this->notasDelPeriodo($ctx);
+        $modo  = $notas ? 'incremental' : 'reemplazo';
 
-        if ($notas) {
-            $steps[] = step('Revisar periodo', 'error', $notas['total'] . ' nota(s) ya emitidas');
-
-            return [
-                'status'     => 409,
-                'message'    => 'El periodo ya tiene tickets virtuales emitidos',
-                'steps'      => $steps,
-                'hojas'      => [],
-                'validacion' => $notas
-            ];
-        }
+        $steps[] = step(
+            'Revisar periodo',
+            'ok',
+            $notas
+                ? $notas['total'] . ' ticket(s) ya emitidos · solo se agregan movimientos nuevos'
+                : 'sin tickets emitidos · la carga reemplaza al periodo'
+        );
 
         // Los encabezados se validan leyendo SOLO su fila: no hace falta el archivo
         // entero para saber si las columnas estan donde el contrato dice.
@@ -1640,7 +1943,7 @@ class ImportFacture2Cargas {
 
             return [
                 'status'     => 400,
-                'message'    => 'El archivo no trae las columnas que espera la comanda',
+                'message'    => 'El archivo no trae las columnas que espera el detalle de ventas',
                 'steps'      => $steps,
                 'hojas'      => [['nombre' => $nombre, 'estado' => 'error', 'detalle' => $detalle, 'filas' => 0]],
                 'validacion' => [
@@ -1666,34 +1969,25 @@ class ImportFacture2Cargas {
 
         $mapa = $this->mapaIndices($columnas, $config);
 
-        return $this->cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps);
+        return $this->cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps, $modo);
     }
 
-    // El ciclo. Crea el lote, recorre el archivo de a bloques insertando lo que
-    // lee, y al terminar resuelve los enlaces que necesitan verlo todo.
-    private function cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps) {
-        /*
-            Aqui NO se llama a `borrarPeriodo`, y es a proposito.
+    // Abre el lote de UN mes de la carga de comandas y, si el modo es reemplazo,
+    // limpia antes ese periodo.
+    //
+    // El borrado va aqui y no al principio porque el mes lo dice el archivo, no el
+    // filtro: limpiar por adelantado el periodo de los selectores borraba un mes
+    // que la carga a lo mejor ni toca.
+    //
+    // `row_count` y `control_total` NO se declaran y no es un olvido: se sabran al
+    // terminar de leer, y `Utileria::sql` convierte el cero en NULL —compara con
+    // `==`, y en PHP `0 == ''` es cierto— contra tres columnas NOT NULL. Omitidas
+    // toman su DEFAULT 0, que es el valor que se queria.
+    private function abrirLoteComandas($nombre, $ctx, $total, $modo) {
+        $reemplazadas = $modo === 'reemplazo'
+            ? $this->borrarPeriodo($nombre, 'detail', $ctx)
+            : 0;
 
-            Esa funcion implementa el modo REEMPLAZO —la carga del mes pisa a la
-            anterior— y esta hoja es INCREMENTAL: los movimientos ya cargados se
-            omiten uno a uno. Las dos cosas juntas se muerden, y ademas la segunda
-            no puede deshacer lo que hace la primera:
-
-            `fk_detail_sale_batch` es ON DELETE SET NULL, asi que borrar el lote no
-            borra sus renglones —los deja con `import_batch_id` en nulo—. Un
-            renglon suelto asi ya no lo ve `listDetailPdvLoaded`, que pregunta por
-            lote, y la siguiente carga lo daria por nuevo: 8 719 renglones se
-            volvieron 17 438 en la primera prueba con las dos logicas encendidas.
-
-            Sin reemplazo el problema no existe: los renglones conservan su lote,
-            se les reconoce y se omiten.
-        */
-
-        // `row_count` y `control_total` NO se declaran aqui y no es un olvido: se
-        // sabran al terminar de leer, y `Utileria::sql` convierte el cero en NULL
-        // —compara con `==`, y en PHP `0 == ''` es cierto— contra tres columnas
-        // NOT NULL. Omitidas toman su DEFAULT 0, que es el valor que se queria.
         $batch = $this->util->sql([
             'file_name'    => $ctx['fileName'],
             'sheet_name'   => $nombre,
@@ -1706,14 +2000,42 @@ class ImportFacture2Cargas {
             'branch_id'    => $ctx['branchId']
         ]);
 
-        if (!$this->mdl->createImportBatch($batch)) {
-            $steps[] = step('Guardar en base', 'error', 'No se pudo abrir el lote de carga');
+        if (!$this->mdl->createImportBatch($batch)) return null;
 
-            return ['status' => 500, 'message' => 'No se pudo abrir el lote de carga', 'steps' => $steps, 'hojas' => []];
-        }
+        $max = $this->mdl->getMaxImportBatchId();
 
-        $max     = $this->mdl->getMaxImportBatchId();
-        $batchId = (int) $max[0]['id'];
+        return [
+            'id'           => (int) $max[0]['id'],
+            'reemplazadas' => $reemplazadas
+        ];
+    }
+
+    // El ciclo. Crea los lotes, recorre el archivo de a bloques insertando lo que
+    // lee, y al terminar resuelve los enlaces que necesitan verlo todo.
+    private function cargarPorBloques($ruta, $nombre, $config, $mapa, $total, $ctx, $steps, $modo) {
+        /*
+            Los dos modos son EXCLUYENTES y hay que elegir uno, no encender los dos.
+
+            Con los dos a la vez la carga se muerde: `borrarPeriodo` borra el lote
+            anterior, pero `fk_detail_sale_batch` es ON DELETE SET NULL, asi que
+            sus renglones no se van —se quedan con `import_batch_id` en nulo—. Un
+            renglon suelto asi ya no lo ve `listDetailPdvLoaded`, que pregunta por
+            lote, y el filtro incremental lo da por nuevo. Medido: 8 719 renglones
+            se volvieron 17 438.
+
+            De ahi el orden de abajo: en reemplazo se borra Y NO se filtra; en
+            incremental se filtra Y NO se borra.
+        */
+        // Los lotes de la carga, uno por mes que traiga el archivo: 'YYYY-MM' =>
+        // ['id', 'insertadas', 'control']. Nacen bajo demanda, la primera vez que
+        // aparece una fila de ese mes, asi que un archivo de un solo mes abre un
+        // solo lote y se comporta igual que siempre.
+        //
+        // El periodo NO se puede resolver antes de leer: el archivo se recorre por
+        // bloques justamente porque no cabe entero, y hasta que no se lee una fila
+        // no se sabe de que mes es.
+        $lotes        = [];
+        $reemplazadas = 0;
 
         // Lo unico que cruza de un bloque al siguiente. Todo diminuto: 174
         // productos, 9 meseros y un punado de contadores.
@@ -1721,7 +2043,6 @@ class ImportFacture2Cargas {
         $vistos     = [];
         $leidas     = 0;
         $insertadas = 0;
-        $control    = 0;
         $bloques    = 0;
 
         $desde = $config['headerRow'] + 1;
@@ -1741,10 +2062,34 @@ class ImportFacture2Cargas {
             }
 
             if (!empty($filas)) {
-                $nuevas      = $this->comandasNuevas($filas, $vistos, $ctx);
-                $insertadas += $this->guardarComandas($nuevas, $batchId, $ctx, $catalogo);
+                // En reemplazo el periodo quedo vacio y todo lo del archivo entra,
+                // corregido incluido. Filtrar aqui ademas dejaria fuera justo lo
+                // que se venia a corregir.
+                $nuevas = $modo === 'reemplazo'
+                    ? $filas
+                    : $this->comandasNuevas($filas, $vistos, $ctx);
 
-                foreach ($nuevas as $v) $control += numVal($v[$config['controlIndex']]);
+                foreach ($this->agruparPorPeriodo($nuevas, $config, $ctx) as $clave => $delMes) {
+                    if (!isset($lotes[$clave])) {
+                        $abierto = $this->abrirLoteComandas($nombre, $this->ctxDelPeriodo($ctx, $clave), $total, $modo);
+
+                        if ($abierto === null) {
+                            $steps[] = step('Guardar en base', 'error', 'No se pudo abrir el lote de carga');
+
+                            return ['status' => 500, 'message' => 'No se pudo abrir el lote de carga', 'steps' => $steps, 'hojas' => []];
+                        }
+
+                        $reemplazadas  += $abierto['reemplazadas'];
+                        $lotes[$clave]  = ['id' => $abierto['id'], 'insertadas' => 0, 'control' => 0];
+                    }
+
+                    $entraron = $this->guardarComandas($delMes, $lotes[$clave]['id'], $ctx, $catalogo);
+
+                    $insertadas                  += $entraron;
+                    $lotes[$clave]['insertadas'] += $entraron;
+
+                    foreach ($delMes as $v) $lotes[$clave]['control'] += numVal($v[$config['controlIndex']]);
+                }
             }
 
             // El bloque se suelta ANTES de pedir el siguiente, o los dos coinciden
@@ -1760,17 +2105,28 @@ class ImportFacture2Cargas {
             number_format($leidas) . ' filas en ' . $bloques . ' bloque(s) de ' . number_format(self::FILAS_POR_BLOQUE)
         );
 
+        if ($reemplazadas > 0) {
+            $steps[] = step(
+                'Sobreescribir "' . $nombre . '"',
+                'ok',
+                number_format($reemplazadas) . ' renglones de la carga anterior del periodo'
+            );
+        }
+
         if ($insertadas === 0) {
-            $this->mdl->deleteImportBatchById($this->util->sql(['id' => $batchId], 1));
+            foreach ($lotes as $lote) {
+                $this->mdl->deleteImportBatchById($this->util->sql(['id' => $lote['id']], 1));
+            }
+
             $steps[] = step('Guardar en base', $this->omitidos > 0 ? 'ok' : 'error',
                 $this->omitidos > 0
-                    ? 'Todas las comandas del archivo ya estaban cargadas'
+                    ? 'Todas las cuentas del archivo ya estaban cargadas'
                     : 'No entro ninguna fila');
 
             return [
                 'status'  => 200,
                 'message' => $this->omitidos > 0
-                    ? 'El archivo ya estaba cargado: no habia comandas nuevas'
+                    ? 'El archivo ya estaba cargado: no habia cuentas nuevas'
                     : 'No se guardo ninguna fila',
                 'steps'   => $steps,
                 'hojas'   => [['nombre' => $nombre, 'estado' => 'ok', 'detalle' => 'sin filas nuevas', 'filas' => 0]]
@@ -1782,21 +2138,38 @@ class ImportFacture2Cargas {
         // por fila: son miles de renglones y no terminarian dentro de la peticion.
         $this->productos = $this->sembrarProductos($catalogo, $ctx);
 
-        $this->mdl->linkDetailProductByBatch([$ctx['branchId'], $this->posId($ctx), $batchId]);
-        $this->ligados = (int) $this->mdl->linkDetailToSaleByPdv([$ctx['branchId'], $batchId]);
+        // Cada renglon queda colgado del folio de su venta, lote por lote: el
+        // enlace se resuelve por `import_batch_id`, asi que con la carga repartida
+        // en varios meses hay que lanzarlo en todos. Recorrer solo el ultimo dejaba
+        // los renglones de los demas meses sin su ticket, esperando una carga que
+        // ya habia pasado.
+        $sueltos = 0;
+        $tickets = 0;
 
-        $huerfanos = $this->mdl->countOrphanDetail([$batchId]);
-        $sueltos   = (int) ($huerfanos[0]['total'] ?? 0);
-        $tickets   = (int) ($huerfanos[0]['tickets'] ?? 0);
+        foreach ($lotes as $lote) {
+            $this->mdl->linkDetailProductByBatch([$ctx['branchId'], $this->posId($ctx), $lote['id']]);
 
-        $this->mdl->updateImportBatchRows([$insertadas, $control, $this->omitidos, $batchId]);
+            $this->mdl->linkDetailToSaleByPdv([$ctx['branchId'], $lote['id']]);
+
+            // Los que se ligaron son los del lote menos los que quedaron sueltos. No
+            // se toma del UPDATE: `_CUD` devuelve el booleano de `execute()` y
+            // castearlo anunciaba "1 ligado" con 448 ligados.
+            $huerfanos = $this->mdl->countOrphanDetail([$lote['id']]);
+
+            $sueltos += (int) ($huerfanos[0]['total'] ?? 0);
+            $tickets += (int) ($huerfanos[0]['tickets'] ?? 0);
+
+            $this->mdl->updateImportBatchRows([$lote['insertadas'], $lote['control'], $this->omitidos, $lote['id']]);
+        }
+
+        $this->ligados = max(0, $insertadas - $sueltos);
 
         $steps[] = step('Guardar en base', 'ok',
             number_format($insertadas) . ' renglones' .
             ($this->productos > 0 ? ' · ' . number_format($this->productos) . ' productos nuevos al catalogo' : '') .
             ($this->meseros   > 0 ? ' · ' . number_format($this->meseros) . ' meseros nuevos' : '') .
             ($this->ligados   > 0 ? ' · ' . number_format($this->ligados) . ' ligados a su venta' : '') .
-            ($this->omitidos  > 0 ? ' · ' . number_format($this->omitidos) . ' comandas ya cargadas' : '')
+            ($this->omitidos  > 0 ? ' · ' . number_format($this->omitidos) . ' cuentas ya cargadas' : '')
         );
 
         // Un renglon sin venta no es un fallo: el reporte de ventas de ese dia
@@ -1805,12 +2178,12 @@ class ImportFacture2Cargas {
         if ($sueltos > 0) {
             $steps[] = step('Cruzar con las ventas', 'warn',
                 number_format($sueltos) . ' renglones de ' . number_format($tickets) .
-                ' comanda(s) esperan su venta · se enlazan solos al cargar el reporte de ventas de esos dias');
+                ' cuenta(s) esperan su venta · se enlazan solas al cargar el reporte de ventas de esos dias');
         }
 
         return [
             'status'  => 200,
-            'message' => number_format($insertadas) . ' renglones de comanda cargados',
+            'message' => number_format($insertadas) . ' renglones de detalle cargados',
             'steps'   => $steps,
             'hojas'   => [[
                 'nombre'  => $nombre,
@@ -1822,6 +2195,190 @@ class ImportFacture2Cargas {
     }
 
     /*
+        La revision previa, SIN abrir el libro. Vale para cualquier pestana.
+
+        Dice lo mismo que `inspeccionarLibro` —de que pestana es el archivo y si
+        sus columnas cuadran— leyendo solo lo justo: los nombres de las hojas, que
+        `listWorksheetInfo` da sin cargar nada, y la fila de encabezados de cada
+        una. Ninguna revision necesito nunca el libro entero; solo se hacia asi
+        porque era lo que habia.
+
+        LA PESTANA NO DECIDE. Manda el contenido: si el archivo trae las hojas de
+        otra pestana, se devuelve `otro-tab` con la sugerida y el modulo se ofrece
+        a cargarlo ahi. Es el mismo contrato que ya usa el importador de Soft, y es
+        lo que permite soltar cualquier export en cualquier pestana.
+
+        Abrir el libro para revisarlo tenia dos costes: el archivo de comandas
+        moria de memoria antes de llegar a la carga —«Allowed memory size
+        exhausted»— y, para evitarlo, la revision acababa preguntando por la
+        pestana en vez de por el archivo.
+    */
+    function inspeccionarArchivo($ruta, $ctx) {
+        $contrato = $this->contrato();
+        $tipo     = isset($ctx['tipo']) ? $ctx['tipo'] : '';
+
+        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+        $hojas  = $this->hojasDelArchivo($lector, $ruta);
+
+        $notas = $this->notasDelPeriodo($ctx);
+
+        if ($notas) {
+            return [
+                'status'     => 200,
+                'destino'    => $tipo,
+                'movido'     => false,
+                'hojas'      => [],
+                'validacion' => $notas
+            ];
+        }
+
+        $presentes = $this->hojasPresentes($contrato, $hojas, $tipo);
+        $destino   = $tipo;
+        $movido    = false;
+
+        // Ninguna hoja de esta pestana: puede que el archivo sea de otra.
+        //
+        // El archivo que pertenece a otra pestana SE SIGUE REVISANDO, contra la suya:
+        // es el mismo criterio que ya usa el importador de Soft, y es lo que evita
+        // que este camino se salte el resto de la revision.
+        //
+        // Sin eso, el de comandas subido desde el modal —que siempre pregunta desde
+        // el reporte de ventas— salia por aqui y nunca llegaba a la comprobacion del
+        // periodo: se cargaba un archivo de agosto con el filtro en septiembre sin
+        // decir una palabra, mientras el de ventas si avisaba.
+        $otroTab = null;
+
+        if (empty($presentes)) {
+            $otro = tabDelLibro($contrato, $hojas, $tipo);
+
+            if ($otro) {
+                $destino   = $otro['tab'];
+                $movido    = true;
+                $presentes = $this->hojasPresentes($contrato, $hojas, $destino);
+
+                // Se guarda para devolverlo si la revision no encuentra nada peor:
+                // que el archivo vaya en otra pestana sigue siendo lo que hay que
+                // decir cuando sus columnas y su periodo estan bien.
+                $otroTab = [
+                    'motivo'    => 'otro-tab',
+                    'sugerido'  => $otro['tab'],
+                    'esperadas' => hojasDelTab($contrato, $tipo),
+                    'libro'     => $hojas,
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ];
+            }
+        }
+
+        if (empty($presentes)) {
+            return [
+                'status'  => 200,
+                'destino' => $tipo,
+                'movido'  => false,
+                'hojas'   => [],
+                'validacion' => [
+                    'motivo'    => 'hojas',
+                    'esperadas' => hojasDelTab($contrato, $tipo),
+                    'libro'     => $hojas,
+                    'columnas'  => [],
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        // Las columnas se revisan hoja por hoja, leyendo solo su fila de
+        // encabezados. Igual que en el camino normal, aqui solo se objeta lo que
+        // DETIENE la carga.
+        //
+        // El mapa de cada hoja se guarda: con el se sabe en que columna quedo la
+        // fecha, y sin eso no se puede preguntar de que meses es el archivo.
+        $malas  = [];
+        $mapas  = [];
+
+        foreach ($presentes as $nombre) {
+            $config   = $contrato[$nombre];
+            $doc      = $this->leerBloque($ruta, $nombre, $config['headerRow'], 1);
+            $columnas = $this->validarEncabezados($doc->getSheetByName($nombre), $config);
+            $faltan   = $this->columnasMalas($columnas, $config);
+
+            $this->soltarLibro($doc);
+            unset($doc);
+
+            if (empty($faltan['criticas'])) {
+                $mapas[$nombre] = $this->mapaIndices($columnas, $config);
+                continue;
+            }
+
+            $malas[] = [
+                'hoja'      => $nombre,
+                'headerRow' => $config['headerRow'],
+                'columnas'  => $columnas,
+                'faltan'    => $faltan['criticas']
+            ];
+        }
+
+        if (!empty($malas)) {
+            return [
+                'status'  => 200,
+                'destino' => $destino,
+                'movido'  => $movido,
+                'hojas'   => [],
+                'validacion' => [
+                    'motivo'    => 'columnas',
+                    'esperadas' => $presentes,
+                    'libro'     => $hojas,
+                    'columnas'  => $malas,
+                    'cargadas'  => []
+                ]
+            ];
+        }
+
+        // De que meses es el archivo, ANTES de escribir nada.
+        //
+        // El camino del libro cargado ya lo comprobaba, pero este no: la hoja de
+        // comandas no cabe en memoria y la revision se conformaba con mirar sus
+        // encabezados. Resultado: el reporte de ventas avisaba de sus meses y el de
+        // comandas no, aunque los dos se reparten igual.
+        //
+        // La lectura recorre el archivo entero pero solo dos columnas, que es lo que
+        // la vuelve viable aqui (ver `fechasDelArchivo`).
+        $periodo = $this->periodoDelArchivo($ruta, $presentes, $contrato, $mapas, $ctx);
+        $ajeno   = $periodo ? $periodo['ajeno'] : null;
+        $reparto = $periodo ? $periodo['reparto'] : [];
+
+        // El periodo manda sobre la pestana: los dos avisos podrian salir a la vez y
+        // solo cabe uno, asi que gana el que impide cargar. Que el archivo vaya en
+        // otra pestana se resuelve solo —el modulo lo lleva a la suya—; que sea de
+        // otro mes hay que preguntarlo.
+        if ($ajeno) {
+            return [
+                'status'     => 200,
+                'destino'    => $destino,
+                'movido'     => $movido,
+                'hojas'      => [],
+                'validacion' => $ajeno
+            ];
+        }
+
+        // El reparto acompana a la revision buena: aunque el archivo sea del mes que
+        // toca, la pantalla necesita saber si trae mas de uno para poder preguntar
+        // cuales se cargan.
+        $revision = [
+            'status'  => 200,
+            'destino' => $destino,
+            'movido'  => $movido,
+            'hojas'   => $presentes,
+            'suyas'   => hojasDelTab($contrato, $destino),
+            'libro'   => $hojas,
+            'reparto' => $reparto
+        ];
+
+        if ($otroTab) $revision['validacion'] = $otroTab;
+
+        return $revision;
+    }
+
+    /*
         Un bloque de filas de UNA hoja. El resto del libro no se instancia siquiera.
 
         Devuelve el LIBRO y no la hoja, aunque quien llama solo quiera la hoja: una
@@ -1830,6 +2387,92 @@ class ImportFacture2Cargas {
         va despues, el segundo bloque arranca con la memoria del primero encima y
         el tercero revienta —medido: 93 MB en el bloque 3 de 5—.
     */
+    // Si el archivo pertenece al periodo al que se esta subiendo, leyendo sus
+    // fechas sin cargar el libro.
+    //
+    // Es el gemelo de `fechasAjenas` para el camino ligero. Se pregunta por la
+    // primera hoja que tenga fecha propia: en el reporte de ventas es el detalle
+    // por forma de pago y en el de comandas el detalle de ventas, y en los dos esa
+    // hoja es la que trae los movimientos.
+    private function periodoDelArchivo($ruta, $presentes, $contrato, $mapas, $ctx) {
+        $mes  = isset($ctx['mes'])  ? (int) $ctx['mes']  : 0;
+        $anio = isset($ctx['anio']) ? (int) $ctx['anio'] : 0;
+
+        if ($mes < 1 || $anio < 2000) return null;
+
+        foreach ($presentes as $nombre) {
+            $config = $contrato[$nombre];
+
+            if (!isset($config['dateIndex']) || !isset($mapas[$nombre])) continue;
+
+            $fechas = $this->fechasDelArchivo($ruta, $nombre, $config, $mapas[$nombre]);
+
+            if (empty($fechas)) continue;
+
+            $conteo = conteoDeFechas($fechas, $mes, $anio);
+            $ajeno  = periodoAjeno($conteo, $mes, $anio);
+
+            if ($ajeno) $ajeno['hoja'] = $nombre;
+
+            // El reparto viaja SIEMPRE, se objete o no.
+            //
+            // Cuando el archivo es del mes del filtro no hay nada que reprochar,
+            // pero sigue habiendo algo que decidir si trae varios meses: cuales se
+            // cargan. Devolverlo solo junto a la objecion dejaba esa eleccion a
+            // merced de que el filtro coincidiera, que no tiene que ver con ella.
+            //
+            // La hoja con fechas ya dijo lo suyo: las demas del mismo libro son del
+            // mismo export y preguntarlas seria abrir el archivo otra vez para
+            // confirmar lo que ya se sabe.
+            return [
+                'ajeno'   => $ajeno,
+                'reparto' => repartoPorMes($conteo, $mes, $anio)
+            ];
+        }
+
+        return null;
+    }
+
+    // Las fechas de TODAS las filas de una hoja, sin abrir el libro entero.
+    //
+    // Se leen dos columnas: la clave, que dice si la fila es dato —el pie de
+    // totales trae importe pero no clave— y la fecha. Es lo mismo que comprueba
+    // `columnaDeFechas` en el camino del libro cargado, con la diferencia de que
+    // aqui el libro no cabria.
+    //
+    // La fila de encabezados se salta: su celda de fecha dice "Fecha de operacion"
+    // y contaria como un movimiento sin mes.
+    private function fechasDelArchivo($ruta, $nombre, $config, $mapa) {
+        $claveIdx = array_key_exists($config['keyIndex'],  $mapa) ? $mapa[$config['keyIndex']]  : null;
+        $fechaIdx = array_key_exists($config['dateIndex'], $mapa) ? $mapa[$config['dateIndex']] : null;
+
+        if ($claveIdx === null || $fechaIdx === null) return [];
+
+        $claveCol = columnLetter($claveIdx);
+        $fechaCol = columnLetter($fechaIdx);
+
+        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+        $lector->setReadDataOnly(true);
+        $lector->setLoadSheetsOnly($nombre);
+        $lector->setReadFilter(filtroDeColumnas($nombre, [$claveCol, $fechaCol], $config['headerRow'] + 1));
+
+        $doc  = $lector->load($ruta);
+        $hoja = $doc->getSheetByName($nombre);
+
+        $__row = [];
+
+        for ($fila = $config['headerRow'] + 1; $fila <= $hoja->getHighestRow(); $fila++) {
+            if (trim((string) $hoja->getCell($claveCol . $fila)->getValue()) === '') continue;
+
+            $__row[] = trim((string) $hoja->getCell($fechaCol . $fila)->getValue());
+        }
+
+        $this->soltarLibro($doc);
+        unset($doc, $hoja);
+
+        return $__row;
+    }
+
     private function leerBloque($ruta, $nombre, $desde, $filas) {
         $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
         $lector->setReadDataOnly(true);
@@ -2116,6 +2759,44 @@ function filtroDeBloque($hoja, $desde, $filas) {
             if ($worksheetName !== '' && $worksheetName !== $this->hoja) return false;
 
             return $row >= $this->desde && $row <= $this->hasta;
+        }
+    };
+}
+
+/*
+    El mismo filtro, pero al reves: TODAS las filas y solo unas columnas.
+
+    Es lo que permite preguntarle a un archivo de 4.5 MB de que meses es sin
+    abrirlo entero. La hoja de comandas son 420 000 celdas y no cabe en memoria,
+    pero sus columnas de clave y de fecha son 48 000: una novena parte, que entra
+    de sobra y en una sola pasada.
+
+    La alternativa era recorrerlo por bloques como hace la carga, y ahi el coste no
+    esta en las celdas sino en abrir el archivo: doce aperturas de un xlsx que hay
+    que descomprimir y parsear entero cada vez, contra una sola de esta.
+
+    Va como clase anonima dentro de una funcion por el mismo motivo que la de
+    arriba: el vendor se carga bajo demanda y declararla al incluir el archivo
+    obligaria a tener PhpSpreadsheet presente para listar cargas o borrar un lote.
+*/
+function filtroDeColumnas($hoja, $columnas, $desde) {
+    return new class($hoja, $columnas, $desde) implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
+
+        private $hoja;
+        private $columnas;
+        private $desde;
+
+        public function __construct($hoja, $columnas, $desde) {
+            $this->hoja     = $hoja;
+            $this->columnas = array_flip($columnas);
+            $this->desde    = $desde;
+        }
+
+        public function readCell($column, $row, $worksheetName = '') {
+            if ($worksheetName !== '' && $worksheetName !== $this->hoja) return false;
+            if ($row < $this->desde) return false;
+
+            return isset($this->columnas[$column]);
         }
     };
 }

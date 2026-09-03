@@ -28,5 +28,5 @@
 
     <!-- Session & Navigation -->
     <script src="../access/src/js/session.js"></script>
-    <script src="../menus/src/js/navbar.js"></script>
-    <script src="../menus/src/js/sidebar.js"></script>
+    <script src="../menus/src/js/navbar.js?t=<?php echo time(); ?>"></script>
+    <script src="../menus/src/js/sidebar.js?t=<?php echo time(); ?>"></script>

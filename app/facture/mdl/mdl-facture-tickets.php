@@ -211,13 +211,19 @@ class mdl extends CRUD {
     // En el dia sin cargos mudados —el 99% de los dias— las dos dan lo mismo.
     // La venta trae su comanda cargada o no. Es lo que decide con que se imprime
     // el ticket al 16%: con los productos que el POS exporto, o con los del
-    // catalogo cuando el detallado del dia no esta en el sistema. El detalle se
-    // enlaza por folio, igual que en listSaleDetailByDay.
+    // catalogo cuando el detallado del dia no esta en el sistema.
+    //
+    // Se pregunta por sale_id y no por el folio del renglon, que es el MOVIMIENTO
+    // PDV con el que lo exporto el POS (ver linkDetailToSaleByPdv): por sale_id
+    // pasan los renglones que la carga ya engancho a su venta, que son exactamente
+    // los que listSaleDetailByFolio va a leer para el papel. Preguntando por folio,
+    // un renglon huerfano —cargado antes que su venta, o con movimiento que no
+    // amarro— diria que la comanda esta ahi y el papel saldria igual del catalogo.
     function conDetalle() {
         return "
             SELECT 1
               FROM {$this->bd}detail_sale d
-             WHERE d.active = 1 AND d.sale_folio = s.folio
+             WHERE d.active = 1 AND d.sale_id = s.id
         ";
     }
 
@@ -273,6 +279,7 @@ class mdl extends CRUD {
                    s.invoice_series, st.name AS status_name,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
+                   v.visible_folio, v.origin_folio,
                    EXISTS ({$this->conDetalle()}) AS tiene_detalle,
                    {$this->ticketSelect()},
                    {$this->reasignacionSelect()}
@@ -364,6 +371,7 @@ class mdl extends CRUD {
                    EXISTS ({$this->conDetalle()})  AS tiene_detalle,
                    v.id AS virtual_id, v.note_number, v.subtotal AS virtual_subtotal,
                    v.discount AS virtual_discount, v.tax_rate AS virtual_tax_rate,
+                   v.visible_folio, v.origin_folio,
                    {$this->ticketSelect()},
                    {$this->reasignacionSelect()}
             FROM {$this->bd}sale s
@@ -379,6 +387,11 @@ class mdl extends CRUD {
     // Ventas del dia que piden ticket virtual y no lo tienen: son las que genera de
     // una sola vez el boton del modulo. El 0% es el caso: sin IVA trasladado el
     // ticket del POS no sirve para facturar.
+    //
+    // Se exige monto: el papel del folio que no ampara ningun cargo —el servicio de
+    // mesa y el movimiento que vino con Total $0.00— no se arma con productos y sale
+    // con el cierre del dia (ver guardarTicketServicio). Colarlo aqui seria pedirle
+    // al armador una combinacion que sume cero.
     //
     // Va en el mismo orden que listTicketsByDay: aqui se reparten las notas, y si
     // se repartieran en otro orden no coincidirian con el consecutivo que el
@@ -565,9 +578,33 @@ class mdl extends CRUD {
         ]);
     }
 
-    function getMaxVirtualTicketId() {
-        $query = "SELECT MAX(id) AS id FROM {$this->bd}virtual_ticket";
-        return $this->_Read($query);
+    // Regenerar un papel es actualizarlo, no cambiarlo por otro: el id del ticket
+    // es su identidad interna (punto 22.1) y tiene que sobrevivir a que el dia se
+    // rehaga. Los renglones si se reemplazan, porque son el papel armado de nuevo.
+    function updateVirtualTicket($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}virtual_ticket",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    // El papel recien insertado, por su llave natural: el consecutivo del dia ya
+    // es unico por (issue_date, note_number, branch_id), asi que preguntar por el
+    // devuelve exactamente el que se acaba de escribir.
+    //
+    // Antes se resolvia con MAX(id) sobre la tabla entera, que es el id de la
+    // ultima fila de CUALQUIER sucursal: dos cierres a la vez colgaban los
+    // renglones del ticket equivocado.
+    function getVirtualTicketByNote($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}virtual_ticket
+            WHERE issue_date = ? AND note_number = ? AND branch_id <=> ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
     }
 
     function createVirtualDetail($array) {
@@ -578,14 +615,49 @@ class mdl extends CRUD {
         ]);
     }
 
-    // Regenerar es volver a armar el mismo ticket: se borra el anterior y sus
-    // renglones se van con el por el CASCADE de virtual_ticket_id.
-    function deleteVirtualTicket($array) {
-        return $this->_Delete([
-            'table' => "{$this->bd}virtual_ticket",
-            'where' => $array['where'],
-            'data'  => $array['data']
-        ]);
+    // Los renglones del papel que se vuelve a armar. Van por separado porque el
+    // ticket ya no se borra: sin esto el papel regenerado sumaria los renglones
+    // viejos y los nuevos.
+    function deleteVirtualDetailByTicket($array) {
+        $query = "
+            DELETE FROM {$this->bd}detail_virtual_ticket
+            WHERE virtual_ticket_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Antes de volver a repartir, los papeles del dia sueltan su numero de nota
+    // guardandolo en negativo. No es un truco de estilo, lo pide el UNIQUE
+    // (issue_date, note_number, branch_id): la nota es el lugar de la venta en el
+    // dia y una carga nueva del Excel recorre todas, asi que la venta que estrena
+    // la nota 3 chocaria contra el papel viejo de la que hoy es la 6.
+    //
+    // El negativo aparta el numero sin perder el papel —ni su id, que es lo que el
+    // punto 22.1 exige conservar— y deja libre el positivo para quien lo estrene.
+    // Lo que no vuelva a usarse se borra al final con deleteReleasedVirtualTickets.
+    function releaseVirtualNotes($ids) {
+        if (empty($ids)) return false;
+
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $query = "
+            UPDATE {$this->bd}virtual_ticket
+               SET note_number = -ABS(note_number)
+             WHERE id IN ({$marks})
+        ";
+        return $this->_CUD($query, $ids);
+    }
+
+    // Los que se quedaron con la nota apartada: nadie los reutilizo en este
+    // reparto, asi que el dia ya no los contempla.
+    function deleteReleasedVirtualTickets($ids) {
+        if (empty($ids)) return false;
+
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $query = "
+            DELETE FROM {$this->bd}virtual_ticket
+             WHERE note_number < 0 AND id IN ({$marks})
+        ";
+        return $this->_CUD($query, $ids);
     }
 
     // Todas las notas del dia de una sola sentencia: es lo que deshace el reparto.
@@ -687,16 +759,6 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
-    // La venta que salio del grupo del cero suelta su papel: si se quedara, el
-    // reparto guardado diria que sigue al 0% cuando ya se factura al 16%.
-    function deleteVirtualTicketBySale($array) {
-        return $this->_Delete([
-            'table' => "{$this->bd}virtual_ticket",
-            'where' => $array['where'],
-            'data'  => $array['data']
-        ]);
-    }
-
     // -- Corrida de generacion --
 
     // Cada cierre de dia deja aqui con que meta se repartio, que salio de cada
@@ -728,6 +790,44 @@ class mdl extends CRUD {
         return $this->_Read($query);
     }
 
+    // El consecutivo del registro maestro (punto 29). Es propio y no el id: el id
+    // lo reparte MySQL y un borrado deja huecos, mientras que este numero es el que
+    // se dicta y se anota, y tiene que correr sin saltos.
+    //
+    // Global a proposito, sin cortar por sucursal ni por año: GEN-000123 identifica
+    // una corrida sin que haya que preguntar de donde salio.
+    //
+    // El SUBSTRING arranca en 5 porque el prefijo 'GEN-' son cuatro caracteres.
+    function getNextGenerationRunFolio() {
+        $query = "
+            SELECT COALESCE(MAX(CAST(SUBSTRING(folio, 5) AS UNSIGNED)), 0) + 1 AS siguiente
+            FROM {$this->bd}generation_run
+            WHERE folio LIKE 'GEN-%'
+        ";
+        return $this->_Read($query);
+    }
+
+    // De que archivo salieron las ventas del dia (punto 29).
+    //
+    // Se toma el lote MAS RECIENTE que aporto ventas: un dia se puede recargar, y
+    // el ultimo Excel es el que explica el estado con el que se genero. El nombre
+    // se copia a la corrida en vez de leerse por join, porque el lote se puede
+    // borrar y el registro maestro tiene que seguir diciendo de donde vino.
+    function getSourceFileByDay($array) {
+        $query = "
+            SELECT b.file_name
+            FROM {$this->bd}sale s
+            INNER JOIN {$this->bd}import_batch b ON b.id = s.import_batch_id
+            WHERE s.active = 1
+              AND b.active = 1
+              AND s.branch_id <=> ?
+              AND DATE(s.operation_date) = ?
+            ORDER BY b.id DESC
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // Las corridas de un dia, de la mas reciente a la mas vieja. Un dia puede
     // tener varias: el cierre completo y despues los tickets sueltos que se
     // regeneraron, y la auditoria tiene que poder verlas todas.
@@ -736,8 +836,9 @@ class mdl extends CRUD {
     // id de la venta, pero lo que se audita es el folio que el POS imprimio.
     function listGenerationRuns($array) {
         $query = "
-            SELECT r.id, r.kind, r.issue_date, r.goal_mode, r.goal_value, r.goal_amount,
+            SELECT r.id, r.folio, r.kind, r.issue_date, r.goal_mode, r.goal_value, r.goal_amount,
                    r.day_total, r.billed_16, r.billed_0, r.count_16, r.count_0, r.no_paper,
+                   r.movements_count, r.reassigned_count, r.zero_ticket_count, r.source_file,
                    r.adjustment_tolerance, r.user_name, r.user_id, r.created_at,
                    s.folio AS cut_folio,
                    (SELECT COUNT(*) FROM {$this->bd}virtual_ticket v

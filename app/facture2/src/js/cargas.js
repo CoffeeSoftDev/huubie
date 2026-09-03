@@ -26,6 +26,10 @@ class App extends Templates {
         // misma hoja en el periodo, no una por carga.
         this.grupos  = {};
         this.hojaTab = {};
+
+        // Donde vive la fila de cifras de cada tab: es la hoja de datos, no la
+        // bitacora.
+        this.hojaKpis = {};
     }
 
     async init() {
@@ -100,7 +104,10 @@ class App extends Templates {
                 class: 'w-full flex flex-wrap items-center justify-between gap-3',
                 container: [
                     { type: 'div', id: 'viewHeader', class: 'flex-1 min-w-0' },
-                    { type: 'div', id: 'filterBar',  class: 'flex-shrink-0 w-full sm:w-[300px]' }
+                    // 300 px alcanzaban para dos selectores; con el boton de subir
+                    // al lado —y su icono— el mes se leia «Ago» y el año «202». El
+                    // titulo de la izquierda cede el espacio sin apretarse: es flex-1.
+                    { type: 'div', id: 'filterBar',  class: 'flex-shrink-0 w-full sm:w-[460px]' }
                 ]
             }
         });
@@ -148,7 +155,7 @@ class App extends Templates {
     }
 
     // Los paneles de todos los tabs coexisten en el DOM (tabLayout solo los oculta),
-    // por eso cada id lleva el sufijo del tab: sin el, `$('#uploadRow')` resolvia
+    // por eso cada id lleva el sufijo del tab: sin el, `$('#sheetsHost')` resolvia
     // siempre al panel del primer tab y el segundo quedaba vacio.
     tabPanelLayout(tabId) {
         this.createLayout({
@@ -159,12 +166,18 @@ class App extends Templates {
                 // `hidden`, y darle display:flex ahi seria pelearse con el.
                 id:    `panel-${tabId}`,
                 class: 'w-full h-full bg-[#1F2A37]  rounded-lg p-4 flex flex-col gap-3',
+                // Sin la fila del archivo: decia el mismo nombre, las mismas filas
+                // y la misma fecha que la primera linea de la bitacora, dos dedos
+                // mas abajo. Y sin ella el panel arranca directo en las hojas, que
+                // es a lo que se viene.
+                //
+                // Tampoco lleva ya el borde de separacion: no hay nada arriba de
+                // donde separarse.
                 container: [
-                    { type: 'div', id: `uploadRow-${tabId}`, class: 'w-full flex-shrink-0' },
                     {
                         type:  'div',
                         id:    `sheetsHost-${tabId}`,
-                        class: 'w-full flex-1 min-h-0 flex flex-col border-t border-[#374151] pt-3'
+                        class: 'w-full flex-1 min-h-0 flex flex-col'
                     }
                 ]
             }
@@ -185,7 +198,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMes',
                 lbl:      'Mes:',
-                class:    'col-6',
+                class:    'col-6 col-md-4',
                 value:    hoy.mes || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -194,12 +207,35 @@ class App extends Templates {
             {
                 opc:      'select',
                 id:       'fAnio',
-                lbl:      'Anio:',
-                class:    'col-6',
+                lbl:      'Año:',
+                class:    'col-6 col-md-4',
                 value:    hoy.anio || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
                 data:     this.dataInit.anios
+            },
+            // Subir vive junto al periodo porque son el mismo gesto: el archivo se
+            // carga AL mes y año que dicen los dos selectores de al lado, y con el
+            // boton abajo esa relacion habia que recordarla.
+            //
+            // Es uno solo para todas las pestanas —no uno por archivo— y actua
+            // sobre la que este abierta: `cargas.pickFile()` resuelve el destino
+            // con `app.activeTab`.
+            {
+                opc:       'button',
+                id:        'btnSubirExcel',
+                text:      'Subir Excel',
+                // Sin `icon`: opc:'button' lo pinta como clase CSS —`<i class="...">`,
+                // que es lo que espera Fontello— y aqui los iconos son Lucide, que
+                // se monta por atributo. Se le pone despues, en `decorarBotonSubir`.
+                //
+                // Verde y no el azul del tema: en esta pantalla todo lo azul es
+                // Wansoft —la navbar, las pestañas, la cabecera de la tabla— y la
+                // unica accion que escribe en la base tiene que distinguirse de la
+                // decoracion.
+                color_btn: 'success',
+                class:     'col-12 col-md-4',
+                onClick:   () => cargas.pickFile()
             }
         ];
 
@@ -209,6 +245,27 @@ class App extends Templates {
             theme:      FACTURE_THEME,
             data:       filters
         });
+
+        this.decorarBotonSubir();
+    }
+
+    // El icono va delante del texto y no en su lugar: «Subir Excel» solo, sin
+    // glifo, no se distinguia de un filtro mas de la barra.
+    //
+    // Se monta aqui y no en la definicion del boton porque `opc:'button'` escribe
+    // el icono como CLASE CSS —el contrato de Fontello— y en esta pantalla los
+    // iconos son Lucide, que se resuelven por atributo cuando corre createIcons.
+    decorarBotonSubir() {
+        const btn = $('#btnSubirExcel');
+        if (!btn.length) return;
+
+        // `whitespace-nowrap` no es cosmetico: el glifo se come parte del ancho y
+        // sin el, «Subir Excel» se parte en dos renglones y el boton crece de alto
+        // hasta desalinearse de los dos selectores.
+        btn.addClass('inline-flex items-center justify-center gap-2 whitespace-nowrap')
+           .prepend($('<i>', { 'data-lucide': 'upload', class: 'w-4 h-4 flex-shrink-0' }));
+
+        if (window.lucide) lucide.createIcons();
     }
 
     getFilters() {
@@ -249,8 +306,11 @@ class App extends Templates {
         cargas.stopRoadmap();
         this.tabPanelLayout(id);
 
-        const archivo = this.dataInit.archivos[id];
-        cargasView.renderUploadRow(id, archivo);
+        // El panel acaba de nacer: aqui es donde se le ensena a recibir el archivo
+        // arrastrado. Va despues de `tabPanelLayout` y no en el arranque porque
+        // cada pestana tiene el suyo y se rehace al abrirla.
+        cargas.initDropZone(id);
+
         cargas.lsBitacora(id);
 
         cargasView.renderAsideHead({ icon: 'scan', title: 'Hojas detectadas', badge: this.posBadge() });
@@ -466,27 +526,41 @@ class App extends Templates {
         // fuera del panel en vez de scrollear dentro. El wrapper va con h-full y no
         // flex-1 porque el contenedor del tab cerrado lleva `hidden`.
         //
-        // El hueco de cifras lo abre solo la bitacora: ahi las tarjetas resumen
-        // TODAS las cargas del periodo. Una hoja es un solo conjunto de filas, y
-        // repetir sobre ella los mismos totales no diria nada nuevo.
+        // El hueco de cifras lo abre la hoja de DATOS del tab —la primera del
+        // contrato: "Detalle por forma de pago" en el reporte de ventas, "Detalle
+        // de ventas" en productos vendidos—. Las tarjetas resumen todas las cargas
+        // del periodo y ahi quedan sobre las filas que las explican; en la bitacora
+        // encabezaban una tabla de lotes, que es otra cosa.
+        //
+        // `pr-2` separa la tabla de su barra de scroll. Sin el, la ultima columna
+        // —que suele ser el total— queda pegada a la barra y los importes parecen
+        // cortados. Mismo remedio y misma medida que en ventas.js.
         const sheetShell = (id, kpis) => `
             <div class="h-full flex flex-col">
                 ${kpis ? `<div id="sheetKpis-${id}" class="flex-shrink-0 pb-3"></div>` : ''}
-                <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin"></div>
+                <div id="sheetBody-${id}" class="flex-1 min-h-0 min-w-0 overflow-auto scroll-thin pr-2"></div>
                 <div id="sheetFoot-${id}" class="flex-shrink-0"></div>
             </div>
         `;
 
         // La hoja abierta se conserva al repintar mientras su lote siga existiendo;
         // si se elimino, la tira vuelve a abrir en la bitacora.
+        //
+        // El tab abre en la bitacora: es el estado del periodo —que archivos entraron,
+        // cuando y con que resultado— y desde ahi se decide si vale la pena mirar los
+        // datos. Solo cuando el periodo no tiene registros la tira abre en la hoja.
+        const log     = this.logKey(tabId);
         const previa  = this.hojaTab[tabId];
-        const vive    = this.grupos[tabId].some(g => this.sheetKey(g.nombre) === previa || this.tipsKey(g.nombre) === previa);
+        const vive    = previa === log
+            ? conLog
+            : this.grupos[tabId].some(g => this.sheetKey(g.nombre) === previa || this.tipsKey(g.nombre) === previa);
         const primera = this.grupos[tabId][0];
         const activa  = vive
             ? previa
-            : ((conLog || !primera) ? this.logKey(tabId) : this.sheetKey(primera.nombre));
+            : ((conLog || !primera) ? log : this.sheetKey(primera.nombre));
 
-        this.hojaTab[tabId] = activa;
+        this.hojaTab[tabId]  = activa;
+        this.hojaKpis[tabId] = primera ? this.sheetKey(primera.nombre) : '';
 
         const hojas = [];
 
@@ -497,7 +571,7 @@ class App extends Templates {
                 lucideIcon: cargasView.sheetTone(grupo.nombre).icon,
                 active:     this.sheetKey(grupo.nombre) === activa,
                 class:      'flex-1 min-h-0',
-                content:    sheetShell(this.sheetKey(grupo.nombre)),
+                content:    sheetShell(this.sheetKey(grupo.nombre), grupo === primera),
                 onClick:    () => this.onSelectSheet(tabId, grupo)
             });
 
@@ -518,15 +592,17 @@ class App extends Templates {
         });
 
         const bitacora = {
-            id:         this.logKey(tabId),
+            id:         log,
             tab:        'Bitacora',
             lucideIcon: 'activity',
-            active:     activa === this.logKey(tabId),
+            active:     activa === log,
             class:      'flex-1 min-h-0',
-            content:    sheetShell(this.logKey(tabId), true),
+            content:    sheetShell(log),
             onClick:    () => this.onSelectSheet(tabId, null)
         };
 
+        // La bitacora abre la tira: es la pestana con la que arranca el tab, y la
+        // primera posicion es donde se la busca.
         const json = conLog ? [bitacora].concat(hojas) : hojas;
 
         // Sin pestanas que mostrar la tira no se pinta: tabLayout dejaria la barra
@@ -535,6 +611,12 @@ class App extends Templates {
             cargasView.renderEmptySheets(tabId, ajenos);
             return;
         }
+
+        // Con hojas que mostrar el panel deja de estar vacio, y el arrastre vuelve
+        // a apartar el contenido en vez de cambiar el texto del hueco. Se quita
+        // aqui porque el panel no se rehace al cambiar de mes: el mismo panel pasa
+        // de vacio a lleno sin pasar por `tabPanelLayout`.
+        $(`#panel-${tabId}`).removeClass('panel-vacio');
 
         this.tabLayout({
             parent:          `sheetsHost-${tabId}`,
@@ -547,6 +629,21 @@ class App extends Templates {
             content:         { class: 'flex-1 min-h-0 flex flex-col' },
             json:            json
         });
+
+        this.abrirHojaActiva(tabId);
+    }
+
+    // El render perezoso cuelga de onClick, y a la pestana que nace abierta nadie la
+    // pulsa: sin esto la tira abriria en la hoja de datos con el panel en blanco.
+    abrirHojaActiva(tabId) {
+        const activa = this.hojaTab[tabId];
+        const hoja   = this.grupos[tabId].find(g => this.sheetKey(g.nombre) === activa);
+
+        if (hoja) return this.onSelectSheet(tabId, hoja);
+
+        const tips = this.grupos[tabId].find(g => this.tipsKey(g.nombre) === activa);
+
+        if (tips) this.onSelectTips(tabId, tips);
     }
 
     hasLog(tabId) {
@@ -648,9 +745,10 @@ class Cargas extends Templates {
 
         app.sheetTabs(tipo, data.lotes, rows, data.ajenos);
 
-        if (data.archivo) {
-            cargasView.renderUploadRow(tipo, Object.assign(app.dataInit.archivos[tipo], data.archivo));
-        }
+        // El estado del archivo se conserva en memoria aunque ya no se pinte: lo
+        // siguen leyendo los avisos de confirmacion, que nombran el archivo
+        // cargado del periodo. Quien lo muestra ahora es la bitacora de abajo.
+        if (data.archivo) Object.assign(app.dataInit.archivos[tipo], data.archivo);
 
         // Sin registros no hay pestana de bitacora, asi que tampoco hay panel
         // donde pintar su tabla.
@@ -680,9 +778,9 @@ class Cargas extends Templates {
             };
         };
 
-        // Las cifras del periodo van antes que la tabla, que es como se leen: el
-        // total y su desglose primero, y debajo carga por carga de donde salio.
-        cargasView.renderKpis(log, data.kpis);
+        // Las cifras del periodo encabezan la hoja de datos, que es donde se leen:
+        // el total y su desglose primero, y debajo los movimientos que lo suman.
+        cargasView.renderKpis(app.hojaKpis[tipo], data.kpis);
 
         this.createCoffeeTable3({
             parent:        `sheetBody-${log}`,
@@ -757,7 +855,11 @@ class Cargas extends Templates {
             extends:       true,
             scrollable:    false,
             hover:         true,
-            f_size:        11,
+            f_size:        10,
+            // Quince columnas y 25 filas por pagina: la tabla se lee como una
+            // planilla, no como una ficha. `cs-table-compact` recorta el alto de
+            // renglon para que la pagina entera quepa sin scroll.
+            class:         'cs-table-compact',
             emptyMessage:  'Esta carga no tiene registros',
             emptyIcon:     'ic-file-text',
             data:          { row: data.row }
@@ -766,7 +868,7 @@ class Cargas extends Templates {
         if (window.lucide) lucide.createIcons();
 
         if (data.row.length > 0 && typeof simple_data_table === 'function') {
-            simple_data_table(`#tbRegistros-${hoja}`, 12);
+            simple_data_table(`#tbRegistros-${hoja}`, 25);
         }
     }
 
@@ -858,27 +960,141 @@ class Cargas extends Templates {
 
     // -- Actions --
 
+    // Abre el explorador de archivos para la pestana que este visible.
+    //
+    // El <input> se crea aqui y se tira al terminar, en vez de vivir en el DOM.
+    // Antes habia uno por pestana dentro de la fila del archivo; al quitar esa
+    // fila, colgarlo de cualquier otro sitio solo trasladaba el problema: un
+    // control invisible que hay que mantener sincronizado con la pestana activa.
+    //
+    // Creandolo al vuelo, el destino es siempre el de ahora —`app.activeTab`— y no
+    // queda estado que se pueda desincronizar.
+    pickFile() {
+        const tipo  = app.activeTab;
+        const input = document.createElement('input');
+
+        input.type   = 'file';
+        input.accept = '.xlsx,.xls';
+
+        input.addEventListener('change', () => this.onFileChange(input, tipo));
+
+        input.click();
+    }
+
+    /*
+        Soltar el Excel sobre el panel de la pestana vale como pulsar "Subir Excel".
+
+        La zona es el PANEL, no la pantalla entera: el panel es el area que ya
+        representa "lo que hay cargado en esta pestana", asi que es donde el gesto
+        se explica solo. Un velo sobre todo el modulo tapaba tambien la barra de
+        filtros y el panel de hojas, que no tienen nada que ver con soltar.
+
+        Se re-engancha en cada pintado del panel —`tabPanelLayout` lo rehace al
+        cambiar de pestana— y por eso el nodo lleva su marca: sin ella, volver a la
+        misma pestana acumularia oyentes sobre el mismo elemento.
+
+        `dragenter` y `dragleave` se cuentan en vez de encender y apagar directo: el
+        puntero cruza los hijos del panel y cada cruce dispara su par de eventos,
+        asi que el aviso parpadearia al mover el raton por encima. Con el contador
+        solo se apaga cuando de verdad se salio del panel.
+
+        Todos los eventos llevan preventDefault: sin el, el navegador abre el
+        archivo en una pestana nueva y se pierde lo que el usuario estaba haciendo.
+    */
+    initDropZone(tabId) {
+        const id   = tabId || app.activeTab;
+        const zona = document.getElementById(`panel-${id}`);
+
+        if (!zona || zona.dataset.dropListo) return;
+
+        zona.dataset.dropListo = '1';
+
+        let dentro = 0;
+
+        const parar = (e) => { e.preventDefault(); e.stopPropagation(); };
+        const traeArchivo = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+
+        zona.addEventListener('dragenter', (e) => {
+            if (!traeArchivo(e)) return;
+            parar(e);
+            dentro++;
+            cargasView.toggleDropHint(zona, true);
+        });
+
+        zona.addEventListener('dragover', (e) => {
+            if (!traeArchivo(e)) return;
+            parar(e);
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        zona.addEventListener('dragleave', (e) => {
+            if (!traeArchivo(e)) return;
+            parar(e);
+            dentro = Math.max(0, dentro - 1);
+            if (dentro === 0) cargasView.toggleDropHint(zona, false);
+        });
+
+        zona.addEventListener('drop', (e) => {
+            if (!traeArchivo(e)) return;
+            parar(e);
+            dentro = 0;
+            cargasView.toggleDropHint(zona, false);
+
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+
+            // Se comprueba aqui y no en `procesarArchivo` porque el <input> ya
+            // filtra por extension y el arrastre no: por ahi entra cualquier cosa.
+            if (!/\.xlsx?$/i.test(file.name)) {
+                alert({ icon: 'warning', title: 'Solo se pueden subir archivos de Excel (.xlsx o .xls)', btn1: true });
+                return;
+            }
+
+            this.procesarArchivo(file, id);
+        });
+    }
+
+    // El boton es el unico indicador de que la subida arranco: la fila que antes
+    // mostraba "Procesando" ya no esta. Lo que pasa despues —los pasos, las hojas
+    // en progreso, el loader del panel— ya se cuenta solo.
+    setSubiendo(activo) {
+        const btn = document.getElementById('btnSubirExcel');
+        if (!btn) return;
+
+        btn.disabled = activo;
+        btn.classList.toggle('opacity-60', activo);
+        btn.classList.toggle('cursor-not-allowed', activo);
+    }
+
+    // Puente del <input>: saca el archivo y deja el control limpio. Lo que se hace
+    // con el archivo esta en `procesarArchivo`, para que el arrastre —que no tiene
+    // input— entre por el mismo sitio y no haya dos caminos que mantener.
+    async onFileChange(input, tipo) {
+        const file = input.files[0];
+        input.value = '';
+
+        return this.procesarArchivo(file, tipo);
+    }
+
     // El archivo se lee ANTES de preguntar nada. Antes se confirmaba el periodo
     // contra la pestana del boton y solo despues, ya subido, se descubria que el
     // archivo era de otra: la primera pregunta afirmaba un destino falso y venia
     // una segunda a corregirlo. Ahora la revision decide, y se pregunta una vez.
-    async onFileChange(input, tipo) {
-        const file = input.files[0];
-        input.value = '';
+    async procesarArchivo(file, tipo) {
         if (!file) return;
 
         const filtros = app.getFilters();
 
         if (!filtros.mes || !filtros.anio) {
-            alert({ icon: 'warning', title: 'Selecciona mes y anio antes de subir el archivo', btn1: true });
+            alert({ icon: 'warning', title: 'Selecciona mes y año antes de subir el archivo', btn1: true });
             return;
         }
 
-        cargasView.renderUploadRow(tipo, Object.assign({}, app.dataInit.archivos[tipo], { estado: 'cargando' }));
+        this.setSubiendo(true);
 
         const revision = await this.inspeccionar(file, tipo);
 
-        cargasView.renderUploadRow(tipo, app.dataInit.archivos[tipo]);
+        this.setSubiendo(false);
 
         if (revision.status !== 200) {
             alert({ icon: 'error', title: revision.message || 'No se pudo leer el archivo', btn1: true });
@@ -887,8 +1103,22 @@ class Cargas extends Templates {
 
         // Hojas que no son de ninguna pestana, o columnas que no cuadran: no hay
         // nada que confirmar, solo que corregir.
+        //
+        // El archivo que pertenece a OTRA pestana es la excepcion: ahi el aviso
+        // ofrece llevarlo a la suya, y esa respuesta hay que atenderla. Sin esperar
+        // la promesa el boton "Si, cargar en..." se quedaba sin hacer nada.
         if (revision.validacion) {
-            cargasView.alertValidacion(revision.validacion, file.name, app.dataInit.archivos[revision.destino] || app.dataInit.archivos[tipo]);
+            const v = revision.validacion;
+
+            cargasView
+                .alertValidacion(v, file.name, app.dataInit.archivos[revision.destino] || app.dataInit.archivos[tipo])
+                .then((res) => {
+                    if (!res || !res.isConfirmed) return;
+
+                    if (UploadCheck.mueve(v))       return this.cargarEnOtroTab(file, v.sugerido || revision.destino);
+                    if (UploadCheck.mudaPeriodo(v)) return this.cargarEnPeriodo(file, revision.destino || tipo, v);
+                });
+
             return;
         }
 
@@ -971,8 +1201,10 @@ class Cargas extends Templates {
         });
     }
 
-    subirArchivo(file, tipo) {
-        const filtros = app.getFilters();
+    // `periodo` llega cuando la carga se movio a otro mes: el del archivo, no el de
+    // los selectores. Sin el manda el filtro, que es el caso normal.
+    subirArchivo(file, tipo, periodo) {
+        const filtros = periodo || app.getFilters();
 
         // useFetch manda urlencoded y no admite archivos: la subida necesita
         // FormData. Tampoco pasa por form_data_ajax, que no rechaza la promesa
@@ -995,7 +1227,7 @@ class Cargas extends Templates {
         formData.append('anio',        filtros.anio);
         formData.append('excel_file0', file);
 
-        cargasView.renderUploadRow(tipo, Object.assign({}, app.dataInit.archivos[tipo], { estado: 'cargando' }));
+        this.setSubiendo(true);
 
         app.renderHojas(tipo, app.hojasTab(tipo).map(h => Object.assign({}, h, {
             detalle:    'Leyendo el archivo...',
@@ -1015,7 +1247,7 @@ class Cargas extends Templates {
             archivo.estado  = data.status === 200 ? 'ok' : 'pendiente';
             archivo.cargado = data.status === 200 ? file.name : '';
 
-            cargasView.renderUploadRow(tipo, archivo);
+            this.setSubiendo(false);
 
             app.renderHojas(tipo, (data.hojas && data.hojas.length)
                 ? hojasCargadas(app.hojasTab(tipo), data.hojas)
@@ -1034,11 +1266,14 @@ class Cargas extends Templates {
             // aviso: se muestra columna por columna, que es lo unico con lo que el
             // usuario puede arreglar el Excel.
             if (data.validacion) {
-                cargasView.alertValidacion(data.validacion, file.name, app.dataInit.archivos[tipo])
+                const v = data.validacion;
+
+                cargasView.alertValidacion(v, file.name, app.dataInit.archivos[tipo])
                     .then(res => {
-                        if (res && res.isConfirmed && data.validacion.motivo === 'otro-tab') {
-                            this.cargarEnOtroTab(file, data.validacion.sugerido);
-                        }
+                        if (!res || !res.isConfirmed) return;
+
+                        if (UploadCheck.mueve(v))       return this.cargarEnOtroTab(file, v.sugerido);
+                        if (UploadCheck.mudaPeriodo(v)) return this.cargarEnPeriodo(file, tipo, v);
                     });
                 return;
             }
@@ -1055,7 +1290,7 @@ class Cargas extends Templates {
             archivo.estado  = 'pendiente';
             archivo.cargado = '';
 
-            cargasView.renderUploadRow(tipo, archivo);
+            this.setSubiendo(false);
             app.renderHojas(tipo);
 
             this.failRoadmap('El servidor corto el proceso');
@@ -1075,6 +1310,35 @@ class Cargas extends Templates {
         this.subirArchivo(file, tab);
     }
 
+    // Reintento en el mes que el archivo trae de verdad.
+    //
+    // Los selectores se mueven a ese periodo antes de subir, y no solo la peticion:
+    // lo que quede cargado tiene que verse al terminar, y con el filtro en el mes
+    // viejo la pantalla mostraria una bitacora vacia sobre una carga que si entro.
+    cargarEnPeriodo(file, tipo, v) {
+        const periodo = {
+            mes:  this.opcionDelSelector('#fMes',  v.mesArchivo),
+            anio: this.opcionDelSelector('#fAnio', v.anioArchivo)
+        };
+
+        $('#fMes').val(periodo.mes);
+        $('#fAnio').val(periodo.anio);
+
+        this.subirArchivo(file, tipo, periodo);
+    }
+
+    // El valor con el que ESE selector nombra al mes o al año.
+    //
+    // El catalogo de meses viene con cero delante ("08") y el aviso trae el numero
+    // pelado: asignar "8" no encuentra ninguna opcion y deja el selector en blanco,
+    // asi que la consulta que sigue a la carga se lanzaba sin mes. Se busca por
+    // valor numerico y se devuelve el texto tal como esta en la lista.
+    opcionDelSelector(selector, numero) {
+        const opcion = $(selector).find('option').filter((i, o) => Number(o.value) === Number(numero)).first();
+
+        return opcion.length ? opcion.val() : String(numero);
+    }
+
     deleteCarga(id) {
         this.swalQuestion({
             extends: true,
@@ -1091,6 +1355,14 @@ class Cargas extends Templates {
             const data = await useFetch({ url: apiCargas, data: { opc: 'deleteCarga', id: id } });
 
             this.lsBitacora(app.activeTab);
+
+            // El lote que sostiene notas emitidas no se borra, y decirlo en el
+            // titulo de un aviso no basta: hay que nombrar las notas para poder ir
+            // a buscarlas. Es el mismo cuadro que usan los avisos de carga.
+            if (data.validacion) {
+                return cargasView.alertValidacion(data.validacion, '', app.dataInit.archivos[app.activeTab] || {});
+            }
+
             alert({ icon: data.status === 200 ? 'success' : 'error', title: data.message, timer: 1600 });
         });
     }
@@ -1105,11 +1377,30 @@ class CargasView extends Templates {
         this.PROJECT_NAME = 'cargas';
     }
 
+    // El tono de cada hoja, por su nombre tal como lo escribe el POS.
+    //
+    // Las tres primeras son de Soft Restaurant y eran las unicas: las hojas de
+    // Wansoft se llaman distinto —«Detalle por forma de pago», «Detalle de
+    // ventas»— y ninguna coincidia, asi que TODAS caian al icono generico. El
+    // color deja de distinguir justo donde mas hojas hay.
+    //
+    // Se agrupan por lo que la hoja ES, no por el POS que la exporta: el dinero en
+    // azul, lo que se consumio en morado, el rastro bancario en gris de sistema.
     sheetTone(nombre) {
         const tonos = {
-            'Pagos':             { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
-            'Reporte de ventas': { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
-            'comandas':          { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' }
+            // Soft Restaurant
+            'Pagos':                           { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
+            'Reporte de ventas':               { icon: 'receipt-text', bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
+            'comandas':                        { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' },
+
+            // Wansoft
+            'Detalle por forma de pago':       { icon: 'credit-card',  bgClass: 'bg-[rgba(28,100,242,0.12)]', iconClass: 'text-[#1C64F2]' },
+            'Detalle de ventas':               { icon: 'utensils',     bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' },
+            'Tiempo de orden':                 { icon: 'clock',        bgClass: 'bg-[rgba(168,85,247,0.12)]', iconClass: 'text-purple-400' },
+            'Pagos por terminal bancaria':     { icon: 'landmark',     bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' },
+            'Can y Dev por terminal bancaria': { icon: 'undo-2',       bgClass: 'bg-[rgba(251,191,36,0.12)]', iconClass: 'text-amber-400' },
+            'Pagos Eliminados':                { icon: 'trash-2',      bgClass: 'bg-[rgba(239,68,68,0.12)]',  iconClass: 'text-red-400' },
+            'Propinas por mesero':             { icon: 'hand-coins',   bgClass: 'bg-[rgba(16,185,129,0.12)]', iconClass: 'text-green-600' }
         };
 
         return tonos[nombre] || { icon: 'sheet', bgClass: 'bg-[#1F2A37]', iconClass: 'text-gray-400' };
@@ -1136,10 +1427,19 @@ class CargasView extends Templates {
         });
     }
 
-    // Las cifras del periodo, arriba de la bitacora. Van en el orden en que se
-    // preguntan: cuantos movimientos entraron, cuanto de eso se cobro con tarjeta,
-    // y como se desglosa ese total en subtotal e IVA.
+    // Las cifras del periodo, arriba de la hoja de datos. Van en el orden en que se
+    // preguntan: cuantos movimientos entraron, como se cobraron, y como se
+    // desglosa ese total en subtotal e IVA.
+    //
+    // EFECTIVO Y TARJETA van juntos y suman el total. Antes solo estaba la tarjeta
+    // —es lo unico que este modulo factura— y la fila no cuadraba a la vista: un
+    // total de $53,015 al lado de una tarjeta de $22,331 se leia como un error de
+    // carga, cuando lo unico que faltaba era nombrar los $30,684 de efectivo.
     renderKpis(sheetId, kpis) {
+        // Un periodo sin hojas no tiene donde poner las tarjetas: la tira abre en la
+        // bitacora y el hueco de cifras no existe.
+        if (!sheetId) return;
+
         if (!kpis) return $(`#sheetKpis-${sheetId}`).empty();
 
         // Lo que traia el archivo y lo que se omitio por repetido explican por que
@@ -1153,6 +1453,10 @@ class CargasView extends Templates {
         this.kpisRow({
             parent: `sheetKpis-${sheetId}`,
             id:     `kpis-${sheetId}`,
+            // Seis columnas y no las cinco por defecto: al sumar el efectivo, el
+            // total —que es el que cierra la lectura— caia solo a un segundo
+            // renglon y la fila dejaba de leerse de un vistazo.
+            class:  'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3',
             json: [
                 {
                     id:       `kpiMovimientos-${sheetId}`,
@@ -1161,30 +1465,39 @@ class CargasView extends Templates {
                     subtitle: origen
                 },
                 {
-                    id:       `kpiTarjeta-${sheetId}`,
-                    label:    kpis.tarjetaLabel || 'Tarjeta',
-                    value:    kpis.tarjetaTexto,
-                    subtitle: `${kpis.tarjetaPagosTexto} movimiento(s)`,
-                    tone:     'info'
-                },
-                {
-                    id:    `kpiSubtotal-${sheetId}`,
+                    id: `kpiSubtotal-${sheetId}`,
                     label: 'Subtotal',
                     value: kpis.subtotalTexto
                 },
                 {
-                    id:    `kpiIva-${sheetId}`,
+                    id: `kpiIva-${sheetId}`,
                     label: `IVA ${kpis.tasaTexto}`,
                     value: kpis.ivaTexto,
-                    tone:  'warning'
+                    tone: 'warning'
                 },
                 {
-                    id:       `kpiTotal-${sheetId}`,
-                    label:    'Total',
-                    value:    kpis.totalTexto,
+                    id: `kpiTotal-${sheetId}`,
+                    label: 'Total',
+                    value: kpis.totalTexto,
                     subtitle: `${kpis.lotes} carga(s) en el periodo`,
-                    tone:     'success'
-                }
+                    tone: 'success'
+                },
+                {
+                    id:       `kpiEfectivo-${sheetId}`,
+                    label:    kpis.efectivoLabel || 'Efectivo',
+                    value:    kpis.efectivoTexto,
+                    subtitle: `${kpis.efectivoPagosTexto} movimiento(s)`
+                },
+                {
+                    id:       `kpiTarjeta-${sheetId}`,
+                    label:    kpis.tarjetaLabel || 'Tarjeta',
+                    value:    kpis.tarjetaTexto,
+                    // Lo que el modulo factura: el generador oculta los tickets en
+                    // efectivo. Por eso es el unico de los dos con tono propio.
+                    subtitle: `${kpis.tarjetaPagosTexto} movimiento(s)`,
+                    tone:     'info'
+                },
+              
             ]
         });
     }
@@ -1193,14 +1506,6 @@ class CargasView extends Templates {
         this.panelHead({
             parent: 'detailHead',
             json:   data
-        });
-    }
-
-    renderUploadRow(tabId, archivo) {
-        this.uploadRow({
-            parent:   `uploadRow-${tabId}`,
-            json:     archivo,
-            onChange: (input, tipo) => cargas.onFileChange(input, tipo)
         });
     }
 
@@ -1257,204 +1562,44 @@ class CargasView extends Templates {
         });
     }
 
-    // Aviso de lo que hay que corregir en el Excel. Son dos lecturas distintas:
-    // o el archivo no es el de esta pestana (ninguna hoja conocida), o si lo es
-    // pero alguna hoja trae las columnas cambiadas. En el segundo caso el pie
-    // dice que si alcanzo a entrar, porque las hojas se cargan por separado y
-    // anunciar "no se modifico nada" seria falso.
+    // Aviso de lo que hay que corregir en el Excel. El cuadro lo dibuja UploadCheck,
+    // que es el mismo que usa el modal de Actualizar ventas de Tickets: lo que esta
+    // pantalla pone es el marco —el dialogo— y la pregunta cuando el archivo se
+    // puede llevar a la pestana a la que pertenece.
     alertValidacion(v, fileName, archivo) {
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
+        // El periodo se lee del filtro y no del aviso: es el mismo texto que el
+        // usuario tiene delante en los dos selectores, y nombrarlo igual es lo que
+        // le deja ver que el mes que eligio no es el del archivo.
+        const periodoTexto = `${$('#fMes option:selected').text()} ${$('#fAnio').val()}`;
 
-        // Las hojas se dibujan como la barra de pestanas de Excel y no como una
-        // lista: es lo que el usuario ve al pie de su archivo cuando lo abre, asi
-        // que puede comparar sin que nadie le explique donde mirar.
-        // La fila de letras es lo que vuelve inconfundible que eso es un Excel: sin
-        // ella la cuadricula sola se lee como una tabla cualquiera.
-        const columnasHoja = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-
-        const libroExcel = (titulo, hojas) => `
-            <p class="chk-lead">${titulo}</p>
-            <div class="xls-book">
-                <div class="xls-head">${columnasHoja.map(c => `<span>${c}</span>`).join('')}</div>
-                <div class="xls-grid"></div>
-                <div class="xls-tabs">
-                    ${hojas.map(h => `<span class="xls-tab xls-${h.tone}">${esc(h.nombre)}</span>`).join('')}
-                </div>
-            </div>
-        `;
-
-        const hojasEsperadas = () => {
-            const esperadas = v.esperadas || [];
-            const libro     = v.libro || [];
-
-            const trae = libro.length
-                ? libro.map(h => ({ nombre: h, tone: esperadas.indexOf(h) >= 0 ? 'ok' : 'bad' }))
-                : [{ nombre: 'sin hojas', tone: 'bad' }];
-
-            return libroExcel(
-                `Asi debe venir el Excel de <strong>${esc(archivo.titulo)}</strong>:`,
-                esperadas.map(h => ({ nombre: h, tone: 'ok' }))
-            ) + libroExcel(
-                'Asi viene el que subiste:',
-                trae
-            );
+        const ctx = {
+            titulo:   archivo.titulo,
+            periodo:  periodoTexto,
+            sugerido: (app.dataInit.archivos[v.sugerido] || {}).titulo || v.sugerido
         };
 
-        // La fila de encabezados se dibuja como esta en la hoja, con las dos
-        // versiones una debajo de otra: sin las columnas que si cuadran no se ve
-        // donde empieza el desfase, que es lo que hay que corregir. Se pintan
-        // todas y solo se resaltan las que fallan.
-        const celda = (texto, estado) => `
-            <span class="xls-cel ${estado ? 'xls-cel-' + estado : ''}" title="${esc(texto)}">${esc(texto) || '&nbsp;'}</span>
-        `;
-
-        const bloqueHoja = (item) => {
-            const cols   = item.columnas || item.faltan || [];
-            const faltan = item.faltan || [];
-            const perdidas = faltan.filter(c => c.estado === 'ausente');
-            const corridas = faltan.filter(c => c.estado === 'movida');
-
-            const resumen = [
-                perdidas.length ? `<span class="chk-bad-txt">falta ${perdidas.map(c => esc(c.esperada)).join(', ')}</span>` : '',
-                corridas.length ? `<span class="chk-warn-txt">${corridas.length} columna(s) corridas de lugar</span>` : ''
-            ].filter(Boolean).join(' · ');
-
-            // Con diez columnas la fila no cabe en el dialogo: se anota cual es la
-            // primera que falla para desplazar la hoja hasta ahi al abrir, y que
-            // el error se vea sin tener que buscarlo.
-            const primerMal = cols.findIndex(c => c.estado !== 'ok');
-
-            return `
-                <p class="chk-lead">Hoja <strong>${esc(item.hoja)}</strong>, fila ${esc(item.headerRow)}: ${resumen}</p>
-                <div class="xls-book">
-                    <div class="xls-scroll" data-mal="${primerMal}">
-                        <div class="xls-line">
-                            <span class="xls-lbl"></span>
-                            ${cols.map(c => `<span class="xls-hcel">${esc(c.letra)}</span>`).join('')}
-                        </div>
-                        <div class="xls-line">
-                            <span class="xls-lbl">Debe decir</span>
-                            ${cols.map(c => celda(c.esperada, c.estado === 'ok' ? '' : 'want')).join('')}
-                        </div>
-                        <div class="xls-line">
-                            <span class="xls-lbl">Tu archivo</span>
-                            ${cols.map(c => celda(c.encontrada, c.estado === 'ok' ? '' : (c.estado === 'ausente' ? 'bad' : 'alt'))).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-
-        // El archivo cayo en la pestana equivocada pero es valido en otra: en vez
-        // de rechazarlo se ofrece cargarlo donde va. Sus hojas se pintan en ambar
-        // y no en rojo porque no estan mal, solo estan en el lugar equivocado.
-        const otroTab = () => {
-            const destino = (app.dataInit.archivos[v.sugerido] || {}).titulo || v.sugerido;
-            const suyas   = v.suyas || [];
-
-            return `
-                <p class="chk-lead">Parece que subiste el archivo de
-                    <strong>${esc(destino)}</strong> en la pestana de
-                    <strong>${esc(archivo.titulo)}</strong>.</p>
-                ${libroExcel(
-                    'Las hojas que trae son las de esa otra pestana:',
-                    (v.libro || []).map(h => ({ nombre: h, tone: suyas.indexOf(h) >= 0 ? 'alt' : 'bad' }))
-                )}
-            `;
-        };
-
-        // Periodo con notas emitidas. Aqui no hay nada que corregir en el archivo:
-        // lo que se dice es por que no se puede cargar y que habria que hacer
-        // antes, con las notas nombradas para poder ir a buscarlas.
-        const notasEmitidas = () => {
-            const notas  = v.notas || [];
-            const rango  = v.notaMin === v.notaMax
-                ? `la nota <strong>#${esc(v.notaMin)}</strong>`
-                : `las notas <strong>#${esc(v.notaMin)}</strong> a <strong>#${esc(v.notaMax)}</strong>`;
-
-            const fila = (n) => `
-                <tr>
-                    <td class="chk-col">#${esc(n.note_number)}</td>
-                    <td>${esc(n.folio)}</td>
-                    <td class="chk-right">$${Number(n.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                </tr>
-            `;
-
-            return `
-                <p class="chk-lead">Este periodo ya tiene ${rango} emitidas sobre sus ventas.
-                    Volver a cargar reemplazaria esas ventas y <strong>las notas se borrarian con ellas</strong>.</p>
-                <table class="chk-table">
-                    <thead><tr><th>Nota</th><th>Folio</th><th>Total</th></tr></thead>
-                    <tbody>${notas.map(fila).join('')}</tbody>
-                </table>
-                ${v.total > notas.length
-                    ? `<p class="chk-note">y ${esc(v.total - notas.length)} mas</p>`
-                    : ''}
-            `;
-        };
-
-        const cargadas = v.cargadas || [];
-        const pie = cargadas.length
-            ? `Si entro: <span class="chk-strong">${esc(cargadas.join(' · '))}</span>. El resto no se modifico.`
-            : 'No se modifico ningun dato. Corrige el archivo y vuelve a subirlo.';
-
-        const titulos = {
-            'hojas':    'Este no es el archivo de esta pestana',
-            'otro-tab': 'Este archivo va en otra pestana',
-            'columnas': 'Revisa las columnas del archivo',
-            'tickets':  'El periodo ya tiene tickets virtuales'
-        };
-
-        const cuerpos = {
-            'hojas':    hojasEsperadas,
-            'otro-tab': otroTab,
-            'columnas': () => (v.columnas || []).map(bloqueHoja).join(''),
-            'tickets':  notasEmitidas
-        };
-
-        // El caso de la pestana equivocada es el unico que pregunta: los demas no
-        // tienen nada que ofrecer, solo que corregir el archivo o el periodo.
-        const mover   = v.motivo === 'otro-tab';
-        const cerrado = v.motivo === 'tickets';
-
-        // El cierre del aviso de notas no manda a ninguna pantalla a proposito:
-        // dar de baja una nota emitida no es una accion que el modulo ofrezca hoy,
-        // y prometerla dejaria al usuario buscando un boton que no existe.
-        const cierres = {
-            'otro-tab': 'Todavia no se modifico nada. Si aceptas se revisan sus columnas antes de cargar.',
-            'tickets':  'No se modifico ningun dato. Mientras existan esas notas el periodo no admite cargas; se puede cargar en otro mes.'
-        };
-
-        const cierre = cierres[v.motivo] || pie;
+        // Dos casos preguntan en vez de cerrar: el archivo que va en otra pestana y
+        // el que es de otro mes. A los dos se les puede ofrecer el destino bueno; a
+        // los demas solo queda corregir el archivo.
+        const mover   = UploadCheck.mueve(v);
+        const muda    = UploadCheck.mudaPeriodo(v);
+        const cerrado = UploadCheck.cerrado(v);
 
         const promesa = alert({
-            icon:     mover ? 'question' : (cerrado ? 'warning' : 'error'),
-            title:    titulos[v.motivo],
+            icon:     (mover || muda) ? 'question' : (cerrado ? 'warning' : 'error'),
+            title:    UploadCheck.title(v, ctx),
             width:    720,
             timer:    0,
             btn1:     true,
-            btn1Text: mover ? `Si, cargar en ${(app.dataInit.archivos[v.sugerido] || {}).titulo || v.sugerido}` : 'Entendido',
-            btn2:     mover,
+            btn1Text: mover ? `Si, cargar en ${ctx.sugerido}` : (muda ? UploadCheck.accionMover(v) : 'Entendido'),
+            btn2:     mover || muda,
             btn2Text: 'Cancelar',
-            html: `
-                <div class="chk-box">
-                    <p class="chk-file">${esc(fileName)}</p>
-                    ${(cuerpos[v.motivo] || cuerpos.columnas)()}
-                    <p class="${mover || cerrado ? 'chk-note' : (cargadas.length ? 'chk-partial' : 'chk-safe')}">${cierre}</p>
-                </div>
-            `
+            html:     UploadCheck.box(v, fileName, ctx)
         });
 
         // SweetAlert monta el dialogo en la misma vuelta, asi que la hoja ya se
-        // puede desplazar: cada bloque se coloca en su primera columna con
-        // problema para que el error quede a la vista al abrir.
-        $('.xls-scroll').each(function () {
-            const mal = Number($(this).attr('data-mal'));
-
-            if (mal > 1) this.scrollLeft = (mal - 1) * 76;
-        });
+        // puede desplazar.
+        UploadCheck.settle();
 
         return promesa;
     }
@@ -1462,6 +1607,10 @@ class CargasView extends Templates {
     // El periodo puede estar vacio PARA ESTE POS y aun asi tener filas cargadas por
     // el otro. Decirlo aqui evita la lectura falsa de "no hay nada": el usuario iba
     // a subir un archivo creyendo que el mes estaba limpio.
+    //
+    // El hueco nombra las DOS formas de subir. Arrastrar no se ve por ningun lado
+    // —no hay recuadro punteado que lo anuncie hasta que ya estas arrastrando—, y
+    // el sitio donde el usuario se pregunta "y ahora que hago" es justo este.
     renderEmptySheets(tabId, ajenos) {
         const archivo = app.dataInit.archivos[tabId] || {};
         const periodo = `${$('#fMes option:selected').text()} ${$('#fAnio').val()}`;
@@ -1469,11 +1618,66 @@ class CargasView extends Templates {
         this.emptyBox({
             parent: `sheetsHost-${tabId}`,
             json: {
-                icon:  ajenos ? 'file-question' : 'folder-open',
+                icon:  ajenos ? 'file-question' : 'upload-cloud',
                 title: ajenos ? ajenos.texto : `Sin cargas de ${archivo.titulo} en ${periodo}`,
-                text:  ajenos ? ajenos.nota  : `Sube ${archivo.esperado} con el boton "Subir Excel" para ver aqui las hojas del archivo y sus registros.`
+                text:  ajenos ? ajenos.nota  : `Arrastra aqui ${archivo.esperado} o subelo con el boton "Subir Excel".`,
+
+                // La segunda cara del hueco, para cuando se arrastra un archivo
+                // encima. No se pone en el aviso de "cargas de otro POS": ahi el
+                // texto explica un problema y no una accion que se pueda soltar.
+                drop: ajenos ? null : {
+                    icon:  'upload',
+                    title: 'Suelta para cargar',
+                    text:  `${archivo.titulo} · ${periodo}`
+                }
             }
         });
+
+        // El panel vacio se marca para que el arrastre lo trate distinto: sin
+        // contenido que apartar, se cambia el texto en vez de atenuarlo.
+        $(`#panel-${tabId}`).addClass('panel-vacio');
+    }
+
+    /*
+        El panel mientras se arrastra un archivo encima.
+
+        Todo lo visual vive en `facture.css` bajo `.panel-drop`: aqui solo se
+        enciende la clase. El filo y la etiqueta se crean una vez y se quedan —
+        ocultos por CSS— en vez de insertarse y borrarse en cada arrastre, que es
+        lo que hacia la version anterior: crear nodos a cada `dragenter` los pone
+        a competir con el propio movimiento del raton.
+
+        Con el panel VACIO no se muestra la etiqueta ni se atenua nada. Ahi el
+        unico contenido es el texto que explica que hacer, y lo que hace es
+        cambiar de cara (ver `emptyBox`): apagarlo seria apagar justo lo que se
+        necesita leer.
+    */
+    toggleDropHint(zona, mostrar) {
+        if (!zona) return;
+
+        if (!mostrar) return zona.classList.remove('panel-drop');
+
+        // Las piezas se montan la primera vez. El panel tiene que ser su ancla:
+        // sin posicion propia se medirian contra la pagina y acabarian centradas
+        // en la pantalla en vez de en el panel.
+        if (!zona.querySelector('.drop-label')) {
+            if (getComputedStyle(zona).position === 'static') zona.style.position = 'relative';
+
+            const destino = (app.dataInit.archivos[app.activeTab] || {}).titulo || '';
+
+            $(zona).append(`
+                <div class="drop-filo"></div>
+                <div class="drop-label">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    Suelta para cargar
+                    <span class="dest">${destino}</span>
+                </div>
+            `);
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        zona.classList.add('panel-drop');
     }
 
     // -- Components --
@@ -1486,79 +1690,6 @@ class CargasView extends Templates {
     // es la X sobre el bloque verde. Es un glifo descriptivo de tipo de archivo,
     // no el logotipo de nadie.
     //
-    // El bloque de la X desborda la esquina inferior izquierda del documento en vez
-    // de vivir dentro de el: encerrado quedaba del tamano de una unia y a 16px se
-    // perdia. Saliendose gana superficie sin agrandar el icono, que es el mismo
-    // recurso que usan los iconos de tipo de archivo del sistema.
-    //
-    // Va solo en el recuadro de la fila, que es donde se identifica el ARCHIVO. El
-    // boton de al lado no lo repite: ahi lo que se anuncia es la accion de subir, y
-    // el mismo glifo dos veces no decia nada nuevo.
-    excelIcon(size) {
-        const px = size || 23;
-
-        return `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" aria-hidden="true" focusable="false">`
-            + '<path d="M14.4 2H8.2A1.7 1.7 0 0 0 6.5 3.7v16.6A1.7 1.7 0 0 0 8.2 22h10.6a1.7 1.7 0 0 0 1.7-1.7V7.9L14.4 2Z" fill="#ffffff" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'
-            + '<path d="M14.4 2v5.9h5.9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'
-            + '<path d="M2.6 12.2h9.2a1.9 1.9 0 0 1 1.9 1.9v6.2a1.9 1.9 0 0 1-1.9 1.9H2.6a1.9 1.9 0 0 1-1.9-1.9v-6.2a1.9 1.9 0 0 1 1.9-1.9Z" fill="#1D6F42"/>'
-            + '<path d="M4.6 15.4 9.8 19.8M9.8 15.4 4.6 19.8" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round"/>'
-            + '</svg>';
-    }
-
-    uploadRow(options) {
-        const defaults = {
-            parent:   'root',
-            id:       '',
-            class:    'upload-row',
-            json:     { id: '', titulo: '', esperado: '', estado: 'pendiente' },
-            onChange: () => { }
-        };
-
-        const o    = options || {};
-        const opts = Object.assign({}, defaults, o);
-        opts.json  = Object.assign({}, defaults.json, o.json || {});
-
-        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-
-        const estado    = opts.json.estado;
-        const cargando  = estado === 'cargando';
-        const listo     = estado === 'ok';
-        const detalle   = listo ? (opts.json.cargado || opts.json.esperado) : 'Sin archivo cargado';
-
-        const badges = {
-            ok:       '<span class="badge-base b-green"><i data-lucide="check" class="w-3 h-3"></i>Cargado</span>',
-            cargando: '<span class="badge-base b-blue"><i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>Procesando</span>',
-            pendiente:'<span class="badge-base b-yellow"><i data-lucide="clock" class="w-3 h-3"></i>Pendiente</span>'
-        };
-
-        const inputId = `fileUpload-${opts.json.id}`;
-        const wrap    = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
-
-        wrap.html(`
-            <div class="upload-row-icon">
-                ${this.excelIcon(23)}
-            </div>
-            <div class="flex-1 min-w-0">
-                <h3 class="text-[13px] font-bold text-white truncate">${esc(opts.json.titulo)}</h3>
-                <p class="text-[11px] text-gray-400 truncate">${cargando ? 'Leyendo el archivo...' : esc(detalle)}</p>
-            </div>
-            ${badges[estado] || badges.pendiente}
-            <input type="file" id="${inputId}" accept=".xlsx,.xls" class="hidden">
-            <button type="button" class="upload-row-btn" ${cargando ? 'disabled' : ''}>
-                <i data-lucide="upload" class="w-4 h-4"></i>Subir Excel
-            </button>
-        `);
-
-        $(`#${opts.parent}`).html(wrap);
-        if (window.lucide) lucide.createIcons();
-
-        wrap.find('.upload-row-btn').on('click', () => $(`#${inputId}`).trigger('click'));
-
-        wrap.find(`#${inputId}`).on('change', (e) => opts.onChange(e.target, opts.json.id));
-    }
-
     // Espera de una consulta o de una carga. Reemplaza el contenido del panel en
     // vez de agregarse a el (loader() del framework hace append y el aviso queda
     // debajo de la tabla, fuera de la vista) y se centra en el hueco que ocupa.
@@ -1587,12 +1718,24 @@ class CargasView extends Templates {
         $(`#${opts.parent}`).html(wrap);
     }
 
+    /*
+        El hueco de "aqui no hay nada", con su segunda cara opcional.
+
+        Con `json.drop` el hueco aprende a decir otra cosa mientras se arrastra un
+        archivo encima: el mismo sitio pasa de instruir —«arrastra aqui»— a
+        confirmar —«suelta»—. Los dos textos se pintan a la vez y se turnan por
+        CSS (ver .empty-reposo / .empty-drop en facture.css).
+
+        Se turnan en vez de reescribirse porque el texto en reposo nombra el mes y
+        el archivo esperado: para devolverlo habria que guardarlo, y para entonces
+        el usuario puede haber cambiado de periodo.
+    */
     emptyBox(options) {
         const defaults = {
             parent: 'root',
             id:     '',
             class:  'w-full h-full flex-1 min-h-[180px] flex flex-col items-center justify-center gap-2 text-center px-4',
-            json:   { icon: 'inbox', title: '', text: '' }
+            json:   { icon: 'inbox', title: '', text: '', drop: null }
         };
 
         const o    = options || {};
@@ -1603,13 +1746,22 @@ class CargasView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        const drop = opts.json.drop;
+
         const wrap = $('<div>', { id: opts.id || `${opts.parent}Wrap`, class: opts.class });
         wrap.html(`
-            <div class="w-12 h-12 rounded-full bg-[#1F2A37] border border-[#374151] flex items-center justify-center text-gray-500">
-                <i data-lucide="${esc(opts.json.icon)}" class="w-6 h-6"></i>
+            <div class="empty-icon w-12 h-12 rounded-full bg-[#1F2A37] border border-[#374151] flex items-center justify-center text-gray-500">
+                <i data-lucide="${esc(opts.json.icon)}" class="w-6 h-6 empty-reposo"></i>
+                ${drop ? `<i data-lucide="${esc(drop.icon || 'upload')}" class="w-6 h-6 empty-drop"></i>` : ''}
             </div>
-            <p class="text-[12px] font-bold text-gray-300">${esc(opts.json.title)}</p>
-            ${opts.json.text ? `<p class="text-[11px] text-gray-500 max-w-[380px]">${esc(opts.json.text)}</p>` : ''}
+
+            <p class="text-[12px] font-bold text-gray-300 empty-reposo">${esc(opts.json.title)}</p>
+            ${opts.json.text ? `<p class="text-[11px] text-gray-500 max-w-[380px] empty-reposo">${esc(opts.json.text)}</p>` : ''}
+
+            ${drop ? `
+                <p class="text-[12px] font-bold text-gray-300 empty-drop">${esc(drop.title)}</p>
+                ${drop.text ? `<p class="text-[11px] text-gray-500 max-w-[380px] empty-drop">${esc(drop.text)}</p>` : ''}
+            ` : ''}
         `);
 
         $(`#${opts.parent}`).html(wrap);

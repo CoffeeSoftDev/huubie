@@ -35,6 +35,9 @@
     <!-- Banda superior propia de la terminal (sin fetch) -->
     <script src="/app/facture2/src/js/navbar-wansoft.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Aviso de por que un Excel no se pudo cargar: lo comparte con Tickets -->
+    <script src="/app/facture2/src/js/components/uploadCheck.js?t=<?php echo time(); ?>"></script>
+
     <!-- Modulo Importación: el archivo del Facturador, sin duplicar -->
     <script src="/app/facture2/src/js/cargas.js?t=<?php echo time(); ?>"></script>
 </body>

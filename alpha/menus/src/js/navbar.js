@@ -311,8 +311,24 @@ class Navbar {
     }
 }
 
+// La sesion caducada no es un error de datos: es que ya no hay con quien pintar
+// la pantalla. Se manda a salir —que limpia lo que quede y deja el login— en vez
+// de seguir armando una navbar sin usuario, que es lo que dejaba la pantalla en
+// blanco sin explicar nada.
+//
+// Devuelve true cuando NO hay sesion, para que quien llama corte ahi.
+function sesionCaducada(data) {
+    if (!data || data.status !== 401) return false;
+
+    window.location.href = "/alpha/salir/";
+
+    return true;
+}
+
 $(async () => {
     const data = await useFetch({ url: "../access/ctrl/ctrl-access.php", data: { opc: 'company' } });
+
+    if (sesionCaducada(data)) return;
 
     const navbar = new Navbar();
     window.navbar = navbar;

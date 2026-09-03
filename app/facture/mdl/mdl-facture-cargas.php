@@ -291,18 +291,26 @@ class mdl extends CRUD {
     // recarga en algo destructivo: virtual_ticket cuelga de sale con ON DELETE
     // CASCADE, asi que reemplazar el reporte de ventas borraria las notas junto
     // con las ventas, sin dejar rastro.
+    //
+    // El periodo se pregunta por `issue_date` —la fecha del PAPEL— y no por el
+    // period_year/period_month del lote que cargo su venta. Los dos decian lo
+    // mismo mientras el periodo del lote fuera cierto, y el periodo del lote lo
+    // escribe el usuario a mano en dos selectores: un archivo de agosto subido a
+    // julio dejaba sus notas contadas como de julio, y este candado —el unico que
+    // impide recargar sobre notas ya entregadas— revisaba el mes equivocado.
+    //
+    // La fecha del papel no depende de que nadie la teclee: sale de
+    // sale.operation_date al generarlo.
     function countVirtualTicketByPeriod($array) {
         $query = "
             SELECT COUNT(*)          AS total,
                    MIN(v.note_number) AS nota_min,
                    MAX(v.note_number) AS nota_max
             FROM {$this->bd}virtual_ticket v
-            JOIN {$this->bd}sale s         ON s.id = v.sale_id
-            JOIN {$this->bd}import_batch b ON b.id = s.import_batch_id
             WHERE v.active = 1
-              AND b.branch_id <=> ?
-              AND b.period_year  = ?
-              AND b.period_month = ?
+              AND v.branch_id <=> ?
+              AND YEAR(v.issue_date)  = ?
+              AND MONTH(v.issue_date) = ?
         ";
         return $this->_Read($query, $array);
     }
@@ -313,12 +321,72 @@ class mdl extends CRUD {
         $query = "
             SELECT v.note_number, s.folio, v.total
             FROM {$this->bd}virtual_ticket v
-            JOIN {$this->bd}sale s         ON s.id = v.sale_id
-            JOIN {$this->bd}import_batch b ON b.id = s.import_batch_id
+            JOIN {$this->bd}sale s ON s.id = v.sale_id
             WHERE v.active = 1
-              AND b.branch_id <=> ?
-              AND b.period_year  = ?
-              AND b.period_month = ?
+              AND v.branch_id <=> ?
+              AND YEAR(v.issue_date)  = ?
+              AND MONTH(v.issue_date) = ?
+            ORDER BY v.note_number
+            LIMIT 6
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // -- Notas emitidas sobre un LOTE --
+
+    // Lo mismo que el candado del periodo, pero para el borrado de una carga: una
+    // nota entregada no se puede quedar sin las ventas que la respaldan.
+    //
+    // Se pregunta por lote y no por periodo porque es lo que se va a borrar. El
+    // periodo puede tener notas de otras cargas y esas no impiden nada: lo que
+    // importa es si ESTE lote sostiene alguna.
+    function countVirtualTicketBySaleBatch($array) {
+        $query = "
+            SELECT COUNT(*)           AS total,
+                   MIN(v.note_number) AS nota_min,
+                   MAX(v.note_number) AS nota_max
+            FROM {$this->bd}virtual_ticket v
+            JOIN {$this->bd}sale s ON s.id = v.sale_id
+            WHERE v.active = 1 AND s.import_batch_id = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function listVirtualTicketBySaleBatch($array) {
+        $query = "
+            SELECT v.note_number, s.folio, v.total
+            FROM {$this->bd}virtual_ticket v
+            JOIN {$this->bd}sale s ON s.id = v.sale_id
+            WHERE v.active = 1 AND s.import_batch_id = ?
+            ORDER BY v.note_number
+            LIMIT 6
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Y el mismo candado por el otro lado: los renglones del lote de comandas son
+    // el detalle que el ticket ya impreso enseña. Borrarlos no borra la nota, pero
+    // la deja sin lo que dice haber vendido.
+    function countVirtualTicketByDetailBatch($array) {
+        $query = "
+            SELECT COUNT(DISTINCT v.id)  AS total,
+                   MIN(v.note_number)    AS nota_min,
+                   MAX(v.note_number)    AS nota_max
+            FROM {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s          ON s.id = d.sale_id
+            JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id
+            WHERE v.active = 1 AND d.active = 1 AND d.import_batch_id = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function listVirtualTicketByDetailBatch($array) {
+        $query = "
+            SELECT DISTINCT v.note_number, s.folio, v.total
+            FROM {$this->bd}detail_sale d
+            JOIN {$this->bd}sale s          ON s.id = d.sale_id
+            JOIN {$this->bd}virtual_ticket v ON v.sale_id = s.id
+            WHERE v.active = 1 AND d.active = 1 AND d.import_batch_id = ?
             ORDER BY v.note_number
             LIMIT 6
         ";

@@ -42,7 +42,7 @@
     -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
-    <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
+    <script src="<?=PATH_MENU?>src/js/sidebar.js?t=<?php echo time(); ?>"></script>
 
     <style>
         ::-webkit-scrollbar { width: 0px !important; background: transparent !important; }

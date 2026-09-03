@@ -35,6 +35,9 @@
     <!-- Papel del ticket: compartido con la vista previa del emisor en Catalogos -->
     <script src="/app/facture/src/js/components/ticketPaper.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Pantalla sin datos: la usan el listado y el panel del ticket -->
+    <script src="/app/facture/src/js/components/emptyState.js?t=<?php echo time(); ?>"></script>
+
     <!-- Modulo Tickets -->
     <script src="/app/facture/src/js/tickets.js?t=<?php echo time(); ?>"></script>
 </body>

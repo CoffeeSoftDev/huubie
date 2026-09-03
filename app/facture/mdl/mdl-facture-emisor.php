@@ -41,7 +41,7 @@ class mdl extends CRUD {
     // poder imprimirse.
     function getEmisor($array) {
         $query = "
-            SELECT b.id, b.business_name, b.rfc, b.fiscal_address, b.phone, b.company_id,
+            SELECT b.id, b.business_name, b.logo, b.rfc, b.fiscal_address, b.phone, b.company_id,
                    b.adjustment_tolerance,
                    c.business_name AS company_name, c.rfc AS company_rfc,
                    c.fiscal_address AS company_address, c.phone AS company_phone,

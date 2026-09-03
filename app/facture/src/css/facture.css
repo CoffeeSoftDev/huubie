@@ -94,6 +94,89 @@
    tabla y sus columnas alineadas con ella. */
 #root .dataTables_wrapper > .row { --bs-gutter-x: 0; }
 
+/* -- Arrastrar un archivo sobre el panel --
+   El panel se hunde y lo que tiene dentro se aparta, sin estrenar ningun color:
+   un estado que dura dos segundos no deberia traer una tonalidad propia, y el
+   verde del boton "Subir Excel" competia con el azul de la marca.
+
+   La senal es la PROFUNDIDAD —sombra interior, fondo un paso mas oscuro— mas un
+   filo azul de 2px arriba, del mismo azul que ya usan la navbar y las cabeceras
+   de tabla. La atenuacion del contenido dice sola "esto se va a reemplazar". */
+#root .panel-drop {
+    background: var(--cs-bg-input, #172130) !important;
+    box-shadow: inset 0 2px 10px rgba(16, 24, 40, .09);
+}
+
+/* Se apartan los hijos del panel, no el panel: atenuar el contenedor apagaria
+   tambien el filo y la etiqueta, que son justo lo que hay que leer. */
+#root .panel-drop > *:not(.drop-filo):not(.drop-label) {
+    opacity: .28;
+    transition: opacity .18s ease;
+}
+
+#root .drop-filo {
+    position: absolute; left: -1px; right: -1px; top: -1px; height: 2px;
+    background: #2B4FD8; border-radius: 8px 8px 0 0;
+    transform: scaleX(0); transition: transform .22s ease; pointer-events: none;
+}
+#root .panel-drop .drop-filo { transform: scaleX(1); }
+
+#root .drop-label {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -46%);
+    display: flex; align-items: center; gap: 9px; white-space: nowrap;
+    background: #101828; color: #fff; border-radius: 7px;
+    padding: 9px 14px; font-size: 12px; font-weight: 600;
+    box-shadow: 0 8px 22px -10px rgba(16, 24, 40, .55);
+    opacity: 0; pointer-events: none; z-index: 30;
+    transition: opacity .18s ease, transform .18s ease;
+}
+#root .panel-drop .drop-label { opacity: 1; transform: translate(-50%, -50%); }
+#root .drop-label .dest { font-weight: 400; color: #98A2B3; font-size: 11px; }
+
+/* -- El panel vacio --
+   Aqui no hay contenido que apartar: lo unico que hay es el texto que explica
+   que hacer, y atenuarlo seria apagar justo lo que se necesita leer. En vez de
+   cubrirlo, el hueco CAMBIA: mismo sitio, mismo tamano, otras palabras.
+
+   Las dos caras viven en el DOM y se turnan. Reescribir el texto por JS
+   obligaria a guardar el original para devolverlo, y ese original nombra el mes
+   y el archivo, que pueden haber cambiado entre medias. */
+#root .panel-drop.panel-vacio > *:not(.drop-filo):not(.drop-label) { opacity: 1; }
+#root .panel-drop.panel-vacio .drop-label { display: none; }
+
+#root .empty-drop { display: none; }
+#root .panel-vacio.panel-drop .empty-reposo { display: none; }
+#root .panel-vacio.panel-drop .empty-drop   { display: block; }
+#root .panel-vacio.panel-drop .empty-icon   { color: #2B4FD8; border-color: #2B4FD8; }
+
+/* -- Tabla compacta --
+   Para las planillas de muchas columnas, como el detalle por forma de pago: 15
+   campos y 25 filas por pagina.
+
+   El alto lo mandaba el TEXTO, no el padding: "TARJETA DE CREDITO" y los nombres
+   de mesero se partian en tres renglones y cada fila medía 62px. Con `nowrap` la
+   fila baja a una linea y la pagina completa cabe de una vez; a cambio la tabla
+   se ensancha y aparece scroll horizontal, que en una planilla es el gesto
+   esperado —se lee por columnas, no envuelto—.
+
+   El padding se recorta a la mitad para acompanar: con una sola linea de texto,
+   8px arriba y abajo dejaban la fila hueca.
+
+   El `!important` no es pereza: las celdas llegan con `py-2 px-2`, y Bootstrap
+   declara sus utilidades de espaciado con `!important`. Contra eso no hay
+   especificidad que valga —ni un id ni tres clases—, asi que la unica forma de
+   ganar es responder con la misma arma. Se acota a `.cs-table-compact` para que
+   solo alcance a las tablas que piden esta densidad. */
+#root .cs-table-compact thead th,
+#root .cs-table-compact tbody td {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    white-space: nowrap;
+}
+
 /* -- KPIs sin borde --
    Las tarjetas de infoCard llevan la clase .border de Bootstrap, que trae
    !important y gana al border-transparent de Tailwind; por eso el borde se
@@ -375,16 +458,115 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
     color: #9CA3AF;
 }
 
+/* -- El archivo que se estaba subiendo --
+   Encabeza todos los avisos de carga. Lleva el icono de Excel porque es lo que el
+   usuario acaba de soltar: reconoce su archivo por la forma antes que por el
+   nombre, que en estos exports es larguisimo y casi igual entre uno y otro. */
 .chk-file {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    color: #E5E7EB;
+    display: flex;
+    align-items: center;
+    gap: 9px;
     background: #1F2A37;
     border: 1px solid #374151;
     border-radius: 6px;
-    padding: 4px 8px;
-    margin-bottom: 10px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+}
+
+/* El verde del icono es el de Excel y no el del modulo: es una marca que se
+   reconoce, no un acento del tema. */
+.chk-xls-ico {
+    width: 20px;
+    height: 20px;
+    flex: none;
+    color: #21A366;
+}
+
+.chk-file-txt  { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.chk-file-name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #E5E7EB;
     word-break: break-all;
+    line-height: 1.35;
+}
+
+.chk-file-sub { font-size: 10px; color: #6B7280; }
+
+/* -- El choque de periodos --
+   Las dos fechas enfrentadas: la que el usuario eligio y la que el archivo trae.
+   El error siempre es que una de las dos esta mal, y ponerlas lado a lado es lo
+   que le deja decidir cual corregir sin leer un parrafo. */
+.chk-vs {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.chk-vs-side {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: #1F2A37;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.chk-vs-lbl {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6B7280;
+    font-weight: 700;
+}
+
+.chk-vs-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #E5E7EB;
+    line-height: 1.2;
+}
+
+/* El mes del filtro va en ambar: no esta "mal", esta en discusion con el archivo,
+   y el rojo lo leeria como un dato corrupto. */
+.chk-vs-bad { color: #FCD34D; }
+
+/* Los meses de mas cuando el archivo cruza el corte: se dicen sin quitarle el
+   sitio al mes que manda. */
+.chk-vs-val em { font-style: normal; font-size: 11px; font-weight: 600; color: #6B7280; }
+
+.chk-vs-sep {
+    align-self: center;
+    flex: none;
+    font-size: 15px;
+    font-weight: 700;
+    color: #6B7280;
+}
+
+/* -- La barra de cada dia --
+   La lista de dias es una lista de cantidades, y la barra dice de un vistazo cual
+   pesa. Sin ella hay que comparar numeros de tres cifras uno por uno. */
+.chk-bar-cell { width: 100%; padding-right: 10px !important; }
+
+.chk-bar {
+    display: block;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(55, 65, 81, .55);
+    overflow: hidden;
+}
+
+.chk-bar i {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: #FCD34D;
+    min-width: 3px;
 }
 
 .chk-lead { font-size: 12px; color: #D1D5DB; margin: 12px 0 6px; }
@@ -392,6 +574,27 @@ body[data-bs-theme="dark"] .daterangepicker .drp-selected { color: #9CA3AF; }
 .chk-lead strong { color: #fff; }
 
 .chk-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+
+/* -- La casilla de cada mes --
+   Va en su propia columna, delante del nombre, porque lo que decide es si ESE
+   renglon entra o no. El ancho es fijo para que los meses queden alineados con o
+   sin casilla (el mes en cero no la lleva). */
+.chk-pick-cell {
+    width: 26px;
+    padding-right: 0 !important;
+}
+
+.chk-mes {
+    width: 13px;
+    height: 13px;
+    accent-color: #1C64F2;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+/* El mes desmarcado se apaga: la fila sigue ahi —el dato no cambia— pero deja de
+   contar para lo que se va a cargar, y tiene que verse sin leer. */
+.chk-table tr.chk-off td { opacity: .45; }
 
 /* -- Libro de Excel --
    Dibuja lo que el usuario tiene delante cuando abre su archivo: la hoja y, al
@@ -955,18 +1158,14 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
    que son de id. */
 #root .ticket-paper.tk-pos {
     /* -- Proporcion de la letra --
-       La termica dibuja cada caracter en una celda de 12x24 puntos: sus letras
-       salen casi al doble de altas que anchas. Ninguna monoespaciada del sistema
-       llega a esa proporcion (Lucida Console apenas 1.2 de alto por ancho), asi
-       que la tira se compone con la letra mas grande y se comprime en horizontal:
-       la altura crece, el ancho vuelve a su medida de siempre y la columna sigue
-       midiendo 40ch.
+       La letra va a su tamano, sin estirar. Se probo componerla mas grande y
+       comprimirla en horizontal para imitar la celda de 12x24 puntos de la
+       termica, pero el ticket que hay que replicar no sale asi: sus letras tienen
+       la proporcion normal de la monoespaciada, y estiradas el papel se lee
+       descuadrado aunque la columna siga midiendo lo mismo.
 
-       --tk-cond es la perilla: bajarlo estira mas la letra, subirlo la ensancha.
-       Los 11px son el tamano al que se ve la tira una vez comprimida, el mismo
-       con el que se venia pintando. */
-    --tk-cond: 0.8;
-    font-size: calc(11px / var(--tk-cond));
+       Los 11px son los de siempre: es el tamano con el que 40ch llenan la tira. */
+    font-size: 11px;
 
     /* El papel es la tira de 80mm y sale de la impresora con el canto recto: sin
        borde ni esquinas redondeadas. Lo unico que lo despega del fondo es la
@@ -991,19 +1190,6 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 /* El papel generico impone Courier New con un selector universal, y ese gana por
    especificidad sobre la familia heredada: la variante tiene que repetirla. */
 #root .ticket-paper.tk-pos * { font-family: 'Lucida Console', 'DejaVu Sans Mono', 'Liberation Mono', Consolas, ui-monospace, monospace; }
-
-/* Se comprime la rejilla, no el papel: asi los 80mm, el acolchado y la sombra
-   del papel se quedan como estan. scaleX no toca la maquetacion, solo el pintado,
-   de modo que la caja sigue midiendo 40ch sin comprimir (mas ancha que el papel)
-   y el margen negativo la recentra para que lo que se ve quede al centro. Como el
-   alto no se transforma, el papel crece con el texto y la paginacion al imprimir
-   sigue cuadrando. */
-#root .ticket-paper.tk-pos > div {
-    margin-left: calc((100% - 40ch) / 2);
-    margin-right: 0;
-    transform: scaleX(var(--tk-cond));
-    transform-origin: top center;
-}
 
 /* -- El papel sin nada impreso --
    Sin ticket abierto el papel se quedaba del alto de su aviso: un rectangulo de
@@ -1032,6 +1218,62 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 #root .ticket-paper.tk-pos td { padding: 1px 0; font-size: 1em; color: #000; line-height: 1.35; }
 #root .ticket-paper.tk-pos thead th { padding: 2px 0; }
 
+/* -- El logo del encabezado --
+   Vale para los dos papeles: sustituye a la razon social, asi que ocupa su lugar
+   —centrado y con el mismo respiro debajo— y no el ancho entero de la tira. El
+   tope de alto es lo que evita que un archivo grande empuje el ticket entero
+   hacia abajo; la proporcion la conserva el auto. */
+#root .ticket-paper .tk-logo {
+    display: block;
+    max-width: 70%;
+    max-height: 96px;
+    width: auto;
+    height: auto;
+    margin: 0 auto 6px;
+    object-fit: contain;
+}
+
+/* -- Variante Wansoft (.tk-wansoft) --
+   Wansoft no imprime sobre una rejilla monoespaciada: su ticket sale con letra
+   proporcional, en negritas casi todo el cuerpo, y parte los bloques con reglas
+   horizontales de punta a punta. Nada de eso se puede heredar del papel de
+   arriba, que impone Courier con un selector universal: la variante repite la
+   familia.
+
+   Hoy no se usa: mientras no haya un ticket de Wansoft que copiar, ese sistema
+   imprime en el papel de arriba (ver TicketPaper.PRESTADO). */
+#root .ticket-paper.tk-wansoft {
+    /* Los mismos 80mm de la tira: cambia como se compone el ticket, no el rollo
+       en el que se imprime. */
+    width: 80mm;
+    max-width: 100%;
+    padding: 14px 14px 18px;
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, .08);
+    font-family: Arial, Helvetica, 'Liberation Sans', system-ui, sans-serif;
+    font-size: 12px;
+    color: #000;
+    line-height: 1.4;
+    text-align: left;
+}
+
+#root .ticket-paper.tk-wansoft * { font-family: Arial, Helvetica, 'Liberation Sans', system-ui, sans-serif; }
+
+/* La regla es el separador del formato y se dibuja, no se escribe con "=": por
+   eso el margen es del alto de un renglon y el trazo va en negro pleno, como el
+   que deja la termica al imprimir una linea. */
+#root .ticket-paper.tk-wansoft .tk-rule { border-top: 1.5px solid #000; margin: 8px 0; }
+
+#root .ticket-paper.tk-wansoft table { border-collapse: collapse; width: 100%; }
+#root .ticket-paper.tk-wansoft th,
+#root .ticket-paper.tk-wansoft td { padding: 2px 0; font-size: 1em; color: #000; line-height: 1.4; }
+
+/* El encabezado de las dos tablas va separado de sus renglones por un filete
+   fino: en el ticket de Wansoft la columna se lee bajo su titulo, no pegada. */
+#root .ticket-paper.tk-wansoft thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
+#root .ticket-paper.tk-wansoft tbody tr:first-child td { padding-top: 6px; }
+
 @media print {
     /* El encabezado que el navegador estampa arriba de cada hoja (la fecha y el
        titulo de la pagina) y el pie con la URL no se apagan desde el HTML: el
@@ -1056,6 +1298,15 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
         box-shadow: none;
         text-shadow: none;
         -webkit-font-smoothing: auto;
+    }
+
+    /* Mismo trato para el papel de Wansoft: el ancho lo da la hoja y la sombra
+       de pantalla no tiene nada que hacer sobre el rollo. */
+    #root .ticket-paper.tk-wansoft {
+        width: 100%;
+        margin: 0;
+        padding: 10px 12px;
+        box-shadow: none;
     }
 
     /* -- Hoja del dia --

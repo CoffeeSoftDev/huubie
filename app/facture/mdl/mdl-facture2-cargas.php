@@ -85,7 +85,7 @@ class mdl2 extends mdl {
     function listSaleByPdvList($array) {
         $marks = implode(',', array_fill(0, count($array) - 1, '?'));
         $query = "
-            SELECT id, pdv_movement, total, operation_date, import_batch_id
+            SELECT id, folio, pdv_movement, total, operation_date, import_batch_id
             FROM {$this->bd}sale
             WHERE branch_id <=> ? AND pdv_movement IN ({$marks})
         ";
@@ -107,6 +107,40 @@ class mdl2 extends mdl {
             WHERE p.active = 1 AND p.sale_id IS NULL AND p.import_batch_id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // Lo que lleva escrito una carga que TODAVIA esta corriendo.
+    //
+    // Las filas entran en bloques de 400 y cada bloque hace su propio commit, asi
+    // que contarlas desde otra peticion dice cuanto va guardado de verdad. Es lo
+    // unico que puede responder "¿se esta guardando?" mientras el importador
+    // trabaja: el resultado de la carga no llega hasta que termina.
+    //
+    // Se pregunta por los lotes NACIDOS despues del ultimo que existia al empezar
+    // (`id > ?`), no por fecha: el reloj del navegador no es el del servidor, y una
+    // carga anterior del mismo archivo contaria como si fuera esta.
+    //
+    // `source_rows` es el denominador —las filas que el archivo trae— y se fija al
+    // abrir el lote, antes de insertar nada.
+    function listImportBatchProgress($array) {
+        $query = "
+            SELECT b.id,
+                   b.sheet_name,
+                   b.period_month,
+                   b.period_year,
+                   b.source_rows,
+                   (SELECT COUNT(*) FROM {$this->bd}detail_sale d
+                     WHERE d.import_batch_id = b.id)         AS renglones,
+                   (SELECT COUNT(*) FROM {$this->bd}detail_sale_payment p
+                     WHERE p.import_batch_id = b.id)         AS pagos
+            FROM {$this->bd}import_batch b
+            WHERE b.active = 1
+              AND b.branch_id <=> ?
+              AND b.file_name = ?
+              AND b.id > ?
+            ORDER BY b.id ASC
+        ";
+        return $this->_Read($query, $array);
     }
 
     // El lote se crea antes de insertar porque las filas necesitan su id, asi que
@@ -475,6 +509,22 @@ class mdl2 extends mdl {
             SELECT COUNT(*) AS total, COUNT(DISTINCT sale_folio) AS tickets
             FROM {$this->bd}detail_sale
             WHERE active = 1 AND sale_id IS NULL AND import_batch_id = ?
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Los renglones sueltos de TODA la sucursal, sin acotar a un lote.
+    //
+    // Se cuenta antes y despues del re-enlace para saber cuantos engancho: `_CUD`
+    // devuelve el booleano de `execute()`, no las filas afectadas, asi que
+    // castearlo daba 1 —y la carga anunciaba "1 renglon enganchado" donde habia
+    // enganchado 448—. La resta de estos dos conteos si dice la verdad.
+    function countOrphanDetailByBranch($array) {
+        $query = "
+            SELECT COUNT(*) AS total
+            FROM {$this->bd}detail_sale d
+            LEFT JOIN {$this->bd}import_batch b ON b.id = d.import_batch_id
+            WHERE d.active = 1 AND d.sale_id IS NULL AND b.branch_id <=> ?
         ";
         return $this->_Read($query, $array);
     }

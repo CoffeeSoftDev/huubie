@@ -27,6 +27,12 @@
        que el fondo de las bandas, para que la tira blanca se recorte. */
     --ws-mesa:       #EDEFF3;
 
+    /* El renglon marcado para reimprimir y la barra que lo cuenta: el azul de la
+       terminal rebajado, para que la seleccion se lea sin taparle el dato a la
+       fila. */
+    --ws-sel:        #E8ECFC;
+    --ws-selbar-bg:  #FAFBFF;
+
     /* Los cuatro semaforos de la fila de filtros de la pantalla de cuentas. */
     --ws-red:        #E02424;
     --ws-green:      #31C48D;
@@ -160,6 +166,12 @@
    sobre ella ese popup se leeria como el de otro sistema. Se devuelve a claro solo
    bajo este tema, sin tocar el head compartido. */
 
+/* El aviso va SIEMPRE por encima de lo demas, tambien de un modal abierto: los
+   dialogos del framework viven en z-1090 y el swal nace en 1060, asi que una
+   pregunta lanzada desde dentro de un modal —la confirmacion del periodo al subir
+   el Excel— salia detras del panel y no se podia contestar. */
+html[data-wansoft-theme] .swal2-container     { z-index: 1100; }
+
 html[data-wansoft-theme] .swal2-popup         { background-color: var(--ws-paper) !important; color: var(--ws-ink) !important; }
 html[data-wansoft-theme] .swal2-title         { color: var(--ws-ink) !important; }
 html[data-wansoft-theme] .swal2-html-container { color: var(--ws-muted) !important; }
@@ -172,6 +184,88 @@ html[data-wansoft-theme] .swal2-popup .swal2-select {
     color: var(--ws-ink) !important;
     border: 1px solid var(--ws-line) !important;
 }
+
+/* -- El cuadro de los avisos de carga (.chk-box) --
+
+   El aviso que explica por que un archivo no entra —columnas que no cuadran,
+   periodo que no coincide, notas ya emitidas— lo dibuja el JS compartido con el
+   Facturador, y alli su cuadro es oscuro sobre un popup oscuro. Aqui el popup ya
+   se devolvio a claro arriba, asi que ese mismo cuadro quedaba como un recuadro
+   negro flotando en una hoja blanca.
+
+   Se traduce entero y no solo su fondo: los grises del cuadro son una escala
+   pensada para leerse sobre negro, y sobre blanco quedan al reves —el dato se
+   apaga y el borde se pierde—. Es el mismo criterio de .tf-alert-card de abajo.
+
+   El dibujo del libro de Excel (.xls-book) NO entra aqui: ese ya nace claro a
+   proposito en facture.css, porque un Excel es blanco en los dos temas. */
+
+html[data-wansoft-theme] .chk-box {
+    background: #F9FAFB;
+    border-color: var(--ws-line);
+    color: var(--ws-muted);
+}
+
+html[data-wansoft-theme] .chk-file {
+    background: var(--ws-paper);
+    border-color: var(--ws-line);
+    color: var(--ws-ink);
+}
+
+html[data-wansoft-theme] .chk-file-name { color: var(--ws-ink); }
+html[data-wansoft-theme] .chk-file-sub  { color: var(--ws-muted); }
+
+/* El verde de Excel no se traduce: es una marca, no un color del tema, y se lee
+   igual sobre los dos fondos. */
+
+html[data-wansoft-theme] .chk-vs-side {
+    background: var(--ws-paper);
+    border-color: var(--ws-line);
+}
+
+html[data-wansoft-theme] .chk-vs-lbl { color: var(--ws-muted); }
+html[data-wansoft-theme] .chk-vs-val { color: var(--ws-ink); }
+html[data-wansoft-theme] .chk-vs-sep { color: var(--ws-line-dk); }
+html[data-wansoft-theme] .chk-vs-val em { color: var(--ws-muted); }
+
+/* El ambar del mes en discusion baja de tono, como el resto de los estados. */
+html[data-wansoft-theme] .chk-vs-bad { color: #9F580A; }
+
+html[data-wansoft-theme] .chk-bar   { background: var(--ws-line); }
+html[data-wansoft-theme] .chk-bar i { background: #D9A404; }
+
+html[data-wansoft-theme] .chk-lead        { color: var(--ws-ink-soft); }
+html[data-wansoft-theme] .chk-lead strong { color: var(--ws-ink); }
+
+html[data-wansoft-theme] .chk-table th {
+    color: var(--ws-muted);
+    border-bottom-color: var(--ws-line-dk);
+}
+
+html[data-wansoft-theme] .chk-table td {
+    color: var(--ws-ink-soft);
+    border-bottom-color: var(--ws-line);
+}
+
+html[data-wansoft-theme] .chk-table td.chk-col   { color: var(--ws-muted); }
+html[data-wansoft-theme] .chk-table td.chk-empty { color: var(--ws-muted); }
+html[data-wansoft-theme] .chk-table td.chk-right { color: var(--ws-ink); }
+
+html[data-wansoft-theme] .chk-note   { color: var(--ws-muted); }
+html[data-wansoft-theme] .chk-strong { color: var(--ws-ink); }
+
+/* La casilla del mes toma el azul de Wansoft, que es el acento de esta terminal. */
+html[data-wansoft-theme] .chk-mes { accent-color: var(--ws-accent, #1C64F2); }
+
+html[data-wansoft-theme] .chk-safe,
+html[data-wansoft-theme] .chk-partial { border-top-color: var(--ws-line); }
+
+/* Los tres tonos de estado bajan de intensidad: el verde menta y el ambar claro
+   del tema oscuro son ilegibles sobre papel. */
+html[data-wansoft-theme] .chk-safe     { color: #046C4E; }
+html[data-wansoft-theme] .chk-partial,
+html[data-wansoft-theme] .chk-warn-txt { color: #9F580A; }
+html[data-wansoft-theme] .chk-bad-txt  { color: #C81E1E; }
 
 /* -- El detalle de los avisos (.tf-alert-card, no swal) --
 
@@ -318,12 +412,79 @@ html[data-wansoft-theme] #mainContainer .b-gray {
     border-color: rgba(107, 114, 128, .28);
 }
 
+/* El calendario, traducido a papel. La copia de daterangepicker.css que sirve todo
+   Huubie viene tuneada en oscuro (#1F2A37) sin condicionarlo al tema del body, asi
+   que en esta terminal —blanca de punta a punta— el popup salia negro. Se repinta
+   aqui, bajo el atributo del tema, para no tocar al resto del ecosistema.
+
+   El popup se monta colgado del <body>, fuera de #root, por eso estas reglas no
+   llevan el scope de #root que usa el resto del archivo. */
+html[data-wansoft-theme] .daterangepicker {
+    background: var(--ws-paper);
+    color: var(--ws-ink);
+    border: 1px solid var(--ws-line-dk);
+}
+
+html[data-wansoft-theme] .daterangepicker:before { border-bottom-color: var(--ws-line-dk); }
+html[data-wansoft-theme] .daterangepicker:after  { border-bottom-color: var(--ws-paper); }
+
+html[data-wansoft-theme] .daterangepicker .calendar-table {
+    background: var(--ws-paper);
+    border-color: var(--ws-line);
+}
+
+html[data-wansoft-theme] .daterangepicker th,
+html[data-wansoft-theme] .daterangepicker td { color: var(--ws-ink); }
+
+/* Los dias que asoman del mes vecino: quedan en el gris de los textos apagados, no
+   en un relleno propio, para que el mes en curso sea el unico bloque solido. */
+html[data-wansoft-theme] .daterangepicker td.off,
+html[data-wansoft-theme] .daterangepicker td.off.in-range {
+    background: var(--ws-paper);
+    color: var(--ws-muted);
+}
+
+html[data-wansoft-theme] .daterangepicker td.available:hover,
+html[data-wansoft-theme] .daterangepicker th.available:hover { background: var(--ws-hover); }
+
+html[data-wansoft-theme] .daterangepicker select.monthselect,
+html[data-wansoft-theme] .daterangepicker select.yearselect {
+    background: var(--ws-paper);
+    color: var(--ws-ink);
+    border: 1px solid var(--ws-line-dk);
+}
+
+/* La columna de periodos de un toque tiene fondo propio en el plugin —mas oscuro
+   aun que el popup— y se separa del calendario con un filete, no con el contraste. */
+html[data-wansoft-theme] .daterangepicker .ranges {
+    background: var(--ws-paper);
+    border-right: 1px solid var(--ws-line);
+}
+
+html[data-wansoft-theme] .daterangepicker .ranges li { color: var(--ws-ink); }
+html[data-wansoft-theme] .daterangepicker .ranges li:hover { background: var(--ws-hover); }
+
+html[data-wansoft-theme] .daterangepicker .drp-buttons {
+    background: var(--ws-paper);
+    border-top-color: var(--ws-line);
+}
+
+html[data-wansoft-theme] .daterangepicker .drp-selected { color: var(--ws-ink-soft); }
+
 /* El rango activo del calendario. */
 html[data-wansoft-theme] .daterangepicker td.active,
 html[data-wansoft-theme] .daterangepicker td.active:hover,
 html[data-wansoft-theme] .daterangepicker .ranges li.active {
     background: var(--ws-blue);
     color: #FFFFFF;
+}
+
+/* Los dias intermedios de un periodo: el azul del plugin es de otra paleta, aqui se
+   tiñen con el de la terminal rebajado para que los extremos —en azul pleno— sigan
+   siendo los que se leen primero. */
+html[data-wansoft-theme] .daterangepicker td.in-range {
+    background: rgba(43, 79, 216, .10);
+    color: var(--ws-ink);
 }
 
 /* -- Regreso de la banda --
@@ -885,4 +1046,246 @@ html[data-wansoft-theme] #root #ticketPrintArea.tk-vacio {
    halo alrededor de un aviso. */
 html[data-wansoft-theme] #root #ticketPrintArea.tk-vacio .ticket-paper {
     box-shadow: none;
+}
+
+/* -- Reimpresion de tickets --
+
+   El boceto de esta pantalla es un formulario Windows Forms de los viejos: un
+   recuadro grande con un filete azul de 1px, y adentro dos cajitas con el mismo
+   filete —el modo y la captura— en vez de las tarjetas con sombra que usa el
+   resto de la terminal. Por eso van sin radius ni sombra: es el unico rincon de
+   Wansoft que copia ese aspecto, y se queda contenido a esta pantalla. */
+
+.ws-frame {
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-blue);
+}
+
+.ws-frame-box {
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-blue);
+}
+
+/* Las teclas de esta pantalla son cuadradas: la rejilla mide 300px y con cuatro
+   columnas y 8px de aire cada tecla sale de 69px, asi que la fila va al mismo alto.
+   El keypad de Acceso conserva sus 3rem —alli la tarjeta mide 280px y unas teclas
+   mas altas empujarian el reloj checador fuera de la pantalla. */
+.ws-keypad-sq { grid-auto-rows: 69px; }
+
+/* Las teclas que el modo activo no usa. Se apagan con opacity, como los cuadros
+   sin modulo del menu: siguen siendo parte del teclado, no desaparecen de el. */
+.ws-key.is-off {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.ws-key.is-off:hover,
+.ws-key.is-off:active { background: var(--ws-key); transform: none; }
+
+/* Los radios del modo (Ticket / Fecha / Rango) toman el azul de la terminal en vez
+   del azul por defecto del navegador, que desentonaria junto al filete. */
+.ws-radio { accent-color: var(--ws-blue); width: 15px; height: 15px; }
+
+/* Etiqueta y campo de linea subrayada de "Numero de Orden" / "Movimiento": la
+   etiqueta se alinea a la derecha, contra el campo, como en el boceto. El ancho
+   fijo es lo que hace que las dos etiquetas —de distinto largo— terminen en la
+   misma columna. */
+.ws-uline-lbl {
+    width: 128px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 13px;
+    color: var(--ws-ink-soft);
+}
+
+.ws-uline-field {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--ws-line-dk);
+    padding: 2px 4px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-ink);
+}
+
+.ws-uline-field:focus { outline: none; }
+
+/* El periodo escribe los dos extremos en el mismo hueco que un dia suelto
+   —"20/08/2026 al 22/08/2026" contra "22/08/2026"— y no cabria en los 176px que
+   deja la etiqueta de ancho fijo. Ahi la etiqueta se ciñe a su texto: es la unica
+   de su cajita, asi que no tiene con quien alinearse. */
+.ws-uline-lbl.ws-uline-lbl-auto { width: auto; }
+
+/* El campo activo es el que recibe el teclado numerico: se resalta con el azul de
+   la terminal para que quede claro donde va a caer la siguiente tecla. */
+.ws-uline-field.ws-uline-active {
+    border-bottom-color: var(--ws-blue);
+    border-bottom-width: 2px;
+}
+
+/* La zona de vista previa es el tercer recuadro del formulario, no un panel: va en
+   papel con el mismo filete que los otros dos. El gris de #ticketPrintArea, que en
+   Tickets hace de mesa bajo la tira, aqui partiria en dos el marco. */
+.ws-preview {
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-blue);
+}
+
+/* Con la tira dentro el hueco vira al gris de #ticketPrintArea: sobre el papel del
+   formulario el ticket —que tambien es blanco— no tendria donde recortarse. */
+.ws-preview.ws-preview-mesa { background: var(--ws-mesa); }
+
+.ws-preview-empty {
+    color: var(--ws-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+/* La lista del dia va con encabezado gris, no con el azul que este mismo archivo
+   da a las tablas de la terminal: aqui la tabla vive DENTRO del formulario, y una
+   franja azul a media pantalla competiria con el filete de los recuadros y con la
+   banda de arriba. Va despues de aquella regla y con !important porque asi esta
+   escrita la que repinta. */
+
+html[data-wansoft-theme] #root #tbreimpresion thead th {
+    background-color: var(--ws-hover) !important;
+    color: var(--ws-ink-soft) !important;
+    border-color: var(--ws-line-dk) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+}
+
+html[data-wansoft-theme] #root #tbreimpresion thead th i,
+html[data-wansoft-theme] #root #tbreimpresion thead th svg,
+html[data-wansoft-theme] #root #tbreimpresion thead th span {
+    color: var(--ws-ink-soft) !important;
+}
+
+/* -- Seleccion para reimprimir (punto 25) --
+
+   La casilla se dibuja a mano y no con un <input type=checkbox>: el nativo llega
+   con el tamaño y el radio del navegador, y junto a los filetes rectos de este
+   formulario se leia como un control prestado de otra pantalla. Es un cuadro de
+   17px, del tamaño del dedo que lo va a tocar contando su celda. */
+
+html[data-wansoft-theme] #root .ws-chk {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    background: var(--ws-paper);
+    border: 1px solid var(--ws-line-dk);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+html[data-wansoft-theme] #root .ws-chk:hover { border-color: var(--ws-blue); }
+
+html[data-wansoft-theme] #root .ws-chk.is-on {
+    background: var(--ws-blue);
+    border-color: var(--ws-blue);
+}
+
+/* La palomita: dos lados de un cuadro girados 45 grados. Se dibuja con borde y no
+   con un icono para que no dependa de que lucide haya corrido sobre la tabla. */
+html[data-wansoft-theme] #root .ws-chk.is-on::after {
+    content: "";
+    width: 4px;
+    height: 8px;
+    border: solid #FFFFFF;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+}
+
+/* Marcados algunos pero no todos: la casilla de arriba lo dice con una raya. Sin
+   este tercer estado, tres de treinta la dejarian diciendo que no hay nada. */
+html[data-wansoft-theme] #root .ws-chk-all.is-part {
+    background: var(--ws-blue);
+    border-color: var(--ws-blue);
+}
+
+html[data-wansoft-theme] #root .ws-chk-all.is-part::after {
+    content: "";
+    width: 9px;
+    height: 2px;
+    background: #FFFFFF;
+    border: none;
+    transform: none;
+}
+
+/* El renglon marcado se tiñe entero: la casilla sola no se ve al recorrer una
+   lista de treinta y seis. Va con !important porque createCoffeeTable3 pinta el
+   fondo de cada celda desde su propia clase. */
+html[data-wansoft-theme] #root #tbreimpresion tbody tr.is-sel td {
+    background-color: var(--ws-sel) !important;
+}
+
+/* -- La lista, cuando trae barra de seleccion --
+
+   Con la lista en pantalla el scroll baja un piso: lo toma el hueco de los
+   renglones y el panel deja de desplazarse entero. Asi la barra —que es hermana de
+   ese hueco— se queda fija al pie y no al final de la lista, que con treinta y seis
+   renglones la dejaba fuera de la pantalla justo cuando mas se necesita: marcar
+   arriba y no poder imprimir sin bajar hasta el final.
+
+   No se resolvio con position:sticky porque aqui no prende: el panel centra su
+   contenido con align-items:start y la barra viaja dentro de una caja mas alta que
+   el scrollport. */
+
+html[data-wansoft-theme] #root #previewRow.is-lista {
+    overflow: hidden;
+    align-items: stretch;
+}
+
+html[data-wansoft-theme] #root #previewRow.is-lista #listaFrame { height: 100%; }
+
+html[data-wansoft-theme] #root #previewRow.is-lista #listaWrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* -- Barra de la seleccion --
+   Solo existe mientras haya algo marcado: vacia seria una franja con dos botones
+   que no pueden hacer nada. */
+
+html[data-wansoft-theme] #root .ws-selbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 12px;
+    margin-top: -1px;
+    background: var(--ws-selbar-bg);
+    border: 1px solid var(--ws-line-dk);
+    border-top-color: var(--ws-line);
+    box-shadow: 0 -6px 12px -8px rgba(31, 41, 55, .35);
+}
+
+html[data-wansoft-theme] #root .ws-selbar-count  { font-size: 13px; color: var(--ws-ink); }
+html[data-wansoft-theme] #root .ws-selbar-amount { color: var(--ws-muted); font-variant-numeric: tabular-nums; }
+html[data-wansoft-theme] #root .ws-selbar-btns   { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* La accion de la barra es la unica de la pantalla que cierra el trabajo, asi que
+   va un punto mas alta que el boton plano de al lado. */
+html[data-wansoft-theme] #root .ws-btn-print {
+    height: 30px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+}
+
+/* -- El cuadro de subir ventas --
+
+   createLayout marca sus divisiones como .row, y el gutter de Bootstrap las saca
+   12px fuera del contenedor: dentro de un modal eso aparece como una barra de
+   scroll horizontal bajo el contenido. Se anula por id, que es hasta donde llega
+   el modal, y no para todos los .row del modulo. */
+
+#uploadModalBox .row {
+    --bs-gutter-x: 0;
+    margin-left: 0;
+    margin-right: 0;
 }

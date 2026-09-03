@@ -38,6 +38,12 @@
     <!-- Papel del ticket: compartido con el modulo Tickets del Facturador -->
     <script src="/app/facture2/src/js/components/ticketPaper.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Pantalla sin datos: la usan el listado y el panel del ticket -->
+    <script src="/app/facture2/src/js/components/emptyState.js?t=<?php echo time(); ?>"></script>
+
+    <!-- Aviso de por que un Excel no se pudo cargar: el mismo que usa Importación -->
+    <script src="/app/facture2/src/js/components/uploadCheck.js?t=<?php echo time(); ?>"></script>
+
     <!-- Modulo Tickets: el archivo del Facturador, sin duplicar -->
     <script src="/app/facture2/src/js/tickets.js?t=<?php echo time(); ?>"></script>
 </body>

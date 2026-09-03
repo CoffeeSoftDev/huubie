@@ -909,9 +909,75 @@ function clave_aleatoria() {
 }
 function pop() {
     var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"], [data-bs-trigger="hover focus"]'));
+
+    // Una sola instancia por elemento. pop() corre una vez por cada boton que se
+    // crea con title, y recorre la pagina entera: sin este filtro una tabla de 36
+    // filas vuelve a instanciar 36 veces el popover de cada elemento, y cada
+    // instancia deja sus propios listeners colgando del mismo boton.
     var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl);
+        return bootstrap.Popover.getInstance(popoverTriggerEl) || new bootstrap.Popover(popoverTriggerEl);
     });
+}
+
+// -- Popovers huerfanos --
+
+// El globo de un popover no vive dentro del boton que lo abre: Bootstrap lo cuelga
+// del <body>. Si ese boton desaparece con el globo abierto —una tabla que se repinta
+// con el puntero encima— Bootstrap no se entera y el globo se queda flotando sobre
+// la pantalla, y cada repintado deja uno mas.
+//
+// El vigilante solo trabaja mientras hay algun globo abierto, que es la unica
+// ventana en la que uno puede quedar huerfano.
+var popoverWatcher  = null;
+var popoverTriggers = new Set();
+
+document.addEventListener('shown.bs.popover', function (e) {
+    popoverTriggers.add(e.target);
+    watchPopovers();
+});
+
+document.addEventListener('hidden.bs.popover', function (e) {
+    popoverTriggers.delete(e.target);
+    unwatchPopovers();
+});
+
+function watchPopovers() {
+    if (popoverWatcher) return;
+
+    popoverWatcher = new MutationObserver(disposeOrphanPopovers);
+    popoverWatcher.observe(document.body, { childList: true, subtree: true });
+}
+
+function unwatchPopovers() {
+    if (!popoverWatcher || document.querySelector('.popover')) return;
+
+    popoverWatcher.disconnect();
+    popoverWatcher = null;
+}
+
+// Un globo esta huerfano cuando su boton ya no cuelga de la pagina. Se cierra por la
+// instancia y no borrando el nodo: con el globo se va tambien el Popper que lo
+// posiciona, que si no seguiria recalculando en cada scroll sobre un boton que ya no
+// existe.
+//
+// El segundo barrido recoge los globos que no tienen boton vivo que los describa:
+// Bootstrap marca al suyo con aria-describedby en cuanto lo muestra, asi que su
+// ausencia delata a los que quedaron de instancias anteriores.
+function disposeOrphanPopovers() {
+    popoverTriggers.forEach(function (trigger) {
+        if (trigger.isConnected) return;
+
+        var popover = bootstrap.Popover.getInstance(trigger);
+        if (popover) popover.dispose();
+
+        popoverTriggers.delete(trigger);
+    });
+
+    document.querySelectorAll('.popover').forEach(function (globo) {
+        if (!globo.id || !document.querySelector('[aria-describedby="' + globo.id + '"]')) globo.remove();
+    });
+
+    unwatchPopovers();
 }
 function getCookies() {
     const cookies = document.cookie.split(";");

@@ -536,13 +536,61 @@ SUC. POLIFORUM» / `ASSDFCCEEAS` mientras dentro vive el menú de Ryori Ryokan. 
 es cosmético: ese nombre y ese RFC son los que se imprimen en la nota que se
 entrega al cliente. Es dato de negocio y no se inventa.
 
-**Una comanda corregida no se actualiza.** La carga incremental salta el
-movimiento que ya conoce, así que un ticket que el POS corrigió después vuelve a
-exportarse pero no entra. Para rehacerlo hay que borrar su lote desde el módulo.
-Es el precio de no reemplazar, y es el correcto mientras el archivo cubra un mes
-y las ventas se suban por días.
+*(Resuelto — ver §11: la carga reemplaza mientras el periodo no tenga tickets
+emitidos, así que una comanda corregida sí entra con su valor bueno.)*
 
 **El error de memoria sigue sin atraparse.** Ya no se dispara en esta hoja, pero
 el `catch (Exception)` del módulo no cubre el agotamiento de memoria —en PHP 7 es
 un `Error`, otra jerarquía—, así que un archivo bastante más grande daría una
 pantalla rota en vez de un aviso. Se resuelve con un `shutdown handler`.
+
+---
+
+## 11. Qué manda sobre la recarga: el ticket emitido
+
+La regla no es «incremental» ni «reemplazo» a secas. Es **el estado del periodo**
+el que elige, y el módulo ya sabía medirlo con `notasDelPeriodo()`:
+
+| El periodo… | Modo | Qué pasa al volver a subir el archivo |
+|---|---|---|
+| **no tiene tickets emitidos** | reemplazo | se borra la carga anterior y entra el archivo completo — **una comanda corregida entra con su valor bueno** |
+| **ya tiene algún ticket** | agregar | sólo entran los movimientos que faltaban; lo emitido no se toca |
+
+El porqué es de negocio, no de base de datos: mientras nadie haya generado un
+ticket, el mes es material de trabajo y corregirlo es gratis. En cuanto sale el
+primer papel, ese documento ya se entregó y sus renglones dejan de poder moverse.
+
+> Antes de esto, `procesarArchivo` **rechazaba** la carga con un 409 si el periodo
+> tenía notas. Estaba mal: un periodo con tickets sigue pudiendo recibir
+> movimientos nuevos —los días que aún no se habían subido— y negárselos obliga a
+> deshacer el cierre para algo que no lo necesita.
+
+### El defecto que esto destapó
+
+`borrarPeriodo` de Wansoft cerraba con un `else` que era un borrado real:
+
+```php
+if ($target === 'card' || $target === 'card-refund') $this->mdl->deletePaymentCardByBatch($where);
+else                                                 $this->mdl->deleteDeletedPaymentByBatch($where);
+```
+
+Con `detail` —las comandas— caía en el default y llamaba a
+`deleteDeletedPaymentByBatch`, que vacía la tabla de **pagos eliminados**. No
+borraba un solo renglón de comanda, pero acto seguido sí se llevaba el lote; y
+como `fk_detail_sale_batch` es `ON DELETE SET NULL`, los 8 719 renglones se
+quedaban sin lote, invisibles para el chequeo, y la siguiente carga los daba por
+nuevos.
+
+Es el mismo patrón que el `else` del router de targets, ya cerrado. **Un `else`
+final que ejecuta una escritura es una bomba**: cuando aparece un target nuevo, no
+falla — escribe en la tabla equivocada y se ve bien. Los dos se cerraron con rama
+explícita y default inerte.
+
+### Probado
+
+```
+base vacia          -> carga 1: 8 719 renglones, 1 lote, 0 sueltos
+mismo archivo       -> carga 2: "sobreescribir 8 719"  ->  8 719 (NO 17 438)
+con 1 ticket emitido-> carga 3: "solo se agregan movimientos nuevos"
+                                "todas las comandas ya estaban cargadas", 8 719 intactos
+```

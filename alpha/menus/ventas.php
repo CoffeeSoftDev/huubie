@@ -41,7 +41,7 @@
     -->
     <script>window.HIDE_SUBSIDIARY_SWITCH = true;</script>
     <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?= time() ?>"></script>
-    <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
+    <script src="<?=PATH_MENU?>src/js/sidebar.js?t=<?php echo time(); ?>"></script>
 
     <!-- Coffee Component (mismo patron que app/menus) -->
     <script src="<?=PATH_BASE?>src/js/components/moduleCard.js?t=<?= time() ?>"></script>

@@ -53,6 +53,10 @@ class ImportFactureCargas {
           keyIndex     columna que decide si la fila trae datos; en comandas la A
                        (foliocomanda) viene vacia y la clave real es B (foliocuenta)
           controlIndex columna que suma el control total del lote
+          dateIndex    columna con la fecha del movimiento, con la que se
+                       comprueba que el archivo es del periodo al que se sube.
+                       "Pagos" no la declara porque no trae fecha propia: su
+                       periodo es el de la venta con la que cruza
           tab          pestana del modulo a la que pertenece la hoja
           orden        posicion en que se lee la hoja en pantalla
 
@@ -84,6 +88,7 @@ class ImportFactureCargas {
                 'headerRow'    => 7,
                 'keyIndex'     => 0,
                 'controlIndex' => 6,
+                'dateIndex'    => 2,
                 'columns' => [
                     'Folio', 'Codigo facturacion', 'Fecha', 'Descuento', 'Subtotal',
                     'Impuestos', 'Total', 'Fecha de expiracion', 'Estado', 'Folio factura'
@@ -96,6 +101,7 @@ class ImportFactureCargas {
                 'headerRow'    => 1,
                 'keyIndex'     => 1,
                 'controlIndex' => 11,
+                'dateIndex'    => 3,
                 'columns' => [
                     'foliocomanda', 'foliocuenta', 'orden', 'fechaapertura', 'fechacierre',
                     'mesero', 'claveproducto', 'fechadecaptura', 'descripcion', 'cantidad',
@@ -193,7 +199,16 @@ class ImportFactureCargas {
                 'columnas'  => $malas,
                 'cargadas'  => []
             ];
+
+            return $revision;
         }
+
+        // El periodo se comprueba con las columnas ya validadas: la fecha se lee
+        // por posicion, y con una columna corrida se estaria mirando la celda
+        // equivocada para decidir de que mes es el archivo.
+        $ajeno = $this->fechasAjenas($documento, $presentes, $contrato, $ctx);
+
+        if ($ajeno) $revision['validacion'] = $ajeno;
 
         return $revision;
     }
@@ -230,6 +245,60 @@ class ImportFactureCargas {
             'columnas'  => [],
             'cargadas'  => []
         ];
+    }
+
+    // Si el archivo pertenece al periodo al que se esta subiendo.
+    //
+    // El periodo del lote lo escriben dos selectores de la pantalla, y hasta aqui
+    // nadie lo comparaba contra el contenido del Excel. Cada venta guardaba su
+    // fecha correcta —eso nunca fallo—, pero el LOTE quedaba sellado con un mes
+    // que no contiene, y de ese sello cuelgan las dos operaciones destructivas del
+    // modulo: la sobreescritura del periodo, que borra por lote, y el candado de
+    // notas emitidas.
+    //
+    // Se pregunta antes de tocar nada y por la misma razon que las notas: lo que
+    // viene despues ya borra.
+    private function fechasAjenas($documento, $presentes, $contrato, $ctx) {
+        $mes  = isset($ctx['mes'])  ? (int) $ctx['mes']  : 0;
+        $anio = isset($ctx['anio']) ? (int) $ctx['anio'] : 0;
+
+        if ($mes < 1 || $anio < 2000) return null;
+
+        foreach ($presentes as $nombre) {
+            $config = $contrato[$nombre];
+
+            // La hoja sin fecha propia no dice nada del periodo: no se pregunta.
+            if (!isset($config['dateIndex'])) continue;
+
+            $hoja   = $documento->getSheetByName($nombre);
+            $ajeno  = periodoAjeno(conteoDeFechas($this->columnaDeFechas($hoja, $config), $mes, $anio), $mes, $anio);
+
+            if ($ajeno) {
+                $ajeno['hoja'] = $nombre;
+
+                return $ajeno;
+            }
+        }
+
+        return null;
+    }
+
+    // Los valores crudos de la columna de fecha de una hoja. Se lee solo esa
+    // columna: la comprobacion del periodo corre antes de la carga y recorrer el
+    // ancho entero de la tabla para preguntar por un dato la haria costar lo mismo
+    // que guardarla.
+    private function columnaDeFechas($hoja, $config) {
+        $claveCol = columnLetter($config['keyIndex']);
+        $fechaCol = columnLetter($config['dateIndex']);
+        $__row    = [];
+
+        for ($fila = $config['headerRow'] + 1; $fila <= $hoja->getHighestRow(); $fila++) {
+            if (trim((string) $hoja->getCell($claveCol . $fila)->getValue()) === '') continue;
+
+            $__row[] = trim((string) $hoja->getCell($fechaCol . $fila)->getValue());
+        }
+
+        return $__row;
     }
 
     // Las hojas del contrato de una pestana que el libro trae, en el orden en que
@@ -328,6 +397,23 @@ class ImportFactureCargas {
                     'columnas'  => [],
                     'cargadas'  => []
                 ]
+            ];
+        }
+
+        // El mismo corte que hace la revision previa, repetido aqui por lo mismo
+        // que el de las notas: uploadFile se puede llamar sin haber pasado por
+        // ella, y este es el punto donde se empieza a borrar el periodo.
+        $ajeno = $this->fechasAjenas($documento, $presentes, $contrato, $ctx);
+
+        if ($ajeno) {
+            $steps[] = step('Revisar periodo', 'error', resumenPeriodoAjeno($ajeno));
+
+            return [
+                'status'     => 409,
+                'message'    => 'El archivo no es del periodo seleccionado',
+                'steps'      => $steps,
+                'hojas'      => [],
+                'validacion' => $ajeno
             ];
         }
 
@@ -1110,6 +1196,187 @@ function cleanDate($value) {
     $time = strtotime($value);
 
     return $time ? date('Y-m-d H:i:s', $time) : null;
+}
+
+// Cuantos movimientos de una hoja caen dentro del mes y anio a los que se esta
+// cargando, y que dias son los que se salen. La cuenta es la misma en los dos
+// importadores —cambia solo como se llega a la celda de la fecha—, asi que la
+// hoja entrega sus valores crudos y aqui se leen con el mismo cleanDate que va a
+// escribirlos despues.
+function conteoDeFechas($fechas, $mes, $anio) {
+    $__row = ['dentro' => 0, 'fuera' => 0, 'dias' => [], 'meses' => [], 'todos' => []];
+
+    foreach ($fechas as $valor) {
+        $fecha = cleanDate($valor);
+        if ($fecha === null) continue;
+
+        $tiempo = strtotime($fecha);
+        $dentro = (int) date('n', $tiempo) === (int) $mes && (int) date('Y', $tiempo) === (int) $anio;
+
+        $__row[$dentro ? 'dentro' : 'fuera']++;
+
+        // Cuantos movimientos trae CADA mes, el del filtro incluido. Va aparte de
+        // `meses` a proposito: aquel solo cuenta los ajenos porque de el sale el
+        // destino que se ofrece, y el del filtro nunca puede serlo.
+        $todos = date('n/Y', $tiempo);
+        $__row['todos'][$todos] = isset($__row['todos'][$todos]) ? $__row['todos'][$todos] + 1 : 1;
+
+        if ($dentro) continue;
+
+        $dia = date('d/m/Y', $tiempo);
+        $__row['dias'][$dia] = isset($__row['dias'][$dia]) ? $__row['dias'][$dia] + 1 : 1;
+
+        // El mes al que de verdad pertenece el movimiento. Se cuenta aparte de los
+        // dias porque es lo que el aviso enfrenta contra el periodo del filtro: al
+        // usuario le sirve mas leer "el archivo es de agosto" que deducirlo de una
+        // lista de fechas.
+        $clave = date('n/Y', $tiempo);
+        $__row['meses'][$clave] = isset($__row['meses'][$clave]) ? $__row['meses'][$clave] + 1 : 1;
+    }
+
+    return $__row;
+}
+
+// El veredicto del periodo: si el archivo pertenece o no al mes al que se esta
+// subiendo.
+//
+// Se rechaza solo cuando la MAYORIA de los movimientos cae fuera. Unas pocas
+// filas del mes anterior son normales —la cuenta que se abre a las 23:50 del
+// ultimo dia y se cobra pasada la medianoche—, y bloquear por ellas seria negar
+// cargas buenas. El archivo entero del mes equivocado, que es el error que
+// importa, cae del lado del rechazo sin ambiguedad.
+//
+// Devuelve NULL cuando el periodo es correcto, para poder preguntarlo como una
+// condicion.
+function periodoAjeno($conteo, $mes, $anio) {
+    if ($conteo['fuera'] === 0 || $conteo['fuera'] <= $conteo['dentro']) return null;
+
+    // El mes con mas movimientos es el que el aviso nombra como "el del archivo":
+    // con un export de un solo mes es el suyo, y con uno que cruza el corte es el
+    // que manda. Los demas siguen en la lista de dias.
+    $meses = $conteo['meses'];
+    arsort($meses);
+    $manda = key($meses);
+
+    /*
+        Que se objeta y que se reparte.
+
+        Esta comprobacion nacio cuando un archivo era un lote sellado con el mes del
+        filtro, y entonces la pregunta «¿es de este mes?» decidia donde caian todas
+        sus filas. Desde que cada fila va al lote de SU mes, lo unico que queda por
+        preguntar es si el usuario se equivoco de mes, y eso solo pasa cuando el mes
+        que eligio no esta practicamente en el archivo.
+
+        Un archivo de 1 284 movimientos de julio y 1 137 de agosto cargado en agosto
+        NO es una equivocacion: casi la mitad del archivo es de agosto y el resto va
+        a su mes solo. Objetarlo obligaba a «moverlo a julio» para acabar creando los
+        dos lotes igual, pero desde el otro lado.
+
+        Se objeta cuando se cumplen las dos:
+          · el mes del filtro aporta menos de la decima parte del archivo, y
+          · hay un mes ajeno que si es sustancial, al que ofrecer la carga.
+
+        La segunda no sobra: sin ella, un export de un año entero —donde ningun mes
+        llega al 10 %— se objetaria sin tener a donde ir, y «moverlo» pasearia por
+        los meses sin llegar nunca a cargar.
+    */
+    $umbral = ($conteo['dentro'] + $conteo['fuera']) / 10;
+
+    if ($conteo['dentro'] >= $umbral) return null;
+    if (current($meses)   <  $umbral) return null;
+
+    $dias = $conteo['dias'];
+    krsort($dias);
+
+    $lista = [];
+    $tope  = 0;
+    foreach ($dias as $dia => $filas) {
+        $lista[] = ['dia' => $dia, 'filas' => $filas];
+        $tope    = max($tope, $filas);
+    }
+
+    // El periodo que manda, tambien en numeros: con el escrito solo se puede
+    // avisar, y lo que la pantalla ofrece es MOVER la carga a ese mes.
+    $mesArchivo  = (int) strtok($manda, '/');
+    $anioArchivo = (int) substr($manda, strpos($manda, '/') + 1);
+
+    return [
+        'motivo'      => 'periodo',
+        'mes'         => (int) $mes,
+        'anio'        => (int) $anio,
+        'mesArchivo'  => $mesArchivo,
+        'anioArchivo' => $anioArchivo,
+        'dentro'    => $conteo['dentro'],
+        'fuera'     => $conteo['fuera'],
+        // Los dos periodos ya escritos, que es como los va a leer el aviso: el que
+        // el usuario eligio y el que el archivo trae de verdad. Se resuelven aqui
+        // con el catalogo del modulo y no en la pantalla, para que el nombre del
+        // mes salga de un solo sitio.
+        'periodoFiltro'  => periodoTexto($mes, $anio),
+        'periodoArchivo' => periodoTexto($mesArchivo, $anioArchivo),
+        // De que meses es el archivo y cuantos movimientos pone cada uno. Es el
+        // reparto que va a ocurrir —un lote por mes— anunciado antes de cargar.
+        'reparto'        => repartoPorMes($conteo, $mes, $anio),
+        'mesesArchivo'   => count($meses),
+        'dias'      => array_slice($lista, 0, 8),
+        'masDias'   => max(0, count($lista) - 8),
+        // Para dibujar la proporcion de cada dia sin que la pantalla tenga que
+        // recorrer la lista buscando el mayor.
+        'tope'      => $tope,
+        'esperadas' => [],
+        'libro'     => [],
+        'columnas'  => [],
+        'cargadas'  => []
+    ];
+}
+
+// Los meses del archivo con sus movimientos, del mas antiguo al mas reciente.
+//
+// Es la respuesta a "¿cuantos son de julio y cuantos de agosto?", que con el total
+// solo no se puede saber: 2 421 movimientos que no son de septiembre no dicen si
+// son de un mes o de tres.
+//
+// El mes del filtro va SIEMPRE, aunque no ponga ninguno: es el que el usuario
+// eligio, y verlo en cero es la mitad de la explicacion.
+function repartoPorMes($conteo, $mes, $anio) {
+    $todos = $conteo['todos'];
+    $clave = $mes . '/' . $anio;
+
+    if (!isset($todos[$clave])) $todos[$clave] = 0;
+
+    uksort($todos, function ($a, $b) {
+        $ordena = function ($k) {
+            return ((int) substr($k, strpos($k, '/') + 1)) * 12 + (int) strtok($k, '/');
+        };
+
+        return $ordena($a) - $ordena($b);
+    });
+
+    $__row = [];
+
+    foreach ($todos as $k => $movimientos) {
+        $m = (int) strtok($k, '/');
+        $a = (int) substr($k, strpos($k, '/') + 1);
+
+        $__row[] = [
+            'periodo'      => periodoTexto($m, $a),
+            'mes'          => $m,
+            'anio'         => $a,
+            'movimientos'  => $movimientos,
+            'esDelFiltro'  => ($m === (int) $mes && $a === (int) $anio)
+        ];
+    }
+
+    return $__row;
+}
+
+// Como se resume el periodo ajeno en la linea del roadmap.
+function resumenPeriodoAjeno($ajeno) {
+    $dias = [];
+    foreach (array_slice($ajeno['dias'], 0, 3) as $item) $dias[] = $item['dia'];
+
+    return number_format($ajeno['fuera']) . ' movimiento(s) de ' . implode(', ', $dias)
+         . ($ajeno['masDias'] > 0 ? ' y ' . $ajeno['masDias'] . ' dia(s) mas' : '');
 }
 
 function step($titulo, $estado, $detalle) {

@@ -134,11 +134,20 @@ DELIMITER $$
 
 CREATE PROCEDURE fixDetailSaleColumns()
 BEGIN
+    -- La guarda mira las DOS columnas, no solo la suya.
+    --
+    -- migra-12 renombra esta columna a `parent_product_name`. Preguntando solo
+    -- por `parent_product_code`, volver a correr la tanda entera la recrea —ya no
+    -- esta, la 12 se la llevo— y entonces la 12 choca contra el nombre nuevo con
+    -- «Duplicate column». La tabla acaba con las dos.
+    --
+    -- Una migracion tiene que reconocer tambien el estado que dejan las que
+    -- vienen despues, o la secuencia completa deja de poder repetirse.
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
            AND TABLE_NAME   = 'detail_sale'
-           AND COLUMN_NAME  = 'parent_product_code'
+           AND COLUMN_NAME IN ('parent_product_code', 'parent_product_name')
     ) THEN
         ALTER TABLE detail_sale
             ADD COLUMN parent_product_code VARCHAR(10) NULL

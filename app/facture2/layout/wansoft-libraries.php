@@ -11,7 +11,7 @@
 <script src="/app/src/plugins/bootbox.min.js"></script>
 
 <!-- CORE COFFEESOFT -->
-<script src="/app/src/js/complementos.js"></script>
+<script src="/app/src/js/complementos.js?t=<?php echo time(); ?>"></script>
 <script src="/app/src/js/plugins.js?t=<?php echo time(); ?>"></script>
 <script src="/app/src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 

@@ -685,7 +685,23 @@ class App extends Templates {
             data: { opc: "getOrder", id }
         });
 
-        const order = request.data;
+        // useFetch devuelve null cuando la respuesta no es JSON (un aviso de PHP
+        // impreso antes del json_encode, una sesion caida que responde el login).
+        // Sin esta guarda el acceso a .data rompia la promesa y el boton Editar se
+        // quedaba sin abrir nada y sin decir por que.
+        const order = request?.data;
+
+        if (!order) {
+            alert({
+                icon: "error",
+                title: "No se pudo abrir el pedido",
+                text: request?.message ?? "El servidor no devolvió una respuesta válida. Revisa la consola del navegador.",
+                btn1: true,
+                btn1Text: "Ok"
+            });
+
+            return;
+        }
 
         idFolio = id;
         normal.layoutEdit = true;
@@ -2659,7 +2675,17 @@ class App extends Templates {
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
-       
+        if (!response?.data?.order) {
+            alert({
+                icon: 'error',
+                title: 'No se pudo abrir el pedido',
+                text: response?.message ?? 'El servidor no devolvió una respuesta válida. Revisa la consola del navegador.',
+                btn1: true,
+                btn1Text: 'Ok'
+            });
+
+            return;
+        }
 
         const tipo = response.data.order.delivery_type;
         const badgeTipo = this.getBadgeDeliveryType(tipo);
@@ -2782,6 +2808,8 @@ class App extends Templates {
             data: { opc: 'getOrderDetails', id: orderId }
         });
 
+        if (!response?.data) return;
+
         const orderData      = response.data.order || {};
         const paymentMethods = response.data.paymentMethods || [];
         const payments       = response.data.payments || [];
@@ -2800,11 +2828,11 @@ class App extends Templates {
             data: { opc: 'getOrderDelivery', id: id }
         });
 
-        if (response.status != 200) {
+        if (!response || response.status != 200 || !response.data) {
             alert({
                 icon: 'error',
                 title: 'Error',
-                text: response.message,
+                text: response?.message ?? 'El servidor no devolvió una respuesta válida. Revisa la consola del navegador.',
                 btn1: true,
                 btn1Text: 'Ok'
             });

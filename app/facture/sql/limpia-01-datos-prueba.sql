@@ -58,6 +58,22 @@ ALTER TABLE detail_virtual_ticket AUTO_INCREMENT = 1;
 ALTER TABLE virtual_ticket        AUTO_INCREMENT = 1;
 
 
+-- -- 1.b Corridas de generacion -------------------------------------------------
+--  `generation_run` apunta a `sale` con NO ACTION —la unica de las cuatro que no
+--  es CASCADE—, asi que mientras exista una corrida, la venta que le sirvio de
+--  corte NO se puede borrar y el script entero se detiene ahi:
+--
+--      ERROR 1451: Cannot delete or update a parent row (fk_run_cut)
+--
+--  Y como esto no va en una transaccion, detenerse a la mitad deja la base peor
+--  que al principio: los catalogos borrados y las ventas en pie. Por eso va
+--  antes que `sale` y no junto a los demas documentos.
+
+DELETE FROM generation_run;
+
+ALTER TABLE generation_run AUTO_INCREMENT = 1;
+
+
 -- -- 2. Detalle de la venta ----------------------------------------------------
 
 DELETE FROM detail_sale_payment_card;

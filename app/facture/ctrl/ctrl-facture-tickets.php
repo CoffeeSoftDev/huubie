@@ -13,6 +13,10 @@ define('META_FACTURACION', 0.7);
 // productos —no hay nada que facturar en el— y en su lugar imprime este unico
 // renglon en cero. Es el nombre con el que la casa se refiere a esas cuentas, y
 // sale impreso: vive aqui y no repartido por el codigo.
+// El movimiento que vino con Total $0.00 (punto 18) imprime esta misma partida: el
+// documento del 18.1 la nombra «Servicio» y en la casa se llama asi. Es un solo
+// nombre para el papel en cero, venga de una cuenta cobrada sin tarjeta o de un
+// movimiento que no cobro nada.
 define('CONCEPTO_SERVICIO', 'SERVICIO DE MESA');
 
 class ctrl extends mdl {
@@ -28,6 +32,12 @@ class ctrl extends mdl {
     // El tope del ajuste de cuadre es de la sucursal y no cambia entre papeles, asi
     // que se lee una vez y no en cada uno (ver tolerancia).
     public $toleranciaAjuste = null;
+
+    // El folio del registro maestro que se acaba de abrir (punto 29). Se guarda al
+    // abrir la corrida porque abrirCorrida devuelve el id —que es lo que el ticket
+    // necesita— y el resumen tiene que poder nombrar la ejecucion sin ir a leerla
+    // otra vez.
+    public $corridaFolio = '';
 
     public function __construct() {
         parent::__construct();
@@ -66,11 +76,24 @@ class ctrl extends mdl {
         return $this->branch > 0 ? $this->branch : null;
     }
 
+    // Un read que no pudo ejecutarse devuelve null, no una lista vacia (ver _Read
+    // en _CRUD): el error se anota en el log y la funcion sigue. Recorrer ese null
+    // imprime un Warning de PHP ANTES del JSON, y entonces la respuesta deja de ser
+    // JSON: la pantalla se queda sin tabla, sin cifras y con los tres botones de la
+    // barra a la vez, porque el JS no llega a leer nada.
+    //
+    // Todo lo que despues se recorre pasa por aqui: un dia sin datos —o una consulta
+    // que fallo— tiene que llegar al frente como un dia vacio, no como una pantalla
+    // rota.
+    function filas($ls) {
+        return is_array($ls) ? $ls : [];
+    }
+
     // El dia no se elige solo: el Excel del POS se sube en diferido, asi que el
     // modulo abre en el ultimo dia con ventas elegibles (ver ventaElegible en el
     // modelo). Con ?dia= entra directo a ese dia si tiene ventas.
     function init() {
-        $dias = $this->lsDias([$this->branchId()]);
+        $dias = $this->filas($this->lsDias([$this->branchId()]));
         $pide = $_POST['dia'] ?? '';
         $dia  = '';
 
@@ -112,6 +135,44 @@ class ctrl extends mdl {
         return max(0, min($objetivo, $total));
     }
 
+    // Las dos cifras del reparto tienen que sumar la venta con tarjeta del dia.
+    //
+    // Se comprueba aqui y no solo en la pantalla porque el cierre se puede llamar
+    // sin pasar por el modal: la peticion trae las dos y el servidor es el que
+    // decide si el reparto es valido.
+    //
+    // Sin `metaCero` no hay nada que comprobar y se responde vacio: es la peticion
+    // de antes de que existiera el segundo campo, y sigue valiendo —el 0% es el
+    // resto—. Asi la pantalla vieja y la nueva conviven mientras se despliega.
+    function descuadreDelDia($total) {
+        $cero = $_POST['metaCero'] ?? '';
+
+        if ($cero === '' || !is_numeric($cero)) return '';
+
+        $modo    = $_POST['metaModo'] ?? 'pct';
+        $total   = (float) $total;
+        $monto0  = $modo === 'monto' ? (float) $cero : $total * ((float) $cero / 100);
+        $monto16 = $this->metaDelDia($total);
+        $dif     = ($monto16 + $monto0) - $total;
+
+        // La misma tolerancia con la que el modulo compara montos en todo el cierre.
+        if (abs($dif) < 0.005) return '';
+
+        return 'El reparto no cuadra: ' . ($dif > 0 ? 'sobran ' : 'faltan ') . money(abs($dif))
+             . ' para que el IVA 16% y el IVA 0% sumen el Total Tarjeta de Credito (' . money($total) . ').';
+    }
+
+    // Con que combinacion de productos se arman los papeles inventados. Viaja en la
+    // peticion porque nace en la vista previa: cada Regenerar la mueve un numero, y
+    // el confirmar manda la que el usuario acepto (ver semillaFolio y el punto 20).
+    //
+    // Sin nada capturado vale 0, que es la combinacion de toda la vida.
+    function semillaDelReparto() {
+        $semilla = $_POST['semilla'] ?? 0;
+
+        return is_numeric($semilla) ? max(0, (int) $semilla) : 0;
+    }
+
     // El membrete del papel se reparte entre las dos tablas: la sucursal encabeza y
     // pone el LUGAR DE EXPEDICION (donde se cobro), y la empresa pone el lema y el
     // domicilio fiscal, que es el que va bajo el RFC.
@@ -147,14 +208,14 @@ class ctrl extends mdl {
     // reparta el dia.
     function lsTickets() {
         $dia      = $_POST['dia'] ?? date('Y-m-d');
-        $ventas   = $this->listTicketsByDay($this->filtros());
-        $conteo   = $this->getTicketDayCounts([$this->branchId(), $dia]);
+        $ventas   = $this->filas($this->listTicketsByDay($this->filtros()));
+        $conteo   = $this->filas($this->getTicketDayCounts([$this->branchId(), $dia]));
         $__row    = [];
 
         // El dia COMPLETO, sin el filtro del buscador: de el salen la numeracion de
         // las notas y el reparto previsto, y las dos cosas dejarian de ser ciertas
         // calculadas sobre un listado filtrado.
-        $completo = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+        $completo = $this->filas($this->listSaleDayForSplit([$this->branchId(), $dia]));
         $notas    = $this->notasDeVentas($completo);
         $plan     = $this->planReparto($completo);
 
@@ -168,13 +229,21 @@ class ctrl extends mdl {
         // todo el dia o de nada, no deja medios cierres.
         $repartido = (int) $c['generados'] > 0;
 
+        // Se leen una vez y se usan dos: el cuadro de mudanzas y el paso 9 del
+        // seguimiento cuentan lo mismo.
+        $mudados = $this->mudadosDelDia($dia);
+
         foreach ($ventas as $item) {
             // La linea de corte se pinta sobre una sola fila: la primera que ya no
             // cabe en el 16%. Con el buscador activo puede no estar en el listado, y
             // entonces no se pinta ninguna, que es lo correcto.
             $esCorte = (int) $plan['corte'] === (int) $item['id'];
 
-            $__row[] = $this->ticketRow($item, (int) ($notas[$item['id']] ?? 0), $esCorte, $repartido);
+            // A que tasa la manda el reparto. Es lo que decide si su ojo abre: la
+            // que cae del lado del 0% no tiene papel hasta que se genere el dia.
+            $grupo = $plan['grupo'][$item['id']] ?? '';
+
+            $__row[] = $this->ticketRow($item, (int) ($notas[$item['id']] ?? 0), $esCorte, $repartido, $grupo);
         }
 
         return [
@@ -197,7 +266,11 @@ class ctrl extends mdl {
             // El registro de cargos que cambiaron de folio viaja con el listado y no
             // en una peticion aparte: son un punado de renglones en el peor dia, y
             // asi el cuadro que los muestra abre sin esperar nada.
-            'mudados' => $this->mudadosDelDia($dia)
+            'mudados' => $mudados,
+            // El registro maestro de cada ejecucion del dia (punto 29). Viaja con el
+            // listado por lo mismo que los mudados: son un punado de filas y el
+            // cuadro que las muestra abre sin esperar otra peticion.
+            'generaciones' => $this->generacionesDelDia($dia)
         ];
     }
 
@@ -211,7 +284,11 @@ class ctrl extends mdl {
     function mudadosDelDia($dia) {
         if (!$this->esWansoft()) return [];
 
-        $ls = $this->listReassignedByDay([$this->branchId(), $dia]);
+        // Sin `?: []` un fallo de lectura devuelve NULL, array_map lanza un warning
+        // y ese warning se imprime ANTES del json_encode: el listado entero llega al
+        // navegador como HTML invalido y la pantalla se queda en blanco. Un registro
+        // accesorio no puede tumbar la pantalla que lo muestra.
+        $ls = $this->listReassignedByDay([$this->branchId(), $dia]) ?: [];
 
         return array_map(function ($mov) {
             return [
@@ -221,6 +298,54 @@ class ctrl extends mdl {
                 'pagoDestino' => strtolower($mov['pago_destino'] ?: 'otra forma de pago')
             ];
         }, $ls);
+    }
+
+    // -- Registro de generacion (punto 29) --
+
+    // Que ejecuciones dejaron su registro maestro en este dia. Un dia puede tener
+    // varias —el cierre completo, la pasada que completa los del 0% y cada ticket
+    // regenerado a mano— y la auditoria tiene que verlas todas, no solo la ultima.
+    //
+    // Las cifras salen de la corrida y no se recalculan sobre el dia de hoy: es
+    // justamente lo que el registro sirve para demostrar. El dia se puede recargar
+    // despues, y entonces el archivo, los movimientos y las mudanzas ya no son los
+    // que esa ejecucion vio.
+    function generacionesDelDia($dia) {
+        $ls = $this->listGenerationRuns([$this->branchId(), $dia]) ?: [];
+
+        return array_map(function ($run) {
+            return [
+                'folio'        => $run['folio'] ?: '',
+                'tipo'         => $this->nombreDeCorrida($run['kind']),
+                'fechaTexto'   => date('d/m/Y', strtotime($run['issue_date'])),
+                'creadoTexto'  => date('d/m/Y H:i', strtotime($run['created_at'])),
+                'usuario'      => $run['user_name'] ?: 'sin usuario',
+                'archivo'      => $run['source_file'] ?: '',
+                'movimientos'  => (int) $run['movements_count'],
+                'totalTexto'   => money($run['day_total']),
+                'monto16Texto' => money($run['billed_16']),
+                'monto0Texto'  => money($run['billed_0']),
+                // Los papeles que de verdad cuelgan de la corrida, contados por el
+                // modelo. Los tres conteos que siguen son los que ella congelo.
+                'tickets'      => (int) $run['tickets'],
+                'reasignados'  => (int) $run['reassigned_count'],
+                // El papel de $0.00 no es el del 0%: aquel es tasa y este es
+                // importe (punto 18), y por eso el punto 29 los pide por separado.
+                'ceros'        => (int) $run['zero_ticket_count']
+            ];
+        }, $ls);
+    }
+
+    // Como se nombra cada camino en el registro: los tres `kind` de la corrida
+    // escritos como el usuario los reconoce.
+    function nombreDeCorrida($kind) {
+        $nombres = [
+            'dia'   => 'Cierre del dia',
+            'cero'  => 'Pendientes al 0%',
+            'folio' => 'Ticket regenerado'
+        ];
+
+        return $nombres[$kind] ?? $kind;
     }
 
     // El pie de la tabla explica la linea con los numeros del reparto previsto: sin
@@ -313,16 +438,20 @@ class ctrl extends mdl {
         return $notas;
     }
 
-    function ticketRow($item, $nota, $esCorte = false, $repartido = true) {
+    function ticketRow($item, $nota, $esCorte = false, $repartido = true, $grupo = '') {
         $tasa = tasaEfectiva($item);
 
         $row = [
             'id'     => $item['folio'],
             'Nota'   => notaCelda($nota, !empty($item['virtual_id'])),
-            'Folio'  => '<span data-folio="' . $item['folio'] . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
-            'Estado' => badgeEstado($item, $tasa) . badgeReasignacion($item),
+            // data-id es la identidad interna del papel (punto 22.1): existe solo
+            // cuando el ticket ya se guardo, y el JS sigue buscando la fila por
+            // data-folio, que es lo que el usuario ve y teclea.
+            'Folio'  => '<span data-folio="' . $item['folio'] . '" data-id="' . (int) ($item['virtual_id'] ?? 0)
+                        . '" class="font-mono text-[10px] text-gray-400">' . $item['folio'] . '</span>',
+            'Estado' => badgeEstado($item, $tasa, $grupo) . badgeReasignacion($item),
             'Monto'  => montoCelda($item),
-            'a'      => accionTicket($item, $tasa, $repartido)
+            'a'      => accionTicket($item, $repartido, $grupo)
         ];
 
         // La linea de corte. createCoffeeTable3 lee 'opc' antes de armar las celdas
@@ -373,7 +502,7 @@ class ctrl extends mdl {
         if (!$generado && esServicio($item)) {
             $lineas = [];
         } elseif (!$generado && (empty($lineas) || !comandaCuadra($item)) && tasaDe($item) > 0) {
-            $armado    = $this->armarPapel($item['total'], $this->catalogo(0.16), semillaFolio($item['folio']));
+            $armado    = $this->armarPapel($item['total'], $this->catalogo(0.16), semillaFolio($item['folio'], $this->semillaDelReparto()));
             $lineas    = $armado['lineas'];
             $propuesta = !empty($lineas);
         }
@@ -402,9 +531,16 @@ class ctrl extends mdl {
         $tasa    = tasaEfectiva($item);
         $semilla = semillaFolio($item['folio']);
         $total   = totalDelPapel($item);
+        $origen  = folioOrigen($item);
 
         return [
-            'folio'     => $item['folio'],
+            // Las tres identidades del punto 22.1. El id solo existe cuando el papel
+            // ya se guardo: la propuesta que se ve antes de generar todavia no es un
+            // documento y no tiene identidad que dar.
+            'id'          => !empty($item['virtual_id']) ? (int) $item['virtual_id'] : null,
+            'folio'       => $item['folio'],
+            'folioOrigen' => $origen,
+            'reasignado'  => $origen != $item['folio'],
             'nota'      => $item['note_number'] ? '#' . $item['note_number'] : 'POR ASIGNAR',
             'fecha'     => date('d/m/Y', strtotime($item['operation_date'])),
             'hora'      => date('H:i', strtotime($item['operation_date'])),
@@ -415,6 +551,10 @@ class ctrl extends mdl {
             'orden'     => ordenFicticia($semilla),
             'cajero'    => 'ADMINISTRACION',
             'metodo'    => $this->metodoDelPapel($item),
+            // Cual de los dos papeles en cero es. La pantalla los explica distinto:
+            // el servicio de mesa nombra el cobro que si hubo, y el movimiento en
+            // cero no tiene ninguno que nombrar (regla 18.2).
+            'ceroDeOrigen' => esServicio($item) && esCeroDeOrigen($item),
             'tasa'      => $tasa,
             'tasaText'  => porcentaje($tasa),
             'total'     => money($total),
@@ -436,7 +576,14 @@ class ctrl extends mdl {
     // dinero que no viaja en el. Al reves pasa con el servicio de mesa, que ampara
     // exactamente lo que la cuenta cobro y lo dice tal cual.
     function metodoDelPapel($item) {
-        if (esServicio($item)) return $item['payment_real'] ?: 'SIN PAGO REGISTRADO';
+        if (esServicio($item)) {
+            // El movimiento que vino con Total $0.00 no cobro nada, y Wansoft le
+            // pega a veces un voucher vacio. Copiar esa forma de pago haria que el
+            // papel anunciara un cargo con tarjeta que nunca existio.
+            if (esCeroDeOrigen($item)) return 'SIN PAGO REGISTRADO';
+
+            return $item['payment_real'] ?: 'SIN PAGO REGISTRADO';
+        }
 
         if ($this->esWansoft()) return 'TARJETA DE CREDITO';
 
@@ -473,11 +620,42 @@ class ctrl extends mdl {
     // 70/30. La pasada de los pendientes al 0% y el ticket suelto no reparten
     // nada, y sus columnas de reparto se quedan en cero en vez de heredar un
     // objetivo que nadie les aplico.
+    // GEN- y seis digitos. El folio es un dato del modulo y no la llave de la fila:
+    // el id lo reparte MySQL y un borrado le deja huecos, mientras que este numero
+    // es el que se dicta por telefono y se anota en una aclaracion.
+    //
+    // El consecutivo sale de un MAX+1 y su unico candado es el UNIQUE de la
+    // migracion 17 (ver el reintento en abrirCorrida).
+    function folioDeCorrida() {
+        $ls      = $this->filas($this->getNextGenerationRunFolio());
+        $numero  = (int) ($ls[0]['siguiente'] ?? 0);
+
+        return 'GEN-' . str_pad($numero ?: 1, 6, '0', STR_PAD_LEFT);
+    }
+
+    // De que archivo salio el dia que se esta generando. Se copia a la corrida en
+    // vez de dejarlo colgado del lote: el lote se puede borrar al reimportar y el
+    // registro maestro tiene que seguir diciendo de donde vinieron los movimientos.
+    function archivoDelDia($dia) {
+        $ls = $this->filas($this->getSourceFileByDay([$this->branchId(), $dia]));
+
+        return (string) ($ls[0]['file_name'] ?? '');
+    }
+
     function abrirCorrida($kind, $dia, $plan = null) {
         $campos = [
+            // El registro maestro del punto 29: el numero con el que se nombra esta
+            // ejecucion desde fuera de la base.
+            'folio'                => $this->folioDeCorrida(),
             'kind'                 => $kind,
             'issue_date'           => $dia,
+            'source_file'          => $this->archivoDelDia($dia),
             'adjustment_tolerance' => $this->tolerancia(),
+            // Con que combinacion se armaron los papeles. El 0 es la de siempre
+            // —el crc32 del folio a secas—, y cualquier otro numero salio de un
+            // Regenerar en la vista previa (punto 20). Se guarda para que rehacer
+            // el dia pueda reproducir los mismos papeles.
+            'paper_seed'           => $this->semillaDelReparto(),
             'user_name'            => $_SESSION['NAME'] ?? '',
             // El null va explicito y no como cadena vacia: esta insercion es
             // multiple, y ahi util->sql no traduce '' a NULL como en la de una
@@ -503,7 +681,17 @@ class ctrl extends mdl {
             ]);
         }
 
-        if (!$this->createGenerationRun($this->util->sql([$campos]))) return 0;
+        if (!$this->createGenerationRun($this->util->sql([$campos]))) {
+            // El folio se calcula con un MAX+1 y el UNIQUE de la tabla es su unico
+            // candado: dos cierres a la misma hora piden el mismo numero y el
+            // segundo rebota. Se reintenta una vez con el consecutivo ya movido,
+            // que en un modulo de un cierre por dia y por sucursal alcanza.
+            $campos['folio'] = $this->folioDeCorrida();
+
+            if (!$this->createGenerationRun($this->util->sql([$campos]))) return 0;
+        }
+
+        $this->corridaFolio = $campos['folio'];
 
         $max = $this->getMaxGenerationRunId();
 
@@ -937,7 +1125,10 @@ class ctrl extends mdl {
             $subtotal += $linea['amount'];
         }
 
-        return ['lineas' => $lineas, 'subtotal' => $subtotal];
+        // El subtotal se cierra a dos decimales aqui, donde nace: es el que se
+        // guarda con el papel y contra el que se calcula el descuento de cuadre,
+        // y sumar renglones en punto flotante deja colas que no son dinero.
+        return ['lineas' => $lineas, 'subtotal' => round($subtotal, 2)];
     }
 
     function lineaPuente($producto, $cant) {
@@ -945,7 +1136,7 @@ class ctrl extends mdl {
             'description' => $producto['name'],
             'quantity'    => $cant,
             'unit_price'  => (float) $producto['price'],
-            'amount'      => $cant * (float) $producto['price'],
+            'amount'      => round($cant * (float) $producto['price'], 2),
             'product_id'  => $producto['id']
         ];
     }
@@ -966,7 +1157,7 @@ class ctrl extends mdl {
         }
 
         $total  = (float) $item['total'];
-        $armado = $this->armarPapel($total, $productos, semillaFolio($item['folio']));
+        $armado = $this->armarPapel($total, $productos, semillaFolio($item['folio'], $this->semillaDelReparto()));
 
         if (empty($armado['lineas'])) {
             return ['status' => 400, 'message' => 'No se pudo armar un ticket que cuadre con ' . money($total)];
@@ -1086,6 +1277,155 @@ class ctrl extends mdl {
         ];
     }
 
+    // -- Vista previa del cierre (punto 20) --
+
+    // Lo mismo que generateDay(), sin escribir una sola fila: mismas validaciones,
+    // misma mudanza de cargos, mismo reparto. Devuelve las cifras con las que el
+    // usuario decide, y el dia se escribe solo si confirma.
+    //
+    // La mudanza es lo unico que aqui se hace distinto, y es el motivo de que este
+    // metodo exista. El cierre la aplica en la base y VUELVE A LEER el dia, porque
+    // el reparto se calcula sobre los montos ya mudados; la vista previa no puede
+    // tocar `assigned_folio` —mirar una propuesta y cancelarla dejaria los cargos
+    // movidos sin corrida que los explique—, asi que la traslada en memoria.
+    function previewDay() {
+        $dia = $_POST['dia'] ?? date('Y-m-d');
+
+        // Las mismas puertas que el cierre, en el mismo orden: aprobar una
+        // propuesta que generateDay() va a rechazar es peor que no ofrecerla.
+        $puente = $this->catalogo(0);
+
+        if (empty($puente)) {
+            return [
+                'status'  => 400,
+                'message' => 'No hay productos de tasa 0% dados de alta. Registralos en Catalogos para poder armar los tickets.'
+            ];
+        }
+
+        $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+
+        if (empty($ventas)) {
+            $criterio = $this->esWansoft() ? 'pagadas' : 'cobradas por banco';
+
+            return ['status' => 400, 'message' => 'No hay ventas ' . $criterio . ' en el dia'];
+        }
+
+        // Los cargos como los exporto el POS —listCardPaymentsByDay lee sale_folio
+        // y no el destino— y el dia devuelto a esos montos. Sin este paso, un dia
+        // que ya trae mudanzas de un cierre anterior se simularia sobre ellas y los
+        // cargos se moverian dos veces.
+        $pagos  = $this->esWansoft() ? $this->listCardPaymentsByDay([$this->branchId(), $dia]) : [];
+        $ventas = $this->montosDelPos($ventas, $pagos);
+
+        $reasignados = $this->planReasignacion($ventas, $pagos);
+        $ventas      = $this->conMudanza($ventas, $reasignados);
+
+        $total = 0;
+
+        foreach ($ventas as $item) $total += (float) $item['total'];
+
+        $descuadre = $this->descuadreDelDia($total);
+
+        if ($descuadre !== '') return ['status' => 400, 'message' => $descuadre];
+
+        $plan = $this->planReparto($ventas);
+
+        // Las dos poblaciones que la pantalla nombra: las que traen cargo que
+        // facturar y las que van a salir en $0.00 (servicio de mesa y movimientos
+        // que llegaron en cero, ver punto 18).
+        $servicio = 0;
+        $conCargo = 0;
+
+        foreach ($ventas as $item) {
+            if (esFacturado($item['status_name'])) continue;
+
+            if (esServicio($item)) $servicio++;
+            else                   $conCargo++;
+        }
+
+        $logrado16    = $plan['facturado'] + $plan['monto16'];
+        $cuenta16     = $plan['cuenta16'] + $plan['facturados'];
+        $totalDelDia  = $plan['total'];
+
+        return [
+            'status'       => 200,
+            'dia'          => $dia,
+            'fechaTexto'   => date('d/m/Y', strtotime($dia)),
+            'totalTexto'   => money($totalDelDia),
+            'movimientos'  => count($ventas),
+            'conCargo'     => $conCargo,
+            // La proporcion de la barra sale del reparto que de verdad se armo, no
+            // de la meta capturada: es lo que se va a guardar.
+            'pct16'        => pctTexto($totalDelDia > 0 ? $logrado16 / $totalDelDia * 100 : 0),
+            'pct0'         => pctTexto($totalDelDia > 0 ? $plan['monto0'] / $totalDelDia * 100 : 0),
+            'monto16Texto' => money($logrado16),
+            'monto0Texto'  => money($plan['monto0']),
+            'cuenta16'     => $cuenta16,
+            'cuenta0'      => $plan['cuenta0'],
+            'tickets'      => $cuenta16 + $plan['cuenta0'] + $servicio,
+            'cero'         => $servicio,
+            'reasignados'  => array_map(function ($mov) {
+                return [
+                    'origen'     => $mov['origen'],
+                    'destino'    => $mov['destino'] ?: '',
+                    'montoTexto' => money($mov['monto'])
+                ];
+            }, $reasignados),
+            // La combinacion con la que se armaria: viaja de vuelta para que el
+            // confirmar mande exactamente la que se aprobo.
+            'semilla'      => $this->semillaDelReparto()
+        ];
+    }
+
+    // El dia con los montos que trajo el Excel, antes de que ningun cierre mudara
+    // un cargo. `listSaleDayForSplit` los devuelve YA mudados —su monto procesable
+    // pasa por folioDelPago()—, asi que la simulacion los reconstruye sumando los
+    // cargos por su folio original.
+    //
+    // Solo en Wansoft: es el unico POS que desglosa vouchers y el unico donde la
+    // mudanza existe.
+    function montosDelPos($ventas, $pagos) {
+        if (!$this->esWansoft()) return $ventas;
+
+        $porFolio = [];
+
+        foreach ($pagos as $pago) {
+            $folio = $pago['sale_folio'];
+
+            $porFolio[$folio] = ($porFolio[$folio] ?? 0) + (float) $pago['amount'];
+        }
+
+        foreach ($ventas as $i => $item) {
+            $ventas[$i]['total'] = $porFolio[$item['folio']] ?? 0;
+        }
+
+        return $ventas;
+    }
+
+    // La mudanza puesta sin escribirla: el folio que cede pierde el monto del cargo
+    // y el que recibe lo suma. Es lo que hace `reasignarCargos` en la base, pero
+    // sobre la lista que ya se tiene en memoria.
+    function conMudanza($ventas, $movimientos) {
+        if (empty($movimientos)) return $ventas;
+
+        $delta = [];
+
+        foreach ($movimientos as $mov) {
+            if ($mov['destino'] === null) continue;
+
+            $delta[$mov['origen']]  = ($delta[$mov['origen']]  ?? 0) - (float) $mov['monto'];
+            $delta[$mov['destino']] = ($delta[$mov['destino']] ?? 0) + (float) $mov['monto'];
+        }
+
+        foreach ($ventas as $i => $item) {
+            if (!isset($delta[$item['folio']])) continue;
+
+            $ventas[$i]['total'] = round((float) $item['total'] + $delta[$item['folio']], 2);
+        }
+
+        return $ventas;
+    }
+
     // El cierre del dia completo: aplica el reparto que planReparto() decidio y arma
     // el papel que a cada grupo le falte.
     //
@@ -1103,19 +1443,12 @@ class ctrl extends mdl {
     function generateDay() {
         $dia = $_POST['dia'] ?? date('Y-m-d');
 
-        // La mudanza de cargos va PRIMERO, antes de leer el dia: cambia el monto de
-        // dos folios —el que cede y el que recibe— y el reparto se calcula sobre
-        // esos montos. Repartir antes y mudar despues dejaria el corte apuntando a
-        // un dia que ya no existe.
-        $reasignados = $this->reasignarCargos($dia);
-        $ventas      = $this->listSaleDayForSplit([$this->branchId(), $dia]);
-
-        if (empty($ventas)) {
-            $criterio = $this->esWansoft() ? 'pagadas' : 'cobradas por banco';
-
-            return ['status' => 400, 'message' => 'No hay ventas ' . $criterio . ' en el dia'];
-        }
-
+        // Todo lo que puede detener el cierre se pregunta ANTES de mudar un solo
+        // cargo. Mudar primero y validar despues deja el dia a medias cuando falta
+        // el catalogo o no hay ventas: los cargos ya cambiados de folio, ni un papel
+        // armado y ninguna corrida que respalde la mudanza. Un monto movido sin
+        // documento que lo explique es justo lo que la reasignacion existe para
+        // evitar.
         $puente = $this->catalogo(0);
 
         if (empty($puente)) {
@@ -1125,11 +1458,43 @@ class ctrl extends mdl {
             ];
         }
 
+        $ventas = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+
+        if (empty($ventas)) {
+            $criterio = $this->esWansoft() ? 'pagadas' : 'cobradas por banco';
+
+            return ['status' => 400, 'message' => 'No hay ventas ' . $criterio . ' en el dia'];
+        }
+
+        // El reparto se comprueba antes de mudar un solo cargo: un dia cerrado con
+        // las dos tasas sin cuadrar deja tickets que no suman la venta que amparan.
+        $total     = 0;
+        foreach ($ventas as $item) $total += (float) $item['total'];
+
+        $descuadre = $this->descuadreDelDia($total);
+
+        if ($descuadre !== '') return ['status' => 400, 'message' => $descuadre];
+
+        // Con el dia ya validado se mudan los cargos, y el dia se vuelve a leer: la
+        // mudanza cambia el monto de dos folios —el que cede y el que recibe— y el
+        // reparto se calcula sobre esos montos. Repartir sobre la lectura anterior
+        // dejaria el corte apuntando a un dia que ya no existe.
+        //
+        // Se relee siempre y no solo cuando algo se movio, porque reasignarCargos
+        // tambien deshace las mudanzas del cierre anterior: el dia pudo cambiar aun
+        // cuando hoy no haya nada que mudar.
+        $reasignados = $this->reasignarCargos($dia);
+        $ventas      = $this->listSaleDayForSplit([$this->branchId(), $dia]);
+
         // El catalogo de IVA solo hace falta si alguna venta del 16% llego sin su
         // comanda, asi que no se exige por adelantado como el puente: el dia con el
         // detallado cargado se reparte igual sin el.
         $conIva = $this->catalogo(0.16);
         $plan   = $this->planReparto($ventas);
+
+        // La combinacion que el usuario aprobo en la vista previa. Sin vista previa
+        // —o sin haber tocado Regenerar— llega 0, que es la de siempre.
+        $semilla = $this->semillaDelReparto();
 
         // El reparto queda escrito antes de tocar un solo papel: con que meta se
         // pidio, que objetivo salio de ella y en que venta corta el dia. Sin esto
@@ -1152,8 +1517,8 @@ class ctrl extends mdl {
         $sinPapel  = 0;
         $lugar     = 0;
 
-        // Los papeles de la corrida anterior se sueltan TODOS antes de armar
-        // ninguno, en una pasada aparte. Borrarlos sobre la marcha —como se hacia—
+        // Los papeles de la corrida anterior sueltan su NOTA —no se borran— TODOS
+        // antes de armar ninguno, en una pasada aparte. Liberarla sobre la marcha
         // funciona solo mientras la numeracion no se mueva, y se mueve: la nota es
         // el lugar de la venta en el dia, asi que una carga nueva del Excel o un
         // cambio en el universo del listado recorren todas las notas.
@@ -1162,12 +1527,21 @@ class ctrl extends mdl {
         // de la que hoy es la 6 y que todavia no se ha recorrido: el UNIQUE
         // (issue_date, note_number, branch_id) rechaza la insercion y esa venta se
         // queda sin papel, en silencio y contada como si le faltaran productos.
+        //
+        // El papel se queda porque su id es la identidad interna del ticket (punto
+        // 22.1) y rehacer el reparto no lo convierte en otro documento: la nota se
+        // aparta en negativo, cada venta actualiza la suya y al final se borran
+        // solo los que nadie reutilizo.
+        $previos = [];
+
         foreach ($ventas as $item) {
             if (esFacturado($item['status_name'])) continue;
             if (empty($item['virtual_id']))        continue;
 
-            $this->deleteVirtualTicketBySale($this->util->sql(['id' => $item['virtual_id']], 1));
+            $previos[] = (int) $item['virtual_id'];
         }
+
+        $this->releaseVirtualNotes($previos);
 
         foreach ($ventas as $item) {
             $lugar++;
@@ -1179,8 +1553,8 @@ class ctrl extends mdl {
             // papel es el unico del dia que no se arma con productos, y por eso se
             // atiende antes de preguntarle al plan, que ni siquiera lo agrupo.
             if (esServicio($item)) {
-                if ($this->guardarTicketServicio($item, $lugar, $dia, $runId)) $servicio++;
-                else                                                          $sinPapel++;
+                if ($this->guardarTicketServicio($item, $lugar, $runId)) $servicio++;
+                else                                                    $sinPapel++;
 
                 continue;
             }
@@ -1201,15 +1575,15 @@ class ctrl extends mdl {
 
                 if ($tasa <= 0 || empty($conIva)) continue;
 
-                if ($this->guardarTicketVirtual($item, $conIva, $lugar, $dia, $tasa, $runId)) $armados16++;
-                else                                                                          $sinPapel++;
+                if ($this->guardarTicketVirtual($item, $conIva, $lugar, $tasa, $runId, $semilla)) $armados16++;
+                else                                                                              $sinPapel++;
 
                 continue;
             }
 
             // Grupo 0%: la nota es el lugar de la venta en el dia, el mismo que la
             // pantalla ya venia mostrando antes de generar nada.
-            if (!$this->guardarTicketVirtual($item, $puente, $lugar, $dia, 0, $runId)) {
+            if (!$this->guardarTicketVirtual($item, $puente, $lugar, 0, $runId, $semilla)) {
                 $sinPapel++;
                 continue;
             }
@@ -1218,10 +1592,29 @@ class ctrl extends mdl {
             $cuenta0++;
         }
 
+        // Los que se quedaron con la nota apartada: este reparto ya no los
+        // contempla —la venta salio del grupo del cero, o su comanda ahora cuadra y
+        // el papel lo pone el POS—, asi que ahi si se sueltan de verdad.
+        $this->deleteReleasedVirtualTickets($previos);
+
+        // Lo que el punto 29 pide contar de la ejecucion. Los cargos que de verdad
+        // cambiaron de folio son los que encontraron destino: el sobrante que se
+        // quedo sin folio libre viaja en la lista con destino vacio y no se mudo a
+        // ningun lado, asi que contarlo diria que el dia movio mas de lo que movio.
+        $mudados = count(array_filter($reasignados, function ($mov) {
+            return $mov['destino'] !== null;
+        }));
+
         $this->cerrarCorrida($runId, [
-            'billed_0' => $monto0,
-            'count_0'  => $cuenta0,
-            'no_paper' => $sinPapel
+            'billed_0'          => $monto0,
+            'count_0'           => $cuenta0,
+            'no_paper'          => $sinPapel,
+            'movements_count'   => count($ventas),
+            'reassigned_count'  => $mudados,
+            // Los papeles de $0.00 se cuentan aparte de los del 0%: aquellos son
+            // tasa —llevan importe y renglones puente— y estos son importe, el
+            // servicio de mesa y el movimiento que vino en cero (punto 18).
+            'zero_ticket_count' => $servicio
         ]);
 
         return array_merge(
@@ -1233,6 +1626,7 @@ class ctrl extends mdl {
             ],
             $this->resumenReparto([
                 'dia'         => $dia,
+                'generacion'  => $this->corridaFolio,
                 'total'       => $plan['total'],
                 'objetivo'    => $plan['objetivo'],
                 'facturado'   => $plan['facturado'],
@@ -1307,6 +1701,9 @@ class ctrl extends mdl {
 
         return [
             'fechaTexto'        => date('d/m/Y', strtotime($r['dia'] ?? date('Y-m-d'))),
+            // El registro maestro que dejo esta ejecucion (punto 29). Viaja vacio en
+            // la vista previa, que todavia no abrio ninguna corrida.
+            'generacion'        => $r['generacion'] ?? '',
             'metaPct'           => pctTexto($r['total'] > 0 ? $r['objetivo'] / $r['total'] * 100 : 0),
             'metaCeroPct'       => pctTexto($r['total'] > 0 ? $objetivoCero / $r['total'] * 100 : 0),
             'totalTexto'        => money($r['total']),
@@ -1359,8 +1756,15 @@ class ctrl extends mdl {
     // El subtotal guardado es lo que suman los renglones, no la base gravable: de
     // ahi sale el descuento de cuadre. La base y el impuesto del papel al 16% se
     // desglosan al imprimir (ver desgloseFiscal), igual que en el ticket real.
-    function guardarTicketVirtual($item, $productos, $nota, $dia, $tasa, $runId = null) {
-        $armado   = $this->armarPapel($item['total'], $productos, semillaFolio($item['folio']));
+    //
+    // La fecha del papel sale de SU venta y no del dia que se esta cerrando. Las
+    // dos coinciden siempre —el cierre reparte las ventas que ese dia filtro—,
+    // pero coincidian por convencion y no por construccion: bastaba con que el
+    // universo del cierre dejara de ser un solo dia para que los papeles salieran
+    // sellados con la fecha de la pantalla. La regla del punto 23 es que la fecha
+    // operativa la pone el movimiento, y asi lo hace ya `generarFolio`.
+    function guardarTicketVirtual($item, $productos, $nota, $tasa, $runId = null, $semilla = 0) {
+        $armado   = $this->armarPapel($item['total'], $productos, semillaFolio($item['folio'], $semilla));
         $subtotal = $armado['subtotal'];
         $total    = (float) $item['total'];
 
@@ -1368,39 +1772,82 @@ class ctrl extends mdl {
 
         $base = $tasa > 0 ? round($total / (1 + $tasa), 2) : $total;
 
-        $creado = $this->createVirtualTicket($this->util->sql([[
+        return $this->guardarPapel($item, [
             'note_number' => $nota,
             'subtotal'    => $subtotal,
             'discount'    => max(0, round($subtotal - $total, 2)),
             'tax_rate'    => $tasa,
             'tax'         => $tasa > 0 ? round($total - $base, 2) : 0,
             'total'       => $total,
-            'issue_date'  => $dia,
+            'issue_date'  => diaDe($item),
             'sale_id'     => $item['id'],
             // De que corrida salio este papel. Es lo que permite auditar despues
             // con que meta se repartio el dia en que se armo.
-            'generation_run_id' => $runId ?: null,
-            'branch_id'   => $this->branchId()
-        ]]));
+            'generation_run_id' => $runId ?: null
+        ], $this->partidasDe($armado['lineas']));
+    }
 
-        if (!$creado) return false;
+    // El papel de una venta, se este armando por primera vez o volviendo a armar.
+    //
+    // Regenerar es ACTUALIZAR el mismo ticket, no cambiarlo por otro: su id es la
+    // identidad interna del papel (punto 22.1) y tiene que sobrevivir a que el dia
+    // se rehaga. Lo que se reemplaza son los renglones.
+    //
+    // Los dos folios se guardan con el papel y no se consultan al imprimir:
+    //
+    //   visible_folio  el que sale impreso, que es el de su venta.
+    //   origin_folio   el movimiento del que salio el cargo que ampara. El mismo,
+    //                  salvo que el punto 17 haya mudado un cargo hasta este folio.
+    //
+    // Son una foto, no un enlace: la mudanza se recalcula entera en cada cierre y
+    // se deshace al eliminar el dia, y el papel que ya se entrego tiene que poder
+    // seguir diciendo de donde vino su cargo.
+    function guardarPapel($item, $campos, $lineas) {
+        $campos['visible_folio'] = $item['folio'];
+        $campos['origin_folio']  = folioOrigen($item);
+        $campos['branch_id']     = $this->branchId();
 
-        $max       = $this->getMaxVirtualTicketId();
-        $ticketId  = (int) ($max[0]['id'] ?? 0);
-        $renglones = [];
+        $ticketId = (int) (isset($item['virtual_id']) ? $item['virtual_id'] : 0);
 
-        foreach ($armado['lineas'] as $linea) {
-            $renglones[] = [
-                'description'       => $linea['description'],
-                'quantity'          => $linea['quantity'],
-                'unit_price'        => $linea['unit_price'],
-                'amount'            => $linea['amount'],
-                'product_id'        => $linea['product_id'],
-                'virtual_ticket_id' => $ticketId
+        if ($ticketId > 0) {
+            // El id va al final porque util->sql toma el ultimo campo como WHERE.
+            $campos['id'] = $ticketId;
+
+            if (!$this->updateVirtualTicket($this->util->sql($campos, 1))) return false;
+
+            $this->deleteVirtualDetailByTicket([$ticketId]);
+        } else {
+            if (!$this->createVirtualTicket($this->util->sql([$campos]))) return false;
+
+            // El recien insertado se busca por su llave natural —el consecutivo del
+            // dia es unico por sucursal— y no por el ultimo id de la tabla.
+            $creado   = $this->getVirtualTicketByNote([$campos['issue_date'], $campos['note_number'], $this->branchId()]);
+            $ticketId = (int) ($creado[0]['id'] ?? 0);
+
+            if ($ticketId === 0) return false;
+        }
+
+        foreach ($lineas as $i => $linea) $lineas[$i]['virtual_ticket_id'] = $ticketId;
+
+        return (bool) $this->createVirtualDetail($this->util->sql($lineas));
+    }
+
+    // Los renglones del armador con la forma que espera detail_virtual_ticket. El
+    // ticket al que se cuelgan lo pone guardarPapel, que es quien sabe su id.
+    function partidasDe($lineas) {
+        $partidas = [];
+
+        foreach ($lineas as $linea) {
+            $partidas[] = [
+                'description' => $linea['description'],
+                'quantity'    => $linea['quantity'],
+                'unit_price'  => $linea['unit_price'],
+                'amount'      => $linea['amount'],
+                'product_id'  => $linea['product_id']
             ];
         }
 
-        return (bool) $this->createVirtualDetail($this->util->sql($renglones));
+        return $partidas;
     }
 
     // El papel del servicio de mesa. Es el unico del dia que no se arma con
@@ -1409,39 +1856,32 @@ class ctrl extends mdl {
     // seria inventarle un consumo a un documento que nadie va a deducir.
     //
     // Un solo renglon en cero: aqui el renglon ES el total, y el total no ampara
-    // ningun cargo por definicion. Que la cuenta haya cobrado dinero real (ver
-    // sale_total) solo decide si existe papel que guardar, no cuanto imprime.
-    function guardarTicketServicio($item, $nota, $dia, $runId = null) {
-        if ((float) ($item['sale_total'] ?? 0) <= 0) return false;
-
-        $creado = $this->createVirtualTicket($this->util->sql([[
+    // ningun cargo por definicion. Lo que la cuenta haya cobrado (ver sale_total)
+    // no cambia nada del papel: el movimiento que vino con Total $0.00 recibe el
+    // mismo que el servicio de mesa, porque el folio se tiene que emitir igual para
+    // que la secuencia del dia no salte un numero.
+    function guardarTicketServicio($item, $nota, $runId = null) {
+        return $this->guardarPapel($item, [
             'note_number' => $nota,
             'subtotal'    => 0,
             'discount'    => 0,
             'tax_rate'    => 0,
             'tax'         => 0,
             'total'       => 0,
-            'issue_date'  => $dia,
+            'issue_date'  => diaDe($item),
             'sale_id'     => $item['id'],
-            'generation_run_id' => $runId ?: null,
-            'branch_id'   => $this->branchId()
-        ]]));
-
-        if (!$creado) return false;
-
-        $max      = $this->getMaxVirtualTicketId();
-        $ticketId = (int) ($max[0]['id'] ?? 0);
-
-        // El renglon va sin producto: no salio del catalogo, y apuntarlo a uno
-        // cualquiera ensuciaria lo que ese producto reporta haber vendido.
-        return (bool) $this->createVirtualDetail($this->util->sql([[
-            'description'       => CONCEPTO_SERVICIO,
-            'quantity'          => 1,
-            'unit_price'        => 0,
-            'amount'            => 0,
-            'product_id'        => null,
-            'virtual_ticket_id' => $ticketId
-        ]]));
+            'generation_run_id' => $runId ?: null
+        ], [
+            // El renglon va sin producto: no salio del catalogo, y apuntarlo a uno
+            // cualquiera ensuciaria lo que ese producto reporta haber vendido.
+            [
+                'description' => CONCEPTO_SERVICIO,
+                'quantity'    => 1,
+                'unit_price'  => 0,
+                'amount'      => 0,
+                'product_id'  => null
+            ]
+        ]);
     }
 
 
@@ -1604,9 +2044,10 @@ class ctrl extends mdl {
         }
 
         $this->cerrarCorrida($runId, [
-            'billed_0' => $monto0,
-            'count_0'  => $generados,
-            'no_paper' => count($pendientes) - $generados
+            'billed_0'        => $monto0,
+            'count_0'         => $generados,
+            'no_paper'        => count($pendientes) - $generados,
+            'movements_count' => count($pendientes)
         ]);
 
         return [
@@ -1640,15 +2081,29 @@ class ctrl extends mdl {
         $veto = $this->esWansoft() ? vetoDeGeneracion($item) : '';
         if ($veto) return ['status' => 400, 'message' => $veto];
 
+        // El papel en cero —el servicio de mesa y el movimiento que vino con Total
+        // $0.00— no se arma con productos y sale con el cierre del dia, como el de
+        // todos los demas. Sin esto la peticion termina en "no se pudo armar un
+        // ticket que cuadre con $0.00", que suena a catalogo incompleto cuando lo
+        // que pasa es que no hay nada que cuadrar.
+        if (esServicio($item)) {
+            return [
+                'status'  => 400,
+                'message' => 'El movimiento no ampara ningun cargo con tarjeta: su papel se emite en $0.00 con el cierre del dia.'
+            ];
+        }
+
         $armado = $this->armarTicket($item);
         if ($armado['status'] !== 200) return $armado;
 
-        $dia = date('Y-m-d', strtotime($item['operation_date']));
+        $dia = diaDe($item);
 
         // Regenerar un papel a mano tambien es un proceso de generacion. Cuando la
         // pasada de pendientes ya abrio la suya se hereda, y si no se abre una de
         // este solo ticket.
-        if (!$runId) $runId = $this->abrirCorrida('folio', $dia);
+        $propia = !$runId;
+
+        if ($propia) $runId = $this->abrirCorrida('folio', $dia);
 
         // La nota no se pide ni se inventa: es el lugar que la venta ocupa en su
         // dia, el mismo que ya se ve en el listado. Regenerar un ticket suelto no
@@ -1658,16 +2113,15 @@ class ctrl extends mdl {
 
         if ($nota === 0) return ['status' => 400, 'message' => 'La venta no aparece en el corte del dia'];
 
-        if (!empty($item['virtual_id'])) {
-            $this->deleteVirtualTicket($this->util->sql(['id' => $item['virtual_id']], 1));
-        }
-
         $subtotal = $armado['subtotal'];
         $total    = (float) $item['total'];
 
         // El papel puente siempre va al 0%: la tasa vive en el ticket porque la
         // venta sigue diciendo lo que trajo el POS.
-        $creado = $this->createVirtualTicket($this->util->sql([[
+        //
+        // El papel anterior no se cambia por otro: se actualiza (ver guardarPapel),
+        // asi que el ticket conserva su id ademas de su nota.
+        $guardado = $this->guardarPapel($item, [
             'note_number' => $nota,
             'subtotal'    => $subtotal,
             'discount'    => max(0, round($subtotal - $total, 2)),
@@ -1676,34 +2130,28 @@ class ctrl extends mdl {
             'total'       => $total,
             'issue_date'  => $dia,
             'sale_id'     => $item['id'],
-            'generation_run_id' => $runId ?: null,
-            'branch_id'   => $this->branchId()
-        ]]));
+            'generation_run_id' => $runId ?: null
+        ], $this->partidasDe($armado['lineas']));
 
-        if (!$creado) return ['status' => 500, 'message' => 'No se pudo guardar el ticket virtual'];
+        if (!$guardado) return ['status' => 500, 'message' => 'No se pudo guardar el ticket virtual'];
 
-        $max      = $this->getMaxVirtualTicketId();
-        $ticketId = (int) ($max[0]['id'] ?? 0);
-        $renglones = [];
-
-        foreach ($armado['lineas'] as $linea) {
-            $renglones[] = [
-                'description'       => $linea['description'],
-                'quantity'          => $linea['quantity'],
-                'unit_price'        => $linea['unit_price'],
-                'amount'            => $linea['amount'],
-                'product_id'        => $linea['product_id'],
-                'virtual_ticket_id' => $ticketId
-            ];
+        // El registro maestro del ticket suelto se cierra aqui, con el unico
+        // movimiento que atendio. La corrida heredada no se toca: la cierra la
+        // pasada que la abrio, con el conteo de toda la tanda.
+        if ($propia) {
+            $this->cerrarCorrida($runId, [
+                'billed_0'        => $total,
+                'count_0'         => 1,
+                'movements_count' => 1
+            ]);
         }
 
-        $this->createVirtualDetail($this->util->sql($renglones));
-
         return [
-            'status'  => 200,
-            'message' => 'Ticket virtual generado con la nota #' . $nota,
-            'nota'    => $nota,
-            'folio'   => $folio
+            'status'     => 200,
+            'message'    => 'Ticket virtual generado con la nota #' . $nota,
+            'nota'       => $nota,
+            'folio'      => $folio,
+            'generacion' => $propia ? $this->corridaFolio : ''
         ];
     }
 }
@@ -1718,6 +2166,13 @@ function agruparPorClave($filas, $clave) {
     foreach ($filas as $fila) $__row[$fila[$clave]][] = $fila;
 
     return $__row;
+}
+
+// La fecha operativa de una venta: el dia al que pertenece el movimiento, sin su
+// hora. Es la que sella el papel (punto 23), y sale del propio movimiento para
+// que no dependa de lo que la pantalla tenga seleccionado.
+function diaDe($item) {
+    return date('Y-m-d', strtotime($item['operation_date']));
 }
 
 // Ningun Excel trae la tasa: se deduce del par subtotal/impuesto de la venta.
@@ -1774,20 +2229,37 @@ function esFacturado($statusName) {
     return strtoupper((string) $statusName) === 'FACTURADO';
 }
 
-// El folio que se cobro, pero no con tarjeta: el servicio de mesa. Su monto
-// procesable es cero —no ampara ningun cargo que facturar— aunque la cuenta si
-// haya cobrado dinero, y esa distancia entre las dos cifras es justo lo que lo
-// define.
+// El folio que no ampara ningun cargo que facturar. Son dos casos distintos que
+// terminan en el mismo papel —un ticket en $0.00 que conserva el folio y su lugar
+// en la secuencia del dia— y por eso se preguntan juntos:
+//
+//   servicio de mesa   la cuenta cobro dinero, pero no por tarjeta. Su monto
+//                      procesable es cero y el de la venta no: esa distancia
+//                      entre las dos cifras es lo que lo define.
+//   movimiento en cero el Excel lo trajo con Total $0.00. No cobro nada, asi que
+//                      las dos cifras son cero (regla 18).
 //
 // No se pregunta por la forma de pago sino por el monto, porque el monto ya
 // incorpora la mudanza de cargos: el folio de efectivo que recibio un voucher deja
 // de ser servicio de mesa sin que su forma de pago original haya cambiado, y el
 // folio que cedio su unico cargo se convierte en uno.
 //
-// Solo existe en Wansoft: en Soft Restaurant el monto procesable es el total de la
-// venta y las dos cifras nunca se separan.
+// El servicio de mesa solo existe en Wansoft —en Soft Restaurant el monto
+// procesable es el total de la venta y las dos cifras nunca se separan—, pero el
+// movimiento en cero puede llegar de cualquiera de los dos.
 function esServicio($item) {
-    return (float) $item['total'] <= 0 && (float) ($item['sale_total'] ?? 0) > 0;
+    return (float) $item['total'] <= 0;
+}
+
+// De los dos casos del papel en cero, cual es el movimiento que vino con Total
+// $0.00: el que ademas no cobro nada. El servicio de mesa si cobro —en efectivo, por
+// transferencia— y esa es la unica diferencia entre ellos.
+//
+// No cambia el papel, que es el mismo para los dos: separa lo que la PANTALLA tiene
+// que decir de cada uno, porque el importe que no se factura se explica distinto
+// cuando existe («se cobro en efectivo») que cuando nunca existio.
+function esCeroDeOrigen($item) {
+    return (float) ($item['sale_total'] ?? 0) <= 0;
 }
 
 // El importe que imprime un papel. Es el monto procesable —lo que el folio va a
@@ -1851,8 +2323,15 @@ function emisorVacio() {
 // cargada. Los que faltan se arman a partir del folio: no es azar, es una funcion
 // del folio, asi que el ticket 174291 muestra hoy y en un ano las mismas personas
 // y la misma orden. Un rand() daria un papel distinto en cada impresion.
-function semillaFolio($folio) {
-    return crc32((string) $folio);
+// El offset es lo que permite REGENERAR la combinacion desde la vista previa
+// (punto 20) sin renunciar a lo anterior: con 0 —el caso de siempre— devuelve
+// exactamente el crc32 del folio, asi que un papel ya emitido se rearma igual. Con
+// otro numero el mismo folio saca otra mezcla, y ese numero queda escrito en la
+// corrida (generation_run.paper_seed) para que el dia se pueda rehacer identico.
+function semillaFolio($folio, $offset = 0) {
+    $offset = (int) $offset;
+
+    return $offset === 0 ? crc32((string) $folio) : crc32($folio . '#' . $offset);
 }
 
 function mesaFicticia($semilla) {
@@ -1959,7 +2438,7 @@ function notaCelda($nota, $generado) {
 // y significan cosas distintas, asi que sin ese gancho la hoja de estilos no puede
 // darles trato aparte. La terminal Wansoft lo usa para pintarlos sin pildora; el
 // Facturador no declara reglas para esas clases y se ve igual que siempre.
-function badgeEstado($item, $tasa) {
+function badgeEstado($item, $tasa, $grupo = '') {
     if (esFacturado($item['status_name'])) {
         return '<span class="badge-base b-green st-fact"><i data-lucide="lock" class="w-3 h-3"></i>Facturado ' . $item['invoice_series'] . '</span>';
     }
@@ -1986,6 +2465,28 @@ function badgeEstado($item, $tasa) {
         return '<span class="badge-base ' . $tono . '">IVA ' . porcentaje($tasa) . '</span>';
     }
 
+    // Todavia sin papel, pero el reparto ya sabe a que tasa cae: es el mismo plan
+    // que dibuja la linea de corte de la tabla. La fila lo dice desde ahora, porque
+    // lo que falta es el papel y no la tasa.
+    //
+    // Va en el color de su tasa, el mismo del ticket ya generado: es la misma tasa.
+    // Que tenga papel o no lo dicen la nota en negrita y el ojo de la fila, no un
+    // segundo tono del mismo color que nadie explico. Lo unico aparte es el title,
+    // que esta en futuro.
+    //
+    // Antes caian todas en «No facturado», que es el estado de la venta frente al
+    // SAT y no dice nada de a que tasa va: dos cosas distintas en la misma palabra.
+    if ($grupo !== '') {
+        $cero = $grupo === '0';
+
+        $razon = $cero
+            ? 'Su papel se arma al 0% al generar los tickets del dia'
+            : 'Se factura al 16% al generar los tickets del dia';
+
+        return '<span class="badge-base ' . ($cero ? 'b-gray st-0' : 'b-blue st-16') . '" title="' . $razon . '">'
+             . 'IVA ' . ($cero ? '0%' : '16%') . '</span>';
+    }
+
     if ($tasa == 0) return '<span class="badge-base b-yellow st-req">Requiere ticket virtual</span>';
 
     return '<span class="badge-base b-gray st-nof">No facturado</span>';
@@ -1997,6 +2498,30 @@ function estadoTexto($item, $tasa) {
     if ($tasa == 0)                        return 'IVA 0%';
 
     return $item['status_name'] ? strtoupper($item['status_name']) : 'SIN ESTADO';
+}
+
+// El movimiento PDV del que salio el cargo que el papel ampara (punto 22.1). Es
+// el suyo salvo que el punto 17 haya mudado un cargo hasta aqui: entonces el papel
+// se imprime con su folio pero el dinero nacio en el de origen.
+//
+// Manda lo que el ticket guardo al emitirse: la mudanza se recalcula entera en
+// cada cierre, y el papel que ya se entrego no puede cambiar de origen porque el
+// dia se haya vuelto a repartir. Sin papel todavia se lee de la mudanza vigente,
+// que es lo que se va a guardar cuando se genere.
+//
+// Del listado llega una lista —una cuenta partida en tres cede dos cargos—, pero
+// del lado del que RECIBE siempre es uno: receptorProximo se lleva el folio libre
+// al usarlo, asi que ningun folio recibe dos.
+function folioOrigen($item) {
+    if (!empty($item['origin_folio'])) return $item['origin_folio'];
+
+    $recibido = trim((string) (isset($item['recibido_de']) ? $item['recibido_de'] : ''));
+
+    if ($recibido === '') return $item['folio'];
+
+    $folios = explode(',', $recibido);
+
+    return trim($folios[0]);
 }
 
 // La marca de la mudanza, en la fila de los dos folios que participan: el que
@@ -2034,16 +2559,60 @@ function montoCelda($item) {
         return '<span class="font-semibold text-white">' . money($item['total']) . '</span>';
     }
 
+    // El movimiento que vino con Total $0.00 no tiene cobro que nombrar: decir que
+    // "se cobro en tarjeta de credito por $0.00" mandaria a buscar un importe que
+    // el Excel nunca trajo.
+    if (esCeroDeOrigen($item)) {
+        return '<span class="text-gray-500" title="No factura: el movimiento vino sin importe en la carga">-</span>';
+    }
+
     $cobro = $item['payment_real'] ? strtolower($item['payment_real']) : 'sin pago registrado';
 
     return '<span class="text-gray-500" title="No factura: la cuenta se cobro en ' . htmlspecialchars($cobro, ENT_QUOTES)
          . ' por ' . money($item['sale_total']) . '">-</span>';
 }
 
+// Por que una fila del dia sin repartir no puede ensenar papel todavia. Cadena
+// vacia cuando si puede: la venta trae su comanda cargada y esa comanda suma lo
+// que el folio ampara, asi que su ticket al 16% es el consumo real y no una
+// propuesta del catalogo.
+//
+// Es la misma pregunta que resuelve getTicket al armar el papel, escrita aqui para
+// que el ojo no prometa un ticket que despues sale del catalogo.
+function motivoSinPapel($item, $repartido, $grupo) {
+    // El servicio de mesa se abre siempre, tenga papel o no: el suyo no lleva el
+    // consumo —papelDe le pone su propio renglon— asi que abrirlo no ensena
+    // productos que todavia no son de nadie. Y hay algo que ensenar: la cuenta
+    // cobro dinero, aunque no por tarjeta, y su monto procesable sea $0.00.
+    if (esServicio($item)) return '';
+
+    // La venta que el reparto manda al 0% no tiene papel hasta que se genera: sus
+    // renglones los inventa el generador con productos puente, asi que abrirla
+    // antes es leer una propuesta como si fuera el ticket definitivo.
+    if ($grupo === '0') return 'tasa-cero';
+
+    // Las dos razones que siguen son del dia sin repartir: pasado el reparto, la
+    // venta al 16% ya tiene su papel guardado o su comanda con que abrirse.
+    if ($repartido) return '';
+
+    // La venta que llego sin su detallado no tiene renglones que mostrar.
+    if (empty($item['tiene_detalle'])) return 'sin-comanda';
+
+    // La tiene, pero por otro monto: la cuenta partida y los dos lados de una
+    // mudanza de cargos. Sus renglones no suman lo que el papel ampara.
+    if (!comandaCuadra($item)) return 'comanda-parcial';
+
+    return '';
+}
+
 // Una accion por fila y segun el estado: el facturado solo avisa que esta
-// bloqueado, el del dia sin repartir no se puede abrir todavia, y el resto abre su
-// ticket virtual.
-function accionTicket($item, $tasa, $repartido = true) {
+// bloqueado, el que va al 0% abre cuando su papel ya esta generado, el del dia sin
+// repartir abre solo si su comanda esta cargada, y el resto abre su ticket virtual.
+//
+// $grupo es a que tasa lo manda el reparto ('16', '0', o vacio en el servicio de
+// mesa, que no se reparte): sale de planReparto, el mismo plan que dibuja la linea
+// de corte de la tabla y que aplica el cierre del dia.
+function accionTicket($item, $repartido = true, $grupo = '') {
     $folio = $item['folio'];
 
     if (esFacturado($item['status_name'])) {
@@ -2057,28 +2626,44 @@ function accionTicket($item, $tasa, $repartido = true) {
         ];
     }
 
-    // Antes de repartir el dia no hay ticket que ver: lo unico que se podria
-    // mostrar es una propuesta, y abrirla ahi invita a leerla como el papel
-    // definitivo cuando todavia no se decidio ni a que tasa va la venta.
-    if (!$repartido) {
+    // Solo se abre lo que ya existe: el papel guardado, o la venta con su comanda
+    // cargada, que ensena el consumo que iria en su papel al 16%. Las demas dicen en
+    // el title por que no, que es lo unico que quien mira la fila puede hacer al
+    // respecto.
+    $motivo = !empty($item['virtual_id']) ? '' : motivoSinPapel($item, $repartido, $grupo);
+
+    if ($motivo) {
+        $razon = [
+            'tasa-cero'       => 'Su papel se arma al generar los tickets del dia',
+            'sin-comanda'     => 'La venta llego sin su comanda: su papel se arma al generar los tickets del dia',
+            'comanda-parcial' => 'El folio ampara solo parte de la cuenta: su papel se arma al generar los tickets del dia'
+        ][$motivo];
+
         return [
             [
                 'class'   => 'btn-icon-view',
                 'html'    => '<i data-lucide="eye-off" class="w-3.5 h-3.5 text-gray-500"></i>',
-                'title'   => 'Genera los tickets del dia para poder verlo',
-                'onclick' => 'tickets.pendingNotice()'
+                'title'   => $razon,
+                'onclick' => "tickets.pendingNotice('{$motivo}')"
             ]
         ];
     }
 
-    $icono = empty($item['virtual_id']) ? '' : 'text-amber-500';
-
-    $texto = empty($item['virtual_id']) ? 'Armar el ticket virtual' : 'Ver el ticket virtual';
+    // Un solo color para toda la columna: el ojo abre la fila y eso es lo mismo en
+    // todas. Lo que cambia de una a otra —si su papel ya esta guardado— ya lo dicen
+    // el badge de Estado y la columna Nota, y teñir el icono lo repetia con un
+    // codigo de color que no estaba explicado en ningun lado.
+    //
+    // Sin reparto corrido el clic no arma nada: ensena el ticket de la venta con
+    // lo que realmente consumieron, que es el papel que le tocaria al 16%.
+    $texto = !empty($item['virtual_id'])
+        ? 'Ver el ticket virtual'
+        : ($repartido ? 'Armar el ticket virtual' : 'Ver el ticket de la venta');
 
     return [
         [
             'class'   => 'btn-icon-view',
-            'html'    => '<i data-lucide="eye" class="w-3.5 h-3.5 ' . $icono . '"></i>',
+            'html'    => '<i data-lucide="eye" class="w-3.5 h-3.5"></i>',
             'title'   => $texto,
             'onclick' => "app.selectTicket('{$folio}')"
         ]

@@ -491,7 +491,10 @@ class Complements {
             }
         });
 
-        container.find('input, textarea').on('blur', function () {
+        // El recorte de espacios es para texto. En un input de archivo asignar `val`
+        // lanza InvalidStateError —el navegador solo deja ponerlo en vacio— y ese
+        // error corta el resto de los manejadores del formulario.
+        container.find('input, textarea').not('[type="file"]').on('blur', function () {
             $(this).val($(this).val().trim());
         });
 

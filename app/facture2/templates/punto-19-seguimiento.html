@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tickets · Seguimiento del punto 19 · Boceto</title>
+
+<!-- Mismas librerias que templates/pos-wansoft.html -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+    colors: {
+      ws: {
+        blue: '#2B4FD8', blueDk: '#2340BC', blueLt: '#4667E0', key: '#E4E8F8',
+        ink: '#1F2937', muted: '#6B7280', line: '#E5E7EB', lineDk: '#D1D5DB',
+        ok: '#047857', warn: '#B45309', danger: '#B91C1C', purple: '#6D28D9'
+      }
+    }
+  }}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  html, body { height: 100%; }
+  body { font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  body, button { -webkit-tap-highlight-color: transparent; }
+  button { outline: none; }
+
+  /* Franja de cifras: copia de .ws-stat de wansoft-theme.css */
+  .ws-stat      { padding: 0 22px; border-left: 1px solid #E5E7EB; }
+  .ws-stat:first-child { padding-left: 0; border-left: 0; }
+  .ws-stat-lbl  { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6B7280; }
+  .ws-stat-val  { font-size: 15px; font-weight: 600; color: #1F2937; font-variant-numeric: tabular-nums; }
+  .ws-stat-hero .ws-stat-val { font-size: 18px; font-weight: 700; }
+  .ws-stat-blue .ws-stat-val { color: #2340BC; }
+  .ws-stat-ok   .ws-stat-val { color: #047857; }
+
+  /* Tabla: los tonos y medidas que createCoffeeTable3 toma del tema claro, con
+     la fila de 35px que el modulo deja para el boton de la accion. */
+  .tbl              { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .tbl thead th     { background: #E5E7EB; color: #374151; text-align: left; font-size: 11px; font-weight: 600;
+                      padding: 5px 10px; white-space: nowrap; border-bottom: 1px solid #D1D5DB;
+                      position: sticky; top: 0; z-index: 1; }
+  .tbl tbody td     { padding: 5.5px 10px; line-height: 1.5; border-bottom: 1px solid #E5E7EB; }
+  .tbl tbody tr.alt td { background: #F9FAFB; }
+  .tbl tbody tr.cut td { border-top: 2px solid #FACA15; }
+  .num              { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono             { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; color: #6B7280; }
+
+  /* -- El estado, al modo de la terminal --
+
+     Wansoft no pinta pildoras: el estado va en texto y el color vive en un punto
+     de 6px, como los cuatro del filtro de su pantalla de cuentas. El ancho comun
+     deja los puntos en columna; sin el, la fila saldria en zigzag. */
+
+  .badge-base {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 9.5px; font-weight: 500; line-height: 1.5; color: #4B5563;
+  }
+
+  .badge-base::before {
+      content: ""; width: 6px; height: 6px; border-radius: 9999px; flex: none; background: #B6BECC;
+  }
+
+  .badge-base:not(.ml-1) { min-width: 118px; justify-content: flex-start; }
+
+  .st-16::before   { background: #2B4FD8; }
+  .st-0::before    { background: #12A594; }
+  .st-fact::before { background: #047857; }
+  .st-req::before  { background: #E08600; }
+  .st-nof::before  { background: #B6BECC; }
+  .st-serv::before { background: #E2E6EE; }
+
+  .st-fact { color: #047857; font-weight: 600; }
+  .st-serv { color: #8B95A6; }
+
+  /* Las marcas de mudanza se cuelgan del borde derecho de la celda para que el
+     estado no se corra y la columna siga alineada. Sin punto: son un folio, no
+     un estado, y la flecha ya dice el sentido. */
+  .tbl tbody td.st-cell { position: relative; }
+
+  .badge-base.ml-1 {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      font-size: 8.5px; color: #9CA3AF; min-width: 0;
+  }
+
+  .badge-base.ml-1::before { display: none; }
+  .badge-base.ml-1:nth-of-type(2) { right: 8px; }
+  .badge-base.ml-1:nth-of-type(3) { right: 56px; }
+
+  /* El ojo de la fila: 22px con su caja, que es lo que marca el alto de 35 */
+  .btn-icon-view {
+      width: 22px; height: 22px; border-radius: 5px; display: inline-flex;
+      align-items: center; justify-content: center; color: #1C64F2;
+  }
+
+  .btn-icon-view:hover { background: rgba(28,100,242,.10); }
+
+  /* Los badges con caja siguen fuera de la tabla: avisos y propuesta */
+  .b        { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .b-gray   { background: #E5E7EB; color: #4B5563; }
+  .b-blue   { background: #E4E8F8; color: #2340BC; }
+  .b-green  { background: #D1FAE5; color: #047857; }
+  .b-yellow { background: #FEF3C7; color: #B45309; }
+  .b-purple { background: #EDE9FE; color: #6D28D9; }
+
+  .al        { font-size: 12.5px; padding: 8px 11px; border-radius: 4px; border: 1px solid; }
+  .al-blue   { background: #EFF4FE; border-color: #C7D6F8; color: #2340BC; }
+  .al-green  { background: #ECFDF5; border-color: #A7F3D0; color: #047857; }
+  .al-yellow { background: #FFFBEB; border-color: #FDE68A; color: #B45309; }
+
+  /* -- El panel de seguimiento --
+
+     Es lo unico que el modulo no tiene hoy. Los 19 pasos con su estado: lo que
+     ya quedo resuelto, en cual esta parado el usuario y cual falta construir.
+     El dato de cada paso sale de lo que el modulo YA calcula. */
+
+  /* Dos lineas por paso: que es, y el dato que lo respalda. Los rotulos son
+     cortos a proposito —el numero ya dice cual del punto 19 es— para que
+     ninguno se parta en tres renglones. */
+  .paso        { display: grid; grid-template-columns: .95rem 1fr; gap: 7px; padding: 4px 0; }
+  .paso .ico   { width: .95rem; height: .95rem; border-radius: 9999px; display: flex; align-items: center;
+                 justify-content: center; font-size: 9px; font-weight: 700; margin-top: 1px; }
+  .paso .t     { font-size: 11.5px; line-height: 1.3; color: #1F2937; }
+  .paso .d     { grid-column: 2; font-size: 10.5px; color: #9CA3AF; font-variant-numeric: tabular-nums;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* El paso en curso y el que falta construir dejan respirar su explicacion. */
+  .paso.abre .d { white-space: normal; color: #6B7280; }
+
+  .st-ok    { background: #D1FAE5; color: #047857; }
+  .st-live  { background: #2B4FD8; color: #fff; }
+  .st-todo  { background: #F3F4F6; color: #D1D5DB; }
+  .st-falta { background: #FEF3C7; color: #B45309; }
+
+  .paso.is-todo .t  { color: #9CA3AF; }
+  .paso.is-live .t  { font-weight: 600; color: #2340BC; }
+  .paso.is-falta .t { color: #B45309; }
+
+  .sep { border-top: 1px solid #E5E7EB; margin: 6px 0; }
+
+  /* -- Las dos columnas --
+     El ancho del panel vive en una variable, como en el modulo: el tirador la
+     mueve y la tabla se acomoda sola. */
+
+  :root { --detail-w: 340px; }
+
+  #detailPanel { width: var(--detail-w); }
+
+  #detailResizer {
+      flex: 0 0 5px; background: #E5E7EB; border: 0; padding: 0; cursor: col-resize;
+  }
+
+  #detailResizer:hover, #detailResizer:focus { background: #2B4FD8; outline: none; }
+
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  /* El boton de ayuda del pie, como el .ws-help del modulo */
+  .ws-help {
+      width: 24px; height: 24px; border-radius: 9999px; border: 1px solid #D1D5DB;
+      background: #fff; color: #6B7280; display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  .ws-help:hover { border-color: #2B4FD8; color: #2340BC; }
+
+  /* -- El papel del ticket --
+     El mismo que imprime el modulo: membrete, renglones, totales y letras. */
+
+  .paper {
+      background: #fff; border: 1px solid #D1D5DB; border-radius: 3px; padding: 11px 10px;
+      font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; line-height: 1.5; color: #23262B;
+  }
+
+  .paper .c  { text-align: center; }
+  .paper .b  { font-weight: 700; }
+  .paper .hr { border-top: 1px dashed #C9C6BE; margin: 5px 0; }
+  .paper .r  { display: flex; justify-content: space-between; gap: 8px; }
+  .paper .sm { font-size: 9.5px; }
+
+  /* La fila seleccionada, como la marca el listado del modulo */
+  .tbl tbody tr.sel td { background: #E4E8F8; }
+
+  .money      { display: flex; align-items: center; gap: 6px; background: #F3F4F6; border: 1px solid #D1D5DB;
+                border-radius: 4px; padding: 7px 10px; }
+  .money.foc  { border-color: #2B4FD8; box-shadow: 0 0 0 2px rgba(43,79,216,.15); background: #fff; }
+  .money.bad  { border-color: #E02424; box-shadow: 0 0 0 2px rgba(224,36,36,.12); background: #fff; }
+  .money input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+                 font-size: 15px; font-weight: 600; color: #1F2937; font-variant-numeric: tabular-nums; }
+
+  .modal-bg { background: rgba(17,24,39,.45); }
+
+  /* -- Icono de Excel --
+     La hoja verde con la X: es como se ve el archivo en el escritorio, y con eso
+     el usuario reconoce que es lo que tiene que arrastrar sin leer el rotulo. */
+
+  .xls-ico {
+      width: 20px; height: 24px; flex: none; display: inline-block;
+      background: #fff; border: 1px solid #C9CFD6; border-radius: 2px;
+      position: relative; overflow: hidden;
+  }
+
+  .xls-ico::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 9px;
+      background: #217346;
+  }
+
+  .xls-ico::after {
+      content: "X"; position: absolute; left: 0; top: 50%; width: 9px;
+      transform: translateY(-50%); text-align: center;
+      font-size: 8px; font-weight: 700; color: #fff; line-height: 1;
+  }
+
+  .xls-ico-lg { width: 34px; height: 42px; border-radius: 3px; }
+  .xls-ico-lg::before { width: 15px; }
+  .xls-ico-lg::after  { width: 15px; font-size: 13px; }
+
+  /* -- Aviso de archivo que no cuadra --
+     El libro de Excel dibujado: la barra de letras, la cuadricula y al pie las
+     pestanas. Comparar el que se espera con el que se subio dice mas que una
+     lista de nombres de hoja. */
+
+  .xls-book  { background: #fff; border: 1px solid #C9CFD6; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+  .xls-head  { display: flex; background: #F1F3F5; border-bottom: 1px solid #D5DAE0; }
+
+  .xls-head span {
+      flex: 0 0 38px; padding: 2px 0; text-align: center; font-size: 8px;
+      font-weight: 700; color: #6B7280; border-right: 1px solid #E2E6EA;
+  }
+
+  .xls-grid {
+      height: 38px; background-color: #fff;
+      background-image: linear-gradient(to right, #E4E8ED 1px, transparent 1px),
+                        linear-gradient(to bottom, #E4E8ED 1px, transparent 1px);
+      background-size: 38px 15px;
+  }
+
+  .xls-tabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 8px 6px; background: #F1F3F5; border-top: 1px solid #D5DAE0; }
+
+  .xls-tab {
+      display: inline-flex; align-items: center; padding: 4px 11px 5px;
+      border: 1px solid; border-top: 0; border-radius: 0 0 5px 5px;
+      font-size: 10px; font-weight: 700; white-space: nowrap;
+  }
+
+  .xls-ok  { background: #fff;    color: #217346; border-color: #BCD9C7; }
+  .xls-bad { background: #FDE8E8; color: #C81E1E; border-color: #F5C2C2; }
+  .xls-alt { background: #FFF7E6; color: #B45309; border-color: #F0D399; }
+
+  /* La fila de encabezados dos veces, una debajo de otra: asi el desfase se ve
+     de un vistazo, que es lo que una lista de "columna X no coincide" no
+     alcanza a mostrar. */
+  .xls-scroll { overflow-x: auto; background: #fff; }
+  .xls-line   { display: flex; }
+
+  .xls-lbl {
+      flex: 0 0 62px; position: sticky; left: 0; z-index: 1; padding: 4px 6px;
+      background: #F1F3F5; border-right: 1px solid #D5DAE0; border-bottom: 1px solid #E4E8ED;
+      font-size: 8px; font-weight: 700; color: #6B7280; text-align: right; white-space: nowrap;
+  }
+
+  .xls-hcel {
+      flex: 0 0 76px; padding: 2px 0; text-align: center; font-size: 8px; font-weight: 700;
+      color: #6B7280; background: #F1F3F5; border-right: 1px solid #E2E6EA; border-bottom: 1px solid #D5DAE0;
+  }
+
+  .xls-cel {
+      flex: 0 0 76px; padding: 4px 6px; font-size: 9px; line-height: 1.25; color: #374151;
+      background: #fff; border-right: 1px solid #E4E8ED; border-bottom: 1px solid #E4E8ED;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .xls-cel-want { background: #EEF4FF; color: #1E40AF; font-weight: 700; }
+  .xls-cel-bad  { background: #FDE8E8; color: #C81E1E; font-weight: 700; }
+  .xls-cel-alt  { background: #FFF7E6; color: #B45309; }
+
+  .chk-lead { font-size: 12px; color: #374151; margin: 10px 0 5px; }
+  .chk-lead:first-child { margin-top: 0; }
+  .chk-lead strong { color: #111827; }
+
+  /* -- Tira de hojas del detalle tecnico --
+     Las mismas pestanas cortas que la tira de Cargas, con los registros que
+     entraron por cada hoja. */
+
+  .hoja-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  .hoja-tab {
+      font-size: 10.5px; padding: 3px 9px; border-radius: 4px; border: 1px solid #D1D5DB;
+      background: #fff; color: #6B7280; white-space: nowrap; cursor: pointer;
+  }
+
+  .hoja-tab.on { background: #E4E8F8; border-color: #2B4FD8; color: #2340BC; font-weight: 600; }
+  .hoja-tab.vacia { color: #B6BECC; }
+</style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden bg-white text-ws-ink">
+
+<!-- Banda superior: los rotulos que arma navbar-wansoft.js -->
+<div class="h-11 shrink-0 flex items-center justify-between px-3 bg-ws-blue border-b border-ws-blueLt">
+  <div class="flex items-center gap-6 min-w-0">
+    <button class="w-6 h-6 rounded bg-white/20 text-white flex items-center justify-center shrink-0">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    <span class="text-[17px] font-bold text-white">wansoft</span>
+    <span class="text-[13px] text-white">Generar Tickets</span>
+    <span class="text-[13px] text-white hidden md:inline">Turno: 1</span>
+    <span class="text-[13px] text-white hidden lg:inline">Fecha Op: 26-08-2026</span>
+    <span class="text-[13px] text-white hidden lg:inline">MESA(S):</span>
+  </div>
+  <span id="clock" class="text-[13px] text-white/80 hidden sm:inline"></span>
+</div>
+
+<!-- Barra de filtros: la del modulo de hoy, mas el boton del seguimiento -->
+<div class="shrink-0 flex flex-wrap items-end gap-2.5 px-3 py-2.5 border-b border-ws-line">
+  <!-- De donde salen las ventas: va pegado al selector de dia, que es donde se
+       nota que falta un dia. Una linea, no una banda. -->
+  <div class="flex flex-col gap-0.5">
+    <label class="text-[11px] text-ws-muted font-medium">Día</label>
+    <select id="selDia" class="bg-gray-100 border border-ws-lineDk rounded px-2 py-1.5 text-[13px]"></select>
+    <span id="dsInfo" class="text-[10.5px] text-ws-muted"></span>
+  </div>
+
+  <div class="flex-1"></div>
+
+  <div class="flex items-center gap-2 flex-wrap">
+    <button id="btnCarga" class="text-[12px] px-2.5 py-1.5 rounded border border-ws-lineDk text-ws-muted flex items-center gap-1.5">
+      <i data-lucide="upload" class="w-3.5 h-3.5"></i> Actualizar ventas
+    </button>
+    <button id="btnMeta" class="text-[12px] px-2.5 py-1.5 rounded border border-ws-lineDk text-ws-muted flex items-center gap-1.5">
+      <i data-lucide="settings" class="w-3.5 h-3.5"></i> <span id="btnMetaTxt">Distribución 16 / 0</span>
+    </button>
+    <button id="btnGen" class="text-[12px] px-3 py-1.5 rounded bg-ws-blue text-white font-medium">Generar tickets del día</button>
+    <button id="btnPrint" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted hidden">Imprimir hoja del día</button>
+    <button id="btnUndo" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted hidden">Rehacer o eliminar</button>
+    <button id="btnPanel" class="w-[30px] h-[30px] rounded border border-ws-lineDk text-ws-muted flex items-center justify-center" title="Mostrar u ocultar el seguimiento">
+      <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Franja de cifras del dia -->
+<div id="stats" class="shrink-0 flex flex-wrap px-4 py-3 border-b border-ws-line"></div>
+
+<!-- Las dos columnas del modulo: el listado y el panel lateral, separados por el
+     tirador que mueve el ancho (--detail-w). -->
+<div class="flex-1 min-h-0 w-full flex overflow-hidden">
+
+  <main class="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
+
+    <!-- La tabla vive en una tarjeta, como la bitacora de Cargas: el padding de
+         la fila queda como margen exterior y el fondo la separa del panel. -->
+    <div class="px-3 py-2 flex-1 min-h-0 flex flex-col">
+      <div class="w-full flex-1 min-h-0 bg-white border border-ws-line rounded-lg px-3 py-2 flex flex-col">
+        <div class="flex-1 min-h-0 overflow-auto scroll-thin">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:3.5rem">Nota</th>
+                <th style="width:4.5rem">Folio</th>
+                <th>Estado</th>
+                <th class="num" style="width:7rem">Monto</th>
+                <th style="width:3rem"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-t border-ws-line bg-gray-50">
+      <span class="text-[11.5px] text-ws-muted">
+        <span id="pie"></span> <span id="pieCorte" class="text-ws-warn"></span>
+      </span>
+      <button class="ws-help" title="Cómo se reparte el día">
+        <i data-lucide="help-circle" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </main>
+
+  <button id="detailResizer" title="Arrastra para cambiar el ancho del panel"></button>
+
+  <!-- El panel lateral. Muestra el papel del ticket seleccionado, y mientras no
+       hay ninguno, el seguimiento del proceso. -->
+  <aside id="detailPanel" class="shrink-0 bg-gray-50 border-l border-ws-line flex flex-col overflow-hidden">
+    <div class="shrink-0 px-3 py-2 bg-white border-b border-ws-line flex items-center justify-between gap-2">
+      <span id="detailTitle" class="text-[12.5px] font-semibold"></span>
+      <span id="detailAction" class="flex items-center gap-2"></span>
+    </div>
+
+    <div id="detailBar" class="shrink-0 h-1 bg-ws-line">
+      <div id="barra" class="h-full bg-ws-blue transition-all"></div>
+    </div>
+
+    <div id="detailBody" class="flex-1 overflow-auto scroll-thin"></div>
+
+    <div id="detailNote" class="shrink-0 px-3 py-2 text-[10.5px] text-ws-muted border-t border-ws-line bg-white"></div>
+  </aside>
+</div>
+
+<!-- Modal de distribucion: el de hoy, con el segundo campo -->
+<div id="modal" class="fixed inset-0 z-40 modal-bg hidden items-start justify-center p-6 overflow-auto">
+  <div class="bg-white rounded shadow-2xl w-full max-w-md overflow-hidden">
+    <div class="px-4 py-2.5 bg-gray-50 border-b border-ws-line flex items-center justify-between gap-3">
+      <span class="text-[13.5px] font-semibold">Distribución IVA 16% / IVA 0%</span>
+      <span class="b b-purple">dos campos · nuevo</span>
+    </div>
+
+    <div class="p-4 flex flex-col gap-3">
+      <div class="flex justify-between items-baseline gap-3 pb-2 border-b border-ws-line">
+        <span class="text-[12.5px] text-ws-muted">Total Tarjeta de Crédito · <span id="mDia"></span></span>
+        <span id="mTotal" class="text-[20px] font-bold tabular-nums"></span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-[11.5px] font-semibold text-gray-700" for="in16">Monto IVA 16%</label>
+          <div class="money foc" id="wrap16"><span class="text-ws-muted text-[13px]">$</span>
+            <input type="text" inputmode="decimal" id="in16"></div>
+          <span class="text-[10.5px]" id="hint16"></span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11.5px] font-semibold text-gray-700" for="in0">Monto IVA 0%</label>
+          <div class="money" id="wrap0"><span class="text-ws-muted text-[13px]">$</span>
+            <input type="text" inputmode="decimal" id="in0"></div>
+          <span class="text-[10.5px]" id="hint0"></span>
+        </div>
+      </div>
+
+      <div class="flex h-[7px] rounded-sm overflow-hidden bg-ws-line">
+        <i class="block bg-ws-blue" id="bar16"></i><i class="block bg-gray-400" id="bar0"></i>
+      </div>
+
+      <div id="balance" class="flex justify-between flex-wrap gap-x-3 gap-y-1 px-3 py-2 rounded text-[12.5px] font-semibold tabular-nums"></div>
+
+      <p class="text-[11px] text-ws-muted">Escribir en un campo sugiere el resto en el otro. Cuando los dos se capturan a mano y no suman el total, Aplicar se bloquea: es la validación del paso 13.</p>
+    </div>
+
+    <div class="px-4 py-2.5 bg-gray-50 border-t border-ws-line flex justify-end gap-2">
+      <button id="mCancel" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted">Cancelar</button>
+      <button id="mOk" class="text-[12px] px-3 py-1.5 rounded bg-ws-blue text-white font-medium">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Carga del Excel: el paso 2 dentro del modulo, con la subida que ya existe -->
+<div id="carga" class="fixed inset-0 z-40 modal-bg hidden items-start justify-center p-6 overflow-auto">
+  <div class="bg-white rounded shadow-2xl w-full max-w-2xl overflow-hidden">
+    <div class="px-4 py-2.5 bg-gray-50 border-b border-ws-line flex items-center justify-between gap-3">
+      <span class="text-[13.5px] font-semibold">Actualizar ventas</span>
+      <span class="text-[11.5px] text-ws-muted">paso 2 del proceso</span>
+    </div>
+
+    <!-- La altura no cambia entre fases: elegir, subir y el resultado ocupan el
+         mismo alto, para que el dialogo no salte bajo el cursor. -->
+    <div class="p-4 flex flex-col gap-3 h-[22rem] overflow-auto">
+
+      <!-- 1 · El periodo primero: es lo que decide donde caen las ventas, y se
+              elige antes de arrastrar nada. Despues, el archivo. -->
+      <div id="cPre" class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-end gap-3 px-3 py-2.5 rounded bg-gray-50 border border-ws-line">
+          <div class="flex flex-col gap-1">
+            <label class="text-[12px] font-semibold text-gray-700" for="cMes">¿De qué mes son estas ventas?</label>
+            <div class="flex gap-2">
+              <select id="cMes" class="bg-white border border-ws-lineDk rounded px-2 py-1.5 text-[13px]"></select>
+              <input id="cAnio" type="number" value="2026" class="bg-white border border-ws-lineDk rounded px-2 py-1.5 text-[13px] w-20">
+            </div>
+          </div>
+          <span class="text-[11.5px] text-ws-muted flex-1 min-w-[14rem]">
+            Las ventas se guardan por mes. Si te equivocas aquí, quedarán registradas en el mes que no es.
+          </span>
+        </div>
+
+        <label id="drop" for="file"
+               class="border border-dashed border-ws-lineDk rounded bg-gray-50 px-4 py-6 flex flex-col items-center gap-2 text-center cursor-pointer">
+          <span class="xls-ico xls-ico-lg"></span>
+          <span class="text-[13.5px] font-semibold">Arrastra el archivo o haz clic para elegirlo</span>
+          <span class="text-[12px] text-ws-muted">El Excel que descargas de Wansoft · .xls o .xlsx</span>
+          <input type="file" id="file" accept=".xls,.xlsx" class="hidden">
+        </label>
+
+        <div id="elegido" class="hidden items-center gap-2.5 flex-wrap px-2.5 py-2 border border-ws-lineDk rounded">
+          <span class="xls-ico"></span>
+          <span id="eNombre" class="text-[12.5px] font-medium"></span>
+          <span id="ePeso" class="text-[11.5px] text-ws-muted"></span>
+          <span class="flex-1"></span>
+          <button id="eQuitar" class="text-[12px] px-2.5 py-1 rounded border border-ws-lineDk text-ws-muted">Cambiar</button>
+        </div>
+
+        <label class="flex items-center gap-2 text-[11.5px] text-ws-muted">
+          <span>Probar con un archivo:</span>
+          <select id="cSim" class="bg-white border border-ws-lineDk rounded px-2 py-1 text-[11.5px]">
+            <option value="">correcto</option>
+            <option value="hojas">de otro sistema</option>
+            <option value="columnas">con columnas cambiadas</option>
+            <option value="tickets">en un mes con tickets</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- 2 · Lo que el sistema va haciendo, en una frase por vez -->
+      <div id="cProgreso" class="hidden flex-col gap-2">
+        <div class="flex items-center gap-2.5 px-3 py-2.5 rounded bg-gray-50 border border-ws-line">
+          <i data-lucide="loader-2" class="w-4 h-4 text-ws-blue animate-spin shrink-0"></i>
+          <span id="cFrase" class="text-[13px]"></span>
+        </div>
+        <div class="h-1.5 rounded-full bg-ws-line overflow-hidden">
+          <div id="cAvance" class="h-full bg-ws-blue transition-all" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- 3 · El resultado, en una frase que diga que hacer -->
+      <div id="cFin" class="hidden flex-col gap-3"></div>
+
+      <!-- El detalle tecnico, plegado: lo que el importador devuelve paso por
+           paso. No estorba a quien solo queria traer las ventas. -->
+      <details id="cDetalle" class="hidden border border-ws-line rounded overflow-hidden">
+        <summary class="px-3 py-2 bg-gray-50 text-[12px] text-ws-muted cursor-pointer select-none">Ver el detalle técnico de la carga</summary>
+        <div class="p-3 flex flex-col gap-3">
+          <div id="cRoadmap" class="flex flex-col gap-1.5"></div>
+
+          <!-- Los registros que entraron, hoja por hoja: la misma tira de
+               pestanas que la del modulo Cargas. -->
+          <div id="cHojas" class="hidden flex-col gap-2">
+            <div id="hojaTabs" class="hoja-tabs"></div>
+            <div id="hojaBody"></div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+
+    <div class="px-4 py-2.5 bg-gray-50 border-t border-ws-line flex justify-end gap-2">
+      <button id="cCancel" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted">Cancelar</button>
+      <button id="cOk" class="text-[12px] px-3 py-1.5 rounded bg-gray-100 text-gray-400 border border-ws-line font-medium" disabled>Subir ventas</button>
+    </div>
+  </div>
+</div>
+
+<!-- Propuesta: el paso que hoy no existe entre generar y guardar -->
+<div id="prop" class="fixed inset-0 z-40 modal-bg hidden items-start justify-center p-6 overflow-auto">
+  <div class="bg-white rounded shadow-2xl w-full max-w-3xl overflow-hidden">
+    <div class="px-4 py-2.5 bg-gray-50 border-b border-ws-line flex items-center justify-between gap-3">
+      <span class="text-[13.5px] font-semibold">Propuesta de generación · <span id="pDia"></span></span>
+      <span class="b b-purple">pantalla nueva</span>
+    </div>
+    <div id="pBody" class="p-4 flex flex-col gap-3 max-h-[70vh] overflow-auto"></div>
+    <div class="px-4 py-2.5 bg-gray-50 border-t border-ws-line flex justify-end gap-2">
+      <button id="pCancel" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted">Volver a capturar</button>
+      <button id="pOk" class="text-[12px] px-3 py-1.5 rounded bg-ws-blue text-white font-medium">Confirmar y generar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   Seguimiento del punto 19 sobre el modulo Tickets que ya existe.
+
+   La pantalla es la de hoy: la banda de la terminal, la barra de filtros,
+   la franja .ws-stat y el listado del dia. Lo unico que se agrega es el
+   panel de la derecha, que dice en que paso del punto 19 va el dia y de
+   donde sale cada dato.
+
+   Los pasos se pintan de tres formas:
+
+     verde  lo resuelve el modulo hoy, sin que nadie haga nada
+     azul   es el paso donde el usuario esta parado
+     ambar  falta construirlo (pasos 12, 13, 14, 16 y 17)
+
+   El reparto se calcula con la regla de planReparto(), asi que capturar
+   otras cifras mueve la linea de corte igual que en el modulo.
+   ------------------------------------------------------------------ */
+
+/* -- Datos de muestra: el 22/08 de la auditoria -- */
+
+const DIA_22 = [
+    { folio: '6268', monto: 0,       saleTotal: 1240.00, pago: 'Efectivo', estado: 'Pagada',    detalle: true  },
+    { folio: '6271', monto: 1845.00, saleTotal: 1845.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6272', monto: 2410.50, saleTotal: 2410.50, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6273', monto:  980.00, saleTotal:  980.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: false },
+    { folio: '6274', monto: 3120.00, saleTotal: 3120.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6275', monto: 1264.00, saleTotal: 2334.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true, cede: '6276', cedeMonto: 1070.00 },
+    { folio: '6276', monto: 1070.00, saleTotal:  980.00, pago: 'Efectivo', estado: 'Pagada',    detalle: true, recibe: '6275', recibeMonto: 1070.00 },
+    { folio: '6277', monto: 2540.00, saleTotal: 2540.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6278', monto: 0,       saleTotal:  860.00, pago: 'Efectivo', estado: 'Pagada',    detalle: true  },
+    { folio: '6279', monto: 1388.50, saleTotal: 1388.50, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6280', monto:  760.00, saleTotal:  760.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6281', monto: 4215.00, saleTotal: 4215.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6283', monto: 1150.00, saleTotal: 1150.00, pago: 'Tarjeta',  estado: 'FACTURADO', detalle: true, serie: 'A-1182' },
+    { folio: '6284', monto: 0,       saleTotal:    0.00, pago: 'Sin pago', estado: 'Pagada',    detalle: false },
+    { folio: '6285', monto:  890.00, saleTotal:  890.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  },
+    { folio: '6286', monto: 0,       saleTotal: 2310.00, pago: 'Efectivo', estado: 'Pagada',    detalle: true  },
+    { folio: '6287', monto:  698.00, saleTotal:  698.00, pago: 'Tarjeta',  estado: 'Pagada',    detalle: true  }
+];
+
+/* La carga que trajo el dia. Sale del lote de importacion: el archivo es del
+   periodo, el cierre es del dia. */
+const CARGA = {
+    archivo:  'Reporte_De_Ventas_20260801_20260825.xlsx',
+    lote:     312,
+    cuando:   '23/08/2026 08:14',
+    periodo:  'Agosto 2026',
+    rango:    '01/08/2026 – 25/08/2026',
+    hojas:    5,
+    leidas:   1184,
+    omitidos: 892,
+    difieren: 3,
+    noPagados: 20
+};
+
+const DIAS = [
+    { fecha: '22/08/2026', ventas: DIA_22, estado: 'pendiente', corrida: null },
+    { fecha: '21/08/2026', ventas: [],     estado: 'cerrado',   corrida: 46 },
+    { fecha: '20/08/2026', ventas: [],     estado: 'cerrado',   corrida: 45 }
+];
+
+/* -- Estado de la pantalla -- */
+
+let diaIdx  = 0;
+let meta    = null;               // null = todavia no se captura el reparto
+let tocado  = { s16: true, s0: false };
+let corrida = 46;
+
+const $$ = (id) => document.getElementById(id);
+
+const money = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc   = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const esFacturado   = (v) => v.estado === 'FACTURADO';
+const esServicio    = (v) => v.monto <= 0;
+const esCeroOrigen  = (v) => v.saleTotal <= 0 && v.monto <= 0;
+const comandaCuadra = (v) => Math.abs(v.monto - v.saleTotal) < 0.005;
+
+const dia    = () => DIAS[diaIdx];
+const ventas = () => dia().ventas;
+const total  = () => ventas().reduce((a, v) => a + v.monto, 0);
+const cerrado = () => dia().estado === 'cerrado';
+
+const mudanzas    = () => ventas().filter((v) => v.recibe);
+const foliosLibres = () => ventas().filter((v) => esServicio(v) && !v.recibe);
+const conTarjeta  = () => ventas().filter((v) => !esServicio(v)).length;
+const cerosOrigen = () => ventas().filter(esCeroOrigen).length;
+
+const pct = (n) => (Math.round((total() > 0 ? n / total() * 100 : 0) * 10) / 10) + '%';
+
+/* -- El reparto, con la regla de planReparto() del controlador --
+
+   En orden de folio se acumula al 16% hasta cubrir el objetivo y lo que sigue
+   cae al 0%. Lo facturado ya esta dentro del 16% y cuenta desde el arranque. El
+   que cruza la meta entra completo: una venta no se parte. */
+
+function planReparto() {
+    const ls = ventas();
+    const t  = total();
+    const objetivo = meta ? Math.max(0, Math.min(meta.m16, t)) : t * 0.70;
+
+    let facturado = 0, cuentaFac = 0;
+
+    ls.forEach((v) => { if (esFacturado(v)) { facturado += v.monto; cuentaFac++; } });
+
+    let acumulado = facturado, corte = null;
+    let monto16 = 0, monto0 = 0, cuenta16 = 0, cuenta0 = 0, servicio = 0;
+    const grupo = {};
+
+    ls.forEach((v) => {
+        if (esServicio(v))  { servicio++; return; }
+        if (esFacturado(v)) { grupo[v.folio] = '16'; return; }
+
+        if (acumulado < objetivo) {
+            acumulado += v.monto;
+            monto16   += v.monto;
+            grupo[v.folio] = '16';
+            cuenta16++;
+            return;
+        }
+
+        monto0 += v.monto;
+        grupo[v.folio] = '0';
+        cuenta0++;
+
+        if (corte === null) corte = v.folio;
+    });
+
+    return {
+        total: t, grupo, corte, objetivo, objetivoCero: t - objetivo,
+        facturado, facturados: cuentaFac, logrado16: acumulado,
+        monto16, monto0, cuenta16, cuenta0, servicio
+    };
+}
+
+function papelDe(v, p) {
+    if (esFacturado(v)) return 'Ya facturado · su papel no se toca';
+
+    if (esServicio(v)) {
+        return esCeroOrigen(v)
+            ? 'Ticket en $0.00 · vino sin importe en la carga'
+            : 'Ticket en $0.00 · la cuenta se cobró en ' + v.pago.toLowerCase();
+    }
+
+    if (p.grupo[v.folio] === '16') {
+        if (v.detalle && comandaCuadra(v)) return 'La comanda del POS · lo que consumieron';
+        if (!v.detalle)                    return 'Catálogo IVA 16% · la venta llegó sin comanda';
+
+        return 'Catálogo IVA 16% · el folio cambió de monto';
+    }
+
+    return 'Productos puente al 0%';
+}
+
+function armados16(p) {
+    let n = 0;
+
+    ventas().forEach((v) => {
+        if (esFacturado(v) || esServicio(v)) return;
+        if (p.grupo[v.folio] !== '16')       return;
+        if (v.detalle && comandaCuadra(v))   return;
+        n++;
+    });
+
+    return n;
+}
+
+/* -- El seguimiento --
+
+   Cada paso del punto 19 con su estado y el dato que lo respalda. El dato NO se
+   inventa: sale de lo que el modulo ya calcula —el lote de la carga, el listado
+   del dia, el reparto previsto, la corrida—.
+
+   estado:  'ok' lo resuelve el modulo · 'live' te toca ahora
+            'todo' aun no llega · 'falta' hay que construirlo */
+
+function seguimiento() {
+    const p = planReparto();
+    const hayMeta = meta !== null;
+
+    return [
+        { n: 1, t: 'Abrir el módulo', e: 'ok', d: dia().fecha + ' · último día con ventas' },
+
+        { n: 2, t: 'Cargar el Excel', e: 'ok', d: 'lote #' + CARGA.lote + ' · ' + CARGA.cuando },
+
+        { n: 3, t: 'Validar estructura', e: 'ok', d: CARGA.hojas + ' hojas · contrato Wansoft' },
+
+        { g: 1 },
+
+        { n: 4, t: 'Movimientos pagados', e: 'ok',
+          d: ventas().length + ' de ' + (ventas().length + CARGA.noPagados) },
+
+        { n: 5, t: 'Con tarjeta de crédito', e: 'ok',
+          d: conTarjeta() + ' · ' + money(total()) },
+
+        { n: 6, t: 'Movimientos en $0.00', e: 'ok',
+          d: cerosOrigen() + ' · reciben ticket en cero' },
+
+        { n: 7, t: 'Folios libres de efectivo', e: 'ok',
+          d: foliosLibres().map((v) => v.folio).join(', ') },
+
+        { n: 8, t: 'Descartar ya procesados', e: 'ok',
+          d: CARGA.omitidos.toLocaleString('en-US') + ' omitidos · ' + CARGA.difieren + ' distintos' },
+
+        { n: 9, t: 'Folios duplicados', e: 'ok',
+          d: mudanzas().length
+                ? mudanzas().map((m) => money(m.recibeMonto) + ' del ' + m.recibe + ' al ' + m.folio).join(' · ')
+                : 'ninguno' },
+
+        { g: 2 },
+
+        { n: 10, t: 'Calcular el total', e: 'ok', d: money(total()) },
+
+        { n: 11, t: 'Mostrar el total', e: 'ok', d: 'en la franja de arriba' },
+
+        { n: 12, t: 'Capturar 16% y 0%', e: (hayMeta || cerrado()) ? 'ok' : 'live',
+          d: hayMeta ? money(meta.m16) + ' + ' + money(meta.m0)
+                     : 'hoy solo se captura el 16%: falta el segundo campo',
+          falta: !hayMeta },
+
+        { n: 13, t: 'Validar que sumen', e: hayMeta ? 'ok' : 'falta',
+          d: hayMeta ? 'suman ' + money(total()) : 'con una sola cifra no hay nada que validar' },
+
+        { g: 3 },
+
+        { n: 14, t: 'Armar la propuesta', e: cerrado() ? 'ok' : (hayMeta ? 'live' : 'todo'),
+          d: hayMeta ? (p.cuenta16 + p.facturados) + ' al 16% · ' + p.cuenta0 + ' al 0%'
+                     : 'se arma al capturar el reparto',
+          falta: !cerrado() },
+
+        { n: 15, t: 'Tickets en $0.00', e: cerrado() ? 'ok' : 'todo',
+          d: p.servicio + ' · conservan folio' },
+
+        { n: 16, t: 'Revisar', e: cerrado() ? 'ok' : 'todo',
+          d: 'hoy se revisa después de escribir', falta: !cerrado() },
+
+        { n: 17, t: 'Confirmar', e: cerrado() ? 'ok' : 'todo',
+          d: 'hoy Generar escribe sin preguntar', falta: !cerrado() },
+
+        { g: 4 },
+
+        { n: 18, t: 'Guardar la corrida', e: cerrado() ? 'ok' : 'todo',
+          d: cerrado() ? '#' + dia().corrida + ' · con su reparto' : 'se abre al confirmar' },
+
+        { n: 19, t: 'Imprimir', e: cerrado() ? 'ok' : 'todo',
+          d: cerrado() ? ventas().length + ' papeles listos' : 'al cerrar el día' }
+    ];
+}
+
+/* -- El panel lateral --
+
+   El mismo de siempre: muestra el papel del ticket que se elija en el listado, y
+   mientras no hay ninguno elegido, el seguimiento del proceso. Uno u otro, no
+   los dos: el panel es de 340px y no caben. */
+
+let folioSel = null;
+
+function pintaPanel() {
+    const v = folioSel ? ventas().find((x) => x.folio === folioSel) : null;
+
+    if (!v) { pintaSeguimiento(); return; }
+
+    const p = planReparto();
+
+    $$('detailTitle').textContent = 'Ticket · nota #' + (ventas().indexOf(v) + 1);
+
+    $$('detailAction').innerHTML = `
+        <button class="text-[11.5px] px-2 py-1 rounded border border-ws-lineDk text-ws-muted" data-panel="print">Imprimir</button>
+        <button class="text-[11.5px] px-2 py-1 rounded border border-ws-lineDk text-ws-muted" data-panel="cerrar">Cerrar</button>`;
+
+    $$('detailBar').style.visibility = 'hidden';
+    $$('detailBody').innerHTML = '<div class="p-3">' + papelTicket(v, p) + '</div>';
+
+    $$('detailNote').textContent = cerrado()
+        ? papelDe(v, p)
+        : 'Aún sin generar: esto es la propuesta de papel, no el ticket guardado.';
+
+    enlazaPanel();
+}
+
+/* El papel, con el desglose que arma el modulo: los renglones suman el total,
+   el IVA sale del papel y el importe se dice en letras. */
+function papelTicket(v, p) {
+    const total = esServicio(v) ? 0 : v.monto;
+    const cero  = esServicio(v) || p.grupo[v.folio] === '0';
+    const tasa  = cero ? 0 : 0.16;
+    const sub   = total / (1 + tasa);
+    const nota  = ventas().indexOf(v) + 1;
+
+    const lineas = esServicio(v)
+        ? [['1', 'SERVICIO DE MESA', 0]]
+        : [['2', 'PLATILLO DEL DIA', total * 0.62], ['1', 'BEBIDA', total * 0.38]];
+
+    return `<div class="paper">
+        <div class="c b">RESTAURANTE LOS PORTALES SA DE CV</div>
+        <div class="c sm">RFC: RLP980412H23</div>
+        <div class="c sm">Av. Reforma 812, Col. Centro</div>
+        <div class="hr"></div>
+        <div class="r"><span>NOTA</span><span class="b">#${nota}</span></div>
+        <div class="r"><span>FOLIO</span><span>${esc(v.folio)}</span></div>
+        <div class="r"><span>FECHA</span><span>${dia().fecha} 21:14</span></div>
+        <div class="r"><span>MESERO</span><span>R. Salgado</span></div>
+        <div class="hr"></div>
+        <div class="r sm"><span>CANT PRODUCTO</span><span>IMPORTE</span></div>
+        <div class="hr"></div>
+        ${lineas.map(([c, d, i]) => `<div class="r"><span>${c} ${d}</span><span>${i.toFixed(2)}</span></div>`).join('')}
+        <div class="hr"></div>
+        <div class="r"><span>SUBTOTAL</span><span>${sub.toFixed(2)}</span></div>
+        <div class="r"><span>IVA ${cero ? '0%' : '16%'}</span><span>${(total - sub).toFixed(2)}</span></div>
+        <div class="r b"><span>TOTAL</span><span>${total.toFixed(2)}</span></div>
+        <div class="hr"></div>
+        <div class="sm">${esServicio(v) ? 'NO FACTURA: EL FOLIO NO AMPARA CARGO CON TARJETA' : 'TARJETA DE CREDITO ' + money(total)}</div>
+        <div class="hr"></div>
+        <div class="c sm">*** GRACIAS POR SU VISITA ***</div>
+    </div>`;
+}
+
+function enlazaPanel() {
+    Array.prototype.forEach.call($$('detailAction').querySelectorAll('[data-panel]'), (b) => {
+        b.addEventListener('click', () => {
+            if (b.getAttribute('data-panel') === 'cerrar') { folioSel = null; render(); return; }
+
+            $$('detailNote').textContent = 'En el módulo real aquí se abre el diálogo de impresión del papel.';
+        });
+    });
+}
+
+function pintaSeguimiento() {
+    $$('detailTitle').textContent = 'Proceso de generación';
+    $$('detailBar').style.visibility = 'visible';
+    $$('detailNote').textContent = 'Elige un ticket del listado para ver su papel.';
+
+    const ls = seguimiento();
+    let html = '';
+    let ok = 0, tot = 0;
+
+    ls.forEach((x) => {
+        if (x.g) { html += '<div class="sep"></div>'; return; }
+
+        tot++;
+        if (x.e === 'ok') ok++;
+
+        // El paso donde esta parado el usuario manda sobre la deuda: primero
+        // hay que saber que toca hacer, y luego que ese control aun no existe.
+        const clase = x.e === 'live' ? 'live' : (x.falta && x.e !== 'ok' ? 'falta' : x.e);
+        const ico   = { ok: '✓', live: '›', todo: '', falta: '!' }[clase];
+
+        // Solo el paso vivo y el que falta se abren: los demas caben en una
+        // linea con su dato a la derecha.
+        const abre = clase === 'live' || clase === 'falta';
+
+        html += `<div class="paso is-${clase}${abre ? ' abre' : ''}">
+            <span class="ico st-${clase}">${ico}</span>
+            <span class="t">${x.n}. ${esc(x.t)}</span>
+            <span class="d" title="${esc(x.d)}">${esc(x.d)}</span>
+        </div>`;
+    });
+
+    $$('detailBody').innerHTML = '<div class="px-3 py-2" id="pasos">' + html + '</div>';
+    $$('detailAction').innerHTML = `<span class="text-[12.5px] font-bold tabular-nums text-ws-blueDk">${ok} de ${tot}</span>`;
+    $$('barra').style.width = (ok / tot * 100) + '%';
+}
+
+/* -- La pantalla del modulo -- */
+
+function pintaStats() {
+    const p = planReparto();
+
+    const cell = (l, v, tone) =>
+        `<div class="ws-stat ${tone}"><div class="ws-stat-lbl">${esc(l)}</div><div class="ws-stat-val">${esc(v)}</div></div>`;
+
+    $$('stats').innerHTML =
+        cell('Tarjeta de crédito', money(p.total), 'ws-stat-hero') +
+        cell('IVA 16% · ' + pct(p.objetivo), money(p.objetivo), 'ws-stat-blue') +
+        cell('IVA 0% · ' + pct(p.objetivoCero), cerrado() ? money(p.monto0) : money(p.objetivoCero), '') +
+        cell('Ya facturado', money(p.facturado), 'ws-stat-ok');
+}
+
+/* Las celdas del listado, con la misma logica que ticketRow() del controlador:
+   notaCelda, badgeEstado, badgeReasignacion, montoCelda y accionTicket. */
+
+function notaCelda(n, generado) {
+    return `<span class="${generado ? 'font-bold text-gray-500' : 'text-gray-400'}">#${n}</span>`;
+}
+
+function badgeEstado(v, p) {
+    if (esFacturado(v)) {
+        return `<span class="badge-base st-fact">Facturado ${esc(v.serie || '')}</span>`;
+    }
+
+    // El folio que no ampara ningun cargo con tarjeta: gris apagado, porque no
+    // es un pendiente —nadie tiene que hacer nada con el—.
+    if (esServicio(v)) return '<span class="badge-base st-serv">Servicio</span>';
+
+    // La tasa que el reparto le asigno, tenga papel o no: lo que falta es el
+    // papel, no la tasa. Azul el 16%, verde azulado el 0%.
+    const cero = p.grupo[v.folio] === '0';
+
+    const razon = cerrado()
+        ? (cero ? 'Su papel se armó al 0%' : 'Se facturó al 16%')
+        : (cero ? 'Su papel se arma al 0% al generar los tickets del día'
+                : 'Se factura al 16% al generar los tickets del día');
+
+    return `<span class="badge-base ${cero ? 'st-0' : 'st-16'}" title="${razon}">IVA ${cero ? '0%' : '16%'}</span>`;
+}
+
+function badgeReasignacion(v) {
+    let out = '';
+
+    if (v.recibe) {
+        out += `<span class="badge-base ml-1" title="Ampara un cargo con tarjeta que se cobró en el folio ${esc(v.recibe)}">&larr; ${esc(v.recibe)}</span>`;
+    }
+
+    if (v.cede) {
+        out += `<span class="badge-base ml-1" title="Traía más de un cargo con tarjeta: el resto se mudó al folio ${esc(v.cede)}">&rarr; ${esc(v.cede)}</span>`;
+    }
+
+    return out;
+}
+
+function montoCelda(v) {
+    if (!esServicio(v)) return `<span class="font-semibold">${money(v.monto)}</span>`;
+
+    // El movimiento que vino con Total $0.00 no tiene cobro que nombrar.
+    if (esCeroOrigen(v)) {
+        return '<span class="text-gray-400" title="No factura: el movimiento vino sin importe en la carga">-</span>';
+    }
+
+    return `<span class="text-gray-400" title="No factura: la cuenta se cobró en ${esc(v.pago.toLowerCase())} por ${money(v.saleTotal)}">-</span>`;
+}
+
+function pintaListado() {
+    const p = planReparto();
+    let html = '', n = 0;
+
+    ventas().forEach((v) => {
+        n++;
+
+        const corte = p.corte === v.folio && !cerrado();
+
+        const accion = esServicio(v) && !cerrado()
+            ? '<span class="btn-icon-view" style="color:#9CA3AF" title="Su papel se emite en $0.00 con el cierre del día"><i data-lucide="eye-off" class="w-3.5 h-3.5"></i></span>'
+            : `<span class="btn-icon-view" title="${cerrado() ? 'Ver el ticket virtual' : 'Ver el ticket de la venta'}"><i data-lucide="eye" class="w-3.5 h-3.5"></i></span>`;
+
+        const clase = [corte ? 'cut' : (n % 2 === 0 ? 'alt' : ''), folioSel === v.folio ? 'sel' : ''].filter(Boolean).join(' ');
+
+        html += `<tr class="${clase}" data-folio="${esc(v.folio)}" ${corte ? 'title="Aquí corta el día: de este folio en adelante el papel sale al IVA 0%"' : ''}>
+            <td class="mono">${notaCelda(n, cerrado())}</td>
+            <td class="mono">${esc(v.folio)}</td>
+            <td class="st-cell">${badgeEstado(v, p)}${badgeReasignacion(v)}</td>
+            <td class="num">${montoCelda(v)}</td>
+            <td class="text-center">${accion}</td>
+        </tr>`;
+    });
+
+    $$('tbody').innerHTML = html;
+
+    // El ojo abre el papel en el panel, como en el modulo.
+    Array.prototype.forEach.call($$('tbody').querySelectorAll('tr[data-folio]'), (tr) => {
+        tr.querySelector('.btn-icon-view').addEventListener('click', () => {
+            folioSel = tr.getAttribute('data-folio');
+            render();
+        });
+    });
+
+    // El pie se reparte igual que #viewFooterRow: el resumen a la izquierda y la
+    // linea de corte anotada aparte.
+    $$('pie').textContent = cerrado()
+        ? `${ventas().length} notas · corrida #${dia().corrida} · ${p.cuenta16 + p.facturados} al 16% (${money(p.logrado16)}) · ${p.cuenta0} al 0% (${money(p.monto0)}) · ${p.servicio} en $0.00`
+        : `${p.cuenta16 + p.facturados} al 16% (${money(p.logrado16)}) · ${p.cuenta0} al 0% (${money(p.monto0)}) · ${p.servicio} en $0.00`;
+
+    $$('pieCorte').textContent = cerrado() ? '' : '· la línea ámbar es el corte';
+
+    // El estado del dia se lee en los botones, no en un aviso: el que falta
+    // capturar viene resaltado y el resto en gris.
+    $$('btnMetaTxt').textContent = meta === null ? 'Capturar 16 / 0' : `16%: ${money(meta.m16)}`;
+
+    $$('btnMeta').className = 'text-[12px] px-2.5 py-1.5 rounded border flex items-center gap-1.5 ' +
+        (cerrado()
+            ? 'border-ws-line text-gray-300'
+            : (meta === null ? 'border-ws-blue text-ws-blueDk bg-blue-50 font-medium' : 'border-ws-lineDk text-ws-muted'));
+
+    $$('btnMeta').disabled = cerrado();
+
+    $$('btnGen').classList.toggle('hidden', cerrado());
+    $$('btnPrint').classList.toggle('hidden', !cerrado());
+    $$('btnUndo').classList.toggle('hidden', !cerrado());
+}
+
+function render() {
+    pintaStats();
+    pintaListado();
+    pintaPanel();
+    lucide.createIcons();
+}
+
+/* -- La captura de las dos cifras --
+
+   El campo que el usuario todavia no toca sigue al otro y se rotula como
+   sugerido. En cuanto toca los dos, las dos cifras son suyas: nadie las
+   autocompleta y el reparto puede quedar sin cuadrar, que es lo que el paso 13
+   tiene que atrapar. */
+
+const num = (v) => {
+    const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    return isNaN(n) ? 0 : n;
+};
+
+function cuadra() {
+    return Math.abs((num($$('in16').value) + num($$('in0').value)) - total()) < 0.005;
+}
+
+function pintaModal() {
+    const t    = total();
+    const m16  = num($$('in16').value);
+    const m0   = num($$('in0').value);
+    const suma = m16 + m0;
+    const dif  = suma - t;
+    const ok   = Math.abs(dif) < 0.005;
+
+    const p16 = Math.max(0, Math.min(100, t > 0 ? m16 / t * 100 : 0));
+    const p0  = Math.max(0, Math.min(100 - p16, t > 0 ? m0 / t * 100 : 0));
+
+    $$('bar16').style.width = p16 + '%';
+    $$('bar0').style.width  = p0 + '%';
+
+    $$('hint16').textContent = tocado.s16 ? pct(m16) + ' de la venta con tarjeta' : 'sugerido: el resto del total';
+    $$('hint0').textContent  = tocado.s0  ? pct(m0)  + ' de la venta con tarjeta' : 'sugerido: el resto del total';
+    $$('hint16').className = 'text-[10.5px] ' + (tocado.s16 ? 'text-ws-muted' : 'text-ws-blueDk');
+    $$('hint0').className  = 'text-[10.5px] ' + (tocado.s0  ? 'text-ws-muted' : 'text-ws-blueDk');
+
+    $$('wrap16').className = 'money ' + (ok ? 'foc' : 'bad');
+    $$('wrap0').className  = 'money ' + (ok ? '' : 'bad');
+
+    $$('balance').className = 'flex justify-between flex-wrap gap-x-3 gap-y-1 px-3 py-2 rounded text-[12.5px] font-semibold tabular-nums ' +
+                              (ok ? 'bg-emerald-50 text-ws-ok' : 'bg-red-50 text-ws-danger');
+
+    $$('balance').innerHTML = `<span>${money(m16)} + ${money(m0)} = ${money(suma)}</span>` +
+        `<span>${ok ? 'cuadra con el total' : (dif > 0 ? 'sobran ' + money(dif) : 'faltan ' + money(-dif))}</span>`;
+
+    $$('mOk').disabled  = !ok;
+    $$('mOk').className = 'text-[12px] px-3 py-1.5 rounded font-medium ' +
+                          (ok ? 'bg-ws-blue text-white' : 'bg-gray-100 text-gray-400 border border-ws-line');
+}
+
+function abreModal() {
+    const t = total();
+    const m = meta || { m16: t * 0.70, m0: t * 0.30 };
+
+    tocado = { s16: true, s0: false };
+
+    $$('mDia').textContent   = dia().fecha;
+    $$('mTotal').textContent = money(t);
+    $$('in16').value = m.m16.toFixed(2);
+    $$('in0').value  = m.m0.toFixed(2);
+
+    pintaModal();
+
+    $$('modal').classList.remove('hidden');
+    $$('modal').classList.add('flex');
+    $$('in16').focus();
+}
+
+const cierraModal = () => { $$('modal').classList.add('hidden'); $$('modal').classList.remove('flex'); };
+
+/* -- La propuesta: el paso que hoy no existe entre generar y guardar -- */
+
+function abrePropuesta() {
+    const p    = planReparto();
+    const dif  = p.logrado16 - p.objetivo;
+    const muds = mudanzas();
+
+    let filas = '', n = 0;
+
+    ventas().forEach((v) => {
+        n++;
+
+        const tasa = esFacturado(v) ? '<span class="b b-green">16% fijo</span>'
+                   : esServicio(v)  ? '<span class="b b-yellow">$0.00</span>'
+                   : (p.grupo[v.folio] === '16' ? '<span class="b b-blue">IVA 16%</span>' : '<span class="b b-gray">IVA 0%</span>');
+
+        filas += `<tr class="${n % 2 === 0 ? 'alt' : ''}">
+            <td class="mono">${n}</td><td class="mono">${esc(v.folio)}</td><td>${tasa}</td>
+            <td class="text-ws-muted">${esc(papelDe(v, p))}</td>
+            <td class="num">${esServicio(v) ? money(0) : money(v.monto)}</td>
+        </tr>`;
+    });
+
+    const acciones = [
+        muds.length ? `Muda ${muds.length} cargo duplicado y vuelve a leer el día con los montos ajustados.` : 'No hay cargos duplicados que mudar.',
+        'Suelta los papeles del reparto anterior, si los hubiera.',
+        `Numera las ${ventas().length} notas por su lugar en el día, sin saltos.`,
+        `Arma ${p.cuenta0} papeles al 0% con productos puente y ${p.servicio} en $0.00.`,
+        `Del 16%, ${armados16(p)} se arman con el catálogo; el resto imprime su comanda real.`,
+        `Guarda la corrida #${corrida + 1} con la meta capturada y la venta donde cortó.`
+    ];
+
+    $$('pDia').textContent = dia().fecha;
+
+    $$('pBody').innerHTML = `
+        <div class="al al-blue"><b>Nada se ha guardado.</b> Así quedaría el día si confirmas.</div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-px bg-ws-line border border-ws-line rounded overflow-hidden">
+            ${[['Al IVA 16%', money(p.logrado16), (p.cuenta16 + p.facturados) + ' ventas'],
+               ['Al IVA 0%', money(p.monto0), p.cuenta0 + ' ventas'],
+               ['En $0.00', String(p.servicio), 'conservan folio'],
+               ['Cargos a mudar', String(muds.length), muds.map((m) => m.recibe + ' → ' + m.folio).join(' · ') || 'ninguno']
+              ].map(([l, v, s]) => `<div class="bg-white px-2.5 py-2">
+                    <div class="text-[10px] uppercase tracking-wide text-ws-muted">${esc(l)}</div>
+                    <div class="text-[14px] font-semibold tabular-nums">${esc(v)}</div>
+                    <div class="text-[10.5px] text-ws-muted">${esc(s)}</div></div>`).join('')}
+        </div>
+
+        ${Math.abs(dif) >= 0.005 ? `<div class="al al-yellow"><b>El corte no cae exacto.</b> Los tickets no se parten: el que cruza la meta entra completo, así que el 16% se pasa ${money(Math.abs(dif))} y al 0% le falta lo mismo.</div>` : ''}
+
+        <div class="border border-ws-line rounded overflow-hidden">
+            <div class="overflow-x-auto max-h-64 overflow-y-auto"><table class="tbl">
+                <thead><tr><th style="width:2.8rem">Nota</th><th style="width:4rem">Folio</th><th style="width:5rem">Tasa</th>
+                <th>Con qué se arma el papel</th><th class="num" style="width:6rem">Monto</th></tr></thead>
+                <tbody>${filas}</tbody>
+            </table></div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wide text-ws-muted">Lo que este cierre va a hacer</span>
+            ${acciones.map((t, i) => `<div class="grid gap-2 text-[12.5px] text-gray-700" style="grid-template-columns:1rem 1fr">
+                <span class="mono">${i + 1}</span><span>${esc(t)}</span></div>`).join('')}
+        </div>`;
+
+    $$('prop').classList.remove('hidden');
+    $$('prop').classList.add('flex');
+}
+
+const cierraProp = () => { $$('prop').classList.add('hidden'); $$('prop').classList.remove('flex'); };
+
+/* -- La carga del Excel --
+
+   El apartado del paso 2, con la MISMA logica que el modulo Cargas:
+
+     1. inspectFile   lee el libro sin guardar nada y dice a que pestana
+                      pertenece y si sus columnas cuadran
+     2. confirmar     el periodo lo fija el filtro, no el nombre del archivo, y
+                      se confirma antes de tocar la base
+     3. uploadFile    sube con FormData (tipo, mes, anio, excel_file0)
+     4. roadmap       cuatro pasos animados mientras el servidor responde, y al
+                      volver se reemplazan por los `steps` reales de la carga
+
+   Aqui no hay servidor: los pasos y las hojas son los que el importador
+   devuelve para el reporte de Wansoft, con los tiempos del modulo (900 ms por
+   paso del roadmap). El archivo no se sube; se lee su nombre y su peso con la
+   File API. */
+
+let archivo = null;
+let fase    = 'elegir';   // elegir · subiendo · resultado
+
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/* Los cuatro pasos que el modulo anima mientras espera (roadmapContrato). */
+const ROADMAP = [
+    { titulo: 'Recibir archivo',  detalle: 'Sube el Excel del periodo' },
+    { titulo: 'Detectar hojas',   detalle: 'Se buscan las hojas del contrato' },
+    { titulo: 'Validar columnas', detalle: 'Se comparan contra el formato del POS' },
+    { titulo: 'Guardar en base',  detalle: 'Un lote por hoja y sus cruces' }
+];
+
+/* Las hojas del contrato de Wansoft en la pestaña Reporte de ventas, con su
+   fila de encabezados y el rango de columnas que el importador lee. */
+const CONTRATO = [
+    { nombre: 'Detalle por forma de pago',     fila: 15, rango: 'A:R', cols: 18, principal: true },
+    { nombre: 'Pagos por terminal bancaria',   fila: 6,  rango: 'B:R', cols: 17 },
+    { nombre: 'Can y Dev por terminal bancaria', fila: 6, rango: 'B:Q', cols: 16 },
+    { nombre: 'Pagos Eliminados',              fila: 6,  rango: 'B:L', cols: 11 }
+];
+
+function pesoTexto(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+const periodoTexto = () => $$('cMes').selectedOptions[0].text + ' ' + $$('cAnio').value;
+
+function abreCarga() {
+    fase = 'elegir';
+
+    muestra('cPre', true);
+    muestra('cProgreso', false);
+    muestra('cFin', false);
+    muestra('cHojas', false);
+
+    $$('cDetalle').classList.add('hidden');
+    $$('cDetalle').open = false;
+    $$('cRoadmap').innerHTML = '';
+    $$('cSim').value = '';
+
+    quitaArchivo();
+
+    $$('carga').classList.remove('hidden');
+    $$('carga').classList.add('flex');
+
+    lucide.createIcons();
+}
+
+function cierraCarga() {
+    $$('carga').classList.add('hidden');
+    $$('carga').classList.remove('flex');
+}
+
+function muestra(id, on) {
+    $$(id).classList.toggle('hidden', !on);
+    $$(id).classList.toggle('flex', on);
+}
+
+function tomaArchivo(f) {
+    if (!f) return;
+
+    archivo = { nombre: f.name, peso: pesoTexto(f.size) };
+
+    $$('eNombre').textContent = archivo.nombre;
+    $$('ePeso').textContent   = archivo.peso;
+
+    muestra('elegido', true);
+    $$('drop').classList.add('hidden');
+
+    boton('Subir ventas', true);
+    lucide.createIcons();
+}
+
+function quitaArchivo() {
+    archivo = null;
+
+    $$('file').value = '';
+    muestra('elegido', false);
+    $$('drop').classList.remove('hidden');
+
+    boton('Subir ventas', false);
+}
+
+function boton(texto, on) {
+    $$('cOk').textContent = texto;
+    $$('cOk').disabled    = !on;
+    $$('cOk').className   = 'text-[12px] px-3 py-1.5 rounded font-medium ' +
+                            (on ? 'bg-ws-blue text-white' : 'bg-gray-100 text-gray-400 border border-ws-line');
+}
+
+/* -- La subida --
+
+   Por dentro son las tres peticiones del modulo Cargas: inspectFile lee el
+   libro sin guardar, se confirma el periodo y uploadFile guarda. En pantalla
+   son tres frases, porque quien va a generar tickets no necesita saber que
+   existe un contrato de hojas para entender que sus ventas ya estan.
+
+   El detalle de cada paso sigue estando, plegado, para cuando algo falle. */
+
+const FRASES = [
+    { txt: 'Leyendo el archivo…',                       avance: 20 },
+    { txt: 'Revisando que sea el reporte de Wansoft…',   avance: 55 },
+    { txt: 'Guardando las ventas nuevas…',               avance: 85 }
+];
+
+function sube() {
+    muestra('cPre', false);
+    muestra('cProgreso', true);
+
+    boton('Subiendo…', false);
+    lucide.createIcons();
+
+    let i = 0;
+
+    const frase = () => {
+        if (i >= FRASES.length) { termina(); return; }
+
+        $$('cFrase').textContent    = FRASES[i].txt;
+        $$('cAvance').style.width   = FRASES[i].avance + '%';
+
+        i++;
+        setTimeout(frase, 1100);
+    };
+
+    frase();
+}
+
+function pintaRoadmap(pasos) {
+    const ico = {
+        ok:        ['bg-emerald-100 text-ws-ok', '✓'],
+        proceso:   ['bg-blue-100 text-ws-blueDk', '•'],
+        warn:      ['bg-amber-100 text-ws-warn', '!'],
+        error:     ['bg-red-100 text-ws-danger', '×'],
+        pendiente: ['bg-gray-100 text-gray-400', '·']
+    };
+
+    $$('cRoadmap').innerHTML = pasos.map((p) => {
+        const [cls, glifo] = ico[p.estado] || ico.pendiente;
+        const vivo = p.estado === 'proceso';
+
+        return `<div class="flex items-start gap-2.5 px-2.5 py-1.5 rounded border ${p.estado === 'pendiente' ? 'bg-white border-ws-line' : 'bg-gray-50 border-ws-line'}">
+            <span class="w-4 h-4 rounded-full ${cls} flex items-center justify-center text-[10px] font-bold mt-0.5 ${vivo ? 'animate-pulse' : ''}">${glifo}</span>
+            <span>
+                <span class="text-[12.5px] font-medium ${p.estado === 'pendiente' ? 'text-gray-400' : ''}">${esc(p.titulo)}</span><br>
+                <span class="text-[11px] text-ws-muted">${esc(p.detalle)}</span>
+            </span>
+        </div>`;
+    }).join('');
+}
+
+/* -- Los registros que entraron, hoja por hoja --
+
+   La tira de pestanas del modulo Cargas: una por hoja del archivo, y al abrirla
+   se listan sus registros con las columnas que lsRegistros() devuelve para ese
+   target. La hoja sin movimientos se marca y no lista nada. */
+
+let hojaSel = 0;
+
+function filasHoja(i, nuevos) {
+    const ls = ventas();
+
+    // wansoft-detail: cada fila del Excel es un PAGO, y en ese orden se leen.
+    if (i === 0) {
+        return {
+            cols: ['Fecha', 'Movimiento', 'Estatus', 'Mesero', 'Forma', 'Total', 'Propina'],
+            der:  [5, 6],
+            rows: ls.slice(0, 8).map((v) => [
+                dia().fecha.slice(0, 5),
+                v.folio,
+                `<span class="badge-base ${esFacturado(v) ? 'st-fact' : 'st-nof'}" style="min-width:0">${esFacturado(v) ? 'Facturado' : 'Pagada'}</span>`,
+                'R. Salgado',
+                v.pago,
+                money(v.saleTotal || v.monto),
+                '<span class="text-gray-400">—</span>'
+            ])
+        };
+    }
+
+    // card y card-refund: el voucher de la terminal bancaria.
+    if (i === 1 || i === 2) {
+        return {
+            cols: ['Orden', 'Terminal', 'Operación', 'Banco', 'Tarjeta', 'Monto'],
+            der:  [5],
+            rows: ls.filter((v) => !esServicio(v)).slice(0, i === 1 ? 6 : 2).map((v, k) => [
+                v.folio,
+                'TPV-0' + (1 + k % 3),
+                i === 1 ? 'Venta' : 'Devolución',
+                ['BBVA', 'Banorte', 'Santander'][k % 3],
+                ['Visa', 'Mastercard', 'Amex'][k % 3],
+                money(v.monto)
+            ])
+        };
+    }
+
+    // Pagos Eliminados vino sin movimientos en el periodo.
+    return { cols: [], der: [], rows: [] };
+}
+
+function pintaHojas(nuevos) {
+    hojaSel = 0;
+
+    $$('hojaTabs').innerHTML = CONTRATO.map((h, i) => {
+        const vacia = h.nombre === 'Pagos Eliminados';
+        const filas = vacia ? 0 : (h.principal ? nuevos : Math.round(nuevos / 3));
+
+        return `<button class="hoja-tab${i === 0 ? ' on' : ''}${vacia ? ' vacia' : ''}" data-hoja="${i}">
+            ${esc(h.nombre)} <span class="ml-1 opacity-70">${filas ? filas.toLocaleString('en-US') : '0'}</span>
+        </button>`;
+    }).join('');
+
+    Array.prototype.forEach.call($$('hojaTabs').querySelectorAll('.hoja-tab'), (b) => {
+        b.addEventListener('click', () => {
+            hojaSel = parseInt(b.getAttribute('data-hoja'), 10);
+
+            Array.prototype.forEach.call($$('hojaTabs').querySelectorAll('.hoja-tab'),
+                (x) => x.classList.toggle('on', x === b));
+
+            pintaHojaBody(nuevos);
+        });
+    });
+
+    pintaHojaBody(nuevos);
+}
+
+function pintaHojaBody(nuevos) {
+    const h    = CONTRATO[hojaSel];
+    const data = filasHoja(hojaSel, nuevos);
+
+    if (!data.rows.length) {
+        $$('hojaBody').innerHTML = `<div class="px-2.5 py-3 border border-ws-line rounded text-[11.5px] text-ws-muted">
+            La hoja no trae movimientos en el período. No es un error: el POS no registró ninguno.
+        </div>`;
+        return;
+    }
+
+    const filas = data.rows.map((r, k) => `<tr class="${k % 2 ? 'alt' : ''}">
+        ${r.map((c, j) => `<td class="${data.der.indexOf(j) >= 0 ? 'num' : ''}">${c}</td>`).join('')}
+    </tr>`).join('');
+
+    const total = h.principal ? nuevos : Math.round(nuevos / 3);
+
+    $$('hojaBody').innerHTML = `
+        <div class="border border-ws-line rounded overflow-hidden">
+            <div class="overflow-x-auto"><table class="tbl">
+                <thead><tr>${data.cols.map((c, j) => `<th class="${data.der.indexOf(j) >= 0 ? 'num' : ''}">${esc(c)}</th>`).join('')}</tr></thead>
+                <tbody>${filas}</tbody>
+            </table></div>
+            <div class="px-2.5 py-1.5 text-[11px] text-ws-muted bg-gray-50 border-t border-ws-line">
+                ${data.rows.length} de ${total.toLocaleString('en-US')} registros · columnas ${h.rango} · encabezados en la fila ${h.fila}
+            </div>
+        </div>`;
+}
+
+/* -- Lo que hay que corregir en el Excel --
+
+   Los mismos tres avisos que alertValidacion(): el libro dibujado con su barra
+   de pestanas cuando el archivo no es el que se espera, la fila de encabezados
+   comparada cuando las columnas no cuadran, y las notas emitidas cuando el mes
+   ya no admite cargas.
+
+   El pie dice si algo alcanzo a entrar: las hojas se cargan por separado y
+   anunciar "no se modifico nada" seria falso. */
+
+const LETRAS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+function libroExcel(titulo, hojas) {
+    return `<p class="chk-lead">${titulo}</p>
+        <div class="xls-book">
+            <div class="xls-head">${LETRAS.map((c) => `<span>${c}</span>`).join('')}</div>
+            <div class="xls-grid"></div>
+            <div class="xls-tabs">
+                ${hojas.map((h) => `<span class="xls-tab xls-${h.tono}">${esc(h.nombre)}</span>`).join('')}
+            </div>
+        </div>`;
+}
+
+function celdaExcel(texto, estado) {
+    return `<span class="xls-cel ${estado ? 'xls-cel-' + estado : ''}" title="${esc(texto)}">${esc(texto) || '&nbsp;'}</span>`;
+}
+
+function rechaza(motivo) {
+    const esperadas = CONTRATO.map((h) => h.nombre);
+
+    // 1 · Ninguna hoja conocida: el archivo no es el de esta pestaña.
+    if (motivo === 'hojas') {
+        const trae = ['Ventas del turno', 'Resumen', 'Hoja1'];
+
+        pintaRoadmap([
+            { titulo: 'Recibir archivo', estado: 'ok', detalle: archivo.nombre },
+            { titulo: 'Detectar hojas', estado: 'error', detalle: 'El libro trae: ' + trae.join(' · ') }
+        ]);
+
+        cierraRechazo('Este no es el archivo de Reporte de ventas',
+            'Ninguna de sus hojas es de las que Wansoft exporta.',
+            libroExcel('Así debe venir el Excel de <strong>Reporte de ventas</strong>:',
+                esperadas.map((n) => ({ nombre: n, tono: 'ok' }))) +
+            libroExcel('Así viene el que subiste:',
+                trae.map((n) => ({ nombre: n, tono: 'bad' }))),
+            'No se modificó ningún dato. Corrige el archivo y vuelve a subirlo.');
+
+        return;
+    }
+
+    // 2 · Es el archivo, pero una hoja trae las columnas cambiadas.
+    if (motivo === 'columnas') {
+        const cols = [
+            { letra: 'A', esperada: 'Total',              encontrada: 'Total',              estado: 'ok' },
+            { letra: 'B', esperada: 'Propina',            encontrada: 'Propina',            estado: 'ok' },
+            { letra: 'C', esperada: 'Participacion',      encontrada: 'Participacion',      estado: 'ok' },
+            { letra: 'D', esperada: 'Fecha',              encontrada: 'Fecha',              estado: 'ok' },
+            { letra: 'E', esperada: 'Orden',              encontrada: 'Movimiento PDV',     estado: 'movida' },
+            { letra: 'F', esperada: 'Movimiento PDV',     encontrada: 'Orden',              estado: 'movida' },
+            { letra: 'G', esperada: 'Estatus',            encontrada: '',                   estado: 'ausente' },
+            { letra: 'H', esperada: 'Mesero',             encontrada: 'Mesero',             estado: 'ok' }
+        ];
+
+        pintaRoadmap([
+            { titulo: 'Recibir archivo', estado: 'ok', detalle: archivo.nombre },
+            { titulo: 'Detectar hojas', estado: 'ok', detalle: esperadas.join(' · ') },
+            { titulo: 'Validar columnas de "Detalle por forma de pago"', estado: 'error',
+              detalle: 'falta Estatus · 2 columna(s) corridas de lugar' }
+        ]);
+
+        cierraRechazo('Revisa las columnas del archivo',
+            'La hoja principal no trae los encabezados donde el importador los busca.',
+            `<p class="chk-lead">Hoja <strong>Detalle por forma de pago</strong>, fila 15:
+                <span style="color:#C81E1E">falta Estatus</span> ·
+                <span style="color:#B45309">2 columna(s) corridas de lugar</span></p>
+            <div class="xls-book"><div class="xls-scroll">
+                <div class="xls-line"><span class="xls-lbl"></span>
+                    ${cols.map((c) => `<span class="xls-hcel">${c.letra}</span>`).join('')}</div>
+                <div class="xls-line"><span class="xls-lbl">Debe decir</span>
+                    ${cols.map((c) => celdaExcel(c.esperada, c.estado === 'ok' ? '' : 'want')).join('')}</div>
+                <div class="xls-line"><span class="xls-lbl">Tu archivo</span>
+                    ${cols.map((c) => celdaExcel(c.encontrada, c.estado === 'ok' ? '' : (c.estado === 'ausente' ? 'bad' : 'alt'))).join('')}</div>
+            </div></div>`,
+            'Sí entró: <b>Pagos por terminal bancaria</b>. El resto no se modificó.');
+
+        return;
+    }
+
+    // 3 · El mes ya tiene notas emitidas: notasDelPeriodo() corta la carga antes
+    //     de guardar una sola fila.
+    const notas = ventas().slice(0, 4).map((v, i) => [i + 1, v.folio, v.monto || v.saleTotal]);
+
+    pintaRoadmap([
+        { titulo: 'Recibir archivo', estado: 'ok', detalle: archivo.nombre },
+        { titulo: 'Revisar periodo', estado: 'error', detalle: '17 nota(s) ya emitidas' }
+    ]);
+
+    cierraRechazo('El período ya tiene tickets generados',
+        `${periodoTexto()} tiene las notas #1 a #17 emitidas sobre sus ventas.`,
+        `<p class="chk-lead">Volver a cargar reemplazaría esas ventas y
+            <strong>las notas se borrarían con ellas</strong>.</p>
+        <div class="border border-ws-line rounded overflow-hidden">
+            <table class="tbl"><thead><tr><th>Nota</th><th>Folio</th><th class="num">Total</th></tr></thead>
+            <tbody>${notas.map(([n, f, t], k) => `<tr class="${k % 2 ? 'alt' : ''}">
+                <td class="mono">#${n}</td><td class="mono">${f}</td><td class="num">${money(t)}</td></tr>`).join('')}
+            </tbody></table>
+            <div class="px-2.5 py-1.5 text-[11px] text-ws-muted bg-gray-50 border-t border-ws-line">y 13 más</div>
+        </div>`,
+        'No se modificó ningún dato. Mientras existan esas notas el período no admite cargas; se puede cargar en otro mes.');
+}
+
+function cierraRechazo(titulo, sub, cuerpo, pie) {
+    $$('cFin').innerHTML = `
+        <div class="flex items-start gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-red-100 text-ws-danger flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="x" class="w-4 h-4"></i></span>
+            <div class="flex flex-col gap-0.5">
+                <span class="text-[14px] font-semibold">${esc(titulo)}</span>
+                <span class="text-[12.5px] text-ws-muted">${esc(sub)}</span>
+            </div>
+        </div>
+        ${cuerpo}
+        <p class="text-[11.5px] text-ws-muted">${pie}</p>`;
+
+    boton('Entendido', true);
+    lucide.createIcons();
+}
+
+/* -- El resultado, dicho en una frase --
+
+   Lo que respondio el servidor se resume en algo que se pueda actuar: cuantas
+   ventas entraron y que dias quedaron listos para cerrar. Si fallo, que hacer
+   para arreglarlo. */
+
+function termina() {
+    muestra('cProgreso', false);
+    muestra('cFin', true);
+
+    $$('cDetalle').classList.remove('hidden');
+    $$('cAvance').style.width = '100%';
+
+    fase = 'resultado';
+
+    // Los tres motivos por los que el importador rechaza una carga, con el
+    // mismo aviso que arma alertValidacion() en el modulo Cargas.
+    const sim = $$('cSim').value;
+
+    if (sim) { rechaza(sim); return; }
+
+    const nuevos = CARGA.leidas - CARGA.omitidos;
+
+    // Los steps que arma procesarLibro(): detectar hojas, y por cada hoja su
+    // validacion de columnas y su guardado.
+    const steps = [
+        { titulo: 'Recibir archivo', estado: 'ok', detalle: archivo.nombre },
+        { titulo: 'Detectar hojas',  estado: 'ok', detalle: CONTRATO.map((h) => h.nombre).join(' · ') }
+    ];
+
+    CONTRATO.forEach((h) => {
+        steps.push({
+            titulo:  'Validar columnas de "' + h.nombre + '"',
+            estado:  'ok',
+            detalle: h.cols + ' columnas ' + h.rango
+        });
+
+        steps.push({
+            titulo:  'Guardar "' + h.nombre + '"',
+            estado:  'ok',
+            detalle: h.principal
+                ? nuevos.toLocaleString('en-US') + ' registros en base de datos · ' +
+                  CARGA.omitidos.toLocaleString('en-US') + ' movimientos ya procesados'
+                : (h.nombre === 'Pagos Eliminados'
+                    ? 'La hoja no trae movimientos en el periodo'
+                    : Math.round(nuevos / 3).toLocaleString('en-US') + ' registros en base de datos')
+        });
+    });
+
+    pintaRoadmap(steps);
+
+    pintaHojas(nuevos);
+    muestra('cHojas', true);
+
+    // El lote queda registrado: es lo que el panel de seguimiento lee para los
+    // pasos 2, 3 y 8.
+    CARGA.lote++;
+    CARGA.archivo = archivo.nombre;
+    CARGA.periodo = periodoTexto();
+    CARGA.cuando  = new Date().toLocaleDateString('es-MX') + ' ' +
+                    new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    const pendientes = DIAS.filter((d) => d.estado !== 'cerrado');
+
+    $$('cFin').innerHTML = `
+        <div class="flex items-start gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-emerald-100 text-ws-ok flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="check" class="w-4 h-4"></i></span>
+            <div class="flex flex-col gap-0.5">
+                <span class="text-[14px] font-semibold">Se agregaron ${nuevos.toLocaleString('en-US')} ventas de ${esc(periodoTexto())}</span>
+                <span class="text-[12.5px] text-ws-muted">
+                    ${CARGA.omitidos.toLocaleString('en-US')} ya estaban y no se repitieron${CARGA.difieren ? ` · ${CARGA.difieren} cambiaron de importe en el POS` : ''}
+                </span>
+                <span class="text-[12.5px] text-gray-700 mt-1">
+                    Ya puedes cerrar <b>${pendientes.map((d) => d.fecha.slice(0, 5)).join(', ')}</b>.
+                </span>
+            </div>
+        </div>`;
+
+    boton('Listo', true);
+
+    sincronizaBotonCarga();
+    render();
+    lucide.createIcons();
+}
+
+/* De donde salieron las ventas que se estan viendo, en la linea de abajo del
+   selector: es donde se mira cuando falta un dia. */
+function sincronizaBotonCarga() {
+    $$('dsInfo').textContent = CARGA.periodo + ' · ' + CARGA.cuando;
+    $$('btnCarga').title     = 'Actualizar ventas desde el Excel de Wansoft · ' + CARGA.archivo;
+}
+
+/* -- Eventos -- */
+
+$$('cMes').innerHTML = MESES.map((m, i) =>
+    `<option value="${i + 1}" ${i === 7 ? 'selected' : ''}>${m}</option>`).join('');
+
+$$('btnCarga').addEventListener('click', abreCarga);
+$$('cCancel').addEventListener('click', cierraCarga);
+$$('eQuitar').addEventListener('click', quitaArchivo);
+
+$$('file').addEventListener('change', (e) => tomaArchivo(e.target.files[0]));
+
+['dragover', 'dragleave', 'drop'].forEach((ev) => {
+    $$('drop').addEventListener(ev, (e) => {
+        e.preventDefault();
+
+        $$('drop').classList.toggle('bg-blue-50', ev === 'dragover');
+        $$('drop').classList.toggle('border-ws-blue', ev === 'dragover');
+
+        if (ev === 'drop') tomaArchivo(e.dataTransfer.files[0]);
+    });
+});
+
+$$('cOk').addEventListener('click', () => {
+    if (fase === 'elegir') { sube(); return; }
+
+    cierraCarga();
+});
+
+$$('selDia').innerHTML = DIAS.map((d, i) =>
+    `<option value="${i}">${d.fecha}${d.estado === 'cerrado' ? ' · cerrado' : ''}</option>`).join('');
+
+$$('selDia').addEventListener('change', (e) => {
+    diaIdx = parseInt(e.target.value, 10);
+    meta = null;
+    render();
+});
+
+$$('btnMeta').addEventListener('click', () => { if (!cerrado()) abreModal(); });
+$$('mCancel').addEventListener('click', cierraModal);
+
+$$('mOk').addEventListener('click', () => {
+    if (!cuadra()) return;
+
+    meta = { m16: num($$('in16').value), m0: num($$('in0').value) };
+
+    cierraModal();
+    render();
+});
+
+$$('in16').addEventListener('input', () => {
+    tocado.s16 = true;
+    if (!tocado.s0) $$('in0').value = Math.max(0, total() - num($$('in16').value)).toFixed(2);
+    pintaModal();
+});
+
+$$('in0').addEventListener('input', () => {
+    tocado.s0 = true;
+    if (!tocado.s16) $$('in16').value = Math.max(0, total() - num($$('in0').value)).toFixed(2);
+    pintaModal();
+});
+
+$$('btnGen').addEventListener('click', () => {
+    // Sin reparto capturado no hay nada que proponer: el modal se abre primero.
+    if (meta === null) { abreModal(); return; }
+
+    abrePropuesta();
+});
+
+$$('pCancel').addEventListener('click', () => { cierraProp(); abreModal(); });
+
+$$('pOk').addEventListener('click', () => {
+    corrida++;
+    dia().estado  = 'cerrado';
+    dia().corrida = corrida;
+
+    cierraProp();
+    render();
+});
+
+$$('btnUndo').addEventListener('click', () => {
+    dia().estado  = 'pendiente';
+    dia().corrida = null;
+    corrida--;
+    meta = null;
+    render();
+});
+
+$$('btnPrint').addEventListener('click', () => {
+    $$('pie').innerHTML = `<b class="text-ws-blueDk">Hoja del día lista</b> · en el módulo real aquí se abre el diálogo de impresión con los ${ventas().length} papeles.`;
+});
+
+$$('btnPanel').addEventListener('click', () => $$('detailPanel').classList.toggle('hidden'));
+
+/* El tirador mueve --detail-w, como el #detailResizer del modulo: con el raton
+   arrastrando y con las flechas para quien no puede arrastrar. */
+(() => {
+    const set = (px) => document.documentElement.style.setProperty('--detail-w', Math.min(560, Math.max(260, px)) + 'px');
+    const ancho = () => parseInt(getComputedStyle($$('detailPanel')).width, 10);
+
+    let arrastra = false;
+
+    $$('detailResizer').addEventListener('mousedown', (e) => { arrastra = true; e.preventDefault(); });
+    document.addEventListener('mouseup', () => { arrastra = false; });
+    document.addEventListener('mousemove', (e) => { if (arrastra) set(window.innerWidth - e.clientX); });
+
+    $$('detailResizer').addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft')  set(ancho() + 20);
+        if (e.key === 'ArrowRight') set(ancho() - 20);
+    });
+})();
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { cierraModal(); cierraProp(); } });
+
+/* El reloj de la banda: en un POS es dato de turno, no adorno. */
+function reloj() {
+    const now = new Date();
+
+    $$('clock').textContent =
+        now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ' ' +
+        now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
+reloj();
+setInterval(reloj, 30000);
+sincronizaBotonCarga();
+render();
+</script>
+</body>
+</html>

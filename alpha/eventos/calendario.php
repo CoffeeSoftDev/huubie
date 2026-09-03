@@ -65,8 +65,8 @@
 
     <!-- PRINCIPAL -->
     <script src="<?=PATH_BASE?>access/src/js/session.js"></script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js"></script>
-    <script src="<?=PATH_MENU?>src/js/sidebar.js"></script>
+    <script src="<?=PATH_MENU?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
+    <script src="<?=PATH_MENU?>src/js/sidebar.js?t=<?php echo time(); ?>"></script>
 
 </head>
 
