@@ -205,7 +205,6 @@ class Pos extends Templates {
         const priceColor = isDark ? "text-[#76A9FA]" : "text-blue-600";
 
         const container = $(`#${opts.parent}`).empty();
-        const baseUrl = "https://huubie.com.mx/";
         // Se arma el grid en un fragmento y se inserta de una sola vez: con ~180
         // productos, insertar card por card forzaba un reflow por iteracion.
         const frag = document.createDocumentFragment();
@@ -226,13 +225,14 @@ class Pos extends Templates {
             if (item.image && item.image.trim() !== "") {
                 imageWrap.append(
                     $("<img>", {
-                        src: baseUrl + item.image,
+                        src: fileUrl(item.image),
                         alt: item.name ?? item.valor,
-                        // Remotas (huubie.com.mx): lazy para no descargarlas todas al
-                        // montar; solo cargan las visibles y el resto al hacer scroll.
+                        // Lazy para no descargarlas todas al montar; solo cargan las
+                        // visibles y el resto al hacer scroll.
                         loading: "lazy",
                         decoding: "async",
-                        class: "object-cover h-full w-full"
+                        class: "object-cover h-full w-full",
+                        on: { error: function () { fileUrlFallback(this); } }
                     })
                 );
             } else {
@@ -1562,8 +1562,6 @@ class CatalogProduct extends Pos {
         const previewContainer = document.getElementById(previewId);
         previewContainer.innerHTML = ""; // Limpia el contenedor
 
-        const urlBase = 'https://huubie.com.mx/';
-
         // Si solo es una imagen (objeto), conviértelo a arreglo
         const imageList = Array.isArray(images) ? images : [{ path: images }];
 
@@ -1571,7 +1569,8 @@ class CatalogProduct extends Pos {
         imageList.forEach(imgData => {
 
             const img = document.createElement("img");
-            img.src = urlBase + imgData.path;
+            img.src = fileUrl(imgData.path);
+            img.onerror = () => fileUrlFallback(img);
             img.alt = imgData.original_name || "Imagen del producto";
 
             img.classList.add("w-32", "h-32", "object-cover", "rounded", "border");
@@ -2580,7 +2579,6 @@ class CatalogProduct extends Pos {
         }).then(response => {
             if (response.status === 200) {
                 const product = response.data;
-                const baseUrl = "https://huubie.com.mx/";
 
                 // Create modal with bootbox
                 const modal = bootbox.dialog({
@@ -2593,7 +2591,7 @@ class CatalogProduct extends Pos {
                             <!-- Left Pane - Product Image -->
                             <div class="w-full md:w-1/2 bg-gray-800 flex items-center justify-center min-h-[300px]">
                                 ${product.image && product.image.trim() !== ""
-                            ? `<img src="${baseUrl}${product.image}" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
+                            ? `<img src="${fileUrl(product.image)}" onerror="fileUrlFallback(this)" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
                             : `<div class="flex items-center justify-center w-full h-full">
                                          <i class="icon-birthday text-6xl text-gray-500"></i>
                                        </div>`

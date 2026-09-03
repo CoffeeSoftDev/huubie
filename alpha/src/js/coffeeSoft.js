@@ -4876,6 +4876,28 @@ class Templates extends Components {
 }
 
 
+// Archivos subidos (alpha_files). El backend los guarda en DOCUMENT_ROOT y registra el
+// path relativo a esa raiz, asi que anteponer "/" apunta al archivo de este mismo
+// servidor: las fotos se ven igual en produccion, en el vhost local y en localhost.
+function fileUrl(path) {
+    if (!path) return '';
+
+    const clean = String(path).trim();
+    if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:')) return clean;
+
+    // El path lleva el nombre de la empresa y la sucursal, con espacios y acentos.
+    return '/' + encodeURI(clean.replace(/^\/+/, ''));
+}
+
+// Las fotos subidas antes solo existen en el servidor de produccion. Si la copia local
+// no carga, se reintenta ahi una sola vez; el flag corta el bucle si tampoco esta.
+function fileUrlFallback(img, remote = 'https://huubie.com.mx') {
+    if (!img || img.dataset.fileFallback) return;
+
+    img.dataset.fileFallback = '1';
+    img.src = remote.replace(/\/+$/, '') + new URL(img.src, location.origin).pathname;
+}
+
 async function useFetch(options = {}) {
 
     // Valores predeterminados

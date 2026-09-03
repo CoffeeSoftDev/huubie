@@ -1101,13 +1101,13 @@ class App extends Templates {
             ${hasImages ? `
             <div class="flex gap-3 pb-4 border-b border-gray-700">
                 ${product.images.slice(0, 3).map(img => {
-            const thumbUrl = img.path.startsWith('http') ? img.path : `${img.path}`;
-            const fullUrl = `https://huubie.com.mx/${thumbUrl}`;
+            const fullUrl = fileUrl(img.path);
             return `
                         <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
                              onclick="app.previewImage('${fullUrl}', '${(img.original_name || 'Imagen').replace(/'/g, "\\'")}')">
                             <img src="${fullUrl}"
                                  alt="${img.original_name || 'Imagen'}"
+                                 onerror="fileUrlFallback(this)"
                                  class="object-cover w-full h-full pointer-events-none">
                         </div>
                     `;
@@ -1155,12 +1155,11 @@ class App extends Templates {
         const hasImage = product.image && product.image.trim() !== '';
 
         if (hasImage) {
-            const imageUrl = product.image.startsWith('http') ?
-                product.image : `https://huubie.com.mx/${product.image}`;
+            const imageUrl = fileUrl(product.image);
             return `
                 <img src="${imageUrl}" alt="${product.name}"
                      class="object-cover w-full h-full"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     onerror="if (!this.dataset.fileFallback) { fileUrlFallback(this); } else { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">
                 <div class="w-full h-full items-center justify-center hidden">
                     <i class="icon-birthday text-white text-4xl"></i>
                 </div>

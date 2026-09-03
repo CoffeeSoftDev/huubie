@@ -46,13 +46,6 @@ class OrderCustom extends CRUD {
         ]);
     }
 
-    function maxCustomOrder(){
-        return $this->_Select([
-            'table' => "{$this->bd}order_custom",
-            'values' => "MAX(id) as max_id",
-        ])[0]['max_id'];
-    }
-
     // ORDEN PAQUETE -----------------------------------------
     // Agregar a la orden el pastel personalizado.
     function createOrderPackage($array){
@@ -73,14 +66,6 @@ class OrderCustom extends CRUD {
         ]);
     }
 
-    // Obtener el último id de orden paquete.
-    function maxOrderPackage(){
-        return $this->_Select([
-            'table' => "{$this->bd}order_package",
-            'values' => "MAX(id) as max_id",
-        ])[0]['max_id'];
-    }
-
     // PRODUCTOS DE MODIFICADOR ------------------------------
     // Crear producto de modificador.
     function createOrderModifierProduct($array){
@@ -91,13 +76,6 @@ class OrderCustom extends CRUD {
         ]);
     }
 
-    // Obtener el último id de producto de modificador.
-    function maxOrderModifierProduct(){
-        return $this->_Select([
-            'table' => "{$this->bd}order_modifier_products",
-            'values' => "MAX(id) as max_id",
-        ])[0]['max_id'];
-    }
 
     // PRODUCTOS EN EL PEDIDO PERSONALIZADO -----------------
     // Agregar producto al pedido personalizado

@@ -154,10 +154,13 @@ class OrderCustomController extends OrderCustom {
         if ($insert) {
             $status  = 200;
             $message = 'Pedido personalizado agregado correctamente';
-            $max = $this->maxCustomOrder();
-            
+            // El id sale del propio INSERT, no de un MAX(id): con dos cajas guardando a
+            // la vez el MAX devolvia el pedido del otro cajero y las fotos y los
+            // modificadores se pegaban al pastel equivocado.
+            $max = $this->lastInsertId();
+
              if ($max != null) {
-                // Agregar ala orden 
+                // Agregar ala orden
                 $this->createOrderPackage($this->util->sql([
                     'custom_id'     => $max,
                     'pedidos_id'    => $idPedido,
@@ -166,7 +169,7 @@ class OrderCustomController extends OrderCustom {
                     'status'        => 1
                 ]));
                 // El ID del nuevo paquete en la orden
-                $maxOrden = $this->maxOrderPackage();
+                $maxOrden = $this->lastInsertId();
 
                 // Agregar productos al pedido personalizado
                 $productos = [];
@@ -244,7 +247,7 @@ class OrderCustomController extends OrderCustom {
         if ($insert) {
             $status  = 200;
             $message = 'Producto del modificador agregado correctamente';
-            $max = $this->maxOrderModifierProduct();
+            $max = $this->lastInsertId();
         }
 
         return [
@@ -257,28 +260,24 @@ class OrderCustomController extends OrderCustom {
     // Agregar imagenes del pedido personalizado
     function addOrderImages() {
 
-        $status  = 500;
-        $message = 'Error al agregar las imágenes del pedido personalizado';
-        $company = $_SESSION['COMPANY'] ;
-        $sub     = $_SESSION['SUBSIDIARIE_NAME'] ;
-        $packageId = $_POST['id'];
+        $status    = 500;
+        $message   = 'Error al agregar las imágenes del pedido personalizado';
+        $company   = $_SESSION['COMPANY'] ?? '';
+        $sub       = $_SESSION['SUBSIDIARIE_NAME'] ?? '';
+        $packageId = $_POST['id'] ?? null;
+        $files     = $_FILES['archivos'] ?? null;
 
-        // Verificar si existen imágenes previas y eliminarlas
-        $existingImages = $this->getImagesByOrderPackageId([$packageId]);
-        
-        if (!empty($existingImages)) {
-            foreach ($existingImages as $image) {
-                // Eliminar archivo físico del servidor
-                $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/' . ltrim($image['path'], '/');
-                
-                if (file_exists($fullPath)) {
-                    unlink($fullPath);
-                }
-                
-                // Eliminar registro de la base de datos
-                $this->deleteImageById([$image['id']]);
-            }
+        // Sin archivos nuevos no se toca nada.
+        if (empty($packageId) || empty($files) || empty($files['name'][0])) {
+            return [
+                'status'  => 400,
+                'message' => 'No se recibieron imágenes para guardar',
+                'data'    => ['saved' => 0]
+            ];
         }
+
+        // Las fotos se acumulan: cada envio agrega a las que ya tiene el pedido. Para
+        // quitar una se usa deleteOrderImage, que borra esa sola.
 
         // Configurar ruta para nuevas imágenes
         $ruta    = 'alpha_files/' .$company. '/' . $sub . '/order/images/custom/';
@@ -288,53 +287,63 @@ class OrderCustomController extends OrderCustom {
             mkdir($oldFile, 0777, true);
         }
 
-        $values  = [];
+        $allowed  = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $values   = [];
+        $rejected = [];
 
-        if (!empty($_FILES['archivos']['name'][0])) {
-        
-                foreach ($_FILES['archivos']['name'] as $i => $nombreOriginal) {
-        
-             if ($_FILES['archivos']['error'][$i] == UPLOAD_ERR_OK) {
+        foreach ($files['name'] as $i => $nombreOriginal) {
 
-                  $temporal    = $_FILES['archivos']['tmp_name'][$i];
-                    $ext         = pathinfo($nombreOriginal, PATHINFO_EXTENSION);
-                    $randomDigits = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-                    $hour = date('H');
-                    $nuevoNombre = 'cake_' . $randomDigits . '_' . $hour . 'hrs.' . strtolower($ext);
-                    $destino     = $oldFile . $nuevoNombre;
-                    
-                    if (move_uploaded_file($temporal, $destino)) {
-                        $values[] = [
-                            'path'          => $ruta.$nuevoNombre,
-                            'name'          => $nuevoNombre,
-                            'original_name' => $nombreOriginal,
-                            'date_created'  => date('Y-m-d H:i:s'),
-                            'package_id'    => $packageId
-                        ];
-
-                        $insert =  $this->createOrderImages($this->util->sql($values));
-                        
-                        if ($insert) {
-                            $status  = 200;
-                            $message = 'Imágenes del pedido personalizado agregadas correctamente';
-                        }
-                    }
-                   }
+            if ($files['error'][$i] != UPLOAD_ERR_OK) {
+                $rejected[] = $nombreOriginal . ' (la foto no llegó completa al servidor)';
+                continue;
             }
+
+            $ext = strtolower(pathinfo($nombreOriginal, PATHINFO_EXTENSION));
+
+            if (!in_array($ext, $allowed)) {
+                $rejected[] = $nombreOriginal . ' (formato no permitido)';
+                continue;
+            }
+
+            $randomDigits = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $hour         = date('H');
+            // El sufijo unico evita que dos fotos de la misma hora caigan en el mismo
+            // nombre y una sobrescriba a la otra.
+            $nuevoNombre  = 'cake_' . $randomDigits . '_' . $hour . 'hrs_' . substr(md5(uniqid('', true)), 0, 6) . '.' . $ext;
+            $destino      = $oldFile . $nuevoNombre;
+
+            if (!move_uploaded_file($files['tmp_name'][$i], $destino)) {
+                $rejected[] = $nombreOriginal . ' (no se pudo guardar en el servidor)';
+                continue;
+            }
+
+            $values[] = [
+                'path'          => $ruta.$nuevoNombre,
+                'name'          => $nuevoNombre,
+                'original_name' => $nombreOriginal,
+                'date_created'  => date('Y-m-d H:i:s'),
+                'package_id'    => $packageId
+            ];
         }
 
+        // Un solo insert con todas las filas. Hacerlo dentro del ciclo reinsertaba el
+        // acumulado y dejaba cada foto repetida n(n+1)/2 veces.
+        if (!empty($values) && $this->createOrderImages($this->util->sql($values))) {
+            $status  = 200;
+            $message = 'Imágenes del pedido personalizado agregadas correctamente';
+        }
 
-     
+        if (!empty($rejected)) {
+            $message .= '. No se guardaron: ' . implode(', ', $rejected);
+        }
+
         return [
-            
-            'status'    => $status,
-            'message'   => $message,
-            'end-point' => $values,
-
-            'data'   => [
-                'ruta'     => $ruta,
-                '$oldFile' => $oldFile,
-                'deleted_images' => count($existingImages)
+            'status'  => $status,
+            'message' => $message,
+            'data'    => [
+                'saved'    => count($values),
+                'rejected' => $rejected,
+                'ruta'     => $ruta
             ]
         ];
     }

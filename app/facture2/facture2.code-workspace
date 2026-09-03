@@ -5,7 +5,7 @@
 		}
 	],
 	"settings": {
-		"workbench.colorTheme": "Iceberg",
+		"workbench.colorTheme": "Dracula Theme",
 		"workbench.colorCustomizations": {
 			"activityBar.border": "#41207e",
 			"activityBar.activeBackground": "#1d4b6b",

@@ -540,16 +540,13 @@ class App extends Templates {
         const previewContainer = document.getElementById(previewId);
         previewContainer.innerHTML = ""; // Limpia el contenedor
 
-        const urlBase = 'https://huubie.com.mx/';
-
         // Si solo es una imagen (objeto), conviértelo a arreglo
         const imageList = Array.isArray(images) ? images : [{ path: images }];
 
-        console.log(imageList);
-
         imageList.forEach(imgData => {
             const img = document.createElement("img");
-            img.src = urlBase + imgData.path;
+            img.src = fileUrl(imgData.path);
+            img.onerror = () => fileUrlFallback(img);
             img.alt = imgData.original_name || "Imagen del producto";
             img.classList.add("w-20", "h-20", "object-cover", "rounded", "border");
             previewContainer.appendChild(img);

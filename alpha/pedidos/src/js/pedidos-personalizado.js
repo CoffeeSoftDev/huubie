@@ -8,6 +8,7 @@ class CustomOrder extends Templates {
         this.editMode = false;
         this.editingOrderId = null;
         this.editingCustomId = null;
+        this.pendingFiles = [];
     }
 
     render() {
@@ -17,6 +18,7 @@ class CustomOrder extends Templates {
         this.editMode = false;
         this.editingOrderId = null;
         this.editingCustomId = null;
+        this.pendingFiles = [];
         custom.modalAddCustomOrder();
     }
 
@@ -24,6 +26,7 @@ class CustomOrder extends Templates {
         this.editMode = true;
         this.editingOrderId = orderPackageId;
         this.editingCustomId = custom_id;
+        this.pendingFiles = [];
 
 
         // Cargar datos del pedido personalizado
@@ -190,6 +193,7 @@ class CustomOrder extends Templates {
             // Resetear modo edición al cerrar
             custom.editMode = false;
             custom.editingOrderId = null;
+            custom.pendingFiles = [];
         });
     }
 
@@ -728,11 +732,10 @@ class CustomOrder extends Templates {
                             <input
                                 type="file"
                                 id="archivos"
-                                name="archivos"
                                 class="hidden"
                                 multiple
-                                accept="image/*"
-                                onchange="normal.previewImages(this, 'previewImagenes')"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                onchange="custom.addFiles(this)"
                             >
                             <div class="flex flex-col items-center justify-center py-2 cursor-pointer" onclick="document.getElementById('archivos').click()">
                                 <div class="w-28 h-28 bg-purple-600 rounded-full flex items-center justify-center mb-2">
@@ -742,6 +745,7 @@ class CustomOrder extends Templates {
                                 <p class="text-[10px] text-gray-400 mt-1">JPEG, PNG</p>
                             </div>
                             <div id="previewImagenes" class="flex gap-2 flex-wrap mt-1"></div>
+                            <div id="previewNuevas" class="flex gap-2 flex-wrap mt-1"></div>
                         </div>
                     </div>
                 </form>
@@ -928,23 +932,9 @@ class CustomOrder extends Templates {
             });
 
             // GUARDAR IMÁGENES
-            const form = document.getElementById('formEditProducto');
-            const formData = new FormData(form);
-
-            formData.append('opc', 'addOrderImages');
-            formData.append('id', response.data.orderId);
-            formData.append('idFolio', idFolio);
-
-            const files = document.getElementById('archivos').files;
-
-            for (let i = 0; i < files.length; i++) {
-                formData.append('archivos[]', files[i]);
-            }
-
-            fetch(custom._link, {
-                method: 'POST',
-                body: formData
-            }).then(response => response.json()).then(response => { });
+            // Solo se manda si el cajero eligio fotos nuevas: el endpoint reemplaza las
+            // anteriores, y mandarlo en vacio dejaria el pedido sin imagen.
+            await custom.uploadImages(response.data.orderId);
 
             // SI GUARDÓ DEDICATORIA Y OBS, ENTONCES RETORNA SUCCESS.
             if (responseOrder.status == 200) {
@@ -955,20 +945,107 @@ class CustomOrder extends Templates {
             }
 
             // OBTENER LA LISTA DE PEDIDOS RELACIONADOS ALA ORDEN PRINCIPAL.
-            const listaProductosDeLaOrden = await useFetch({
-                url: 'ctrl/ctrl-pedidos.php',
-                data: {
-                    opc: "getProductsOrder",
-                    order_id: idFolio
-                }
-            });
-
-            normal.showOrder(listaProductosDeLaOrden.data || []);
+            await custom.refreshOrderPanel();
 
             bootbox.hideAll();
         } else {
             bootbox.alert("Error al guardar el pedido personalizado.");
             throw new Error(`Error del servidor: ${response.status}`);
+        }
+    }
+
+    // Fotos elegidas que aun no se guardan.
+    // El input se vacia en cada seleccion, asi que sin este arreglo elegir una segunda
+    // foto descartaba la primera.
+    addFiles(input) {
+        const elegidos = Array.from(input.files || []);
+
+        elegidos.forEach(file => {
+            const repetido = custom.pendingFiles.some(f =>
+                f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+            );
+
+            if (!repetido) custom.pendingFiles.push(file);
+        });
+
+        // Se limpia para poder volver a elegir el mismo archivo si se quito por error.
+        input.value = '';
+        custom.renderPendingImages();
+    }
+
+    removePendingImage(index) {
+        custom.pendingFiles.splice(index, 1);
+        custom.renderPendingImages();
+    }
+
+    renderPendingImages() {
+        const $preview = $("#previewNuevas").empty();
+
+        custom.pendingFiles.forEach((file, index) => {
+            // El contenedor se agrega ya, antes de leer el archivo: el FileReader es
+            // asincrono y si se esperara, las fotos quedarian en desorden.
+            const $wrap = $(`
+                    <div class="relative" style="display: inline-block;">
+                        <img class="w-28 h-28 object-cover rounded-lg border-2 border-dashed border-purple-400" alt="${file.name}"/>
+                        <button type="button"
+                                class="remove-pending-btn"
+                                style="position: absolute; top: -8px; right: -8px; background-color: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer;">
+                            <i class="icon-cancel" style="font-size: 12px;"></i>
+                        </button>
+                    </div>
+                `);
+
+            $wrap.find('.remove-pending-btn').on('click', () => custom.removePendingImage(index));
+            $preview.append($wrap);
+
+            const reader = new FileReader();
+            reader.onload = e => $wrap.find('img').attr('src', e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Repinta el panel de productos de la orden.
+    async refreshOrderPanel() {
+        const productos = await useFetch({
+            url: 'ctrl/ctrl-pedidos.php',
+            data: {
+                opc: "getProductsOrder",
+                order_id: idFolio
+            }
+        });
+
+        normal.showOrder(productos.data || []);
+    }
+
+    // Sube las fotos de referencia del pedido.
+    async uploadImages(packageId) {
+        const form = document.getElementById('formEditProducto');
+
+        if (!form || custom.pendingFiles.length == 0 || !packageId) return;
+
+        const formData = new FormData(form);
+
+        formData.append('opc', 'addOrderImages');
+        formData.append('id', packageId);
+        formData.append('idFolio', idFolio);
+
+        // Van del arreglo, no del input: ahi estan todas las elegidas en las distintas
+        // vueltas, ya sin las que el usuario quito.
+        custom.pendingFiles.forEach(file => formData.append('archivos[]', file));
+
+        try {
+            const request = await fetch(custom._link, { method: 'POST', body: formData });
+            const result  = await request.json();
+
+            if (result.status != 200) {
+                bootbox.alert(result.message || "No se pudieron guardar las fotos del pedido.");
+            }
+
+            return result;
+        } catch (e) {
+            // El servidor corta la peticion cuando las fotos superan post_max_size y
+            // devuelve un cuerpo vacio, asi que el error no llega como JSON.
+            bootbox.alert("No se pudieron guardar las fotos: pesan demasiado o la conexión se interrumpió. Intenta con fotos más ligeras.");
         }
     }
 
@@ -1142,16 +1219,14 @@ class CustomOrder extends Templates {
 
         images.forEach((img, index) => {
             console.log('Procesando imagen:', img);
-            const imageUrl = img.path && img.path.startsWith('http')
-                ? img.path
-                : `https://huubie.com.mx/${img.path || img.image_path || ''}`;
+            const imageUrl = fileUrl(img.path || img.image_path);
 
             const $imgContainer = $(`
                     <div class="relative image-preview-container" style="display: inline-block;">
                         <img src="${imageUrl}"
                             alt="${img.original_name || img.name || 'Imagen'}"
                             class="w-28 h-28 object-cover rounded-lg border-2 border-purple-400"
-                            onerror="console.error('Error cargando imagen:', '${imageUrl}')" onclick="custom.showLargeImage('${imageUrl}')"/>
+                            onerror="fileUrlFallback(this)" onclick="custom.showLargeImage('${imageUrl}')"/>
                         <button type="button"
                                 class="delete-image-btn"
                                 data-image-id="${img.id}"
@@ -1213,6 +1288,10 @@ class CustomOrder extends Templates {
                 $(buttonElement).closest('.relative').fadeOut(300, function () {
                     $(this).remove();
                 });
+
+                // El panel del pedido arma su leyenda "Pedido con N fotos adjuntas" con lo
+                // que devuelve getProductsOrder: sin repintarlo sigue contando la borrada.
+                await custom.refreshOrderPanel();
             } else {
                 bootbox.alert("No se pudo eliminar la imagen.");
             }
@@ -1222,7 +1301,7 @@ class CustomOrder extends Templates {
     showLargeImage(imageUrl) {
         bootbox.dialog({
             title: 'Vista ampliada',
-            message: `<div class='flex justify-center items-center'><img src='${imageUrl}' class='max-w-full max-h-[80vh] rounded-lg border-2 border-purple-400' /></div>`,
+            message: `<div class='flex justify-center items-center'><img src='${imageUrl}' onerror='fileUrlFallback(this)' class='max-w-full max-h-[80vh] rounded-lg border-2 border-purple-400' /></div>`,
             size: 'large',
             closeButton: true
         });

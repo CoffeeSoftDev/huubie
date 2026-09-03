@@ -2,6 +2,14 @@
 	class Conection {
 		protected $mysql;
         protected $connected = false;
+        protected $lastId = null;
+
+        // Id autoincremental que MySQL asigno en el ultimo INSERT ejecutado por _CUD.
+        // En un INSERT de varias filas devuelve el de la primera. Es null cuando la
+        // consulta no inserto (UPDATE, DELETE) o cuando fallo.
+        public function lastInsertId() {
+            return $this->lastId;
+        }
 
 		public function connect() {
             if (!$this->connected) {

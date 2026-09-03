@@ -11,6 +11,8 @@ class CRUD extends Conection {
     Inserta, modifica y elimina los datos de una tabla en la base de datos.
 */
 public function _CUD($query, $values) {
+    $this->lastId = null;
+
     try {
         $this->connect();
         $stm = $this->mysql->prepare($query);
@@ -35,6 +37,10 @@ public function _CUD($query, $values) {
 
         // Almacenamos el resultado de la ejecución
         $result = $stm->execute();
+        // El id se lee aqui, con la conexion viva: disconnect() destruye el PDO y con el
+        // su lastInsertId. En UPDATE y DELETE MySQL devuelve "0", que se guarda como null.
+        $id = $result ? $this->mysql->lastInsertId() : null;
+        $this->lastId = empty($id) ? null : (int) $id;
         // Cerrar la conexión después de realizar la consulta
         $this->disconnect();
         // Retornamos el resultado
