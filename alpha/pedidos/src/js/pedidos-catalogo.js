@@ -683,6 +683,7 @@ class Pos extends Templates {
             onQuanty: (id, action, newQuantity) => { },
             onEdit: (id) => { },
             onRemove: (id) => { },
+            onForceRemove: (item) => { },
             onCleared: () => { },
             onPrint: () => { },
             onExit: () => { },
@@ -692,6 +693,8 @@ class Pos extends Templates {
             totalPaid: 0,
             isEdit: false,
             isPaid: false,
+            // Baja autorizada de una linea bloqueada: solo admin y supervisor.
+            canForceRemove: false,
             animateId: null
         };
 
@@ -709,8 +712,9 @@ class Pos extends Templates {
 
         // Lineas "bloqueadas": en edicion, un producto solo es editable si se agrego
         // HOY (item.is_today lo marca el backend). Las lineas de dias anteriores van
-        // de solo lectura: sin −/+, sin editar y sin eliminar. En un pedido liquidado
-        // va bloqueado todo el armado: subir una cantidad tambien es agregar producto.
+        // de solo lectura: sin −/+ y sin editar. En un pedido liquidado va bloqueado
+        // todo el armado: subir una cantidad tambien es agregar producto. La unica
+        // excepcion es la baja autorizada (canForceRemove), que sigue otro camino.
         const isLocked = (item) => opts.isPaid || (opts.isEdit && item.is_today === false);
 
         const isDark = opts.theme === "dark";
@@ -957,7 +961,10 @@ class Pos extends Templates {
                 })
             );
 
-            // Eliminar: solo en lineas de hoy (las de dias anteriores no se borran).
+            // Eliminar: en una linea de hoy es parte del armado y se aplica directo.
+            // En una bloqueada (dia anterior o pedido liquidado) deja de ser armado y
+            // pasa por confirmacion con motivo, asi que aqui no se toca la lista: el
+            // panel se repinta con lo que responda el backend, que puede negarla.
             if (!locked) {
                 buttons.push(
                     $("<button>", {
@@ -969,6 +976,15 @@ class Pos extends Templates {
                             opts.data = data;
                             this.orderPanelComponent(opts);
                         }
+                    })
+                );
+            } else if (opts.canForceRemove) {
+                buttons.push(
+                    $("<button>", {
+                        class: "text-amber-400 hover:text-red-400 transition-colors",
+                        title: "Eliminar esta partida (requiere motivo)",
+                        html: lucideIcon('trash-2'),
+                        click: () => opts.onForceRemove(item)
                     })
                 );
             }
@@ -1216,6 +1232,9 @@ class CatalogProduct extends Pos {
         this.folio = pos.order?.folio ?? '';
         this.payments = pos.payments ?? [];
         this.total_paid = pos.total_paid ?? 0;
+        // Admin (1) y supervisor (6) son los unicos que pueden dar de baja una linea
+        // que el armado ya no toca. El backend lo revalida en removeProduct().
+        this.rolId = pos.rolId ?? 0;
 
         // Solo la primera carga en edicion: initPos vuelve a correr tras guardar el
         // formulario y no debe pisar el snapshot con cantidades ya modificadas.
@@ -1289,11 +1308,15 @@ class CatalogProduct extends Pos {
             onRemove: (id) => {
                 this.removeProduct(id);
             },
+            onForceRemove: (item) => {
+                this.confirmRemoveLine(item);
+            },
             onQuanty: (id, action, newQuantity) => {
                 this.quantityProduct(id, newQuantity);
             },
             isEdit: this.layoutEdit,
             isPaid: this.layoutPaid,
+            canForceRemove: this.layoutEdit && (this.rolId == 1 || this.rolId == 6),
             onPrint: () => {
                 this.printOrder(idFolio);
             },
@@ -1363,6 +1386,93 @@ class CatalogProduct extends Pos {
             }
         });
 
+        // El panel ya quito la linea al pulsar, sin esperar respuesta. Si el backend
+        // la niega (dejaria el pedido valiendo menos de lo cobrado) hay que devolverla
+        // a la vista, o el ticket mostraria un total que la BD no tiene.
+        if (pos?.status != 200) {
+            alert({
+                icon:  'info',
+                title: 'No se eliminó',
+                text:  pos?.message || 'No se pudo eliminar el producto del pedido.',
+                btn1:  true
+            });
+
+            // Sin lista fiable no se repinta: dejaria el ticket vacio por un fallo de red.
+            if (Array.isArray(pos?.list)) this.showOrder(pos.list);
+        }
+    }
+
+    // Baja de una linea que el armado ya no toca (de un dia anterior, o de un pedido
+    // liquidado). El motivo es la razon de ser del modal: sin el, removeProduct() la
+    // rechaza, y con el queda en la bitacora junto al usuario que la autorizo.
+    confirmRemoveLine(item) {
+
+        this.createModalForm({
+            id: 'formRemoveLine',
+            data: {
+                opc:        'removeProduct',
+                pedidos_id: idFolio,
+                id:         item.id,
+                isEdit:     1
+            },
+            bootbox: {
+                title: `
+                <div class="flex items-center gap-2 text-white text-lg font-semibold">
+                    <span class="text-amber-400">${this._lucide('trash-2', 'w-5 h-5')}</span>
+                    Eliminar partida
+                </div>`,
+                id:   'removeLineModal',
+                size: 'medium'
+            },
+            json: [
+                {
+                    opc:   'div',
+                    id:    'removeLineContext',
+                    class: 'col-12 mb-3',
+                    html: `
+                    <div class="bg-[#1E293B] rounded-lg p-3 space-y-1">
+                        <p class="text-white font-semibold text-sm uppercase">${item.name || 'Partida'}</p>
+                        <p class="text-gray-400 text-xs">${formatPrice(item.price)} × ${item.quantity}</p>
+                        <p class="text-gray-400 text-xs">
+                            Cobrado hasta ahora:
+                            <span class="text-[#3FC189] font-bold">${formatPrice(this.total_paid)}</span>
+                        </p>
+                        <p class="text-amber-400 text-xs pt-1">
+                            El pedido no puede quedar valiendo menos de lo ya cobrado.
+                        </p>
+                    </div>`
+                },
+                {
+                    opc:         'input',
+                    id:          'reason',
+                    lbl:         'Motivo de la eliminación',
+                    class:       'col-12 mb-3',
+                    placeholder: 'Ej: PASTEL CAPTURADO DOS VECES',
+                    required:    true
+                }
+            ],
+            success: (response) => {
+                if (response.status != 200) {
+                    alert({
+                        icon:  'error',
+                        title: 'No se eliminó',
+                        text:  response.message,
+                        btn1:  true
+                    });
+
+                    return;
+                }
+
+                alert({
+                    icon:  'success',
+                    title: 'Partida eliminada',
+                    text:  response.message,
+                    btn1:  true
+                });
+
+                this.showOrder(response.list || []);
+            }
+        });
     }
 
     confirmClearOrder(id) {

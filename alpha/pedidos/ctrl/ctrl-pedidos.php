@@ -1,11 +1,6 @@
 <?php
-// El front consume estas respuestas con response.json(): cualquier aviso de PHP
-// impreso antes del json_encode deja de ser JSON valido, useFetch devuelve null y
-// la accion muere en silencio. En el servidor el nivel de errores no es el del
-// entorno local, asi que el silenciado se fija aqui y no se hereda del php.ini.
-// Va antes de session_start porque el propio arranque de sesion es una de las
-// fuentes de avisos (permisos del directorio de sesiones, cookie ya enviada).
-error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED);
+// Un aviso impreso antes del json_encode rompe el JSON: no se muestran, pero si se loguean.
+error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
 session_start();
@@ -14,9 +9,7 @@ if (empty($_POST['opc'])) exit(0);
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Un error fatal cortaria la ejecucion sin llegar al json_encode y el front lo veria
-// igual que un fallo de red: la accion no abre y no dice nada. El cierre convierte
-// ese caso en una respuesta con el motivo, y lo deja tambien en el log del servidor.
+// Sin este cierre un fatal no llega al json_encode y el front lo ve como un fallo de red.
 register_shutdown_function(function () {
     $fatal = error_get_last();
 
@@ -33,24 +26,22 @@ register_shutdown_function(function () {
     ]);
 });
 
-header("Access-Control-Allow-Origin: *"); // Permite solicitudes de cualquier origen
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Métodos permitidos
-header("Access-Control-Allow-Headers: Content-Type"); // Encabezados permitidos
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
 
 require_once '../mdl/mdl-pedidos.php';
 require_once '../../conf/_Message.php';
 
 class Pedidos extends MPedidos{
 
-    // Destinatario del aviso de apertura de turno. Acepta un telefono de 10
-    // digitos, un id de grupo ('...@g.us') o un array de varios. Vacio = no envia.
+    // Telefono de 10 digitos, id de grupo ('...@g.us') o array de varios. Vacio = no envia.
     const WHATSAPP_TURNO = '9621501886';
 
     function init(){
         $subsidiaries = $this->lsSubsidiaries();
         $dailyClosure = $this->checkDailyClosure();
 
-        // Verificar turno abierto para la sucursal del usuario
         $sub_id = $_SESSION['SUB'];
         $openShift = $this->getOpenShiftBySubsidiary([$sub_id]);
 
@@ -60,8 +51,6 @@ class Pedidos extends MPedidos{
             'clients'           => $this->getAllClients([$_SESSION['SUB']]),
             'status'            => $this->lsStatus(),
             'sucursales'        => $subsidiaries['data'],
-            // Sucursales de la empresa para el selector "Sucursal de cobro" (todos los roles,
-            // sin la restriccion admin de lsSubsidiaries que alimenta el filtro de navbar).
             'sucursales_cobro'  => $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]),
             'access'            => $_SESSION['ROLID'],
             'subsidiaries_name' => $_SESSION['SUBSIDIARIE_NAME'],
@@ -82,15 +71,9 @@ class Pedidos extends MPedidos{
             ? $_POST['subsidiaries_id']
             : $_SESSION['SUB'];
 
-        // El estado "dia cerrado" debe medirse por la JORNADA cerrada (closure_date),
-        // no por cuando se ejecuto el cierre (created_at). Si no, cerrar la jornada
-        // anterior a la mañana siguiente marca "hoy" como cerrado (su created_at cae
-        // hoy) y bloquea letrero + boton "Nuevo Pedido" con un turno de hoy abierto.
-        // Mismo criterio que el candado de openShift() (getDailyClosureByClosureDate).
         $today = date('Y-m-d');
         $closure = $this->getDailyClosureByClosureDate([$today, $subsidiaries_id]);
 
-        // Verificar turno abierto para la sucursal seleccionada
         $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
 
         return [
@@ -115,9 +98,6 @@ class Pedidos extends MPedidos{
         $status  = 500;
         $message = 'Error al obtener las sucursales';
         $data    = [];
-
-        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) reciben la lista
-        // de sucursales de la empresa para el selector del Cierre del dia.
 
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
 
@@ -145,11 +125,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Snapshot fresco de sucursales con su shift_opened_at, para resincronizar la
-    // tarjeta "Esta sucursal vende como" tras abrir/cerrar un turno sin recargar la
-    // pagina (misma fuente que el init: getSubsidiariesByCompany).
-    // Sin filtro de rol: es la misma lista que el init entrega a todos como
-    // 'sucursales_cobro', y con ella el modal de pagos decide el candado de turno.
     function getSubsidiariesShift() {
         $data = $this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]);
 
@@ -166,7 +141,6 @@ class Pedidos extends MPedidos{
 
         $get = $this->getOrderById([$_POST['order_id']]);
 
-        // Validar que get sea un array válido
         if (is_array($get) && !empty($get)) {
             $status  = 200;
             $message = 'Datos obtenidos correctamente';
@@ -180,19 +154,12 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Order.
     public function listOrders() {
         $rows = [];
         
-        // Validar variables de sesión con valores por defecto
         $rolId      = $_SESSION['ROLID'] ;
         $sessionSub = $_SESSION['SUB'];
 
-        // La lista es solo consulta: cualquier rol puede filtrar por el selector
-        // de navbar (incluye "0" = todas las sucursales). Si no llega un valor
-        // util (URLSearchParams envia null/undefined como texto), se usa la
-        // sucursal de sesion. Las operaciones (cobro, cierre) NO usan esto: siguen
-        // atadas a $_SESSION['SUB'].
         $postSub = $_POST['subsidiaries_id'] ?? null;
         $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null' || $postSub === 'undefined')
             ? $sessionSub
@@ -292,15 +259,9 @@ class Pedidos extends MPedidos{
 
     }
 
-    // Listado ligero para el Reporte por tickets del order-visor: a diferencia de
-    // listOrders() no arma HTML para createTable, solo orquesta getOrders() +
-    // getTotalPaidByOrder() y devuelve JSON crudo por pedido. Es solo lectura
-    // (no exige turno abierto ni valida canWriteOrder).
     public function listOrdersTicket() {
         $sessionSub = $_SESSION['SUB'];
 
-        // Misma normalizacion que listOrders: "0" = todas las sucursales, sin
-        // valor util cae a la sucursal de sesion.
         $postSub = $_POST['subsidiaries_id'] ?? null;
         $subsidiaries_id = ($postSub === null || $postSub === '' || $postSub === 'null' || $postSub === 'undefined')
             ? $sessionSub
@@ -348,12 +309,6 @@ class Pedidos extends MPedidos{
         $client = $this->getClientName([$_POST['name']]);
         $folio = null;
 
-        // La sucursal del pedido NO puede quedar vacia: si se inserta NULL el pedido
-        // nace huerfano (no cae en ningun cierre ni corte de caja). Los roles con
-        // selector en el formulario (admin 1, cajero 2, vendedor 3) la mandan por
-        // POST; URLSearchParams puede enviar ''/'null'/'undefined' y "Todas las
-        // sucursales" manda '0'. Sin valor util, el admin se corta antes de escribir
-        // y cajero/vendedor caen a su sucursal de sesion (front viejo sin selector).
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
             $noSub   = ($postSub === null || $postSub === '' || $postSub === 'null'
@@ -383,7 +338,6 @@ class Pedidos extends MPedidos{
 
             $client = $this->getClientName([$_POST['name']]);
             
-            // Validar que el cliente se haya creado correctamente
             if (!is_array($client) || empty($client['id'])) {
                 return [
                     'status'  => 500,
@@ -395,11 +349,6 @@ class Pedidos extends MPedidos{
 
        
 
-        // Candado: no se puede crear un pedido si la sucursal no tiene un turno de
-        // caja abierto ("sucursal abierta" = turno abierto). Sin turno el pedido
-        // naceria huerfano (no cae en ningun cierre ni corte de caja). Se valida
-        // aqui en el backend para que no se pueda evadir desde el front (estado
-        // obsoleto, admin que cambio de sucursal, etc).
         $openShift = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
         if (!$openShift) {
             return [
@@ -430,10 +379,6 @@ class Pedidos extends MPedidos{
 
             $folio  = $this->getMaxOrder();
 
-            // La bitacora de creacion NO se registra aqui (el pedido nace sin productos):
-            // el resumen "Pedido guardado como {estado} sin cobro — total $X, N productos"
-            // lo escribe addPayment() (ctrl-pedidos-catalogo.php) al Terminar el pedido.
-
             return [
                 'status'  => 200,
                 'message' => 'Pedido registrado correctamente.',
@@ -453,9 +398,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // El pedido inexistente se responde como tal en vez de leer $data[0] a ciegas: el
-    // aviso por indexar null se imprimia antes del json_encode y dejaba la respuesta
-    // sin parsear, con lo que el boton Editar no abria nada ni mostraba error.
     function getOrder() {
         $get = $this->getOrderID([$_POST['id'] ?? 0]);
 
@@ -479,9 +421,6 @@ class Pedidos extends MPedidos{
         $message = 'No se pudo actualizar el pedido';
         $statusQuery = false;
 
-        // Estado previo para la bitacora (diff antes -> despues) y para el candado de
-        // pedido pagado. Se lee ANTES de tocar cliente y pedido; getOrderID trae
-        // fecha/hora ya formateadas y el nombre/telefono del cliente actual del pedido.
         $prevOrder = $this->getOrderID([$_POST['id']]);
         $prevOrder = is_array($prevOrder) && isset($prevOrder[0]) ? $prevOrder[0] : [];
 
@@ -490,25 +429,18 @@ class Pedidos extends MPedidos{
 
         if ($denegado) return $denegado;
 
-        // El fallback no es cosmetico: si el campo no llega, el aviso de indice
-        // indefinido se imprime antes del json_encode y el front recibe una respuesta
-        // que ya no puede parsear (el guardado parece no hacer nada).
         if ($_SESSION['ROLID'] == 1) {
             $subsidiaries_id = $_POST['subsidiaries_id'] ?? ($prevOrder['subsidiaries_id'] ?? $_SESSION['SUB']);
         } else {
             $subsidiaries_id = $prevOrder['subsidiaries_id'] ?? $_SESSION['SUB'];
         }
 
-        // Pedido liquidado: el cliente queda ligado al pedido ya cobrado y no se
-        // reescribe. El formulario manda sus campos en solo lectura, pero la garantia
-        // esta aqui: solo se actualizan los datos de entrega.
         $client = $requiereClave ? null : $this->getClientName([$_POST['name']]);
         $client_id = null;
 
         if ($requiereClave) {
             $client_id = null;
         } elseif (!is_array($client) || empty($client['id'])) {
-            // El cliente no existe, crear uno nuevo
             $data_client = $this->util->sql([
                 'name'            => $_POST['name'],
                 'phone'           => $_POST['phone'],
@@ -530,7 +462,6 @@ class Pedidos extends MPedidos{
             
             $client_id = $client['id'];
         } else {
-            // El cliente existe, actualizar sus datos
             $client_id = $client['id'];
             
             $update = $this->updateClient($this->util->sql([
@@ -543,13 +474,6 @@ class Pedidos extends MPedidos{
             $statusQuery = ['update' => $update];
         }
 
-        // Actualizar el pedido con el client_id (nuevo o existente)
-        // La sucursal (subsidiaries_id) NO se reescribe en edición: queda fija
-        // desde la creación del pedido para que un pedido no cambie de sucursal.
-        // Un campo que no llega se omite del update en vez de leerse a ciegas: el aviso
-        // de indice indefinido se imprimiria antes del json_encode y dejaria la
-        // respuesta sin parsear. Tampoco sirve caer a $prevOrder, que trae la fecha y
-        // la hora ya formateadas para pantalla (d/m/Y, h:i A) y no en formato de BD.
         $orderData = [];
 
         foreach (['date_order', 'time_order', 'note', 'delivery_type'] as $campo) {
@@ -576,12 +500,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Candado de edicion sobre un pedido liquidado: editar la cabecera deja de ser una
-    // correccion de captura libre, asi que exige admin o cajero + la contrasena del
-    // usuario en sesion. Devuelve el error a retornar, o null si
-    // la operacion puede seguir. Una sola definicion de la regla para los dos puntos
-    // que la aplican: verifyOrderEditKey (antes de abrir el formulario) y editOrder
-    // (al guardar, que es la validacion que manda).
     private function paidOrderEditDenial($requiereClave, $password) {
         if (!$requiereClave) return null;
 
@@ -604,19 +522,12 @@ class Pedidos extends MPedidos{
         return null;
     }
 
-    // El candado se decide por el ESTADO del pedido (3 = PAGADO), no por el saldo:
-    // un pedido sin productos tambien tiene saldo cero sin haberse cobrado nunca, y
-    // ese no es un pedido liquidado. isOrderPaidInFull (saldo) sigue siendo el
-    // criterio correcto para deletePay, donde siempre existe al menos un abono.
     private function isOrderPaid($orderId) {
         $ls = $this->getOrderID([$orderId]);
 
         return !empty($ls) && ($ls[0]['status'] ?? null) == 3;
     }
 
-    // Valida la contrasena ANTES de abrir el formulario, para no descubrir una clave
-    // mal escrita hasta despues de capturar los cambios. No autoriza por si sola: la
-    // edicion real vuelve a pasar por el mismo candado en editOrder().
     function verifyOrderEditKey() {
         $denegado = $this->paidOrderEditDenial(
             $this->isOrderPaid($_POST['id']),
@@ -631,8 +542,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Registra en la bitacora los campos de cabecera que cambiaron en una edicion.
-    // No registra nada si nada cambio.
     private function logOrderEditionDiff($prev, $requiereClave = false) {
         $cambios = $this->orderEditionChanges($prev);
 
@@ -642,11 +551,6 @@ class Pedidos extends MPedidos{
         $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
     }
 
-    // Campos de cabecera que cambiaron, en formato "Campo: antes » despues". Compara el
-    // estado previo (getOrderID, con fecha/hora ya formateadas) contra el $_POST
-    // entrante, normalizando fecha/hora al MISMO formato para no marcar como cambio lo
-    // que solo difiere en representacion. La edicion acotada del calendario no toca al
-    // cliente, asi que ahi se comparan solo los datos de entrega.
     private function orderEditionChanges($prev, $incluirCliente = true) {
         if (empty($prev)) return [];
 
@@ -664,7 +568,6 @@ class Pedidos extends MPedidos{
             return isset($map[(string) $v]) ? $map[(string) $v] : "Tipo {$v}";
         };
 
-        // [etiqueta, valor previo, valor nuevo] ya normalizados al mismo formato.
         $campos = [];
 
         if ($incluirCliente) {
@@ -689,22 +592,12 @@ class Pedidos extends MPedidos{
         return $cambios;
     }
 
-    // Roles que corrigen datos de entrega desde el calendario sin importar la sucursal:
-    // admin (1) y supervisores (6, 7), que ven el calendario completo. El resto sigue
-    // con el candado de siempre, su sucursal.
     private function canEditDelivery($orderId) {
         if (in_array($_SESSION['ROLID'] ?? 0, [1, 6, 7])) return true;
 
         return $this->canWriteOrder($orderId);
     }
 
-    // Candado de la edicion de entrega sobre un pedido liquidado: exige la contrasena
-    // del usuario en sesion y lo limita a admin (1) y supervisores (6, 7). Es mas
-    // abierto que paidOrderEditDenial (solo admin) porque aqui la edicion no toca al
-    // cliente ni el cobro: solo fecha, hora, tipo de entrega y descripcion. Devuelve el
-    // error a retornar, o null si la operacion puede seguir. Una sola definicion para
-    // los dos puntos que la aplican: verifyOrderDeliveryKey (antes de abrir el
-    // formulario) y editOrderDelivery (al guardar, que es la validacion que manda).
     private function deliveryEditDenial($requiereClave, $password) {
         if (!$requiereClave) return null;
 
@@ -727,9 +620,6 @@ class Pedidos extends MPedidos{
         return null;
     }
 
-    // Valida la contrasena ANTES de abrir el formulario de entrega, para no descubrir
-    // una clave mal escrita hasta despues de capturar los cambios. No autoriza por si
-    // sola: editOrderDelivery vuelve a exigir el mismo candado al guardar.
     function verifyOrderDeliveryKey() {
         $denegado = $this->deliveryEditDenial(
             $this->isOrderPaid($_POST['id']),
@@ -744,8 +634,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Datos de entrega del pedido para el formulario del calendario, que solo captura
-    // fecha, hora, tipo de entrega y descripcion.
     function getOrderDelivery() {
         $status  = 500;
         $message = 'Error al obtener el pedido';
@@ -766,9 +654,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Edicion acotada del pedido desde el calendario: solo los datos de entrega. No
-    // toca cliente, productos ni cobros, y deja el cambio en la bitacora con el mismo
-    // formato "antes » despues" de la edicion del listado.
     function editOrderDelivery() {
         $status  = 500;
         $message = 'No se pudo actualizar el pedido';
@@ -792,7 +677,6 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Cancelado (4): no hay entrega que corregir.
         if ((string) $prevOrder['status'] === '4') {
             return [
                 'status'  => 403,
@@ -800,16 +684,11 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Liquidado (3): pide contrasena. La validacion que manda es esta, no la que el
-        // front hizo antes de abrir el formulario (verifyOrderDeliveryKey).
         $requiereClave = $prevOrder['status'] == 3;
         $denegado      = $this->deliveryEditDenial($requiereClave, $_POST['password'] ?? '');
 
         if ($denegado) return $denegado;
 
-        // Un campo que no llega se omite del update en vez de leerse a ciegas: el aviso
-        // de indice indefinido se imprimiria antes del json_encode y dejaria la
-        // respuesta sin parsear.
         $orderData = [];
 
         foreach (['date_order', 'time_order', 'note', 'delivery_type'] as $campo) {
@@ -849,10 +728,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Permite mutar un pedido si el usuario es admin, si el pedido pertenece a su
-    // sucursal de sesion, o si es personal rotativo (cajero 2, vendedor 3) y la
-    // sucursal del pedido tiene turno abierto: misma regla que el candado de
-    // creacion, para que quien vende en otra sucursal tambien pueda operar ahi.
     private function canWriteOrder($orderId) {
         if (($_SESSION['ROLID'] ?? 0) == 1) return true;
         $o = $this->getOrderID([$orderId]);
@@ -893,7 +768,6 @@ class Pedidos extends MPedidos{
 
         $orderId = $_POST['id'];
         
-        // Obtener información básica del pedido
         $order = $this->getOrderID([$orderId]);
         
         if ($order) {
@@ -901,14 +775,12 @@ class Pedidos extends MPedidos{
             $subsidiaries_id    = $order[0]['subsidiaries_id'];
             $orderData = $order[0];
             
-            // Obtener sucursal para el folio
             $sucursal = $this->getSucursalByID([$subsidiaries_id]);
             if (!$sucursal) {
                 $sucursal = ['name' => '', 'sucursal' => 'SIN SUCURSAL'];
             }
             $folio = formatSucursal($subsidiaries_id, $orderData['id']);
             
-            // Calcular totales
             $totalPagado = $this->getTotalPaidByOrder([$orderId]);
             $discount    = $orderData['discount'] ?? 0;
             $total       = $orderData['total_pay'] ?? 0;
@@ -918,29 +790,21 @@ class Pedidos extends MPedidos{
 
             $products =[];
             
-            // Obtener productos del pedido (si existen tablas relacionadas)
             $products = $this->getOrderById([$orderId]);
-            // Validar que products sea un array válido
             if ($products === null) {
                 $products = ['data' => ''];
             }
             
-            // Obtener métodos de pago del pedido
             $paymentMethods = $this->getMethodPayment([$orderId]);
             if ($paymentMethods === null || !is_array($paymentMethods)) {
                 $paymentMethods = [];
             }
 
-            // Historial de pagos: cada abono con fecha/metodo/sucursal de cobro.
-            // paymentMethods solo trae totales agrupados por metodo, no sirve como historial.
             $payments = $this->getListPayment([$orderId]);
             if (!is_array($payments)) {
                 $payments = [];
             }
 
-            // Cada pago se marca "editable": solo un administrador y solo si el corte
-            // que cubre ese pago sigue ABIERTO (turno no cerrado). El frontend usa
-            // esta bandera para mostrar el lapiz de "cambiar metodo" solo donde aplica.
             $isAdmin = (($_SESSION['ROLID'] ?? 0) == 1);
             foreach ($payments as $i => $p) {
                 $payments[$i]['editable'] = $isAdmin && !$this->getClosedShiftForPayment([$p['id']]);
@@ -984,7 +848,6 @@ class Pedidos extends MPedidos{
     }
 
 
-    // Payments.
     function addPayment() {
 
         $status  = 500;
@@ -995,7 +858,6 @@ class Pedidos extends MPedidos{
         $total_pay  = floatval($_POST['total']);
         $saldo      = floatval($_POST['saldo']);
 
-        // 🧠 Lógica corregida:
         if ($pay <= 0) {
             $type_id = 1; // Cotización sin abono
         } else if ($pay ==  $saldo) {
@@ -1004,20 +866,13 @@ class Pedidos extends MPedidos{
             $type_id = 2; // Abono parcial
         }
 
-        // Agregar registro de pago. 
-
         if ($pay > 0) {
 
-            // Sucursal donde se cobra el pago (cobro cruzado): selector del modal
-            // para admin; si no llega (cajero), se usa la sucursal de su sesion.
             $sucursalCobro = $_POST['payment_subsidiaries_id'] ?? null;
             if (empty($sucursalCobro)) {
                 $sucursalCobro = $_SESSION['SUB'] ?? null;
             }
 
-            // El dinero entra al corte de la sucursal que cobra: sin turno abierto ahi
-            // el abono quedaria fuera de todo corte. El candado del modal es la primera
-            // linea; esta es la que manda.
             $guard = $this->cobroShiftGuard($sucursalCobro);
             if ($guard) return $guard;
 
@@ -1034,7 +889,6 @@ class Pedidos extends MPedidos{
             $addPay = $this->addMethodPay($this->util->sql($values_pay));
         }
 
-        // Actualizar id de formato.
         $values = $this->util->sql([
             'total_pay'     => $total_pay,
             'type_id'       => $type_id,
@@ -1049,9 +903,6 @@ class Pedidos extends MPedidos{
             $message = 'Pago registrado correctamente';
 
             $msg = "Se registró un pago de " . evaluar($pay);
-            // Cobro cruzado: el pago se cobro en una sucursal distinta a la del pedido.
-            // Se deja en la bitacora porque el dinero entra a un corte que no es el de
-            // la sucursal duena del pedido (ver docs/estrategia-bitacora.md).
             $msg .= $this->crossPaymentNote($id, $sucursalCobro);
             $success = $this->logHistory($msg, 'payment');
         }
@@ -1066,9 +917,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Candado de turno para cobrar. Devuelve null si la sucursal puede recibir el
-    // pago, o la respuesta de error lista para regresar al cliente. Mismo criterio
-    // que el alta de pedidos: turno abierto y del dia de hoy.
     private function cobroShiftGuard($subsidiaryId) {
         if (empty($subsidiaryId)) {
             return [
@@ -1100,7 +948,6 @@ class Pedidos extends MPedidos{
     }
 
     function initHistoryPay(){
-          // Obtener sucursal para el folio
         $SUB      = $_SESSION['SUB'] ?? 4;
         $sucursal = $this->getSucursalByID([$SUB]);
       
@@ -1126,8 +973,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Saldo pendiente de un pedido: total - descuento - abonos. Mismo calculo que
-    // initHistoryPay(), extraido aparte porque el borrado de un abono depende de el.
     private function orderBalance($orderId) {
         $ls = $this->getOrderID([$orderId]);
         if (empty($ls)) return null;
@@ -1138,8 +983,6 @@ class Pedidos extends MPedidos{
         return ($ls[0]['total_pay'] ?? 0) - $discount - $totalPaid;
     }
 
-    // Pedido liquidado, con margen de un centavo: los totales salen de sumas en
-    // coma flotante y un residuo de 0.0001 no debe contar como saldo pendiente.
     private function isOrderPaidInFull($orderId) {
         $balance = $this->orderBalance($orderId);
 
@@ -1147,8 +990,6 @@ class Pedidos extends MPedidos{
     }
 
     function deletePay() {
-        // Solo administrador. La papelera solo se pinta para ROLID 1, pero el
-        // endpoint es publico: la regla se decide aqui, no en el front.
         if (($_SESSION['ROLID'] ?? 0) != 1) {
             return [
                 'status'  => 403,
@@ -1156,9 +997,6 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Pedido liquidado: borrar un abono deja de ser una correccion de captura
-        // y descuadra un pedido cerrado, asi que exige la contrasena del usuario
-        // en sesion. El modal del front la pide; esta es la validacion que manda.
         $requiereClave = $this->isOrderPaidInFull($_POST['id']);
 
         if ($requiereClave) {
@@ -1179,10 +1017,6 @@ class Pedidos extends MPedidos{
 
         $delete = $this->deletePayment($values);
 
-        // Al quitar el abono el pedido vuelve a tener saldo: uno marcado como
-        // Pagado (3) regresa a Pendiente (2). Se escribe en las mismas columnas
-        // que mueve addPayment(), para que el badge y el dropdown de la tabla
-        // vuelvan a ofrecer el cobro.
         $reabierto = false;
 
         if ($delete) {
@@ -1200,7 +1034,6 @@ class Pedidos extends MPedidos{
             }
         }
 
-          // histories.
         $amount  = evaluar($_POST['amount']);
         $nota    = $requiereClave ? ' (pedido liquidado, autorizado con contraseña)' : '';
         $nota   .= $reabierto ? '. El pedido regresó a PENDIENTE' : '';
@@ -1227,8 +1060,6 @@ class Pedidos extends MPedidos{
          $ls      = $this->getOrderID([$_POST['id']]);
          $methods = $this-> getMethodPayment([$_POST['id']]);
 
-        //  sumar todos los productos.
-
         
 
          return [
@@ -1242,9 +1073,6 @@ class Pedidos extends MPedidos{
         $data  = $this->getListPayment([$_POST['id']]);
         $__row = [];
 
-        // Borrado de un abono: solo administrador. Si ademas el pedido ya quedo
-        // liquidado, el boton pasa a candado y pide la contrasena del usuario en
-        // sesion (el tercer parametro de app.deletePay activa ese modal).
         $isAdmin       = ($_SESSION['ROLID'] ?? 0) == 1;
         $requiereClave = $this->isOrderPaidInFull($_POST['id']) ? 1 : 0;
 
@@ -1261,8 +1089,6 @@ class Pedidos extends MPedidos{
 
             if ($isAdmin) {
                 $a[] = [
-                    // El hover a red-900 (casi negro) desaparecia sobre el fondo oscuro
-                    // del modal: el estado activo debe aclarar, no oscurecer.
                     'class'   => $requiereClave
                         ? 'pointer text-amber-400 hover:text-amber-300 p-2'
                         : 'pointer text-red-400 hover:text-red-300 p-2',
@@ -1277,7 +1103,6 @@ class Pedidos extends MPedidos{
                 ];
             }
 
-            // Sucursal donde se cobro el pago. Si difiere de la del pedido es cobro cruzado.
             $subName   = $key['subsidiary_name'] ?? '—';
             $esCruzado = !empty($key['subsidiaries_id']) && $key['subsidiaries_id'] != $key['order_subsidiary_id'];
             $subBadge  = $esCruzado
@@ -1313,11 +1138,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Editar el metodo de un pago (Efectivo/Tarjeta/Transferencia) desde el visor.
-    // Reglas (revalidadas aqui, no solo en el front):
-    //   - Solo administrador (ROLID 1).
-    //   - Solo si el corte que cubre ese pago sigue ABIERTO; si el turno ya se
-    //     cerro, se bloquea para no descuadrar el desglose (shift_payment/cash_shift).
     function editPaymentMethod() {
         if (($_SESSION['ROLID'] ?? 0) != 1) {
             return ['status' => 403, 'message' => 'Solo un administrador puede editar el método de un pago.'];
@@ -1337,7 +1157,6 @@ class Pedidos extends MPedidos{
         }
         if (empty($orderId)) $orderId = $pay['order_id'];
 
-        // Sin cambios reales: mismo metodo.
         if (intval($pay['method_pay_id']) === $methodId) {
             return [
                 'status'  => 200,
@@ -1346,12 +1165,10 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Candado: el corte de ese pago ya se cerro.
         if ($this->getClosedShiftForPayment([$payId])) {
             return ['status' => 409, 'message' => 'El corte de ese pago ya fue cerrado; no se puede cambiar el método.'];
         }
 
-        // Actualizar el metodo (el ultimo campo, 'id', es el WHERE).
         $values = $this->util->sql([
             'method_pay_id' => $methodId,
             'id'            => $payId
@@ -1362,7 +1179,6 @@ class Pedidos extends MPedidos{
             return ['status' => 500, 'message' => 'No se pudo actualizar el método del pago.'];
         }
 
-        // Bitacora del pedido.
         $newName = $this->getMethodPay([$methodId]) ?? 'otro método';
         $msg = "Se cambió el método de un pago de " . evaluar($pay['pay'])
              . " de {$pay['method_pay']} a {$newName}";
@@ -1375,7 +1191,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Clients.
     function getListClients() {
         $status  = 500;
         $message = 'Error al obtener los clientes';
@@ -1399,8 +1214,6 @@ class Pedidos extends MPedidos{
 
 
 
-    // History
-
     function getHistory(){
         $status  = 200;
         $message = 'Historial obtenido correctamente';
@@ -1418,7 +1231,6 @@ class Pedidos extends MPedidos{
         $message = 'Error al agregar el comentario';
 
         $_POST['date_action']   = date('Y-m-d H:i:s');
-        // $_POST['usr_users_id']  = $_SESSION['ID'];
       
 
         $data = $this->util->sql($_POST);
@@ -1439,7 +1251,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Estos son los modificadores
     function getModifiers() {
         $status  = 404;
         $message = 'No se encontraron datos';
@@ -1481,7 +1292,6 @@ class Pedidos extends MPedidos{
     }
 
 
-    // Dashboard Metrics
     function getDashboardMetrics() {
         $status = 500;
         $message = 'Error al obtener métricas del dashboard';
@@ -1492,19 +1302,14 @@ class Pedidos extends MPedidos{
             $year = $_POST['year'] ?? date('Y');
             $subsidiariesId = $_SESSION['SUB'] ?? 1;
 
-            // Get total orders for the month
             $totalOrders = $this->getOrdersByMonth([$month, $year, $subsidiariesId]);
             
-            // Get completed sales (status = 3)
             $completedSales = $this->getCompletedSales([$month, $year, $subsidiariesId]);
             
-            // Get pending sales (status = 1 or 2)
             $pendingSales = $this->getPendingSales([$month, $year, $subsidiariesId]);
             
-            // Get chart data for the month
             $chartData = $this->getOrdersChartData([$month, $year, $subsidiariesId]);
 
-            // Get previous month data for trends
             $prevMonth = $month == 1 ? 12 : $month - 1;
             $prevYear = $month == 1 ? $year - 1 : $year;
             
@@ -1922,15 +1727,10 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Wrapper de logOrderHistory (mdl-pedidos) para las llamadas existentes que
-    // toman el pedido de $_POST['id'].
     function logHistory($message, $type = 'general', $title = 'Registro de actividad') {
         return $this->logOrderHistory($_POST['id'] ?? null, $message, $type, $title);
     }
 
-    // Sufijo para la bitacora cuando el pago se cobra en una sucursal distinta a la
-    // del pedido. Devuelve '' si el cobro es en la misma sucursal o si falta el dato:
-    // el mensaje base nunca debe perderse por no poder resolver el nombre.
     private function crossPaymentNote($orderId, $sucursalCobro) {
         if (empty($sucursalCobro)) return '';
 
@@ -1976,17 +1776,12 @@ class Pedidos extends MPedidos{
         
         if ($update) {
             $status     = 200;
-            // is_delivered tiene 3 estados: 0 = no entregado, 1 = entregado, 2 = para
-            // producir (ver handleDeliveryClick en app.js).
+            // is_delivered: 0 = no entregado, 1 = entregado, 2 = para producir.
             $deliveryLabels = [0 => 'no entregado', 1 => 'entregado', 2 => 'para producir'];
-            // El titulo del historial nombra el estado alcanzado: "Entrega" a secas se
-            // leia como "ya se entrego" incluso al pasar el pedido a produccion.
             $deliveryTitles = [0 => 'Entrega pendiente', 1 => 'Entregado', 2 => 'En producción'];
             $statusText = $deliveryLabels[(int) $is_delivered] ?? "estado {$is_delivered}";
             $title      = $deliveryTitles[(int) $is_delivered] ?? 'Cambio de entrega';
             $message    = "El pedido fue marcado como {$statusText}";
-            // Bitacora: queda registrado quien marco la entrega y cuando (logHistory
-            // toma el id de $_POST['id'], ya presente en este request).
             $this->logHistory("Pedido marcado como {$statusText}", 'delivery', $title);
         }
 
@@ -2012,9 +1807,43 @@ class Pedidos extends MPedidos{
             ];
         }
 
-       
-        
-        $delete = $this->deleteOrderById([$_POST['id']]);
+        $id       = $_POST['id'];
+        $motivo   = trim($_POST['reason'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (mb_strlen($motivo) < 5) {
+            return [
+                'status'  => 400,
+                'message' => 'Escribe el motivo de la eliminación (mínimo 5 caracteres).'
+            ];
+        }
+
+        $user = $this->getUserKeyById([$_SESSION['USR'] ?? ($_SESSION['ID'] ?? 0)]);
+
+        if ($password === '' || empty($user) || $user['key'] !== md5($password)) {
+            return [
+                'status'  => 401,
+                'message' => 'Contraseña incorrecta. Eliminar un pedido requiere autorización.'
+            ];
+        }
+
+        $pagos = (array) $this->getListPayment([$id]);
+
+        if (count($pagos) > 0) {
+            return [
+                'status'  => 409,
+                'message' => 'El pedido tiene ' . count($pagos) . ' abono(s) por '
+                           . evaluar($this->getTotalPaidByOrder([$id]))
+                           . '. Un pedido cobrado no se elimina: cancélalo para conservar el rastro del dinero.'
+            ];
+        }
+
+        $order = $this->getOrderID([$id]);
+        $folio = formatSucursal($order[0]['subsidiaries_id'] ?? null, $id);
+
+        $this->logOrderHistory($id, "Pedido {$folio} eliminado — Motivo: {$motivo}", 'deletion', 'Pedido eliminado');
+
+        $delete = $this->deleteOrderById([$id]);
 
         if ($delete) {
             $status  = 200;
@@ -2028,13 +1857,7 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // =============================================
-    // Cash Shift (Turnos)
-    // =============================================
-
     function openShift() {
-        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
-        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
             $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
@@ -2044,7 +1867,6 @@ class Pedidos extends MPedidos{
             $subsidiaries_id = $_SESSION['SUB'];
         }
 
-        // Validar que no exista turno abierto
         $existing = $this->getOpenShiftBySubsidiary([$subsidiaries_id]);
         if ($existing) {
             return [
@@ -2053,10 +1875,6 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // El turno siempre nace hoy (opened_at = NOW): no hay forma de abrir turnos
-        // de dias pasados. Por eso basta verificar el cierre de HOY: si el dia ya se
-        // cerro, los pedidos del turno nuevo quedarian fuera del corte Z (addCierre
-        // ya no vuelve a correr para esa fecha y nacerian sin daily_closure_id).
         $today   = date('Y-m-d');
         $closure = $this->getDailyClosureByClosureDate([$today, $subsidiaries_id]);
         if ($closure) {
@@ -2099,8 +1917,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Aviso de cierre de turno por WhatsApp con el corte resumido. Nunca debe tumbar
-    // el cierre: el turno ya quedo cerrado y el envio depende de una API externa.
     private function notifyShiftClosed($shift, $metrics, $subsidiary_id) {
         if (self::WHATSAPP_TURNO === '' || self::WHATSAPP_TURNO === []) return;
 
@@ -2139,7 +1955,6 @@ class Pedidos extends MPedidos{
         $opened_at = $shift['opened_at'];
         $subsidiary_id = $shift['subsidiary_id'];
 
-        // Calcular métricas del turno
         $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
         $total_sales    = floatval($metrics['total_sales']);
@@ -2148,13 +1963,11 @@ class Pedidos extends MPedidos{
         $transfer_sales = floatval($metrics['transfer_sales']);
         $total_orders   = intval($metrics['total_orders']);
 
-        // Cerrar turno
         $this->closeCashShift([
             $closed_at, $total_sales, $cash_sales, $card_sales,
             $transfer_sales, $total_orders, $shift_id
         ]);
 
-        // Guardar desglose de pagos
         $payments = [
             ['method_id' => 1, 'amount' => $cash_sales],
             ['method_id' => 2, 'amount' => $card_sales],
@@ -2167,7 +1980,6 @@ class Pedidos extends MPedidos{
             ]);
         }
 
-        // Guardar conteo por status
         $statuses = [
             ['status_id' => 1, 'amount' => intval($metrics['quotation_count'])],
             ['status_id' => 2, 'amount' => intval($metrics['pending_count'])],
@@ -2180,13 +1992,10 @@ class Pedidos extends MPedidos{
             ]);
         }
 
-        // Vincular órdenes al turno
         $this->updateOrdersCashShift([$shift_id, $opened_at, $closed_at, $subsidiary_id]);
 
-        // Aviso del corte por WhatsApp (resumido). No debe afectar el cierre si falla.
         $this->notifyShiftClosed($shift, $metrics, $subsidiary_id);
 
-        // Retornar datos actualizados
         $updatedShift = $this->getCashShiftById($shift_id);
         $date = date('Y-m-d', strtotime($opened_at));
         $shifts = $this->getShiftsBySubsidiaryDate([$date, $subsidiary_id]);
@@ -2201,8 +2010,6 @@ class Pedidos extends MPedidos{
     }
 
     function getShiftsByDate() {
-        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
-        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
             $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
@@ -2216,9 +2023,6 @@ class Pedidos extends MPedidos{
         $shifts = $this->getShiftsBySubsidiaryDate([$date, $subsidiaries_id]);
         $shifts = is_array($shifts) ? $shifts : [];
 
-        // Los turnos abiertos aun no tienen total_sales/cash/card/transfer guardados
-        // (se calculan al cerrar); se rellenan en tiempo real con la MISMA logica del
-        // ticket (getShiftMetrics) para que las listas cuadren con el TOTAL CAJA.
         $now = date('Y-m-d H:i:s');
         foreach ($shifts as &$s) {
             if ($s['status'] === 'open') {
@@ -2239,8 +2043,6 @@ class Pedidos extends MPedidos{
     }
 
     function getOpenShifts() {
-        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
-        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
             $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
@@ -2268,13 +2070,11 @@ class Pedidos extends MPedidos{
 
         $subsidiary_id = $shift['subsidiary_id'];
 
-        // Obtener nombre de sucursal
         $subsidiary = $this->getSucursalByID([$subsidiary_id]);
         $company_name    = ($subsidiary && isset($subsidiary['name']))     ? $subsidiary['name']     : '';
         $subsidiary_name = ($subsidiary && isset($subsidiary['sucursal'])) ? $subsidiary['sucursal'] : 'Sucursal';
 
         if ($shift['status'] === 'closed') {
-            // Obtener conteos de status guardados
             $statusCounts = $this->getShiftStatusCounts([$shift_id]);
             $quotation_count = 0; $pending_count = 0; $cancelled_count = 0;
             foreach ($statusCounts as $sc) {
@@ -2285,7 +2085,6 @@ class Pedidos extends MPedidos{
                 }
             }
 
-            // Pedidos de turnos anteriores cobrados durante este turno
             $closed_at = $shift['closed_at'];
             $prev = $this->getShiftPrevPaymentsSummary([$closed_at, $shift['opened_at'], $closed_at, $shift_id, $subsidiary_id]);
 
@@ -2311,12 +2110,10 @@ class Pedidos extends MPedidos{
             ];
         }
 
-        // Turno abierto: calcular en tiempo real
         $opened_at = $shift['opened_at'];
         $now = date('Y-m-d H:i:s');
         $metrics = $this->getShiftSalesMetrics([$shift_id, $opened_at, $now, $subsidiary_id]);
 
-        // Pedidos de turnos anteriores cobrados durante este turno
         $prev = $this->getShiftPrevPaymentsSummary([$now, $opened_at, $now, $shift_id, $subsidiary_id]);
         $metrics['prev_count']   = intval($prev['prev_count']);
         $metrics['prev_paid']    = intval($prev['prev_paid']);
@@ -2351,8 +2148,6 @@ class Pedidos extends MPedidos{
             return $order;
         };
 
-        // El sufijo del folio identifica la sucursal de origen del pedido. En un cobro
-        // cruzado el pedido es de otra sucursal, asi que conserva su origen y no la del cierre.
         $addFolioOrigin = function ($order) use ($subsidiary_id) {
             $originSub = isset($order['origin_subsidiary_id']) && $order['origin_subsidiary_id'] !== null
                 ? $order['origin_subsidiary_id']
@@ -2363,8 +2158,6 @@ class Pedidos extends MPedidos{
 
         $shiftOrders      = array_map($addFolio, $result['shift_orders']);
         $externalPayments = array_map($addFolioOrigin, $result['external_payments']);
-        // Grupo 3: pedidos de este turno cobrados en otra sucursal. El pedido es de esta
-        // sucursal (su folio usa $subsidiary_id), lo que cambia es dónde se cobró.
         $crossPayments    = array_map($addFolio, $result['cross_payments']);
 
         return [
@@ -2376,8 +2169,6 @@ class Pedidos extends MPedidos{
     }
 
     function checkOpenShift() {
-        // Roles con filtro de navbar (admin 1, cajero 2, vendedor 3) operan turno/cierre
-        // sobre la sucursal seleccionada en el modal; si no llega una util, usan su sesion.
         if (in_array($_SESSION['ROLID'], [1, 2, 3, 6, 7])) {
             $postSub = $_POST['subsidiaries_id'] ?? null;
             $subsidiaries_id = ($postSub !== null && $postSub !== '' && $postSub != '0')
@@ -2406,7 +2197,6 @@ class Pedidos extends MPedidos{
         ];
     }
 
-    // Discount
     function addDiscount() {
         $status  = 500;
         $message = "Error al aplicar el descuento";
@@ -2425,13 +2215,6 @@ class Pedidos extends MPedidos{
         $order    = $this->getOrderID([$id])[0];
         $totalPay = floatval($order['total_pay']);
 
-
-        // if ($discount > $totalPay) {
-        //     return [
-        //         'status'  => 400,
-        //         'message' => 'El descuento no puede ser mayor al total del pedido ($' . number_format($totalPay, 2) . ')'
-        //     ];
-        // }
 
         $values = [
             'discount'      => $discount,
@@ -2487,9 +2270,7 @@ class Pedidos extends MPedidos{
 
         $totalPay   = $order['total_pay']  ?? 0;
         $discount   = floatval($order['discount'] ?? 0);
-        // $totalPaid  = floatval($order['total_paid'] ?? 0);
         $totalFinal = $totalPay - $discount;
-        // $balance    = $totalFinal - $totalPaid;
 
         return [
             'status'      => 200,
@@ -2637,10 +2418,7 @@ class Pedidos extends MPedidos{
 
 }
 
-   //
 
-
-// Complements.
 function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
     $instancia = 'app';
     $impresion = 'payment';
@@ -2648,15 +2426,11 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
     $owner     = $_SESSION['OWNER'] ?? 0;
     $hasDiscount = $discount > 0;
 
-    // Cajero/no-admin viendo un pedido de OTRA sucursal (filtro de vista): solo lectura,
-    // salvo la edicion del cajero (2), que canWriteOrder ya autoriza cuando esa sucursal
-    // tiene turno abierto. Sin el resto de acciones de mutacion (cancelar, descuentos, pagar).
     if ($rolId != 1 && $orderSub !== null && $orderSub != ($_SESSION['SUB'] ?? null)) {
         $lectura = [
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
         ];
 
-        // Un pedido cancelado no se edita en ninguna sucursal, ni siquiera el admin.
         if ($rolId == 2 && $status != 4) {
             $accion    = $status == 3 ? 'editOrderPaid' : 'editOrder';
             $lectura[] = ['Editar', 'icon-pencil', "{$instancia}.{$accion}({$id})"];
@@ -2706,17 +2480,10 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
         ];
 
-        // El admin conserva el acceso al modal de pagos aunque el pedido ya este
-        // saldado: ahi vive el "Historial de Pagos" y el borrado de un abono mal
-        // capturado. No hay riesgo de doble cobro: el form de registro llega
-        // deshabilitado cuando el saldo es cero (isPaidInFull en addPayment).
         if ($rolId == 1) {
             $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
         }
 
-        // Editar un pedido ya liquidado exige contrasena (editOrderPaid la
-        // pide antes de abrir el formulario; editOrder() la revalida al
-        // guardar). Admin y cajero, misma regla que paidOrderEditDenial.
         if ($rolId == 1 || $rolId == 2) {
             $options[] = ['Editar', 'icon-pencil', "{$instancia}.editOrderPaid({$id})"];
         }
@@ -2731,7 +2498,6 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
             ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
             ['Editar', 'icon-pencil', "{$instancia}.editOrder({$id})"],
         ];
-        // Solo agrega "Cancelar" si el rol no es 3
         if ($rolId != 3) {
             $options[] = ['Cancelar', 'icon-block-1', "{$instancia}.cancelOrder({$id})"];
         }
@@ -2859,9 +2625,7 @@ function formatDateTime($date, $time) {
 $obj = new Pedidos();
 $fn  = $_POST['opc'];
 
-// Un opc que no existe en esta version del controlador produciria un fatal error, y
-// el front recibiria HTML en vez de JSON: la accion no abre y no avisa de nada. Con
-// la guarda, un despliegue donde el JS va por delante del PHP se ve como un mensaje.
+// Un opc inexistente seria un fatal y el front recibiria HTML en vez de JSON.
 if (!method_exists($obj, $fn)) {
     echo json_encode([
         'status'  => 400,
@@ -2870,8 +2634,7 @@ if (!method_exists($obj, $fn)) {
     exit;
 }
 
-// Todo lo que la operacion imprima por su cuenta se aparta del cuerpo de la
-// respuesta y se manda al log: el JSON llega limpio y la causa no se pierde.
+// Lo que la operacion imprima se aparta de la respuesta y se manda al log.
 ob_start();
 $encode = $obj->$fn();
 $ruido  = trim(ob_get_clean());

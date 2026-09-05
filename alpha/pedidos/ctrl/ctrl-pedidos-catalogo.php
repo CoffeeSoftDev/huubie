@@ -35,7 +35,10 @@ class ctrl extends MPedidos{
             'list'       => $orderProducts,
             'order'      => $order ?? ['id' => $_POST['id']],
             'payments'   => $payments,
-            'total_paid' => $totalPaid
+            'total_paid' => $totalPaid,
+            // El panel del ticket lo usa para decidir si ofrece la baja de una linea
+            // bloqueada. Es solo la pista visual: quien autoriza es removeProduct().
+            'rolId'      => $_SESSION['ROLID'] ?? 0
         ];
     }
 
@@ -331,21 +334,46 @@ class ctrl extends MPedidos{
 
     function removeProduct() {
 
-        $status = 500;
-        $message = 'No se pudo eliminar el producto del pedido';
+        $status     = 500;
+        $message    = 'No se pudo eliminar el producto del pedido';
         $pedidos_id = $_POST['pedidos_id'] ?? null;
+        $motivo     = trim($_POST['reason'] ?? '');
 
-        // Nombre/precio del producto ANTES de borrarlo, para la bitacora.
-        $productName = null; $productPrice = 0;
-        if ($pedidos_id) {
-            foreach ((array) $this->getOrderById([$pedidos_id]) as $p) {
-                if ($p['id'] == $_POST['id']) {
-                    $productName  = $p['name'];
-                    $productPrice = $p['price'];
-                    break;
-                }
+        if (empty($pedidos_id)) {
+            return [
+                'status'  => 400,
+                'message' => 'Falta el pedido al que pertenece la partida.'
+            ];
+        }
+
+        // La linea se lee ANTES de borrarla: de ahi salen el nombre y el precio para
+        // la bitacora, y el is_today que decide si la baja necesita autorizacion.
+        $lineas = (array) $this->getOrderById([$pedidos_id]);
+        $linea  = null;
+
+        foreach ($lineas as $p) {
+            if ($p['id'] == $_POST['id']) {
+                $linea = $p;
+                break;
             }
         }
+
+        if (!$linea) {
+            return [
+                'status'  => 404,
+                'message' => 'La partida no pertenece a este pedido.'
+            ];
+        }
+
+        $orderResult = $this->getOrderID([$pedidos_id]);
+        $order       = is_array($orderResult) && !empty($orderResult) ? $orderResult[0] : [];
+
+        $denegado = $this->removeLineDenial($pedidos_id, $order, $linea, $lineas, $motivo);
+
+        if ($denegado) return $denegado;
+
+        $productName  = $linea['name'];
+        $productPrice = $linea['price'];
 
         $values = $this->util->sql([
             'id' => $_POST['id']
@@ -353,7 +381,7 @@ class ctrl extends MPedidos{
 
         $delete = $this->deleteProduct($values);
 
-        if ($delete && $pedidos_id) {
+        if ($delete) {
             $status = 200;
             $message = 'Producto eliminado del pedido correctamente';
 
@@ -363,16 +391,73 @@ class ctrl extends MPedidos{
             // Solo se registra en la bitacora si es EDICION de un pedido existente.
             // Al crear (armado inicial en el catalogo) no se loguea cada producto: el
             // front manda isEdit=0 y el resumen se registra al crear el pedido.
-            if (!empty($_POST['isEdit'])) {
+            // La baja autorizada (con motivo) se registra siempre: es el unico rastro
+            // de que alguien quito una partida que el armado normal ya no tocaba.
+            if (!empty($_POST['isEdit']) || $motivo !== '') {
                 $etiqueta = $productName !== null ? $productName : '#' . $_POST['id'];
-                $this->logOrderHistory($pedidos_id, "Se eliminó el producto {$etiqueta} (" . evaluar($productPrice) . ')', 'edition');
+                $detalle  = "Se eliminó el producto {$etiqueta} (" . evaluar($productPrice) . ')';
+
+                if ($motivo !== '') $detalle .= " — Motivo: {$motivo}";
+
+                $this->logOrderHistory($pedidos_id, $detalle, 'edition');
             }
         }
 
         return [
             'status'  => $status,
-            'message' => $message
+            'message' => $message,
+            // La baja autorizada no toca la lista del panel al pulsar (puede negarse),
+            // asi que el ticket se repinta con lo que quedo realmente en el pedido.
+            'list'    => $this->getOrderById([$pedidos_id])
         ];
+    }
+
+    // Dos reglas distintas sobre la misma baja: quien puede pedirla, y si el pedido
+    // aguanta perderla. Devuelve null cuando la eliminacion procede.
+    private function removeLineDenial($pedidos_id, $order, $linea, $lineas, $motivo) {
+
+        // Linea que el armado normal ya no toca (de un dia anterior, o de un pedido
+        // liquidado): dejar de ser correccion de captura y pasa a ser autorizacion.
+        $bloqueada = ($order['status'] ?? 0) == 3 || empty($linea['is_today']);
+
+        if ($bloqueada) {
+            if (!in_array($_SESSION['ROLID'] ?? 0, [1, 6])) {
+                return [
+                    'status'  => 403,
+                    'message' => 'Solo un administrador o un supervisor puede eliminar esta partida.'
+                ];
+            }
+
+            if (mb_strlen($motivo) < 5) {
+                return [
+                    'status'  => 400,
+                    'message' => 'Escribe el motivo de la eliminación (mínimo 5 caracteres).'
+                ];
+            }
+        }
+
+        $pagado = floatval($this->getTotalPaidByOrder([$pedidos_id]));
+
+        if ($pagado <= 0) return null;
+
+        // El pedido no puede valer menos de lo ya cobrado: quedaria un saldo a favor
+        // sin respaldo y el corte no cuadraria contra el detalle.
+        $restante = -floatval($order['discount'] ?? 0);
+
+        foreach ($lineas as $p) {
+            if ($p['id'] == $linea['id']) continue;
+            $restante += floatval($p['price'] ?? 0) * intval($p['quantity'] ?? 0);
+        }
+
+        if ($restante < $pagado) {
+            return [
+                'status'  => 409,
+                'message' => 'El pedido quedaría en ' . evaluar($restante) . ' y ya tiene '
+                           . evaluar($pagado) . ' cobrados. Devuelve o reasigna el abono antes de quitar esta partida.'
+            ];
+        }
+
+        return null;
     }
 
     function deleteAllProducts() {

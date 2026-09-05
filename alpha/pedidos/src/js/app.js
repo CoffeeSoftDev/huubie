@@ -934,30 +934,68 @@ class App extends Templates {
         });
     }
 
+    // El controlador revalida motivo y contrasena, y rechaza el pedido que ya tenga
+    // cobros: ese se cancela, no se elimina.
     deleteOrder(id) {
         const row = event.target.closest('tr');
         const folio = row.querySelectorAll('td')[0]?.innerText || '';
 
-        this.swalQuestion({
-            opts: {
-                title: `¿Eliminar pedido?`,
-                html: `¿Estás seguro de eliminar el pedido con folio <strong>${folio}</strong>?
-                <br><br>
-                <span class="text-red-500">⚠️ Esta acción es permanente y no se puede deshacer.</span>`,
-                icon: "warning",
+        this.createModalForm({
+            id: 'formDeleteOrder',
+            data: { opc: 'deleteOrder', id: id },
+            bootbox: {
+                title: '<i class="icon-trash text-red-400"></i> Eliminar pedido',
+                size: 'medium'
             },
-            data: { opc: "deleteOrder", id: id },
-            methods: {
-                request: (data) => {
+            json: [
+                {
+                    opc: "div",
+                    id: "deleteOrderContext",
+                    class: 'col-12 mb-3',
+                    html: `
+                        <div class="bg-[#1E293B] rounded-lg p-3">
+                            <p class="text-white text-sm">Se eliminará el pedido <strong>${folio}</strong>.</p>
+                            <p class="text-red-400 text-xs mt-1">Es permanente y no se puede deshacer.</p>
+                        </div>
+                    `
+                },
+                {
+                    opc: "input",
+                    id: "reason",
+                    lbl: "Motivo de la eliminación",
+                    class: "col-12 mb-3",
+                    placeholder: "Ej: PEDIDO CAPTURADO POR ERROR",
+                    required: true
+                },
+                {
+                    opc: "input",
+                    id: "password",
+                    lbl: "Tu contraseña",
+                    type: "password",
+                    class: "col-12 mb-3",
+                    placeholder: "••••••••",
+                    required: true
+                }
+            ],
+            success: (response) => {
+                if (response.status != 200) {
                     alert({
-                        icon: "success",
-                        title: "Eliminado",
-                        text: "El pedido fue eliminado correctamente.",
+                        icon: "error",
+                        title: "No se eliminó",
+                        text: response.message,
                         btn1: true
                     });
-                    this.ls();
-                },
-            },
+                    return;
+                }
+
+                alert({
+                    icon: "success",
+                    title: "Eliminado",
+                    text: response.message,
+                    btn1: true
+                });
+                this.ls();
+            }
         });
     }
 
