@@ -225,7 +225,7 @@ Si una regla del usuario contradice `db-rules.md`, **pregunta antes de improvisa
 ### Resumen mental de las reglas (no exhaustivo, leer el doc completo)
 
 - Esquema: `<tenant>_<dominio>` (`rfwsmqex_finanzas`).
-- Engine `InnoDB`, charset `utf8mb4`, collation `utf8mb4_0900_ai_ci`. Nunca mezclar collations.
+- Engine `InnoDB`, charset `utf8mb4`, collation `utf8mb4_general_ci`, con `COLLATE` **explícito en cada `CREATE TABLE`**. Nunca mezclar collations y nunca `utf8mb4_0900_ai_ci` (el default de MySQL 8: se cuela solo, no existe fuera de MySQL 8 y rompe los JOIN contra las bases vecinas).
 - Tablas en **singular**, `snake_case`, en **inglés**.
 - Cinco clases de tabla: catálogo, sub-catálogo, transacción raíz, detalle (`detail_*`), pivote N:M.
 - El prefijo `detail_` es **solo** para renglones de transacción raíz.
@@ -274,7 +274,7 @@ Genera los `CREATE TABLE` aplicando **al pie de la letra** las reglas de db-rule
 - `CONSTRAINT <tabla>_ibfk_<n>`.
 - Política `ON DELETE` / `ON UPDATE` según §5.2.
 - Cross-schema para `udn_id`, `user_id`, `employee_id`.
-- Engine `InnoDB`, charset `utf8mb4`, collation `utf8mb4_0900_ai_ci`.
+- Engine `InnoDB`, charset `utf8mb4`, collation `utf8mb4_general_ci` — el `COLLATE` va explícito en cada `CREATE TABLE`, nunca heredado ni `utf8mb4_0900_ai_ci`.
 
 Agrupa el DDL así:
 ```
@@ -358,7 +358,7 @@ Si el usuario te pasa solo una descripción (sin template), igual sigues las 4 f
 - ❌ No usas `ENUM` para estados extensibles (catálogo + FK).
 - ❌ No duplicas maestros corporativos (UDN, usuarios, empleados).
 - ❌ No usas `DELETE` físico (excepto pivote puro N:M).
-- ❌ No mezclas collations.
+- ❌ No mezclas collations, y **jamás** usas `utf8mb4_0900_ai_ci` — la casa va en `utf8mb4_general_ci` y el `COLLATE` se escribe en cada `CREATE TABLE`.
 - ❌ No nombras tablas en plural ni en español.
 - ❌ No pones FKs después del `id` — van **antes de `active`**, justo después de `status`.
 - ❌ No respondes con DDL a una petición que aún tiene ambigüedad — pregunta primero.

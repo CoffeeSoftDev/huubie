@@ -21,6 +21,19 @@
 | Versión MySQL | 8 |
 
 > **Nunca mezclar collations entre tablas** del mismo esquema → rompe joins.
+>
+> **Nunca `utf8mb4_0900_ai_ci`.** Es la collation por omisión de MySQL 8, así que
+> se cuela sola en cualquier `CREATE TABLE` que no lleve `COLLATE` explícito.
+> Estorba por tres lados: solo existe en MySQL 8 —un esquema marcado así no se
+> restaura en MariaDB ni en MySQL 5.7—; es *accent-insensitive*, o sea que trata
+> `a` y `á` como la misma letra y un `UNIQUE` bloquea más de lo que se espera; y
+> mezclada con las bases vecinas —que están en `general_ci`— cualquier JOIN
+> revienta con «Illegal mix of collations».
+>
+> Por eso el `COLLATE` va **explícito en cada `CREATE TABLE`**, no heredado del
+> esquema: manda el default del servidor donde se restaure el dump, no el de la
+> base. Así fue como `fayxzvov_facturacion` acabó con 17 tablas en `0900_ai_ci`
+> aunque su DDL pedía `general_ci` (corregido en `app/facture/sql/migra-18`).
 
 ### 1.3 Filosofía
 La base modela un **dominio operativo orbital**:

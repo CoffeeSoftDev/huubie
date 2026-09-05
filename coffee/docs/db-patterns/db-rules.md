@@ -17,10 +17,23 @@
 |---|---|
 | Engine | `InnoDB` |
 | Charset | `utf8mb4 -- UTF-8 Unicode` |
-| Collation | `utf8mb4_0900_ai_ci` |
+| Collation | `utf8mb4_general_ci` |
 | Versión MySQL | 8 |
 
 > **Nunca mezclar collations entre tablas** del mismo esquema → rompe joins.
+>
+> **Nunca `utf8mb4_0900_ai_ci`.** Es la collation por omisión de MySQL 8, así que
+> se cuela sola en cualquier `CREATE TABLE` que no lleve `COLLATE` explícito.
+> Estorba por tres lados: solo existe en MySQL 8 —un esquema marcado así no se
+> restaura en MariaDB ni en MySQL 5.7—; es *accent-insensitive*, o sea que trata
+> `a` y `á` como la misma letra y un `UNIQUE` bloquea más de lo que se espera; y
+> mezclada con las bases vecinas —que están en `general_ci`— cualquier JOIN
+> revienta con «Illegal mix of collations».
+>
+> Por eso el `COLLATE` va **explícito en cada `CREATE TABLE`**, no heredado del
+> esquema: manda el default del servidor donde se restaure el dump, no el de la
+> base. Así fue como `fayxzvov_facturacion` acabó con 17 tablas en `0900_ai_ci`
+> aunque su DDL pedía `general_ci` (corregido en `app/facture/sql/migra-18`).
 
 ### 1.3 Filosofía
 La base modela un **dominio operativo orbital**:
@@ -222,7 +235,7 @@ CONSTRAINT `daily_closure_ibfk_1` FOREIGN KEY (`udn_id`)
 | Tablas en plural (`suppliers`) | Convención del esquema | Singular (`supplier`) |
 | Nombres en español (`proveedor`) | Convención del esquema | Inglés (`supplier`) |
 | Usar `detail_` en pivotes N:M o sub-catálogos | El prefijo es solo para renglones de transacción raíz | Pivote: `<a>_<b>` · Sub-catálogo: nombre compuesto sin prefijo |
-| Mezclar collations | Rompe joins | `utf8mb4_0900_ai_ci` en todas |
+| Mezclar collations | Rompe joins | `utf8mb4_general_ci` en todas |
 | FK implícita por convención de nombre | Sin integridad real | `CONSTRAINT` explícito |
 | FK sin `KEY` | Rendimiento, errores de planeador | Siempre `KEY` con mismo nombre |
 | Duplicar maestros corporativos (UDN, usuarios) | Drift de datos | Referencia cross-schema |
@@ -295,7 +308,7 @@ CONSTRAINT `daily_closure_ibfk_1` FOREIGN KEY (`udn_id`)
 ### 7.7 DDL final
 ```
 [ ] Engine InnoDB
-[ ] Charset utf8mb4 con collation utf8mb4_0900_ai_ci (no mezclar)
+[ ] Charset utf8mb4 con collation utf8mb4_general_ci (no mezclar)
 [ ] Orden de columnas:
     id → negocio → montos → fechas → created_at → updated_at →
     status → FKs → active → KEYs → CONSTRAINTs
@@ -325,5 +338,5 @@ CREATE TABLE <nombre_singular> (
   CONSTRAINT `<nombre_singular>_ibfk_2` FOREIGN KEY (`<fk_negocio>_id`)
     REFERENCES `<fk_negocio>`(`id`)
     ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```

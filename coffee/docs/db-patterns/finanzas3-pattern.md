@@ -262,7 +262,7 @@ Cuando el dominio maneje dinero o pagos, prever:
 
 1. **Toda FK explícita.** No relaciones implícitas por convención de nombre.
 2. **Toda FK con KEY.** El `KEY` se nombra igual que la columna.
-3. **Misma collation en todas las tablas.** No mezclar `utf8mb4_unicode_ci` con `utf8mb4_0900_ai_ci`.
+3. **Misma collation en todas las tablas: `utf8mb4_general_ci`.** No mezclar (`utf8mb4_unicode_ci` con `utf8mb4_0900_ai_ci`, por ejemplo) y no dejar que se cuele `utf8mb4_0900_ai_ci`, que es el default de MySQL 8 en todo `CREATE TABLE` sin `COLLATE` explícito.
 4. **No `ENUM` para estados extensibles.** Si hay una lista que el negocio puede crecer, va a tabla catálogo.
 5. **No `DOUBLE` para dinero.** Siempre `DECIMAL(12,2)`.
 6. **No `TEXT` para nombres cortos.** Usar `VARCHAR(100|255)`.
