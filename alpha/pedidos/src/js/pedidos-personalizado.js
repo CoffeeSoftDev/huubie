@@ -9,6 +9,7 @@ class CustomOrder extends Templates {
         this.editingOrderId = null;
         this.editingCustomId = null;
         this.pendingFiles = [];
+        this.saving = false;
     }
 
     render() {
@@ -19,6 +20,7 @@ class CustomOrder extends Templates {
         this.editingOrderId = null;
         this.editingCustomId = null;
         this.pendingFiles = [];
+        this.saving = false;
         custom.modalAddCustomOrder();
     }
 
@@ -881,6 +883,13 @@ class CustomOrder extends Templates {
     // Guarda el pedido personalizado
     async saveCustomOrder(orderName, payload, totalSuggested, priceReal, orderDetails, dedication) {
 
+        // Un segundo envio mientras el primero sigue en vuelo inserta otra linea
+        // identica en el pedido y el total queda al doble (pedidos 493 y 958).
+        if (custom.saving) return;
+
+        custom.saving = true;
+        $("#btnGuardar").prop("disabled", true).addClass("opacity-50 cursor-not-allowed");
+
         const now = new Date();
         const mysqlDatetime = now.getFullYear() + '-' +
             String(now.getMonth() + 1).padStart(2, '0') + '-' +
@@ -917,41 +926,50 @@ class CustomOrder extends Templates {
             response = await useFetch({ url: this._link, data: { opc: "addCustomOrder", ...orderData } });
         }
 
+        // El texto se arma antes de cerrar los modales: hidden.bs.modal apaga editMode.
+        const successMsg = custom.editMode
+            ? "¡Tu pedido personalizado ha sido actualizado con éxito! ✨"
+            : "¡Tu pedido personalizado ha sido guardado con éxito! 🎉";
 
-        if (response.status == 200) {
-            // GUARDAR DEDICATORIA Y OBSERVACIONES
-            const responseOrder = await useFetch({
-                url: custom._link,
-                data:
-                {
-                    opc: "editOrderPackage",
-                    order_details: orderDetails,
-                    dedication: dedication,
-                    id: response.data.orderId,
-                }
-            });
+        custom.saving = false;
+        $("#btnGuardar").prop("disabled", false).removeClass("opacity-50 cursor-not-allowed");
 
-            // GUARDAR IMÁGENES
-            // Solo se manda si el cajero eligio fotos nuevas: el endpoint reemplaza las
-            // anteriores, y mandarlo en vacio dejaria el pedido sin imagen.
-            await custom.uploadImages(response.data.orderId);
-
-            // SI GUARDÓ DEDICATORIA Y OBS, ENTONCES RETORNA SUCCESS.
-            if (responseOrder.status == 200) {
-                const successMsg = custom.editMode
-                    ? "¡Tu pedido personalizado ha sido actualizado con éxito! ✨"
-                    : "¡Tu pedido personalizado ha sido guardado con éxito! 🎉";
-                bootbox.alert(successMsg);
-            }
-
-            // OBTENER LA LISTA DE PEDIDOS RELACIONADOS ALA ORDEN PRINCIPAL.
-            await custom.refreshOrderPanel();
-
-            bootbox.hideAll();
-        } else {
-            bootbox.alert("Error al guardar el pedido personalizado.");
-            throw new Error(`Error del servidor: ${response.status}`);
+        // useFetch devuelve null cuando la respuesta no viene en JSON. Sin esta salida
+        // el flujo moria al leer .status: el modal se quedaba abierto como si no
+        // hubiera guardado nada y el cajero volvia a guardar sobre una linea ya
+        // insertada, con lo que el pedido terminaba con el pastel duplicado.
+        if (!response || response.status != 200) {
+            bootbox.alert("No se pudo confirmar el guardado del pedido personalizado. Revisa el pedido antes de volver a guardar.");
+            return;
         }
+
+        const packageId = response.data?.orderId;
+
+        // GUARDAR DEDICATORIA Y OBSERVACIONES
+        await useFetch({
+            url: custom._link,
+            data:
+            {
+                opc: "editOrderPackage",
+                order_details: orderDetails,
+                dedication: dedication,
+                id: packageId,
+            }
+        });
+
+        // GUARDAR IMÁGENES
+        // Solo se manda si el cajero eligio fotos nuevas: el endpoint reemplaza las
+        // anteriores, y mandarlo en vacio dejaria el pedido sin imagen.
+        await custom.uploadImages(packageId);
+
+        // OBTENER LA LISTA DE PEDIDOS RELACIONADOS ALA ORDEN PRINCIPAL.
+        await custom.refreshOrderPanel();
+
+        bootbox.hideAll();
+
+        // El aviso va DESPUES del hideAll: antes lo cerraba el propio hideAll, el
+        // cajero se quedaba sin confirmacion y volvia a guardar.
+        bootbox.alert(successMsg);
     }
 
     // Fotos elegidas que aun no se guardan.

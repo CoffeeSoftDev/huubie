@@ -557,29 +557,17 @@ class ctrl extends MPedidos{
         $status  = 500;
         $message = 'No se pudo registrar el pago';
 
-        $id         = $_POST['id'];
-        $pay        = floatval($_POST['advanced_pay'] ?? 0);
-        $total_pay  = floatval($_POST['total'] ?? 0);
-        $saldo      = floatval($_POST['saldo'] ?? 0);
-        $total_paid = floatval($_POST['total_paid'] ?? 0);
-        $discount   = floatval($_POST['discount'] ?? 0);
+        $id        = $_POST['id'];
+        $pay       = floatval($_POST['advanced_pay'] ?? 0);
+        $total_pay = floatval($_POST['total'] ?? 0);
+        $discount  = floatval($_POST['discount'] ?? 0);
+        $target    = intval($_POST['target_status'] ?? 0);
 
         // Sin turno abierto en la sucursal donde cae el dinero el abono quedaria
         // fuera de todo corte. El guardado SIN cobro si pasa (cotizacion/pendiente).
         if ($pay > 0) {
             $guard = $this->cobroShiftGuard($id);
             if ($guard) return $guard;
-        }
-
-        if ($total_paid > 0) {
-            $type_id = 2;
-        } else if ($pay <= 0) {
-            $target  = intval($_POST['target_status'] ?? 0);
-            $type_id = ($target === 2) ? 2 : 1;
-        } else if ($pay == $saldo) {
-            $type_id = 3; // Pago completo
-        } else {
-            $type_id = 2; // Abono parcial
         }
 
         // Estado previo del pedido para la bitacora (antes -> despues).
@@ -590,17 +578,13 @@ class ctrl extends MPedidos{
         // confirmacion y pisaba la fecha del pedido con la del dia, "mudando" el
         // pedido de corte (mismo pisado que se quito de ctrl-pedidos.php en c3a5622).
         $post = [
-            'total_pay'     => $total_pay,
-            'discount'      => $discount,
-            'type_id'       => $type_id,
-            'status'        => $type_id,
-            'id'            => $id
+            'total_pay' => $total_pay,
+            'discount'  => $discount,
+            'id'        => $id
         ];
 
         $values = $this->util->sql($post, 1);
         $insert = $this->updateOrder($values);
-        $this->updateTotalOrder($id);
-        // // Registrar método de pago solo si hay abono
 
         if ($pay > 0) {
             $values_pay = [
@@ -615,6 +599,34 @@ class ctrl extends MPedidos{
 
         }
 
+        // El estado se decide hasta aqui, con el pago ya escrito: contra el total que
+        // updateTotalOrder recalcula de las lineas y la suma real de order_payments.
+        // El 'saldo' que mandaba el front sale del texto en pantalla, y con el panel
+        // desincronizado (una linea ya en la BD sin pintar) marcaba Pagado un pedido
+        // con saldo vivo: pedidos 493 y 958, cobrados por la mitad de su total.
+        $totalReal = $this->updateTotalOrder($id);
+        $paidReal  = $this->getTotalPaidByOrder([$id]);
+        $neto      = $totalReal - $discount;
+
+        if ($paidReal <= 0) {
+            $type_id = ($target === 2) ? 2 : 1;
+        } else {
+            $type_id = ($paidReal >= $neto - 0.005) ? 3 : 2;
+        }
+
+        $this->updateOrder($this->util->sql([
+            'type_id' => $type_id,
+            'status'  => $type_id,
+            'id'      => $id
+        ], 1));
+
+        // La respuesta y la bitacora reportan el total que quedo guardado, no el que
+        // venia del front.
+        $total_pay          = $totalReal;
+        $post['total_pay']  = $totalReal;
+        $post['type_id']    = $type_id;
+        $post['status']     = $type_id;
+
         if ($insert) {
             $status  = 200;
             $message = 'Pago registrado correctamente';
@@ -626,7 +638,8 @@ class ctrl extends MPedidos{
                 $methodName  = $methodNames[intval($_POST['method_pay_id'] ?? 0)] ?? 'Otro método';
                 $this->logOrderHistory($id, 'Se registró un pago de ' . evaluar($pay) . " ({$methodName})", 'payment');
             } else {
-                $targetLabel = ($type_id === 1) ? 'Cotización' : 'Pendiente';
+                $labels      = [1 => 'Cotización', 2 => 'Pendiente', 3 => 'Pagado'];
+                $targetLabel = $labels[$type_id] ?? 'Pendiente';
                 // Nº de productos del pedido, para el resumen junto al total.
                 $n = count((array) $this->getOrderById([$id]));
                 $msg = "Pedido guardado como {$targetLabel} sin cobro — total " . evaluar($total_pay)
