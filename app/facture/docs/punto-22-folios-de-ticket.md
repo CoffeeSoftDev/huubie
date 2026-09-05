@@ -97,10 +97,9 @@ En los dos POS el folio es **dato importado**, nunca generado.
 | Papel Wansoft, renglón `Movimiento:` | `e.movimiento \|\| e.folio` | [ticketPaper.js:351](../src/js/components/ticketPaper.js) |
 | Selección, panel y regeneración | se piden **por folio** (`getTicketByFolio`) | [mdl-facture-tickets.php:361](../mdl/mdl-facture-tickets.php) |
 
-Hoy los dos POS imprimen el papel de Soft Restaurant (`PRESTADO`,
-[ticketPaper.js:146](../src/js/components/ticketPaper.js)) porque del ticket físico de Wansoft
-todavía no hay muestra que copiar. Ese papel rotula el número como `FOLIO:` y el valor es el
-movimiento importado.
+Cada POS imprime su propio papel, y el mismo número se rotula distinto en cada uno: Soft
+Restaurant lo llama `FOLIO:` y Wansoft `Movimiento:`. En los dos el valor es el movimiento
+importado.
 
 ---
 
@@ -240,9 +239,10 @@ folio está y es el movimiento—, pero quien mire la pantalla rápido lee prime
 diario. Si la casa quiere que el punto 22 también se vea, es cambiar jerarquía visual (folio en
 grande, nota como acompañante), no lógica.
 
-**2. El papel de Wansoft, cuando se active, imprime la nota donde va la cuenta.**
+**2. El papel de Wansoft imprime la nota donde la tira física lleva la cuenta.**
 `paperWansoft` pone en el bloque central `e.cuenta || e.nota`
-([ticketPaper.js:392](../src/js/components/ticketPaper.js)), y para un ticket generado ese valor
-llega como `#12` ([ctrl-facture-tickets.php:1590](../ctrl/ctrl-facture-tickets.php)). El folio
-sigue impreso abajo en `Movimiento:`, así que no lo sustituye, pero conviene revisar ese hueco
-contra la tira física el día que llegue la muestra y se retire `PRESTADO`.
+([ticketPaper.js](../src/js/components/ticketPaper.js)), y para un ticket generado ese valor llega
+como `#12` ([ctrl-facture-tickets.php:1590](../ctrl/ctrl-facture-tickets.php)). En la muestra ese
+hueco trae el **número de cuenta** del PDV (`150`), un dato que el export no manda: mientras no
+venga, el papel imprime ahí la nota. El folio sigue abajo en `Movimiento:`, así que no lo
+sustituye.

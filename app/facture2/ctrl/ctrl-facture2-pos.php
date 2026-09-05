@@ -15,6 +15,11 @@ define('CAJERO_TERMINAL', 'ADMINISTRACION');
 define('CONCEPTO_SERVICIO', 'SERVICIO DE MESA');
 define('CONCEPTO_CONSUMO',  'CONSUMO');
 
+// Como se nombra el cargo del que no se sabe la forma de pago. Es el mismo texto
+// del Facturador, y se prefiere a dejar el renglon en blanco: el bloque de formas
+// de pago del ticket dice entonces que se cobro sin decir con que.
+define('SIN_FORMA_DE_PAGO', 'SIN PAGO REGISTRADO');
+
 class ctrl extends mdl {
 
     public $branch;
@@ -211,10 +216,11 @@ class ctrl extends mdl {
         }
 
         $lineas   = $this->lineasDeVarios($ls);
+        $pagos    = $this->pagosDeVarios($ls);
         $__ticket = [];
 
         foreach ($ls as $item) {
-            $__ticket[] = $this->papel($item, $lineas[$item['folio']] ?? []);
+            $__ticket[] = $this->papel($item, $lineas[$item['folio']] ?? [], $pagos[$item['sale_folio']] ?? []);
         }
 
         return [
@@ -236,13 +242,15 @@ class ctrl extends mdl {
     //              que el folio ampara. No hay documento que copiar: el papel ES la
     //              cuenta.
     //
-    // Los renglones se pueden pasar ya resueltos: cuando se arman varios papeles a
-    // la vez salen todos de una consulta, no de una por ticket (ver lineasDeVarios).
-    function papel($item, $lineas = null) {
+    // Los renglones y los cargos se pueden pasar ya resueltos: cuando se arman varios
+    // papeles a la vez salen todos de una consulta, no de una por ticket (ver
+    // lineasDeVarios y pagosDeVarios).
+    function papel($item, $lineas = null, $pagos = null) {
         $total = $this->totalDe($item);
         $nota  = (int) $item['note_number'];
 
         if ($lineas === null) $lineas = $this->lineasDe($item);
+        if ($pagos  === null) $pagos  = $this->pagosDe($item);
 
         // El papel real de una venta sin comanda cargada se quedaria en blanco: se
         // imprime el consumo como una sola partida, que es lo unico que la cuenta
@@ -275,6 +283,9 @@ class ctrl extends mdl {
             'propina'   => money(0),
             'total'     => money($total),
             'letras'    => letras($total),
+            // Con que se cobro la cuenta: es el bloque con el que cierra el ticket
+            // de Wansoft.
+            'pagos'     => $this->pagosDelPapel($pagos, $total),
             // Los dos folios del punto 22.1: el papel dice de donde salio su cargo
             // cuando el cierre lo mudo.
             'folioOrigen' => $item['origin_folio'] ?: $item['folio'],
@@ -372,6 +383,51 @@ class ctrl extends mdl {
         }
 
         return $__lineas;
+    }
+
+    // -- Formas de pago --
+
+    // Con que se cobro la cuenta. Son los cargos que el POS exporto, no un metodo
+    // deducido: la terminal reimprime lo que se cobro, y una cuenta partida en dos
+    // formas de pago tiene que salir con sus dos renglones.
+    function pagosDe($item) {
+        return $this->pagosDeVarios([$item])[$item['sale_folio']] ?? [];
+    }
+
+    // Los cargos de una tanda de papeles en una sola consulta, por la misma razon
+    // que los renglones: imprimir el dia entero no puede costar un viaje por ticket.
+    function pagosDeVarios($ls) {
+        $folios = array_values(array_filter(array_column($ls, 'sale_folio'), 'strlen'));
+
+        if (empty($folios)) return [];
+
+        return $this->agruparPor('folio', $this->filas($this->listPaymentsByFolios($folios)));
+    }
+
+    // El bloque tal como lo imprime el papel. La propina y el cambio van vacios: el
+    // reporte de ventas no los exporta por cargo, y un cero inventado se leeria como
+    // que el cliente no dejo propina.
+    //
+    // Una cuenta sin cargos registrados imprime igual su bloque —esta en el universo
+    // de la terminal, asi que se cobro— con el importe que ampara y sin decir con
+    // que, que es justo lo que se sabe de ella.
+    function pagosDelPapel($ls, $total) {
+        if (empty($ls)) {
+            return [['nombre' => SIN_FORMA_DE_PAGO, 'monto' => money($total), 'propina' => '', 'cambio' => '']];
+        }
+
+        $__row = [];
+
+        foreach ($ls as $pago) {
+            $__row[] = [
+                'nombre'  => $pago['payment_name'] ?: SIN_FORMA_DE_PAGO,
+                'monto'   => money($pago['amount']),
+                'propina' => '',
+                'cambio'  => ''
+            ];
+        }
+
+        return $__row;
     }
 
     function agruparPor($llave, $ls) {

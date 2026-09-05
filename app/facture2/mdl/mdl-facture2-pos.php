@@ -342,4 +342,29 @@ class mdl extends CRUD {
         ";
         return $this->_Read($query, $array);
     }
+
+    // Con que se pago cada cuenta. El ticket de Wansoft cierra con el bloque de
+    // formas de pago, y una cuenta se puede partir: por eso viajan las filas y no
+    // un nombre suelto.
+    //
+    // El folio es el del cargo ya reasignado (punto 17): si el cierre mudo el pago
+    // a otra venta, es esa la que lo cobro y la que tiene que imprimirlo.
+    function listPaymentsByFolios($array) {
+        $marcas = implode(', ', array_fill(0, count($array), '?'));
+        $folio  = $this->folioDelPago();
+
+        $query = "
+            SELECT {$folio} AS folio, pm.name AS payment_name, p.amount
+            FROM {$this->bd}detail_sale_payment p
+            LEFT JOIN {$this->bd}payment_method pm ON pm.id = p.payment_method_id
+            WHERE p.active = 1
+              AND {$folio} IN ({$marcas})
+            ORDER BY p.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    function folioDelPago() {
+        return "COALESCE(p.assigned_folio, p.sale_folio)";
+    }
 }

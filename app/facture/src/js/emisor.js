@@ -531,9 +531,6 @@ class EmisorView extends Templates {
     // Hay papeles que encabezan solo con el nombre del negocio: el lema, el RFC y
     // el domicilio se siguen capturando —los pide la factura— pero no se imprimen
     // ahi. La banda lo dice, o al cambiar de sistema pareceria que se perdieron.
-    //
-    // Quien lo decide es el papel y no el sistema: mientras Wansoft imprima con
-    // papel prestado (ver TicketPaper.PRESTADO) su membrete sale completo.
     renderPreviewHead(papel) {
         const badge = [{ text: 'muestra', tone: 'b-gray' }];
 

@@ -61,9 +61,7 @@ class Pos extends Templates {
             opts.onChange(keyword);
         });
 
-        const searchIcon = $("<i>", {
-            class: `icon-search absolute left-3 top-2.5 ${isDark ? "text-gray-400" : "text-gray-500"}`
-        });
+        const searchIcon = lucideIcon('search', `absolute left-3 top-2.5 w-4 h-4 ${isDark ? "text-gray-400" : "text-gray-500"}`);
 
         searchInputWrap.append(inputSearch, searchIcon);
 
@@ -152,7 +150,7 @@ class Pos extends Templates {
                 : '';
 
             const btn = $("<button>", {
-                class: `tab-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border ${isActive ? `${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]` : `${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`}`,
+                class: `tab-btn flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${isActive ? `${activeClass} text-white border-[#7C3AED] shadow-[0_2px_8px_rgba(124,58,237,0.3)]` : `${inactiveClass} text-[#9CA3AF] border-[#374151] ${hoverClass}`}`,
                 html: `<span>${formattedText}</span>${countHtml}`,
                 "data-category": cat.id,
                 click: function () {
@@ -191,7 +189,7 @@ class Pos extends Templates {
             parent: "productGrid",
             data: [],
             theme: "dark",
-            icon: "icon-star",
+            icon: "star",
             onClick: (item) => { }
         };
 
@@ -199,7 +197,6 @@ class Pos extends Templates {
 
         const isDark = opts.theme === "dark";
         const cardBg = isDark ? "bg-[#1F2A37]" : "bg-white";
-        const borderColor = isDark ? "border-[rgba(55,65,81,0.5)]" : "border-gray-300";
         const imageBg = isDark ? "bg-[#141d2b]" : "bg-gray-100";
         const textColor = isDark ? "text-white" : "text-gray-800";
         const priceColor = isDark ? "text-[#76A9FA]" : "text-blue-600";
@@ -214,7 +211,7 @@ class Pos extends Templates {
             // de imagen + cuerpo con nombre, precio y accion. Se conservan la clase
             // .card y el <h3> del nombre porque searchFilter() los usa para filtrar.
             const card = $("<div>", {
-                class: `card ${cardBg} border ${borderColor} rounded-lg overflow-hidden cursor-pointer hover:border-[#7C3AED]`,
+                class: `card border-0 ${cardBg} rounded-lg overflow-hidden cursor-pointer`,
                 click: () => opts.onClick(item)
             });
 
@@ -237,9 +234,7 @@ class Pos extends Templates {
                 );
             } else {
                 imageWrap.append(
-                    $("<i>", {
-                        class: `${item.icon || opts.icon} text-3xl text-gray-500`
-                    })
+                    lucideIcon((item.icon || opts.icon).replace(/^icon-/, ''), 'w-7 h-7 text-gray-500')
                 );
             }
 
@@ -256,7 +251,7 @@ class Pos extends Templates {
                     $("<button>", {
                         class: "w-5 h-5 rounded bg-[#1C64F2] hover:bg-[#1A56DB] flex items-center justify-center flex-shrink-0",
                         title: "Ver detalles",
-                        html: `<i class="icon-eye text-white text-[10px]"></i>`,
+                        html: lucideIcon('eye', 'w-2.5 h-2.5 text-white'),
                         click: (e) => {
                             e.stopPropagation();
                             this.showProductDetails(item.id);
@@ -275,7 +270,7 @@ class Pos extends Templates {
     createOrderPanel(options) {
         const opts = Object.assign({
             parent: "orderPanel", // ID donde se monta
-            title: "Orden Actual",
+            title: "Pedido",
             onClear: () => {
                 // lógica externa que puedes conectar
             }
@@ -325,8 +320,8 @@ class Pos extends Templates {
             ),
             $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
                 $("<button>", {
-                    class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
-                    html: "🖨 Imprimir"
+                    class: "border border-gray-600 text-white rounded px-3 py-2 text-sm flex items-center justify-center gap-1.5",
+                    html: lucideIcon('printer', 'w-4 h-4') + ' Imprimir'
                 }),
 
                 $("<button>", {
@@ -362,7 +357,7 @@ class Pos extends Templates {
     renderOrderPanel(options) {
         const defaults = {
             parent: "orderPanel",
-            title: "Orden Actual",
+            title: "Pedido",
             data: [],
             theme: "dark",
             totalSelector: "#total",
@@ -424,8 +419,8 @@ class Pos extends Templates {
             $("<div>", { class: "grid grid-cols-3 gap-2 mt-4" }).append(
                 $("<button>", {
                     id: "printOrder",
-                    class: "border border-gray-600 text-white rounded px-3 py-2 text-sm",
-                    html: "🖨 Imprimir"
+                    class: "border border-gray-600 text-white rounded px-3 py-2 text-sm flex items-center justify-center gap-1.5",
+                    html: lucideIcon('printer', 'w-4 h-4') + ' Imprimir'
                 }),
                 $("<button>", {
                     id: "finishOrder",
@@ -488,12 +483,12 @@ class Pos extends Templates {
                 }),
                 $("<button>", {
                     class: "text-blue-400 hover:text-blue-600",
-                    html: `<i class="icon-pencil"></i>`,
+                    html: lucideIcon('pencil'),
                     click: () => opts.onEdit(item.id)
                 }),
                 $("<button>", {
                     class: "text-gray-400 hover:text-red-400",
-                    html: `<i class="icon-trash"></i>`,
+                    html: lucideIcon('trash-2'),
                     click: () => {
                         data.splice(index, 1);
                         opts.onRemove(item.id);
@@ -633,7 +628,7 @@ class Pos extends Templates {
                 }),
                 $("<button>", {
                     class: "text-blue-400 hover:text-blue-600",
-                    html: `<i class="icon-pencil"></i>`,
+                    html: lucideIcon('pencil'),
                     click: (e) => {
                         e.stopPropagation();
                         if (typeof opts.onEdit === "function") opts.onEdit(item.id);
@@ -641,7 +636,7 @@ class Pos extends Templates {
                 }),
                 $("<button>", {
                     class: "text-gray-400 hover:text-red-400",
-                    html: `<i class="icon-trash"></i>`,
+                    html: lucideIcon('trash-2'),
                     click: () => {
                         data.splice(index, 1);
                         opts.onRemove(item.id);
@@ -677,7 +672,7 @@ class Pos extends Templates {
         const defaults = {
             parent: "root",
             id: "orderPanel",
-            title: "Orden Actual",
+            title: "Pedido",
             data: [],
             theme: "dark",
             totalSelector: "#total",
@@ -736,12 +731,12 @@ class Pos extends Templates {
                 $("<h2>", { class: "text-sm font-bold text-white truncate", text: opts.title }),
                 $("<h3>", {
                     class: "text-[10px] text-[#6B7280] mt-0.5 truncate",
-                    html: '<i class="icon-user-1"></i> ' + opts.customName || "Cliente no definido"
+                    html: lucideIcon('user', 'w-3 h-3 inline-block') + ' ' + opts.customName || "Cliente no definido"
                 },)
             ),
             opts.isEdit ? null : $("<button>", {
                 id: "clearOrder",
-                class: "flex-shrink-0 text-[#EA0234] border border-[rgba(234,2,52,0.35)] bg-[#1a2332] px-2 py-1 rounded-lg text-xs hover:bg-[#EA0234] hover:text-white transition-colors",
+                class: "flex-shrink-0 text-red-400 bg-[#1a2332] px-2 py-1 rounded-lg text-xs hover:bg-red-800 hover:text-white transition-colors",
                 html: "🗑 Limpiar"
             })
         );
@@ -751,59 +746,68 @@ class Pos extends Templates {
             class: "flex-1 overflow-auto p-3 space-y-3"
         });
 
+        const lineCount = (opts.data || []).length;
+
         const footer = $("<div>", {
             class: "px-4 py-3 border-t border-[#374151] flex-shrink-0"
         }).append(
-            $("<div>", { class: "space-y-1 text-xs text-gray-300" }).append(
-                $("<div>", { class: "flex items-center gap-1 mb-1" }).append(
-                    $("<span>", { class: "text-green-400 text-sm" }).text("$"),
-                    $("<span>", { class: "text-white font-semibold italic text-sm" }).text("Resumen de pago")
+            $("<div>", { class: "space-y-1.5 text-xs text-gray-400" }).append(
+                $("<div>", { class: "flex justify-between items-center mb-2" }).append(
+                    $("<span>", {
+                        class: "text-[10px] font-semibold tracking-[0.14em] uppercase text-[#c4b5fd]",
+                        text: "Resumen de pago"
+                    }),
+                    $("<span>", {
+                        id: "lineCount",
+                        class: "text-[10px] text-[#6B7280] tabular-nums",
+                        text: `${lineCount} ${lineCount === 1 ? 'línea' : 'líneas'}`
+                    })
                 ),
                 $("<div>", {
                     class: "flex justify-between"
                 }).append(
-                    $("<span>").text("Subtotal:"),
-                    $("<span>", { id: "subtotal", class: "text-white", text: "$0.00" })
+                    $("<span>").text("Subtotal"),
+                    $("<span>", { id: "subtotal", class: "text-white font-semibold tabular-nums", text: "$0.00" })
                 ),
                 $("<div>", {
                     id: "discountRow",
                     class: "flex justify-between",
                     css: { display: "none" }
                 }).append(
-                    $("<span>").text("Descuento:"),
-                    $("<span>", { id: "discountAmount", class: "text-yellow-400", text: "-$0.00" })
+                    $("<span>").text("Descuento"),
+                    $("<span>", { id: "discountAmount", class: "text-[#fbbf24] font-semibold tabular-nums", text: "-$0.00" })
                 ),
                 $("<div>", {
                     id: "pagadoRow",
                     class: "flex justify-between",
                     css: { display: "none" }
                 }).append(
-                    $("<span>").text("Pagado:"),
-                    $("<span>", { id: "pagado", class: "text-green-400", text: "$0.00" })
+                    $("<span>").text("Pagado"),
+                    $("<span>", { id: "pagado", class: "text-[#3FC189] font-semibold tabular-nums", text: "$0.00" })
                 ),
                 $("<div>", {
                     id: "saldoRow",
-                    class: "flex justify-between pt-1 mt-1 border-t border-[#374151]"
+                    class: "flex justify-between items-center pt-2 mt-1 border-t border-[#374151]"
                 }).append(
-                    $("<span>", { class: "font-semibold" }).text("Saldo:"),
-                    $("<span>", { id: "saldo", class: "text-red-500 font-bold", text: "$0.00" })
+                    $("<span>", { class: "text-white font-bold" }).text("Saldo"),
+                    $("<span>", { id: "saldo", class: "text-white font-bold text-base tabular-nums", text: "$0.00" })
                 )
             ),
-            $("<div>", { class: "grid grid-cols-3 gap-2 mt-3" }).append(
+            $("<div>", { class: "grid grid-cols-[1fr_1.2fr_0.8fr] gap-2 mt-3" }).append(
                 $("<button>", {
                     id: "printOrder",
-                    class: "border border-[#374151] text-white rounded-lg px-2 py-1.5 text-xs hover:bg-[#1a2332] transition-colors",
-                    html: "🖨 Imprimir"
+                    class: "bg-[#1a2332] text-[#9CA3AF] rounded-lg px-2 py-2 text-xs hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center gap-1.5",
+                    html: lucideIcon('printer', 'w-3.5 h-3.5 text-[#76A9FA]') + ' Imprimir'
                 }),
                 $("<button>", {
                     id: "finishOrder",
-                    class: "bg-[#1C64F2] text-white font-bold rounded-lg px-2 py-1.5 text-xs hover:bg-[#1a53d4] shadow-lg shadow-[rgba(28,100,242,0.25)] transition-colors",
-                    html: "Terminar"
+                    class: "bg-[#1C64F2] text-white font-semibold rounded-lg px-2 py-2 text-xs hover:bg-[#1a53d4] shadow-lg shadow-[rgba(28,100,242,0.25)] transition-colors flex items-center justify-center gap-1.5",
+                    html: lucideIcon('check', 'w-3.5 h-3.5') + ' Terminar'
                 }),
                 $("<button>", {
                     id: "exitOrder",
-                    class: "border border-[rgba(234,2,52,0.35)] bg-[#1a2332] text-[#EA0234] rounded-lg px-2 py-1.5 text-xs hover:bg-[#EA0234] hover:text-white transition-colors",
-                    html: "Salir"
+                    class: "bg-[#1a2332] text-[#9CA3AF] rounded-lg px-2 py-2 text-xs hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center gap-1.5",
+                    html: lucideIcon('log-out', 'w-3.5 h-3.5 text-[#EA0234]') + ' Salir'
                 })
             )
         );
@@ -840,15 +844,15 @@ class Pos extends Templates {
             });
 
             const infoElements = [
-                $("<p>", { class: `${textColor} font-medium text-sm`, text: item.name }),
-                $("<p>", { class: `${subColor} font-semibold text-sm`, text: formatPrice(item.price) }),
+                $("<p>", { class: `${textColor} font-medium text-xs`, text: item.name }),
+                $("<p>", { class: `${subColor} font-semibold text-xs`, text: formatPrice(item.price) }),
                 item.custom_id ? $("<span>", { class: "inline-flex items-center text-xs font-bold text-purple-400", text: "Personalizado" }) : null,
                 item.dedication ? $("<p>", { class: `${mutedColor} text-xs italic`, text: `Dedicatoria: ${item.dedication}` }) : null,
                 item.order_details ? $("<p>", { class: `${mutedColor} text-xs`, text: `Detalles: ${item.order_details}` }) : null,
                 item.images && item.images.length > 0
                     ? $("<p>", {
                         class: `text-gray-400 text-xs`,
-                        html: `<i class="icon-camera"></i> Pedido con ${item.images.length} foto${item.images.length > 1 ? 's' : ''} adjunta${item.images.length > 1 ? 's' : ''}`
+                        html: `${lucideIcon('camera', 'w-4 h-4 inline-block')} Pedido con ${item.images.length} foto${item.images.length > 1 ? 's' : ''} adjunta${item.images.length > 1 ? 's' : ''}`
                     })
                     : null
             ];
@@ -941,7 +945,7 @@ class Pos extends Templates {
             buttons.push(
                 $("<button>", {
                     class: "text-[#c4b5fd] hover:text-white transition-colors",
-                    html: `<i class="icon-pencil"></i>`,
+                    html: lucideIcon('pencil'),
                     click: () => {
                         // Detectar si es pedido personalizado o normal
                         if (item.custom_id) {
@@ -957,8 +961,8 @@ class Pos extends Templates {
             if (!locked) {
                 buttons.push(
                     $("<button>", {
-                        class: "text-gray-400 hover:text-[#EA0234] transition-colors",
-                        html: `<i class="icon-trash"></i>`,
+                        class: "text-gray-400 hover:text-red-400 transition-colors",
+                        html: lucideIcon('trash-2'),
                         click: () => {
                             data.splice(index, 1);
                             opts.onRemove(item.id);
@@ -975,7 +979,7 @@ class Pos extends Templates {
             totalAcc += lineTotal;
 
             const totalEl = $("<p>", {
-                class: `${mutedColor} text-sm `,
+                class: `${mutedColor} text-xs `,
                 text: `Total: ${formatPrice(lineTotal)}`
             });
 
@@ -1007,14 +1011,16 @@ class Pos extends Templates {
                 $('#pagado').text(formatPrice(totalPaid));
             }
             
+            const $saldo = $('#saldo').removeClass('text-red-400 text-[#3FC189] text-white');
+
             if (saldo > 0) {
                 $('#saldoRow').show();
-                $('#saldo').text(formatPrice(saldo)).removeClass('text-green-400').addClass('text-red-500');
+                $saldo.text(formatPrice(saldo)).addClass('text-red-400');
             } else if (saldo <= 0 && totalPaid > 0) {
                 $('#saldoRow').show();
-                $('#saldo').text(formatPrice(0) + ' ✓').removeClass('text-red-500').addClass('text-green-400');
+                $saldo.text(formatPrice(0)).addClass('text-[#3FC189]');
             } else {
-                $('#saldo').text(formatPrice(finalTotal));
+                $saldo.text(formatPrice(finalTotal)).addClass('text-white');
             }
         }
 
@@ -1198,7 +1204,7 @@ class CatalogProduct extends Pos {
             console.error("Error: No se pudo cargar la información del catálogo", pos);
             $("#productGrid").html(`
                 <div class="col-span-full text-center text-gray-400 py-10">
-                    <i class="icon-alert text-3xl mb-2"></i>
+                    ${lucideIcon('circle-alert', 'w-7 h-7 mb-2')}
                     <p>No se pudieron cargar los productos. Intenta recargar.</p>
                 </div>
             `);
@@ -1207,6 +1213,7 @@ class CatalogProduct extends Pos {
 
         this.name_client = pos.order?.name ?? '';
         this.discount = pos.order?.discount ?? '';
+        this.folio = pos.order?.folio ?? '';
         this.payments = pos.payments ?? [];
         this.total_paid = pos.total_paid ?? 0;
 
@@ -1263,7 +1270,7 @@ class CatalogProduct extends Pos {
     showOrder(list, animateId = null) {
 
         this.orderPanelComponent({
-            title: `Orden Actual #P-00${idFolio}`,
+            title: this.folio ? `Pedido ${this.folio}` : "Pedido nuevo",
             parent: "orderPanel",
             animateId: animateId,
             discount: this.discount,
@@ -1451,7 +1458,7 @@ class CatalogProduct extends Pos {
                             >
                             <div class="flex flex-col items-center justify-center py-2 cursor-pointer" onclick="document.getElementById('archivos').click()">
                                 <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center mb-2">
-                                    <i class="icon-upload text-white"></i>
+                                    ${lucideIcon('upload', 'w-4 h-4 text-white')}
                                 </div>
                                 <p class="text-xs">Drag & Drop or <span class="text-purple-400 underline">choose file</span></p>
                                 <p class="text-[10px] text-gray-400 mt-1">JPEG, PNG</p>
@@ -1590,7 +1597,7 @@ class CatalogProduct extends Pos {
         const modal = bootbox.dialog({
             closeButton: true,
             title: ` <div class="flex items-center gap-2 text-white text-lg font-semibold">
-                        <i class="icon-print text-blue-400 text-xl"></i>
+                        ${lucideIcon('printer', 'w-5 h-5 text-blue-400')}
                         Imprimir
                     </div>`,
             message: ` <div id="containerPrintOrder"></div>`
@@ -1750,7 +1757,7 @@ class CatalogProduct extends Pos {
         const btnPrint = $("<button>", {
             id: "btnPrintTicket",
             class: "bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md flex items-center justify-center gap-2",
-            html: '<i class="icon-print"></i> Imprimir ',
+            html: lucideIcon('printer') + ' Imprimir ',
             click: () => {
                 const ticketContent = document.getElementById('ticketPasteleria');
                 if (ticketContent) {
@@ -2331,7 +2338,7 @@ class CatalogProduct extends Pos {
                     </div>
                     <div class="flex justify-between items-center bg-blue-900/30 p-2 rounded-lg">
                         <div class="flex items-center gap-2">
-                            <i class="icon-check text-blue-400"></i>
+                            ${lucideIcon('check', 'w-4 h-4 text-blue-400')}
                             <span class="text-sm font-semibold text-blue-300">Abono registrado</span>
                         </div>
                         <span class="text-blue-400 font-bold" id="lblAbonoPrevio">${formatPrice(total_paid)}</span>
@@ -2583,7 +2590,7 @@ class CatalogProduct extends Pos {
                 // Create modal with bootbox
                 const modal = bootbox.dialog({
                     title: `<div class="flex items-center gap-2 text-white text-lg font-semibold">
-                        <i class="icon-info text-blue-400 text-xl"></i>
+                        ${lucideIcon('info', 'w-5 h-5 text-blue-400')}
                         Detalles del Producto
                     </div>`,
                     message: `
@@ -2593,7 +2600,7 @@ class CatalogProduct extends Pos {
                                 ${product.image && product.image.trim() !== ""
                             ? `<img src="${fileUrl(product.image)}" onerror="fileUrlFallback(this)" alt="${product.name}" class="object-cover w-full h-full rounded-lg">`
                             : `<div class="flex items-center justify-center w-full h-full">
-                                         <i class="icon-birthday text-6xl text-gray-500"></i>
+                                         ${lucideIcon('cake', 'w-16 h-16 text-gray-500')}
                                        </div>`
                         }
                             </div>
@@ -2624,7 +2631,7 @@ class CatalogProduct extends Pos {
                                 
                                 <div class="mt-4">
                                     <button id="addToCartFromModal" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200">
-                                        <i class="icon-cart mr-2"></i>
+                                        ${lucideIcon('shopping-cart', 'w-4 h-4 mr-2 inline-block')}
                                         Agregar al carrito
                                     </button>
                                 </div>

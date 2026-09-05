@@ -280,14 +280,57 @@ class ImportFacture2Cargas {
     //     bloques 1000    36 s    42 MB
     //     bloques  500    61 s    34 MB
     //
-    // 2 000 deja holgura de sobra sobre los 128 MB y cabe con comodidad en los 120
-    // segundos de max_execution_time. Bajar mas solo compra memoria que no hace
-    // falta a cambio de duplicar el tiempo.
+    // 2 000 deja holgura de sobra sobre los 128 MB. Bajar mas solo compra memoria
+    // que no hace falta a cambio de duplicar el tiempo.
+    //
+    // Lo que aquella medicion no vio es que el TIEMPO no escala con el tamano del
+    // bloque sino con cuantas veces hay que abrir el archivo, y eso crece con las
+    // filas: el export de septiembre trae 23 963 —doce bloques— y se comio los 120
+    // segundos del php.ini en la novena apertura, a la altura de la fila 16 010. La
+    // peticion moria a media carga y la pantalla se quedaba sin motivo que dar.
+    //
+    // Por eso el limite se renueva bloque a bloque (ver `cargarPorBloques`): con
+    // este presupuesto cada apertura tiene tiempo de sobra —tarda entre diez y
+    // quince segundos— y un bloque que de verdad se cuelgue sigue muriendo.
     function leePorBloques($tipo) {
         return $tipo === 'commands';
     }
 
-    const FILAS_POR_BLOQUE = 2000;
+    const FILAS_POR_BLOQUE    = 2000;
+    const SEGUNDOS_POR_BLOQUE = 120;
+
+    // -- El parte de la carga --
+
+    /*
+        Donde el importador va apuntando por que paso va, para que la consulta de
+        avance pueda contarlo desde OTRA peticion.
+
+        Hasta que no se escribe la primera fila no hay nada que contar en base, y
+        con un archivo de 24 000 renglones eso es medio minuto largo: dos aperturas
+        completas del Excel —una para los encabezados y otra para el primer bloque—
+        durante las cuales la pantalla solo podia decir "leyendo" y el usuario, con
+        razon, pensaba que no estaba pasando nada.
+
+        Va en un fichero y no en la sesion porque la sesion esta cerrada a
+        proposito: es justo lo que impedia que las dos peticiones —la que carga y la
+        que pregunta— corrieran a la vez.
+    */
+    static function rutaEstado($fileName) {
+        return sys_get_temp_dir() . '/facture-carga-' . md5((string) $fileName) . '.json';
+    }
+
+    private function apuntarPaso($ctx, $fase, $extra = []) {
+        @file_put_contents(
+            self::rutaEstado($ctx['fileName']),
+            json_encode(array_merge(['fase' => $fase], $extra))
+        );
+    }
+
+    // El parte se borra al terminar: un fichero viejo haria que la siguiente carga
+    // del mismo archivo naciera anunciando el bloque en que murio la anterior.
+    private function borrarPaso($ctx) {
+        @unlink(self::rutaEstado($ctx['fileName']));
+    }
 
     /*
         Pestanas que el modulo muestra sin tener todavia contrato de hojas.
@@ -683,13 +726,21 @@ class ImportFacture2Cargas {
             $hojas[] = [
                 'nombre'  => $nombre,
                 'estado'  => $estado,
-                'detalle' => $vacia
-                    ? 'columnas ' . $primera . ':' . $ultima . ' · sin movimientos'
-                    : ($repetida
-                        ? 'columnas ' . $primera . ':' . $ultima . ' · ' . number_format($carga['omitidos']) . ' movimientos ya procesados'
-                        : 'columnas ' . $primera . ':' . $ultima . ' · fila ' . ($config['headerRow'] + 1) . ' · ' . number_format($carga['insertadas']) . ' de ' . number_format($carga['leidas']) . ' filas'),
+                'detalle' => 'columnas ' . $primera . ':' . $ultima
+                           . ($vacia || $repetida ? '' : ' · fila ' . ($config['headerRow'] + 1))
+                           . ' · ' . $this->queHizoLaHoja($carga, $vacia, $repetida),
                 'filas'   => $carga['insertadas'],
                 'leidas'  => $carga['leidas'],
+                // Los numeros con los que se responde "y que paso con mi archivo":
+                // lo que entro, lo que ya estaba y lo que se fue con la carga
+                // anterior. Viajan sueltos —y no solo dentro del texto— porque la
+                // pantalla los agrupa por lo que le paso a cada movimiento, y ahi
+                // una insercion que sustituye a una fila borrada no cuenta como
+                // movimiento nuevo.
+                'insertadas'   => $carga['insertadas'],
+                'omitidos'     => $carga['omitidos'],
+                'reemplazadas' => $carga['reemplazadas'],
+                'rechazadas'   => $carga['rechazadas'],
                 // Un archivo ya procesado esta al 100 %: se leyo entero, no quedo a
                 // medias. La barra al 0 se leeria como que algo fallo.
                 'avance'  => ($repetida || $carga['leidas'] === 0)
@@ -809,6 +860,48 @@ class ImportFacture2Cargas {
             'columnas' => [],
             'resumen'  => 'no se encontro una fila de encabezados en las primeras ' . $ultima . ' filas'
         ];
+    }
+
+    // Lo que la hoja hizo, en una linea y con verbos.
+    //
+    // "24 de 24 filas" no dice si esas 24 se guardaron, si ya estaban o si
+    // sustituyeron a las de una carga anterior, que es justo lo que se pregunta
+    // quien acaba de subir el archivo. Los tres casos se nombran por separado:
+    //
+    //   nuevos        entraron a la base en esta carga
+    //   ya estaban    el movimiento ya se habia procesado y se omitio
+    //   reemplazadas  filas de la carga anterior del periodo que se borraron para
+    //                 dejar sitio a estas (solo las hojas que se sobreescriben)
+    private function queHizoLaHoja($carga, $vacia, $repetida) {
+        if ($vacia) return 'la hoja no trae movimientos en el periodo';
+
+        if ($repetida) {
+            $texto = 'nada nuevo: los ' . number_format($carga['omitidos']) . ' movimientos ya estaban cargados';
+
+            return $carga['difieren'] > 0
+                ? $texto . ', ' . number_format($carga['difieren']) . ' con otro importe'
+                : $texto;
+        }
+
+        // Lo que entro a ocupar el sitio de una fila borrada no es un movimiento
+        // ganado: es el mismo, reescrito. Y si la carga anterior tenia mas de las
+        // que trae este archivo, la diferencia se perdio y hay que decirlo.
+        $refrescados = min($carga['insertadas'], $carga['reemplazadas']);
+        $nuevos      = $carga['insertadas'] - $refrescados;
+        $perdidos    = max(0, $carga['reemplazadas'] - $carga['insertadas']);
+
+        $partes = [];
+
+        if ($nuevos      > 0) $partes[] = number_format($nuevos) . ' nuevos';
+        if ($refrescados > 0) $partes[] = number_format($refrescados) . ' refrescados (la hoja se reescribe entera)';
+        if ($perdidos    > 0) $partes[] = number_format($perdidos) . ' de la carga anterior ya no vienen en el archivo';
+
+        if ($carga['omitidos']   > 0) $partes[] = number_format($carga['omitidos']) . ' ya estaban';
+        if ($carga['rechazadas'] > 0) $partes[] = number_format($carga['rechazadas']) . ' rechazados';
+
+        if (empty($partes)) $partes[] = 'sin cambios';
+
+        return implode(' · ', $partes) . ' · ' . number_format($carga['leidas']) . ' filas leidas';
     }
 
     // Cola del paso "Guardar": lo que la hoja hizo mas alla de insertar.
@@ -1926,7 +2019,10 @@ class ImportFacture2Cargas {
         );
 
         // Los encabezados se validan leyendo SOLO su fila: no hace falta el archivo
-        // entero para saber si las columnas estan donde el contrato dice.
+        // entero para saber si las columnas estan donde el contrato dice. Abrirlo si
+        // hace falta, y con un libro grande eso ya son segundos: se apunta.
+        $this->apuntarPaso($ctx, 'columnas');
+
         $docEnc   = $this->leerBloque($ruta, $nombre, $config['headerRow'], 1);
         $columnas = $this->validarEncabezados($docEnc->getSheetByName($nombre), $config);
         $faltan   = $this->columnasMalas($columnas, $config);
@@ -2048,6 +2144,27 @@ class ImportFacture2Cargas {
         $desde = $config['headerRow'] + 1;
 
         for (; $desde <= $total; $desde += self::FILAS_POR_BLOQUE) {
+            // Cada bloque estrena su propio presupuesto de tiempo.
+            //
+            // El reloj de PHP mide la peticion entera, y leer por bloques no la
+            // acorta: la abarata en memoria, pero cada vuelta vuelve a abrir el
+            // .xlsx completo —descomprimir el zip y parsear su XML— porque el
+            // lector no sabe continuar donde lo dejo. Un archivo de 24 000 filas
+            // son doce aperturas, y con el limite del php.ini en 120 s el proceso
+            // moria a media carga: sin respuesta que devolver, la pantalla solo
+            // podia decir "no se pudo leer el archivo".
+            //
+            // El limite no se quita, se renueva por bloque: un bloque que se
+            // cuelgue sigue muriendo, pero un archivo grande deja de morir por ser
+            // grande.
+            set_time_limit(self::SEGUNDOS_POR_BLOQUE);
+
+            $this->apuntarPaso($ctx, 'bloque', [
+                'bloque'  => $bloques + 1,
+                'bloques' => (int) ceil(($total - $config['headerRow']) / self::FILAS_POR_BLOQUE),
+                'leidas'  => $leidas
+            ]);
+
             $doc   = $this->leerBloque($ruta, $nombre, $desde, self::FILAS_POR_BLOQUE);
             $hoja  = $doc->getSheetByName($nombre);
             $hasta = min($desde + self::FILAS_POR_BLOQUE - 1, $total);
@@ -2114,6 +2231,8 @@ class ImportFacture2Cargas {
         }
 
         if ($insertadas === 0) {
+            $this->borrarPaso($ctx);
+
             foreach ($lotes as $lote) {
                 $this->mdl->deleteImportBatchById($this->util->sql(['id' => $lote['id']], 1));
             }
@@ -2129,9 +2248,25 @@ class ImportFacture2Cargas {
                     ? 'El archivo ya estaba cargado: no habia cuentas nuevas'
                     : 'No se guardo ninguna fila',
                 'steps'   => $steps,
-                'hojas'   => [['nombre' => $nombre, 'estado' => 'ok', 'detalle' => 'sin filas nuevas', 'filas' => 0]]
+                'hojas'   => [[
+                    'nombre'  => $nombre,
+                    'estado'  => 'ok',
+                    'detalle' => $this->omitidos > 0
+                        ? 'nada nuevo: las ' . number_format($this->omitidos) . ' cuentas del archivo ya estaban cargadas'
+                        : 'no entro ningun renglon',
+                    'filas'        => 0,
+                    'leidas'       => $leidas,
+                    'insertadas'   => 0,
+                    'omitidos'     => $this->omitidos,
+                    'reemplazadas' => $reemplazadas,
+                    'rechazadas'   => $this->rechazadas
+                ]]
             ];
         }
+
+        // Con las filas dentro, lo que queda es cruzarlas. La barra ya esta al 100 %
+        // y el modal sigue trabajando: se apunta para poder decirlo.
+        $this->apuntarPaso($ctx, 'enlaces');
 
         // El catalogo que nacio con esta carga ya esta en base: ahora se resuelven
         // los enlaces del renglon. Los tres van en una sentencia por lote, no una
@@ -2181,6 +2316,8 @@ class ImportFacture2Cargas {
                 ' cuenta(s) esperan su venta · se enlazan solas al cargar el reporte de ventas de esos dias');
         }
 
+        $this->borrarPaso($ctx);
+
         return [
             'status'  => 200,
             'message' => number_format($insertadas) . ' renglones de detalle cargados',
@@ -2188,8 +2325,16 @@ class ImportFacture2Cargas {
             'hojas'   => [[
                 'nombre'  => $nombre,
                 'estado'  => 'ok',
-                'detalle' => number_format($insertadas) . ' renglones',
-                'filas'   => $insertadas
+                'detalle' => number_format($insertadas) . ' renglones nuevos'
+                           . ($this->omitidos > 0 ? ' · ' . number_format($this->omitidos) . ' cuentas ya estaban' : '')
+                           . ($reemplazadas   > 0 ? ' · ' . number_format($reemplazadas) . ' de la carga anterior se reemplazaron' : '')
+                           . ' · ' . number_format($leidas) . ' filas leidas',
+                'filas'        => $insertadas,
+                'leidas'       => $leidas,
+                'insertadas'   => $insertadas,
+                'omitidos'     => $this->omitidos,
+                'reemplazadas' => $reemplazadas,
+                'rechazadas'   => $this->rechazadas
             ]]
         ];
     }
@@ -2217,8 +2362,24 @@ class ImportFacture2Cargas {
         $contrato = $this->contrato();
         $tipo     = isset($ctx['tipo']) ? $ctx['tipo'] : '';
 
-        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
-        $hojas  = $this->hojasDelArchivo($lector, $ruta);
+        // Un archivo que PhpSpreadsheet no reconoce lanzaba aqui, y como esta es la
+        // PRIMERA peticion del proceso —la revision previa—, la excepcion mataba la
+        // respuesta entera: el navegador recibia la pagina de error de PHP en vez de
+        // JSON y la pantalla solo podia decir "no se pudo procesar". El motivo se
+        // atrapa y viaja como respuesta, que es lo unico con lo que el usuario puede
+        // arreglar su archivo.
+        try {
+            $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+            $hojas  = $this->hojasDelArchivo($lector, $ruta);
+        } catch (Exception $e) {
+            return [
+                'status'  => 400,
+                'destino' => $tipo,
+                'movido'  => false,
+                'hojas'   => [],
+                'message' => 'No se pudo leer el archivo: ' . $this->mdl->motivoLectura($e->getMessage())
+            ];
+        }
 
         $notas = $this->notasDelPeriodo($ctx);
 

@@ -811,7 +811,16 @@ class ctrl extends mdl2 {
         }
 
         foreach ($_FILES as $fileData) {
-            if ($fileData['error'] !== UPLOAD_ERR_OK) continue;
+            // El archivo que PHP rechazo antes de llegar aqui NO se salta en
+            // silencio: saltarlo terminaba en "No se proceso ningun archivo", que
+            // no dice nada y deja al usuario probando el mismo Excel una y otra vez.
+            // El motivo lo sabe PHP y se traduce a algo accionable.
+            if ($fileData['error'] !== UPLOAD_ERR_OK) {
+                return ['error' => [
+                    'status'  => 400,
+                    'message' => 'No se pudo subir "' . $fileData['name'] . '": ' . $this->motivoSubida($fileData['error'])
+                ]];
+            }
 
             try {
                 $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($fileData['tmp_name']);
@@ -840,12 +849,57 @@ class ctrl extends mdl2 {
             } catch (Exception $e) {
                 return ['error' => [
                     'status'  => 400,
-                    'message' => 'No se pudo leer el archivo "' . $fileData['name'] . '": ' . $e->getMessage()
+                    'message' => 'No se pudo leer el archivo "' . $fileData['name'] . '": ' . $this->motivoLectura($e->getMessage())
                 ]];
             }
         }
 
         return ['error' => ['status' => 400, 'message' => 'No se proceso ningun archivo.']];
+    }
+
+    // Por que PHP rechazo la subida, dicho para quien tiene el archivo delante.
+    //
+    // Los dos limites se leen de la configuracion que corre AHORA y no de un numero
+    // escrito a mano: son los que hay que subir para que el archivo entre, y decir
+    // uno que no es manda al usuario a cambiar lo que no era.
+    function motivoSubida($code) {
+        if ($code === UPLOAD_ERR_INI_SIZE) {
+            return 'pesa mas de lo que admite el servidor (upload_max_filesize = ' . ini_get('upload_max_filesize') . ').';
+        }
+
+        if ($code === UPLOAD_ERR_FORM_SIZE) return 'supera el tamano maximo del formulario.';
+        if ($code === UPLOAD_ERR_PARTIAL)   return 'la subida se corto a medias. Vuelve a intentarlo.';
+        if ($code === UPLOAD_ERR_NO_FILE)   return 'no se adjunto ningun archivo.';
+        if ($code === UPLOAD_ERR_NO_TMP_DIR) return 'el servidor no tiene carpeta temporal donde dejarlo.';
+        if ($code === UPLOAD_ERR_CANT_WRITE) return 'el servidor no pudo escribirlo en disco.';
+        if ($code === UPLOAD_ERR_EXTENSION)  return 'una extension de PHP detuvo la subida.';
+
+        return 'error ' . (int) $code . ' de subida.';
+    }
+
+    // Lo que dice PhpSpreadsheet cuando no puede abrir el libro, traducido.
+    //
+    // Sus mensajes van en ingles y nombran sus propias clases; el usuario solo
+    // necesita saber que hacer con el archivo que tiene. El original se conserva
+    // detras para cuando el motivo no sea ninguno de los conocidos.
+    function motivoLectura($mensaje) {
+        if (stripos($mensaje, 'Unable to identify a reader') !== false) {
+            return 'no parece un Excel. Comprueba que sea el .xlsx que exporta el POS y no un CSV o un PDF renombrado.';
+        }
+
+        if (stripos($mensaje, 'File not found') !== false || stripos($mensaje, 'does not exist') !== false) {
+            return 'el servidor no encontro el archivo subido. Vuelve a intentarlo.';
+        }
+
+        if (stripos($mensaje, 'password') !== false || stripos($mensaje, 'encrypt') !== false) {
+            return 'esta protegido con contrasena. Abrelo en Excel, guardalo sin proteccion y vuelve a subirlo.';
+        }
+
+        if (stripos($mensaje, 'zip') !== false || stripos($mensaje, 'corrupt') !== false) {
+            return 'el archivo esta danado o incompleto. Vuelve a exportarlo desde el POS.';
+        }
+
+        return $mensaje;
     }
 
     // Revision previa: dice a que pestana pertenece el archivo y si sus columnas
@@ -996,8 +1050,8 @@ class ctrl extends mdl2 {
             } catch (Exception $e) {
                 return [
                     'status'  => 400,
-                    'message' => 'No se pudo leer el archivo "' . $fichero . '": ' . $e->getMessage(),
-                    'steps'   => array_merge($steps, [step('Abrir libro', 'error', $e->getMessage())])
+                    'message' => 'No se pudo leer el archivo "' . $fichero . '": ' . $this->motivoLectura($e->getMessage()),
+                    'steps'   => array_merge($steps, [step('Abrir libro', 'error', $this->motivoLectura($e->getMessage()))])
                 ];
             }
 
@@ -1043,12 +1097,22 @@ class ctrl extends mdl2 {
             $total = max($total, (int) $lote['source_rows']);
         }
 
+        // Lo que el importador esta haciendo AHORA, que no se puede deducir de la
+        // base: mientras abre el Excel no hay ni una fila que contar, y esa espera
+        // —dos aperturas completas antes del primer bloque— es justo la que hacia
+        // pensar que el proceso estaba colgado.
+        $paso  = [];
+        $parte = ImportFacture2Cargas::rutaEstado($_POST['fileName'] ?? '');
+
+        if (is_file($parte)) $paso = json_decode((string) file_get_contents($parte), true) ?: [];
+
         return [
             'status'  => 200,
             'lotes'   => count($lotes),
             'meses'   => array_values(array_unique($meses)),
             'filas'   => $filas,
             'total'   => $total,
+            'paso'    => $paso,
             'ultimo'  => $this->ultimoLoteId()
         ];
     }
@@ -1098,6 +1162,35 @@ class ctrl extends mdl2 {
         $max = $this->getMaxImportBatchId();
 
         return (int) ($max[0]['id'] ?? 0);
+    }
+
+    // De que meses ya se subio este archivo.
+    //
+    // Se pregunta por la PESTANA y no por una hoja suelta: el reporte de ventas
+    // trae cuatro hojas y basta con que una haya entrado para que ese mes cuente
+    // como cargado. Se responde antes de elegir el periodo, que es cuando sirve:
+    // el usuario esta a punto de decidir en que mes cae el archivo que va a soltar.
+    function lsPeriodosCargados() {
+        $tab    = (string) ($_POST['tab'] ?? '');
+        $hojas  = hojasDelTab($this->importador()->contrato(), $tab);
+
+        if (empty($hojas)) return ['status' => 200, 'periodos' => []];
+
+        $lotes  = $this->listImportBatchPeriods($hojas, array_merge([$this->branchId()], $hojas));
+        $__row  = [];
+
+        foreach ($lotes as $l) {
+            $__row[] = [
+                'anio'   => (int) $l['period_year'],
+                'mes'    => (int) $l['period_month'],
+                'texto'  => periodoTexto($l['period_month'], $l['period_year']),
+                'filas'  => (int) $l['filas'],
+                'lotes'  => (int) $l['lotes'],
+                'ultima' => fechaCorta($l['ultima'])
+            ];
+        }
+
+        return ['status' => 200, 'periodos' => $__row];
     }
 
     function deleteCarga() {
@@ -1667,4 +1760,17 @@ function actionButtons($id) {
 }
 
 $obj = new ctrl();
+
+// La sesion se suelta en cuanto el constructor termino de usarla.
+//
+// PHP bloquea el fichero de sesion durante toda la peticion, asi que las consultas
+// de avance se quedaban encoladas detras de la carga que estaban vigilando: no
+// respondian hasta que el Excel habia terminado de escribirse. Por eso la barra de
+// progreso no aparecia —o aparecia una sola vez, ya llena, cuando todo habia
+// pasado— y el usuario veia el modal quieto durante minutos.
+//
+// Va DESPUES de `new ctrl()` a proposito: es el constructor el que resuelve la
+// sucursal y la cachea en $_SESSION, y cerrar antes tiraria ese valor.
+session_write_close();
+
 echo json_encode($obj->{$_POST['opc']}());

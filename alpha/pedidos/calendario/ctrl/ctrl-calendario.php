@@ -78,7 +78,8 @@ class ctrlCalendario extends MCalendarioPedidos{
                 'client'   => $key['name_client'],
                 'delivery' => $delivered,
                 'type'     => $type,
-                'color'    => $color
+                'color'    => $color,
+                'folio'    => formatFolio($key['subsidiaries_id'], $key['id'])
             ];
         }
         return $event;
@@ -122,6 +123,13 @@ class ctrlCalendario extends MCalendarioPedidos{
             ]
         ];
     }
+}
+
+// Complements.
+
+function formatFolio($subsidiariesId = null, $numero = null) {
+    $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
+    return 'P' . $numero . '-' . $sucursal;
 }
 
 $obj    = new ctrlCalendario();

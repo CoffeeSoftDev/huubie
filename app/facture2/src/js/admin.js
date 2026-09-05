@@ -117,6 +117,11 @@ class Admin extends Templates {
                 text: 'Importación',
                 fn:   () => posGo('/app/facture2/cargas.php')
             },
+            {
+                id:   'tlHistorial',
+                text: 'Historial',
+                fn:   () => posGo('/app/facture2/historial.php')
+            },
             // {
             //     id:   'tlTicket',
             //     text: 'Reimprimir ticket',

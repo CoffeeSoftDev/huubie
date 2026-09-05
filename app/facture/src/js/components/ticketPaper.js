@@ -10,8 +10,9 @@
 // El que manda es el `pos_code` del emisor: la sucursal ya sabe con que sistema
 // opera, asi que ningun modulo tiene que decidirlo al llamar.
 //
-// De momento los dos imprimen el papel de Soft Restaurant (ver PRESTADO): del
-// ticket de Wansoft todavia no hay una muestra fisica que copiar.
+// Los dos estan cotejados contra su tira fisica: el de Soft Restaurant contra la
+// termica de 40 columnas, y el de Wansoft contra el ticket de pagado que imprime
+// la terminal (logo, reglas de punta a punta y las tres horas de la mesa).
 class TicketPaper {
 
     // La termica arma el ticket sobre una rejilla monoespaciada de 40 columnas: los
@@ -25,8 +26,8 @@ class TicketPaper {
     // lema, RFC ni domicilio. Se capturan igual en el emisor, porque el ticket
     // virtual y la factura los siguen necesitando; lo que cambia es si se imprimen.
     //
-    // La llave es el papel y no el sistema: a quien imprime con papel prestado le
-    // toca el membrete de ese papel, que es el que se esta imprimiendo.
+    // La llave es el papel y no el sistema: es el papel el que decide que renglones
+    // se imprimen.
     //
     // Se puede forzar al llamar con `membrete: ['razon', 'rfc']` cuando una
     // sucursal quiera otra cosa.
@@ -126,34 +127,17 @@ class TicketPaper {
         return !importe || Number(String(importe).replace(/[^0-9.-]/g, '')) === 0;
     }
 
-    // Con que sistema opera la sucursal. La llave es el `code` del catalogo de POS,
+    // Con que papel imprime la sucursal. La llave es el `code` del catalogo de POS,
     // no el nombre: el nombre se puede editar desde Catalogos y dejaria el ticket
     // sin formato.
-    static formato(opts) {
+    //
+    // Es tambien lo que consulta quien rotule algo del formato (la banda de la
+    // vista previa del emisor), o la pantalla diria una cosa y el papel imprimiria
+    // otra.
+    static papel(opts) {
         const code = String(opts.pos || (opts.emisor || {}).pos_code || '').toLowerCase();
 
         return code === 'wansoft' ? 'wansoft' : 'pos';
-    }
-
-    // Que sistema imprime con papel prestado. De Wansoft no hay todavia un ticket
-    // fisico que copiar, y un formato supuesto se entrega al cliente como si fuera
-    // el suyo: hasta que llegue la muestra sale en el papel de Soft Restaurant,
-    // que si esta cotejado contra la tira real —membrete fiscal completo incluido,
-    // porque es ese papel el que se esta imprimiendo.
-    //
-    // `paperWansoft` se queda armado tal cual: en cuanto haya con que compararlo se
-    // borra esta llave y vuelve a entrar sin tocar nada mas.
-    static get PRESTADO() {
-        return { wansoft: 'pos' };
-    }
-
-    // El papel que de verdad se imprime, ya resuelto el prestamo. Es lo que tiene
-    // que consultar quien rotule algo del formato (la banda de la vista previa del
-    // emisor), o la pantalla diria una cosa y el papel imprimiria otra.
-    static papel(opts) {
-        const formato = TicketPaper.formato(opts);
-
-        return TicketPaper.PRESTADO[formato] || formato;
     }
 
     // Un renglon del membrete solo se imprime si el papel lo lleva y si tiene dato:
@@ -350,18 +334,22 @@ class TicketPaper {
 
         const movimiento = e.movimiento || e.folio || '';
         const fechaOp    = e.fechaOperacion || String(e.fechaHora || e.fecha || '').split(' ')[0];
-        const impresion  = e.fechaImpresion || e.fechaHora || '';
+        const impresion  = TicketPaper.fechaHora(e.fechaImpresion || e.fechaHora || '');
         const articulos  = e.articulos === undefined ? TicketPaper.articulos(e.lineas) : e.articulos;
         const pagos      = TicketPaper.pagos(e);
 
         const lineas = (e.lineas || []).map(li => `
             <tr>
-                <td class="w-[6ch] text-left align-top">${esc(li.cant)}</td>
+                <td class="w-[5ch] text-left align-top">${esc(li.cant)}</td>
                 <td class="w-auto text-left pr-2 align-top">${esc(li.nombre)}</td>
                 <td class="w-[9ch] text-right align-top whitespace-nowrap">${esc(li.importe)}</td>
             </tr>
         `).join('');
 
+        // La tabla de cobros va sin rejilla fija: las tres columnas de cifras piden
+        // el ancho que necesitan y el nombre de la forma de pago se queda con lo que
+        // sobra. Repartidas a partes iguales, "TARJETA DE CREDITO" se parte en dos
+        // renglones mientras las cifras nadan en su columna.
         const filasPago = pagos.map(p => `
             <tr>
                 <td class="text-left align-top">${esc(p.nombre)}</td>
@@ -382,18 +370,18 @@ class TicketPaper {
                     ${m.telefono ? `<p class="m-0">Tel: ${esc(m.telefono)}</p>` : ''}
                 </header>
 
-                <section class="mt-4 text-center font-bold">
+                <section class="mt-6 text-center font-bold text-[1.25em] leading-[1.3]">
                     <p class="m-0">${esc(l.pagado)}</p>
                     <p class="m-0">${esc(e.tipoOrden || l.venta)}</p>
                 </section>
 
                 ${TicketPaper.rule()}
 
-                <p class="my-1 text-center">${esc(e.cuenta || e.nota || '')}</p>
+                <p class="my-1 text-center text-[1.1em]">${esc(e.cuenta || e.nota || '')}</p>
 
                 ${TicketPaper.rule()}
 
-                <section class="my-1 font-bold">
+                <section class="my-1 font-bold text-[1.1em]">
                     ${TicketPaper.fila('Movimiento:', movimiento)}
                     ${TicketPaper.fila('Fecha operación:', fechaOp)}
                 </section>
@@ -401,13 +389,13 @@ class TicketPaper {
                 ${TicketPaper.rule()}
 
                 <section class="my-1 font-bold">
-                    ${TicketPaper.fila('Orden:', e.orden, 'text-[1.7em] leading-[1.2]')}
-                    ${TicketPaper.fila('Mesa:',  e.mesa,  'text-[1.7em] leading-[1.2]')}
+                    ${TicketPaper.fila('Orden:', e.orden, 'text-[2em] leading-[1.15]')}
+                    ${TicketPaper.fila('Mesa:',  e.mesa,  'text-[2em] leading-[1.15]')}
                     ${TicketPaper.fila('Personas:', e.personas)}
                     ${TicketPaper.fila('Mesero:',   e.mesero)}
-                    ${TicketPaper.fila('Hora Entrada:', e.horaEntrada)}
-                    ${TicketPaper.fila('Hora Impresión Preticket:', e.horaPreticket)}
-                    ${TicketPaper.fila('Hora Cierre:', e.horaCierre || e.hora)}
+                    ${TicketPaper.fila('Hora Entrada:', TicketPaper.hora(e.horaEntrada))}
+                    ${TicketPaper.fila('Hora Impresión Preticket:', TicketPaper.hora(e.horaPreticket))}
+                    ${TicketPaper.fila('Hora Cierre:', TicketPaper.hora(e.horaCierre || e.hora))}
                 </section>
 
                 ${TicketPaper.rule()}
@@ -416,7 +404,7 @@ class TicketPaper {
                     <table class="w-full table-fixed">
                         <thead>
                             <tr>
-                                <th class="w-[6ch] text-left">Cant.</th>
+                                <th class="w-[5ch] text-left">Cant.</th>
                                 <th class="w-auto text-left pr-2">Descripción</th>
                                 <th class="w-[9ch] text-right">Importe</th>
                             </tr>
@@ -431,26 +419,26 @@ class TicketPaper {
 
                 ${TicketPaper.rule()}
 
-                <section class="my-1 text-right">
+                <section class="my-1 text-right text-[1.1em]">
                     ${TicketPaper.vacio(e.descuento) ? '' : `<p class="m-0">Descuento: ${esc(e.descuento)}</p>`}
                     ${e.subtotal ? `<p class="m-0">Subtotal: ${esc(e.subtotal)}</p>` : ''}
                     ${e.iva === undefined ? '' : `<p class="m-0">IVA: ${esc(e.iva)}</p>`}
-                    <p class="m-0 text-[1.55em] font-bold leading-[1.2]">Gran Total: ${esc(e.total)}</p>
+                    <p class="m-0 text-[1.75em] font-bold leading-[1.25]">Gran Total: ${esc(e.total)}</p>
                 </section>
 
-                ${e.letras ? `<p class="my-1 text-center uppercase">${esc(e.letras)}</p>` : ''}
+                ${e.letras ? `<p class="my-1 text-center uppercase text-[1.1em] leading-[1.3]">${esc(e.letras)}</p>` : ''}
 
                 ${TicketPaper.rule()}
 
                 <section>
                     <p class="m-0 text-center font-bold">${esc(l.formasPago)}</p>
-                    <table class="w-full table-fixed">
+                    <table class="w-full tk-pagos">
                         <thead>
                             <tr>
                                 <th class="text-left">Nombre</th>
-                                <th class="text-right">Monto</th>
-                                <th class="text-right">Propina</th>
-                                <th class="text-right">Cambio</th>
+                                <th class="text-right whitespace-nowrap">Monto</th>
+                                <th class="text-right whitespace-nowrap">Propina</th>
+                                <th class="text-right whitespace-nowrap">Cambio</th>
                             </tr>
                         </thead>
                         <tbody>${filasPago}</tbody>
@@ -467,7 +455,7 @@ class TicketPaper {
 
                 ${TicketPaper.rule()}
 
-                <p class="m-0 text-right">${esc(l.powered)}</p>
+                <p class="m-0 text-right text-[0.95em]">${esc(l.powered)}</p>
             </div>
         `;
     }
@@ -490,9 +478,32 @@ class TicketPaper {
 
         return `
             <div class="flex items-baseline justify-between gap-2 ${extra || ''}">
-                <span>${esc(label)}</span><span class="text-right">${esc(value)}</span>
+                <span>${esc(label)}</span><span class="text-right whitespace-nowrap">${esc(value)}</span>
             </div>
         `;
+    }
+
+    // Wansoft exporta la fecha de operacion sin hora, y ese hueco llega como las
+    // doce en punto de la noche —"00:00" o "12:00:00 AM", segun quien la escriba—.
+    // No es la hora a la que se cobro: es que no la mando. El papel no imprime una
+    // hora que no existe, igual que el listado no abre su columna Hora cuando
+    // ninguna venta la trae.
+    static get MEDIANOCHE() { return /0?0:00(?::00)?|12:00(?::00)?\s*a\.?\s*m\.?/i; }
+
+    // La hora suelta: sin hora de verdad, el renglon no se imprime.
+    static hora(valor) {
+        const v = String(valor == null ? '' : valor).trim();
+
+        return new RegExp(`^(?:${TicketPaper.MEDIANOCHE.source})$`, 'i').test(v) ? '' : v;
+    }
+
+    // La misma medianoche cuando viene pegada a la fecha. Aqui el dia si existe
+    // —es el que el ticket lleva impreso—, asi que se conserva y lo unico que se
+    // recorta es la hora que el POS no mando.
+    static fechaHora(valor) {
+        const v = String(valor == null ? '' : valor).trim();
+
+        return v.replace(new RegExp(`\\s+(?:${TicketPaper.MEDIANOCHE.source})$`, 'i'), '');
     }
 
     // Wansoft imprime cuantas piezas se sirvieron, no cuantos renglones tiene la

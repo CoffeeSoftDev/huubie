@@ -1240,8 +1240,9 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
    arriba, que impone Courier con un selector universal: la variante repite la
    familia.
 
-   Hoy no se usa: mientras no haya un ticket de Wansoft que copiar, ese sistema
-   imprime en el papel de arriba (ver TicketPaper.PRESTADO). */
+   Esta cotejada contra el ticket de pagado de la terminal: logo centrado, orden
+   y mesa en cuerpo grande, y el resto del piso —las tres horas de la mesa y el
+   desglose de la forma de pago— en el cuerpo del papel. */
 #root .ticket-paper.tk-wansoft {
     /* Los mismos 80mm de la tira: cambia como se compone el ticket, no el rollo
        en el que se imprime. */
@@ -1262,17 +1263,40 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
 
 /* La regla es el separador del formato y se dibuja, no se escribe con "=": por
    eso el margen es del alto de un renglon y el trazo va en negro pleno, como el
-   que deja la termica al imprimir una linea. */
-#root .ticket-paper.tk-wansoft .tk-rule { border-top: 1.5px solid #000; margin: 8px 0; }
+   que deja la termica al imprimir una linea.
+
+   Va de canto a canto del papel y no de margen a margen: en la tira fisica el
+   trazo cruza el rollo entero mientras el texto respeta su respiro. De ahi los
+   14px negativos, que son los mismos del acolchado de arriba. */
+#root .ticket-paper.tk-wansoft .tk-rule { border-top: 1.5px solid #000; margin: 8px -14px; }
 
 #root .ticket-paper.tk-wansoft table { border-collapse: collapse; width: 100%; }
 #root .ticket-paper.tk-wansoft th,
 #root .ticket-paper.tk-wansoft td { padding: 2px 0; font-size: 1em; color: #000; line-height: 1.4; }
 
-/* El encabezado de las dos tablas va separado de sus renglones por un filete
-   fino: en el ticket de Wansoft la columna se lee bajo su titulo, no pegada. */
-#root .ticket-paper.tk-wansoft thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
+/* El filete debajo del titulo es de la tabla de formas de pago y solo de ella:
+   asi sale en el ticket fisico, donde el consumo cuelga de su encabezado sin
+   linea de por medio —ya lo encuadran las dos reglas del bloque— y el cobro si
+   la lleva, porque debajo del titulo empiezan cifras en cuatro columnas. */
+#root .ticket-paper.tk-wansoft .tk-pagos thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
 #root .ticket-paper.tk-wansoft tbody tr:first-child td { padding-top: 6px; }
+
+/* Las columnas de cifras del cobro se reparten lo que sobra despues del nombre de
+   la forma de pago, y sin respiro sus titulos se leen como una sola palabra
+   ("MontoPropinaCambio"). El hueco es corto y solo va entre columnas: cada pixel
+   que se les da se le quita al nombre, y con 8px "TARJETA DE CREDITO" ya no cabe
+   en un renglon. */
+#root .ticket-paper.tk-wansoft .tk-pagos th:first-child,
+#root .ticket-paper.tk-wansoft .tk-pagos td:first-child { padding-right: 4px; }
+
+/* El cobro se compone un punto mas chico que el consumo, como en la tira fisica:
+   son cuatro columnas en el mismo ancho de papel, y a la medida del cuerpo el
+   nombre de la forma de pago se parte en dos renglones. */
+#root .ticket-paper.tk-wansoft .tk-pagos th,
+#root .ticket-paper.tk-wansoft .tk-pagos td { font-size: .95em; }
+
+#root .ticket-paper.tk-wansoft .tk-pagos th + th + th,
+#root .ticket-paper.tk-wansoft .tk-pagos td + td + td { padding-left: 6px; }
 
 @media print {
     /* El encabezado que el navegador estampa arriba de cada hoja (la fecha y el
@@ -1308,6 +1332,11 @@ html[data-facture-theme="light"] #root #tickets #filterBar > div > .fade-in {
         padding: 10px 12px;
         box-shadow: none;
     }
+
+    /* La regla sangra el acolchado del papel para cruzar el rollo de canto a
+       canto, y aqui el acolchado es otro: sin esto el trazo se saldria de la hoja
+       justo los 2px de diferencia y la impresora lo recortaria. */
+    #root .ticket-paper.tk-wansoft .tk-rule { margin-left: -12px; margin-right: -12px; }
 
     /* -- Hoja del dia --
        Imprimir el lote y imprimir el ticket seleccionado son dos trabajos

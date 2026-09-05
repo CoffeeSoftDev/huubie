@@ -73,16 +73,16 @@ class App extends Templates {
 
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="relative">
-                        <button id="statusFilterBtn" type="button" 
-                            class="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-300 text-blue-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        <button id="statusFilterBtn" type="button"
+                            class="flex items-center gap-2 h-10 bg-blue-500/10 hover:bg-blue-500/20 border-0 text-blue-300 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                             <i class="icon-filter"></i>
                             <span>Filtrar Estados</span>
                             <span id="statusCount" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">4</span>
                             <i class="icon-down-open text-xs"></i>
                         </button>
-                        
-                        <div id="statusDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-300 rounded-lg shadow-lg z-50 min-w-[240px]">
-                            <div class="p-3 border-b border-gray-200">
+
+                        <div id="statusDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-700 rounded-lg shadow-lg z-50 min-w-[240px]">
+                            <div class="p-3 border-b border-gray-700">
                                 <p class="text-xs font-semibold text-white uppercase">Seleccionar Estados</p>
                             </div>
                             <div class="p-2 space-y-1">
@@ -107,11 +107,11 @@ class App extends Templates {
                                     <span class="text-sm text-white">Cancelado</span>
                                 </label>
                             </div>
-                            <div class="p-2 border-t border-gray-200 flex gap-2">
-                                <button id="selectAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors">
+                            <div class="p-2 border-t border-gray-700 flex gap-2">
+                                <button id="selectAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30 rounded transition-colors">
                                     Todos
                                 </button>
-                                <button id="clearAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-100 hover:bg-red-200 text-gray-700 rounded transition-colors">
+                                <button id="clearAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded transition-colors">
                                     Ninguno
                                 </button>
                             </div>
@@ -119,16 +119,16 @@ class App extends Templates {
                     </div>
 
                     <div class="relative">
-                        <button id="deliveryFilterBtn" type="button" 
-                            class="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-300 text-green-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        <button id="deliveryFilterBtn" type="button"
+                            class="flex items-center gap-2 h-10 bg-green-500/10 hover:bg-green-500/20 border-0 text-green-300 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                             <i class="icon-truck"></i>
                             <span>Estado Entrega</span>
                             <span id="deliveryCount" class="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full">3</span>
                             <i class="icon-down-open text-xs"></i>
                         </button>
-                        
-                        <div id="deliveryDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-300 rounded-lg shadow-lg z-50 min-w-[240px]">
-                            <div class="p-3 border-b border-gray-200">
+
+                        <div id="deliveryDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-700 rounded-lg shadow-lg z-50 min-w-[240px]">
+                            <div class="p-3 border-b border-gray-700">
                                 <p class="text-xs font-semibold text-white uppercase">Estado de Entrega</p>
                             </div>
                             <div class="p-2 space-y-1">
@@ -148,20 +148,20 @@ class App extends Templates {
                                     <span class="text-sm text-white">No Entregado</span>
                                 </label>
                             </div>
-                            <div class="p-2 border-t border-gray-200 flex gap-2">
-                                <button id="selectAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors">
+                            <div class="p-2 border-t border-gray-700 flex gap-2">
+                                <button id="selectAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30 rounded transition-colors">
                                     Todos
                                 </button>
-                                <button id="clearAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-100 hover:bg-red-200 text-gray-700 rounded transition-colors">
+                                <button id="clearAllDeliveryBtn" class="flex-1 text-xs px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded transition-colors">
                                     Ninguno
                                 </button>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="flex flex-col gap-1 bg-purple-500/10 px-3 py-2 rounded-md shadow-sm w-fit">
-                        <label for="subsidiaryFilter" class="text-xs font-medium text-purple-700">Sucursal:</label>
-                        <select id="subsidiaryFilter" class="text-xs border border-purple-300 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:border-purple-400" style="min-width: 180px;">
+
+                    <div class="flex items-center gap-2 h-10 bg-purple-500/10 hover:bg-purple-500/20 border-0 px-3 py-2 rounded-md transition-colors">
+                        <label for="subsidiaryFilter" class="text-xs font-medium text-purple-300 whitespace-nowrap">Sucursal:</label>
+                        <select id="subsidiaryFilter" class="text-xs bg-[#1F2A37] text-white border-0 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:outline-none" style="min-width: 180px;">
                             <option value="0">Todas las sucursales</option>
                         </select>
                     </div>
@@ -360,11 +360,16 @@ class App extends Templates {
 
         // Contenedor principal
         let containerEl = document.createElement("div");
-        containerEl.classList.add("p-2", "w-full");
+        containerEl.classList.add("p-2", "w-full", "relative");
+
+        // Folio
+        let folioEl = document.createElement("div");
+        folioEl.classList.add("absolute", "top-1", "right-1", "bg-black/25", "text-white", "text-[10px]", "font-semibold", "px-1.5", "py-0.5", "rounded");
+        folioEl.textContent = arg.event.extendedProps.folio || '';
 
         // Nombre del cliente
         let titleEl = document.createElement("div");
-        titleEl.classList.add("font-semibold", "text-sm", "mb-1", "truncate");
+        titleEl.classList.add("font-semibold", "text-sm", "mb-1", "truncate", "pr-12");
         titleEl.innerHTML = arg.event.title;
 
         // Tipo de entrega
@@ -402,6 +407,7 @@ class App extends Templates {
     `;
 
         // Ensamblar elementos
+        if (folioEl.textContent) containerEl.appendChild(folioEl);
         containerEl.appendChild(titleEl);
         containerEl.appendChild(deliveryEl);
         containerEl.appendChild(timeEl);

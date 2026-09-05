@@ -109,6 +109,32 @@ class mdl extends CRUD {
         return $this->_Read($query, $array);
     }
 
+    // Los periodos que ya tienen cargadas estas hojas, del mas reciente al mas
+    // viejo. Es lo que responde "¿de que meses ya subi este archivo?" antes de
+    // volver a subirlo: la pantalla lo pregunta por las hojas de UN archivo, no por
+    // el periodo, que es justo el dato que el usuario todavia no ha elegido.
+    //
+    // Los marcadores se arman fuera porque la lista de hojas la pone el contrato,
+    // no el usuario.
+    function listImportBatchPeriods($sheets, $array) {
+        $marks = implode(',', array_fill(0, count($sheets), '?'));
+        $query = "
+            SELECT period_year, period_month,
+                   SUM(row_count)   AS filas,
+                   COUNT(*)         AS lotes,
+                   MAX(created_at)  AS ultima
+            FROM {$this->bd}import_batch
+            WHERE active = 1
+              AND branch_id <=> ?
+              AND period_year  IS NOT NULL
+              AND period_month IS NOT NULL
+              AND sheet_name IN ({$marks})
+            GROUP BY period_year, period_month
+            ORDER BY period_year DESC, period_month DESC
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function createImportBatch($array) {
         return $this->_Insert([
             'table'  => "{$this->bd}import_batch",

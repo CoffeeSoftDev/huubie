@@ -496,7 +496,7 @@ class Pedidos extends MPedidos{
         if ($_SESSION['ROLID'] == 1) {
             $subsidiaries_id = $_POST['subsidiaries_id'] ?? ($prevOrder['subsidiaries_id'] ?? $_SESSION['SUB']);
         } else {
-            $subsidiaries_id = $_SESSION['SUB'];
+            $subsidiaries_id = $prevOrder['subsidiaries_id'] ?? $_SESSION['SUB'];
         }
 
         // Pedido liquidado: el cliente queda ligado al pedido ya cobrado y no se
@@ -577,18 +577,18 @@ class Pedidos extends MPedidos{
     }
 
     // Candado de edicion sobre un pedido liquidado: editar la cabecera deja de ser una
-    // correccion de captura libre, asi que exige admin + la contrasena del usuario en
-    // sesion (mismo criterio que deletePay). Devuelve el error a retornar, o null si
+    // correccion de captura libre, asi que exige admin o cajero + la contrasena del
+    // usuario en sesion. Devuelve el error a retornar, o null si
     // la operacion puede seguir. Una sola definicion de la regla para los dos puntos
     // que la aplican: verifyOrderEditKey (antes de abrir el formulario) y editOrder
     // (al guardar, que es la validacion que manda).
     private function paidOrderEditDenial($requiereClave, $password) {
         if (!$requiereClave) return null;
 
-        if (($_SESSION['ROLID'] ?? 0) != 1) {
+        if (!in_array($_SESSION['ROLID'] ?? 0, [1, 2])) {
             return [
                 'status'  => 403,
-                'message' => 'Solo un administrador puede editar un pedido liquidado.'
+                'message' => 'Solo un administrador o un cajero puede editar un pedido liquidado.'
             ];
         }
 
@@ -2648,17 +2648,27 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
     $owner     = $_SESSION['OWNER'] ?? 0;
     $hasDiscount = $discount > 0;
 
-    // Cajero/no-admin viendo un pedido de OTRA sucursal (filtro de vista): solo lectura.
-    // Sin acciones de mutacion (cancelar, descuentos, editar, pagar).
+    // Cajero/no-admin viendo un pedido de OTRA sucursal (filtro de vista): solo lectura,
+    // salvo la edicion del cajero (2), que canWriteOrder ya autoriza cuando esa sucursal
+    // tiene turno abierto. Sin el resto de acciones de mutacion (cancelar, descuentos, pagar).
     if ($rolId != 1 && $orderSub !== null && $orderSub != ($_SESSION['SUB'] ?? null)) {
+        $lectura = [
+            ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
+        ];
+
+        // Un pedido cancelado no se edita en ninguna sucursal, ni siquiera el admin.
+        if ($rolId == 2 && $status != 4) {
+            $accion    = $status == 3 ? 'editOrderPaid' : 'editOrder';
+            $lectura[] = ['Editar', 'icon-pencil', "{$instancia}.{$accion}({$id})"];
+        }
+
+        $lectura[] = ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"];
+
         return array_map(fn($opt) => [
             'text'    => $opt[0],
             'icon'    => $opt[1],
             'onclick' => $opt[2],
-        ], [
-            ['Ver', 'icon-eye', "{$instancia}.showOrder({$id})"],
-            ['Imprimir', 'icon-print', "{$instancia}.printOrder({$id})"],
-        ]);
+        ], $lectura);
     }
 
     $options = [
@@ -2702,10 +2712,12 @@ function dropdownOrder($id, $status, $discount = 0, $orderSub = null) {
         // deshabilitado cuando el saldo es cero (isPaidInFull en addPayment).
         if ($rolId == 1) {
             $options[] = ['Pagar', 'icon-money', "{$instancia}.historyPay({$id})"];
+        }
 
-            // Editar un pedido ya liquidado exige contrasena (editOrderPaid la
-            // pide antes de abrir el formulario; editOrder() la revalida al
-            // guardar). Solo admin, mismo criterio que deletePay: no "owner".
+        // Editar un pedido ya liquidado exige contrasena (editOrderPaid la
+        // pide antes de abrir el formulario; editOrder() la revalida al
+        // guardar). Admin y cajero, misma regla que paidOrderEditDenial.
+        if ($rolId == 1 || $rolId == 2) {
             $options[] = ['Editar', 'icon-pencil', "{$instancia}.editOrderPaid({$id})"];
         }
 

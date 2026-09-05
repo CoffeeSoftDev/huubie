@@ -190,8 +190,21 @@ class App extends Templates {
     // El periodo lo resuelve el servidor: es el mismo reloj con el que se sella el
     // lote, y con el del navegador el filtro podria apuntar a un mes distinto del
     // que se escribiria en base.
+    getParam(name) {
+        return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
     filterBar() {
-        const hoy = this.dataInit.hoy || {};
+        // El periodo puede venir dado en la URL: es como llega quien pulsa "Ya
+        // cargado en Julio 2026" desde la terminal del dia, y abrir en el mes de
+        // hoy le obligaria a volver a buscar el que acababa de senalar.
+        const hoy = Object.assign({}, this.dataInit.hoy || {});
+
+        // El mes se normaliza a dos digitos: las claves del selector salen del
+        // catalogo del servidor —'07', no '7'— y un enlace que traiga el numero
+        // pelado dejaria el filtro vacio en vez de en el mes pedido.
+        if (this.getParam('mes'))  hoy.mes  = String(this.getParam('mes')).padStart(2, '0');
+        if (this.getParam('anio')) hoy.anio = this.getParam('anio');
 
         const filters = [
             {

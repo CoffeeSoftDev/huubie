@@ -1,14 +1,8 @@
 let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
 let app, tickets, ticketsView;
 
-// La subida reusa el controlador de Cargas: es el que sabe leer el libro, validar
-// sus columnas contra el contrato del POS y guardar el lote del periodo. Aqui solo
-// se le manda el archivo desde la pantalla donde se echa de menos.
 const apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
 
-// Las dos pestanas del contrato a las que pertenece lo que este modulo necesita:
-// el reporte por forma de pago —de donde salen los folios y los montos— y el
-// detalle de comandas, que es lo que el ticket del 16% imprime.
 const UPLOAD_TAB   = 'sales-report';
 const COMMANDS_TAB = 'commands';
 
@@ -17,11 +11,7 @@ const MESES = [
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-// La meta con la que se cerro el ultimo dia sobrevive al refresco: es un acuerdo
-// del mes, no del momento, y volver a capturarla en cada entrada invitaria a
-// repartir un dia con la meta de otro sin notarlo.
 const META_KEY = 'facture2.tickets.meta';
-
 
 $(async () => {
     ticketsView = new TicketsView(apiTickets, 'root');
@@ -38,8 +28,6 @@ class App extends Templates {
         this.dataKpis     = {};
     }
 
-    // El dia lo resuelve el servidor: el Excel del POS se sube en diferido, asi que
-    // el modulo abre en el ultimo dia con cobros con tarjeta. Con ?dia= entra a ese.
     async init() {
         this.dataInit = await useFetch({ url: apiTickets, data: { opc: 'init', dia: this.getParam('dia') } });
         this.meta     = this.loadMeta();
@@ -50,10 +38,6 @@ class App extends Templates {
 
     // -- Ancho del panel del ticket --
 
-    // Limites del arrastre. El minimo no baja de lo que mide el papel: la tira son
-    // 340px fijos (.ticket-paper en facture.css) mas el aire de su contenedor, y por
-    // debajo el ticket se leeria con scroll horizontal. El maximo evita que el panel
-    // se coma el listado, que es lo que se vino a ver.
     static get PANEL_MIN() { return 380; }
     static get PANEL_MAX() { return 720; }
     static get PANEL_DEF() { return 420; }
@@ -62,8 +46,6 @@ class App extends Templates {
         return `facture:detailWidth:${this.PROJECT_NAME}`;
     }
 
-    // El ancho se guarda por modulo y sobrevive a la recarga: reajustarlo cada vez
-    // que se entra a Tickets seria pedirle al usuario que repita la misma decision.
     aplicarAncho(px, guardar) {
         const ancho = Math.round(Math.min(App.PANEL_MAX, Math.max(App.PANEL_MIN, px)));
 
@@ -88,9 +70,6 @@ class App extends Templates {
         }
     }
 
-    // Arrastrar el borde del panel. Se escucha con pointer events y no con mouse:
-    // asi el mismo gesto sirve con dedo y con lapiz, y setPointerCapture mantiene
-    // el arrastre aunque el puntero se salga del tirador o de la ventana.
     resizePanel() {
         const tirador = document.getElementById('detailResizer');
         const panel   = document.getElementById('detailPanel');
@@ -105,9 +84,6 @@ class App extends Templates {
         tirador.setAttribute('aria-valuemax', App.PANEL_MAX);
         tirador.setAttribute('type', 'button');
 
-        // El ancho se mide desde el borde derecho de la ventana hasta el puntero,
-        // no como un delta acumulado: si el arrastre se sale de los limites y
-        // vuelve, el panel sigue pegado al cursor en vez de quedar desfasado.
         const mover = (e) => this.aplicarAncho(window.innerWidth - e.clientX, false);
 
         tirador.addEventListener('pointerdown', (e) => {
@@ -130,8 +106,6 @@ class App extends Templates {
             tirador.addEventListener('pointercancel', soltar, { once: true });
         });
 
-        // Teclado: el panel se mueve de 16 en 16, y de 64 con Shift. Home y End
-        // van a los topes.
         tirador.addEventListener('keydown', (e) => {
             const paso = e.shiftKey ? 64 : 16;
             const hoy  = panel.getBoundingClientRect().width;
@@ -149,16 +123,11 @@ class App extends Templates {
             this.aplicarAncho(destino, true);
         });
 
-        // Doble clic devuelve el ancho de fabrica: es la salida para quien arrastro
-        // de mas y no sabe con que numero volver.
         tirador.addEventListener('dblclick', () => this.aplicarAncho(App.PANEL_DEF, true));
     }
 
     // -- Meta de facturacion --
 
-    // El default lo manda el servidor, que es donde vive la politica de la casa.
-    // Lo guardado solo se acepta si esta completo: un localStorage a medias dejaria
-    // el dia repartiendose contra una meta vacia.
     loadMeta() {
         const base = {
             modo:  'pct',
@@ -170,8 +139,6 @@ class App extends Templates {
             const guardado = JSON.parse(localStorage.getItem(META_KEY));
 
             if (guardado && (guardado.modo === 'pct' || guardado.modo === 'monto') && guardado.valor >= 0) {
-                // Lo guardado antes de que existiera el segundo campo no trae el 0%:
-                // se completa con el resto en vez de descartar la meta entera.
                 if (guardado.cero === undefined) {
                     guardado.cero = guardado.modo === 'pct' ? 100 - guardado.valor : '';
                 }
@@ -191,14 +158,6 @@ class App extends Templates {
         return new URLSearchParams(window.location.search).get(name) || '';
     }
 
-    // El encabezado que el navegador estampa en cada hoja se arma con la fecha y el
-    // titulo de la pagina, y el ticket entregado no tiene por que anunciar de que
-    // sistema salio. El titulo se vacia mientras dura la impresion y se repone al
-    // cerrar el dialogo, porque en pantalla si nombra a la pestana.
-    //
-    // El @page sin margen de facture.css es lo que quita el encabezado completo;
-    // esto es el respaldo para cuando el usuario imprime con "Encabezados y pies de
-    // pagina" marcado, que es ajuste del navegador y no se puede tocar desde aqui.
     hideTitleOnPrint() {
         const titulo = document.title;
 
@@ -215,13 +174,6 @@ class App extends Templates {
         tickets.lsTickets();
     }
 
-    // Tres bandas y no siete. La banda azul de la terminal ya rotula la pantalla y
-    // ya ofrece el regreso al menu, asi que el encabezado del modulo repetia el
-    // nombre, la fecha y el boton de volver un renglon mas abajo; y la nota del
-    // reparto era un parrafo fijo que ahora vive detras del boton del pie.
-    //
-    // Queda: la barra de operacion (fecha y acciones), la franja de cifras del dia
-    // y la tabla, que empieza donde antes terminaban las tarjetas.
     layout() {
         const mainPanel = {
             type:  'div',
@@ -240,8 +192,6 @@ class App extends Templates {
                     id:    'tableRow',
                     class: 'px-3 py-2 flex-1 min-h-0 flex flex-col'
                 },
-                // La hoja del dia solo existe para el papel: en pantalla no se ve y
-                // @media print la saca a imprimir, igual que #ticketPrintArea.
                 {
                     id:    'printSheet',
                     class: 'hidden'
@@ -253,20 +203,11 @@ class App extends Templates {
             ]
         };
 
-        // El tirador que separa las dos columnas. Va como <button> y no como <div>
-        // para que entre en el orden de tabulacion: quien no puede arrastrar con el
-        // raton mueve el panel con las flechas. Lo viste facture.css por id, igual
-        // que en Cargas.
         const detailResizer = {
             type:  'button',
             id:    'detailResizer'
         };
 
-        // createLayout solo itera children en type 'div': para un aside caen en el
-        // default y jQuery los toma como metodo. Las zonas del panel se arman aparte.
-        //
-        // El ancho no vive aqui: lo pone --detail-w desde el CSS, que es quien sabe
-        // si la pantalla esta en una columna o en dos.
         const detailPanel = {
             type:  'aside',
             id:    'detailPanel',
@@ -312,8 +253,6 @@ class App extends Templates {
         this.tableLayout();
     }
 
-    // La tabla vive en una tarjeta, como la bitacora de cargas: el p-3 de la fila
-    // queda como margen exterior y el fondo de la tarjeta la separa del panel.
     tableLayout() {
         this.createLayout({
             parent: 'tableRow',
@@ -332,9 +271,6 @@ class App extends Templates {
         });
     }
 
-    // Los tres botones se pintan de una vez y se muestran segun el estado del dia
-    // (ver syncActionButtons). Repintar la barra en cada listado le quitaria el foco
-    // al selector de fecha justo cuando se esta usando.
     filterBar() {
         const filters = [
             {
@@ -347,21 +283,6 @@ class App extends Templates {
                 required: false,
                 onchange: 'app.onChangeFilters()'
             },
-            // Las acciones se agrupan a la derecha y la fecha se queda sola a la
-            // izquierda: en un renglon unico eso separa lo que se consulta de lo que
-            // se ejecuta, sin necesidad de un titulo que lo explique.
-            //
-            // Cada boton lleva su col-start fijo porque no se muestran los tres a la
-            // vez (ver syncActionButtons): con el sitio reservado, el que aparece cae
-            // siempre en la misma columna y la barra no baila al repartir el dia.
-            //
-            // El primario va pegado al engrane y el secundario a su izquierda, en el
-            // mismo orden en que estan aqui: asi la lectura y el orden de tabulacion
-            // coinciden.
-            // Rehacer se corre a la primera columna del grupo para dejarle su sitio a
-            // la subida: los dos solo coinciden en pantalla cuando el dia ya se
-            // repartio, y ahi la barra se lee de izquierda a derecha en el orden en
-            // que se usan —deshacer, subir, imprimir—.
             {
                 opc:       'button',
                 id:        'btnRehacer',
@@ -378,7 +299,7 @@ class App extends Templates {
                 color_btn: 'invernal',
                 class:     'col-12 col-md-4 col-lg-2 lg:col-start-8',
                 className: 'whitespace-nowrap !px-2',
-                onClick:   () => tickets.previewDay()
+                onClick:   () => tickets.startGenerate()
             },
             {
                 opc:       'button',
@@ -389,16 +310,6 @@ class App extends Templates {
                 className: 'whitespace-nowrap !px-2',
                 onClick:   () => tickets.printSheet()
             },
-            // Las ventas del dia salen de una carga, y cuando el dia que se busca no
-            // esta es porque esa carga falta. Va con las acciones y no junto a la
-            // fecha: subir el Excel es algo que se hace, no un filtro.
-            //
-            // Y va pegado al engrane, en la ultima columna del grupo: es el unico
-            // boton que se ve en los dos estados del dia, asi que con las acciones
-            // ocultas —el dia sin ventas cargadas— se quedaba flotando en medio de
-            // la barra. Ahi tambien importa el orden de declaracion: el grid coloca
-            // las celdas segun el DOM, y un col-start menor despues de uno mayor cae
-            // en el renglon siguiente.
             {
                 opc:       'button',
                 id:        'btnCargarVentas',
@@ -408,25 +319,6 @@ class App extends Templates {
                 className: 'whitespace-nowrap !px-2',
                 onClick:   () => app.openUploadModal()
             },
-            // Cuanto de la venta se factura al 16% es un acuerdo del mes, no un filtro
-            // del dia: vive detras del engrane y no en la barra, donde dos campos mas
-            // competian por el renglon con la fecha y las acciones.
-            //
-            // Va al final, en la ultima columna (col-start-12) y pegado al boton que
-            // le precede: alineado al borde derecho de su columna quedaba un hueco de
-            // medio ancho de columna que lo dejaba flotando lejos de las acciones.
-            // La meta vigente la sigue diciendo la cifra del IVA 16% de la franja, no
-            // este boton.
-            //
-            // El flex-col no sobra: cada celda de la barra trae una etiqueta vacia
-            // que reserva el renglon del rotulo, y solo apilando —etiqueta arriba,
-            // control abajo— este boton cae a la misma altura que los demas. En fila
-            // se centraba en la celda y quedaba diez pixeles mas alto.
-            //
-            // Y ocupa su columna entera en vez de ser un cuadro de 40px: la columna
-            // mide casi el doble, asi que un boton mas estrecho dejaba sobrando ese
-            // resto —a un lado o al otro, segun se alineara— y se leia como un hueco
-            // en la barra. Ancho completo, cero sobrante.
             {
                 opc:       'button',
                 id:        'btnMetaConfig',
@@ -450,13 +342,7 @@ class App extends Templates {
         this.hideActionButtons();
     }
 
-    // El icono va delante del texto: en una barra donde los demas botones son
-    // palabras, la flecha de subir es lo que distingue el que abre el explorador de
-    // archivos de los que ejecutan el cierre.
     decorateUploadButton() {
-        // El verde es el de Excel, el mismo del icono de la zona de arrastre: en una
-        // barra donde el color lo llevan las acciones del cierre, marca que este
-        // boton va por un archivo y no reparte nada.
         $('#btnCargarVentas')
             .addClass('flex items-center justify-center gap-2')
             .prepend($('<i>', { 'data-lucide': 'upload', class: 'w-4 h-4', style: 'color:#217346' }));
@@ -464,37 +350,16 @@ class App extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Las tres acciones nacen ocultas y solo aparece la que toca, cuando el
-    // listado dice en que estado esta el dia.
-    //
-    // La barra se pinta antes de que lleguen esos datos, asi que si nacieran
-    // visibles se verian las tres —o dos, con el engrane— durante el parpadeo de
-    // la carga, para desaparecer un instante despues. Se mostraba justo lo que no
-    // se podia hacer todavia.
-    //
-    // Se esconde la COLUMNA y no el boton, igual que en syncActionButtons: el
-    // <button> vive dentro de su celda de la rejilla y ocultarlo solo dejaria el
-    // hueco reservado.
     hideActionButtons() {
         ['btnGenerarTodos', 'btnImprimirTodos', 'btnRehacer'].forEach(id => {
             $(`#${id}`).closest('[class*="col-"]').hide();
         });
     }
 
-    // Repartir el dia y sacar el papel son dos momentos distintos, y solo uno de los
-    // dos tiene sentido a la vez: mientras el dia no se reparte no hay nada que
-    // imprimir, y una vez repartido volver a correrlo es rehacerlo.
-    //
-    // Se esconde la columna, no el boton: el <button> vive dentro de su celda de la
-    // rejilla y ocultarlo solo dejaria el hueco.
     syncActionButtons(counts) {
         const repartido = (counts.generados || 0) > 0;
         const columna   = (id) => $(`#${id}`).closest('[class*="col-"]');
 
-        // El papel abierto se queda aunque el dia no este repartido: desde que las
-        // ventas con comanda cargada se pueden ver antes del reparto, cerrarlo aqui
-        // vaciaria el panel en cada repintado del listado. Del cambio de fecha se
-        // encarga onChangeFilters, que suelta el folio si dejo de estar en la lista.
         columna('btnGenerarTodos').toggle(!repartido);
         columna('btnImprimirTodos').toggle(repartido);
         columna('btnRehacer').toggle(repartido);
@@ -502,13 +367,6 @@ class App extends Templates {
 
     // -- Dia sin datos --
 
-    // Un dia sin ventas apaga todo lo que cuelga de ellas: las tres acciones, que
-    // trabajarian sobre un dia vacio; la franja de cifras, que saldria en ceros; y
-    // las notas del pie, que hablan de un reparto que no existe. Se van tambien las
-    // que quedaron pintadas del dia anterior, porque al cambiar de fecha ya son de
-    // otro dia.
-    //
-    // Se quedan la fecha y la meta: son lo unico con lo que se sale del vacio.
     emptyDay() {
         this.hideActionButtons();
 
@@ -526,9 +384,6 @@ class App extends Templates {
         this.syncMetaButton();
     }
 
-
-    // La meta viaja con el dia en todas las peticiones: decide que ticket va a que
-    // tasa, asi que el listado, el cierre y la hoja tienen que verla igual.
     getFilters() {
         return {
             dia:       $('#fDia').val() || this.dataInit.dia,
@@ -540,9 +395,6 @@ class App extends Templates {
 
     // -- Event handlers --
 
-    // Se espera al repintado antes de preguntar por el folio: sin el await la
-    // comprobacion corre sobre la tabla anterior, que todavia lo tiene, y el papel
-    // de un dia se quedaria abierto sobre el listado de otro.
     async onChangeFilters() {
         await tickets.lsTickets();
 
@@ -551,27 +403,15 @@ class App extends Templates {
         }
     }
 
-    // El listado ya viene filtrado del servidor: basta con ver si el folio
-    // seleccionado sobrevivio al repintado.
     isVisibleAfterFilters(folio) {
         return $(`#tb${this.PROJECT_NAME} [data-folio="${folio}"]`).length > 0;
     }
 
     // -- Distribucion IVA 16% / IVA 0% --
 
-    // El acuerdo se escribe de dos formas —"el 70%" o "$15,000 cerrados"— y las dos
-    // dicen lo mismo: cuanto de la venta con tarjeta se factura a cada tasa.
-    //
-    // Las DOS cifras se capturan, no una. El 0% dejo de ser el resto que nadie
-    // escribe: se propone —el campo que no se ha tocado sigue al otro— pero se
-    // puede corregir, y entonces las dos tienen que sumar el Total Tarjeta de
-    // Credito. Mientras no sumen, Aplicar no deja pasar el reparto.
     openMetaModal() {
         if (this.metaModal) return;
 
-        // El campo que el usuario todavia no toca sigue al otro. En cuanto toca los
-        // dos, ninguno se autocompleta: las dos cifras son suyas y pueden no cuadrar,
-        // que es lo que la validacion tiene que atrapar.
         this.metaTouched = { valor: true, cero: false };
 
         this.metaModal = this.cfModal({
@@ -630,16 +470,12 @@ class App extends Templates {
             ]
         });
 
-        // El reparto se recalcula tecla a tecla: es lo que se esta mirando mientras
-        // se captura, y con onchange solo aparece al salir del campo.
         $('#fMetaValor').on('input', () => this.onInputMeta('valor'));
         $('#fMetaCero').on('input',  () => this.onInputMeta('cero'));
 
         this.renderMetaPreview();
     }
 
-    // El complemento con el que abre el campo del 0%: lo que le falta al 16% para
-    // llegar al total del dia, en la unidad que este puesta.
     metaCeroValor() {
         if (this.meta.cero !== undefined && this.meta.cero !== '') return this.meta.cero;
 
@@ -651,8 +487,9 @@ class App extends Templates {
         return Math.round((100 - valor) * 100) / 100;
     }
 
-    // Escribir en un campo propone el resto en el otro, mientras ese otro siga sin
-    // tocarse. Es lo que hace que capturar dos cifras cueste un solo gesto.
+    // El campo que todavia no se toca sigue al otro; en cuanto se tocan los dos,
+    // ninguno se autocompleta y pueden no cuadrar, que es lo que la validacion
+    // atrapa.
     onInputMeta(campo) {
         this.metaTouched[campo] = true;
 
@@ -671,15 +508,10 @@ class App extends Templates {
         this.renderMetaPreview();
     }
 
-    // Cambiar de unidad no cambia la meta: la traduce. El 70% de la venta y su
-    // importe son el mismo acuerdo escrito de dos formas, y quien alterna el
-    // selector espera ver la conversion, no un campo que se reinicia.
     onChangeMetaModo() {
         const modo  = $('#fMetaModo').val();
         const total = parseFloat(this.dataKpis.total) || 0;
 
-        // Sin venta en el dia no hay de que sacar el porcentaje: se vuelve al
-        // default en vez de dejar el campo en cero, que repartiria todo al 0%.
         const convertir = (v) => modo === 'monto'
             ? total * v / 100
             : (total > 0 ? v / total * 100 : this.dataInit.metaPct);
@@ -693,10 +525,6 @@ class App extends Templates {
         this.renderMetaPreview();
     }
 
-    // El reparto que se va a aplicar, con la misma cuenta que metaDelDia() hace en el
-    // servidor. Las dos cifras se leen de sus campos y se comparan contra el total:
-    // esa diferencia es lo unico que el modulo calcula en pantalla, y solo porque se
-    // mira antes de que exista la peticion que la confirmaria.
     renderMetaPreview() {
         const total = parseFloat(this.dataKpis.total) || 0;
         const modo  = $('#fMetaModo').val();
@@ -708,8 +536,6 @@ class App extends Templates {
         const suma    = monto16 + monto0;
         const dif     = suma - total;
 
-        // La misma tolerancia con la que el modulo compara montos en el cierre: por
-        // debajo de medio centavo el reparto se da por cuadrado.
         const cuadra = Math.abs(dif) < 0.005;
 
         this.lockMetaOk(!cuadra);
@@ -724,15 +550,10 @@ class App extends Templates {
             difTexto:     this.moneyText(Math.abs(dif)),
             sobra:        dif > 0,
             cuadra:       cuadra,
-            // El campo que todavia sigue al otro se rotula, para que se vea que la
-            // cifra es una propuesta y no algo que alguien capturo.
             sugerido:     !this.metaTouched.cero ? '0' : (!this.metaTouched.valor ? '16' : '')
         });
     }
 
-    // Aplicar solo existe cuando el reparto cuadra: el boton del cfModal es el
-    // ultimo del pie, y se apaga con la clase que el resto del modulo usa para lo
-    // deshabilitado.
     lockMetaOk(bloquear) {
         if (!this.metaModal) return;
 
@@ -741,8 +562,6 @@ class App extends Templates {
             .toggleClass('opacity-50 cursor-not-allowed', bloquear);
     }
 
-    // Aplicar cierra el modal y vuelve a pedir el dia: la meta viaja en cada
-    // peticion, asi que el listado, los KPIs y el reparto tienen que verla igual.
     applyMeta() {
         const valor = parseFloat($('#fMetaValor').val());
         const cero  = parseFloat($('#fMetaCero').val());
@@ -760,13 +579,6 @@ class App extends Templates {
 
     // -- Actualizar ventas --
 
-    // El paso 2 del proceso, dentro del modulo: traer del Excel las ventas que
-    // falten. Por dentro son las mismas dos peticiones del modulo Cargas
-    // —inspectFile revisa el libro sin guardar, uploadFile lo carga— y el periodo
-    // se captura antes que el archivo, porque es lo que decide donde caen las filas.
-    //
-    // Cargas sigue existiendo para lo demas: comandas, archivos bancarios y la
-    // bitacora de lotes. Esta ruta es solo la del reporte de ventas.
     openUploadModal() {
         if (this.uploadModal) return;
 
@@ -776,25 +588,22 @@ class App extends Templates {
         this.mesesElegidos     = null;
         this.repartoConfirmado = false;
 
+        this.cargasHechas = [];
+
+        this.pendienteTab = null;
+        this.periodosTab  = {};
+
         this.uploadModal = this.cfModal({
             title:         'Actualizar ventas',
-            // El periodo y el archivo caben en un renglon cada uno, pero en el
-            // ancho corto el rotulo de la zona de arrastre se parte en dos y el
-            // nombre del archivo elegido se recorta a la mitad.
             size:          'large',
             theme:         FACTURE_THEME,
             okLabel:       'Subir ventas',
             cancelLabel:   'Cancelar',
             backdropClose: false,
             onOk:          () => this.sendUpload(),
-            // Cerrar el modal a media carga no debe dejar la consulta del avance
-            // preguntando cada dos segundos por una pantalla que ya no existe.
             onClose:       () => { this.stopProgress(); this.uploadModal = null; }
         });
 
-        // El alto no cambia entre pasos: elegir los archivos, subirlos y ver el
-        // resultado ocupan el mismo hueco, para que el dialogo no salte bajo el
-        // cursor mientras se trabaja en el.
         this.createLayout({
             parent: this.uploadModal.body.attr('id') || this.uploadModalHost(),
             design: false,
@@ -809,6 +618,10 @@ class App extends Templates {
                     {
                         type: 'div',
                         id:   'uploadModalDrop'
+                    },
+                    {
+                        type: 'div',
+                        id:   'uploadModalFiles'
                     },
                     {
                         type: 'div',
@@ -848,18 +661,56 @@ class App extends Templates {
         });
 
         this.renderUploadList();
+
+        $('#fUpMes, #fUpAnio').on('change', () => this.onPeriodChange());
+
+        this.loadPeriodFiles();
     }
 
-    // El cuerpo del cfModal nace sin id y createLayout necesita uno para colgarse.
+    onPeriodChange() {
+        this.renderUploadList();
+        this.showPeriodFiles();
+    }
+
+    async loadPeriodFiles() {
+        this.periodosTab = this.periodosTab || {};
+
+        for (const slot of this.uploadSlots()) {
+            const data = await useFetch({
+                url:  apiCargas,
+                data: {
+                    opc: 'lsPeriodosCargados',
+                    tab: slot.tipo
+                }
+            });
+
+            this.periodosTab[slot.tipo] = (data && data.periodos) || [];
+        }
+
+        this.showPeriodFiles();
+
+        this.renderUploadList();
+    }
+
+    showPeriodFiles() {
+        if (!this.uploadModal) return;
+
+        ticketsView.renderPeriodFiles(
+            this.uploadSlots().map((s) => ({
+                slot:    s,
+                cargado: this.slotCargado(s.tipo),
+                carga:   (this.cargasHechas || []).find((c) => c.slot.tipo === s.tipo) || null
+            })),
+            this.periodoTexto()
+        );
+    }
+
     uploadModalHost() {
         this.uploadModal.body.attr('id', 'uploadModalBody');
 
         return 'uploadModalBody';
     }
 
-    // Los años que se pueden elegir. Escribir el año a mano invitaba a un 2062 por
-    // un dedazo, y el lote se habria guardado ahi sin que nada lo objetara: son los
-    // dos ultimos ejercicios y el que corre, que es todo lo que un POS reexporta.
     uploadYears() {
         const actual = new Date(this.dataInit.dia + 'T00:00:00').getFullYear();
 
@@ -868,48 +719,25 @@ class App extends Templates {
 
     // -- Los dos archivos del dia --
 
-    // Wansoft exporta el dia en dos libros y el modulo necesita los dos:
-    //
-    //   ventas    el reporte por forma de pago, de donde salen los folios, los
-    //             montos y las formas de cobro. Sin el no hay dia que repartir.
-    //   comandas  el detalle de lo consumido. Sin el, el ticket del 16% sale con
-    //             un unico renglon que dice CONSUMO en vez de los platillos.
-    //
-    // `archivo` es el nombre con el que Wansoft los exporta, y con el que llegan
-    // salvo que alguien los renombre: el POS les pega la fecha detras
-    // —ReporteVentasPorFormaDePago2026-08-23.xlsx— pero la raiz no cambia. Es lo
-    // primero que se mira para saber cual es cual; si no coincide, lo dice el
-    // contenido (ver slotDelNombre).
     uploadSlots() {
         return [
             {
-                tipo:    UPLOAD_TAB,
-                nombre:  'Reporte de ventas',
-                archivo: 'ReporteVentasPorFormaDePago',
-                falta:   'Sin el no se puede repartir el dia.'
+                tipo:     UPLOAD_TAB,
+                nombre:   'Reporte de ventas',
+                archivo:  'ReporteVentasPorFormaDePago',
+                desglosa: 'Trae los folios, los montos y la forma de cobro del día',
+                falta:    'Sin el no se puede repartir el dia.'
             },
             {
-                tipo:    COMMANDS_TAB,
-                nombre:  'Detalle de comandas',
-                archivo: 'ReporteDetalleDeVentas',
-                falta:   'Sin el, los tickets del 16% salen sin el detalle de lo que consumieron.'
+                tipo:     COMMANDS_TAB,
+                nombre:   'Detalle de ventas',
+                archivo:  'ReporteDetalleDeVentas',
+                desglosa: 'Desglosa las ventas: sin él los tickets del 16% dicen CONSUMO',
+                falta:    'Sin él, los tickets del 16% se imprimen con un renglón que dice CONSUMO en vez de los platillos.'
             }
         ];
     }
 
-    // Cual de los dos es, por el nombre del archivo.
-    //
-    // El nombre es el camino corto y el bueno: cuando el export llega como sale del
-    // POS ya dice lo que es, y con eso la revision se pregunta contra la pestana
-    // correcta —asi el de comandas se valida como comandas en vez de volver marcado
-    // como "de otra pestana"—.
-    //
-    // Se compara sobre la raiz y sin puntuacion: la fecha que el POS pega detras, un
-    // «(1)» de descarga repetida o los guiones bajos de quien lo guardo a mano no
-    // deberian romper el reconocimiento.
-    //
-    // Devuelve null cuando el nombre no dice nada, y entonces manda el contenido:
-    // renombrar un archivo es demasiado facil como para fiarse solo de esto.
     slotDelNombre(fileName) {
         const raiz = (txt) => String(txt || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const name = raiz(fileName);
@@ -917,13 +745,6 @@ class App extends Templates {
         return this.uploadSlots().find((s) => name.indexOf(raiz(s.archivo)) === 0) || null;
     }
 
-    // El archivo se elige con el input escondido de la zona de arrastre, y tambien
-    // arrastrandolo encima: las dos formas terminan aqui. Se aceptan varios de una
-    // vez, y el mismo archivo no se apunta dos veces.
-    //
-    // La extension se comprueba aqui y no al revisar: el <input> ya filtra por ella
-    // pero el arrastre no, y por ahi entra cualquier cosa. Mandarla al servidor solo
-    // cambiaria "esto no es un Excel" por "no se pudo leer el archivo".
     onPickFile(files) {
         const nuevos = Array.from(files || []);
 
@@ -956,26 +777,24 @@ class App extends Templates {
         this.renderUploadList();
     }
 
-    // La lista de lo elegido y lo que falta. Mientras no este el reporte de ventas
-    // no se puede subir nada: es el que trae el dia.
     renderUploadList() {
-        const lleno = this.uploadFiles.length >= this.uploadSlots().length;
-
-        // Lo que el nombre de cada archivo ya dice: con eso la lista se nombra sola
-        // y el aviso de abajo puede decir cual de los dos falta en vez de suponerlo.
         const puestos = this.uploadFiles.map((f) => this.slotDelNombre(f.name));
 
-        // Volver a tocar los archivos devuelve el pie a lo que hace este paso: si el
-        // intento anterior dejo el boton en "Cargar Julio...", ese mes ya no tiene
-        // que ver con lo que ahora hay elegido. Y la seleccion de meses se olvida:
-        // era la de otro archivo.
+        const faltan = this.slotsQueFaltan(puestos);
+        const lleno  = !faltan.length;
+
         this.mesesElegidos     = null;
         this.repartoConfirmado = false;
         this.revisadosPrevios  = null;
 
         this.setUploadAction('Subir ventas', () => this.sendUpload());
+        this.setUploadCancel(null);
 
-        ticketsView.growUploadBox(false);
+        $('#uploadModalForm').show();
+        $('#uploadModalFiles').show();
+        $('#uploadModalDrop').show().css({ opacity: '', 'pointer-events': '' });
+
+        const falta = this.slotFaltante(puestos);
 
         ticketsView.renderPickedFiles(
             this.uploadFiles.map((f, i) => ({
@@ -983,10 +802,17 @@ class App extends Templates {
                 peso:   this.fileSizeText(f.size),
                 slot:   (puestos[i] || {}).nombre || ''
             })),
-            lleno
+            lleno,
+            falta
         );
 
-        ticketsView.renderUploadHint(this.uploadFiles.length, this.uploadSlots(), puestos.filter(Boolean));
+        ticketsView.renderUploadHint(
+            this.uploadFiles.length,
+            this.uploadSlots(),
+            this.slotsPendientes(),
+            falta,
+            faltan.length
+        );
 
         this.lockUploadOk(this.uploadFiles.length === 0);
     }
@@ -1013,20 +839,13 @@ class App extends Templates {
         };
     }
 
-    // Revisar y cargar, en ese orden y con una sola espera de cara al usuario.
-    //
-    // Cada archivo se revisa por separado —inspectFile lee su libro SIN guardar
-    // nada— y de ahi sale a que pestana pertenece. Si alguno no es de este modulo,
-    // o si el mes no admite cargas, se dice antes de tocar la base.
-    //
-    // La revision se pregunta contra lo que dice el NOMBRE del archivo, no siempre
-    // contra el reporte de ventas: asi el servidor compara las columnas del de
-    // comandas con las de comandas y objeta lo que de verdad este mal, en vez de
-    // devolverlo entero por no ser el otro.
-    //
-    // Los dos se suben en el mismo orden en que el importador los necesita: primero
-    // las ventas, que son las que crean los folios, y despues las comandas, que se
-    // cuelgan de ellos.
+    periodoTexto() {
+        return `${$('#fUpMes option:selected').text()} ${$('#fUpAnio').val()}`;
+    }
+
+    // Revisar y cargar, en ese orden: inspectFile lee el libro SIN guardar nada y de
+    // ahi sale a que pestaña pertenece —lo decide el CONTENIDO, no el nombre ni la
+    // pantalla—. Las ventas se suben antes que las comandas, que cuelgan de sus folios.
     async sendUpload() {
         if (!this.uploadFiles.length) return;
 
@@ -1038,8 +857,6 @@ class App extends Templates {
 
         this.lockUploadOk(true);
 
-        // Al volver de la pantalla de meses la revision ya esta hecha y los archivos
-        // son los mismos: se reusa en vez de leerlos otra vez.
         const revisados = (this.repartoConfirmado && this.revisadosPrevios) || [];
 
         for (const file of (revisados.length ? [] : this.uploadFiles)) {
@@ -1048,26 +865,18 @@ class App extends Templates {
             const porNombre = this.slotDelNombre(file.name);
             const revision  = await this.postFile('inspectFile', periodo, (porNombre || {}).tipo || UPLOAD_TAB, file);
 
-            if (revision.status !== 200) {
-                ticketsView.renderUploadError(revision.message || `No se pudo leer ${file.name}`);
+            if (!revision || revision.status !== 200) {
+                ticketsView.renderUploadError(
+                    (revision && revision.message) ||
+                    `No se pudo leer ${file.name}: el servidor no devolvió una respuesta. Suele pasar con archivos muy grandes.`
+                );
                 this.lockUploadOk(false);
                 return;
             }
 
-            // La ultima palabra la tiene el CONTENIDO: el nombre solo dice contra que
-            // pestana preguntar, y renombrar un archivo no lo convierte en otro.
             const destino = revision.destino || UPLOAD_TAB;
             const slot    = this.uploadSlots().find((x) => x.tipo === destino);
 
-            // Al archivo que llega sin su nombre de origen se le pregunta desde el
-            // reporte de ventas, asi que si era el de comandas vuelve marcado como
-            // "de otra pestana". Eso no es un rechazo: el modal pide justamente los
-            // dos archivos del dia, y ese aviso es el que dice cual de los dos es. Es
-            // lo que en Importacion hace `movido`, donde el archivo se lleva a la
-            // pestana a la que pertenece en vez de devolverlo.
-            //
-            // Se rebota solo cuando ese destino no es de este modulo —las hojas
-            // bancarias, las propinas—: eso se sube desde Importacion.
             const mudado = UploadCheck.mueve(revision.validacion) && !!slot;
 
             if (revision.validacion && !mudado) {
@@ -1075,7 +884,7 @@ class App extends Templates {
             }
 
             if (!slot) {
-                ticketsView.renderUploadError(`${file.name} no es el reporte de ventas ni el de comandas: subelo desde Importacion.`);
+                ticketsView.renderUploadError(`${file.name} no es el reporte de ventas ni el detalle de ventas: súbelo desde Importación.`);
                 this.lockUploadOk(false);
                 return;
             }
@@ -1089,27 +898,14 @@ class App extends Templates {
             revisados.push({ file: file, destino: destino, slot: slot, reparto: revision.reparto || [] });
         }
 
-        // El archivo que abarca varios meses se pregunta SIEMPRE, no solo cuando el
-        // filtro no coincide.
-        //
-        // Antes la lista de meses solo salia con la objecion de periodo, asi que
-        // poder elegir dependia de que el filtro estuviera en un mes ajeno: con el
-        // filtro ya en Julio, el mismo archivo de julio y agosto entraba entero y en
-        // silencio. La eleccion no tiene que ver con el filtro, sino con que el
-        // archivo trae mas de un mes.
-        //
-        // Solo se pregunta una vez: al confirmar se vuelve a entrar aqui con la
-        // seleccion hecha y la carga sigue de largo.
         const conVariosMeses = revisados.find((r) => this.mesesDelReparto(r.reparto).length > 1);
 
         if (conVariosMeses && !this.repartoConfirmado) {
-            // La revision se guarda para no repetirla al confirmar: leer las fechas
-            // del archivo de comandas cuesta segundos, y volver a hacerlo para
-            // enterarse de lo mismo seria hacer esperar por nada.
             this.revisadosPrevios = revisados;
 
             ticketsView.renderRepartoPrevio(conVariosMeses);
             this.syncSeleccion({ reparto: conVariosMeses.reparto });
+            this.setUploadCancel(() => this.backToPick());
 
             return;
         }
@@ -1117,17 +913,11 @@ class App extends Templates {
         this.repartoConfirmado = false;
         this.revisadosPrevios  = null;
 
-        // Las ventas primero: las comandas se cuelgan de sus folios.
         revisados.sort((a, b) => (a.destino === UPLOAD_TAB ? -1 : 1));
 
-        const cargas = [];
-
         for (const item of revisados) {
-            ticketsView.renderUploadStep(`Guardando ${item.slot.nombre.toLowerCase()}...`);
+            ticketsView.renderUploadStep(`Subiendo ${item.file.name}...`, this.fileSizeText(item.file.size));
 
-            // El detalle de comandas son megas de renglones y su carga tarda
-            // minutos. Mientras el servidor trabaja se le pregunta cuanto lleva
-            // escrito, para que la espera muestre lo que ya entro y no un giro.
             await this.watchProgress(item);
 
             const carga = await this.postFile('uploadFile', periodo, item.destino, item.file);
@@ -1142,47 +932,113 @@ class App extends Templates {
                 return;
             }
 
-            cargas.push({ slot: item.slot, data: carga });
+            this.anotarCarga(item.slot, carga);
         }
 
-        ticketsView.renderUploadDone(cargas);
+        ticketsView.renderUploadDone(this.cargasHechas, this.slotsPendientes());
 
-        // El dia se relee con lo que acaba de entrar: puede haber ganado ventas, y
-        // el listado abierto seguiria mostrando las de antes.
         await tickets.lsTickets();
 
-        this.setUploadAction('Listo', () => this.uploadModal.close());
+        const alcance = await this.scopeDelPeriodo();
+
+        if (alcance && alcance.pendientes > 0) {
+            ticketsView.renderUploadInvite(alcance);
+            this.setUploadAction('Generar tickets', () => this.fromUploadToScope(alcance));
+        } else {
+            this.setUploadAction('Listo', () => this.uploadModal.close());
+        }
+
+        this.setUploadCancel(null);
 
         this.lockUploadOk(false);
     }
 
-    // El archivo que no entro, con su detalle en el modal.
-    //
-    // El de otro mes es el unico que tiene salida: se ofrece moverlo al mes que de
-    // verdad contiene, y si se acepta la carga se reintenta entera contra ese
-    // periodo. Los demas motivos solo se pueden corregir en el archivo.
-    //
-    // La oferta va en el pie del modal y no en un dialogo aparte: el aviso —con los
-    // dos periodos enfrentados y los dias del archivo— ya esta en pantalla, y un
-    // cuadro encima repetiria lo que el usuario acaba de leer para taparselo.
+    async scopeDelPeriodo() {
+        const periodo = this.uploadPeriod();
+
+        if (!periodo.mes || !periodo.anio) return null;
+
+        const mes = `${periodo.anio}-${String(periodo.mes).padStart(2, '0')}`;
+
+        const data = await useFetch({
+            url:  apiTickets,
+            data: Object.assign({ opc: 'scopeMonth', mes: mes }, this.getFilters())
+        });
+
+        return data.status === 200 ? data : null;
+    }
+
+    fromUploadToScope(info) {
+        this.uploadModal.close();
+
+        this.openScopeModal(info);
+    }
+
+    anotarCarga(slot, data) {
+        this.cargasHechas = (this.cargasHechas || []).filter((c) => c.slot.tipo !== slot.tipo);
+
+        this.cargasHechas.push({ slot: slot, data: data });
+    }
+
+    slotsQueFaltan(puestos) {
+        const traidos = (puestos || []).filter(Boolean);
+
+        return this.uploadSlots().filter((s) =>
+            !traidos.some((p) => p.tipo === s.tipo) && !this.slotCargado(s.tipo)
+        );
+    }
+
+    slotFaltante(puestos) {
+        const traidos = (puestos || []).filter(Boolean);
+
+        if (!this.uploadFiles.length || traidos.length !== this.uploadFiles.length) return null;
+
+        return this.slotsQueFaltan(puestos)[0] || null;
+    }
+
+    slotsPendientes() {
+        return this.uploadSlots().filter((s) => !this.slotCargado(s.tipo));
+    }
+
+    slotCargado(tipo) {
+        if ((this.cargasHechas || []).some((c) => c.slot.tipo === tipo)) return true;
+
+        const periodo = this.uploadPeriod();
+        const meses   = (this.periodosTab || {})[tipo] || [];
+
+        return meses.some((p) => Number(p.mes) === Number(periodo.mes) && Number(p.anio) === Number(periodo.anio));
+    }
+
+    async retomarUpload(tipo) {
+        this.uploadFiles  = [];
+        this.pendienteTab = tipo || null;
+
+        this.renderUploadList();
+
+        if (!tipo) return;
+
+        const data = await useFetch({ url: apiCargas, data: { opc: 'lsPeriodosCargados', tab: tipo } });
+
+        this.periodosTab        = this.periodosTab || {};
+        this.periodosTab[tipo]  = (data && data.periodos) || [];
+
+        this.showPeriodFiles();
+    }
+
     rejectUpload(v, fileName, destino) {
         ticketsView.renderUploadRejected(v, fileName, destino);
         this.lockUploadOk(false);
+        this.setUploadCancel(() => this.backToPick());
 
         if (!UploadCheck.mudaPeriodo(v)) return;
 
         this.syncSeleccion(v);
     }
 
-    // Los meses del reparto que de verdad traen movimientos. El mes en cero esta en
-    // la lista para explicar por que el archivo no es de el, pero no es un mes que
-    // se pueda cargar ni que cuente para decidir si hay algo que elegir.
     mesesDelReparto(reparto) {
         return (reparto || []).filter((m) => m.movimientos > 0);
     }
 
-    // Confirma la seleccion y sigue con la carga. El flag evita volver a preguntar
-    // en la vuelta siguiente, que entra por el mismo sitio.
     confirmarReparto() {
         if (!(this.mesesElegidos || []).length) return;
 
@@ -1191,8 +1047,6 @@ class App extends Templates {
         return this.sendUpload();
     }
 
-    // El pie dice lo que va a entrar segun lo marcado, y se apaga cuando no queda
-    // ningun mes: sin meses no hay carga que hacer.
     syncSeleccion(v) {
         const elegidos = UploadCheck.mesesMarcados('#uploadModalState');
 
@@ -1202,9 +1056,6 @@ class App extends Templates {
 
         this.mesesElegidos = elegidos;
 
-        // De donde viene la pantalla decide que hace el boton: si hubo objecion de
-        // periodo hay que mover el filtro antes de cargar; si no, el filtro ya esta
-        // bien y solo falta confirmar lo marcado.
         const accion = UploadCheck.mudaPeriodo(v)
             ? () => this.moveSeleccion()
             : () => this.confirmarReparto();
@@ -1213,19 +1064,11 @@ class App extends Templates {
         this.lockUploadOk(elegidos.length === 0);
     }
 
-    // Carga con lo que quedo marcado. El periodo del filtro se pone en el primero de
-    // los meses elegidos: tiene que ser uno de ellos, o la revision volveria a
-    // objetar por un mes que el usuario acaba de dejar fuera.
     moveSeleccion() {
         const elegidos = this.mesesElegidos || [];
 
         if (!elegidos.length) return;
 
-        // La seleccion ya se hizo AQUI, en el aviso del periodo. Mover el filtro
-        // relanza la carga y la revision vuelve a pasar —el periodo cambio y hay que
-        // rehacerla—, pero preguntar otra vez cuales meses seria pedir dos veces lo
-        // mismo: con el filtro ya en Agosto el archivo deja de objetarse y caia
-        // directo en la pantalla de "este archivo trae 2 meses".
         this.repartoConfirmado = true;
 
         const primero = elegidos[0].split('-');
@@ -1233,13 +1076,10 @@ class App extends Templates {
         return this.movePeriodTo(Number(primero[1]), Number(primero[0]));
     }
 
-    // Reintento en el mes que manda del archivo, que es lo que ofrece el pie.
     movePeriod(v) {
         return this.movePeriodTo(v.mesArchivo, v.anioArchivo);
     }
 
-    // Reintento en un mes concreto: el que manda o el que el usuario eligio de los
-    // botones del aviso.
     movePeriodTo(mes, anio) {
         if (!this.setUploadPeriod(mes, anio)) {
             return ticketsView.renderUploadError(
@@ -1252,9 +1092,6 @@ class App extends Templates {
         return this.sendUpload();
     }
 
-    // Que hace el boton principal del modal. Cambia con el paso: subir mientras se
-    // eligen los archivos, mover cuando el aviso ofrece otro mes y cerrar cuando la
-    // carga termino (renderUploadDone).
     setUploadAction(texto, accion) {
         if (!this.uploadModal) return;
 
@@ -1264,14 +1101,25 @@ class App extends Templates {
             .on('click', accion);
     }
 
-    // Los selectores del modal se mueven al periodo destino antes de reintentar: la
-    // carga sale de ellos, y dejarlos en el mes viejo haria que el siguiente intento
-    // volviera a preguntar lo mismo.
-    //
-    // Devuelve si el periodo quedo puesto de verdad. El año se elige de una lista
-    // corta —los tres ultimos ejercicios— y uno que no este ahi dejaria el selector
-    // como estaba: sin comprobarlo, el reintento repetiria el mismo aviso para
-    // siempre.
+    setUploadCancel(accion) {
+        if (!this.uploadModal) return;
+
+        const boton = this.uploadModal.footer.find('button').first();
+
+        boton.off('click');
+
+        if (accion) boton.on('click', accion);
+        else        boton.on('click', () => this.uploadModal.close());
+    }
+
+    backToPick() {
+        this.mesesElegidos     = null;
+        this.repartoConfirmado = false;
+        this.revisadosPrevios  = null;
+
+        this.renderUploadList();
+    }
+
     setUploadPeriod(mes, anio) {
         $('#fUpMes').val(String(mes));
         $('#fUpAnio').val(String(anio));
@@ -1281,12 +1129,6 @@ class App extends Templates {
 
     // -- Cuanto lleva guardado --
 
-    // Arranca la vigilancia de la carga que esta por lanzarse.
-    //
-    // Primero se apunta el ultimo lote que existe AHORA: lo que aparezca despues de
-    // ese id es de esta carga y de ninguna otra. Sin esa marca, un archivo que ya se
-    // habia subido antes contaria sus lotes viejos y la barra saldria llena de
-    // entrada.
     async watchProgress(item) {
         this.stopProgress();
 
@@ -1294,15 +1136,9 @@ class App extends Templates {
 
         this.progressFrom = Number(arranque) || 0;
 
-        // El reloj del avance no arranca aqui sino en la primera lectura con filas: lo
-        // que pasa antes es la subida del archivo, que no escribe una sola fila y
-        // falsearia el ritmo hacia abajo.
         this.progressBase = null;
 
-        // La primera consulta no espera la vuelta del reloj. El reporte de ventas son
-        // mil filas y se escribe en menos de lo que tardaba un tick: la barra aparecia
-        // una sola vez, ya casi llena, y se leia como un salto.
-        this.progressTimer = setInterval(() => this.askProgress(item), 1200);
+        this.progressTimer = setInterval(() => this.askProgress(item), 600);
 
         this.askProgress(item);
     }
@@ -1314,9 +1150,6 @@ class App extends Templates {
         this.progressTimer = null;
     }
 
-    // Una vuelta de la consulta. Se pinta solo si trajo filas: hasta que el
-    // importador abre su primer lote no hay nada que contar, y un cero parpadeando
-    // se leeria como que la carga no arranco.
     async askProgress(item) {
         const avance = await useFetch({
             url:  apiCargas,
@@ -1327,25 +1160,46 @@ class App extends Templates {
             }
         });
 
-        if (!this.progressTimer || !avance || !avance.filas) return;
+        if (!this.progressTimer) return;
+
+        if (!avance || !avance.filas) return ticketsView.renderUploadStep(...this.faseCarga(item, avance));
 
         ticketsView.renderUploadProgress(item.slot.nombre, this.conRitmo(avance));
     }
 
-    // El avance con lo que se puede deducir de el: cuanto lleva hecho y cuanto
-    // queda por delante.
-    //
-    // El tiempo sale del ritmo MEDIDO entre la primera lectura con filas y esta, no
-    // de una tabla de tamanos: cada archivo y cada servidor van a lo suyo. Hasta
-    // tener dos lecturas no hay ritmo que medir y no se dice nada, porque un numero
-    // inventado en el primer segundo es peor que ninguno.
+    faseCarga(item, avance) {
+        const paso  = (avance || {}).paso || {};
+        const miles = (n) => Number(n || 0).toLocaleString('en-US');
+
+        if (paso.fase === 'columnas') {
+            return [`Abriendo ${item.file.name}...`, 'Comprobando que las columnas estén donde el reporte las pone'];
+        }
+
+        if (paso.fase === 'bloque') {
+            return [
+                `Leyendo ${item.file.name}...`,
+                `Parte ${paso.bloque} de ${paso.bloques} · ${miles(paso.leidas)} filas leídas`
+            ];
+        }
+
+        if (paso.fase === 'enlaces') {
+            return ['Cerrando la carga...', 'Enlazando cada renglón con su venta y su producto'];
+        }
+
+        if (avance && avance.lotes > 0) {
+            return [`Guardando ${item.slot.nombre.toLowerCase()}...`, 'Escribiendo las primeras filas'];
+        }
+
+        return [
+            `Leyendo ${item.file.name}...`,
+            'El archivo se lee entero antes de escribir nada. Los grandes tardan un poco en abrirse.'
+        ];
+    }
+
     conRitmo(avance) {
         const total = Number(avance.total) || 0;
         const filas = Number(avance.filas) || 0;
 
-        // El tope era 99 para no cantar un final que aun no llega, pero con las filas
-        // ya escritas eso deja la barra clavada en un numero que no avanza. Llega a
-        // 100 y lo que sigue lo dice el texto: lo que queda no son filas.
         avance.pct = total > 0 ? Math.min(100, Math.round(filas * 100 / total)) : 0;
 
         if (!this.progressBase) {
@@ -1364,8 +1218,6 @@ class App extends Templates {
         return avance;
     }
 
-    // useFetch manda urlencoded y no admite archivos: la subida necesita FormData,
-    // con los mismos campos que el modulo Cargas.
     postFile(opc, periodo, tipo, file) {
         const formData = new FormData();
 
@@ -1375,9 +1227,6 @@ class App extends Templates {
         formData.append('anio',        periodo.anio);
         formData.append('excel_file0', file);
 
-        // Los meses que el usuario dejo marcados en el aviso. Sin esto entra el
-        // archivo completo, que es el caso normal: la lista solo viaja cuando de
-        // verdad se descarto algun mes.
         const elegidos = this.mesesElegidos || [];
 
         if (opc === 'uploadFile' && elegidos.length) formData.append('meses', elegidos.join(','));
@@ -1387,8 +1236,6 @@ class App extends Templates {
             .catch(() => ({ status: 500, message: 'No se pudo leer el archivo' }));
     }
 
-    // El boton nace vacio: opc:'button' pinta su icono como clase CSS y aqui los
-    // iconos son Lucide, que se monta por atributo.
     decorateMetaButton() {
         $('#btnMetaConfig')
             .empty()
@@ -1399,10 +1246,6 @@ class App extends Templates {
         this.syncMetaButton();
     }
 
-    // Sin etiqueta el boton no puede rotular la meta, asi que la dice al pasar por
-    // encima, y en la unidad con la que se capturo: un porcentaje se mueve con la
-    // venta y una cantidad no, y esa diferencia importa a media jornada. En pantalla
-    // el monto sigue estando en la tarjeta del objetivo al 16%.
     syncMetaButton() {
         const valor = this.meta.modo === 'monto'
             ? (this.dataKpis.objetivoTexto || this.moneyText(this.meta.valor))
@@ -1411,8 +1254,6 @@ class App extends Templates {
         $('#btnMetaConfig').attr('title', `Distribucion IVA 16% / IVA 0% · al 16%: ${valor}`);
     }
 
-    // Gemelos de money() y pctTexto() del controlador, para el reparto que el modal
-    // muestra antes de mandarlo. Todo lo demas llega escrito del servidor.
     moneyText(n) {
         return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -1425,11 +1266,6 @@ class App extends Templates {
         $('#viewFooter_info').text(text);
     }
 
-
-    // Que se hizo con los cargos que cambiaron de folio. Va en un globo colgado del
-    // propio aviso del pie, no en un cuadro en medio de la pantalla: es el detalle
-    // de esa linea y no interrumpe nada. Se arma con lo que ya vino en el listado,
-    // asi que no pide nada al servidor.
     avisoMudados() {
         if (!(this.dataMudados || []).length) return;
 
@@ -1438,21 +1274,17 @@ class App extends Templates {
 
     // -- Vista previa del cierre (punto 20) --
 
-    // Lo que se va a escribir, antes de escribirlo. El modal se abre una sola vez:
-    // Regenerar vuelve a pedir la propuesta y solo repinta el cuerpo, porque cerrar
-    // y volver a abrir haria parpadear la pantalla en cada intento.
     openPreviewModal(data) {
         if (this.previewModal) return ticketsView.renderPreviewDay(data);
 
+        this.previewScope = data.mes ? 'mes' : 'dia';
+
         this.previewModal = this.cfModal({
-            title:         'Vista previa del reparto',
+            title:         data.mes ? `Vista previa del reparto · ${data.fechaTexto}` : 'Vista previa del reparto',
             size:          'default',
             theme:         FACTURE_THEME,
-            okLabel:       'Confirmar',
+            okLabel:       data.mes ? 'Confirmar el mes' : 'Confirmar',
             cancelLabel:   'Cancelar',
-            // Sin cierre por clic fuera: el modal es el unico punto del modulo
-            // donde se autoriza escribir el dia, y salir de el por accidente
-            // dejaria al usuario sin saber si el cierre corrio.
             backdropClose: false,
             onOk:          () => this.confirmPreview(),
             onClose:       () => { this.previewModal = null; }
@@ -1465,14 +1297,6 @@ class App extends Templates {
         ticketsView.renderPreviewDay(data);
     }
 
-    // Tres salidas y no dos. Regenerar se mete entre Cancelar y Confirmar porque es
-    // lo que se hace ANTES de aceptar: la barra se lee de izquierda a derecha en el
-    // orden en que se usa.
-    //
-    // Confirmar va en verde y no en el azul que pone cfModal: el azul de la terminal
-    // es el de las acciones del dia —generar, imprimir— y este boton es el unico del
-    // modulo que escribe el cierre completo. Es el mismo verde con el que el modulo
-    // marca lo ya facturado.
     decoratePreviewFooter() {
         const ok = this.previewModal.footer.find('button').last();
 
@@ -1492,9 +1316,6 @@ class App extends Templates {
         ok.before(regenerar);
     }
 
-    // Mientras la propuesta viaja no hay nada que confirmar ni que regenerar. Se
-    // apaga el pie entero y no un boton: los tres actuan sobre una propuesta que en
-    // ese momento ya no es la que se esta viendo.
     lockPreview(bloquear) {
         if (!this.previewModal) return;
 
@@ -1503,19 +1324,75 @@ class App extends Templates {
             .toggleClass('opacity-50 cursor-not-allowed', bloquear);
     }
 
-    // El modal se va antes de que arranque el cierre: lo que sigue es el resumen del
-    // reparto, y dos capas encimadas taparian justo lo que se acaba de autorizar. Si
-    // el cierre falla, su aviso lo dice y la propuesta se puede volver a abrir.
     confirmPreview() {
         this.previewModal.close();
+
+        if (this.previewScope === 'mes') return tickets.generateMonth();
 
         tickets.generateDay();
     }
 
+    // -- Alcance del cierre --
+
+    async askScope(mes) {
+        const data = await useFetch({
+            url:  apiTickets,
+            data: Object.assign({ opc: 'scopeMonth', mes: mes || '' }, this.getFilters())
+        });
+
+        if (data.status !== 200 || !(data.dias || []).length) {
+            return tickets.previewDay();
+        }
+
+        this.openScopeModal(data);
+    }
+
+    openScopeModal(info) {
+        if (this.scopeModal) return;
+
+        this.scopeInfo = info;
+
+        this.scopeModal = this.cfModal({
+            title:         'Generar tickets',
+            size:          'small',
+            theme:         FACTURE_THEME,
+            okLabel:       'Ver propuesta',
+            cancelLabel:   'Cancelar',
+            backdropClose: true,
+            onOk:          () => this.applyScope(),
+            onClose:       () => { this.scopeModal = null; }
+        });
+
+        this.scopeModal.body.append($('<div>', { id: 'scopeModalBody' }));
+
+        const dia      = this.getFilters().dia;
+        const enElMes  = info.dias.find((d) => d.dia === dia);
+        const primero  = info.dias.find((d) => d.sinRepartir) || info.dias[0];
+
+        ticketsView.renderScope(info, (enElMes || primero).dia);
+
+        $('#scopeModalBody input[name="scopeKind"]').on('change', () => ticketsView.syncScope());
+    }
+
+    async applyScope() {
+        const alcance = $('#scopeModalBody input[name="scopeKind"]:checked').val() || 'dia';
+        const dia     = $('#fScopeDia').val();
+        const mes     = (this.scopeInfo || {}).mes || '';
+
+        this.scopeModal.close();
+
+        if (alcance === 'mes') return tickets.previewMonth(0, mes);
+
+        if (dia && dia !== this.getFilters().dia) {
+            $('#fDia').val(dia);
+            await this.onChangeFilters();
+        }
+
+        tickets.previewDay();
+    }
+
     // -- Facade --
 
-    // El papel se pide al servidor: si el ticket ya se genero llegan los renglones
-    // guardados y si no, la propuesta con la que se armaria.
     async selectTicket(folio) {
         this.selectedId = folio;
         $(`#tb${this.PROJECT_NAME} tbody tr`).removeClass('row-active');
@@ -1540,23 +1417,12 @@ class Tickets extends Templates {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
         this.generating   = false;
-        // Con que combinacion de productos se arman los papeles inventados. Cada
-        // Regenerar de la vista previa la mueve un numero, y el confirmar manda la
-        // que el usuario acepto. El 0 es la de siempre.
         this.semilla      = 0;
     }
 
-    // Una corrida de tickets a la vez.
-    //
-    // Generar el dia son decenas de papeles y la peticion tarda segundos sin avisar
-    // nada en pantalla, asi que el segundo clic entra cuando el primero todavia no
-    // guarda: las dos peticiones leen "esta venta no tiene ticket" y las dos se lo
-    // arman. La base no lo impide —virtual_ticket.sale_id no es UNIQUE— y el mismo
-    // cobro termina con dos notas.
-    //
-    // El candado va en el metodo y no en el boton porque las tres formas de generar
-    // (el dia, los del 0% y el ticket seleccionado) escriben en la misma tabla. Los
-    // botones se apagan de paso, para que se vea que la corrida ya arranco.
+    // Una corrida a la vez: el cierre tarda segundos y el segundo clic entra cuando
+    // el primero todavia no guarda, asi que las dos peticiones leen "esta venta no
+    // tiene ticket" y el mismo cobro termina con dos notas (sale_id no es UNIQUE).
     async runLocked(task) {
         if (this.generating) return;
 
@@ -1574,14 +1440,9 @@ class Tickets extends Templates {
         }
     }
 
-    // Tabla de tickets
     async lsTickets() {
         const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'lsTickets' }, app.getFilters()) });
 
-        // Un dia sin ventas no es una tabla vacia: es una pantalla que tiene que
-        // decir que falta y por donde se arregla. Y si el servidor no contesta, el
-        // vacio lo dice en vez de dejar el listado en blanco como si el dia no
-        // hubiera tenido nada.
         if (!data || !(data.row || []).length) return ticketsView.renderEmptyDay(data);
 
         this.createCoffeeTable3({
@@ -1616,17 +1477,12 @@ class Tickets extends Templates {
         app.syncActionButtons(counts);
         app.syncMetaButton();
 
-        // El pie nombra las dos poblaciones del listado. Sin la segunda cifra, un
-        // dia con veinte tickets en $0.00 se lee como un dia sin ventas.
         const servicio = counts.servicio || 0;
         const aparte   = servicio > 0 ? `, ${servicio} de servicio de mesa` : '';
 
         app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} del dia${aparte}`);
     }
 
-    // Paginado, buscador y ordenamiento de la tabla ya pintada. Sin filas
-    // createCoffeeTable3 no arma un <table> sino el aviso de vacio, asi que montar
-    // DataTables ahi dejaria la paginacion colgando debajo del mensaje.
     dataTable(id, data) {
         if (!(data.row || []).length) return;
 
@@ -1635,13 +1491,6 @@ class Tickets extends Templates {
 
     // -- Actions --
 
-    // El paso previo a escribir el dia (punto 20): se pide la propuesta —el mismo
-    // reparto, sin guardar nada— y se enseña. El cierre cuelga del Confirmar del
-    // modal, no de este metodo.
-    //
-    // La semilla es el argumento: entrar por el boton la reinicia en 0, y Regenerar
-    // vuelve a entrar aqui con la siguiente. Es lo unico que cambia entre una
-    // propuesta y otra del mismo dia.
     async previewDay(semilla = 0) {
         this.semilla = semilla;
 
@@ -1654,9 +1503,6 @@ class Tickets extends Templates {
 
         app.lockPreview(false);
 
-        // Lo que detiene el cierre detiene la propuesta, y con el mismo mensaje: sin
-        // catalogo puente, sin ventas o con el reparto sin cuadrar no hay nada que
-        // enseñar.
         if (data.status !== 200) {
             this.alertBox({ theme: FACTURE_THEME, type: 'error', title: data.message, timer: 0 });
             return;
@@ -1665,21 +1511,44 @@ class Tickets extends Templates {
         app.openPreviewModal(data);
     }
 
-    // Otra combinacion de productos para la misma propuesta. No vuelve a repartir el
-    // dia —la tasa de cada venta y su monto no dependen del catalogo—: solo cambia
-    // con que renglones se arma el papel de cada una.
+    async startGenerate() {
+        const data = await useFetch({
+            url:  apiTickets,
+            data: Object.assign({ opc: 'scopeMonth' }, app.getFilters())
+        });
+
+        if (data.status !== 200 || (data.pendientes || 0) < 2) return this.previewDay();
+
+        app.openScopeModal(data);
+    }
+
+    async previewMonth(semilla = 0, mes = '') {
+        this.semilla  = semilla;
+        this.scopeMes = mes || this.scopeMes || '';
+
+        app.lockPreview(true);
+
+        const data = await useFetch({
+            url:  apiTickets,
+            data: Object.assign({ opc: 'previewMonth', semilla: this.semilla, mes: this.scopeMes }, app.getFilters())
+        });
+
+        app.lockPreview(false);
+
+        if (data.status !== 200) {
+            this.alertBox({ theme: FACTURE_THEME, type: 'error', title: data.message, timer: 0 });
+            return;
+        }
+
+        app.openPreviewModal(data);
+    }
+
     regenerate() {
+        if (app.previewScope === 'mes') return this.previewMonth(this.semilla + 1);
+
         this.previewDay(this.semilla + 1);
     }
 
-    // El cierre del dia: el servidor decide que se factura al 16% y que se manda al
-    // 0%, y arma el papel que a cada grupo le falte —el del cero siempre, el del 16%
-    // solo cuando la venta llego sin su comanda—. No imprime nada; el papel sale con
-    // el otro boton, que aparece justo cuando esto termina.
-    //
-    // Ya no se llama desde la barra: el boton abre la vista previa y esto corre
-    // cuando el usuario confirma lo que vio. La semilla viaja con la peticion para
-    // que se guarde exactamente la combinacion que se aprobo.
     async generateDay() {
         await this.runLocked(async () => {
             const response = await useFetch({
@@ -1698,13 +1567,33 @@ class Tickets extends Templates {
         });
     }
 
-    // Las dos maneras de deshacer un dia ya cerrado, en la misma pregunta: rehacerlo
-    // o eliminarlo. Salen juntas porque parten del mismo estado —el dia repartido— y
-    // el usuario decide entre ellas, no entre dos botones separados de la barra.
-    //
-    // El texto dice lo que hace cada una porque no son reversibles: rehacer REEMPLAZA
-    // el reparto anterior (un ticket que estaba al 0% puede pasar al 16% y soltar su
-    // papel) y eliminar no deja nada en su lugar.
+    async generateMonth() {
+        await this.runLocked(async () => {
+            const response = await useFetch({
+                url:  apiTickets,
+                data: Object.assign({ opc: 'generateMonth', semilla: this.semilla, mes: this.scopeMes || '' }, app.getFilters())
+            });
+
+            if (response.status !== 200) {
+                this.alertBox({ theme: FACTURE_THEME, type: 'error', title: response.message, timer: 0 });
+                return;
+            }
+
+            await this.lsTickets();
+
+            ticketsView.renderResumenReparto(response);
+
+            if (response.falla) {
+                this.alertBox({
+                    theme: FACTURE_THEME,
+                    type:  'error',
+                    title: `El mes se detuvo en ${response.falla.fechaTexto}: ${response.falla.message}`,
+                    timer: 0
+                });
+            }
+        });
+    }
+
     redoDay() {
         this.swalQuestion({
             extends: true,
@@ -1718,16 +1607,11 @@ class Tickets extends Templates {
                 cancelButtonText:  'No'
             }
         }).then((result) => {
-            // Rehacer tambien escribe el dia, asi que tambien pasa por la vista
-            // previa: la pregunta de arriba decide entre rehacer y eliminar, no
-            // autoriza el reparto que va a quedar.
             if (result.isConfirmed)   this.previewDay();
             else if (result.isDenied) this.deleteDay();
         });
     }
 
-    // Deshacer el reparto del dia. El panel se vacia junto con la tabla: el papel que
-    // estuviera abierto es de un ticket que acaba de dejar de existir.
     async deleteDay() {
         await this.runLocked(async () => {
             const response = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'deleteDay' }, app.getFilters()) });
@@ -1748,9 +1632,6 @@ class Tickets extends Templates {
         });
     }
 
-    // La hoja del dia: se piden los papeles ya armados, se pintan en el contenedor
-    // que solo existe para imprimir y se abre el dialogo del navegador. El PDF lo
-    // guarda el usuario desde ahi.
     async printSheet() {
         const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'showPrintSheet' }, app.getFilters()) });
 
@@ -1761,16 +1642,11 @@ class Tickets extends Templates {
 
         ticketsView.renderPrintSheet(data.tickets, data.emisor);
 
-        // La clase le dice al @media print cual de los dos trabajos es: la hoja
-        // del dia o el ticket del panel. Se quita al cerrar el dialogo para que la
-        // siguiente impresion vuelva a ser la del ticket seleccionado.
         $('body').addClass('printing-sheet');
         window.print();
         $('body').removeClass('printing-sheet');
     }
 
-    // Los del 0% son el trabajo del cierre: sin IVA trasladado el ticket del POS no
-    // sirve para facturar, asi que se les arma su ticket virtual de una pasada.
     generateAllZero() {
         this.swalQuestion({
             extends: true,
@@ -1792,8 +1668,6 @@ class Tickets extends Templates {
         });
     }
 
-    // Genera (o vuelve a generar) el ticket seleccionado. Regenerar conserva su
-    // numero de nota: ya se entrego y no puede cambiar.
     async generate() {
         if (!app.selectedId) {
             this.alertBox({ type: 'message', title: 'Selecciona un ticket de la lista' });
@@ -1828,10 +1702,6 @@ class Tickets extends Templates {
         window.print();
     }
 
-    // El ojo apagado del dia sin repartir. Ya no es uno solo para todas las filas:
-    // las que traen su comanda cargada si abren, asi que el aviso tiene que decir
-    // que le falta a ESTA para poder verse. El motivo lo manda el servidor con la
-    // fila, que es quien sabe por que la apago.
     pendingNotice(motivo) {
         const titulo = {
             'sin-comanda':     'Esta venta llego sin su comanda: su papel se arma al generar los tickets del dia',
@@ -1854,9 +1724,7 @@ class Tickets extends Templates {
     }
 }
 
-// Vista lateral del ticket seleccionado.
 class TicketsView extends Templates {
-
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'tickets';
@@ -1864,18 +1732,12 @@ class TicketsView extends Templates {
 
     // -- Render helpers --
 
-    // El pie: a la izquierda lo que se esta viendo, a la derecha la puerta al manual
-    // del reparto. Las cinco leyendas de color que vivian aqui repetian lo que ya
-    // dice el badge de la columna Estado, fila por fila.
     renderFooter() {
         const info = $('<div>', { class: 'flex items-center gap-3 min-w-0 text-[10px] text-gray-400' });
 
         info.append($('<span>', { id: 'viewFooter_info' }));
         info.append($('<span>', { id: 'viewFooter_cut' }));
 
-        // El dia con cargos cambiados de folio lo dice aqui y no fila por fila: es
-        // un hecho del dia, no de una venta, y asi la tabla se queda como esta.
-        // Nace escondido porque la mayoria de los dias no hay ninguno.
         const mudados = $('<button>', {
             type:  'button',
             id:    'btnMudados',
@@ -1888,7 +1750,6 @@ class TicketsView extends Templates {
 
         mudados.on('click', () => app.avisoMudados());
 
-        // El globo del aviso se cuelga de aqui, para que salga del propio boton.
         const wrap = $('<div>', { id: 'mudadosWrap', class: 'relative flex-shrink-0' });
 
         wrap.append(mudados);
@@ -1896,7 +1757,6 @@ class TicketsView extends Templates {
         $('#viewFooterRow').empty().append(info).append(wrap);
     }
 
-    // El aviso del pie: cuantas cuentas se cobraron con mas de una tarjeta hoy.
     renderMudadosLink(mudados) {
         const n = (mudados || []).length;
 
@@ -1904,9 +1764,6 @@ class TicketsView extends Templates {
         $('#btnMudados_txt').text(n === 1 ? '1 cargo cambio de folio' : `${n} cargos cambiaron de folio`);
     }
 
-    // Las lineas del aviso: una por cargo, cada una dicha como se diria en voz alta.
-    // Se cortan en tres porque esto es un aviso, no un reporte: con mas movimientos
-    // la ultima linea dice cuantos quedan.
     mudadosLineas(mudados) {
         const lineas = (mudados || []).slice(0, 3).map((mov) =>
             `El cargo de ${mov.montoTexto} de la cuenta ${mov.origen} lo factura ahora el folio ${mov.destino}, que se cobro en ${mov.pagoDestino}.`
@@ -1919,8 +1776,6 @@ class TicketsView extends Templates {
         return lineas;
     }
 
-    // El globo del pie. Sale del aviso, se va solo a los seis segundos y se cierra
-    // con un toque fuera o volviendo a tocar el aviso.
     toggleMudadosToast(mudados) {
         let toast = $('#mudadosToast');
 
@@ -1937,15 +1792,11 @@ class TicketsView extends Templates {
             toast.append($('<div>', { class: i ? 'mt-1.5' : '', text: linea }));
         });
 
-        // La caja tiene que estar puesta antes de la clase que la anima; si no, el
-        // navegador pinta las dos cosas a la vez y no hay transicion que ver.
         requestAnimationFrame(() => toast.addClass('is-on'));
 
         clearTimeout(this.toastTimer);
         this.toastTimer = setTimeout(() => this.hideMudadosToast(), 6000);
 
-        // El cierre por toque fuera se engancha en el siguiente ciclo: si no, el
-        // mismo clic que abrio el globo lo cerraria al llegar al documento.
         setTimeout(() => $(document).one('click.mudados', () => this.hideMudadosToast()), 0);
     }
 
@@ -1956,18 +1807,8 @@ class TicketsView extends Templates {
         $('#mudadosToast').removeClass('is-on');
     }
 
-    // La linea del corte, que es lo unico del manual que cambia cada dia: sin ella
-    // la marca ambar de la tabla es una raya muda. Sin corte previsto no hay nada
-    // que explicar —toda la venta cabe en el 16%— y el hueco se queda vacio.
     // -- Pantalla sin datos --
 
-    // El vacio dice las tres cosas que hacen falta: que falta, por que falta y por
-    // donde se arregla. La fecha va con todas sus letras porque el dia que se esta
-    // mirando es justo lo que hay que cambiar cuando el vacio no era lo esperado.
-    //
-    // Que el servidor no conteste tambien es un vacio, pero de otro tipo: se dice
-    // asi en vez de dejar la pantalla en blanco como si el dia no hubiera tenido
-    // ventas, que es lo que pasaba antes.
     renderEmptyDay(data) {
         const fecha = String(app.getFilters().dia || '').split('-').reverse().join('/');
 
@@ -2000,37 +1841,15 @@ class TicketsView extends Templates {
         $('#viewFooter_cut').text(texto);
     }
 
-    // Las cuatro cifras del dia en un renglon: la venta con tarjeta, las dos tasas
-    // en que se reparte y lo que ya quedo facturado. Antes eran cinco tarjetas de
-    // infoCard —una banda entera— y las cinco salian de la misma cuenta.
-    //
-    // El total de tarjeta abre la fila y va un cuerpo mas grande: es el unico monto
-    // que el modulo procesa y de el salen los dos objetivos. Los montos llegan
-    // escritos del servidor; aqui solo se arma el rotulo que los acompana.
-    //
-    // Los tamanos y los colores viven en wansoft-theme.css (TRM-007): el JS pone
-    // .ws-stat y sus variantes.
     renderStats(k, counts) {
         const pctCero = k.metaCeroPct || 30;
 
-        // Cada cifra ocupa dos renglones —rotulo y monto— y nada mas: el reparto que
-        // las relaciona cabe en el propio rotulo. Lo que no cabe ahi (el objetivo del
-        // 0% una vez generado, cuantos movimientos suman el total) viaja en el title
-        // de la celda, que es donde se consulta un detalle sin pedirle sitio a la
-        // pantalla todos los dias.
-        //
-        // Cuando la meta se fija como cantidad el porcentaje sigue siendo cierto pero
-        // ya no es lo que se capturo: el rotulo lo dice para que nadie lea un 44.8%
-        // como si alguien lo hubiera elegido asi.
         const rotulo16 = k.metaModo === 'monto'
             ? `IVA 16% · cantidad fija`
             : `IVA 16% · ${k.metaPct || 70}%`;
 
         const row = $('<div>', { class: 'w-full flex items-center flex-wrap gap-y-2' });
 
-        // El detalle del hero dice de cuantos folios sale la cifra y cuantos se
-        // quedaron fuera: el listado muestra el dia completo, pero solo la tarjeta
-        // de credito construye este monto.
         const servicio = k.servicio
             ? ` · ${k.servicio} de servicio de mesa, que no facturan`
             : '';
@@ -2041,8 +1860,6 @@ class TicketsView extends Templates {
         row.append(this.statCell(rotulo16, k.objetivoTexto, 'ws-stat-blue',
             `${k.metaPct || 70}% de la venta con tarjeta`));
 
-        // Mientras el dia no tenga reparto corrido se muestra el objetivo del 0%; ya
-        // repartido, lo que el reparto armo de verdad.
         row.append(this.statCell(`IVA 0% · ${pctCero}%`,
             k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto, '',
             k.ceroGenerado ? `generado · objetivo ${k.objetivoCeroTexto}` : `${pctCero}% de la venta con tarjeta`));
@@ -2067,14 +1884,71 @@ class TicketsView extends Templates {
         return cell;
     }
 
-    // El cuadre del modal de distribucion: las dos tasas y su suma contra el Total
-    // Tarjeta de Credito. El 0% no se captura, se deriva del 16%, asi que la suma
-    // siempre da el total; mostrarla es lo que deja ver que el reparto cuadra antes
-    // de aplicarlo.
-    //
-    // Va con las clases de tema resueltas aqui y no con los tokens del modulo:
-    // facture-theme traduce la paleta bajo #mainContainer, y cfModal monta su panel
-    // al final del <body>, fuera de ese scope, igual que el popup de SweetAlert.
+    // -- Alcance del cierre --
+
+    renderScope(info, diaSugerido) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+        const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
+        const campo = FACTURE_THEME_IS_LIGHT
+            ? 'bg-white border-gray-300 text-gray-900'
+            : 'bg-[#111827] border-[#374151] text-white';
+
+        const opcion = (d) => `
+            <option value="${esc(d.dia)}" ${d.dia === diaSugerido ? 'selected' : ''}>
+                ${esc(d.fechaTexto)} · ${esc(d.totalTexto)}${d.sinRepartir ? '' : ' · ya repartido'}
+            </option>
+        `;
+
+        const pendientes = info.dias.filter((d) => d.sinRepartir).length;
+
+        $('#scopeModalBody').html(`
+            <p class="text-[11px] ${label}">${esc(info.mesTexto)} · ${esc(info.dias.length)} dia${info.dias.length !== 1 ? 's' : ''} con ventas · ${esc(pendientes)} sin repartir</p>
+
+            <label class="mt-3 block rounded-lg border ${marco} p-3 cursor-pointer" data-scope="dia">
+                <span class="flex items-center gap-2">
+                    <input type="radio" name="scopeKind" value="dia" checked class="accent-[#1C64F2]">
+                    <span class="text-[12.5px] font-semibold ${valor}">Un dia</span>
+                </span>
+                <select id="fScopeDia" class="mt-2 w-full rounded-lg border px-2 py-1.5 text-[12px] ${campo}">
+                    ${info.dias.map(opcion).join('')}
+                </select>
+            </label>
+
+            <label class="mt-2 block rounded-lg border ${marco} p-3 cursor-pointer" data-scope="mes">
+                <span class="flex items-center gap-2">
+                    <input type="radio" name="scopeKind" value="mes" class="accent-[#1C64F2]">
+                    <span class="text-[12.5px] font-semibold ${valor}">Todo el mes</span>
+                    <span class="ml-auto text-[12px] font-bold ${valor}">${esc(info.totalTexto)}</span>
+                </span>
+                <span class="mt-1 block pl-6 text-[10.5px] ${label}">
+                    ${esc(info.dias.length)} dias · ${esc(info.movimientos)} movimientos · ${esc(info.conCargo)} con cargo a tarjeta
+                </span>
+            </label>
+
+            <p class="mt-2 text-[10.5px] facture-warn">
+                El mes se cierra dia por dia, con la misma meta y su propia numeracion de notas: son varias corridas, no una sola del mes.
+            </p>
+        `);
+
+        this.syncScope();
+    }
+
+    syncScope() {
+        const elegido = $('#scopeModalBody input[name="scopeKind"]:checked').val();
+        const apagado = FACTURE_THEME_IS_LIGHT ? '#E5E7EB' : '#374151';
+
+        $('#scopeModalBody [data-scope]').each(function () {
+            const activo = $(this).attr('data-scope') === elegido;
+
+            $(this).css('border-color', activo ? '#1C64F2' : apagado);
+        });
+    }
+
     renderMetaPreview(p) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -2085,8 +1959,6 @@ class TicketsView extends Templates {
         const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
         const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
 
-        // El punto de color es el mismo par que separa las dos tasas en el resto del
-        // modulo: azul la que se factura, ambar la que pide ticket virtual.
         const fila = (color, texto, pct, monto) => `
             <div class="flex items-center justify-between py-1.5">
                 <span class="flex items-center gap-2 text-[11px] ${label}">
@@ -2098,14 +1970,10 @@ class TicketsView extends Templates {
             </div>
         `;
 
-        // El campo que todavia sigue al otro se dice, para que la cifra se lea como
-        // propuesta y no como algo que alguien capturo.
         const sugerido = p.sugerido ? `
             <p class="mt-2 text-[10px] facture-info">El monto al IVA ${esc(p.sugerido)}% es el resto del total. Corrigelo si el acuerdo es otro.</p>
         ` : '';
 
-        // Sin cuadrar no hay reparto: se nombra la diferencia y de que lado esta,
-        // que es lo unico con lo que el usuario puede corregir la captura.
         const aviso = p.cuadra ? '' : `
             <p class="mt-2 text-[10px] facture-warn flex items-start gap-1.5">
                 <i data-lucide="alert-triangle" class="w-3 h-3 shrink-0 mt-[1px]"></i>
@@ -2136,19 +2004,9 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // La propuesta del dia antes de escribirla (punto 20). Cuatro bloques: lo que
-    // se va a repartir, como queda repartido, cuantos papeles salen de ahi y que
-    // folios cambian de mano.
-    //
-    // No lleva la diferencia contra la meta capturada: los tickets no se parten, asi
-    // que el que cruza la meta entra completo y esa diferencia SIEMPRE existe.
-    // Ponerla delante de quien tiene que autorizar es enseñarle un numero que parece
-    // un error. Se sigue diciendo despues, en el resumen del cierre, que es donde ya
-    // viene explicada.
-    //
-    // Va con las clases de tema resueltas aqui y no con los tokens del modulo, por lo
-    // mismo que renderMetaPreview: cfModal monta su panel al final del <body>, fuera
-    // del scope de facture-theme.
+    // Las clases de tema se resuelven aqui y no con los tokens del modulo:
+    // facture-theme traduce la paleta bajo #mainContainer y cfModal monta su panel
+    // al final del <body>, fuera de ese scope.
     renderPreviewDay(p) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -2158,21 +2016,57 @@ class TicketsView extends Templates {
         const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
         const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
 
-        // El mismo par que separa las dos tasas en el modal de distribucion: azul la
-        // que se factura, ambar la que pide ticket virtual.
-        const tasa = (color, nombre, tickets, monto) => `
+        const tasa = (color, nombre, pct, tickets, monto) => `
             <div class="flex items-baseline gap-2.5 py-1.5">
                 <span class="w-2 h-2 rounded-full shrink-0" style="background:${color};"></span>
                 <span class="text-[12px] font-semibold ${valor}">${esc(nombre)}</span>
+                <span class="w-12 text-[11.5px] font-semibold tabular-nums ${valor}">${esc(pct)}%</span>
                 <span class="text-[10.5px] ${label}">${esc(tickets)} ticket${Number(tickets) !== 1 ? 's' : ''}</span>
                 <span class="ml-auto text-[13px] font-bold ${valor}">${esc(monto)}</span>
             </div>
         `;
 
-        // Los folios que cambian de mano se enseñan uno por uno y no como conteo: es
-        // lo unico del cierre que reescribe un dato del POS, y quien confirma tiene
-        // que poder reconocer cada folio que va a quedar distinto de su ticket
-        // impreso. La banda entera no se pinta cuando el dia no tuvo ninguno.
+        const tono = p.sobreMeta ? '#1C64F2' : '#F59E0B';
+
+        const marcador = `
+            <div class="flex items-baseline justify-between gap-2 mb-1.5">
+                <span class="text-[10.5px] ${label}">Reparto aplicado</span>
+                <span class="inline-flex items-center gap-1.5 rounded-full border px-2 py-[1px] text-[10.5px] font-semibold tabular-nums"
+                      style="border-color:${tono};color:${tono};">
+                    Meta ${esc(p.metaPct)}% &rarr; aplicado ${esc(p.pct16)}%
+                </span>
+            </div>
+        `;
+
+        const distancia = `
+            <p class="mt-1 text-[10.5px] ${label}">
+                Objetivo capturado ${esc(p.objetivoTexto)} ·
+                ${p.sobreMeta ? 'se rebasa por' : 'faltan'} <span class="font-semibold" style="color:${tono};">${esc(String(p.difTexto).replace(/^[+-]/, ''))}</span>
+            </p>
+        `;
+
+        const dias = (p.dias || []).length ? `
+            <div class="mt-3 pt-3 border-t ${linea}">
+                <p class="text-[9.5px] font-semibold uppercase tracking-wider ${label}">Dia por dia</p>
+                <div class="mt-1.5 grid gap-1">
+                    ${p.dias.map(d => d.error ? `
+                        <div class="flex items-baseline gap-2 text-[11.5px]">
+                            <span class="w-10 shrink-0 font-semibold ${valor}">${esc(d.fechaTexto)}</span>
+                            <span class="facture-warn text-[10.5px]">${esc(d.error)}</span>
+                        </div>
+                    ` : `
+                        <div class="flex items-baseline gap-2 text-[11.5px] tabular-nums">
+                            <span class="w-10 shrink-0 font-semibold ${valor}">${esc(d.fechaTexto)}</span>
+                            <span class="${valor}">${esc(d.totalTexto)}</span>
+                            <span class="w-12 text-[11px] font-semibold" style="color:#1C64F2;">${esc(d.pct16)}%</span>
+                            <span class="text-[10.5px] ${label}">${esc(d.cuenta16)} / ${esc(d.cuenta0)}</span>
+                            <span class="ml-auto text-[10.5px] ${label}">${esc(d.tickets)} tickets</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : '';
+
         const movidos = p.reasignados || [];
 
         const mudanza = movidos.length ? `
@@ -2191,7 +2085,7 @@ class TicketsView extends Templates {
         ` : '';
 
         $('#previewDayBody').html(`
-            <p class="text-[11px] ${label}">${esc(p.fechaTexto)} · todavia no se guarda nada</p>
+            <p class="text-[11px] ${label}">${esc(p.fechaTexto)}${p.mes ? ` · ${(p.dias || []).length} dias con ventas` : ''} · todavia no se guarda nada</p>
 
             <div class="mt-3">
                 <p class="text-[9.5px] uppercase tracking-wider ${label}">Tarjeta de credito</p>
@@ -2200,19 +2094,23 @@ class TicketsView extends Templates {
             </div>
 
             <div class="mt-4 pt-3 border-t ${linea}">
-                <div class="flex h-2 rounded overflow-hidden">
-                    <div style="flex:${esc(p.pct16)};background:#1C64F2;"></div>
-                    <div style="flex:${esc(p.pct0)};background:#F59E0B;"></div>
+                ${marcador}
+                <div class="flex h-5 rounded overflow-hidden text-[10px] font-semibold text-white">
+                    <div class="flex items-center justify-center" style="flex:${esc(p.pct16)};background:#1C64F2;">${esc(p.pct16)}%</div>
+                    <div class="flex items-center justify-center" style="flex:${esc(p.pct0)};background:#F59E0B;">${esc(p.pct0)}%</div>
                 </div>
                 <div class="mt-2">
-                    ${tasa('#1C64F2', 'IVA 16%', p.cuenta16, p.monto16Texto)}
-                    ${tasa('#F59E0B', 'IVA 0%',  p.cuenta0,  p.monto0Texto)}
+                    ${tasa('#1C64F2', 'IVA 16%', p.pct16, p.cuenta16, p.monto16Texto)}
+                    ${tasa('#F59E0B', 'IVA 0%',  p.pct0,  p.cuenta0,  p.monto0Texto)}
                 </div>
+                ${distancia}
             </div>
+
+            ${dias}
 
             <div class="mt-3 pt-3 border-t ${linea}">
                 <div class="flex items-baseline justify-between">
-                    <span class="text-[12.5px] font-bold ${valor}">Tickets del dia</span>
+                    <span class="text-[12.5px] font-bold ${valor}">Tickets ${p.mes ? 'del mes' : 'del dia'}</span>
                     <span class="text-[12.5px] font-bold ${valor}">${esc(p.tickets)}</span>
                 </div>
                 <div class="flex items-baseline justify-between mt-1">
@@ -2225,9 +2123,6 @@ class TicketsView extends Templates {
         `);
     }
 
-    // El corte que se muestra al terminar el reparto. Todos los montos llegan
-    // escritos del servidor; aqui solo se acomodan en dos columnas.
-    //
     // Los renglones van con <span class="block"> y no con <div>: alertBox mete este
     // html dentro de un <p>, y un <div> ahi adentro lo parte en dos.
     renderResumenReparto(r) {
@@ -2235,15 +2130,11 @@ class TicketsView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        // Rebasar el objetivo no es un error: el ticket que cruza la meta entra
-        // completo. Se pinta en azul, y en ambar solo lo que se quedo corto.
         const dif = (texto) => {
             const color = String(texto).startsWith('+') ? 'text-[#1C64F2]' : 'text-amber-400';
             return `<span class="${color} ml-2">${esc(texto)}</span>`;
         };
 
-        // El titulo de cada bloque lleva la tasa —que es de lo que habla el reparto—
-        // y a un lado, en chico, que tajada de la venta le toca.
         const titulo = (texto, pct, monto) => `
             <span class="block flex items-baseline justify-between gap-3 mt-1">
                 <span class="text-gray-300 font-semibold">${esc(texto)}
@@ -2260,8 +2151,6 @@ class TicketsView extends Templates {
             </span>
         `;
 
-        // Los conteos no son montos: el numero va pegado a su etiqueta y no en la
-        // columna de la derecha, para no leerlos como una cifra de dinero.
         const conteo = (etiqueta, cuantos) => `
             <span class="block text-left pl-3">
                 <span class="text-gray-500">${esc(etiqueta)}
@@ -2270,18 +2159,12 @@ class TicketsView extends Templates {
             </span>
         `;
 
-        // De que se compone cada grupo. Va debajo del conteo y no a su derecha: con
-        // tres cifras (facturados, con comanda, armados) no cabe en el ancho del
-        // modal y la frase se partia a media palabra.
         const detalle = (texto, tono) => `
             <span class="block text-left pl-6 text-[11px] ${tono || 'text-gray-500'}">${esc(texto)}</span>
         `;
 
         const separador = '<span class="block border-t border-[#374151] my-2.5"></span>';
 
-        // El 16% se compone de hasta tres cosas y solo se nombran las que hay: los
-        // que ya venian facturados, los que imprimen su comanda y los que estrenan
-        // papel del catalogo.
         const conComanda = Math.max(0, (r.cuenta16 || 0) - (r.armados16 || 0));
         const partes16   = [];
 
@@ -2289,21 +2172,10 @@ class TicketsView extends Templates {
         if (conComanda)   partes16.push(`${conComanda} con su comanda`);
         if (r.armados16)  partes16.push(`${r.armados16} con papel armado`);
 
-        // Rebasar el objetivo no es un error y el modal tiene que decirlo, que es lo
-        // que mas se pregunta al ver el resumen: la venta no se parte, asi que el
-        // ticket que cruza la meta entra completo al 16% y esa misma cantidad es la
-        // que le falta al 0%.
         const desfase = parseFloat(String(r.dif16Texto || '').replace(/[^0-9.]/g, '')) > 0
             ? `<span class="block text-left text-[11px] text-gray-500 mt-2">Los tickets no se parten: el que cruza la meta entra completo, asi que el 16% se pasa ${esc(r.dif16Texto)} y al 0% le falta lo mismo.</span>`
             : '';
 
-        // Los cargos que cambiaron de folio. Es lo primero que hace el cierre y lo
-        // unico que reescribe un dato del POS, asi que se enseña movimiento por
-        // movimiento y no como un conteo: quien cierra el dia tiene que poder
-        // reconocer cada folio que quedo distinto de su ticket impreso.
-        //
-        // Va arriba del reparto porque es lo que lo precede: los montos que el
-        // reparto acaba de repartir ya salieron de aqui.
         const movidos = r.reasignados || [];
 
         const mudanza = movidos.length ? `
@@ -2318,16 +2190,24 @@ class TicketsView extends Templates {
             ${separador}
         ` : '';
 
+        const periodo = r.mes ? 'del mes' : 'del dia';
+
+        const cerrados = (r.dias || []).length ? `
+            ${separador}
+            <span class="block text-left text-gray-300 font-semibold">${esc(r.dias.length)} dia(s) cerrados</span>
+            ${r.dias.map(d => renglon(`${d.fechaTexto} · ${d.generacion || ''}`, `${d.tickets} con cargo`)).join('')}
+        ` : '';
+
         this.alertBox({
             theme:   FACTURE_THEME,
             type:    'success',
-            title:   `Reparto del ${r.fechaTexto}`,
+            title:   r.mes ? `Reparto de ${r.fechaTexto}` : `Reparto del ${r.fechaTexto}`,
             width:   'w-[430px]',
             timer:   0,
             okLabel: 'Entendido',
             detailHtml: `
                 <span class="block flex items-baseline justify-between gap-3">
-                    <span class="text-gray-300 font-semibold">Monto del dia</span>
+                    <span class="text-gray-300 font-semibold">Monto ${periodo}</span>
                     <span class="font-mono text-gray-200 font-semibold">${esc(r.totalTexto)}</span>
                 </span>
                 ${separador}
@@ -2347,13 +2227,11 @@ class TicketsView extends Templates {
                 ${detalle('con ticket virtual del catalogo de tasa 0%')}
                 ${r.servicio ? conteo('servicio de mesa', r.servicio) + detalle('cuentas cobradas sin tarjeta · su papel no factura') : ''}
                 ${r.sinPapel ? conteo('sin papel', r.sinPapel) + detalle('faltan productos en el catalogo', 'text-amber-500') : ''}
+                ${cerrados}
             `
         });
     }
 
-    // La hoja del dia: un papel por venta, todos con el mismo componente que pinta
-    // el ticket del panel lateral. Cada uno estrena su propio contenedor porque
-    // ticketPaper reemplaza el contenido de su padre, no lo acumula.
     renderPrintSheet(tickets, emisor) {
         const host = $('#printSheet');
 
@@ -2373,13 +2251,6 @@ class TicketsView extends Templates {
 
     // -- Actualizar ventas --
 
-    // La zona donde se sueltan los Excel. El input vive escondido dentro de la
-    // etiqueta, que es lo que la vuelve pulsable sin un boton aparte, y acepta
-    // varios de una vez: el dia son dos archivos.
-    //
-    // Los dos van nombrados tal como Wansoft los exporta. "Los dos Excel que
-    // descargas de Wansoft" obligaba a saberse de memoria cuales son, y el POS
-    // exporta mas de dos.
     renderDropZone() {
         const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-300 bg-gray-50' : 'border-[#374151] bg-[#141d2b]';
         const texto = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
@@ -2398,11 +2269,11 @@ class TicketsView extends Templates {
 
         $('#uploadModalDrop').html(`
             <label id="dropVentas" for="fUpFile"
-                   class="mt-3 flex flex-col items-center gap-2 rounded-lg border border-dashed ${marco} px-4 py-6 text-center cursor-pointer">
-                <i data-lucide="file-spreadsheet" class="w-9 h-9" style="color:#217346"></i>
+                   class="mt-2.5 flex flex-col items-center gap-1.5 rounded-lg border border-dashed ${marco} px-4 py-4 text-center cursor-pointer">
+                <i data-lucide="file-spreadsheet" class="w-7 h-7" style="color:#217346"></i>
                 <span class="text-[12.5px] font-semibold ${texto}">Arrastra los reportes o haz clic para elegirlos</span>
                 <span class="flex flex-wrap items-center justify-center gap-1.5">${esperados}</span>
-                <span class="text-[11px] ${sub}">Los dos que descargas de Wansoft, con la fecha detras · .xls o .xlsx</span>
+                <span class="text-[11px] ${sub}">Los dos de Wansoft, con la fecha detrás · .xls o .xlsx</span>
                 <input type="file" id="fUpFile" accept=".xls,.xlsx" class="hidden" multiple>
             </label>
         `);
@@ -2424,9 +2295,57 @@ class TicketsView extends Templates {
         });
     }
 
-    // Los archivos elegidos, uno por renglon. Con los dos puestos la zona de
-    // arrastre se retira: ya no hay nada mas que soltar.
-    renderPickedFiles(archivos, lleno) {
+    renderPeriodFiles(archivos, periodo) {
+        const cargados = (archivos || []).filter((a) => a.cargado);
+
+        if (!cargados.length) return $('#uploadModalFiles').empty();
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const ficha = (a) => `
+            <span class="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1"
+                  style="border-color:${this.tonoCargado('borde')};background:${this.tonoCargado('fondo')}"
+                  title="${esc(this.textoArchivo(a))}">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0" style="color:#217346"></i>
+                <span class="text-[11px] font-medium">${esc(a.slot.archivo)}</span>
+                <i data-lucide="check" class="w-3.5 h-3.5 shrink-0" style="color:#047857"></i>
+            </span>
+        `;
+
+        const p   = app.uploadPeriod();
+        const mes = String(p.mes || '').padStart(2, '0');
+
+        $('#uploadModalFiles').html(`
+            <a href="/app/facture2/cargas.php?mes=${encodeURIComponent(mes)}&anio=${encodeURIComponent(p.anio)}"
+               target="_blank" rel="noopener"
+               class="mt-2.5 block group">
+                <p class="flex items-center gap-1 text-[10.5px] font-semibold text-gray-500 mb-1.5 group-hover:underline">
+                    Ya cargado en ${esc(periodo)}
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                </p>
+                <div class="flex flex-wrap gap-1.5">${cargados.map(ficha).join('')}</div>
+            </a>
+        `);
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    textoArchivo(a) {
+        if (!a.carga) return a.slot.desglosa;
+
+        const acta  = this.bitacoraCarga(a.carga.data.hojas || []);
+        const miles = (n) => Number(n || 0).toLocaleString('en-US');
+
+        if (acta.nuevos      > 0) return `${miles(acta.nuevos)} movimiento(s) guardado(s)`;
+        if (acta.refrescados > 0) return `${miles(acta.refrescados)} refrescado(s), ninguno nuevo`;
+        if (acta.yaEstaban   > 0) return `sus ${miles(acta.yaEstaban)} movimientos ya estaban`;
+
+        return 'sin movimientos nuevos';
+    }
+
+    renderPickedFiles(archivos, lleno, falta) {
         if (!archivos.length) return this.renderDropZone();
 
         const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-300' : 'border-[#374151]';
@@ -2437,11 +2356,6 @@ class TicketsView extends Templates {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
-        // Cada renglon dice que archivo es, cuando su nombre lo delata: con dos
-        // exports que empiezan igual —«Reporte…»— y la fecha al final, el nombre
-        // solo no distingue uno de otro de un vistazo. El que llega renombrado no
-        // se etiqueta: lo dira el servidor al revisarlo, y adivinarlo aqui seria
-        // prometer un destino que puede no ser.
         const fila = (a, i) => `
             <div class="flex items-center gap-2 rounded-lg border ${marco} px-3 py-2">
                 <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0" style="color:#217346"></i>
@@ -2455,13 +2369,32 @@ class TicketsView extends Templates {
             </div>
         `;
 
-        const otro = lleno ? '' : `
+        const pendiente = () => `
+            <label for="fUpFile" class="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 cursor-pointer"
+                   style="border-color:${this.tonoPendiente('borde')};background:${this.tonoPendiente('fondo')}">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0" style="color:#217346"></i>
+                <span class="min-w-0">
+                    <span class="block text-[12px] font-medium ${texto} truncate">${esc(falta.archivo)}</span>
+                    <span class="block text-[10.5px] ${sub} truncate">${esc(falta.desglosa)}</span>
+                </span>
+                <span class="flex-1"></span>
+                <span class="text-[10.5px] font-semibold facture-warn shrink-0">pendiente</span>
+                <span class="inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium facture-warn shrink-0"
+                      style="border-color:${this.tonoPendiente('borde')}">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
+                    Agregar archivo
+                </span>
+                <input type="file" id="fUpFile" accept=".xls,.xlsx" class="hidden" multiple>
+            </label>
+        `;
+
+        const otro = lleno ? '' : (falta ? pendiente() : `
             <label for="fUpFile" class="flex items-center justify-center gap-2 rounded-lg border border-dashed ${marco} px-3 py-2 cursor-pointer">
                 <i data-lucide="plus" class="w-3.5 h-3.5 ${sub}"></i>
                 <span class="text-[11.5px] ${sub}">Agregar el otro archivo</span>
                 <input type="file" id="fUpFile" accept=".xls,.xlsx" class="hidden" multiple>
             </label>
-        `;
+        `);
 
         $('#uploadModalDrop').html(`<div class="mt-3 flex flex-col gap-2">${archivos.map(fila).join('')}${otro}</div>`);
 
@@ -2474,47 +2407,35 @@ class TicketsView extends Templates {
         });
     }
 
-    // Cuantos archivos hay y cuantos se esperan. Es lo que responde la pregunta de
-    // "¿ya estan los dos?" sin tener que contar los renglones de arriba.
-    //
-    // `puestos` son los que su nombre ya identifico. Con eso el aviso nombra el que
-    // falta de verdad: antes daba por hecho que el ausente era el segundo, y quien
-    // subia primero las comandas leia que le faltaban las comandas.
-    renderUploadHint(cuantos, slots, puestos) {
-        const total  = slots.length;
-        const traidos = puestos || [];
+    renderUploadHint(cuantos, slots, pendientes, falta, cuantosFaltan) {
+        const total = slots.length;
 
         if (!cuantos) {
-            return $('#uploadModalState').html(`
-                <p class="mt-3 text-[11.5px] text-gray-500">
-                    El dia son <strong>${total} archivos</strong>: el reporte de ventas y el detalle de comandas.
-                </p>
-            `);
+            const faltan = pendientes || slots;
+
+            if (faltan.length && faltan.length < total) {
+                return $('#uploadModalState').html(`
+                    <p class="mt-2.5 text-[11.5px] text-gray-500">
+                        Falta el <strong>${faltan[0].nombre.toLowerCase()}</strong>:
+                        ${faltan[0].desglosa.charAt(0).toLowerCase()}${faltan[0].desglosa.slice(1)}
+                    </p>
+                `);
+            }
+
+            return $('#uploadModalState').empty();
         }
 
         if (cuantos < total) {
-            // Solo se puede nombrar al ausente si los que hay se reconocieron por su
-            // nombre; si no, se dice cuantos faltan y ya.
-            const falta = traidos.length === cuantos
-                ? slots.find((s) => !traidos.some((p) => p.tipo === s.tipo))
-                : null;
-
-            const cola = falta
-                ? `Falta el <strong>${falta.nombre.toLowerCase()}</strong>. Se puede subir asi, pero ${falta.falta.charAt(0).toLowerCase()}${falta.falta.slice(1)}`
-                : `Falta 1 archivo de ${total}. Se puede subir asi, pero el dia queda incompleto.`;
+            if (falta || !cuantosFaltan) return $('#uploadModalState').empty();
 
             return $('#uploadModalState').html(`
                 <p class="mt-3 flex items-start gap-2 text-[11.5px] facture-warn">
                     <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
-                    <span>${cola}</span>
+                    <span>Falta 1 archivo de ${total}. Se puede subir asi, pero el dia queda incompleto.</span>
                 </p>
             `) && (window.lucide ? lucide.createIcons() : null);
         }
 
-        // Lo que antes decia el dialogo de confirmacion, ahora en el sitio donde se
-        // decide: la carga es incremental, asi que volver a subir el mismo archivo
-        // no duplica nada. Es la respuesta a "¿y si ya lo habia subido?", y como
-        // aviso se lee antes de pulsar en vez de interrumpir despues.
         $('#uploadModalState').html(`
             <p class="mt-3 flex items-start gap-2 text-[11.5px] facture-info">
                 <i data-lucide="check" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
@@ -2528,26 +2449,52 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    renderUploadStep(texto) {
+    renderUploadStep(texto, nota) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        $('#uploadModalDrop').show().css({ opacity: '.55', 'pointer-events': 'none' });
+
+        if ($('#uploadStepBox').length) {
+            $('#uploadStepText').text(texto);
+            $('#uploadStepNote').text(nota || '').toggle(!!nota);
+
+            return;
+        }
+
         $('#uploadModalState').html(`
-            <p class="mt-3 flex items-center gap-2 text-[12px] facture-info">
-                <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>${esc(texto)}
-            </p>
+            <div id="uploadStepBox" class="mt-3">
+                <p class="flex items-center gap-2 text-[12px] facture-info">
+                    <i data-lucide="loader-2" class="w-3.5 h-3.5 shrink-0 animate-spin"></i>
+                    <span id="uploadStepText">${esc(texto)}</span>
+                    <span id="uploadStepClock" class="text-[11px] text-gray-400 tabular-nums"></span>
+                </p>
+                <p id="uploadStepNote" class="mt-1 pl-5 text-[11px] text-gray-500" ${nota ? '' : 'style="display:none"'}>${esc(nota || '')}</p>
+            </div>
         `);
 
         if (window.lucide) lucide.createIcons();
+
+        this.startStepClock();
     }
 
-    // El reparto ANTES de cargar, cuando el archivo trae varios meses y no hay nada
-    // que reprochar.
-    //
-    // Es el mismo cuadro del aviso de periodo pero sin la advertencia: aqui no hay
-    // error, hay una decision. La lista lleva sus casillas, asi que lo que se ve es
-    // lo que se va a guardar.
+    startStepClock() {
+        clearInterval(this.stepClock);
+
+        const inicio = Date.now();
+
+        this.stepClock = setInterval(() => {
+            const nodo = document.getElementById('uploadStepClock');
+
+            if (!nodo) return clearInterval(this.stepClock);
+
+            const s = Math.round((Date.now() - inicio) / 1000);
+
+            nodo.textContent = s < 60 ? `· ${s} s` : `· ${Math.floor(s / 60)} min ${s % 60} s`;
+        }, 1000);
+    }
+
     renderRepartoPrevio(item) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -2555,6 +2502,8 @@ class TicketsView extends Templates {
 
         const meses = app.mesesDelReparto(item.reparto);
         const total = meses.reduce((n, m) => n + m.movimientos, 0);
+
+        this.hidePickStep();
 
         $('#uploadModalState').html(`
             <div class="mt-3">
@@ -2571,21 +2520,9 @@ class TicketsView extends Templates {
 
         $('#uploadModalState .chk-mes').on('change', () => app.syncSeleccion({ reparto: item.reparto }));
 
-        this.growUploadBox(true);
-
         if (window.lucide) lucide.createIcons();
     }
 
-    // Lo que la carga lleva escrito, mientras la escribe.
-    //
-    // Las cifras son filas que ya estan en base, no una estimacion, y por eso el
-    // texto las nombra: "3,600 de 13,240 renglones" responde la pregunta que el
-    // giro de un spinner deja abierta. Los meses aparecen conforme el importador
-    // abre su lote, asi que el reparto se ve ocurrir.
-    //
-    // La barra puede quedarse corta y no pasa nada: el denominador son las filas
-    // del archivo y en una carga incremental muchas se omiten por repetidas, asi
-    // que llegar al 100 % no es lo que anuncia el final.
     renderUploadProgress(nombre, avance) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -2599,33 +2536,37 @@ class TicketsView extends Templates {
             ? `<span class="text-[11px] text-gray-500">${esc((avance.meses || []).join(' · '))}</span>`
             : '';
 
-        // Con las filas ya escritas lo que queda no se cuenta en filas: son los
-        // enlaces a folio y el cierre del lote, que van a su propio paso. Decirlo
-        // explica por que la barra esta llena y el modal sigue trabajando.
-        //
-        // El tiempo solo aparece cuando hay ritmo con el que calcularlo, y sin
-        // decimales: es una proyeccion, no una cuenta atras.
         const cola = pct >= 100      ? 'cerrando el lote...'
                    : avance.restante > 0 ? `faltan ${this.tiempoAprox(avance.restante)}`
                    : '';
 
         const falta = cola ? `<span class="text-[11px] text-gray-500">· ${esc(cola)}</span>` : '';
 
+        if ($('#uploadBarBox').length) {
+            $('#uploadBarTitle').text(`Guardando ${nombre.toLowerCase()}...`);
+            $('#uploadBarPct').text(`${pct}%`);
+            $('#uploadBarFill').css('width', `${pct}%`);
+            $('#uploadBarRows').html(`<strong>${miles(avance.filas)}</strong> de ${miles(avance.total)} filas guardadas ${falta}`);
+            $('#uploadBarMonths').html(meses);
+
+            return;
+        }
+
         $('#uploadModalState').html(`
-            <div class="mt-3">
+            <div id="uploadBarBox" class="mt-3">
                 <p class="flex items-center justify-between gap-2 text-[12px] facture-info">
                     <span class="flex items-center gap-2">
-                        <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
-                        Guardando ${esc(nombre.toLowerCase())}...
+                        <i data-lucide="loader-2" class="w-3.5 h-3.5 shrink-0 animate-spin"></i>
+                        <span id="uploadBarTitle">Guardando ${esc(nombre.toLowerCase())}...</span>
                     </span>
-                    <strong>${pct}%</strong>
+                    <strong id="uploadBarPct">${pct}%</strong>
                 </p>
                 <div class="mt-2 h-1.5 w-full rounded-full ${marco} overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-500" style="width:${pct}%;background:#217346"></div>
+                    <div id="uploadBarFill" class="h-full rounded-full transition-all duration-500" style="width:${pct}%;background:#217346"></div>
                 </div>
                 <p class="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-500">
-                    <span><strong>${miles(avance.filas)}</strong> de ${miles(avance.total)} filas guardadas ${falta}</span>
-                    ${meses}
+                    <span id="uploadBarRows"><strong>${miles(avance.filas)}</strong> de ${miles(avance.total)} filas guardadas ${falta}</span>
+                    <span id="uploadBarMonths">${meses}</span>
                 </p>
             </div>
         `);
@@ -2633,11 +2574,6 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Los segundos que faltan, dichos como los diria una persona.
-    //
-    // Se redondea hacia arriba y en tramos: "faltan 47 s" finge una precision que
-    // una proyeccion no tiene, y ademas obliga a leer un numero que cambia en cada
-    // vuelta. Por debajo del minuto no se cuenta: se dice que ya casi.
     tiempoAprox(segundos) {
         const s = Math.max(0, Math.round(segundos));
 
@@ -2664,23 +2600,16 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // Lo que hay que corregir en el Excel. El cuadro es el mismo que dibuja el
-    // aviso de Importacion —UploadCheck—, con el libro de hojas enfrentado y la
-    // fila de encabezados columna por columna: una columna corrida o un mes que no
-    // es el del filtro no caben en un renglon de texto, y son lo unico con lo que
-    // el usuario puede arreglar su archivo.
-    //
-    // Lo que cambia respecto de Importacion es el marco: alli el aviso abre un
-    // dialogo, aqui se pinta dentro del modal que ya esta abierto, que es donde el
-    // usuario dejo sus archivos.
     renderUploadRejected(v, fileName, destino) {
         const nombre = (tipo) => (app.uploadSlots().find((x) => x.tipo === tipo) || {}).nombre || tipo || '';
 
         const ctx = {
             titulo:   nombre(destino || UPLOAD_TAB),
-            periodo:  `${$('#fUpMes option:selected').text()} ${$('#fUpAnio').val()}`,
+            periodo:  app.periodoTexto(),
             sugerido: nombre(v.sugerido)
         };
+
+        this.hidePickStep();
 
         $('#uploadModalState').html(`
             <div class="mt-3">
@@ -2694,19 +2623,8 @@ class TicketsView extends Templates {
 
         UploadCheck.settle('#uploadModalState');
 
-        // La lista de meses es tambien la seleccion de lo que se va a cargar: al
-        // marcar o desmarcar uno, el boton del pie se reescribe con lo que queda.
         $('#uploadModalState .chk-mes').on('change', () => app.syncSeleccion(v));
 
-        // El cuerpo deja de medir lo mismo que en los demas pasos: el libro dibujado
-        // y la fila de encabezados no caben en el alto fijo, y ahi el salto del
-        // dialogo es lo de menos. En Importacion no hace falta porque el aviso abre
-        // su propia ventana de 720px.
-        this.growUploadBox(true);
-
-        // El cuadro nace debajo de los archivos elegidos: sin traerlo a la vista el
-        // modal se queda mostrando la lista de siempre y parece que el boton no hizo
-        // nada.
         const aviso = document.getElementById('uploadModalState');
 
         if (aviso) aviso.scrollIntoView({ block: 'start' });
@@ -2714,24 +2632,12 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // El alto del cuerpo: fijo mientras se eligen los archivos —para que el dialogo
-    // no salte bajo el cursor— y libre cuando lo que se muestra es el aviso de por
-    // que uno no entro.
-    growUploadBox(crecer) {
-        $('#uploadModalBox')
-            .toggleClass('h-[22rem]', !crecer)
-            .toggleClass('max-h-[60vh]', !!crecer);
+    hidePickStep() {
+        $('#uploadModalForm').hide();
+        $('#uploadModalFiles').hide();
+        $('#uploadModalDrop').hide();
     }
 
-    // Que entro con cada archivo. Se listan los dos porque cada uno responde por lo
-    // suyo: las ventas por los folios del dia, las comandas por el detalle que el
-    // ticket imprime.
-    // Los movimientos que ya estaban pero HOY traen otro importe.
-    //
-    // No se cargaron ni se corrigieron: la carga solo agrega, y tocar el importe de
-    // un ticket ya emitido cambiaria por detras un papel que alguien tiene en la
-    // mano. Lo que hace falta es saber cuales son, con las dos cifras al lado, para
-    // ir a revisarlos al POS y decidir alli.
     cambiosDeImporte(hoja) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -2768,62 +2674,219 @@ class TicketsView extends Templates {
         `;
     }
 
-    renderUploadDone(cargas) {
+    bitacoraCarga(hojas) {
+        const acta = {
+            nuevos: 0, yaEstaban: 0, refrescados: 0, perdidos: 0, rechazados: 0,
+            de: { nuevos: [], yaEstaban: [], refrescados: [], perdidos: [], rechazados: [], sinDatos: [] }
+        };
+
+        (hojas || []).forEach((h) => {
+            const entraron   = Number(h.filas) || 0;
+            const borradas   = Number(h.reemplazadas) || 0;
+            const omitidos   = Number(h.omitidos) || 0;
+            const rechazadas = Number(h.rechazadas) || 0;
+
+            const refrescados = Math.min(entraron, borradas);
+
+            const perdidos = Math.max(0, borradas - entraron);
+
+            const anota = (campo, cuanto) => {
+                if (cuanto <= 0) return;
+
+                acta[campo] += cuanto;
+                acta.de[campo].push(h.nombre);
+            };
+
+            anota('nuevos',      entraron - refrescados);
+            anota('yaEstaban',   omitidos);
+            anota('refrescados', refrescados);
+            anota('perdidos',    perdidos);
+            anota('rechazados',  rechazadas);
+
+            if ((Number(h.leidas) || 0) === 0) acta.de.sinDatos.push(h.nombre);
+        });
+
+        return acta;
+    }
+
+    actosCarga(a) {
+        const hojas = (lista) => lista.join(' · ');
+        const actos = [{
+            icono:  'check',
+            tono:   a.nuevos > 0 ? 'ok' : 'mute',
+            cifra:  a.nuevos,
+            titulo: 'se guardaron',
+            nota:   a.nuevos > 0 ? hojas(a.de.nuevos) : 'ningún movimiento nuevo entró al periodo'
+        }];
+
+        if (a.yaEstaban > 0) actos.push({
+            icono:  'equal',
+            tono:   'neutro',
+            cifra:  a.yaEstaban,
+            titulo: 'ya estaban',
+            nota:   hojas(a.de.yaEstaban)
+        });
+
+        if (a.refrescados > 0) actos.push({
+            icono:  'refresh-cw',
+            tono:   'warn',
+            cifra:  a.refrescados,
+            titulo: 'se refrescaron',
+            nota:   hojas(a.de.refrescados) + ' · son los mismos de antes: esta hoja se reescribe entera en cada carga'
+        });
+
+        if (a.perdidos > 0) actos.push({
+            icono:  'file-minus',
+            tono:   'warn',
+            cifra:  a.perdidos,
+            titulo: 'ya no vienen en el archivo',
+            nota:   hojas(a.de.perdidos) + ' · estaban en la carga anterior y se fueron con ella'
+        });
+
+        if (a.rechazados > 0) actos.push({
+            icono:  'alert-triangle',
+            tono:   'warn',
+            cifra:  a.rechazados,
+            titulo: 'se rechazaron',
+            nota:   hojas(a.de.rechazados) + ' · el renglón venía incompleto'
+        });
+
+        if (a.de.sinDatos.length) actos.push({
+            icono:  'minus',
+            tono:   'mute',
+            cifra:  a.de.sinDatos.length,
+            titulo: a.de.sinDatos.length === 1 ? 'hoja sin movimientos' : 'hojas sin movimientos',
+            nota:   hojas(a.de.sinDatos)
+        });
+
+        return actos;
+    }
+
+    tonoActo(nombre) {
+        const claro  = { ok: '#047857', neutro: '#374151', warn: '#B45309', mute: '#9CA3AF' };
+        const oscuro = { ok: '#34D399', neutro: '#E5E7EB', warn: '#FBBF24', mute: '#9CA3AF' };
+
+        return (FACTURE_THEME_IS_LIGHT ? claro : oscuro)[nombre];
+    }
+
+    renderUploadDone(cargas, pendientes) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
+        const marco   = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const periodo = app.periodoTexto();
+
+        const renglon = (acto) => `
+            <div class="flex items-start gap-2.5">
+                <i data-lucide="${acto.icono}" class="w-3.5 h-3.5 shrink-0 mt-[3px]" style="color:${this.tonoActo(acto.tono)}"></i>
+                <span class="w-14 shrink-0 text-right text-[15px] font-semibold leading-5 tabular-nums" style="color:${this.tonoActo(acto.tono)}">
+                    ${Number(acto.cifra || 0).toLocaleString('en-US')}
+                </span>
+                <span class="min-w-0">
+                    <span class="block text-[12.5px] font-semibold">${esc(acto.titulo)}</span>
+                    <span class="block text-[11px] text-gray-500">${esc(acto.nota)}</span>
+                </span>
+            </div>
+        `;
+
         const bloque = (c) => {
-            const hojas = (c.data.hojas || []).filter(h => (h.filas || 0) > 0);
-            const filas = hojas.reduce((n, h) => n + (h.filas || 0), 0);
+            const hojas = c.data.hojas || [];
 
             return `
-                <p class="mt-2 flex items-start gap-2 text-[12px] facture-info">
-                    <i data-lucide="check-circle" class="w-3.5 h-3.5 shrink-0 mt-[1px] text-green-600"></i>
-                    <span>
-                        <span class="block font-semibold">${esc(c.slot.nombre)}</span>
-                        <span class="block text-[11px] opacity-90">${filas.toLocaleString('en-US')} registro(s) en ${hojas.length} hoja(s)</span>
-                    </span>
-                </p>
-                ${(c.data.hojas || []).map(h => `
-                    <p class="mt-1 text-[11px] text-gray-500 flex items-start gap-1.5 pl-5">
-                        <span class="w-1.5 h-1.5 rounded-full mt-[5px] shrink-0" style="background:${h.estado === 'ok' ? '#047857' : '#B45309'}"></span>
-                        <span><span class="font-medium">${esc(h.nombre)}</span> · ${esc(h.detalle)}</span>
+                <div class="mt-2 rounded-lg border ${marco} p-3">
+                    <p class="flex items-baseline justify-between gap-2 mb-2.5">
+                        <span class="text-[13px] font-semibold">${esc(c.slot.nombre)}</span>
+                        <span class="text-[11px] text-gray-500">${esc(periodo)}</span>
                     </p>
-                    ${this.cambiosDeImporte(h)}
-                `).join('')}
+                    <div class="grid gap-2.5">
+                        ${this.actosCarga(this.bitacoraCarga(hojas)).map(renglon).join('')}
+                    </div>
+                    ${hojas.map(h => this.cambiosDeImporte(h)).join('')}
+                    <p class="mt-2.5">
+                        <a href="/app/facture2/cargas.php" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 text-[11.5px] font-medium facture-info hover:underline">
+                            Ver detalle en Importación mensual
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        </a>
+                    </p>
+                </div>
             `;
         };
 
-        // Lo que entro se ve entero en Importacion: sus lotes, hoja por hoja, y la
-        // bitacora con quien los cargo. Este resumen dice cuanto entro, no en que
-        // quedo, y despues de una carga repartida en varios meses eso es justo lo
-        // que se quiere mirar.
-        //
-        // Abre en otra pestana a proposito: el modal esta dentro de la terminal del
-        // dia y el usuario no ha terminado con ella. Llevarselo de aqui le costaria
-        // volver a cargar la pantalla y a buscar su fecha.
-        const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
-
-        const enlace = `
-            <p class="mt-3 pt-2.5 border-t ${marco}">
-                <a href="/app/facture2/cargas.php" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-1.5 text-[11.5px] font-medium facture-info hover:underline">
-                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                    Ver el detalle en Importación mensual
-                </a>
-            </p>
+        const pendiente = (slot) => `
+            <div class="mt-2 flex items-center gap-2.5 rounded-lg border border-dashed px-2.5 py-2"
+                 style="border-color:${this.tonoPendiente('borde')};background:${this.tonoPendiente('fondo')}">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5 shrink-0" style="color:#217346"></i>
+                <span class="min-w-0">
+                    <span class="block text-[11.5px] facture-warn">Falta el archivo <strong>${esc(slot.archivo)}</strong></span>
+                    <span class="block text-[10.5px] text-gray-500">${esc(slot.desglosa)}</span>
+                </span>
+                <span class="flex-1"></span>
+                <button type="button" data-pendiente="${esc(slot.tipo)}"
+                        class="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium facture-warn shrink-0"
+                        style="border-color:${this.tonoPendiente('borde')}">
+                    <i data-lucide="upload" class="w-3 h-3"></i>
+                    Subir
+                </button>
+            </div>
         `;
 
+        this.hidePickStep();
         $('#uploadModalDrop').empty();
-        $('#uploadModalState').html(`<div class="mt-1">${cargas.map(bloque).join('')}${enlace}</div>`);
+        $('#uploadModalState').html(`
+            <div class="mt-1">
+                ${cargas.map(bloque).join('')}
+                ${(pendientes || []).map(pendiente).join('')}
+            </div>
+        `);
+
+        if (window.lucide) lucide.createIcons();
+
+        $('#uploadModalState [data-pendiente]').on('click', function () {
+            app.retomarUpload($(this).attr('data-pendiente'));
+        });
+    }
+
+    renderUploadInvite(info) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const dias = (info.dias || []).filter((d) => d.sinRepartir);
+        const lista = dias.slice(0, 3).map((d) => d.fechaTexto).join(', ')
+                    + (dias.length > 3 ? ` y ${dias.length - 3} mas` : '');
+
+        $('#uploadModalState').append(`
+            <div class="mt-2 flex items-start gap-2.5 rounded-lg border px-2.5 py-2"
+                 style="border-color:#C7D7FB;background:${FACTURE_THEME_IS_LIGHT ? '#F5F8FF' : '#111B2E'}">
+                <i data-lucide="receipt" class="w-5 h-5 shrink-0 facture-info"></i>
+                <span class="min-w-0">
+                    <span class="block text-[11.5px] facture-info">
+                        ${esc(info.mesTexto)} tiene ${esc(dias.length)} dia${dias.length !== 1 ? 's' : ''} sin tickets: ${esc(lista)}
+                    </span>
+                    <span class="block text-[10.5px] text-gray-500">Continua con la generacion y elige si repartes uno o el mes completo.</span>
+                </span>
+            </div>
+        `);
 
         if (window.lucide) lucide.createIcons();
     }
 
-    // El aviso del pie explica el ticket que se esta viendo: cuando no se pudo
-    // armar (sin productos de tasa 0% dados de alta) dice por que en vez de
-    // quedarse mudo.
+    tonoCargado(parte) {
+        const claro  = { borde: '#BBE5CD', fondo: '#F1F9F4' };
+        const oscuro = { borde: '#265E42', fondo: '#13291E' };
+
+        return (FACTURE_THEME_IS_LIGHT ? claro : oscuro)[parte];
+    }
+
+    tonoPendiente(parte) {
+        const claro  = { borde: '#E0CBA8', fondo: '#FDFAF4' };
+        const oscuro = { borde: '#4A3B28', fondo: '#221B12' };
+
+        return (FACTURE_THEME_IS_LIGHT ? claro : oscuro)[parte];
+    }
+
     renderPreview(ticket, motivo) {
         this.ticketPaper({
             parent: 'ticketPrintArea',
@@ -2835,50 +2898,27 @@ class TicketsView extends Templates {
         this.panelHead({
             parent: 'detailHead',
             json: {
-                // El icono del titulo deja la impresora al boton de imprimir y se
-                // queda con el del documento, que es lo que el panel ensena.
                 icon:   'receipt',
                 title:  ticket ? `Ticket virtual · Nota ${ticket.nota}` : 'Ticket virtual',
-                // Imprimir vive en el encabezado, junto al ticket que va a salir, y
-                // solo aparece cuando hay uno abierto: sin papel no hay nada que
-                // mandar a la impresora.
                 action: ticket
                     ? { id: 'btnImprimir', icon: 'printer', text: 'Imprimir', title: 'Imprimir este ticket', fn: () => tickets.printTicket() }
                     : null,
                 badges: ticket
                     ? [
-                        // El servicio de mesa se rotula por lo que es y no por su
-                        // tasa: dice 0% como los del reparto, pero no salio de una
-                        // decision de reparto sino de no haber cobrado con tarjeta.
                         ticket.grupo === 'servicio'
                             ? { text: 'Servicio de mesa', tone: 'b-gray' }
                             : { text: ticket.tasaText === '0%' ? 'IVA 0%' : `IVA ${ticket.tasaText}`, tone: ticket.tasaText === '0%' ? 'b-yellow' : 'b-terra' },
-                        // Tres estados y no dos: el papel guardado, el consumo real
-                        // con el que la venta se factura al 16%, y la propuesta que
-                        // se le arma a la venta que llego sin comanda y todavia no
-                        // se guarda.
                         ticket.generado
                             ? { text: 'papel guardado', tone: 'b-blue' }
                             : (ticket.grupo === 'ivaGenerado' || ticket.grupo === 'servicio'
                                 ? { text: 'propuesta', tone: 'b-yellow' }
                                 : { text: 'consumo real', tone: 'b-gray' }),
-                        // El ajuste que se paso del tope se ve sin leer la nota: es
-                        // el mismo aviso que lleva la fila en el listado.
                         ...(ticket.fueraTolerancia ? [{ text: `Descuento ${ticket.descuento}`, tone: 'b-yellow' }] : [])
                       ]
                     : []
             }
         });
 
-        // Sin ticket abierto la banda de la nota no se pinta: el papel ya dice "Sin
-        // ticket seleccionado" en su propio hueco, y repetirlo debajo era decir dos
-        // veces lo mismo en la misma columna. El aviso vuelve en cuanto hay algo que
-        // explicar —la nota del papel abierto, o el motivo por el que no se pudo
-        // armar—, y mientras tanto el div se esconde para no dejar una franja con
-        // padding y sin contenido.
-        // El hueco del papel va gris con un ticket abierto —es la mesa sobre la que
-        // se apoya la hoja— y blanco mientras no hay ninguno, que es cuando no hay
-        // hoja que despegar. El color vive en wansoft-theme.css (.tk-vacio).
         $('#ticketPrintArea').toggleClass('tk-vacio', !ticket);
 
         const nota = ticket ? this.previewNote(ticket) : motivo;
@@ -2897,19 +2937,8 @@ class TicketsView extends Templates {
         });
     }
 
-    // El copy depende de que papel se esta viendo:
-    //
-    //   servicio     la cuenta que no se cobro con tarjeta: dice por que su papel
-    //                no lleva productos.
-    //   cero         inventado con productos de tasa 0%, explica el cuadre.
-    //   ivaGenerado  inventado con el catalogo de IVA, para la venta que llego sin
-    //                comanda: explica de donde salieron los renglones y su desglose.
-    //   real         el consumo que trajo el POS, explica solo el desglose.
     previewNote(ticket) {
         if (ticket.grupo === 'servicio') {
-            // Los dos papeles en cero se explican distinto: el movimiento que llego
-            // con Total $0.00 no tiene cobro que nombrar, y decir que se cobro con
-            // tarjeta manda a buscar un importe que el Excel nunca trajo.
             if (ticket.ceroDeOrigen) {
                 return `El movimiento vino sin importe en la carga: no cobro nada, asi que no factura y sale en ${ticket.total}. Imprime un solo renglon de servicio de mesa, en vez del consumo.`;
             }
@@ -2930,16 +2959,6 @@ class TicketsView extends Templates {
         return `Consumo real del ticket: ${desglose}` + this.ajusteText(ticket);
     }
 
-    // Lo que se dice del ajuste con el que se cuadro el papel. Se dice SIEMPRE que
-    // exista, y no solo en el del 0%: el armado con el catalogo de IVA tambien puede
-    // cerrar con diferencia, y una diferencia que no se ve es una silenciosa.
-    //
-    // Solo el papel inventado se cuadra con un ajuste. El descuento de un papel real
-    // es una cortesia que el POS ya cobro asi, y llamarle ajuste de cuadre seria
-    // decir que el sistema lo puso, cuando no lo puso.
-    //
-    // Sin tope capturado la tolerancia llega en cero y la frase solo informa el
-    // ajuste, sin veredicto que no se pidio.
     ajusteText(ticket) {
         if (!ticket.conAjuste) return '';
         if (ticket.grupo !== 'cero' && ticket.grupo !== 'ivaGenerado') return '';
@@ -2953,9 +2972,6 @@ class TicketsView extends Templates {
 
     // -- Components --
 
-    // El papel del ticket vive en components/ticketPaper.js: lo comparten este
-    // modulo y la vista previa del emisor en Catalogos, que muestran el mismo
-    // papel y tienen que verse identicos.
     ticketPaper(options) {
         TicketPaper.render(options);
     }
@@ -3013,9 +3029,6 @@ class TicketsView extends Templates {
 
         wrap.html(`<h3 class="${opts.classes.title}">${iconHtml}${esc(opts.json.title)}</h3>`);
 
-        // La derecha del encabezado: primero lo que el ticket es —sus badges— y al
-        // final lo que se puede hacer con el. La accion se arma aparte y no con el
-        // resto del html porque lleva handler.
         const derecha = $('<div>', { class: 'flex items-center gap-2' });
 
         (opts.json.badges || []).forEach((b) => derecha.append($('<span>', {
@@ -3031,10 +3044,6 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    // El boton de accion del encabezado. Va en blanco y no en azul: el azul de la
-    // terminal es el de las acciones del dia —generar, imprimir el dia— y esta
-    // opera sobre un ticket, que es una escala mas chica. Los colores viven en
-    // wansoft-theme.css (.ws-act).
     panelAction(action) {
         const btn = $('<button>', {
             type:  'button',

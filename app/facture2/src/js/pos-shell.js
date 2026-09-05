@@ -9,10 +9,11 @@
 // metodos de Templates, no funciones sueltas.
 
 const POS_PAGES = {
-    acceso:  '/app/facture2/',
-    inicio:  '/app/facture2/inicio.php',
-    cuentas: '/app/facture2/cuentas.php',
-    admin:   '/app/facture2/admin.php'
+    acceso:    '/app/facture2/',
+    inicio:    '/app/facture2/inicio.php',
+    cuentas:   '/app/facture2/cuentas.php',
+    admin:     '/app/facture2/admin.php',
+    historial: '/app/facture2/historial.php'
 };
 
 function posGo(page) {

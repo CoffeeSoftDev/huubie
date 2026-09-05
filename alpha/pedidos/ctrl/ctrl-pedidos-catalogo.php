@@ -16,6 +16,10 @@ class ctrl extends MPedidos{
         $orderResult = $this->getOrderID([$_POST['id']]);
         $order = is_array($orderResult) && !empty($orderResult) ? $orderResult[0] : null;
 
+        if ($order) {
+            $order['folio'] = formatFolio($order['subsidiaries_id'], $order['id']);
+        }
+
         $orderProducts = $this->getOrderById([$_POST['id']]);
         if (!is_array($orderProducts)) {
             $orderProducts = [];
@@ -636,6 +640,13 @@ class ctrl extends MPedidos{
         return 0;
     }
 
+}
+
+// Complements.
+
+function formatFolio($subsidiariesId = null, $numero = null) {
+    $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
+    return 'P' . $numero . '-' . $sucursal;
 }
 
 $obj = new ctrl();
