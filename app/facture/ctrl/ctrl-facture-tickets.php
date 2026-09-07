@@ -140,10 +140,6 @@ class ctrl extends mdl {
         $conteo   = $this->filas($this->getTicketDayCounts([$this->branchId(), $dia]));
         $__row    = [];
 
-        $completo = $this->filas($this->listSaleDayForSplit([$this->branchId(), $dia]));
-        $notas    = $this->notasDeVentas($completo);
-        $plan     = $this->planReparto($completo);
-
         $c = $conteo[0] ?? [
             'tickets' => 0, 'facturados'      => 0, 'cero'       => 0, 'generados'      => 0,
             'total'   => 0, 'total_facturado' => 0, 'total_cero' => 0, 'generados_cero' => 0,
@@ -151,6 +147,47 @@ class ctrl extends mdl {
         ];
 
         $repartido = (int) $c['generados'] > 0;
+
+        // El dia sin generar puede pedirse bajo llave (`lock`), y entonces el listado
+        // no viaja: se manda cuantas ventas hay y nada de lo que dicen. La pantalla
+        // dibuja la silueta —un renglon por venta— y el boton que la abre.
+        //
+        // Las filas ni se arman. Mandarlas para taparlas seria un candado de adorno:
+        // se leen con inspeccionar, y un dia de trescientas ventas viajaria entero
+        // para no mostrarse.
+        // El dia sin una sola venta no se bloquea: ahi no hay nada que cerrar, y una
+        // silueta de cero renglones diria que el dia esta guardado bajo llave cuando
+        // lo que pasa es que no se ha cargado.
+        $bloqueado = !$repartido && count($ventas) > 0 && ($_POST['lock'] ?? '') === '1';
+
+        $conteos = [
+            'tickets'    => (int) $c['tickets'],
+            'servicio'   => (int) $c['servicio'],
+            'facturados' => (int) $c['facturados'],
+            'cero'       => (int) $c['cero'],
+            'generados'  => (int) $c['generados'],
+            'mostrados'  => count($ventas)
+        ];
+
+        if ($bloqueado) {
+            return [
+                'row'          => [],
+                'thead'        => '',
+                'bloqueado'    => true,
+                'counts'       => $conteos,
+                'kpis'         => $this->kpisDelDia($c),
+                'corte'        => null,
+                'mudados'      => [],
+                'generaciones' => $this->generacionesDelDia($dia)
+            ];
+        }
+
+        // El dia completo —con servicio de mesa y todo— solo hace falta a partir de
+        // aqui: es lo que numera las notas y lo que reparte. El dia bloqueado ya se
+        // fue sin pedirlo.
+        $completo = $this->filas($this->listSaleDayForSplit([$this->branchId(), $dia]));
+        $notas    = $this->notasDeVentas($completo);
+        $plan     = $this->planReparto($completo);
 
         $mudados = $this->mudadosDelDia($dia);
 
@@ -163,19 +200,13 @@ class ctrl extends mdl {
         }
 
         return [
-            'row'    => $__row,
-            'thead'  => '',
-            'counts' => [
-                'tickets'    => (int) $c['tickets'],
-                'servicio'   => (int) $c['servicio'],
-                'facturados' => (int) $c['facturados'],
-                'cero'       => (int) $c['cero'],
-                'generados'  => (int) $c['generados'],
-                'mostrados'  => count($__row)
-            ],
-            'kpis'    => $this->kpisDelDia($c),
-            'corte'   => $this->resumenCorte($plan),
-            'mudados' => $mudados,
+            'row'          => $__row,
+            'thead'        => '',
+            'bloqueado'    => false,
+            'counts'       => $conteos,
+            'kpis'         => $this->kpisDelDia($c),
+            'corte'        => $this->resumenCorte($plan),
+            'mudados'      => $mudados,
             'generaciones' => $this->generacionesDelDia($dia)
         ];
     }

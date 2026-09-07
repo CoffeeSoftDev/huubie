@@ -1464,3 +1464,113 @@ body.swal2-height-auto {
    se distingue por matiz no se distingue en una pantalla mal calibrada. */
 .facture-warn { color: #FCD34D; font-weight: 600; }
 .facture-info { color: #93C5FD; }
+
+/* -- El dia bajo llave --
+
+   El dia que todavia no se ha generado no ensena su listado: a que tasa cae cada
+   venta es una propuesta hasta que se aprieta Generar, y dibujada igual que un
+   ticket guardado se confunde con el. En su lugar va la silueta del dia: la tabla
+   con su encabezado, un renglon en barras por venta y el cartel con el boton.
+
+   No es el listado cubierto. El controlador no manda las filas mientras el dia
+   este bloqueado (`lock`), asi que aqui no hay nada que destapar con el inspector
+   —ni folios, ni montos, ni tasas—. Es la diferencia entre cerrar y tapar.
+
+   Estos son los tonos del tema oscuro del Facturador; la Terminal Wansoft los
+   reescribe en wansoft-theme.css. */
+
+.tk-sk-wrap { position: relative; }
+
+.tk-sk-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.tk-sk-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9CA3AF;
+    background: #374151;
+}
+
+.tk-sk-table th:first-child { border-radius: 6px 0 0 0; }
+.tk-sk-table th:last-child  { border-radius: 0 6px 0 0; }
+
+.tk-sk-table td {
+    padding: 11px 10px;
+    border-top: 1px solid rgba(55, 65, 81, .7);
+}
+
+/* El renglon dibujado. Los anchos cambian de fila en fila a proposito: cinco barras
+   identicas se leen como una pantalla cargando, y aqui no esta cargando nada. */
+.tk-sk-bar {
+    display: inline-block;
+    height: 9px;
+    border-radius: 999px;
+    background: #313C4D;
+}
+
+.tk-sk-w1 { width: 26px; }
+.tk-sk-w2 { width: 46px; }
+.tk-sk-w3 { width: 74px; }
+.tk-sk-w4 { width: 58px; }
+.tk-sk-w5 { width: 90px; }
+
+/* El cartel se centra sobre la silueta. */
+#root .tk-lock-note {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 12px 16px;
+    background: #1F2A37;
+    border: 1px solid #4B5563;
+    border-radius: 12px;
+    box-shadow: 0 14px 38px -14px rgba(0, 0, 0, .65);
+    color: #E5E7EB;
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: calc(100% - 24px);
+}
+
+#root .tk-lock-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: #141d2b;
+    color: #9CA3AF;
+}
+
+#root .tk-lock-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+#root .tk-lock-txt b { font-weight: 700; font-size: 12.5px; color: #fff; }
+#root .tk-lock-txt span { font-size: 10.5px; color: #9CA3AF; }
+
+#root .tk-lock-btn {
+    flex: none;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 7px;
+    background: #1C64F2;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+#root .tk-lock-btn:hover { background: #1a53d4; }
+
+/* En pantalla angosta el cartel se parte en dos lineas antes que salirse de la
+   tarjeta. */
+@media (max-width: 640px) {
+    #root .tk-lock-note { flex-wrap: wrap; white-space: normal; }
+}

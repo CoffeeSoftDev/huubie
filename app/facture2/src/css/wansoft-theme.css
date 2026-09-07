@@ -267,6 +267,70 @@ html[data-wansoft-theme] .chk-partial,
 html[data-wansoft-theme] .chk-warn-txt { color: #9F580A; }
 html[data-wansoft-theme] .chk-bad-txt  { color: #C81E1E; }
 
+/* -- Los avisos, en talla de terminal --
+
+   El aviso de carga se dibujo para el dialogo suelto del Facturador, donde es lo
+   unico que hay en pantalla. Aqui sale casi siempre DENTRO del modal de subir
+   ventas, que ya tiene su titulo, su archivo y sus botones, y con esas medidas el
+   cuadro no cabia: la cuadricula del Excel sola se llevaba 45px por libro y el
+   aviso nacia con barra de scroll.
+
+   Se recorta el aire, no el contenido: mismos textos y mismas tablas, con menos
+   padding, la hoja de Excel a la altura minima que sigue leyendose como hoja, y
+   un punto menos de fuente en lo secundario. Va solo bajo este tema; en el
+   Facturador el aviso se queda como estaba. */
+
+html[data-wansoft-theme] .chk-box { padding: 9px 10px; }
+
+html[data-wansoft-theme] .chk-file      { gap: 7px; padding: 5px 8px; margin-bottom: 8px; }
+html[data-wansoft-theme] .chk-xls-ico   { width: 16px; height: 16px; }
+html[data-wansoft-theme] .chk-file-name { font-size: 10px; }
+html[data-wansoft-theme] .chk-file-sub  { font-size: 9px; }
+
+html[data-wansoft-theme] .chk-lead { font-size: 11px; margin: 8px 0 4px; }
+
+html[data-wansoft-theme] .chk-vs       { gap: 6px; margin: 0 0 8px; }
+html[data-wansoft-theme] .chk-vs-side  { gap: 2px; padding: 6px 8px; }
+html[data-wansoft-theme] .chk-vs-val   { font-size: 12px; }
+html[data-wansoft-theme] .chk-vs-sep   { font-size: 13px; }
+
+html[data-wansoft-theme] .chk-table { font-size: 10px; }
+
+html[data-wansoft-theme] .chk-table th,
+html[data-wansoft-theme] .chk-table td { padding: 3px 6px; }
+
+html[data-wansoft-theme] .chk-note { font-size: 10px; }
+
+html[data-wansoft-theme] .chk-safe,
+html[data-wansoft-theme] .chk-partial { font-size: 10px; margin-top: 8px; padding-top: 6px; }
+
+/* El libro de Excel. La cuadricula no dice nada —es el fondo de la hoja— y era lo
+   mas alto del cuadro: baja a dos renglones, que es lo que hace falta para que la
+   barra de pestanas de abajo se lea como pestanas de Excel. */
+
+html[data-wansoft-theme] .xls-book      { margin-bottom: 8px; }
+html[data-wansoft-theme] .xls-head span { padding: 1px 0; }
+html[data-wansoft-theme] .xls-grid      { height: 24px; background-size: 38px 12px; }
+html[data-wansoft-theme] .xls-tabs      { gap: 2px; padding: 0 6px 4px; }
+html[data-wansoft-theme] .xls-tab       { padding: 2px 8px 3px; font-size: 9px; }
+html[data-wansoft-theme] .xls-lbl       { padding: 3px 6px; }
+html[data-wansoft-theme] .xls-cel       { padding: 3px 6px; }
+
+/* El popup que solo lleva el aviso: su titulo compite con el del cuadro y su
+   padding de fabrica esta pensado para una linea de texto, no para una tabla. */
+
+html[data-wansoft-theme] .swal2-popup:has(.chk-box) { padding: 14px; }
+
+html[data-wansoft-theme] .swal2-popup:has(.chk-box) .swal2-title {
+    font-size: 17px;
+    padding: 0 0 8px;
+}
+
+html[data-wansoft-theme] .swal2-popup:has(.chk-box) .swal2-html-container {
+    margin: 0;
+    font-size: 12px;
+}
+
 /* -- El detalle de los avisos (.tf-alert-card, no swal) --
 
    El resumen del reparto arma su cuadro con la escala de grises del tema oscuro,
@@ -573,6 +637,37 @@ html[data-wansoft-theme] #root .ws-stat-val {
 html[data-wansoft-theme] #root .ws-stat-hero .ws-stat-val { font-size: 18px; font-weight: 700; }
 html[data-wansoft-theme] #root .ws-stat-blue .ws-stat-val { color: var(--ws-blue-dk); }
 html[data-wansoft-theme] #root .ws-stat-ok   .ws-stat-val { color: var(--ws-ok); }
+
+/* -- El dia bajo llave, en papel --
+
+   La silueta se dibuja en facture.css con la escala del tema oscuro: barras claras
+   sobre panel negro, cartel gris marengo. Sobre el papel de la terminal esa escala
+   queda al reves —las barras pesarian mas que las filas de un dia normal y el cartel
+   se leeria como un modal de error—, asi que aqui baja de tono entera.
+
+   La geometria no se repite: solo cambian los colores. */
+
+/* El encabezado no se toca: la silueta usa un <table> normal, asi que le cae la
+   banda azul que esta hoja le pone a todas las tablas de la terminal. Es lo que se
+   quiere —el hueco tiene la misma cabecera que la tabla que va a aparecer. */
+
+html[data-wansoft-theme] #root .tk-sk-table td { border-top-color: var(--ws-line); }
+
+html[data-wansoft-theme] #root .tk-sk-bar { background: #E3E7ED; }
+
+html[data-wansoft-theme] #root .tk-lock-note {
+    background: var(--ws-paper);
+    border-color: #D9DEE7;
+    color: var(--ws-ink);
+    box-shadow: 0 14px 38px -18px rgba(16, 22, 40, .55);
+}
+
+html[data-wansoft-theme] #root .tk-lock-ico   { background: #EEF0F5; color: #5B6474; }
+html[data-wansoft-theme] #root .tk-lock-txt b { color: var(--ws-ink); }
+html[data-wansoft-theme] #root .tk-lock-txt span { color: var(--ws-muted); }
+
+html[data-wansoft-theme] #root .tk-lock-btn       { background: var(--ws-blue); }
+html[data-wansoft-theme] #root .tk-lock-btn:hover { background: var(--ws-blue-dk); }
 
 /* -- El boton de accion del encabezado del panel --
 

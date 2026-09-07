@@ -384,9 +384,14 @@ class App extends Templates {
         this.syncMetaButton();
     }
 
+    // `lock` pide el dia sin reparto mientras no se haya generado: el servidor
+    // manda los hechos del POS y deja el resto bajo llave. Viaja en todas las
+    // peticiones porque el filtro es uno solo, pero unicamente lsTickets lo mira, y
+    // el dia ya generado lo ignora: ahi las tasas son un hecho, no una propuesta.
     getFilters() {
         return {
             dia:       $('#fDia').val() || this.dataInit.dia,
+            lock:      1,
             metaModo:  this.meta.modo,
             metaValor: this.meta.valor,
             metaCero:  this.meta.cero
@@ -1443,6 +1448,10 @@ class Tickets extends Templates {
     async lsTickets() {
         const data = await useFetch({ url: apiTickets, data: Object.assign({ opc: 'lsTickets' }, app.getFilters()) });
 
+        // El dia bajo llave no trae filas, y eso no es un dia vacio: trae cuantas
+        // ventas hay para poder dibujar su silueta.
+        if (data && data.bloqueado) return this.lockedDay(data);
+
         if (!data || !(data.row || []).length) return ticketsView.renderEmptyDay(data);
 
         this.createCoffeeTable3({
@@ -1487,6 +1496,31 @@ class Tickets extends Templates {
         if (!(data.row || []).length) return;
 
         if (typeof simple_data_table === 'function') simple_data_table(id, 100);
+    }
+
+    // El dia sin generar, con la tabla cerrada. Todo lo de alrededor se sincroniza
+    // igual que en un dia normal —los recuadros, los botones, la meta—: lo unico que
+    // cambia es que en lugar del listado va su silueta.
+    lockedDay(data) {
+        const counts = data.counts || {};
+        const ventas = counts.mostrados || 0;
+
+        app.dataKpis    = data.kpis || {};
+        app.dataMudados = [];
+
+        if (app.selectedId) app.selectTicket(null);
+
+        $('#statsRow').show();
+
+        ticketsView.renderStats(app.dataKpis, counts);
+        ticketsView.renderLockedDay(ventas);
+        ticketsView.renderCutNote(null);
+        ticketsView.renderMudadosLink([]);
+
+        app.syncActionButtons(counts);
+        app.syncMetaButton();
+
+        app.updateFooterInfo(`${ventas} venta${ventas !== 1 ? 's' : ''} del dia, sin repartir`);
     }
 
     // -- Actions --
@@ -1873,6 +1907,8 @@ class TicketsView extends Templates {
         })));
 
         $('#statsRow').empty().append(row);
+
+        if (window.lucide) lucide.createIcons();
     }
 
     statCell(label, value, tone, detalle) {
@@ -1882,6 +1918,59 @@ class TicketsView extends Templates {
         cell.append($('<div>', { class: 'ws-stat-val', text: value || '$0.00' }));
 
         return cell;
+    }
+
+    // -- El dia bajo llave --
+    //
+    // La silueta del dia: la tabla con su encabezado y un renglon por venta, dibujado
+    // en barras. No hay nada que tapar —el servidor no manda las filas—, asi que esto
+    // no es el listado cubierto: es el hueco que deja, con el boton que lo abre.
+    //
+    // Los renglones se topan en diez. Un dia de trescientas ventas no dice mas por
+    // pintar trescientas barras, y el numero exacto ya lo dice el cartel.
+    renderLockedDay(ventas) {
+        const filas  = Math.min(Math.max(ventas || 0, 1), 10);
+        const anchos = ['tk-sk-w3', 'tk-sk-w5', 'tk-sk-w4'];
+
+        const renglon = (i) => `
+            <tr>
+                <td><span class="tk-sk-bar tk-sk-w1"></span></td>
+                <td><span class="tk-sk-bar tk-sk-w2"></span></td>
+                <td><span class="tk-sk-bar ${anchos[i % anchos.length]}"></span></td>
+                <td class="text-right"><span class="tk-sk-bar ${i % 2 ? 'tk-sk-w2' : 'tk-sk-w4'}"></span></td>
+                <td></td>
+            </tr>
+        `;
+
+        const cuerpo = Array.from({ length: filas }, (_, i) => renglon(i)).join('');
+
+        $('#tableWrap').html(`
+            <div class="tk-sk-wrap">
+                <table class="tk-sk-table">
+                    <thead>
+                        <tr>
+                            <th>Nota</th>
+                            <th>Folio</th>
+                            <th>Estado</th>
+                            <th class="text-right">Monto</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>${cuerpo}</tbody>
+                </table>
+
+                <div class="tk-lock-note">
+                    <span class="tk-lock-ico"><i data-lucide="lock" class="w-4 h-4"></i></span>
+                    <span class="tk-lock-txt">
+                        <b>${ventas} venta${ventas !== 1 ? 's' : ''} sin repartir</b>
+                        <span>Dale a Generar ticket para ver el detalle del dia</span>
+                    </span>
+                    <button type="button" class="tk-lock-btn" onclick="tickets.startGenerate()">Generar ticket</button>
+                </div>
+            </div>
+        `);
+
+        if (window.lucide) lucide.createIcons();
     }
 
     // -- Alcance del cierre --
