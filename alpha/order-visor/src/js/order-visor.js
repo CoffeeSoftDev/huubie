@@ -713,16 +713,25 @@ class OrderVisor extends Templates {
             const subBadge = esCruzado
                 ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 text-[9px]" title="Cobrado en sucursal distinta a la del pedido">${p.subsidiary_name || "—"}</span>`
                 : "";
-            // Lapiz de editar metodo, JUNTO al nombre del metodo: solo en pagos que el
-            // backend marco editable (admin + corte de ese pago aun abierto). El
-            // backend revalida al guardar.
+            // Junto al nombre del metodo, tres estados posibles y ninguno mudo para
+            // quien tiene el rol: lapiz si se puede editar, candado con la fecha del
+            // cierre si el corte ya paso, y nada para quien no es admin/supervisor.
+            // El backend revalida al guardar.
+            const lockedAt = p.locked_at
+                ? moment(p.locked_at).format("DD/MM/YYYY hh:mm A")
+                : "";
             const editBtn = p.editable
                 ? `<button type="button" title="Cambiar método de pago"
                         onclick="orderVisor.editPaymentMethodPrompt(${p.id}, ${orderId}, ${p.method_pay_id})"
                         class="flex-shrink-0 text-blue-400/70 hover:text-blue-400 transition-colors">
                         ${lucideIcon("pencil", "w-3.5 h-3.5")}
                    </button>`
-                : "";
+                : p.locked_at
+                    ? `<span class="flex-shrink-0 text-gray-600 cursor-help"
+                            title="Corte cerrado el ${lockedAt}. El método de este pago ya no puede cambiarse.">
+                            ${lucideIcon("lock", "w-3 h-3")}
+                       </span>`
+                    : "";
             return `
                 <div class="flex items-center gap-3 px-3 py-2.5 border-b border-gray-800">
                     <span class="text-gray-400 d-flex flex-shrink-0">${lucideIcon(METHOD_ICON[p.method_pay] || "credit-card", "w-4 h-4")}</span>
@@ -739,6 +748,27 @@ class OrderVisor extends Templates {
             ? rows
             : `<div class="text-center text-gray-500 py-8 text-sm">Sin pagos registrados.</div>`;
 
+        // Leyenda al pie: explica el icono que el usuario SI tiene enfrente. Con
+        // lapiz manda el lapiz; si todos los pagos quedaron bajo corte cerrado,
+        // explica el candado. Para quien no es admin/supervisor no hay icono que
+        // explicar y la franja no se pinta.
+        const hayEditable = payments.some(p => p.editable);
+        const hayBloqueado = payments.some(p => p.locked_at);
+        const editHint = (hayEditable || hayBloqueado)
+            ? `<div class="flex items-start gap-2 px-3 py-2 border-b border-gray-800 bg-blue-500/5">
+                    <span class="${hayEditable ? "text-blue-400/70" : "text-gray-500"} d-flex flex-shrink-0 mt-0.5">
+                        ${lucideIcon(hayEditable ? "pencil" : "lock", "w-3 h-3")}
+                    </span>
+                    <span class="text-[10px] leading-snug text-gray-400">
+                        ${hayEditable
+                            ? `El lápiz cambia el <span class="text-gray-300">método de pago</span> (efectivo, tarjeta o transferencia).
+                               Disponible mientras el corte de ese pago siga abierto; no modifica el importe.`
+                            : `El <span class="text-gray-300">método de pago</span> se puede corregir solo mientras el corte
+                               sigue abierto. Estos pagos ya entraron en un corte cerrado, por eso aparecen con candado.`}
+                    </span>
+               </div>`
+            : "";
+
         const balance  = parseFloat(summary.balance || 0);
         // summary.total viene SIN descuento.
         const discount = parseFloat(summary.discount || 0);
@@ -752,6 +782,7 @@ class OrderVisor extends Templates {
                     <span class="text-[11px] text-gray-400">${payments.length} pago${payments.length === 1 ? "" : "s"}</span>
                 </div>
                 ${body}
+                ${editHint}
                 <div class="px-3 py-2.5 bg-black/20 space-y-1">
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Importe del pedido</span>
@@ -776,8 +807,9 @@ class OrderVisor extends Templates {
     }
 
     // Cambiar el metodo de un pago desde el panel, con nuestro modal propio Huubie
-    // (createCoffeeModalForm, el mismo de apertura/cierre de turno). Solo admin y solo
-    // si el corte de ese pago sigue abierto; el backend revalida ambas cosas. Al
+    // (createCoffeeModalForm, el mismo de apertura/cierre de turno). Solo admin o
+    // supervisor y solo si el corte de ese pago sigue abierto; el backend revalida
+    // ambas cosas. Al
     // confirmar envia opc:editPaymentMethod y refresca el historial de pagos + bitacora.
     editPaymentMethodPrompt(payId, orderId, currentMethodId) {
         createCoffeeModalForm({

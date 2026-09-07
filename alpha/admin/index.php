@@ -84,6 +84,7 @@
     <script src="<?=PATH_BASE?>src/plugins/daterangepicker/daterangepicker.js"></script>
 
     <!-- Init -->
+    <script src="<?=PATH_ADMIN?>src/js/permisos.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_ADMIN?>src/js/app.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

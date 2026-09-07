@@ -790,7 +790,39 @@ class MPedidos extends CRUD {
             }
         }
         unset($product);
-        
+
+        // Rastro de una doble captura: la misma partida (mismo nombre y mismo precio)
+        // registrada otra vez a los pocos minutos. De cada repeticion se marca la mas
+        // reciente, nunca la primera. No juzga el pedido: es lo unico que el catalogo
+        // deja dar de baja cuando ya hay dinero cobrado, y quien decide y escribe el
+        // motivo sigue siendo el usuario.
+        $ventana = 600;
+        $grupos  = [];
+
+        foreach ($products as $i => $product) {
+            $products[$i]['is_repeated'] = false;
+            $grupos[$product['name'] . '|' . $product['price']][] = $i;
+        }
+
+        foreach ($grupos as $indices) {
+
+            if (count($indices) < 2) continue;
+
+            usort($indices, function ($a, $b) use ($products) {
+                return strcmp($products[$a]['date_creation'] ?? '', $products[$b]['date_creation'] ?? '');
+            });
+
+            for ($i = 1; $i < count($indices); $i++) {
+
+                $previa = strtotime($products[$indices[$i - 1]]['date_creation'] ?? '');
+                $actual = strtotime($products[$indices[$i]]['date_creation'] ?? '');
+
+                if ($previa && $actual && ($actual - $previa) <= $ventana) {
+                    $products[$indices[$i]]['is_repeated'] = true;
+                }
+            }
+        }
+
         return $products;
     }
 

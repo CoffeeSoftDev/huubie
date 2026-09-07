@@ -1,5 +1,6 @@
 let api = "/alpha/admin/ctrl/ctrl-admin.php";
-let app, usuarios, sucursales, company, clausulas;
+let apiPermisos = "/alpha/admin/ctrl/ctrl-permisos.php";
+let app, usuarios, sucursales, company, clausulas, permisos;
 let rol, sucursal, nameCompany, idCompany;
 
 $(function () {
@@ -14,6 +15,7 @@ $(function () {
         sucursales = new Sucursales(api, "root");
         company = new Company(api, "root");
         clausulas = new Clausulas(api, "root");
+        permisos = new Permisos(apiPermisos, "root");
 
         app.render();
 
@@ -114,6 +116,13 @@ class App extends Templates {
                     lucideIcon: "file-text",
                     iconColor: "text-white",
                     onClick: () => clausulas.render()
+                },
+                {
+                    id: "tab-permisos",
+                    tab: "Permisos",
+                    lucideIcon: "shield",
+                    iconColor: "text-white",
+                    onClick: () => permisos.render()
                 }
             ]
         });

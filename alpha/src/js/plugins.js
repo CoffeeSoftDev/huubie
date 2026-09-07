@@ -250,7 +250,7 @@ $.fn.content_json_form = function (options) {
 
                 // asignar atributos al input:
                 let attr_ipt = {
-                    class: `form-control input-sm ${align}  bg-[#1F2A37]`,
+                    class: `form-control input-sm ${align}  bg-[#1F2A37] !border-slate-700 disabled:!bg-[#1F2A37] read-only:!bg-[#1F2A37] disabled:opacity-60`,
                     type: x.type,
 
                     onkeyup: x.onkeyup ? x.onkeyup : "",
@@ -291,7 +291,7 @@ $.fn.content_json_form = function (options) {
                 //   console.log(">> " + x.attr);
 
                 let atributos_ipt = {
-                    class: `form-control input-sm ${align}  bg-[#1F2A37]`,
+                    class: `form-control input-sm ${align}  bg-[#1F2A37] !border-slate-700 disabled:!bg-[#1F2A37] read-only:!bg-[#1F2A37] disabled:opacity-60`,
                     cat: x.cat,
                     readonly: x.readonly,
                     type: val_type,
@@ -321,7 +321,7 @@ $.fn.content_json_form = function (options) {
             case "textarea":
                 div_hijo.append(
                     $("<textarea>", {
-                        class: `form-control bg-[#1F2A37] resize`,
+                        class: `form-control bg-[#1F2A37] !border-slate-700 disabled:!bg-[#1F2A37] read-only:!bg-[#1F2A37] disabled:opacity-60 resize`,
                         id: x.id,
                         tipo: x.tipo,
                         name: x.id,

@@ -805,9 +805,16 @@ class Pedidos extends MPedidos{
                 $payments = [];
             }
 
-            $isAdmin = (($_SESSION['ROLID'] ?? 0) == 1);
+            // Dos datos distintos para el panel: si el lapiz va, y por que no va.
+            // locked_at solo viaja a quien SI tiene el rol: al cajero no se le
+            // anuncia con un candado una accion que nunca fue suya.
+            $puedeEditarPago = in_array($_SESSION['ROLID'] ?? 0, [1, 6, 7]);
             foreach ($payments as $i => $p) {
-                $payments[$i]['editable'] = $isAdmin && !$this->getClosedShiftForPayment([$p['id']]);
+                $corte = $this->getClosedShiftForPayment([$p['id']]);
+                $payments[$i]['editable']  = $puedeEditarPago && !$corte;
+                $payments[$i]['locked_at'] = ($puedeEditarPago && $corte)
+                    ? ($corte['closed_at'] ?? null)
+                    : null;
             }
 
             $data = [
@@ -1069,6 +1076,22 @@ class Pedidos extends MPedidos{
 
     }
 
+    // Chip del metodo con color fijo: efectivo verde, tarjeta azul, transferencia
+    // violeta. Un tercio de los pedidos se liquida mezclando dos metodos, asi que
+    // el metodo se reconoce por color antes de leerse, igual que el badge de
+    // sucursal de la columna vecina.
+    private function methodPayChip($metodo) {
+        $mapa = [
+            'Efectivo'      => ['icon-money',       'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'],
+            'Tarjeta'       => ['icon-credit-card', 'bg-blue-500/15 text-blue-300 border-blue-500/40'],
+            'Transferencia' => ['icon-exchange',    'bg-purple-500/15 text-purple-300 border-purple-500/40'],
+        ];
+        [$icono, $color] = $mapa[$metodo] ?? ['icon-credit-card', 'bg-slate-600/30 text-gray-300 border-slate-500/40'];
+
+        return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap '
+             . $color . '"><i class="' . $icono . '"></i>' . $metodo . '</span>';
+    }
+
     function listPayment() {
         $data  = $this->getListPayment([$_POST['id']]);
         $__row = [];
@@ -1077,13 +1100,6 @@ class Pedidos extends MPedidos{
         $requiereClave = $this->isOrderPaidInFull($_POST['id']) ? 1 : 0;
 
         foreach ($data as $key) {
-            $icono = '<i class="icon-credit-card"></i>';
-
-            if ($key['method_pay'] == 'Efectivo') {
-                $icono = '<i class="icon-money"></i>';
-            } elseif ($key['method_pay'] == 'Transferencia') {
-                $icono = '<i class="icon-exchange"></i>';
-            }
 
             $a = [];
 
@@ -1115,7 +1131,7 @@ class Pedidos extends MPedidos{
                     'html' => formatSpanishDateTime($key['date_pay']),
                 ],
                 'Método' => [
-                    'html' => $icono . ' ' . $key['method_pay'],
+                    'html' => $this->methodPayChip($key['method_pay']),
                 ],
                 'Monto' => [
                     'html' => '$ ' . number_format($key['pay'], 2),
@@ -1139,8 +1155,8 @@ class Pedidos extends MPedidos{
     }
 
     function editPaymentMethod() {
-        if (($_SESSION['ROLID'] ?? 0) != 1) {
-            return ['status' => 403, 'message' => 'Solo un administrador puede editar el método de un pago.'];
+        if (!in_array($_SESSION['ROLID'] ?? 0, [1, 6, 7])) {
+            return ['status' => 403, 'message' => 'Solo un administrador o un supervisor puede editar el método de un pago.'];
         }
 
         $payId    = $_POST['idPay'] ?? null;

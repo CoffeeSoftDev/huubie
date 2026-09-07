@@ -440,6 +440,16 @@ class ctrl extends MPedidos{
 
         if ($pagado <= 0) return null;
 
+        // Con dinero cobrado la baja deja de ser un permiso del rol: solo procede
+        // sobre la linea repetida, que es el rastro de la doble captura. Cualquier
+        // otra correccion pasa por cancelar el folio y generar uno nuevo.
+        if (empty($linea['is_repeated'])) {
+            return [
+                'status'  => 409,
+                'message' => 'Esta partida no se puede eliminar. Si hay que corregir el pedido, cancela el folio y genera uno nuevo.'
+            ];
+        }
+
         // El pedido no puede valer menos de lo ya cobrado: quedaria un saldo a favor
         // sin respaldo y el corte no cuadraria contra el detalle.
         $restante = -floatval($order['discount'] ?? 0);

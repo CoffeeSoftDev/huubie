@@ -17,9 +17,9 @@ const CF_REGEX = {
 const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
 
 const CF_CSS = {
-    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
-    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
-    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:!border-slate-700 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:!border-slate-700 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:!border-slate-700 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#003360] dark:focus:border-[#0a4a85] bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
     btnPrimary: 'tw-btn w-full rounded-lg bg-[#003360]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#003360] active:bg-[#003360] focus:outline-none focus:ring-2 focus:ring-[#003360] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
@@ -34,8 +34,8 @@ const CF_CSS = {
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
     radio: 'w-4 h-4 text-[#003360] border-gray-300 dark:border-gray-600 focus:ring-[#003360] accent-[#003360]',
     checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#003360] focus:ring-[#003360] accent-[#003360]',
-    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
-    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:!border-slate-700 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#e6eef5] dark:file:bg-[#0a2540] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#003360] dark:file:text-[#7bafe6] hover:file:bg-[#cddfee] dark:hover:file:bg-[#0f3358]',
+    groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:!border-slate-700 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
 };
 
 const CF_BTN_COLORS = {
@@ -5031,10 +5031,10 @@ function formDataToJson(formData) {
         const dark = o.theme !== 'light';
 
         const cardBg   = dark ? 'bg-[#1F2A37]' : 'bg-white';
-        const fieldBox = dark ? 'bg-[#1a2332] border-gray-600/60 text-white'
+        const fieldBox = dark ? 'bg-[#1a2332] border-slate-700 text-white'
                               : 'bg-gray-50 border-gray-300 text-gray-900';
         const labelCls = dark ? 'text-gray-400' : 'text-gray-500';
-        const inputCls = dark ? 'bg-[#1a2332] border-gray-600 text-white focus:border-emerald-500'
+        const inputCls = dark ? 'bg-[#1a2332] border-slate-700 text-white focus:border-emerald-500'
                               : 'bg-white border-gray-300 text-gray-900 focus:border-emerald-500';
         const titleCls = dark ? 'text-white' : 'text-gray-900';
         const closeCls = dark ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-gray-700';

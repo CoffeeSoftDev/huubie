@@ -11,6 +11,21 @@ let subsidiariesCobro = []; // Sucursales para el selector "Sucursal de cobro" (
 let dailyClosure = { is_closed: false };
 let openShift = { has_open_shift: false };
 
+// Estado activo / inactivo de los botones de metodo de pago (Gestion de Pagos). El
+// anillo interior del activo es lo que hace legible la seleccion: sobre el fondo del
+// modal, un cambio de fondo solo se percibe apenas.
+const METHOD_BTN = {
+    on:  'bg-blue-600/25 border-blue-500 text-white ring-1 ring-inset ring-blue-500/50',
+    off: 'bg-[#1E293B] border-slate-700 text-gray-400 hover:border-slate-500'
+};
+
+// Nombre e icono por id de metodo de pago, para rotular el boton de registrar.
+const METHOD_META = {
+    '1': { label: 'Efectivo',      icon: 'banknote' },
+    '2': { label: 'Tarjeta',       icon: 'credit-card' },
+    '3': { label: 'Transferencia', icon: 'arrow-right-left' }
+};
+
 $(async () => {
     let dataModifiers = await useFetch({ url: api, data: { opc: "getModifiers" } });
     categories = dataModifiers.data || [];
@@ -1920,44 +1935,31 @@ class App extends Templates {
             .map(s => `<option value="${s.id}" ${String(s.id) === String(defaultCobroSub) ? 'selected' : ''}>${s.valor}</option>`)
             .join('');
 
-        // Metodos de pago del dropdown custom (.js-dd). El value es el id que espera
-        // el backend (1=Efectivo, 2=Tarjeta, 3=Transferencia) y vive en el input
-        // hidden #method_pay_id que lee el form al registrar el pago.
+        // Metodos de pago. El value es el id que espera el backend (1=Efectivo,
+        // 2=Tarjeta, 3=Transferencia) y vive en el input hidden #method_pay_id que
+        // lee el form al registrar el pago.
         const metodosPago = [
             { id: '1', label: 'Efectivo',      sub: 'Pago en efectivo', icon: 'banknote' },
             { id: '2', label: 'Tarjeta',       sub: 'Débito o crédito', icon: 'credit-card' },
             { id: '3', label: 'Transferencia', sub: 'Depósito o SPEI',  icon: 'arrow-right-left' }
         ];
         const metodoDefault = metodosPago[0];
+
+        // Los tres a la vista en lugar de un desplegable: con solo tres opciones,
+        // plegarlas escondia dos y cobraba un clic por verlas. Ocupan el mismo alto.
         const methodPayOptionsHtml = metodosPago.map((m, i) => `
-            <div class="js-dd-option flex items-center gap-2.5 px-2.5 py-2 cursor-pointer hover:bg-slate-700/50"
-                data-value="${m.id}" data-label="${m.label}" data-sub="${m.sub}" data-icon="${m.icon}">
-                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
-                    ${window.lucideIcon(m.icon, 'w-4 h-4')}
-                </div>
-                <div class="flex flex-col leading-tight flex-1 min-w-0">
-                    <span class="text-sm text-white font-semibold truncate">${m.label}</span>
-                    <span class="text-[11px] text-gray-400">${m.sub}</span>
-                </div>
-                <span class="js-dd-check text-emerald-400 shrink-0 ${i === 0 ? '' : 'opacity-0'}">${window.lucideIcon('check', 'w-4 h-4')}</span>
-            </div>`).join('');
+            <button type="button" data-value="${m.id}"
+                class="js-method-btn flex flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-center transition-colors ${i === 0 ? METHOD_BTN.on : METHOD_BTN.off}"
+                ${isPaidInFull ? 'disabled' : ''}>
+                ${window.lucideIcon(m.icon, 'w-5 h-5')}
+                <span class="text-[11px] font-semibold leading-tight">${m.label}</span>
+                <span class="text-[9px] leading-tight opacity-75">${m.sub}</span>
+            </button>`).join('');
 
         const methodPayCardHtml = `
             <input type="hidden" id="method_pay_id" name="method_pay_id" value="${metodoDefault.id}" required>
-            <div class="js-dd relative">
-                <div class="js-dd-trigger flex items-center gap-2.5 bg-[#1E293B] border border-slate-700 rounded-lg px-2.5 py-1.5 ${isPaidInFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}" ${isPaidInFull ? 'disabled' : ''}>
-                    <div class="js-dd-trigger-icon flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700/60 text-gray-300 shrink-0">
-                        ${window.lucideIcon(metodoDefault.icon, 'w-4 h-4')}
-                    </div>
-                    <div class="flex flex-col leading-tight flex-1 min-w-0">
-                        <span class="js-dd-trigger-label text-sm text-white font-semibold truncate">${metodoDefault.label}</span>
-                        <span class="js-dd-trigger-sub text-[11px] text-gray-400">${metodoDefault.sub}</span>
-                    </div>
-                    <span class="js-dd-chevron text-gray-400 shrink-0 transition-transform">${window.lucideIcon('chevron-down', 'w-4 h-4')}</span>
-                </div>
-                <div class="js-dd-menu hidden absolute left-0 right-0 mt-1 z-20 bg-[#1E293B] border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-                    ${methodPayOptionsHtml}
-                </div>
+            <div class="grid grid-cols-3 gap-1.5 ${isPaidInFull ? 'opacity-60' : ''}">
+                ${methodPayOptionsHtml}
             </div>`;
 
         // Contenedor del formulario centrado y reducido
@@ -2115,56 +2117,21 @@ class App extends Templates {
             }
         });
 
-        // ── Interacción de los dropdowns (abrir/cerrar, seleccionar) ───────────
+        // ── Interacción del selector de método ─────────────────────────────────
         const $payRoot = $('#container-payment');
         $payRoot.off('click.dd');
 
-        // Abrir / cerrar al pulsar el trigger.
-        $payRoot.on('click.dd', '.js-dd-trigger:not([disabled])', function (e) {
-            e.stopPropagation();
-            const $menu = $(this).siblings('.js-dd-menu');
-            const willOpen = $menu.hasClass('hidden');
-            // Cerrar cualquier otro menú abierto.
-            $payRoot.find('.js-dd-menu').addClass('hidden');
-            $payRoot.find('.js-dd-chevron').removeClass('rotate-180');
-            if (willOpen) {
-                $menu.removeClass('hidden');
-                $(this).find('.js-dd-chevron').addClass('rotate-180');
-            }
-        });
+        // Elegir metodo: mueve el estado activo entre los tres botones, actualiza el
+        // hidden que viaja al backend y reescribe el boton de registrar.
+        $payRoot.on('click.dd', '.js-method-btn:not([disabled])', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
 
-        // Seleccionar una opción: actualiza hidden + trigger + check y cierra.
-        $payRoot.on('click.dd', '.js-dd-option', function (e) {
-            e.stopPropagation();
-            const $opt = $(this);
-            const $dd = $opt.closest('.js-dd');
-            const value = $opt.attr('data-value');
-            const label = $opt.attr('data-label');
-            const sub = $opt.attr('data-sub') || '';
-            const icon = $opt.attr('data-icon');
+            $btn.siblings('.js-method-btn').removeClass(METHOD_BTN.on).addClass(METHOD_BTN.off);
+            $btn.removeClass(METHOD_BTN.off).addClass(METHOD_BTN.on);
 
-            // Valor real (id) para el envío del formulario.
-            $dd.prevAll('input[type="hidden"]').first().val(value);
-
-            // Reflejar la selección en el trigger.
-            const $trigger = $dd.find('.js-dd-trigger');
-            $trigger.find('.js-dd-trigger-icon').html(window.lucideIcon(icon, 'w-4 h-4'));
-            $trigger.find('.js-dd-trigger-label').text(label);
-            $trigger.find('.js-dd-trigger-sub').text(sub);
-
-            // Mover el check a la opción elegida.
-            $dd.find('.js-dd-check').addClass('opacity-0');
-            $opt.find('.js-dd-check').removeClass('opacity-0');
-
-            // Cerrar.
-            $dd.find('.js-dd-menu').addClass('hidden');
-            $trigger.find('.js-dd-chevron').removeClass('rotate-180');
-        });
-
-        // Cerrar al hacer click fuera de cualquier dropdown.
-        $(document).off('click.payDD').on('click.payDD', function () {
-            $('#container-payment .js-dd-menu').addClass('hidden');
-            $('#container-payment .js-dd-chevron').removeClass('rotate-180');
+            $('#method_pay_id').val($btn.attr('data-value'));
+            app.refreshPayButton();
         });
 
         // Confirmación antes de registrar el pago. Se intercepta el submit en fase
@@ -3611,6 +3578,32 @@ class App extends Templates {
     }
 
 
+    // El boton de registrar nombra la operacion completa: importe y metodo. Es lo
+    // ultimo que se mira antes de confirmar, asi que es donde un metodo equivocado
+    // tiene su mejor oportunidad de saltar a la vista. Sin importe capturado vuelve
+    // a su texto neutro.
+    refreshPayButton() {
+        // #method_pay_id solo existe en Gestion de Pagos: evita reescribir el boton
+        // de cualquier otro modal coffee que este abierto.
+        if (!$('#method_pay_id').length) return;
+
+        const $btn = $('.cf-confirm');
+        if (!$btn.length) return;
+
+        const importe = parseFloat($('#advanced_pay').val()) || 0;
+        const metodo  = METHOD_META[String($('#method_pay_id').val())];
+
+        if (importe <= 0 || !metodo) {
+            $btn.text('Registrar Pago');
+            return;
+        }
+
+        $btn.html(`<span class="inline-flex items-center gap-2">
+            ${window.lucideIcon(metodo.icon, 'w-4 h-4')}
+            Registrar ${formatPrice(importe)} en ${metodo.label}
+        </span>`);
+    }
+
     updateTotal(total, totalPaid) {
         const val = parseFloat($("#advanced_pay").val()) || 0;
         const t = typeof total === 'number' ? total : (this.totalPay || 0);
@@ -3633,6 +3626,8 @@ class App extends Templates {
         } else {
             btn.prop("disabled", false).removeClass("opacity-50 cursor-not-allowed");
         }
+
+        this.refreshPayButton();
     }
 
     // =============================================

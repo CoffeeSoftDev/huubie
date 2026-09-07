@@ -811,12 +811,28 @@ class Pos extends Templates {
                 $("<button>", {
                     id: "exitOrder",
                     class: "bg-[#1a2332] text-[#9CA3AF] rounded-lg px-2 py-2 text-xs hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center gap-1.5",
-                    html: lucideIcon('log-out', 'w-3.5 h-3.5 text-[#EA0234]') + ' Salir'
+                    html: lucideIcon('log-out', 'w-3.5 h-3.5 text-red-400') + ' Salir'
                 })
             )
         );
 
-        container.append(header, orderItems, footer);
+        // Pedido con dinero cobrado y sin ninguna linea repetida: no hay nada que dar
+        // de baja, asi que el panel ocupa el lugar del boton explicando que sigue.
+        const paidNote = (opts.isPaid && opts.canForceRemove && !(opts.data || []).some(item => item.is_repeated))
+            ? $("<div>", {
+                class: "mx-3 mb-3 p-3 bg-[#1a2332] border border-[#374151] rounded-lg flex-shrink-0",
+                css: { borderLeftWidth: "2px", borderLeftColor: "#76A9FA" }
+            }).append(
+                $("<p>", { class: "text-xs font-semibold text-white", text: "Este pedido ya cuadra" }),
+                $("<p>", {
+                    class: "text-[11px] text-gray-400 mt-1 leading-relaxed",
+                    text: `No puede quedar en un monto menor a los ${formatPrice(opts.totalPaid)} que el cliente ya pagó. `
+                        + `Si aun así hay que corregirlo, cancela el folio y genera uno nuevo.`
+                })
+            )
+            : null;
+
+        container.append(header, orderItems, paidNote, footer);
 
         const data = [...opts.data];
         let totalAcc = 0;
@@ -978,10 +994,10 @@ class Pos extends Templates {
                         }
                     })
                 );
-            } else if (opts.canForceRemove) {
+            } else if (opts.canForceRemove && item.is_repeated) {
                 buttons.push(
                     $("<button>", {
-                        class: "text-amber-400 hover:text-red-400 transition-colors",
+                        class: "text-red-400 hover:text-red-500 transition-colors",
                         title: "Eliminar esta partida (requiere motivo)",
                         html: lucideIcon('trash-2'),
                         click: () => opts.onForceRemove(item)
@@ -1407,28 +1423,19 @@ class CatalogProduct extends Pos {
     // rechaza, y con el queda en la bitacora junto al usuario que la autorizo.
     confirmRemoveLine(item) {
 
-        this.createModalForm({
-            id: 'formRemoveLine',
-            data: {
-                opc:        'removeProduct',
-                pedidos_id: idFolio,
-                id:         item.id,
-                isEdit:     1
-            },
-            bootbox: {
-                title: `
-                <div class="flex items-center gap-2 text-white text-lg font-semibold">
-                    <span class="text-amber-400">${this._lucide('trash-2', 'w-5 h-5')}</span>
-                    Eliminar partida
-                </div>`,
-                id:   'removeLineModal',
-                size: 'medium'
-            },
+        createCoffeeModalForm({
+            id: 'frmRemoveLine',
+            title: 'Eliminar partida',
+            iconSvg: lucideIcon('trash-2', 'w-5 h-5'),
+            iconBg: 'bg-red-600',
+            theme: 'dark',
+            width: 380,
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            confirmBg: 'bg-red-600 hover:bg-red-700',
             json: [
                 {
-                    opc:   'div',
-                    id:    'removeLineContext',
-                    class: 'col-12 mb-3',
+                    opc: 'html',
                     html: `
                     <div class="bg-[#1E293B] rounded-lg p-3 space-y-1">
                         <p class="text-white font-semibold text-sm uppercase">${item.name || 'Partida'}</p>
@@ -1443,15 +1450,27 @@ class CatalogProduct extends Pos {
                     </div>`
                 },
                 {
-                    opc:         'input',
+                    opc:         'text',
                     id:          'reason',
                     lbl:         'Motivo de la eliminación',
-                    class:       'col-12 mb-3',
                     placeholder: 'Ej: PASTEL CAPTURADO DOS VECES',
                     required:    true
                 }
             ],
-            success: (response) => {
+            onConfirm: async (data, modal) => {
+                const response = await useFetch({
+                    url: this._link,
+                    data: {
+                        opc:        'removeProduct',
+                        pedidos_id: idFolio,
+                        id:         item.id,
+                        isEdit:     1,
+                        reason:     data.reason
+                    }
+                });
+
+                modal.close();
+
                 if (response.status != 200) {
                     alert({
                         icon:  'error',
