@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>rolePermissions — CoffeeSoft</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    </style>
+</head>
+<body class="bg-[#111928] text-white p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-xl font-semibold mb-1">rolePermissions</h1>
+        <p class="text-sm text-gray-400 mb-6">
+            Ficha de permisos por rol. Lista de roles a la izquierda; a la derecha, las familias
+            plegadas con su contador. Los permisos irreversibles quedan fuera del acordeon.
+        </p>
+
+        <div class="bg-[#1F2A37] rounded-lg p-4 mb-8">
+            <div id="preview"></div>
+        </div>
+
+        <h2 class="text-base font-semibold mb-2">Uso</h2>
+        <pre class="bg-[#0F1620] text-gray-300 text-xs rounded-lg p-4 overflow-x-auto">this.rolePermissions({
+    parent:   'containerPermisos',
+    id:       'cmpPermisos',
+    theme:    'dark',           // 'dark' | 'light'
+    lockedId: 1,                // rol que no se puede editar
+    json: {
+        roles:       [ { id, name, users, granted } ],
+        permissions: [ { id, code, name, description, family, is_dangerous, has_scope } ],
+        granted:     {}
+    },
+    onSelect: (rolId, done) =&gt; done({ 1: 'all', 8: 'own' }),
+    onSave:   (rolId, granted, done) =&gt; done()
+});</pre>
+
+        <h2 class="text-base font-semibold mt-6 mb-2">Opciones</h2>
+        <table class="w-full text-xs">
+            <thead class="text-gray-400 text-left border-b border-slate-700">
+                <tr><th class="py-2">Opcion</th><th>Default</th><th>Que hace</th></tr>
+            </thead>
+            <tbody class="text-gray-300">
+                <tr class="border-b border-slate-800"><td class="py-2 font-mono">parent</td><td class="font-mono">'root'</td><td>Contenedor donde se monta</td></tr>
+                <tr class="border-b border-slate-800"><td class="py-2 font-mono">theme</td><td class="font-mono">'light'</td><td><code>dark</code> en modulos Huubie</td></tr>
+                <tr class="border-b border-slate-800"><td class="py-2 font-mono">lockedId</td><td class="font-mono">null</td><td>Rol que se muestra sin editar</td></tr>
+                <tr class="border-b border-slate-800"><td class="py-2 font-mono">json.permissions</td><td class="font-mono">[]</td><td><code>has_scope</code> pinta No / Su sucursal / Todas; <code>is_dangerous</code> lo saca del acordeon</td></tr>
+                <tr class="border-b border-slate-800"><td class="py-2 font-mono">onSelect</td><td class="font-mono">noop</td><td>Se dispara al elegir rol; devuelve lo concedido por <code>done()</code></td></tr>
+                <tr><td class="py-2 font-mono">onSave</td><td class="font-mono">noop</td><td>Recibe <code>(rolId, granted, done)</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+<script>
+const SAMPLE_PERMISOS = {
+    roles: [
+        { id: 1, name: 'Administrador', users: 13, granted: 17 },
+        { id: 2, name: 'Cajero',        users: 2,  granted: 8  },
+        { id: 6, name: 'Supervisor',    users: 1,  granted: 8  }
+    ],
+    permissions: [
+        { id: 1,  code: 'view_order',          name: 'Ver pedidos',                description: 'Consultar el listado y el detalle de un pedido',  family: 'Pedidos',         is_dangerous: 0, has_scope: 1 },
+        { id: 3,  code: 'edit_order',          name: 'Editar pedido',              description: 'Cambiar datos y partidas de un pedido en armado', family: 'Pedidos',         is_dangerous: 0, has_scope: 1 },
+        { id: 6,  code: 'delete_order',        name: 'Eliminar pedido',            description: 'Borra el pedido y todas sus partidas',            family: 'Pedidos',         is_dangerous: 1, has_scope: 0 },
+        { id: 8,  code: 'edit_payment_method', name: 'Cambiar metodo de un cobro', description: 'Solo mientras el corte de ese pago siga abierto',  family: 'Pagos',           is_dangerous: 0, has_scope: 0 },
+        { id: 9,  code: 'delete_payment',      name: 'Eliminar pago',              description: 'Afecta el corte del dia de la sucursal que cobro', family: 'Pagos',           is_dangerous: 1, has_scope: 0 },
+        { id: 13, code: 'manage_shift',        name: 'Abrir y consultar turnos',   description: 'Ver el estado de caja y abrir turno',              family: 'Turnos y cierre', is_dangerous: 0, has_scope: 1 }
+    ]
+};
+
+const SAMPLE_GRANTED = { 1: 'all', 3: 'all', 8: 'all', 13: 'all' };
+</script>
+<script src="../../../alpha/src/js/coffeeSoft.js"></script>
+<script>
+$(function () {
+    const demo = new Templates('', 'preview');
+
+    demo.rolePermissions({
+        parent:   'preview',
+        id:       'cmpDemo',
+        theme:    'dark',
+        lockedId: 1,
+        json: {
+            roles:       SAMPLE_PERMISOS.roles,
+            permissions: SAMPLE_PERMISOS.permissions,
+            granted:     {}
+        },
+        onSelect: (rolId, done) => done(rolId === 1 ? {} : SAMPLE_GRANTED),
+        onSave:   (rolId, granted, done) => {
+            console.log('onSave', rolId, granted);
+            done();
+        }
+    });
+});
+</script>
+</body>
+</html>

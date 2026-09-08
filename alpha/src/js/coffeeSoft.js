@@ -4873,6 +4873,257 @@ class Templates extends Components {
         }
     }
 
+    rolePermissions(options) {
+
+        const defaults = {
+            parent:    'root',
+            id:        'rolePermissions',
+            class:     '',
+            theme:     'light',
+            lockedId:  null,
+            json:      { roles: [], permissions: [], granted: {} },
+            data:      {},
+            onSelect:  () => {},
+            onSave:    () => {}
+        };
+
+        const opts = Object.assign({}, defaults, options);
+
+        const state = {
+            rolId:   null,
+            granted: {},
+            base:    {},
+            open:    null
+        };
+
+        const skin = opts.theme === 'dark'
+            ? {
+                row:    'bg-[#1E293B] border-slate-700 text-gray-300',
+                rowOn:  'bg-blue-600/20 border-blue-500 text-white',
+                body:   'bg-[#1A2432] border-blue-500',
+                title:  'text-white',
+                soft:   'text-gray-400',
+                rule:   'border-slate-700',
+                bar:    'bg-[#19232D]',
+                off:    'bg-slate-700 border-slate-600'
+              }
+            : {
+                row:    'bg-white border-gray-200 text-gray-600',
+                rowOn:  'bg-blue-50 border-blue-500 text-gray-900',
+                body:   'bg-gray-50 border-blue-500',
+                title:  'text-gray-900',
+                soft:   'text-gray-500',
+                rule:   'border-gray-200',
+                bar:    'bg-gray-50',
+                off:    'bg-gray-300 border-gray-400'
+              };
+
+        const isDanger = (permission) => parseInt(permission.is_dangerous, 10) === 1;
+        const hasScope = (permission) => parseInt(permission.has_scope, 10) === 1;
+        const isLocked = () => opts.lockedId !== null && String(state.rolId) === String(opts.lockedId);
+
+        const families = () => {
+            const groups = {};
+            opts.json.permissions.filter(permission => !isDanger(permission)).forEach(permission => {
+                if (!groups[permission.family]) groups[permission.family] = [];
+                groups[permission.family].push(permission);
+            });
+            return groups;
+        };
+
+        const pending = () => {
+            const ids = new Set([...Object.keys(state.granted), ...Object.keys(state.base)]);
+            let total = 0;
+            ids.forEach(id => { if (state.granted[id] !== state.base[id]) total++; });
+            return total;
+        };
+
+        const switchHtml = (permission) => {
+            const on = state.granted[permission.id] !== undefined;
+            const tone = isDanger(permission) ? 'bg-red-700 border-red-500' : 'bg-blue-600 border-blue-500';
+
+            return `<span class="js-rp-switch relative inline-block w-7 h-4 rounded-full border shrink-0 cursor-pointer ${on ? tone : skin.off}"
+                          data-permission="${permission.id}">
+                        <span class="absolute top-px w-3 h-3 rounded-full ${on ? 'right-px bg-white' : 'left-px bg-gray-400'}"></span>
+                    </span>`;
+        };
+
+        const scopeHtml = (permission) => {
+            const scope = state.granted[permission.id] === undefined ? '' : state.granted[permission.id];
+            const choices = [
+                { value: '',    label: 'No' },
+                { value: 'own', label: 'Su sucursal' },
+                { value: 'all', label: 'Todas' }
+            ];
+
+            const buttons = choices.map(choice => {
+                const on = scope === choice.value;
+                return `<span class="js-rp-scope px-2 py-0.5 rounded text-[10px] cursor-pointer border ${on ? 'bg-blue-600 border-blue-500 text-white' : `${skin.rule} ${skin.soft}`}"
+                              data-permission="${permission.id}" data-scope="${choice.value}">${choice.label}</span>`;
+            }).join('');
+
+            return `<span class="flex gap-1 shrink-0">${buttons}</span>`;
+        };
+
+        const permissionHtml = (permission) => `
+            <div class="flex items-center gap-2.5 py-1.5">
+                ${hasScope(permission) ? scopeHtml(permission) : switchHtml(permission)}
+                <span class="flex flex-col leading-tight min-w-0">
+                    <b class="text-[11.5px] font-medium ${skin.title}">${permission.name}</b>
+                    <span class="text-[9.5px] ${skin.soft}">${permission.description || ''}</span>
+                </span>
+            </div>`;
+
+        const familiesHtml = () => {
+            const groups = families();
+
+            return Object.keys(groups).map(family => {
+                const rows = groups[family];
+                const open = state.open === family;
+                const on   = rows.filter(permission => state.granted[permission.id] !== undefined).length;
+
+                const head = `
+                    <span class="js-rp-family flex items-center gap-2 px-2.5 py-2 rounded-lg border cursor-pointer ${open ? skin.rowOn : skin.row}"
+                          data-family="${family}">
+                        <span class="text-[10px]">${open ? '&#9660;' : '&#9654;'}</span>
+                        <b class="text-[11.5px] font-medium flex-1">${family}</b>
+                        <span class="font-mono text-[10px] px-2 py-px rounded-full ${open ? 'bg-blue-600 text-white' : `${skin.off} ${skin.soft}`}">${on} de ${rows.length}</span>
+                    </span>`;
+
+                const body = open
+                    ? `<div class="border border-t-0 rounded-b-lg px-3 pb-2 pt-1 -mt-1.5 ${skin.body}">${rows.map(permissionHtml).join('')}</div>`
+                    : '';
+
+                return head + body;
+            }).join('');
+        };
+
+        const dangerHtml = () => {
+            const rows = opts.json.permissions.filter(isDanger);
+            if (!rows.length) return '';
+
+            return `
+                <div class="rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 mt-2">
+                    <span class="block text-[9.5px] uppercase tracking-widest text-red-400 pb-1.5 mb-1 border-b border-red-500/25">No se puede deshacer</span>
+                    ${rows.map(permissionHtml).join('')}
+                </div>`;
+        };
+
+        const saveBarHtml = () => {
+            const changes = pending();
+            if (!changes) return '';
+
+            const rol   = opts.json.roles.find(item => String(item.id) === String(state.rolId));
+            const users = rol ? rol.users : 0;
+
+            return `
+                <div class="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg border ${skin.rule} ${skin.bar}">
+                    <span class="text-[10.5px] ${skin.soft} flex-1">
+                        <b class="${skin.title}">${changes} ${changes === 1 ? 'cambio' : 'cambios'} sin guardar</b>
+                        &middot; ${users === 1 ? 'afecta a 1 usuario' : `afectan a ${users} usuarios`}
+                    </span>
+                    <span class="js-rp-discard px-3 py-1.5 rounded-lg border ${skin.rule} text-[11px] ${skin.soft} cursor-pointer">Descartar</span>
+                    <span class="js-rp-save px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-semibold cursor-pointer">Guardar</span>
+                </div>`;
+        };
+
+        const detailHtml = () => {
+            if (!state.rolId) {
+                return `<div class="text-center py-10 text-[11.5px] ${skin.soft}">Elige un rol para ver sus permisos.</div>`;
+            }
+
+            const rol = opts.json.roles.find(item => String(item.id) === String(state.rolId));
+
+            if (isLocked()) {
+                return `
+                    <div class="rounded-lg border ${skin.rule} px-3 py-6 text-center">
+                        <b class="block text-[12.5px] ${skin.title} mb-1">${rol.name} conserva todos los permisos</b>
+                        <span class="text-[10.5px] ${skin.soft}">Si se le pudiera quitar alguno, el sistema podria quedarse sin nadie que lo administre.</span>
+                    </div>`;
+            }
+
+            return `
+                <div class="flex items-center gap-2 pb-2.5 mb-2.5 border-b ${skin.rule}">
+                    <b class="text-[13px] ${skin.title}">${rol.name}</b>
+                    <span class="ml-auto text-[10.5px] ${skin.soft}">
+                        ${Object.keys(state.granted).length} de ${opts.json.permissions.length} permisos
+                        &middot; ${rol.users === 1 ? '1 usuario' : `${rol.users} usuarios`}
+                    </span>
+                </div>
+                <div class="flex flex-col gap-1.5">${familiesHtml()}</div>
+                ${dangerHtml()}
+                ${saveBarHtml()}`;
+        };
+
+        const rolesHtml = () => opts.json.roles.map(rol => {
+            const on = String(rol.id) === String(state.rolId);
+            return `
+                <span class="js-rp-rol flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs cursor-pointer transition-colors ${on ? skin.rowOn : skin.row}"
+                      data-rol="${rol.id}">
+                    ${rol.name}
+                    <span class="ml-auto font-mono text-[10px] ${on ? 'text-blue-300' : skin.soft}">${rol.granted}</span>
+                </span>`;
+        }).join('');
+
+        const paint = () => {
+            $(`#${opts.id}Roles`).html(rolesHtml());
+            $(`#${opts.id}Detail`).html(detailHtml());
+        };
+
+        $(`#${opts.parent}`).html(`
+            <div id="${opts.id}" class="flex gap-3 ${opts.class}">
+                <div id="${opts.id}Roles" class="w-44 shrink-0 flex flex-col gap-1"></div>
+                <div id="${opts.id}Detail" class="flex-1 min-w-0"></div>
+            </div>`);
+
+        const $root = $(`#${opts.id}`);
+
+        $root.on('click', '.js-rp-rol', function () {
+            state.rolId = $(this).data('rol');
+            state.open  = null;
+            opts.onSelect(state.rolId, granted => {
+                state.granted = Object.assign({}, granted);
+                state.base    = Object.assign({}, granted);
+                paint();
+            });
+        });
+
+        $root.on('click', '.js-rp-family', function () {
+            const family = $(this).data('family');
+            state.open = state.open === family ? null : family;
+            paint();
+        });
+
+        $root.on('click', '.js-rp-switch', function () {
+            const id = $(this).data('permission');
+            if (state.granted[id] === undefined) state.granted[id] = 'all';
+            else delete state.granted[id];
+            paint();
+        });
+
+        $root.on('click', '.js-rp-scope', function () {
+            const id    = $(this).data('permission');
+            const scope = $(this).data('scope');
+            if (scope === '') delete state.granted[id];
+            else state.granted[id] = scope;
+            paint();
+        });
+
+        $root.on('click', '.js-rp-discard', function () {
+            state.granted = Object.assign({}, state.base);
+            paint();
+        });
+
+        $root.on('click', '.js-rp-save', function () {
+            opts.onSave(state.rolId, state.granted, () => {
+                state.base = Object.assign({}, state.granted);
+                paint();
+            });
+        });
+
+        paint();
+    }
+
 }
 
 

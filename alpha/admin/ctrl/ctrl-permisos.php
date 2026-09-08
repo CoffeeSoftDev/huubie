@@ -58,7 +58,7 @@ class Permisos extends MPermisos {
 
     // Lo que tiene un rol, en el formato que espera la pantalla:
     // { permissions_id: scope }
-    function lsRolPermissions(){
+    function getRolPermissions(){
         $denial = $this->accessDenial();
         if ($denial) return $denial;
 
