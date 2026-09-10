@@ -110,10 +110,10 @@ class Navbar {
                 id:   'navTurno',
                 text: `Turno: ${this.settings.turno}`
             },
-            {
-                id:   'navFechaOp',
-                text: `Fecha Op: ${this.settings.fechaOp}`
-            },
+            // {
+            //     id:   'navFechaOp',
+            //     text: `Fecha Op: ${this.settings.fechaOp}`
+            // },
             {
                 id:   'navMesas',
                 text: `MESA(S): ${this.settings.mesas}`
@@ -130,12 +130,65 @@ class Navbar {
             text:  this.clock()
         }));
 
-        box.append($('<i>', {
-            'data-lucide': 'chevrons-left-right',
-            class:         'w-4 h-4 text-white'
-        }));
+        box.append(this.signalIcon());
 
         return box;
+    }
+
+    // El icono va en SVG inline y no como <img>: asi el trazo hereda el blanco de
+    // la banda con currentColor, en vez de quedar clavado en un color del archivo.
+    // Cada onda blanca lleva debajo su sombra negra, un arco mas corto corrido
+    // hacia el centro: la sombra siempre cae adentro, nunca hacia el borde.
+    signalIcon() {
+        const ns  = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+
+        const sombras = [
+            'M9.4 8.96 A4 4 0 0 0 9.4 15.04',
+            'M14.6 8.96 A4 4 0 0 1 14.6 15.04',
+            'M7.39 6.6 A7.1 7.1 0 0 0 7.39 17.4',
+            'M16.61 6.6 A7.1 7.1 0 0 1 16.61 17.4',
+            'M5.38 4.24 A10.2 10.2 0 0 0 5.38 19.76',
+            'M18.62 4.24 A10.2 10.2 0 0 1 18.62 19.76'
+        ];
+
+        const ondas = [
+            'M9.13 7.9 A5 5 0 0 0 9.13 16.1',
+            'M14.87 7.9 A5 5 0 0 1 14.87 16.1',
+            'M7.35 5.36 A8.1 8.1 0 0 0 7.35 18.64',
+            'M16.65 5.36 A8.1 8.1 0 0 1 16.65 18.64',
+            'M5.58 2.83 A11.2 11.2 0 0 0 5.58 21.17',
+            'M18.42 2.83 A11.2 11.2 0 0 1 18.42 21.17'
+        ];
+
+        $(svg).attr({
+            viewBox:          '-1 -1 26 26',
+            fill:             'none',
+            stroke:           'currentColor',
+            'stroke-width':   2.2,
+            'stroke-linecap': 'round',
+            class:            'w-6 h-6 text-white'
+        });
+
+        const trazo = (d, attrs) => {
+            const path = document.createElementNS(ns, 'path');
+
+            $(path).attr(Object.assign({ d: d }, attrs || {}));
+
+            svg.appendChild(path);
+        };
+
+        sombras.forEach((d) => trazo(d, { stroke: '#000000', 'stroke-width': 2 }));
+
+        const centro = document.createElementNS(ns, 'circle');
+
+        $(centro).attr({ cx: 12, cy: 12, r: 3, fill: 'currentColor', stroke: 'none' });
+
+        svg.appendChild(centro);
+
+        ondas.forEach((d) => trazo(d));
+
+        return svg;
     }
 
     // -- Complements --
@@ -151,19 +204,20 @@ class Navbar {
     clock() {
         const now = new Date();
 
-        const fecha = now.toLocaleDateString('es-MX', {
+        const partes = new Intl.DateTimeFormat('es-MX', {
             weekday: 'long',
             day:     'numeric',
             month:   'long',
             year:    'numeric'
-        });
+        }).formatToParts(now).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
 
         const hora = now.toLocaleTimeString('es-MX', {
-            hour:   '2-digit',
-            minute: '2-digit'
+            hour:      '2-digit',
+            minute:    '2-digit',
+            hourCycle: 'h23'
         });
 
-        return `${fecha} ${hora}`;
+        return `${partes.weekday}, ${partes.day} ${partes.month} ${partes.year} ${hora}`;
     }
 
     today() {
