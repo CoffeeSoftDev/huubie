@@ -26,6 +26,7 @@ class App extends Templates {
         this.PROJECT_NAME = 'tickets';
         this.selectedId   = null;
         this.dataKpis     = {};
+        this.metaOkDia    = null;
     }
 
     async init() {
@@ -401,6 +402,10 @@ class App extends Templates {
     // -- Event handlers --
 
     async onChangeFilters() {
+        // El acuerdo del 16%/0% es de un dia, no del modulo: al mover el filtro deja
+        // de estar confirmado y el proximo Generar vuelve a pedirlo.
+        this.metaOkDia = null;
+
         await tickets.lsTickets();
 
         if (this.selectedId && !this.isVisibleAfterFilters(this.selectedId)) {
@@ -414,9 +419,12 @@ class App extends Templates {
 
     // -- Distribucion IVA 16% / IVA 0% --
 
-    openMetaModal() {
+    // `alAplicar` es el paso que sigue cuando el modal se abrio como puerta del
+    // cierre (12-13 antes de 14) y no desde el engrane de la barra.
+    openMetaModal(alAplicar) {
         if (this.metaModal) return;
 
+        this.metaNext    = alAplicar || null;
         this.metaTouched = { valor: true, cero: false };
 
         this.metaModal = this.cfModal({
@@ -567,7 +575,7 @@ class App extends Templates {
             .toggleClass('opacity-50 cursor-not-allowed', bloquear);
     }
 
-    applyMeta() {
+    async applyMeta() {
         const valor = parseFloat($('#fMetaValor').val());
         const cero  = parseFloat($('#fMetaCero').val());
 
@@ -578,8 +586,27 @@ class App extends Templates {
         };
 
         this.saveMeta();
+
+        // Queda confirmado para este dia: la propuesta ya no vuelve a preguntarlo.
+        this.metaOkDia = this.getFilters().dia;
+
+        const seguir = this.metaNext;
+
+        this.metaNext = null;
+
         this.metaModal.close();
-        tickets.lsTickets();
+
+        await tickets.lsTickets();
+
+        if (seguir) seguir();
+    }
+
+    // La puerta del paso 14: sin acuerdo capturado el servidor repartiria con el
+    // META_FACTURACION del sistema y nadie se enteraria de que hubo un default.
+    conMeta(accion) {
+        if (this.metaOkDia === this.getFilters().dia) return accion();
+
+        this.openMetaModal(accion);
     }
 
     // -- Actualizar ventas --
@@ -973,7 +1000,31 @@ class App extends Templates {
         return data.status === 200 ? data : null;
     }
 
+    // Generar con un archivo de menos no se prohibe, se avisa: el reparto sale
+    // igual, pero el papel del 16% queda sin desglosar. Cada slot ya trae escrita
+    // su consecuencia en `falta`, asi que la pregunta la cita en vez de inventarla.
     fromUploadToScope(info) {
+        const faltan = this.slotsPendientes();
+
+        if (!faltan.length) return this.abreScope(info);
+
+        this.swalQuestion({
+            extends: true,
+            opts: {
+                title:             faltan.length === 1
+                    ? `Falta ${faltan[0].archivo}`
+                    : `Faltan ${faltan.length} archivos del periodo`,
+                text:              faltan.map((s) => s.falta).join(' '),
+                icon:              'warning',
+                confirmButtonText: 'Generar asi',
+                cancelButtonText:  'Mejor lo subo'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) this.abreScope(info);
+        });
+    }
+
+    abreScope(info) {
         this.uploadModal.close();
 
         this.openScopeModal(info);
@@ -1282,11 +1333,15 @@ class App extends Templates {
     openPreviewModal(data) {
         if (this.previewModal) return ticketsView.renderPreviewDay(data);
 
-        this.previewScope = data.mes ? 'mes' : 'dia';
+        if (this.scopeModal) this.scopeModal.close();
+
+        this.previewScope    = data.mes ? 'mes' : 'dia';
+        this.previewDiaSel   = null;
+        this.previewSemillas = {};
 
         this.previewModal = this.cfModal({
             title:         data.mes ? `Vista previa del reparto · ${data.fechaTexto}` : 'Vista previa del reparto',
-            size:          'default',
+            size:          data.mes ? 'xl' : 'default',
             theme:         FACTURE_THEME,
             okLabel:       data.mes ? 'Confirmar el mes' : 'Confirmar',
             cancelLabel:   'Cancelar',
@@ -1310,7 +1365,7 @@ class App extends Templates {
 
         const regenerar = $('<button>', {
             type:  'button',
-            text:  'Regenerar',
+            text:  this.previewScope === 'mes' ? 'Regenerar el mes' : 'Regenerar',
             class: 'rounded-lg text-sm font-medium px-4 py-2 ' + (FACTURE_THEME_IS_LIGHT
                 ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 : 'bg-[#1a2332] text-[#9CA3AF] border border-[#374151] hover:bg-[#283341] hover:text-white')
@@ -1319,6 +1374,55 @@ class App extends Templates {
         regenerar.on('click', () => tickets.regenerate());
 
         ok.before(regenerar);
+
+        if (!this.scopeInfo) return;
+
+        this.previewModal.footer.find('button').first()
+            .text('‹ Volver')
+            .off('click')
+            .on('click', () => this.volverAlAlcance());
+    }
+
+    volverAlAlcance() {
+        const info = this.scopeInfo;
+
+        this.previewModal.close();
+        this.previewModal = null;
+
+        this.openScopeModal(info);
+    }
+
+    // El cierre ya escribio: su unico boton extra es llevarse la hoja. Va antes del
+    // Entendido para que el orden sea el del trabajo — imprimir y luego cerrar.
+    decorateCierreFooter() {
+        const ok = this.cierreModal.footer.find('button').last();
+
+        ok.removeClass('bg-[#1C64F2] hover:bg-[#1a53d4]')
+          .addClass('bg-[#047857] hover:bg-[#036B4A] text-white');
+
+        const imprimir = $('<button>', {
+            type:  'button',
+            text:  'Imprimir tickets del dia',
+            class: 'rounded-lg text-sm font-medium px-4 py-2 ' + (FACTURE_THEME_IS_LIGHT
+                ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                : 'bg-[#1a2332] text-[#9CA3AF] border border-[#374151] hover:bg-[#283341] hover:text-white')
+        });
+
+        imprimir.on('click', () => this.imprimeDiaDelCierre());
+
+        ok.before(imprimir);
+    }
+
+    // La hoja es de un dia: se imprime la del dia que el panel tiene abierto.
+    async imprimeDiaDelCierre() {
+        const dia = this.previewDiaSel;
+
+        if (!dia) return;
+
+        $('#fDia').val(dia);
+
+        await tickets.lsTickets();
+        await tickets.printSheet();
     }
 
     lockPreview(bloquear) {
@@ -1327,6 +1431,26 @@ class App extends Templates {
         this.previewModal.footer.find('button')
             .prop('disabled', bloquear)
             .toggleClass('opacity-50 cursor-not-allowed', bloquear);
+    }
+
+    // Regla 1: un dia a la vez. El clic reemplaza la seleccion, nunca abre un
+    // segundo panel.
+    selectPreviewDay(dia) {
+        ticketsView.renderMonthPanel(dia);
+    }
+
+    // Regla 4: este boton regenera SOLO el dia visible. La semilla nueva se guarda
+    // por dia y viaja tambien en el Confirmar, o el cierre armaria otra combinacion
+    // de productos que la que se aprobo.
+    regeneraDiaDelMes() {
+        const dia = this.previewDiaSel;
+
+        if (!dia) return;
+
+        this.previewSemillas = this.previewSemillas || {};
+        this.previewSemillas[dia] = (this.previewSemillas[dia] || 0) + 1;
+
+        tickets.previewMonth(tickets.semilla, tickets.scopeMes);
     }
 
     confirmPreview() {
@@ -1379,21 +1503,68 @@ class App extends Templates {
         $('#scopeModalBody input[name="scopeKind"]').on('change', () => ticketsView.syncScope());
     }
 
+    // El modal no se cierra al pedir la propuesta: armarla es leer el dia entero, y
+    // en el mes son 31 lecturas. Se queda a la vista, ocupado, para que el tiempo
+    // tenga donde ocurrir; lo cierra openPreviewModal cuando ya hay algo que ensenar.
     async applyScope() {
         const alcance = $('#scopeModalBody input[name="scopeKind"]:checked').val() || 'dia';
         const dia     = $('#fScopeDia').val();
         const mes     = (this.scopeInfo || {}).mes || '';
+        const cuantos = alcance === 'mes' ? ((this.scopeInfo || {}).dias || []).length : 0;
 
-        this.scopeModal.close();
+        const desde = Date.now();
 
-        if (alcance === 'mes') return tickets.previewMonth(0, mes);
+        this.lockScope(alcance === 'mes'
+            ? `Armando la propuesta de ${cuantos} dia${cuantos !== 1 ? 's' : ''}...`
+            : 'Armando la propuesta del dia...');
 
-        if (dia && dia !== this.getFilters().dia) {
-            $('#fDia').val(dia);
-            await this.onChangeFilters();
+        // Un dia responde en un parpadeo y el aviso no daba tiempo ni a leerse. El
+        // mes no espera nada de mas: para cuando llega, el minimo ya se cumplio.
+        tickets.beforeOpen = () => this.esperaMinima(desde, 500);
+
+        try {
+            if (alcance === 'mes') return await tickets.previewMonth(0, mes);
+
+            if (dia && dia !== this.getFilters().dia) {
+                $('#fDia').val(dia);
+                await this.onChangeFilters();
+            }
+
+            await tickets.previewDay();
+        } finally {
+            tickets.beforeOpen = null;
+
+            this.unlockScope();
         }
+    }
 
-        tickets.previewDay();
+    esperaMinima(desde, minimo) {
+        const falta = minimo - (Date.now() - desde);
+
+        if (falta <= 0) return Promise.resolve();
+
+        return new Promise((listo) => setTimeout(listo, falta));
+    }
+
+    lockScope(texto) {
+        if (!this.scopeModal) return;
+
+        this.scopeModal.footer.find('button')
+            .prop('disabled', true)
+            .addClass('opacity-50 cursor-not-allowed');
+
+        ticketsView.renderScopeLoading(texto);
+    }
+
+    // Solo actua si la propuesta no llego: cuando llega, el modal ya se cerro.
+    unlockScope() {
+        if (!this.scopeModal) return;
+
+        this.scopeModal.footer.find('button')
+            .prop('disabled', false)
+            .removeClass('opacity-50 cursor-not-allowed');
+
+        $('#scopeLoading').remove();
     }
 
     // -- Facade --
@@ -1423,6 +1594,10 @@ class Tickets extends Templates {
         this.PROJECT_NAME = 'tickets';
         this.generating   = false;
         this.semilla      = 0;
+
+        // Lo que tiene que ocurrir antes de ensenar la propuesta. Lo usa el modal
+        // de alcance para que su aviso de espera no parpadee.
+        this.beforeOpen   = null;
     }
 
     // Una corrida a la vez: el cierre tarda segundos y el segundo clic entra cuando
@@ -1542,10 +1717,20 @@ class Tickets extends Templates {
             return;
         }
 
+        if (this.beforeOpen) await this.beforeOpen();
+
         app.openPreviewModal(data);
     }
 
-    async startGenerate() {
+    // Generar ticket ya no salta a la propuesta: primero pasa por la meta (12-13),
+    // que es el paso que el roadmap pone antes del 14.
+    startGenerate() {
+        app.scopeInfo = null;
+
+        app.conMeta(() => this.scopeOrPreview());
+    }
+
+    async scopeOrPreview() {
         const data = await useFetch({
             url:  apiTickets,
             data: Object.assign({ opc: 'scopeMonth' }, app.getFilters())
@@ -1564,7 +1749,10 @@ class Tickets extends Templates {
 
         const data = await useFetch({
             url:  apiTickets,
-            data: Object.assign({ opc: 'previewMonth', semilla: this.semilla, mes: this.scopeMes }, app.getFilters())
+            data: Object.assign(
+                { opc: 'previewMonth', semilla: this.semilla, mes: this.scopeMes, semillas: JSON.stringify(app.previewSemillas || {}) },
+                app.getFilters()
+            )
         });
 
         app.lockPreview(false);
@@ -1573,6 +1761,8 @@ class Tickets extends Templates {
             this.alertBox({ theme: FACTURE_THEME, type: 'error', title: data.message, timer: 0 });
             return;
         }
+
+        if (this.beforeOpen) await this.beforeOpen();
 
         app.openPreviewModal(data);
     }
@@ -1605,7 +1795,10 @@ class Tickets extends Templates {
         await this.runLocked(async () => {
             const response = await useFetch({
                 url:  apiTickets,
-                data: Object.assign({ opc: 'generateMonth', semilla: this.semilla, mes: this.scopeMes || '' }, app.getFilters())
+                data: Object.assign(
+                    { opc: 'generateMonth', semilla: this.semilla, mes: this.scopeMes || '', semillas: JSON.stringify(app.previewSemillas || {}) },
+                    app.getFilters()
+                )
             });
 
             if (response.status !== 200) {
@@ -1616,15 +1809,6 @@ class Tickets extends Templates {
             await this.lsTickets();
 
             ticketsView.renderResumenReparto(response);
-
-            if (response.falla) {
-                this.alertBox({
-                    theme: FACTURE_THEME,
-                    type:  'error',
-                    title: `El mes se detuvo en ${response.falla.fechaTexto}: ${response.falla.message}`,
-                    timer: 0
-                });
-            }
         });
     }
 
@@ -1641,7 +1825,7 @@ class Tickets extends Templates {
                 cancelButtonText:  'No'
             }
         }).then((result) => {
-            if (result.isConfirmed)   this.previewDay();
+            if (result.isConfirmed)   app.conMeta(() => this.previewDay());
             else if (result.isDenied) this.deleteDay();
         });
     }
@@ -1855,8 +2039,7 @@ class TicketsView extends Templates {
                     motivo: 'vacio',
                     icon:   'calendar-x',
                     title:  `Sin ventas cargadas el ${fecha}`,
-                    text:   'El reporte del punto de venta se sube en Importacion. Cuando entre el de este dia, aqui salen sus tickets y se habilita el reparto.',
-                    action: { text: 'Ir a Importacion', icon: 'upload', href: '/app/facture2/cargas.php' }
+                    text:   'El reporte del punto de venta se sube en Importacion. Cuando entre el de este dia, aqui salen sus tickets y se habilita el reparto.'
                 }
                 : {
                     motivo: 'error',
@@ -2027,6 +2210,23 @@ class TicketsView extends Templates {
         this.syncScope();
     }
 
+    renderScopeLoading(texto) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        $('#scopeLoading').remove();
+
+        $('#scopeModalBody').append(`
+            <p id="scopeLoading" class="mt-3 flex items-center gap-2 text-[12px] facture-info">
+                <i data-lucide="loader-2" class="w-3.5 h-3.5 shrink-0 animate-spin"></i>
+                <span>${esc(texto)}</span>
+            </p>
+        `);
+
+        if (window.lucide) lucide.createIcons();
+    }
+
     syncScope() {
         const elegido = $('#scopeModalBody input[name="scopeKind"]:checked').val();
         const apagado = FACTURE_THEME_IS_LIGHT ? '#E5E7EB' : '#374151';
@@ -2097,6 +2297,8 @@ class TicketsView extends Templates {
     // facture-theme traduce la paleta bajo #mainContainer y cfModal monta su panel
     // al final del <body>, fuera de ese scope.
     renderPreviewDay(p) {
+        if (p.mes) return this.renderPreviewMonth(p);
+
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
@@ -2134,28 +2336,6 @@ class TicketsView extends Templates {
             </p>
         `;
 
-        const dias = (p.dias || []).length ? `
-            <div class="mt-3 pt-3 border-t ${linea}">
-                <p class="text-[9.5px] font-semibold uppercase tracking-wider ${label}">Dia por dia</p>
-                <div class="mt-1.5 grid gap-1">
-                    ${p.dias.map(d => d.error ? `
-                        <div class="flex items-baseline gap-2 text-[11.5px]">
-                            <span class="w-10 shrink-0 font-semibold ${valor}">${esc(d.fechaTexto)}</span>
-                            <span class="facture-warn text-[10.5px]">${esc(d.error)}</span>
-                        </div>
-                    ` : `
-                        <div class="flex items-baseline gap-2 text-[11.5px] tabular-nums">
-                            <span class="w-10 shrink-0 font-semibold ${valor}">${esc(d.fechaTexto)}</span>
-                            <span class="${valor}">${esc(d.totalTexto)}</span>
-                            <span class="w-12 text-[11px] font-semibold" style="color:#1C64F2;">${esc(d.pct16)}%</span>
-                            <span class="text-[10.5px] ${label}">${esc(d.cuenta16)} / ${esc(d.cuenta0)}</span>
-                            <span class="ml-auto text-[10.5px] ${label}">${esc(d.tickets)} tickets</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : '';
-
         const movidos = p.reasignados || [];
 
         const mudanza = movidos.length ? `
@@ -2174,7 +2354,7 @@ class TicketsView extends Templates {
         ` : '';
 
         $('#previewDayBody').html(`
-            <p class="text-[11px] ${label}">${esc(p.fechaTexto)}${p.mes ? ` · ${(p.dias || []).length} dias con ventas` : ''} · todavia no se guarda nada</p>
+            <p class="text-[11px] ${label}">${esc(p.fechaTexto)} · todavia no se guarda nada</p>
 
             <div class="mt-3">
                 <p class="text-[9.5px] uppercase tracking-wider ${label}">Tarjeta de credito</p>
@@ -2195,11 +2375,9 @@ class TicketsView extends Templates {
                 ${distancia}
             </div>
 
-            ${dias}
-
             <div class="mt-3 pt-3 border-t ${linea}">
                 <div class="flex items-baseline justify-between">
-                    <span class="text-[12.5px] font-bold ${valor}">Tickets ${p.mes ? 'del mes' : 'del dia'}</span>
+                    <span class="text-[12.5px] font-bold ${valor}">Tickets del dia</span>
                     <span class="text-[12.5px] font-bold ${valor}">${esc(p.tickets)}</span>
                 </div>
                 <div class="flex items-baseline justify-between mt-1">
@@ -2212,9 +2390,327 @@ class TicketsView extends Templates {
         `);
     }
 
+
+    // -- El mes en dos zonas: la lista elige, el panel explica --
+
+    // La lista de dias a la izquierda y el detalle del dia elegido a la derecha.
+    // Cada columna tiene su propio scroll: si el detalle empujara la lista, el
+    // usuario perderia el renglon donde iba.
+    renderPreviewMonth(p) {
+        this.renderTwoZones({
+            host:      'previewDayBody',
+            modo:      'preview',
+            dias:      p.dias || [],
+            tituloMes: p.fechaTexto,
+            totalTexto: p.totalTexto,
+            subtitulo: `${p.movimientos} movimientos · todavia no se guarda nada`
+        });
+    }
+
+    // Las dos zonas: la lista de dias elige y el panel de la derecha explica. La
+    // usan la vista previa y el resumen del cierre, para que lo que se revisa antes
+    // y lo que se lee despues se dibujen con la misma pieza.
+    renderTwoZones(cfg) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const linea = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+        const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
+        const fondo = FACTURE_THEME_IS_LIGHT ? 'bg-white' : 'bg-[#111827]';
+
+        const dias = cfg.dias || [];
+
+        app.previewDias = dias;
+        app.previewModo = cfg.modo;
+
+        const renglon = (d) => {
+            const activo = d.dia === app.previewDiaSel;
+            const marca  = activo
+                ? 'border-[#1C64F2] ' + (FACTURE_THEME_IS_LIGHT ? 'bg-[#EBF2FF]' : 'bg-[#16233B]')
+                : `${linea} hover:border-[#1C64F2]`;
+
+            // Los dos porcentajes con el color de su tasa, igual que la barra del
+            // panel: el azul es lo que va al 16% y el ambar el resto, al 0%.
+            const cifras = d.error
+                ? `<span class="facture-warn text-[10.5px] truncate">${esc(d.error)}</span>`
+                : `<span class="text-[11.5px] font-semibold tabular-nums ${valor}">${esc(d.totalTexto)}</span>
+                   <span class="ml-auto flex items-baseline gap-1 text-[11px] font-semibold tabular-nums">
+                       <span style="color:#1C64F2;">${esc(d.pct16)}%</span>
+                       <span class="${label} font-normal">/</span>
+                       <span style="color:#F59E0B;">${esc(d.pct0)}%</span>
+                   </span>`;
+
+            return `
+                <button type="button" data-dia="${esc(d.dia)}"
+                        class="w-full flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left ${marca}">
+                    <span class="w-9 shrink-0 text-[11.5px] font-bold ${valor}">${esc(d.fechaTexto)}</span>
+                    ${cifras}
+                    ${d.repartido && cfg.modo === 'preview' ? '<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:#047857;"></span>' : ''}
+                </button>
+            `;
+        };
+
+        $('#' + cfg.host).html(`
+            <div class="flex flex-col md:flex-row md:gap-4">
+                <div class="md:w-[38%] md:shrink-0">
+                    <p class="flex items-baseline justify-between gap-2">
+                        <span class="text-[12.5px] font-bold ${valor}">${esc(cfg.tituloMes)}</span>
+                        <span class="text-[10.5px] ${label}">${dias.length} dia${dias.length !== 1 ? 's' : ''}</span>
+                    </p>
+                    <p class="text-[20px] font-bold leading-tight ${valor}">${esc(cfg.totalTexto)}</p>
+                    <p class="text-[10.5px] ${label}">${esc(cfg.subtitulo)}</p>
+
+                    <div id="previewMonthList" class="mt-2 grid gap-1 overflow-y-auto pr-1" style="max-height:52vh;">
+                        ${dias.map(renglon).join('')}
+                    </div>
+                </div>
+
+                <div id="previewMonthPanel"
+                     class="hidden md:block md:flex-1 md:min-w-0 fixed md:static inset-x-0 bottom-0 z-[70] md:z-auto
+                            h-[70vh] md:h-auto md:max-h-[62vh] overflow-y-auto
+                            border ${linea} ${fondo} rounded-t-2xl md:rounded-lg shadow-2xl md:shadow-none p-3">
+                </div>
+            </div>
+        `);
+
+        $('#previewMonthList [data-dia]').on('click', function () {
+            app.selectPreviewDay($(this).attr('data-dia'));
+        });
+
+        // Al abrir, el primer dia util ya viene elegido: el panel no se ve vacio y
+        // el usuario empieza a leer sin un clic de cortesia.
+        const vigente = dias.some((d) => d.dia === app.previewDiaSel) ? app.previewDiaSel : null;
+        const primero = dias.find((d) => !d.error && (cfg.modo === 'cierre' || !d.repartido)) || dias[0];
+
+        this.renderMonthPanel(vigente || (primero ? primero.dia : null), !vigente);
+    }
+
+    // El panel: tres secciones fijas — resumen, folios reasignados y movimientos —
+    // y el sello de solo lectura cuando al dia ya lo cerro una corrida anterior.
+    renderMonthPanel(dia, silencioso) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const linea = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+        const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
+
+        const d = (app.previewDias || []).find((x) => x.dia === dia);
+
+        app.previewDiaSel = d ? d.dia : null;
+
+        $('#previewMonthList [data-dia]').each(function () {
+            const activo = $(this).attr('data-dia') === app.previewDiaSel;
+
+            $(this)
+                .toggleClass('border-[#1C64F2]', activo)
+                .toggleClass(FACTURE_THEME_IS_LIGHT ? 'bg-[#EBF2FF]' : 'bg-[#16233B]', activo)
+                .toggleClass(linea, !activo)
+                .toggleClass('hover:border-[#1C64F2]', !activo);
+        });
+
+        const asa = `
+            <div class="md:hidden relative mb-2 h-4">
+                <span class="mx-auto block w-10 h-1 rounded-full ${FACTURE_THEME_IS_LIGHT ? 'bg-gray-300' : 'bg-[#374151]'}"></span>
+                <button type="button" id="previewPanelClose" class="absolute right-0 top-0 ${label}">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+
+        if (!d) {
+            $('#previewMonthPanel').html(`
+                ${asa}
+                <p class="py-10 text-center text-[11.5px] ${label}">Selecciona un dia de la lista para ver su detalle</p>
+            `);
+
+            if (window.lucide) lucide.createIcons();
+
+            return;
+        }
+
+        if (d.error) {
+            $('#previewMonthPanel').html(`
+                ${asa}
+                <p class="text-[13px] font-bold ${valor}">${esc(d.fechaLarga)}</p>
+                <p class="mt-2 text-[11.5px] facture-warn">${esc(d.error)}</p>
+            `);
+
+            this.afterPanel(silencioso);
+
+            return;
+        }
+
+        const tono = d.sobreMeta ? '#1C64F2' : '#F59E0B';
+
+        const tasa = (color, nombre, pct, tickets, monto) => `
+            <div class="flex items-baseline gap-2.5 py-1">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background:${color};"></span>
+                <span class="text-[11.5px] font-semibold ${valor}">${esc(nombre)}</span>
+                <span class="w-11 text-[11px] font-semibold tabular-nums ${valor}">${esc(pct)}%</span>
+                <span class="text-[10.5px] ${label}">${esc(tickets)} ticket${Number(tickets) !== 1 ? 's' : ''}</span>
+                <span class="ml-auto text-[12px] font-bold ${valor}">${esc(monto)}</span>
+            </div>
+        `;
+
+        const movidos = d.reasignados || [];
+
+        const mudanzas = movidos.length
+            ? movidos.map((m) => `
+                <div class="mt-1.5 rounded-lg border ${linea} px-2.5 py-1.5">
+                    <p class="flex items-baseline gap-2 text-[12px]">
+                        <span class="font-semibold ${valor}">${esc(m.origen)}</span>
+                        ${m.destino
+                            ? `<span class="${label}">&rsaquo;</span><span class="font-semibold text-[#1C64F2]">${esc(m.destino)}</span>`
+                            : `<span class="text-[10.5px] facture-warn">sin folio libre</span>`}
+                        <span class="ml-auto font-semibold tabular-nums ${valor}">${esc(m.montoTexto)}</span>
+                    </p>
+                    ${m.motivo ? `<p class="mt-0.5 text-[10.5px] ${label}">${esc(m.motivo)}</p>` : ''}
+                </div>
+            `).join('')
+            : `<p class="mt-1.5 text-[11px] ${label}">Sin folios reasignados este dia</p>`;
+
+        const g = d.grupos || {};
+
+        const grupo = (nombre, cuantos) => `
+            <div class="flex items-baseline justify-between py-[3px]">
+                <span class="text-[11.5px] ${label}">${esc(nombre)}</span>
+                <span class="text-[11.5px] font-semibold tabular-nums ${valor}">${esc(cuantos || 0)}</span>
+            </div>
+        `;
+
+        const cerrado = app.previewModo === 'cierre';
+
+        const sello = d.repartido
+            ? `<span class="inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-semibold"
+                     style="background:#0478571A;color:#047857;">${cerrado ? esc(d.generacion || 'cerrado') : 'ya repartido'}</span>`
+            : '';
+
+        // En el cierre nada se regenera desde aqui: el dia ya esta escrito y el
+        // boton seria una puerta a reabrir corridas por accidente.
+        const accion = cerrado
+            ? ''
+            : d.repartido
+                ? `<p class="mt-3 text-[10.5px] ${label}">Este dia ya lo cerro una corrida anterior: aqui va solo para consulta.</p>`
+                : `<button type="button" id="previewPanelRedo"
+                           class="mt-3 w-full rounded-lg border ${linea} px-3 py-1.5 text-[11.5px] font-medium ${valor}">
+                       Regenerar este dia
+                   </button>`;
+
+        $('#previewMonthPanel').html(`
+            ${asa}
+            <div class="flex items-baseline gap-2">
+                <p class="text-[13px] font-bold ${valor}">${esc(d.fechaLarga)}</p>
+                ${sello}
+            </div>
+
+            <div class="mt-2">
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">1 · Resumen del dia</p>
+                <p class="mt-1 text-[22px] font-bold leading-tight ${valor}">${esc(d.totalTexto)}</p>
+                <p class="text-[10.5px] ${label}">${esc(d.movimientos)} movimientos · ${esc(d.conCargo)} con cargo a tarjeta</p>
+
+                <div class="mt-2 flex items-baseline justify-between gap-2">
+                    <span class="text-[10.5px] ${label}">Reparto aplicado</span>
+                    <span class="inline-flex items-center rounded-full border px-2 py-[1px] text-[10.5px] font-semibold tabular-nums"
+                          style="border-color:${tono};color:${tono};">
+                        Meta ${esc(d.metaPct)}% &rarr; aplicado ${esc(d.pct16)}%
+                    </span>
+                </div>
+
+                <div class="mt-1.5 flex h-4 rounded overflow-hidden text-[9.5px] font-semibold text-white">
+                    <div class="flex items-center justify-center" style="flex:${esc(d.pct16)};background:#1C64F2;">${esc(d.pct16)}%</div>
+                    <div class="flex items-center justify-center" style="flex:${esc(d.pct0)};background:#F59E0B;">${esc(d.pct0)}%</div>
+                </div>
+
+                <div class="mt-1">
+                    ${tasa('#1C64F2', 'IVA 16%', d.pct16, d.cuenta16, d.monto16Texto)}
+                    ${tasa('#F59E0B', 'IVA 0%',  d.pct0,  d.cuenta0,  d.monto0Texto)}
+                </div>
+
+                <p class="text-[10.5px] ${label}">
+                    Objetivo capturado ${esc(d.objetivoTexto)} ·
+                    ${d.sobreMeta ? 'se rebasa por' : 'faltan'}
+                    <span class="font-semibold" style="color:${tono};">${esc(String(d.difTexto).replace(/^[+-]/, ''))}</span>
+                </p>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t ${linea}">
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">2 · Folios reasignados</p>
+                ${mudanzas}
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t ${linea}">
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">3 · Movimientos del dia</p>
+                <div class="mt-1">
+                    ${grupo('Con cargo a tarjeta', g.conCargo)}
+                    ${grupo('Servicio de mesa',    g.servicio)}
+                    ${grupo('$0.00 de origen',     g.ceroOrigen)}
+                    ${grupo('Ya facturado',        g.facturados)}
+                </div>
+            </div>
+
+            ${accion}
+        `);
+
+        this.afterPanel(silencioso);
+    }
+
+    afterPanel(silencioso) {
+        if (window.lucide) lucide.createIcons();
+
+        $('#previewPanelRedo').on('click',  () => app.regeneraDiaDelMes());
+        $('#previewPanelClose').on('click', () => $('#previewMonthPanel').addClass('hidden'));
+
+        // En angosto el panel es un cajon: solo sube cuando el usuario elige un dia,
+        // nunca al abrir el modal.
+        if (!silencioso) $('#previewMonthPanel').removeClass('hidden');
+    }
+
+    // El cierre del mes no cabe en un aviso: son 31 dias y todas sus mudanzas de
+    // folio en una tira. Se lee con la misma pieza que la vista previa.
+    renderCierreMes(r) {
+        const dias = r.dias || [];
+
+        app.previewDiaSel = null;
+        app.cierreModal   = app.cfModal({
+            title:         `Reparto de ${r.fechaTexto} · ${dias.filter((d) => !d.error).length} dias cerrados`,
+            size:          'xl',
+            theme:         FACTURE_THEME,
+            okLabel:       'Entendido',
+            backdropClose: false,
+            onClose:       () => { app.cierreModal = null; }
+        });
+
+        if (r.falla) {
+            app.cierreModal.body.append($('<p>', {
+                class: 'mb-2 rounded-lg border px-3 py-2 text-[11.5px] facture-warn',
+                style: 'border-color:#F59E0B;',
+                text:  `El mes se detuvo en ${r.falla.fechaTexto}: ${r.falla.message}`
+            }));
+        }
+
+        app.cierreModal.body.append($('<div>', { id: 'cierreMesBody' }));
+
+        app.decorateCierreFooter();
+
+        this.renderTwoZones({
+            host:       'cierreMesBody',
+            modo:       'cierre',
+            dias:       dias,
+            tituloMes:  r.fechaTexto,
+            totalTexto: r.totalTexto,
+            subtitulo:  `${r.tickets} tickets con cargo · ${(r.reasignados || []).length} folios reasignados`
+        });
+    }
+
     // Los renglones van con <span class="block"> y no con <div>: alertBox mete este
     // html dentro de un <p>, y un <div> ahi adentro lo parte en dos.
     renderResumenReparto(r) {
+        if (r.mes) return this.renderCierreMes(r);
+
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
@@ -2749,7 +3245,7 @@ class TicketsView extends Templates {
         `;
 
         return `
-            <div class="mt-2 ml-5 rounded-lg border ${marco} p-2.5">
+            <div class="mt-1.5 ml-5 rounded-lg border ${marco} px-2.5 py-2">
                 <p class="flex items-start gap-2 text-[11.5px] facture-warn">
                     <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
                     <span><strong>${esc(total)}</strong> movimiento(s) ya cargados traen hoy otro importe. <strong>No se modificaron.</strong></span>
@@ -2867,14 +3363,14 @@ class TicketsView extends Templates {
         const periodo = app.periodoTexto();
 
         const renglon = (acto) => `
-            <div class="flex items-start gap-2.5">
-                <i data-lucide="${acto.icono}" class="w-3.5 h-3.5 shrink-0 mt-[3px]" style="color:${this.tonoActo(acto.tono)}"></i>
-                <span class="w-14 shrink-0 text-right text-[15px] font-semibold leading-5 tabular-nums" style="color:${this.tonoActo(acto.tono)}">
+            <div class="flex items-start gap-2">
+                <i data-lucide="${acto.icono}" class="w-3.5 h-3.5 shrink-0 mt-[2px]" style="color:${this.tonoActo(acto.tono)}"></i>
+                <span class="w-12 shrink-0 text-right text-[13.5px] font-semibold leading-[17px] tabular-nums" style="color:${this.tonoActo(acto.tono)}">
                     ${Number(acto.cifra || 0).toLocaleString('en-US')}
                 </span>
                 <span class="min-w-0">
-                    <span class="block text-[12.5px] font-semibold">${esc(acto.titulo)}</span>
-                    <span class="block text-[11px] text-gray-500">${esc(acto.nota)}</span>
+                    <span class="block text-[12px] font-semibold leading-[17px]">${esc(acto.titulo)}</span>
+                    <span class="block text-[10.5px] leading-[14px] text-gray-500">${esc(acto.nota)}</span>
                 </span>
             </div>
         `;
@@ -2883,30 +3379,23 @@ class TicketsView extends Templates {
             const hojas = c.data.hojas || [];
 
             return `
-                <div class="mt-2 rounded-lg border ${marco} p-3">
-                    <p class="flex items-baseline justify-between gap-2 mb-2.5">
-                        <span class="text-[13px] font-semibold">${esc(c.slot.nombre)}</span>
-                        <span class="text-[11px] text-gray-500">${esc(periodo)}</span>
+                <div class="mt-1.5 rounded-lg border ${marco} px-3 py-2">
+                    <p class="flex items-baseline justify-between gap-2 mb-1.5">
+                        <span class="text-[12.5px] font-semibold">${esc(c.slot.nombre)}</span>
+                        <span class="text-[10.5px] text-gray-500">${esc(periodo)}</span>
                     </p>
-                    <div class="grid gap-2.5">
+                    <div class="grid gap-1.5">
                         ${this.actosCarga(this.bitacoraCarga(hojas)).map(renglon).join('')}
                     </div>
                     ${hojas.map(h => this.cambiosDeImporte(h)).join('')}
-                    <p class="mt-2.5">
-                        <a href="/app/facture2/cargas.php" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1.5 text-[11.5px] font-medium facture-info hover:underline">
-                            Ver detalle en Importación mensual
-                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        </a>
-                    </p>
                 </div>
             `;
         };
 
         const pendiente = (slot) => `
-            <div class="mt-2 flex items-center gap-2.5 rounded-lg border border-dashed px-2.5 py-2"
+            <div class="mt-1.5 flex items-center gap-2.5 rounded-lg border border-dashed px-2.5 py-1.5"
                  style="border-color:${this.tonoPendiente('borde')};background:${this.tonoPendiente('fondo')}">
-                <i data-lucide="file-spreadsheet" class="w-5 h-5 shrink-0" style="color:#217346"></i>
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0" style="color:#217346"></i>
                 <span class="min-w-0">
                     <span class="block text-[11.5px] facture-warn">Falta el archivo <strong>${esc(slot.archivo)}</strong></span>
                     <span class="block text-[10.5px] text-gray-500">${esc(slot.desglosa)}</span>
@@ -2921,11 +3410,22 @@ class TicketsView extends Templates {
             </div>
         `;
 
+        const enlace = `
+            <p class="mt-1.5">
+                <a href="/app/facture2/cargas.php" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-1.5 text-[11px] font-medium facture-info hover:underline">
+                    Ver detalle en Importación mensual
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                </a>
+            </p>
+        `;
+
         this.hidePickStep();
         $('#uploadModalDrop').empty();
         $('#uploadModalState').html(`
             <div class="mt-1">
                 ${cargas.map(bloque).join('')}
+                ${cargas.length ? enlace : ''}
                 ${(pendientes || []).map(pendiente).join('')}
             </div>
         `);
@@ -2947,9 +3447,9 @@ class TicketsView extends Templates {
                     + (dias.length > 3 ? ` y ${dias.length - 3} mas` : '');
 
         $('#uploadModalState').append(`
-            <div class="mt-2 flex items-start gap-2.5 rounded-lg border px-2.5 py-2"
+            <div class="mt-1.5 flex items-start gap-2.5 rounded-lg border px-2.5 py-1.5"
                  style="border-color:#C7D7FB;background:${FACTURE_THEME_IS_LIGHT ? '#F5F8FF' : '#111B2E'}">
-                <i data-lucide="receipt" class="w-5 h-5 shrink-0 facture-info"></i>
+                <i data-lucide="receipt" class="w-4 h-4 shrink-0 facture-info mt-[1px]"></i>
                 <span class="min-w-0">
                     <span class="block text-[11.5px] facture-info">
                         ${esc(info.mesTexto)} tiene ${esc(dias.length)} dia${dias.length !== 1 ? 's' : ''} sin tickets: ${esc(lista)}

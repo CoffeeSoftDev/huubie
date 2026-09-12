@@ -18,6 +18,8 @@ class ctrl extends mdl {
 
     public $corridaFolio = '';
 
+    public $semillaBase = 0;
+
     public function __construct() {
         parent::__construct();
         $this->branch  = $this->resolveBranch();
@@ -94,6 +96,17 @@ class ctrl extends mdl {
 
         return 'El reparto no cuadra: ' . ($dif > 0 ? 'sobran ' : 'faltan ') . money(abs($dif))
              . ' para que el IVA 16% y el IVA 0% sumen el Total Tarjeta de Credito (' . money($total) . ').';
+    }
+
+    // El panel del mes regenera un dia suelto (semilla + 1). Esa eleccion viaja en
+    // `semillas` y manda sobre la semilla global del modal: sin esto, el Confirmar
+    // del mes rearmaria ese dia con otra combinacion de productos.
+    function fijarSemillaDelDia($dia) {
+        $mapa = json_decode((string) ($_POST['semillas'] ?? ''), true);
+
+        $_POST['semilla'] = is_array($mapa) && isset($mapa[$dia]) && is_numeric($mapa[$dia])
+            ? (int) $mapa[$dia]
+            : $this->semillaBase;
     }
 
     function semillaDelReparto() {
@@ -530,7 +543,9 @@ class ctrl extends mdl {
                     'id'      => (int) $cargos[$i]['id'],
                     'origen'  => (string) $folio,
                     'monto'   => (float) $cargos[$i]['amount'],
-                    'destino' => null
+                    'destino' => null,
+                    'cargos'  => count($cargos),
+                    'lugar'   => $i + 1
                 ];
             }
         }
@@ -542,11 +557,35 @@ class ctrl extends mdl {
 
         foreach ($sobrantes as $mov) {
             $mov['destino'] = $this->receptorProximo($libres, $mov['origen']);
+            $mov['motivo']  = $this->motivoDeMudanza($mov, $ventas);
 
             $movimientos[] = $mov;
         }
 
         return $movimientos;
+    }
+
+    // La razon de la mudanza en una linea. Se arma aqui y no en pantalla porque el
+    // porque lo sabe quien reparte: cuantos cargos traia el folio y con que pago el
+    // que lo recibe. Si el JS lo dedujera, terminaria inventando razones que la
+    // base no respalda.
+    function motivoDeMudanza($mov, $ventas) {
+        $orden = ['', '', 'segundo', 'tercer', 'cuarto', 'quinto'][$mov['lugar']] ?? ('cargo ' . $mov['lugar']);
+        $sale  = 'el ' . $mov['origen'] . ' tenia ' . $mov['cargos'] . ' cargos de tarjeta; el ' . $orden;
+
+        if ($mov['destino'] === null) {
+            return $sale . ' no encontro folio libre y se queda donde esta.';
+        }
+
+        $destino = null;
+
+        foreach ($ventas as $item) {
+            if ((string) $item['folio'] === (string) $mov['destino']) $destino = $item;
+        }
+
+        $pago = $destino && esCeroDeOrigen($destino) ? 'vino en $0.00' : 'pago en efectivo';
+
+        return $sale . ' se mudo al ' . $mov['destino'] . ', que ' . $pago . '.';
     }
 
     function foliosLibres($ventas) {
@@ -933,6 +972,29 @@ class ctrl extends mdl {
         return $this->propuestaDelDia($_POST['dia'] ?? date('Y-m-d'));
     }
 
+    // Los cuatro grupos que cuenta el panel. El $0.00 de origen tambien es servicio
+    // (no cobro tarjeta), pero va aparte: uno presta folio, el otro nunca facturo.
+    function gruposDeVentas($ventas) {
+        $g = ['conCargo' => 0, 'servicio' => 0, 'ceroOrigen' => 0, 'facturados' => 0];
+
+        foreach ($ventas as $item) {
+            if (esFacturado($item['status_name'])) {
+                $g['facturados']++;
+                continue;
+            }
+
+            if (!esServicio($item)) {
+                $g['conCargo']++;
+                continue;
+            }
+
+            if (esCeroDeOrigen($item)) $g['ceroOrigen']++;
+            else                       $g['servicio']++;
+        }
+
+        return $g;
+    }
+
     function propuestaDelDia($dia) {
         $puente = $this->catalogo(0);
 
@@ -970,15 +1032,12 @@ class ctrl extends mdl {
 
         $plan = $this->planReparto($ventas);
 
-        $servicio = 0;
-        $conCargo = 0;
+        $g = $this->gruposDeVentas($ventas);
 
-        foreach ($ventas as $item) {
-            if (esFacturado($item['status_name'])) continue;
-
-            if (esServicio($item)) $servicio++;
-            else                   $conCargo++;
-        }
+        $servicio   = $g['servicio'];
+        $conCargo   = $g['conCargo'];
+        $ceroOrigen = $g['ceroOrigen'];
+        $facturados = $g['facturados'];
 
         $logrado16    = $plan['facturado'] + $plan['monto16'];
         $cuenta16     = $plan['cuenta16'] + $plan['facturados'];
@@ -1006,7 +1065,7 @@ class ctrl extends mdl {
                 'facturados'  => $plan['facturados'],
                 'cuenta16'    => $plan['cuenta16'],
                 'cuenta0'     => $plan['cuenta0'],
-                'servicio'    => $servicio,
+                'servicio'    => $servicio + $ceroOrigen,
                 'conCargo'    => $conCargo,
                 'movimientos' => count($ventas)
             ],
@@ -1016,16 +1075,65 @@ class ctrl extends mdl {
             'monto0Texto'  => money($plan['monto0']),
             'cuenta16'     => $cuenta16,
             'cuenta0'      => $plan['cuenta0'],
-            'tickets'      => $cuenta16 + $plan['cuenta0'] + $servicio,
-            'cero'         => $servicio,
+            'tickets'      => $cuenta16 + $plan['cuenta0'] + $servicio + $ceroOrigen,
+            'cero'         => $servicio + $ceroOrigen,
+            'fechaLarga'   => fechaLarga($dia),
+            'grupos'       => [
+                'conCargo'   => $conCargo,
+                'servicio'   => $servicio,
+                'ceroOrigen' => $ceroOrigen,
+                'facturados' => $facturados
+            ],
             'reasignados'  => array_map(function ($mov) {
                 return [
                     'origen'     => $mov['origen'],
                     'destino'    => $mov['destino'] ?: '',
-                    'montoTexto' => money($mov['monto'])
+                    'montoTexto' => money($mov['monto']),
+                    'motivo'     => $mov['motivo'] ?? ''
                 ];
             }, $reasignados),
             'semilla'      => $this->semillaDelReparto()
+        ];
+    }
+
+    // La forma comun del dia: la misma que devuelve propuestaDelDia, pero con los
+    // numeros de lo que quedo escrito, no de lo que se iba a escribir.
+    function panelDelDia($dia, $ventas, $plan, $monto0, $cuenta0, $servicio, $reasignados) {
+        $grupos    = $this->gruposDeVentas($ventas);
+        $total     = $plan['total'];
+        $logrado16 = $plan['facturado'] + $plan['monto16'];
+        $dif       = $logrado16 - $plan['objetivo'];
+
+        return [
+            'dia'           => $dia,
+            'fechaTexto'    => date('d/m', strtotime($dia)),
+            'fechaLarga'    => fechaLarga($dia),
+            'totalTexto'    => money($total),
+            'movimientos'   => count($ventas),
+            'conCargo'      => $grupos['conCargo'],
+            'metaPct'       => pctTexto($total > 0 ? $plan['objetivo'] / $total * 100 : 0),
+            'objetivoTexto' => money($plan['objetivo']),
+            'difTexto'      => ($dif >= 0 ? '+' : '-') . money(abs($dif)),
+            'sobreMeta'     => $dif >= 0,
+            'pct16'         => pctTexto($total > 0 ? $logrado16 / $total * 100 : 0),
+            'pct0'          => pctTexto($total > 0 ? $monto0 / $total * 100 : 0),
+            'monto16Texto'  => money($logrado16),
+            'monto0Texto'   => money($monto0),
+            'cuenta16'      => $plan['cuenta16'] + $plan['facturados'],
+            'cuenta0'       => $cuenta0,
+            'tickets'       => $plan['cuenta16'] + $plan['facturados'] + $cuenta0 + $servicio,
+            'cero'          => $servicio,
+            'grupos'        => $grupos,
+            'reasignados'   => array_map(function ($mov) {
+                return [
+                    'origen'     => $mov['origen'],
+                    'destino'    => $mov['destino'] ?: '',
+                    'montoTexto' => money($mov['monto']),
+                    'motivo'     => $mov['motivo'] ?? ''
+                ];
+            }, $reasignados),
+            'repartido'     => true,
+            'error'         => ''
         ];
     }
 
@@ -1178,9 +1286,15 @@ class ctrl extends mdl {
             'zero_ticket_count' => $servicio
         ]);
 
+        // El dia cerrado viaja con la misma forma que un dia de la vista previa: el
+        // panel lateral es el mismo, asi que lo que se revisa antes y lo que se lee
+        // despues se dibujan con la misma pieza.
+        $panel = $this->panelDelDia($dia, $ventas, $plan, $monto0, $cuenta0, $servicio, $reasignados);
+
         return array_merge(
             [
                 'status'  => 200,
+                'panel'   => $panel,
                 'message' => number_format($cuenta0) . ' ticket(s) al 0% generados · ' . number_format($plan['cuenta16'] + $plan['facturados']) . ' al 16%'
                              . ($armados16 > 0 ? ' (' . number_format($armados16) . ' con papel del catalogo)' : ''),
                 'dia'     => $dia,
@@ -1305,12 +1419,16 @@ class ctrl extends mdl {
 
         $this->metaMensualPorcentual($totalMes);
 
+        $this->semillaBase = $this->semillaDelReparto();
+
         $suma        = $this->sumaVacia();
         $detalle     = [];
         $reasignados = [];
         $motivo      = '';
 
         foreach ($dias as $item) {
+            $this->fijarSemillaDelDia($item['id']);
+
             $propuesta = $this->propuestaDelDia($item['id']);
 
             if ($propuesta['status'] !== 200) {
@@ -1319,6 +1437,8 @@ class ctrl extends mdl {
                 $detalle[] = [
                     'dia'        => $item['id'],
                     'fechaTexto' => date('d/m', strtotime($item['id'])),
+                    'fechaLarga' => fechaLarga($item['id']),
+                    'repartido'  => (int) $item['generados'] > 0,
                     'error'      => $propuesta['message']
                 ];
 
@@ -1329,16 +1449,19 @@ class ctrl extends mdl {
 
             $reasignados = array_merge($reasignados, $propuesta['reasignados']);
 
-            $detalle[] = [
-                'dia'        => $item['id'],
-                'fechaTexto' => date('d/m', strtotime($item['id'])),
-                'totalTexto' => $propuesta['totalTexto'],
-                'pct16'      => $propuesta['pct16'],
-                'cuenta16'   => $propuesta['cuenta16'],
-                'cuenta0'    => $propuesta['cuenta0'],
-                'tickets'    => $propuesta['tickets'],
-                'error'      => ''
-            ];
+            // El panel lateral lee un dia completo, no un renglon: la propuesta ya
+            // trae todo calculado, asi que el mes la conserva entera en lugar de
+            // volver a pedirla cuando el usuario hace clic.
+            $detalle[] = array_merge(
+                $propuesta,
+                [
+                    'dia'        => $item['id'],
+                    'fechaTexto' => date('d/m', strtotime($item['id'])),
+                    'fechaLarga' => fechaLarga($item['id']),
+                    'repartido'  => (int) $item['generados'] > 0,
+                    'error'      => ''
+                ]
+            );
         }
 
         if ($suma['movimientos'] === 0) {
@@ -1373,6 +1496,8 @@ class ctrl extends mdl {
 
         $this->metaMensualPorcentual($totalMes);
 
+        $this->semillaBase = $this->semillaDelReparto();
+
         $suma        = $this->sumaVacia();
         $reasignados = [];
         $corridas    = [];
@@ -1380,10 +1505,21 @@ class ctrl extends mdl {
         $falla       = null;
 
         foreach ($dias as $item) {
+            $this->fijarSemillaDelDia($item['id']);
+
             $cierre = $this->generateDay($item['id']);
 
             if ($cierre['status'] !== 200) {
                 $falla = ['dia' => $item['id'], 'fechaTexto' => date('d/m/Y', strtotime($item['id'])), 'message' => $cierre['message']];
+
+                $hechos[] = [
+                    'dia'        => $item['id'],
+                    'fechaTexto' => date('d/m', strtotime($item['id'])),
+                    'fechaLarga' => fechaLarga($item['id']),
+                    'repartido'  => false,
+                    'error'      => $cierre['message']
+                ];
+
                 break;
             }
 
@@ -1392,20 +1528,14 @@ class ctrl extends mdl {
             $reasignados = array_merge($reasignados, $cierre['crudo']['reasignados']);
             $corridas[]  = $cierre['generacion'];
 
-            $logrado = $cierre['crudo']['facturado'] + $cierre['crudo']['monto16'];
-
-            $hechos[] = [
-                'dia'        => $item['id'],
-                'fechaTexto' => date('d/m', strtotime($item['id'])),
-                'totalTexto' => $cierre['totalTexto'],
-                'pct16'      => pctTexto($cierre['crudo']['total'] > 0 ? $logrado / $cierre['crudo']['total'] * 100 : 0),
-                'tickets'    => $cierre['tickets'],
-                'generacion' => $cierre['generacion'],
-                'error'      => ''
-            ];
+            $hechos[] = array_merge($cierre['panel'], ['generacion' => $cierre['generacion']]);
         }
 
-        if (empty($hechos)) {
+        $cerrados = count(array_filter($hechos, function ($d) {
+            return empty($d['error']);
+        }));
+
+        if ($cerrados === 0) {
             return ['status' => 400, 'message' => $falla ? $falla['fechaTexto'] . ': ' . $falla['message'] : 'No se pudo cerrar el mes'];
         }
 
@@ -1419,7 +1549,7 @@ class ctrl extends mdl {
 
         return array_merge($resumen, [
             'status'  => 200,
-            'message' => count($hechos) . ' dia(s) cerrados de ' . mesTexto($mes)
+            'message' => $cerrados . ' dia(s) cerrados de ' . mesTexto($mes)
                          . ($falla ? ' · se detuvo en ' . $falla['fechaTexto'] : ''),
             'mes'     => $mes,
             'dias'    => $hechos,
@@ -1541,7 +1671,8 @@ class ctrl extends mdl {
                 return [
                     'origen'      => $mov['origen'],
                     'destino'     => $mov['destino'] ?: '',
-                    'montoTexto'  => money($mov['monto'])
+                    'montoTexto'  => money($mov['monto']),
+                    'motivo'      => $mov['motivo'] ?? ''
                 ];
             }, $r['reasignados'] ?? []),
             'sinPapel'          => $r['sinPapel']
@@ -1873,6 +2004,18 @@ function mesTexto($mes) {
     $nombre = $nombres[$partes[1] ?? ''] ?? '';
 
     return $nombre ? $nombre . ' ' . $partes[0] : (string) $mes;
+}
+
+// El titulo del panel lateral. Reusa los nombres de mesTexto en minuscula porque
+// ahi el mes va dentro de la frase, no encabezandola.
+function fechaLarga($dia) {
+    $tiempo = strtotime((string) $dia);
+
+    if (!$tiempo) return (string) $dia;
+
+    $mes = mb_strtolower(trim(str_replace(date('Y', $tiempo), '', mesTexto(date('Y-m', $tiempo)))), 'UTF-8');
+
+    return date('d', $tiempo) . ' de ' . $mes . ' de ' . date('Y', $tiempo);
 }
 
 function pctTexto($pct) {
