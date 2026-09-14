@@ -169,12 +169,25 @@ class Pedidos extends MPedidos{
         $currentShift = $this->getOpenShiftBySubsidiary([$currentSubForShift]);
         $currentShiftId = $currentShift ? $currentShift['id'] : null;
 
+        // Buscador del filterBar. Un folio (P45-01, P45 o 45) se traduce al id del
+        // pedido: el sufijo es la sucursal y el id ya es unico. Con busqueda se ignoran
+        // el rango de fechas y el estado, y tambien la sucursal si el rol puede ver
+        // "Todas" (los demas siguen en la suya). El tope evita que un nombre comun
+        // traiga de mas.
+        $search   = trim($_POST['search'] ?? '');
+        $folioId  = preg_match('/^P?(\d+)(?:-\d+)?$/i', $search, $m) ? (int) $m[1] : 0;
+        $buscando = $search !== '';
+        $verTodas = in_array($rolId, [1, 2, 3, 6, 7]);
+
         $orders = $this->getOrders([
 
             'fi'              => $_POST['fi'] ?? '',
             'ff'              => $_POST['ff'] ?? '',
-            'status'          => $_POST['status'],
-            'subsidiaries_id' => $subsidiaries_id
+            'status'          => $buscando ? '' : $_POST['status'],
+            'subsidiaries_id' => $buscando && $verTodas ? '0' : $subsidiaries_id,
+            'search'          => $search,
+            'folio'           => $folioId,
+            'limit'           => $buscando ? 15 : 0
 
         ]) ?? [];
 
@@ -205,34 +218,65 @@ class Pedidos extends MPedidos{
                 ? "<span class='inline-block w-1.5 h-1.5 bg-green-400 rounded-full shift-pulse mr-1.5'></span>"
                 : "<span class='inline-block w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5'></span>";
 
+            // Clic en la fila: folio, creacion, cliente y entrega abren el detalle
+            // (showOrder); abono, total y saldo abren pagos (historyPay). Pagos solo se
+            // enlaza si el menu de acciones ya ofrece "Pagar" para este pedido, asi el
+            // clic no se salta las reglas de estado, rol y sucursal de dropdownOrder().
+            // Las celdas con clase repiten las del componente (alineacion, px-3 py-2
+            // truncate) porque 'class' reemplaza las que pone createCoffeTable.
+            $dropdown   = dropdownOrder($order['id'], $order['idStatus'], floatval($order['discount'] ?? 0), $order['subsidiaries_id'] ?? null);
+            $verPedido  = "app.showOrder({$order['id']})";
+            $pagos      = "app.historyPay({$order['id']})";
+            $puedePagar = in_array($pagos, array_column($dropdown, 'onclick'));
+            $clicPagos  = $puedePagar ? ['onclick' => $pagos] : [];
+            $cursorPago = $puedePagar ? ' cursor-pointer' : '';
+
             $rows[] = [
                 'id'       => $order['id'],
-                'folio'    => ['html' => "<span class='flex items-center'>{$shiftDot}{$Folio}</span>"],
-                'Creación' => formatSpanishDate($order['date_creation']),
+                'folio'    => [
+                    'html'    => "<span class='flex items-center'>{$shiftDot}{$Folio}</span>",
+                    'class'   => 'text-center px-3 py-2 truncate cursor-pointer',
+                    'onclick' => $verPedido
+                ],
+                'Creación' => [
+                    'html'    => formatSpanishDate($order['date_creation']),
+                    'class'   => 'text-center px-3 py-2 truncate cursor-pointer',
+                    'onclick' => $verPedido
+                ],
 
                 'Cliente' => [
                     'html' => "
                         <p class='text-gray-300'>{$order['name_client']}</p>
                         <p class='text-gray-500'><i class='icon-phone'></i> {$order['phone']}</p>
-                    "
+                    ",
+                    'class'   => 'text-left px-3 py-2 truncate cursor-pointer',
+                    'onclick' => $verPedido
                 ],
                 'Abono' => [
                     'html' =>  evaluar($totalPagado),
-                    'class' => "text-[#3FC189] text-end bg-[#283341]"
-                ],
+                    'class' => "text-[#3FC189] text-end bg-[#283341]{$cursorPago}"
+                ] + $clicPagos,
 
                 'Total' => [
                     'html'  => $htmlTotal,
-                    'class' => "text-end bg-[#283341]"
-                ],
+                    'class' => "text-end bg-[#283341]{$cursorPago}"
+                ] + $clicPagos,
 
                 'Saldo' => [
                     'html' => evaluar($saldo),
-                    'class' => "text-[#E05562] text-end bg-[#283341]"
-                ],
+                    'class' => "text-[#E05562] text-end bg-[#283341]{$cursorPago}"
+                ] + $clicPagos,
 
-                'Fecha de entrega' => formatSpanishDate($order['date_order']),
-                'Hora de entrega'  => $order['time_order'],
+                'Fecha de entrega' => [
+                    'html'    => formatSpanishDate($order['date_order']),
+                    'class'   => 'text-center px-3 py-2 truncate cursor-pointer',
+                    'onclick' => $verPedido
+                ],
+                'Hora de entrega'  => [
+                    'html'    => $order['time_order'],
+                    'class'   => 'text-center px-3 py-2 truncate cursor-pointer',
+                    'onclick' => $verPedido
+                ],
                 'Estado'           => status($order['idStatus']),
                 
              
@@ -247,7 +291,7 @@ class Pedidos extends MPedidos{
                     'class' => 'text-center'
                 ],
                 
-                'dropdown'        => dropdownOrder($order['id'], $order['idStatus'], floatval($order['discount'] ?? 0), $order['subsidiaries_id'] ?? null),
+                'dropdown'        => $dropdown,
             ];
         }
 
@@ -551,7 +595,10 @@ class Pedidos extends MPedidos{
         $this->logHistory(implode(' · ', $cambios) . $nota, 'edition', 'Pedido editado');
     }
 
-    private function orderEditionChanges($prev, $incluirCliente = true) {
+    // Campos que cambiaron en la edicion: una fila por campo con su valor antes y
+    // despues, ya en formato de pantalla. orderEditionChanges() la vuelve texto para la
+    // bitacora y editOrderDelivery() la manda tal cual al aviso de guardado.
+    private function orderEditionDiff($prev, $incluirCliente = true) {
         if (empty($prev)) return [];
 
         $fmtDate = function ($ymd) {
@@ -580,13 +627,27 @@ class Pedidos extends MPedidos{
         $campos[] = ['Tipo',     $deliveryLabel($prev['delivery_type'] ?? ''), $deliveryLabel($_POST['delivery_type'] ?? '')];
         $campos[] = ['Nota',     trim((string) ($prev['note'] ?? '')),         trim((string) ($_POST['note'] ?? ''))];
 
-        $cambios = [];
+        $diff = [];
         foreach ($campos as $c) {
             if ($c[1] !== $c[2]) {
-                $antes   = $c[1] === '' ? '—' : $c[1];
-                $despues = $c[2] === '' ? '—' : $c[2];
-                $cambios[] = "{$c[0]}: {$antes} » {$despues}";
+                $diff[] = [
+                    'field'  => $c[0],
+                    'before' => $c[1],
+                    'after'  => $c[2]
+                ];
             }
+        }
+
+        return $diff;
+    }
+
+    private function orderEditionChanges($prev, $incluirCliente = true) {
+        $cambios = [];
+
+        foreach ($this->orderEditionDiff($prev, $incluirCliente) as $c) {
+            $antes   = $c['before'] === '' ? '—' : $c['before'];
+            $despues = $c['after']  === '' ? '—' : $c['after'];
+            $cambios[] = "{$c['field']}: {$antes} » {$despues}";
         }
 
         return $cambios;
@@ -689,6 +750,21 @@ class Pedidos extends MPedidos{
 
         if ($denegado) return $denegado;
 
+        // La fecha de entrega no puede quedar antes de hoy. getOrderID devuelve la
+        // previa en d/m/Y (formato de pantalla), por eso se normaliza antes de
+        // compararla: si el pedido ya venia con fecha pasada y no se le mueve, se deja
+        // guardar para poder corregirle la hora o la nota.
+        $fecha       = $_POST['date_order'] ?? '';
+        $previa      = DateTime::createFromFormat('d/m/Y', (string) ($prevOrder['date_order'] ?? ''));
+        $fechaPrevia = $previa ? $previa->format('Y-m-d') : '';
+
+        if ($fecha !== '' && $fecha < date('Y-m-d') && $fecha !== $fechaPrevia) {
+            return [
+                'status'  => 400,
+                'message' => 'La fecha de entrega no puede ser menor a la fecha actual'
+            ];
+        }
+
         $orderData = [];
 
         foreach (['date_order', 'time_order', 'note', 'delivery_type'] as $campo) {
@@ -706,11 +782,13 @@ class Pedidos extends MPedidos{
         $orderData['id'] = $id;
 
         $update = $this->updateOrder($this->util->sql($orderData, 1));
+        $diff   = [];
 
         if ($update) {
             $status  = 200;
             $message = 'Datos de entrega actualizados correctamente';
 
+            $diff    = $this->orderEditionDiff($prevOrder, false);
             $cambios = $this->orderEditionChanges($prevOrder, false);
 
             if ($cambios) {
@@ -722,9 +800,12 @@ class Pedidos extends MPedidos{
             }
         }
 
+        // El mismo diff que va a la bitacora viaja al front, en filas, para que el
+        // aviso de guardado muestre cada campo con su valor anterior y el nuevo.
         return [
             'status'  => $status,
-            'message' => $message
+            'message' => $message,
+            'changes' => $diff
         ];
     }
 

@@ -157,10 +157,15 @@ class MPedidos extends CRUD {
     }
 
     function getOrders($data) {
+        // Con busqueda (folio o cliente) no se filtra por rango de fechas: el pedido se
+        // busca en todo el historial. Estado, sucursal y tope los decide listOrders().
+        $buscando = !empty($data['search']);
+        $fechas   = $buscando ? '1=1' : 'order.date_creation BETWEEN ? AND ?';
+
         $startDate = $data['fi'] . ' 00:00:00';
         $endDate   = $data['ff'] . ' 23:59:59';
 
-        $params    = [
+        $params    = $buscando ? [] : [
             $startDate,
             $endDate
         ];
@@ -194,7 +199,7 @@ class MPedidos extends CRUD {
         INNER JOIN {$this->bd}order_clients ON client_id = order_clients.id
         INNER JOIN {$this->bd}status_process ON order.STATUS = status_process.id
         WHERE
-        order.date_creation BETWEEN ? AND ?
+        {$fechas}
         ";
 
         // Filtrar por subsidiaries_id si se proporciona y es diferente de 0
@@ -209,11 +214,25 @@ class MPedidos extends CRUD {
             $params[] = $data['status'];
         }
 
+        // Buscador: folio por id del pedido, o texto en nombre y telefono del cliente.
+        // Va con OR porque un numero corto puede ser folio o parte de un telefono.
+        if (!empty($data['search'])) {
+            $query .= " AND (order.id = ? OR order_clients.name LIKE ? OR order_clients.phone LIKE ?)";
+            $params[] = $data['folio'] ?? 0;
+            $params[] = "%{$data['search']}%";
+            $params[] = "%{$data['search']}%";
+        }
+
         $query .= " ORDER BY
            
             order.date_creation DESC";
 
             //  status_process.id ASC,
+
+        // Tope de la busqueda: un nombre comun puede traer demasiados pedidos.
+        if (!empty($data['limit'])) {
+            $query .= " LIMIT " . (int) $data['limit'];
+        }
 
         return $this->_Read($query, $params);
     }

@@ -69,6 +69,7 @@ class App extends Templates {
         $('#navbarBranchControl').removeClass('hidden');
         this.layout();
         this.createFilterBar();
+        this.createSearchBar();
         this.ls();
         this.actualizarFechaHora({ label: this.getSubsidiaryLabel() });
         this.updateDailyClosureStatus();
@@ -109,6 +110,10 @@ class App extends Templates {
             <div id="filterBar${this.PROJECT_NAME}" class="w-full mb-3 " ></div>
             <div id="containerHours"></div>
         `);
+
+        // Tabla: el buscador va en su propio hueco porque createTable reescribe el suyo en
+        // cada busqueda y borraria el campo mientras se escribe.
+        $(`#container${this.PROJECT_NAME}`).html(`<div id="searchBar${this.PROJECT_NAME}"></div><div id="table${this.PROJECT_NAME}"></div>`);
     }
 
     createFilterBar() {
@@ -296,13 +301,12 @@ class App extends Templates {
         // selector del formulario, cuyo default es esta misma.
         let subsidiaries_id = this.getListFilterSubsidiary();
 
-        if (subsidiaries_id === '0') {
-            openShift = { has_open_shift: true };
-            dailyClosure = { is_closed: false };
-            this.enableNewOrderButton();
-            this.actualizarFechaHora({ label: 'Todas las sucursales' });
-            return;
-        }
+        // "Todas" ('0') no libera el candado de turno. Crear y Calendario siguen el turno
+        // de la sucursal de la sesion (checkDailyClosure la usa con '0'); editar, cancelar,
+        // descontar y cobrar revisan el de la sucursal de cada pedido (requireOpenShift),
+        // por eso se refresca aqui el snapshot de turnos. El rotulo lo pone
+        // getSubsidiaryLabel().
+        if (subsidiaries_id === '0') await this.refreshSubsidiariesCobro();
 
         const request = await useFetch({
             url: this._link,
@@ -496,9 +500,15 @@ class App extends Templates {
         // consulta, tambien el operador via selector hibrido).
         let subsidiaries_id = this.getListFilterSubsidiary();
         this.createTable({
-            parent: `container${this.PROJECT_NAME}`,
+            parent: `table${this.PROJECT_NAME}`,
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
-            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff, subsidiaries_id: subsidiaries_id },
+            // search va explicito: el buscador vive sobre la tabla, fuera del filterBar
+            // que createTable recoge solo.
+            data: { opc: "listOrders", fi: rangePicker.fi, ff: rangePicker.ff, subsidiaries_id: subsidiaries_id, search: $('#search').val() || '' },
+            // Sucursal de cada pedido listado: con "Todas" la usa requireOpenShift().
+            success: (data) => {
+                this.orders = data.orders || [];
+            },
             conf: {
                 datatable: true, pag: 10, fn_datatable: 'simple_data_table_filter',
             },
@@ -514,6 +524,79 @@ class App extends Templates {
         });
 
         this.injectShiftPulseStyle();
+    }
+
+    // Buscador de folio o cliente. Se monta fuera de createTable (que reescribe su
+    // contenedor en cada busqueda) y el CSS de index.php lo alinea con "Mostrar N
+    // registros", en el lugar del "Buscar:" de DataTables. El chip de alcance y el boton
+    // de limpiar los muestra renderSearchState() mientras hay texto.
+    createSearchBar() {
+        this.createfilterBar({
+            parent: `searchBar${this.PROJECT_NAME}`,
+            id: `searchBarForm${this.PROJECT_NAME}`,
+            data: [
+                {
+                    opc: "input-group",
+                    id: "search",
+                    lbl: "",
+                    class: "col-12",
+                    placeholder: "Buscar folio, cliente o teléfono",
+                    icon: "icon-search",
+                    required: false,
+                    onkeyup: "app.searchOrders()"
+                }
+            ]
+        });
+
+        $('#search').attr('autocomplete', 'off').closest('.input-group').append(
+            $('<span>', {
+                id: 'searchScope',
+                class: 'search-scope hidden'
+            }),
+            $('<button>', {
+                type: 'button',
+                id: 'searchClear',
+                class: 'search-clear hidden',
+                title: 'Limpiar búsqueda',
+                'aria-label': 'Limpiar búsqueda',
+                html: '<i class="icon-cancel"></i>',
+                click: () => this.clearOrderSearch()
+            })
+        );
+    }
+
+    // Espera a que se deje de escribir para no pedir la lista en cada tecla. El valor
+    // llega a listOrders como $_POST['search'] (ver ls()).
+    searchOrders() {
+        this.renderSearchState();
+        clearTimeout(this.searchTimer);
+        this.searchTimer = setTimeout(() => this.ls(), 400);
+    }
+
+    // Con texto en el buscador, listOrders ignora el rango de fechas y el estado (y la
+    // sucursal para los roles que ven "Todas"). Esos filtros se atenuan y bloquean, y el
+    // propio buscador muestra el alcance y el boton para volver a la lista normal.
+    renderSearchState() {
+        const buscando = ($('#search').val() || '').trim() !== '';
+        const verTodas = [1, 2, 3, 6, 7].includes(Number(rol));
+
+        $('#calendar, #status').closest('[class*="col-"]')
+            .toggleClass('opacity-40 pointer-events-none', buscando);
+
+        $('#search').closest('.input-group').toggleClass('is-searching', buscando);
+
+        $('#searchScope')
+            .text('Todas las fechas')
+            .attr('title', `Busca en todas las fechas${verTodas ? ' y sucursales' : ' de tu sucursal'}, máximo 15 pedidos`)
+            .toggleClass('hidden', !buscando);
+
+        $('#searchClear').toggleClass('hidden', !buscando);
+    }
+
+    clearOrderSearch() {
+        $('#search').val('');
+        this.renderSearchState();
+        this.ls();
     }
 
     injectShiftPulseStyle() {
@@ -675,22 +758,42 @@ class App extends Templates {
 
     }
 
-    requireOpenShift() {
-        if (typeof openShift !== 'undefined' && openShift && openShift.has_open_shift) return true;
-        Swal.fire({
-            icon: 'warning',
-            title: 'No hay turno abierto',
-            text: 'Debes abrir un turno antes de continuar.',
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#7c3aed',
-            background: '#1F2A37',
-            color: '#fff'
+    // Candado de turno antes de operar. Con una sucursal elegida en la navbar manda su
+    // turno (openShift). Con "Todas" ('0') ninguna sucursal decide, asi que para un
+    // pedido se revisa el turno de SU sucursal, igual que si se hubiera elegido esa
+    // sucursal. Sin pedido (Calendario, crear) o si no esta en el listado, queda openShift.
+    requireOpenShift(orderId = null) {
+        const order = orderId && this.getListFilterSubsidiary() === '0'
+            ? (this.orders || []).find(o => String(o.id) === String(orderId))
+            : null;
+
+        // La sucursal que decide: la del pedido cuando la navbar esta en "Todas", o la que
+        // evaluo checkDailyClosure (la del navbar, o la de la sesion si esta en "Todas").
+        const subId    = order ? order.subsidiaries_id : (dailyClosure ? dailyClosure.subsidiary_id : null);
+        const sucursal = (subsidiariesCobro || []).find(s => String(s.id) === String(subId));
+
+        const abierto = order
+            ? this.subsidiaryShift(sucursal).status !== 'none'
+            : typeof openShift !== 'undefined' && openShift && openShift.has_open_shift;
+
+        if (abierto) return true;
+
+        // El nombre se escapa porque lo captura el admin al dar de alta la sucursal.
+        const nombre = $('<span>').text((sucursal && sucursal.valor) || sub_name || 'tu sucursal').html();
+
+        this.alertBox({
+            theme:      'dark',
+            type:       'warning',
+            title:      'No hay turno abierto',
+            detailHtml: `La sucursal <b class="text-gray-200">${nombre}</b> no tiene un turno abierto. Debes abrir un turno antes de continuar.`,
+            okLabel:    'Entendido'
         });
+
         return false;
     }
 
     async editOrder(id, password = null) {
-        if (!this.requireOpenShift()) return;
+        if (!this.requireOpenShift(id)) return;
 
         // El pedido se lee ANTES de renderizar: su estado decide que pestaña abre el
         // POS y si el catalogo va bloqueado, y eso lo resuelve formCreateOrder() al
@@ -883,7 +986,7 @@ class App extends Templates {
     // capturar los cambios; la autorización real la vuelve a exigir editOrder()
     // del controlador al guardar.
     editOrderPaid(id) {
-        if (!this.requireOpenShift()) return;
+        if (!this.requireOpenShift(id)) return;
 
         this.alertBox({
             theme:       'dark',
@@ -924,7 +1027,7 @@ class App extends Templates {
     }
 
     cancelOrder(id) {
-        if (!this.requireOpenShift()) return;
+        if (!this.requireOpenShift(id)) return;
         const row = event.target.closest('tr');
         const folio = row.querySelectorAll('td')[0]?.innerText || '';
 
@@ -1017,7 +1120,7 @@ class App extends Templates {
     // Descuentos.
 
     async addDiscount(id) {
-        if (!this.requireOpenShift()) return;
+        if (!this.requireOpenShift(id)) return;
         const discountInfo = await useFetch({
             url: this._link,
             data: { opc: "getDiscount", id: id }
@@ -1782,7 +1885,7 @@ class App extends Templates {
     // Payments.
 
     async historyPay(id) {
-        if (!this.requireOpenShift()) return;
+        if (!this.requireOpenShift(id)) return;
 
         const data  = await useFetch({ url: this._link, data: { opc: 'initHistoryPay', id } });
         const order = data.order;
@@ -2696,28 +2799,40 @@ class App extends Templates {
         const badgeTipo = this.getBadgeDeliveryType(tipo);
         const subsidiarieName = response.data.order.subsidiarie_name || '';
 
-        const modal = bootbox.dialog({
-            title: `
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                        ${lucideIcon('cake', 'w-4 h-4 text-white')}
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Detalles del Pedido</h2>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span id="orderDeliveryBadge">${badgeTipo}</span>
-                            <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
-                                ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `,
-            message: '<div id="orderDetailsContainer" class="max-h-[70vh] overflow-y-auto"></div>',
-            size: 'lg',
-            closeButton: true,
-            className: 'order-details-enhanced-modal'
+        // createCoffeeModalForm no trae modo solo lectura, asi que el detalle va como
+        // bloque 'html' y el footer de botones se quita mas abajo.
+        const modal = createCoffeeModalForm({
+            id: 'modalOrderDetails',
+            title: 'Detalles del Pedido',
+            iconSvg: lucideIcon('cake', 'w-5 h-5'),
+            iconBg: 'bg-blue-600',
+            theme: 'dark',
+            width: 900,
+            json: [
+                {
+                    opc: 'html',
+                    html: '<div id="orderDetailsContainer" class="max-h-[70vh] overflow-y-auto"></div>'
+                }
+            ]
         });
+
+        // Tipo de entrega y sucursal como subtitulo del encabezado, igual que en
+        // historyPay: el componente no admite subtitulo por opciones. El badge conserva
+        // el id orderDeliveryBadge porque refreshOrderDetails() lo repinta.
+        const $header = modal.el.find('.cf-card').children().first();
+
+        $header.removeClass('items-center').addClass('items-start');
+        $header.find('span').first().wrap('<div class="flex-1 min-w-0"></div>').after(`
+            <div class="flex items-center gap-2 mt-1">
+                <span id="orderDeliveryBadge">${badgeTipo}</span>
+                <span class="px-2 py-0.5 text-xs font-medium rounded bg-gray-600 text-gray-200 inline-flex items-center gap-1">
+                    ${lucideIcon('house', 'w-3.5 h-3.5')}${subsidiarieName}
+                </span>
+            </div>`);
+
+        // El detalle es de consulta: sin Cancelar ni Confirmar. Se cierra con la X,
+        // Escape o clic fuera.
+        modal.el.find('.cf-confirm').parent().remove();
 
         this.layoutManager = {
             isMobile: () => window.innerWidth < 768,
@@ -2738,69 +2853,24 @@ class App extends Templates {
             }
         };
 
-        setTimeout(() => {
-            this.layoutManager.applyLayout();
-            const orderData = response.data.order || {};
-            const products = response.data.products || [];
-            const paymentMethods = response.data.paymentMethods || [];
-            const payments = response.data.payments || [];
+        this.layoutManager.applyLayout();
 
-            const container = $('#orderDetailsContainer');
-            container.html(`
-                <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
-                    <div class="lg:sticky lg:top-4">
-                        ${this.detailsCard(orderData, paymentMethods, payments)}
-                    </div>
+        const orderData = response.data.order || {};
+        const products = response.data.products || [];
+        const paymentMethods = response.data.paymentMethods || [];
+        const payments = response.data.payments || [];
+
+        $('#orderDetailsContainer').html(`
+            <div id="orderInfoPanel" class="w-full lg:w-1/3 mb-6 lg:mb-0 lg:pr-3">
+                <div class="lg:sticky lg:top-4">
+                    ${this.detailsCard(orderData, paymentMethods, payments)}
                 </div>
+            </div>
 
-                <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-3">
-                    ${this.listProducts(products)}
-                </div>
-            `);
-
-            $(window).on('resize.orderDetails', () => {
-                // this.layoutManager.applyLayout();
-            });
-        }, 100);
-
-        modal.on('hidden.bs.modal', () => {
-            $(window).off('resize.orderDetails');
-        });
-
-        $("<style>").text(`
-            .order-details-enhanced-modal .modal-dialog {
-                max-width: 900px !important;
-                width: 85vw !important;
-            }
-            .order-details-enhanced-modal .modal-body {
-                padding: 0 !important;
-                max-height: 70vh !important;
-                overflow-y: auto !important;
-            }
-            .order-details-enhanced-modal .modal-content {
-                max-height: 85vh !important;
-            }
-
-            @media (max-width: 768px) {
-                .order-details-enhanced-modal .modal-dialog {
-                    width: 95vw !important;
-                    margin: 10px auto !important;
-                }
-                .order-details-enhanced-modal .modal-body {
-                    max-height: 65vh !important;
-                }
-            }
-
-            @media (max-width: 480px) {
-                .order-details-enhanced-modal .modal-dialog {
-                    width: 98vw !important;
-                    margin: 5px auto !important;
-                }
-                .order-details-enhanced-modal .modal-body {
-                    max-height: 60vh !important;
-                }
-            }
-        `).appendTo("head");
+            <div id="productDisplayArea" class="w-full lg:w-2/3 lg:pl-3">
+                ${this.listProducts(products)}
+            </div>
+        `);
 
         return modal;
     }
@@ -2860,6 +2930,11 @@ class App extends Templates {
         // van dentro de un bloque libre y el componente no los autocompleta.
         const esDomicilio = String(delivery_type ?? 0) === '1';
 
+        // Fecha minima de entrega. Se arma con los getters locales y no con
+        // toISOString(), que pasa a UTC y en la tarde adelanta un dia.
+        const ahora = new Date();
+        const hoy   = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+
         createCoffeeModalForm({
             id: 'formEditDelivery',
             title: 'Editar datos de entrega',
@@ -2888,7 +2963,14 @@ class App extends Templates {
                     id: 'date_order',
                     lbl: 'Fecha de entrega',
                     value: order.date_order,
+                    min: hoy,
                     required: true
+                },
+                {
+                    // Aviso junto al campo: el modal sigue abierto con lo capturado y
+                    // queda marcado el dato que hay que corregir.
+                    opc:  'html',
+                    html: `<p id="msgDateOrder" class="hidden text-xs text-red-400 -mt-1">La fecha de entrega no puede ser menor a la fecha actual.</p>`
                 },
                 {
                     opc: 'text',
@@ -2934,6 +3016,17 @@ class App extends Templates {
                 }
             ],
             onConfirm: async (data, modal) => {
+                // La entrega no puede quedar antes de hoy. Se deja pasar la fecha que ya
+                // traia el pedido, para que uno viejo se siga pudiendo corregir sin
+                // moverle la fecha. El mismo candado lo repite editOrderDelivery() del
+                // controlador, que es el que manda.
+                const fechaInvalida = data.date_order < hoy && data.date_order !== order.date_order;
+
+                $('#msgDateOrder').toggleClass('hidden', !fechaInvalida);
+                $('#formEditDelivery-date_order').toggleClass('!border-red-500', fechaInvalida);
+
+                if (fechaInvalida) return;
+
                 const response = await useFetch({
                     url: this._link,
                     data: {
@@ -2950,12 +3043,14 @@ class App extends Templates {
                 modal.close();
 
                 if (response.status == 200) {
-                    alert({
-                        icon: "success",
-                        title: "Pedido actualizado",
-                        text: response.message,
-                        btn1: true,
-                        btn1Text: "Aceptar"
+                    const cambios = Array.isArray(response.changes) ? response.changes : [];
+
+                    this.alertBox({
+                        theme:      'dark',
+                        type:       'success',
+                        title:      'Pedido actualizado',
+                        detailHtml: cambios.length ? this.deliveryChangesDetail(cambios) : response.message,
+                        okLabel:    'Aceptar'
                     });
 
                     this.refreshOrderDetails(id);
@@ -3015,6 +3110,43 @@ class App extends Templates {
                 this.editOrderDelivery(id, password);
             }
         });
+    }
+
+    // Detalle del aviso de guardado: una fila por campo con el valor anterior tachado
+    // y el nuevo resaltado. changes llega de editOrderDelivery() como
+    // [{ field, before, after }]. Los valores se escapan con .text() porque la nota
+    // la escribe el usuario. Todo va en <span>: alertBox mete detailHtml dentro de un
+    // <p>, donde un <div> rompe el marcado.
+    deliveryChangesDetail(changes) {
+        const iconos = {
+            Entrega: 'calendar',
+            Hora:    'clock',
+            Tipo:    'truck',
+            Nota:    'file-text'
+        };
+
+        const valor = (v) => v === '' || v == null ? '—' : $('<span>').text(v).html();
+
+        const filas = changes.map(c => `
+            <span class="flex items-start gap-3 rounded-lg bg-[#111928] px-3 py-2.5">
+                <span class="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
+                    ${lucideIcon(iconos[c.field] || 'pencil', 'w-4 h-4')}
+                </span>
+                <span class="flex-1 min-w-0">
+                    <span class="block text-[10px] font-bold uppercase tracking-wide text-gray-500">${c.field}</span>
+                    <span class="flex flex-wrap items-center gap-1.5 text-[13px] break-words">
+                        <span class="text-gray-500 line-through">${valor(c.before)}</span>
+                        ${lucideIcon('chevron-right', 'w-3.5 h-3.5 text-gray-500 shrink-0')}
+                        <span class="font-semibold text-green-400">${valor(c.after)}</span>
+                    </span>
+                </span>
+            </span>`).join('');
+
+        const resumen = changes.length === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${changes.length} cambios`;
+
+        return `
+            <span class="block text-gray-400">${resumen}</span>
+            <span class="flex flex-col gap-2 mt-3 text-left">${filas}</span>`;
     }
 
     getBadgeDeliveryType(tipo) {
@@ -3134,6 +3266,20 @@ class App extends Templates {
         return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
     }
 
+    // Fecha de los abonos en el resumen de pago: 12/sep/2026 19:22 pm. El resto del
+    // detalle (Creado) sigue con formatDateTime.
+    formatPayDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        if (isNaN(d.getTime())) return dateStr;
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        const ampm = d.getHours() < 12 ? 'am' : 'pm';
+        return `${dd}/${meses[d.getMonth()]}/${d.getFullYear()} ${hh}:${mi} ${ampm}`;
+    }
+
     paymentMethodStyle(method) {
         const m = String(method || '').toLowerCase();
         if (m.includes('efect')) return { icon: 'banknote', bg: 'bg-green-500/15', text: 'text-green-400', dot: 'bg-green-400' };
@@ -3162,23 +3308,15 @@ class App extends Templates {
                                 const st = this.paymentMethodStyle(p.method_pay);
                                 const isLast = idx === payments.length - 1;
                                 return `
-                            <div class="flex gap-2.5">
-                                <div class="flex flex-col items-center w-3 shrink-0">
-                                    <span class="w-3 h-3 mt-1 rounded-full ${st.bg} border-2 border-[#2C3E50] flex items-center justify-center shrink-0">
-                                        <span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>
+                            <div class="flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-white text-xs font-medium flex items-center gap-1.5">
+                                        ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
+                                        ${p.method_pay || 'Sin método'}
                                     </span>
-                                    ${!isLast ? `<span class="w-px grow bg-gray-600/70 my-1"></span>` : ''}
+                                    <span class="text-gray-500 text-[11px]">${this.formatPayDate(p.date_pay)}</span>
                                 </div>
-                                <div class="flex-1 flex items-center justify-between gap-2 ${!isLast ? 'pb-3' : ''}">
-                                    <div class="flex flex-col min-w-0">
-                                        <span class="text-white text-xs font-medium flex items-center gap-1.5">
-                                            ${lucideIcon(st.icon, 'w-3.5 h-3.5 ' + st.text)}
-                                            ${p.method_pay || 'Sin método'}
-                                        </span>
-                                        <span class="text-gray-500 text-[11px]">${this.formatDateTime(p.date_pay)}</span>
-                                    </div>
-                                    <span class="text-green-400 font-bold text-sm whitespace-nowrap">$${parseFloat(p.pay || 0).toFixed(2)}</span>
-                                </div>
+                                <span class="text-green-400 font-bold text-sm whitespace-nowrap">${formatPrice(p.pay)}</span>
                             </div>
                             `;
                             }).join('')}
@@ -3192,7 +3330,7 @@ class App extends Templates {
                                 ${lucideIcon('credit-card', 'w-3.5 h-3.5')}
                                 ${m.method_pay || 'Sin método'}:
                             </span>
-                            <span class="text-gray-300 text-xs">$${parseFloat(m.pay || 0).toFixed(2)}</span>
+                            <span class="text-gray-300 text-xs">${formatPrice(m.pay)}</span>
                         </div>
                         `).join('')}
                     </div>
@@ -3201,7 +3339,7 @@ class App extends Templates {
         const discountHtml = discount > 0 ? `
                     <div class="flex items-center justify-between">
                         <span class="text-gray-400 text-sm">Descuento:</span>
-                        <span class="text-yellow-400 font-bold text-sm">-$${discount.toFixed(2)}</span>
+                        <span class="text-yellow-400 font-bold text-sm">-${formatPrice(discount)}</span>
                     </div>
                     ${infoDiscount ? `
                     <div class="flex items-center justify-start">
@@ -3220,14 +3358,14 @@ class App extends Templates {
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-gray-400 text-sm">Subtotal:</span>
-                        <span class="text-white font-bold text-sm">$${totalPay.toFixed(2)}</span>
+                        <span class="text-white font-bold text-sm">${formatPrice(totalPay)}</span>
                     </div>
 
                     ${discountHtml}
 
                     <div class="flex items-center justify-between">
                         <span class="text-gray-400 text-sm">Pagado:</span>
-                        <span class="text-green-400 font-bold text-sm">$${totalPaid.toFixed(2)}</span>
+                        <span class="text-green-400 font-bold text-sm">${formatPrice(totalPaid)}</span>
                     </div>
 
                     ${methodsHtml}
@@ -3236,7 +3374,7 @@ class App extends Templates {
 
                     <div class="flex items-center justify-between">
                         <span class="text-gray-400 text-sm">Saldo:</span>
-                        <span class="text-red-400 font-bold text-sm">$${balance.toFixed(2)}</span>
+                        <span class="text-red-400 font-bold text-sm">${formatPrice(balance)}</span>
                     </div>
                 </div>
             </div>
@@ -3368,12 +3506,15 @@ class App extends Templates {
             <div class="flex gap-3 pb-4 border-b border-gray-700">
                 ${product.images.slice(0, 3).map(img => {
             const fullUrl = fileUrl(img.path);
+            // La vista previa lee el src de la <img> y no fullUrl: si la foto solo
+            // existe en produccion, fileUrlFallback() ya cambio la ruta y fullUrl (la
+            // local) abriria una imagen rota.
             return `
                         <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-700 cursor-pointer hover:opacity-80 transition-opacity"
-                             onclick="app.previewImage('${fullUrl}', '${(img.original_name || 'Imagen').replace(/'/g, "\\'")}')">
+                             onclick="app.previewImage(this.querySelector('img').src, this.querySelector('img').alt)">
                             <img src="${fullUrl}"
                                  alt="${img.original_name || 'Imagen'}"
-                                 onerror="fileUrlFallback(this)"
+                                 onerror="app.productImageError(this)"
                                  class="object-cover w-full h-full pointer-events-none">
                         </div>
                     `;
@@ -3422,13 +3563,13 @@ class App extends Templates {
 
         if (hasImage) {
             const imageUrl = fileUrl(product.image);
+            // La vista previa toma this.src y no imageUrl: si fileUrlFallback() cambio
+            // la ruta porque la original fallo, se amplia la que si cargo.
             return `
                 <img src="${imageUrl}" alt="${product.name}"
-                     class="object-cover w-full h-full"
-                     onerror="if (!this.dataset.fileFallback) { fileUrlFallback(this); } else { this.style.display='none'; this.nextElementSibling.style.display='flex'; }">
-                <div class="w-full h-full items-center justify-center hidden">
-                    <i class="icon-birthday text-white text-4xl"></i>
-                </div>
+                     class="object-cover w-full h-full cursor-pointer hover:opacity-80 transition-opacity"
+                     onclick="app.previewImage(this.src, this.alt)"
+                     onerror="app.productImageError(this)">
             `;
         } else {
             return `
@@ -3437,6 +3578,20 @@ class App extends Templates {
                 </div>
             `;
         }
+    }
+
+    // Foto de producto que no carga. Las fotos viejas solo viven en el servidor de
+    // produccion: primero se reintenta ahi (fileUrlFallback) y, si tampoco esta, se
+    // pone el icono de pastel en su lugar. El recuadro deja de abrir la vista previa
+    // porque ya no hay foto que ampliar.
+    productImageError(img) {
+        if (!img.dataset.fileFallback) return fileUrlFallback(img);
+
+        const $box = $(img).parent();
+
+        $box.removeAttr('onclick').removeClass('cursor-pointer hover:opacity-80 transition-opacity');
+        $box.addClass('flex items-center justify-center');
+        $(img).replaceWith('<i class="icon-birthday text-white text-4xl"></i>');
     }
 
     renderPersonalizationGrid(customizations) {
@@ -3488,9 +3643,11 @@ class App extends Templates {
         `;
     }
 
+    // Se abre desde el detalle del pedido, cuyo overlay (createCoffeeModalForm) va en
+    // z-index 100000: la vista previa tiene que quedar por encima.
     previewImage(imageUrl, imageName = 'Imagen') {
         const modal = $(`
-            <div id="imagePreviewModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
+            <div id="imagePreviewModal" class="fixed inset-0 z-[100001] flex items-center justify-center bg-black/80" onclick="if(event.target === this) $(this).remove()">
                 <div class="relative max-w-4xl max-h-[90vh] p-2">
                     <button onclick="$('#imagePreviewModal').remove()"
                             class="absolute -top-2 -right-2 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xl font-bold z-10 shadow-lg">

@@ -147,11 +147,140 @@
 
         /* Gestion de Pagos se dibuja al 75%. Los dialogos que abre por encima salen a
            tamano completo y quedan mas grandes que el propio modal, asi que se escalan
-           igual mientras ese modal (.cf-overlay) este abierto. Si el navegador no
-           soporta :has(), la regla se ignora y el dialogo sigue funcionando. */
-        body:has(.cf-overlay) .swal2-popup,
-        body:has(.cf-overlay) [id^="alertBox_"] .tf-alert-card {
+           igual mientras ese modal (#modalAdvance) este abierto. Se ata a su id y no a
+           .cf-overlay porque el detalle del pedido tambien usa el modal propio y va a
+           tamano normal. Si el navegador no soporta :has(), la regla se ignora y el
+           dialogo sigue funcionando. */
+        body:has(#modalAdvance) .swal2-popup,
+        body:has(#modalAdvance) [id^="alertBox_"] .tf-alert-card {
             zoom: 0.75;
+        }
+
+        /* La tabla de pedidos se busca desde el filterBar (folio o cliente, en todas las
+           fechas). El "Buscar:" de DataTables solo filtra lo que ya cargo la tabla y
+           competia con el, asi que se oculta. La paginacion y "Mostrar N" siguen igual. */
+        #tbPedidos_filter {
+            display: none;
+        }
+
+        /* Aire entre la fila de "Mostrar N registros" (con el buscador encima) y la tabla. */
+        #tbPedidos_length {
+            margin-bottom: 10px;
+        }
+
+        /* Buscador de pedidos: vive fuera de la tabla (createTable la reescribe en cada
+           busqueda) y se superpone a la derecha de la fila de "Mostrar N registros", en el
+           lugar del "Buscar:" oculto. Mismo fondo y borde que los inputs de CoffeeSoft
+           (bg-[#1F2A37], border-slate-700). En celular se apila arriba de la tabla. */
+        #searchBarPedidos {
+            position: relative;
+        }
+
+        #searchBarFormPedidos {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 2;
+            width: min(260px, 50%);
+            margin: 0;
+        }
+
+        #searchBarFormPedidos > div {
+            width: 100%;
+            margin: 0 !important;
+            padding: 0;
+        }
+
+        #searchBarFormPedidos label:empty {
+            display: none;
+        }
+
+        #searchBarFormPedidos .input-group {
+            flex-wrap: nowrap;
+            align-items: center;
+            background: #1F2A37;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+
+        #searchBarFormPedidos .input-group:focus-within,
+        #searchBarFormPedidos .input-group.is-searching {
+            border-color: #3F83F8;
+            box-shadow: 0 0 0 2px rgba(63, 131, 248, .18);
+        }
+
+        #searchBarFormPedidos .input-group-text {
+            order: -1;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            color: #9CA3AF;
+            font-size: 12px;
+            padding: 0 0 0 10px;
+        }
+
+        #searchBarFormPedidos .form-control {
+            height: 28px;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            color: #F3F4F6;
+            font-size: 12px;
+            padding: 0 6px;
+        }
+
+        #searchBarFormPedidos .form-control::placeholder {
+            color: #6B7280;
+        }
+
+        .search-scope {
+            flex-shrink: 0;
+            margin-right: 4px;
+            padding: 1px 6px;
+            border-radius: 999px;
+            background: rgba(28, 100, 242, .16);
+            color: #93C5FD;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .search-clear {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            margin-right: 4px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: #9CA3AF;
+            font-size: 11px;
+            line-height: 1;
+        }
+
+        .search-clear:hover {
+            background: #111928;
+            color: #F3F4F6;
+        }
+
+        @media (max-width: 767.98px) {
+            #searchBarFormPedidos {
+                position: static;
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .search-scope {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #searchBarFormPedidos .input-group {
+                transition: none;
+            }
         }
 
         /* Específico para las tablas */
