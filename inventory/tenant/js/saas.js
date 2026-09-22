@@ -1060,7 +1060,46 @@ class Redemptions extends Templates {
     }
 }
 
-// -- Usuarios (asignación de rol por sucursal) --
+// -- Usuarios (CRUD completo con rol) --
+
+const USER_COLOR_PALETTE = [
+    '#F4B8A4', '#A9CBD4', '#B8C4E0', '#B7D9A0',
+    '#E8CBA0', '#C7B8E3', '#A3D0DE', '#E6B4C0',
+    '#A6DDBF', '#E0C68A'
+];
+
+/*  La foto del colaborador se reduce a 320px y se entrega como dataURL: va a
+    salir siempre dentro de un círculo de 64px o menos, y así el POST no carga
+    con la foto original del celular. */
+function compressAvatar(file, cb) {
+    const reader = new FileReader();
+
+    reader.onload = (ev) => {
+        const img = new Image();
+
+        img.onload = () => {
+            const max = 320;
+            let w = img.width, h = img.height;
+            if (w > max || h > max) {
+                const s = max / Math.max(w, h);
+                w = Math.round(w * s);
+                h = Math.round(h * s);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width  = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+            cb(canvas.toDataURL('image/jpeg', 0.85));
+        };
+
+        img.onerror = () => cb(ev.target.result);
+        img.src = ev.target.result;
+    };
+
+    reader.readAsDataURL(file);
+}
 
 class Users extends Templates {
     constructor(link, divModule) {
@@ -1075,14 +1114,21 @@ class Users extends Templates {
         `);
         this.createfilterBar({
             parent: 'filterbar-users',
-            coffeesoft: true,
             data: [
                 {
+                    opc: 'select',
+                    id: 'active',
+                    lbl: 'Estado',
+                    class: 'col-12 col-md-3',
+                    data: dataInit.userStatusFilter || [],
+                    onchange: 'users.lsUsers()'
+                },
+                {
                     opc: 'button',
-                    class: 'col-12 col-md-2',
-                    id: 'btnRefreshUsers',
-                    text: 'Actualizar',
-                    onClick: () => this.lsUsers()
+                    class: 'col-12 col-md-3',
+                    id: 'btnNewUser',
+                    text: 'Nuevo Usuario',
+                    onClick: () => this.addUser()
                 }
             ]
         });
@@ -1095,55 +1141,391 @@ class Users extends Templates {
             data: { opc: 'lsUsers' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbUsers', theme: 'light', center: [4], right: [] }
+            attr: { id: 'tbUsers', theme: 'light', center: [5], right: [] }
         });
     }
 
-    // Alta de asignación: el usuario ya viene fijado; se elige sucursal + rol.
-    assign(userId) {
-        if (!(dataInit.branches || []).length) {
-            alert({ icon: 'info', text: 'No hay sucursales activas en la empresa', btn1: true });
-            return;
-        }
+    addUser() {
         if (!(dataInit.roles || []).length) {
             alert({ icon: 'info', text: 'Primero registra al menos un rol activo', btn1: true });
             return;
         }
-        this.createModalForm({
-            id: 'formUserAssign',
-            data: { opc: 'assignUserRole', user_id: userId },
+
+        const modal = this.createModalForm({
+            id: 'formUserAdd',
+            data: { opc: 'addUser' },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Asignar rol al usuario' },
-            json: [
-                { opc: 'select', id: 'branch_id', lbl: 'Sucursal', class: 'col-12 mb-3', required: true, data: dataInit.branches || [] },
-                { opc: 'select', id: 'role_id', lbl: 'Rol', class: 'col-12 mb-3', required: true, data: dataInit.roles || [] }
-            ],
+            bootbox: { title: 'Nuevo Usuario' },
+            json: this.jsonUser(false),
             success: (r) => afterSave(r, () => this.lsUsers())
         });
+        this.injectSucursalChips('add_sucursales_chips', []);
+        this.renderPhotoPicker('formUserAdd', '', null);
+        this.renderColorSwatches('formUserAdd', null);
+        this.guardPasswordMatch(modal);
+        this.mountPasswordEyes();
     }
 
-    // Edición: solo cambia el rol de una asignación existente.
-    editAssignment(assignmentId, currentRoleId) {
-        this.createModalForm({
-            id: 'formUserRoleEdit',
-            data: { opc: 'updateUserRole', assignment_id: assignmentId },
+    async editUser(id) {
+        const request = await useFetch({ url: this._link, data: { opc: 'getUser', id: id } });
+        if (request.status !== 200) {
+            alert({ icon: 'error', text: request.message || 'No se pudo cargar el usuario', btn1: true });
+            return;
+        }
+
+        const data = request.data;
+        const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids.map(String) : [];
+        const color = data.color || null;
+
+        const modal = this.createModalForm({
+            id: 'formUserEdit',
+            data: { opc: 'editUser', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Cambiar rol del usuario' },
-            autofill: { role_id: String(currentRoleId) },
-            json: [
-                { opc: 'select', id: 'role_id', lbl: 'Rol', class: 'col-12 mb-3', required: true, data: dataInit.roles || [] }
-            ],
+            bootbox: { title: 'Editar Usuario' },
+            autofill: Object.assign({}, data, { role_id: String(data.role_id || '') }),
+            json: this.jsonUser(true),
             success: (r) => afterSave(r, () => this.lsUsers())
         });
+        this.injectSucursalChips('edit_sucursales_chips', branchIds);
+        this.renderPhotoPicker('formUserEdit', data.photo_url || '', color);
+        this.renderColorSwatches('formUserEdit', color);
+        this.guardPasswordMatch(modal);
+        this.mountPasswordEyes();
     }
 
-    removeAssignment(assignmentId) {
+    toggleUser(id, active) {
+        const action = active == 1 ? 'activar' : 'desactivar';
         this.swalQuestion({
-            opts: { title: '¿Quitar asignación?', text: 'El usuario quedará sin rol en esa sucursal.', icon: 'warning' },
-            data: { opc: 'removeUserRole', assignment_id: assignmentId },
+            opts: {
+                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} usuario?`,
+                text: `¿Deseas ${action} este usuario?`,
+                icon: 'warning'
+            },
+            data: { opc: 'toggleUser', id: id, active: active },
             methods: { send: (r) => afterSave(r, () => this.lsUsers()) }
         });
+    }
+
+    // -- Selector multiple de sucursal --
+
+    renderSucursalChips(containerId, selectedIds = []) {
+        const $container = $('#' + containerId).empty();
+
+        (dataInit.branches || []).forEach(s => {
+            const isSelected = selectedIds.includes(String(s.id));
+
+            const $chip = $('<span>', {
+                class: 'inline-flex items-center gap-1 me-1 mb-1 px-3 py-1 rounded-full border text-sm font-medium cursor-pointer select-none transition ' +
+                       (isSelected
+                           ? 'bg-blue-100 text-blue-700 border-blue-200'
+                           : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300')
+            });
+
+            $chip.append($('<span>', { text: s.valor }));
+            if (isSelected) $chip.append($('<span>', { html: '&times;' }));
+
+            $chip.on('click', () => {
+                const idx = selectedIds.indexOf(String(s.id));
+                if (idx > -1) selectedIds.splice(idx, 1);
+                else selectedIds.push(String(s.id));
+                this.renderSucursalChips(containerId, selectedIds);
+            });
+
+            $container.append($chip);
+        });
+
+        $('#branch_ids').val(selectedIds.join(','));
+    }
+
+    // jsonUser() pinta branch_ids como <select>; aqui se saca ese select y en
+    // su lugar quedan el hidden que viaja al ctrl y la caja de chips.
+    injectSucursalChips(chipsId, selectedIds = []) {
+        const $hidden = $('<input>', {
+            type: 'hidden', id: 'branch_ids', name: 'branch_ids', value: selectedIds.join(',')
+        });
+        const $box = $('<div>', {
+            id: chipsId, class: 'flex flex-wrap bg-white border border-gray-200 rounded-lg p-2'
+        });
+
+        const $select = $('#branch_ids');
+        $select.siblings().remove(); // quita el chevron que dejo el <select>
+        $select.replaceWith($hidden);
+        $hidden.after($box);
+
+        this.renderSucursalChips(chipsId, selectedIds);
+    }
+
+    // -- Foto del colaborador --
+
+    /*  La foto NO viaja como archivo: createModalForm manda el formulario por
+        useFetch, que arma un URLSearchParams, y ahí un File se vuelve
+        "[object File]". Por eso la imagen se comprime en el navegador y se
+        manda como dataURL en un campo de texto (`photo_b64`). `photo_clear`
+        avisa cuando se quitó. Mismo widget que admin/accesos. */
+    renderPhotoPicker(formId, photoUrl, color) {
+        const $form = $('#' + formId);
+
+        const $b64   = $('<input>', { type: 'hidden', name: 'photo_b64',   value: '' });
+        const $clear = $('<input>', { type: 'hidden', name: 'photo_clear', value: '' });
+
+        const $avatar = $('<span>', {
+            class: 'w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-white',
+            css: { backgroundColor: color || '#9CA3AF' }
+        });
+
+        const $file = $('<input>', {
+            type: 'file', accept: 'image/*', class: 'hidden', id: formId + '_file'
+        });
+
+        const $pick = $('<label>', {
+            class: 'px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer',
+            text: 'Subir foto',
+            for: formId + '_file'
+        });
+
+        const $remove = $('<button>', {
+            type: 'button',
+            class: 'px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800',
+            text: 'Quitar'
+        });
+
+        // Sin foto queda el ícono blanco sobre el color, lo mismo que enseñan la
+        // navbar y el login.
+        const paint = (src) => {
+            $avatar.empty().append(src
+                ? $('<img>', { src: src, class: 'w-full h-full rounded-full object-cover' })
+                : $('<i>', { 'data-lucide': 'user', class: 'w-7 h-7' }));
+            $remove.toggle(!!src);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        $file.on('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            compressAvatar(file, (dataUrl) => {
+                paint(dataUrl);
+                $b64.val(dataUrl);
+                $clear.val('');
+            });
+        });
+
+        $remove.on('click', () => {
+            paint('');
+            $b64.val('');
+            $clear.val('1');
+            $file.val('');
+        });
+
+        const $wrap = $('<div>', { class: 'col-span-12 mb-3 flex items-center gap-3' })
+            .append($avatar, $pick, $remove, $file, $b64, $clear);
+
+        $form.prepend($wrap);
+        paint(photoUrl || '');
+    }
+
+    // El color elegido repinta el fondo del avatar sin recargar el formulario.
+    repaintPhotoBg(formId, hex) {
+        $('#' + formId).find('.w-16.h-16.rounded-full').css('backgroundColor', hex);
+    }
+
+    // -- Color del colaborador --
+
+    renderColorSwatches(formId, selectedColor) {
+        const $form = $('#' + formId);
+
+        const $colorWrap = $('<div>', { class: 'col-span-12 mb-3' });
+        $colorWrap.append($('<label>', { class: 'form-label fw-semibold', text: 'Color del colaborador' }));
+        const $swatches = $('<div>', { class: 'flex flex-wrap gap-2 mt-1' });
+
+        USER_COLOR_PALETTE.forEach(hex => {
+            const isActive = hex === selectedColor;
+            const $swatch = $('<button>', {
+                type: 'button',
+                class: 'w-7 h-7 rounded-full border-2 transition ' + (isActive ? 'border-gray-800 scale-110' : 'border-transparent'),
+                css: { backgroundColor: hex }
+            });
+            $swatch.on('click', () => {
+                $swatches.find('button').removeClass('border-gray-800 scale-110').addClass('border-transparent');
+                $swatch.removeClass('border-transparent').addClass('border-gray-800 scale-110');
+                $form.find('[name="color"]').val(hex);
+                this.repaintPhotoBg(formId, hex);
+            });
+            $swatches.append($swatch);
+        });
+
+        if (selectedColor) {
+            $form.find('[name="color"]').val(selectedColor);
+        }
+
+        $colorWrap.append($swatches);
+        $form.find('[name="color"]').closest('div').after($colorWrap);
+    }
+
+    // -- Doble confirmacion de contrasena --
+
+    // El cfModal no expone un hook previo al envio: el boton Aceptar dispara
+    // cfModalForm.trigger('submit') desde su propio click, y el atajo Enter
+    // llama onOk() desde un keydown en document. Se frenan los dos en fase de
+    // captura sobre el overlay, que corre antes que ambos manejadores.
+    guardPasswordMatch(modal) {
+        const btnOk = modal.footer.find('button').last()[0];
+        if (!btnOk) return;
+
+        const match = () => $('#password').val() === $('#password_confirmation').val();
+        const block = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            alert({ icon: 'error', text: 'Las contraseñas no coinciden', btn1: true });
+        };
+
+        modal.el[0].addEventListener('click', (e) => {
+            if (e.target.closest('button') !== btnOk) return;
+            if (match()) return;
+            block(e);
+        }, true);
+
+        modal.el[0].addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (tag !== 'input' && tag !== 'select') return;
+            if (match()) return;
+            block(e);
+        }, true);
+
+        $('#password, #password_confirmation').on('input', function () {
+            const confirm = $('#password_confirmation').val();
+            const mismatch = confirm !== '' && confirm !== $('#password').val();
+            $('#password_confirmation').css('border-color', mismatch ? '#9D3434' : '');
+        });
+    }
+
+    // -- Ojo de contraseña --
+
+    mountPasswordEyes() {
+        ['password', 'password_confirmation'].forEach((id) => {
+            const $input = $('#' + id);
+            if (!$input.length) return;
+
+            $input.wrap($('<div>', { class: 'relative' }));
+            $input.addClass('pr-9');
+
+            const $btn = $('<button>', {
+                type: 'button',
+                id: id + '_eye',
+                class: 'absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-gray-600'
+            }).append($('<i>', { 'data-lucide': 'eye', class: 'w-4 h-4' }));
+
+            $btn.on('click', () => this.togglePasswordVisibility(id));
+
+            $input.after($btn);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    togglePasswordVisibility(id) {
+        const $input = $('#' + id);
+        const show = $input.attr('type') === 'password';
+        $input.attr('type', show ? 'text' : 'password');
+
+        $('#' + id + '_eye').empty().append($('<i>', {
+            'data-lucide': show ? 'eye-off' : 'eye',
+            class: 'w-4 h-4'
+        }));
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    jsonUser(isEdit) {
+        const fields = [
+            {
+                opc: 'input',
+                id: 'name',
+                lbl: 'Nombre(s)',
+                class: 'col-12 col-md-6 mb-3',
+                required: true
+            },
+            {
+                opc: 'input',
+                id: 'last_name',
+                lbl: 'Apellidos',
+                class: 'col-12 col-md-6 mb-3'
+            },
+            {
+                opc: 'input',
+                id: 'email',
+                lbl: 'Correo (con el que inicia sesión)',
+                type: 'email',
+                class: 'col-12 mb-3',
+                required: true
+            },
+            {
+                opc: 'select',
+                id: 'role_id',
+                lbl: 'Rol',
+                class: 'col-12 mb-3',
+                required: true,
+                selected: 'Elige un rol',
+                data: dataInit.roles || []
+            },
+            {
+                opc: 'select',
+                id: 'branch_ids',
+                lbl: 'Sucursales asignadas',
+                class: 'col-12 mb-3',
+                data: dataInit.branches || []
+            },
+            {
+                opc: 'input',
+                id: 'color',
+                type: 'hidden',
+                lbl: '',
+                class: 'col-12',
+                required: false
+            }
+        ];
+
+        if (isEdit) {
+            fields.push(
+                {
+                    opc: 'input',
+                    id: 'password',
+                    lbl: 'Nueva contraseña (vacío = no se modifica)',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: false
+                },
+                {
+                    opc: 'input',
+                    id: 'password_confirmation',
+                    lbl: 'Confirmar nueva contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: false
+                }
+            );
+        } else {
+            fields.push(
+                {
+                    opc: 'input',
+                    id: 'password',
+                    lbl: 'Contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: true
+                },
+                {
+                    opc: 'input',
+                    id: 'password_confirmation',
+                    lbl: 'Confirmar contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: true
+                }
+            );
+        }
+
+        return fields;
     }
 }

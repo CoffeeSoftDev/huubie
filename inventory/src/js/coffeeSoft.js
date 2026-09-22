@@ -22,25 +22,29 @@ const CF_REGEX = {
 const CF_INVALID = 'is-invalid !border-red-500 ring-1 ring-red-500';
 
 const CF_CSS = {
-    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700',
-    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700 appearance-none cursor-pointer',
-    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-[#C05A40] dark:focus:border-[#8F3D2A] bg-white dark:bg-gray-700 resize-y',
+    input: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-blue-600 dark:focus:border-blue-800 bg-white dark:bg-gray-700',
+    select: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 outline-none focus:border-blue-600 dark:focus:border-blue-800 bg-white dark:bg-gray-700 appearance-none cursor-pointer',
+    textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-blue-600 dark:focus:border-blue-800 bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
-    btnPrimary: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // Primario = grafito cálido #292524. El terracota bajó a btnSecondary.
+    // btnInvernal conserva el terracota para quien lo pida por nombre.
+    btnPrimary: 'tw-btn w-full rounded-lg bg-[#292524] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44403C] active:bg-[#1C1917] focus:outline-none focus:ring-2 focus:ring-[#292524] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInvernal: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnInfo: 'tw-btn w-full rounded-lg bg-[#C05A40]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#C05A40] active:bg-[#C05A40] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInfo: 'tw-btn w-full rounded-lg bg-blue-600/90 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-[#C05A40] hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnOutline: 'tw-btn w-full rounded-lg border border-[#C05A40] bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-[#C05A40] dark:text-gray-200 hover:bg-[#C05A40] hover:text-white active:bg-[#C05A40] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnSecondary: 'tw-btn w-full rounded-lg bg-gray-500 dark:bg-gray-600 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600 dark:hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-blue-600 dark:text-gray-200 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // Secundario = acento del tema activo (terracota en Claro, violeta en Avatar,
+    // casi negro en Agents): va por la escala blue-*, que tailwind-theme.js remapea.
+    btnSecondary: 'tw-btn w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',
-    radio: 'w-4 h-4 text-[#C05A40] border-gray-300 dark:border-gray-600 focus:ring-[#C05A40] accent-[#C05A40]',
-    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-[#C05A40] focus:ring-[#C05A40] accent-[#C05A40]',
-    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#F7F0EB] dark:file:bg-[#6E2F20] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#C05A40] dark:file:text-[#E8A68F] hover:file:bg-[#EFC9BC] dark:hover:file:bg-[#8F3D2A]',
+    radio: 'w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 focus:ring-blue-600 accent-blue-600',
+    checkbox: 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-600 accent-blue-600',
+    file: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 dark:file:bg-blue-900 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-blue-600 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-800',
     groupAddon: 'inline-flex items-center justify-center px-3 rounded-l-lg border border-r-0 border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-300 text-sm',
 };
 
@@ -1412,7 +1416,7 @@ class Components extends Complements {
                 title: "text-2xl font-semibold",
                 content: "text-gray-300",
                 confirmButton:
-                    "bg-[#C05A40] hover:bg-[#A84A33] text-white py-2 px-4 rounded",
+                    "bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded",
                 cancelButton:
                     "bg-[#111928] text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]",
             },
@@ -2168,7 +2172,7 @@ class Components extends Complements {
 
         // Clases por tema con los hex EXACTOS de la paleta Huubie (PALETTE.md):
         // card #1F2A37, border #374151, input #1a2332, alt #283341, text-secondary #9CA3AF,
-        // primary #C05A40 / hover #A84A33.
+        // acento: la escala blue-* (sigue al tema activo, ver tailwind-theme.js).
         const C = dark ? {
             panel:  'bg-[#1F2A37]',
             title:  'text-white',
@@ -2180,7 +2184,7 @@ class Components extends Complements {
             close:  'text-gray-400 hover:text-gray-600',
             cancel: 'bg-gray-100 text-gray-800 hover:bg-gray-200'
         };
-        const okCls = 'bg-[#C05A40] text-white hover:bg-[#A84A33]';
+        const okCls = 'bg-blue-600 text-white hover:bg-blue-700';
 
         const overlay = $('<div>', {
             class: 'cf-modal fixed inset-0 z-[1090] flex items-start justify-center overflow-y-auto p-4 bg-black/50 opacity-0 transition-opacity duration-150 ease-out'
@@ -2309,7 +2313,9 @@ class Components extends Complements {
                     },
                     ok: {
                         label: 'Aceptar',
-                        className: 'btn rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-800',
+                        // blue-600 esta remapeado a terracota por tailwind-theme.js: el boton
+                        // primario del modal se fija al grafito con su hex para no arrastrarlo.
+                        className: 'btn rounded-md text-sm font-medium bg-[#292524] text-white hover:bg-[#44403C]',
                         callback: () => {
                             if (self.cfModalForm) self.cfModalForm.trigger('submit');
                             return false;
@@ -2955,7 +2961,7 @@ class Components extends Complements {
             data: { thead: [], row: [] },
             center: [],
             right: [],
-            color_th: "bg-[#C05A40] text-gray-100",
+            color_th: "bg-blue-600 text-gray-100",
             color_row: "bg-white hover:bg-gray-50",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -2983,7 +2989,7 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-[#1F2A37]";
         }
         else if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#C05A40] text-white";
+            defaults.color_th = "bg-blue-600 text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100 ";
             defaults.class = "w-full text-sm ";
@@ -3012,7 +3018,7 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-[#F8FAFC]";
         }
         else {
-            defaults.color_th = "bg-[#F2F5F9] text-[#C05A40]";
+            defaults.color_th = "bg-[#F2F5F9] text-blue-600";
             defaults.color_row = "bg-white hover:bg-gray-600";
             defaults.color_group = "bg-gray-200";
             defaults.class = "w-full table-auto text-sm text-gray-800";
@@ -3267,7 +3273,7 @@ class Components extends Complements {
             collapsed: false,
             emptyMessage: "No se encontraron registros",
             emptyIcon: "icon-calendar-1",
-            color_th: "bg-[#C05A40] text-gray-100",
+            color_th: "bg-blue-600 text-gray-100",
             color_row: "",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -3282,7 +3288,7 @@ class Components extends Complements {
         };
 
         if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#C05A40] text-white";
+            defaults.color_th = "bg-blue-600 text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100";
             defaults.class = "w-full text-sm";
@@ -3633,7 +3639,8 @@ class Components extends Complements {
 
 
         if (opts.fixed.length > 0) {
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#C05A40' : '#C05A40';
+            // Va a un <style> inline, no a una clase: se usa el token del tema directo.
+            const bgHeader = opts.theme === 'dark' ? '#0F172A' : 'rgb(var(--brand-600, 192 90 64))';
             const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
 
             let fixedCSS = `
@@ -3832,7 +3839,7 @@ class Components extends Complements {
             scrollable: true,
             emptyMessage: "No se encontraron registros",
             emptyIcon: "icon-calendar-1",
-            color_th: "bg-[#C05A40] text-gray-100",
+            color_th: "bg-blue-600 text-gray-100",
             color_row: "",
             color_group: "bg-gray-200",
             class: "w-full table-auto text-sm text-gray-800",
@@ -3860,7 +3867,7 @@ class Components extends Complements {
         }
 
         if (options.theme === 'corporativo') {
-            defaults.color_th = "bg-[#C05A40] text-white";
+            defaults.color_th = "bg-blue-600 text-white";
             defaults.color_row = "";
             defaults.color_group = "bg-gray-100";
             defaults.class = "w-full text-sm";
@@ -4362,7 +4369,8 @@ class Components extends Complements {
 
             if (opts.fixed.length === 0) return;
 
-            const bgHeader = opts.theme === 'dark' ? '#0F172A' : opts.theme === 'corporativo' ? '#C05A40' : '#C05A40';
+            // Va a un <style> inline, no a una clase: se usa el token del tema directo.
+            const bgHeader = opts.theme === 'dark' ? '#0F172A' : 'rgb(var(--brand-600, 192 90 64))';
             const bgDefault = opts.theme === 'dark' ? '#1E293B' : '#F3F4F6';
 
             let fixedCSS = `
@@ -4628,9 +4636,9 @@ class Components extends Complements {
             },
             button: {
                 base: "bg-gray-100  p-1 rounded-lg inline-flex shadow-blue-500/50",
-                active: "bg-white text-[#C05A40]",
+                active: "bg-white text-blue-600",
                 inactive: " text-gray-600 hover:bg-gray-50",
-                iconActive: "text-[#C05A40]"
+                iconActive: "text-blue-600"
             }
         };
 
@@ -4789,6 +4797,247 @@ class Components extends Complements {
             if (activeTab) {
                 $(`#container-${activeTab.id}`).removeClass("hidden");
             }
+        }
+    }
+
+    // Dialogo propio del framework, en lugar de SweetAlert: tarjeta con icono,
+    // titulo, detalle y un campo opcional. Acepta theme 'light' | 'dark' y devuelve
+    // el valor capturado en onOk(value).
+    //
+    // PORT A INVENTORY (portado de alpha/src/js/coffeeSoft.js): el original clava el
+    // terracota #C05A40 como acento del boton OK en claro. Aqui el acento sale del
+    // tema activo (Claro / Agents / Avatar) a traves de --brand-600, con el terracota
+    // de respaldo por si themes.css no esta cargado. Ver src/css/themes.css.
+    alertBox(options) {
+        // Boton OK por tema. La clase del acento se define en el <style> de abajo
+        // porque necesita leer una variable CSS. Se puede sobrescribir por llamada
+        // pasando `okBg` en options.
+        const OK_ACCENT = 'tf-ab-ok-accent';
+        const OK_HUUBIE = 'bg-[#1C64F2] hover:bg-[#1A56DB]';
+
+        if (!document.getElementById('tf-alert-anim')) {
+            const style = document.createElement('style');
+            style.id = 'tf-alert-anim';
+            style.textContent = `
+                @keyframes tfAlertPop {
+                    0%   { transform: scale(.7);  opacity: 0; }
+                    45%  { transform: scale(1.05); }
+                    80%  { transform: scale(.97); }
+                    100% { transform: scale(1);   opacity: 1; }
+                }
+                @keyframes tfAlertHide {
+                    0%   { transform: scale(1);  opacity: 1; }
+                    100% { transform: scale(.6); opacity: 0; }
+                }
+                @keyframes tfAlertFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes tfAlertFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                .tf-alert-card.tf-ab-in   { animation: tfAlertPop  .32s cubic-bezier(.34,1.56,.64,1) both; }
+                .tf-alert-card.tf-ab-out  { animation: tfAlertHide .2s  ease-in both; }
+                .tf-ab-backdrop.tf-ab-in  { animation: tfAlertFadeIn  .25s ease both; }
+                .tf-ab-backdrop.tf-ab-out { animation: tfAlertFadeOut .2s  ease both; }
+                .tf-ab-ok-accent          { background: rgb(var(--brand-600, 192 90 64)); }
+                .tf-ab-ok-accent:hover    { background: rgb(var(--brand-700, 168 74 51)); }
+                @media (prefers-reduced-motion: reduce) {
+                    .tf-alert-card.tf-ab-in, .tf-alert-card.tf-ab-out,
+                    .tf-ab-backdrop.tf-ab-in, .tf-ab-backdrop.tf-ab-out { animation: none; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Superficie de la tarjeta por tema.
+        const themes = {
+            light: {
+                backdrop:   'bg-black/40',
+                card:       'bg-white',
+                title:      'text-gray-800',
+                detail:     'text-gray-500',
+                inputLabel: 'text-gray-600',
+                input:      'text-gray-800 bg-white border-gray-300',
+                cancel:     'text-gray-600 bg-white border-gray-300 hover:bg-gray-100 hover:text-gray-800',
+                ok:         OK_ACCENT,
+                focus:      'focus:ring-blue-600/40 focus:border-blue-600'
+            },
+            dark: {
+                backdrop:   'bg-black/60',
+                card:       'bg-[#1F2A37]',
+                title:      'text-gray-100',
+                detail:     'text-gray-400',
+                inputLabel: 'text-gray-300',
+                input:      'text-gray-100 bg-[#111928] border-[#374151]',
+                cancel:     'text-gray-300 bg-[#111928] border-[#374151] hover:bg-[#374151] hover:text-white',
+                ok:         OK_HUUBIE,
+                focus:      'focus:ring-[#1C64F2]/40 focus:border-[#1C64F2]'
+            }
+        };
+
+        // El halo del icono cambia con el tema: los bg-*-50 de Tailwind son manchas
+        // blancas sobre fondo oscuro, asi que en dark se vuelven tinte translucido.
+        const presets = {
+            message: { icon: 'info',           light: ['bg-blue-50',  'text-blue-600'],  dark: ['bg-blue-500/15',  'text-blue-400'],  dual: false, okLabel: 'Entendido' },
+            success: { icon: 'circle-check',   light: ['bg-green-50', 'text-green-600'], dark: ['bg-green-500/15', 'text-green-400'], dual: false, okLabel: 'Entendido' },
+            error:   { icon: 'circle-x',       light: ['bg-red-50',   'text-red-600'],   dark: ['bg-red-500/15',   'text-red-400'],   dual: false, okLabel: 'Entendido' },
+            warning: { icon: 'alert-triangle', light: ['bg-amber-50', 'text-amber-500'], dark: ['bg-amber-500/15', 'text-amber-400'], dual: false, okLabel: 'Entendido' },
+            confirm: { icon: 'info',           light: ['bg-blue-50',  'text-blue-600'],  dark: ['bg-blue-500/15',  'text-blue-400'],  dual: true,  okLabel: 'Confirmar' },
+            cancel:  { icon: 'alert-triangle', light: ['bg-red-50',   'text-red-500'],   dark: ['bg-red-500/15',   'text-red-400'],   dual: true,  okLabel: 'Sí, continuar' }
+        };
+
+        const theme = String((options && options.theme) || 'light').toLowerCase();
+        const skin  = themes[theme] || themes.light;
+        const type  = String((options && options.type) || 'message').toLowerCase();
+        const base  = presets[type] || presets.message;
+        const tone  = base[theme] || base.light;
+
+        const defaults = {
+            parent:      'body',
+            id:          'alertBox_' + Date.now(),
+            type:        'message',
+            theme:       'light',
+            icon:        base.icon,
+            iconBg:      tone[0],
+            iconColor:   tone[1],
+            title:       '',
+            detailHtml:  '',
+            dual:        base.dual,
+            cancelLabel: 'Cancelar',
+            okLabel:     base.okLabel,
+            okBg:        skin.ok,
+            width:       base.dual ? 'w-[360px]' : 'w-[340px]',
+            timer:       0,
+            // Campo de entrada opcional. `input`: 'text' | 'password' | 'textarea'
+            // | true (= 'text'). El valor capturado se pasa a onOk(value).
+            input:            false,
+            inputLabel:       '',
+            inputPlaceholder: '',
+            inputValue:       '',
+            inputRequired:    false,
+            inputError:       'Este campo es obligatorio',
+            inputValidator:   null,
+            onOk:        null,
+            onCancel:    null,
+            onClose:     null
+        };
+
+        const opts     = Object.assign({}, defaults, options);
+        const onOk     = typeof opts.onOk     === 'function' ? opts.onOk     : opts.onClose;
+        const onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : opts.onClose;
+
+        // Con un modal de Bootstrap/bootbox abierto, el dialogo NO puede colgar de
+        // <body>: el focus trap del modal devuelve el foco a su contenido y el input
+        // se vuelve inescribible. Montado dentro del modal, el trap lo da por propio.
+        // Un `parent` explicito siempre manda.
+        const $openModal = $('.modal.show');
+        const $parent    = opts.parent !== 'body'
+            ? $('#' + opts.parent)
+            : ($openModal.length ? $openModal.last() : $('body'));
+        const uid     = opts.id;
+
+        const detailHtml = opts.detailHtml
+            ? `<p class="text-[12px] ${skin.detail} leading-relaxed mt-1.5">${opts.detailHtml}</p>`
+            : '';
+
+        const escAttr = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const iconHtml = (typeof lucideIcon === 'function')
+            ? lucideIcon(opts.icon, `w-7 h-7 ${opts.iconColor}`)
+            : `<i data-lucide="${escAttr(opts.icon)}" class="w-7 h-7 ${opts.iconColor}"></i>`;
+
+        const inputType  = opts.input === true ? 'text' : opts.input;
+        const inputField = inputType === 'textarea'
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl resize-none focus:outline-none focus:ring-2 ${skin.focus}">${escAttr(opts.inputValue)}</textarea>`
+            : inputType
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] ${skin.input} border rounded-xl focus:outline-none focus:ring-2 ${skin.focus}">`
+                : '';
+
+        const inputHtml = inputField
+            ? `<div class="px-5 pt-1 pb-4 text-left">
+                    ${opts.inputLabel ? `<label class="block text-[11px] font-bold ${skin.inputLabel} mb-1.5">${opts.inputLabel}</label>` : ''}
+                    ${inputField}
+                    <p data-ab-input-error class="hidden text-[11px] font-medium text-red-500 mt-1.5"></p>
+               </div>`
+            : '';
+
+        // Modo toast: con auto-cierre (timer) y sin segundo boton, no se muestran
+        // botones porque la notificacion se cierra sola. Con input no aplica toast.
+        const isToast = opts.timer > 0 && !opts.dual && !inputField;
+
+        const cancelBtn = opts.dual
+            ? `<button type="button" data-ab-cancel class="flex-1 min-w-[110px] whitespace-nowrap py-2.5 rounded-xl text-[12px] font-bold border ${skin.cancel} transition-all">${opts.cancelLabel}</button>`
+            : '';
+
+        const okBtn = `<button type="button" data-ab-ok class="${opts.dual ? 'flex-1 min-w-[110px] whitespace-nowrap' : 'w-full'} py-2.5 rounded-xl text-[12px] font-bold text-white ${opts.okBg} transition-all flex items-center justify-center gap-1.5">${opts.okLabel}</button>`;
+
+        const buttonsHtml = isToast
+            ? ''
+            : `<div class="px-5 pb-4 flex gap-2">${cancelBtn}${okBtn}</div>`;
+
+        const $overlay = $(`
+            <div id="${uid}" class="fixed inset-0 z-[10001] flex items-center justify-center">
+                <div class="absolute inset-0 ${skin.backdrop} tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
+                <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] ${skin.card} rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+                    <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
+                        <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
+                            ${iconHtml}
+                        </div>
+                        <p class="text-[14px] font-bold ${skin.title} leading-snug">${opts.title}</p>
+                        ${detailHtml}
+                    </div>
+                    ${inputHtml}
+                    ${buttonsHtml}
+                </div>
+            </div>
+        `);
+
+        $parent.append($overlay);
+        if (window.lucide) lucide.createIcons();
+
+        const $input    = $overlay.find('[data-ab-input]');
+        const $inputErr = $overlay.find('[data-ab-input-error]');
+        const getValue  = () => $input.length ? String($input.val()).trim() : undefined;
+        const showError = (msg) => {
+            $inputErr.text(msg).removeClass('hidden');
+            $input.addClass('border-red-400 focus:ring-red-400/40 focus:border-red-400').trigger('focus');
+        };
+
+        let dismissed = false;
+        const dismiss = (isOk) => {
+            if (dismissed) return;
+
+            // Validacion del input solo al confirmar (OK).
+            if (isOk && inputField) {
+                const val = getValue();
+                if (opts.inputRequired && !val) return showError(opts.inputError);
+                if (typeof opts.inputValidator === 'function') {
+                    const msg = opts.inputValidator(val);
+                    if (msg) return showError(msg);
+                }
+            }
+
+            dismissed = true;
+            $overlay.find('.tf-alert-card').removeClass('tf-ab-in').addClass('tf-ab-out');
+            $overlay.find('[data-ab-backdrop]').removeClass('tf-ab-in').addClass('tf-ab-out');
+            setTimeout(() => $overlay.remove(), 200);
+            const cb = isOk ? onOk : onCancel;
+            if (typeof cb === 'function') cb(inputField ? getValue() : undefined);
+        };
+
+        $overlay.find('[data-ab-ok]').on('click', () => dismiss(true));
+        $overlay.find('[data-ab-cancel]').on('click', () => dismiss(false));
+        $overlay.find('[data-ab-backdrop]').on('click', () => dismiss(!opts.dual));
+
+        if ($input.length) {
+            $input.on('input', () => $inputErr.addClass('hidden'));
+            if (inputType !== 'textarea') {
+                $input.on('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); dismiss(true); } });
+            }
+            setTimeout(() => $input.trigger('focus'), 60);
+        }
+
+        // Auto-cierre opcional (estilo toast) para notificaciones no bloqueantes.
+        if (opts.timer > 0 && !opts.dual && !inputField) {
+            setTimeout(() => dismiss(true), opts.timer);
         }
     }
 
@@ -6221,7 +6470,7 @@ class Templates extends Components {
     alertBox(options) {
         // Botón OK por defecto: terracota Arcilla Invernal (acento de la casa).
         // Se puede sobrescribir por llamada pasando `okBg` en options.
-        const OK_TERRACOTA = 'bg-[#C05A40] hover:bg-[#A84A33]';
+        const OK_TERRACOTA = 'bg-blue-600 hover:bg-blue-700';
 
         if (!document.getElementById('tf-alert-anim')) {
             const style = document.createElement('style');
@@ -6314,9 +6563,9 @@ class Templates extends Components {
 
         const inputType = opts.input === true ? 'text' : opts.input;
         const inputField = inputType === 'textarea'
-            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">${escAttr(opts.inputValue)}</textarea>`
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600">${escAttr(opts.inputValue)}</textarea>`
             : inputType
-                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C05A40]/40 focus:border-[#C05A40]">`
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600">`
                 : '';
 
         const inputHtml = inputField
@@ -6446,7 +6695,7 @@ class Templates extends Components {
             },
             cardClass: 'bg-white rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:shadow-md transition-shadow',
             activeId: null,
-            activeClass: 'ring-1 ring-[#C05A40] border-[#C05A40]',
+            activeClass: 'ring-1 ring-blue-600 border-blue-600',
             labelClass: 'text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate text-left',
             valueClass: 'text-lg font-bold text-right',
             iconWrapClass: 'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',

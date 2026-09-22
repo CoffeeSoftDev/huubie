@@ -30,6 +30,11 @@ class ctrl extends mdl {
                 ['id' => '1', 'valor' => 'Activos'],
                 ['id' => '0', 'valor' => 'Inactivos']
             ],
+            // users.status es enum de texto; el filtro manda 1/0 y el ctrl lo traduce.
+            'userStatusFilter'       => [
+                ['id' => '1', 'valor' => 'Activos'],
+                ['id' => '0', 'valor' => 'Inactivos']
+            ],
             'companyStatusFilter'    => [
                 ['id' => 'active',     'valor' => 'Activas'],
                 ['id' => 'pending',    'valor' => 'Pendientes'],
@@ -840,16 +845,17 @@ class ctrl extends mdl {
             trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
-            $this->intOrNull($_POST['orden'] ?? '') ?? 0
+            $this->qModulesMaxOrden() + 1
         ]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Módulo creado correctamente' : 'No se pudo crear el módulo'];
     }
 
     function editModule() {
-        $id   = (int) $_POST['id'];
-        $name = trim($_POST['name'] ?? '');
+        $id     = (int) $_POST['id'];
+        $name   = trim($_POST['name'] ?? '');
         if ($name === '') return ['status' => 400, 'message' => 'El nombre del módulo es obligatorio'];
-        if (!$this->qModule([$id])) return ['status' => 404, 'message' => 'Módulo no encontrado'];
+        $module = $this->qModule([$id]);
+        if (!$module) return ['status' => 404, 'message' => 'Módulo no encontrado'];
 
         $ok = $this->qUpdateModule([
             $name,
@@ -857,7 +863,7 @@ class ctrl extends mdl {
             trim($_POST['icon'] ?? '') ?: null,
             trim($_POST['description'] ?? '') ?: null,
             trim($_POST['route'] ?? '') ?: null,
-            $this->intOrNull($_POST['orden'] ?? '') ?? 0,
+            (int) $module['orden'],
             $id
         ]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Módulo actualizado correctamente' : 'No se pudo actualizar el módulo'];
@@ -1031,11 +1037,19 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($ls as $t) {
+            $a = $this->toggleActions('typePermissions', 'editTypePermission', 'toggleTypePermission', $t['id'], $t['is_active']);
+            if ((int) $t['is_active'] === 0) {
+                $a[] = [
+                    'class'   => 'btn btn-sm btn-outline-danger',
+                    'html'    => '<i class="icon-trash"></i>',
+                    'onclick' => 'typePermissions.deleteTypePermission(' . $t['id'] . ')'
+                ];
+            }
             $row[] = [
                 'id'     => $t['id'],
                 'Nombre' => htmlspecialchars($t['name'] ?? ''),
                 'Estado' => renderActive($t['is_active']),
-                'a'      => $this->toggleActions('typePermissions', 'editTypePermission', 'toggleTypePermission', $t['id'], $t['is_active'])
+                'a'      => $a
             ];
         }
 
@@ -1068,6 +1082,19 @@ class ctrl extends mdl {
         if (!$this->qTypePermission([$id])) return ['status' => 404, 'message' => 'Tipo de permiso no encontrado'];
         $ok = $this->qSetTypePermissionActive([(int) $_POST['active'], $id]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Activado' : 'Desactivado') : 'No se pudo actualizar el estado'];
+    }
+
+    function deleteTypePermission() {
+        $id = (int) $_POST['id'];
+        $found = $this->qTypePermission([$id]);
+        if (!$found) return ['status' => 404, 'message' => 'Tipo de permiso no encontrado'];
+        if ((int) $found['is_active'] === 1) return ['status' => 400, 'message' => 'Solo se puede eliminar un tipo de permiso desactivado'];
+
+        $enUso = $this->qCountPermissionsByType([$id]);
+        if ($enUso > 0) return ['status' => 400, 'message' => 'No se puede eliminar: hay permisos que usan este tipo'];
+
+        $ok = $this->qDeleteTypePermission([$id]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tipo de permiso eliminado' : 'No se pudo eliminar el tipo de permiso'];
     }
 
     /* ===== Roles (roles) ===== */
@@ -1404,101 +1431,342 @@ class ctrl extends mdl {
         ];
     }
 
-    /* ===== Usuarios y asignación de rol por sucursal (users_braches) ===== */
+    /* ===== Usuarios (mismo CRUD que admin/accesos, mas el rol) ===== */
 
     function lsUsers() {
-        $ls = $this->qUsersWithRole([$this->companyId()]);
+        $status = (isset($_POST['active']) && (int) $_POST['active'] === 0) ? 'inactive' : 'active';
+        $ls = $this->qUsersFull([$this->companyId(), $status]);
 
         $row = [];
         foreach ($ls as $u) {
-            $fullName = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
-            $hasAssignment = !empty($u['assignment_id']);
-
             $a = [];
-            if ($hasAssignment) {
+            $a[] = [
+                'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
+                'html'    => '<i class="icon-pencil"></i>',
+                'onclick' => 'users.editUser(' . $u['id'] . ')'
+            ];
+            if ($u['status'] === 'active') {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-primary me-1',
-                    'html'    => '<i class="icon-pencil"></i>',
-                    'onclick' => "users.editAssignment({$u['assignment_id']}, " . (int) $u['role_id'] . ")"
-                ];
-                $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
-                    'html'    => '<i class="icon-trash"></i>',
-                    'onclick' => "users.removeAssignment({$u['assignment_id']})"
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
+                    'html'    => '<i class="icon-toggle-on"></i>',
+                    'onclick' => 'users.toggleUser(' . $u['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-success',
-                    'html'    => '<i class="icon-plus"></i> Asignar',
-                    'onclick' => "users.assign({$u['id']})"
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
+                    'html'    => '<i class="icon-toggle-off"></i>',
+                    'onclick' => 'users.toggleUser(' . $u['id'] . ', 1)'
                 ];
             }
 
+            // renderAvatar() ya devuelve un flex con iniciales + nombre; el badge
+            // de dueño se envuelve aparte para que quede a un lado y no debajo.
+            $fullName = trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
+            $cell     = renderAvatar($fullName);
+            if ((int) $u['is_owner'] === 1) {
+                $cell = '<div class="flex items-center gap-2">'
+                      . $cell . badge('Dueño', '#C05A40', 100, '#F7E3DC')
+                      . '</div>';
+            }
+
+            $branches = $u['branch_names']
+                ? implode(' ', array_map(function ($n) {
+                    return badge(trim($n), '#C05A40', 100, '#F7E3DC');
+                  }, explode(',', $u['branch_names'])))
+                : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
+
+            $roles = $u['role_names']
+                ? implode(' ', array_map(function ($n) {
+                    return badge(trim($n), '#1D4ED8', 100, '#DBEAFE');
+                  }, explode(',', $u['role_names'])))
+                : badge('Sin rol', '#92400E', 100, '#FEF3C7');
+
             $row[] = [
-                'id'        => $u['id'],
-                'Usuario'   => htmlspecialchars($fullName ?: '—'),
-                'Correo'    => htmlspecialchars($u['email'] ?? '—'),
-                'Sucursal'  => $u['branch_name'] ? htmlspecialchars($u['branch_name']) : '<span class="italic text-gray-400">Sin sucursal</span>',
-                'Rol'       => $u['role_name']
-                    ? '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#0b3a5c] text-[#5bb3f0]">' . htmlspecialchars($u['role_name']) . '</span>'
-                    : '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#5c4813] text-[#f5c451]">Sin rol</span>',
-                'a'         => $a
+                'id'          => $u['id'],
+                'Usuario'     => $cell,
+                'Correo'      => htmlspecialchars($u['email'] ?? '—'),
+                'Sucursales'  => $branches,
+                'Rol'         => $roles,
+                'Estado'      => renderUserStatus($u['status']),
+                'a'           => $a
             ];
         }
 
         return ['status' => 200, 'row' => $row, 'ls' => $ls];
     }
 
-    // Crea una asignación usuario+sucursal+rol (un usuario puede tener una por sucursal).
-    function assignUserRole() {
-        $userId   = (int) ($_POST['user_id'] ?? 0);
-        $branchId = (int) ($_POST['branch_id'] ?? 0);
-        $roleId   = (int) ($_POST['role_id'] ?? 0);
-
-        if ($userId <= 0 || $branchId <= 0 || $roleId <= 0) {
-            return ['status' => 400, 'message' => 'Usuario, sucursal y rol son obligatorios'];
-        }
-        if (!$this->qUserExistsInCompany([$userId, $this->companyId()])) {
-            return ['status' => 400, 'message' => 'El usuario no pertenece a tu empresa'];
-        }
-        if (!$this->qRole([$roleId])) {
-            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
+    function getUser() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $data = $this->qUserFull([$id, $this->companyId()]);
+        if (!$data) {
+            return ['status' => 404, 'message' => 'Usuario no encontrado'];
         }
 
-        // Si ya existe la fila usuario+sucursal, se actualiza el rol en vez de duplicar.
-        $existing = $this->qUserBranchAssignment([$userId, $branchId]);
-        if ($existing) {
-            $ok = $this->qSetUserBranchRole([$roleId, (int) $existing['id']]);
-        } else {
-            $ok = $this->qInsertUserBranchRole([$userId, $branchId, $roleId]);
+        $data['branch_ids'] = $this->qUserBranchIds([$id]);
+        $data['role_id']    = $this->qUserMainRole([$id]);
+        $data['photo_url']  = $this->photoUrl($data['photo'] ?? '');
+
+        return ['status' => 200, 'message' => 'OK', 'data' => $data];
+    }
+
+    /* ===== Foto del colaborador =====
+       Convención compartida con el login (acceso/ctrl/ctrl-access.php) y con
+       admin/accesos: `users.photo` guarda SOLO el nombre del archivo dentro de
+       inventory/uploads/users/. */
+
+    private function photoDir() {
+        return __DIR__ . '/../../uploads/users/';
+    }
+
+    // ¿El formulario trae algo que hacer con la foto? Sin esto, guardar el
+    // usuario sin tocar su foto la borraría.
+    private function photoTouched() {
+        return ($_POST['photo_b64'] ?? '') !== '' || ($_POST['photo_clear'] ?? '') === '1';
+    }
+
+    /*  La foto viaja como dataURL en un campo de TEXTO, no como archivo:
+        createModalForm manda el formulario por useFetch, que arma un
+        URLSearchParams, y ahí un File se convierte en "[object File]".
+
+        Devuelve el nombre de archivo a guardar, o null para dejarla vacía. Si
+        el dataURL viene roto se conserva la que ya había: vale más quedarse con
+        la foto vieja que borrarla por un envío mal formado. */
+    private function savePhoto($userId, $currentPhoto) {
+        $b64   = (string) ($_POST['photo_b64'] ?? '');
+        $clear = ($_POST['photo_clear'] ?? '') === '1';
+        $dir   = $this->photoDir();
+
+        if (!$clear) {
+            if (!preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $m)) return $currentPhoto;
+
+            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+            if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true))            return $currentPhoto;
+
+            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+            if ($data === false)                                                 return $currentPhoto;
+
+            if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+            $fileName = 'user_' . (int) $userId . '_' . time() . '.' . $ext;
+            if (@file_put_contents($dir . $fileName, $data) === false)           return $currentPhoto;
+
+            $this->dropPhoto($currentPhoto);
+            return $fileName;
         }
 
+        $this->dropPhoto($currentPhoto);
+        return null;
+    }
+
+    // Borra del disco la foto anterior. basename() para que un valor manipulado
+    // no pueda salirse de la carpeta.
+    private function dropPhoto($photo) {
+        $photo = basename(trim((string) $photo));
+        if ($photo === '') return;
+
+        $file = $this->photoDir() . $photo;
+        if (is_file($file)) @unlink($file);
+    }
+
+    // La foto lista para un <img src>. La base sale de la ruta real de este
+    // controlador (.../inventory/tenant/ctrl/) y no escrita a mano.
+    private function photoUrl($photo) {
+        $photo = trim((string) $photo);
+        if ($photo === '') return '';
+        if ($photo[0] === '/' || preg_match('#^https?://#', $photo)) return $photo;
+
+        $base = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')));
+        $base = rtrim(str_replace('\\', '/', $base), '/');
+
+        return $base . '/uploads/users/' . rawurlencode($photo);
+    }
+
+    function addUser() {
+        $name      = trim($_POST['name'] ?? '');
+        $lastName  = trim($_POST['last_name'] ?? '');
+        $email     = trim($_POST['email'] ?? '');
+        $password  = (string) ($_POST['password'] ?? '');
+        $roleId    = (int) ($_POST['role_id'] ?? 0);
+        $branchIds = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
+        $color     = $this->normalizeColor($_POST['color'] ?? '');
+
+        if ($password !== (string) ($_POST['password_confirmation'] ?? '')) {
+            return ['status' => 422, 'message' => 'Las contraseñas no coinciden'];
+        }
+        if ($name === '' || $email === '') {
+            return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['status' => 400, 'message' => 'El correo no es válido'];
+        }
+        if ($roleId <= 0 || !$this->qRole([$roleId])) {
+            return ['status' => 400, 'message' => 'Debes elegir un rol válido'];
+        }
+        if (empty($branchIds)) {
+            return ['status' => 400, 'message' => 'Debes asignar al menos una sucursal'];
+        }
+        if (strlen($password) < 4) {
+            return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
+        }
+        if ($this->qUserEmailExists([$email, $this->companyId()])) {
+            return ['status' => 409, 'message' => 'Ya existe un usuario con ese correo'];
+        }
+        foreach ($branchIds as $bid) {
+            if (!$this->qBranchInCompany([$bid, $this->companyId()])) {
+                return ['status' => 400, 'message' => 'Una de las sucursales seleccionadas no es válida'];
+            }
+        }
+
+        return $this->transaction(function () use ($name, $lastName, $email, $password, $branchIds, $color, $roleId) {
+            $this->qInsertUser([
+                $name,
+                $lastName ?: null,
+                $email,
+                password_hash($password, PASSWORD_BCRYPT),
+                md5($password),
+                $branchIds[0],
+                $this->companyId(),
+                $color
+            ]);
+
+            $newId = $this->qLastInsertId();
+            if (!$newId) {
+                throw new \Exception('No se pudo obtener el id del usuario creado');
+            }
+
+            // El rol elegido se aplica a todas sus sucursales: el modal captura
+            // un rol por usuario, no uno por sucursal.
+            foreach ($branchIds as $bid) {
+                $this->qInsertUserBranchRole([$newId, $bid, $roleId]);
+            }
+
+            // La foto se guarda al final porque su nombre lleva el id del usuario,
+            // que hasta aquí no existía.
+            if ($this->photoTouched()) {
+                $this->qUpdateUserPhoto([$this->savePhoto($newId, ''), $newId, $this->companyId()]);
+            }
+
+            return ['status' => 200, 'message' => 'Usuario creado correctamente'];
+        });
+    }
+
+    function editUser() {
+        $id                   = (int) ($_POST['id'] ?? 0);
+        $name                 = trim($_POST['name'] ?? '');
+        $lastName             = trim($_POST['last_name'] ?? '');
+        $email                = trim($_POST['email'] ?? '');
+        $roleId               = (int) ($_POST['role_id'] ?? 0);
+        $branchIds            = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
+        $color                = $this->normalizeColor($_POST['color'] ?? '');
+        // Opcionales en la edicion: si no llegan, la contrasena no se toca.
+        $password             = (string) ($_POST['password'] ?? '');
+        $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
+
+        if ($password !== '' && $password !== $passwordConfirmation) {
+            return ['status' => 422, 'message' => 'Las contraseñas no coinciden'];
+        }
+        if ($name === '' || $email === '') {
+            return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['status' => 400, 'message' => 'El correo no es válido'];
+        }
+        if ($roleId <= 0 || !$this->qRole([$roleId])) {
+            return ['status' => 400, 'message' => 'Debes elegir un rol válido'];
+        }
+        if (empty($branchIds)) {
+            return ['status' => 400, 'message' => 'Debes asignar al menos una sucursal'];
+        }
+        if ($password !== '' && strlen($password) < 4) {
+            return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
+        }
+        $current = $this->qUserFull([$id, $this->companyId()]);
+        if (!$current) {
+            return ['status' => 404, 'message' => 'Usuario no encontrado'];
+        }
+        if ($this->qUserEmailExistsExcept([$email, $this->companyId(), $id])) {
+            return ['status' => 409, 'message' => 'Ya existe otro usuario con ese correo'];
+        }
+        foreach ($branchIds as $bid) {
+            if (!$this->qBranchInCompany([$bid, $this->companyId()])) {
+                return ['status' => 400, 'message' => 'Una de las sucursales seleccionadas no es válida'];
+            }
+        }
+
+        $photoActual = $current['photo'] ?? '';
+
+        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $color, $password, $roleId, $photoActual) {
+            $this->qUpdateUser([
+                $name,
+                $lastName ?: null,
+                $email,
+                $branchIds[0],
+                $color,
+                $id,
+                $this->companyId()
+            ]);
+
+            $this->qDeleteUserBranches([$id]);
+
+            foreach ($branchIds as $bid) {
+                $this->qInsertUserBranchRole([$id, $bid, $roleId]);
+            }
+
+            if ($password !== '') {
+                $this->qUpdateUserPassword([
+                    password_hash($password, PASSWORD_BCRYPT),
+                    md5($password),
+                    $id,
+                    $this->companyId()
+                ]);
+            }
+
+            if ($this->photoTouched()) {
+                $this->qUpdateUserPhoto([$this->savePhoto($id, $photoActual), $id, $this->companyId()]);
+            }
+
+            return ['status' => 200, 'message' => 'Usuario actualizado correctamente'];
+        });
+    }
+
+    function toggleUser() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $active = (int) ($_POST['active'] ?? 0);
+
+        if (!$this->qUserFull([$id, $this->companyId()])) {
+            return ['status' => 404, 'message' => 'Usuario no encontrado'];
+        }
+
+        $ok = $this->qSetUserStatus([$active === 1 ? 'active' : 'inactive', $id, $this->companyId()]);
         return [
             'status'  => $ok ? 200 : 500,
-            'message' => $ok ? 'Rol asignado correctamente' : 'No se pudo asignar el rol'
+            'message' => $ok ? ($active ? 'Usuario activado' : 'Usuario desactivado') : 'No se pudo actualizar el estado'
         ];
     }
 
-    // Cambia solo el rol de una asignación existente.
-    function updateUserRole() {
-        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
-        $roleId       = (int) ($_POST['role_id'] ?? 0);
+    // branch_ids viaja como CSV desde los chips ('1,3'), pero se acepta tambien
+    // un array JSON por si la peticion llega de otro cliente.
+    private function normalizeBranchIds($raw) {
+        if (is_array($raw)) {
+            $ids = $raw;
+        } elseif (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            $ids = is_array($decoded) ? $decoded : explode(',', $raw);
+        } else {
+            return [];
+        }
 
-        if ($assignmentId <= 0 || $roleId <= 0) {
-            return ['status' => 400, 'message' => 'Asignación y rol son obligatorios'];
+        $result = [];
+        foreach ($ids as $v) {
+            $n = (int) trim((string) $v);
+            if ($n > 0 && !in_array($n, $result, true)) $result[] = $n;
         }
-        if (!$this->qRole([$roleId])) {
-            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
-        }
-        $ok = $this->qSetUserBranchRole([$roleId, $assignmentId]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Rol actualizado correctamente' : 'No se pudo actualizar el rol'];
+        return $result;
     }
 
-    function removeUserRole() {
-        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
-        if ($assignmentId <= 0) return ['status' => 400, 'message' => 'Asignación no válida'];
-        $ok = $this->qDeleteUserBranchRole([$assignmentId]);
-        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Asignación eliminada' : 'No se pudo eliminar la asignación'];
+    private function normalizeColor($raw) {
+        $color = trim((string) $raw);
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : null;
     }
 
     /* ===== Helpers internos ===== */
@@ -1645,6 +1913,14 @@ function renderAvatar($name) {
         . '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 text-xs font-semibold shrink-0">' . $safeInitials . '</span>'
         . '<span>' . $safeName . '</span>'
         . '</div>';
+}
+
+// users.status es un enum de texto ('active'/'inactive'), no el 1/0 que usa
+// renderActive() para el resto de los catalogos de este modulo.
+function renderUserStatus($status) {
+    return $status === 'active'
+        ? badge('Activo', '#16A34A', 100, '#DCFCE7')
+        : badge('Inactivo', '#9D3434', 100, '#F6E4E4');
 }
 
 function renderDiscount($type, $value) {

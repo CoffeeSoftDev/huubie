@@ -41,3 +41,7 @@
 
     <!-- Compact Styles -->
     <link rel="stylesheet" href="../../src/css/compact.css">
+
+    <!-- Tokens del tema activo. Va al final: redefine lo que las hojas de arriba
+         dejaron con el color clavado. -->
+    <link rel="stylesheet" href="../../src/css/themes.css">

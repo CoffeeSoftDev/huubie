@@ -66,6 +66,7 @@ class MAccess extends CRUD {
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user,
                 u.email     AS email,
                 u.photo     AS photo,
+                u.color     AS color,
                 u.is_owner  AS level,
                 u.company_id AS company_id,
                 c.name      AS company,
@@ -96,6 +97,7 @@ class MAccess extends CRUD {
                 u.password   AS password,
                 u.`key`      AS user_key,
                 u.photo      AS photo,
+                u.color      AS color,
                 u.is_owner   AS is_owner,
                 u.company_id AS company_id,
                 c.name       AS company,
@@ -111,6 +113,94 @@ class MAccess extends CRUD {
 
         $result = $this->_Read($query, $array);
         return !empty($result) ? $result[0] : null;
+    }
+
+    /* ===== Recuperación de contraseña (código de 6 dígitos) ===== */
+
+    // La cuenta que pide el código. reset_vigente lo resuelve MySQL con su propio
+    // NOW() para que el reloj que pone la caducidad y el que la revisa sean uno solo.
+    function getUserForReset($array) {
+        // [email]
+        $query = "
+            SELECT
+                u.id          AS IDU,
+                u.name        AS name,
+                u.last_name   AS last_name,
+                u.email       AS email,
+                u.reset_code  AS reset_code,
+                u.reset_tries AS reset_tries,
+                (u.reset_expires IS NOT NULL AND u.reset_expires > NOW()) AS reset_vigente
+            FROM {$this->bd}users u
+            WHERE LOWER(u.email) = LOWER(?)
+                AND u.status = 'active'
+            LIMIT 1
+        ";
+
+        $result = $this->_Read($query, $array);
+        return !empty($result) ? $result[0] : null;
+    }
+
+    function setResetCode($array) {
+        // [hash del codigo, minutos de vigencia, id usuario]
+        $query = "
+            UPDATE {$this->bd}users
+               SET reset_code    = ?,
+                   reset_expires = DATE_ADD(NOW(), INTERVAL ? MINUTE),
+                   reset_tries   = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function addResetTry($array) {
+        // [id usuario]
+        $query = "UPDATE {$this->bd}users SET reset_tries = reset_tries + 1 WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function clearResetCode($array) {
+        // [id usuario]
+        $query = "
+            UPDATE {$this->bd}users
+               SET reset_code    = NULL,
+                   reset_expires = NULL,
+                   reset_tries   = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Se escriben las dos llaves porque login() acepta las dos: bcrypt en
+    // `password` y el MD5 heredado en `key` (igual que admin/accesos).
+    // El código se tira en el mismo UPDATE: ya se gastó.
+    function setNewPassword($array) {
+        // [password bcrypt, key md5, id usuario]
+        $query = "
+            UPDATE {$this->bd}users
+               SET password      = ?,
+                   `key`         = ?,
+                   reset_code    = NULL,
+                   reset_expires = NULL,
+                   reset_tries   = 0
+             WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // ¿Manda en alguna sucursal? Superadmin o Administrador en CUALQUIERA basta:
+    // al iniciar sesión todavía no hay sucursal activa que consultar.
+    function userIsAdmin($array) {
+        // [user_id]
+        $query = "
+            SELECT 1
+            FROM {$this->bd}users_braches ub
+            JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ?
+                AND r.code IN ('superadmin', 'admin')
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return !empty($r);
     }
 
     function getBranchesByCompany($array) {
@@ -225,5 +315,41 @@ class MAccess extends CRUD {
         ";
         $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
+    }
+
+    /* ===== Temas del navbar (themes) ===== */
+
+    // Catalogo de temas activos para el selector de la barra.
+    function getThemes() {
+        $query = "
+            SELECT code, name, color, accent, mode, badge, is_default, orden
+            FROM {$this->bd}themes
+            WHERE is_active = 1
+            ORDER BY orden ASC, id ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    // Tema guardado del usuario. NULL cuando nunca ha elegido uno.
+    function getUserTheme($array) {
+        // [user_id]
+        $query = "SELECT theme_code FROM {$this->bd}users WHERE id = ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0]['theme_code'] : null;
+    }
+
+    function setUserTheme($array) {
+        // [theme_code, user_id]
+        $query = "UPDATE {$this->bd}users SET theme_code = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    // Valida que el code exista y este activo antes de guardarlo.
+    function themeExists($array) {
+        // [code]
+        $query = "SELECT id FROM {$this->bd}themes WHERE code = ? AND is_active = 1 LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r);
     }
 }

@@ -12,7 +12,8 @@ class ctrl extends mdl {
 
     function init() {
         return [
-            'status' => $this->lsStatusFilter()
+            'status'     => $this->lsStatusFilter(),
+            'sucursales' => $this->listBranchesOptions([$_SESSION['company_id'] ?? 0])
         ];
     }
 
@@ -32,13 +33,13 @@ class ctrl extends mdl {
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-info me-1',
+                    'class'   => 'btn btn-sm btn-outline-primary me-1',
                     'html'    => '<i class="icon-user-plus"></i>',
                     'onclick' => 'users.assignProfile(' . $key['idUser'] . ')'
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => 'btn btn-sm btn-outline-danger',
                     'html'    => '<i class="icon-trash"></i>',
                     'onclick' => 'users.deleteUser(' . $key['idUser'] . ')'
                 ];
@@ -89,7 +90,20 @@ class ctrl extends mdl {
     function addUser() {
         $status = 500;
         $message = 'No se pudo agregar el usuario';
-        
+
+        // Segunda barrera de la doble confirmacion: el JS ya bloquea el envio,
+        // esto cubre el caso de que la peticion llegue por fuera del formulario.
+        if (($_POST['key'] ?? '') !== ($_POST['keyConfirm'] ?? '')) {
+            return [
+                'status'  => 422,
+                'message' => 'Las contraseñas no coinciden'
+            ];
+        }
+
+        $branchIds = explode(',', $_POST['branch_ids'] ?? '');
+        unset($_POST['keyConfirm']);
+        unset($_POST['branch_ids']);
+
         $_POST['creacion'] = date('Y-m-d H:i:s');
         $_POST['usr_estado'] = 1;
         $_POST['key2'] = password_hash($_POST['key'], PASSWORD_BCRYPT);
@@ -97,10 +111,12 @@ class ctrl extends mdl {
         $exists = $this->existsUserByUsername([$_POST['usser']]);
 
         if (!$exists) {
+            $usser  = $_POST['usser'];
             $create = $this->createUser($this->util->sql($_POST));
             if ($create) {
                 $status = 200;
                 $message = 'Usuario agregado correctamente';
+                $this->syncUserBranches($this->getUserIdByUsername([$usser]), $branchIds);
             }
         } else {
             $status = 409;
@@ -118,6 +134,9 @@ class ctrl extends mdl {
         $status = 500;
         $message = 'Error al editar usuario';
 
+        $branchIds = explode(',', $_POST['branch_ids'] ?? '');
+        unset($_POST['branch_ids']);
+
         if (isset($_POST['key']) && !empty($_POST['key'])) {
             $_POST['key2'] = password_hash($_POST['key'], PASSWORD_BCRYPT);
         } else {
@@ -130,6 +149,7 @@ class ctrl extends mdl {
         if ($edit) {
             $status = 200;
             $message = 'Usuario editado correctamente';
+            $this->syncUserBranches($idUser, $branchIds);
         }
 
         return [
@@ -172,7 +192,7 @@ class ctrl extends mdl {
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => 'btn btn-sm btn-outline-danger',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'profiles.statusProfile(' . $key['idPerfil'] . ', ' . $key['perfil_estado'] . ')'
                 ];
@@ -286,7 +306,7 @@ class ctrl extends mdl {
                 ];
 
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => 'btn btn-sm btn-outline-danger',
                     'html'    => '<i class="icon-trash"></i>',
                     'onclick' => 'udn.deleteUDN(' . $key['idUDN'] . ')'
                 ];
@@ -438,14 +458,17 @@ class ctrl extends mdl {
 // Complements
 
 function renderStatus($status) {
-    switch ($status) {
-        case 1:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activo</span>';
-        case 0:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Inactivo</span>';
-        default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">Desconocido</span>';
-    }
+    // [color de texto, color de fondo] - modelo pastel de 2 colores, el mismo que
+    // usan los badges de operacion/almacen. El vino #9D3434 es el --danger de
+    // Arcilla Invernal, no el rojo puro de Bootstrap.
+    $map = [
+        1 => ['#16A34A', '#DCFCE7'],
+        0 => ['#9D3434', '#F6E4E4']
+    ];
+    $c = $map[$status] ?? ['#475569', '#F1F5F9'];
+    $text = $status == 1 ? 'Activo' : ($status == 0 ? 'Inactivo' : 'Desconocido');
+
+    return badge($text, $c[0], 100, $c[1]);
 }
 
 $obj = new ctrl();

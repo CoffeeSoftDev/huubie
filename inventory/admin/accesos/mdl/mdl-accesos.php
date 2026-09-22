@@ -119,13 +119,19 @@ class mdl extends CRUD {
     function qUser($array) {
         // [id, company_id]
         $query = "
-            SELECT id, name, last_name, email, branch_id, is_owner, status, color
+            SELECT id, name, last_name, email, branch_id, is_owner, status, color, photo
             FROM {$this->bd}users
             WHERE id = ? AND company_id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qUpdateUserPhoto($array) {
+        // [photo, id, company_id]
+        $query = "UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ? AND company_id = ?";
+        return $this->_CUD($query, $array);
     }
 
     function qUserBranchIds($array) {
@@ -186,11 +192,26 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Rol que el usuario tiene en cada sucursal, como mapa branch_id => role_id.
+    // editUser() borra y reinserta users_braches, asi que necesita esta foto
+    // previa para devolver cada fila con el rol que ya tenia.
+    function qUserBranchRoles($array) {
+        // [user_id]
+        $query = "
+            SELECT branch_id, role_id
+            FROM {$this->bd}users_braches
+            WHERE user_id = ?
+        ";
+        $r = $this->_Read($query, $array);
+        if (!is_array($r) || empty($r)) return [];
+        return array_column($r, 'role_id', 'branch_id');
+    }
+
     function qInsertUserBranch($array) {
-        // [user_id, branch_id]
+        // [user_id, branch_id, role_id]
         $query = "
             INSERT INTO {$this->bd}users_braches (user_id, branch_id, role_id)
-            VALUES (?, ?, NULL)
+            VALUES (?, ?, ?)
         ";
         return $this->_CUD($query, $array);
     }

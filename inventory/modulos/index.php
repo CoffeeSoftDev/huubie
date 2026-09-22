@@ -29,11 +29,16 @@ if (empty($_SESSION["IDU"])) {
     <!-- SweetAlert -->
     <link rel="stylesheet" href="../src/plugin/sweetalert2/sweetalert2.min.css">
 
+    <!-- Tokens del tema activo (Claro / Agents / Avatar). -->
+    <link rel="stylesheet" href="../src/css/themes.css">
+
     <style>
+        /* Los tokens de esta pantalla cuelgan de los globales de themes.css para
+           que el dashboard también siga al tema elegido en el navbar. */
         :root {
-            --mod-bg:    #F3F4F6;
-            --mod-text:  #111827;
-            --mod-muted: #6B7280;
+            --mod-bg:    var(--bg, #F3F4F6);
+            --mod-text:  var(--ink, #111827);
+            --mod-muted: var(--ink-dim, #6B7280);
         }
         body.dark-mode {
             --mod-bg:    #111928;

@@ -66,7 +66,7 @@ class ctrl extends mdl {
                     : '-',
 
                 'Costo unitario'      => [
-                    'html'  => '$' . number_format($item['cost_unit'], 3),
+                    'html'  => '$' . number_format($item['cost_unit'], 2),
                     'class' => 'text-end'
                 ],
                 'IVA (%)'            => [
@@ -74,7 +74,7 @@ class ctrl extends mdl {
                     'class' => 'text-end'
                 ],
                 'Precio con IVA'      => [
-                    'html'  => '$' . number_format($item['cost'], 3),
+                    'html'  => '$' . number_format($item['cost'], 2),
                     'class' => 'text-end '
                 ],
                 'Estado'     => renderStatus($item['active']),
@@ -113,10 +113,13 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'No se pudo agregar el insumo';
 
-        // Los datos (incluido price) llegan calculados desde el frontend. Si falta algún
-        // dato obligatorio se devuelve error para que el frontend muestre la alerta con
-        // este message.
-        $required = ['name', 'price', 'price_without_tax', 'tax'];
+        // Si falta algún dato obligatorio se devuelve error para que el frontend
+        // muestre la alerta con este message.
+        //
+        // `price` YA NO se exige: el formulario nunca lo mandaba, así que toda alta
+        // desde "Nuevo Producto" moría aquí con 400. Se calcula abajo, igual que en
+        // editMaterial(), a partir del precio sin impuesto y del IVA.
+        $required = ['name', 'price_without_tax', 'tax'];
         foreach ($required as $field) {
             if (($_POST[$field] ?? '') === '') {
                 return [
@@ -130,9 +133,9 @@ class ctrl extends mdl {
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
 
-        $price             = floatval($_POST['price']);
         $price_without_tax = floatval($_POST['price_without_tax']);
         $tax               = floatval($_POST['tax']);
+        $price             = $price_without_tax + ($price_without_tax * $tax / 100);
 
         $item = [
             'name'            => $_POST['name'] ?? '',
@@ -163,7 +166,7 @@ class ctrl extends mdl {
             // van vacíos para que aplique el DEFAULT de la BD. Si se mandara 0, util->sql() lo
             // convertiría en NULL (gotcha 0 == '' en PHP 7.4) y violaría el NOT NULL.
             $attribute = [
-                'sku'               => $this->getNextSku(),
+                'sku'               => $this->skuFor($itemId),
                 'description'       => $_POST['description'] ?? '',
                 'shelf_life_days'   => ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
                 'stock_max'         => ($_POST['stock_max'] ?? '') === '' ? null : $_POST['stock_max'],
@@ -229,7 +232,7 @@ class ctrl extends mdl {
         }
 
         $itemId = $this->getMaxItemId();
-        $sku    = $this->getNextSku();
+        $sku    = $this->skuFor($itemId);
 
         $attribute = [
             'sku'          => $sku,
@@ -289,6 +292,10 @@ class ctrl extends mdl {
             ]
         ]);
 
+        // Un producto que llegó sin SKU (p. ej. por una carga masiva) lo recibe al
+        // editarse. Si ya tiene uno, updateItemAttributeSku no lo toca.
+        $this->updateItemAttributeSku([$this->skuFor($id), $id]);
+
         if ($editItem) {
             $status  = 200;
             $message = 'Insumo editado correctamente';
@@ -298,6 +305,16 @@ class ctrl extends mdl {
             'status'  => $status,
             'message' => $message
         ];
+    }
+
+    /*  El SKU es automático y sale del id del producto: ITM-001, ITM-123,
+        ITM-1234 (str_pad rellena a 3 pero no recorta los ids más largos).
+
+        Se arma con el id YA insertado. El getNextSku() que había calculaba
+        MAX(id) + 1 después del INSERT, cuando MAX(id) ya era el producto nuevo:
+        cada SKU salía corrido en uno (el producto 123 quedó como ITM-124). */
+    private function skuFor($itemId) {
+        return 'ITM-' . str_pad((int) $itemId, 3, '0', STR_PAD_LEFT);
     }
 
     function deleteMaterial() {
@@ -355,10 +372,13 @@ function renderProductImage($foto, $nombre) {
                 <i class="icon-picture-5 text-gray-600"></i>
            </div>';
 
+    // El nombre va SIN clase de tamano: asi hereda el font-size que createTable
+    // pinta en la celda (f_size). Con text-xs quedaba clavado en 9.8px, porque
+    // compact.css lo fija con !important y eso le gana al estilo del <td>.
     return '
         <div class="flex items-center justify-start gap-2 py-1 text-center">
             ' . $img . '
-            <div class="text-xs">' . htmlspecialchars($nombre) . '</div>
+            <div>' . htmlspecialchars($nombre) . '</div>
         </div>';
 }
 

@@ -46,19 +46,19 @@ class ctrl extends mdl {
         foreach ($ls as $b) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'subsidiaries.editSubsidiary(' . $b['id'] . ')'
             ];
             if ($b['is_active'] == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'subsidiaries.toggleSubsidiary(' . $b['id'] . ', 1)'
                 ];
@@ -66,7 +66,7 @@ class ctrl extends mdl {
 
             $name = htmlspecialchars($b['name']);
             if ((int) $b['id'] === $this->branchId) {
-                $name .= ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7a2e1d] text-[#f0a58f]">Tu sucursal</span>';
+                $name .= ' ' . badge('Tu sucursal', '#C05A40', 100, '#F7E3DC');
             }
 
             $row[] = [
@@ -160,24 +160,19 @@ class ctrl extends mdl {
         foreach ($ls as $u) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition me-1',
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'users.editUser(' . $u['id'] . ')'
             ];
-            $a[] = [
-                'class'   => 'btn btn-sm btn-warning me-1',
-                'html'    => '<i class="icon-key"></i>',
-                'onclick' => 'users.changePassword(' . $u['id'] . ')'
-            ];
             if ($u['status'] === 'active') {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition',
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'users.toggleUser(' . $u['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
+                    'class'   => 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition',
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'users.toggleUser(' . $u['id'] . ', 1)'
                 ];
@@ -189,12 +184,12 @@ class ctrl extends mdl {
 
             $fullname = $avatar . trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
             if ((int) $u['is_owner'] === 1) {
-                $fullname .= ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7a2e1d] text-[#f0a58f]">Dueño</span>';
+                $fullname .= ' ' . badge('Dueño', '#C05A40', 100, '#F7E3DC');
             }
 
             $branchNames = $u['branch_names']
-                ? implode('', array_map(function($n) {
-                    return '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#f3e8e4] text-[#C05A40] mr-1 mb-0.5">' . trim($n) . '</span>';
+                ? implode(' ', array_map(function($n) {
+                    return badge(trim($n), '#C05A40', 100, '#F7E3DC');
                   }, explode(',', $u['branch_names'])))
                 : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 
@@ -218,11 +213,85 @@ class ctrl extends mdl {
             return ['status' => 404, 'message' => 'Usuario no encontrado', 'data' => null];
         }
         $data['branch_ids'] = $this->qUserBranchIds([$id]);
+        $data['photo_url']  = $this->photoUrl($data['photo'] ?? '');
         return [
             'status'  => 200,
             'message' => 'OK',
             'data'    => $data
         ];
+    }
+
+    /* ===== Foto del colaborador =====
+       Convención compartida con el login (acceso/ctrl/ctrl-access.php):
+       `users.photo` guarda SOLO el nombre del archivo dentro de
+       inventory/uploads/users/. */
+
+    private function photoDir() {
+        return __DIR__ . '/../../../uploads/users/';
+    }
+
+    // ¿El formulario trae algo que hacer con la foto? Sin esto, guardar el
+    // usuario sin tocar su foto la borraría.
+    private function photoTouched() {
+        return ($_POST['photo_b64'] ?? '') !== '' || ($_POST['photo_clear'] ?? '') === '1';
+    }
+
+    /*  La foto viaja como dataURL en un campo de TEXTO, no como archivo:
+        createModalForm manda el formulario por useFetch, que arma un
+        URLSearchParams, y ahí un File se convierte en "[object File]". Es el
+        mismo camino que la evidencia de mermas (ctrl-salidas.php).
+
+        Devuelve el nombre de archivo a guardar, o null para dejarla vacía. Si
+        el dataURL viene roto se conserva la que ya había: vale más quedarse con
+        la foto vieja que borrarla por un envío mal formado. */
+    private function savePhoto($userId, $currentPhoto) {
+        $b64   = (string) ($_POST['photo_b64'] ?? '');
+        $clear = ($_POST['photo_clear'] ?? '') === '1';
+        $dir   = $this->photoDir();
+
+        if (!$clear) {
+            if (!preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $b64, $m)) return $currentPhoto;
+
+            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+            if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true))            return $currentPhoto;
+
+            $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+            if ($data === false)                                                 return $currentPhoto;
+
+            if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+            $fileName = 'user_' . (int) $userId . '_' . time() . '.' . $ext;
+            if (@file_put_contents($dir . $fileName, $data) === false)           return $currentPhoto;
+
+            $this->dropPhoto($currentPhoto);
+            return $fileName;
+        }
+
+        $this->dropPhoto($currentPhoto);
+        return null;
+    }
+
+    // Borra del disco la foto anterior. basename() para que un valor manipulado
+    // no pueda salirse de la carpeta.
+    private function dropPhoto($photo) {
+        $photo = basename(trim((string) $photo));
+        if ($photo === '') return;
+
+        $file = $this->photoDir() . $photo;
+        if (is_file($file)) @unlink($file);
+    }
+
+    // La foto lista para un <img src>. La base sale de la ruta real de este
+    // controlador (.../inventory/admin/accesos/ctrl/) y no escrita a mano.
+    private function photoUrl($photo) {
+        $photo = trim((string) $photo);
+        if ($photo === '') return '';
+        if ($photo[0] === '/' || preg_match('#^https?://#', $photo)) return $photo;
+
+        $base = dirname(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? ''))));
+        $base = rtrim(str_replace('\\', '/', $base), '/');
+
+        return $base . '/uploads/users/' . rawurlencode($photo);
     }
 
     function addUser() {
@@ -232,6 +301,12 @@ class ctrl extends mdl {
         $password   = (string) $_POST['password'];
         $branchIds  = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
         $color      = $this->normalizeColor($_POST['color'] ?? '');
+
+        // Segunda barrera de la doble confirmacion: el JS ya bloquea el envio,
+        // esto cubre el caso de que la peticion llegue por fuera del formulario.
+        if ($password !== (string) ($_POST['password_confirmation'] ?? '')) {
+            return ['status' => 422, 'message' => 'Las contraseñas no coinciden'];
+        }
 
         if ($name === '' || $email === '') {
             return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
@@ -272,8 +347,16 @@ class ctrl extends mdl {
                 throw new \Exception('No se pudo obtener el id del usuario creado');
             }
 
+            // El alta no captura rol todavia: la fila nace sin el y el usuario
+            // no vera modulos hasta que se le asigne uno.
             foreach ($branchIds as $bid) {
-                $this->qInsertUserBranch([$newId, $bid]);
+                $this->qInsertUserBranch([$newId, $bid, null]);
+            }
+
+            // La foto se guarda al final porque su nombre lleva el id del usuario,
+            // que hasta aquí no existía.
+            if ($this->photoTouched()) {
+                $this->qUpdateUserPhoto([$this->savePhoto($newId, ''), $newId, $this->companiesId]);
             }
 
             return ['status' => 200, 'message' => 'Usuario creado correctamente'];
@@ -281,13 +364,19 @@ class ctrl extends mdl {
     }
 
     function editUser() {
-        $id        = (int) $_POST['id'];
-        $name      = trim($_POST['name']);
-        $lastName  = trim($_POST['last_name']);
-        $email     = trim($_POST['email']);
-        $branchIds = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
-        $color     = $this->normalizeColor($_POST['color'] ?? '');
+        $id                   = (int) $_POST['id'];
+        $name                 = trim($_POST['name']);
+        $lastName             = trim($_POST['last_name']);
+        $email                = trim($_POST['email']);
+        $branchIds            = $this->normalizeBranchIds($_POST['branch_ids'] ?? '');
+        $color                = $this->normalizeColor($_POST['color'] ?? '');
+        // Opcionales en la edicion: si no llegan, la contrasena no se toca.
+        $password             = (string) ($_POST['password'] ?? '');
+        $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
 
+        if ($password !== '' && $password !== $passwordConfirmation) {
+            return ['status' => 422, 'message' => 'Las contraseñas no coinciden'];
+        }
         if ($name === '' || $email === '') {
             return ['status' => 400, 'message' => 'Nombre y correo son obligatorios'];
         }
@@ -296,6 +385,9 @@ class ctrl extends mdl {
         }
         if (empty($branchIds)) {
             return ['status' => 400, 'message' => 'Debes asignar al menos una sucursal'];
+        }
+        if ($password !== '' && strlen($password) < 4) {
+            return ['status' => 400, 'message' => 'La contraseña debe tener al menos 4 caracteres'];
         }
         $current = $this->qUser([$id, $this->companiesId]);
         if (!$current) {
@@ -311,7 +403,15 @@ class ctrl extends mdl {
             }
         }
 
-        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $color) {
+        // Foto de los roles antes de tocar users_braches: el rol vive solo en esa
+        // tabla y la edicion la borra entera, asi que hay que leerlo primero.
+        $roleByBranch = $this->qUserBranchRoles([$id]);
+        $rolesActuales = array_filter($roleByBranch, function ($r) { return $r !== null; });
+        $fallbackRole  = !empty($rolesActuales) ? reset($rolesActuales) : null;
+
+        $photoActual = $current['photo'] ?? '';
+
+        return $this->transaction(function () use ($id, $name, $lastName, $email, $branchIds, $color, $password, $roleByBranch, $fallbackRole, $photoActual) {
             $this->qUpdateUser([
                 $name,
                 $lastName ?: null,
@@ -324,8 +424,24 @@ class ctrl extends mdl {
 
             $this->qDeleteUserBranches([$id]);
 
+            // Se reinserta cada sucursal con el rol que ya tenia. Una sucursal
+            // recien asignada no tiene rol propio: hereda el del resto para no
+            // quedarse en NULL, que es lo que dejaba al usuario sin modulos.
             foreach ($branchIds as $bid) {
-                $this->qInsertUserBranch([$id, $bid]);
+                $this->qInsertUserBranch([$id, $bid, $roleByBranch[$bid] ?? $fallbackRole]);
+            }
+
+            if ($password !== '') {
+                $this->qUpdateUserPassword([
+                    password_hash($password, PASSWORD_BCRYPT),
+                    md5($password),
+                    $id,
+                    $this->companiesId
+                ]);
+            }
+
+            if ($this->photoTouched()) {
+                $this->qUpdateUserPhoto([$this->savePhoto($id, $photoActual), $id, $this->companiesId]);
             }
 
             return ['status' => 200, 'message' => 'Usuario actualizado correctamente'];
@@ -414,14 +530,17 @@ function renderColorFromName($name) {
 }
 
 function renderStatus($status) {
-    switch ((int) $status) {
-        case 1:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#014737] text-[#3FC189]">Activo</span>';
-        case 0:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-[#721c24] text-[#ba464d]">Inactivo</span>';
-        default:
-            return '<span class="px-2 py-1 rounded-md text-sm font-semibold bg-gray-500 text-white">Desconocido</span>';
-    }
+    // [color de texto, color de fondo] - modelo pastel de 2 colores (badge() en
+    // _Utileria.php); el vino #9D3434 es el --danger de Arcilla Invernal, no el
+    // rojo puro de Bootstrap (ver colors.css).
+    $map = [
+        1 => ['#16A34A', '#DCFCE7'],
+        0 => ['#9D3434', '#F6E4E4']
+    ];
+    $c    = $map[(int) $status] ?? ['#475569', '#F1F5F9'];
+    $text = $status == 1 ? 'Activo' : ($status == 0 ? 'Inactivo' : 'Desconocido');
+
+    return badge($text, $c[0], 100, $c[1]);
 }
 
 $obj = new ctrl();

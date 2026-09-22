@@ -34,16 +34,49 @@ class Modules extends Templates {
             bootbox: { title: 'Nuevo Módulo' }, json: this.jsonModule(),
             success: (r) => afterSave(r, () => this.lsModules())
         });
+        this.mountIconField('formModuleAdd');
     }
 
     async editModule(id) {
         const request = await useFetch({ url: this._link, data: { opc: 'getModule', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar el módulo', btn1: true }); return; }
+
+        // El título del modal acepta HTML (cfModal lo pinta con .html), así que el
+        // nombre del módulo se resalta con el acento del tema (blue-* remapeado).
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Módulo · <span class="text-blue-600 font-bold">${this.esc(name)}</span>`
+            : 'Editar Módulo';
+
         this.createModalForm({
             id: 'formModuleEdit', data: { opc: 'editModule', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Editar Módulo' }, autofill: request.data, json: this.jsonModule(),
+            bootbox: { title: title }, autofill: request.data, json: this.jsonModule(),
             success: (r) => afterSave(r, () => this.lsModules())
         });
+        this.mountIconField('formModuleEdit', request.data ? request.data.icon : '');
+    }
+
+    /*  Planta el selector de íconos dentro del hueco que dejó jsonModule.
+        Va aparte y no como un `opc` del formulario porque csIconField no es un
+        campo de CoffeeSoft: es un componente propio (cs-icon-picker.js) que se
+        inyecta ya montado el modal. El `name` es lo que hace que el valor viaje
+        en el FormData del form. */
+    mountIconField(formId, value) {
+        const $wrap = $(`#${formId}`).find('#iconFieldWrap');
+        if (!$wrap.length) return;
+
+        /*  `inputClass` no es opcional en la práctica: csIconField pinta el <input>
+            con la clase que le pasen y nada más, así que sin esto sale sin borde ni
+            alto y desentona con el resto del formulario. Le damos la MISMA clase que
+            coffeeForm usa en sus inputs (CF_CSS.input, filtrada al tema claro). */
+        $wrap.html(this.csIconField({
+            id: 'icon',
+            name: 'icon',
+            value: value || '',
+            inputClass: this.cfThemedClass(CF_CSS.input, 'light')
+        }));
+        this.csIconFieldBind($wrap);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     toggleModule(id, active) {
@@ -58,11 +91,15 @@ class Modules extends Templates {
         return [
             { opc: 'input', id: 'name', lbl: 'Nombre del módulo', class: 'col-12 col-md-6 mb-3', required: true, onkeyup: 'autoCode(this.value)' },
             { opc: 'input', id: 'code', lbl: 'Código (automático)', class: 'col-12 col-md-6 mb-3', readonly: true },
-            { opc: 'input', id: 'icon', lbl: 'Ícono (Lucide)', class: 'col-12 col-md-6 mb-3', placeholder: 'ej. package, dollar-sign' },
+            // Hueco vacío: lo rellena mountIconField() con el selector de íconos.
+            { opc: 'div', id: 'iconFieldWrap', lbl: 'Ícono', class: 'col-12 col-md-6 mb-3' },
             { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, data: dataInit.routes || [] },
-            { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 col-md-8 mb-3', placeholder: 'Texto que se muestra en la tarjeta' },
-            { opc: 'input', id: 'orden', lbl: 'Orden', type: 'number', class: 'col-12 col-md-4 mb-3' }
+            { opc: 'input', id: 'description', lbl: 'Descripción', class: 'col-12 mb-3', placeholder: 'Texto que se muestra en la tarjeta' }
         ];
+    }
+
+    esc(t) {
+        return (t == null ? '' : String(t)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     }
 }
 
@@ -258,6 +295,14 @@ class TypePermissions extends Templates {
         this.swalQuestion({
             opts: { title: `¿${active == 1 ? 'Activar' : 'Desactivar'} tipo?`, text: `¿Deseas ${active == 1 ? 'activar' : 'desactivar'} este tipo de permiso?`, icon: 'warning' },
             data: { opc: 'toggleTypePermission', id: id, active: active },
+            methods: { send: (r) => afterSave(r, () => this.lsTypePermissions()) }
+        });
+    }
+
+    deleteTypePermission(id) {
+        this.swalQuestion({
+            opts: { title: '¿Eliminar tipo de permiso?', text: 'Esta acción no se puede deshacer.', icon: 'warning' },
+            data: { opc: 'deleteTypePermission', id: id },
             methods: { send: (r) => afterSave(r, () => this.lsTypePermissions()) }
         });
     }
@@ -518,7 +563,7 @@ class Permissions extends Templates {
                 <button id="perm-cancel" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
                     <i data-lucide="x" class="w-3.5 h-3.5"></i> Cancelar
                 </button>
-                <button id="perm-save" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-[#C05A40] text-white hover:bg-[#a94c35]">
+                <button id="perm-save" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-[#292524] text-white hover:bg-[#44403C]">
                     <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
                 </button>
             `;

@@ -53,12 +53,9 @@ class App extends Templates {
     welcome(data) {
         const userName = data.user || 'Usuario';
         const branches = data.branches || [];
-        const logo = '/inventory/src/img/logos/coffee_icon.png';
 
         $('#container' + this.PROJECT_NAME).html(`
             <div class="w-full h-full flex flex-col items-center justify-center text-center px-4 py-4">
-                <img src="${logo}" alt="huubie" class="w-20 h-20 mb-4">
-
                 <h1 class="text-2xl font-bold mb-1 suc-text">Selecciona tu sucursal</h1>
                 <p class="suc-muted mb-4 text-sm">Elige dónde quieres iniciar sesión hoy</p>
 

@@ -55,15 +55,17 @@ body.dark-mode .btn:hover {
     border-color: #4B5563 !important;
 }
 
+/* Primario grafito. En dark se sube un escalón (#44403C) porque el #292524 del
+   tema light se pierde contra el fondo oscuro. */
 body.dark-mode .btn-primary {
-    background-color: #C05A40 !important;
-    border-color: #C05A40 !important;
+    background-color: #44403C !important;
+    border-color: #44403C !important;
     color: #ffffff !important;
 }
 
 body.dark-mode .btn-primary:hover {
-    background-color: #A84A33 !important;
-    border-color: #A84A33 !important;
+    background-color: #57534E !important;
+    border-color: #57534E !important;
 }
 
 body.dark-mode .btn-danger {
@@ -77,13 +79,16 @@ body.dark-mode .btn-danger:hover {
     border-color: #832B2B !important;
 }
 
+/* Secundario = terracota (el acento que antes era primario). */
 body.dark-mode .btn-secondary {
-    background-color: #374151 !important;
-    border-color: #4B5563 !important;
+    background-color: #C05A40 !important;
+    border-color: #C05A40 !important;
+    color: #ffffff !important;
 }
 
 body.dark-mode .btn-secondary:hover {
-    background-color: #4B5563 !important;
+    background-color: #A84A33 !important;
+    border-color: #A84A33 !important;
 }
 
 body.dark-mode table {

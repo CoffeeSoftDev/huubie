@@ -1,0 +1,135 @@
+[ 2026-09-19 13:19:28 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:19:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:19:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:19:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:10:46 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:10:44 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:10:38 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:10:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+
+[ 2026-09-19 13:10:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT DISTINCT m.id, m.name, m.code, m.icon, m.description, m.route, m.orden
+            FROM fayxzvov_erp.modules m
+            JOIN fayxzvov_erp.sections s       ON s.module_id  = m.id AND s.is_active = 1
+            JOIN fayxzvov_erp.permissions p    ON p.section_id = s.id AND p.is_active = 1
+            JOIN fayxzvov_erp.users_braches ub ON ub.role_id   = p.role_id
+            WHERE m.is_active = 1 AND ub.user_id = ? AND ub.branch_id = ?
+            ORDER BY m.orden ASC, m.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.role_id' in 'on clause'
+
+

@@ -3,35 +3,37 @@
        NUEVA PALETA DE COLORES - ERP SYSTEM
        ======================================== */
     
-    /* PRIMARY TERRACOTA - #C05A40 (paleta "Arcilla Invernal" — visor) */
-    --primary: #C05A40;
-    --primary9: rgba(192, 90, 64, 0.9);
-    --primary8: rgba(192, 90, 64, 0.8);
-    --primary7: rgba(192, 90, 64, 0.7);
-    --primary6: rgba(192, 90, 64, 0.6);
-    --primary5: rgba(192, 90, 64, 0.5);
-    --primary4: rgba(192, 90, 64, 0.4);
-    --primary3: rgba(192, 90, 64, 0.3);
-    --primary2: rgba(192, 90, 64, 0.2);
-    --primary1: rgba(192, 90, 64, 0.1);
-    --primary-hover: #A84A33;
-    --primary-light: #E8A68F;
-    --primary-dark: #8F3D2A;
+    /* PRIMARY GRAFITO CÁLIDO - #292524 (familia stone, sin tinte azul)
+       El terracota dejó de ser primario: ahora es el secundario (ver abajo). */
+    --primary: #292524;
+    --primary9: rgba(41, 37, 36, 0.9);
+    --primary8: rgba(41, 37, 36, 0.8);
+    --primary7: rgba(41, 37, 36, 0.7);
+    --primary6: rgba(41, 37, 36, 0.6);
+    --primary5: rgba(41, 37, 36, 0.5);
+    --primary4: rgba(41, 37, 36, 0.4);
+    --primary3: rgba(41, 37, 36, 0.3);
+    --primary2: rgba(41, 37, 36, 0.2);
+    --primary1: rgba(41, 37, 36, 0.1);
+    /* El grafito ya es oscuro: el hover ACLARA en vez de oscurecer. */
+    --primary-hover: #44403C;
+    --primary-light: #78716C;
+    --primary-dark: #1C1917;
 
-    /* SECONDARY - DARK SLATE #0F172A (bg-slate-900) */
-    --secondary: #0F172A;
-    --secondary9: rgba(15, 23, 42, 0.9);
-    --secondary8: rgba(15, 23, 42, 0.8);
-    --secondary7: rgba(15, 23, 42, 0.7);
-    --secondary6: rgba(15, 23, 42, 0.6);
-    --secondary5: rgba(15, 23, 42, 0.5);
-    --secondary4: rgba(15, 23, 42, 0.4);
-    --secondary3: rgba(15, 23, 42, 0.3);
-    --secondary2: rgba(15, 23, 42, 0.2);
-    --secondary1: rgba(15, 23, 42, 0.1);
-    --secondary-hover: #1e293b;
-    --secondary-light: #334155;
-    --secondary-lighter: #475569;
+    /* SECONDARY TERRACOTA - #C05A40 (acento "Arcilla Invernal") */
+    --secondary: #C05A40;
+    --secondary9: rgba(192, 90, 64, 0.9);
+    --secondary8: rgba(192, 90, 64, 0.8);
+    --secondary7: rgba(192, 90, 64, 0.7);
+    --secondary6: rgba(192, 90, 64, 0.6);
+    --secondary5: rgba(192, 90, 64, 0.5);
+    --secondary4: rgba(192, 90, 64, 0.4);
+    --secondary3: rgba(192, 90, 64, 0.3);
+    --secondary2: rgba(192, 90, 64, 0.2);
+    --secondary1: rgba(192, 90, 64, 0.1);
+    --secondary-hover: #A84A33;
+    --secondary-light: #E8A68F;
+    --secondary-lighter: #F7E3DC;
 
     /* SUCCESS GREEN - #22C55E (bg-green-500) */
     --success: #22C55E;

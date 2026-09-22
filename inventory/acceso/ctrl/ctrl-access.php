@@ -1,11 +1,32 @@
 <?php
+/*  SESION DE 8 HORAS.
+
+    Se fija ANTES de session_start(), que es cuando nace la sesion del login y
+    cuando se manda su cookie: despues ya no sirve de nada. El .htaccess de
+    inventory pone lo mismo para el resto de las peticiones (ahi hace falta
+    porque el recolector de sesiones corre en cualquiera de ellas); esto de aqui
+    cubre la que de verdad importa y funciona aunque el hosting ignore el
+    php_value del .htaccess. */
+ini_set('session.gc_maxlifetime', 28800);
+session_set_cookie_params(28800);
+
 session_start();
 if (empty($_POST['opc'])) exit(0);
 $opc = $_POST['opc'];
 
 require_once('../mdl/mdl-access.php');
+require_once('../../conf/_Message.php');
 
 class Access extends MAccess {
+
+    // Recuperación de contraseña: cuánto vive el código y cuántos tiros hay.
+    // Seis dígitos son un millón de combinaciones; con 15 minutos y 5 intentos
+    // la ventana de quien prueba a ciegas son 5 tiros entre un millón.
+    const RESET_MINUTES     = 15;
+    const RESET_MAX_TRIES   = 5;
+    const RESET_CODE_LENGTH = 6;
+    const PASSWORD_MIN      = 4;
+
     function login() {
             $user = trim(str_replace("'", "", $_POST['usuario'] ?? ''));
             $pass = str_replace("'", "", $_POST['clave'] ?? '');
@@ -35,16 +56,271 @@ class Access extends MAccess {
             $_SESSION['branch']      = $usr['branch'];         // nombre de la sucursal
 
             $_SESSION['user']       = trim(($usr['name'] ?? '') . ' ' . ($usr['last_name'] ?? ''));
+            $_SESSION['email']      = $usr['email'] ?? '';
             $_SESSION['is_owner']   = $usr['is_owner'];
             $_SESSION['last_activity'] = time();
+
+            // Quién se salta el selector de sucursal: el dueño (is_owner) y
+            // cualquiera con rol Super Admin o Administrador. Antes solo contaba
+            // is_owner, así que un Administrador aterrizaba en el selector.
+            $isAdmin = (int) ($usr['is_owner'] ?? 0) === 1 || $this->userIsAdmin([$usr['IDU']]);
+            $_SESSION['is_admin'] = $isAdmin ? 1 : 0;
 
             return [
                 "IDU"        => $usr['IDU'],
                 "company_id" => $usr['company_id'],
                 "company"    => $usr['company'],
                 "user"       => $_SESSION['user'],
-                "photo"      => $usr['photo'] ?? '',
+                // El correo lo usa el login para recordar al usuario en este navegador.
+                "email"      => $_SESSION['email'],
+                "photo"      => $this->photoUrl($usr['photo'] ?? ''),
+                // Color elegido para el usuario: pinta su avatar en el login recordado
+                // y en la navbar.
+                "color"      => $usr['color'] ?? '',
+                "is_owner"   => $usr['is_owner'],
+                "is_admin"   => $_SESSION['is_admin'],
             ];
+    }
+
+    /* ===== Recuperación de contraseña =====
+       Tres pasos, los tres los llama inventory/recuperar.php:
+         1. forgotPassword() manda el código al correo
+         2. verifyCode()     solo abre el paso 3
+         3. resetPassword()  escribe la contraseña nueva
+       Portado de erp-pro/pro/auth/ctrl/ctrl-auth.php. */
+
+    /*  PASO 1 :: EL CÓDIGO SE GUARDA DESPUÉS DE ENTREGARLO. Si el correo no
+        sale no se escribe nada, porque un código que nadie llegó a leer solo
+        sirve para gastarle los intentos al siguiente.
+
+        La respuesta distingue "no existe esa cuenta" de "no se pudo entregar":
+        le dice a cualquiera si un correo está dado de alta, pero sin eso quien
+        escribe un correo viejo se queda esperando un mensaje que no va a llegar. */
+    function forgotPassword() {
+        $correo = trim($_POST['correo'] ?? '');
+
+        if ($correo === '') {
+            return ['status' => 400, 'message' => 'Escribe tu correo.', 'data' => null];
+        }
+
+        $usuario = $this->getUserForReset([$correo]);
+
+        if (empty($usuario)) {
+            return [
+                'status'  => 404,
+                'message' => 'No encontramos una cuenta activa con ese correo.',
+                'data'    => null
+            ];
+        }
+
+        $codigo  = $this->resetCode();
+        $nombre  = trim($usuario['name'] ?? '');
+        $saludo  = $nombre === '' ? 'Hola.' : "Hola, {$nombre}.";
+        $mensaje = new Message;
+
+        $entregado = $mensaje->correo(
+            $usuario['email'],
+            'Código para recuperar tu contraseña — Coffee Inventory',
+            $saludo . "\n\n" . $this->recoveryMessage($codigo)
+        );
+
+        if ($entregado !== true) {
+            return [
+                'status'  => 502,
+                'message' => 'No pudimos entregarte el código. Inténtalo más tarde; tu contraseña actual sigue funcionando.',
+                'data'    => null
+            ];
+        }
+
+        if ($this->setResetCode([password_hash($codigo, PASSWORD_BCRYPT), self::RESET_MINUTES, $usuario['IDU']]) !== true) {
+            // Salió el correo pero no se guardó el código: el que acaba de leer
+            // no le va a servir, y hay que decírselo.
+            return [
+                'status'  => 500,
+                'message' => 'Enviamos el correo pero no pudimos registrar el código. Inténtalo de nuevo.',
+                'data'    => null
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Te enviamos un código a tu correo.',
+            'data'    => ['minutos' => self::RESET_MINUTES]
+        ];
+    }
+
+    /*  PASO 2 :: no entrega nada ni firma ninguna sesión, solo abre la pantalla
+        de la contraseña nueva. Por eso resetPassword() vuelve a pedir el código:
+        si este paso fuera el único guardián, bastaría con saltárselo. */
+    function verifyCode() {
+        $correo = trim($_POST['correo'] ?? '');
+        $codigo = trim($_POST['codigo'] ?? '');
+
+        $usuario = $correo === '' ? null : $this->getUserForReset([$correo]);
+
+        if (empty($usuario)) {
+            return ['status' => 404, 'message' => 'No encontramos esa cuenta. Vuelve a empezar.', 'data' => null];
+        }
+
+        $revision = $this->checkCode($usuario, $codigo);
+
+        return [
+            'status'  => $revision['status'],
+            'message' => $revision['message'],
+            'data'    => $revision['status'] === 200 ? ['minimo' => self::PASSWORD_MIN] : null
+        ];
+    }
+
+    // PASO 3 :: el código es lo único que demuestra que quien escribe la
+    // contraseña es quien recibió el correo, así que se comprueba otra vez.
+    function resetPassword() {
+        $correo   = trim($_POST['correo'] ?? '');
+        $codigo   = trim($_POST['codigo'] ?? '');
+        $nueva    = (string) ($_POST['nueva'] ?? '');
+        $confirma = (string) ($_POST['confirmar'] ?? '');
+
+        $usuario = $correo === '' ? null : $this->getUserForReset([$correo]);
+
+        if (empty($usuario)) {
+            return ['status' => 404, 'message' => 'No encontramos esa cuenta. Vuelve a empezar.', 'data' => null];
+        }
+
+        // El código va ANTES que la contraseña: si está vencido da igual lo que
+        // haya escrito, y así no se le va un intento en corregir algo inútil.
+        $revision = $this->checkCode($usuario, $codigo);
+
+        if ($revision['status'] !== 200) {
+            return ['status' => $revision['status'], 'message' => $revision['message'], 'data' => null];
+        }
+
+        if ($nueva === '' || $confirma === '') {
+            return ['status' => 400, 'message' => 'Escribe la contraseña nueva dos veces.', 'data' => null];
+        }
+
+        if (mb_strlen($nueva) < self::PASSWORD_MIN) {
+            return ['status' => 400, 'message' => 'La contraseña debe tener al menos ' . self::PASSWORD_MIN . ' caracteres.', 'data' => null];
+        }
+
+        if ($nueva !== $confirma) {
+            return ['status' => 400, 'message' => 'Las dos contraseñas no coinciden.', 'data' => null];
+        }
+
+        $guardada = $this->setNewPassword([
+            password_hash($nueva, PASSWORD_BCRYPT),
+            md5($nueva),
+            $usuario['IDU']
+        ]);
+
+        return $guardada === true
+             ? ['status' => 200, 'message' => 'Tu contraseña quedó lista. Ya puedes iniciar sesión.', 'data' => null]
+             : ['status' => 500, 'message' => 'No pudimos guardar la contraseña. Inténtalo de nuevo.', 'data' => null];
+    }
+
+    /*  ¿VALE ESTE CÓDIGO? El único sitio donde se decide.
+
+        El orden de las preguntas importa: primero si hay código, luego si sigue
+        vivo, luego si quedan tiros y solo al final si acierta. Así un código
+        vencido no gasta intentos y el mensaje dice lo que de verdad pasa.
+
+        AL QUINTO FALLO EL CÓDIGO SE TIRA: si alguien está probando a ciegas, lo
+        que no puede es seguir teniendo blanco. */
+    private function checkCode($usuario, $codigo) {
+        $guardado = (string) ($usuario['reset_code'] ?? '');
+        $fallos   = (int) ($usuario['reset_tries'] ?? 0);
+
+        if ($guardado === '') {
+            return ['status' => 409, 'message' => 'No tienes ningún código pendiente. Pide uno nuevo.'];
+        }
+
+        if (empty($usuario['reset_vigente'])) {
+            return ['status' => 410, 'message' => 'El código ya venció. Pide uno nuevo.'];
+        }
+
+        if ($fallos >= self::RESET_MAX_TRIES) {
+            return ['status' => 429, 'message' => 'Se agotaron los intentos. Pide un código nuevo.'];
+        }
+
+        // Seis dígitos o no es un código. No gasta intento: al que se le coló un
+        // espacio no hay por qué cobrárselo.
+        if (!preg_match('/^[0-9]{' . self::RESET_CODE_LENGTH . '}$/', $codigo)) {
+            return ['status' => 400, 'message' => 'El código son ' . self::RESET_CODE_LENGTH . ' dígitos.'];
+        }
+
+        if (password_verify($codigo, $guardado)) {
+            return ['status' => 200, 'message' => 'Código correcto.'];
+        }
+
+        $fallos++;
+
+        if ($fallos >= self::RESET_MAX_TRIES) {
+            $this->clearResetCode([$usuario['IDU']]);
+
+            return ['status' => 429, 'message' => 'Se agotaron los intentos. Pide un código nuevo.'];
+        }
+
+        $this->addResetTry([$usuario['IDU']]);
+
+        $quedan = self::RESET_MAX_TRIES - $fallos;
+
+        return [
+            'status'  => 401,
+            'message' => 'El código no es correcto. Te ' . ($quedan === 1 ? 'queda 1 intento' : "quedan {$quedan} intentos") . '.'
+        ];
+    }
+
+    // random_int() y no random_bytes() con módulo: aquel repartía 256 valores
+    // entre 10 dígitos, así que del 0 al 5 salían más seguido que del 6 al 9.
+    private function resetCode() {
+        $codigo = '';
+
+        for ($i = 0; $i < self::RESET_CODE_LENGTH; $i++) $codigo .= random_int(0, 9);
+
+        return $codigo;
+    }
+
+    /*  El correo dice DOS cosas que no son adorno: cuánto dura el código, para
+        que no lo teclee media hora después y crea que el sistema está roto; y
+        que su contraseña de siempre sigue sirviendo, que es lo que permite a
+        quien no pidió nada ignorar el mensaje sin hacer nada más. */
+    private function recoveryMessage($codigo) {
+        $texto  = "Tu código para recuperar el acceso a Coffee Inventory es:\n\n";
+        $texto .= "{$codigo}\n\n";
+        $texto .= "Vence en " . self::RESET_MINUTES . " minutos. Escríbelo aquí y ahí mismo eliges tu nueva contraseña:\n";
+        $texto .= $this->baseUrl() . "recuperar.php\n\n";
+        $texto .= "Si no has sido tú, ignora este mensaje: tu contraseña actual sigue funcionando.";
+
+        return $texto;
+    }
+
+    /*  La foto del usuario, lista para meter en un <img src>.
+
+        `users.photo` guarda el NOMBRE del archivo dentro de
+        inventory/uploads/users/ y aquí se le arma la URL con baseUrl(), que sale
+        de la ruta real del controlador: así no hay un '/inventory/' escrito a
+        mano que se rompa cuando el proyecto cuelga de una subcarpeta.
+
+        Si el valor ya viene como URL (http...) o como ruta absoluta (/...) se
+        deja igual: el día que la carga de imágenes guarde una ruta completa
+        --o una foto de Google-- esto sigue sirviendo sin tocarse. */
+    private function photoUrl($photo) {
+        $photo = trim((string) $photo);
+
+        if ($photo === '')                                  return '';
+        if (preg_match('#^(https?:)?//#', $photo))          return $photo;
+        if ($photo[0] === '/')                              return $photo;
+
+        return $this->baseUrl() . 'uploads/users/' . rawurlencode($photo);
+    }
+
+    // La URL del login. Sale de la ruta de este controlador
+    // (/inventory/acceso/ctrl/) y no escrita a mano, así una prueba desde local
+    // manda a local.
+    private function baseUrl() {
+        $esquema = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host    = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $ruta    = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')));
+
+        return $esquema . '://' . $host . rtrim(str_replace('\\', '/', $ruta), '/') . '/';
     }
 
     function company() {
@@ -60,7 +336,8 @@ class Access extends MAccess {
         $branch  = $sql['branch'] ?? ($_SESSION['branch'] ?? '');
 
         return [
-            "photo"      => $sql['photo'] ?? '',
+            "photo"      => $this->photoUrl($sql['photo'] ?? ''),
+            "color"      => $sql['color'] ?? '',
             "user"       => $sql['user'] ?? ($_SESSION['user'] ?? 'Usuario'),
             "email"      => $sql['email'] ?? ($_SESSION['email'] ?? ''),
             "rol"        => $sql['rol'] ?? '',
@@ -155,11 +432,16 @@ class Access extends MAccess {
 
         $items = [];
         foreach ($ls as $s) {
+            // Sin ruta no hay a donde ir: el rail armaria base + '' = raiz de
+            // inventory, que es el login, y el usuario lo vive como "me saco la sesion".
+            $route = trim((string) ($s['route'] ?? ''));
+            if ($route === '') continue;
+
             $items[] = [
                 'code'  => $s['code'],
                 'title' => $s['name'],
                 'icon'  => $s['icon'] ?: 'square',     // ícono por defecto si falta
-                'route' => $s['route'] ?: ''           // ruta relativa a inventory/
+                'route' => $route                      // ruta relativa a inventory/
             ];
         }
 
@@ -266,10 +548,53 @@ class Access extends MAccess {
         ];
     }
 
+    /* ===== Temas del navbar ===== */
+
+    // Catalogo + el tema elegido por el usuario. Sin sesion se responde igual,
+    // con el tema por defecto, para que la barra del login tambien se pinte.
+    function themes() {
+        $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+        $ls     = $this->getThemes();
+
+        $themes  = [];
+        $default = 'light';
+        foreach ($ls as $t) {
+            if ((int) $t['is_default'] === 1) $default = $t['code'];
+            $themes[] = [
+                'code'   => $t['code'],
+                'name'   => $t['name'],
+                'color'  => $t['color'],
+                'accent' => $t['accent'],
+                'mode'   => $t['mode'],
+                'badge'  => $t['badge'] ?: '',
+            ];
+        }
+
+        $current = $userId > 0 ? $this->getUserTheme([$userId]) : null;
+
+        return [
+            'status'  => 200,
+            'themes'  => $themes,
+            'current' => $current ?: $default,
+        ];
+    }
+
+    function saveTheme() {
+        $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
+        $code   = trim($_POST['code'] ?? '');
+
+        if ($userId <= 0)                 return ['status' => 401, 'message' => 'Sin sesión'];
+        if ($code === '')                 return ['status' => 400, 'message' => 'Tema no válido'];
+        if (!$this->themeExists([$code])) return ['status' => 404, 'message' => 'Ese tema no existe'];
+
+        $ok = $this->setUserTheme([$code, $userId]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tema guardado' : 'No se pudo guardar el tema'];
+    }
+
     // SESSION
     function checkSession() {
-        define('SESSION_TIMEOUT', 1800);  // 30 minutos
-        define('WARNING_TIME', 300);      // 5 minutos antes de expirar
+        define('SESSION_TIMEOUT', 28800);  // 8 horas
+        define('WARNING_TIME', 300);       // 5 minutos antes de expirar
 
           // Verificar si la sesión existe
         if (!isset($_SESSION['last_activity'])) {

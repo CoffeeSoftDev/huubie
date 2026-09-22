@@ -1,0 +1,117 @@
+/* ============================================================
+   TEMAS DE INVENTORY — tokens por tema
+   ============================================================
+   Mismo esquema que erp-pro/pro (coffee-erp-pro.css): el tema se estampa como
+   data-theme en <html> y aquí SOLO se redefinen variables. Ningún componente se
+   estila por tema: consumen tokens.
+
+   De dónde sale cada paleta (sus temas CLAROS, no los oscuros):
+     light  -> Claro, el de siempre en inventory (Arcilla Invernal).
+     agents -> erp-pro/ERP24/agents/src/css/agents.css    (:root, shadcn neutro)
+     avatar -> erp-pro/ERP24/avatars/src/css/visor.css    ([data-theme="light"])
+
+   Dos familias de tokens:
+     --brand-* / --gray-*  escalas que consume Tailwind (ver tailwind-theme.js).
+                           Van como canales RGB sueltos por el <alpha-value>.
+     --bg, --surface ...   colores planos para el CSS escrito a mano.
+
+   El tema Claro no redefine escalas: cada variable trae su respaldo terracota /
+   gray en tailwind-theme.js y en las reglas de abajo.
+   ============================================================ */
+
+:root {
+    --bg:      #F3F4F6;
+    --surface: #FFFFFF;
+    --line:    #E5E7EB;
+    --ink:     #111827;
+    --ink-dim: #6B7280;
+}
+
+
+/* -- Agents: shadcn neutro --
+   El acento NO es un color sino el contraste: casi negro sobre blanco. Así está
+   declarado en el origen ("EL ACENTO NO ES UN COLOR, es el contraste"), por eso
+   la escala de acento es de grises. Los neutros pierden el tinte azulado del
+   gray de Tailwind: son la escala neutral, que es la base de shadcn. */
+:root[data-theme="agents"] {
+    --bg:      #FFFFFF;
+    --surface: #FFFFFF;
+    --line:    #E5E5E5;
+    --ink:     #0D0D0D;
+    --ink-dim: #737373;
+
+    --brand-50:  250 250 250;
+    --brand-100: 245 245 245;
+    --brand-200: 229 229 229;
+    --brand-300: 212 212 212;
+    --brand-400: 163 163 163;
+    --brand-500: 115 115 115;
+    --brand-600: 23 23 23;     /* #171717, el --primary de agents.css */
+    --brand-700: 38 38 38;     /* hover: sobre un casi negro solo se nota ACLARANDO */
+    --brand-800: 10 10 10;
+    --brand-900: 5 5 5;
+    --brand-950: 0 0 0;
+
+    --gray-50:  250 250 250;
+    --gray-100: 245 245 245;
+    --gray-200: 229 229 229;   /* #E5E5E5, el --border de agents.css */
+    --gray-300: 212 212 212;
+    --gray-400: 163 163 163;
+    --gray-500: 115 115 115;   /* #737373, su --muted-foreground */
+    --gray-600: 82 82 82;
+    --gray-700: 64 64 64;
+    --gray-800: 38 38 38;
+    --gray-900: 23 23 23;
+    --gray-950: 10 10 10;
+}
+
+
+/* -- Avatar: claro con violeta --
+   Sus fondos, bordes y textos son los mismos grises que Claro (#F3F4F6 /
+   #FFFFFF / #E5E7EB / #111827), así que no redefine --gray-*: lo que cambia es
+   el acento. La escala es la violet de Tailwind: su 600 es exactamente el
+   #7C3AED del origen y su 700 el --vsr-accent-soft (#6D28D9). */
+:root[data-theme="avatar"] {
+    --bg:      #F3F4F6;
+    --surface: #FFFFFF;
+    --line:    #E5E7EB;
+    --ink:     #111827;
+    --ink-dim: #6B7280;
+
+    --brand-50:  245 243 255;
+    --brand-100: 237 233 254;
+    --brand-200: 221 214 254;
+    --brand-300: 196 181 253;
+    --brand-400: 167 139 250;
+    --brand-500: 139 92 246;
+    --brand-600: 124 58 237;
+    --brand-700: 109 40 217;
+    --brand-800: 91 33 182;
+    --brand-900: 76 29 149;
+    --brand-950: 46 16 101;
+}
+
+
+/* ============================================================
+   CONTENEDORES CON EL COLOR CLAVADO EN CSS
+   ============================================================
+   Lo que se pinta con clases de Tailwind (bg-gray-*, border-gray-*, bg-blue-*)
+   ya sigue al tema por las escalas. Esto cubre lo que general.css y sidebar.css
+   escriben con hex fijo. Esta hoja se carga DESPUÉS de ellas: con la misma
+   especificidad, gana por orden. */
+
+body { background-color: var(--bg); }
+
+#menu-sidebar { border-right-color: var(--line); }
+
+.menu-rail-item:hover {
+    color: var(--ink);
+    background: rgb(var(--gray-100, 243 244 246));
+    border-color: var(--line);
+}
+
+.menu-rail-item.is-active {
+    color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
+}

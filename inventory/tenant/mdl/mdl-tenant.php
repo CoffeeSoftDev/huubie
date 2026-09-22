@@ -423,6 +423,13 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    // Siguiente orden disponible para un módulo nuevo (MAX(orden)+1 lo resuelve el ctrl).
+    function qModulesMaxOrden() {
+        $query = "SELECT COALESCE(MAX(orden), 0) AS max_orden FROM {$this->bd}modules";
+        $r = $this->_Read($query, null);
+        return is_array($r) && !empty($r) ? (int) $r[0]['max_orden'] : 0;
+    }
+
     function qInsertModule($array) {
         // [name, code, icon, description, route, orden]
         $query = "
@@ -609,6 +616,21 @@ class mdl extends CRUD {
     function qSetTypePermissionActive($array) {
         // [is_active, id]
         $query = "UPDATE {$this->bd}type_permissions SET is_active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    // FK permissions.type_permission_id -> type_permissions.id tiene ON DELETE SET NULL:
+    // sin este conteo, borrar el tipo no truena por FK, solo deja permisos huérfanos con type_permission_id NULL.
+    function qCountPermissionsByType($array) {
+        // [type_permission_id]
+        $query = "SELECT COUNT(*) AS total FROM {$this->bd}permissions WHERE type_permission_id = ?";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['total'] : 0;
+    }
+
+    function qDeleteTypePermission($array) {
+        // [id]
+        $query = "DELETE FROM {$this->bd}type_permissions WHERE id = ?";
         return $this->_CUD($query, $array);
     }
 
@@ -889,6 +911,152 @@ class mdl extends CRUD {
         $query = "SELECT id FROM {$this->bd}users WHERE id = ? AND company_id = ? LIMIT 1";
         $r = $this->_Read($query, $array);
         return is_array($r) && count($r) > 0;
+    }
+
+    /* ===== CRUD de usuarios (mismo juego que admin/accesos, con rol) ===== */
+
+    // Una fila por usuario. Las sucursales y los roles se concatenan en
+    // subconsultas porque users_braches tiene una fila por usuario+sucursal:
+    // sin esto la tabla repetiria al usuario tantas veces como sucursales tenga.
+    function qUsersFull($array) {
+        // [company_id, status]
+        $query = "
+            SELECT
+                u.id,
+                u.name,
+                u.last_name,
+                u.email,
+                u.status,
+                u.is_owner,
+                u.color,
+                (
+                    SELECT GROUP_CONCAT(DISTINCT br.name ORDER BY br.name ASC SEPARATOR ', ')
+                    FROM {$this->bd}users_braches ub
+                    INNER JOIN {$this->bd}branches br ON br.id = ub.branch_id
+                    WHERE ub.user_id = u.id
+                ) AS branch_names,
+                (
+                    SELECT GROUP_CONCAT(DISTINCT r.name ORDER BY r.name ASC SEPARATOR ', ')
+                    FROM {$this->bd}users_braches ub2
+                    INNER JOIN {$this->bd}roles r ON r.id = ub2.role_id
+                    WHERE ub2.user_id = u.id
+                ) AS role_names
+            FROM {$this->bd}users u
+            WHERE u.company_id = ? AND u.status = ?
+            ORDER BY u.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qUserFull($array) {
+        // [id, company_id]
+        $query = "
+            SELECT id, name, last_name, email, branch_id, is_owner, status, color, photo
+            FROM {$this->bd}users
+            WHERE id = ? AND company_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qUpdateUserPhoto($array) {
+        // [photo, id, company_id]
+        $query = "UPDATE {$this->bd}users SET photo = ?, updated_at = NOW() WHERE id = ? AND company_id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qUserBranchIds($array) {
+        // [user_id]
+        $query = "
+            SELECT branch_id
+            FROM {$this->bd}users_braches
+            WHERE user_id = ?
+            ORDER BY branch_id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        if (!is_array($r) || empty($r)) return [];
+        return array_column($r, 'branch_id');
+    }
+
+    // El modal captura UN rol por usuario, asi que se lee el primero que tenga
+    // asignado. Si por datos viejos tuviera roles distintos por sucursal, el
+    // guardado los uniforma al que quede seleccionado.
+    function qUserMainRole($array) {
+        // [user_id]
+        $query = "
+            SELECT role_id
+            FROM {$this->bd}users_braches
+            WHERE user_id = ? AND role_id IS NOT NULL
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return (is_array($r) && !empty($r)) ? (int) $r[0]['role_id'] : 0;
+    }
+
+    function qBranchInCompany($array) {
+        // [branch_id, company_id]
+        $query = "SELECT id FROM {$this->bd}branches WHERE id = ? AND company_id = ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && count($r) > 0;
+    }
+
+    function qUserEmailExists($array) {
+        // [email, company_id]
+        $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND company_id = ?";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && count($r) > 0;
+    }
+
+    function qUserEmailExistsExcept($array) {
+        // [email, company_id, id]
+        $query = "SELECT id FROM {$this->bd}users WHERE LOWER(email) = LOWER(?) AND company_id = ? AND id <> ?";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && count($r) > 0;
+    }
+
+    function qInsertUser($array) {
+        // [name, last_name, email, password, key, branch_id, company_id, color]
+        $query = "
+            INSERT INTO {$this->bd}users
+                (name, last_name, email, password, `key`, branch_id, company_id, color, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qLastInsertId() {
+        $r = $this->_Read("SELECT LAST_INSERT_ID() AS id", []);
+        return (is_array($r) && !empty($r)) ? (int) $r[0]['id'] : 0;
+    }
+
+    function qUpdateUser($array) {
+        // [name, last_name, email, branch_id, color, id, company_id]
+        $query = "
+            UPDATE {$this->bd}users
+            SET name = ?, last_name = ?, email = ?, branch_id = ?, color = ?, updated_at = NOW()
+            WHERE id = ? AND company_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qDeleteUserBranches($array) {
+        // [user_id]
+        $query = "DELETE FROM {$this->bd}users_braches WHERE user_id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qUpdateUserPassword($array) {
+        // [password, key, id, company_id]
+        $query = "UPDATE {$this->bd}users SET password = ?, `key` = ? WHERE id = ? AND company_id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qSetUserStatus($array) {
+        // [status, id, company_id]
+        $query = "UPDATE {$this->bd}users SET status = ? WHERE id = ? AND company_id = ?";
+        return $this->_CUD($query, $array);
     }
 
     // Secciones a las que el usuario tiene acceso efectivo en una sucursal concreta

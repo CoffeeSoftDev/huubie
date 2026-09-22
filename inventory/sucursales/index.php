@@ -29,15 +29,20 @@ if (empty($_SESSION["IDU"])) {
     <!-- SweetAlert -->
     <link rel="stylesheet" href="../src/plugin/sweetalert2/sweetalert2.min.css">
 
+    <!-- Tokens del tema activo (Claro / Agents / Avatar). -->
+    <link rel="stylesheet" href="../src/css/themes.css">
+
     <style>
-        /* ── Variables de tema (claro por defecto) ── */
+        /* ── Variables de tema (claro por defecto) ──
+           Los tokens propios de esta pantalla cuelgan de los globales de
+           themes.css, para que también siga al tema elegido en el navbar. */
         :root {
-            --suc-bg:        #F3F4F6;
-            --suc-card:      #FFFFFF;
-            --suc-card-sel:  #FFFFFF;
-            --suc-border:    #E5E7EB;
-            --suc-text:      #111827;
-            --suc-muted:     #6B7280;
+            --suc-bg:        var(--bg, #F3F4F6);
+            --suc-card:      var(--surface, #FFFFFF);
+            --suc-card-sel:  var(--surface, #FFFFFF);
+            --suc-border:    var(--line, #E5E7EB);
+            --suc-text:      var(--ink, #111827);
+            --suc-muted:     var(--ink-dim, #6B7280);
             --suc-pill-bg:   #FFFFFF;
             --suc-pill-text: #6B7280;
         }

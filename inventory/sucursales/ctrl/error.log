@@ -1,0 +1,52 @@
+[ 2026-09-19 13:22:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active AS active,
+                b.logo,
+                c.name AS company,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user
+            FROM branches b
+            INNER JOIN companies c ON c.id = b.company_id
+            INNER JOIN users u     ON u.id = ?
+            WHERE b.company_id = ?
+                AND b.is_active = 1
+                AND ( ? = 1
+                    OR b.id = (SELECT branch_id FROM users WHERE id = ?)
+                    OR b.id IN (SELECT branch_id FROM users_braches WHERE user_id = ?)
+                )
+            ORDER BY b.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.users_braches' doesn't exist
+
+
+[ 2026-09-19 13:21:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                b.id,
+                b.name,
+                b.ubication,
+                b.is_active AS active,
+                b.logo,
+                c.name AS company,
+                TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, ''))) AS user
+            FROM branches b
+            INNER JOIN companies c ON c.id = b.company_id
+            INNER JOIN users u     ON u.id = ?
+            WHERE b.company_id = ?
+                AND b.is_active = 1
+                AND ( ? = 1
+                    OR b.id = (SELECT branch_id FROM users WHERE id = ?)
+                    OR b.id IN (SELECT branch_id FROM users_braches WHERE user_id = ?)
+                )
+            ORDER BY b.name
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.users_braches' doesn't exist
+
+

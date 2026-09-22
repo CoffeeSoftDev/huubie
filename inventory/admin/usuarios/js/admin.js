@@ -1,10 +1,12 @@
 let api = 'ctrl/ctrl-admin.php';
 let app, users, profiles, udn;
 let statusFilter;
+let sucursalesData = [];
 
 $(async () => {
     const data = await useFetch({ url: api, data: { opc: "init" } });
     statusFilter = data.status;
+    sucursalesData = data.sucursales || [];
 
     app = new App(api, "root");
     users = new Users(api, "root");
@@ -108,18 +110,18 @@ class App extends Templates {
                                     <div class="text-sm text-blue-600">Agregar nuevo usuario al sistema</div>
                                 </div>
                             </button>
-                            <button onclick="profiles.addProfile()" class="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition">
-                                <i class="icon-shield text-purple-600"></i>
+                            <button onclick="profiles.addProfile()" class="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+                                <i class="icon-shield text-blue-600"></i>
                                 <div class="text-left">
-                                    <div class="font-semibold text-purple-900">Crear Perfil</div>
-                                    <div class="text-sm text-purple-600">Configurar nuevo perfil de acceso</div>
+                                    <div class="font-semibold text-blue-900">Crear Perfil</div>
+                                    <div class="text-sm text-blue-600">Configurar nuevo perfil de acceso</div>
                                 </div>
                             </button>
-                            <button onclick="udn.addUDN()" class="w-full flex items-center gap-3 p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition">
-                                <i class="icon-building text-orange-600"></i>
+                            <button onclick="udn.addUDN()" class="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+                                <i class="icon-building text-blue-600"></i>
                                 <div class="text-left">
-                                    <div class="font-semibold text-orange-900">Nueva Unidad</div>
-                                    <div class="text-sm text-orange-600">Agregar unidad de negocio</div>
+                                    <div class="font-semibold text-blue-900">Nueva Unidad</div>
+                                    <div class="text-sm text-blue-600">Agregar unidad de negocio</div>
                                 </div>
                             </button>
                         </div>
@@ -364,6 +366,9 @@ class Users extends Templates {
                 }
             }
         });
+
+        this.injectSucursalChips('add_sucursales_chips', []);
+        this.guardPasswordMatch('formUserAdd');
     }
 
     async editUser(idUser) {
@@ -378,6 +383,10 @@ class Users extends Templates {
         const user = request.data;
         delete user.key;
         delete user.key2;
+
+        const currentSubs = user.branch_ids
+            ? String(user.branch_ids).split(',').map(id => id.trim()).filter(id => id !== '')
+            : [];
 
         this.createModalForm({
             id: 'formUserEdit',
@@ -406,6 +415,8 @@ class Users extends Templates {
                 }
             }
         });
+
+        this.injectSucursalChips('edit_sucursales_chips', currentSubs);
     }
 
     deleteUser(idUser) {
@@ -517,6 +528,13 @@ class Users extends Templates {
                 required: true
             },
             {
+                opc: "select",
+                id: "branch_ids",
+                lbl: "Sucursales asignadas",
+                class: "col-12 mb-3",
+                data: sucursalesData
+            },
+            {
                 opc: "input",
                 id: "key",
                 lbl: isEdit ? "Nueva Contraseña (dejar vacío para no cambiar)" : "Contraseña",
@@ -526,7 +544,102 @@ class Users extends Templates {
             }
         ];
 
+        if (!isEdit) {
+            fields.push({
+                opc: "input",
+                id: "keyConfirm",
+                lbl: "Confirmar Contraseña",
+                type: "password",
+                class: "col-12 mb-3",
+                required: true
+            });
+        }
+
         return fields;
+    }
+
+    // -- Selector multiple de sucursal --
+
+    renderSucursalChips(containerId, selectedIds = []) {
+        const $container = $(`#${containerId}`).empty();
+
+        sucursalesData.forEach(s => {
+            const isSelected = selectedIds.includes(String(s.id));
+
+            const $chip = $('<span>', {
+                class: 'inline-flex items-center gap-1 me-1 mb-1 px-3 py-1 rounded-full border text-sm font-medium cursor-pointer select-none transition ' +
+                       (isSelected
+                           ? 'bg-[#C05A40] text-white border-[#C05A40]'
+                           : 'bg-white text-gray-600 border-gray-300 hover:border-[#C05A40]')
+            });
+
+            $chip.append($('<span>', { text: s.valor }));
+            if (isSelected) $chip.append($('<span>', { html: '&times;' }));
+
+            $chip.on('click', () => {
+                const idx = selectedIds.indexOf(String(s.id));
+                if (idx > -1) selectedIds.splice(idx, 1);
+                else selectedIds.push(String(s.id));
+                this.renderSucursalChips(containerId, selectedIds);
+            });
+
+            $container.append($chip);
+        });
+
+        $('#branch_ids').val(selectedIds.join(','));
+    }
+
+    // createModalForm no pinta multiseleccion: se saca el select que dejo el json
+    // y en su lugar quedan el hidden que viaja al ctrl y la caja de chips.
+    injectSucursalChips(chipsId, selectedIds = []) {
+        const $hidden = $('<input>', {
+            type:  'hidden',
+            id:    'branch_ids',
+            name:  'branch_ids',
+            value: selectedIds.join(',')
+        });
+
+        const $box = $('<div>', {
+            id:    chipsId,
+            class: 'flex flex-wrap bg-white border border-gray-200 rounded-lg p-2'
+        });
+
+        $('#branch_ids').replaceWith($hidden);
+        $hidden.after($box);
+
+        this.renderSucursalChips(chipsId, selectedIds);
+    }
+
+    // -- Doble confirmacion de contrasena --
+
+    // El boton Aceptar de createModalForm envia de inmediato y no expone un hook
+    // previo, asi que el click se intercepta en fase de captura sobre el modal:
+    // ahi todavia se puede frenar antes de que llegue al boton.
+    guardPasswordMatch(formId) {
+        const modal = $(`#${formId}`).closest('.modal')[0];
+        if (!modal) return;
+
+        modal.addEventListener('click', (e) => {
+            if (!e.target.closest('#btnSuccess')) return;
+            if ($('#key').val() === $('#keyConfirm').val()) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            alert({
+                icon: "error",
+                text: "Las contraseñas no coinciden",
+                btn1: true,
+                btn1Text: "Ok"
+            });
+        }, true);
+
+        // Aviso en vivo mientras se escribe, sin esperar al envio.
+        $('#key, #keyConfirm').on('input', () => {
+            const confirm = $('#keyConfirm').val();
+            const mismatch = confirm !== '' && confirm !== $('#key').val();
+            $('#keyConfirm').css('border-color', mismatch ? '#9D3434' : '');
+        });
     }
 }
 

@@ -23,19 +23,54 @@ body.dark-mode #containeralmacenMain {
 }
 
 /* ─────────────────────────────────────────────────────────────
- *  "Modo documento" para esta vista (catálogo / productos).
+ *  Aquí vivía un `main > #main__content > #root { flex: 0 0 auto }`.
  *
- *  El shell (general.css) deja #root como `flex:1; min-height:0`: un patrón
- *  pensado para vistas "modo app" cuyo contenido tiene su propio scroll
- *  interno. Esta vista NO lo tiene —la tabla crece libremente—, así que ese
- *  min-height:0 comprime #root al alto del viewport y la tabla se desborda
- *  hacia abajo SIN generar scroll (se "sale" del contenedor).
+ *  Soltaba #root para que tomara el alto de su contenido y así la tabla larga
+ *  no quedara comprimida. El efecto colateral: con la tabla vacía (o con pocas
+ *  filas) #root terminaba a media pantalla y debajo quedaba una franja gris.
  *
- *  Lo soltamos: #root toma el alto de su contenido y, cuando supera el
- *  viewport, el scroll vertical lo asume #main__content (overflow-y:auto).
- *  Sólo afecta a esta página porque almacen-sidebar.css lo carga únicamente
- *  index.php del módulo.
+ *  Se eliminó. #root vuelve al patrón del shell (`flex:1; min-height:0`) y la
+ *  altura se reparte con la cadena flex que arman almacen.js y catalogo.js:
+ *  cada nivel lleva `flex-1 min-h-0` hasta el contenedor de la tabla, que es
+ *  quien scrollea (`overflow-auto`) cuando hay muchas filas.
  * ───────────────────────────────────────────────────────────── */
-main > #main__content > #root {
-    flex: 0 0 auto;   /* alto = contenido, en vez de "llenar y comprimir" */
+
+/* ─────────────────────────────────────────────────────────────
+ *  Barra horizontal fantasma dentro del contenedor de la tabla.
+ *
+ *  DataTables (integración Bootstrap 5) arma sus controles con
+ *  `dom: "<'row'...><'row dt-row'...><'row'...>"`. Cada `.row` de Bootstrap
+ *  trae `margin-left/right` NEGATIVOS de media canaleta (~10.5px por lado),
+ *  pensados para que las `.col-*` de adentro —que sí llevan padding— queden
+ *  al ras. Margen negativo y padding se anulaban entre sí mientras el padre
+ *  tenía `overflow: visible`.
+ *
+ *  Al volver `#containerProducts` un contenedor con `overflow-auto`, ese
+ *  desborde dejó de ser invisible: son ~21px reales de ancho de más, así que
+ *  aparecía barra en X aunque la tabla cupiera de sobra.
+ *
+ *  Quitamos el margen negativo Y, en el mismo golpe, el padding de las
+ *  columnas que ese margen compensaba. La tabla queda exactamente donde
+ *  estaba; lo único que desaparece es la barra.
+ * ───────────────────────────────────────────────────────────── */
+#containeralmacenMain .dataTables_wrapper > .row {
+    margin-left: 0;
+    margin-right: 0;
 }
+
+#containeralmacenMain .dataTables_wrapper > .row > [class*="col-"] {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ *  El tamaño de letra de las tablas NO se toca aquí.
+ *
+ *  Aquí hubo un parche por id (#tbMateriales) para ganarle al !important
+ *  que compact.css le ponía a los font-size de tabla. Ese !important se
+ *  quitó (ver el bloque TABLES de src/css/compact.css), así que el tamaño
+ *  vuelve a mandarlo el `f_size` que cada módulo le pasa a createTable.
+ *
+ *  Si una tabla de este módulo se ve chica o grande, se mueve su `f_size`
+ *  en el JS, no se agrega una regla aquí.
+ * ───────────────────────────────────────────────────────────── */

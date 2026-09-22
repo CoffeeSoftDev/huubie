@@ -5,10 +5,44 @@ let sucursalesData = [];
 let dataInit = {};
 
 const USER_COLOR_PALETTE = [
-    '#C05A40', '#4A7C8F', '#6B7FAB', '#7A9E5F',
-    '#A06B3C', '#6A5FA8', '#4D8FA8', '#9E5F6B',
-    '#5F9E7A', '#8C6A3C'
+    '#F4B8A4', '#A9CBD4', '#B8C4E0', '#B7D9A0',
+    '#E8CBA0', '#C7B8E3', '#A3D0DE', '#E6B4C0',
+    '#A6DDBF', '#E0C68A'
 ];
+
+/*  La foto del colaborador se reduce a 320px y se entrega como dataURL: va a
+    salir siempre dentro de un círculo de 64px o menos, y así el POST no carga
+    con la foto original del celular. Mismo procedimiento que la evidencia de
+    mermas, con el lado más chico porque aquí es un avatar. */
+function compressAvatar(file, cb) {
+    const reader = new FileReader();
+
+    reader.onload = (ev) => {
+        const img = new Image();
+
+        img.onload = () => {
+            const max = 320;
+            let w = img.width, h = img.height;
+            if (w > max || h > max) {
+                const s = max / Math.max(w, h);
+                w = Math.round(w * s);
+                h = Math.round(h * s);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width  = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+            cb(canvas.toDataURL('image/jpeg', 0.85));
+        };
+
+        img.onerror = () => cb(ev.target.result);
+        img.src = ev.target.result;
+    };
+
+    reader.readAsDataURL(file);
+}
 
 // Notificación: éxito se cierra solo (sin botón => respeta el timer de alert()),
 // error mantiene botón para que el mensaje pueda leerse.
@@ -69,23 +103,17 @@ class App extends Templates {
         const total   = sucursalesData.length;
 
         const container = $('<div>', {
-            class: 'flex justify-between items-center px-2 pt-3 pb-3'
+            class: 'px-2 pt-3 pb-3'
         });
 
         container.html(`
-            <div>
-                <h2 class="text-2xl font-semibold">🏢 Administrador de Accesos</h2>
-                <p class="text-gray-400">
-                    Empresa: <span class="font-semibold text-gray-600">${company}</span>
-                    · Tienes acceso a
-                    <span class="font-semibold text-gray-600">${total}</span>
-                    sucursal${total !== 1 ? 'es' : ''}
-                </p>
-            </div>
-            <button class="bg-[#C05A40] hover:opacity-90 text-white font-semibold px-4 py-2 rounded transition flex items-center"
-                onclick="app.render()">
-                <i class="icon-arrows-cw mr-2"></i>Actualizar
-            </button>
+            <h2 class="text-2xl font-semibold">🏢 Administrador de Accesos</h2>
+            <p class="text-gray-400">
+                Empresa: <span class="font-semibold text-gray-600">${company}</span>
+                · Tienes acceso a
+                <span class="font-semibold text-gray-600">${total}</span>
+                sucursal${total !== 1 ? 'es' : ''}
+            </p>
         `);
 
         $(`#${options.parent}`).html(container);
@@ -289,7 +317,7 @@ class Users extends Templates {
     }
 
     addUser() {
-        this.createModalForm({
+        const modal = this.createModalForm({
             id: 'formUserAdd',
             data: { opc: 'addUser' },
             theme: 'light',
@@ -298,7 +326,11 @@ class Users extends Templates {
             json: this.jsonUser(false),
             success: (r) => this._afterSave(r)
         });
-        this.renderBranchesAndColor('formUserAdd', [], null);
+        this.injectSucursalChips('add_sucursales_chips', []);
+        this.renderPhotoPicker('formUserAdd', '', null);
+        this.renderColorSwatches('formUserAdd', null);
+        this.guardPasswordMatch(modal);
+        this.mountPasswordEyes();
     }
 
     async editUser(id) {
@@ -309,10 +341,10 @@ class Users extends Templates {
         }
 
         const data = request.data;
-        const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids.map(Number) : [];
+        const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids.map(String) : [];
         const color = data.color || null;
 
-        this.createModalForm({
+        const modal = this.createModalForm({
             id: 'formUserEdit',
             data: { opc: 'editUser', id: id },
             theme: 'light',
@@ -322,52 +354,143 @@ class Users extends Templates {
             json: this.jsonUser(true),
             success: (r) => this._afterSave(r)
         });
-        this.renderBranchesAndColor('formUserEdit', branchIds, color);
+        this.injectSucursalChips('edit_sucursales_chips', branchIds);
+        this.renderPhotoPicker('formUserEdit', data.photo_url || '', color);
+        this.renderColorSwatches('formUserEdit', color);
+        this.guardPasswordMatch(modal);
+        this.mountPasswordEyes();
     }
 
-    renderBranchesAndColor(formId, selectedBranchIds, selectedColor) {
-        const $form = $('#' + formId);
+    // -- Selector multiple de sucursal --
 
-        const $branchWrap = $('<div>', { class: 'col-12 mb-3' });
-        $branchWrap.append($('<label>', { class: 'form-label fw-semibold', text: 'Sucursales asignadas' }));
-        const $checkGroup = $('<div>', { class: 'flex flex-wrap gap-2 mt-1' });
+    renderSucursalChips(containerId, selectedIds = []) {
+        const $container = $('#' + containerId).empty();
 
-        sucursalesData.forEach(branch => {
-            const checked = selectedBranchIds.includes(Number(branch.id));
-            const $lbl = $('<label>', {
-                class: 'flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full border text-sm font-medium transition ' +
-                       (checked ? 'bg-[#C05A40] text-white border-[#C05A40]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#C05A40]')
-            });
-            const $chk = $('<input>', {
-                type: 'checkbox',
-                class: 'hidden branch-check',
-                value: branch.id,
-                checked: checked
-            });
-            $lbl.append($chk, $('<span>', { text: branch.valor }));
+        sucursalesData.forEach(s => {
+            const isSelected = selectedIds.includes(String(s.id));
 
-            $lbl.on('click', function () {
-                const $input = $(this).find('input');
-                const nowChecked = !$input.prop('checked');
-                $input.prop('checked', nowChecked);
-                if (nowChecked) {
-                    $(this).addClass('bg-[#C05A40] text-white border-[#C05A40]').removeClass('bg-white text-gray-600 border-gray-300');
-                } else {
-                    $(this).removeClass('bg-[#C05A40] text-white border-[#C05A40]').addClass('bg-white text-gray-600 border-gray-300');
-                }
-                const ids = $form.find('.branch-check:checked').map(function () { return $(this).val(); }).get();
-                $form.find('[name="branch_ids"]').val(JSON.stringify(ids));
+            const $chip = $('<span>', {
+                class: 'inline-flex items-center gap-1 me-1 mb-1 px-3 py-1 rounded-full border text-sm font-medium cursor-pointer select-none transition ' +
+                       (isSelected
+                           ? 'bg-blue-100 text-blue-700 border-blue-200'
+                           : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300')
             });
 
-            $checkGroup.append($lbl);
+            $chip.append($('<span>', { text: s.valor }));
+            if (isSelected) $chip.append($('<span>', { html: '&times;' }));
+
+            $chip.on('click', () => {
+                const idx = selectedIds.indexOf(String(s.id));
+                if (idx > -1) selectedIds.splice(idx, 1);
+                else selectedIds.push(String(s.id));
+                this.renderSucursalChips(containerId, selectedIds);
+            });
+
+            $container.append($chip);
         });
 
-        $branchWrap.append($checkGroup);
+        $('#branch_ids').val(selectedIds.join(','));
+    }
 
-        const initIds = selectedBranchIds.map(String);
-        $form.find('[name="branch_ids"]').val(JSON.stringify(initIds));
+    // jsonUser() pinta branch_ids como <select>; aqui se saca ese select y en
+    // su lugar quedan el hidden que viaja al ctrl y la caja de chips (mismo
+    // patron portado de admin/usuarios/js/admin.js, que a su vez viene de
+    // app/admin/src/js/app.js).
+    injectSucursalChips(chipsId, selectedIds = []) {
+        const $hidden = $('<input>', {
+            type: 'hidden', id: 'branch_ids', name: 'branch_ids', value: selectedIds.join(',')
+        });
+        const $box = $('<div>', {
+            id: chipsId, class: 'flex flex-wrap bg-white border border-gray-200 rounded-lg p-2'
+        });
 
-        const $colorWrap = $('<div>', { class: 'col-12 mb-3' });
+        const $select = $('#branch_ids');
+        $select.siblings().remove(); // quita el chevron que dejo el <select>
+        $select.replaceWith($hidden);
+        $hidden.after($box);
+
+        this.renderSucursalChips(chipsId, selectedIds);
+    }
+
+    // -- Foto del colaborador --
+
+    /*  La foto NO viaja como archivo: createModalForm manda el formulario por
+        useFetch, que arma un URLSearchParams, y ahí un File se vuelve
+        "[object File]". Por eso la imagen se comprime en el navegador y se
+        manda como dataURL en un campo de texto (`photo_b64`), igual que la
+        evidencia de mermas. `photo_clear` avisa cuando se quitó. */
+    renderPhotoPicker(formId, photoUrl, color) {
+        const $form = $('#' + formId);
+
+        const $b64   = $('<input>', { type: 'hidden', name: 'photo_b64',   value: '' });
+        const $clear = $('<input>', { type: 'hidden', name: 'photo_clear', value: '' });
+
+        const $avatar = $('<span>', {
+            class: 'w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-white',
+            css: { backgroundColor: color || '#9CA3AF' }
+        });
+
+        const $file = $('<input>', {
+            type: 'file', accept: 'image/*', class: 'hidden', id: formId + '_file'
+        });
+
+        const $pick = $('<label>', {
+            class: 'px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer',
+            text: 'Subir foto',
+            for: formId + '_file'
+        });
+
+        const $remove = $('<button>', {
+            type: 'button',
+            class: 'px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800',
+            text: 'Quitar'
+        });
+
+        // Sin foto queda el ícono blanco sobre el color, lo mismo que enseñan la
+        // navbar y el login.
+        const paint = (src) => {
+            $avatar.empty().append(src
+                ? $('<img>', { src: src, class: 'w-full h-full rounded-full object-cover' })
+                : $('<i>', { 'data-lucide': 'user', class: 'w-7 h-7' }));
+            $remove.toggle(!!src);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        $file.on('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            compressAvatar(file, (dataUrl) => {
+                paint(dataUrl);
+                $b64.val(dataUrl);
+                $clear.val('');
+            });
+        });
+
+        $remove.on('click', () => {
+            paint('');
+            $b64.val('');
+            $clear.val('1');
+            $file.val('');
+        });
+
+        const $wrap = $('<div>', { class: 'col-span-12 mb-3 flex items-center gap-3' })
+            .append($avatar, $pick, $remove, $file, $b64, $clear);
+
+        $form.prepend($wrap);
+        paint(photoUrl || '');
+    }
+
+    // El color elegido repinta el fondo del avatar sin recargar el formulario.
+    repaintPhotoBg(formId, hex) {
+        $('#' + formId).find('.w-16.h-16.rounded-full').css('backgroundColor', hex);
+    }
+
+    // -- Color del colaborador --
+
+    renderColorSwatches(formId, selectedColor) {
+        const $form = $('#' + formId);
+
+        const $colorWrap = $('<div>', { class: 'col-span-12 mb-3' });
         $colorWrap.append($('<label>', { class: 'form-label fw-semibold', text: 'Color del colaborador' }));
         const $swatches = $('<div>', { class: 'flex flex-wrap gap-2 mt-1' });
 
@@ -378,10 +501,11 @@ class Users extends Templates {
                 class: 'w-7 h-7 rounded-full border-2 transition ' + (isActive ? 'border-gray-800 scale-110' : 'border-transparent'),
                 css: { backgroundColor: hex }
             });
-            $swatch.on('click', function () {
+            $swatch.on('click', () => {
                 $swatches.find('button').removeClass('border-gray-800 scale-110').addClass('border-transparent');
-                $(this).removeClass('border-transparent').addClass('border-gray-800 scale-110');
+                $swatch.removeClass('border-transparent').addClass('border-gray-800 scale-110');
                 $form.find('[name="color"]').val(hex);
+                this.repaintPhotoBg(formId, hex);
             });
             $swatches.append($swatch);
         });
@@ -391,30 +515,81 @@ class Users extends Templates {
         }
 
         $colorWrap.append($swatches);
-
-        const $btnRow = $form.find('#btnSuccess').closest('.col-6').parent();
-        $btnRow.before($branchWrap, $colorWrap);
+        $form.find('[name="color"]').closest('div').after($colorWrap);
     }
 
-    changePassword(id) {
-        this.createModalForm({
-            id: 'formUserPassword',
-            data: { opc: 'changePassword', id: id },
-            theme: 'light',
-            coffeesoft: true,
-            bootbox: { title: 'Cambiar Contraseña' },
-            json: [
-                {
-                    opc: 'input',
-                    id: 'password',
-                    lbl: 'Nueva contraseña',
-                    type: 'password',
-                    class: 'col-12 mb-3',
-                    required: true
-                }
-            ],
-            success: (r) => notify(r)
+    // -- Doble confirmacion de contrasena --
+
+    // El cfModal no expone un hook previo al envio: el boton Aceptar dispara
+    // cfModalForm.trigger('submit') desde su propio click, y el atajo Enter
+    // llama onOk() desde un keydown en document. Se frenan los dos en fase de
+    // captura sobre el overlay, que corre antes que ambos manejadores.
+    guardPasswordMatch(modal) {
+        const btnOk = modal.footer.find('button').last()[0];
+        if (!btnOk) return;
+
+        const match = () => $('#password').val() === $('#password_confirmation').val();
+        const block = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            alert({ icon: 'error', text: 'Las contraseñas no coinciden', btn1: true });
+        };
+
+        modal.el[0].addEventListener('click', (e) => {
+            if (e.target.closest('button') !== btnOk) return;
+            if (match()) return;
+            block(e);
+        }, true);
+
+        modal.el[0].addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (tag !== 'input' && tag !== 'select') return;
+            if (match()) return;
+            block(e);
+        }, true);
+
+        $('#password, #password_confirmation').on('input', function () {
+            const confirm = $('#password_confirmation').val();
+            const mismatch = confirm !== '' && confirm !== $('#password').val();
+            $('#password_confirmation').css('border-color', mismatch ? '#9D3434' : '');
         });
+    }
+
+    // -- Ojo de contraseña --
+
+    mountPasswordEyes() {
+        ['password', 'password_confirmation'].forEach((id) => {
+            const $input = $('#' + id);
+            if (!$input.length) return;
+
+            $input.wrap($('<div>', { class: 'relative' }));
+            $input.addClass('pr-9');
+
+            const $btn = $('<button>', {
+                type: 'button',
+                id: id + '_eye',
+                class: 'absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-gray-600'
+            }).append($('<i>', { 'data-lucide': 'eye', class: 'w-4 h-4' }));
+
+            $btn.on('click', () => this.togglePasswordVisibility(id));
+
+            $input.after($btn);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    togglePasswordVisibility(id) {
+        const $input = $('#' + id);
+        const show = $input.attr('type') === 'password';
+        $input.attr('type', show ? 'text' : 'password');
+
+        $('#' + id + '_eye').empty().append($('<i>', {
+            'data-lucide': show ? 'eye-off' : 'eye',
+            class: 'w-4 h-4'
+        }));
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     toggleUser(id, active) {
@@ -459,12 +634,11 @@ class Users extends Templates {
                 required: true
             },
             {
-                opc: 'input',
+                opc: 'select',
                 id: 'branch_ids',
-                type: 'hidden',
-                lbl: '',
-                class: 'col-12',
-                required: false
+                lbl: 'Sucursales asignadas',
+                class: 'col-12 mb-3',
+                data: sucursalesData
             },
             {
                 opc: 'input',
@@ -476,15 +650,44 @@ class Users extends Templates {
             }
         ];
 
-        if (!isEdit) {
-            fields.push({
-                opc: 'input',
-                id: 'password',
-                lbl: 'Contraseña',
-                type: 'password',
-                class: 'col-12 mb-3',
-                required: true
-            });
+        if (isEdit) {
+            fields.push(
+                {
+                    opc: 'input',
+                    id: 'password',
+                    lbl: 'Nueva contraseña (vacío = no se modifica)',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: false
+                },
+                {
+                    opc: 'input',
+                    id: 'password_confirmation',
+                    lbl: 'Confirmar nueva contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: false
+                }
+            );
+        } else {
+            fields.push(
+                {
+                    opc: 'input',
+                    id: 'password',
+                    lbl: 'Contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: true
+                },
+                {
+                    opc: 'input',
+                    id: 'password_confirmation',
+                    lbl: 'Confirmar contraseña',
+                    type: 'password',
+                    class: 'col-12 mb-3',
+                    required: true
+                }
+            );
         }
 
         return fields;

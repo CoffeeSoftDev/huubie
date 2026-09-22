@@ -8,9 +8,26 @@
 #RewriteCond %{HTTPS} !=on
 #RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
+# SESION DE 8 HORAS
+# El default de PHP es gc_maxlifetime 1440 (24 min): pasado ese rato sin
+# actividad, el recolector puede borrar el archivo de sesion y el usuario
+# aparece deslogueado. Aqui se sube a 28800 (8 h) para todo /inventory.
+# Va dentro de <IfModule> porque php_value solo existe con PHP como modulo de
+# Apache; con PHP-FPM/CGI estas lineas darian Error 500 y asi se ignoran.
+<IfModule mod_php.c>
+    php_value session.gc_maxlifetime 28800
+    php_value session.cookie_lifetime 28800
+</IfModule>
+<IfModule mod_php7.c>
+    php_value session.gc_maxlifetime 28800
+    php_value session.cookie_lifetime 28800
+</IfModule>
+
 Options +FollowSymLinks
 RewriteEngine on
-RewriteBase /inventory/
+# Sin RewriteBase: Apache toma la carpeta de este .htaccess como base, así la
+# regla vale igual servido en /inventory/ que en /huubie/inventory/. Con el
+# /inventory/ escrito a mano, "salir" daba 404 en local.
 RewriteRule ^/$ index.php [L]
 RewriteRule ^salir$ acceso/ctrl/ctrl-logout.php [L]
 

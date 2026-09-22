@@ -52,7 +52,8 @@ class Category extends Templates {
 
     filterBarCategory() {
         const container = $("#container-categorias");
-        container.html('<div id="filterbar-category" class="mb-2"></div><div id="table-category"></div>');
+        // El panel del tab es flex-col: la tabla toma el alto sobrante y scrollea sola.
+        container.html('<div id="filterbar-category" class="mb-2 flex-shrink-0"></div><div id="table-category" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-category",
@@ -207,7 +208,7 @@ class Area extends Templates {
 
     filterBarArea() {
         const container = $("#container-areas");
-        container.html('<div id="filterbar-area" class="mb-2"></div><div id="table-area"></div>');
+        container.html('<div id="filterbar-area" class="mb-2 flex-shrink-0"></div><div id="table-area" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-area",
@@ -344,7 +345,7 @@ class Unit extends Templates {
 
     filterBarUnit() {
         const container = $("#container-unidades");
-        container.html('<div id="filterbar-unit" class="mb-2"></div><div id="table-unit"></div>');
+        container.html('<div id="filterbar-unit" class="mb-2 flex-shrink-0"></div><div id="table-unit" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-unit",
@@ -485,7 +486,7 @@ class Warehouse extends Templates {
 
     filterBarWarehouse() {
         const container = $("#container-warehouses");
-        container.html('<div id="filterbar-warehouse" class="mb-2"></div><div id="table-warehouse"></div>');
+        container.html('<div id="filterbar-warehouse" class="mb-2 flex-shrink-0"></div><div id="table-warehouse" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-warehouse",
@@ -658,7 +659,7 @@ class InflowOrigin extends Templates {
 
     filterBarInflow() {
         const container = $("#container-inflows");
-        container.html('<div id="filterbar-inflow" class="mb-2"></div><div id="table-inflow"></div>');
+        container.html('<div id="filterbar-inflow" class="mb-2 flex-shrink-0"></div><div id="table-inflow" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-inflow",
@@ -831,7 +832,7 @@ class ShrinkageReason extends Templates {
 
     filterBarShrinkage() {
         const container = $("#container-shrinkages");
-        container.html('<div id="filterbar-shrinkage" class="mb-2"></div><div id="table-shrinkage"></div>');
+        container.html('<div id="filterbar-shrinkage" class="mb-2 flex-shrink-0"></div><div id="table-shrinkage" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-shrinkage",
@@ -994,7 +995,7 @@ class Supplier extends Templates {
 
     filterBarSupplier() {
         const container = $("#container-suppliers");
-        container.html('<div id="filterbar-supplier" class="mb-2"></div><div id="table-supplier"></div>');
+        container.html('<div id="filterbar-supplier" class="mb-2 flex-shrink-0"></div><div id="table-supplier" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-supplier",
@@ -1151,7 +1152,7 @@ class TransferStatus extends Templates {
 
     filterBarTransferStatus() {
         const container = $("#container-transfer-status");
-        container.html('<div id="filterbar-transfer-status" class="mb-2"></div><div id="table-transfer-status"></div>');
+        container.html('<div id="filterbar-transfer-status" class="mb-2 flex-shrink-0"></div><div id="table-transfer-status" class="flex-1 min-h-0 overflow-auto"></div>');
 
         this.createfilterBar({
             parent: "filterbar-transfer-status",

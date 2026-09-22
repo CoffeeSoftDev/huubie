@@ -279,18 +279,10 @@ class AccesosGroup extends Templates {
             content: { class: 'flex-1 min-h-0 flex flex-col' },
             json: [
                 {
-                    id: 'permisos',
-                    tab: 'Permisos',
-                    lucideIcon: 'shield-check',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    active: true,
-                    onClick: () => { permissions.render(); permissions.lsPermissions(); }
-                },
-                {
                     id: 'modulos',
                     tab: 'Módulos',
                     lucideIcon: 'layout-grid',
-               
+                    active: true,
                     onClick: () => { modules.render(); modules.lsModules(); }
                 },
                 {
@@ -312,6 +304,13 @@ class AccesosGroup extends Templates {
                     onClick: () => { roles.render(); roles.lsRoles(); }
                 },
                 {
+                    id: 'permisos',
+                    tab: 'Permisos',
+                    lucideIcon: 'shield-check',
+                    class: 'flex-1 min-h-0 flex flex-col',
+                    onClick: () => { permissions.render(); permissions.lsPermissions(); }
+                },
+                {
                     id: 'usuarios',
                     tab: 'Usuarios',
                     lucideIcon: 'user-cog',
@@ -323,13 +322,12 @@ class AccesosGroup extends Templates {
                     lucideIcon: 'key-round',
                     onClick: () => { typePermissions.render(); typePermissions.lsTypePermissions(); }
                 },
-           
             ]
         });
     }
 
     renderActiveTab() {
-        permissions.render();
-        permissions.lsPermissions();
+        modules.render();
+        modules.lsModules();
     }
 }

@@ -169,14 +169,16 @@ class mdl extends CRUD {
         return $result[0]['count'] > 0;
     }
 
-    function getNextSku() {
+    // Solo LLENA el SKU: si el producto ya tiene uno, no se toca.
+    function updateItemAttributeSku($array) {
+        // [sku, item_id]
         $query = "
-            SELECT COALESCE(MAX(id), 0) + 1 as next_id
-            FROM {$this->bd}item
+            UPDATE {$this->bd}item_attribute
+               SET sku = ?
+             WHERE item_id = ?
+               AND (sku IS NULL OR sku = '')
         ";
-        $result = $this->_Read($query, []);
-        $nextId = $result[0]['next_id'];
-        return 'ITM-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+        return $this->_CUD($query, $array);
     }
 
     function createMaterial($data) {
