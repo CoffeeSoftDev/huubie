@@ -29,20 +29,29 @@ class ModuleCard {
                 gap:    'gap-x-3 gap-y-6',
                 height: 'h-[180px]',
             },
+            // Medidas de la tarjeta. La pantalla de Módulos las sube a las de
+            // erp-pro (pro/app/home); el facturador se queda con estas.
+            card: {
+                padding: 'p-3',
+                radius:  'rounded-xl',
+                icon:    'w-10 h-10 rounded-lg',
+            },
             cards: [],
-            // Paleta light + terracota (#C05A40). Card blanca con borde gris e ícono terracota suave.
+            // Tokens de página del tema (themes.css; en página oscura, dark-mode.css
+            // los cambia por las superficies --dk-*). Respaldo: la paleta clara.
             colors: {
-                titleC:    '#111827',
-                subC:      '#6B7280',
-                cardBg:    '#FFFFFF',
-                cardHover: '#F9FAFB',
-                iconBg:    '#FBEAE5',  // terracota muy suave
-                iconC:     '#C05A40',  // ícono terracota
-                inputBg:   '#FFFFFF',
-                inputBd:   '#E5E7EB',
-                kbdBg:     '#F3F4F6',
-                kbdC:      '#6B7280',
-                cardBd:    '#E5E7EB',
+                titleC:    'var(--ink, #111827)',
+                subC:      'var(--ink-dim, #6B7280)',
+                // En oscuro, la card de módulo de Huubie (#333D4C); en claro, blanca.
+                cardBg:    'var(--surface-raised, var(--surface, #FFFFFF))',
+                cardHover: 'var(--surface-hover, #F9FAFB)',
+                iconBg:    'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))',
+                iconC:     'rgb(var(--brand-600, 192 90 64))',
+                inputBg:   'var(--surface, #FFFFFF)',
+                inputBd:   'var(--line, #E5E7EB)',
+                kbdBg:     'var(--bg, #F3F4F6)',
+                kbdC:      'var(--ink-dim, #6B7280)',
+                cardBd:    'var(--line, #E5E7EB)',
             },
             font: 'poppins', // clase .font-poppins definida en la página (carga Poppins)
         };
@@ -52,6 +61,7 @@ class ModuleCard {
         s.header        = Object.assign({}, defaults.header,        o.header || {});
         s.header.search = Object.assign({}, defaults.header.search, (o.header || {}).search || {});
         s.grid          = Object.assign({}, defaults.grid,          o.grid   || {});
+        s.card          = Object.assign({}, defaults.card,          o.card   || {});
         s.colors        = Object.assign({}, defaults.colors,        o.colors || {});
         return s;
     }
@@ -134,7 +144,7 @@ class ModuleCard {
             id:          this.uid + '_search',
             type:        'text',
             placeholder: h.search.placeholder,
-            class:       `${h.search.width} pl-9 pr-14 py-2 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C05A40]/30`,
+            class:       `${h.search.width} pl-9 pr-14 py-2 rounded-xl text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30`,
         }).css({
             'background-color': s.colors.inputBg,
             'border':           `1px solid ${s.colors.inputBd}`,
@@ -174,17 +184,17 @@ class ModuleCard {
         let $icon;
         if (item.imagen) {
             $icon = $('<img>', {
-                class: `w-10 h-10 ${item.padding || ''} rounded-lg p-1`,
+                class: `${s.card.icon} ${item.padding || ''} p-1`,
                 src:   item.imagen,
                 alt:   item.titulo || '',
             }).css('background-color', s.colors.iconBg);
         } else if (item.icon) {
             $icon = $('<div>', {
-                class: 'w-10 h-10 rounded-lg flex items-center justify-center',
+                class: `${s.card.icon} flex items-center justify-center`,
                 html:  `<i data-lucide="${item.icon}" class="w-5 h-5"></i>`,
             }).css({ 'background-color': s.colors.iconBg, 'color': s.colors.iconC });
         } else {
-            $icon = $('<div>', { class: 'w-10 h-10 rounded-lg' }).css('background-color', s.colors.iconBg);
+            $icon = $('<div>', { class: s.card.icon }).css('background-color', s.colors.iconBg);
         }
 
         // --- Badge superior derecho (verde por defecto, estilo "ACTIVO") ---
@@ -225,7 +235,7 @@ class ModuleCard {
         }
 
         return $('<div>', {
-            class:        `module-card-item group w-full ${s.grid.height} rounded-xl shadow-sm p-3 flex flex-col cursor-pointer transition duration-300 hover:-translate-y-0.5 hover:shadow-md`,
+            class:        `module-card-item group w-full ${s.grid.height} ${s.card.radius} shadow-sm ${s.card.padding} flex flex-col cursor-pointer transition duration-300 hover:-translate-y-0.5 hover:shadow-md`,
             'data-idx':   idx,
             'data-title': (item.titulo || '').toLowerCase(),
         }).css({

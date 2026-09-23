@@ -23,19 +23,21 @@
     <link rel="stylesheet" href="../src/plugin/select2/bootstrap/select2-bootstrap-5-theme.min.css">
 
     <!--PERSONALIZADO-->
-    <link rel="stylesheet" href="../src/css/general.css">
-    <link rel="stylesheet" href="../src/css/colors.css">
+    <link rel="stylesheet" href="../src/css/general.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/general.css'); ?>">
+    <!-- Las hojas y el script del tema van versionados con filemtime(): al
+         cambiar el tema el navegador no puede servir una copia vieja. -->
+    <link rel="stylesheet" href="../src/css/colors.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/colors.css'); ?>">
     <link rel="stylesheet" href="../src/css/table.css">
     <link rel="stylesheet" href="../src/css/buttons.css">
-    <link rel="stylesheet" href="../src/css/background.css">
+    <link rel="stylesheet" href="../src/css/background.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/background.css'); ?>">
     <link rel="stylesheet" href="../src/css/text.css">
-    <link rel="stylesheet" href="../src/css/style.css">
-    <link rel="stylesheet" href="../src/css/sidebar.css">
+    <link rel="stylesheet" href="../src/css/style.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/style.css'); ?>">
+    <link rel="stylesheet" href="../src/css/sidebar.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/sidebar.css'); ?>">
 
     <!-- CDN TAILWIND -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tema Arcilla Invernal (blue → terracota) -->
-    <script src="../src/js/tailwind-theme.js"></script>
+    <script src="../src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/tailwind-theme.js'); ?>"></script>
 
         <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -45,4 +47,4 @@
 
     <!-- Tokens del tema activo. Va al final: redefine lo que las hojas de arriba
          dejaron con el color clavado. -->
-    <link rel="stylesheet" href="../src/css/themes.css">
+    <link rel="stylesheet" href="../src/css/themes.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/themes.css'); ?>">

@@ -189,7 +189,7 @@ class ModulosView extends Templates {
             parent: 'viewHeader',
             id:     `hdr${this.PROJECT_NAME}`,
             json: Object.assign({}, VIEW_HEADER_FACTURADOR, {
-                titleHtml: `${VIEW_HEADER_FACTURADOR.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(periodo)}</span>`
+                titleHtml: `${VIEW_HEADER_FACTURADOR.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(periodo)}</span>`
             })
         });
     }
@@ -352,7 +352,7 @@ class ModulosView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,rgb(var(--brand-600, 192 90 64)))',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {

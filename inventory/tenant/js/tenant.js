@@ -1,7 +1,8 @@
 let api = 'ctrl/ctrl-tenant.php';
 let app, facturacion, promociones, accesos;
 let companies, plans, subscriptions, payments, coupons, redemptions;
-let modules, submodules, sections, typePermissions, roles, permissions, users;
+let modules, submodules, sections, typePermissions, roles, permissions, users, branches;
+let themes;
 let dataInit = {};
 
 // -- Helpers --
@@ -17,6 +18,14 @@ function notify(r) {
 function afterSave(response, reload) {
     notify(response);
     if (response && response.status == 200 && typeof reload === 'function') reload();
+}
+
+// Escapa el nombre del registro que se pinta en el titulo de los modales de
+// edicion (Empresa, Plan, Cupon, Submodulo, Seccion, Rol, Tipo de permiso).
+// Global y unico para no repetir esta misma funcion en cada clase de saas.js
+// y access.js (Modules y Permissions ya traian su propia copia privada).
+function esc(t) {
+    return (t == null ? '' : String(t)).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 // Convierte un texto a slug: minúsculas, sin acentos, espacios -> guiones.
@@ -53,6 +62,8 @@ $(async () => {
     roles           = new Roles(api, 'root');
     permissions     = new Permissions(api, 'root');
     users           = new Users(api, 'root');
+    branches        = new Branches(api, 'root');
+    themes          = new Themes('ctrl/ctrl-temas.php', 'root');
 
     facturacion = new FacturacionGroup(api, 'root');
     promociones = new PromocionesGroup(api, 'root');
@@ -140,6 +151,13 @@ class App extends Templates {
                     class: 'p-3 flex-1 min-h-0 flex flex-col',
                     lucideIcon: 'ticket-percent',
                     onClick: () => promociones.render()
+                },
+                {
+                    id: 'grp-personalizacion',
+                    tab: 'Personalización',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
+                    lucideIcon: 'palette',
+                    onClick: () => themes.render()
                 },
             ]
         });
@@ -315,6 +333,12 @@ class AccesosGroup extends Templates {
                     tab: 'Usuarios',
                     lucideIcon: 'user-cog',
                     onClick: () => { users.render(); users.lsUsers(); }
+                },
+                {
+                    id: 'sucursales',
+                    tab: 'Sucursales',
+                    lucideIcon: 'map-pin',
+                    onClick: () => branches.render()
                 },
                 {
                     id: 'tipos-permiso',

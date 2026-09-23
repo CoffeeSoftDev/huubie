@@ -173,11 +173,15 @@ class mdl extends CRUD {
 
     function qSubscription($array) {
         // [id]
+        // El JOIN con companies es solo para el titulo del modal de edicion:
+        // la suscripcion no tiene nombre propio, se identifica por su empresa.
         $query = "
-            SELECT id, company_id, plan_id, status,
-                   starts_at, ends_at, next_billing_date, external_reference
-            FROM {$this->bd}subscriptions
-            WHERE id = ?
+            SELECT s.id, s.company_id, s.plan_id, s.status,
+                   s.starts_at, s.ends_at, s.next_billing_date, s.external_reference,
+                   c.name AS company_name
+            FROM {$this->bd}subscriptions s
+            LEFT JOIN {$this->bd}companies c ON c.id = s.company_id
+            WHERE s.id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
@@ -262,11 +266,15 @@ class mdl extends CRUD {
 
     function qPayment($array) {
         // [id]
+        // Igual que en qSubscription: el pago no tiene nombre propio, el titulo
+        // del modal lo identifica por la empresa a la que pertenece.
         $query = "
-            SELECT id, company_id, subscription_id, amount, currency, status,
-                   gateway, transaction_id, paid_at, invoice_url
-            FROM {$this->bd}payment_history
-            WHERE id = ?
+            SELECT p.id, p.company_id, p.subscription_id, p.amount, p.currency, p.status,
+                   p.gateway, p.transaction_id, p.paid_at, p.invoice_url,
+                   c.name AS company_name
+            FROM {$this->bd}payment_history p
+            LEFT JOIN {$this->bd}companies c ON c.id = p.company_id
+            WHERE p.id = ?
             LIMIT 1
         ";
         $r = $this->_Read($query, $array);
@@ -842,6 +850,171 @@ class mdl extends CRUD {
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
+    }
+
+    /* ===== Sucursales (branches) ===== */
+
+    // Empresas activas con el resumen de sus sucursales, para el selector de empresa.
+    function qCompaniesBranchSummary() {
+        $query = "
+            SELECT
+                c.id,
+                c.name,
+                COUNT(b.id) AS total_branches,
+                COALESCE(SUM(b.is_active = 1), 0) AS active_branches,
+                (
+                    SELECT COUNT(*)
+                    FROM {$this->bd}users_braches ub
+                    INNER JOIN {$this->bd}branches b2 ON b2.id = ub.branch_id
+                    WHERE b2.company_id = c.id
+                ) AS assignments
+            FROM {$this->bd}companies c
+            LEFT JOIN {$this->bd}branches b ON b.company_id = c.id
+            WHERE c.status = 'active'
+            GROUP BY c.id, c.name
+            ORDER BY c.name ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    function qBranches($array) {
+        // [company_id]
+        $query = "
+            SELECT
+                b.id, b.name, b.ubication, b.is_active,
+                DATE_FORMAT(b.created_at, '%d/%m/%Y') AS created,
+                (
+                    SELECT COUNT(*)
+                    FROM {$this->bd}users_braches ub
+                    WHERE ub.branch_id = b.id
+                ) AS users
+            FROM {$this->bd}branches b
+            WHERE b.company_id = ?
+            ORDER BY b.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qBranch($array) {
+        // [id]
+        $query = "SELECT id, name, ubication, is_active, company_id FROM {$this->bd}branches WHERE id = ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // Una fila por asignación (usuario + rol) de todas las sucursales de la empresa.
+    function qBranchAssignments($array) {
+        // [company_id]
+        $query = "
+            SELECT
+                ub.id        AS assignment_id,
+                ub.branch_id AS branch_id,
+                ub.role_id   AS role_id,
+                u.id         AS user_id,
+                u.name, u.last_name, u.email,
+                r.name       AS role_name
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            INNER JOIN {$this->bd}users u    ON u.id = ub.user_id
+            LEFT JOIN {$this->bd}roles r     ON r.id = ub.role_id
+            WHERE b.company_id = ?
+            ORDER BY u.name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    // Usuarios activos de la empresa: candidatos del modal "Añadir usuario".
+    function qUsersForBranchAssign($array) {
+        // [company_id]
+        $query = "
+            SELECT id, TRIM(CONCAT(name, ' ', COALESCE(last_name, ''))) AS valor
+            FROM {$this->bd}users
+            WHERE company_id = ? AND status = 'active'
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function qBranchNameExists($array) {
+        // [name, company_id]
+        $query = "SELECT id FROM {$this->bd}branches WHERE LOWER(name) = LOWER(?) AND company_id = ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && count($r) > 0;
+    }
+
+    function qBranchNameExistsExcept($array) {
+        // [name, company_id, id]
+        $query = "SELECT id FROM {$this->bd}branches WHERE LOWER(name) = LOWER(?) AND company_id = ? AND id <> ? LIMIT 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && count($r) > 0;
+    }
+
+    function qCountActiveBranches($array) {
+        // [company_id]
+        $query = "SELECT COUNT(*) AS total FROM {$this->bd}branches WHERE company_id = ? AND is_active = 1";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['total'] : 0;
+    }
+
+    function qCountBranchAssignments($array) {
+        // [branch_id]
+        $query = "SELECT COUNT(*) AS total FROM {$this->bd}users_braches WHERE branch_id = ?";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['total'] : 0;
+    }
+
+    // Plan vigente de la empresa: el de su suscripción activa o en prueba más reciente.
+    // INNER JOIN a propósito: una suscripción que apunta a un plan borrado cuenta como "sin plan".
+    function qPlanActiveByCompany($array) {
+        // [company_id]
+        $query = "
+            SELECT p.id, p.name, p.max_branches
+            FROM {$this->bd}subscriptions s
+            INNER JOIN {$this->bd}plans p ON p.id = s.plan_id
+            WHERE s.company_id = ? AND s.status IN ('active', 'trial')
+            ORDER BY s.id DESC
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    function qInsertBranch($array) {
+        // [name, ubication, company_id]
+        $query = "
+            INSERT INTO {$this->bd}branches (name, ubication, company_id, is_active, created_at)
+            VALUES (?, ?, ?, 1, NOW())
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function qUpdateBranch($array) {
+        // [name, ubication, id]
+        $query = "UPDATE {$this->bd}branches SET name = ?, ubication = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qSetBranchActive($array) {
+        // [is_active, id]
+        $query = "UPDATE {$this->bd}branches SET is_active = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
+    function qAssignment($array) {
+        // [id]
+        $query = "
+            SELECT ub.id, ub.user_id, ub.branch_id, ub.role_id, b.company_id
+            FROM {$this->bd}users_braches ub
+            INNER JOIN {$this->bd}branches b ON b.id = ub.branch_id
+            WHERE ub.id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
     /* ===== Usuarios y su rol por sucursal (users_braches) ===== */

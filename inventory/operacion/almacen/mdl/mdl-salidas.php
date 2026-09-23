@@ -84,7 +84,7 @@ class mdl extends CRUD {
                 i.name                                     AS nombre,
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
-                COALESCE(ia.cost_unit, i.price, 0)         AS costo,
+                COALESCE(ia.cost_unit, 0)                  AS costo,
                 i.price                                    AS precio,
                 i.image                                    AS image
             FROM {$this->bd}item i
@@ -257,11 +257,13 @@ class mdl extends CRUD {
                 i.name AS product_name,
                 ia.sku,
                 i.category_id,
-                ic.name AS category_name
+                ic.name AS category_name,
+                wa.name AS area_name
             FROM {$this->bd}detail_inventory_shrinkage d
             INNER JOIN {$this->bd}item i ON i.id = d.item_id
             LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT  JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT  JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
             WHERE d.inventory_shrinkage_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";

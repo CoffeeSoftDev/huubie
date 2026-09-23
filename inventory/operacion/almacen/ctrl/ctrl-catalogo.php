@@ -23,7 +23,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'category.editCategory(' . $item['id'] . ')'
                 ];
@@ -43,7 +43,6 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'              => $item['id'],
                 'Categoría'       => $item['valor'],
-                'Almacén'         => $item['warehouse_name'] ?? '—',
                 'Estado'          => renderStatus($item['active']),
                 'a'               => $a
             ];
@@ -85,9 +84,6 @@ class ctrl extends mdl {
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
 
-        // El select envía '' cuando no se elige almacén → NULL para respetar la FK.
-        $_POST['warehouse_id'] = ($_POST['warehouse_id'] ?? '') === '' ? null : $_POST['warehouse_id'];
-
         $exists = $this->existsCategoryByName([$_POST['name']]);
 
         if ($exists > 0) {
@@ -113,9 +109,6 @@ class ctrl extends mdl {
     function editCategory() {
         $status  = 500;
         $message = 'Error al editar categoría';
-
-        // El select envía '' cuando no se elige almacén → NULL para respetar la FK.
-        $_POST['warehouse_id'] = ($_POST['warehouse_id'] ?? '') === '' ? null : $_POST['warehouse_id'];
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         // El form inyecta los inputs despues del 'id', asi que lo reubicamos al final.
@@ -168,7 +161,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'area.editArea(' . $item['id'] . ')'
                 ];
@@ -299,7 +292,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'unit.editUnit(' . $item['id'] . ')'
                 ];
@@ -432,7 +425,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'inflow.editInflow(' . $item['id'] . ')'
                 ];
@@ -565,7 +558,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'shrinkage.editShrinkage(' . $item['id'] . ')'
                 ];
@@ -697,7 +690,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'transferStatus.editTransferStatus(' . $item['id'] . ')'
                 ];
@@ -794,7 +787,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.editWarehouse(' . $item['id'] . ')'
                 ];
@@ -815,7 +808,6 @@ class ctrl extends mdl {
                 'id'          => $item['id'],
                 'Almacén'     => $item['valor'],
                 'Sucursal'    => $item['branch_name'] ?? '—',
-                'Área'        => $item['area_name'] ?? '—',
                 'Por defecto' => ($item['is_default'] == 1 ? 'Sí' : 'No'),
                 'Estado'      => renderStatus($item['active']),
                 'a'           => $a
@@ -935,7 +927,7 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.editSupplier(' . $item['id'] . ')'
                 ];
@@ -1060,20 +1052,6 @@ class ctrl extends mdl {
     }
 
     // Catalogos auxiliares para selects de formularios
-    function lsAreasSelect() {
-        return [
-            'status' => 200,
-            'data'   => $this->listAreasSelect()
-        ];
-    }
-
-    function lsWarehousesSelect() {
-        return [
-            'status' => 200,
-            'data'   => $this->listWarehousesSelect()
-        ];
-    }
-
     function lsBranchesSelect() {
         $companyId = $_SESSION['company_id'] ?? 0;
 

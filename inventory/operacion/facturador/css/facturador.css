@@ -25,7 +25,8 @@
 #root .b-green  { background: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
 #root .b-red    { background: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
 #root .b-yellow { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
-#root .b-terra  { background: #F5E3DC; color: #A84A33; border-color: #F0C4B5; }
+/* "terra" por historia: sigue al acento del tema (en Claro, terracota). */
+#root .b-terra  { background: rgb(var(--brand-100, 247 227 220)); color: rgb(var(--brand-700, 168 74 51)); border-color: rgb(var(--brand-200, 239 201 188)); }
 #root .b-gray   { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
 #root .b-blue   { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
 
@@ -34,7 +35,7 @@
 
 /* -- Barra de progreso de la meta -- */
 #root .prog-track { height: 10px; border-radius: 9999px; background: #E5E7EB; overflow: hidden; }
-#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #C05A40, #E08A70); transition: width .5s ease; }
+#root .prog-fill  { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, rgb(var(--brand-600, 192 90 64)), rgb(var(--brand-400, 217 130 106))); transition: width .5s ease; }
 
 /* -- Zona de carga de Excel -- */
 #root .upload-zone {
@@ -49,7 +50,7 @@
     background: #fff;
 }
 
-#root .upload-zone:hover { border-color: #C05A40; background: #FBF1ED; }
+#root .upload-zone:hover { border-color: rgb(var(--brand-600, 192 90 64)); background: rgb(var(--brand-50, 251 243 239)); }
 #root .upload-zone.pending:hover { border-color: #F59E0B; background: #FFFBEB; }
 
 #root .excel-badge {

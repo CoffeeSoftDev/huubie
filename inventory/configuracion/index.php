@@ -16,11 +16,11 @@ $embed = isset($_GET['embed']);
 ?>
 
 <!-- CoffeeSoft Framework -->
-<script src="../src/js/coffeeSoft.js"></script>
+<script src="../src/js/coffeeSoft.js?v=<?php echo filemtime(__DIR__ . '/../src/js/coffeeSoft.js'); ?>"></script>
 <script src="../src/js/complementos.js"></script>
 <script src="../src/js/plugin-form.js"></script>
 
-<link rel="stylesheet" href="../src/css/dark-mode.css">
+<link rel="stylesheet" href="../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../src/css/dark-mode.css'); ?>">
 
 <!-- Forzar modales (bootbox) en light theme aunque el body este en dark-mode -->
 <style>
@@ -97,7 +97,7 @@ $embed = isset($_GET['embed']);
 
     <?php if (!$embed): ?>
     <!-- Importación navbar y sidebar -->
-    <script src="../acceso/src/js/navbar.js"></script>
+    <script src="../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../acceso/src/js/navbar.js'); ?>"></script>
     <!-- <script src="../acceso/src/js/sidebar.js"></script> -->
     <?php endif; ?>
 

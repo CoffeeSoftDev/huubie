@@ -77,7 +77,7 @@ const SAMPLE_CARGAS_ARCHIVOS = {
             { id: 'stTickets', title: 'Tickets',       valor: '3,821',         color: 'text-gray-800'    },
             { id: 'stPagos',   title: 'Pagos',         valor: '3,909',         color: 'text-gray-800'    },
             { id: 'stVenc',    title: 'Vencidos',      valor: '3,565',         color: 'text-gray-800'    },
-            { id: 'stCtrl',    title: 'Control total', valor: '$2,644,933.30', color: 'text-[#C05A40]'   }
+            { id: 'stCtrl',    title: 'Control total', valor: '$2,644,933.30', color: 'text-blue-600'   }
         ]
     },
     'commands': {
@@ -108,8 +108,8 @@ const SAMPLE_CARGAS_HOJAS = [
         icon:      'credit-card',
         titulo:    'Pagos',
         detalle:   'columnas A:H · fila 8 · 3,909 pagos',
-        bgClass:   'bg-[#FBF3EF] border border-[#F7E3DC]',
-        iconClass: 'text-[#C05A40]'
+        bgClass:   'bg-blue-50 border border-blue-100',
+        iconClass: 'text-blue-600'
     }
 ];
 

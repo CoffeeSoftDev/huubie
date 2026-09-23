@@ -112,10 +112,9 @@ class mdl extends CRUD {
                 i.name                                     AS nombre,
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
-                COALESCE(ia.cost_unit, i.price, 0)         AS costo,
-                i.price                                    AS precio,
-                i.price_without_tax                        AS price_without_tax,
-                i.tax                                      AS tax,
+                COALESCE(ia.cost_unit, 0)                  AS costo_sin_iva,
+                COALESCE(ia.cost_tax, i.tax, 0)            AS iva_compra,
+                ROUND(COALESCE(ia.cost_unit, 0) * (1 + COALESCE(ia.cost_tax, i.tax, 0) / 100), 2) AS costo,
                 i.image                                    AS image
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
@@ -489,11 +488,14 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    function updateItemTax($array) {
+    // Ultimo costo de compra: base sin IVA y tasa de la compra, en item_attribute.
+    // item.price es el precio de venta y la recepcion ya no lo toca.
+    function updateItemCost($array) {
+        // [cost_unit, cost_tax, item_id, companies_id]
         $query = "
-            UPDATE {$this->bd}item
-            SET price = ?, price_without_tax = ?, tax = ?
-            WHERE id = ? AND companies_id = ?
+            UPDATE {$this->bd}item_attribute
+            SET cost_unit = ?, cost_tax = ?
+            WHERE item_id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
     }

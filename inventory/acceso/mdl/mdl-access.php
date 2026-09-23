@@ -322,7 +322,7 @@ class MAccess extends CRUD {
     // Catalogo de temas activos para el selector de la barra.
     function getThemes() {
         $query = "
-            SELECT code, name, color, accent, mode, badge, is_default, orden
+            SELECT code, name, tipo, color, image, accent, primary_color, secondary_color, scheme, mode, badge, is_default, orden
             FROM {$this->bd}themes
             WHERE is_active = 1
             ORDER BY orden ASC, id ASC

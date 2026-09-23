@@ -10,7 +10,7 @@ require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
 
-<link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
 <script src="../../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/plugins.js?t=<?php echo time(); ?>"></script>
@@ -32,7 +32,7 @@ require_once('layout/core-libraries.php');
         </div>
     </main>
 
-    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
     <script src="js/dashboard.js?t=<?php echo time(); ?>"></script>
 

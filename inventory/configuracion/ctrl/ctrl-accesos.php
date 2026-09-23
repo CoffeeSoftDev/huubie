@@ -194,7 +194,7 @@ class ctrl extends mdl {
 
             $branchNames = $u['branch_names']
                 ? implode('', array_map(function($n) {
-                    return '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#f3e8e4] text-[#C05A40] mr-1 mb-0.5">' . trim($n) . '</span>';
+                    return '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-600 mr-1 mb-0.5">' . trim($n) . '</span>';
                   }, explode(',', $u['branch_names'])))
                 : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 

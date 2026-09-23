@@ -12,8 +12,8 @@ require_once('layout/core-libraries.php');
 ?>
 
 <!-- CoffeeSoft Framework (el navbar usa useFetch) -->
-<script src="../src/js/coffeeSoft.js"></script>
-<link rel="stylesheet" href="../src/css/dark-mode.css">
+<script src="../src/js/coffeeSoft.js?v=<?php echo filemtime(__DIR__ . '/../src/js/coffeeSoft.js'); ?>"></script>
+<link rel="stylesheet" href="../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../src/css/dark-mode.css'); ?>">
 
 <style>
     /* El módulo se embebe a todo el alto del área de contenido (sin su propio
@@ -34,7 +34,7 @@ require_once('layout/core-libraries.php');
     </main>
 
     <!-- Navbar y sidebar del módulo root -->
-    <script src="../acceso/src/js/navbar.js"></script>
+    <script src="../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../acceso/src/js/sidebar.js"></script>
 </body>
 </html>

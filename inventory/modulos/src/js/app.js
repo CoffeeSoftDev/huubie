@@ -58,7 +58,9 @@ class App {
                 title:    `¡${greet}, ${this.user}! 👋`,
                 subtitle: 'Elige un módulo para ver sus submódulos.',
             },
-            grid: { cols: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4', height: 'h-[150px]' },
+            // Mismas medidas que las tarjetas de erp-pro (pro/app/home).
+            grid: { cols: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4', height: 'h-[168px]' },
+            card: { padding: 'p-4', radius: 'rounded-[14px]', icon: 'w-11 h-11 rounded-[11px]' },
             cards: cards,
         }).init();
     }

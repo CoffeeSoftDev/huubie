@@ -15,7 +15,7 @@ require_once('layout/core-libraries.php');
 <script src="../../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/plugins.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/complementos.js?t=<?php echo time(); ?>"></script>
-<link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
 <body>
     <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
@@ -37,7 +37,7 @@ require_once('layout/core-libraries.php');
     </main>
 
     <!-- Importación navbar y sidebar -->
-    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Módulo de Stock -->

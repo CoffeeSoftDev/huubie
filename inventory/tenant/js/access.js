@@ -24,7 +24,7 @@ class Modules extends Templates {
         this.createTable({
             parent: 'table-modules', idFilterBar: 'filterbar-modules',
             data: { opc: 'lsModules' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbModules', theme: 'light', center: [4, 5], right: [] }
+            attr: { id: 'tbModules', theme: 'light', striped: true, center: [4, 5], right: [] }
         });
     }
 
@@ -129,7 +129,7 @@ class Submodules extends Templates {
         this.createTable({
             parent: 'table-submodules', idFilterBar: 'filterbar-submodules',
             data: { opc: 'lsSubmodules' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbSubmodules', theme: 'light', center: [5, 6], right: [] }
+            attr: { id: 'tbSubmodules', theme: 'light', striped: true, center: [5, 6], right: [] }
         });
     }
 
@@ -145,9 +145,15 @@ class Submodules extends Templates {
     async editSubmodule(id) {
         const request = await useFetch({ url: this._link, data: { opc: 'getSubmodule', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar el submódulo', btn1: true }); return; }
+
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Submódulo · <span class="text-blue-600 font-bold">${esc(name)}</span>`
+            : 'Editar Submódulo';
+
         this.createModalForm({
             id: 'formSubmoduleEdit', data: { opc: 'editSubmodule', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Editar Submódulo' }, autofill: request.data, json: this.jsonSubmodule(),
+            bootbox: { title: title }, autofill: request.data, json: this.jsonSubmodule(),
             success: (r) => afterSave(r, () => this.lsSubmodules())
         });
     }
@@ -199,7 +205,7 @@ class Sections extends Templates {
         this.createTable({
             parent: 'table-sections', idFilterBar: 'filterbar-sections',
             data: { opc: 'lsSections' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbSections', theme: 'light', center: [5, 6], right: [] }
+            attr: { id: 'tbSections', theme: 'light', striped: true, center: [5, 6], right: [] }
         });
     }
 
@@ -215,9 +221,15 @@ class Sections extends Templates {
     async editSection(id) {
         const request = await useFetch({ url: this._link, data: { opc: 'getSection', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar la sección', btn1: true }); return; }
+
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Sección · <span class="text-blue-600 font-bold">${esc(name)}</span>`
+            : 'Editar Sección';
+
         this.createModalForm({
             id: 'formSectionEdit', data: { opc: 'editSection', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Editar Sección' }, autofill: request.data, json: this.jsonSection(),
+            bootbox: { title: title }, autofill: request.data, json: this.jsonSection(),
             success: (r) => afterSave(r, () => this.lsSections())
         });
     }
@@ -269,7 +281,7 @@ class TypePermissions extends Templates {
         this.createTable({
             parent: 'table-types', idFilterBar: 'filterbar-types',
             data: { opc: 'lsTypePermissions' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbTypes', theme: 'light', center: [2], right: [] }
+            attr: { id: 'tbTypes', theme: 'light', striped: true, center: [2], right: [] }
         });
     }
 
@@ -284,9 +296,15 @@ class TypePermissions extends Templates {
     async editTypePermission(id) {
         const request = await useFetch({ url: this._link, data: { opc: 'getTypePermission', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar el tipo', btn1: true }); return; }
+
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Tipo de Permiso · <span class="text-blue-600 font-bold">${esc(name)}</span>`
+            : 'Editar Tipo de Permiso';
+
         this.createModalForm({
             id: 'formTypeEdit', data: { opc: 'editTypePermission', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Editar Tipo de Permiso' }, autofill: request.data, json: this.jsonType(),
+            bootbox: { title: title }, autofill: request.data, json: this.jsonType(),
             success: (r) => afterSave(r, () => this.lsTypePermissions())
         });
     }
@@ -340,7 +358,7 @@ class Roles extends Templates {
         this.createTable({
             parent: 'table-roles', idFilterBar: 'filterbar-roles',
             data: { opc: 'lsRoles' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbRoles', theme: 'light', center: [3, 4], right: [] }
+            attr: { id: 'tbRoles', theme: 'light', striped: true, center: [3, 4], right: [] }
         });
     }
 
@@ -355,9 +373,15 @@ class Roles extends Templates {
     async editRole(id) {
         const request = await useFetch({ url: this._link, data: { opc: 'getRole', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar el rol', btn1: true }); return; }
+
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Rol · <span class="text-blue-600 font-bold">${esc(name)}</span>`
+            : 'Editar Rol';
+
         this.createModalForm({
             id: 'formRoleEdit', data: { opc: 'editRole', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Editar Rol' }, autofill: request.data, json: this.jsonRole(),
+            bootbox: { title: title }, autofill: request.data, json: this.jsonRole(),
             success: (r) => afterSave(r, () => this.lsRoles())
         });
     }
@@ -482,14 +506,14 @@ class Permissions extends Templates {
                 <div class="p-2.5 border-b border-gray-100 shrink-0">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-semibold text-gray-800">Roles</h3>
-                        <button id="perm-add-role" class="w-6 h-6 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#C05A40]" title="Nuevo rol">
+                        <button id="perm-add-role" class="w-6 h-6 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-blue-600" title="Nuevo rol">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                     <div class="relative">
                         <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
                         <input id="perm-role-search" type="text" placeholder="Buscar rol..."
-                            class="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#C05A40]/30">
+                            class="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30">
                     </div>
                 </div>
                 <div id="perm-role-list" class="flex flex-col gap-1 p-2 max-h-[70vh] overflow-y-auto">${items}</div>
@@ -563,7 +587,7 @@ class Permissions extends Templates {
                 <button id="perm-cancel" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
                     <i data-lucide="x" class="w-3.5 h-3.5"></i> Cancelar
                 </button>
-                <button id="perm-save" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-[#292524] text-white hover:bg-[#44403C]">
+                <button id="perm-save" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-main text-white hover:bg-main-hover">
                     <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
                 </button>
             `;
@@ -661,13 +685,13 @@ class Permissions extends Templates {
 
     sectionRow(s) {
         const active = s.section_id === this.activeSectionId;
-        const bg = active ? 'bg-[#C05A40]/5' : 'hover:bg-gray-100';
+        const bg = active ? 'bg-blue-600/5' : 'hover:bg-gray-100';
         const disabled = (!this.editing || this.isSystemRole) ? 'disabled' : '';
         return `
             <div class="perm-section flex items-center justify-between pl-8 pr-3 py-1.5 cursor-pointer ${bg}"
                  data-section="${s.section_id}" data-module="${s.module_id}">
                 <label class="flex items-center gap-2 cursor-pointer flex-1" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="perm-access w-3.5 h-3.5 accent-[#C05A40]"
+                    <input type="checkbox" class="perm-access w-3.5 h-3.5 accent-blue-600"
                            data-section="${s.section_id}" ${s.has_access ? 'checked' : ''} ${disabled}>
                     <span class="text-[13px] text-gray-700">${this.esc(s.section_name)}</span>
                 </label>
@@ -711,7 +735,7 @@ class Permissions extends Templates {
     highlightSection() {
         $('#perm-modules .perm-section').each((_i, el) => {
             const on = $(el).data('section') === this.activeSectionId;
-            $(el).toggleClass('bg-[#C05A40]/5', on);
+            $(el).toggleClass('bg-blue-600/5', on);
         });
     }
 
@@ -746,7 +770,7 @@ class Permissions extends Templates {
         const canBulk = this.editing && !this.isSystemRole;
         const bulk = canBulk ? `
             <div class="flex items-center gap-1.5">
-                <button id="perm-enable-all" class="px-2 py-1 text-[11px] rounded-lg bg-[#C05A40] text-white hover:bg-[#a94c35]">Habilitar todas</button>
+                <button id="perm-enable-all" class="px-2 py-1 text-[11px] rounded-lg bg-blue-600 text-white hover:bg-blue-700">Habilitar todas</button>
                 <button id="perm-disable-all" class="px-2 py-1 text-[11px] rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">Deshabilitar todas</button>
             </div>
         ` : '';
@@ -783,10 +807,10 @@ class Permissions extends Templates {
         const typeRows = types.map(t => `
             <div class="flex items-center justify-between px-2.5 py-2 rounded-lg border border-gray-100 bg-gray-50">
                 <div class="flex items-center gap-2">
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#C05A40]"></i>
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-600"></i>
                     <p class="text-[13px] font-medium text-gray-700">${this.esc(t.name)}</p>
                 </div>
-                <input type="checkbox" class="perm-type-check w-4 h-4 accent-[#C05A40]"
+                <input type="checkbox" class="perm-type-check w-4 h-4 accent-blue-600"
                        data-section="${s.section_id}" data-type="${t.id}" ${t.granted ? 'checked' : ''} ${disabled}>
             </div>
         `).join('');

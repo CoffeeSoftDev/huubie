@@ -87,7 +87,7 @@ class ctrl extends mdl {
         foreach ($rows as $r) {
             $acciones = [
                 [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectTraspaso('{$r['folio']}', {$r['id']})"
                 ]
@@ -338,7 +338,7 @@ function formatRequestDate($date) {
 
 function sucChipCell($branchId, $branchName, $whName, $withArrow) {
     $palette = [
-        ['icon' => 'text-blue-400',   'bg' => 'rgba(192,90,64,0.15)',  'border' => 'rgba(192,90,64,0.35)'],
+        ['icon' => 'text-blue-400',   'bg' => 'rgb(var(--brand-600, 192 90 64) / 0.15)',  'border' => 'rgb(var(--brand-600, 192 90 64) / 0.35)'],
         ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
         ['icon' => 'text-purple-400', 'bg' => 'rgba(168,85,247,0.15)',  'border' => 'rgba(168,85,247,0.35)'],
         ['icon' => 'text-pink-400',   'bg' => 'rgba(244,114,182,0.15)', 'border' => 'rgba(244,114,182,0.35)'],

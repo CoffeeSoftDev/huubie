@@ -91,12 +91,13 @@
 }
 
 .bg-primary-1592{
- background: #C05A40;
+ background: var(--secondary);
  color: white;
 }
 
+/* Históricamente terracota: sigue al acento del tema (--secondary). */
 .bg-primary {
- background: #C05A40 !important;
+ background: var(--secondary) !important;
  color: white !important;
 }
 

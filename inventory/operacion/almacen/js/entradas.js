@@ -74,7 +74,7 @@ class App extends Templates {
         const branchName = branch ? (branch.valor || '') : '';
 
         const titleHtml = branchName
-            ? `${VIEW_HEADER_ENTRADAS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            ? `${VIEW_HEADER_ENTRADAS.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(branchName)}</span>`
             : VIEW_HEADER_ENTRADAS.title;
 
         entradasView.renderHeader(Object.assign({}, VIEW_HEADER_ENTRADAS, { titleHtml }));
@@ -519,25 +519,21 @@ class EntradasView extends Templates {
             quantities[did] = isNaN(val) || val < 0 ? 0 : val;
         });
 
-        this.swalQuestion({
-            opts: {
-                title:             `Editar entrada ${e.folio || ''}`.trim(),
-                text:              'Se ajustara el stock del almacen con las nuevas cantidades que entraron.',
-                icon:              'question',
-                confirmButtonText: 'Si, guardar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'editEntrada', id: e.id, quantities: JSON.stringify(quantities) },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Entrada actualizada', timer: 1600 });
-                        app.selectEntrada(e.folio, e.id);
-                        entradas.lsEntradas();
-                        entradas.lsKpis();
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo actualizar la entrada' });
-                    }
+        this.alertBox({
+            type:        'confirm',
+            title:       `Editar entrada ${e.folio || ''}`.trim(),
+            detailHtml:  'Se ajustara el stock del almacen con las nuevas cantidades que entraron.',
+            okLabel:     'Si, guardar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'editEntrada', id: e.id, quantities: JSON.stringify(quantities) } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Entrada actualizada', timer: 1600 });
+                    app.selectEntrada(e.folio, e.id);
+                    entradas.lsEntradas();
+                    entradas.lsKpis();
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo actualizar la entrada' });
                 }
             }
         });
@@ -549,25 +545,21 @@ class EntradasView extends Templates {
             this.alertBox({ type: 'message', title: 'La entrada ya esta cancelada' });
             return;
         }
-        this.swalQuestion({
-            opts: {
-                title:             `Cancelar entrada ${e.folio || ''}`.trim(),
-                text:              'Se revertira el stock agregado y la entrada pasara a estado Cancelada.',
-                icon:              'warning',
-                confirmButtonText: 'Si, cancelar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'reverseEntrada', id: e.id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Entrada cancelada', timer: 1600 });
-                        app.selectEntrada(null);
-                        entradas.lsEntradas();
-                        entradas.lsKpis();
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la entrada' });
-                    }
+        this.alertBox({
+            type:        'cancel',
+            title:       `Cancelar entrada ${e.folio || ''}`.trim(),
+            detailHtml:  'Se revertira el stock agregado y la entrada pasara a estado Cancelada.',
+            okLabel:     'Si, cancelar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'reverseEntrada', id: e.id } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Entrada cancelada', timer: 1600 });
+                    app.selectEntrada(null);
+                    entradas.lsEntradas();
+                    entradas.lsKpis();
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la entrada' });
                 }
             }
         });
@@ -586,25 +578,21 @@ class EntradasView extends Templates {
             quantities[did] = isNaN(val) || val < 0 ? 0 : val;
         });
 
-        this.swalQuestion({
-            opts: {
-                title:             `Confirmar produccion ${e.folio || ''}`.trim(),
-                text:              'Se aplicara al almacen la cantidad que realmente entro y la entrada pasara a estado Aplicada.',
-                icon:              'question',
-                confirmButtonText: 'Si, confirmar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'confirmEntrada', id: e.id, quantities: JSON.stringify(quantities) },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Produccion confirmada', timer: 1600 });
-                        app.selectEntrada(null);
-                        entradas.lsEntradas();
-                        entradas.lsKpis();
-                    } else {
-                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo confirmar la produccion' });
-                    }
+        this.alertBox({
+            type:        'confirm',
+            title:       `Confirmar produccion ${e.folio || ''}`.trim(),
+            detailHtml:  'Se aplicara al almacen la cantidad que realmente entro y la entrada pasara a estado Aplicada.',
+            okLabel:     'Si, confirmar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'confirmEntrada', id: e.id, quantities: JSON.stringify(quantities) } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Produccion confirmada', timer: 1600 });
+                    app.selectEntrada(null);
+                    entradas.lsEntradas();
+                    entradas.lsKpis();
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo confirmar la produccion' });
                 }
             }
         });
@@ -640,6 +628,14 @@ class EntradasView extends Templates {
                     proveedores:     app.dataInit.proveedores || [],
                     fecha:           moment().format('YYYY-MM-DD'),
                     branch_id: curSub
+                },
+                onWarehouseChange: async (warehouseId, done) => {
+                    if (!warehouseId) { done({}); return; }
+                    const r = await useFetch({
+                        url:  apiEntradas,
+                        data: { opc: 'lsStockByWarehouse', warehouse_id: warehouseId }
+                    });
+                    done((r && r.status === 200) ? (r.stock || {}) : {});
                 },
                 onCreateSupplier: async (data, done) => {
                     const r = await useFetch({
@@ -820,7 +816,7 @@ class EntradasView extends Templates {
             origenPalettes: {
                 'Produccion':    { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
                 'Proveedor':     { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24' },
-                'Transferencia': { bg: 'rgba(192,90,64,0.15)', fg: '#C05A40' },
+                'Transferencia': { bg: 'rgb(var(--brand-600, 192 90 64) /0.15)', fg: 'rgb(var(--brand-600, 192 90 64))' },
                 'Devolucion':    { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' }
             },
             estadoPalettes: {

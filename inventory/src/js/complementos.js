@@ -993,7 +993,7 @@ function alert(options) {
                 title: "text-2xl font-semibold",
                 content: "text-gray-300",
                 confirmButton:
-                    "bg-[#C05A40] hover:bg-[#A84A33] text-white py-2 px-4 rounded",
+                    "bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded",
                 cancelButton:
                     "bg-transparent text-white border border-gray-500 py-2 px-4 rounded hover:bg-[#111928]",
         },

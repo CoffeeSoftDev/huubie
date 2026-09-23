@@ -63,7 +63,7 @@ class App extends Templates {
         const branchName = branch ? (branch.valor || '') : '';
 
         const titleHtml = branchName
-            ? `${VIEW_HEADER_TRASPASOS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            ? `${VIEW_HEADER_TRASPASOS.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(branchName)}</span>`
             : VIEW_HEADER_TRASPASOS.title;
 
         traspasosView.renderHeader(Object.assign({}, VIEW_HEADER_TRASPASOS, { titleHtml }));
@@ -402,11 +402,11 @@ class Traspasos extends Templates {
         }, api).catch(() => null);
 
         if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: 'Traspaso ' + r.folio + ' solicitado' });
+            app.alertBox({ type: 'success', title: 'Traspaso ' + r.folio + ' solicitado', timer: 2200 });
             this.lsTraspasos();
             this.lsKpis();
         } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el traspaso' });
+            app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el traspaso' });
         }
     }
 
@@ -482,12 +482,12 @@ class Traspasos extends Templates {
         }, api).catch(() => null);
 
         if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: 'Solicitud cancelada' });
+            app.alertBox({ type: 'success', title: 'Solicitud cancelada', timer: 2200 });
             this.lsTraspasos();
             this.lsKpis();
             traspasosView.renderDetail(null);
         } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar la solicitud' });
+            app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la solicitud' });
         }
     }
 
@@ -496,7 +496,7 @@ class Traspasos extends Templates {
         if (!t || typeof t !== 'object') {
             const r = await fn_ajax({ opc: 'getTraspaso', id: arg, scope_branch_id: app.branchId || '' }, api).catch(() => null);
             if (!(r && r.status === 200)) {
-                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar el traspaso para imprimir' });
+                app.alertBox({ type: 'error', title: 'No se pudo cargar el traspaso para imprimir' });
                 return;
             }
             t = this.mapTraspasoDetail(r.header || {}, r.detail || [], r.history || []);
@@ -658,7 +658,7 @@ tbody td.r { text-align:right; } tbody td.c { text-align:center; }
 
         const w = window.open('', '_blank', 'width=900,height=1000');
         if (!w) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' });
+            app.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
             return;
         }
         w.document.write(html);
@@ -829,7 +829,7 @@ class TraspasosView extends Templates {
             },
             estadoPalettes: {
                 'Solicitado':  { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Enviado':     { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
+                'Enviado':     { bg: 'rgb(var(--brand-600, 192 90 64) /0.15)',  fg: 'rgb(var(--brand-600, 192 90 64))' },
                 'Pendiente':   { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
                 'Autorizado':  { bg: 'rgba(167,139,250,0.15)', fg: '#A78BFA' },
                 'En Transito': { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
@@ -838,7 +838,7 @@ class TraspasosView extends Templates {
                 'Rechazado':   { bg: 'rgba(244,63,94,0.15)',   fg: '#F43F5E' }
             },
             routePalette: [
-                { icon: 'text-blue-600',   bgHex: 'rgba(192,90,64,0.12)',  borderHex: 'rgba(192,90,64,0.35)' },
+                { icon: 'text-blue-600',   bgHex: 'rgb(var(--brand-600, 192 90 64) /0.12)',  borderHex: 'rgb(var(--brand-600, 192 90 64) /0.35)' },
                 { icon: 'text-green-600',  bgHex: 'rgba(63,193,137,0.12)',  borderHex: 'rgba(63,193,137,0.35)' },
                 { icon: 'text-purple-600', bgHex: 'rgba(168,85,247,0.12)',  borderHex: 'rgba(168,85,247,0.35)' },
                 { icon: 'text-pink-600',   bgHex: 'rgba(244,114,182,0.12)', borderHex: 'rgba(244,114,182,0.35)' },

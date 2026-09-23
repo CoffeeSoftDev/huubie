@@ -8,6 +8,11 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-tenant.php';
 
+// Colores del acento del tema para badge(): van como variables CSS y no como
+// hex para que sigan al tema elegido (ver src/js/tailwind-theme.js).
+const ACCENT_TEXT = 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))';
+const ACCENT_BG   = 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))';
+
 // Controlador del Administrador del Tenant: super-admin global.
 class ctrl extends mdl {
 
@@ -171,12 +176,12 @@ class ctrl extends mdl {
         foreach ($ls as $c) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral'),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'companies.editCompany(' . $c['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
+                'class'   => $this->actionBtnClass('neutral', true),
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "companies.changeStatus(" . $c['id'] . ", '" . $c['status'] . "')"
             ];
@@ -277,19 +282,19 @@ class ctrl extends mdl {
         foreach ($ls as $p) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral'),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'plans.editPlan(' . $p['id'] . ')'
             ];
             if ($p['is_active'] == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => $this->actionBtnClass('danger', true),
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'plans.togglePlan(' . $p['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
+                    'class'   => $this->actionBtnClass('neutral', true),
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'plans.togglePlan(' . $p['id'] . ', 1)'
                 ];
@@ -401,12 +406,12 @@ class ctrl extends mdl {
         foreach ($ls as $s) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral'),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'subscriptions.editSubscription(' . $s['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
+                'class'   => $this->actionBtnClass('neutral', true),
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "subscriptions.changeStatus(" . $s['id'] . ", '" . $s['status'] . "')"
             ];
@@ -529,20 +534,23 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($ls as $p) {
+            // El me-1 de "cambiar estado" depende de si el boton de factura la
+            // sigue en la fila: si no hay factura, "cambiar estado" es el ultimo.
+            $hasInvoice = !empty($p['invoice_url']);
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral'),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'payments.editPayment(' . $p['id'] . ')'
             ];
             $a[] = [
-                'class'   => 'btn btn-sm bg-slate-100 hover:bg-slate-200 text-slate-600',
+                'class'   => $this->actionBtnClass('neutral', !$hasInvoice),
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "payments.changeStatus(" . $p['id'] . ", '" . $p['status'] . "')"
             ];
-            if (!empty($p['invoice_url'])) {
+            if ($hasInvoice) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-secondary',
+                    'class'   => $this->actionBtnClass('neutral', true),
                     'html'    => '<i class="icon-link-ext"></i>',
                     'onclick' => "window.open('" . htmlspecialchars($p['invoice_url'], ENT_QUOTES) . "', '_blank')"
                 ];
@@ -670,19 +678,19 @@ class ctrl extends mdl {
         foreach ($ls as $c) {
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral'),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'coupons.editCoupon(' . $c['id'] . ')'
             ];
             if ($c['is_active'] == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => $this->actionBtnClass('danger', true),
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'coupons.toggleCoupon(' . $c['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
+                    'class'   => $this->actionBtnClass('neutral', true),
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'coupons.toggleCoupon(' . $c['id'] . ', 1)'
                 ];
@@ -1037,10 +1045,12 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($ls as $t) {
-            $a = $this->toggleActions('typePermissions', 'editTypePermission', 'toggleTypePermission', $t['id'], $t['is_active']);
-            if ((int) $t['is_active'] === 0) {
+            $isActive = (int) $t['is_active'];
+            // El toggle deja de ser el ultimo boton cuando Eliminar lo sigue.
+            $a = $this->toggleActions('typePermissions', 'editTypePermission', 'toggleTypePermission', $t['id'], $isActive, $isActive === 1);
+            if ($isActive === 0) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-danger',
+                    'class'   => $this->actionBtnClass('danger', true),
                     'html'    => '<i class="icon-trash"></i>',
                     'onclick' => 'typePermissions.deleteTypePermission(' . $t['id'] . ')'
                 ];
@@ -1105,23 +1115,25 @@ class ctrl extends mdl {
 
         $row = [];
         foreach ($ls as $r) {
+            // Los roles del sistema no se desactivan: si editar queda solo en la
+            // fila, pasa a ser el ultimo boton (sin me-1).
+            $isSystem = (int) $r['is_system'] === 1;
             $a = [];
             $a[] = [
-                'class'   => 'btn btn-sm btn-primary me-1',
+                'class'   => $this->actionBtnClass('neutral', $isSystem),
                 'html'    => '<i class="icon-pencil"></i>',
                 'onclick' => 'roles.editRole(' . $r['id'] . ')'
             ];
-            // Los roles del sistema no se desactivan.
-            if ((int) $r['is_system'] !== 1) {
+            if (!$isSystem) {
                 if ($r['is_active'] == 1) {
                     $a[] = [
-                        'class'   => 'btn btn-sm btn-danger',
+                        'class'   => $this->actionBtnClass('danger', true),
                         'html'    => '<i class="icon-toggle-on"></i>',
                         'onclick' => 'roles.toggleRole(' . $r['id'] . ', 0)'
                     ];
                 } else {
                     $a[] = [
-                        'class'   => 'btn btn-sm btn-outline-success',
+                        'class'   => $this->actionBtnClass('neutral', true),
                         'html'    => '<i class="icon-toggle-off"></i>',
                         'onclick' => 'roles.toggleRole(' . $r['id'] . ', 1)'
                     ];
@@ -1195,13 +1207,13 @@ class ctrl extends mdl {
             $a = [];
             if ($p['is_active'] == 1) {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-danger',
+                    'class'   => $this->actionBtnClass('danger', true),
                     'html'    => '<i class="icon-toggle-on"></i>',
                     'onclick' => 'permissions.togglePermission(' . $p['id'] . ', 0)'
                 ];
             } else {
                 $a[] = [
-                    'class'   => 'btn btn-sm btn-outline-success',
+                    'class'   => $this->actionBtnClass('neutral', true),
                     'html'    => '<i class="icon-toggle-off"></i>',
                     'onclick' => 'permissions.togglePermission(' . $p['id'] . ', 1)'
                 ];
@@ -1465,13 +1477,13 @@ class ctrl extends mdl {
             $cell     = renderAvatar($fullName);
             if ((int) $u['is_owner'] === 1) {
                 $cell = '<div class="flex items-center gap-2">'
-                      . $cell . badge('Dueño', '#C05A40', 100, '#F7E3DC')
+                      . $cell . badge('Dueño', ACCENT_TEXT, 100, ACCENT_BG)
                       . '</div>';
             }
 
             $branches = $u['branch_names']
                 ? implode(' ', array_map(function ($n) {
-                    return badge(trim($n), '#C05A40', 100, '#F7E3DC');
+                    return badge(trim($n), ACCENT_TEXT, 100, ACCENT_BG);
                   }, explode(',', $u['branch_names'])))
                 : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 
@@ -1769,25 +1781,262 @@ class ctrl extends mdl {
         return preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : null;
     }
 
+    /* ===== Sucursales (el admin elige empresa y reparte su gente) ===== */
+
+    // Una sola consulta por empresa: la lista, el detalle de cada sucursal y los
+    // KPIs salen de esta respuesta, así que cambiar de sucursal no vuelve al servidor.
+    function lsBranches() {
+        $companyId = (int) ($_POST['company_id'] ?? 0) ?: $this->companyId();
+        if (!$this->qCompanyHasSubscription([$companyId])) {
+            return ['status' => 404, 'message' => 'Empresa no encontrada'];
+        }
+
+        $byBranch = [];
+        foreach ($this->qBranchAssignments([$companyId]) as $a) {
+            $byBranch[$a['branch_id']][] = $a;
+        }
+
+        $branches = [];
+        foreach ($this->qBranches([$companyId]) as $b) {
+            $members = [];
+            $row     = [];
+            foreach ($byBranch[$b['id']] ?? [] as $a) {
+                $fullName  = trim($a['name'] . ' ' . ($a['last_name'] ?? ''));
+                $members[] = [
+                    'assignment_id' => (int) $a['assignment_id'],
+                    'user_id'       => (int) $a['user_id'],
+                    'role_id'       => (int) $a['role_id'],
+                    'name'          => $fullName
+                ];
+                $row[] = [
+                    'id'      => $a['assignment_id'],
+                    'Usuario' => renderUserCell($fullName, $a['email']),
+                    'Rol'     => $a['role_name']
+                        ? badge(htmlspecialchars($a['role_name']), '#1D4ED8', 100, '#DBEAFE')
+                        : badge('Sin rol', '#92400E', 100, '#FEF3C7'),
+                    'a'       => [
+                        [
+                            'class'   => $this->actionBtnClass('neutral'),
+                            'html'    => '<i class="icon-pencil"></i>',
+                            'onclick' => 'branches.editUserRole(' . (int) $a['assignment_id'] . ')'
+                        ],
+                        [
+                            'class'   => $this->actionBtnClass('danger', true),
+                            'html'    => '<i class="icon-trash"></i>',
+                            'onclick' => 'branches.removeUserRole(' . (int) $a['assignment_id'] . ')'
+                        ]
+                    ]
+                ];
+            }
+
+            $branches[] = [
+                'id'        => (int) $b['id'],
+                'name'      => (string) $b['name'],
+                'ubication' => (string) $b['ubication'],
+                'is_active' => (int) $b['is_active'],
+                'created'   => $b['created'],
+                'users'     => (int) $b['users'],
+                'members'   => $members,
+                'row'       => $row
+            ];
+        }
+
+        return [
+            'status'         => 200,
+            'company_id'     => $companyId,
+            'companies'      => $this->qCompaniesBranchSummary(),
+            'branches'       => $branches,
+            'candidates'     => $this->qUsersForBranchAssign([$companyId]),
+            'plan'           => $this->qPlanActiveByCompany([$companyId]),
+            // Las sucursales que ofrece el modal de Usuarios (empresa en sesión), frescas tras cada cambio.
+            'selectBranches' => $this->qBranchesForSelect([$this->companyId()])
+        ];
+    }
+
+    function addBranch() {
+        $companyId = (int) ($_POST['company_id'] ?? 0);
+        $name      = trim($_POST['name'] ?? '');
+
+        if ($name === '') {
+            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
+        }
+        if (!$this->qCompanyHasSubscription([$companyId])) {
+            return ['status' => 404, 'message' => 'Empresa no encontrada'];
+        }
+        if ($this->qBranchNameExists([$name, $companyId])) {
+            return ['status' => 400, 'message' => 'Ya existe una sucursal con ese nombre'];
+        }
+
+        $plan = $this->qPlanActiveByCompany([$companyId]);
+        if ($plan && $plan['max_branches'] !== null
+            && $this->qCountActiveBranches([$companyId]) >= (int) $plan['max_branches']) {
+            return ['status' => 400, 'message' => 'El plan ' . $plan['name'] . ' permite ' . (int) $plan['max_branches'] . ' sucursales activas'];
+        }
+
+        $ok = $this->qInsertBranch([$name, trim($_POST['ubication'] ?? '') ?: null, $companyId]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Sucursal «' . $name . '» creada correctamente' : 'No se pudo crear la sucursal'
+        ];
+    }
+
+    function editBranch() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+
+        if ($name === '') {
+            return ['status' => 400, 'message' => 'El nombre de la sucursal es obligatorio'];
+        }
+        $branch = $this->qBranch([$id]);
+        if (!$branch) {
+            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
+        }
+        if ($this->qBranchNameExistsExcept([$name, (int) $branch['company_id'], $id])) {
+            return ['status' => 400, 'message' => 'Ya existe una sucursal con ese nombre'];
+        }
+
+        $ok = $this->qUpdateBranch([$name, trim($_POST['ubication'] ?? '') ?: null, $id]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Sucursal actualizada' : 'No se pudo actualizar la sucursal'
+        ];
+    }
+
+    // Desactivar no borra la gente: las asignaciones quedan guardadas para cuando se reactive.
+    function toggleBranch() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $active = (int) ($_POST['active'] ?? 0) === 1 ? 1 : 0;
+
+        $branch = $this->qBranch([$id]);
+        if (!$branch) {
+            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
+        }
+
+        $ok = $this->qSetBranchActive([$active, $id]);
+        if (!$ok) {
+            return ['status' => 500, 'message' => 'No se pudo actualizar el estado'];
+        }
+        if ($active) {
+            return ['status' => 200, 'message' => 'Sucursal «' . $branch['name'] . '» activada'];
+        }
+
+        $kept = $this->qCountBranchAssignments([$id]);
+        return [
+            'status'  => 200,
+            'message' => $kept > 0
+                ? 'Sucursal desactivada. ' . $kept . ' asignaciones quedan guardadas.'
+                : 'Sucursal desactivada'
+        ];
+    }
+
+    // La empresa se toma de la sucursal y no de la sesión: el admin SaaS reparte
+    // gente en la empresa que eligió arriba, no solo en la suya.
+    function assignUserRole() {
+        $userId   = (int) ($_POST['user_id'] ?? 0);
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $roleId   = (int) ($_POST['role_id'] ?? 0);
+
+        if ($userId <= 0 || $branchId <= 0 || $roleId <= 0) {
+            return ['status' => 400, 'message' => 'Usuario, sucursal y rol son obligatorios'];
+        }
+        $branch = $this->qBranch([$branchId]);
+        if (!$branch) {
+            return ['status' => 404, 'message' => 'Sucursal no encontrada'];
+        }
+        if ((int) $branch['is_active'] !== 1) {
+            return ['status' => 400, 'message' => 'La sucursal está desactivada: reactívala para asignar gente'];
+        }
+        $user = $this->qUserFull([$userId, (int) $branch['company_id']]);
+        if (!$user) {
+            return ['status' => 400, 'message' => 'El usuario no pertenece a la empresa de la sucursal'];
+        }
+        $role = $this->qRole([$roleId]);
+        if (!$role) {
+            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
+        }
+
+        // Si ya existe la fila usuario+sucursal, se actualiza el rol en vez de duplicar.
+        $existing = $this->qUserBranchAssignment([$userId, $branchId]);
+        $ok = $existing
+            ? $this->qSetUserBranchRole([$roleId, (int) $existing['id']])
+            : $this->qInsertUserBranchRole([$userId, $branchId, $roleId]);
+
+        $fullName = trim($user['name'] . ' ' . ($user['last_name'] ?? ''));
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? $fullName . ' asignado como ' . $role['name'] : 'No se pudo asignar el rol'
+        ];
+    }
+
+    function updateUserRole() {
+        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
+        $roleId       = (int) ($_POST['role_id'] ?? 0);
+
+        if ($assignmentId <= 0 || $roleId <= 0) {
+            return ['status' => 400, 'message' => 'Asignación y rol son obligatorios'];
+        }
+        if (!$this->qAssignment([$assignmentId])) {
+            return ['status' => 404, 'message' => 'Asignación no encontrada'];
+        }
+        $role = $this->qRole([$roleId]);
+        if (!$role) {
+            return ['status' => 400, 'message' => 'El rol seleccionado no es válido'];
+        }
+
+        $ok = $this->qSetUserBranchRole([$roleId, $assignmentId]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Rol actualizado a ' . $role['name'] : 'No se pudo actualizar el rol'
+        ];
+    }
+
+    function removeUserRole() {
+        $assignmentId = (int) ($_POST['assignment_id'] ?? 0);
+        if (!$this->qAssignment([$assignmentId])) {
+            return ['status' => 404, 'message' => 'Asignación no encontrada'];
+        }
+
+        $ok = $this->qDeleteUserBranchRole([$assignmentId]);
+        return [
+            'status'  => $ok ? 200 : 500,
+            'message' => $ok ? 'Asignación quitada' : 'No se pudo quitar la asignación'
+        ];
+    }
+
     /* ===== Helpers internos ===== */
 
+    // Clase de los botones de accion en el estilo minimalista que ya usaba la
+    // pestana Usuarios (borde + texto, sin relleno solido). Centraliza la cadena
+    // que estaba repetida en ~19 sitios del archivo con dos lenguajes distintos
+    // (btn-primary de Bootstrap y bg-slate-100 de Tailwind): variant 'neutral'
+    // para editar/cambiar estado/activar/abrir factura, 'danger' para
+    // desactivar/eliminar. $last quita el me-1 cuando es el ultimo boton de la fila.
+    private function actionBtnClass($variant, $last = false) {
+        $base = $variant === 'danger'
+            ? 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition'
+            : 'inline-flex items-center px-2 py-1 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition';
+        return $last ? $base : $base . ' me-1';
+    }
+
     // Acciones estándar editar + activar/desactivar para entidades del catálogo.
-    private function toggleActions($jsObj, $editFn, $toggleFn, $id, $isActive) {
+    // $toggleIsLast en false cuando la fila agrega otro boton despues del toggle
+    // (ej. Tipos de permiso agrega Eliminar cuando el registro esta inactivo).
+    private function toggleActions($jsObj, $editFn, $toggleFn, $id, $isActive, $toggleIsLast = true) {
         $a = [];
         $a[] = [
-            'class'   => 'btn btn-sm btn-primary me-1',
+            'class'   => $this->actionBtnClass('neutral', false),
             'html'    => '<i class="icon-pencil"></i>',
             'onclick' => "{$jsObj}.{$editFn}({$id})"
         ];
         if ((int) $isActive === 1) {
             $a[] = [
-                'class'   => 'btn btn-sm btn-danger',
+                'class'   => $this->actionBtnClass('danger', $toggleIsLast),
                 'html'    => '<i class="icon-toggle-on"></i>',
                 'onclick' => "{$jsObj}.{$toggleFn}({$id}, 0)"
             ];
         } else {
             $a[] = [
-                'class'   => 'btn btn-sm btn-outline-success',
+                'class'   => $this->actionBtnClass('neutral', $toggleIsLast),
                 'html'    => '<i class="icon-toggle-off"></i>',
                 'onclick' => "{$jsObj}.{$toggleFn}({$id}, 1)"
             ];
@@ -1894,24 +2143,36 @@ function renderPaymentStatus($status) {
     }
 }
 
+function avatarInitials($name) {
+    $name = trim((string) $name);
+    if ($name === '') return '?';
+
+    $parts    = preg_split('/\s+/', $name);
+    $initials = mb_strtoupper(mb_substr($parts[0], 0, 1));
+    if (count($parts) > 1) {
+        $initials .= mb_strtoupper(mb_substr($parts[count($parts) - 1], 0, 1));
+    } elseif (mb_strlen($parts[0]) > 1) {
+        $initials .= mb_strtoupper(mb_substr($parts[0], 1, 1));
+    }
+    return $initials;
+}
+
 function renderAvatar($name) {
     $name = trim((string) $name);
-    if ($name === '') {
-        $initials = '?';
-    } else {
-        $parts = preg_split('/\s+/', $name);
-        $initials = mb_strtoupper(mb_substr($parts[0], 0, 1));
-        if (count($parts) > 1) {
-            $initials .= mb_strtoupper(mb_substr($parts[count($parts) - 1], 0, 1));
-        } elseif (mb_strlen($parts[0]) > 1) {
-            $initials .= mb_strtoupper(mb_substr($parts[0], 1, 1));
-        }
-    }
-    $safeName = htmlspecialchars($name);
-    $safeInitials = htmlspecialchars($initials);
     return '<div class="flex items-center gap-2">'
-        . '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 text-xs font-semibold shrink-0">' . $safeInitials . '</span>'
-        . '<span>' . $safeName . '</span>'
+        . '<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold shrink-0">' . htmlspecialchars(avatarInitials($name)) . '</span>'
+        . '<span>' . htmlspecialchars($name) . '</span>'
+        . '</div>';
+}
+
+// Celda de la tabla de Sucursales: avatar con iniciales, nombre y el correo debajo.
+function renderUserCell($name, $email) {
+    return '<div class="flex items-center gap-2.5">'
+        . '<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 text-blue-600 text-[10.5px] font-semibold shrink-0">' . htmlspecialchars(avatarInitials($name)) . '</span>'
+        . '<div class="min-w-0">'
+        . '<p class="font-semibold text-gray-900 truncate mb-0">' . htmlspecialchars($name) . '</p>'
+        . '<p class="text-[11px] text-gray-500 truncate mb-0">' . htmlspecialchars($email ?: '—') . '</p>'
+        . '</div>'
         . '</div>';
 }
 

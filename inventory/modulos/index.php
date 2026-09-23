@@ -18,7 +18,7 @@ if (empty($_SESSION["IDU"])) {
 
     <!-- CDN TAILWIND -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="../src/js/tailwind-theme.js"></script>
+    <script src="../src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/../src/js/tailwind-theme.js'); ?>"></script>
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -29,21 +29,21 @@ if (empty($_SESSION["IDU"])) {
     <!-- SweetAlert -->
     <link rel="stylesheet" href="../src/plugin/sweetalert2/sweetalert2.min.css">
 
-    <!-- Tokens del tema activo (Claro / Agents / Avatar). -->
-    <link rel="stylesheet" href="../src/css/themes.css">
+    <!-- Tokens de página (fondo gris, acento del tema). -->
+    <link rel="stylesheet" href="../src/css/themes.css?v=<?php echo filemtime(__DIR__ . '/../src/css/themes.css'); ?>">
 
     <style>
-        /* Los tokens de esta pantalla cuelgan de los globales de themes.css para
-           que el dashboard también siga al tema elegido en el navbar. */
+        /* Los tokens de esta pantalla cuelgan de los globales de themes.css. */
         :root {
             --mod-bg:    var(--bg, #F3F4F6);
             --mod-text:  var(--ink, #111827);
             --mod-muted: var(--ink-dim, #6B7280);
         }
+        /* Superficies de la página oscura del tema (themes.css). */
         body.dark-mode {
-            --mod-bg:    #111928;
-            --mod-text:  #F9FAFB;
-            --mod-muted: #9CA3AF;
+            --mod-bg:    var(--dk-bg, #111928);
+            --mod-text:  var(--dk-text, #F9FAFB);
+            --mod-muted: var(--dk-muted, #9CA3AF);
         }
         body { font-family: 'Inter', sans-serif; background: var(--mod-bg); transition: background .2s ease; }
 

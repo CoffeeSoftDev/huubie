@@ -1,103 +1,101 @@
 /* ============================================================
-   TEMAS DE INVENTORY — tokens por tema
+   TOKENS DE PÁGINA DE INVENTORY
    ============================================================
-   Mismo esquema que erp-pro/pro (coffee-erp-pro.css): el tema se estampa como
-   data-theme en <html> y aquí SOLO se redefinen variables. Ningún componente se
-   estila por tema: consumen tokens.
+   Un tema (fayxzvov_erp.themes) pinta la BARRA superior (applyTheme() de
+   acceso/src/js/navbar.js, como en erp-pro/pro) y trae tres hex editables:
+   el ACENTO, el PRIMARIO y el SECUNDARIO. De ellos, src/js/tailwind-theme.js
+   calcula las rampas y las escribe en el style de <html>:
+     --brand-50..950        rampa del acento (Tailwind blue-*)
+     --accent-2-50..950     rampa del secundario (barra, foco, hover de cards)
+     --gray-*, --line ...   solo con un acento sin color (negro, grafito)
+     --primary-*-rgb        tonos del primario (Tailwind main-*, colors.css)
+   Esta hoja trae los tokens de página de Claro y las superficies de las
+   dos páginas oscuras. Va en TODAS las páginas, también en las que no
+   cargan dark-mode.css (modulos/, sucursales/).
 
-   De dónde sale cada paleta (sus temas CLAROS, no los oscuros):
-     light  -> Claro, el de siempre en inventory (Arcilla Invernal).
-     agents -> erp-pro/ERP24/agents/src/css/agents.css    (:root, shadcn neutro)
-     avatar -> erp-pro/ERP24/avatars/src/css/visor.css    ([data-theme="light"])
-
-   Dos familias de tokens:
-     --brand-* / --gray-*  escalas que consume Tailwind (ver tailwind-theme.js).
-                           Van como canales RGB sueltos por el <alpha-value>.
-     --bg, --surface ...   colores planos para el CSS escrito a mano.
-
-   El tema Claro no redefine escalas: cada variable trae su respaldo terracota /
-   gray en tailwind-theme.js y en las reglas de abajo.
+   Con tema claro el fondo es gris #F3F4F6 siempre. Con tema de página
+   oscura (scheme huubie | midnight) InventoryPalette pone body.dark-mode.
    ============================================================ */
 
 :root {
-    --bg:      #F3F4F6;
-    --surface: #FFFFFF;
-    --line:    #E5E7EB;
-    --ink:     #111827;
-    --ink-dim: #6B7280;
+    --bg:            #F3F4F6;
+    --surface:       #FFFFFF;
+    --surface-hover: #F9FAFB;
+    --line:          #E5E7EB;
+    --ink:           #111827;
+    --ink-dim:       #6B7280;
 }
 
-
-/* -- Agents: shadcn neutro --
-   El acento NO es un color sino el contraste: casi negro sobre blanco. Así está
-   declarado en el origen ("EL ACENTO NO ES UN COLOR, es el contraste"), por eso
-   la escala de acento es de grises. Los neutros pierden el tinte azulado del
-   gray de Tailwind: son la escala neutral, que es la base de shadcn. */
-:root[data-theme="agents"] {
-    --bg:      #FFFFFF;
-    --surface: #FFFFFF;
-    --line:    #E5E5E5;
-    --ink:     #0D0D0D;
-    --ink-dim: #737373;
-
-    --brand-50:  250 250 250;
-    --brand-100: 245 245 245;
-    --brand-200: 229 229 229;
-    --brand-300: 212 212 212;
-    --brand-400: 163 163 163;
-    --brand-500: 115 115 115;
-    --brand-600: 23 23 23;     /* #171717, el --primary de agents.css */
-    --brand-700: 38 38 38;     /* hover: sobre un casi negro solo se nota ACLARANDO */
-    --brand-800: 10 10 10;
-    --brand-900: 5 5 5;
-    --brand-950: 0 0 0;
-
-    --gray-50:  250 250 250;
-    --gray-100: 245 245 245;
-    --gray-200: 229 229 229;   /* #E5E5E5, el --border de agents.css */
-    --gray-300: 212 212 212;
-    --gray-400: 163 163 163;
-    --gray-500: 115 115 115;   /* #737373, su --muted-foreground */
-    --gray-600: 82 82 82;
-    --gray-700: 64 64 64;
-    --gray-800: 38 38 38;
-    --gray-900: 23 23 23;
-    --gray-950: 10 10 10;
+/* -- Superficies de las páginas oscuras --
+   Huubie: tokens de Huubie UI (grimorio-huubie-ui, sección 2) y el layout
+   canónico de alpha/pedidos: página #111928, contenedor #1F2A37 con p-3. */
+:root {
+    --dk-bg:        #111928;   /* bg-body: fondo de página */
+    --dk-chrome:    #141d2b;
+    --dk-card:      #1F2A37;   /* bg-card: contenedor, cards, modales */
+    --dk-card-hi:   #1F2937;
+    --dk-th:        #374151;   /* tabla (como alpha/): header */
+    --dk-row:       #283341;   /*   filas */
+    --dk-row-alt:   #1F2A37;   /*   alternas = contenedor (alpha usa #111827 y no combina) */
+    --dk-row-hover: #334155;   /*   hover de fila */
+    --dk-hover:     #1a2332;   /* hover genérico */
+    --dk-input:     #1a2332;   /* bg-input: inputs, selects, textareas */
+    --dk-raised:    #333D4C;   /* card de módulo (grid inicial) */
+    --dk-line:      #374151;   /* border */
+    --dk-line-hi:   #4B5563;
+    --dk-text:      #f5f5f5;
+    --dk-text-soft: #e5e5e5;
+    --dk-muted:     #9CA3AF;   /* text-secondary */
 }
 
+/* Midnight: [data-theme="midnight"] de erp-pro/ERP24/avatars/src/css/visor.css,
+   repartido en los mismos papeles que Huubie. */
+:root[data-scheme="midnight"] {
+    --dk-bg:        #0B1420;
+    --dk-chrome:    #101B29;
+    --dk-card:      #142132;
+    --dk-card-hi:   #16243A;
+    --dk-th:        #22354F;
+    --dk-row:       #1B2C44;
+    --dk-row-alt:   #142132;
+    --dk-row-hover: #26384F;
+    --dk-hover:     #1B2C44;
+    --dk-input:     #16243A;
+    --dk-raised:    #1B2C44;
+    --dk-line:      #26384F;
+    --dk-line-hi:   #33506E;
+    --dk-text:      #EAF2FB;
+    --dk-text-soft: #D3E0EF;
+    --dk-muted:     #8CA0B8;
+}
 
-/* -- Avatar: claro con violeta --
-   Sus fondos, bordes y textos son los mismos grises que Claro (#F3F4F6 /
-   #FFFFFF / #E5E7EB / #111827), así que no redefine --gray-*: lo que cambia es
-   el acento. La escala es la violet de Tailwind: su 600 es exactamente el
-   #7C3AED del origen y su 700 el --vsr-accent-soft (#6D28D9). */
-:root[data-theme="avatar"] {
-    --bg:      #F3F4F6;
-    --surface: #FFFFFF;
-    --line:    #E5E7EB;
-    --ink:     #111827;
-    --ink-dim: #6B7280;
+/* En página oscura los tokens de página toman esas superficies: todo lo que
+   los consume (ModuleCard, badges en línea, páginas propias) se oscurece
+   sin saber nada del tema. */
+body.dark-mode {
+    --bg:             var(--dk-bg);
+    --surface:        var(--dk-card);
+    --surface-raised: var(--dk-raised);
+    --surface-hover:  var(--dk-hover);
+    --line:           var(--dk-line);
+    --ink:            var(--dk-text);
+    --ink-dim:        var(--dk-muted);
+    --accent-soft-bg: rgb(var(--brand-600, 192 90 64) / .18);
+    --accent-soft-fg: rgb(var(--brand-300, 232 166 143));
+}
 
-    --brand-50:  245 243 255;
-    --brand-100: 237 233 254;
-    --brand-200: 221 214 254;
-    --brand-300: 196 181 253;
-    --brand-400: 167 139 250;
-    --brand-500: 139 92 246;
-    --brand-600: 124 58 237;
-    --brand-700: 109 40 217;
-    --brand-800: 91 33 182;
-    --brand-900: 76 29 149;
-    --brand-950: 46 16 101;
+/* Hover de las cards de módulo en página oscura: el `secondary` de Huubie UI
+   ("hover de cards"), que en Huubie es morado. El borde de la card viene en
+   línea desde ModuleCard, por eso el !important. */
+body.dark-mode .module-card-item:hover {
+    border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
 }
 
 
 /* ============================================================
    CONTENEDORES CON EL COLOR CLAVADO EN CSS
    ============================================================
-   Lo que se pinta con clases de Tailwind (bg-gray-*, border-gray-*, bg-blue-*)
-   ya sigue al tema por las escalas. Esto cubre lo que general.css y sidebar.css
-   escriben con hex fijo. Esta hoja se carga DESPUÉS de ellas: con la misma
+   Esta hoja se carga DESPUÉS de general.css y sidebar.css: con la misma
    especificidad, gana por orden. */
 
 body { background-color: var(--bg); }

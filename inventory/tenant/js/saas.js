@@ -72,12 +72,17 @@ class Companies extends Templates {
             return;
         }
 
+        const name  = request.data && request.data.name ? request.data.name : '';
+        const title = name
+            ? `Editar Empresa · <span class="text-blue-600 font-bold">${esc(name)}</span>`
+            : 'Editar Empresa';
+
         this.createModalForm({
             id: 'formCompanyEdit',
             data: { opc: 'editCompany', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Editar Empresa' },
+            bootbox: { title: title },
             autofill: request.data,
             json: this.jsonCompany(false),
             success: (r) => afterSave(r, () => this.lsCompanies())
@@ -238,27 +243,27 @@ class Plans extends Templates {
         const bullets = this.buildBullets(p);
         const bulletsHtml = bullets.map(b => `
             <li class="flex items-start gap-1.5 text-[11px] text-gray-600">
-                <span class="text-[#C05A40] font-bold leading-none">✓</span>
+                <span class="text-blue-600 font-bold leading-none">✓</span>
                 <span>${b}</span>
             </li>
         `).join('');
 
         const toggleChecked = isActive ? 'checked' : '';
         const toggleNext    = isActive ? 0 : 1;
-        const cardBorder    = isActive ? 'border-[#C05A40]' : 'border-gray-200 opacity-70';
+        const cardBorder    = isActive ? 'border-blue-600' : 'border-gray-200 opacity-70';
 
         return `
             <div class="bg-white rounded-lg border ${cardBorder} shadow-sm flex flex-col p-3 gap-2.5 transition-all hover:shadow-md">
                 <div class="flex items-start justify-between gap-1.5">
                     <div class="min-w-0">
-                        <p class="text-[9px] font-semibold text-[#C05A40] uppercase tracking-wide">${p.code || ''}</p>
+                        <p class="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">${p.code || ''}</p>
                         <h3 class="text-sm font-bold text-gray-800 leading-tight truncate">${p.name}</h3>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5" title="${isActive ? 'Desactivar' : 'Activar'}">
                         <input type="checkbox" class="sr-only peer" ${toggleChecked}
                             onchange="plans.togglePlan(${p.id}, ${toggleNext})">
                         <div class="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer
-                            peer-checked:bg-[#C05A40]
+                            peer-checked:bg-blue-600
                             after:content-[''] after:absolute after:top-0.5 after:left-0.5
                             after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all
                             peer-checked:after:translate-x-4">
@@ -276,11 +281,11 @@ class Plans extends Templates {
 
                 <div class="flex gap-1.5 pt-2 border-t border-gray-100">
                     <button onclick="plans.editPlan(${p.id})"
-                        class="flex-1 text-[11px] border border-[#C05A40] text-[#C05A40] rounded-md py-1 px-2 font-medium hover:bg-[#C05A40] hover:text-white transition-colors">
+                        class="flex-1 text-[11px] border border-blue-600 text-blue-600 rounded-md py-1 px-2 font-medium hover:bg-blue-600 hover:text-white transition-colors">
                         Editar
                     </button>
                     <button onclick="plans.configurePlan(${p.id})"
-                        class="flex-1 text-[11px] bg-[#C05A40] text-white rounded-md py-1 px-2 font-medium hover:bg-[#a34b34] transition-colors">
+                        class="flex-1 text-[11px] bg-blue-600 text-white rounded-md py-1 px-2 font-medium hover:bg-blue-700 transition-colors">
                         Configurar
                     </button>
                 </div>
@@ -318,7 +323,7 @@ class Plans extends Templates {
             icon: 'info',
             title: 'Próximamente',
             text: 'La configuración avanzada del plan estará disponible pronto.',
-            confirmButtonColor: '#C05A40'
+            confirmButtonColor: 'rgb(var(--brand-600, 192 90 64))'
         });
     }
 
@@ -344,12 +349,16 @@ class Plans extends Templates {
         const data = request.data;
         if (data.billing_cycle != null) data.billing_cycle = String(data.billing_cycle);
 
+        const title = data.name
+            ? `Editar Plan · <span class="text-blue-600 font-bold">${esc(data.name)}</span>`
+            : 'Editar Plan';
+
         this.createModalForm({
             id: 'formPlanEdit',
             data: { opc: 'editPlan', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Editar Plan' },
+            bootbox: { title: title },
             autofill: data,
             json: this.jsonPlan(),
             success: (r) => afterSave(r, () => this.lsPlans())
@@ -479,6 +488,7 @@ class Subscriptions extends Templates {
             attr: {
                 id: 'tbSubscriptions',
                 theme: 'light',
+                striped: true,
                 center: [3, 4, 5, 6],
                 right: []
             }
@@ -513,12 +523,19 @@ class Subscriptions extends Templates {
             return;
         }
 
+        // La suscripción no tiene nombre propio: se identifica por su empresa,
+        // que getSubscription trae como company_name.
+        const company = request.data && request.data.company_name ? request.data.company_name : '';
+        const title   = company
+            ? `Editar Suscripción · <span class="text-blue-600 font-bold">${esc(company)}</span>`
+            : 'Editar Suscripción';
+
         this.createModalForm({
             id: 'formSubscriptionEdit',
             data: { opc: 'editSubscription', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Editar Suscripción' },
+            bootbox: { title: title },
             autofill: request.data,
             json: this.jsonSubscription(),
             success: (r) => afterSave(r, () => this.lsSubscriptions())
@@ -651,6 +668,7 @@ class Payments extends Templates {
             attr: {
                 id: 'tbPayments',
                 theme: 'light',
+                striped: true,
                 center: [6],
                 right: [2]
             }
@@ -680,12 +698,18 @@ class Payments extends Templates {
             return;
         }
 
+        // Mismo caso que la suscripción: el pago se identifica por su empresa.
+        const company = request.data && request.data.company_name ? request.data.company_name : '';
+        const title   = company
+            ? `Editar Pago · <span class="text-blue-600 font-bold">${esc(company)}</span>`
+            : 'Editar Pago';
+
         this.createModalForm({
             id: 'formPaymentEdit',
             data: { opc: 'editPayment', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Editar Pago' },
+            bootbox: { title: title },
             autofill: request.data,
             json: this.jsonPayment(),
             success: (r) => afterSave(r, () => this.lsPayments())
@@ -863,20 +887,20 @@ class Coupons extends Templates {
 
         const toggleChecked = isActive ? 'checked' : '';
         const toggleNext    = isActive ? 0 : 1;
-        const cardBorder    = isActive ? 'border-[#C05A40]' : 'border-gray-200 opacity-70';
+        const cardBorder    = isActive ? 'border-blue-600' : 'border-gray-200 opacity-70';
 
         return `
             <div class="bg-white rounded-lg border ${cardBorder} shadow-sm flex flex-col p-3 gap-2.5 transition-all hover:shadow-md">
                 <div class="flex items-start justify-between gap-1.5">
                     <div class="min-w-0">
-                        <p class="text-[9px] font-semibold text-[#C05A40] uppercase tracking-wide">Cupón</p>
+                        <p class="text-[9px] font-semibold text-blue-600 uppercase tracking-wide">Cupón</p>
                         <h3 class="text-sm font-bold text-gray-800 leading-tight font-mono truncate">${c.code || ''}</h3>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5" title="${isActive ? 'Desactivar' : 'Activar'}">
                         <input type="checkbox" class="sr-only peer" ${toggleChecked}
                             onchange="coupons.toggleCoupon(${c.id}, ${toggleNext})">
                         <div class="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer
-                            peer-checked:bg-[#C05A40]
+                            peer-checked:bg-blue-600
                             after:content-[''] after:absolute after:top-0.5 after:left-0.5
                             after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all
                             peer-checked:after:translate-x-4">
@@ -892,18 +916,18 @@ class Coupons extends Templates {
                 <div class="flex flex-col gap-1 flex-1">
                     ${c.description ? `<p class="text-[11px] text-gray-600 leading-snug">${c.description}</p>` : ''}
                     <div class="flex items-center gap-1.5 text-[11px] text-gray-600">
-                        <span class="text-[#C05A40] font-bold leading-none">✓</span>
+                        <span class="text-blue-600 font-bold leading-none">✓</span>
                         <span>${used} / ${max} usos</span>
                     </div>
                     <div class="flex items-center gap-1.5 text-[11px] text-gray-600">
-                        <span class="text-[#C05A40] font-bold leading-none">✓</span>
+                        <span class="text-blue-600 font-bold leading-none">✓</span>
                         <span>${desde} → ${hasta}</span>
                     </div>
                 </div>
 
                 <div class="flex gap-1.5 pt-2 border-t border-gray-100">
                     <button onclick="coupons.editCoupon(${c.id})"
-                        class="flex-1 text-[11px] border border-[#C05A40] text-[#C05A40] rounded-md py-1 px-2 font-medium hover:bg-[#C05A40] hover:text-white transition-colors">
+                        class="flex-1 text-[11px] border border-blue-600 text-blue-600 rounded-md py-1 px-2 font-medium hover:bg-blue-600 hover:text-white transition-colors">
                         Editar
                     </button>
                 </div>
@@ -933,12 +957,16 @@ class Coupons extends Templates {
         const data = request.data;
         if (data.discount_type != null) data.discount_type = String(data.discount_type);
 
+        const title = data.code
+            ? `Editar Cupón · <span class="text-blue-600 font-bold">${esc(data.code)}</span>`
+            : 'Editar Cupón';
+
         this.createModalForm({
             id: 'formCouponEdit',
             data: { opc: 'editCoupon', id: id },
             theme: 'light',
             coffeesoft: true,
-            bootbox: { title: 'Editar Cupón' },
+            bootbox: { title: title },
             autofill: data,
             json: this.jsonCoupon(),
             success: (r) => afterSave(r, () => this.lsCoupons())
@@ -1053,6 +1081,7 @@ class Redemptions extends Templates {
             attr: {
                 id: 'tbRedemptions',
                 theme: 'light',
+                striped: true,
                 center: [3, 4],
                 right: []
             }
@@ -1141,7 +1170,7 @@ class Users extends Templates {
             data: { opc: 'lsUsers' },
             coffeesoft: true,
             conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbUsers', theme: 'light', center: [5], right: [] }
+            attr: { id: 'tbUsers', theme: 'light', striped: true, center: [5], right: [] }
         });
     }
 
@@ -1527,5 +1556,708 @@ class Users extends Templates {
         }
 
         return fields;
+    }
+}
+
+// -- Sucursales (el admin elige empresa y reparte su gente por sucursal) --
+
+const AVATAR_TONES = [
+    'bg-blue-600/15 text-blue-600',
+    'bg-[#059669]/15 text-[#059669]',
+    'bg-[#2563EB]/15 text-[#2563EB]',
+    'bg-[#D97706]/15 text-[#D97706]',
+    'bg-[#7C3AED]/15 text-[#7C3AED]',
+    'bg-[#0891B2]/15 text-[#0891B2]'
+];
+
+class Branches extends Templates {
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Branches';
+        this.companyId    = 0;
+        this.companies    = [];
+        this.branches     = [];
+        this.candidates   = [];
+        this.plan         = null;
+        this.branchId     = 0;
+        this.query        = '';
+        this.selectName   = '';
+    }
+
+    render() {
+        this.layout();
+        this.lsBranches();
+    }
+
+    layout() {
+        this.createLayout({
+            parent: 'container-sucursales',
+            design: false,
+            data: {
+                id: 'branchesEditor',
+                class: 'flex flex-col gap-3',
+                container: [
+                    {
+                        type: 'div',
+                        id: 'branchesCompany',
+                        class: 'w-full'
+                    },
+                    {
+                        type: 'div',
+                        id: 'branchesKpis',
+                        class: 'w-full'
+                    },
+                    {
+                        type: 'div',
+                        id: 'branchesBody',
+                        class: 'flex flex-col lg:flex-row gap-4 min-h-[420px]',
+                        children: [
+                            {
+                                id: 'branchesList',
+                                class: 'w-full lg:w-[260px] lg:flex-none flex flex-col gap-2.5'
+                            },
+                            {
+                                id: 'branchesDetail',
+                                class: 'flex-1 min-w-0 flex flex-col gap-3'
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+    }
+
+    async lsBranches(companyId = this.companyId) {
+        const res = await useFetch({ url: this._link, data: { opc: 'lsBranches', company_id: companyId } });
+        if (!res || res.status !== 200) {
+            alert({ icon: 'error', text: (res && res.message) || 'No se pudieron cargar las sucursales', btn1: true });
+            return;
+        }
+
+        this.companyId  = Number(res.company_id);
+        this.companies  = res.companies || [];
+        this.branches   = res.branches || [];
+        this.candidates = res.candidates || [];
+        this.plan       = res.plan || null;
+        if (res.selectBranches) dataInit.branches = res.selectBranches;
+
+        // Tras crear una sucursal se abre la nueva: el ctrl no devuelve su id,
+        // pero el nombre es único dentro de la empresa.
+        const wanted = this.selectName.trim().toLowerCase();
+        const target = (wanted && this.branches.find(b => b.name.toLowerCase() === wanted))
+            || this.branches.find(b => b.id === this.branchId)
+            || this.branches[0];
+        this.branchId   = target ? target.id : 0;
+        this.selectName = '';
+
+        this.renderCompanyBar();
+        this.renderInfoCards();
+        this.renderBranchList();
+        this.renderBranchDetail();
+    }
+
+    switchCompany(id) {
+        this.branchId = 0;
+        this.lsBranches(id);
+    }
+
+    selectBranch(id) {
+        this.branchId = id;
+        this.renderBranchCards();
+        this.renderBranchDetail();
+    }
+
+    // -- Barra de empresa --
+
+    renderCompanyBar() {
+        const company = this.currentCompany();
+
+        const $current = $('<div>', { class: 'flex items-center gap-3 min-w-0' }).append(
+            this.avatar(company.name, company.id, 'w-[34px] h-[34px] rounded-[10px] text-[12.5px]'),
+            $('<div>', { class: 'min-w-0' }).append(
+                $('<p>', { class: 'text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-0', text: 'Empresa activa' }),
+                $('<p>', { class: 'text-[13.5px] font-semibold text-gray-900 truncate mb-0', text: company.name })
+            )
+        );
+
+        const $button = $('<button>', {
+            type: 'button',
+            class: 'flex items-center gap-2.5 min-w-[220px] sm:min-w-[250px] pl-2 pr-2.5 py-1.5 rounded-xl border border-gray-200 bg-white shadow-sm'
+        }).append(
+            this.avatar(company.name, company.id, 'w-8 h-8 rounded-[9px] text-xs'),
+            $('<div>', { class: 'flex-1 min-w-0 text-left' }).append(
+                $('<p>', { class: 'text-[12.5px] font-semibold text-gray-900 truncate mb-0', text: company.name }),
+                $('<p>', { class: 'text-[10px] text-gray-500 mb-0', text: `${company.total_branches} sucursales · ${company.assignments} asignaciones` })
+            ),
+            $('<i>', { 'data-lucide': 'chevron-down', class: 'w-3.5 h-3.5 text-gray-400 shrink-0' })
+        );
+
+        const $panel = $('<div>', {
+            class: 'hidden absolute right-0 top-full mt-1.5 z-30 w-full min-w-[280px] bg-white border border-gray-200 rounded-xl shadow-lg p-1.5'
+        });
+
+        this.companies.forEach(c => {
+            const selected = Number(c.id) === this.companyId;
+            $panel.append(
+                $('<div>', {
+                    class: 'flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition ' + (selected ? 'bg-blue-600/10' : 'hover:bg-gray-50')
+                }).append(
+                    this.avatar(c.name, c.id, 'w-[30px] h-[30px] rounded-lg text-[11px]'),
+                    $('<div>', { class: 'flex-1 min-w-0' }).append(
+                        $('<p>', { class: 'text-[12.5px] font-semibold text-gray-900 truncate mb-0', text: c.name }),
+                        $('<p>', { class: 'text-[10px] text-gray-500 mb-0', text: `${c.active_branches} activas de ${c.total_branches}` })
+                    ),
+                    selected ? $('<i>', { 'data-lucide': 'check', class: 'w-4 h-4 text-blue-600 shrink-0' }) : null
+                ).on('click', () => this.switchCompany(c.id))
+            );
+        });
+
+        const toggle = (open) => {
+            $panel.toggleClass('hidden', !open);
+            $button.toggleClass('border-blue-600 ring-2 ring-blue-600/15', open);
+        };
+        $button.on('click', (e) => {
+            e.stopPropagation();
+            toggle($panel.hasClass('hidden'));
+        });
+        $(document).off('click.branchesCompany').on('click.branchesCompany', () => toggle(false));
+
+        $('#branchesCompany').empty().append(
+            $('<div>', {
+                class: 'flex items-center justify-between gap-3 flex-wrap p-3 px-4 rounded-xl border border-gray-200 bg-white shadow-sm'
+            }).append(
+                $current,
+                $('<div>', { class: 'flex items-center gap-2.5' }).append(
+                    $('<span>', {
+                        class: 'hidden sm:inline text-[11px] text-gray-500 whitespace-nowrap',
+                        text: `${company.active_branches} de ${company.total_branches} activas`
+                    }),
+                    $('<div>', { class: 'relative' }).append($button, $panel)
+                )
+            )
+        );
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // -- KPIs --
+
+    // kpisRow y no infoCard: infoCard no deja achicar padding ni tipografía, y
+    // aquí los KPIs van compactos.
+    renderInfoCards() {
+        const limit = this.planLimit();
+
+        this.kpisRow({
+            parent: 'branchesKpis',
+            id: 'kpiBranches',
+            class: 'grid grid-cols-4 gap-2',
+            cardClass: 'bg-white rounded-lg border border-gray-200 px-2.5 py-4',
+            activeClass: '',
+            labelClass: 'text-[9px] uppercase tracking-wider font-semibold text-gray-500 truncate mb-0',
+            valueClass: 'text-sm font-bold leading-tight mb-0',
+            iconWrapClass: 'w-5 h-5 rounded flex items-center justify-center flex-shrink-0',
+            iconClass: 'w-3 h-3',
+            tones: {
+                brand: 'text-blue-600'
+            },
+            iconBgTones: {
+                brand: 'bg-blue-600/10'
+            },
+            json: [
+                {
+                    id: 'kpiActive',
+                    label: 'Sucursales activas',
+                    value: this.activeCount(),
+                    icon: 'building-2',
+                    tone: 'brand'
+                },
+                {
+                    id: 'kpiAssignments',
+                    label: 'Asignaciones totales',
+                    value: this.branches.reduce((sum, b) => sum + b.users, 0),
+                    icon: 'users',
+                    tone: 'brand'
+                },
+                {
+                    id: 'kpiLimit',
+                    label: 'Límite de sucursales',
+                    value: limit.value,
+                    icon: 'badge-check',
+                    tone: 'brand'
+                }
+            ]
+        });
+
+        $('#kpiLimit').attr('title', limit.subtitle).append(
+            $('<div>', { class: 'h-0.5 rounded-full bg-gray-100 mt-1 overflow-hidden' }).append(
+                $('<div>', { class: 'h-full rounded-full bg-blue-600', css: { width: `${limit.percent}%` } })
+            )
+        );
+    }
+
+    // puede crear = plan.max_branches − sucursales activas. Sin plan, o con un plan
+    // sin tope, no hay límite y el botón Nueva nunca se apaga.
+    planLimit() {
+        const active = this.activeCount();
+        const plan   = this.plan;
+        const max    = plan && plan.max_branches !== null && plan.max_branches !== '' ? Number(plan.max_branches) : null;
+
+        if (!plan) {
+            return {
+                value: 'Sin plan',
+                subtitle: 'Sin límite de sucursales',
+                hint: 'Sin plan activo: sin límite de sucursales',
+                percent: 0,
+                canCreate: true
+            };
+        }
+        if (max === null) {
+            return {
+                value: plan.name,
+                subtitle: 'Sin límite de sucursales',
+                hint: `Plan ${plan.name}: sin límite de sucursales`,
+                percent: 0,
+                canCreate: true
+            };
+        }
+
+        const left = Math.max(max - active, 0);
+        return {
+            value: `${active} / ${max}`,
+            subtitle: left ? `Plan ${plan.name} · quedan ${left}` : `Plan ${plan.name} · lleno`,
+            hint: `Plan ${plan.name}: quedan ${left} de ${max} sucursales activas`,
+            percent: max > 0 ? Math.min(active / max * 100, 100) : 100,
+            canCreate: left > 0
+        };
+    }
+
+    // -- Lista de sucursales --
+
+    renderBranchList() {
+        const canCreate = this.planLimit().canCreate;
+        this.query = '';
+
+        const $new = $('<button>', {
+            type: 'button',
+            class: 'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-main text-white hover:bg-main-hover transition disabled:opacity-40 disabled:cursor-not-allowed',
+            title: canCreate ? 'Nueva sucursal' : 'El plan ya no admite más sucursales activas',
+            disabled: !canCreate
+        }).append(
+            $('<i>', { 'data-lucide': 'plus', class: 'w-3.5 h-3.5' }),
+            'Nueva'
+        ).on('click', () => this.addBranch());
+
+        const $search = $('<div>', { class: 'relative' }).append(
+            $('<i>', { 'data-lucide': 'search', class: 'w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2' }),
+            $('<input>', {
+                type: 'text',
+                placeholder: 'Buscar sucursal…',
+                class: 'w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30'
+            }).on('input', (e) => {
+                this.query = e.currentTarget.value || '';
+                this.renderBranchCards();
+            })
+        );
+
+        $('#branchesList').empty().append(
+            $('<div>', { class: 'flex items-center justify-between' }).append(
+                $('<span>', { class: 'text-[13px] font-bold text-gray-900', text: 'Sucursales' }),
+                $new
+            ),
+            $search,
+            $('<div>', { id: 'branchCards', class: 'flex flex-col gap-2 max-h-[60vh] overflow-y-auto p-0.5' })
+        );
+
+        this.renderBranchCards();
+    }
+
+    // El buscador filtra en el navegador: la lista completa ya llegó con lsBranches.
+    renderBranchCards() {
+        const q       = this.query.trim().toLowerCase();
+        const visible = this.branches.filter(b => !q || `${b.name} ${b.ubication || ''}`.toLowerCase().includes(q));
+        const $cards  = $('#branchCards').empty();
+
+        visible.forEach(b => $cards.append(this.branchCard(b)));
+
+        if (q && !visible.length) {
+            $cards.append($('<p>', { class: 'text-center text-xs italic text-gray-400 py-5 mb-0', text: `Sin resultados para «${this.query.trim()}»` }));
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    branchCard(b) {
+        const selected = b.id === this.branchId;
+        const state    = selected
+            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-md'
+            : 'border-gray-200 bg-white shadow-sm hover:border-blue-600/40 hover:-translate-y-px hover:shadow-md';
+
+        const $users = $('<p>', { class: 'flex items-center gap-1 text-[10.5px] text-gray-500 mt-0.5 mb-0' }).append(
+            $('<i>', { 'data-lucide': 'users', class: 'w-[11px] h-[11px] shrink-0' }),
+            document.createTextNode(`${b.users} ${b.users === 1 ? 'usuario' : 'usuarios'}`)
+        );
+        if (!b.is_active) {
+            $users.append(document.createTextNode(' · '), $('<span>', { class: 'font-semibold text-amber-700', text: 'Inactiva' }));
+        }
+
+        return $('<div>', {
+            class: `relative flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${state}` + (b.is_active ? '' : ' opacity-60 hover:opacity-100')
+        }).append(
+            selected ? $('<span>', { class: 'absolute -left-px top-2.5 bottom-2.5 w-[3px] rounded-full bg-blue-600' }) : null,
+            $('<div>', { class: 'flex-1 min-w-0' }).append(
+                $('<p>', { class: 'text-[13px] font-semibold text-gray-900 leading-tight truncate mb-0', text: b.name }),
+                $('<p>', { class: 'flex items-center gap-1 text-[10.5px] text-gray-500 mt-1 mb-0' }).append(
+                    $('<i>', { 'data-lucide': 'map-pin', class: 'w-[11px] h-[11px] shrink-0' }),
+                    $('<span>', { class: 'truncate', text: b.ubication || 'Sin ubicación' })
+                ),
+                $users
+            )
+        ).on('click', () => this.selectBranch(b.id));
+    }
+
+    // -- Detalle de la sucursal --
+
+    renderBranchDetail() {
+        const b       = this.branches.find(x => x.id === this.branchId);
+        const $detail = $('#branchesDetail').empty();
+
+        if (!b) {
+            $detail.append(this.emptyState('building-2', 'Esta empresa no tiene sucursales todavía — crea la primera con el botón «Nueva»'));
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+
+        const $head = $('<div>', {
+            class: 'flex items-center justify-between gap-3 flex-wrap p-4 rounded-xl border border-gray-200 bg-white shadow-sm'
+        }).append(
+            $('<div>', { class: 'flex items-center gap-3 min-w-0' }).append(
+                $('<div>', { class: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-600/10 text-blue-600' }).append(
+                    $('<i>', { 'data-lucide': 'building-2', class: 'w-5 h-5' })
+                ),
+                $('<div>', { class: 'min-w-0' }).append(
+                    $('<div>', { class: 'flex items-center gap-2 flex-wrap' }).append(
+                        $('<h3>', { class: 'text-base font-semibold text-gray-900 mb-0', text: b.name }),
+                        this.statusPill(b.is_active)
+                    ),
+                    $('<p>', { class: 'flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 mb-0' }).append(
+                        $('<i>', { 'data-lucide': 'map-pin', class: 'w-3 h-3 shrink-0' }),
+                        document.createTextNode(`${b.ubication || 'Sin ubicación'} · creada ${b.created || '—'} · `),
+                        $('<b>', { class: 'text-gray-900', text: b.users }),
+                        document.createTextNode(` ${b.users === 1 ? 'usuario' : 'usuarios'}`)
+                    )
+                )
+            ),
+            $('<div>', { class: 'flex items-center gap-1.5 flex-wrap' }).append(
+                this.actionButton('pencil', 'Editar', () => this.editBranch(b.id)),
+                this.actionButton(b.is_active ? 'ban' : 'circle-check', b.is_active ? 'Desactivar' : 'Activar', () => this.toggleBranch(b.id, b.is_active ? 0 : 1)),
+                this.actionButton('plus', 'Añadir usuario', () => this.assignUser(b.id), true, !b.is_active)
+            )
+        );
+
+        const $table = $('<div>', { id: 'branchUsers' });
+        $detail.append($head, $table);
+
+        if (b.row.length) {
+            this.createCoffeeTable3({
+                parent: 'branchUsers',
+                id: 'tbBranchUsers',
+                theme: 'light',
+                data: { row: b.row },
+                f_size: 13
+            });
+        } else {
+            $table.append(this.emptyState('users', b.is_active
+                ? 'Nadie trabaja aquí todavía — añade el primer usuario'
+                : 'Sucursal desactivada: reactívala para poder asignar gente'));
+        }
+
+        if (!b.is_active && b.users > 0) {
+            $detail.append(
+                $('<div>', { class: 'flex items-start gap-2 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700' }).append(
+                    $('<i>', { 'data-lucide': 'triangle-alert', class: 'w-4 h-4 shrink-0 mt-px' }),
+                    $('<span>').append(
+                        $('<b>', { text: 'Sucursal desactivada: ' }),
+                        document.createTextNode(`reactívala para poder asignar gente. Sus ${b.users} asignaciones siguen guardadas.`)
+                    )
+                )
+            );
+        }
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // -- Sucursal: nueva, editar, activar --
+
+    addBranch() {
+        const company = this.currentCompany();
+        this.createModalForm({
+            id: 'formBranchAdd',
+            data: { opc: 'addBranch', company_id: this.companyId },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: `Nueva sucursal · <span class="text-blue-600 font-bold">${esc(company.name)}</span>` },
+            json: this.jsonBranch(true),
+            success: (r) => {
+                this.selectName = $('#formBranchAdd [name="name"]').val() || '';
+                afterSave(r, () => this.lsBranches());
+            }
+        });
+    }
+
+    editBranch(id) {
+        const b = this.branches.find(x => x.id === id);
+        if (!b) return;
+
+        this.createModalForm({
+            id: 'formBranchEdit',
+            data: { opc: 'editBranch', id: id },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: `Editar sucursal · <span class="text-blue-600 font-bold">${esc(b.name)}</span>` },
+            autofill: {
+                name: b.name,
+                ubication: b.ubication || ''
+            },
+            json: this.jsonBranch(false),
+            success: (r) => afterSave(r, () => this.lsBranches())
+        });
+    }
+
+    toggleBranch(id, active) {
+        const b = this.branches.find(x => x.id === id);
+        if (!b) return;
+
+        let text = `«${b.name}» volverá a aceptar asignaciones.`;
+        if (active != 1) {
+            text = b.users
+                ? `Sus ${b.users} asignaciones quedan guardadas para cuando la reactives.`
+                : `«${b.name}» dejará de aceptar asignaciones.`;
+        }
+
+        this.swalQuestion({
+            opts: {
+                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} sucursal?`,
+                text: text,
+                icon: 'warning'
+            },
+            data: { opc: 'toggleBranch', id: id, active: active },
+            methods: { send: (r) => afterSave(r, () => this.lsBranches()) }
+        });
+    }
+
+    jsonBranch(isNew) {
+        const fields = [
+            {
+                opc: 'input',
+                id: 'name',
+                lbl: 'Nombre',
+                placeholder: 'Ej: Reginas Centro',
+                class: 'col-12 mb-3',
+                required: true
+            },
+            {
+                opc: 'input',
+                id: 'ubication',
+                lbl: 'Ubicación',
+                placeholder: 'Ej: Av. Central 128',
+                class: 'col-12 mb-3',
+                required: false
+            }
+        ];
+
+        if (isNew) {
+            fields.push({
+                opc: 'p',
+                id: 'branchPlanHint',
+                class: 'col-12',
+                style: 'font-size:12px;color:#6B7280;margin:0',
+                text: this.planLimit().hint
+            });
+        }
+
+        return fields;
+    }
+
+    // -- Gente de la sucursal: asignar, cambiar rol, quitar --
+
+    // El select de usuario excluye a quien ya está en la sucursal: se filtra con
+    // los user_id de sus asignaciones, que ya vinieron en lsBranches.
+    assignUser(branchId) {
+        const b = this.branches.find(x => x.id === branchId);
+        if (!b || !b.is_active) return;
+
+        const assigned  = b.members.map(m => m.user_id);
+        const available = this.candidates.filter(u => !assigned.includes(Number(u.id)));
+
+        if (!this.candidates.length) {
+            alert({ icon: 'info', text: `${this.currentCompany().name} no tiene usuarios activos: primero hay que dar de alta a su gente`, btn1: true });
+            return;
+        }
+        if (!available.length) {
+            alert({ icon: 'info', text: `Todos los usuarios activos de ${this.currentCompany().name} ya están en ${b.name}`, btn1: true });
+            return;
+        }
+        if (!(dataInit.roles || []).length) {
+            alert({ icon: 'info', text: 'Primero registra al menos un rol activo', btn1: true });
+            return;
+        }
+
+        this.createModalForm({
+            id: 'formBranchAssign',
+            data: { opc: 'assignUserRole', branch_id: branchId },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: `Añadir usuario a <span class="text-blue-600 font-bold">${esc(b.name)}</span>` },
+            json: [
+                {
+                    opc: 'p',
+                    id: 'assignHint',
+                    class: 'col-12 mb-2',
+                    style: 'font-size:12px;color:#6B7280;margin:0',
+                    text: 'El usuario obtendrá acceso a esta sucursal con el rol elegido'
+                },
+                {
+                    opc: 'select',
+                    id: 'user_id',
+                    lbl: 'Usuario',
+                    class: 'col-12 mb-3',
+                    required: true,
+                    selected: 'Selecciona un usuario…',
+                    data: available
+                },
+                {
+                    opc: 'select',
+                    id: 'role_id',
+                    lbl: 'Rol',
+                    class: 'col-12 mb-3',
+                    required: true,
+                    selected: 'Selecciona un rol…',
+                    data: dataInit.roles || []
+                }
+            ],
+            success: (r) => afterSave(r, () => this.lsBranches())
+        });
+    }
+
+    editUserRole(assignmentId) {
+        const member = this.findMember(assignmentId);
+        if (!member) return;
+
+        this.createModalForm({
+            id: 'formBranchRole',
+            data: { opc: 'updateUserRole', assignment_id: assignmentId },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: 'Cambiar rol' },
+            autofill: { role_id: String(member.role_id || '') },
+            json: [
+                {
+                    opc: 'p',
+                    id: 'roleHint',
+                    class: 'col-12 mb-2',
+                    style: 'font-size:12px;color:#6B7280;margin:0',
+                    text: `Solo cambia el rol en ${member.branch}`
+                },
+                {
+                    opc: 'input',
+                    id: 'user_name',
+                    lbl: 'Usuario',
+                    value: member.name,
+                    class: 'col-12 mb-3',
+                    required: false,
+                    disabled: true
+                },
+                {
+                    opc: 'select',
+                    id: 'role_id',
+                    lbl: 'Nuevo rol',
+                    class: 'col-12 mb-3',
+                    required: true,
+                    data: dataInit.roles || []
+                }
+            ],
+            success: (r) => afterSave(r, () => this.lsBranches())
+        });
+    }
+
+    removeUserRole(assignmentId) {
+        const member = this.findMember(assignmentId);
+        if (!member) return;
+
+        this.swalQuestion({
+            opts: {
+                title: '¿Quitar asignación?',
+                text: `${member.name} dejará de tener acceso a «${member.branch}».`,
+                icon: 'warning'
+            },
+            data: { opc: 'removeUserRole', assignment_id: assignmentId },
+            methods: { send: (r) => afterSave(r, () => this.lsBranches()) }
+        });
+    }
+
+    // -- Helpers de la clase --
+
+    currentCompany() {
+        return this.companies.find(c => Number(c.id) === this.companyId) || {
+            id: this.companyId,
+            name: '—',
+            total_branches: 0,
+            active_branches: 0,
+            assignments: 0
+        };
+    }
+
+    activeCount() {
+        return this.branches.filter(b => b.is_active === 1).length;
+    }
+
+    findMember(assignmentId) {
+        for (const b of this.branches) {
+            const m = b.members.find(x => x.assignment_id === assignmentId);
+            if (m) return Object.assign({ branch: b.name }, m);
+        }
+        return null;
+    }
+
+    // Iniciales de las palabras que empiezan con letra: "Reginas - Pastelería" -> "RP".
+    avatar(name, seed, size) {
+        const words = String(name || '').trim().split(/\s+/).filter(w => /\p{L}/u.test(w.charAt(0)));
+        const text  = words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
+        const sum   = String(seed).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+        return $('<span>', {
+            class: `inline-flex items-center justify-center font-bold shrink-0 select-none ${AVATAR_TONES[sum % AVATAR_TONES.length]} ${size}`,
+            text: text
+        });
+    }
+
+    statusPill(active) {
+        return $('<span>', {
+            class: 'inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full '
+                + (active ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
+        }).append(
+            $('<span>', { class: 'w-1.5 h-1.5 rounded-full bg-current' }),
+            active ? 'Activa' : 'Inactiva'
+        );
+    }
+
+    actionButton(icon, text, onClick, primary = false, disabled = false) {
+        const look = primary
+            ? 'bg-main text-white hover:bg-main-hover border border-main'
+            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-400';
+        return $('<button>', {
+            type: 'button',
+            class: `inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${look}`,
+            disabled: disabled
+        }).append(
+            $('<i>', { 'data-lucide': icon, class: 'w-3.5 h-3.5' }),
+            text
+        ).on('click', onClick);
+    }
+
+    emptyState(icon, text) {
+        return $('<div>', {
+            class: 'flex flex-col items-center justify-center gap-2 py-10 px-4 rounded-xl border border-dashed border-gray-200 bg-white text-center'
+        }).append(
+            $('<i>', { 'data-lucide': icon, class: 'w-6 h-6 text-gray-300' }),
+            $('<p>', { class: 'text-sm italic text-gray-400 mb-0', text: text })
+        );
     }
 }

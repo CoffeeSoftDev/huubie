@@ -18,7 +18,7 @@ if (empty($_SESSION["IDU"])) {
 
     <!-- CDN TAILWIND -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="../src/js/tailwind-theme.js"></script>
+    <script src="../src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/../src/js/tailwind-theme.js'); ?>"></script>
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -29,13 +29,13 @@ if (empty($_SESSION["IDU"])) {
     <!-- SweetAlert -->
     <link rel="stylesheet" href="../src/plugin/sweetalert2/sweetalert2.min.css">
 
-    <!-- Tokens del tema activo (Claro / Agents / Avatar). -->
-    <link rel="stylesheet" href="../src/css/themes.css">
+    <!-- Tokens de página (fondo gris, acento del tema). -->
+    <link rel="stylesheet" href="../src/css/themes.css?v=<?php echo filemtime(__DIR__ . '/../src/css/themes.css'); ?>">
 
     <style>
         /* ── Variables de tema (claro por defecto) ──
            Los tokens propios de esta pantalla cuelgan de los globales de
-           themes.css, para que también siga al tema elegido en el navbar. */
+           themes.css. */
         :root {
             --suc-bg:        var(--bg, #F3F4F6);
             --suc-card:      var(--surface, #FFFFFF);
@@ -46,16 +46,16 @@ if (empty($_SESSION["IDU"])) {
             --suc-pill-bg:   #FFFFFF;
             --suc-pill-text: #6B7280;
         }
-        /* ── Override modo oscuro ── */
+        /* ── Override modo oscuro: superficies del tema (themes.css) ── */
         body.dark-mode {
-            --suc-bg:        #111928;
-            --suc-card:      #1F2A37;
-            --suc-card-sel:  #1F2A37;
-            --suc-border:    #374151;
-            --suc-text:      #F9FAFB;
-            --suc-muted:     #9CA3AF;
-            --suc-pill-bg:   #1D2937;
-            --suc-pill-text: #9CA3AF;
+            --suc-bg:        var(--dk-bg, #111928);
+            --suc-card:      var(--dk-card, #1F2A37);
+            --suc-card-sel:  var(--dk-card, #1F2A37);
+            --suc-border:    var(--dk-line, #374151);
+            --suc-text:      var(--dk-text, #F9FAFB);
+            --suc-muted:     var(--dk-muted, #9CA3AF);
+            --suc-pill-bg:   var(--dk-hover, #1D2937);
+            --suc-pill-text: var(--dk-muted, #9CA3AF);
         }
 
         body { font-family: 'Inter', sans-serif; background: var(--suc-bg); transition: background .2s ease; }

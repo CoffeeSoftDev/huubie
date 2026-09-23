@@ -10,25 +10,44 @@
    Barra delgada en tono gris para todo el modulo. Reemplaza la barra gruesa por
    defecto del sistema. En dark-mode, dark-mode.css la sobreescribe (carga
    despues / mayor especificidad con body.dark-mode). */
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #C1C7CD transparent;
+/* Firefox (y SOLO Firefox): en Chrome/Edge 121+ las propiedades estándar
+   scrollbar-width/scrollbar-color anulan ::-webkit-scrollbar, y la barra
+   salía con flechas, gris y pegada al contenido aunque hubiera estilo. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #C1C7CD transparent;
+  }
 }
-/* WebKit (Chrome, Edge, Safari) */
+/* WebKit (Chrome, Edge, Safari). El carril mide 16px pero el pulgar se
+   dibuja de 6px: el borde transparente lo SEPARA del contenido. El aire va
+   cargado del lado del contenido (7px) y no del borde de la ventana (3px):
+   a la izquierda en la barra vertical y arriba en la horizontal. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 16px;
+  height: 16px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #C1C7CD;
-  border-radius: 3px;
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:vertical {
+  border-left-width: 7px;
+}
+::-webkit-scrollbar-thumb:horizontal {
+  border-top-width: 7px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #9AA0A6;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 body {
   display: flex;

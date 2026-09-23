@@ -2,16 +2,27 @@ let level = 0;
 
 class Navbar {
     /* -- Temas --
-       El catálogo real vive en `fayxzvov_erp.themes` y llega en options.themes.
-       Este fallback solo entra si la petición falla: sin él la barra se quedaría
-       sin acento y sin selector. */
+       Un tema tiene cuatro partes:
+         - la BARRA, como en erp-pro/pro: color plano o imagen de temporada,
+           y `mode` decide si su texto va oscuro o claro.
+         - el ACENTO (hex): pestañas, chips, selección.
+         - el PRIMARIO (hex): los botones principales.
+         - el SECUNDARIO (hex): los detalles de esta barra (sucursal,
+           selección, checks), el foco y el hover de las cards.
+       Los colores los pinta en toda la página window.InventoryPalette
+       (src/js/tailwind-theme.js). El fondo de la página no cambia nunca:
+       siempre gris. El catálogo vive en `fayxzvov_erp.themes` y se administra
+       en tenant/ (Personalización). Este fallback solo entra si la petición
+       falla. */
     static get THEME_FALLBACK() {
-        return { code: 'light', name: 'Claro', color: '#F3F4F6', accent: '#C05A40', mode: 'light', badge: '' };
+        return { code: 'light', name: 'Claro', tipo: 'color', color: '#FFFFFF', image: '', accent: '#C05A40', primary: '#292524', secondary: '#C05A40', scheme: 'light', mode: 'light', badge: '' };
     }
 
-    // Copia local del tema elegido. Se aplica antes de que conteste el servidor
-    // para que la barra no parpadee con el acento del tema anterior.
-    static get THEME_KEY() { return 'inventory:theme'; }
+    /* El velo de los temas con imagen: la capa translúcida entre la foto y el
+       texto. Casi negro y no gris: un gris arrastra el color de la foto hacia
+       el gris; uno oscuro la oscurece pero respeta el tono. Valores de erp-pro. */
+    static get VEIL_DARK()  { return 'rgba(20, 22, 28, .34)'; }
+    static get VEIL_LIGHT() { return 'rgba(255, 255, 255, .55)'; }
 
     init(options) {
         this.render(options);
@@ -97,6 +108,7 @@ class Navbar {
                         <div class="nav-avatar" style="${avatarStyle}">${avatarHtml}</div>
                         <div class="hidden sm:flex flex-col items-start leading-tight">
                             <span class="nav-user-name">${this.settings.user}</span>
+                            ${this.settings.rol ? `<span class="nav-user-rol">${this.settings.rol}</span>` : ''}
                         </div>
                         <i data-lucide="chevron-down" class="nav-chevron w-4 h-4"></i>
                     </button>
@@ -177,12 +189,13 @@ class Navbar {
     }
 
     branchCardHtml(branch, index) {
+        // Tonos de la rampa del secundario, el color de la barra: siguen al tema.
         const gradients = [
-            'linear-gradient(135deg,#C05A40 0%,#E8A68F 100%)',
-            'linear-gradient(135deg,#A84A33 0%,#C05A40 100%)',
-            'linear-gradient(135deg,#D97060 0%,#F0B89A 100%)',
-            'linear-gradient(135deg,#8B3A28 0%,#C05A40 100%)',
-            'linear-gradient(135deg,#E07050 0%,#F5C4A8 100%)',
+            'linear-gradient(135deg,rgb(var(--accent-2-600, 192 90 64)) 0%,rgb(var(--accent-2-300, 232 166 143)) 100%)',
+            'linear-gradient(135deg,rgb(var(--accent-2-700, 168 74 51)) 0%,rgb(var(--accent-2-600, 192 90 64)) 100%)',
+            'linear-gradient(135deg,rgb(var(--accent-2-500, 200 105 76)) 0%,rgb(var(--accent-2-200, 239 201 188)) 100%)',
+            'linear-gradient(135deg,rgb(var(--accent-2-800, 143 61 42)) 0%,rgb(var(--accent-2-600, 192 90 64)) 100%)',
+            'linear-gradient(135deg,rgb(var(--accent-2-400, 217 130 106)) 0%,rgb(var(--accent-2-100, 247 227 220)) 100%)',
         ];
         const grad     = gradients[index % gradients.length];
         const selClass = branch.selected ? 'branch-card-sel' : '';
@@ -206,58 +219,33 @@ class Navbar {
         if (document.getElementById('navbarUserStyles')) return '';
         return `
         <style id="navbarUserStyles">
-            /* ── Acento por tema ──
-               Los tres temas son CLAROS y comparten la barra blanca: lo único
-               que cambia es el acento, así que vive en variables y las reglas
-               de abajo las consumen. Un tema nuevo = un bloque de 6 líneas
-               aquí, no repintar veinte reglas. */
-
-            /* Claro: el de siempre en inventory (Arcilla Invernal). */
-            :root, :root[data-theme="light"] {
-                --nav-accent:      #C05A40;
-                --nav-accent-soft: #E8A68F;
-                --nav-accent-deep: #8e3f2c;
-                --nav-accent-tint: rgba(192,90,64,.12);
-                --nav-accent-line: rgba(192,90,64,.28);
-                --nav-accent-glow: rgba(192,90,64,.35);
+            /* ── Color de la barra ──
+               Sale de la rampa del SECUNDARIO del tema (--accent-2-*), que
+               escribe window.InventoryPalette: morado en Huubie, azul marino
+               en ERP; en los demás es el acento. Respaldo: terracota de Claro. */
+            :root {
+                --nav-accent:      rgb(var(--accent-2-600, 192 90 64));
+                --nav-accent-soft: rgb(var(--accent-2-300, 232 166 143));
+                --nav-accent-deep: rgb(var(--accent-2-800, 143 61 42));
+                --nav-accent-tint: rgb(var(--accent-2-600, 192 90 64) / .12);
+                --nav-accent-line: rgb(var(--accent-2-600, 192 90 64) / .28);
+                --nav-accent-glow: rgb(var(--accent-2-600, 192 90 64) / .35);
             }
 
-            /* Agents: shadcn neutro de erp-pro/ERP24/agents. Ahí el acento NO es
-               un color sino el contraste — un casi negro sobre blanco—, por eso
-               esta rampa es de grises y no un descuido. */
-            :root[data-theme="agents"] {
-                --nav-accent:      #171717;
-                --nav-accent-soft: #404040;
-                --nav-accent-deep: #0D0D0D;
-                --nav-accent-tint: rgba(23,23,23,.06);
-                --nav-accent-line: #E5E5E5;
-                --nav-accent-glow: rgba(23,23,23,.16);
-            }
-
-            /* Avatar: claro con violeta, de erp-pro/ERP24/avatars. */
-            :root[data-theme="avatar"] {
-                --nav-accent:      #7C3AED;
-                --nav-accent-soft: #6D28D9;
-                --nav-accent-deep: #5B21B6;
-                --nav-accent-tint: rgba(124,58,237,.10);
-                --nav-accent-line: rgba(124,58,237,.22);
-                --nav-accent-glow: rgba(124,58,237,.28);
-            }
-
-            /* ── Navbar estilo Visor ── */
-            .navbar-main { background:#FFFFFF; border-bottom:1px solid var(--nav-accent-line) !important; }
+            /* ── Navbar estilo Visor ──
+               El fondo real lo pone applyTheme() en línea; este blanco es el
+               del instante antes de aplicarlo. */
+            .navbar-main { background:#FFFFFF; border-bottom:1px solid var(--nav-accent-line) !important; transition:background .2s ease; }
 
             .nav-logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,var(--nav-accent) 0%,var(--nav-accent-soft) 100%); display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 4px 12px var(--nav-accent-glow); flex-shrink:0; }
             .navbar-title { font-size:15px; font-weight:700; color:#111827; line-height:1.15; }
             .navbar-subtitle { font-size:10px; color:#9CA3AF; letter-spacing:.12em; text-transform:uppercase; }
 
 
-            /* Solo ícono (sin recuadro de botón): sin borde ni fondo, hover de color. */
-            .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#6B7280; border:none; background:transparent; cursor:pointer; transition:color .15s ease; }
-            .nav-theme-toggle:hover { color:#111827; }
-            body.dark-mode .nav-theme-toggle { color:#9CA3AF; }
-            body.dark-mode .nav-theme-toggle:hover { color:#F9FAFB; }
-            .nav-theme-toggle[aria-expanded="true"] { color:var(--nav-accent); }
+            /* Botones de ícono redondos, como .nav-tool-btn de erp-pro. */
+            .nav-theme-toggle { width:38px; height:38px; display:flex; align-items:center; justify-content:center; color:#6B7280; border:none; background:transparent; cursor:pointer; border-radius:9999px; transition:color .15s ease, background .15s ease; }
+            .nav-theme-toggle:hover { color:#111827; background:#F3F4F6; }
+            .nav-theme-toggle[aria-expanded="true"] { color:var(--nav-accent); background:var(--nav-accent-tint); }
 
             /* ── Pill de sucursal (selector en la navbar, estilo app/) ── */
             .branch-pill { padding:4px 10px; border:1px solid var(--nav-accent-line); border-radius:10px; background:var(--nav-accent-tint); transition:all .15s ease; cursor:pointer; }
@@ -318,52 +306,83 @@ class Navbar {
             .nav-color-menu { position:absolute; right:0; top:calc(100% + 10px); width:230px; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); padding:6px; z-index:60; }
             .nav-color-opt { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; transition:background .15s ease; }
             .nav-color-opt:hover { background:#F3F4F6; }
-            /* La muestra va partida en diagonal: arriba el fondo de la barra,
-               abajo el acento. Los dos temas oscuros comparten fondo, así que
-               un círculo de un solo color los dejaría idénticos. */
-            .nav-color-swatch { width:22px; height:22px; border-radius:9999px; border:1px solid rgba(0,0,0,.12); flex-shrink:0; }
+            /* La muestra enseña lo que va a quedar en la barra: el color, o la
+               foto si el tema es de imagen. */
+            .nav-color-swatch { width:22px; height:22px; border-radius:9999px; border:1px solid rgba(0,0,0,.12); box-shadow:inset 0 0 0 1px rgba(15,23,42,.10); flex-shrink:0; }
             .nav-color-name { font-size:13px; font-weight:600; color:#111827; flex:1; }
-            .nav-color-badge { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; border-radius:6px; background:var(--nav-accent-tint); color:var(--nav-accent); }
+            .nav-color-badge { font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:9999px; background:#7AAB20; color:#FFFFFF; flex-shrink:0; }
             .nav-color-check { color:var(--nav-accent); opacity:0; flex-shrink:0; }
             .nav-color-opt.is-active .nav-color-check { opacity:1; }
             .nav-color-opt.is-active { background:var(--nav-accent-tint); }
 
-            /* ── Soporte dark-mode ──
-               Base navy compartida por los dos temas oscuros (#141d2b barra,
-               #1F2A37 tarjetas); lo único que los separa es --nav-accent, que se
-               define arriba. Por eso aquí no hay un solo hex de acento. */
-            body.dark-mode .navbar-title,
-            body.dark-mode .nav-user-name,
+            /* ── Barra oscura (mode: dark) ──
+               Solo cambia la barra: los desplegables siguen blancos y la
+               página sigue gris. Valores de erp-pro. */
+            .navbar-main.nav-dark { border-bottom-color:rgba(255,255,255,.12) !important; }
+            .navbar-main.nav-dark .navbar-title,
+            .navbar-main.nav-dark .nav-user-name,
+            .navbar-main.nav-dark .branch-pill-name { color:#F8FAFC; }
+            .navbar-main.nav-dark .navbar-subtitle,
+            .navbar-main.nav-dark .nav-user-rol,
+            .navbar-main.nav-dark .branch-pill-label { color:rgba(255,255,255,.62); }
+            .navbar-main.nav-dark .nav-chevron,
+            .navbar-main.nav-dark .branch-pill-chev { color:#CBD5E1; }
+            .navbar-main.nav-dark .nav-user-pill { border-left-color:rgba(255,255,255,.15); }
+            .navbar-main.nav-dark .nav-user-pill:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.15); }
+            .navbar-main.nav-dark .nav-avatar { box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+            .navbar-main.nav-dark .branch-pill,
+            .navbar-main.nav-dark .branch-pill.branch-pill-static:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); }
+            .navbar-main.nav-dark .branch-pill:hover { background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.30); }
+            .navbar-main.nav-dark .branch-pill-icon { background:rgba(255,255,255,.14); color:#FFFFFF; }
+            .navbar-main.nav-dark .nav-theme-toggle,
+            .navbar-main.nav-dark #btn-mobile-menu { color:#CBD5E1; }
+            .navbar-main.nav-dark .nav-theme-toggle:hover,
+            .navbar-main.nav-dark .nav-theme-toggle[aria-expanded="true"],
+            .navbar-main.nav-dark #btn-mobile-menu:hover { color:#FFFFFF; background:rgba(255,255,255,.10); }
+
+            /* ── Barra con imagen (tipo: imagen) ──
+               El velo es flojo a propósito para que la foto se vea; lo que
+               hace legible el texto es esta sombra. En barra clara la sombra
+               va blanca, para separar el texto oscuro de las zonas oscuras. */
+            .navbar-main.nav-imagen .navbar-title,
+            .navbar-main.nav-imagen .nav-user-name,
+            .navbar-main.nav-imagen .branch-pill-name { text-shadow:0 1px 3px rgba(0,0,0,.55); }
+            .navbar-main.nav-imagen.nav-dark .navbar-subtitle,
+            .navbar-main.nav-imagen.nav-dark .nav-user-rol,
+            .navbar-main.nav-imagen.nav-dark .branch-pill-label { color:rgba(255,255,255,.80); text-shadow:0 1px 3px rgba(0,0,0,.5); }
+            .navbar-main.nav-imagen:not(.nav-dark) .navbar-title,
+            .navbar-main.nav-imagen:not(.nav-dark) .nav-user-name,
+            .navbar-main.nav-imagen:not(.nav-dark) .branch-pill-name { text-shadow:0 1px 3px rgba(255,255,255,.85); }
+            /* Un ícono de línea fina sobre una foto se pierde: se le da disco. */
+            .navbar-main.nav-imagen .nav-theme-toggle { background:rgba(255,255,255,.14); }
+            .navbar-main.nav-imagen.nav-dark .nav-theme-toggle { background:rgba(0,0,0,.18); }
+
+            /* ── Desplegables con página oscura (scheme huubie / midnight) ──
+               Toman las superficies de dark-mode.css (--dk-*). */
+            body.dark-mode .nav-dropdown,
+            body.dark-mode .nav-color-menu,
+            body.dark-mode .branch-dd { background:var(--dk-card, #1F2A37); border-color:var(--dk-line, #374151); box-shadow:0 16px 40px rgba(0,0,0,.45); }
+            body.dark-mode .nav-divider,
+            body.dark-mode .branch-dd-head { background-color:transparent; border-color:var(--dk-line, #374151); }
+            body.dark-mode .nav-divider { background:var(--dk-line, #374151); }
             body.dark-mode .nav-head-name,
-            body.dark-mode .branch-pill-name { color:#F9FAFB; }
-            body.dark-mode .navbar-subtitle,
-            body.dark-mode .nav-dd-label,
-            body.dark-mode .nav-chevron,
-            body.dark-mode .branch-pill-chev,
-            body.dark-mode .branch-pill-label,
-            body.dark-mode .nav-user-rol,
-            body.dark-mode .nav-head-email { color:#9CA3AF; }
-
-            body.dark-mode .nav-avatar { background:#6B7280; color:#FFFFFF; }
-            body.dark-mode .nav-user-pill { border-left-color:rgba(148,163,184,.18); }
-            body.dark-mode .nav-user-pill:hover { background:rgba(148,163,184,.10); border-color:rgba(148,163,184,.18); }
-            body.dark-mode .nav-dropdown { background:#1F2A37; border-color:rgba(55,65,81,.6); box-shadow:0 14px 38px rgba(0,0,0,.45); }
-            body.dark-mode .nav-divider { background:rgba(55,65,81,.6); }
-            body.dark-mode .nav-head-avatar { background:#6B7280; color:#FFFFFF; }
-            body.dark-mode .nav-status-dot { border-color:#1F2A37; }
-            body.dark-mode .nav-logout-btn { background:transparent; border-color:rgba(55,65,81,.6); color:#F87171; }
+            body.dark-mode .nav-color-name,
+            body.dark-mode .branch-card p.text-gray-800 { color:var(--dk-text, #F9FAFB); }
+            body.dark-mode .nav-head-email,
+            body.dark-mode .nav-user-rol { color:var(--dk-muted, #9CA3AF); }
+            body.dark-mode .nav-color-opt:hover,
+            body.dark-mode .branch-dd-close:hover { background:var(--dk-hover, #1a2332); }
+            body.dark-mode .nav-status-dot { border-color:var(--dk-card, #1F2A37); }
+            body.dark-mode .nav-logout-btn { background:transparent; border-color:var(--dk-line, #374151); color:#F87171; }
             body.dark-mode .nav-logout-btn:hover { background:rgba(220,38,38,.12); border-color:rgba(220,38,38,.35); }
-
-            body.dark-mode .nav-color-menu { background:#1F2A37; border-color:rgba(55,65,81,.6); box-shadow:0 16px 40px rgba(0,0,0,.45); }
-            body.dark-mode .nav-color-opt:hover { background:rgba(148,163,184,.10); }
-            body.dark-mode .nav-color-name { color:#F9FAFB; }
-
-            body.dark-mode .branch-dd { background:#1F2A37; box-shadow:0 16px 40px rgba(0,0,0,.45); }
-            body.dark-mode .branch-dd-head { border-bottom-color:rgba(55,65,81,.6); }
-            body.dark-mode .branch-card { background:rgba(255,255,255,.04); border-color:rgba(55,65,81,.6); }
-            body.dark-mode .branch-card p.text-gray-800 { color:#F9FAFB; }
-            body.dark-mode .branch-dd-close { color:#6B7280; }
-            body.dark-mode .branch-dd-close:hover { color:#F9FAFB; background:rgba(255,255,255,.06); }
+            body.dark-mode .branch-card { background:rgba(255,255,255,.04); border-color:var(--dk-line, #374151); }
+            /* Como la barra de alpha/pedidos: la sucursal se enciende con el
+               secundario al pasar encima, y el avatar sin color propio lo lleva
+               de fondo (el color elegido por el usuario va en línea y gana). */
+            body.dark-mode .navbar-main .branch-pill:not(.branch-pill-static):hover { border-color:var(--nav-accent); box-shadow:0 0 0 3px var(--nav-accent-tint); }
+            body.dark-mode .branch-card:hover { border-color:var(--nav-accent); }
+            body.dark-mode .nav-avatar,
+            body.dark-mode .nav-head-avatar { background:var(--nav-accent); }
         </style>`;
     }
 
@@ -465,9 +484,32 @@ class Navbar {
         return (this.settings.themes || []).find((t) => t.code === code) || null;
     }
 
-    // Pinta las opciones del menú: muestra de color, nombre, badge opcional y
-    // palomita en el activo. La muestra va partida en diagonal (fondo arriba,
-    // acento abajo) porque los dos temas oscuros comparten fondo.
+    escapeText(text) {
+        return (text == null ? '' : String(text)).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    themeImage(theme) {
+        return theme.tipo === 'imagen' && theme.image ? theme.image : '';
+    }
+
+    themeAccent(theme) {
+        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.accent || '') ? theme.accent : Navbar.THEME_FALLBACK.accent;
+    }
+
+    themePrimary(theme) {
+        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.primary || '') ? theme.primary : Navbar.THEME_FALLBACK.primary;
+    }
+
+    // Sin secundario propio, la barra sigue al acento, como antes de que existiera.
+    themeSecondary(theme) {
+        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.secondary || '') ? theme.secondary : this.themeAccent(theme);
+    }
+
+    // Pinta las opciones del menú: muestra, nombre, badge opcional y palomita
+    // en el activo. La muestra es un solo color, el que distingue al tema: en
+    // los de barra oscura, la barra; en los de barra blanca (Claro, Agents,
+    // Avatar) la barra es igual en todos, así que va el acento. Con imagen,
+    // la muestra es la foto.
     buildThemeList() {
         const themes = this.settings.themes || [];
 
@@ -478,54 +520,103 @@ class Navbar {
             return;
         }
 
-        const rows = themes.map((t) => `
-            <div class="nav-color-opt ${t.code === this.settings.theme ? 'is-active' : ''}" data-code="${t.code}">
-                <span class="nav-color-swatch" style="background:linear-gradient(135deg, ${t.color} 50%, ${t.accent} 50%);"></span>
-                <span class="nav-color-name">${t.name}</span>
-                ${t.badge ? `<span class="nav-color-badge">${t.badge}</span>` : ''}
+        const rows = themes.map((t) => {
+            const image  = this.themeImage(t);
+            const tone   = t.mode === 'dark' ? t.color : this.themeAccent(t);
+            const swatch = image
+                ? `background:url('${image}') center/cover no-repeat, ${t.color};`
+                : `background:${tone};`;
+
+            return `
+            <div class="nav-color-opt ${t.code === this.settings.theme ? 'is-active' : ''}" data-code="${this.escapeText(t.code)}">
+                <span class="nav-color-swatch" style="${swatch}"></span>
+                <span class="nav-color-name">${this.escapeText(t.name)}</span>
+                ${t.badge ? `<span class="nav-color-badge">${this.escapeText(t.badge)}</span>` : ''}
                 <i data-lucide="check" class="nav-color-check w-4 h-4"></i>
-            </div>`).join('');
+            </div>`;
+        }).join('');
 
         $("#navColorList").html(rows);
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // Estampa el tema. `data-theme` va en el <html> —como en erp-pro/pro— porque
-    // de ahí cuelgan los tokens que consumen Tailwind (themes.css) y esta barra.
-    // La clase `dark-mode` sigue yendo en el <body>, que es donde la buscan las
-    // hojas que solo saben de claro/oscuro.
+    /* Pinta el tema. La barra, como applyTheme() de erp-pro: un tema de
+       imagen va en tres capas —el color de base (se ve mientras carga y queda
+       si la foto falla), el velo y la foto—; el velo va como box-shadow
+       interior porque se pinta encima del fondo y debajo del contenido.
+       `mode: dark` solo aclara el texto de la barra (.nav-dark).
+       Acento, primario y fondo de página (`scheme`) los reparte
+       InventoryPalette por toda la página y se guardan para que la siguiente
+       carga los pinte desde el <head>. */
     applyTheme(code) {
-        const theme = this.themeByCode(code) || Navbar.THEME_FALLBACK;
-        const dark  = theme.mode === 'dark';
+        const theme   = this.themeByCode(code) || Navbar.THEME_FALLBACK;
+        const dark    = theme.mode === 'dark';
+        const image   = this.themeImage(theme);
+        const palette = { accent: this.themeAccent(theme), primary: this.themePrimary(theme), secondary: this.themeSecondary(theme), scheme: theme.scheme || 'light' };
+        const $nav    = this.parent.find(".navbar-main");
+        const nav     = $nav[0];
 
-        document.documentElement.setAttribute("data-theme", theme.code);
-        $("body")
-            .toggleClass("dark-mode", dark)
-            .attr("data-bs-theme", dark ? "dark" : "light");
+        if (window.InventoryPalette) {
+            InventoryPalette.apply(palette);
+            InventoryPalette.save(palette);
+        }
+
+        if (nav) {
+            if (image) {
+                nav.style.setProperty("background", `url("${image}") center/cover no-repeat, ${theme.color}`, "important");
+                nav.style.setProperty("box-shadow", `inset 0 0 0 9999px ${dark ? Navbar.VEIL_DARK : Navbar.VEIL_LIGHT}`, "important");
+            } else {
+                nav.style.setProperty("background", theme.color, "important");
+                nav.style.removeProperty("box-shadow");
+            }
+
+            $nav.toggleClass("nav-dark", dark).toggleClass("nav-imagen", !!image);
+        }
 
         this.settings.theme = theme.code;
-
-        // `darkMode` se sigue escribiendo: lo leen el sidebar y las páginas que
-        // aplican el tema en un script inline, antes de que exista el navbar.
-        try {
-            localStorage.setItem("darkMode", dark ? "true" : "false");
-            localStorage.setItem(Navbar.THEME_KEY, theme.code);
-        } catch (e) { /* modo privado: el tema se aplica pero no se recuerda */ }
 
         $("#navColorList .nav-color-opt").each((_, el) => {
             $(el).toggleClass("is-active", el.dataset.code === theme.code);
         });
     }
 
+    // Los componentes de coffeeSoft se arman una vez con la variante de la
+    // página (clara u oscura). Si el tema nuevo cambia eso, lo ya pintado
+    // quedaría en la variante vieja: se recarga para rearmarlo todo igual.
+    // El cambio corre detrás del aviso "Aplicando tema" (InventoryPalette.loader):
+    // primero entra el velo y después se pintan los colores nuevos.
     async selectTheme(code) {
-        this.applyTheme(code);
+        const wasDark = document.documentElement.classList.contains('dark');
+        const theme   = this.themeByCode(code);
+        const label   = theme ? theme.name : '';
+        const loader  = window.InventoryPalette && InventoryPalette.loader;
+        const started = Date.now();
+
         this.closeThemeMenu();
 
+        if (loader) {
+            loader.show(label);
+            await new Promise((resolve) => setTimeout(resolve, 180));
+        }
+
+        this.applyTheme(code);
+
         const invBase = window.location.pathname.split('/inventory/')[0];
-        await useFetch({
-            url:  `${invBase}/inventory/acceso/ctrl/ctrl-access.php`,
-            data: { opc: 'saveTheme', code: code }
-        });
+        try {
+            await useFetch({
+                url:  `${invBase}/inventory/acceso/ctrl/ctrl-access.php`,
+                data: { opc: 'saveTheme', code: code }
+            });
+        } catch (e) { /* el tema ya se ve; solo no quedó guardado */ }
+
+        if (document.documentElement.classList.contains('dark') !== wasDark) {
+            if (loader) loader.carry(label);
+            window.location.reload();
+            return;
+        }
+
+        // Tiempo mínimo en pantalla para que el aviso alcance a leerse.
+        if (loader) setTimeout(loader.hide, Math.max(0, 750 - (Date.now() - started)));
     }
 
     toggleThemeMenu() {
@@ -579,10 +670,8 @@ $(async () => {
     const invBase = window.location.pathname.split('/inventory/')[0];
     const ctrlUrl = `${invBase}/inventory/acceso/ctrl/ctrl-access.php`;
 
-    // El repintado temprano ya lo hace tailwind-theme.js desde el <head>, que es
-    // donde hay que hacerlo para que no parpadee. Aquí solo se sincroniza con lo
-    // que diga el servidor, más abajo en init().
-
+    // La barra nace ya con el catálogo en la mano: init() la pinta y le aplica
+    // el tema en el mismo tick, así que no hay parpadeo que evitar.
     const data = await useFetch({ url: ctrlUrl, data: { opc: 'company' } });
     level = data.level;
 

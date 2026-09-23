@@ -356,7 +356,7 @@ class TraspasoForm {
             .tf-scroll::-webkit-scrollbar-track { background: transparent; }
             .tf-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
             .tf-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-            .tf-cat-item.tf-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
+            .tf-cat-item.tf-active { background: rgb(var(--brand-600, 192 90 64) / 0.10); box-shadow: inset 0 0 0 1px rgb(var(--brand-600, 192 90 64) / 0.45); }
             @keyframes tfFlash { 0% { background-color: rgba(16,185,129,0.30); } 100% { background-color: transparent; } }
             tr.tf-flash { animation: tfFlash 0.6s ease-out; }
             @keyframes tfAlertBg { from { opacity: 0; } to { opacity: 1; } }

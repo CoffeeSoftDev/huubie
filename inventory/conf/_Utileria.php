@@ -36,7 +36,8 @@ function sql($arreglo,$slice = 0){
 
 // Espejo EXACTO de badge() en app/conf/_Utileria.php y del simulador JS en
 // inventory/operacion/almacen/js/catalogo.js (badgeColors/badgePreview). El color es el
-// FONDO y el texto se adapta (mismo matiz, mas claro y vivo). Mantener los tres en sync.
+// FONDO y el texto se adapta (mismo matiz, mas claro y vivo). Mantener los tres en sync
+// (excepcion: la clase cs-badge-soft del modelo de 2 colores es solo de inventory).
 function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon = null) {
     $label = ($text === null || $text === '') ? '-' : $text;
     $ico   = ($icon !== null && $icon !== '')
@@ -48,9 +49,11 @@ function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon =
 
     // Modelo de 2 colores: $bgHex es el fondo explicito y $color el color del texto.
     // Cuando se recibe $bgHex se ignora la derivacion automatica.
+    // Solo en inventory: `cs-badge-soft` + `--b-fg` dejan que dark-mode.css cambie
+    // el fondo pastel por un velo de su color cuando el tema es de pagina oscura.
     if ($bgHex !== null && $bgHex !== '') {
         $fg = $color ?: '#475569';
-        return '<span class="' . $spanClass . '" style="background:' . $bgHex . ';color:' . $fg . ';">' . $ico . $label . '</span>';
+        return '<span class="cs-badge-soft ' . $spanClass . '" style="--b-fg:' . $fg . ';background:' . $bgHex . ';color:' . $fg . ';">' . $ico . $label . '</span>';
     }
 
     // Modelo clasico (retrocompatible): $color es el FONDO y el texto se deriva del mismo matiz.

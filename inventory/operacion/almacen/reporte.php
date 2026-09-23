@@ -11,7 +11,7 @@ require_once('layout/head.php');
 require_once('layout/core-libraries.php');
 ?>
 
-<link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
 <!-- CoffeeSoft Framework -->
 <script src="../../src/js/coffeeSoft.js?t=<?php echo time(); ?>"></script>
@@ -37,7 +37,7 @@ require_once('layout/core-libraries.php');
     </main>
 
     <!-- Importación navbar y sidebar -->
-    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
       

@@ -30,11 +30,11 @@ class ctrl extends mdl {
                 'nombre'    => $p['nombre'],
                 'categoria' => $p['categoria'] ?: 'Sin categoria',
                 'costo'     => (float) $p['costo'],
-                'precio'    => (float) ($p['precio'] ?? 0),
-                // Defaults de impuesto que el formulario precarga por renglon:
-                // base sin tax y porcentaje vienen del item (catalogo).
-                'price_without_tax' => $p['price_without_tax'] !== null ? (float) $p['price_without_tax'] : null,
-                'tax'               => $p['tax'] !== null ? (float) $p['tax'] : null,
+                // Semilla del renglon: el ultimo costo de compra del producto.
+                // En una entrada price_without_tax es la base SIN IVA del costo
+                // (igual que en detail_inventory_inflow), no el precio de venta.
+                'price_without_tax' => (float) $p['costo_sin_iva'],
+                'tax'               => (float) $p['iva_compra'],
                 'stock'     => 0,
                 'image'     => $p['image'] ?? '',
                 'icon'      => 'package',
@@ -63,6 +63,17 @@ class ctrl extends mdl {
         ];
     }
 
+    function lsStockByWarehouse() {
+        $warehouseId = (int) ($_POST['warehouse_id'] ?? 0);
+        $map = [];
+        if ($warehouseId > 0) {
+            foreach ($this->qStockByWarehouse([$warehouseId, $this->companiesId]) as $row) {
+                $map[(string) $row['item_id']] = (float) $row['quantity'];
+            }
+        }
+        return ['status' => 200, 'stock' => $map];
+    }
+
     function lsEntradas() {
         $rows = $this->qEntradas([
             'companies_id'    => $this->companiesId,
@@ -78,7 +89,7 @@ class ctrl extends mdl {
         foreach ($rows as $r) {
             $a = [
                 [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectEntrada('{$r['folio']}', {$r['id']})"
                 ]
@@ -270,8 +281,11 @@ class ctrl extends mdl {
                 $p['unit_id']
             ]);
 
-            // Reflejamos el ultimo costo capturado en el catalogo del item.
-            $this->updateItemTax([$cost, $base, $tax, $productId, $this->companiesId]);
+            // El ultimo costo de compra queda en el producto. Un renglon sin costo
+            // (p. ej. produccion) no borra el ultimo costo conocido.
+            if ($base > 0) {
+                $this->updateItemCost([$base, $tax, $productId, $this->companiesId]);
+            }
 
             if (!$isProduction) {
                 if ($stockRow) {
@@ -475,8 +489,8 @@ class ctrl extends mdl {
                 'sku'               => $it['sku'] ?: '',
                 'categoria'         => $it['categoria'] ?: 'Sin categoria',
                 'costo'             => (float) $it['costo'],
-                'price_without_tax' => $it['price_without_tax'] !== null ? (float) $it['price_without_tax'] : null,
-                'tax'               => $it['tax'] !== null ? (float) $it['tax'] : null,
+                'price_without_tax' => (float) $it['costo_sin_iva'],
+                'tax'               => (float) $it['iva_compra'],
                 'cantidad'          => (float) $it['cantidad'],
                 'stock'             => 0,
                 'image'             => $it['image'] ?? '',

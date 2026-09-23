@@ -184,9 +184,8 @@ function csIconPickerCSS() {
     if (document.getElementById('cs-icon-picker-css')) return;
 
     /*  PORT A INVENTORY: el original de erp-pro clavaba su azul institucional
-        en once reglas. Aquí el acento sale del tema activo (Claro / Agents /
-        Avatar) a través de --brand-600, con el terracota de respaldo por si la
-        hoja de temas no está cargada. Ver src/css/themes.css. */
+        en once reglas. Aquí el acento sale de --brand-600, con el terracota de
+        respaldo. Ver src/css/themes.css. */
     const css = ''
         + ':root { --cs-ip-accent: rgb(var(--brand-600, 192 90 64)); }'
 

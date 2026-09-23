@@ -569,8 +569,8 @@ class Users extends Templates {
             const $chip = $('<span>', {
                 class: 'inline-flex items-center gap-1 me-1 mb-1 px-3 py-1 rounded-full border text-sm font-medium cursor-pointer select-none transition ' +
                        (isSelected
-                           ? 'bg-[#C05A40] text-white border-[#C05A40]'
-                           : 'bg-white text-gray-600 border-gray-300 hover:border-[#C05A40]')
+                           ? 'bg-blue-600 text-white border-blue-600'
+                           : 'bg-white text-gray-600 border-gray-300 hover:border-blue-600')
             });
 
             $chip.append($('<span>', { text: s.valor }));

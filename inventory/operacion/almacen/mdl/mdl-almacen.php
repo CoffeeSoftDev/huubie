@@ -58,17 +58,6 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
-    function lsWarehouses() {
-        $query = "
-            SELECT id, name AS valor
-            FROM {$this->bd}warehouse
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
     // Insumos (item + item_attribute + stock)
 
     function listMateriales($filters) {
@@ -78,10 +67,12 @@ class mdl extends CRUD {
                 i.name,
                 i.image,
                 i.price,
+                i.price_without_tax,
+                i.tax,
                 i.active,
                 i.created_at,
                 ia.sku,
-                ia.cost_unit AS cost,
+                ia.cost_unit,
                 ia.stock_min,
                 ia.stock_max,
                 ia.shelf_life_days,
@@ -89,8 +80,6 @@ class mdl extends CRUD {
                 ic.name AS categoria,
                 u.code  AS unidad,
                 wa.name AS area,
-                i.price_without_tax AS cost_unit,
-                i.tax,
                 COALESCE(st.qty, 0) AS quantity
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
@@ -116,15 +105,6 @@ class mdl extends CRUD {
         if (!empty($filters['area'])) {
             $query .= " AND ia.warehouse_area_id = ?";
             $params[] = $filters['area'];
-        }
-
-        // Almacén: cada categoría pertenece a un almacén (item_category.warehouse_id),
-        // así que el producto se filtra por la categoría asignada a ese almacén.
-        if (!empty($filters['almacen'])) {
-            $query .= " AND i.category_id IN (
-                SELECT id FROM {$this->bd}item_category WHERE warehouse_id = ?
-            )";
-            $params[] = $filters['almacen'];
         }
 
         if (isset($filters['estado']) && $filters['estado'] !== '') {
@@ -179,6 +159,19 @@ class mdl extends CRUD {
                AND (sku IS NULL OR sku = '')
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // Último consecutivo usado con un prefijo de SKU; 0 si el prefijo aún no tiene ninguno.
+    function getSkuCounts($array) {
+        // [posición donde empieza el consecutivo, companies_id, patrón del prefijo]
+        $query = "
+            SELECT COALESCE(MAX(CAST(SUBSTRING(sku, ?) AS UNSIGNED)), 0) AS last_consecutive
+            FROM {$this->bd}item_attribute
+            WHERE companies_id = ?
+              AND sku REGEXP ?
+        ";
+        $result = $this->_Read($query, $array);
+        return (int) ($result[0]['last_consecutive'] ?? 0);
     }
 
     function createMaterial($data) {

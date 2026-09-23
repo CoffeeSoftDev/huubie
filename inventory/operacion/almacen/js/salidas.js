@@ -72,7 +72,7 @@ class App extends Templates {
         const branchName = branch ? (branch.valor || '') : '';
 
         const titleHtml = branchName
-            ? `${VIEW_HEADER_SALIDAS.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            ? `${VIEW_HEADER_SALIDAS.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(branchName)}</span>`
             : VIEW_HEADER_SALIDAS.title;
 
         salidasView.renderHeader(Object.assign({}, VIEW_HEADER_SALIDAS, { titleHtml }));
@@ -390,6 +390,7 @@ class Salidas extends Templates {
                 name:        d.product_name,
                 sku:         d.sku,
                 categoria:   d.category_name || '',
+                area:        d.area_name     || '',
                 qty:         Number(d.quantity || 0),
                 costo_unit:  Number(d.cost || 0),
                 costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0))
@@ -494,15 +495,16 @@ class Salidas extends Templates {
         const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
         const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
 
-        const byCat = {};
+        // Agrupa por Área (anaquel, refrigerador...) para que la hoja sirva de ruta de surtido.
+        const byArea = {};
         items.forEach(it => {
-            const cat = (it.categoria && String(it.categoria).trim()) || 'Sin categoria';
-            (byCat[cat] = byCat[cat] || { categoria: cat, items: [] }).items.push(it);
+            const area = (it.area && String(it.area).trim()) || 'Sin área';
+            (byArea[area] = byArea[area] || { area: area, items: [] }).items.push(it);
         });
-        const groups = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'es')).map(c => byCat[c]);
+        const groups = Object.keys(byArea).sort((a, b) => a.localeCompare(b, 'es')).map(k => byArea[k]);
 
         const rowsHtml = groups.map(g => {
-            const head = `<tr class="cat"><td colspan="4">${esc(g.categoria)} <span class="cat-count">${g.items.length}</span></td></tr>`;
+            const head = `<tr class="cat"><td colspan="4">${esc(g.area)} <span class="cat-count">${g.items.length}</span></td></tr>`;
             const body = g.items.map(it => {
                 const cu  = Number(it.costo_unit || 0);
                 const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * cu;
@@ -713,7 +715,7 @@ class SalidasView extends Templates {
             motivoPalettes: {
                 'Merma':                  { bg: '#FEE2E2', fg: '#DC2626', icon: 'trending-down'  },
                 'Caducidad':              { bg: 'rgba(190,113,25,0.18)', fg: '#BE7119', icon: 'calendar-x'     },
-                'Consumo interno':        { bg: '#F7E3DC', fg: '#C05A40', icon: 'coffee'         },
+                'Consumo interno':        { bg: 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))', fg: 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', icon: 'coffee' },
                 'Robo / Faltante':        { bg: '#F3E8FF', fg: '#9333EA', icon: 'shield-alert'   },
                 'Producto dañado':        { bg: 'rgba(251,140,0,0.18)',  fg: '#FB8C00', icon: 'alert-triangle' },
                 'Devolución a proveedor': { bg: 'rgba(63,193,137,0.18)', fg: '#3FC189', icon: 'rotate-ccw'     },
@@ -823,12 +825,12 @@ class SalidasView extends Templates {
 
         const productTable = (m) => {
             const items = m.items || [];
-            const byCat = {};
+            const byArea = {};
             items.forEach(it => {
-                const cat = (it.categoria && String(it.categoria).trim()) || 'Sin categoria';
-                (byCat[cat] = byCat[cat] || { categoria: cat, items: [] }).items.push(it);
+                const area = (it.area && String(it.area).trim()) || 'Sin área';
+                (byArea[area] = byArea[area] || { area: area, items: [] }).items.push(it);
             });
-            const groups = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'es')).map(c => byCat[c]);
+            const groups = Object.keys(byArea).sort((a, b) => a.localeCompare(b, 'es')).map(k => byArea[k]);
 
             const itemRow = (it) => {
                 const cu  = Number(it.costo_unit || 0);
@@ -846,7 +848,7 @@ class SalidasView extends Templates {
             };
 
             const groupBlock = (g) => {
-                const head = `<tr><td colspan="4" class="px-2 pt-2.5 pb-1 bg-indigo-50"><div class="flex items-center justify-between"><span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 truncate">${esc(g.categoria)}</span><span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${g.items.length}</span></div></td></tr>`;
+                const head = `<tr><td colspan="4" class="px-2 pt-2.5 pb-1 bg-indigo-50"><div class="flex items-center justify-between"><span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 truncate">${esc(g.area)}</span><span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${g.items.length}</span></div></td></tr>`;
                 return head + g.items.map(itemRow).join('');
             };
 

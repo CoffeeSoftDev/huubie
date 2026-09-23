@@ -3,37 +3,46 @@
        NUEVA PALETA DE COLORES - ERP SYSTEM
        ======================================== */
     
-    /* PRIMARY GRAFITO CÁLIDO - #292524 (familia stone, sin tinte azul)
-       El terracota dejó de ser primario: ahora es el secundario (ver abajo). */
-    --primary: #292524;
-    --primary9: rgba(41, 37, 36, 0.9);
-    --primary8: rgba(41, 37, 36, 0.8);
-    --primary7: rgba(41, 37, 36, 0.7);
-    --primary6: rgba(41, 37, 36, 0.6);
-    --primary5: rgba(41, 37, 36, 0.5);
-    --primary4: rgba(41, 37, 36, 0.4);
-    --primary3: rgba(41, 37, 36, 0.3);
-    --primary2: rgba(41, 37, 36, 0.2);
-    --primary1: rgba(41, 37, 36, 0.1);
-    /* El grafito ya es oscuro: el hover ACLARA en vez de oscurecer. */
-    --primary-hover: #44403C;
-    --primary-light: #78716C;
-    --primary-dark: #1C1917;
+    /* PRIMARY y SECONDARY SIGUEN AL TEMA.
+       El tema activo escribe en <html> los canales --primary-*-rgb (primario) y
+       --brand-* (acento) desde src/js/tailwind-theme.js. Aquí solo se derivan;
+       los respaldos son los de Claro: grafito #292524 y terracota #C05A40. */
 
-    /* SECONDARY TERRACOTA - #C05A40 (acento "Arcilla Invernal") */
-    --secondary: #C05A40;
-    --secondary9: rgba(192, 90, 64, 0.9);
-    --secondary8: rgba(192, 90, 64, 0.8);
-    --secondary7: rgba(192, 90, 64, 0.7);
-    --secondary6: rgba(192, 90, 64, 0.6);
-    --secondary5: rgba(192, 90, 64, 0.5);
-    --secondary4: rgba(192, 90, 64, 0.4);
-    --secondary3: rgba(192, 90, 64, 0.3);
-    --secondary2: rgba(192, 90, 64, 0.2);
-    --secondary1: rgba(192, 90, 64, 0.1);
-    --secondary-hover: #A84A33;
-    --secondary-light: #E8A68F;
-    --secondary-lighter: #F7E3DC;
+    /* PRIMARY - botones principales. En Claro, grafito cálido. */
+    --primary: rgb(var(--primary-rgb, 41 37 36));
+    --primary9: rgb(var(--primary-rgb, 41 37 36) / 0.9);
+    --primary8: rgb(var(--primary-rgb, 41 37 36) / 0.8);
+    --primary7: rgb(var(--primary-rgb, 41 37 36) / 0.7);
+    --primary6: rgb(var(--primary-rgb, 41 37 36) / 0.6);
+    --primary5: rgb(var(--primary-rgb, 41 37 36) / 0.5);
+    --primary4: rgb(var(--primary-rgb, 41 37 36) / 0.4);
+    --primary3: rgb(var(--primary-rgb, 41 37 36) / 0.3);
+    --primary2: rgb(var(--primary-rgb, 41 37 36) / 0.2);
+    --primary1: rgb(var(--primary-rgb, 41 37 36) / 0.1);
+    /* Con un primario oscuro (grafito) el hover ACLARA; lo decide el motor. */
+    --primary-hover: rgb(var(--primary-hover-rgb, 68 64 60));
+    --primary-light: rgb(var(--primary-light-rgb, 120 113 108));
+    --primary-dark: rgb(var(--primary-active-rgb, 28 25 23));
+
+    /* SECONDARY - el acento del tema. En Claro, terracota. */
+    --secondary: rgb(var(--brand-600, 192 90 64));
+    --secondary9: rgb(var(--brand-600, 192 90 64) / 0.9);
+    --secondary8: rgb(var(--brand-600, 192 90 64) / 0.8);
+    --secondary7: rgb(var(--brand-600, 192 90 64) / 0.7);
+    --secondary6: rgb(var(--brand-600, 192 90 64) / 0.6);
+    --secondary5: rgb(var(--brand-600, 192 90 64) / 0.5);
+    --secondary4: rgb(var(--brand-600, 192 90 64) / 0.4);
+    --secondary3: rgb(var(--brand-600, 192 90 64) / 0.3);
+    --secondary2: rgb(var(--brand-600, 192 90 64) / 0.2);
+    --secondary1: rgb(var(--brand-600, 192 90 64) / 0.1);
+    --secondary-hover: rgb(var(--brand-700, 168 74 51));
+    --secondary-light: rgb(var(--brand-300, 232 166 143));
+    --secondary-lighter: rgb(var(--brand-100, 247 227 220));
+
+    /* Chip suave del acento (badges pintados en línea). En página oscura
+       dark-mode.css lo cambia por un velo del acento con texto claro. */
+    --accent-soft-bg: rgb(var(--brand-100, 247 227 220));
+    --accent-soft-fg: rgb(var(--brand-700, 168 74 51));
 
     /* SUCCESS GREEN - #22C55E (bg-green-500) */
     --success: #22C55E;
@@ -65,11 +74,11 @@
     --danger-light: #B85454;
     --danger-dark: #6E2424;
 
-    /* INFO - alias del acento terracota (compatibilidad) */
-    --info: #C05A40;
-    --info1: #F7F0EB;
-    --info5: #F7E3DC;
-    --info9: rgba(192, 90, 64, 0.9);
+    /* INFO - alias del acento (compatibilidad) */
+    --info: var(--secondary);
+    --info1: rgb(var(--brand-50, 251 243 239));
+    --info5: var(--secondary-lighter);
+    --info9: var(--secondary9);
 
     /* WARNING - Mantenido */
     --warning: #F69F00;
@@ -104,11 +113,13 @@
 
     /* ========================================
        PALETA "ARCILLA INVERNAL" (tokens base)
+       Los nombres se quedan por compatibilidad, pero siguen al acento del
+       tema: en Claro siguen siendo terracota y salmón.
        ======================================== */
-    --terracota: #C05A40;   /* acento principal */
-    --salmon:    #E8A68F;   /* acento suave / hover */
+    --terracota: var(--secondary);        /* acento principal */
+    --salmon:    var(--secondary-light);  /* acento suave / hover */
     --crema:     #F7F0EB;   /* fondo light / badges */
     --acero:     #8FA3B7;   /* muted / secundario */
     --navy:      #1E2730;   /* texto/acento profundo */
-    --terracota-tint: rgba(192, 90, 64, 0.18); /* chips, focus ring */
+    --terracota-tint: rgb(var(--brand-600, 192 90 64) / 0.18); /* chips, focus ring */
 }

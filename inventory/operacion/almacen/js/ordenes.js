@@ -431,7 +431,7 @@ class Ordenes extends Templates {
         if (!o || typeof o !== 'object') {
             const r = await useFetch({ url: apiOrdenes, data: { opc: 'printOrden', id: arg } });
             if (!(r && r.status === 200)) {
-                if (typeof alert === 'function') alert({ icon: 'error', text: 'No se pudo cargar la orden para imprimir' });
+                this.alertBox({ type: 'error', title: 'No se pudo cargar la orden para imprimir' });
                 return;
             }
             o = this.mapOrdenDetail(r.header || {}, r.detail || []);
@@ -531,7 +531,7 @@ class Ordenes extends Templates {
 
         const w = window.open('', '_blank', 'width=900,height=1000');
         if (!w) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Permite las ventanas emergentes para poder ver el documento.' });
+            this.alertBox({ type: 'warning', title: 'Permite las ventanas emergentes para poder ver el documento.' });
             return;
         }
         w.document.write(html);
@@ -571,28 +571,24 @@ class OrdenesView extends Templates {
     }
 
     // ----------------------------------------------------------
-    // Acciones de estado — todas siguen el patrón swalQuestion
+    // Acciones de estado — confirmación con alertBox
     // ----------------------------------------------------------
 
     doSubmitOrden(o) {
         if (!o || !o.id) return;
-        this.swalQuestion({
-            opts: {
-                title:             `Enviar orden ${o.folio}`,
-                text:              'La orden pasara a estado Solicitada y quedara pendiente de aprobacion.',
-                icon:              'question',
-                confirmButtonText: 'Si, enviar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'submitOrden', id: o.id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Solicitud enviada' });
-                        this._refreshAfterAction(o.folio, o.id);
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo enviar la orden' });
-                    }
+        this.alertBox({
+            type:        'confirm',
+            title:       `Enviar orden ${o.folio}`,
+            detailHtml:  'La orden pasara a estado Solicitada y quedara pendiente de aprobacion.',
+            okLabel:     'Si, enviar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'submitOrden', id: o.id } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Solicitud enviada', timer: 1600 });
+                    this._refreshAfterAction(o.folio, o.id);
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo enviar la orden' });
                 }
             }
         });
@@ -774,7 +770,7 @@ class OrdenesView extends Templates {
                 }
             } else {
                 $btn.prop('disabled', false).removeClass('opacity-60 pointer-events-none');
-                if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo aprobar la orden' });
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aprobar la orden' });
             }
         });
 
@@ -800,12 +796,12 @@ class OrdenesView extends Templates {
                     data: { opc: 'rejectOrden', id: o.id, reason: reason }
                 }).then(r => {
                     if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Orden rechazada' });
+                        this.alertBox({ type: 'success', title: r.message || 'Orden rechazada', timer: 1600 });
                         app.selectOrden(null);
                         ordenes.lsOrdenes();
                         ordenes.lsKpis();
                     } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo rechazar la orden' });
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo rechazar la orden' });
                     }
                 });
             }
@@ -814,25 +810,21 @@ class OrdenesView extends Templates {
 
     doCancelOrden(o) {
         if (!o || !o.id) return;
-        this.swalQuestion({
-            opts: {
-                title:             `Cancelar orden ${o.folio}`,
-                text:              'La orden quedara cancelada. Las recepciones parciales previas no se revierten.',
-                icon:              'warning',
-                confirmButtonText: 'Si, cancelar',
-                cancelButtonText:  'No'
-            },
-            data: { opc: 'cancelOrden', id: o.id },
-            methods: {
-                send: (r) => {
-                    if (r && r.status === 200) {
-                        if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Orden cancelada' });
-                        app.selectOrden(null);
-                        ordenes.lsOrdenes();
-                        ordenes.lsKpis();
-                    } else {
-                        if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo cancelar la orden' });
-                    }
+        this.alertBox({
+            type:        'cancel',
+            title:       `Cancelar orden ${o.folio}`,
+            detailHtml:  'La orden quedara cancelada. Las recepciones parciales previas no se revierten.',
+            okLabel:     'Si, cancelar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: this._link, data: { opc: 'cancelOrden', id: o.id } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Orden cancelada', timer: 1600 });
+                    app.selectOrden(null);
+                    ordenes.lsOrdenes();
+                    ordenes.lsKpis();
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar la orden' });
                 }
             }
         });
@@ -1050,18 +1042,18 @@ class OrdenesView extends Templates {
                         </td>
                         <td class="px-3 py-2">
                             <input type="number" data-field="cant" data-idx="${idx}" value="${row.cant}" min="0.01" step="0.01"
-                                class="ord-field no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-[#C05A40] outline-none">
+                                class="ord-field no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
                         </td>
                         <td class="px-3 py-2">
                             <div class="relative">
                                 <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">$</span>
                                 <input type="number" data-field="cost" data-idx="${idx}" value="${row.cost != null ? row.cost : ''}" min="0" step="0.01" placeholder="—"
-                                    class="ord-field no-spin w-full pl-5 pr-2 py-1 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded focus:border-[#C05A40] outline-none">
+                                    class="ord-field no-spin w-full pl-5 pr-2 py-1 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
                             </div>
                         </td>
                         <td class="px-3 py-2 text-center">
                             <input type="number" data-field="tax" data-idx="${idx}" value="${row.tax != null ? row.tax : 0}" min="0" step="0.01"
-                                class="ord-field no-spin w-16 px-2 py-1 text-xs text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-[#C05A40] outline-none">
+                                class="ord-field no-spin w-16 px-2 py-1 text-xs text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none">
                         </td>
                         <td class="px-3 py-2 text-right font-semibold text-gray-800 row-sub">${row.cost != null ? fmtMoney(sub) : '—'}</td>
                         <td class="px-3 py-2 text-center">
@@ -1114,7 +1106,7 @@ class OrdenesView extends Templates {
                             <p class="text-[10px] text-gray-400">${esc(p.sku || 'Sin SKU')}</p>
                         </div>
                     </div>
-                    <span class="text-[11px] font-semibold flex items-center gap-1" style="color:#C05A40">
+                    <span class="text-[11px] font-semibold flex items-center gap-1" style="color:rgb(var(--brand-600, 192 90 64))">
                         <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar
                     </span>
                 </div>
@@ -1201,14 +1193,14 @@ class OrdenesView extends Templates {
                         data: Object.assign({ opc: 'createSupplier' }, payload)
                     }).then(r => {
                         if (r && r.status === 200 && r.id) {
-                            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || 'Proveedor creado' });
+                            this.alertBox({ type: 'success', title: r.message || 'Proveedor creado', timer: 1600 });
                             const $sel = $(`#${modalId}_supplier_id`);
                             if (!$sel.find(`option[value="${r.id}"]`).length) {
                                 $sel.append(`<option value="${r.id}">${esc(r.valor)}</option>`);
                             }
                             $sel.val(r.id);
                         } else {
-                            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo crear el proveedor' });
+                            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
                         }
                     });
                 }
@@ -1236,7 +1228,7 @@ class OrdenesView extends Templates {
 
     async _submitOrdenForm(modalId, rows, isEdit, orden, submit, closeModal) {
         if (!rows.length) {
-            if (typeof alert === 'function') alert({ icon: 'warning', text: 'Agrega al menos un material' });
+            this.alertBox({ type: 'warning', title: 'Agrega al menos un material' });
             return;
         }
 
@@ -1265,7 +1257,7 @@ class OrdenesView extends Templates {
         const r = await useFetch({ url: apiOrdenes, data: data });
 
         if (r && r.status === 200) {
-            if (typeof alert === 'function') alert({ icon: 'success', text: r.message || (isEdit ? 'Orden actualizada' : 'Orden creada') });
+            this.alertBox({ type: 'success', title: r.message || (isEdit ? 'Orden actualizada' : 'Orden creada'), timer: 1600 });
             closeModal();
             ordenes.lsOrdenes();
             ordenes.lsKpis();
@@ -1273,7 +1265,7 @@ class OrdenesView extends Templates {
                 setTimeout(() => app.selectOrden(orden.folio, orden.id), 300);
             }
         } else {
-            if (typeof alert === 'function') alert({ icon: 'error', text: (r && r.message) || 'No se pudo guardar la orden' });
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar la orden' });
         }
     }
 
@@ -1356,8 +1348,8 @@ class OrdenesView extends Templates {
 
                     <!-- Aviso + almacen/nota (zona fija) -->
                     <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
-                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #C05A40;background:rgba(192,90,64,.05)">
-                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C05A40"></i>
+                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid rgb(var(--brand-600, 192 90 64));background:rgb(var(--brand-600, 192 90 64) /.05)">
+                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
                                 Al confirmar, se generara una <span class="font-semibold text-gray-800">entrada al inventario</span> con las cantidades indicadas en
                                 <span class="font-semibold text-gray-800">"Recibe ahora"</span> y se afectara el stock del almacen destino.
@@ -1542,7 +1534,7 @@ class OrdenesView extends Templates {
 
                     <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:#C05A40">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style="background:rgb(var(--brand-600, 192 90 64))">
                                 <i data-lucide="truck" class="w-5 h-5 text-white"></i>
                             </div>
                             <div>
@@ -1556,8 +1548,8 @@ class OrdenesView extends Templates {
                     </div>
 
                     <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60 flex-shrink-0">
-                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid #C05A40;background:rgba(192,90,64,.05)">
-                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#C05A40"></i>
+                        <div class="flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 mb-3" style="border-left:4px solid rgb(var(--brand-600, 192 90 64));background:rgb(var(--brand-600, 192 90 64) /.05)">
+                            <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:rgb(var(--brand-600, 192 90 64))"></i>
                             <p class="text-[11px] text-gray-600 leading-relaxed">
                                 Al confirmar se genera una <span class="font-semibold text-gray-800">salida</span> que descuenta el stock del almacen origen.
                                 Si surtes mas de lo disponible, el faltante queda como una <span class="font-semibold text-gray-800">orden de compra de reabasto</span> pendiente, que deberas recibir cuando registres la compra.
@@ -1607,14 +1599,14 @@ class OrdenesView extends Templates {
 
                     <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-5 text-[11px] text-gray-500">
-                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:#C05A40"></span>A surtir <strong class="text-gray-800 text-sm" id="${modalId}_totSup">0</strong></span>
+                            <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:rgb(var(--brand-600, 192 90 64))"></span>A surtir <strong class="text-gray-800 text-sm" id="${modalId}_totSup">0</strong></span>
                             <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reabasto <strong class="text-gray-800 text-sm" id="${modalId}_totRep">0</strong></span>
                         </div>
                     </div>
 
                     <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                         <button id="${modalId}_btnCancelar" class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancelar</button>
-                        <button id="${modalId}_btnConfirmar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:#C05A40">
+                        <button id="${modalId}_btnConfirmar" class="px-3 py-1.5 text-xs font-bold text-white rounded-md hover:shadow-lg transition-all flex items-center gap-1.5" style="background:rgb(var(--brand-600, 192 90 64))">
                             <i data-lucide="truck" class="w-3.5 h-3.5"></i><span>Confirmar surtido</span>
                         </button>
                     </div>
@@ -1653,7 +1645,7 @@ class OrdenesView extends Templates {
                         <td class="px-3 py-2 text-center text-xs font-semibold" style="color:${p.quantity_received > 0 ? '#3FC189' : '#9CA3AF'}">${fmtNum(p.quantity_received)}</td>
                         <td class="px-3 py-2 text-center text-xs font-bold sur-disp" style="color:${dispColor}">${dispTxt}</td>
                         <td class="px-3 py-2">
-                            <input type="number" class="sur-qty no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-[#C05A40] outline-none ${completo ? 'bg-gray-100 text-gray-400' : ''}"
+                            <input type="number" class="sur-qty no-spin w-full px-2 py-1 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded focus:border-blue-600 outline-none ${completo ? 'bg-gray-100 text-gray-400' : ''}"
                                 value="${completo ? 0 : aSurtir}" min="0" max="${pendiente}" step="0.01" ${completo ? 'disabled' : ''}>
                         </td>
                         <td class="px-3 py-2">
@@ -1805,13 +1797,13 @@ class OrdenesView extends Templates {
                    ${steps.map((s, i) => {
                        const done    = i < activeIdx;
                        const current = i === activeIdx;
-                       const dotColor   = done || current ? '#C05A40' : '#D1D5DB';
-                       const labelColor = current ? '#C05A40' : (done ? '#6B7280' : '#9CA3AF');
-                       const lineColor  = done ? '#C05A40' : '#E5E7EB';
+                       const dotColor   = done || current ? 'rgb(var(--brand-600, 192 90 64))' : '#D1D5DB';
+                       const labelColor = current ? 'rgb(var(--brand-600, 192 90 64))' : (done ? '#6B7280' : '#9CA3AF');
+                       const lineColor  = done ? 'rgb(var(--brand-600, 192 90 64))' : '#E5E7EB';
                        return `
                            <div class="flex items-center flex-shrink-0">
                                <div class="flex flex-col items-center">
-                                   <div class="w-2.5 h-2.5 rounded-full border-2 flex-shrink-0" style="background:${current ? '#C05A40' : (done ? '#C05A40' : '#fff')};border-color:${dotColor}"></div>
+                                   <div class="w-2.5 h-2.5 rounded-full border-2 flex-shrink-0" style="background:${current ? 'rgb(var(--brand-600, 192 90 64))' : (done ? 'rgb(var(--brand-600, 192 90 64))' : '#fff')};border-color:${dotColor}"></div>
                                    <p class="text-[9px] font-semibold mt-0.5 whitespace-nowrap" style="color:${labelColor}">${esc(s === 'Recibida' ? 'Surtida' : s)}</p>
                                </div>
                                ${i < steps.length - 1 ? `<div class="h-0.5 w-6 flex-shrink-0 mb-3" style="background:${lineColor}"></div>` : ''}
@@ -1874,8 +1866,8 @@ class OrdenesView extends Templates {
             // El borrador solo lo gestiona su sucursal de origen.
             if (esOrigen || sinRestriccion) {
                 actionsHtml = `
-                    ${btnCls('#C05A40', 'Editar',   'pencil', 'edit')}
-                    ${btnCls('#C05A40', 'Enviar',   'send',   'submit')}
+                    ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Editar',   'pencil', 'edit')}
+                    ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Enviar',   'send',   'submit')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',    'cancel')}`;
             }
         } else if (status === 'Solicitada') {
@@ -1896,10 +1888,10 @@ class OrdenesView extends Templates {
                     ${btnCls('#F97316', 'Cancelar', 'ban',           'cancel')}`;
             } else if (sinRestriccion) {
                 actionsHtml = `
-                    ${btnCls('#C05A40', 'Surtir',   'truck', 'recibir')}
+                    ${btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir',   'truck', 'recibir')}
                     ${btnCls('#F97316', 'Cancelar', 'ban',   'cancel')}`;
             } else if (esDestino) {
-                actionsHtml = btnCls('#C05A40', 'Surtir', 'truck', 'recibir');
+                actionsHtml = btnCls('rgb(var(--brand-600, 192 90 64))', 'Surtir', 'truck', 'recibir');
             } else if (esOrigen) {
                 actionsHtml = btnCls('#F97316', 'Cancelar', 'ban', 'cancel');
             }

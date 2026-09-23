@@ -1,4 +1,7 @@
 -- =====================================================================
+-- SUPERADA (23/09/2026): NO correr en prod. La reemplaza
+--   2026-09-23_sku-por-categoria-real.sql, que usa las categorías reales.
+-- =====================================================================
 -- SKU automático: cada producto lleva ITM-<su id>
 -- Fecha: 22/09/2026
 -- BD:    fayxzvov_inventory

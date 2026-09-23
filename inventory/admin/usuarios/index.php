@@ -12,10 +12,10 @@ require_once('layout/core-libraries.php');
 ?>
 
 <!-- CoffeeSoft Framework -->
-<script src="../../src/js/coffeeSoft.js"></script>
+<script src="../../src/js/coffeeSoft.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/coffeeSoft.js'); ?>"></script>
 <script src="https://rawcdn.githack.com/SomxS/Grupo-Varoch/refs/heads/main/src/js/plugins.js"></script>
 <script src="https://www.plugins.erp-varoch.com/ERP/JS/complementos.js"></script>
-<link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 
 <body>
     <div id="menu-sidebar" class="bg-white flex flex-col items-center py-4 gap-2"></div>
@@ -36,7 +36,7 @@ require_once('layout/core-libraries.php');
     </main>
 
     <!-- Importación navbar y sidebar -->
-    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
    

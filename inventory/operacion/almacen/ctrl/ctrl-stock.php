@@ -61,7 +61,7 @@ class ctrl extends mdl {
                 'Ult. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
                 'a'         => [
                     [
-                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                         'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                         'onclick' => "app.selectProduct({$r['product_id']})"
                     ]
@@ -426,7 +426,7 @@ class ctrl extends mdl {
         $map = [
             'ENTRADA'       => ['bg' => 'rgba(63,193,137,0.15)', 'fg' => '#15803D', 'lbl' => 'Entrada'],
             'MERMA'         => ['bg' => 'rgba(224,36,36,0.15)',  'fg' => '#B91C1C', 'lbl' => 'Merma'],
-            'TRANSFERENCIA' => ['bg' => 'rgba(192,90,64,0.15)',  'fg' => '#C05A40', 'lbl' => 'Traspaso'],
+            'TRANSFERENCIA' => ['bg' => 'rgb(var(--brand-600, 192 90 64) / 0.15)',  'fg' => 'rgb(var(--brand-600, 192 90 64))', 'lbl' => 'Traspaso'],
             'AJUSTE'        => ['bg' => 'rgba(167,139,250,0.15)','fg' => '#7C3AED', 'lbl' => 'Ajuste']
         ];
         $c = $map[$type] ?? ['bg' => 'rgba(156,163,175,0.18)', 'fg' => '#6B7280', 'lbl' => $type];

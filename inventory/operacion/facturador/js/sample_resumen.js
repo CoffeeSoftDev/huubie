@@ -31,7 +31,7 @@ const _cellId = (id) => `<span class="font-mono text-[10px] text-gray-500">${id}
 
 const _cellMonto = (n) => `<span class="font-semibold text-gray-800">${_fmtMX(n)}</span>`;
 
-const _checkPendiente = (e, checked) => `<input type="checkbox" class="chk-pending w-4 h-4 rounded border-gray-300 accent-[#C05A40]" data-id="${e.id}" data-amount="${e.total}" onchange="app.onTogglePendiente(this)" ${checked ? 'checked' : ''}>`;
+const _checkPendiente = (e, checked) => `<input type="checkbox" class="chk-pending w-4 h-4 rounded border-gray-300 accent-blue-600" data-id="${e.id}" data-amount="${e.total}" onchange="app.onTogglePendiente(this)" ${checked ? 'checked' : ''}>`;
 
 const _MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 

@@ -93,14 +93,12 @@ class Category extends Templates {
                 striped: true,
                 title: "Categorías de insumos",
                 subtitle: "Clasificación de materiales e insumos",
-                center: [2, 3]
+                center: [2]
             }
         });
     }
 
-    async addCategory() {
-        const warehouses = await this.getWarehouses();
-
+    addCategory() {
         this.createModalForm({
             id: "formCategoryAdd",
             data: { opc: "addCategory" },
@@ -111,14 +109,14 @@ class Category extends Templates {
                 size: 'small',
                 closeButton: true
             },
-            json: this.jsonCategory(warehouses),
+            json: this.jsonCategory(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsCategory();
                     products.reloadCategorias();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -128,8 +126,6 @@ class Category extends Templates {
         const request = await useFetch({ url: this._link, data: { opc: "getCategory", id: id } });
 
         if (request.status === 200) {
-            const warehouses = await this.getWarehouses();
-
             this.createModalForm({
                 id: "formCategoryEdit",
                 data: { opc: "editCategory", id: id },
@@ -137,49 +133,49 @@ class Category extends Templates {
                 coffeesoft: true,
                 bootbox: { title: "Editar categoría", size: 'small', closeButton: true },
                 autofill: request.data,
-                json: this.jsonCategory(warehouses),
+                json: this.jsonCategory(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsCategory();
                         products.reloadCategorias();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
         }
     }
 
+    // Confirmación con alertBox, igual que Productos: desactivar en rojo ('cancel'), activar en 'confirm'.
     statusCategory(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} categoría?`, text: `Esta acción ${action}á la categoría`, icon: "warning" },
-            data: { opc: "statusCategory", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsCategory();
-                        products.reloadCategorias();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar categoría?" : "¿Desactivar categoría?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la categoría`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusCategory", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsCategory();
+                    products.reloadCategorias();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
     }
 
-    // Carga los almacenes activos para el select del formulario
-    async getWarehouses() {
-        const request = await useFetch({ url: this._link, data: { opc: "lsWarehousesSelect" } });
-        const warehouses = (request.status === 200 && request.data) ? request.data : [];
-        return [{ id: "", valor: "Sin almacén" }, ...warehouses];
-    }
-
-    jsonCategory(warehouses) {
+    // La categoría dice QUÉ es el producto; dónde se guarda lo dice el Área.
+    jsonCategory() {
         return [
             {
                 opc: "input",
@@ -188,13 +184,6 @@ class Category extends Templates {
                 tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
-            },
-            {
-                opc: "select",
-                id: "warehouse_id",
-                lbl: "Almacén",
-                class: "col-12 mb-3",
-                data: warehouses
             }
         ];
     }
@@ -263,10 +252,11 @@ class Area extends Templates {
             json: this.jsonArea(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsArea();
+                    products.reloadAreas();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -286,10 +276,11 @@ class Area extends Templates {
                 json: this.jsonArea(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsArea();
+                        products.reloadAreas();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -297,20 +288,26 @@ class Area extends Templates {
     }
 
     statusArea(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} área?`, text: `Esta acción ${action}á el área`, icon: "warning" },
-            data: { opc: "statusArea", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsArea();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar área?" : "¿Desactivar área?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el área`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusArea", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsArea();
+                    products.reloadAreas();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
@@ -400,11 +397,11 @@ class Unit extends Templates {
             json: this.jsonUnit(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsUnit();
                     products.reloadUnidades();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -424,11 +421,11 @@ class Unit extends Templates {
                 json: this.jsonUnit(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsUnit();
                         products.reloadUnidades();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -436,21 +433,26 @@ class Unit extends Templates {
     }
 
     statusUnit(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} unidad?`, text: `Esta acción ${action}á la unidad`, icon: "warning" },
-            data: { opc: "statusUnit", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsUnit();
-                        products.reloadUnidades();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar unidad?" : "¿Desactivar unidad?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la unidad`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusUnit", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsUnit();
+                    products.reloadUnidades();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
@@ -527,16 +529,9 @@ class Warehouse extends Templates {
                 striped: true,
                 title: "Almacenes",
                 subtitle: "Almacenes físicos de la sucursal",
-                center: [4, 5]
+                center: [3, 4]
             }
         });
-    }
-
-    // Carga las areas activas para el select del formulario
-    async getAreas() {
-        const request = await useFetch({ url: this._link, data: { opc: "lsAreasSelect" } });
-        const areas = (request.status === 200 && request.data) ? request.data : [];
-        return [{ id: "", valor: "Sin área" }, ...areas];
     }
 
     // Carga las sucursales accesibles para el select del formulario
@@ -546,7 +541,7 @@ class Warehouse extends Templates {
     }
 
     async addWarehouse() {
-        const [areas, branches] = await Promise.all([this.getAreas(), this.getBranches()]);
+        const branches = await this.getBranches();
 
         this.createModalForm({
             id: "formWarehouseAdd",
@@ -554,13 +549,13 @@ class Warehouse extends Templates {
             theme: 'light',
             coffeesoft: true,
             bootbox: { title: "Agregar almacén", size: 'small', closeButton: true },
-            json: this.jsonWarehouse(areas, branches),
+            json: this.jsonWarehouse(branches),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsWarehouse();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -570,7 +565,7 @@ class Warehouse extends Templates {
         const request = await useFetch({ url: this._link, data: { opc: "getWarehouse", id: id } });
 
         if (request.status === 200) {
-            const [areas, branches] = await Promise.all([this.getAreas(), this.getBranches()]);
+            const branches = await this.getBranches();
 
             this.createModalForm({
                 id: "formWarehouseEdit",
@@ -579,13 +574,13 @@ class Warehouse extends Templates {
                 coffeesoft: true,
                 bootbox: { title: "Editar almacén", size: 'small', closeButton: true },
                 autofill: request.data,
-                json: this.jsonWarehouse(areas, branches),
+                json: this.jsonWarehouse(branches),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsWarehouse();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -593,26 +588,32 @@ class Warehouse extends Templates {
     }
 
     statusWarehouse(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} almacén?`, text: `Esta acción ${action}á el almacén`, icon: "warning" },
-            data: { opc: "statusWarehouse", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsWarehouse();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar almacén?" : "¿Desactivar almacén?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el almacén`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusWarehouse", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsWarehouse();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
     }
 
-    jsonWarehouse(areas, branches) {
+    // El almacén ya no lleva Área: las áreas (anaqueles, refrigerador...) son del producto.
+    jsonWarehouse(branches) {
         return [
             {
                 opc: "input",
@@ -632,16 +633,9 @@ class Warehouse extends Templates {
             },
             {
                 opc: "select",
-                id: "warehouse_area_id",
-                lbl: "Área",
-                class: "col-12 col-md-6 mb-3",
-                data: areas
-            },
-            {
-                opc: "select",
                 id: "is_default",
                 lbl: "Almacén por defecto",
-                class: "col-12 col-md-6 mb-3",
+                class: "col-12 mb-3",
                 data: [
                     { id: "0", valor: "No" },
                     { id: "1", valor: "Sí" }
@@ -715,10 +709,10 @@ class InflowOrigin extends Templates {
             json: this.jsonInflow(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsInflow();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -739,10 +733,10 @@ class InflowOrigin extends Templates {
                 json: this.jsonInflow(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsInflow();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -751,20 +745,25 @@ class InflowOrigin extends Templates {
     }
 
     statusInflow(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} origen?`, text: `Esta acción ${action}á el origen`, icon: "warning" },
-            data: { opc: "statusInflow", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsInflow();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar origen?" : "¿Desactivar origen?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el origen`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusInflow", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsInflow();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
@@ -888,10 +887,10 @@ class ShrinkageReason extends Templates {
             json: this.jsonShrinkage(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsShrinkage();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -912,10 +911,10 @@ class ShrinkageReason extends Templates {
                 json: this.jsonShrinkage(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsShrinkage();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -924,20 +923,25 @@ class ShrinkageReason extends Templates {
     }
 
     statusShrinkage(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} motivo?`, text: `Esta acción ${action}á el motivo`, icon: "warning" },
-            data: { opc: "statusShrinkage", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsShrinkage();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar motivo?" : "¿Desactivar motivo?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el motivo`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusShrinkage", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsShrinkage();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
@@ -1051,10 +1055,10 @@ class Supplier extends Templates {
             json: this.jsonSupplier(),
             success: (response) => {
                 if (response.status === 200) {
-                    alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsSupplier();
                 } else {
-                    alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                    this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
             }
         });
@@ -1074,10 +1078,10 @@ class Supplier extends Templates {
                 json: this.jsonSupplier(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsSupplier();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -1085,20 +1089,25 @@ class Supplier extends Templates {
     }
 
     statusSupplier(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} proveedor?`, text: `Esta acción ${action}á el proveedor`, icon: "warning" },
-            data: { opc: "statusSupplier", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsSupplier();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar proveedor?" : "¿Desactivar proveedor?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el proveedor`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusSupplier", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsSupplier();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });
@@ -1204,10 +1213,10 @@ class TransferStatus extends Templates {
                 json: this.jsonTransferStatus(),
                 success: (response) => {
                     if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
+                        this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsTransferStatus();
                     } else {
-                        alert({ icon: "error", text: response.message, btn1: true, btn1Text: "Ok" });
+                        this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
                 }
             });
@@ -1216,20 +1225,25 @@ class TransferStatus extends Templates {
     }
 
     statusTransferStatus(id, active) {
-        const action = active === 1 ? "desactivar" : "activar";
-        const actionTitle = active === 1 ? "Desactivar" : "Activar";
+        const activar = active !== 1;
 
-        this.swalQuestion({
-            opts: { title: `¿${actionTitle} estado?`, text: `Esta acción ${action}á el estado de traspaso`, icon: "warning" },
-            data: { opc: "statusTransferStatus", active: active === 1 ? 0 : 1, id: id },
-            methods: {
-                send: (response) => {
-                    if (response.status === 200) {
-                        alert({ icon: "success", text: response.message, timer: 1500, showConfirmButton: false });
-                        this.lsTransferStatus();
-                    } else {
-                        alert({ icon: "error", text: response.message, btn1: true });
-                    }
+        this.alertBox({
+            type:       activar ? "confirm" : "cancel",
+            theme:      "light",
+            title:      activar ? "¿Activar estado?" : "¿Desactivar estado?",
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el estado de traspaso`,
+            okLabel:    activar ? "Activar" : "Desactivar",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "statusTransferStatus", active: activar ? 1 : 0, id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsTransferStatus();
+                } else {
+                    this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
         });

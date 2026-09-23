@@ -1,71 +1,94 @@
+/* ============================================================
+   PÁGINA OSCURA DE INVENTORY
+   ============================================================
+   Solo aplica con un tema de página oscura (themes.scheme 'huubie' o
+   'midnight'): InventoryPalette (src/js/tailwind-theme.js) pone
+   body.dark-mode y el data-scheme de <html>. Los temas claros nunca la
+   activan: su fondo es siempre el gris de la página.
+
+   Las superficies (--dk-*) y la versión oscura de los tokens de página
+   viven en themes.css, que cargan TODAS las páginas (también las que no
+   cargan esta hoja, como modulos/ y sucursales/). El acento y el primario
+   salen del tema (--brand-*, --primary), no de aquí.
+
+   Layout canónico de Huubie (grimorio-huubie-ui §4, alpha/pedidos):
+     página            --dk-bg    (#111928)
+     contenedor        --dk-card  (#1F2A37) + rounded-lg + p-3
+     dentro            transparente: toma el color del contenedor
+   En claro ese contenedor es el `main > #main__content > div` de
+   general.css (aliceblue, padding 10px, radio 10px); en oscuro es el mismo
+   elemento con la superficie de Huubie.
+   ============================================================ */
+
 body.dark-mode {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode main {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode #main__content {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
+/* El contenedor del módulo: bg-[#1F2A37] rounded-lg p-3. */
 body.dark-mode #main__content > form,
 body.dark-mode #main__content > div {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.75rem !important;
 }
 
 body.dark-mode #main__content > div > div {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
+    background-color: transparent !important;
+    color: var(--dk-text) !important;
 }
 
-body.dark-mode #root {
-    background-color: #111928 !important;
-}
-
+/* Inputs: bg-input de Huubie (#1a2332) con border #374151. */
 body.dark-mode .form-control,
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-input) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
 }
 
+/* Foco con el secundario del tema: border-focus #7C3AED de Huubie UI. En los
+   temas sin secundario propio es el acento. */
 body.dark-mode .form-control:focus,
 body.dark-mode input:focus,
 body.dark-mode select:focus,
 body.dark-mode textarea:focus {
-    background-color: #1F2937 !important;
-    border-color: #C05A40 !important;
-    box-shadow: 0 0 0 3px rgba(192, 90, 64, 0.2) !important;
+    background-color: var(--dk-input) !important;
+    border-color: rgb(var(--accent-2-600, 192 90 64)) !important;
+    box-shadow: 0 0 0 3px rgb(var(--accent-2-600, 192 90 64) /0.2) !important;
 }
 
 body.dark-mode .btn {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .btn:hover {
-    background-color: #1F2937 !important;
-    border-color: #4B5563 !important;
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
 }
 
-/* Primario grafito. En dark se sube un escalón (#44403C) porque el #292524 del
-   tema light se pierde contra el fondo oscuro. */
+/* Primario del tema (los oscuros traen uno que se lee sobre fondo oscuro). */
 body.dark-mode .btn-primary {
-    background-color: #44403C !important;
-    border-color: #44403C !important;
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
     color: #ffffff !important;
 }
 
 body.dark-mode .btn-primary:hover {
-    background-color: #57534E !important;
-    border-color: #57534E !important;
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
 }
 
 body.dark-mode .btn-danger {
@@ -79,51 +102,42 @@ body.dark-mode .btn-danger:hover {
     border-color: #832B2B !important;
 }
 
-/* Secundario = terracota (el acento que antes era primario). */
+/* Secundario = el acento del tema. */
 body.dark-mode .btn-secondary {
-    background-color: #C05A40 !important;
-    border-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
     color: #ffffff !important;
 }
 
 body.dark-mode .btn-secondary:hover {
-    background-color: #A84A33 !important;
-    border-color: #A84A33 !important;
+    background-color: rgb(var(--brand-700, 168 74 51)) !important;
+    border-color: rgb(var(--brand-700, 168 74 51)) !important;
 }
 
-body.dark-mode table {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
-}
-
-body.dark-mode table thead {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
-}
-
-body.dark-mode table thead th {
-    color: #9CA3AF !important;
-    border-color: #374151 !important;
+/* Tablas: las de coffeeSoft se pintan SOLAS con su variante 'dark', la
+   misma de alpha/ (Huubie): header #374151 text-gray-300, filas #283341,
+   alternas #111827, separadores gray-700. Por eso estas reglas solo tocan
+   celdas SIN clase de color propia (tablas sueltas: rpt_json_table2,
+   plugins), con esos mismos valores. Nunca pisar las de coffeeSoft. */
+body.dark-mode table thead th:not([class*="bg-"]) {
+    background-color: var(--dk-th) !important;
+    color: #D1D5DB !important;
+    border-color: var(--dk-line) !important;
     font-weight: 600 !important;
-    background-color: #1F2A37 !important;
 }
 
-body.dark-mode table tbody tr {
-    border-color: #374151 !important;
-    background-color: #111928 !important;
+body.dark-mode table tbody td:not([class*="bg-"]) {
+    background-color: var(--dk-row) !important;
+    color: #D1D5DB !important;
+    border-color: var(--dk-line) !important;
 }
 
-body.dark-mode table tbody tr:nth-child(even) {
-    background-color: #1a2332 !important;
+body.dark-mode table tbody tr:nth-child(even) > td:not([class*="bg-"]) {
+    background-color: var(--dk-row-alt) !important;
 }
 
-body.dark-mode table tbody tr:hover {
-    background-color: #1F2937 !important;
-}
-
-body.dark-mode table tbody td {
-    color: #e5e5e5 !important;
-    border-color: #374151 !important;
+body.dark-mode table tbody tr:hover > td:not([class*="bg-"]) {
+    background-color: var(--dk-row-hover) !important;
 }
 
 body.dark-mode .breadcrumb-item .parent {
@@ -136,33 +150,34 @@ body.dark-mode .breadcrumb-item + .breadcrumb-item::before {
     color: #d1d1d1 !important;
 }
 
+/* Cards y modales: bg-card de Huubie. */
 body.dark-mode .card,
 body.dark-mode .modal-content {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .modal-header,
 body.dark-mode .modal-footer {
-    border-color: #374151 !important;
-    background-color: #1F2A37 !important;
+    border-color: var(--dk-line) !important;
+    background-color: var(--dk-card) !important;
 }
 
 body.dark-mode .category-card,
 body.dark-mode .group-card,
 body.dark-mode .question-card {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
-    border: 1px solid #374151 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border: 1px solid var(--dk-line) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 body.dark-mode .category-card:hover,
 body.dark-mode .group-card:hover,
 body.dark-mode .question-card:hover {
-    background-color: #1F2937 !important;
-    border-color: #4B5563 !important;
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
@@ -172,23 +187,25 @@ body.dark-mode .container-border-right,
 body.dark-mode .container-border-left,
 body.dark-mode .container-border-bottom,
 body.dark-mode .container-border-top {
-    border-color: #374151;
+    border-color: var(--dk-line);
 }
 
 body.dark-mode .text-dark {
-    color: #e5e5e5 !important;
+    color: var(--dk-text-soft) !important;
 }
 
 body.dark-mode .text-muted {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
+/* bg-white es la TARJETA en claro (blanco sobre el gris de la página): en
+   oscuro es la tarjeta oscura, no el fondo, para no fundirse con la página. */
 body.dark-mode .bg-white {
-    background-color: #111928 !important;
+    background-color: var(--dk-card) !important;
 }
 
 body.dark-mode .bg-light {
-    background-color: #1F2A37 !important;
+    background-color: var(--dk-card) !important;
 }
 
 body.dark-mode h1,
@@ -197,26 +214,26 @@ body.dark-mode h3,
 body.dark-mode h4,
 body.dark-mode h5,
 body.dark-mode h6 {
-    color: #f5f5f5;
+    color: var(--dk-text);
 }
 
 body.dark-mode label {
-    color: #e5e5e5;
+    color: var(--dk-text-soft);
 }
 
 body.dark-mode .alert {
-    background-color: #1F2A37;
-    border-color: #374151;
-    color: #e5e5e5;
+    background-color: var(--dk-card);
+    border-color: var(--dk-line);
+    color: var(--dk-text-soft);
 }
 
 /* Tabs Dark Mode */
 body.dark-mode .nav-tabs {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .nav-tabs .nav-link {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
     background-color: transparent !important;
     border-color: transparent !important;
     transition: all 0.2s ease !important;
@@ -224,105 +241,119 @@ body.dark-mode .nav-tabs .nav-link {
 
 body.dark-mode .nav-tabs .nav-link:hover {
     color: #ffffff !important;
-    background-color: rgba(192, 90, 64, 0.15) !important;
+    background-color: rgb(var(--brand-600, 192 90 64) /0.15) !important;
     border-color: transparent !important;
 }
 
 body.dark-mode .nav-tabs .nav-link.active {
     color: #ffffff !important;
-    background-color: #1F2A37 !important;
-    border-color: #374151 #374151 #1F2A37 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) var(--dk-line) var(--dk-card) !important;
     font-weight: 500 !important;
 }
 
-/* CoffeeSoft TabLayout Dark Mode */
-body.dark-mode [id*="tabs-"] button,
-body.dark-mode [id^="tabs"] button {
-    color: #9CA3AF !important;
+/* CoffeeSoft tabLayout (cs-tabs de Huubie): la activa es el primario sólido
+   con texto blanco —lo pone el propio tabLayout en su variante 'dark'
+   (bg-blue-600 text-white)—; aquí solo el texto de las inactivas y su hover.
+   tabLayout marca la activa con data-state="active". */
+body.dark-mode [id*="tabs-"] button[data-state="inactive"],
+body.dark-mode [id^="tabs"] button[data-state="inactive"] {
+    color: var(--dk-muted) !important;
     transition: all 0.2s ease !important;
 }
 
-body.dark-mode [id*="tabs-"] button:hover,
-body.dark-mode [id^="tabs"] button:hover {
+body.dark-mode [id*="tabs-"] button[data-state="inactive"]:hover,
+body.dark-mode [id^="tabs"] button[data-state="inactive"]:hover {
     color: #ffffff !important;
-    background-color: rgba(192, 90, 64, 0.15) !important;
+    background-color: rgb(var(--brand-600, 192 90 64) / .15) !important;
 }
 
+body.dark-mode [id*="tabs-"] button[data-state="active"],
+body.dark-mode [id^="tabs"] button[data-state="active"],
+body.dark-mode [id*="tabs-"] button[data-state="active"] svg,
+body.dark-mode [id^="tabs"] button[data-state="active"] svg {
+    color: #ffffff !important;
+}
+
+/* Tabs de Bootstrap (no tabLayout). */
 body.dark-mode [id*="tabs-"] button.active,
 body.dark-mode [id^="tabs"] button.active,
 body.dark-mode [id*="tabs-"] button[aria-selected="true"],
 body.dark-mode [id^="tabs"] button[aria-selected="true"] {
     color: #ffffff !important;
-    background-color: #1F2A37 !important;
+    background-color: var(--dk-card) !important;
     font-weight: 500 !important;
 }
 
-/* FilterBar Dark Mode */
+/* FilterBar Dark Mode: transparente, como en claro; toma la superficie de
+   la tarjeta donde vive. */
 body.dark-mode .filterBar,
 body.dark-mode [id*="filterBar"] {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
+    background-color: transparent !important;
+    border-color: var(--dk-line) !important;
 }
 
 /* DataTables Dark Mode */
+/* gray-300, el texto de las tablas oscuras de alpha/: así lo heredan también
+   las tablas cuyo módulo reemplaza la clase por defecto (text-gray-300). */
 body.dark-mode .dataTables_wrapper {
-    color: #e5e5e5 !important;
+    color: #D1D5DB !important;
 }
 
 body.dark-mode .dataTables_filter input {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .dataTables_length select {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .dataTables_info {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .dataTables_paginate .paginate_button {
-    color: #9CA3AF !important;
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
+    color: var(--dk-muted) !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .dataTables_paginate .paginate_button:hover {
-    background-color: #1F2937 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card-hi) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .dataTables_paginate .paginate_button.current {
-    background-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
     color: #ffffff !important;
-    border-color: #C05A40 !important;
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
 }
 
 /* Select2 Dark Mode */
 body.dark-mode .select2-container--default .select2-selection--single {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .select2-container--default .select2-selection--single .select2-selection__rendered {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .select2-dropdown {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .select2-results__option {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .select2-results__option--highlighted {
-    background-color: #1F2937 !important;
+    background-color: var(--dk-card-hi) !important;
 }
 
 /* Breadcrumb Dark Mode */
@@ -331,11 +362,11 @@ body.dark-mode .breadcrumb {
 }
 
 body.dark-mode .breadcrumb-item {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .breadcrumb-item.active {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 .navbar-main {
@@ -349,13 +380,13 @@ body.dark-mode .breadcrumb-item.active {
 }
 
 body.dark-mode .navbar-main {
-    background-color: #141d2b !important;
-    border-bottom: 1px solid #374151 !important;
+    background-color: var(--dk-chrome) !important;
+    border-bottom: 1px solid var(--dk-line) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 body.dark-mode .navbar-title {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 .user-menu-dropdown {
@@ -363,7 +394,7 @@ body.dark-mode .navbar-title {
 }
 
 .user-menu-header {
-    background-color: #C05A40;
+    background-color: rgb(var(--brand-600, 192 90 64));
 }
 
 .user-menu-btn {
@@ -376,42 +407,42 @@ body.dark-mode .navbar-title {
 }
 
 body.dark-mode .user-menu-dropdown {
-    background-color: #111928 !important;
-    border: 1px solid #374151 !important;
+    background-color: var(--dk-bg) !important;
+    border: 1px solid var(--dk-line) !important;
 }
 
 body.dark-mode .user-menu-header {
-    background-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
 }
 
 body.dark-mode .user-menu-btn {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .user-menu-btn:hover {
-    background-color: #1F2937 !important;
-    border-color: #4B5563 !important;
+    background-color: var(--dk-card-hi) !important;
+    border-color: var(--dk-line-hi) !important;
 }
 
 /* Sidebar Dark Mode */
 body.dark-mode #menu-sidebar {
-    background-color: #141d2b !important;
-    border-right: 1px solid #374151 !important;
+    background-color: var(--dk-chrome) !important;
+    border-right: 1px solid var(--dk-line) !important;
 }
 
 body.dark-mode #sidebar {
-    background-color: #141d2b !important;
+    background-color: var(--dk-chrome) !important;
 }
 
 body.dark-mode section#sidebar {
-    background-color: #141d2b !important;
+    background-color: var(--dk-chrome) !important;
 }
 
 /* Main Container Dark Mode */
 body.dark-mode .main-container {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 /* Badge/Status Dark Mode */
@@ -419,56 +450,58 @@ body.dark-mode .badge {
     border: none !important;
 }
 
-/* Scrollbar Dark Mode */
-body.dark-mode ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* Scrollbar Dark Mode: mismo carril separado de general.css (pulgar de 6px
+   con 7px de aire del lado del contenido), riel transparente y pulgar en el
+   borde del tema para que no pinte una franja pegada a la tabla. */
+@supports not selector(::-webkit-scrollbar) {
+    body.dark-mode,
+    body.dark-mode * {
+        scrollbar-color: var(--dk-line-hi) transparent;
+    }
 }
 
 body.dark-mode ::-webkit-scrollbar-track {
-    background: #111928;
+    background: transparent;
 }
 
 body.dark-mode ::-webkit-scrollbar-thumb {
-    background: #374151;
-    border-radius: 4px;
+    background: var(--dk-line-hi);
+    background-clip: padding-box;
 }
 
 body.dark-mode ::-webkit-scrollbar-thumb:hover {
-    background: #4B5563;
+    background: var(--dk-muted);
+    background-clip: padding-box;
 }
 
-/* Tailwind Overrides for Dark Mode */
-body.dark-mode .bg-white {
-    background-color: #111928 !important;
-}
+/* Tailwind Overrides for Dark Mode (bg-white: ver arriba, es la tarjeta) */
 
 body.dark-mode .bg-gray-50 {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode .bg-gray-100 {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode .bg-gray-200 {
-    background-color: #1F2A37 !important;
+    background-color: var(--dk-card) !important;
 }
 
 body.dark-mode .border-gray-200 {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .border-gray-300 {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .text-gray-500 {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .text-gray-600 {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .text-gray-700 {
@@ -479,14 +512,125 @@ body.dark-mode .text-gray-800 {
     color: #E5E7EB !important;
 }
 
-body.dark-mode .text-gray-900 {
+body.dark-mode .text-gray-900,
+body.dark-mode .text-black {
     color: #F3F4F6 !important;
+}
+
+/* Badges de dos colores de badge() (conf/_Utileria.php): traen un fondo
+   pastel pensado para página clara. En oscuro el fondo pasa a un velo de su
+   propio color de texto y el texto se aclara. */
+body.dark-mode .cs-badge-soft {
+    background: color-mix(in srgb, var(--b-fg) 22%, transparent) !important;
+    color: color-mix(in srgb, var(--b-fg) 45%, #ffffff) !important;
+}
+
+/* Tintes de estado de Tailwind (bg-*-50/100 con text-*-600/700/800): en
+   oscuro, velo del 500 de su familia y texto en el 300. */
+body.dark-mode .bg-emerald-50, body.dark-mode .bg-emerald-100 { background-color: rgb(16 185 129 / .16) !important; }
+body.dark-mode .bg-green-50,   body.dark-mode .bg-green-100   { background-color: rgb(34 197 94 / .16) !important; }
+body.dark-mode .bg-red-50,     body.dark-mode .bg-red-100     { background-color: rgb(239 68 68 / .16) !important; }
+body.dark-mode .bg-rose-50,    body.dark-mode .bg-rose-100    { background-color: rgb(244 63 94 / .16) !important; }
+body.dark-mode .bg-amber-50,   body.dark-mode .bg-amber-100   { background-color: rgb(245 158 11 / .16) !important; }
+body.dark-mode .bg-yellow-50,  body.dark-mode .bg-yellow-100  { background-color: rgb(234 179 8 / .16) !important; }
+body.dark-mode .bg-orange-50,  body.dark-mode .bg-orange-100  { background-color: rgb(249 115 22 / .16) !important; }
+body.dark-mode .bg-sky-50,     body.dark-mode .bg-sky-100     { background-color: rgb(14 165 233 / .16) !important; }
+body.dark-mode .bg-cyan-50,    body.dark-mode .bg-cyan-100    { background-color: rgb(6 182 212 / .16) !important; }
+body.dark-mode .bg-teal-50,    body.dark-mode .bg-teal-100    { background-color: rgb(20 184 166 / .16) !important; }
+body.dark-mode .bg-indigo-50,  body.dark-mode .bg-indigo-100  { background-color: rgb(99 102 241 / .16) !important; }
+body.dark-mode .bg-violet-50,  body.dark-mode .bg-violet-100  { background-color: rgb(139 92 246 / .16) !important; }
+body.dark-mode .bg-purple-50,  body.dark-mode .bg-purple-100  { background-color: rgb(168 85 247 / .16) !important; }
+body.dark-mode .bg-pink-50,    body.dark-mode .bg-pink-100    { background-color: rgb(236 72 153 / .16) !important; }
+body.dark-mode .bg-slate-50,   body.dark-mode .bg-slate-100   { background-color: rgb(100 116 139 / .16) !important; }
+
+body.dark-mode .text-emerald-600, body.dark-mode .text-emerald-700, body.dark-mode .text-emerald-800 { color: rgb(110 231 183) !important; }
+body.dark-mode .text-green-600,   body.dark-mode .text-green-700,   body.dark-mode .text-green-800   { color: rgb(134 239 172) !important; }
+body.dark-mode .text-red-600,     body.dark-mode .text-red-700,     body.dark-mode .text-red-800     { color: rgb(252 165 165) !important; }
+body.dark-mode .text-rose-600,    body.dark-mode .text-rose-700,    body.dark-mode .text-rose-800    { color: rgb(253 164 175) !important; }
+body.dark-mode .text-amber-600,   body.dark-mode .text-amber-700,   body.dark-mode .text-amber-800   { color: rgb(252 211 77) !important; }
+body.dark-mode .text-yellow-600,  body.dark-mode .text-yellow-700,  body.dark-mode .text-yellow-800  { color: rgb(253 224 71) !important; }
+body.dark-mode .text-orange-600,  body.dark-mode .text-orange-700,  body.dark-mode .text-orange-800  { color: rgb(253 186 116) !important; }
+body.dark-mode .text-sky-600,     body.dark-mode .text-sky-700,     body.dark-mode .text-sky-800     { color: rgb(125 211 252) !important; }
+body.dark-mode .text-cyan-600,    body.dark-mode .text-cyan-700,    body.dark-mode .text-cyan-800    { color: rgb(103 232 249) !important; }
+body.dark-mode .text-teal-600,    body.dark-mode .text-teal-700,    body.dark-mode .text-teal-800    { color: rgb(94 234 212) !important; }
+body.dark-mode .text-indigo-600,  body.dark-mode .text-indigo-700,  body.dark-mode .text-indigo-800  { color: rgb(165 180 252) !important; }
+body.dark-mode .text-violet-600,  body.dark-mode .text-violet-700,  body.dark-mode .text-violet-800  { color: rgb(196 181 253) !important; }
+body.dark-mode .text-purple-600,  body.dark-mode .text-purple-700,  body.dark-mode .text-purple-800  { color: rgb(216 180 254) !important; }
+body.dark-mode .text-pink-600,    body.dark-mode .text-pink-700,    body.dark-mode .text-pink-800    { color: rgb(249 168 212) !important; }
+body.dark-mode .text-slate-600,   body.dark-mode .text-slate-700,   body.dark-mode .text-slate-800   { color: rgb(203 213 225) !important; }
+
+/* Midnight: las variantes oscuras de los componentes de coffeeSoft.js traen
+   los hex de Huubie clavados. En Huubie ya son su paleta; en Midnight se
+   remapean a sus superficies para que ningún componente quede en otro tono. */
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#111928\],
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#111827\],
+:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#111928\]:hover { background-color: var(--dk-bg) !important; }
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1F2A37\],
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1E293B\] { background-color: var(--dk-card) !important; }
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#283341\] { background-color: var(--dk-row) !important; }
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1a2332\],
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#334155\],
+:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#283341\]:hover,
+:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#334155\]:hover,
+:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#374151\]:hover { background-color: var(--dk-hover) !important; }
+/* bg-[#374151] es el header de las tablas oscuras de coffeeSoft: en Midnight
+   va a su header de tabla, más claro que las filas, igual que en alpha/. */
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#374151\] { background-color: var(--dk-th) !important; }
+:root[data-scheme="midnight"] body.dark-mode .border-\[\#374151\],
+:root[data-scheme="midnight"] body.dark-mode .border-gray-700 { border-color: var(--dk-line) !important; }
+
+/* Tintes claros del acento (chips, pestañas, badges): en oscuro pasan a un
+   velo del acento y su texto se aclara para seguir leyéndose. */
+body.dark-mode .bg-blue-50,
+body.dark-mode .bg-blue-100 {
+    background-color: rgb(var(--brand-600, 192 90 64) / .16) !important;
+}
+
+body.dark-mode .border-blue-100,
+body.dark-mode .border-blue-200 {
+    border-color: rgb(var(--brand-600, 192 90 64) / .30) !important;
+}
+
+body.dark-mode .text-blue-700,
+body.dark-mode .text-blue-800,
+body.dark-mode .text-blue-900 {
+    color: rgb(var(--brand-300, 232 166 143)) !important;
+}
+
+body.dark-mode .bg-stone-200 {
+    background-color: var(--dk-card) !important;
+}
+
+/* Variantes con opacidad y estados hover de los fondos claros: los
+   componentes propios (entrada-form, traspaso-form, órdenes...) las usan y
+   sin esto pintan franjas o destellos claros sobre la página oscura. */
+body.dark-mode .bg-gray-50\/50,
+body.dark-mode .bg-gray-50\/60,
+body.dark-mode .bg-gray-50\/80,
+body.dark-mode .bg-white\/80,
+body.dark-mode .bg-white\/90 {
+    background-color: var(--dk-card) !important;
+}
+
+body.dark-mode .hover\:bg-white:hover,
+body.dark-mode .hover\:bg-gray-50:hover,
+body.dark-mode .hover\:bg-gray-100:hover,
+body.dark-mode .hover\:bg-gray-200:hover,
+body.dark-mode .hover\:bg-slate-50:hover,
+body.dark-mode .hover\:bg-slate-100:hover {
+    background-color: var(--dk-hover) !important;
+}
+
+body.dark-mode .border-gray-100,
+body.dark-mode .divide-gray-100 > * + *,
+body.dark-mode .divide-gray-200 > * + * {
+    border-color: var(--dk-line) !important;
 }
 
 /* Rounded containers */
 body.dark-mode .rounded-lg,
 body.dark-mode .rounded-xl {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 /* Shadow adjustments */
@@ -502,135 +646,137 @@ body.dark-mode .shadow-lg {
    CoffeeSoft Components Dark Mode
    ======================================== */
 
-/* Tab Layout Component */
-body.dark-mode [id*="tabs"] .tab-content {
-    background-color: #111928 !important;
-}
-
-body.dark-mode .tab-pane {
-    background-color: #111928 !important;
-}
-
-/* Primary Layout */
+/* Paneles de pestaña y contenedores de layout: TRANSPARENTES, como en claro.
+   Toman la superficie de la tarjeta que los contiene. Antes se pintaban
+   con el fondo de página y quedaban cajas más oscuras pegadas a los bordes
+   de la tarjeta (sin padding propio). */
+body.dark-mode [id*="tabs"] .tab-content,
+body.dark-mode .tab-pane,
 body.dark-mode [class*="primaryLayout"],
 body.dark-mode [id*="container"] {
-    background-color: #111928 !important;
+    background-color: transparent !important;
+}
+
+/* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de
+   Huubie tal cual; en Midnight toma su fondo de página. */
+:root[data-scheme="midnight"] body.dark-mode .bg-\[\#19232D\] {
+    background-color: var(--dk-bg) !important;
 }
 
 /* CoffeTable Themes Override */
 body.dark-mode .coffe-table {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode .coffe-table-header {
-    background-color: #1F2A37 !important;
-    color: #9CA3AF !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .coffe-table-row {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .coffe-table-row:hover {
-    background-color: #1F2937 !important;
+    background-color: var(--dk-card-hi) !important;
 }
 
 /* Dropdown Menu */
 body.dark-mode .dropdown-menu {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
 body.dark-mode .dropdown-item {
-    color: #e5e5e5 !important;
+    color: var(--dk-text-soft) !important;
 }
 
 body.dark-mode .dropdown-item:hover {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .dropdown-divider {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 /* SweetAlert2 Dark Mode */
 body.dark-mode .swal2-popup {
-    background-color: #111928 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .swal2-title {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .swal2-html-container {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .swal2-confirm {
-    background-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
 }
 
 body.dark-mode .swal2-cancel {
-    background-color: #374151 !important;
+    background-color: var(--dk-line) !important;
 }
 
 /* Bootbox Modal */
 body.dark-mode .bootbox .modal-content {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode .bootbox .modal-header {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .bootbox .modal-title {
-    color: #f5f5f5 !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .bootbox .modal-body {
-    background-color: #111928 !important;
-    color: #e5e5e5 !important;
+    background-color: var(--dk-bg) !important;
+    color: var(--dk-text-soft) !important;
 }
 
 body.dark-mode .bootbox .modal-footer {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .bootbox .close {
-    color: #9CA3AF !important;
+    color: var(--dk-muted) !important;
 }
 
 /* DateRangePicker Dark Mode */
 body.dark-mode .daterangepicker {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .daterangepicker .calendar-table {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 body.dark-mode .daterangepicker td.available:hover {
-    background-color: #1F2937 !important;
+    background-color: var(--dk-card-hi) !important;
 }
 
 body.dark-mode .daterangepicker td.active {
-    background-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
 }
 
 body.dark-mode .daterangepicker .drp-buttons {
-    border-color: #374151 !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .daterangepicker th,
 body.dark-mode .daterangepicker td {
-    color: #e5e5e5 !important;
+    color: var(--dk-text-soft) !important;
 }
 
 body.dark-mode .daterangepicker td.off {
@@ -639,61 +785,61 @@ body.dark-mode .daterangepicker td.off {
 
 /* Pagination */
 body.dark-mode .pagination .page-link {
-    background-color: #1F2A37 !important;
-    border-color: #374151 !important;
-    color: #9CA3AF !important;
+    background-color: var(--dk-card) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-muted) !important;
 }
 
 body.dark-mode .pagination .page-link:hover {
-    background-color: #1F2937 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card-hi) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .pagination .page-item.active .page-link {
-    background-color: #C05A40 !important;
-    border-color: #C05A40 !important;
+    background-color: rgb(var(--brand-600, 192 90 64)) !important;
+    border-color: rgb(var(--brand-600, 192 90 64)) !important;
     color: #ffffff !important;
 }
 
 /* Tooltip */
 body.dark-mode .tooltip-inner {
-    background-color: #1A2332 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-hover) !important;
+    color: var(--dk-text) !important;
 }
 
 /* Progress Bar */
 body.dark-mode .progress {
-    background-color: #1F2A37 !important;
+    background-color: var(--dk-card) !important;
 }
 
 /* List Group */
 body.dark-mode .list-group-item {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
-    color: #e5e5e5 !important;
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text-soft) !important;
 }
 
 body.dark-mode .list-group-item:hover {
-    background-color: #1F2A37 !important;
+    background-color: var(--dk-card) !important;
 }
 
 /* Accordion */
 body.dark-mode .accordion-item {
-    background-color: #111928 !important;
-    border-color: #374151 !important;
+    background-color: var(--dk-bg) !important;
+    border-color: var(--dk-line) !important;
 }
 
 body.dark-mode .accordion-button {
-    background-color: #1F2A37 !important;
-    color: #f5f5f5 !important;
+    background-color: var(--dk-card) !important;
+    color: var(--dk-text) !important;
 }
 
 body.dark-mode .accordion-button:not(.collapsed) {
-    background-color: #1F2937 !important;
+    background-color: var(--dk-card-hi) !important;
 }
 
 body.dark-mode .accordion-body {
-    background-color: #111928 !important;
+    background-color: var(--dk-bg) !important;
 }
 
 /* Placeholder text */

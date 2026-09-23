@@ -66,7 +66,7 @@ class ctrl extends mdl {
 
             $name = htmlspecialchars($b['name']);
             if ((int) $b['id'] === $this->branchId) {
-                $name .= ' ' . badge('Tu sucursal', '#C05A40', 100, '#F7E3DC');
+                $name .= ' ' . badge('Tu sucursal', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
             }
 
             $row[] = [
@@ -184,12 +184,12 @@ class ctrl extends mdl {
 
             $fullname = $avatar . trim(($u['name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
             if ((int) $u['is_owner'] === 1) {
-                $fullname .= ' ' . badge('Dueño', '#C05A40', 100, '#F7E3DC');
+                $fullname .= ' ' . badge('Dueño', 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
             }
 
             $branchNames = $u['branch_names']
                 ? implode(' ', array_map(function($n) {
-                    return badge(trim($n), '#C05A40', 100, '#F7E3DC');
+                    return badge(trim($n), 'var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 100, 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))');
                   }, explode(',', $u['branch_names'])))
                 : '<span class="italic text-gray-400 text-sm">Sin asignar</span>';
 

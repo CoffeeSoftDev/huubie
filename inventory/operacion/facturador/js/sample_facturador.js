@@ -17,7 +17,7 @@ const SAMPLE_MODULOS_DB = {
         descripcion: 'Resumen ejecutivo del dia: venta total, meta al 70%, facturado y por facturar',
         icon:        'layout-dashboard',
         enlace:      'resumen.php',
-        badge:       { text: 'Dashboard', bg: '#C05A40', color: '#fff' }
+        badge:       { text: 'Dashboard', bg: 'rgb(var(--brand-600, 192 90 64))', color: '#fff' }
     },
     cargas: {
         id:          'cargas',

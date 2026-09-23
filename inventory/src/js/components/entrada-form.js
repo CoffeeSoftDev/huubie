@@ -63,7 +63,12 @@ class EntradaForm {
                 fecha:           '',
                 branch_id: '',
                 warehouse_id:    '',
-                nota:            ''
+                nota:            '',
+                impuestos: [
+                    { id: '0',  valor: '0%'  },
+                    { id: '8',  valor: '8%'  },
+                    { id: '16', valor: '16%' }
+                ]
             },
             labels: {
                 title:        'Nueva Entrada de Stock',
@@ -95,7 +100,15 @@ class EntradaForm {
                 impuestosLbl: 'Impuestos',
                 costoTotLbl:  'Costo total',
                 emptyTitle:   'Aun no has agregado productos',
-                emptyHint:    'Usa el buscador para empezar',
+                emptyHint:    'Usa el buscador o presiona ↓ para capturar en un renglon',
+                draftPh:      'Escribe el nombre o SKU del producto...',
+                quitarRenglon:'Quitar renglon',
+                hintRenglon:  'renglon vacio',
+                hintBuscador: 'volver al buscador',
+                sinAlmacenes: 'Sin almacenes activos',
+                sinAlmacenesMsg: 'La sucursal no tiene almacenes activos',
+                confirmClose:   'Descartar los productos capturados?',
+                confirmCloseOk: 'Si, descartar',
                 limpiar:      'Limpiar',
                 cancelar:     'Cancelar',
                 registrar:    'Registrar Entrada',
@@ -126,7 +139,8 @@ class EntradaForm {
             onCreateSupplier: null,
             onLoadFormatos:   null,
             onSaveFormato:    null,
-            onDeleteFormato:  null
+            onDeleteFormato:  null,
+            onWarehouseChange: null
         };
 
         const o = options || {};
@@ -143,6 +157,9 @@ class EntradaForm {
         this.activeIdx    = 0;      // resultado resaltado para navegacion por teclado
         this.catalogItems = [];     // resultados visibles actuales del catalogo
         this.formatos     = [];     // cache de formatos (BD via callbacks, o localStorage de fallback)
+        this.draft        = null;   // renglon vacio pendiente de elegir producto: { term }
+        this.float        = null;   // lista flotante abierta (producto del renglon vacio o impuesto)
+        this.stockMap     = {};     // stock del almacen seleccionado: { item_id: cantidad }
 
         this.ensureStyles();
         this.mount();
@@ -175,9 +192,6 @@ class EntradaForm {
     renderConfigRow() {
         const o   = this.opts;
         const cls = this.cls;
-        const almacenesVisibles = (o.data.almacenes || []).filter(a =>
-            !o.data.branch_id || String(a.branch_id) === String(o.data.branch_id)
-        );
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
                 <div id="${o.id}_configGrid" class="grid grid-cols-4 gap-3 items-end">
@@ -201,7 +215,7 @@ class EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.almacen)}</label>
                         ${this.selectWrap(`
                             <select id="${o.id}_selAlmacen" class="${cls.select}">
-                                ${almacenesVisibles.map(it => this.optionTag(it, o.data.warehouse_id)).join('')}
+                                ${this.almacenOptions(o.data.branch_id, o.data.warehouse_id)}
                             </select>
                         `)}
                     </div>
@@ -390,9 +404,15 @@ class EntradaForm {
                     <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">${this.esc(o.labels.productosLbl)}</p>
                     <span id="${o.id}_cntProductos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200">0</span>
                 </div>
-                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
-                </button>
+                <div class="flex items-center gap-3">
+                    <span class="hidden md:flex items-center gap-1 text-[10px] text-gray-400">
+                        <span class="ef-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
+                        <span class="ef-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
+                    </span>
+                    <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
+                    </button>
+                </div>
             </div>`;
     }
 
@@ -486,7 +506,7 @@ class EntradaForm {
                         <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="dollar-sign" class="w-3 h-3"></i>
                         </span>
-                        <input type="number" min="0" step="0.01" value="${costoNum}" class="${cls.cashInp}" data-field="costo" data-idx="${i}">
+                        <input type="number" min="0" step="0.01" value="${costoNum.toFixed(2)}" class="${cls.cashInp}" data-field="costo" data-idx="${i}">
                     </div>
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
@@ -497,10 +517,13 @@ class EntradaForm {
                         <input type="number" min="0" step="0.01" value="${baseFmt}" class="${cls.cashInp}" data-field="costoSinTax" data-idx="${i}">
                     </div>
                 </td>
-                <td class="px-2 py-2 align-middle w-20">
-                    <div class="relative" title="Impuesto (%)">
-                        <input type="number" min="0" step="0.01" value="${taxNum}" class="no-spin w-full pr-5 pl-2.5 py-1.5 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all" data-field="tax" data-idx="${i}">
-                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[11px]">%</span>
+                <td class="px-2 py-2 align-middle w-24">
+                    <div class="relative" title="Impuesto (%): escribe o elige">
+                        <input type="text" inputmode="decimal" autocomplete="off" value="${taxNum}" class="w-full pr-9 pl-2.5 py-1.5 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all" data-field="tax" data-idx="${i}">
+                        <span class="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[11px]">%</span>
+                        <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-tax-toggle="${i}">
+                            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                        </button>
                     </div>
                 </td>
                 <td class="px-5 py-2 align-middle text-right w-28">
@@ -525,13 +548,48 @@ class EntradaForm {
                         <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
                         <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo c/imp</th>
                         <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo s/imp</th>
-                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-20">Imp. %</th>
+                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Imp. %</th>
                         <th class="text-right px-5 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
-                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}</tbody>
+                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
             </table>`;
+    }
+
+    renderDraftRow() {
+        const o = this.opts;
+        return `
+            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
+                <td class="px-3 py-2 align-middle w-28"></td>
+                <td class="px-3 py-2 align-middle">
+                    <div class="relative">
+                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        </span>
+                        <input id="${o.id}_draftInput" type="text" autocomplete="off" value="${this.esc(this.draft.term)}" placeholder="${this.esc(o.labels.draftPh)}" class="${this.cls.search}">
+                    </div>
+                </td>
+                <td colspan="6"></td>
+                <td class="px-2 py-2 align-middle text-center w-10">
+                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </td>
+            </tr>`;
+    }
+
+    renderTaxLista(items) {
+        return items.map((t, i) => `
+            <div class="ef-cat-item px-3 py-2 cursor-pointer text-xs font-semibold text-gray-800 hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all" data-tax-val="${this.esc(t.id)}" data-cat-idx="${i}">${this.esc(t.valor)}</div>`
+        ).join('');
+    }
+
+    renderDraftLista(items) {
+        if (!items.length) {
+            return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>`;
+        }
+        return `<div class="max-h-[240px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`;
     }
 
     renderSearchResult(p, i) {
@@ -569,11 +627,11 @@ class EntradaForm {
             .ef-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
             .ef-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
             .ef-cat-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 10; background: #F9FAFB; }
-            .ef-cat-item.ef-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
+            .ef-cat-item.ef-active { background: rgb(var(--brand-600, 192 90 64) / 0.10); box-shadow: inset 0 0 0 1px rgb(var(--brand-600, 192 90 64) / 0.45); }
             @keyframes efFlash { 0% { background-color: rgba(16,185,129,0.20); } 100% { background-color: transparent; } }
             tr.ef-flash { animation: efFlash 0.6s ease-out; }
             .ef-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }
-            .ef-cat-item.ef-active .ef-add-btn { background: #C05A40; border-color: #C05A40; color: #fff; }`;
+            .ef-cat-item.ef-active .ef-add-btn { background: rgb(var(--brand-600, 192 90 64)); border-color: rgb(var(--brand-600, 192 90 64)); color: #fff; }`;
         const style = document.createElement('style');
         style.id = 'entradaFormStyles';
         style.textContent = css;
@@ -587,7 +645,7 @@ class EntradaForm {
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
             <div class="absolute inset-0 bg-black/40" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+            <div id="${o.id}_panel" class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
                 ${this.renderConfigRow()}
                 ${this.renderSearchBar()}
@@ -595,6 +653,7 @@ class EntradaForm {
                 <div id="${o.id}_listaProductos" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
                 ${this.renderResumen()}
                 ${this.renderFooter()}
+                <div id="${o.id}_float" class="hidden absolute z-[60] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
             </div>
         `);
 
@@ -636,10 +695,8 @@ class EntradaForm {
             return;
         }
 
-        const disponibles = (o.json || []).filter(p => !this.lote.some(x => String(x.id) === String(p.id)));
-        const items = disponibles.filter(p =>
-            (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term)
-        );
+        const disponibles = this.productosDisponibles();
+        const items       = this.matchCatalogo(term);
 
         // this.catalogItems debe seguir el MISMO orden en que se pintan los
         // .ef-cat-item: highlightActive() y la navegacion con flechas indexan
@@ -675,17 +732,30 @@ class EntradaForm {
         this.highlightActive();
     }
 
+    // Catalogo que aun no esta en el lote.
+    productosDisponibles() {
+        return (this.opts.json || []).filter(p => !this.lote.some(x => String(x.id) === String(p.id)));
+    }
+
+    matchCatalogo(term) {
+        const t = String(term || '').trim().toLowerCase();
+        if (!t) return [];
+        return this.productosDisponibles().filter(p =>
+            (p.nombre || '').toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t)
+        );
+    }
+
     renderLote() {
         const o = this.opts;
         const $lista   = $(`#${o.id}_listaProductos`);
         const $limpiar = $(`#${o.id}_btnLimpiarLote`);
-        if (!this.lote.length) {
+        this.closeFloat();
+        if (!this.lote.length && !this.draft) {
             $lista.html(this.renderEmptyState()).addClass('flex items-center justify-center');
-            $limpiar.addClass('hidden');
         } else {
             $lista.html(this.renderProductsTable()).removeClass('flex items-center justify-center');
-            $limpiar.removeClass('hidden');
         }
+        $limpiar.toggleClass('hidden', !this.lote.length);
         this.updateTotals();
         this.renderCatalogo();
         if (window.lucide) lucide.createIcons();
@@ -724,7 +794,7 @@ class EntradaForm {
 
     // Enfoca y preselecciona el input de cantidad de la fila recien afectada,
     // de modo que al teclear se reemplaza el valor. Enter vuelve al buscador
-    // (onQtyKeydown) para encadenar la siguiente alta.
+    // (onRowKeydown) para encadenar la siguiente alta.
     focusCantidad(idx) {
         const $inp = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="cantidad"]`);
         if ($inp.length) {
@@ -753,23 +823,16 @@ class EntradaForm {
         return idx;
     }
 
-    // Semilla de impuesto por renglon. Toma los tres valores directo del item
-    // del catalogo: precio (costo CON impuesto = i.price), price_without_tax
-    // (base SIN impuesto) y tax (%). Ambos costos quedan editables y se
-    // recalculan entre si; si falta alguno se deriva del otro con la tasa.
+    // Semilla de costo por renglon: price_without_tax es el ultimo costo de compra
+    // del producto SIN IVA y tax el IVA de esa compra. El costo CON IVA se deriva;
+    // sin base se usa el costo del catalogo. Ambos quedan editables y se recalculan
+    // entre si. El precio de venta (item.price) no participa.
     seedTax(prod) {
         const tax = Number(prod.tax || 0);
-        // Base sin impuesto: directo del catalogo (price_without_tax).
         let base = (prod.price_without_tax != null && prod.price_without_tax !== '')
             ? Number(prod.price_without_tax)
             : null;
-        // Costo con impuesto: directo del catalogo (precio/price); si no existe
-        // se deriva de la base + tax, y como ultimo recurso usa costo.
-        const precio = (prod.precio != null && prod.precio !== '') ? prod.precio
-                     : (prod.price != null && prod.price !== '')   ? prod.price
-                     : null;
-        let costo = (precio != null && Number(precio) > 0) ? Number(precio)
-                  : (base != null ? this.costFromBase(base, tax) : Number(prod.costo || 0));
+        let costo = base != null ? this.costFromBase(base, tax) : Number(prod.costo || 0);
         if (!isFinite(costo) || costo < 0) costo = 0;
         if (base == null || !isFinite(base) || base < 0) base = this.baseFromCost(costo, tax);
         return { costo: costo, tax: tax, costoSinTax: base };
@@ -836,6 +899,7 @@ class EntradaForm {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (items.length) { this.activeIdx = Math.min(this.activeIdx + 1, items.length - 1); this.highlightActive(); }
+            else if (!this.searchTerm) this.openDraft();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (items.length) { this.activeIdx = Math.max(this.activeIdx - 1, 0); this.highlightActive(); }
@@ -852,11 +916,241 @@ class EntradaForm {
         }
     }
 
-    onQtyKeydown(e) {
+    // Teclado dentro de un renglon: Enter vuelve al buscador para encadenar la
+    // siguiente alta; flechas se mueven al mismo campo del renglon de arriba/abajo
+    // (en vez de sumar/restar al numero) y bajar desde el ultimo abre un renglon vacio.
+    onRowKeydown(e) {
+        const $inp  = $(e.currentTarget);
+        const idx   = Number($inp.attr('data-idx'));
+        const field = $inp.attr('data-field');
+        if (field === 'tax' && this.onTaxKeydown(e, idx)) return;
+
         if (e.key === 'Enter') {
             e.preventDefault();
-            $(`#${this.opts.id}_buscarProducto`).trigger('focus'); // vuelve al buscador para encadenar
+            $(`#${this.opts.id}_buscarProducto`).trigger('focus');
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (idx < this.lote.length - 1) this.focusField(idx + 1, field);
+            else this.openDraft();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (idx > 0) this.focusField(idx - 1, field);
+            else $(`#${this.opts.id}_buscarProducto`).trigger('focus');
         }
+    }
+
+    focusField(idx, field) {
+        const $inp = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="${field}"]`);
+        if (!$inp.length) return;
+        if ($inp[0].scrollIntoView) $inp[0].scrollIntoView({ block: 'nearest' });
+        $inp.trigger('focus').trigger('select');
+    }
+
+    // -- Renglon vacio --
+
+    openDraft() {
+        if (!this.draft) {
+            this.draft = { term: '' };
+            this.renderLote();
+        }
+        const $inp = $(`#${this.opts.id}_draftInput`);
+        if (!$inp.length) return;
+        if ($inp[0].scrollIntoView) $inp[0].scrollIntoView({ block: 'nearest' });
+        $inp.trigger('focus');
+    }
+
+    removeDraft() {
+        this.draft = null;
+        this.renderLote();
+    }
+
+    onDraftInput(value) {
+        if (!this.draft) return;
+        this.draft.term = String(value || '');
+        if (!this.draft.term.trim()) { this.closeFloat(); return; }
+        const items = this.matchCatalogo(this.draft.term);
+        this.openFloat({
+            kind:     'draft',
+            items:    items,
+            active:   0,
+            $anchor:  $(`#${this.opts.id}_draftInput`),
+            minWidth: 380
+        }, this.renderDraftLista(items));
+    }
+
+    // Escape limpia lo escrito y, con el renglon ya vacio, lo quita. Arriba sin
+    // lista abierta regresa al ultimo renglon capturado.
+    onDraftKeydown(e) {
+        const id = this.opts.id;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.draft && this.draft.term) {
+                this.draft.term = '';
+                $(e.currentTarget).val('');
+                this.closeFloat();
+            } else {
+                this.removeDraft();
+                $(`#${id}_buscarProducto`).trigger('focus');
+            }
+            return;
+        }
+        if (this.onFloatKeydown(e)) return;
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.commitDraft(this.pickDraft());
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (this.lote.length) this.focusField(this.lote.length - 1, 'cantidad');
+            else $(`#${id}_buscarProducto`).trigger('focus');
+        }
+    }
+
+    // SKU exacto primero (lector de codigo), luego el resultado resaltado.
+    pickDraft() {
+        const q = String((this.draft && this.draft.term) || '').trim().toLowerCase();
+        if (!q) return null;
+        const exact = (this.opts.json || []).find(p => String(p.sku || '').toLowerCase() === q);
+        if (exact) return exact;
+        const f = this.float;
+        return (f && f.kind === 'draft' && f.items.length) ? (f.items[f.active] || f.items[0]) : null;
+    }
+
+    commitDraft(prod) {
+        if (!prod) return;
+        this.draft = null;
+        const idx = this.addOrIncrement(prod, 1);
+        this.focusCantidad(idx);
+    }
+
+    // -- Impuesto (escribe o elige) --
+
+    taxInput(idx) {
+        return $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="tax"]`);
+    }
+
+    // Con filter las opciones se reducen a las que empiezan con lo tecleado; sin
+    // coincidencias la lista se cierra y queda el valor escrito a mano.
+    openTaxList(idx, filter) {
+        const $inp = this.taxInput(idx);
+        if (!$inp.length || !this.lote[idx]) return;
+        const q     = filter ? String($inp.val() || '').replace('%', '').trim() : '';
+        const all   = this.opts.data.impuestos || [];
+        const items = q ? all.filter(t => String(t.id).startsWith(q)) : all;
+        if (!items.length) { this.closeFloat(); return; }
+        const cur = items.findIndex(t => Number(t.id) === Number(this.lote[idx].tax));
+        this.openFloat({
+            kind:     'tax',
+            idx:      idx,
+            items:    items,
+            active:   Math.max(0, cur),
+            $anchor:  $inp.closest('.relative'),
+            minWidth: 110
+        }, this.renderTaxLista(items));
+    }
+
+    onTaxKeydown(e, idx) {
+        const f    = this.float;
+        const open = f && f.kind === 'tax' && f.idx === idx;
+        if (e.key === 'ArrowDown' && e.altKey) {
+            e.preventDefault();
+            this.openTaxList(idx, false);
+            return true;
+        }
+        if (!open) return false;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const it = f.items[f.active];
+            if (it) this.selectTax(idx, it.id);
+            else this.closeFloat();
+            return true;
+        }
+        return this.onFloatKeydown(e);
+    }
+
+    selectTax(idx, value) {
+        const $inp = this.taxInput(idx);
+        this.closeFloat();
+        if (!$inp.length) return;
+        $inp.val(value);
+        this.updateField($inp);
+    }
+
+    toggleTaxList(idx) {
+        const f = this.float;
+        if (f && f.kind === 'tax' && f.idx === idx) { this.closeFloat(); return; }
+        this.taxInput(idx).trigger('focus');
+        this.openTaxList(idx, false);
+    }
+
+    parseTax(value) {
+        const n = parseFloat(String(value == null ? '' : value).replace('%', '').replace(',', '.'));
+        return isFinite(n) && n >= 0 ? n : 0;
+    }
+
+    // -- Lista flotante --
+
+    // Vive en el panel del modal, fuera del scroll de la tabla, para que el
+    // renglon del fondo no la recorte; si no cabe abajo abre hacia arriba.
+    openFloat(state, html) {
+        this.float = state;
+        $(`#${this.opts.id}_float`).html(html);
+        this.placeFloat();
+        this.highlightFloat();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    placeFloat() {
+        const f = this.float;
+        if (!f || !f.$anchor || !f.$anchor.length) return;
+        const $f    = $(`#${this.opts.id}_float`);
+        const panel = $(`#${this.opts.id}_panel`)[0].getBoundingClientRect();
+        const r     = f.$anchor[0].getBoundingClientRect();
+        const width = Math.min(Math.max(r.width, f.minWidth || 0), panel.width - 16);
+        const left  = Math.max(8, Math.min(r.left - panel.left, panel.width - width - 8));
+
+        $f.css({ left: left, width: width, top: r.bottom - panel.top + 4, bottom: 'auto' }).removeClass('hidden');
+        const h = $f.outerHeight();
+        if (r.bottom + 4 + h > panel.bottom && r.top - panel.top > panel.bottom - r.bottom) {
+            $f.css({ top: 'auto', bottom: panel.bottom - r.top + 4 });
+        }
+    }
+
+    closeFloat() {
+        this.float = null;
+        $(`#${this.opts.id}_float`).addClass('hidden').empty();
+    }
+
+    highlightFloat() {
+        if (!this.float) return;
+        const $items = $(`#${this.opts.id}_float .ef-cat-item`);
+        $items.removeClass('ef-active');
+        const $a = $items.eq(this.float.active);
+        $a.addClass('ef-active');
+        if ($a.length && $a[0].scrollIntoView) $a[0].scrollIntoView({ block: 'nearest' });
+    }
+
+    onFloatKeydown(e) {
+        const f = this.float;
+        if (!f) return false;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (f.items.length) {
+                f.active = e.key === 'ArrowDown'
+                    ? Math.min(f.active + 1, f.items.length - 1)
+                    : Math.max(f.active - 1, 0);
+                this.highlightFloat();
+            }
+            return true;
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.closeFloat();
+            return true;
+        }
+        return false;
     }
 
     removeProducto(i) {
@@ -868,7 +1162,7 @@ class EntradaForm {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || !field) return;
-        this.lote[idx][field] = $el.val();
+        this.lote[idx][field] = field === 'tax' ? this.parseTax($el.val()) : $el.val();
         const p = this.lote[idx];
         // Costo c/imp y costo s/imp se recalculan entre si usando el tax:
         //  - al editar el costo c/imp se deriva la base s/imp,
@@ -905,23 +1199,40 @@ class EntradaForm {
     clearLote() {
         if (!this.lote.length) return;
         this.confirmBox('Eliminar todos los productos del lote?', () => {
-            this.lote = [];
+            this.lote  = [];
+            this.draft = null;
             this.renderLote();
         });
     }
 
     closeModal() {
         this.wrap.addClass('hidden');
-        this.lote = [];
+        this.lote  = [];
+        this.draft = null;
         this.renderLote();
         this.opts.onClose();
+    }
+
+    // Escape con productos capturados pide confirmacion: un doble Escape (limpiar
+    // busqueda + cerrar) ya no tira el lote completo.
+    requestClose() {
+        if (!this.lote.length) { this.closeModal(); return; }
+        this.confirmBox(this.opts.labels.confirmClose, () => this.closeModal(), {
+            okLabel: this.opts.labels.confirmCloseOk
+        });
+    }
+
+    // Alertas y modales hijos (proveedor, formato) atienden su propio Escape.
+    hasOverlay() {
+        const id = this.opts.id;
+        return $(`#${id}_supModal, #${id}_saveFormatoModal`).length > 0 || $('[data-ab-backdrop]').length > 0;
     }
 
     doRegistrar() {
         if (!this.lote.length) { this.notify('Agrega al menos un producto al lote'); return; }
         const o = this.opts;
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
-        if (!warehouseId) { this.notify('Selecciona un almacen'); return; }
+        if (!warehouseId) { this.notify(o.labels.sinAlmacenesMsg); return; }
 
         const origenId   = $(`#${o.id}_selOrigen`).val();
         const supplierId = $(`#${o.id}_selProveedor`).val() || '';
@@ -967,7 +1278,8 @@ class EntradaForm {
         this.confirmBox(o.labels.confirmAdd, proceed, {
             type:    'confirm',
             okLabel: o.labels.confirmAddOk,
-            okIcon:  'check'
+            okIcon:  'check',
+            focusOk: true
         });
     }
 
@@ -976,24 +1288,34 @@ class EntradaForm {
     notify(title, type = 'warning') {
         if (this.tpl && typeof this.tpl.alertBox === 'function') {
             this.tpl.alertBox({ type, title });
+            this.focusAlert('[data-ab-ok]');
         } else {
             alert(title);
         }
     }
 
     // Confirmacion usando el alertBox propio; ejecuta onOk solo al aceptar.
-    // Cae a confirm nativo si no hay referencia a Templates.
+    // Cae a confirm nativo si no hay referencia a Templates. focusOk deja Enter
+    // sobre Aceptar; sin el, Enter cae en Cancelar (confirmaciones destructivas).
     confirmBox(title, onOk, opts = {}) {
         if (this.tpl && typeof this.tpl.alertBox === 'function') {
+            const { focusOk, ...alertOpts } = opts;
             this.tpl.alertBox(Object.assign({
                 type:        'cancel',
                 title:       title,
                 cancelLabel: this.opts.labels.cancelar,
                 onOk:        onOk
-            }, opts));
+            }, alertOpts));
+            this.focusAlert(focusOk ? '[data-ab-ok]' : '[data-ab-cancel]');
         } else if (confirm(title)) {
             onOk();
         }
+    }
+
+    // Saca el foco del boton que abrio la alerta: sin esto, Enter volvia a pulsar
+    // Registrar y apilaba otra confirmacion encima.
+    focusAlert(selector) {
+        setTimeout(() => $(selector).last().trigger('focus'), 60);
     }
 
     // -- Formatos --
@@ -1138,7 +1460,7 @@ class EntradaForm {
 
         $(`#${modalId}_name`).on('keydown', (e) => {
             if (e.key === 'Enter')  $(`#${modalId}_confirm`).trigger('click');
-            if (e.key === 'Escape') closeSaveModal();
+            if (e.key === 'Escape') { e.stopPropagation(); closeSaveModal(); }
         });
     }
 
@@ -1150,7 +1472,7 @@ class EntradaForm {
         // del catalogo vigente, de modo que el formato refleja el precio/impuesto
         // actual del producto en lugar de uno congelado al guardarlo.
         this.lote = (f.productos || []).map(p =>
-            Object.assign({}, p, this.seedTax(p), { cantidad: Number(p.cantidad || 0) })
+            Object.assign({}, p, this.seedTax(p), { cantidad: Number(p.cantidad || 0), stock: this.stockOf(p.id) })
         );
         $(`#${this.opts.id}_formatosDropdown`).addClass('hidden');
         this.renderLote();
@@ -1218,12 +1540,34 @@ class EntradaForm {
     }
 
     refreshAlmacenes(branchId) {
-        const o     = this.opts;
-        const $sel  = $(`#${o.id}_selAlmacen`);
-        const items = (o.data.almacenes || []).filter(a =>
+        $(`#${this.opts.id}_selAlmacen`).html(this.almacenOptions(branchId));
+    }
+
+    // Una sucursal sin almacenes activos lo dice en el select en vez de dejarlo en blanco.
+    almacenOptions(branchId, selected) {
+        const items = (this.opts.data.almacenes || []).filter(a =>
             !branchId || String(a.branch_id) === String(branchId)
         );
-        $sel.html(items.map(it => this.optionTag(it)).join(''));
+        if (!items.length) return `<option value="">${this.esc(this.opts.labels.sinAlmacenes)}</option>`;
+        return items.map(it => this.optionTag(it, selected)).join('');
+    }
+
+    // Pide al host el stock del almacen seleccionado y lo refleja en el catalogo
+    // y en el lote: el stock vive por almacen+producto, asi que cambia con el almacen.
+    reloadStock(warehouseId) {
+        if (typeof this.opts.onWarehouseChange !== 'function') return;
+        this.opts.onWarehouseChange(warehouseId, (stockMap) => this.applyStock(stockMap));
+    }
+
+    applyStock(stockMap) {
+        this.stockMap = stockMap || {};
+        (this.opts.json || []).forEach(p => { p.stock = this.stockOf(p.id); });
+        this.lote.forEach(p => { p.stock = this.stockOf(p.id); });
+        this.renderLote();
+    }
+
+    stockOf(id) {
+        return Number((this.stockMap || {})[String(id)] || 0);
     }
 
     toggleFormatosDropdown() {
@@ -1246,13 +1590,38 @@ class EntradaForm {
         wrap.on('click', '[data-modal-close]',        () => this.closeModal());
         wrap.on('change', `#${id}_selOrigen`,         () => this.syncProveedorVisibility());
         wrap.on('click', `#${id}_btnNuevoProveedor`,  () => this.openNuevoProveedor());
-        wrap.on('change', `#${id}_selSucursal`,       (e) => this.refreshAlmacenes(e.target.value));
+        wrap.on('change', `#${id}_selSucursal`,       (e) => { this.refreshAlmacenes(e.target.value); this.reloadStock($(`#${id}_selAlmacen`).val()); });
+        wrap.on('change', `#${id}_selAlmacen`,        (e) => this.reloadStock(e.target.value));
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
-        wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
-        wrap.on('click', '[data-add-id]',             (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
+        wrap.on('keydown', `#${id}_listaProductos input[data-field]`, (e) => this.onRowKeydown(e));
+        wrap.on('click', '[data-add-id]', (e) => {
+            const pid = $(e.currentTarget).attr('data-add-id');
+            if ($(e.currentTarget).closest(`#${id}_float`).length) {
+                this.commitDraft((this.opts.json || []).find(p => String(p.id) === String(pid)));
+            } else {
+                this.addProducto(pid);
+            }
+        });
         wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
         wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
+
+        wrap.on('input',   `#${id}_draftInput`,       (e) => this.onDraftInput(e.target.value));
+        wrap.on('keydown', `#${id}_draftInput`,       (e) => this.onDraftKeydown(e));
+        wrap.on('click',   '[data-draft-remove]',     () => this.removeDraft());
+
+        wrap.on('input', 'input[data-field="tax"]',   (e) => this.openTaxList(Number($(e.currentTarget).attr('data-idx')), true));
+        wrap.on('click', 'input[data-field="tax"]',   (e) => this.openTaxList(Number($(e.currentTarget).attr('data-idx')), false));
+        wrap.on('click', '[data-tax-toggle]',         (e) => this.toggleTaxList(Number($(e.currentTarget).attr('data-tax-toggle'))));
+        wrap.on('click', '[data-tax-val]', (e) => {
+            if (this.float && this.float.kind === 'tax') this.selectTax(this.float.idx, $(e.currentTarget).attr('data-tax-val'));
+        });
+
+        // La lista flotante no roba el foco al input: asi un click en una opcion
+        // no dispara el focusout que la cierra.
+        wrap.on('mousedown', `#${id}_float, [data-tax-toggle]`, (e) => e.preventDefault());
+        wrap.on('focusout', `#${id}_draftInput, input[data-field="tax"]`, () => this.closeFloat());
+        $(`#${id}_listaProductos`).on('scroll', () => this.placeFloat());
         wrap.on('click', `#${id}_btnLimpiarLote`,     () => this.clearLote());
         wrap.on('click', `#${id}_btnRegistrar`,       () => this.doRegistrar());
         wrap.on('click', `#${id}_btnSaveFormato`,     () => this.saveFormato());
@@ -1282,8 +1651,14 @@ class EntradaForm {
             }
         });
 
+        // Escape en cascada: lista flotante -> formatos -> cerrar (con confirmacion
+        // si hay productos). Buscador, renglon vacio e impuesto lo atienden antes.
         $(document).off('keydown.entradaForm').on('keydown.entradaForm', (e) => {
-            if (e.key === 'Escape' && !this.wrap.hasClass('hidden')) this.closeModal();
+            if (e.key !== 'Escape' || this.wrap.hasClass('hidden') || this.hasOverlay()) return;
+            if (this.float) { this.closeFloat(); return; }
+            const $dd = $(`#${id}_formatosDropdown`);
+            if (!$dd.hasClass('hidden')) { $dd.addClass('hidden'); return; }
+            this.requestClose();
         });
     }
 
@@ -1293,6 +1668,7 @@ class EntradaForm {
         this.wrap.removeClass('hidden');
         this.syncProveedorVisibility();
         if (window.lucide) lucide.createIcons();
+        this.reloadStock($(`#${this.opts.id}_selAlmacen`).val());
         setTimeout(() => $(`#${this.opts.id}_buscarProducto`).trigger('focus'), 50);
     }
 

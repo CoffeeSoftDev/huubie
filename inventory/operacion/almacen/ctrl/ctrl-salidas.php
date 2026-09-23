@@ -89,7 +89,7 @@ class ctrl extends mdl {
                 'Registrado' => $salida['user_name'] ?: '-',
                 'a' => [
                     [
-                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                         'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                         'onclick' => "salidas.getSalida({$salida['id']})"
                     ]

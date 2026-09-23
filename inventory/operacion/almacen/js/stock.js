@@ -75,7 +75,7 @@ class App extends Templates {
         }[c]));
 
         const titleHtml = (branchVal && branchName)
-            ? `Visor de Stock <span class="font-bold" style="color:#C05A40;">· ${esc(branchName)}</span>`
+            ? `Visor de Stock <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">· ${esc(branchName)}</span>`
             : 'Visor de Stock';
 
         stockView.renderHeader({
@@ -522,7 +522,7 @@ class StockView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,rgb(var(--brand-600, 192 90 64)))',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {
@@ -620,7 +620,7 @@ class StockView extends Templates {
             stockActual:      0,
             stockMin:         0,
             entradaColor:     '#3FC189',
-            salidaColor:      '#C05A40',
+            salidaColor:      'rgb(var(--brand-600, 192 90 64))',
             historicoColor:   '#94A3B8',
             proyeccionColor:  '#475569',
             minLineColor:     '#CBD5E1',
@@ -941,7 +941,7 @@ class StockView extends Templates {
             movFilter: {
                 btn:         'px-2 py-0.5 rounded text-[10px] font-medium text-gray-500 whitespace-nowrap hover:bg-gray-100 transition-colors',
                 btnActive:   'px-2 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap transition-colors',
-                activeStyle: 'background:#C05A40;',
+                activeStyle: 'background:rgb(var(--brand-600, 192 90 64));',
                 labels: { todos: 'Todos', in: '+ Entradas', out: '- Salidas' }
             },
             onClose: () => { }
@@ -1012,7 +1012,7 @@ class StockView extends Templates {
         }).join('');
 
         const almTone = {
-            info:   { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
+            info:   { bg: 'rgb(var(--brand-600, 192 90 64) /0.15)',  fg: 'rgb(var(--brand-600, 192 90 64))' },
             purple: { bg: 'rgba(124,58,237,0.15)',  fg: '#A78BFA' }
         };
         const almacenesHtml = (p.almacenes || []).map(a => {

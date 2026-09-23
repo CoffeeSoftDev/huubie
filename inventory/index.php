@@ -19,7 +19,7 @@ if(isset($_COOKIE['IDU'])){
     <link rel="shortcut icon" href="src/img/logos/coffee_icon.png" type="image/x-icon">
     <title>Coffee Inventory - Iniciar sesión</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="src/js/tailwind-theme.js"></script>
+    <script src="src/js/tailwind-theme.js?v=<?php echo filemtime(__DIR__ . '/src/js/tailwind-theme.js'); ?>"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/plugin/sweetalert2/sweetalert2.min.css">
     <link rel="stylesheet" href="src/css/index.css">

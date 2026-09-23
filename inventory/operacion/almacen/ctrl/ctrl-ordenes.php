@@ -30,10 +30,11 @@ class ctrl extends mdl {
                 'sku'               => $producto['sku'] ?: '',
                 'nombre'            => $producto['nombre'],
                 'categoria'         => $producto['categoria'] ?: 'Sin categoria',
+                // Semilla del renglon: ultimo costo de compra (con IVA, base sin
+                // IVA y tasa de esa compra). El precio de venta no entra aqui.
                 'costo'             => (float) $producto['costo'],
-                'precio'            => (float) ($producto['precio'] ?? 0),
-                'price_without_tax' => $producto['price_without_tax'] !== null ? (float) $producto['price_without_tax'] : null,
-                'tax'               => $producto['tax'] !== null ? (float) $producto['tax'] : null,
+                'price_without_tax' => (float) $producto['costo_sin_iva'],
+                'tax'               => (float) $producto['iva_compra'],
                 'stock'             => 0,
                 'image'             => $producto['image'] ?? '',
                 'icon'              => 'package',
@@ -109,7 +110,7 @@ class ctrl extends mdl {
             // $fila['Total']      = evaluar((float) $orden['total_cost']);
             $fila['a'] = [
                 [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-[#C05A40] transition-colors cursor-pointer bg-transparent border-0',
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
                     'onclick' => "app.selectOrden('{$orden['folio']}', {$orden['id']})"
                 ]
@@ -570,8 +571,8 @@ class ctrl extends mdl {
                 $linea['unit_id'] ?: null
             ]);
 
-            if ($cost > 0) {
-                $this->updateItemTax([$cost, $base, $tax, $productId, $this->companiesId]);
+            if ($base > 0) {
+                $this->updateItemCost([$base, $tax, $productId, $this->companiesId]);
             }
 
             if ($stockRow) {
@@ -649,7 +650,7 @@ class ctrl extends mdl {
         $map = [
             'Borrador'   => ['#475569', '#F1F5F9'],
             'Solicitada' => ['#D97706', '#FEF3C7'],
-            'Aprobada'   => ['#C05A40', '#FBEAE5'],
+            'Aprobada'   => ['var(--accent-soft-fg, rgb(var(--brand-700, 168 74 51)))', 'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))'],
             'Parcial'    => ['#EA580C', '#FFEDD5'],
             'Recibida'   => ['#16A34A', '#DCFCE7'],
             'Rechazada'  => ['#DC2626', '#FEE2E2'],
@@ -679,7 +680,7 @@ class ctrl extends mdl {
 
     private function sucChipCell($branchId, $branchName, $whName) {
         $palette = [
-            ['icon' => 'text-blue-400',   'bg' => 'rgba(192,90,64,0.15)',  'border' => 'rgba(192,90,64,0.35)'],
+            ['icon' => 'text-blue-400',   'bg' => 'rgb(var(--brand-600, 192 90 64) / 0.15)',  'border' => 'rgb(var(--brand-600, 192 90 64) / 0.35)'],
             ['icon' => 'text-green-400',  'bg' => 'rgba(63,193,137,0.15)',  'border' => 'rgba(63,193,137,0.35)'],
             ['icon' => 'text-purple-400', 'bg' => 'rgba(168,85,247,0.15)',  'border' => 'rgba(168,85,247,0.35)'],
             ['icon' => 'text-pink-400',   'bg' => 'rgba(244,114,182,0.15)', 'border' => 'rgba(244,114,182,0.35)'],

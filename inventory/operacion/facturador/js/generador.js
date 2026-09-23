@@ -233,7 +233,7 @@ class App extends Templates {
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${SAMPLE_VIEW_HEADER_GENERADOR.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
+        const titleHtml = `${SAMPLE_VIEW_HEADER_GENERADOR.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(_fmtFechaCorta(f.dia))}</span>`;
 
         generadorView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_GENERADOR, { titleHtml }));
     }
@@ -707,7 +707,7 @@ class GeneradorView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,rgb(var(--brand-600, 192 90 64)))',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {

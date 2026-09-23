@@ -18,12 +18,9 @@ class mdl extends CRUD {
             SELECT
                 ic.id,
                 ic.name as valor,
-                ic.warehouse_id,
-                w.name as warehouse_name,
                 DATE_FORMAT(ic.created_at, '%d/%m/%Y') as date_creation,
                 ic.active
             FROM {$this->bd}item_category ic
-            LEFT JOIN {$this->bd}warehouse w ON w.id = ic.warehouse_id
             WHERE ic.active = ?
             AND ic.companies_id = ".$_SESSION['company_id']."
             ORDER BY ic.id DESC
@@ -351,12 +348,10 @@ class mdl extends CRUD {
                 w.id,
                 w.name as valor,
                 w.is_default,
-                wa.name as area_name,
                 b.name as branch_name,
                 DATE_FORMAT(w.created_at, '%d/%m/%Y') as date_creation,
                 w.active
             FROM {$this->bd}warehouse w
-            LEFT JOIN {$this->bd}warehouse_area wa ON w.warehouse_area_id = wa.id
             LEFT JOIN branches b ON b.id = w.branch_id
             WHERE w.active = ?
             AND w.companies_id = ".$_SESSION['company_id']."
@@ -461,30 +456,6 @@ class mdl extends CRUD {
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
-    }
-
-    // Areas activas para selects de formularios
-    function listAreasSelect() {
-        $query = "
-            SELECT id, name as valor
-            FROM {$this->bd}warehouse_area
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
-    }
-
-    // Almacenes activos para selects de formularios (cada categoría pertenece a un almacén)
-    function listWarehousesSelect() {
-        $query = "
-            SELECT id, name as valor
-            FROM {$this->bd}warehouse
-            WHERE active = 1
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
-        ";
-        return $this->_Read($query, []);
     }
 
     // Sucursales activas de la compañía para selects de formularios (cada almacén pertenece a una sucursal).

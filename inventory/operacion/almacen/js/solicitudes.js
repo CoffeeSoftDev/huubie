@@ -93,7 +93,7 @@ class App extends Templates {
         const branchName = this.dataInit.branch_name || '';
 
         const titleHtml = branchName
-            ? `${VIEW_HEADER_SOLICITUDES.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(branchName)}</span>`
+            ? `${VIEW_HEADER_SOLICITUDES.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(branchName)}</span>`
             : VIEW_HEADER_SOLICITUDES.title;
 
         solicitudesView.renderHeader(Object.assign({}, VIEW_HEADER_SOLICITUDES, { titleHtml }));
@@ -152,10 +152,10 @@ class App extends Templates {
         const ini = this.initials(this.dataInit.user_name || '');
 
         $('#mainPanel').append(`
-            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 md:hidden" style="background:#C05A40;position:absolute;top:12px;right:16px">${ini}</div>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 md:hidden" style="background:rgb(var(--brand-600, 192 90 64));position:absolute;top:12px;right:16px">${ini}</div>
             <button id="fabNueva"
                 class="md:hidden fixed bottom-5 right-5 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white z-40"
-                style="background:#C05A40;box-shadow:0 4px 14px rgba(192,90,64,.45)">
+                style="background:rgb(var(--brand-600, 192 90 64));box-shadow:0 4px 14px rgb(var(--brand-600, 192 90 64) /.45)">
                 <i data-lucide="plus" class="w-6 h-6"></i>
             </button>
         `);
@@ -286,7 +286,7 @@ class App extends Templates {
 
         $('#statusChipsMobile').html(`
             <select id="statusSelectMobile"
-                class="w-full px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 focus:border-[#C05A40] focus:ring-1 focus:ring-[#C05A40] focus:outline-none">
+                class="w-full px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none">
                 ${options}
             </select>
         `);
@@ -684,8 +684,8 @@ class SolicitudesView extends Templates {
         // Ticket en imagen: solo cuando el dispositivo puede compartir archivos
         // (WhatsApp en celular). En escritorio se omite.
         const docBtn = canShareImage ? `
-                        <button id="${modalId}_doc" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-[#C05A40] hover:bg-orange-50/40 transition-all text-left">
-                            <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:#C05A40"><i data-lucide="receipt" class="w-5 h-5"></i></span>
+                        <button id="${modalId}_doc" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-orange-50/40 transition-all text-left">
+                            <span class="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0" style="background:rgb(var(--brand-600, 192 90 64))"><i data-lucide="receipt" class="w-5 h-5"></i></span>
                             <span class="min-w-0 flex-1">
                                 <span class="block text-sm font-semibold text-gray-800">Enviar ticket</span>
                                 <span class="block text-[11px] text-gray-500">Comprobante en imagen, listo para mandar por chat</span>
@@ -763,7 +763,8 @@ class SolicitudesView extends Templates {
         const padX  = 26;
         const cw    = W - padX * 2;
 
-        const TERRA = '#C05A40', INK = '#111111', GRAY = '#6b7280', SOFT = '#9ca3af', LINEC = '#e5e7eb', DASH = '#d1d5db';
+        // El canvas no entiende var(): se lee el acento ya resuelto del tema.
+        const TERRA = 'rgb(' + ((getComputedStyle(document.documentElement).getPropertyValue('--brand-600') || '').trim() || '192 90 64').split(/\s+/).join(',') + ')', INK = '#111111', GRAY = '#6b7280', SOFT = '#9ca3af', LINEC = '#e5e7eb', DASH = '#d1d5db';
         const F = {
             brand: '800 26px "Segoe UI", Arial', sub: '12px "Segoe UI", Arial',
             folio: '800 30px "Segoe UI", Arial', badge: '700 11px "Segoe UI", Arial',
@@ -967,14 +968,14 @@ class SolicitudesView extends Templates {
   body { font-family:'Segoe UI', Arial, sans-serif; background:#e5e7eb; color:#111; padding:18px; }
   .toolbar { width:360px; max-width:100%; margin:0 auto 14px; display:flex; gap:8px; justify-content:flex-end; }
   .btn { cursor:pointer; border:0; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:700; color:#fff; }
-  .btn.print { background:#C05A40; } .btn.close { background:#6b7280; }
+  .btn.print { background:rgb(var(--brand-600, 192 90 64)); } .btn.close { background:#6b7280; }
   .ticket { width:360px; max-width:100%; margin:0 auto; background:#fff; border-radius:10px; padding:22px 22px 18px; box-shadow:0 4px 18px rgba(0,0,0,.18); }
   .brand { text-align:center; border-bottom:2px dashed #d1d5db; padding-bottom:12px; margin-bottom:12px; }
-  .brand h1 { font-size:18px; letter-spacing:1px; color:#C05A40; }
+  .brand h1 { font-size:18px; letter-spacing:1px; color:rgb(var(--brand-600, 192 90 64)); }
   .brand p { font-size:11px; color:#6b7280; margin-top:2px; }
   .folio { text-align:center; margin-bottom:12px; }
   .folio .f { font-size:22px; font-weight:800; }
-  .folio .st { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 10px; border:1px solid #C05A40; color:#C05A40; border-radius:20px; }
+  .folio .st { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 10px; border:1px solid rgb(var(--brand-600, 192 90 64)); color:rgb(var(--brand-600, 192 90 64)); border-radius:20px; }
   .info { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px dotted #e5e7eb; }
   .info span { color:#6b7280; } .info b { font-weight:700; text-align:right; }
   table { width:100%; border-collapse:collapse; margin-top:12px; }
@@ -987,7 +988,7 @@ class SolicitudesView extends Templates {
   .total { display:flex; justify-content:space-between; margin-top:12px; padding-top:10px; border-top:2px dashed #d1d5db; font-size:14px; font-weight:800; }
   .link { margin-top:14px; padding-top:12px; border-top:1px dotted #e5e7eb; text-align:center; }
   .link p { font-size:10px; color:#6b7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
-  .link a { font-size:11px; color:#C05A40; word-break:break-all; }
+  .link a { font-size:11px; color:rgb(var(--brand-600, 192 90 64)); word-break:break-all; }
   .foot { text-align:center; font-size:10px; color:#9ca3af; margin-top:12px; }
   @media print { body { background:#fff; padding:0; } .toolbar { display:none; } .ticket { box-shadow:none; width:auto; border-radius:0; } }
 </style>
@@ -1158,7 +1159,7 @@ class SolicitudesView extends Templates {
 
                 <div class="text-xs text-gray-500 flex items-center justify-between px-1">
                     <span>${(e.productos || []).length} material${(e.productos || []).length !== 1 ? 'es' : ''} &middot; ${fmtNum(totUds)} unidades pedidas</span>
-                    ${totRcv > 0 ? `<span class="font-semibold" style="color:#C05A40">${fmtNum(totRcv)} recibidas</span>` : ''}
+                    ${totRcv > 0 ? `<span class="font-semibold" style="color:rgb(var(--brand-600, 192 90 64))">${fmtNum(totRcv)} recibidas</span>` : ''}
                 </div>
             </div>
         `;
@@ -1193,7 +1194,7 @@ class SolicitudesView extends Templates {
             estadoPalettes: {
                 'Borrador':   { bg: 'rgba(156,163,175,0.15)', fg: '#9CA3AF' },
                 'Solicitada': { bg: 'rgba(251,191,36,0.15)',  fg: '#FBBF24' },
-                'Aprobada':   { bg: 'rgba(192,90,64,0.15)',  fg: '#C05A40' },
+                'Aprobada':   { bg: 'rgb(var(--brand-600, 192 90 64) /0.15)',  fg: 'rgb(var(--brand-600, 192 90 64))' },
                 'Parcial':    { bg: 'rgba(251,146,60,0.15)',  fg: '#FB923C' },
                 'Recibida':   { bg: 'rgba(63,193,137,0.15)', fg: '#3FC189' },
                 'Rechazada':  { bg: 'rgba(244,63,94,0.15)',  fg: '#F43F5E' },
@@ -1291,7 +1292,7 @@ class SolicitudesView extends Templates {
                     <tr class="border-t border-gray-200">
                         <td class="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">Total</td>
                         <td class="py-2.5 px-2 text-center font-bold text-blue-600 whitespace-nowrap">${fmtNum(totUds)}</td>
-                        ${showRecv ? `<td class="py-2.5 px-2 text-right text-[11px] font-bold whitespace-nowrap" style="color:#C05A40">${totRcv > 0 ? fmtNum(totRcv) + ' rcv' : ''}</td>` : ''}
+                        ${showRecv ? `<td class="py-2.5 px-2 text-right text-[11px] font-bold whitespace-nowrap" style="color:rgb(var(--brand-600, 192 90 64))">${totRcv > 0 ? fmtNum(totRcv) + ' rcv' : ''}</td>` : ''}
                     </tr>
                 </tfoot>` : '';
 
@@ -1324,7 +1325,7 @@ class SolicitudesView extends Templates {
                 <div class="flex items-center gap-2">
                     ${estadoBadge}
                     ${['Borrador', 'Solicitada'].includes(status) ? `
-                    <button id="${opts.id}_edit" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-[#C05A40] hover:bg-gray-100 transition-colors" title="${esc(opts.labels.editar)}">
+                    <button id="${opts.id}_edit" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition-colors" title="${esc(opts.labels.editar)}">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>` : ''}
                     <button id="${opts.id}_close" class="text-gray-500 hover:text-gray-700 transition-colors p-1" title="${esc(opts.labels.cerrar)}">
@@ -1453,10 +1454,10 @@ class SolicitudesView extends Templates {
         const stepsHtml = steps.map((s, i) => {
             const done    = i < activeIdx;
             const current = i === activeIdx;
-            const dotBg   = (done || current) ? '#C05A40' : '#fff';
-            const dotBd   = (done || current) ? '#C05A40' : '#D1D5DB';
-            const lColor  = current ? '#C05A40' : (done ? '#6B7280' : '#9CA3AF');
-            const lineBg  = done ? '#C05A40' : '#E5E7EB';
+            const dotBg   = (done || current) ? 'rgb(var(--brand-600, 192 90 64))' : '#fff';
+            const dotBd   = (done || current) ? 'rgb(var(--brand-600, 192 90 64))' : '#D1D5DB';
+            const lColor  = current ? 'rgb(var(--brand-600, 192 90 64))' : (done ? '#6B7280' : '#9CA3AF');
+            const lineBg  = done ? 'rgb(var(--brand-600, 192 90 64))' : '#E5E7EB';
             return `
                 <div class="flex items-center flex-shrink-0">
                     <div class="flex flex-col items-center">
@@ -1549,7 +1550,7 @@ class SolicitudesView extends Templates {
                 input.no-spin::-webkit-inner-spin-button,
                 input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
                 input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
-                .prod-result.sol-cat-active { background: rgba(192,90,64,0.10); box-shadow: inset 0 0 0 1px rgba(192,90,64,0.45); }
+                .prod-result.sol-cat-active { background: rgb(var(--brand-600, 192 90 64) /0.10); box-shadow: inset 0 0 0 1px rgb(var(--brand-600, 192 90 64) /0.45); }
                 @keyframes solFlash { 0% { background-color: rgba(16,185,129,0.20); } 100% { background-color: transparent; } }
                 tr.sol-flash { animation: solFlash 0.6s ease-out; }
                 .sol-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }`;
@@ -1808,7 +1809,7 @@ class SolicitudesView extends Templates {
                             <p class="text-[10px] text-gray-400">${esc(p.sku || 'Sin SKU')}${p.categoria ? ' &middot; ' + esc(p.categoria) : ''}</p>
                         </div>
                     </div>
-                    <span class="text-[11px] font-semibold flex items-center gap-1" style="color:#C05A40">
+                    <span class="text-[11px] font-semibold flex items-center gap-1" style="color:rgb(var(--brand-600, 192 90 64))">
                         <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar
                     </span>
                 </div>

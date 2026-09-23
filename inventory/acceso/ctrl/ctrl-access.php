@@ -552,31 +552,61 @@ class Access extends MAccess {
 
     // Catalogo + el tema elegido por el usuario. Sin sesion se responde igual,
     // con el tema por defecto, para que la barra del login tambien se pinte.
+    // Un tema pinta la barra (como en erp-pro) y trae el acento y el primario
+    // de la pagina (hex). El fondo de la pagina no cambia.
     function themes() {
         $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
         $ls     = $this->getThemes();
 
         $themes  = [];
-        $default = 'light';
+        $codes   = [];
+        $default = '';
         foreach ($ls as $t) {
             if ((int) $t['is_default'] === 1) $default = $t['code'];
+            $codes[]  = $t['code'];
             $themes[] = [
-                'code'   => $t['code'],
-                'name'   => $t['name'],
-                'color'  => $t['color'],
-                'accent' => $t['accent'],
-                'mode'   => $t['mode'],
-                'badge'  => $t['badge'] ?: '',
+                'code'      => $t['code'],
+                'name'      => $t['name'],
+                'tipo'      => $t['tipo'],
+                'color'     => $t['color'],
+                'image'     => $t['tipo'] === 'imagen' ? $this->themeImageUrl($t['image']) : '',
+                'accent'    => $t['accent'],
+                'primary'   => $t['primary_color'],
+                'secondary' => $t['secondary_color'],
+                'scheme'    => $t['scheme'],
+                'mode'      => $t['mode'],
+                'badge'     => $t['badge'] ?: '',
             ];
         }
 
+        if ($default === '' && !empty($codes)) $default = $codes[0];
+
+        // Un tema elegido que despues se apago ya no esta en el catalogo: esa
+        // persona ve el de por defecto, igual que quien nunca eligio.
         $current = $userId > 0 ? $this->getUserTheme([$userId]) : null;
+        if (!in_array($current, $codes, true)) $current = $default;
 
         return [
             'status'  => 200,
             'themes'  => $themes,
-            'current' => $current ?: $default,
+            'current' => $current,
         ];
+    }
+
+    // La imagen del tema lista para un url(). La base sale de la ruta real de
+    // este controlador (.../inventory/acceso/ctrl/). El ?v= cambia al resubirla,
+    // porque el archivo conserva su nombre y el navegador serviria la vieja.
+    private function themeImageUrl($image) {
+        $image = trim((string) $image);
+        if ($image === '') return '';
+
+        $file = __DIR__ . '/../../' . $image;
+        if (!is_file($file)) return '';
+
+        $base = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '')));
+        $base = rtrim(str_replace('\\', '/', $base), '/');
+
+        return $base . '/' . $image . '?v=' . filemtime($file);
     }
 
     function saveTheme() {

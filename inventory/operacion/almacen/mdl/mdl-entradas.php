@@ -125,10 +125,7 @@ class mdl extends CRUD {
                 i.name                                     AS nombre,
                 ia.sku                                     AS sku,
                 ic.name                                    AS categoria,
-                COALESCE(ia.cost_unit, i.price, 0)         AS costo,
-                i.price                                    AS precio,
-                i.price_without_tax                        AS price_without_tax,
-                i.tax                                      AS tax,
+                {$this->ultimoCostoCols()},
                 i.image                                    AS image
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute  ia ON ia.item_id = i.id AND ia.active = 1
@@ -351,16 +348,26 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
-    // Refleja en el item el ultimo costo capturado en la entrada: base sin
-    // impuesto, porcentaje de tax y precio recalculado (misma formula que el
-    // catalogo: price = price_without_tax + price_without_tax * tax / 100).
-    function updateItemTax($array) {
+    // Guarda en el producto el ultimo costo de compra: base sin IVA y la tasa de
+    // esa compra. Va en item_attribute; item.price es el precio de venta y las
+    // entradas ya no lo tocan.
+    function updateItemCost($array) {
+        // [cost_unit, cost_tax, item_id, companies_id]
         $query = "
-            UPDATE {$this->bd}item
-            SET price = ?, price_without_tax = ?, tax = ?
-            WHERE id = ? AND companies_id = ?
+            UPDATE {$this->bd}item_attribute
+            SET cost_unit = ?, cost_tax = ?
+            WHERE item_id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    // Columnas del ultimo costo para sembrar un renglon de entrada: base sin IVA,
+    // IVA de la ultima compra (si no hay, el IVA del producto) y el costo con IVA.
+    private function ultimoCostoCols() {
+        return "
+                COALESCE(ia.cost_unit, 0)                                                     AS costo_sin_iva,
+                COALESCE(ia.cost_tax, i.tax, 0)                                               AS iva_compra,
+                ROUND(COALESCE(ia.cost_unit, 0) * (1 + COALESCE(ia.cost_tax, i.tax, 0) / 100), 2) AS costo";
     }
 
     function confirmEntradaDetail($array) {
@@ -397,6 +404,16 @@ class mdl extends CRUD {
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    function qStockByWarehouse($array) {
+        $query = "
+            SELECT item_id, quantity
+            FROM {$this->bd}stock
+            WHERE warehouse_id = ? AND companies_id = ? AND active = 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
     }
 
     function getStockRow($array) {
@@ -460,9 +477,7 @@ class mdl extends CRUD {
                 i.name                             AS nombre,
                 ia.sku                             AS sku,
                 ic.name                            AS categoria,
-                COALESCE(ia.cost_unit, i.price, 0) AS costo,
-                i.price_without_tax                AS price_without_tax,
-                i.tax                              AS tax,
+                {$this->ultimoCostoCols()},
                 i.image                            AS image
             FROM {$this->bd}inflow_format_item fi
             INNER JOIN {$this->bd}item            i  ON i.id = fi.item_id AND i.active = 1

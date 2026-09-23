@@ -63,7 +63,7 @@
 /* ──────────────────────────────────────────────────────────────
    Rail de navegacion #menu-sidebar — estilo del Visor de Agentes:
    icono arriba, nombre debajo, item activo con tinte de acento y
-   marcador en el borde izquierdo. (Acento Arcilla Invernal #C05A40)
+   marcador en el borde izquierdo. (Acento del tema; en Claro, terracota)
    ────────────────────────────────────────────────────────────── */
 #menu-sidebar {
     gap: 4px !important;
@@ -105,20 +105,20 @@
     border-color: #E5E7EB;
 }
 .menu-rail-item.is-active {
-    color: #C05A40;
-    background: rgba(192, 90, 64, .10);
-    border-color: rgba(192, 90, 64, .12);
+    color: rgb(var(--brand-600, 192 90 64));
+    background: rgb(var(--brand-600, 192 90 64) / .10);
+    border-color: rgb(var(--brand-600, 192 90 64) / .12);
 }
 
 /* Dark mode */
-body.dark-mode .menu-rail-item { color: #9CA3AF; }
+body.dark-mode .menu-rail-item { color: var(--dk-muted, #9CA3AF); }
 body.dark-mode .menu-rail-item:hover {
     color: #ffffff;
-    background: #1a2332;
+    background: var(--dk-hover, #1a2332);
     border-color: rgba(55, 65, 81, .4);
 }
 body.dark-mode .menu-rail-item.is-active {
-    color: #E8A68F;
-    background: rgba(192, 90, 64, .18);
-    border-color: rgba(192, 90, 64, .22);
+    color: rgb(var(--brand-300, 232 166 143));
+    background: rgb(var(--brand-600, 192 90 64) / .18);
+    border-color: rgb(var(--brand-600, 192 90 64) / .22);
 }

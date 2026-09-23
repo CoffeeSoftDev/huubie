@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
-let main, products;
-let categorias, unidades, areas, proveedores, almacenes;
+let main, products, asistente;
+let categorias, unidades, areas, proveedores;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
@@ -12,7 +12,6 @@ $(async () => {
     unidades       = data.unidades    || [];
     areas          = data.areas       || [];
     proveedores    = data.proveedores || [];
-    almacenes      = data.almacenes   || [];
 
     main = new Main(api, "root");
     main.render();
@@ -33,6 +32,8 @@ $(async () => {
     // Productos.
     products = new Productos(api, "root");
     products.render();
+
+    asistente = new AsistenteProductos(api, "root");
 });
 
 class Main extends Templates {
@@ -175,12 +176,14 @@ class Productos extends Templates {
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
             data: [
+                // Área = dónde está dentro del almacén (anaquel, refrigerador...).
+                // Lo que hay en cada almacén se consulta en Stock, no aquí.
                 {
                     opc: "select",
-                    id: "almacen",
-                    lbl: "Almacén",
+                    id: "area",
+                    lbl: "Área",
                     class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todos' }, ...almacenes],
+                    data: [{ id: '', valor: 'Todas' }, ...areas],
                     onchange: 'products.lsMateriales()'
                 },
                 {
@@ -211,6 +214,16 @@ class Productos extends Templates {
                     class: "col-12 col-md-2",
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
+                },
+                {
+                    opc: "button",
+                    id: "btnAsistenteIA",
+                    text: "Asistente IA",
+                    icon: "icon-magic",
+                    className: 'w-100',
+                    class: "col-12 col-md-2",
+                    color_btn: "outline",
+                    onClick: () => asistente.render()
                 }
             ]
         });
@@ -228,8 +241,8 @@ class Productos extends Templates {
                 theme: 'light',
                 class: 'w-100 lowercase',
                 striped:true,
-                center: [2,3,4,5,6,7,12],
-                right: [9,10,11],
+                center: [2,3,4,5,6,9],
+                right: [8],
                 f_size: 12
             },
             success: (response) => {
@@ -261,8 +274,17 @@ class Productos extends Templates {
         unidades = data.unidades || [];
     }
 
-    // El formulario va en cuatro bloques, en el orden en que se captura un producto:
-    // qué es (identificación), cuánto cuesta (precio), cuánto tener (inventario) y notas.
+    // Recarga el catálogo global de áreas tras altas/ediciones hechas en la pestaña
+    // Área, para que el formulario de Productos lo refleje sin recargar la página.
+    async reloadAreas() {
+        const data = await useFetch({ url: this._link, data: { opc: "init" } });
+        areas = data.areas || [];
+    }
+
+    // El formulario va en cinco bloques, en el orden en que se captura un producto:
+    // qué es (identificación), en cuánto se vende (venta), cuánto tener (inventario),
+    // cuánto costó (costo, opcional porque lo actualizan las entradas) y notas.
+    // Mismo reparto que el POS: el precio de venta vive en item y el costo en item_attribute.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
     jsonMaterial() {
@@ -284,8 +306,9 @@ class Productos extends Templates {
                 required: true
             },
             {
-                // Automático (ITM-<id>): lo asigna el controlador al guardar. Va deshabilitado,
-                // así que no viaja en el POST; solo se enseña.
+                // Automático, formato Soft Restaurant (categoría + consecutivo: 04003): lo
+                // asigna el controlador al guardar. Va deshabilitado, así que no viaja en el
+                // POST; solo se enseña.
                 opc: "input",
                 id: "sku",
                 lbl: "SKU",
@@ -318,31 +341,33 @@ class Productos extends Templates {
             //     placeholder: "https://... o ruta de la imagen"
             // },
 
-            // -- Precio --
-            // Orden del cálculo: costo sin IVA -> IVA -> precio con IVA. En la tabla el
-            // primero sale como "Costo Unitario" y el último como "Precio Con IVA".
+            // -- Venta --
+            // Primero el precio final (el que paga el cliente); el precio sin IVA se
+            // calcula solo. También funciona al revés: teclear la base calcula el precio.
+            // Opcional: un insumo que no se vende se queda en 0.
             {
                 opc: "label",
-                id: "lblPrecio",
-                text: "Precio",
+                id: "lblVenta",
+                text: "Venta",
                 class: section + " pt-3"
             },
             {
                 opc: "input",
-                id: "price_without_tax",
-                lbl: "Costo sin IVA",
+                id: "price",
+                lbl: "Precio de venta",
                 tipo: "cifra",
                 class: "col-12 col-md-4",
-                required: true,
-                onkeyup: "products.calcCostUnit()",
-                onchange: "products.calcCostUnit()"
+                required: false,
+                placeholder: "0.00",
+                onkeyup: "products.calcPriceWithoutTax()",
+                onchange: "products.calcPriceWithoutTax()"
             },
             {
                 opc: "select",
                 id: "tax",
                 lbl: "IVA",
                 class: "col-12 col-md-4",
-                onchange: "products.calcCostUnit()",
+                onchange: "products.calcPriceWithoutTax()",
                 data: [
                     { id: '0', valor: '0%' },
                     { id: '8', valor: '8%' },
@@ -350,16 +375,15 @@ class Productos extends Templates {
                 ]
             },
             {
-                // Precio con IVA = costo sin IVA + IVA. El calculo va en ambos sentidos:
-                // este campo tambien recalcula price_without_tax (calcPriceWithoutTax).
                 opc: "input",
-                id: "cost_unit",
-                lbl: "Precio con IVA",
+                id: "price_without_tax",
+                lbl: "Precio sin IVA",
                 tipo: "cifra",
                 class: "col-12 col-md-4",
-                required: true,
-                onkeyup: "products.calcPriceWithoutTax()",
-                onchange: "products.calcPriceWithoutTax()"
+                required: false,
+                placeholder: "0.00",
+                onkeyup: "products.calcPrice()",
+                onchange: "products.calcPrice()"
             },
 
             // -- Inventario --
@@ -369,13 +393,23 @@ class Productos extends Templates {
                 text: "Inventario",
                 class: section + " pt-3"
             },
+            // Área = en qué parte del almacén se guarda. Tiene que viajar siempre:
+            // editMaterial la escribe, y si falta en el form la dejaría en NULL.
+            {
+                opc: "select",
+                id: "warehouse_area_id",
+                lbl: "Área",
+                class: "col-12 col-md-3",
+                data: [{ id: '', valor: 'Sin área' }, ...areas],
+                required: false
+            },
             {
                 opc: "input",
                 id: "stock_min",
                 lbl: "Mínimo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-3"
             },
             {
                 opc: "input",
@@ -383,7 +417,7 @@ class Productos extends Templates {
                 lbl: "Máximo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-3"
             },
             {
                 opc: "input",
@@ -391,16 +425,27 @@ class Productos extends Templates {
                 lbl: "Vida útil (días)",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-3"
             },
-            // {
-            //     opc: "select",
-            //     id: "warehouse_area_id",
-            //     lbl: "Área *",
-            //     class: "col-12 col-md-6 mb-3",
-            //     data: areas,
-            //     required: true
-            // },
+
+            // -- Costo --
+            // Último costo de compra sin IVA. Cada entrada y cada recepción de orden lo
+            // reemplaza; aquí solo se captura si el producto aún no tiene compras.
+            {
+                opc: "label",
+                id: "lblCosto",
+                text: "Costo",
+                class: section + " pt-3"
+            },
+            {
+                opc: "input",
+                id: "cost_unit",
+                lbl: "Último costo sin IVA",
+                tipo: "cifra",
+                class: "col-12 col-md-6",
+                required: false,
+                placeholder: "Se actualiza con cada entrada"
+            },
 
             // -- Descripción --
             {
@@ -421,32 +466,30 @@ class Productos extends Templates {
         ];
     }
 
-    // Calcula en vivo: costo unitario = precio sin impuesto + (precio sin impuesto * IVA / 100).
-    // Si no hay precio base no toca el campo, para no borrar el costo de productos existentes al editar.
-    // La bandera _syncingCost evita el bucle infinito con calcPriceWithoutTax: al escribir el
-    // campo hermano con .val() se dispara su propio onkeyup, que volveria a llamar a este metodo.
-    calcCostUnit() {
-        if (this._syncingCost) return;
+    // Precio sin IVA = precio de venta / (1 + IVA / 100). Corre al teclear el precio y al
+    // cambiar el IVA. Sin precio no toca nada, para no borrar datos al editar.
+    // La bandera _syncingPrice evita que los dos cálculos se llamen entre sí.
+    calcPriceWithoutTax() {
+        if (this._syncingPrice) return;
+        const price = parseFloat($('#price').val());
+        if (isNaN(price)) return;
+        const taxPct = parseFloat($('#tax').val()) || 0;
+
+        this._syncingPrice = true;
+        $('#price_without_tax').val((price / (1 + taxPct / 100)).toFixed(2));
+        this._syncingPrice = false;
+    }
+
+    // Camino inverso: precio de venta = precio sin IVA + (precio sin IVA * IVA / 100).
+    calcPrice() {
+        if (this._syncingPrice) return;
         const base = parseFloat($('#price_without_tax').val());
         if (isNaN(base)) return;
         const taxPct = parseFloat($('#tax').val()) || 0;
 
-        this._syncingCost = true;
-        $('#cost_unit').val((base + (base * taxPct / 100)).toFixed(2));
-        this._syncingCost = false;
-    }
-
-    // Camino inverso: precio sin impuesto = costo unitario / (1 + IVA / 100).
-    // Misma bandera _syncingCost que calcCostUnit, para no reentrar entre los dos metodos.
-    calcPriceWithoutTax() {
-        if (this._syncingCost) return;
-        const costUnit = parseFloat($('#cost_unit').val());
-        if (isNaN(costUnit)) return;
-        const taxPct = parseFloat($('#tax').val()) || 0;
-
-        this._syncingCost = true;
-        $('#price_without_tax').val((costUnit / (1 + taxPct / 100)).toFixed(2));
-        this._syncingCost = false;
+        this._syncingPrice = true;
+        $('#price').val((base + (base * taxPct / 100)).toFixed(2));
+        this._syncingPrice = false;
     }
 
     addMaterial() {
@@ -561,5 +604,115 @@ class Productos extends Templates {
                 }
             }
         });
+    }
+}
+
+// -- Asistente --
+
+class AsistenteProductos extends Templates {
+
+    // -- Initial --
+
+    constructor(link, div_modulo) {
+        super(link, div_modulo);
+        this.PROJECT_NAME = "AsistenteProductos";
+        this.chat         = null;
+    }
+
+    // -- Interface --
+
+    render() {
+        if (!this.chat) {
+            this.chat = this.iaChat({
+                id:          `chat${this.PROJECT_NAME}`,
+                title:       "Asistente de productos",
+                subtitle:    "Altas, cambios de precio y bajas",
+                placeholder: "Escribe o adjunta un Excel o una foto…",
+                accept:      ".xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp",
+                welcome:     "Puedo dar de alta productos, cambiar precios de venta y dar de baja. Escríbeme, adjunta un Excel o pega la foto de una lista: te enseño una vista previa y nada se guarda hasta que confirmes.",
+                suggestions: [
+                    "Sube 10% el precio de todas las bebidas",
+                    "Da de alta: Agua natural 1 L, categoría Bebidas, pieza, $18",
+                    "Actualiza los precios con la lista que adjunto"
+                ],
+                actions: {
+                    add: {
+                        label: "Alta",
+                        tone:  "bg-emerald-100 text-emerald-700"
+                    },
+                    price: {
+                        label: "Precio",
+                        tone:  "bg-sky-100 text-sky-700"
+                    },
+                    deactivate: {
+                        label: "Baja",
+                        tone:  "bg-red-100 text-red-700"
+                    }
+                },
+                onAttach:  (file) => this.readArchivo(file),
+                onSend:    (text, adjuntos, historial) => this.askAsistente(text, adjuntos, historial),
+                onConfirm: (token, ids) => this.applyAsistente(token, ids)
+            });
+        }
+
+        this.chat.toggle();
+    }
+
+    // -- CRUD --
+
+    async readArchivo(file) {
+        const data = new FormData();
+        data.append("opc", "readArchivo");
+        data.append("archivo", file);
+
+        try {
+            const response = await fetch(this._link, {
+                method:      "POST",
+                credentials: "same-origin",
+                body:        data
+            });
+
+            return await response.json();
+        } catch (e) {
+            return {
+                status:  500,
+                message: "No pude leer el archivo."
+            };
+        }
+    }
+
+    async askAsistente(text, adjuntos, historial) {
+        const response = await useFetch({
+            url: this._link,
+            data: {
+                opc:       "askAsistente",
+                mensaje:   text,
+                adjuntos:  JSON.stringify(adjuntos),
+                historial: JSON.stringify(historial)
+            }
+        });
+
+        return response || {
+            status:  500,
+            message: "El asistente no respondió. Inténtalo otra vez."
+        };
+    }
+
+    async applyAsistente(token, ids) {
+        const response = await useFetch({
+            url: this._link,
+            data: {
+                opc:   "applyAsistente",
+                token: token,
+                ids:   JSON.stringify(ids)
+            }
+        });
+
+        if (response && response.status === 200) products.lsMateriales();
+
+        return response || {
+            status:  500,
+            message: "No se pudo aplicar. Inténtalo otra vez."
+        };
     }
 }

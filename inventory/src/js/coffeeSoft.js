@@ -27,17 +27,17 @@ const CF_CSS = {
     textarea: 'tw-input w-full rounded-lg border border-gray-100 dark:border-gray-600 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:border-blue-600 dark:focus:border-blue-800 bg-white dark:bg-gray-700 resize-y',
     label: 'block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5',
     error: 'tw-error text-xs text-red-500 dark:text-red-400 mt-1 hidden',
-    // Primario = grafito cálido #292524. El terracota bajó a btnSecondary.
-    // btnInvernal conserva el terracota para quien lo pida por nombre.
-    btnPrimary: 'tw-btn w-full rounded-lg bg-[#292524] px-4 py-2 text-sm font-semibold text-white hover:bg-[#44403C] active:bg-[#1C1917] focus:outline-none focus:ring-2 focus:ring-[#292524] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnInvernal: 'tw-btn w-full rounded-lg bg-[#C05A40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#A84A33] active:bg-[#8F3D2A] focus:outline-none focus:ring-2 focus:ring-[#C05A40] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // Primario = el primario del tema (`main-*`, ver tailwind-theme.js); en Claro,
+    // grafito cálido. btnInvernal va con el acento del tema (en Claro, terracota).
+    btnPrimary: 'tw-btn w-full rounded-lg bg-main px-4 py-2 text-sm font-semibold text-white hover:bg-main-hover active:bg-main-active focus:outline-none focus:ring-2 focus:ring-main focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnInvernal: 'tw-btn w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnInfo: 'tw-btn w-full rounded-lg bg-blue-600/90 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-[#C05A40] hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-blue-600 dark:text-gray-200 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    // Secundario = acento del tema activo (terracota en Claro, violeta en Avatar,
-    // casi negro en Agents): va por la escala blue-*, que tailwind-theme.js remapea.
+    // Secundario = acento del tema (terracota, neutro o violeta): va por la escala
+    // blue-*, que tailwind-theme.js remapea.
     btnSecondary: 'tw-btn w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
@@ -2184,7 +2184,9 @@ class Components extends Complements {
             close:  'text-gray-400 hover:text-gray-600',
             cancel: 'bg-gray-100 text-gray-800 hover:bg-gray-200'
         };
-        const okCls = 'bg-blue-600 text-white hover:bg-blue-700';
+        // Aceptar = acción principal: el primario del tema, igual que los botones
+        // principales de los formularios y el bootbox.
+        const okCls = 'bg-main text-white hover:bg-main-hover';
 
         const overlay = $('<div>', {
             class: 'cf-modal fixed inset-0 z-[1090] flex items-start justify-center overflow-y-auto p-4 bg-black/50 opacity-0 transition-opacity duration-150 ease-out'
@@ -2313,9 +2315,8 @@ class Components extends Complements {
                     },
                     ok: {
                         label: 'Aceptar',
-                        // blue-600 esta remapeado a terracota por tailwind-theme.js: el boton
-                        // primario del modal se fija al grafito con su hex para no arrastrarlo.
-                        className: 'btn rounded-md text-sm font-medium bg-[#292524] text-white hover:bg-[#44403C]',
+                        // Boton primario del modal: el primario del tema (`main`), no el acento.
+                        className: 'btn rounded-md text-sm font-medium bg-main text-white hover:bg-main-hover',
                         callback: () => {
                             if (self.cfModalForm) self.cfModalForm.trigger('submit');
                             return false;
@@ -2984,8 +2985,13 @@ class Components extends Complements {
             defaults.color_row = "bg-[#283341]  ";
             defaults.color_group = "bg-[#334155] text-white";
             defaults.class = "w-full table-auto text-sm text-gray-300";
-            defaults.border_table = "";
+            // Borde de tabla de Huubie UI (rounded-lg border-gray-700): sin él la
+            // tabla se pierde contra el contenedor #1F2A37.
+            defaults.border_table = "border border-gray-700 rounded-lg";
             defaults.border_row = "border-t border-gray-700";
+            // Alterna = el #1F2A37 del contenedor. alpha/ usa #111827, más oscuro
+            // que la propia página: las filas pares se veían como huecos. Así la
+            // escala queda contenedor #1F2A37 → fila #283341 → header #374151.
             defaults.color_row_alt = "bg-[#1F2A37]";
         }
         else if (options.theme === 'corporativo') {
@@ -3303,8 +3309,12 @@ class Components extends Complements {
             defaults.color_row = "bg-[#283341]";
             defaults.color_group = "bg-[#334155] text-white";
             defaults.class = "w-full text-sm text-gray-300";
-            defaults.border_table = "";
+            // Borde de tabla de Huubie UI (rounded-lg border-gray-700).
+            defaults.border_table = "border border-gray-700 rounded-lg";
             defaults.border_row = "border-t border-gray-700";
+            // Alterna = el #1F2A37 del contenedor. alpha/ usa #111827, más oscuro
+            // que la propia página: las filas pares se veían como huecos. Así la
+            // escala queda contenedor #1F2A37 → fila #283341 → header #374151.
             defaults.color_row_alt = "bg-[#1F2A37]";
         }
 
@@ -3863,7 +3873,10 @@ class Components extends Complements {
             defaults.border_table = "border border-gray-200 rounded-lg";
             defaults.border_row = "border-b border-gray-200";
             defaults.border_color = "border-gray-200";
-            defaults.color_row_alt = "bg-gray-50";
+            // gray-100 (#F3F4F6), el gris de zebra de toda la vida. Antes iba en
+            // gray-50 (#F9FAFB): sobre el blanco de la fila normal la diferencia
+            // era de un 2% y el striped no se veia, aunque estuviera activado.
+            defaults.color_row_alt = "bg-gray-100";
         }
 
         if (options.theme === 'corporativo') {
@@ -3882,8 +3895,12 @@ class Components extends Complements {
             defaults.color_row = "bg-[#283341]";
             defaults.color_group = "bg-[#334155] text-white";
             defaults.class = "w-full table-auto text-sm text-gray-300";
-            defaults.border_table = "";
+            // Borde de tabla de Huubie UI (rounded-lg border-gray-700).
+            defaults.border_table = "border border-gray-700 rounded-lg";
             defaults.border_row = "border-t border-gray-700";
+            // Alterna = el #1F2A37 del contenedor. alpha/ usa #111827, más oscuro
+            // que la propia página: las filas pares se veían como huecos. Así la
+            // escala queda contenedor #1F2A37 → fila #283341 → header #374151.
             defaults.color_row_alt = "bg-[#1F2A37]";
         }
 
@@ -3897,17 +3914,17 @@ class Components extends Complements {
             defaults.color_row_alt = "bg-slate-50";
         }
 
-        // Tema propio "Arcilla Invernal" (paleta terracota de inventory).
-        // Header gris cálido sobrio + texto terracota como acento (no agresivo).
+        // Tema propio "Arcilla Invernal": header gris cálido sobrio + texto del
+        // acento del tema (en Claro, terracota) sin ser agresivo.
         if (options.theme === 'invernal') {
-            defaults.color_th = "bg-stone-200 text-[#6E2F20]";
+            defaults.color_th = "bg-stone-200 text-blue-900";
             defaults.color_row = "";
-            defaults.color_group = "bg-[#F7E3DC] text-[#6E2F20]";
+            defaults.color_group = "bg-blue-100 text-blue-900";
             defaults.class = "w-full text-sm";
-            defaults.border_table = "border border-[#EFC9BC] rounded-lg";
-            defaults.border_row = "border-b border-[#F7E3DC]";
-            defaults.border_color = "border-[#EFC9BC]";
-            defaults.color_row_alt = "bg-[#FBF3EF]";
+            defaults.border_table = "border border-blue-200 rounded-lg";
+            defaults.border_row = "border-b border-blue-100";
+            defaults.border_color = "border-blue-200";
+            defaults.color_row_alt = "bg-blue-50";
         }
 
         const opts = Object.assign({}, defaults, options);
@@ -4639,6 +4656,13 @@ class Components extends Complements {
                 active: "bg-white text-blue-600",
                 inactive: " text-gray-600 hover:bg-gray-50",
                 iconActive: "text-blue-600"
+            },
+            // type 'button' con theme 'dark': mismos colores Huubie que `dark`.
+            buttonDark: {
+                base: "bg-[#19232D] p-1 rounded-lg inline-flex",
+                active: "bg-blue-600 text-white",
+                inactive: "text-gray-300 hover:bg-gray-700",
+                iconActive: "text-white"
             }
         };
 
@@ -4658,7 +4682,9 @@ class Components extends Complements {
         `;
         $('head').append(scrollbarThinCSS);
 
-        const themeStyle = themes[opts.type] || themes[opts.theme];
+        const themeStyle = (opts.type === 'button' && opts.theme === 'dark')
+            ? themes.buttonDark
+            : (themes[opts.type] || themes[opts.theme]);
         const sizeStyle = sizes[opts.type] || sizes['large'];
 
         const container = $("<div>", {
@@ -4805,9 +4831,8 @@ class Components extends Complements {
     // el valor capturado en onOk(value).
     //
     // PORT A INVENTORY (portado de alpha/src/js/coffeeSoft.js): el original clava el
-    // terracota #C05A40 como acento del boton OK en claro. Aqui el acento sale del
-    // tema activo (Claro / Agents / Avatar) a traves de --brand-600, con el terracota
-    // de respaldo por si themes.css no esta cargado. Ver src/css/themes.css.
+    // terracota #C05A40 como acento del boton OK en claro. Aqui el acento sale de
+    // --brand-600, con el terracota de respaldo. Ver src/css/themes.css.
     alertBox(options) {
         // Boton OK por tema. La clase del acento se define en el <style> de abajo
         // porque necesita leer una variable CSS. Se puede sobrescribir por llamada
@@ -6832,4 +6857,38 @@ function formDataToJson(formData) {
     });
     return obj;
 }
+
+// -- Tema de la página para todos los componentes --
+
+/*  Los componentes aceptan theme 'light' | 'dark' y los módulos casi siempre
+    mandan 'light' fijo. Quien decide es la página: InventoryPalette
+    (src/js/tailwind-theme.js) pone <html class="dark"> con los temas de página
+    oscura. Con página oscura todo componente se arma en 'dark'; con página
+    clara, en su variante clara ('light' o la especial que pida: invernal,
+    corporativo...). Así ninguno queda con un tema distinto al del resto. */
+function cfPageTheme(requested) {
+    if (document.documentElement.classList.contains('dark')) return 'dark';
+    return requested && requested !== 'dark' ? requested : 'light';
+}
+
+(function () {
+    const themed = [
+        'coffeeForm', 'cfModal', 'createCoffeeModalForm', 'createfilterBar',
+        'createCoffeTable', 'createCoffeTable2', 'createCoffeeTable3',
+        'tabLayout', 'alertBox', 'infoCard'
+    ];
+
+    themed.forEach((name) => {
+        let proto = Templates.prototype;
+        while (proto && !Object.prototype.hasOwnProperty.call(proto, name)) proto = Object.getPrototypeOf(proto);
+        if (!proto) return;
+
+        const original = proto[name];
+
+        proto[name] = function (options, ...rest) {
+            if (options && typeof options === 'object') options.theme = cfPageTheme(options.theme);
+            return original.call(this, options, ...rest);
+        };
+    });
+})();
 

@@ -1,0 +1,1266 @@
+<meta charset="utf-8">
+<title>Rediseño del Almacén</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* ============================================================
+   Tokens: los mismos de inventory (themes.css + colors.css).
+   Primario grafito, acento terracota, estados de "Arcilla Invernal v2".
+   ============================================================ */
+:root {
+    --bg: #F3F4F6; --surface: #FFFFFF; --surface-2: #F9FAFB; --hover: #F3F4F6; --chip: #F1F2F4;
+    --line: #E5E7EB; --line-strong: #D1D5DB;
+    --ink: #111827; --ink-2: #374151; --dim: #6B7280; --faint: #9CA3AF;
+    --primary: #292524; --primary-hover: #44403C; --on-primary: #FFFFFF;
+    --accent: #C05A40; --accent-ink: #A84A33; --accent-tint: rgba(192, 90, 64, .10);
+    --ok: #3F6B33; --ok-fill: #4F7942; --ok-tint: rgba(79, 121, 66, .13);
+    --warn: #8A5A0B; --warn-fill: #D99A2B; --warn-tint: rgba(217, 154, 43, .17);
+    --bad: #9D3434; --bad-fill: #9D3434; --bad-tint: rgba(157, 52, 52, .10);
+    --info: #4A6582; --info-fill: #5C7A99; --info-tint: rgba(92, 122, 153, .14);
+    --note-bg: #FBF3EF; --note-line: #E8A68F; --note-ink: #6E2F20;
+    --scrim: rgba(17, 24, 39, .45);
+    --shadow-lg: 0 24px 60px rgba(17, 24, 39, .22);
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #111928; --surface: #1F2A37; --surface-2: #1A2431; --hover: #283341; --chip: #2B3746;
+        --line: #374151; --line-strong: #4B5563;
+        --ink: #F3F4F6; --ink-2: #D1D5DB; --dim: #9CA3AF; --faint: #6B7280;
+        --primary: #E7E5E4; --primary-hover: #FFFFFF; --on-primary: #1C1917;
+        --accent: #E08A70; --accent-ink: #E8A68F; --accent-tint: rgba(192, 90, 64, .20);
+        --ok: #9CC98C; --ok-fill: #6E9B5F; --ok-tint: rgba(79, 121, 66, .24);
+        --warn: #E8BC6A; --warn-fill: #D99A2B; --warn-tint: rgba(217, 154, 43, .20);
+        --bad: #EC9A9A; --bad-fill: #C25555; --bad-tint: rgba(194, 85, 85, .22);
+        --info: #A9C0D8; --info-fill: #7F9DBB; --info-tint: rgba(92, 122, 153, .26);
+        --note-bg: rgba(192, 90, 64, .12); --note-line: rgba(232, 166, 143, .45); --note-ink: #F2C9BA;
+        --scrim: rgba(0, 0, 0, .6);
+        --shadow-lg: 0 24px 60px rgba(0, 0, 0, .5);
+    }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111928; --surface: #1F2A37; --surface-2: #1A2431; --hover: #283341; --chip: #2B3746;
+    --line: #374151; --line-strong: #4B5563;
+    --ink: #F3F4F6; --ink-2: #D1D5DB; --dim: #9CA3AF; --faint: #6B7280;
+    --primary: #E7E5E4; --primary-hover: #FFFFFF; --on-primary: #1C1917;
+    --accent: #E08A70; --accent-ink: #E8A68F; --accent-tint: rgba(192, 90, 64, .20);
+    --ok: #9CC98C; --ok-fill: #6E9B5F; --ok-tint: rgba(79, 121, 66, .24);
+    --warn: #E8BC6A; --warn-fill: #D99A2B; --warn-tint: rgba(217, 154, 43, .20);
+    --bad: #EC9A9A; --bad-fill: #C25555; --bad-tint: rgba(194, 85, 85, .22);
+    --info: #A9C0D8; --info-fill: #7F9DBB; --info-tint: rgba(92, 122, 153, .26);
+    --note-bg: rgba(192, 90, 64, .12); --note-line: rgba(232, 166, 143, .45); --note-ink: #F2C9BA;
+    --scrim: rgba(0, 0, 0, .6);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, .5);
+}
+
+/* -- Base -- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.45 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+table { font: inherit; color: inherit; border-collapse: collapse; }
+button, input, select { font: inherit; color: inherit; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 2; flex: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing: -.01em; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.muted { color: var(--faint); }
+.t-bad { color: var(--bad); font-weight: 600; }
+.t-ok { color: var(--ok); font-weight: 600; }
+.t-warn { color: var(--warn); font-weight: 600; }
+
+/* -- Shell -- */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100%; }
+.side {
+    position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--line);
+    padding: 14px 12px 18px; display: flex; flex-direction: column;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; border-bottom: 1px solid var(--line); }
+.brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; }
+.brand b { font-size: 14px; display: block; }
+.brand small { color: var(--dim); font-size: 11.5px; }
+.nav-label { font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); padding: 16px 10px 6px; }
+.nav-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 8px;
+    color: var(--ink-2); font-weight: 500; text-decoration: none; transition: background .12s ease, color .12s ease;
+}
+.nav-item svg.lucide { width: 17px; height: 17px; color: var(--dim); }
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { background: var(--accent-tint); color: var(--accent-ink); font-weight: 600; }
+.nav-item.active svg.lucide { color: var(--accent); }
+.nav-count { margin-left: auto; font-size: 11px; font-weight: 600; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--chip); color: var(--ink-2); text-align: center; }
+.nav-count.warn { background: var(--warn-tint); color: var(--warn); }
+.nav-count.bad { background: var(--bad-tint); color: var(--bad); }
+.nav-count.new { background: var(--accent-tint); color: var(--accent-ink); }
+.side-foot { margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); line-height: 1.5; }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.top {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    display: flex; align-items: center; gap: 12px; padding: 10px 24px;
+    background: var(--bg); background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+}
+.icon-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; font-weight: 500; font-size: 13px;
+}
+.icon-btn:hover { background: var(--hover); }
+.icon-btn[aria-pressed="true"] { color: var(--accent-ink); border-color: var(--note-line); background: var(--note-bg); }
+.menu-btn { display: none; }
+.ctx { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--dim); }
+.ctx select { border: 0; background: transparent; outline: 0; font-weight: 600; color: var(--ink); padding: 6px 4px; cursor: pointer; max-width: 290px; }
+.search { flex: 1; max-width: 440px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--dim); }
+.search input { border: 0; outline: 0; background: none; flex: 1; min-width: 0; color: var(--ink); }
+.search:focus-within, .field:focus-within, .ctx:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+kbd { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--dim); }
+.top-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--primary); color: var(--on-primary); }
+
+.content { padding: 22px 24px 56px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1480px; }
+
+/* -- Encabezado de vista -- */
+.view-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.eyebrow { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+h1 { font-size: 23px; line-height: 1.2; margin: 3px 0 4px; font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+.view-head p { margin: 0; color: var(--dim); max-width: 64ch; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border: 1px dashed var(--note-line); background: var(--note-bg); color: var(--note-ink); border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.note svg.lucide { margin-top: 2px; }
+.note b { font-weight: 600; }
+body.hide-notes .note { display: none; }
+
+/* -- Botones, chips, pills -- */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+    font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; transition: background .12s ease;
+}
+.btn:hover { background: var(--hover); }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-sm { padding: 5px 10px; font-size: 12.5px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.link { background: none; border: 0; padding: 0; color: var(--accent-ink); font-weight: 600; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.link:hover { text-decoration: underline; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.chip:hover { border-color: var(--line-strong); }
+.chip .n { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.chip.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--chip); color: var(--ink-2); }
+.pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.ok { background: var(--ok-tint); color: var(--ok); }
+.pill.warn { background: var(--warn-tint); color: var(--warn); }
+.pill.bad { background: var(--bad-tint); color: var(--bad); }
+.pill.info { background: var(--info-tint); color: var(--info); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--chip); color: var(--ink-2); }
+.tag.bad { background: var(--bad-tint); color: var(--bad); }
+.tag.info { background: var(--info-tint); color: var(--info); }
+
+/* -- Paneles y tablas -- */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
+.panel-head h2 { font-size: 14px; margin: 0; font-weight: 600; }
+.panel-head small { color: var(--dim); font-size: 12px; }
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.field { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--dim); min-width: 200px; flex: 0 1 260px; }
+.field input, .field select { border: 0; outline: 0; background: none; min-width: 0; flex: 1; color: var(--ink); }
+.field select { font-weight: 600; cursor: pointer; }
+.empty { padding: 28px 16px; text-align: center; color: var(--dim); margin: 0; }
+
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; }
+.list .tbl, .wide-tbl { min-width: 620px; }
+.tbl th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); font-weight: 600; text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+.tbl td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl td small { display: block; color: var(--dim); font-size: 12px; font-weight: 400; }
+.tbl th.num, .tbl td.num { text-align: right; }
+.tbl tbody tr.click { cursor: pointer; }
+.tbl tbody tr.click:hover { background: var(--hover); }
+.tbl tbody tr.sel { background: var(--accent-tint); box-shadow: inset 3px 0 0 var(--accent); }
+.tbl tbody tr.gone td { color: var(--faint); }
+.tbl tbody tr.gone td:first-child { text-decoration: line-through; }
+.tbl.compact td, .tbl.compact th { padding: 8px 10px; }
+.tbl.compact td:first-child, .tbl.compact th:first-child { padding-left: 18px; }
+.tbl.compact td:last-child, .tbl.compact th:last-child { padding-right: 18px; }
+.tbl.compact .prog { min-width: 96px; }
+.tbl.compact .track { min-width: 36px; }
+
+.route { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.route svg.lucide { width: 14px; height: 14px; color: var(--faint); }
+.prog { display: inline-flex; align-items: center; gap: 8px; min-width: 110px; }
+.track { flex: 1; height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; min-width: 60px; }
+.fill { display: block; height: 100%; border-radius: 3px; background: var(--ink-2); }
+.fill.ok { background: var(--ok-fill); }
+.fill.warn { background: var(--warn-fill); }
+.fill.bad { background: var(--bad-fill); }
+.fill.info { background: var(--info-fill); }
+.lvl { display: flex; align-items: center; gap: 10px; }
+.lvl .track { max-width: 80px; }
+
+/* -- Lista + detalle (DocumentVisor) -- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; align-items: start; }
+.split.wide { grid-template-columns: 300px minmax(0, 1fr); }
+.detail { position: sticky; top: calc(76px + env(safe-area-inset-top, 0px)); overflow: hidden; }
+.d-head { padding: 16px 18px 14px; border-bottom: 1px solid var(--line); }
+.d-folio { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.d-folio .mono { font-size: 15px; font-weight: 600; }
+.d-title { margin: 6px 0 0; font-weight: 600; font-size: 15px; text-wrap: balance; }
+.steps { display: flex; gap: 4px; list-style: none; margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.step { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--faint); }
+.step .bar { height: 4px; border-radius: 2px; background: var(--line); }
+.step.done { color: var(--ink-2); }
+.step.done .bar { background: var(--ok-fill); }
+.step.now { color: var(--accent-ink); font-weight: 600; }
+.step.now .bar { background: var(--accent); }
+.steps.off .step { text-decoration: line-through; }
+.meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.meta dt { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.meta dd { margin: 2px 0 0; font-weight: 500; overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.meta .wide { grid-column: 1 / -1; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--dim); align-items: center; }
+.doclink { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; color: var(--accent-ink); background: var(--surface-2); cursor: pointer; }
+.doclink:hover { border-color: var(--accent); }
+.hint { margin: 12px 18px 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+.hint svg.lucide { margin-top: 1px; color: var(--dim); }
+.hint.warn { background: var(--warn-tint); border-color: transparent; color: var(--warn); }
+.hint.warn svg.lucide { color: var(--warn); }
+.hint + .tbl-wrap { margin-top: 12px; border-top: 1px solid var(--line); }
+.totals { display: flex; flex-direction: column; gap: 4px; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.totals div { display: flex; justify-content: space-between; gap: 10px; }
+.totals div:first-child b { font-size: 15px; }
+.d-foot { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--line); justify-content: flex-end; }
+
+/* -- Inicio -- */
+.quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.qa { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; color: var(--ink); }
+.qa:hover { border-color: var(--line-strong); background: var(--hover); }
+.qa .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--chip); color: var(--ink-2); flex: none; }
+.qa .ic svg.lucide { width: 18px; height: 18px; }
+.qa b { display: block; font-size: 13.5px; }
+.qa small { color: var(--dim); font-size: 12px; }
+.home { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.todo-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.todo-row b { font-weight: 600; }
+.todo-row small { display: block; color: var(--dim); font-size: 12.5px; margin-top: 1px; }
+.sev { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
+.sev.warn { background: var(--warn-tint); color: var(--warn); }
+.sev.bad { background: var(--bad-tint); color: var(--bad); }
+.sev.info { background: var(--info-tint); color: var(--info); }
+.val-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 16px; border-top: 1px solid var(--line); }
+.val-row .track { grid-column: 1 / -1; height: 6px; }
+.val-row b { font-variant-numeric: tabular-nums; }
+.bar-row { display: grid; grid-template-columns: 128px minmax(0, 1fr) 76px; gap: 10px; align-items: center; padding: 7px 16px; font-size: 13px; }
+.bar-row .track { height: 8px; }
+.panel-foot { padding: 10px 16px 14px; font-size: 12.5px; color: var(--dim); border-top: 1px solid var(--line); line-height: 1.5; }
+.feed-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 16px; border-top: 1px solid var(--line); font-size: 13px; }
+.feed-row small { display: block; color: var(--dim); font-size: 12px; }
+.mv { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.mv svg.lucide { width: 15px; height: 15px; }
+.mv.in { background: var(--ok-tint); color: var(--ok); }
+.mv.out { background: var(--bad-tint); color: var(--bad); }
+.mv.tr { background: var(--info-tint); color: var(--info); }
+.mv.adj { background: var(--warn-tint); color: var(--warn); }
+.mv-cell { display: flex; align-items: center; gap: 10px; }
+.q-in { color: var(--ok); font-weight: 600; }
+.q-out { color: var(--bad); font-weight: 600; }
+
+/* -- Conteo -- */
+.cnt { width: 92px; padding: 6px 8px; text-align: right; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--ink); font-variant-numeric: tabular-nums; }
+.cnt:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.sum-row { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface-2); align-items: center; }
+.sum-row div { display: flex; flex-direction: column; }
+.sum-row span { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.sum-row b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.sum-row .btn { margin-left: auto; }
+
+/* -- Catálogos -- */
+.cat-list { padding: 6px 8px 10px; }
+.cat-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: 8px; border: 0; background: none; cursor: pointer; text-align: left; color: var(--ink-2); font-weight: 500; }
+.cat-item:hover { background: var(--hover); }
+.cat-item.on { background: var(--accent-tint); color: var(--accent-ink); font-weight: 600; }
+.cat-item .nav-count { margin-left: auto; }
+.cat-item.gone { color: var(--faint); }
+
+/* -- Capas: modal, drawer, toast -- */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 50; display: grid; place-items: center; padding: 16px; }
+.modal { background: var(--surface); border-radius: 14px; width: min(660px, 100%); max-height: calc(100dvh - 32px); overflow: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+.m-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.m-head h2 { margin: 0; font-size: 16px; }
+.m-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+.m-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.step-title { font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .07em; margin: 0 0 8px; }
+.types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.type { border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; background: var(--surface); text-align: left; color: var(--ink); }
+.type:hover { border-color: var(--line-strong); }
+.type.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.type b { font-size: 14px; }
+.type small { color: var(--dim); font-size: 12.5px; line-height: 1.4; }
+.type svg.lucide { width: 20px; height: 20px; color: var(--accent); }
+.f-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f label, .f .lbl { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.inp { padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); width: 100%; min-width: 0; }
+.inp:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.inp.err { border-color: var(--bad); }
+.line-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 10px; align-items: start; }
+.line-meta { grid-column: 1 / -1; font-size: 12px; color: var(--dim); margin-top: -4px; }
+.line-meta.err { color: var(--bad); font-weight: 600; }
+.aside-tip { font-size: 12.5px; color: var(--dim); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: var(--surface); border-left: 1px solid var(--line); z-index: 46; box-shadow: var(--shadow-lg); overflow-y: auto; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.scrim-d { position: fixed; inset: 0; background: var(--scrim); z-index: 45; }
+.dr-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.dr-stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.dr-stat span { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.dr-stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; margin: 2px 0; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--primary); color: var(--on-primary); padding: 11px 16px; border-radius: 10px; font-weight: 500; box-shadow: var(--shadow-lg); z-index: 60; max-width: calc(100% - 32px); width: max-content; display: flex; gap: 8px; align-items: center; }
+.nav-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 39; }
+
+/* -- Responsivo -- */
+@media (max-width: 1180px) {
+    .split, .split.wide { grid-template-columns: minmax(0, 1fr); }
+    .detail { position: static; }
+    .home { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+    .app { grid-template-columns: minmax(0, 1fr); }
+    .side {
+        position: fixed; top: 0; left: 0; bottom: 0; width: 276px; height: auto; z-index: 40;
+        transform: translateX(-104%); transition: transform .2s ease; box-shadow: var(--shadow-lg);
+        padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    }
+    body.nav-open .side { transform: none; }
+    .menu-btn { display: inline-flex; }
+    .top { padding: 10px 16px; gap: 8px; }
+    .content { padding: 16px 16px 48px; }
+    .notes-btn span, .search kbd, .avatar { display: none; }
+    .ctx select { max-width: 160px; }
+    .quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .ctx { display: none; }
+    .types, .f-grid { grid-template-columns: minmax(0, 1fr); }
+    .field { flex: 1 1 100%; }
+    .bar-row { grid-template-columns: 96px minmax(0, 1fr) 70px; }
+    .qa small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+
+<div class="app">
+    <aside class="side" id="side" aria-label="Menú del almacén">
+        <div class="brand">
+            <span class="brand-mark"><i data-lucide="boxes"></i></span>
+            <div><b>Almacén</b><small>Coffee Inventory</small></div>
+        </div>
+        <nav id="nav"></nav>
+        <div class="side-foot">Prototipo con datos de ejemplo.<br>Accesos y administración viven en <b>Admin</b>, fuera de este menú.</div>
+    </aside>
+
+    <div class="main">
+        <header class="top">
+            <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Abrir menú" onclick="toggleNav()"><i data-lucide="menu"></i></button>
+            <label class="ctx" for="ctx-wh" title="Almacén de trabajo">
+                <i data-lucide="warehouse"></i>
+                <select id="ctx-wh" onchange="setWh(this.value)">
+                    <option value="gen">Reginas Guadalupe · Almacén General</option>
+                    <option value="fra">Reginas cafeto · Almacen Franquicia</option>
+                </select>
+            </label>
+            <label class="search" for="global-q">
+                <i data-lucide="search"></i>
+                <input id="global-q" type="search" placeholder="Producto o folio (ej. TR-0014)" autocomplete="off">
+                <kbd>Enter</kbd>
+            </label>
+            <div class="top-end">
+                <button class="icon-btn notes-btn" id="notes-btn" type="button" aria-pressed="true" onclick="toggleNotes()"><i data-lucide="lightbulb"></i><span>Notas del rediseño</span></button>
+                <span class="avatar" title="Encargado de almacén">EA</span>
+            </div>
+        </header>
+        <main class="content" id="view"></main>
+    </div>
+</div>
+
+<div class="nav-scrim" id="nav-scrim" hidden onclick="closeNav()"></div>
+
+<div class="scrim" id="modal" hidden onclick="if (event.target === this) closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" id="modal-box"></div>
+</div>
+
+<div class="scrim-d" id="scrim-d" hidden onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer" hidden aria-label="Detalle del producto"></aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+// -- Utilidades --
+const $ = (s) => document.querySelector(s);
+const fN = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+const fM = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n) => (n < 0 ? '−$' : '$') + fM.format(Math.abs(n));
+const smoney = (n) => (n > 0 ? '+' : '') + money(n);
+const q = (n) => fN.format(n);
+const sq = (n) => n > 0 ? '+' + q(n) : n < 0 ? '−' + q(-n) : '0';
+const ic = (n) => `<i data-lucide="${n}"></i>`;
+const sum = (arr, fn) => arr.reduce((a, x) => a + fn(x), 0);
+const prod = (name) => P.find((p) => p.name === name);
+const sku = (p) => 'ITM-' + String(p.id).padStart(3, '0');
+const hhmm = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const paint = () => { if (window.lucide) window.lucide.createIcons(); };
+
+const WH = { gen: 'Almacén General', fra: 'Almacen Franquicia' };
+const BR = { gen: 'Reginas Guadalupe', fra: 'Reginas cafeto' };
+const USER = { gen: 'EA · Encargado de almacén', fra: 'Encargado Cafeto' };
+const short = (w) => w === WH.gen ? 'General' : 'Franquicia';
+const TODAY = new Date(2026, 8, 22);
+const daysSince = (s) => { const [d, m, y] = s.split(' ')[0].split('/').map(Number); return Math.round((TODAY - new Date(y, m - 1, d)) / 864e5); };
+
+// -- Datos de ejemplo (nombres reales de fayxzvov_inventory, cantidades inventadas) --
+const P = [
+    { id: 1,  name: 'FECULA DE MAIZ',       cat: 'ANAQUEL 1', unit: '500 GR',  cost: 28.5, gen: 14,  fra: 3,   min: 6,  last: '18/09/2026' },
+    { id: 2,  name: 'POLVO PARA HORNEAR',   cat: 'ANAQUEL 1', unit: '500 GR',  cost: 42,   gen: 9,   fra: 2,   min: 5,  last: '15/09/2026' },
+    { id: 3,  name: 'CANELA EN POLVO',      cat: 'ANAQUEL 1', unit: 'KILO',    cost: 310,  gen: 2.5, fra: 0.5, min: 3,  last: '21/09/2026' },
+    { id: 4,  name: 'GLASSE DE FRESA',      cat: 'ANAQUEL 1', unit: 'KILO',    cost: 118,  gen: 5,   fra: 1,   min: 2,  last: '10/09/2026' },
+    { id: 6,  name: 'MANGA DE FRESA',       cat: 'ANAQUEL 1', unit: 'KILO',    cost: 96,   gen: 7,   fra: 2,   min: 3,  last: '19/09/2026' },
+    { id: 8,  name: 'GANASHE BLANCO',       cat: 'ANAQUEL 1', unit: 'KILO',    cost: 245,  gen: 6,   fra: 1,   min: 4,  last: '20/09/2026' },
+    { id: 9,  name: 'GANASHE OSCURO',       cat: 'ANAQUEL 1', unit: 'KILO',    cost: 238,  gen: 0,   fra: 4,   min: 4,  last: '19/09/2026' },
+    { id: 11, name: 'CHOCOLATE CARAT',      cat: 'ANAQUEL 1', unit: 'KILO',    cost: 189,  gen: 18,  fra: 3,   min: 10, last: '19/09/2026' },
+    { id: 12, name: 'COCOA',                cat: 'ANAQUEL 2', unit: '500 GR',  cost: 96,   gen: 7,   fra: 2,   min: 5,  last: '19/09/2026' },
+    { id: 13, name: 'NUEZ PICADA',          cat: 'ANAQUEL 2', unit: '500 GR',  cost: 165,  gen: 3,   fra: 1,   min: 6,  last: '21/09/2026' },
+    { id: 15, name: 'ALMENDRA FILETEADA',   cat: 'ANAQUEL 2', unit: '500 GR',  cost: 172,  gen: 5,   fra: 0,   min: 4,  last: '08/09/2026' },
+    { id: 19, name: 'LECHE PRADEL',         cat: 'ANAQUEL 2', unit: 'LITRO',   cost: 26.5, gen: 48,  fra: 12,  min: 36, last: '22/09/2026' },
+    { id: 20, name: 'JARABE 3 LECHES',      cat: 'ANAQUEL 2', unit: 'LITRO',   cost: 58,   gen: 11,  fra: 4,   min: 12, last: '22/09/2026' },
+    { id: 23, name: 'GALLETA OREO',         cat: 'ANAQUEL 3', unit: 'PAQUETE', cost: 34,   gen: 30,  fra: 6,   min: 20, last: '18/09/2026' },
+    { id: 25, name: 'MIEL',                 cat: 'ANAQUEL 3', unit: 'BOTE',    cost: 85,   gen: 6,   fra: 2,   min: 4,  last: '29/08/2026' },
+    { id: 34, name: 'MERMELADA DE FRESA',   cat: 'ANAQUEL 3', unit: 'FRASCO',  cost: 62,   gen: 1,   fra: 1,   min: 5,  last: '20/09/2026' },
+    { id: 37, name: 'EXTRACTO DE VAINILLA', cat: 'ANAQUEL 3', unit: 'LITRO',   cost: 140,  gen: 4,   fra: 1,   min: 2,  last: '25/08/2026' },
+    { id: 40, name: 'LECHERA',              cat: 'ANAQUEL 3', unit: 'LATA',    cost: 31,   gen: 40,  fra: 10,  min: 24, last: '19/09/2026' }
+];
+
+const ENT = [
+    { folio: 'ENT-0042', date: '22/09/2026 12:30', origin: 'Compra', who: 'Finca Argovia', status: 'Borrador', note: 'Factura A-1187 por validar', lines: [{ p: 'NUEZ PICADA', n: 6, c: 165 }, { p: 'ALMENDRA FILETEADA', n: 4, c: 172 }] },
+    { folio: 'ENT-0041', date: '22/09/2026 09:40', origin: 'Compra', who: 'Walmart', status: 'Aplicada', note: 'Recepción parcial de la orden', lines: [{ p: 'LECHE PRADEL', n: 24, c: 26.5 }, { p: 'JARABE 3 LECHES', n: 6, c: 58 }], links: ['OC-0009'] },
+    { folio: 'ENT-0040', date: '20/09/2026 16:45', origin: 'Orden de producción', who: 'Cocina', status: 'Aplicada', note: 'Lote de ganache del fin de semana', lines: [{ p: 'GANASHE BLANCO', n: 3, c: 245 }] },
+    { folio: 'ENT-0039', date: '19/09/2026 09:10', origin: 'Compra', who: 'Finca Argovia', status: 'Aplicada', note: '', lines: [{ p: 'CHOCOLATE CARAT', n: 10, c: 189 }, { p: 'COCOA', n: 4, c: 96 }], links: ['OC-0008'] },
+    { folio: 'ENT-0038', date: '18/09/2026 13:00', origin: 'Devolución', who: 'Reginas cafeto', status: 'Cancelada', note: 'Se capturó por error: era un traspaso', lines: [{ p: 'MIEL', n: 2, c: 85 }] }
+];
+ENT.forEach((e) => { e.wh = e.wh || WH.gen; e.user = e.user || USER.gen; e.links = e.links || []; });
+
+const SAL = [
+    { folio: 'SAL-0017', date: '22/09/2026 11:05', type: 'Merma', reason: 'Caducidad', status: 'Aplicada', note: 'Lote vencido el 20/09', photo: 'jarabe-lote-0915.jpg', lines: [{ p: 'JARABE 3 LECHES', n: 2, c: 58 }] },
+    { folio: 'SAL-0016', date: '21/09/2026 12:10', type: 'Consumo interno', reason: 'Cocina', status: 'Aplicada', note: 'Producción de roles de canela', photo: null, lines: [{ p: 'CANELA EN POLVO', n: 1, c: 310 }] },
+    { folio: 'SAL-0015', date: '20/09/2026 13:20', type: 'Merma', reason: 'Producto dañado', status: 'Aplicada', note: 'Frasco roto al acomodar', photo: 'frasco-roto.jpg', lines: [{ p: 'MERMELADA DE FRESA', n: 1, c: 62 }] },
+    { folio: 'SAL-0014', date: '18/09/2026 10:00', type: 'Devolución a proveedor', reason: 'Walmart', status: 'Aplicada', note: 'Empaque inflado', photo: 'oreo-empaque.jpg', lines: [{ p: 'GALLETA OREO', n: 5, c: 34 }] },
+    { folio: 'SAL-0013', date: '17/09/2026 19:40', type: 'Merma', reason: 'Robo / Faltante', status: 'Cancelada', note: 'Apareció en el congelador; se canceló', photo: null, lines: [{ p: 'NUEZ PICADA', n: 2, c: 165 }] }
+];
+SAL.forEach((s) => { s.wh = s.wh || WH.gen; s.user = s.user || USER.gen; });
+
+const TR = [
+    { folio: 'TR-0014', date: '21/09/2026 18:02', from: WH.gen, to: WH.fra, toBranch: BR.fra, status: 'Por recibir', recv: '', lines: [{ p: 'CANELA EN POLVO', n: 0.5 }, { p: 'LECHERA', n: 6 }, { p: 'GALLETA OREO', n: 6 }], links: ['SOL-0022'] },
+    { folio: 'TR-0013', date: '19/09/2026 17:20', from: WH.gen, to: WH.fra, toBranch: BR.fra, status: 'Recibido', recv: 'Encargado Cafeto · 19/09/2026 19:05', lines: [{ p: 'GANASHE OSCURO', n: 4 }, { p: 'CHOCOLATE CARAT', n: 3 }, { p: 'MANGA DE FRESA', n: 2 }], links: ['SOL-0021'] },
+    { folio: 'TR-0012', date: '15/09/2026 10:30', from: WH.fra, to: WH.gen, toBranch: BR.gen, status: 'Recibido', recv: 'EA · 15/09/2026 12:00', lines: [{ p: 'GALLETA OREO', n: 4 }], links: [] }
+];
+TR.forEach((t) => { t.user = t.from === WH.gen ? USER.gen : USER.fra; });
+
+const SOL = [
+    { folio: 'SOL-0023', date: '22/09/2026 08:12', from: BR.fra, status: 'Por surtir', need: '23/09/2026', lines: [{ p: 'LECHE PRADEL', pide: 12 }, { p: 'GANASHE OSCURO', pide: 3 }, { p: 'NUEZ PICADA', pide: 4 }, { p: 'GALLETA OREO', pide: 10 }], links: [] },
+    { folio: 'SOL-0022', date: '20/09/2026 17:45', from: BR.fra, status: 'Surtida', need: '22/09/2026', lines: [{ p: 'CANELA EN POLVO', pide: 0.5, surt: 0.5, falta: 0 }, { p: 'LECHERA', pide: 6, surt: 6, falta: 0 }, { p: 'GALLETA OREO', pide: 6, surt: 6, falta: 0 }], links: ['TR-0014'] },
+    { folio: 'SOL-0021', date: '18/09/2026 16:00', from: BR.fra, status: 'Surtida', need: '19/09/2026', lines: [{ p: 'GANASHE OSCURO', pide: 4, surt: 4, falta: 0 }, { p: 'CHOCOLATE CARAT', pide: 3, surt: 3, falta: 0 }, { p: 'MANGA DE FRESA', pide: 2, surt: 2, falta: 0 }], links: ['TR-0013'] }
+];
+SOL.forEach((s) => { s.to = WH.gen; s.user = USER.fra; });
+
+const OC = [
+    { folio: 'OC-0009', date: '20/09/2026 11:00', supplier: 'Walmart', status: 'Parcial', origin: 'Reabasto por mínimo', lines: [{ p: 'LECHE PRADEL', n: 24, rec: 24, c: 26.5 }, { p: 'JARABE 3 LECHES', n: 12, rec: 6, c: 58 }, { p: 'MERMELADA DE FRESA', n: 6, rec: 0, c: 62 }], links: ['ENT-0041'] },
+    { folio: 'OC-0008', date: '17/09/2026 09:30', supplier: 'Finca Argovia', status: 'Recibida', origin: 'Compra semanal', lines: [{ p: 'CHOCOLATE CARAT', n: 10, rec: 10, c: 189 }, { p: 'COCOA', n: 4, rec: 4, c: 96 }], links: ['ENT-0039'] },
+    { folio: 'OC-0007', date: '12/09/2026 15:10', supplier: 'Walmart', status: 'Cancelada', origin: 'Compra semanal', note: 'Se consiguió más barato en Finca Argovia', lines: [{ p: 'GALLETA OREO', n: 20, rec: 0, c: 34 }], links: [] }
+];
+OC.forEach((o) => { o.wh = WH.gen; o.user = USER.gen; });
+
+const CF = [
+    { folio: 'CF-0004', date: '22/09/2026 08:30', where: 'ANAQUEL 1', status: 'En conteo' },
+    { folio: 'CF-0003', date: '21/09/2026 16:50', where: 'ANAQUEL 2', status: 'Cerrado', result: 'AJ-0003 · 1 diferencia · −$165.00', adj: 'AJ-0003' },
+    { folio: 'CF-0002', date: '14/09/2026 17:10', where: 'ANAQUEL 3', status: 'Cerrado', result: 'Sin diferencias', adj: '' }
+];
+const COUNT = { 1: 14, 2: 8, 3: 2.5, 6: 6, 8: 6.5, 9: 0 };
+
+const K = [
+    { d: '22/09/2026 11:05', f: 'SAL-0017', t: 'Salida',   x: 'Merma · Caducidad',            p: 'JARABE 3 LECHES',    n: -2,  a: 13,  b: 11,  wh: WH.gen },
+    { d: '22/09/2026 09:40', f: 'ENT-0041', t: 'Entrada',  x: 'Compra · Walmart',             p: 'JARABE 3 LECHES',    n: 6,   a: 7,   b: 13,  wh: WH.gen },
+    { d: '22/09/2026 09:40', f: 'ENT-0041', t: 'Entrada',  x: 'Compra · Walmart',             p: 'LECHE PRADEL',       n: 24,  a: 24,  b: 48,  wh: WH.gen },
+    { d: '21/09/2026 17:30', f: 'AJ-0003',  t: 'Ajuste',   x: 'Conteo CF-0003',               p: 'NUEZ PICADA',        n: -1,  a: 4,   b: 3,   wh: WH.gen },
+    { d: '21/09/2026 12:10', f: 'SAL-0016', t: 'Salida',   x: 'Consumo interno · Cocina',     p: 'CANELA EN POLVO',    n: -1,  a: 3.5, b: 2.5, wh: WH.gen },
+    { d: '20/09/2026 16:45', f: 'ENT-0040', t: 'Entrada',  x: 'Orden de producción',          p: 'GANASHE BLANCO',     n: 3,   a: 3,   b: 6,   wh: WH.gen },
+    { d: '20/09/2026 13:20', f: 'SAL-0015', t: 'Salida',   x: 'Merma · Producto dañado',      p: 'MERMELADA DE FRESA', n: -1,  a: 2,   b: 1,   wh: WH.gen },
+    { d: '19/09/2026 19:05', f: 'TR-0013',  t: 'Traspaso', x: 'Llegó de Almacén General',     p: 'GANASHE OSCURO',     n: 4,   a: 0,   b: 4,   wh: WH.fra },
+    { d: '19/09/2026 19:05', f: 'TR-0013',  t: 'Traspaso', x: 'Llegó de Almacén General',     p: 'CHOCOLATE CARAT',    n: 3,   a: 0,   b: 3,   wh: WH.fra },
+    { d: '19/09/2026 19:05', f: 'TR-0013',  t: 'Traspaso', x: 'Llegó de Almacén General',     p: 'MANGA DE FRESA',     n: 2,   a: 0,   b: 2,   wh: WH.fra },
+    { d: '19/09/2026 17:20', f: 'TR-0013',  t: 'Traspaso', x: 'A Almacen Franquicia',         p: 'GANASHE OSCURO',     n: -4,  a: 4,   b: 0,   wh: WH.gen },
+    { d: '19/09/2026 17:20', f: 'TR-0013',  t: 'Traspaso', x: 'A Almacen Franquicia',         p: 'CHOCOLATE CARAT',    n: -3,  a: 21,  b: 18,  wh: WH.gen },
+    { d: '19/09/2026 17:20', f: 'TR-0013',  t: 'Traspaso', x: 'A Almacen Franquicia',         p: 'MANGA DE FRESA',     n: -2,  a: 9,   b: 7,   wh: WH.gen },
+    { d: '19/09/2026 09:10', f: 'ENT-0039', t: 'Entrada',  x: 'Compra · Finca Argovia',       p: 'CHOCOLATE CARAT',    n: 10,  a: 11,  b: 21,  wh: WH.gen },
+    { d: '19/09/2026 09:10', f: 'ENT-0039', t: 'Entrada',  x: 'Compra · Finca Argovia',       p: 'COCOA',              n: 4,   a: 3,   b: 7,   wh: WH.gen },
+    { d: '18/09/2026 10:00', f: 'SAL-0014', t: 'Salida',   x: 'Devolución a proveedor · Walmart', p: 'GALLETA OREO',   n: -5,  a: 35,  b: 30,  wh: WH.gen },
+    { d: '15/09/2026 12:00', f: 'TR-0012',  t: 'Traspaso', x: 'A Almacén General',            p: 'GALLETA OREO',       n: -4,  a: 10,  b: 6,   wh: WH.fra }
+];
+
+// -- Estado --
+const S = { view: 'inicio', wh: 'gen', sel: { conteo: 'CF-0004' }, filter: {}, exFilter: 'Todos', exSearch: '', kxFilter: 'Todos', cat: 'motivos', notes: true };
+try { if (localStorage.getItem('almacen-v2:notes') === 'off') S.notes = false; } catch (e) { /* sin storage */ }
+
+// -- Piezas comunes --
+const TONE = {
+    Aplicada: 'ok', Borrador: '', Cancelada: 'bad', 'Por recibir': 'warn', Recibido: 'ok', 'Por surtir': 'warn',
+    Surtida: 'ok', 'Surtida parcial': 'info', 'Por aprobar': 'warn', Aprobada: 'info', Parcial: 'info', Recibida: 'ok',
+    'En conteo': 'info', Cerrado: 'ok', Agotado: 'bad', 'Bajo mínimo': 'warn', Suficiente: 'ok', Activo: 'ok', 'Se quita': 'bad'
+};
+const pill = (s) => `<span class="pill ${TONE[s] || ''}">${s}</span>`;
+const TYPE_TONE = { Merma: 'bad', 'Consumo interno': 'info', 'Devolución a proveedor': '' };
+const tag = (t) => `<span class="tag ${TYPE_TONE[t] || ''}">${t}</span>`;
+const MV = { Entrada: ['in', 'arrow-down-to-line'], Salida: ['out', 'arrow-up-from-line'], Traspaso: ['tr', 'arrow-left-right'], Ajuste: ['adj', 'scale'] };
+const mvIcon = (t) => `<span class="mv ${MV[t][0]}">${ic(MV[t][1])}</span>`;
+const qtyCell = (n) => `<span class="${n > 0 ? 'q-in' : 'q-out'}">${sq(n)}</span>`;
+const prodCell = (name) => { const p = prod(name); return `${name}<small>${p ? p.unit : ''}</small>`; };
+const head = (eyebrow, title, desc, actions) => `<header class="view-head"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p>${desc}</p></div>${actions ? `<div class="head-actions">${actions}</div>` : ''}</header>`;
+const note = (html) => `<div class="note">${ic('lightbulb')}<div>${html}</div></div>`;
+const hint = (html, tone) => `<div class="hint ${tone || ''}">${ic(tone === 'warn' ? 'triangle-alert' : 'info')}<span>${html}</span></div>`;
+const thead = (cols) => `<thead><tr>${cols.map(([h, c]) => `<th class="${c || ''}">${h}</th>`).join('')}</tr></thead>`;
+const progress = (pct, tone) => `<span class="prog"><span class="track"><span class="fill ${tone || 'info'}" style="width:${Math.min(100, Math.max(0, pct))}%"></span></span><span class="num">${Math.round(pct)}%</span></span>`;
+const ROUTE = { ENT: 'entradas', SAL: 'salidas', TR: 'traspasos', SOL: 'solicitudes', OC: 'ordenes', CF: 'conteo', AJ: 'kardex' };
+const docLink = (f) => `<button class="doclink" type="button" onclick="openDoc('${f}')">${f}</button>`;
+const val = (lines) => sum(lines, (l) => l.n * prod(l.p).cost);
+const nextFolio = (prefix, arr) => prefix + '-' + String(Math.max(...arr.map((x) => parseInt(x.folio.split('-')[1], 10))) + 1).padStart(4, '0');
+
+const minOf = (p, wh) => wh === 'gen' ? p.min : Math.max(1, Math.round(p.min / 3));
+const level = (p, wh) => { const s = p[wh], m = minOf(p, wh); return s <= 0 ? 'Agotado' : s < m ? 'Bajo mínimo' : 'Suficiente'; };
+
+function detail(o) {
+    const steps = o.steps ? `<ol class="steps${o.status === 'Cancelada' ? ' off' : ''}">${o.steps.map((s, i) => `<li class="step ${o.status === 'Cancelada' ? '' : i < o.at ? 'done' : i === o.at ? 'now' : ''}"><span class="bar"></span>${s}</li>`).join('')}</ol>` : '';
+    return `
+        <div class="d-head"><div class="d-folio"><span class="mono">${o.folio}</span>${pill(o.status)}</div><p class="d-title">${o.title}</p></div>
+        ${steps}
+        <dl class="meta">${o.meta.map(([k, v, w]) => `<div class="${w ? 'wide' : ''}"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+        ${o.links && o.links.length ? `<div class="links">${ic('link-2')}<span>Relacionado</span>${o.links.map(docLink).join('')}</div>` : ''}
+        ${o.hint || ''}
+        <div class="tbl-wrap"><table class="tbl compact">${o.table}</table></div>
+        ${o.totals ? `<div class="totals">${o.totals.map(([k, v]) => `<div><span>${k}</span><b class="num">${v}</b></div>`).join('')}</div>` : ''}
+        ${o.actions ? `<div class="d-foot">${o.actions}</div>` : ''}`;
+}
+
+// -- Documentos: una sola configuración por pantalla (esto es el "DocumentVisor") --
+const DOCS = {
+    entradas: {
+        eyebrow: 'Operación', title: 'Entradas',
+        desc: 'Todo lo que llega al almacén: compras, producción y devoluciones.',
+        action: () => `<button class="btn btn-primary" type="button" onclick="soon('Registrar entrada')">${ic('plus')}Registrar entrada</button>`,
+        note: '<b>Mismo esqueleto en todos los documentos.</b> Lista a la izquierda, detalle a la derecha y el estado como pasos. Entradas, salidas, traspasos, solicitudes y órdenes comparten una sola pieza de código.',
+        chips: ['Todos', 'Borrador', 'Aplicada', 'Cancelada'],
+        match: (r, f) => r.status === f,
+        rows: () => ENT,
+        text: (r) => r.origin + ' ' + r.who,
+        cols: [['Folio', 'mono'], ['Fecha'], ['Origen'], ['Productos', 'num'], ['Total', 'num'], ['Estado']],
+        cells: (r) => [r.folio, r.date.split(' ')[0], `${r.origin}<small>${r.who}</small>`, r.lines.length, money(sum(r.lines, (l) => l.n * l.c)), pill(r.status)],
+        detail: (r) => detail({
+            folio: r.folio, status: r.status, title: `${r.origin} · ${r.who}`,
+            steps: ['Borrador', 'Aplicada'], at: r.status === 'Borrador' ? 0 : 2,
+            meta: [['Fecha', r.date], ['Almacén', r.wh], ['Registró', r.user], ['Nota', r.note || '—']],
+            links: r.links,
+            hint: r.status === 'Borrador' ? hint('Mientras sea borrador no mueve el stock. Al aplicarla suma al almacén y queda en el kardex.')
+                : r.status === 'Cancelada' ? hint('Cancelada: el stock regresó a como estaba. El documento se conserva para auditoría.') : '',
+            table: thead([['Producto'], ['Cantidad', 'num'], ['Costo', 'num'], ['Subtotal', 'num']])
+                + `<tbody>${r.lines.map((l) => `<tr><td>${prodCell(l.p)}</td><td class="num">${q(l.n)}</td><td class="num">${money(l.c)}</td><td class="num">${money(l.n * l.c)}</td></tr>`).join('')}</tbody>`,
+            totals: [['Total', money(sum(r.lines, (l) => l.n * l.c))]],
+            actions: r.status === 'Borrador'
+                ? `<button class="btn" type="button" onclick="soon('Editar entrada')">Editar</button><button class="btn btn-primary" type="button" onclick="applyEntrada('${r.folio}')">${ic('check')}Aplicar entrada</button>`
+                : r.status === 'Aplicada' ? `<button class="btn" type="button" onclick="soon('Cancelar entrada')">Cancelar entrada</button>` : ''
+        })
+    },
+
+    salidas: {
+        eyebrow: 'Operación', title: 'Salidas',
+        desc: 'Lo que sale sin ir a otra sucursal: merma, consumo interno y devoluciones a proveedor.',
+        action: () => `<button class="btn btn-primary" type="button" onclick="openSalida()">${ic('plus')}Registrar salida</button>`,
+        note: '<b>Primero se elige el tipo.</b> Merma solo es merma. El surtido a una sucursal ya no se guarda aquí: es un traspaso. Así el reporte de merma deja de inflarse.',
+        chips: ['Todos', 'Merma', 'Consumo interno', 'Devolución a proveedor', 'Cancelada'],
+        match: (r, f) => f === 'Cancelada' ? r.status === f : r.type === f && r.status !== 'Cancelada',
+        rows: () => SAL,
+        text: (r) => r.type + ' ' + r.reason,
+        cols: [['Folio', 'mono'], ['Fecha'], ['Tipo'], ['Motivo'], ['Valor', 'num'], ['Estado']],
+        cells: (r) => [r.folio, r.date.split(' ')[0], tag(r.type), r.reason, money(sum(r.lines, (l) => l.n * l.c)), pill(r.status)],
+        detail: (r) => detail({
+            folio: r.folio, status: r.status, title: `${r.type} · ${r.reason}`,
+            meta: [
+                ['Fecha', r.date], ['Almacén', r.wh], ['Registró', r.user],
+                ['Evidencia', r.photo ? `${ic('image')}<span class="mono">${r.photo}</span>` : r.type === 'Merma' ? '<span class="t-bad">Sin foto</span>' : 'No aplica'],
+                ['Nota', r.note || '—', true]
+            ],
+            hint: r.status === 'Cancelada' ? hint('Cancelada: el producto regresó al stock.')
+                : r.type === 'Merma' ? hint('Cuenta en el reporte de merma del mes.')
+                : r.type === 'Consumo interno' ? hint('No es merma: se reporta como consumo de cocina.')
+                : hint('No es merma: queda ligada al proveedor para su nota de crédito.'),
+            table: thead([['Producto'], ['Cantidad', 'num'], ['Costo', 'num'], ['Subtotal', 'num']])
+                + `<tbody>${r.lines.map((l) => `<tr><td>${prodCell(l.p)}</td><td class="num">${q(l.n)}</td><td class="num">${money(l.c)}</td><td class="num">${money(l.n * l.c)}</td></tr>`).join('')}</tbody>`,
+            totals: [['Valor', money(sum(r.lines, (l) => l.n * l.c))]],
+            actions: r.status === 'Aplicada' ? `<button class="btn" type="button" onclick="soon('Cancelar salida')">Cancelar salida</button>` : ''
+        })
+    },
+
+    traspasos: {
+        eyebrow: 'Operación', title: 'Traspasos',
+        desc: 'Producto que se mueve entre almacenes. Resta en el origen y suma en el destino.',
+        action: () => `<button class="btn btn-primary" type="button" onclick="soon('Nuevo traspaso')">${ic('plus')}Nuevo traspaso</button>`,
+        note: '<b>Todo lo que viaja entre sucursales pasa por aquí</b>, incluido el surtido de solicitudes. Antes el surtido restaba en la matriz y la sucursal nunca lo recibía.',
+        chips: ['Todos', 'Por recibir', 'Recibido'],
+        match: (r, f) => r.status === f,
+        rows: () => TR,
+        text: (r) => r.from + ' ' + r.to,
+        cols: [['Folio', 'mono'], ['Fecha'], ['Ruta'], ['Productos', 'num'], ['Valor', 'num'], ['Estado']],
+        cells: (r) => [r.folio, r.date.split(' ')[0], `<span class="route">${short(r.from)} ${ic('arrow-right')} ${short(r.to)}</span>`, r.lines.length, money(val(r.lines)), pill(r.status)],
+        detail: (r) => detail({
+            folio: r.folio, status: r.status, title: `${r.from} → ${r.to}`,
+            steps: ['Creado', 'Enviado', 'Recibido'], at: r.status === 'Recibido' ? 3 : 2,
+            meta: [['Salió', r.date], ['Envió', r.user], ['Recibió', r.recv || `<span class="muted">Pendiente · ${r.toBranch}</span>`, true]],
+            links: r.links,
+            hint: r.status === 'Por recibir' ? hint(`El stock se mueve cuando <b>${r.toBranch}</b> confirma lo que llegó. Si llega menos, la diferencia queda registrada.`, 'warn') : '',
+            table: thead([['Producto'], ['Cantidad', 'num'], ['Valor', 'num']])
+                + `<tbody>${r.lines.map((l) => `<tr><td>${prodCell(l.p)}</td><td class="num">${q(l.n)}</td><td class="num">${money(l.n * prod(l.p).cost)}</td></tr>`).join('')}</tbody>`,
+            totals: [['Valor', money(val(r.lines))]],
+            actions: r.status === 'Por recibir'
+                ? `<button class="btn" type="button" onclick="soon('Reportar diferencia')">Llegó diferente</button><button class="btn btn-primary" type="button" onclick="receiveTR('${r.folio}')">${ic('check')}Confirmar recepción</button>` : ''
+        })
+    },
+
+    solicitudes: {
+        eyebrow: 'Abastecimiento', title: 'Solicitudes',
+        desc: 'Lo que las sucursales le piden al almacén general.',
+        action: () => `<button class="btn btn-primary" type="button" onclick="soon('Nueva solicitud')">${ic('plus')}Nueva solicitud</button>`,
+        note: '<b>Una solicitud se atiende con un botón.</b> Lo que hay se manda con un traspaso (TR). Lo que falta se compra con una orden (OC). Nunca se registra como merma.',
+        chips: ['Todos', 'Por surtir', 'Surtida parcial', 'Surtida'],
+        match: (r, f) => r.status === f,
+        rows: () => SOL,
+        text: (r) => r.from,
+        cols: [['Folio', 'mono'], ['Fecha'], ['Pide'], ['Productos', 'num'], ['La necesita'], ['Estado']],
+        cells: (r) => [r.folio, r.date.split(' ')[0], r.from, r.lines.length, r.need, pill(r.status)],
+        detail: (r) => {
+            const pend = r.status === 'Por surtir';
+            const rows = pend ? planSurtido(r) : r.lines;
+            const nS = rows.filter((x) => x.surt > 0).length, nF = rows.filter((x) => x.falta > 0).length;
+            const leaves = pend ? rows.filter((x) => x.surt > 0 && x.hay - x.surt < x.min) : [];
+            const table = pend
+                ? thead([['Producto'], ['Pide', 'num'], ['Hay', 'num'], ['Se manda', 'num'], ['Falta', 'num']])
+                    + `<tbody>${rows.map((x) => `<tr><td>${prodCell(x.p)}</td><td class="num">${q(x.pide)}</td><td class="num">${x.hay <= 0 ? '<span class="t-bad">0</span>' : q(x.hay)}</td><td class="num"><b>${q(x.surt)}</b></td><td class="num">${x.falta > 0 ? `<span class="t-warn">${q(x.falta)}</span>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody>`
+                : thead([['Producto'], ['Pidió', 'num'], ['Se mandó', 'num'], ['Se compró', 'num']])
+                    + `<tbody>${rows.map((x) => `<tr><td>${prodCell(x.p)}</td><td class="num">${q(x.pide)}</td><td class="num">${q(x.surt)}</td><td class="num">${x.falta > 0 ? q(x.falta) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody>`;
+            return detail({
+                folio: r.folio, status: r.status, title: `${r.from} le pide a ${r.to}`,
+                steps: ['Enviada', 'Surtir', 'Surtida'], at: pend ? 1 : 3,
+                meta: [['Pidió', r.user], ['Fecha', r.date], ['La necesita', r.need], ['Atiende', r.to]],
+                links: r.links,
+                hint: pend
+                    ? hint(`Al surtir se crean dos documentos: <b>un traspaso</b> con ${nS} productos y <b>una orden de compra</b> con ${nF} faltantes.`)
+                        + (leaves.length ? hint(leaves.map((x) => `${x.p}: mandar ${q(x.surt)} deja el almacén en ${q(x.hay - x.surt)}, abajo de su mínimo (${x.min}).`).join('<br>'), 'warn') : '')
+                    : '',
+                table,
+                actions: pend
+                    ? `<button class="btn" type="button" onclick="soon('Rechazar solicitud')">Rechazar</button><button class="btn btn-primary" type="button" onclick="surtir('${r.folio}')">${ic('send')}Surtir y pedir faltante</button>` : ''
+            });
+        }
+    },
+
+    ordenes: {
+        eyebrow: 'Abastecimiento', title: 'Órdenes de compra',
+        desc: 'Compras a proveedor. Cada recepción genera la entrada con lo que realmente llegó.',
+        action: () => `<button class="btn btn-primary" type="button" onclick="soon('Nueva orden de compra')">${ic('plus')}Nueva orden</button>`,
+        note: '<b>Solo compras a proveedor.</b> Antes la misma tabla servía para pedirle a la matriz y para comprar. Ahora cada cosa tiene su documento.',
+        chips: ['Todos', 'Por aprobar', 'Parcial', 'Recibida', 'Cancelada'],
+        match: (r, f) => r.status === f,
+        rows: () => OC,
+        text: (r) => r.supplier,
+        cols: [['Folio', 'mono'], ['Fecha'], ['Proveedor'], ['Recibido'], ['Total', 'num'], ['Estado']],
+        cells: (r) => [r.folio, r.date.split(' ')[0], r.supplier, progress(recPct(r), r.status === 'Recibida' ? 'ok' : 'info'), money(sum(r.lines, (l) => l.n * l.c)), pill(r.status)],
+        detail: (r) => detail({
+            folio: r.folio, status: r.status, title: r.supplier,
+            steps: ['Por aprobar', 'Aprobada', 'Recibida'], at: { 'Por aprobar': 0, Aprobada: 2, Parcial: 2, Recibida: 3 }[r.status] || 0,
+            meta: [['Fecha', r.date], ['Entrega en', r.wh], ['Origen', r.origin], ['Pidió', r.user], ...(r.note ? [['Nota', r.note, true]] : [])],
+            links: r.links,
+            hint: r.status === 'Parcial' ? hint('Cada recepción crea una entrada (ENT) con lo que llegó. Lo pendiente sigue abierto.')
+                : r.status === 'Por aprobar' && r.supplier === 'Sin proveedor' ? hint('Falta elegir proveedor antes de aprobar.', 'warn') : '',
+            table: thead([['Producto'], ['Llegó'], ['Subtotal', 'num']])
+                + `<tbody>${r.lines.map((l) => `<tr><td>${prodCell(l.p)}</td><td><span class="prog"><span class="track"><span class="fill ${l.rec >= l.n ? 'ok' : l.rec > 0 ? 'info' : 'warn'}" style="width:${l.rec / l.n * 100}%"></span></span><span class="num">${q(l.rec)} de ${q(l.n)}</span></span></td><td class="num">${money(l.n * l.c)}</td></tr>`).join('')}</tbody>`,
+            totals: [['Total pedido', money(sum(r.lines, (l) => l.n * l.c))], ['Ya recibido', money(sum(r.lines, (l) => l.rec * l.c))]],
+            actions: r.status === 'Parcial' || r.status === 'Aprobada'
+                ? `<button class="btn btn-primary" type="button" onclick="soon('Recibir mercancía')">${ic('package')}Recibir mercancía</button>`
+                : r.status === 'Por aprobar'
+                ? `<button class="btn" type="button" onclick="soon('Rechazar orden')">Rechazar</button><button class="btn btn-primary" type="button" onclick="approveOC('${r.folio}')">${ic('check')}Aprobar</button>` : ''
+        })
+    }
+};
+
+const recPct = (o) => sum(o.lines, (l) => l.rec) / sum(o.lines, (l) => l.n) * 100;
+function planSurtido(s) {
+    return s.lines.map((l) => {
+        const p = prod(l.p), hay = p.gen, surt = Math.max(0, Math.min(l.pide, hay));
+        return { p: l.p, pide: l.pide, hay, surt, falta: l.pide - surt, min: p.min };
+    });
+}
+
+function docView(key) {
+    const d = DOCS[key];
+    const all = d.rows();
+    const f = S.filter[key] || 'Todos';
+    const rows = all.filter((r) => f === 'Todos' || d.match(r, f));
+    if (!rows.some((r) => r.folio === S.sel[key])) S.sel[key] = rows[0] && rows[0].folio;
+    const cur = all.find((r) => r.folio === S.sel[key]);
+    const chips = d.chips.map((c) => {
+        const n = c === 'Todos' ? all.length : all.filter((r) => d.match(r, c)).length;
+        return `<button class="chip ${c === f ? 'on' : ''}" type="button" onclick="setFilter('${key}','${c}')">${c}<span class="n">${n}</span></button>`;
+    }).join('');
+    return head(d.eyebrow, d.title, d.desc, d.action()) + note(d.note) + `
+        <div class="split">
+            <section class="panel list">
+                <div class="toolbar">
+                    <label class="field" for="q-${key}">${ic('search')}<input id="q-${key}" type="search" placeholder="Folio o producto" oninput="filterRows('${key}', this.value)"></label>
+                    <div class="chips">${chips}</div>
+                </div>
+                <div class="tbl-wrap"><table class="tbl">${thead(d.cols)}
+                    <tbody id="tb-${key}">${rows.map((r) => `<tr class="click${r.folio === S.sel[key] ? ' sel' : ''}" data-folio="${r.folio}" data-text="${(r.folio + ' ' + r.lines.map((l) => l.p).join(' ') + ' ' + d.text(r)).toLowerCase()}" onclick="selectDoc('${key}','${r.folio}')">${d.cells(r).map((c, i) => `<td class="${d.cols[i][1] || ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody>
+                </table></div>
+                ${rows.length ? '' : '<p class="empty">No hay documentos con este filtro.</p>'}
+            </section>
+            <aside class="panel detail" id="detail-${key}" aria-live="polite">${cur ? d.detail(cur) : '<p class="empty">Elige un documento de la lista.</p>'}</aside>
+        </div>`;
+}
+function setFilter(key, f) { S.filter[key] = f; render(); }
+function filterRows(key, v) {
+    v = v.trim().toLowerCase();
+    document.querySelectorAll(`#tb-${key} tr`).forEach((tr) => { tr.hidden = !!v && !tr.dataset.text.includes(v); });
+}
+function selectDoc(key, folio) {
+    S.sel[key] = folio;
+    document.querySelectorAll(`#tb-${key} tr`).forEach((tr) => tr.classList.toggle('sel', tr.dataset.folio === folio));
+    const d = DOCS[key];
+    $('#detail-' + key).innerHTML = d.detail(d.rows().find((r) => r.folio === folio));
+    paint();
+    if (window.matchMedia('(max-width: 1180px)').matches) $('#detail-' + key).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+}
+
+// -- Acciones simuladas sobre los documentos --
+function kpush(row) { K.unshift(Object.assign({ d: '22/09/2026 ' + hhmm() }, row)); }
+function applyEntrada(folio) {
+    const e = ENT.find((x) => x.folio === folio);
+    e.status = 'Aplicada';
+    e.lines.forEach((l) => { const p = prod(l.p), a = p.gen; p.gen = a + l.n; p.last = '22/09/2026'; kpush({ f: folio, t: 'Entrada', x: `${e.origin} · ${e.who}`, p: l.p, n: l.n, a, b: p.gen, wh: WH.gen }); });
+    toast(`${folio} aplicada. Subió el stock de ${e.lines.length} productos en Almacén General.`);
+    render();
+}
+function receiveTR(folio) {
+    const t = TR.find((x) => x.folio === folio);
+    const from = t.from === WH.gen ? 'gen' : 'fra', to = from === 'gen' ? 'fra' : 'gen';
+    t.status = 'Recibido';
+    t.recv = `${USER[to]} · 22/09/2026 ${hhmm()}`;
+    t.lines.forEach((l) => {
+        const p = prod(l.p), a = p[from], b = p[to];
+        p[from] = a - l.n; p[to] = b + l.n; p.last = '22/09/2026';
+        kpush({ f: folio, t: 'Traspaso', x: `A ${t.to}`, p: l.p, n: -l.n, a, b: p[from], wh: t.from });
+        kpush({ f: folio, t: 'Traspaso', x: `Llegó de ${t.from}`, p: l.p, n: l.n, a: b, b: p[to], wh: t.to });
+    });
+    toast(`${folio} recibido. Se restó en ${short(t.from)} y se sumó en ${short(t.to)}.`);
+    render();
+}
+function surtir(folio) {
+    const s = SOL.find((x) => x.folio === folio);
+    const plan = planSurtido(s);
+    const toSend = plan.filter((x) => x.surt > 0), toBuy = plan.filter((x) => x.falta > 0);
+    const links = [];
+    if (toSend.length) {
+        const tf = nextFolio('TR', TR);
+        TR.unshift({ folio: tf, date: '22/09/2026 ' + hhmm(), from: WH.gen, to: WH.fra, toBranch: BR.fra, status: 'Por recibir', recv: '', user: USER.gen, lines: toSend.map((x) => ({ p: x.p, n: x.surt })), links: [folio] });
+        links.push(tf);
+    }
+    if (toBuy.length) {
+        const of = nextFolio('OC', OC);
+        OC.unshift({ folio: of, date: '22/09/2026 ' + hhmm(), supplier: 'Sin proveedor', status: 'Por aprobar', origin: `Faltante de ${folio}`, wh: WH.gen, user: USER.gen, lines: toBuy.map((x) => ({ p: x.p, n: x.falta, rec: 0, c: prod(x.p).cost })), links: [folio] });
+        links.push(of);
+    }
+    s.lines = plan.map((x) => ({ p: x.p, pide: x.pide, surt: x.surt, falta: x.falta }));
+    s.status = toBuy.length ? 'Surtida parcial' : 'Surtida';
+    s.links = links;
+    toast(`Listo: ${links.join(' y ')}. ${toSend.length ? 'El traspaso va en camino a ' + BR.fra + '.' : ''}`);
+    render();
+}
+function approveOC(folio) {
+    const o = OC.find((x) => x.folio === folio);
+    const picked = o.supplier === 'Sin proveedor';
+    if (picked) o.supplier = 'Finca Argovia';
+    o.status = 'Aprobada';
+    toast(`${folio} aprobada${picked ? ' (el prototipo le asignó Finca Argovia)' : ''}. Queda esperando la mercancía.`);
+    render();
+}
+
+// -- Inicio --
+function inicioView() {
+    const wh = S.wh;
+    const low = P.filter((p) => level(p, wh) !== 'Suficiente');
+    const agot = low.filter((p) => level(p, wh) === 'Agotado');
+    const todo = [];
+    if (wh === 'gen') {
+        SOL.filter((s) => s.status === 'Por surtir').forEach((s) => todo.push(['warn', 'clipboard-list', `${s.folio}: ${s.from} espera surtido`, `${s.lines.length} productos · la necesita el ${s.need}`, 'Surtir', `openDoc('${s.folio}')`]));
+        OC.filter((o) => o.status === 'Por aprobar').forEach((o) => todo.push(['warn', 'shopping-cart', `${o.folio} espera aprobación`, `${o.origin} · ${o.lines.length} productos`, 'Revisar', `openDoc('${o.folio}')`]));
+        TR.filter((t) => t.status === 'Por recibir' && t.from === WH.gen).forEach((t) => todo.push(['info', 'truck', `${t.folio} va en camino a ${t.toBranch}`, `Salió el ${t.date}. Ellos confirman lo que llegó.`, 'Ver', `openDoc('${t.folio}')`]));
+        OC.filter((o) => o.status === 'Parcial').forEach((o) => {
+            const miss = o.lines.filter((l) => l.rec < l.n).map((l) => `${q(l.n - l.rec)} ${l.p}`).join(' y ');
+            todo.push(['info', 'package', `${o.folio} de ${o.supplier} llegó incompleta`, `Faltan ${miss}`, 'Recibir', `openDoc('${o.folio}')`]);
+        });
+    } else {
+        TR.filter((t) => t.status === 'Por recibir' && t.to === WH.fra).forEach((t) => todo.push(['warn', 'truck', `${t.folio} llegó de ${short(t.from)}: confirma lo que recibiste`, `${t.lines.length} productos · salió el ${t.date}`, 'Recibir', `openDoc('${t.folio}')`]));
+        SOL.filter((s) => s.from === BR.fra && s.status === 'Por surtir').forEach((s) => todo.push(['info', 'clipboard-list', `Tu solicitud ${s.folio} está por surtir`, `${s.lines.length} productos · la necesitas el ${s.need}`, 'Ver', `openDoc('${s.folio}')`]));
+    }
+    if (low.length) todo.push(['bad', 'triangle-alert', `${low.length} productos bajo mínimo`, agot.length ? `Agotado: ${agot.map((p) => p.name).join(', ')}` : 'Ninguno agotado todavía', 'Ver lista', 'showLow()']);
+    const cf = CF.find((c) => c.status === 'En conteo');
+    if (cf && wh === 'gen') {
+        const items = P.filter((p) => p.cat === cf.where);
+        const done = items.filter((p) => COUNT[p.id] !== undefined).length;
+        todo.push(['info', 'clipboard-check', `Conteo ${cf.folio} de ${cf.where} en curso`, `${done} de ${items.length} productos contados`, 'Seguir', `openDoc('${cf.folio}')`]);
+    }
+
+    const vGen = sum(P, (p) => p.gen * p.cost), vFra = sum(P, (p) => p.fra * p.cost), vTot = vGen + vFra;
+    const merma = {};
+    SAL.filter((s) => s.type === 'Merma' && s.status === 'Aplicada').forEach((s) => { merma[s.reason] = (merma[s.reason] || 0) + sum(s.lines, (l) => l.n * l.c); });
+    const mMax = Math.max(1, ...Object.values(merma));
+    const consumo = sum(SAL.filter((s) => s.type === 'Consumo interno' && s.status === 'Aplicada'), (s) => sum(s.lines, (l) => l.n * l.c));
+    const devol = sum(SAL.filter((s) => s.type === 'Devolución a proveedor' && s.status === 'Aplicada'), (s) => sum(s.lines, (l) => l.n * l.c));
+    const feed = K.filter((k) => k.wh === WH[wh]).slice(0, 5);
+
+    const quick = [
+        ['arrow-down-to-line', 'Registrar entrada', 'Compra o producción', "soon('Registrar entrada')"],
+        ['arrow-up-from-line', 'Registrar salida', 'Merma, consumo, devolución', 'openSalida()'],
+        ['arrow-left-right', 'Nuevo traspaso', 'Mandar a otra sucursal', "soon('Nuevo traspaso')"],
+        ['clipboard-check', 'Contar un anaquel', 'Conteo físico', "openDoc('CF-0004')"]
+    ];
+
+    return head(`Martes 22/09/2026 · ${BR[wh]}`, 'Inicio', `Lo que hay que atender hoy en ${WH[wh]}.`, '')
+        + note('<b>Pantalla nueva.</b> Antes el módulo abría directo en la tabla de productos. Ahora abre con lo pendiente y las cuatro acciones más usadas.')
+        + `<div class="quick">${quick.map(([i, t, s, fn]) => `<button class="qa" type="button" onclick="${fn}"><span class="ic">${ic(i)}</span><span><b>${t}</b><small>${s}</small></span></button>`).join('')}</div>
+        <div class="home">
+            <section class="panel">
+                <div class="panel-head"><h2>Pendientes</h2><small>${todo.length} por atender</small></div>
+                ${todo.length ? todo.map(([sev, i, t, s, btn, fn]) => `<div class="todo-row"><span class="sev ${sev}">${ic(i)}</span><div><b>${t}</b><small>${s}</small></div><button class="btn btn-sm" type="button" onclick="${fn}">${btn}</button></div>`).join('') : '<p class="empty">Nada pendiente.</p>'}
+            </section>
+            <div class="stack">
+                <section class="panel">
+                    <div class="panel-head"><h2>Valor del inventario</h2><small>a costo</small></div>
+                    ${[['gen', vGen], ['fra', vFra]].map(([k, v]) => `<div class="val-row"><span>${WH[k]}<small class="muted"> · ${BR[k]}</small></span><b>${money(v)}</b><span class="track"><span class="fill ${k === wh ? 'info' : ''}" style="width:${v / vTot * 100}%"></span></span></div>`).join('')}
+                </section>
+                <section class="panel">
+                    <div class="panel-head"><h2>Merma de septiembre</h2><small>${money(sum(Object.values(merma), (x) => x))}</small></div>
+                    ${Object.entries(merma).sort((a, b) => b[1] - a[1]).map(([r, v]) => `<div class="bar-row"><span>${r}</span><span class="track"><span class="fill bad" style="width:${v / mMax * 100}%"></span></span><span class="num">${money(v)}</span></div>`).join('')}
+                    <div class="panel-foot">Consumo interno (${money(consumo)}) y devoluciones (${money(devol)}) se reportan aparte. Los surtidos a sucursal ya no cuentan como merma.</div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head"><h2>Últimos movimientos</h2><button class="link" type="button" onclick="go('kardex')">Ver kardex ${ic('chevron-right')}</button></div>
+                    ${feed.map((k) => `<div class="feed-row">${mvIcon(k.t)}<div>${k.p}<small><span class="mono">${k.f}</span> · ${k.d.split(' ')[1]} · ${k.x}</small></div><span class="num">${qtyCell(k.n)}</span></div>`).join('') || '<p class="empty">Sin movimientos.</p>'}
+                </section>
+            </div>
+        </div>`;
+}
+function showLow() { S.exFilter = 'Bajo mínimo'; S.exSearch = ''; go('existencias'); }
+
+// -- Conteo físico --
+function conteoView() {
+    const cur = CF.find((c) => c.folio === S.sel.conteo) || CF[0];
+    S.sel.conteo = cur.folio;
+    const list = CF.map((c) => `<tr class="click${c.folio === cur.folio ? ' sel' : ''}" onclick="S.sel.conteo='${c.folio}'; render()"><td><span class="mono">${c.folio}</span><small>${c.where} · ${c.date.split(' ')[0]}</small></td><td>${pill(c.status)}</td></tr>`).join('');
+    let sheet;
+    if (cur.status === 'En conteo') {
+        const items = P.filter((p) => p.cat === cur.where);
+        sheet = `
+            <div class="d-head"><div class="d-folio"><span class="mono">${cur.folio}</span>${pill(cur.status)}</div><p class="d-title">${cur.where} · ${WH.gen}</p></div>
+            ${hint('<b>Conteo a ciegas:</b> cuenta lo que ves en el anaquel. La cantidad del sistema aparece hasta que capturas la tuya, para no contar "a lo que dice la pantalla".')}
+            <div class="tbl-wrap"><table class="tbl compact">
+                ${thead([['Producto'], ['Contado', 'num'], ['Sistema', 'num'], ['Diferencia', 'num'], ['Valor', 'num']])}
+                <tbody>${items.map((p) => `<tr><td>${p.name}<small>${sku(p)} · ${p.unit}</small></td>
+                    <td class="num"><input class="cnt" id="cnt-${p.id}" type="number" inputmode="decimal" min="0" step="0.5" value="${COUNT[p.id] !== undefined ? COUNT[p.id] : ''}" oninput="setCount(${p.id}, this.value)" aria-label="Cantidad contada de ${p.name}"></td>
+                    <td class="num" id="sys-${p.id}"></td><td class="num" id="dif-${p.id}"></td><td class="num" id="val-${p.id}"></td></tr>`).join('')}</tbody>
+            </table></div>
+            <div class="sum-row" id="cnt-sum"></div>`;
+    } else {
+        sheet = `
+            <div class="d-head"><div class="d-folio"><span class="mono">${cur.folio}</span>${pill(cur.status)}</div><p class="d-title">${cur.where} · ${WH.gen}</p></div>
+            <dl class="meta"><div><dt>Cerrado</dt><dd>${cur.date}</dd></div><div><dt>Resultado</dt><dd>${cur.result}</dd></div></dl>
+            ${cur.adj ? `<div class="links">${ic('link-2')}<span>Ajuste generado</span>${docLink(cur.adj)}</div>` : ''}
+            <p class="empty">El conteo está cerrado. Las diferencias ya quedaron en el kardex como ajuste.</p>`;
+    }
+    return head('Operación', 'Conteo físico', 'Cuenta un anaquel y el sistema genera el ajuste con las diferencias.', `<button class="btn btn-primary" type="button" onclick="soon('Nuevo conteo')">${ic('plus')}Nuevo conteo</button>`)
+        + note('<b>Pantalla nueva.</b> Hoy la única forma de corregir el stock es inventar una entrada o una salida. Aquí la diferencia genera un <b>Ajuste (AJ)</b> con su conteo de respaldo.')
+        + `<div class="split wide">
+            <section class="panel"><div class="panel-head"><h2>Conteos</h2><small>por anaquel</small></div><div class="tbl-wrap"><table class="tbl"><tbody>${list}</tbody></table></div></section>
+            <section class="panel" id="sheet">${sheet}</section>
+        </div>`;
+}
+function setCount(id, v) {
+    if (v === '' || isNaN(parseFloat(v))) delete COUNT[id]; else COUNT[id] = parseFloat(v);
+    fillCount();
+}
+function fillCount() {
+    const cur = CF.find((c) => c.folio === S.sel.conteo);
+    if (!cur || cur.status !== 'En conteo' || !$('#cnt-sum')) return;
+    const items = P.filter((p) => p.cat === cur.where);
+    let done = 0, diffs = 0, total = 0;
+    items.forEach((p) => {
+        const c = COUNT[p.id];
+        if (c === undefined) {
+            $('#sys-' + p.id).innerHTML = '<span class="muted">oculto</span>';
+            $('#dif-' + p.id).innerHTML = '<span class="muted">—</span>';
+            $('#val-' + p.id).innerHTML = '<span class="muted">—</span>';
+            return;
+        }
+        done++;
+        const d = c - p.gen, v = d * p.cost;
+        if (d !== 0) { diffs++; total += v; }
+        $('#sys-' + p.id).textContent = q(p.gen);
+        $('#dif-' + p.id).innerHTML = d === 0 ? '<span class="t-ok">Cuadra</span>' : `<span class="${d > 0 ? 't-warn' : 't-bad'}">${sq(d)}</span>`;
+        $('#val-' + p.id).innerHTML = d === 0 ? '<span class="muted">—</span>' : smoney(v);
+    });
+    const pend = items.length - done;
+    $('#cnt-sum').innerHTML = `
+        <div><span>Contados</span><b>${done} de ${items.length}</b></div>
+        <div><span>Con diferencia</span><b>${diffs}</b></div>
+        <div><span>Valor del ajuste</span><b class="${total < 0 ? 't-bad' : total > 0 ? 't-warn' : ''}">${smoney(total)}</b></div>
+        <button class="btn btn-primary" type="button" ${pend ? 'disabled' : ''} onclick="closeCount()" title="${pend ? `Faltan ${pend} productos por contar` : ''}">${ic('check')}${pend ? `Faltan ${pend} por contar` : 'Cerrar y generar ajuste'}</button>`;
+    paint();
+}
+function closeCount() {
+    const cur = CF.find((c) => c.folio === S.sel.conteo);
+    const items = P.filter((p) => p.cat === cur.where);
+    const aj = 'AJ-0004';
+    let diffs = 0, total = 0;
+    items.forEach((p) => {
+        const d = COUNT[p.id] - p.gen;
+        if (d === 0) return;
+        diffs++; total += d * p.cost;
+        const a = p.gen; p.gen = COUNT[p.id]; p.last = '22/09/2026';
+        kpush({ f: aj, t: 'Ajuste', x: `Conteo ${cur.folio}`, p: p.name, n: d, a, b: p.gen, wh: WH.gen });
+    });
+    cur.status = 'Cerrado';
+    cur.date = '22/09/2026 ' + hhmm();
+    cur.result = diffs ? `${aj} · ${diffs} diferencias · ${smoney(total)}` : 'Sin diferencias';
+    cur.adj = diffs ? aj : '';
+    toast(diffs ? `Conteo cerrado. Se generó ${aj} con ${diffs} renglones (${smoney(total)}).` : 'Conteo cerrado sin diferencias.');
+    render();
+}
+
+// -- Existencias --
+function existView() {
+    const wh = S.wh;
+    const rows = P.map((p) => ({ p, s: p[wh], m: minOf(p, wh), lv: level(p, wh), d: daysSince(p.last) }));
+    const F = { Todos: () => true, 'Bajo mínimo': (r) => r.lv === 'Bajo mínimo', Agotado: (r) => r.lv === 'Agotado', 'Sin movimiento': (r) => r.d >= 20 };
+    const list = rows.filter(F[S.exFilter]);
+    const chips = Object.keys(F).map((c) => `<button class="chip ${c === S.exFilter ? 'on' : ''}" type="button" onclick="S.exFilter='${c}'; render()">${c === 'Sin movimiento' ? 'Sin movimiento 20+ días' : c}<span class="n">${rows.filter(F[c]).length}</span></button>`).join('');
+    const value = sum(rows, (r) => r.s * r.p.cost);
+    return head('Consulta', 'Existencias', `Cuánto hay de cada producto en ${WH[wh]}. Toca un renglón para ver su kardex.`, `<button class="btn" type="button" onclick="soon('Exportar a Excel')">${ic('download')}Exportar</button>`)
+        + note('<b>Antes se llamaba "Stock".</b> Los filtros de un clic son las preguntas de todos los días: qué está bajo, qué se acabó y qué no se mueve.')
+        + `<section class="panel list">
+            <div class="toolbar">
+                <label class="field" for="ex-wh">${ic('warehouse')}<select id="ex-wh" onchange="setWh(this.value)">${Object.keys(WH).map((k) => `<option value="${k}" ${k === wh ? 'selected' : ''}>${WH[k]}</option>`).join('')}</select></label>
+                <label class="field" for="ex-q">${ic('search')}<input id="ex-q" type="search" placeholder="Producto o SKU" value="${S.exSearch}" oninput="S.exSearch=this.value; filterEx()"></label>
+                <div class="chips">${chips}</div>
+            </div>
+            <div class="tbl-wrap"><table class="tbl">
+                ${thead([['Producto'], ['Categoría'], ['Existencia', 'num'], ['Mínimo', 'num'], ['Nivel'], ['Último movimiento'], ['Valor', 'num']])}
+                <tbody id="tb-ex">${list.map((r) => {
+                    const tone = { Agotado: 'bad', 'Bajo mínimo': 'warn', Suficiente: 'ok' }[r.lv];
+                    return `<tr class="click" data-text="${(r.p.name + ' ' + sku(r.p)).toLowerCase()}" onclick="openDrawer(${r.p.id})">
+                        <td>${r.p.name}<small class="mono">${sku(r.p)}</small></td><td>${r.p.cat}</td>
+                        <td class="num"><b>${q(r.s)}</b><small>${r.p.unit}</small></td><td class="num">${q(r.m)}</td>
+                        <td><span class="lvl"><span class="track"><span class="fill ${tone}" style="width:${Math.min(100, r.s / (r.m * 2) * 100)}%"></span></span>${pill(r.lv)}</span></td>
+                        <td>${r.p.last}<small>${r.d === 0 ? 'hoy' : r.d === 1 ? 'ayer' : 'hace ' + r.d + ' días'}</small></td>
+                        <td class="num">${money(r.s * r.p.cost)}</td></tr>`;
+                }).join('')}</tbody>
+            </table></div>
+            ${list.length ? '' : '<p class="empty">Ningún producto con este filtro.</p>'}
+            <div class="panel-foot">Valor total en ${WH[wh]}: <b>${money(value)}</b> · ${rows.length} productos</div>
+        </section>`;
+}
+function filterEx() {
+    const v = S.exSearch.trim().toLowerCase();
+    document.querySelectorAll('#tb-ex tr').forEach((tr) => { tr.hidden = !!v && !tr.dataset.text.includes(v); });
+}
+function openDrawer(id) {
+    const p = P.find((x) => x.id === id);
+    const ks = K.filter((k) => k.p === p.name);
+    $('#drawer').innerHTML = `
+        <div class="m-head"><div><div class="eyebrow">${p.cat} · <span class="mono">${sku(p)}</span></div><h2 id="drawer-title" style="margin-top:2px">${p.name}</h2></div>
+            <button class="icon-btn" type="button" id="drawer-close" aria-label="Cerrar" onclick="closeDrawer()">${ic('x')}</button></div>
+        <div class="dr-stats">${['gen', 'fra'].map((k) => `<div class="dr-stat"><span>${short(WH[k])}</span><b>${q(p[k])} <small class="muted" style="font-size:12px">${p.unit}</small></b>${pill(level(p, k))}<small class="muted" style="display:block;margin-top:4px">Mínimo ${minOf(p, k)}</small></div>`).join('')}</div>
+        <div class="panel-head"><h2>Kardex</h2><small>costo ${money(p.cost)} por ${p.unit}</small></div>
+        ${ks.length ? ks.map((k) => `<div class="feed-row">${mvIcon(k.t)}<div>${k.x}<small><span class="mono">${k.f}</span> · ${k.d} · ${short(k.wh)}</small></div><span class="num">${qtyCell(k.n)}<small class="muted">${q(k.a)} → ${q(k.b)}</small></span></div>`).join('') : '<p class="empty">Sin movimientos recientes.</p>'}`;
+    $('#drawer').hidden = false;
+    $('#scrim-d').hidden = false;
+    paint();
+    $('#drawer-close').focus();
+}
+function closeDrawer() { $('#drawer').hidden = true; $('#scrim-d').hidden = true; }
+
+// -- Kardex --
+function kardexView() {
+    const types = ['Todos', 'Entrada', 'Salida', 'Traspaso', 'Ajuste'];
+    const base = K.filter((k) => k.wh === WH[S.wh]);
+    const rows = base.filter((k) => S.kxFilter === 'Todos' || k.t === S.kxFilter);
+    return head('Consulta', 'Kardex', `Cada movimiento de ${WH[S.wh]}, con cuánto había antes y cuánto quedó.`, '')
+        + note('<b>Antes se llamaba "Movimientos".</b> Es la bitácora que respalda cada número de Existencias: si el stock no cuadra, aquí se ve en qué documento cambió.')
+        + `<section class="panel list">
+            <div class="toolbar"><div class="chips">${types.map((t) => `<button class="chip ${t === S.kxFilter ? 'on' : ''}" type="button" onclick="S.kxFilter='${t}'; render()">${t}<span class="n">${t === 'Todos' ? base.length : base.filter((k) => k.t === t).length}</span></button>`).join('')}</div></div>
+            <div class="tbl-wrap"><table class="tbl">
+                ${thead([['Fecha'], ['Documento'], ['Movimiento'], ['Producto'], ['Cantidad', 'num'], ['Antes → después', 'num']])}
+                <tbody>${rows.map((k) => `<tr><td>${k.d.split(' ')[0]}<small>${k.d.split(' ')[1]}</small></td><td>${docLink(k.f)}</td><td><span class="mv-cell">${mvIcon(k.t)}<span>${k.t}<small>${k.x}</small></span></span></td><td>${prodCell(k.p)}</td><td class="num">${qtyCell(k.n)}</td><td class="num">${q(k.a)} → <b>${q(k.b)}</b></td></tr>`).join('')}</tbody>
+            </table></div>
+            ${rows.length ? '' : '<p class="empty">Sin movimientos de este tipo.</p>'}
+        </section>`;
+}
+
+// -- Productos --
+function productosView() {
+    return head('Configuración', 'Productos', `${P.length} productos activos. El SKU se arma solo con el id.`, `<button class="btn btn-primary" type="button" onclick="soon('Nuevo producto')">${ic('plus')}Nuevo producto</button>`)
+        + note('<b>Antes vivía en la pantalla de entrada del módulo y no aparecía en el menú.</b> Ahora tiene su lugar en Configuración, junto a los catálogos.')
+        + `<section class="panel list">
+            <div class="toolbar"><label class="field" for="pr-q">${ic('search')}<input id="pr-q" type="search" placeholder="Producto o SKU" oninput="filterRows('pr', this.value)"></label></div>
+            <div class="tbl-wrap"><table class="tbl">
+                ${thead([['SKU'], ['Producto'], ['Categoría'], ['Unidad'], ['Costo', 'num'], ['Mínimo', 'num'], ['Estado']])}
+                <tbody id="tb-pr">${P.map((p) => `<tr class="click" data-text="${(p.name + ' ' + sku(p)).toLowerCase()}" onclick="openDrawer(${p.id})"><td class="mono">${sku(p)}</td><td>${p.name}</td><td>${p.cat}</td><td>${p.unit}</td><td class="num">${money(p.cost)}</td><td class="num">${q(p.min)}</td><td>${pill('Activo')}</td></tr>`).join('')}</tbody>
+            </table></div>
+        </section>`;
+}
+
+// -- Catálogos --
+const unitRows = () => { const c = {}; P.forEach((p) => { c[p.unit] = (c[p.unit] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([u, n]) => [u, `${n} productos`, 'Activo']); };
+const catRows = () => { const c = {}; P.forEach((p) => { c[p.cat] = (c[p.cat] || 0) + 1; }); return [...Object.entries(c).map(([k, n]) => [k, `${n} productos`, 'Activo']), ['REFRIGERADOR', '—', 'Activo'], ['CONGELADOR', '—', 'Activo'], ['ANAQUEL 4', '—', 'Activo']]; };
+const CAT = [
+    { id: 'almacenes', g: 'Ubicación', label: 'Almacenes', icon: 'warehouse', cols: ['Nombre', 'Sucursal', 'Estado'], rows: () => [['Almacén General', 'Reginas Guadalupe', 'Activo'], ['Almacen Franquicia', 'Reginas cafeto', 'Activo']] },
+    { id: 'areas', g: 'Ubicación', label: 'Áreas', icon: 'thermometer-snowflake', cols: ['Nombre', 'Para qué', 'Estado'], rows: () => [['Seco', 'Anaqueles', 'Activo'], ['Refrigerado', 'Lácteos y cremas', 'Activo'], ['Congelado', 'Masas y bases', 'Activo']] },
+    { id: 'categorias', g: 'Ubicación', label: 'Categorías', icon: 'tags', cols: ['Nombre', 'Productos', 'Estado'], rows: catRows, note: 'Hoy las categorías son lugares (ANAQUEL 1, REFRIGERADOR). Propuesta: separar <b>ubicación</b> (dónde está) de <b>categoría</b> (qué es: harinas, lácteos, chocolates). Así un producto cambia de anaquel sin cambiar de categoría.' },
+    { id: 'proveedores', g: 'Compras', label: 'Proveedores', icon: 'truck', cols: ['Nombre', 'Última orden', 'Estado'], rows: () => [['Walmart', 'OC-0009 · 20/09/2026', 'Activo'], ['Finca Argovia', 'OC-0008 · 17/09/2026', 'Activo']] },
+    { id: 'origenes', g: 'Compras', label: 'Orígenes de entrada', icon: 'log-in', cols: ['Nombre', 'Para qué', 'Estado'], rows: () => [['Compra', 'Mercancía de proveedor', 'Activo'], ['Orden de producción', 'Lo que se prepara en cocina', 'Activo'], ['Devolución', 'Regresa de una sucursal o cliente', 'Activo'], ['Proveedor', 'Duplica a «Compra»', 'Se quita'], ['Ajuste', 'Ahora lo genera el conteo físico', 'Se quita']], note: 'Dos orígenes se van: «Proveedor» repite a «Compra» y «Ajuste» ahora sale del conteo físico.' },
+    { id: 'motivos', g: 'Salidas', label: 'Motivos de salida', icon: 'log-out', cols: ['Motivo', 'Tipo', 'Estado'], rows: () => [['Caducidad', tag('Merma'), 'Activo'], ['Producto dañado', tag('Merma'), 'Activo'], ['Robo / Faltante', tag('Merma'), 'Activo'], ['Merma', tag('Merma'), 'Activo'], ['Consumo interno', tag('Consumo interno'), 'Activo'], ['Devolución a proveedor', tag('Devolución a proveedor'), 'Activo'], ['Solicitud', 'Ahora es traspaso', 'Se quita'], ['Surtido a sucursal', 'Ahora es traspaso', 'Se quita'], ['Pedido complementario', 'Ahora es traspaso', 'Se quita']], note: 'Cada motivo pertenece a un tipo de salida. Los tres de abajo movían producto entre sucursales: eso ahora es un traspaso y deja de contar como merma.' },
+    { id: 'unidades', g: 'Medidas', label: 'Unidades', icon: 'ruler', cols: ['Nombre', 'En uso', 'Estado'], rows: unitRows, note: 'Se muestran las que usan los productos de este ejemplo.' },
+    { id: 'estados', g: 'Sistema', label: 'Estados de traspaso', icon: 'lock', gone: true, cols: ['Estado', 'Quién lo define', 'Estado'], rows: () => [['Creado', 'Sistema', 'Se quita'], ['Enviado', 'Sistema', 'Se quita'], ['Recibido', 'Sistema', 'Se quita']], note: '<b>Sale de Catálogos.</b> Los estados los define el sistema. Hoy se pueden editar y desactivar desde aquí, y eso rompe el flujo de traspasos.' }
+];
+function catalogosView() {
+    const cur = CAT.find((c) => c.id === S.cat) || CAT[0];
+    let lastG = '';
+    const list = CAT.map((c) => {
+        const g = c.g !== lastG ? `<div class="nav-label">${c.g}</div>` : '';
+        lastG = c.g;
+        const n = c.rows().filter((r) => r[2] !== 'Se quita').length;
+        return `${g}<button class="cat-item ${c.id === cur.id ? 'on' : ''} ${c.gone ? 'gone' : ''}" type="button" onclick="S.cat='${c.id}'; render()">${ic(c.icon)}${c.label}<span class="nav-count ${c.gone ? 'bad' : ''}">${c.gone ? 'Se va' : n}</span></button>`;
+    }).join('');
+    return head('Configuración', 'Catálogos', 'Las listas que usan los formularios. Se tocan poco, por eso viven juntas.', `<button class="btn btn-primary" type="button" onclick="soon('Agregar a ${cur.label}')">${ic('plus')}Agregar</button>`)
+        + note('<b>Nueve pestañas pasan a ser una lista agrupada.</b> Productos tiene su propia pantalla. Lo que el sistema necesita para funcionar ya no se edita aquí.')
+        + `<div class="split wide">
+            <section class="panel"><div class="cat-list">${list}</div></section>
+            <section class="panel">
+                <div class="panel-head"><h2>${cur.label}</h2><small>${cur.g}</small></div>
+                ${cur.note ? hint(cur.note, cur.gone ? 'warn' : '') : ''}
+                <div class="tbl-wrap" style="margin-top:12px"><table class="tbl">${thead(cur.cols.map((c) => [c]))}
+                    <tbody>${cur.rows().map((r) => `<tr class="${r[2] === 'Se quita' ? 'gone' : ''}"><td>${r[0]}</td><td>${r[1]}</td><td>${pill(r[2])}</td></tr>`).join('')}</tbody>
+                </table></div>
+            </section>
+        </div>`;
+}
+
+// -- Nueva salida (formulario por pasos) --
+const M = { type: null, reason: '', lines: [], photo: false };
+const SAL_TYPES = [
+    ['Merma', 'package-x', 'Se perdió: caducó, se dañó o faltó.'],
+    ['Consumo interno', 'chef-hat', 'Se usó en cocina o producción.'],
+    ['Devolución a proveedor', 'undo-2', 'Regresa al proveedor.']
+];
+const REASONS = { Merma: ['Caducidad', 'Producto dañado', 'Robo / Faltante', 'Merma'], 'Consumo interno': ['Cocina', 'Producción', 'Degustación'], 'Devolución a proveedor': ['Walmart', 'Finca Argovia'] };
+function openSalida() {
+    M.type = null; M.reason = ''; M.photo = false;
+    M.lines = [{ p: 'JARABE 3 LECHES', n: 2 }, { p: 'CANELA EN POLVO', n: 3 }];
+    drawSalida();
+    $('#modal').hidden = false;
+    paint();
+}
+function drawSalida() {
+    const step2 = M.type ? `
+        <div>
+            <p class="step-title">2 · Detalle</p>
+            <div class="f-grid">
+                <div class="f"><label for="ns-reason">${M.type === 'Devolución a proveedor' ? 'Proveedor' : 'Motivo'}</label>
+                    <select class="inp" id="ns-reason" onchange="M.reason=this.value">${REASONS[M.type].map((r) => `<option ${r === M.reason ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+                <div class="f"><span class="lbl">Almacén</span><div class="inp" style="background:var(--surface-2)">${WH[S.wh]}</div></div>
+            </div>
+        </div>
+        <div>
+            <p class="step-title">3 · Productos</p>
+            <div style="display:flex;flex-direction:column;gap:12px">
+                ${M.lines.map((l, i) => `
+                    <div class="line-row">
+                        <select class="inp" id="ns-p-${i}" aria-label="Producto ${i + 1}" onchange="M.lines[${i}].p=this.value; checkSalida()">${P.map((p) => `<option ${p.name === l.p ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
+                        <input class="inp num" id="ns-q-${i}" type="number" min="0" step="0.5" inputmode="decimal" value="${l.n}" aria-label="Cantidad ${i + 1}" oninput="M.lines[${i}].n=parseFloat(this.value)||0; checkSalida()">
+                        <div class="line-meta" id="ns-m-${i}"></div>
+                    </div>`).join('')}
+                <button class="link" type="button" onclick="M.lines.push({ p: 'MIEL', n: 1 }); drawSalida()">${ic('plus')}Agregar producto</button>
+            </div>
+        </div>
+        ${M.type === 'Merma' ? `<div class="f"><span class="lbl">Foto de evidencia (obligatoria en merma)</span>
+            <div class="aside-tip"><button class="btn btn-sm" type="button" id="ns-photo" onclick="M.photo=!M.photo; drawSalida()">${ic('camera')}${M.photo ? 'Quitar foto' : 'Adjuntar foto'}</button>${M.photo ? '<span class="mono">foto-merma.jpg</span>' : '<span>Sin foto no se puede registrar la merma.</span>'}</div></div>` : ''}` : '';
+    $('#modal-box').innerHTML = `
+        <div class="m-head"><h2 id="modal-title">Registrar salida</h2><button class="icon-btn" type="button" aria-label="Cerrar" onclick="closeModal()">${ic('x')}</button></div>
+        <div class="m-body">
+            <div>
+                <p class="step-title">1 · ¿Qué tipo de salida es?</p>
+                <div class="types">${SAL_TYPES.map(([t, i, d]) => `<button class="type ${M.type === t ? 'on' : ''}" type="button" aria-pressed="${M.type === t}" onclick="pickType('${t}')">${ic(i)}<b>${t}</b><small>${d}</small></button>`).join('')}</div>
+                <p class="aside-tip" style="margin:10px 0 0">${ic('arrow-left-right')}¿Vas a mandar producto a otra sucursal? Eso es un <button class="link" type="button" onclick="closeModal(); go('traspasos')">traspaso</button>.</p>
+            </div>
+            ${step2}
+        </div>
+        <div class="m-foot"><button class="btn" type="button" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" type="button" id="ns-save" onclick="saveSalida()" disabled>${ic('check')}Registrar salida</button></div>`;
+    paint();
+    checkSalida();
+}
+function pickType(t) { M.type = t; M.reason = REASONS[t][0]; drawSalida(); }
+function checkSalida() {
+    let ok = !!M.type;
+    M.lines.forEach((l, i) => {
+        const el = $('#ns-m-' + i), inp = $('#ns-q-' + i);
+        if (!el) return;
+        const p = prod(l.p), disp = p[S.wh];
+        const bad = l.n > disp, zero = !(l.n > 0);
+        el.className = 'line-meta' + (bad ? ' err' : '');
+        el.textContent = bad ? `Solo hay ${q(disp)} ${p.unit} en ${WH[S.wh]}. No se puede sacar más de lo que hay.` : `Hay ${q(disp)} ${p.unit} · valor ${money(l.n * p.cost)}`;
+        inp.classList.toggle('err', bad);
+        if (bad || zero) ok = false;
+    });
+    if (M.type === 'Merma' && !M.photo) ok = false;
+    const b = $('#ns-save');
+    if (b) b.disabled = !ok;
+}
+function saveSalida() {
+    const folio = nextFolio('SAL', SAL);
+    const lines = M.lines.map((l) => ({ p: l.p, n: l.n, c: prod(l.p).cost }));
+    SAL.unshift({ folio, date: '22/09/2026 ' + hhmm(), type: M.type, reason: M.reason, status: 'Aplicada', wh: WH[S.wh], user: USER[S.wh], note: 'Registrada desde el prototipo', photo: M.photo ? 'foto-merma.jpg' : null, lines });
+    lines.forEach((l) => { const p = prod(l.p), a = p[S.wh]; p[S.wh] = a - l.n; p.last = '22/09/2026'; kpush({ f: folio, t: 'Salida', x: `${M.type} · ${M.reason}`, p: l.p, n: -l.n, a, b: p[S.wh], wh: WH[S.wh] }); });
+    closeModal();
+    S.sel.salidas = folio;
+    S.filter.salidas = 'Todos';
+    toast(`${folio} registrada. El stock ya se descontó.`);
+    go('salidas');
+}
+function closeModal() { $('#modal').hidden = true; }
+
+// -- Navegación --
+const NAV = [
+    { id: 'inicio', label: 'Inicio', icon: 'house' },
+    { group: 'Operación' },
+    { id: 'entradas', label: 'Entradas', icon: 'arrow-down-to-line', count: () => ENT.filter((e) => e.status === 'Borrador').length },
+    { id: 'salidas', label: 'Salidas', icon: 'arrow-up-from-line' },
+    { id: 'traspasos', label: 'Traspasos', icon: 'arrow-left-right', count: () => TR.filter((t) => t.status === 'Por recibir').length, tone: 'warn' },
+    { id: 'conteo', label: 'Conteo físico', icon: 'clipboard-check', badge: 'Nuevo' },
+    { group: 'Abastecimiento' },
+    { id: 'solicitudes', label: 'Solicitudes', icon: 'clipboard-list', count: () => SOL.filter((s) => s.status === 'Por surtir').length, tone: 'warn' },
+    { id: 'ordenes', label: 'Órdenes de compra', icon: 'shopping-cart', count: () => OC.filter((o) => o.status === 'Por aprobar' || o.status === 'Parcial').length },
+    { group: 'Consulta' },
+    { id: 'existencias', label: 'Existencias', icon: 'boxes', count: () => P.filter((p) => level(p, S.wh) !== 'Suficiente').length, tone: 'bad' },
+    { id: 'kardex', label: 'Kardex', icon: 'history' },
+    { group: 'Configuración' },
+    { id: 'productos', label: 'Productos', icon: 'package' },
+    { id: 'catalogos', label: 'Catálogos', icon: 'settings-2' }
+];
+const VIEWS = {
+    inicio: inicioView, entradas: () => docView('entradas'), salidas: () => docView('salidas'), traspasos: () => docView('traspasos'),
+    conteo: conteoView, solicitudes: () => docView('solicitudes'), ordenes: () => docView('ordenes'),
+    existencias: existView, kardex: kardexView, productos: productosView, catalogos: catalogosView
+};
+function renderNav() {
+    $('#nav').innerHTML = NAV.map((n) => {
+        if (n.group) return `<div class="nav-label">${n.group}</div>`;
+        const c = n.count ? n.count() : 0;
+        const badge = n.badge ? `<span class="nav-count new">${n.badge}</span>` : c ? `<span class="nav-count ${n.tone || ''}">${c}</span>` : '';
+        return `<a class="nav-item ${S.view === n.id ? 'active' : ''}" href="#${n.id}" ${S.view === n.id ? 'aria-current="page"' : ''} onclick="closeNav()">${ic(n.icon)}<span>${n.label}</span>${badge}</a>`;
+    }).join('');
+}
+function render(top) {
+    if (!VIEWS[S.view]) S.view = 'inicio';
+    $('#view').innerHTML = VIEWS[S.view]();
+    renderNav();
+    $('#ctx-wh').value = S.wh;
+    paint();
+    if (S.view === 'conteo') fillCount();
+    if (S.view === 'existencias' && S.exSearch) filterEx();
+    if (top) window.scrollTo(0, 0);
+}
+function go(v) { closeNav(); if (location.hash === '#' + v) { S.view = v; render(true); } else location.hash = v; }
+function openDoc(f) {
+    const v = ROUTE[f.split('-')[0]];
+    if (!v) return;
+    if (v === 'conteo') S.sel.conteo = f;
+    else if (v !== 'kardex') { S.sel[v] = f; S.filter[v] = 'Todos'; }
+    closeDrawer();
+    go(v);
+}
+function setWh(v) { S.wh = v; render(); }
+function toggleNav() { const open = !document.body.classList.contains('nav-open'); document.body.classList.toggle('nav-open', open); $('#nav-scrim').hidden = !open; }
+function closeNav() { document.body.classList.remove('nav-open'); $('#nav-scrim').hidden = true; }
+function toggleNotes() {
+    S.notes = !S.notes;
+    document.body.classList.toggle('hide-notes', !S.notes);
+    $('#notes-btn').setAttribute('aria-pressed', String(S.notes));
+    try { localStorage.setItem('almacen-v2:notes', S.notes ? 'on' : 'off'); } catch (e) { /* sin storage */ }
+}
+let toastTimer;
+function toast(msg) {
+    const t = $('#toast');
+    t.innerHTML = ic('circle-check') + '<span>' + msg + '</span>';
+    t.hidden = false;
+    paint();
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 4200);
+}
+function soon(what) { toast(`${what}: no está armado en el prototipo. Usaría el mismo formulario por pasos que «Registrar salida».`); }
+
+$('#global-q').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const v = e.target.value.trim();
+    if (!v) return;
+    const up = v.toUpperCase();
+    const all = [...ENT, ...SAL, ...TR, ...SOL, ...OC, ...CF].map((x) => x.folio);
+    if (all.includes(up)) { openDoc(up); e.target.value = ''; return; }
+    if (P.some((p) => p.name.includes(up) || sku(p) === up)) { S.exSearch = v; S.exFilter = 'Todos'; e.target.value = ''; go('existencias'); return; }
+    toast(`No encontré «${v}». Prueba con un folio (TR-0014) o un producto (NUEZ).`);
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('#modal').hidden) closeModal();
+    else if (!$('#drawer').hidden) closeDrawer();
+    else closeNav();
+});
+window.addEventListener('hashchange', () => { S.view = location.hash.slice(1) || 'inicio'; render(true); });
+
+// -- Arranque --
+document.body.classList.toggle('hide-notes', !S.notes);
+$('#notes-btn').setAttribute('aria-pressed', String(S.notes));
+S.view = location.hash.slice(1) || 'inicio';
+render();
+</script>

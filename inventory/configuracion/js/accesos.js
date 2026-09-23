@@ -82,7 +82,7 @@ class App extends Templates {
                     sucursal${total !== 1 ? 'es' : ''}
                 </p>
             </div>
-            <button class="bg-[#C05A40] hover:opacity-90 text-white font-semibold px-4 py-2 rounded transition flex items-center"
+            <button class="bg-blue-600 hover:opacity-90 text-white font-semibold px-4 py-2 rounded transition flex items-center"
                 onclick="app.render()">
                 <i class="icon-arrows-cw mr-2"></i>Actualizar
             </button>
@@ -336,7 +336,7 @@ class Users extends Templates {
             const checked = selectedBranchIds.includes(Number(branch.id));
             const $lbl = $('<label>', {
                 class: 'flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full border text-sm font-medium transition ' +
-                       (checked ? 'bg-[#C05A40] text-white border-[#C05A40]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#C05A40]')
+                       (checked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-600')
             });
             const $chk = $('<input>', {
                 type: 'checkbox',
@@ -351,9 +351,9 @@ class Users extends Templates {
                 const nowChecked = !$input.prop('checked');
                 $input.prop('checked', nowChecked);
                 if (nowChecked) {
-                    $(this).addClass('bg-[#C05A40] text-white border-[#C05A40]').removeClass('bg-white text-gray-600 border-gray-300');
+                    $(this).addClass('bg-blue-600 text-white border-blue-600').removeClass('bg-white text-gray-600 border-gray-300');
                 } else {
-                    $(this).removeClass('bg-[#C05A40] text-white border-[#C05A40]').addClass('bg-white text-gray-600 border-gray-300');
+                    $(this).removeClass('bg-blue-600 text-white border-blue-600').addClass('bg-white text-gray-600 border-gray-300');
                 }
                 const ids = $form.find('.branch-check:checked').map(function () { return $(this).val(); }).get();
                 $form.find('[name="branch_ids"]').val(JSON.stringify(ids));

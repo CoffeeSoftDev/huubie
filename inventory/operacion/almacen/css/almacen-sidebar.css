@@ -8,19 +8,11 @@
  * ───────────────────────────────────────────────────────────── */
 
 /* ─────────────────────────────────────────────────────────────
- *  Tema oscuro — Contenedor del módulo como "card" del Visor
- *  En dark, dark-mode.css pinta [id*="container"] con #111928 (igual
- *  que el fondo) y SIN borde, por lo que el contenedor se funde. Le
- *  devolvemos el look de card del visor: fondo #1F2A37 + borde
- *  #374151 + esquinas redondeadas + sombra suave.
+ *  Tema oscuro: aquí vivía un parche que convertía #containeralmacenMain en
+ *  tarjeta. Ya no hace falta —y duplicaba tarjeta y padding—: dark-mode.css
+ *  pinta el contenedor del módulo (#main__content > div) como el de Huubie,
+ *  bg-card + rounded-lg + p-3, igual para todas las páginas.
  * ───────────────────────────────────────────────────────────── */
-body.dark-mode #containeralmacenMain {
-    background-color: #1F2A37 !important;
-    border: 1px solid #374151 !important;
-    border-radius: 0.75rem !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.30) !important;
-    padding: 14px !important;
-}
 
 /* ─────────────────────────────────────────────────────────────
  *  Aquí vivía un `main > #main__content > #root { flex: 0 0 auto }`.

@@ -259,7 +259,7 @@ class App extends Templates {
         }[c]));
 
         const f         = this.getFilters();
-        const titleHtml = `${SAMPLE_VIEW_HEADER_RESUMEN.title} <span class="font-bold" style="color:#C05A40;">&middot; ${esc(_fmtFechaLarga(f.dia))}</span>`;
+        const titleHtml = `${SAMPLE_VIEW_HEADER_RESUMEN.title} <span class="font-bold" style="color:rgb(var(--brand-600, 192 90 64));">&middot; ${esc(_fmtFechaLarga(f.dia))}</span>`;
 
         resumenView.renderHeader(Object.assign({}, SAMPLE_VIEW_HEADER_RESUMEN, { titleHtml }));
     }
@@ -410,7 +410,7 @@ class Resumen extends Templates {
                 data: {
                     value:    _fmtMX(t.porFacturar),
                     subtitle: 'meta menos facturado',
-                    color:    'text-[#C05A40]'
+                    color:    'text-blue-600'
                 }
             }
         ]);
@@ -579,7 +579,7 @@ class ResumenView extends Templates {
         this.panelFoot({
             parent: 'detailFoot',
             json: [
-                { label: 'Suma seleccionada', value: _fmtMX(t.sumaSel),  valueClass: 'text-[11px] font-bold text-[#C05A40]' },
+                { label: 'Suma seleccionada', value: _fmtMX(t.sumaSel),  valueClass: 'text-[11px] font-bold text-blue-600' },
                 { label: 'Objetivo restante', value: _fmtMX(t.restante), labelClass: 'text-[10px] text-gray-500', valueClass: 'text-[10px] text-gray-500' }
             ],
             action: {
@@ -691,7 +691,7 @@ class ResumenView extends Templates {
             json:   { label: '', percent: 0, leftText: '', rightText: '' },
             classes: {
                 label:   'text-[11px] font-semibold text-gray-700',
-                percent: 'text-[11px] font-bold text-[#C05A40]',
+                percent: 'text-[11px] font-bold text-blue-600',
                 caption: 'flex justify-between mt-2 text-[10px] text-gray-400'
             }
         };
@@ -833,7 +833,7 @@ class ResumenView extends Templates {
                 success: 'var(--cs-success,#3FC189)',
                 warning: 'var(--cs-warning,#FBBF24)',
                 danger:  'var(--cs-danger,#E02424)',
-                info:    'var(--cs-info,#C05A40)',
+                info:    'var(--cs-info,rgb(var(--brand-600, 192 90 64)))',
                 purple:  'var(--cs-accent-purple,#7C3AED)'
             },
             classes: {

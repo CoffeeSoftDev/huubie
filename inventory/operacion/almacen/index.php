@@ -16,7 +16,7 @@ require_once('layout/core-libraries.php');
 <script src="../../src/js/plugins.js?t=<?php echo time(); ?>"></script>
 <script src="../../src/js/complementos.js?t=<?php echo time(); ?>"></script>
 
-<link rel="stylesheet" href="../../src/css/dark-mode.css">
+<link rel="stylesheet" href="../../src/css/dark-mode.css?v=<?php echo filemtime(__DIR__ . '/../../src/css/dark-mode.css'); ?>">
 <link rel="stylesheet" href="css/almacen-sidebar.css?t=<?php echo time(); ?>">
 
 <body>
@@ -38,12 +38,15 @@ require_once('layout/core-libraries.php');
     </main>
 
     <!-- Importación navbar y sidebar -->
-    <script src="../../acceso/src/js/navbar.js"></script>
+    <script src="../../acceso/src/js/navbar.js?v=<?php echo filemtime(__DIR__ . '/../../acceso/src/js/navbar.js'); ?>"></script>
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Componente tabLayout -->
     <script src="../../src/js/components/tabLayout.js?t=<?php echo time(); ?>"></script>
-    
+
+    <!-- Chat flotante del asistente IA de Productos -->
+    <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
+
     <!-- Módulo de Catálogo -->
     <script src="js/almacen.js?t=<?php echo time(); ?>"></script>
     <script src="js/catalogo.js?t=<?php echo time(); ?>"></script>
