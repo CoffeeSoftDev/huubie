@@ -7,9 +7,10 @@
  *   primary_color   -> los botones principales. Tailwind lo expone como `main`
  *                      (bg-main, hover:bg-main-hover...). No se llama `primary`
  *                      porque style.css ya tiene un .bg-primary con !important.
- *   secondary_color -> los detalles de la barra, el foco de los inputs y el
- *                      hover de las cards: rampa --accent-2-50..950. Huubie lo
- *                      lleva morado sobre su azul; sin él, es el acento.
+ *   secondary_color -> los detalles de la barra, el foco de los inputs, el
+ *                      hover de las cards y, con página oscura, el botón
+ *                      secundario: rampa --accent-2-50..950 (Tailwind `second`).
+ *                      Huubie lo lleva morado sobre su azul; sin él, es el acento.
  * Las hojas escritas a mano leen lo mismo desde colors.css (--primary,
  * --secondary, --info...), que cuelgan de estas variables.
  *
@@ -56,7 +57,19 @@
             50: '239 246 255', 100: '219 234 254', 200: '191 219 254', 300: '147 197 253',
             400: '96 165 250', 500: '59 130 246', 600: '37 99 235', 700: '29 78 216',
             800: '30 64 175', 900: '30 58 138', 950: '23 37 84'
+        },
+        // Huubie: la blue de alpha/ (Flowbite). 700 = hover #1A56DB, 400 = info
+        // #76A9FA, 900 = caja de ícono de las cards #233876.
+        '#1C64F2': {
+            50: '235 245 255', 100: '225 239 254', 200: '195 221 253', 300: '164 202 254',
+            400: '118 169 250', 500: '63 131 248', 600: '28 100 242', 700: '26 86 219',
+            800: '30 66 159', 900: '35 56 118', 950: '23 37 84'
         }
+    };
+
+    // Hover exacto del primario cuando el tema lo trae de otro sistema.
+    var PRIMARY_HOVER = {
+        '#1C64F2': '26 86 219'   // Huubie: #1A56DB, el de alpha/
     };
 
     var GRAY = {
@@ -129,10 +142,11 @@
     function primaryTones(hex) {
         var c = channels(hex) || [41, 37, 36];
         var dark = luma(c) < 0.2;
+        var key = '#' + String(hex || '').replace('#', '').toUpperCase();
 
         return {
             base: str(c),
-            hover: str(dark ? mix(c, WHITE, 0.12) : mix(c, BLACK, 0.12)),
+            hover: PRIMARY_HOVER[key] || str(dark ? mix(c, WHITE, 0.12) : mix(c, BLACK, 0.12)),
             active: str(mix(c, BLACK, 0.30)),
             light: str(mix(c, WHITE, 0.38))
         };
@@ -355,6 +369,10 @@
                 colors: {
                     // Acento. Respaldo: rampa terracota del tema Claro (600 = #C05A40).
                     blue: scale('brand', TERRACOTA),
+                    // Secundario del tema (bg-second-600...). Sin número en el
+                    // nombre: cfThemedClass de coffeeSoft.js solo reconoce como
+                    // color los `nombre-600`.
+                    second: scale('accent-2', TERRACOTA),
                     // Neutros de contenedores. Respaldo: el gray de Tailwind de siempre.
                     gray: scale('gray', GRAY),
                     // Primario. Respaldo: grafito #292524 de Claro.

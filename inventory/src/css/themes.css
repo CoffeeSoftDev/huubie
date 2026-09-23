@@ -24,6 +24,13 @@
     --line:          #E5E7EB;
     --ink:           #111827;
     --ink-dim:       #6B7280;
+
+    /* Card de módulo (ModuleCard): borde, caja del ícono y badge verde. */
+    --raised-line:   var(--line);
+    --icon-box-bg:   var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)));
+    --icon-box-fg:   rgb(var(--brand-600, 192 90 64));
+    --ok-soft-bg:    #DCFCE7;
+    --ok-soft-fg:    #16A34A;
 }
 
 /* -- Superficies de las páginas oscuras --
@@ -41,6 +48,7 @@
     --dk-hover:     #1a2332;   /* hover genérico */
     --dk-input:     #1a2332;   /* bg-input: inputs, selects, textareas */
     --dk-raised:    #333D4C;   /* card de módulo (grid inicial) */
+    --dk-raised-hover: #3F4B5C; /*   su hover (alpha/menus/src/js/cards.js) */
     --dk-line:      #374151;   /* border */
     --dk-line-hi:   #4B5563;
     --dk-text:      #f5f5f5;
@@ -62,6 +70,7 @@
     --dk-hover:     #1B2C44;
     --dk-input:     #16243A;
     --dk-raised:    #1B2C44;
+    --dk-raised-hover: #26384F;
     --dk-line:      #26384F;
     --dk-line-hi:   #33506E;
     --dk-text:      #EAF2FB;
@@ -82,12 +91,23 @@ body.dark-mode {
     --ink-dim:        var(--dk-muted);
     --accent-soft-bg: rgb(var(--brand-600, 192 90 64) / .18);
     --accent-soft-fg: rgb(var(--brand-300, 232 166 143));
+
+    /* Card de módulo como la de alpha/: sin borde, caja del ícono sólida
+       (#233876 en Huubie) con el ícono claro, y el badge en velo verde en
+       lugar del pastel de la página clara. */
+    --raised-line:    transparent;
+    --icon-box-bg:    rgb(var(--brand-900, 110 47 32));
+    --icon-box-fg:    rgb(var(--brand-400, 217 130 106));
+    --ok-soft-bg:     rgb(34 197 94 / .16);
+    --ok-soft-fg:     rgb(134 239 172);
 }
 
-/* Hover de las cards de módulo en página oscura: el `secondary` de Huubie UI
-   ("hover de cards"), que en Huubie es morado. El borde de la card viene en
-   línea desde ModuleCard, por eso el !important. */
+/* Hover de las cards de módulo en página oscura: se aclaran (#3F4B5C, como
+   alpha/) y toman el borde del `secondary` de Huubie UI ("hover de cards"),
+   que en Huubie es morado. Fondo y borde vienen en línea desde ModuleCard,
+   por eso el !important. */
 body.dark-mode .module-card-item:hover {
+    background-color: var(--dk-raised-hover) !important;
     border-color: rgb(var(--accent-2-500, 200 105 76)) !important;
 }
 

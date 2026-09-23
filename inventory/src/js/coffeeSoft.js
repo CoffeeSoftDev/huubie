@@ -35,10 +35,13 @@ const CF_CSS = {
     btnSuccess: 'tw-btn w-full rounded-lg bg-[#7aab20]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#7aab20] active:bg-[#7aab20] focus:outline-none focus:ring-2 focus:ring-[#7aab20] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDanger: 'tw-btn w-full rounded-lg bg-[#9e1b32]/90 px-4 py-2 text-sm font-semibold text-white hover:bg-[#9e1b32] active:bg-[#9e1b32] focus:outline-none focus:ring-2 focus:ring-[#9e1b32] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnWarning: 'tw-btn w-full rounded-lg bg-[#F69F00] px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-[#F69F00]/80 active:bg-[#F69F00]/80 focus:outline-none focus:ring-2 focus:ring-[#F69F00] focus:ring-offset-1 dark:focus:ring-offset-gray-800',
-    btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-blue-600 dark:text-gray-200 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // En oscuro, el outline de alpha/ (btn-outline-primary): sin relleno, borde
+    // y texto del acento; al pasar el mouse se rellena.
+    btnOutline: 'tw-btn w-full rounded-lg border border-blue-600 bg-white dark:bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white active:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     // Secundario = acento del tema (terracota, neutro o violeta): va por la escala
-    // blue-*, que tailwind-theme.js remapea.
-    btnSecondary: 'tw-btn w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
+    // blue-*, que tailwind-theme.js remapea. En oscuro, el secundario del tema
+    // (`second-*`), como el btn-secondary morado de alpha/ en Huubie.
+    btnSecondary: 'tw-btn w-full rounded-lg bg-blue-600 dark:bg-second-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-second-700 active:bg-blue-800 dark:active:bg-second-800 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:focus:ring-second-600 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLight: 'tw-btn w-full rounded-lg bg-gray-100 dark:bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 dark:hover:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnDark: 'tw-btn w-full rounded-lg bg-gray-800 dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 dark:hover:bg-black active:bg-black focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-1 dark:focus:ring-offset-gray-800',
     btnLink: 'tw-btn w-full rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 focus:outline-none',

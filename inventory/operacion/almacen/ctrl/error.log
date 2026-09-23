@@ -1,3 +1,237 @@
+[ 2026-09-23 13:21:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 13:21:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:21:58 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:20:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 13:20:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:20:23 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:16:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 13:16:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:16:56 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:16:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 13:16:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 13:16:49 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 12:58:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 12:58:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 12:58:07 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 12:58:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY code ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY code ASC' at line 5
+
+
+[ 2026-09-23 12:58:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.item_category
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
+[ 2026-09-23 12:58:01 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.warehouse_area
+            WHERE active = 1
+            AND companies_id = 
+            ORDER BY name ASC
+        
+[ ERROR READ] :: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY name ASC' at line 5
+
+
 [ 2026-06-17 11:09:18 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: ROSY$

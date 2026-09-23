@@ -45,13 +45,18 @@ class ModuleCard {
                 // En oscuro, la card de módulo de Huubie (#333D4C); en claro, blanca.
                 cardBg:    'var(--surface-raised, var(--surface, #FFFFFF))',
                 cardHover: 'var(--surface-hover, #F9FAFB)',
-                iconBg:    'var(--accent-soft-bg, rgb(var(--brand-100, 247 227 220)))',
-                iconC:     'rgb(var(--brand-600, 192 90 64))',
+                // Caja del ícono: chip suave del acento en claro; en oscuro la
+                // sólida de alpha/ con el ícono claro (themes.css).
+                iconBg:    'var(--icon-box-bg, rgb(var(--brand-100, 247 227 220)))',
+                iconC:     'var(--icon-box-fg, rgb(var(--brand-600, 192 90 64)))',
                 inputBg:   'var(--surface, #FFFFFF)',
                 inputBd:   'var(--line, #E5E7EB)',
                 kbdBg:     'var(--bg, #F3F4F6)',
                 kbdC:      'var(--ink-dim, #6B7280)',
-                cardBd:    'var(--line, #E5E7EB)',
+                // En oscuro sin borde, como la card de alpha/.
+                cardBd:    'var(--raised-line, var(--line, #E5E7EB))',
+                badgeBg:   'var(--ok-soft-bg, #DCFCE7)',
+                badgeC:    'var(--ok-soft-fg, #16A34A)',
             },
             font: 'poppins', // clase .font-poppins definida en la página (carga Poppins)
         };
@@ -205,8 +210,8 @@ class ModuleCard {
                     class: 'text-[10px] font-bold tracking-wide px-2.5 py-1 rounded-full',
                     text:  item.badge.text,
                 }).css({
-                    'background-color': item.badge.bg    || '#DCFCE7',
-                    'color':            item.badge.color || '#16A34A',
+                    'background-color': item.badge.bg    || s.colors.badgeBg,
+                    'color':            item.badge.color || s.colors.badgeC,
                 })
             );
         }
