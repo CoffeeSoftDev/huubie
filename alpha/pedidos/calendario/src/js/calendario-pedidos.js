@@ -27,17 +27,21 @@ class App extends Templates {
         // puede aplicar descuentos.
         this.rolId = data.rolId || 0;
         this.isSupervisor = this.rolId == 6 || this.rolId == 7;
-        this.canDiscount = this.rolId != 7;
+        // Produccion (rol 8): solo mira el calendario. No opera, no edita ni ve cotizaciones.
+        this.isProduction = this.rolId == 8;
+        // Administrador (1), SuperAdmin (5) y supervisores (6, 7) ven el ok de lo que
+        // Produccion ya elaboro, sin poder palomear.
+        this.seesProduced = [1, 5, 6, 7].includes(Number(this.rolId));
+        this.canOperate = !this.isSupervisor && !this.isProduction;
+        this.canDiscount = this.rolId != 7 && !this.isProduction;
         this.subsidiaryName = data.subsidiaryName || '';
         this.subsidiaryId = data.subsidiaryId || null;
         this.render();
 
-        // Sincronizar con el navbar global (menus): cuando el admin cambia de sucursal
-        // en el navbar filtra la vista y dispara 'subsidiaryChanged' SIN recargar. El
-        // calendario refleja ese cambio en su propio filtro (#subsidiaryFilter) y
-        // recarga. (El cajero hace switch de sesion con recarga, que ya reinicia el
-        // calendario por si mismo.)
-        document.addEventListener('subsidiaryChanged', (e) => {
+        // Sincronizar con la navbar de pedidos: al elegir sucursal en su pill filtra la
+        // vista (no toca la sesion) y dispara 'branchChanged'. El calendario refleja
+        // ese cambio en su propio filtro (#subsidiaryFilter) y recarga.
+        document.addEventListener('branchChanged', (e) => {
             const id = (e.detail && e.detail.id != null) ? String(e.detail.id) : '0';
             $('#subsidiaryFilter').val(id);
             this.createCalendar();
@@ -55,30 +59,46 @@ class App extends Templates {
             id: this.PROJECT_NAME,
             class: 'd-flex lg:mx-2 lg:my-2 h-100  lg:p-2',
             card: {
+                // Sin filterBar: los filtros viven dentro del container. La banda vacia
+                // (my-3) dejaba un hueco entre la navbar y la tarjeta.
+                filterBar: { class: 'hidden' },
                 container: {
                     id: `container${this.PROJECT_NAME}`,
-                    class: 'w-full h-auto my-3 rounded-lg p-3 bg-[#1F2A37]'
+                    class: 'w-full h-auto mb-3 rounded-lg p-3 bg-[#1F2A37]'
                 }
             }
         });
 
         $(`#container${this.PROJECT_NAME}`).html(`
-            <div class="p-2 flex flex-wrap items-center justify-between gap-3">
-                ${this.isSupervisor ? '<div></div>' : `
-                <button title="Regresar" type="button"
-                    class="btn bg-gray-700 hover:bg-purple-950 text-white px-4 py-2 rounded w-full sm:w-auto"
+            <!-- Barra de filtros:
+                 - Celular: un control por renglon.
+                 - Tablet (md a lg): "Volver a Lista" (solo icono) y los 4 filtros en UNA
+                   linea; controles de 44px para el dedo; etiquetas cortas en tablet vertical.
+                 - PC (xl): filtros y leyenda en la MISMA linea; la leyenda queda fija a la
+                   derecha y buscador y sucursal se encogen. Hasta 1700px van las etiquetas
+                   cortas para que todo quepa en laptops; desde 1700px, las completas.
+                 Padding y gap en valores arbitrarios: bootstrap trae .px-N/.gap-N con
+                 !important y anula las variantes md:/xl: de Tailwind. -->
+            <div class="p-2 flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-[12px] min-[1700px]:gap-[16px]">
+                <div class="flex flex-col md:flex-row md:items-center gap-[12px] xl:flex-1 xl:min-w-0">
+                ${!this.canOperate ? '' : `
+                <button title="Volver a Lista" type="button"
+                    class="btn bg-gray-700 hover:bg-purple-950 text-white rounded shrink-0 w-full md:w-auto h-11 xl:h-10 px-[24px] md:px-[12px] min-[1700px]:px-[24px] flex items-center justify-center gap-2"
                     onclick="window.location.href = '/alpha/pedidos/'">
-                    <small><i class="icon-reply"></i> Volver a Lista</small>
+                    <i class="icon-reply"></i><small class="md:hidden min-[1700px]:inline">Volver a Lista</small>
                 </button>`}
 
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)] gap-[12px]">
+                    <div id="searchFilter" class="flex items-center gap-2 min-w-0 h-11 xl:h-10 bg-[#1a2332] border-[1px] border-[#374151] px-[16px] md:px-[4px] xl:px-[6px] min-[1700px]:px-[16px] py-2 rounded-md text-gray-400"></div>
+
                     <div class="relative">
                         <button id="statusFilterBtn" type="button"
-                            class="flex items-center gap-2 h-10 bg-blue-500/10 hover:bg-blue-500/20 border-0 text-blue-300 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                            class="flex items-center gap-1 lg:gap-1.5 xl:gap-2 w-full h-11 xl:h-10 bg-[#1a2332] hover:bg-[#2B3D4F] border-[1px] border-[#374151] text-gray-400 px-[10px] lg:px-[12px] min-[1700px]:px-[16px] py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors">
                             <i class="icon-filter"></i>
-                            <span>Filtrar Estados</span>
-                            <span id="statusCount" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">4</span>
-                            <i class="icon-down-open text-xs"></i>
+                            <span class="md:hidden lg:inline xl:hidden min-[1700px]:inline">Filtrar Estados</span>
+                            <span class="hidden md:inline lg:hidden xl:inline min-[1700px]:hidden">Estados</span>
+                            <span id="statusCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">${this.isProduction ? 3 : 4}</span>
+                            <i class="icon-down-open text-xs ml-auto"></i>
                         </button>
 
                         <div id="statusDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-700 rounded-lg shadow-lg z-50 min-w-[240px]">
@@ -86,11 +106,12 @@ class App extends Templates {
                                 <p class="text-xs font-semibold text-white uppercase">Seleccionar Estados</p>
                             </div>
                             <div class="p-2 space-y-1">
+                                ${this.isProduction ? '' : `
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="1" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
                                     <i class="icon-blank text-lg" style="color: #6E95C0"></i>
                                     <span class="text-sm text-white">Cotización</span>
-                                </label>
+                                </label>`}
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="2" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
                                     <i class="icon-blank text-lg" style="color: #FE6F00"></i>
@@ -120,11 +141,12 @@ class App extends Templates {
 
                     <div class="relative">
                         <button id="deliveryFilterBtn" type="button"
-                            class="flex items-center gap-2 h-10 bg-green-500/10 hover:bg-green-500/20 border-0 text-green-300 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                            class="flex items-center gap-1 lg:gap-1.5 xl:gap-2 w-full h-11 xl:h-10 bg-[#1a2332] hover:bg-[#2B3D4F] border-[1px] border-[#374151] text-gray-400 px-[10px] lg:px-[12px] min-[1700px]:px-[16px] py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors">
                             <i class="icon-truck"></i>
-                            <span>Estado Entrega</span>
-                            <span id="deliveryCount" class="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full">3</span>
-                            <i class="icon-down-open text-xs"></i>
+                            <span class="md:hidden lg:inline xl:hidden min-[1700px]:inline">Estado Entrega</span>
+                            <span class="hidden md:inline lg:hidden xl:inline min-[1700px]:hidden">Entrega</span>
+                            <span id="deliveryCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">3</span>
+                            <i class="icon-down-open text-xs ml-auto"></i>
                         </button>
 
                         <div id="deliveryDropdown" class="hidden absolute top-full left-0 mt-2 bg-[#2B3D4F] border border-gray-700 rounded-lg shadow-lg z-50 min-w-[240px]">
@@ -159,17 +181,20 @@ class App extends Templates {
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2 h-10 bg-purple-500/10 hover:bg-purple-500/20 border-0 px-3 py-2 rounded-md transition-colors">
-                        <label for="subsidiaryFilter" class="text-xs font-medium text-purple-300 whitespace-nowrap">Sucursal:</label>
-                        <select id="subsidiaryFilter" class="text-xs bg-[#1F2A37] text-white border-0 rounded-md px-2 py-1 focus:ring-1 focus:ring-purple-400 focus:outline-none" style="min-width: 180px;">
+                    <div class="flex items-center gap-2 min-w-0 h-11 xl:h-10 bg-[#1a2332] border-[1px] border-[#374151] px-[16px] md:px-[8px] min-[1700px]:px-[16px] py-2 rounded-md transition-colors">
+                        <label for="subsidiaryFilter" class="md:hidden lg:inline xl:hidden min-[1700px]:inline text-xs font-medium text-gray-400 whitespace-nowrap">Sucursal:</label>
+                        <select id="subsidiaryFilter" class="flex-1 min-w-0 text-xs bg-[#1a2332] text-white border-0 rounded-md px-2 py-1 focus:ring-1 focus:ring-gray-500 focus:outline-none">
                             <option value="0">Todas las sucursales</option>
                         </select>
                     </div>
+                </div>
+                </div>
 
-                    <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm xl:gap-x-2 xl:text-xs min-[1700px]:gap-x-3 min-[1700px]:text-sm xl:flex-nowrap xl:whitespace-nowrap xl:shrink-0">
+                        ${this.isProduction ? '' : `
                         <p class="flex items-center">
                             <i class="icon-blank text-lg" style="color: #6E95C0"></i> Cotización
-                        </p>
+                        </p>`}
                         <p class="flex items-center">
                             <i class="icon-blank text-lg" style="color: #0E9E6E"></i> Pagado
                         </p>
@@ -179,9 +204,32 @@ class App extends Templates {
                         <p class="flex items-center">
                             <i class="icon-blank text-lg" style="color: #E60001"></i> Cancelado
                         </p>
-                    </div>
+                        ${this.isProduction ? `
+                        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+                        <p class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full border-[2.5px] border-gray-300 bg-black/25"></span> Por producir
+                        </p>
+                        <p class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center"><i class="icon-ok text-[10px]"></i></span> Producido
+                        </p>` : ''}
+                        ${this.seesProduced ? `
+                        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+                        <p class="flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center"><i class="icon-ok text-[10px]"></i></span> Producido
+                        </p>` : ''}
                 </div>
             </div>
+
+            ${this.isProduction ? `
+            <p class="flex items-center gap-2 px-2 mt-2 text-sm text-purple-200">
+                <span class="w-5 h-5 rounded-full border-[2.5px] border-gray-300 bg-black/25 shrink-0"></span>
+                Da clic en el círculo de cada pedido cuando termines de producirlo. Otro clic lo desmarca.
+            </p>` : ''}
+            ${this.seesProduced ? `
+            <p class="flex items-center gap-2 px-2 mt-2 text-sm text-gray-300">
+                <span class="w-5 h-5 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center shrink-0"><i class="icon-ok text-[10px]"></i></span>
+                Los pedidos con esta palomita ya los elaboró Producción. Pasa el mouse sobre ella para ver cuándo.
+            </p>` : ''}
 
             <div class="row h-full mt-4">
                 <div class="bg-[#111928] rounded-lg p-4 h-100 w-full" id="calendarFull"></div>
@@ -190,6 +238,22 @@ class App extends Templates {
 
         this.initSubsidiaryFilter();
         this.initStatusFilter();
+        this.initSearchFilter();
+    }
+
+    initSearchFilter() {
+        const $input = $('<input>', {
+            id: 'searchOrder',
+            type: 'search',
+            placeholder: 'Buscar folio o cliente',
+            // Padding en valores arbitrarios: bootstrap.min.css trae .px-2/.px-3 con
+            // !important y se comia las variantes responsivas de Tailwind (md:px-*).
+            class: 'flex-1 min-w-0 text-xs bg-[#1a2332] text-white border-0 rounded-md px-[8px] md:px-[2px] xl:px-[4px] min-[1700px]:px-[8px] py-1 focus:ring-1 focus:ring-gray-500 focus:outline-none'
+        });
+
+        $('#searchFilter').append($('<i>', { class: 'icon-search' }), $input);
+
+        $input.on('input', () => this.highlightSearch());
     }
 
     initSubsidiaryFilter() {
@@ -200,12 +264,15 @@ class App extends Templates {
             $select.append(`<option value="${sub.id}">${sub.valor}</option>`);
         });
 
-        // Arranca en la sucursal activa del usuario; puede cambiar a "Todas".
-        if (this.subsidiaryId) {
-            $select.val(this.subsidiaryId);
-        }
+        // Arranca en "Todas" (value 0, primera opcion); el usuario elige su sucursal si quiere.
 
+        // La navbar muestra lo mismo que este filtro. syncBranch la repinta sin
+        // disparar 'branchChanged'; si la navbar no tiene esa sucursal (o es etiqueta
+        // fija) se deja como esta.
         $select.on('change', () => {
+            if (window.navbar && typeof window.navbar.syncBranch === 'function') {
+                window.navbar.syncBranch($select.val());
+            }
             this.createCalendar();
         });
     }
@@ -297,6 +364,7 @@ class App extends Templates {
         if (selectedStatuses.length === 0 || selectedDelivery.length === 0) {
             if (this.calendar) {
                 this.calendar.destroy();
+                this.calendar = null;
             }
             $('#calendarFull').html('<div class="flex items-center justify-center h-full text-gray-400"><p>Selecciona al menos un estado y un tipo de entrega para ver los pedidos</p></div>');
             return;
@@ -327,6 +395,16 @@ class App extends Templates {
             this.calendar.destroy();
         }
 
+        // Produccion: el pedido producido se pinta en tono apagado. baseColor guarda
+        // el color del estado para volver a el al quitar la palomita.
+        if (this.isProduction) {
+            data = data.map(ev => ({
+                ...ev,
+                baseColor: ev.color,
+                color: ev.produced == 1 ? this.producedColor(ev.color) : ev.color
+            }));
+        }
+
         this.calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'es',
@@ -335,19 +413,77 @@ class App extends Templates {
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
+            // El bundle global no trae el locale 'es': las fechas salen en español (Intl)
+            // pero los botones de vista y el de hoy se quedaban en ingles.
+            buttonText: {
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día'
+            },
             height: 'auto',
             contentHeight: 'auto',
             dayMaxEvents: 3,
             moreLinkClick: 'popover',
             eventMaxStack: 3,
             events: data,
+            // Las coincidencias del buscador van primero en su dia: con dayMaxEvents
+            // quedarian escondidas dentro del "+N".
+            eventOrder: '-searchMatch,start,-duration,allDay,title',
+            eventClassNames: (arg) => this.searchClassNames(arg.event),
             eventContent: (arg) => this.renderEventContent(arg),
-            eventClick: (info) => this.showOrder(info.event.id),
+            // La casilla de la esquina palomea; el resto de la tarjeta abre el pedido.
+            eventClick: (info) => {
+                if (info.jsEvent.target.closest('[data-produce]')) return this.toggleProduced(info.event);
+                this.showOrder(info.event.id);
+            },
             datesSet: () => this.customizeCalendarAppearance()
         });
 
         this.calendar.render();
         this.applyCalendarStyles();
+        this.highlightSearch();
+    }
+
+    // Marca cada pedido como coincidencia (1) o no (0) del texto buscado; sin texto
+    // queda en null y el calendario se ve normal.
+    highlightSearch() {
+        if (!this.calendar) return;
+
+        const term   = this.normalizeText($('#searchOrder').val());
+        const events = this.calendar.getEvents();
+
+        const matches = term
+            ? events.filter(ev => [ev.extendedProps.folio, ev.title].some(v => this.normalizeText(v).includes(term)))
+            : [];
+
+        const matchSet = new Set(matches);
+
+        this.calendar.batchRendering(() => {
+            events.forEach(ev => ev.setExtendedProp('searchMatch', term ? (matchSet.has(ev) ? 1 : 0) : null));
+        });
+
+        // Si ninguna coincidencia cae en la vista actual, salta a la mas cercana para que se vea.
+        const view    = this.calendar.view;
+        const visible = matches.some(ev => ev.start >= view.activeStart && ev.start < view.activeEnd);
+
+        if (matches.length && !visible) {
+            const ref     = view.currentStart.getTime();
+            const nearest = matches.reduce((a, b) => Math.abs(b.start - ref) < Math.abs(a.start - ref) ? b : a);
+            this.calendar.gotoDate(nearest.start);
+        }
+    }
+
+    searchClassNames(event) {
+        const match = event.extendedProps.searchMatch;
+        if (match === 1) return ['search-match'];
+        if (match === 0) return ['search-dim'];
+        return [];
+    }
+
+    // Minusculas y sin acentos: "maria" encuentra "María".
+    normalizeText(value) {
+        return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
     }
 
     renderEventContent(arg) {
@@ -360,21 +496,21 @@ class App extends Templates {
 
         // Contenedor principal
         let containerEl = document.createElement("div");
-        containerEl.classList.add("p-2", "w-full", "relative");
+        containerEl.classList.add("px-2", "py-1.5", "w-full", "relative");
 
         // Folio
         let folioEl = document.createElement("div");
-        folioEl.classList.add("absolute", "top-1", "right-1", "bg-black/25", "text-white", "text-[10px]", "font-semibold", "px-1.5", "py-0.5", "rounded");
+        folioEl.classList.add("absolute", "top-1", "right-1", "bg-black/25", "text-white", "text-[10px]", "font-semibold", "px-1", "py-px", "rounded");
         folioEl.textContent = arg.event.extendedProps.folio || '';
 
         // Nombre del cliente
         let titleEl = document.createElement("div");
-        titleEl.classList.add("font-semibold", "text-sm", "mb-1", "truncate", "pr-12");
+        titleEl.classList.add("font-semibold", "text-[13px]", "leading-tight", "mb-0.5", "truncate", "pr-12");
         titleEl.innerHTML = arg.event.title;
 
         // Tipo de entrega
         let deliveryEl = document.createElement("div");
-        deliveryEl.classList.add("flex", "items-center", "gap-1", "text-xs", "mb-1", "opacity-80");
+        deliveryEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "mb-0.5", "opacity-80");
         deliveryEl.innerHTML = `
         <span>${emoji}</span>
         <span>${arg.event.extendedProps.type}</span>
@@ -382,7 +518,7 @@ class App extends Templates {
 
         // Hora
         let timeEl = document.createElement("div");
-        timeEl.classList.add("flex", "items-center", "gap-1", "text-xs", "opacity-80");
+        timeEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "opacity-80");
         timeEl.innerHTML = `
         <i class='icon-clock'></i>
         <span>${arg.event.extendedProps.hour}</span>
@@ -390,7 +526,7 @@ class App extends Templates {
 
         // Badge de estado
         let badgeEl = document.createElement("div");
-        badgeEl.classList.add("mt-1.5");
+        badgeEl.classList.add("mt-1");
 
         let badgeClass = "bg-orange-100 text-orange-700 border-1 border-orange-300";
 
@@ -401,7 +537,7 @@ class App extends Templates {
         }
 
         badgeEl.innerHTML = `
-        <span class="${badgeClass} px-2 py-0.5 rounded-full text-xs font-medium inline-block">
+        <span class="${badgeClass} px-1.5 py-px rounded-full text-[10px] leading-4 font-medium inline-block">
             ${arg.event.extendedProps.delivery}
         </span>
     `;
@@ -413,7 +549,92 @@ class App extends Templates {
         containerEl.appendChild(timeEl);
         containerEl.appendChild(badgeEl);
 
+        if (this.isProduction) this.addProductionCheck(containerEl, badgeEl, arg.event);
+        else if (this.seesProduced && arg.event.extendedProps.produced == 1) this.addProducedMark(containerEl, badgeEl, arg.event);
+
         return { domNodes: [containerEl] };
+    }
+
+    // -- Palomeo de Produccion --
+
+    // Casilla redonda en la esquina inferior derecha: vacia (solo el aro) = por
+    // producir; llena (gris con el check del color del estado) = producido. En el
+    // producido el contenido se atenua para que se distinga de un vistazo.
+    addProductionCheck(containerEl, badgeEl, event) {
+        const produced = event.extendedProps.produced == 1;
+
+        if (produced) {
+            Array.from(containerEl.children).forEach(el => el.style.opacity = '0.6');
+        }
+        badgeEl.classList.add('pr-7');
+
+        const checkEl = document.createElement('button');
+        checkEl.type = 'button';
+        checkEl.dataset.produce = event.id;
+        checkEl.title = produced
+            ? `Producido el ${event.extendedProps.producedAt}. Da clic para desmarcarlo.`
+            : 'Da clic aquí cuando termines de producir este pedido.';
+        checkEl.className = produced
+            ? 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 shadow'
+            : 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center border-[2.5px] border-gray-300 bg-black/25 text-transparent hover:text-gray-300/70 transition-colors';
+        if (produced) checkEl.style.color = event.extendedProps.baseColor;
+
+        const iconEl = document.createElement('i');
+        iconEl.className = 'icon-ok text-xs';
+        checkEl.appendChild(iconEl);
+
+        containerEl.appendChild(checkEl);
+    }
+
+    // Administradores y supervisores: solo el ok lleno, y solo si ya se produjo. Es
+    // un span, no un boton: tocarlo abre el pedido como el resto de la tarjeta.
+    addProducedMark(containerEl, badgeEl, event) {
+        badgeEl.classList.add('pr-7');
+
+        const markEl = document.createElement('span');
+        markEl.title = `Producción ya elaboró este pedido (${event.extendedProps.producedAt}).`;
+        markEl.className = 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 shadow';
+        markEl.style.color = event.backgroundColor;
+
+        const iconEl = document.createElement('i');
+        iconEl.className = 'icon-ok text-xs';
+        markEl.appendChild(iconEl);
+
+        containerEl.appendChild(markEl);
+    }
+
+    // Guarda la palomita y repinta solo esa tarjeta, sin recargar el calendario.
+    async toggleProduced(event) {
+        if (this._producing?.has(event.id)) return;
+        this._producing = this._producing || new Set();
+        this._producing.add(event.id);
+
+        const produced = event.extendedProps.produced == 1 ? 0 : 1;
+        const response = await useFetch({
+            url: this._calendarLink,
+            data: { opc: 'statusProduction', id: event.id, produced }
+        });
+
+        this._producing.delete(event.id);
+
+        if (response.status != 200) {
+            alert({ icon: 'error', title: 'Error', text: response.message, btn1: true, btn1Text: 'Ok' });
+            return;
+        }
+
+        const baseColor = event.extendedProps.baseColor;
+        event.setExtendedProp('producedAt', response.producedAt);
+        event.setExtendedProp('produced', produced);
+        event.setProp('color', produced ? this.producedColor(baseColor) : baseColor);
+    }
+
+    // Tono "producido": el color del estado mezclado 50% con el fondo del
+    // calendario (#111928). Sigue siendo el mismo color, solo apagado.
+    producedColor(hex) {
+        const bg  = [0x11, 0x19, 0x28];
+        const rgb = [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16));
+
+        return '#' + rgb.map((c, i) => Math.round((c + bg[i]) / 2).toString(16).padStart(2, '0')).join('');
     }
 
     customizeCalendarAppearance() {
@@ -472,6 +693,16 @@ class App extends Templates {
                     
                     .fc-daygrid-event-harness {
                         margin-bottom: 2px !important;
+                    }
+
+                    .fc-event.search-match {
+                        outline: 2px solid #A78BFA;
+                        outline-offset: -2px;
+                        box-shadow: 0 0 12px rgba(124, 58, 237, 0.7);
+                    }
+
+                    .fc-event.search-dim {
+                        opacity: 0.25;
                     }
                     
                     .fc-more-link {
@@ -660,11 +891,11 @@ class App extends Templates {
     orderActions(orderData, orderId) {
         const cerrado    = orderData.status == '3' || orderData.status == '4';
         const operable   = !cerrado && orderData.is_delivered != '2';
-        const entregable = !this.isSupervisor && (orderData.is_delivered == '0' || orderData.is_delivered == null) && (orderData.status != '4');
+        const entregable = this.canOperate && (orderData.is_delivered == '0' || orderData.is_delivered == null) && (orderData.status != '4');
 
         const botones = [];
 
-        if (operable && !this.isSupervisor) botones.push(`
+        if (operable && this.canOperate) botones.push(`
             <button onclick="app.historyPay(${orderId})"
                 class="flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-medium px-2 py-2 rounded-md transition-colors">
                 ${lucideIcon('dollar-sign', 'w-3.5 h-3.5')} Pagar
@@ -781,7 +1012,7 @@ class App extends Templates {
     editDeliveryIcon(orderData) {
         const liquidado  = orderData.status == '3';
         const autorizado = this.isAdmin || this.isSupervisor;
-        const editable   = orderData.status != '4' && (!liquidado || autorizado);
+        const editable   = !this.isProduction && orderData.status != '4' && (!liquidado || autorizado);
 
         if (!editable) return '';
 

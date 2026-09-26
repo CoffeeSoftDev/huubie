@@ -363,13 +363,54 @@ class ctrl extends mdl {
     }
 
     // -- Asistente IA --
-    /*  Chat flotante de Productos: altas, cambios de precio y bajas a partir de un
-        mensaje, un Excel o una foto. El modelo solo PROPONE; aquí se valida cada
-        cambio contra el catálogo real y la propuesta se guarda en la sesión. Lo que
-        se aplica sale de la sesión, nunca de lo que mande el navegador. */
+    /*  Chat flotante del catálogo del almacén: altas, cambios, bajas y
+        reactivaciones de productos, categorías, unidades, áreas, almacenes y
+        proveedores, a partir de un mensaje, un Excel o una foto.
+
+        El modelo solo PROPONE. Aquí se valida cada cambio contra los datos reales
+        y la propuesta se guarda en la sesión; lo que se aplica sale de la sesión,
+        nunca de lo que mande el navegador.
+
+        El comportamiento (tono y reglas del negocio) vive en ia/asistente-catalogo.md
+        y se edita sin tocar PHP. Lo que no se puede romper desde ese archivo --qué
+        entidades y campos existen, el formato JSON y los datos vivos-- lo arma promptIA(). */
 
     const IA_MAX_CAMBIOS  = 150;
     const IA_MAX_CATALOGO = 1500;
+
+    // Entidades que toca el asistente y los campos que el modelo puede mandar en
+    // "set" (clave => etiqueta de la vista previa). El orden importa: los
+    // catálogos se validan y se aplican antes que los productos que los usan.
+    const IA_ENTIDADES = [
+        'category'  => ['tag' => 'Categoría', 'uno' => 'categoría', 'varios' => 'categorías',  'campos' => ['name' => 'Nombre']],
+        'unit'      => ['tag' => 'Unidad',    'uno' => 'unidad',    'varios' => 'unidades',    'campos' => ['code' => 'Código', 'name' => 'Nombre']],
+        'area'      => ['tag' => 'Área',      'uno' => 'área',      'varios' => 'áreas',       'campos' => ['name' => 'Nombre', 'description' => 'Descripción']],
+        'warehouse' => ['tag' => 'Almacén',   'uno' => 'almacén',   'varios' => 'almacenes',   'campos' => ['name' => 'Nombre', 'branch' => 'Sucursal', 'is_default' => 'Por defecto']],
+        'supplier'  => ['tag' => 'Proveedor', 'uno' => 'proveedor', 'varios' => 'proveedores', 'campos' => ['name' => 'Nombre', 'contact_name' => 'Contacto', 'phone' => 'Teléfono', 'email' => 'Email']],
+        'product'   => ['tag' => 'Producto',  'uno' => 'producto',  'varios' => 'productos',   'campos' => [
+            'name'            => 'Nombre',
+            'category'        => 'Categoría',
+            'unit'            => 'Unidad',
+            'area'            => 'Área',
+            'price'           => 'Precio',
+            'base'            => 'Precio sin IVA',
+            'tax'             => 'IVA',
+            'cost'            => 'Último costo',
+            'stock_min'       => 'Mínimo',
+            'stock_max'       => 'Máximo',
+            'shelf_life_days' => 'Vida útil',
+            'description'     => 'Descripción'
+        ]]
+    ];
+
+    // Tope de caracteres por columna de texto de cada catálogo (el de la BD).
+    const IA_LARGOS = [
+        'category'  => ['name' => 120],
+        'unit'      => ['code' => 20, 'name' => 80],
+        'area'      => ['name' => 120, 'description' => 255],
+        'warehouse' => ['name' => 120],
+        'supplier'  => ['name' => 160, 'contact_name' => 120, 'phone' => 20, 'email' => 120]
+    ];
 
     // Lee lo que se adjunta al chat y lo devuelve como texto. No guarda nada en
     // disco: el archivo vive lo que dura la petición.
@@ -451,22 +492,20 @@ class ctrl extends mdl {
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
-        $catalogo   = $this->listMateriales([]);
-        $categorias = $this->lsCategories();
-        $unidades   = $this->lsUnits();
+        $ctx = $this->contextoIA();
 
-        // Sin esto la sesión queda bloqueada mientras el modelo piensa y la tabla de
-        // Productos no puede recargar en ese rato. Se reabre para guardar la propuesta.
+        // Sin esto la sesión queda bloqueada mientras el modelo piensa y las tablas
+        // del almacén no pueden recargar en ese rato. Se reabre para guardar la propuesta.
         session_write_close();
         set_time_limit(180);
 
-        $respuesta = $ia->chatJson($this->mensajesIA($mensaje, $adjuntos, $historial, $catalogo, $categorias, $unidades));
+        $respuesta = $ia->chatJson($this->mensajesIA($mensaje, $adjuntos, $historial, $ctx));
 
         if (!$respuesta['ok']) return ['status' => 502, 'message' => $respuesta['error']];
 
         $cambios = isset($respuesta['data']['changes']) && is_array($respuesta['data']['changes']) ? $respuesta['data']['changes'] : [];
         $reply   = $this->textoIA($respuesta['data']['reply'] ?? '');
-        $vista   = $this->validarCambiosIA($cambios, $catalogo, $categorias, $unidades);
+        $vista   = $this->validarCambiosIA($cambios, $ctx);
         $token   = '';
 
         if (!empty($vista['validos'])) {
@@ -507,20 +546,22 @@ class ctrl extends mdl {
 
         if (empty($selecciones)) return ['status' => 400, 'message' => 'No marcaste ningún cambio.'];
 
+        // El índice ya viene en orden de aplicación: catálogos primero, productos después.
+        ksort($selecciones);
+
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'] ?? null;
         $now          = date('Y-m-d H:i:s');
 
         try {
             $hechos = $this->transaction(function () use ($selecciones, $companies_id, $branch_id, $now) {
-                $n = ['add' => 0, 'price' => 0, 'deactivate' => 0];
+                $n       = [];
+                $creados = [];
 
                 foreach ($selecciones as $c) {
-                    if ($c['action'] === 'add')        $this->altaIA($c, $companies_id, $branch_id, $now);
-                    if ($c['action'] === 'price')      $this->precioProductoIA($c, $companies_id);
-                    if ($c['action'] === 'deactivate') $this->bajaIA($c, $companies_id);
+                    $this->aplicarCambioIA($c, $companies_id, $branch_id, $now, $creados);
 
-                    $n[$c['action']]++;
+                    $n[$c['entity']][$c['action']] = ($n[$c['entity']][$c['action']] ?? 0) + 1;
                 }
 
                 return $n;
@@ -538,12 +579,31 @@ class ctrl extends mdl {
         return [
             'status'  => 200,
             'message' => $this->resumenIA($hechos),
-            'data'    => $hechos
+            'data'    => ['entidades' => array_keys($hechos)]
         ];
     }
 
-    private function mensajesIA($mensaje, $adjuntos, $historial, $catalogo, $categorias, $unidades) {
-        $mensajes = [['role' => 'system', 'content' => $this->promptIA($catalogo, $categorias, $unidades)]];
+    // -- Asistente IA · contexto y prompt --
+
+    private function contextoIA() {
+        $ctx = [
+            'product' => $this->listMateriales([]),
+            'branch'  => $this->lsBranches()
+        ];
+
+        foreach (['category', 'unit', 'area', 'warehouse', 'supplier'] as $entidad) {
+            $ctx[$entidad] = $this->listCatalog($entidad);
+        }
+
+        foreach ($ctx as $k => $filas) {
+            if (!is_array($filas)) $ctx[$k] = [];
+        }
+
+        return $ctx;
+    }
+
+    private function mensajesIA($mensaje, $adjuntos, $historial, $ctx) {
+        $mensajes = [['role' => 'system', 'content' => $this->promptIA($ctx)]];
 
         foreach (array_slice($historial, -8) as $h) {
             $rol   = is_array($h) ? ($h['role'] ?? '') : '';
@@ -573,129 +633,161 @@ class ctrl extends mdl {
         return $mensajes;
     }
 
-    private function promptIA($catalogo, $categorias, $unidades) {
-        $lineas = [];
+    // Tres partes: el contexto editable (ia/asistente-catalogo.md), el contrato
+    // (entidades, campos y formato JSON, que valida validarCambiosIA) y los datos vivos.
+    private function promptIA($ctx) {
+        $ruta     = __DIR__ . '/../ia/asistente-catalogo.md';
+        $reglas   = is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '';
+        $sucursal = array_column($ctx['branch'], 'valor', 'id');
+        $estado   = function ($r) { return (int) $r['active'] === 1 ? 'activo' : 'baja'; };
+        $filas    = [];
 
-        foreach (array_slice($catalogo, 0, self::IA_MAX_CATALOGO) as $p) {
-            $lineas[] = implode(' | ', [
-                $p['id'],
-                $p['sku'] ?: '-',
-                $p['name'],
-                $p['categoria'] ?: '-',
-                number_format((float) $p['price'], 2, '.', ''),
-                (float) $p['tax'],
-                (int) $p['active'] === 1 ? 'activo' : 'baja'
-            ]);
+        foreach ($ctx['category'] as $r)  $filas['category'][]  = [$r['id'], $r['name'], $estado($r)];
+        foreach ($ctx['unit'] as $r)      $filas['unit'][]      = [$r['id'], $r['code'], $r['name'], $estado($r)];
+        foreach ($ctx['area'] as $r)      $filas['area'][]      = [$r['id'], $r['name'], $r['description'], $estado($r)];
+        foreach ($ctx['branch'] as $r)    $filas['branch'][]    = [$r['id'], $r['valor']];
+        foreach ($ctx['supplier'] as $r)  $filas['supplier'][]  = [$r['id'], $r['name'], $r['contact_name'], $r['phone'], $r['email'], $estado($r)];
+
+        foreach ($ctx['warehouse'] as $r) {
+            $filas['warehouse'][] = [$r['id'], $r['name'], $sucursal[$r['branch_id']] ?? '-', (int) $r['is_default'] === 1 ? 'sí' : 'no', $estado($r)];
         }
 
-        $recorte = count($catalogo) > self::IA_MAX_CATALOGO ? ' (recortado a los ' . self::IA_MAX_CATALOGO . ' más recientes)' : '';
+        foreach (array_slice($ctx['product'], 0, self::IA_MAX_CATALOGO) as $p) {
+            $filas['product'][] = [
+                $p['id'],
+                $p['sku'],
+                $p['name'],
+                $p['categoria'],
+                $p['unidad'],
+                $p['area'],
+                number_format((float) $p['price'], 2, '.', ''),
+                (float) $p['tax'],
+                number_format((float) $p['cost_unit'], 2, '.', ''),
+                $this->numeroIA($p['stock_min']),
+                $this->numeroIA($p['stock_max']),
+                $this->numeroIA($p['shelf_life_days']),
+                $estado($p)
+            ];
+        }
+
+        $recorte = count($ctx['product']) > self::IA_MAX_CATALOGO ? ' (recortado a los ' . self::IA_MAX_CATALOGO . ' más recientes)' : '';
 
         return implode("\n", [
-            'Eres el asistente de PRODUCTOS del almacén de Coffee Inventory. Hablas español, en frases cortas y claras.',
+            $reglas !== '' ? $reglas : 'Eres el asistente del catálogo del almacén. Hablas español, en frases cortas.',
             '',
-            'Solo puedes proponer tres tipos de cambio al catálogo:',
-            '- "add": dar de alta un producto que NO existe en el catálogo.',
-            '- "price": cambiar el precio de venta de un producto que SÍ existe.',
-            '- "deactivate": dar de baja (desactivar) un producto que SÍ existe.',
-            'No manejas existencias, entradas, salidas, costos ni borrados. Si te piden otra cosa, dilo en "reply" y no propongas cambios.',
-            'Tú NO aplicas nada: propones, y la persona revisa una vista previa y confirma.',
-            '',
-            'Cómo leer lo que te dan:',
-            '- El MENSAJE manda. Los ARCHIVOS (hojas de cálculo o fotos ya transcritas) son material de apoyo para lo que pide el mensaje.',
-            '- Si solo llega un archivo con nombres y precios, entiende que quieren actualizar el precio de los que existen y dar de alta los que no.',
-            '- Busca cada producto en el CATÁLOGO por nombre o SKU aunque venga escrito distinto (mayúsculas, acentos, abreviaturas, plural).',
-            '- Para "price" y "deactivate" el "item_id" es OBLIGATORIO y sale del catálogo. Si dudas entre dos productos, no lo incluyas y pregúntalo en "reply".',
-            '- Nunca propongas "add" de algo que ya está en el catálogo.',
-            '- Si dos archivos (o el mensaje y un archivo) dan precios distintos para el mismo producto, no lo incluyas y pregunta en "reply" cuál vale.',
-            '',
-            'Precios:',
-            '- "price" es el precio de venta FINAL, con IVA incluido. Si te dicen que el precio es sin IVA (o "más IVA"), manda ese número en "base" y no mandes "price".',
-            '- Aumentos o descuentos en porcentaje: calcula el precio nuevo a partir del precio actual del catálogo y redondea a 2 decimales.',
-            '- "tax" es el IVA: solo 0, 8 o 16. Si no lo sabes, no lo mandes.',
+            '== CONTRATO (lo que el sistema acepta) ==',
+            'Entidades ("entity") y los campos que puedes mandar en "set":',
+            '- product: name, category, unit, area, price (venta con IVA), base (venta sin IVA), tax (0, 8 o 16), cost (último costo sin IVA), stock_min, stock_max, shelf_life_days (días), description',
+            '- category: name',
+            '- unit: code, name',
+            '- area: name, description',
+            '- warehouse: name, branch (nombre de una SUCURSAL), is_default (true o false)',
+            '- supplier: name, contact_name, phone, email',
+            'Acciones ("action"): "add" (alta), "edit" (cambio), "deactivate" (baja), "activate" (reactivar).',
+            '- En edit, deactivate y activate el "id" es OBLIGATORIO y sale de la lista de esa entidad. En "ref" pon cómo lo nombró la persona.',
+            '- En edit manda en "set" SOLO los campos que cambian.',
+            '- En un producto, "category", "unit" y "area" van con el NOMBRE tal como está en su lista. Si la das de alta en esta misma respuesta, usa el mismo nombre.',
             '- Números sin signo de pesos ni separador de miles: 1250.5',
+            '- Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
             '',
-            'Altas:',
-            '- "name": el nombre como debe quedar, con mayúscula inicial.',
-            '- "category": una de CATEGORÍAS, escrita igual. Si ninguna corresponde, déjala vacía.',
-            '- "unit": una de UNIDADES, escrita igual. Si ninguna corresponde, déjala vacía.',
-            '',
-            'Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
-            '',
-            'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo:',
-            '{"reply": "Encontré 3 cambios. Revísalos y confirma.", "changes": [',
-            '  {"action": "price", "item_id": 12, "name": "Agua natural 1 L", "price": 18.5},',
-            '  {"action": "add", "name": "Refresco de cola 600 ml", "category": "Bebidas", "unit": "Pieza", "price": 22, "tax": 16},',
-            '  {"action": "deactivate", "item_id": 40, "name": "Pan dulce"}',
+            'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',
+            '{"reply": "Te propongo 4 cambios. Revísalos y confirma.", "changes": [',
+            '  {"entity": "category", "action": "add", "set": {"name": "Bebidas"}},',
+            '  {"entity": "product", "action": "add", "set": {"name": "Agua natural 1 L", "category": "Bebidas", "unit": "Pieza", "price": 18, "tax": 16}},',
+            '  {"entity": "product", "action": "edit", "id": 45, "ref": "refresco de cola", "set": {"price": 24.5, "stock_min": 6}},',
+            '  {"entity": "supplier", "action": "deactivate", "id": 9, "ref": "Distribuidora Norte"}',
             ']}',
-            'Omite los campos que no apliquen. Si no hay cambios, "changes" va vacío y en "reply" explicas o preguntas lo que falte.',
+            'Si no hay cambios, "changes" va vacío y en "reply" explicas o preguntas lo que falte.',
             '',
-            'CATEGORÍAS: ' . (empty($categorias) ? '(ninguna)' : implode(', ', array_column($categorias, 'valor'))),
-            'UNIDADES: ' . (empty($unidades) ? '(ninguna)' : implode(', ', array_map(function ($u) { return $u['valor'] . ' (' . $u['code'] . ')'; }, $unidades))),
+            '== DATOS DE LA EMPRESA ==',
+            $this->tablaIA('CATEGORÍAS', ['id', 'nombre', 'estado'], $filas['category'] ?? []),
             '',
-            'CATÁLOGO' . $recorte . ' (id | sku | nombre | categoría | precio con IVA | IVA % | estado):',
-            empty($lineas) ? '(vacío)' : implode("\n", $lineas)
+            $this->tablaIA('UNIDADES', ['id', 'código', 'nombre', 'estado'], $filas['unit'] ?? []),
+            '',
+            $this->tablaIA('ÁREAS', ['id', 'nombre', 'descripción', 'estado'], $filas['area'] ?? []),
+            '',
+            $this->tablaIA('SUCURSALES', ['id', 'nombre'], $filas['branch'] ?? []),
+            '',
+            $this->tablaIA('ALMACENES', ['id', 'nombre', 'sucursal', 'por defecto', 'estado'], $filas['warehouse'] ?? []),
+            '',
+            $this->tablaIA('PROVEEDORES', ['id', 'nombre', 'contacto', 'teléfono', 'email', 'estado'], $filas['supplier'] ?? []),
+            '',
+            $this->tablaIA('PRODUCTOS' . $recorte, ['id', 'sku', 'nombre', 'categoría', 'unidad', 'área', 'precio con IVA', 'IVA %', 'último costo', 'mín', 'máx', 'vida útil días', 'estado'], $filas['product'] ?? [])
         ]);
     }
 
+    private function tablaIA($titulo, $columnas, $filas) {
+        $lineas = array_map(function ($f) {
+            return implode(' | ', array_map(function ($v) {
+                $v = trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $v));
+                return $v === '' ? '-' : $v;
+            }, $f));
+        }, $filas);
+
+        return $titulo . ' (' . implode(' | ', $columnas) . "):\n" . (empty($lineas) ? '(vacío)' : implode("\n", $lineas));
+    }
+
+    // -- Asistente IA · validación --
+
     /*  Convierte lo que propuso el modelo en filas de vista previa. Las que no se
-        pueden aplicar (producto que no existe, precio igual, ya dado de baja) se
-        enseñan con su motivo pero no entran en 'validos'. El nombre que se enseña
-        es el del catálogo, no el que escribió el modelo: así se ve qué producto se
-        va a tocar de verdad. */
-    private function validarCambiosIA($cambios, $catalogo, $categorias, $unidades) {
-        $porId     = [];
-        $porSku    = [];
-        $porNombre = [];
+        pueden aplicar (no existe, no cambia nada, ya está dado de baja) se enseñan
+        con su motivo pero no entran en 'validos'. El nombre que se enseña es el del
+        catálogo, no el que escribió el modelo: así se ve qué registro se toca de verdad.
 
-        foreach ($catalogo as $p) {
-            $porId[(int) $p['id']] = $p;
-
-            if (!empty($p['sku'])) $porSku[mb_strtolower(trim($p['sku']))] = (int) $p['id'];
-
-            $clave = $this->normalizarIA($p['name']);
-
-            if (!isset($porNombre[$clave])) $porNombre[$clave] = (int) $p['id'];
-        }
-
-        $alias   = ['alta' => 'add', 'agregar' => 'add', 'nuevo' => 'add', 'precio' => 'price', 'baja' => 'deactivate', 'desactivar' => 'deactivate'];
+        Dos vueltas: primero los catálogos y después los productos, para que un
+        producto pueda usar la categoría (o unidad, o área) que se da de alta en la
+        misma respuesta. Ese orden es también el de aplicación. */
+    private function validarCambiosIA($cambios, $ctx) {
+        $idx     = $this->indicesIA($ctx);
+        $nuevos  = [];
+        $vistos  = [];
         $row     = [];
         $validos = [];
-        $vistos  = [];
-        $resumen = ['add' => 0, 'price' => 0, 'deactivate' => 0, 'invalid' => 0];
+        $resumen = ['add' => 0, 'edit' => 0, 'deactivate' => 0, 'activate' => 0, 'invalid' => 0];
+        $lista   = [];
 
         foreach (array_slice($cambios, 0, self::IA_MAX_CAMBIOS) as $c) {
-            if (!is_array($c)) continue;
+            $n = $this->normalizarCambioIA($c);
 
-            $accion = strtolower($this->textoIA($c['action'] ?? ''));
-            $accion = $alias[$accion] ?? $accion;
+            if ($n === null) continue;
 
-            if ($accion === 'add') {
-                $fila = $this->validarAltaIA($c, $porId, $porNombre, $categorias, $unidades, $vistos);
-            } elseif ($accion === 'price') {
-                $fila = $this->validarPrecioIA($c, $this->buscarProductoIA($c, $porId, $porSku, $porNombre), $vistos);
-            } elseif ($accion === 'deactivate') {
-                $fila = $this->validarBajaIA($c, $this->buscarProductoIA($c, $porId, $porSku, $porNombre), $vistos);
-            } else {
+            // Dos "edit" del mismo registro (precio en uno, categoría en otro) se juntan.
+            $clave = $n['action'] === 'edit' && $n['id'] > 0 ? 'edit|' . $n['entity'] . '|' . $n['id'] : count($lista);
+
+            if (isset($lista[$clave])) {
+                $lista[$clave]['set'] = array_merge($lista[$clave]['set'], $n['set']);
                 continue;
             }
 
-            // null = repetido dentro de la misma propuesta.
-            if ($fila === null) continue;
+            $lista[$clave] = $n;
+        }
 
-            $idx = count($row);
+        foreach ([false, true] as $productos) {
+            foreach ($lista as $c) {
+                if (($c['entity'] === 'product') !== $productos) continue;
 
-            $fila['row']['idx']    = $idx;
-            $fila['row']['action'] = $accion;
-            $fila['row']['valid']  = $fila['cambio'] !== null;
+                $fila = $productos
+                      ? $this->validarProductoIA($c, $idx, $nuevos, $vistos)
+                      : $this->validarCatalogoIA($c, $ctx, $idx, $nuevos, $vistos);
 
-            if ($fila['cambio'] !== null) {
-                $validos[$idx] = $fila['cambio'];
-                $resumen[$accion]++;
-            } else {
-                $resumen['invalid']++;
+                if ($fila === null) continue;
+
+                $i = count($row);
+
+                $fila['row']['idx']    = $i;
+                $fila['row']['action'] = $c['action'];
+                $fila['row']['tag']    = self::IA_ENTIDADES[$c['entity']]['tag'];
+                $fila['row']['valid']  = $fila['cambio'] !== null;
+
+                if ($fila['cambio'] !== null) {
+                    $validos[$i] = $fila['cambio'] + ['entity' => $c['entity'], 'action' => $c['action'], 'nombre' => $fila['row']['name']];
+                    $resumen[$c['action']]++;
+                } else {
+                    $resumen['invalid']++;
+                }
+
+                $row[] = $fila['row'];
             }
-
-            $row[] = $fila['row'];
         }
 
         return [
@@ -705,163 +797,683 @@ class ctrl extends mdl {
         ];
     }
 
-    private function validarAltaIA($c, $porId, $porNombre, $categorias, $unidades, &$vistos) {
-        $nombre = mb_substr(preg_replace('/\s+/u', ' ', $this->textoIA($c['name'] ?? '')), 0, 160);
-        $clave  = $this->normalizarIA($nombre);
+    // Acepta sinónimos en español y el formato viejo (campos sueltos, "item_id",
+    // action "price") para que un modelo que se sale un poco del contrato no se pierda.
+    private function normalizarCambioIA($c) {
+        if (!is_array($c)) return null;
 
-        if (mb_strlen($nombre) < 2) return $this->filaIA(['name' => 'Producto sin nombre', 'note' => 'Falta el nombre.']);
+        $entidades = ['producto' => 'product', 'productos' => 'product', 'item' => 'product', 'insumo' => 'product',
+                      'categoria' => 'category', 'unidad' => 'unit', 'almacen' => 'warehouse', 'proveedor' => 'supplier'];
+        $acciones  = ['alta' => 'add', 'agregar' => 'add', 'nuevo' => 'add', 'crear' => 'add', 'create' => 'add',
+                      'editar' => 'edit', 'cambiar' => 'edit', 'modificar' => 'edit', 'update' => 'edit', 'price' => 'edit', 'precio' => 'edit',
+                      'baja' => 'deactivate', 'desactivar' => 'deactivate', 'eliminar' => 'deactivate', 'borrar' => 'deactivate', 'delete' => 'deactivate',
+                      'reactivar' => 'activate', 'activar' => 'activate'];
 
-        if (isset($vistos['add' . $clave])) return null;
+        $entidad = $this->normalizarIA($this->textoIA($c['entity'] ?? ''));
+        $entidad = $entidades[$entidad] ?? ($entidad === '' ? 'product' : $entidad);
+        $accion  = $this->normalizarIA($this->textoIA($c['action'] ?? ''));
+        $accion  = $acciones[$accion] ?? $accion;
 
-        $vistos['add' . $clave] = true;
+        if (!isset(self::IA_ENTIDADES[$entidad]) || !in_array($accion, ['add', 'edit', 'deactivate', 'activate'], true)) return null;
 
-        if (isset($porNombre[$clave])) {
-            $existe = $porId[$porNombre[$clave]];
+        $set = isset($c['set']) && is_array($c['set']) ? $c['set'] : [];
 
-            return $this->filaIA([
-                'name' => $nombre,
-                'sku'  => $existe['sku'] ?? '',
-                'note' => (int) $existe['active'] === 1 ? 'Ya existe en el catálogo.' : 'Ya existe, dado de baja.'
-            ]);
+        foreach (array_keys(self::IA_ENTIDADES[$entidad]['campos']) as $campo) {
+            if (!array_key_exists($campo, $set) && array_key_exists($campo, $c) && $campo !== 'name') $set[$campo] = $c[$campo];
         }
 
-        $pedidaCat    = $this->textoIA($c['category'] ?? '');
-        $pedidaUnidad = $this->textoIA($c['unit'] ?? '');
-        $categoria    = $this->buscarOpcionIA($pedidaCat, $categorias);
-        $unidad       = $this->buscarOpcionIA($pedidaUnidad, $unidades);
-        $avisos       = [];
+        // En el formato viejo el nombre suelto de un alta es el nombre nuevo; en lo
+        // demás es solo la referencia de a quién se toca.
+        if ($accion === 'add' && !array_key_exists('name', $set) && isset($c['name'])) $set['name'] = $c['name'];
 
-        [$precio, $base, $iva] = $this->precioIA($c, 0, true);
+        $id = 0;
 
-        if ($categoria === null && $pedidaCat !== '')  $avisos[] = 'La categoría «' . $pedidaCat . '» no existe: queda sin categoría.';
-        if ($unidad === null && $pedidaUnidad !== '') $avisos[] = 'La unidad «' . $pedidaUnidad . '» no existe: queda sin unidad.';
+        if (isset($c['id']) && is_numeric($c['id']))           $id = (int) $c['id'];
+        elseif (isset($c['item_id']) && is_numeric($c['item_id'])) $id = (int) $c['item_id'];
 
-        return $this->filaIA([
-            'name'   => $nombre,
-            'after'  => $this->pesosIA($precio ?? 0),
-            'detail' => implode(' · ', [
-                $categoria ? $categoria['valor'] : 'Sin categoría',
-                $unidad ? $unidad['valor'] : 'Sin unidad',
-                'IVA ' . $iva . '%'
-            ]),
-            'warn'   => implode(' ', $avisos)
-        ], [
-            'action'      => 'add',
-            'name'        => $nombre,
-            'category_id' => $categoria ? (int) $categoria['id'] : null,
-            'unit_id'     => $unidad ? (int) $unidad['id'] : null,
-            'price'       => $precio ?? 0,
-            'base'        => $base ?? 0,
-            'tax'         => $iva
-        ]);
+        return [
+            'entity' => $entidad,
+            'action' => $accion,
+            'id'     => $id,
+            'ref'    => $this->textoIA($c['ref'] ?? ($c['name'] ?? '')),
+            'sku'    => $this->textoIA($c['sku'] ?? ''),
+            'set'    => $set
+        ];
     }
 
-    private function validarPrecioIA($c, $item, &$vistos) {
-        $pedido = $this->textoIA($c['name'] ?? '');
+    // Por entidad: filas por id, id por nombre normalizado y, en unidades y
+    // productos, id por código o SKU. Con dos nombres iguales gana el activo.
+    private function indicesIA($ctx) {
+        $idx = [];
 
-        if ($item === null) return $this->filaIA(['name' => $pedido ?: 'Producto sin identificar', 'note' => 'No lo encontré en el catálogo.']);
+        foreach (array_keys(self::IA_ENTIDADES) as $entidad) {
+            $idx[$entidad] = ['id' => [], 'nombre' => [], 'codigo' => []];
 
-        if (isset($vistos['price' . $item['id']])) return null;
+            foreach ($ctx[$entidad] as $r) {
+                $id    = (int) $r['id'];
+                $clave = $this->normalizarIA($r['name']);
 
-        $vistos['price' . $item['id']] = true;
+                $idx[$entidad]['id'][$id] = $r;
 
-        $ivaActual = (float) $item['tax'];
+                $previo = $idx[$entidad]['nombre'][$clave] ?? null;
 
-        [$precio, $base, $iva] = $this->precioIA($c, $ivaActual, false);
+                if ($previo === null || ((int) $r['active'] === 1 && (int) $idx[$entidad]['id'][$previo]['active'] !== 1)) {
+                    $idx[$entidad]['nombre'][$clave] = $id;
+                }
 
-        $fila = [
-            'name'   => $item['name'],
-            'sku'    => $item['sku'] ?? '',
-            'before' => $this->pesosIA($item['price']),
-            'warn'   => $this->avisoIdentidadIA($pedido, $item['name'])
-        ];
+                $codigo = $entidad === 'unit' ? $r['code'] : ($entidad === 'product' ? $r['sku'] : '');
+                $codigo = $this->normalizarIA($codigo);
 
-        if ($precio === null) return $this->filaIA($fila + ['note' => 'Falta el precio nuevo.']);
-
-        if (abs($precio - (float) $item['price']) < 0.005 && abs($iva - $ivaActual) < 0.005) {
-            return $this->filaIA($fila + ['note' => 'Ya tiene ese precio.']);
+                if ($codigo !== '' && !isset($idx[$entidad]['codigo'][$codigo])) $idx[$entidad]['codigo'][$codigo] = $id;
+            }
         }
 
-        return $this->filaIA($fila + [
-            'after'  => $this->pesosIA($precio),
-            'detail' => 'Sin IVA ' . $this->pesosIA($base) . ' · IVA ' . $iva . '%'
-        ], [
-            'action'  => 'price',
-            'item_id' => (int) $item['id'],
-            'price'   => $precio,
-            'base'    => $base,
-            'tax'     => $iva
-        ]);
+        return $idx;
     }
 
-    private function validarBajaIA($c, $item, &$vistos) {
-        $pedido = $this->textoIA($c['name'] ?? '');
+    private function buscarIA($entidad, $c, $idx) {
+        $i = $idx[$entidad];
 
-        if ($item === null) return $this->filaIA(['name' => $pedido ?: 'Producto sin identificar', 'note' => 'No lo encontré en el catálogo.']);
+        if ($c['id'] > 0 && isset($i['id'][$c['id']])) return $i['id'][$c['id']];
 
-        if (isset($vistos['deactivate' . $item['id']])) return null;
+        foreach ([$c['sku'], $c['ref']] as $texto) {
+            $clave = $this->normalizarIA($texto);
 
-        $vistos['deactivate' . $item['id']] = true;
-
-        $fila = [
-            'name' => $item['name'],
-            'sku'  => $item['sku'] ?? ''
-        ];
-
-        if ((int) $item['active'] !== 1) return $this->filaIA($fila + ['before' => 'Baja', 'note' => 'Ya está dado de baja.']);
-
-        $stock  = (float) $item['quantity'];
-        $avisos = array_filter([
-            $this->avisoIdentidadIA($pedido, $item['name']),
-            $stock > 0 ? 'Aún tiene ' . rtrim(rtrim(number_format($stock, 2, '.', ','), '0'), '.') . ' en existencia.' : ''
-        ]);
-
-        return $this->filaIA($fila + [
-            'before' => 'Activo',
-            'after'  => 'Baja',
-            'warn'   => implode(' ', $avisos)
-        ], [
-            'action'  => 'deactivate',
-            'item_id' => (int) $item['id']
-        ]);
-    }
-
-    private function buscarProductoIA($c, $porId, $porSku, $porNombre) {
-        $id = isset($c['item_id']) && is_numeric($c['item_id']) ? (int) $c['item_id'] : 0;
-
-        if ($id > 0 && isset($porId[$id])) return $porId[$id];
-
-        $sku = mb_strtolower($this->textoIA($c['sku'] ?? ''));
-
-        if ($sku !== '' && isset($porSku[$sku])) return $porId[$porSku[$sku]];
-
-        $clave = $this->normalizarIA($this->textoIA($c['name'] ?? ''));
-
-        if ($clave !== '' && isset($porNombre[$clave])) return $porId[$porNombre[$clave]];
+            if ($clave === '') continue;
+            if (isset($i['nombre'][$clave])) return $i['id'][$i['nombre'][$clave]];
+            if (isset($i['codigo'][$clave])) return $i['id'][$i['codigo'][$clave]];
+        }
 
         return null;
     }
 
-    // Categoría o unidad por nombre (o código de unidad); si no hay igual exacto,
-    // vale una parcial solo si es la única ("Bebida" encuentra "Bebidas").
-    private function buscarOpcionIA($texto, $lista) {
+    private function validarCatalogoIA($c, $ctx, $idx, &$nuevos, &$vistos) {
+        $entidad = $c['entity'];
+        $def     = self::IA_ENTIDADES[$entidad];
+
+        if ($c['action'] === 'add') {
+            $campos = $this->camposCatalogoIA($entidad, $c['set'], null, $ctx);
+            $nombre = $campos['values']['name'] ?? '';
+            $clave  = $this->normalizarIA($nombre);
+
+            if ($nombre === '') return $this->filaIA(['name' => $c['ref'] ?: ucfirst($def['uno']) . ' sin nombre', 'note' => 'Falta el nombre.']);
+
+            if (isset($vistos['add' . $entidad . $clave])) return null;
+
+            $vistos['add' . $entidad . $clave] = true;
+
+            if (isset($idx[$entidad]['nombre'][$clave])) {
+                $existe = $idx[$entidad]['id'][$idx[$entidad]['nombre'][$clave]];
+
+                return $this->filaIA(['name' => $nombre, 'note' => (int) $existe['active'] === 1 ? 'Ya existe.' : 'Existe dado de baja: pídeme reactivarlo.']);
+            }
+
+            if ($entidad === 'unit' && !isset($campos['values']['code'])) {
+                $campos['values']['code'] = mb_strtoupper(mb_substr($nombre, 0, 20));
+                $campos['changes'][]      = ['label' => 'Código', 'before' => '', 'after' => $campos['values']['code']];
+                $campos['warn'][]         = 'Código tomado del nombre.';
+            }
+
+            if ($entidad === 'warehouse' && !isset($campos['values']['branch_id'])) {
+                $campos['values']['branch_id'] = (int) ($_SESSION['branch_id'] ?? 0);
+                $campos['changes'][]           = ['label' => 'Sucursal', 'before' => '', 'after' => $this->nombreSucursalIA($campos['values']['branch_id'], $ctx) . ' (la tuya)'];
+            }
+
+            $nuevos[$entidad][$clave] = $nombre;
+
+            return $this->filaIA([
+                'name'    => $nombre,
+                'changes' => $this->sinNombreIA($campos['changes']),
+                'warn'    => implode(' ', $campos['warn'])
+            ], ['values' => $campos['values']]);
+        }
+
+        $actual = $this->buscarIA($entidad, $c, $idx);
+
+        if ($actual === null) return $this->filaIA(['name' => $c['ref'] ?: ucfirst($def['uno']) . ' sin identificar', 'note' => 'No lo encontré.']);
+
+        $id    = (int) $actual['id'];
+        $aviso = $this->avisoIdentidadIA($c['ref'], $actual['name']);
+
+        if ($c['action'] === 'edit') {
+            if (isset($vistos['edit' . $entidad . $id])) return null;
+
+            $vistos['edit' . $entidad . $id] = true;
+
+            $campos = $this->camposCatalogoIA($entidad, $c['set'], $actual, $ctx);
+            $fila   = ['name' => $actual['name'], 'changes' => $campos['changes'], 'warn' => trim($aviso . ' ' . implode(' ', $campos['warn']))];
+
+            if (isset($campos['values']['name'])) {
+                $otro = $idx[$entidad]['nombre'][$this->normalizarIA($campos['values']['name'])] ?? null;
+
+                if ($otro !== null && $otro !== $id) return $this->filaIA($fila + ['note' => 'Ya existe otro registro con ese nombre.']);
+            }
+
+            if (empty($campos['values'])) return $this->filaIA($fila + ['note' => 'No cambia nada.']);
+
+            return $this->filaIA($fila, ['id' => $id, 'values' => $campos['values']]);
+        }
+
+        return $this->validarEstadoIA($entidad, $c['action'], $actual, $aviso, $idx, $vistos);
+    }
+
+    // Baja o reactivación, igual para productos y catálogos.
+    private function validarEstadoIA($entidad, $accion, $actual, $aviso, $idx, &$vistos) {
+        $id      = (int) $actual['id'];
+        $destino = $accion === 'activate' ? 1 : 0;
+
+        if (isset($vistos['estado' . $entidad . $id])) return null;
+
+        $vistos['estado' . $entidad . $id] = true;
+
+        $fila = [
+            'name'   => $actual['name'],
+            'sku'    => $entidad === 'product' ? ($actual['sku'] ?? '') : '',
+            'before' => (int) $actual['active'] === 1 ? 'Activo' : 'Baja',
+            'after'  => $destino === 1 ? 'Activo' : 'Baja'
+        ];
+
+        if ((int) $actual['active'] === $destino) {
+            return $this->filaIA(['name' => $fila['name'], 'sku' => $fila['sku'], 'note' => $destino === 1 ? 'Ya está activo.' : 'Ya está dado de baja.']);
+        }
+
+        $avisos = [$aviso];
+
+        if ($destino === 0) $avisos[] = $this->avisoBajaIA($entidad, $actual, $idx);
+
+        return $this->filaIA($fila + ['warn' => trim(implode(' ', array_filter($avisos)))], ['id' => $id]);
+    }
+
+    // Lo que se queda colgando al dar de baja: existencias o productos que la usan.
+    private function avisoBajaIA($entidad, $actual, $idx) {
+        if ($entidad === 'product') {
+            $stock = (float) $actual['quantity'];
+
+            return $stock > 0 ? 'Aún tiene ' . $this->numeroIA($stock) . ' en existencia.' : '';
+        }
+
+        if ($entidad === 'warehouse') return (int) $actual['is_default'] === 1 ? 'Es el almacén por defecto de su sucursal.' : '';
+
+        $columna = ['category' => 'categoria', 'unit' => 'unidad', 'area' => 'area'][$entidad] ?? null;
+
+        if ($columna === null) return '';
+
+        $buscado = $this->normalizarIA($entidad === 'unit' ? $actual['code'] : $actual['name']);
+        $usos    = 0;
+
+        foreach ($idx['product']['id'] as $p) {
+            if ((int) $p['active'] === 1 && $this->normalizarIA($p[$columna]) === $buscado) $usos++;
+        }
+
+        return $usos > 0 ? $usos . ($usos === 1 ? ' producto activo la usa.' : ' productos activos la usan.') : '';
+    }
+
+    // Campos de un catálogo: solo los que cambian. Devuelve values (columna => valor),
+    // changes (para la vista previa) y warn (lo que se ignoró y por qué).
+    private function camposCatalogoIA($entidad, $set, $actual, $ctx) {
+        $etiquetas = self::IA_ENTIDADES[$entidad]['campos'];
+        $out       = ['values' => [], 'changes' => [], 'warn' => []];
+
+        foreach ($set as $campo => $valor) {
+            if (!isset($etiquetas[$campo])) continue;
+
+            $etiqueta = $etiquetas[$campo];
+
+            if ($campo === 'branch') {
+                $sucursal = $this->buscarSucursalIA($valor, $ctx);
+
+                if ($sucursal === null) {
+                    $out['warn'][] = 'La sucursal «' . $this->textoIA($valor) . '» no existe: no se cambia.';
+                    continue;
+                }
+
+                if ($actual !== null && (int) $actual['branch_id'] === (int) $sucursal['id']) continue;
+
+                $out['values']['branch_id'] = (int) $sucursal['id'];
+                $out['changes'][]           = ['label' => $etiqueta, 'before' => $actual ? $this->nombreSucursalIA($actual['branch_id'], $ctx) : '', 'after' => $sucursal['valor']];
+                continue;
+            }
+
+            if ($campo === 'is_default') {
+                $si = $this->siNoIA($valor);
+
+                if ($si === null || ($actual !== null && (int) $actual['is_default'] === $si)) continue;
+
+                $out['values']['is_default'] = $si;
+                $out['changes'][]            = ['label' => $etiqueta, 'before' => $actual ? ((int) $actual['is_default'] === 1 ? 'Sí' : 'No') : '', 'after' => $si === 1 ? 'Sí' : 'No'];
+                continue;
+            }
+
+            $texto = mb_substr(preg_replace('/\s+/u', ' ', $this->textoIA($valor)), 0, self::IA_LARGOS[$entidad][$campo]);
+            $antes = $actual !== null ? trim((string) ($actual[$campo] ?? '')) : '';
+
+            if ($campo === 'code') $texto = mb_strtoupper($texto);
+
+            // Nombre y código no se pueden dejar vacíos; los demás sí (se borra el dato).
+            if (in_array($campo, ['name', 'code'], true) && mb_strlen($texto) < 1) continue;
+            if ($actual === null && $texto === '') continue;
+            if ($actual !== null && $texto === $antes) continue;
+
+            if ($campo === 'email' && $texto !== '' && !filter_var($texto, FILTER_VALIDATE_EMAIL)) {
+                $out['warn'][] = 'El email «' . $texto . '» no es válido: no se cambia.';
+                continue;
+            }
+
+            $out['values'][$campo] = $texto;
+            $out['changes'][]      = ['label' => $etiqueta, 'before' => $antes, 'after' => $texto === '' ? '(vacío)' : $texto];
+        }
+
+        return $out;
+    }
+
+    private function validarProductoIA($c, $idx, &$nuevos, &$vistos) {
+        if ($c['action'] === 'add') {
+            $campos = $this->camposProductoIA($c['set'], null, $idx, $nuevos);
+            $nombre = $campos['item']['name'] ?? '';
+            $clave  = $this->normalizarIA($nombre);
+
+            if ($nombre === '') return $this->filaIA(['name' => $c['ref'] ?: 'Producto sin nombre', 'note' => 'Falta el nombre.']);
+
+            if (isset($vistos['addproduct' . $clave])) return null;
+
+            $vistos['addproduct' . $clave] = true;
+
+            if (isset($idx['product']['nombre'][$clave])) {
+                $existe = $idx['product']['id'][$idx['product']['nombre'][$clave]];
+
+                return $this->filaIA([
+                    'name' => $nombre,
+                    'sku'  => $existe['sku'] ?? '',
+                    'note' => (int) $existe['active'] === 1 ? 'Ya existe en el catálogo.' : 'Existe dado de baja: pídeme reactivarlo.'
+                ]);
+            }
+
+            // Un producto nuevo sin precio entra en 0 (insumo que no se vende).
+            $campos['item'] += ['price' => 0, 'price_without_tax' => 0, 'tax' => 0];
+
+            return $this->filaIA([
+                'name'    => $nombre,
+                'changes' => $this->sinNombreIA($campos['changes']),
+                'warn'    => implode(' ', $campos['warn'])
+            ], ['item' => $campos['item'], 'attr' => $campos['attr'], 'refs' => $campos['refs']]);
+        }
+
+        $actual = $this->buscarIA('product', $c, $idx);
+
+        if ($actual === null) return $this->filaIA(['name' => $c['ref'] ?: 'Producto sin identificar', 'note' => 'No lo encontré en el catálogo.']);
+
+        $id    = (int) $actual['id'];
+        $aviso = $this->avisoIdentidadIA($c['ref'], $actual['name']);
+
+        if ($c['action'] !== 'edit') return $this->validarEstadoIA('product', $c['action'], $actual, $aviso, $idx, $vistos);
+
+        if (isset($vistos['editproduct' . $id])) return null;
+
+        $vistos['editproduct' . $id] = true;
+
+        $campos = $this->camposProductoIA($c['set'], $actual, $idx, $nuevos);
+        $fila   = [
+            'name'    => $actual['name'],
+            'sku'     => $actual['sku'] ?? '',
+            'changes' => $campos['changes'],
+            'warn'    => trim($aviso . ' ' . implode(' ', $campos['warn']))
+        ];
+
+        if (isset($campos['item']['name'])) {
+            $otro = $idx['product']['nombre'][$this->normalizarIA($campos['item']['name'])] ?? null;
+
+            if ($otro !== null && $otro !== $id) return $this->filaIA($fila + ['note' => 'Ya existe otro producto con ese nombre.']);
+        }
+
+        if (empty($campos['item']) && empty($campos['attr']) && empty($campos['refs'])) {
+            return $this->filaIA($fila + ['note' => 'Ya tiene esos datos.']);
+        }
+
+        return $this->filaIA($fila, ['id' => $id, 'item' => $campos['item'], 'attr' => $campos['attr'], 'refs' => $campos['refs']]);
+    }
+
+    /*  Campos de un producto, repartidos donde viven: item (nombre, categoría,
+        precio de venta) e item_attribute (unidad, área, costo, mínimos, vida útil,
+        descripción). 'refs' guarda la categoría, unidad o área que se da de alta en
+        la misma propuesta: su id se conoce hasta aplicarla. */
+    private function camposProductoIA($set, $actual, $idx, $nuevos) {
+        $etiquetas = self::IA_ENTIDADES['product']['campos'];
+        $out       = ['item' => [], 'attr' => [], 'refs' => [], 'changes' => [], 'warn' => []];
+
+        if (array_key_exists('name', $set)) {
+            $nombre = mb_substr(preg_replace('/\s+/u', ' ', $this->textoIA($set['name'])), 0, 160);
+
+            if (mb_strlen($nombre) >= 2 && ($actual === null || $nombre !== $actual['name'])) {
+                $out['item']['name'] = $nombre;
+                $out['changes'][]    = ['label' => 'Nombre', 'before' => $actual['name'] ?? '', 'after' => $nombre];
+            }
+        }
+
+        // campo => [entidad del catálogo, columna, tabla destino, columna de listMateriales]
+        $referencias = [
+            'category' => ['category', 'category_id',       'item', 'categoria'],
+            'unit'     => ['unit',     'unit_id',           'attr', 'unidad'],
+            'area'     => ['area',     'warehouse_area_id', 'attr', 'area']
+        ];
+
+        foreach ($referencias as $campo => [$entidad, $columna, $destino, $columnaActual]) {
+            $texto = array_key_exists($campo, $set) ? $this->textoIA($set[$campo]) : '';
+
+            if ($texto === '') continue;
+
+            $ref   = $this->refCatalogoIA($entidad, $texto, $idx, $nuevos);
+            $antes = $actual !== null ? trim((string) ($actual[$columnaActual] ?? '')) : '';
+
+            if ($ref === null) {
+                $out['warn'][] = $etiquetas[$campo] . ' «' . $texto . '» no existe: ' . ($actual ? 'no se cambia.' : 'queda sin ' . mb_strtolower($etiquetas[$campo]) . '.');
+                continue;
+            }
+
+            $mismo = $actual !== null && (
+                $this->normalizarIA($antes) === $this->normalizarIA($ref['name'])
+                || ($entidad === 'unit' && $this->normalizarIA($antes) === $this->normalizarIA($ref['code'] ?? ''))
+            );
+
+            if ($mismo) continue;
+
+            if (isset($ref['nueva'])) {
+                $out['refs'][$campo] = ['clave' => $ref['nueva'], 'nombre' => $ref['name']];
+            } else {
+                $out[$destino][$columna] = (int) $ref['id'];
+
+                if ((int) $ref['active'] !== 1) $out['warn'][] = $etiquetas[$campo] . ' «' . $ref['name'] . '» está dada de baja.';
+            }
+
+            $out['changes'][] = ['label' => $etiquetas[$campo], 'before' => $antes, 'after' => $ref['name'] . (isset($ref['nueva']) ? ' (nueva)' : '')];
+        }
+
+        // Precio de venta: el precio con IVA manda y la base se deriva (salePrice()).
+        $tocaPrecio = array_key_exists('price', $set) || array_key_exists('base', $set);
+
+        if ($tocaPrecio || array_key_exists('tax', $set)) {
+            $ivaActual    = $actual !== null ? (float) $actual['tax'] : 0;
+            $precioActual = $actual !== null ? (float) $actual['price'] : 0;
+            $entrada      = $set;
+
+            // Solo IVA: se conserva el precio que paga el cliente y se recalcula la base.
+            if (!$tocaPrecio) $entrada['price'] = $precioActual;
+
+            [$precio, $base, $iva] = $this->precioIA($entrada, $ivaActual, $actual === null || !$tocaPrecio);
+
+            if ($precio === null) {
+                $out['warn'][] = 'El precio no es un número válido: no se cambia.';
+            } else {
+                $cambiaPrecio = $actual === null || abs($precio - $precioActual) >= 0.005;
+                $cambiaIva    = $actual === null || abs($iva - $ivaActual) >= 0.005;
+
+                if ($cambiaPrecio || $cambiaIva) {
+                    $out['item'] += ['price' => $precio, 'price_without_tax' => $base, 'tax' => $iva];
+
+                    if ($cambiaPrecio) $out['changes'][] = ['label' => 'Precio', 'before' => $actual ? $this->pesosIA($precioActual) : '', 'after' => $this->pesosIA($precio) . ($iva > 0 ? ' (sin IVA ' . $this->pesosIA($base) . ')' : '')];
+                    if ($cambiaIva)    $out['changes'][] = ['label' => 'IVA', 'before' => $actual ? $ivaActual . '%' : '', 'after' => $iva . '%'];
+                }
+            }
+        }
+
+        // campo => [columna en item_attribute, es dinero]
+        $numeros = [
+            'cost'            => ['cost_unit', true],
+            'stock_min'       => ['stock_min', false],
+            'stock_max'       => ['stock_max', false],
+            'shelf_life_days' => ['shelf_life_days', false]
+        ];
+
+        foreach ($numeros as $campo => [$columna, $dinero]) {
+            if (!array_key_exists($campo, $set)) continue;
+
+            $n = $this->cifraIA($set[$campo]);
+
+            if ($n === null || $n < 0 || $n > 9999999) {
+                $out['warn'][] = $etiquetas[$campo] . ': «' . $this->textoIA($set[$campo]) . '» no es un número válido.';
+                continue;
+            }
+
+            if ($columna === 'shelf_life_days') $n = (int) round($n);
+
+            $antes = $actual !== null ? $actual[$columna] : null;
+
+            if ($antes !== null && $antes !== '' && abs((float) $antes - $n) < 0.0001) continue;
+
+            $formato = function ($v) use ($dinero, $columna) {
+                if ($v === null || $v === '') return '';
+                if ($dinero) return $this->pesosIA($v);
+                return $this->numeroIA($v) . ($columna === 'shelf_life_days' ? ' días' : '');
+            };
+
+            $out['attr'][$columna] = $n;
+            $out['changes'][]      = ['label' => $etiquetas[$campo], 'before' => $formato($antes), 'after' => $formato($n)];
+        }
+
+        if (array_key_exists('description', $set)) {
+            $texto = mb_substr(preg_replace('/\s+/u', ' ', $this->textoIA($set['description'])), 0, 255);
+            $antes = $actual !== null ? trim((string) ($actual['description'] ?? '')) : '';
+
+            if ($texto !== $antes && !($actual === null && $texto === '')) {
+                $out['attr']['description'] = $texto;
+                $out['changes'][]           = ['label' => 'Descripción', 'before' => $antes, 'after' => $texto === '' ? '(vacío)' : $texto];
+            }
+        }
+
+        return $out;
+    }
+
+    // Categoría, unidad o área por nombre (o código de unidad), o la que se da de
+    // alta en esta misma propuesta. Sin igual exacto vale una parcial solo si es
+    // la única activa ("Bebida" encuentra "Bebidas").
+    private function refCatalogoIA($entidad, $texto, $idx, $nuevos) {
         $clave = $this->normalizarIA($texto);
 
         if ($clave === '') return null;
 
+        $fila = function ($r) {
+            return ['id' => (int) $r['id'], 'name' => $r['name'], 'code' => $r['code'] ?? '', 'active' => (int) $r['active']];
+        };
+
+        if (isset($idx[$entidad]['nombre'][$clave])) return $fila($idx[$entidad]['id'][$idx[$entidad]['nombre'][$clave]]);
+        if (isset($idx[$entidad]['codigo'][$clave])) return $fila($idx[$entidad]['id'][$idx[$entidad]['codigo'][$clave]]);
+        if (isset($nuevos[$entidad][$clave]))        return ['nueva' => $clave, 'name' => $nuevos[$entidad][$clave]];
+
         $parciales = [];
 
-        foreach ($lista as $o) {
-            $valor  = $this->normalizarIA($o['valor']);
-            $codigo = isset($o['code']) ? $this->normalizarIA($o['code']) : '';
+        foreach ($idx[$entidad]['id'] as $r) {
+            $valor = $this->normalizarIA($r['name']);
 
-            if ($clave === $valor || ($codigo !== '' && $clave === $codigo)) return $o;
-
-            if ($valor !== '' && (strpos($valor, $clave) !== false || strpos($clave, $valor) !== false)) $parciales[] = $o;
+            if ((int) $r['active'] === 1 && $valor !== '' && (strpos($valor, $clave) !== false || strpos($clave, $valor) !== false)) {
+                $parciales[] = $r;
+            }
         }
 
-        return count($parciales) === 1 ? $parciales[0] : null;
+        return count($parciales) === 1 ? $fila($parciales[0]) : null;
     }
+
+    private function buscarSucursalIA($valor, $ctx) {
+        $clave = $this->normalizarIA($this->textoIA($valor));
+
+        foreach ($ctx['branch'] as $b) {
+            if ((string) $b['id'] === $this->textoIA($valor) || ($clave !== '' && $this->normalizarIA($b['valor']) === $clave)) return $b;
+        }
+
+        return null;
+    }
+
+    private function nombreSucursalIA($id, $ctx) {
+        foreach ($ctx['branch'] as $b) {
+            if ((int) $b['id'] === (int) $id) return $b['valor'];
+        }
+
+        return 'Sucursal ' . $id;
+    }
+
+    // -- Asistente IA · aplicación --
+
+    private function aplicarCambioIA($c, $companies_id, $branch_id, $now, &$creados) {
+        $entidad = $c['entity'];
+
+        if ($entidad === 'product') {
+            if ($c['action'] === 'add')  return $this->altaProductoIA($c, $companies_id, $branch_id, $now, $creados);
+            if ($c['action'] === 'edit') return $this->editarProductoIA($c, $companies_id, $creados);
+
+            return $this->estadoIA($entidad, $c, $companies_id);
+        }
+
+        if ($c['action'] === 'add')  return $this->altaCatalogoIA($c, $companies_id, $branch_id, $now, $creados);
+        if ($c['action'] === 'edit') return $this->editarCatalogoIA($c, $companies_id);
+
+        return $this->estadoIA($entidad, $c, $companies_id);
+    }
+
+    private function altaCatalogoIA($c, $companies_id, $branch_id, $now, &$creados) {
+        $entidad = $c['entity'];
+        $valores = $c['values'] + ['companies_id' => $companies_id, 'created_at' => $now, 'active' => 1];
+
+        if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
+
+        if ($this->createCatalog($entidad, $this->sqlIA($valores)) !== true) {
+            throw new Exception('No pude dar de alta ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $valores['name'] . '».');
+        }
+
+        $creados[$entidad][$this->normalizarIA($valores['name'])] = $this->getMaxCatalogId($entidad);
+    }
+
+    private function editarCatalogoIA($c, $companies_id) {
+        $update = $this->updateCatalog($c['entity'], [
+            'values' => array_keys($c['values']),
+            'where'  => ['id = ?', 'companies_id = ?'],
+            'data'   => array_merge(array_values($c['values']), [$c['id'], $companies_id])
+        ]);
+
+        if ($update !== true) throw new Exception('No pude cambiar ' . self::IA_ENTIDADES[$c['entity']]['uno'] . ' «' . $c['nombre'] . '».');
+    }
+
+    private function estadoIA($entidad, $c, $companies_id) {
+        $datos = [
+            'values' => ['active'],
+            'where'  => ['id = ?', 'companies_id = ?'],
+            'data'   => [$c['action'] === 'activate' ? 1 : 0, $c['id'], $companies_id]
+        ];
+
+        $update = $entidad === 'product' ? $this->updateMaterial($datos) : $this->updateCatalog($entidad, $datos);
+
+        if ($update !== true) throw new Exception('No pude cambiar el estado de ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $c['nombre'] . '».');
+    }
+
+    // Misma alta que addMaterial, con los datos ya validados.
+    private function altaProductoIA($c, $companies_id, $branch_id, $now, $creados) {
+        [$item, $attr] = $this->resolverRefsIA($c, $creados);
+
+        $datos = $item + [
+            'image'        => '',
+            'branch_id'    => $branch_id,
+            'companies_id' => $companies_id,
+            'created_at'   => $now,
+            'active'       => 1
+        ];
+
+        if ($this->createMaterial($this->sqlIA($datos)) !== true) throw new Exception('No pude dar de alta «' . $item['name'] . '».');
+
+        $atributos = $attr + [
+            'sku'          => $this->skuFor($item['category_id'] ?? null),
+            'item_id'      => $this->getMaxItemId(),
+            'companies_id' => $companies_id,
+            'created_at'   => $now,
+            'active'       => 1
+        ];
+
+        if ($this->createItemAttribute($this->sqlIA($atributos)) !== true) throw new Exception('No pude guardar los datos de «' . $item['name'] . '».');
+    }
+
+    private function editarProductoIA($c, $companies_id, $creados) {
+        [$item, $attr] = $this->resolverRefsIA($c, $creados);
+
+        if (!empty($item)) {
+            $update = $this->updateMaterial([
+                'values' => array_keys($item),
+                'where'  => ['id = ?', 'companies_id = ?'],
+                'data'   => array_merge(array_values($item), [$c['id'], $companies_id])
+            ]);
+
+            if ($update !== true) throw new Exception('No pude cambiar el producto «' . $c['nombre'] . '».');
+        }
+
+        if (!empty($attr)) {
+            $update = $this->updateItemAttribute([
+                'values' => array_keys($attr),
+                'where'  => ['item_id = ?', 'companies_id = ?', 'active = 1'],
+                'data'   => array_merge(array_values($attr), [$c['id'], $companies_id])
+            ]);
+
+            if ($update !== true) throw new Exception('No pude cambiar los datos del producto «' . $c['nombre'] . '».');
+        }
+
+        // Igual que editMaterial: si el producto no tenía SKU, lo recibe ahora.
+        if (array_key_exists('category_id', $item)) $this->updateItemAttributeSku([$this->skuFor($item['category_id']), $c['id']]);
+    }
+
+    // Pone el id de la categoría, unidad o área dada de alta en esta misma propuesta.
+    // Si no se marcó, el producto no puede quedar apuntando a la nada: se detiene todo.
+    private function resolverRefsIA($c, $creados) {
+        $item    = $c['item'];
+        $attr    = $c['attr'];
+        $destino = ['category' => ['item', 'category_id'], 'unit' => ['attr', 'unit_id'], 'area' => ['attr', 'warehouse_area_id']];
+
+        foreach ($c['refs'] as $campo => $ref) {
+            $id = $creados[$campo][$ref['clave']] ?? null;
+
+            if ($id === null) {
+                $producto = $item['name'] ?? $c['nombre'];
+
+                throw new Exception('«' . $producto . '» usa ' . self::IA_ENTIDADES[$campo]['uno'] . ' nueva «' . $ref['nombre'] . '», que no marcaste. Márcala también o desmarca el producto.');
+            }
+
+            [$tabla, $columna] = $destino[$campo];
+
+            if ($tabla === 'item') $item[$columna] = $id;
+            else                   $attr[$columna] = $id;
+        }
+
+        return [$item, $attr];
+    }
+
+    // INSERT sin util->sql(): ahí un 0 se volvería NULL (gotcha 0 == ''). Los null
+    // se omiten para que la BD ponga su DEFAULT.
+    private function sqlIA($valores) {
+        $valores = array_filter($valores, function ($v) { return $v !== null; });
+
+        return [
+            'values' => array_keys($valores),
+            'data'   => array_values($valores)
+        ];
+    }
+
+    // "Listo. Altas: 1 categoría y 2 productos · Cambios: 5 productos."
+    private function resumenIA($n) {
+        $verbos = ['add' => 'Altas', 'edit' => 'Cambios', 'deactivate' => 'Bajas', 'activate' => 'Reactivados'];
+        $partes = [];
+
+        foreach ($verbos as $accion => $verbo) {
+            $items = [];
+
+            foreach (self::IA_ENTIDADES as $entidad => $def) {
+                $k = $n[$entidad][$accion] ?? 0;
+
+                if ($k) $items[] = $k . ' ' . ($k === 1 ? $def['uno'] : $def['varios']);
+            }
+
+            if (empty($items)) continue;
+
+            $ultimo   = array_pop($items);
+            $partes[] = $verbo . ': ' . (empty($items) ? '' : implode(', ', $items) . ' y ') . $ultimo;
+        }
+
+        return 'Listo. ' . implode(' · ', $partes) . '.';
+    }
+
+    // -- Asistente IA · utilidades --
 
     // Mismo pivote que salePrice(): el precio CON IVA manda y la base se deriva.
     // Devuelve [precio, base, iva]; precio null si no hay un precio usable.
@@ -907,8 +1519,19 @@ class ctrl extends mdl {
         return is_numeric($s) ? (float) $s : null;
     }
 
+    private function siNoIA($valor) {
+        if (is_bool($valor)) return $valor ? 1 : 0;
+
+        $v = $this->normalizarIA($this->textoIA($valor));
+
+        if (in_array($v, ['1', 'si', 'yes', 'true', 'verdadero'], true)) return 1;
+        if (in_array($v, ['0', 'no', 'false', 'falso'], true))           return 0;
+
+        return null;
+    }
+
     // Si el nombre que escribió el modelo no se parece al del catálogo, se avisa:
-    // puede haber elegido el producto equivocado.
+    // puede haber elegido el registro equivocado.
     private function avisoIdentidadIA($pedido, $real) {
         $a = $this->normalizarIA($pedido);
         $b = $this->normalizarIA($real);
@@ -918,6 +1541,10 @@ class ctrl extends mdl {
         similar_text($a, $b, $parecido);
 
         return $parecido < 60 ? 'En tu lista decía «' . $pedido . '».' : '';
+    }
+
+    private function sinNombreIA($changes) {
+        return array_values(array_filter($changes, function ($ch) { return $ch['label'] !== 'Nombre'; }));
     }
 
     private function normalizarIA($texto) {
@@ -931,6 +1558,12 @@ class ctrl extends mdl {
         return is_scalar($valor) ? trim((string) $valor) : '';
     }
 
+    private function numeroIA($n) {
+        if ($n === null || $n === '') return '';
+
+        return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+    }
+
     private function pesosIA($n) {
         return '$' . number_format((float) $n, 2);
     }
@@ -938,82 +1571,17 @@ class ctrl extends mdl {
     private function filaIA($row, $cambio = null) {
         return [
             'row'    => array_merge([
-                'name'   => '',
-                'sku'    => '',
-                'before' => '—',
-                'after'  => '—',
-                'detail' => '',
-                'warn'   => '',
-                'note'   => ''
+                'name'    => '',
+                'sku'     => '',
+                'changes' => [],
+                'before'  => '',
+                'after'   => '',
+                'detail'  => '',
+                'warn'    => '',
+                'note'    => ''
             ], $row),
             'cambio' => $cambio
         ];
-    }
-
-    // Misma alta que addMaterial, con los datos ya validados.
-    private function altaIA($c, $companies_id, $branch_id, $now) {
-        $sql = $this->util->sql([
-            'name'         => $c['name'],
-            'image'        => '',
-            'category_id'  => $c['category_id'],
-            'branch_id'    => $branch_id,
-            'companies_id' => $companies_id,
-            'created_at'   => $now,
-            'active'       => 1
-        ]);
-
-        // Los precios van después de util->sql(): un 0 ahí se volvería NULL (gotcha 0 == '').
-        $sql['values'][] = 'price';
-        $sql['values'][] = 'price_without_tax';
-        $sql['values'][] = 'tax';
-        $sql['data'][]   = $c['price'];
-        $sql['data'][]   = $c['base'];
-        $sql['data'][]   = $c['tax'];
-
-        if ($this->createMaterial($sql) !== true) throw new Exception('No pude dar de alta «' . $c['name'] . '».');
-
-        $attribute = $this->util->sql([
-            'sku'          => $this->skuFor($c['category_id']),
-            'unit_id'      => $c['unit_id'],
-            'item_id'      => $this->getMaxItemId(),
-            'companies_id' => $companies_id,
-            'created_at'   => $now,
-            'active'       => 1
-        ]);
-
-        if ($this->createItemAttribute($attribute) !== true) throw new Exception('No pude guardar los datos de «' . $c['name'] . '».');
-    }
-
-    private function precioProductoIA($c, $companies_id) {
-        $update = $this->updateMaterial([
-            'values' => 'price = ?, price_without_tax = ?, tax = ?',
-            'where'  => ['id = ?', 'companies_id = ?'],
-            'data'   => [$c['price'], $c['base'], $c['tax'], $c['item_id'], $companies_id]
-        ]);
-
-        if ($update !== true) throw new Exception('No pude cambiar el precio del producto ' . $c['item_id'] . '.');
-    }
-
-    private function bajaIA($c, $companies_id) {
-        $update = $this->updateMaterial([
-            'values' => 'active = ?',
-            'where'  => ['id = ?', 'companies_id = ?'],
-            'data'   => [0, $c['item_id'], $companies_id]
-        ]);
-
-        if ($update !== true) throw new Exception('No pude dar de baja el producto ' . $c['item_id'] . '.');
-    }
-
-    private function resumenIA($n) {
-        $partes = [];
-
-        if ($n['add'])        $partes[] = $n['add'] . ($n['add'] === 1 ? ' alta' : ' altas');
-        if ($n['price'])      $partes[] = $n['price'] . ($n['price'] === 1 ? ' precio actualizado' : ' precios actualizados');
-        if ($n['deactivate']) $partes[] = $n['deactivate'] . ($n['deactivate'] === 1 ? ' baja' : ' bajas');
-
-        $ultimo = array_pop($partes);
-
-        return 'Listo: ' . (empty($partes) ? '' : implode(', ', $partes) . ' y ') . $ultimo . '.';
     }
 }
 

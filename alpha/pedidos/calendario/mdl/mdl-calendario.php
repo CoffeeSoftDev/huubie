@@ -55,7 +55,8 @@ class MCalendarioPedidos extends CRUD {
             status_process. STATUS AS status_label,
             DATE_FORMAT( order.date_order,'%Y-%m-%d' ) AS date_order,
             DATE_FORMAT(order.time_order, '%h:%i %p') AS time_order,
-            status_process.id AS idStatus
+            status_process.id AS idStatus,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at
         FROM
             {$this->bd}order
         INNER JOIN {$this->bd}order_clients ON client_id = order_clients.id
@@ -106,6 +107,17 @@ class MCalendarioPedidos extends CRUD {
 
         ";
         return $this->_Read($sql,$array);
+    }
+
+    // Palomeo de Produccion: produced_at / produced_by con fecha y usuario, o NULL
+    // en ambos al quitar la palomita.
+    function updateOrderProduction($array) {
+        return $this->_Update([
+            'table'  => "{$this->bd}order",
+            'values' => $array['values'],
+            'where'  => $array['where'],
+            'data'   => $array['data'],
+        ]);
     }
 
     function updateOrderDeliveryStatus($data) {

@@ -83,16 +83,18 @@ class Navbar {
             className = 'icon-crown text-[14px] text-yellow-400';
         }
 
+        // Sin foto, el avatar va en el color del rol (rolColor() en _Utileria.php).
         const hasPhoto = this.settings.imgPerfil
             && this.settings.imgPerfil.trim() !== ''
             && !/df-user\.png$/.test(this.settings.imgPerfil);
+        const avatarBg = `bg-${this.settings.rolColor || 'gray'}-600`;
         const navbarAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#7C3AED] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
-            : `<div class="w-8 h-8 rounded-full bg-[#7C3AED] flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
+            : `<div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
 
         const dropdownAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#7C3AED] flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
-            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#7C3AED] flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg ${avatarBg} flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
+            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg ${avatarBg} flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
 
         // showSubsidiary:false -> se omite todo el control de sucursal (pill, select
         // oculto y toast). Lo usan las paginas que ya traen su propio selector, como
@@ -221,11 +223,14 @@ class Navbar {
         this.parent.prepend(navbarHtml);
     }
 
-    // Roles con filtro de vista por sucursal: admin (ROLID 1), cajero (ROLID 2)
-    // y vendedor (ROLID 3). Es SOLO consulta: no cambia la sesion ni las escrituras.
+    // Roles con filtro de vista por sucursal: admin (ROLID 1), cajero (ROLID 2),
+    // vendedor (ROLID 3), supervisores (ROLID 6 y 7, que consultan todas las
+    // sucursales; app.js ya los filtra en getListFilterSubsidiary) y produccion
+    // (ROLID 8, que solo entra al calendario). Es SOLO consulta: no cambia la
+    // sesion ni las escrituras.
     canUseBranchFilter() {
         const lvl = String(this.settings.level);
-        return this.settings.isAdmin || lvl === '2' || lvl === '3';
+        return this.settings.isAdmin || ['2', '3', '6', '7', '8'].includes(lvl);
     }
 
     // Select oculto: es el puente de compatibilidad con el modulo de pedidos,
@@ -296,8 +301,11 @@ class Navbar {
         const branches = this.settings.branches || [];
         const currentSubId = this.settings.subsidiaryId;
         const currentFull  = branches.find(b => b.id == currentSubId);
-        const currentName  = currentFull ? currentFull.name : (this.settings.subsidiary || 'Seleccionar');
-        const pillDot      = this.pillDotClass(this.settings.subsidiaryShift || 'none');
+        // 0 = "Todas las sucursales": con el que arranca el calendario (SUBSIDIARY_START_ALL).
+        const currentName  = currentSubId == 0
+            ? 'Todas las sucursales'
+            : (currentFull ? currentFull.name : (this.settings.subsidiary || 'Seleccionar'));
+        const pillDot      = this.pillDotClass(currentSubId == 0 ? 'none' : (this.settings.subsidiaryShift || 'none'));
 
         return `
         <div class="relative">
@@ -578,20 +586,29 @@ class Navbar {
             return;
         }
 
-        document.querySelectorAll(".branch-card").forEach((c) => c.classList.remove("selected"));
-        cardEl.classList.add("selected");
-
-        this.settings.subsidiaryId = id;
-        $("#subsidiaries_id").val(id);
-        $("#btnBranchName").text(name);
-        this.updatePillShiftDot(id);
-
+        this.syncBranch(id);
         this.closeBranchDropdown();
         this.showToast(name);
 
         document.dispatchEvent(new CustomEvent('branchChanged', {
             detail: { id: parseInt(id, 10), name }
         }));
+    }
+
+    // Pinta en la navbar la sucursal elegida (tarjeta, nombre, punto y select oculto)
+    // SIN avisar al modulo. Lo usa selectBranch y el filtro propio del calendario,
+    // que ya sabe del cambio y no debe recibir un 'branchChanged' de vuelta.
+    syncBranch(id) {
+        const card = document.querySelector(`.branch-card[data-id="${id}"]`);
+        if (!card) return;
+
+        document.querySelectorAll(".branch-card").forEach((c) => c.classList.remove("selected"));
+        card.classList.add("selected");
+
+        this.settings.subsidiaryId = id;
+        $("#subsidiaries_id").val(id);
+        $("#btnBranchName").text(card.getAttribute("data-name"));
+        this.updatePillShiftDot(id);
     }
 
     showToast(name) {
@@ -678,11 +695,13 @@ $(async () => {
         company:         data['company'],
         username:        user,
         role:            data.rol,
+        rolColor:        data.rol_color,
         level:           data.level,
         parent:          "#menu-navbar",
         isAdmin:         data['is_admin'],
         subsidiary:      data['subsidiary'],
-        subsidiaryId:    data['subsidiary_id'],
+        // Paginas de consulta (el calendario) arrancan en "Todas las sucursales".
+        subsidiaryId:    window.SUBSIDIARY_START_ALL === true ? 0 : data['subsidiary_id'],
         subsidiaryShift: current.shift_state || 'none',
         branches:        branches,
         showSubsidiary:  !window.HIDE_SUBSIDIARY_SWITCH,

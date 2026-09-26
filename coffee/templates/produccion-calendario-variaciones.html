@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta - Palomear en el calendario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../../alpha/src/plugins/fontello/css/fontello.css">
+    <style>
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .ev { transition: filter .2s, opacity .2s, transform .1s; }
+        .ev-dim { filter: saturate(.3); opacity: .6; }
+        .ev-strike { text-decoration: line-through; }
+        .stamp { transform: rotate(-12deg); letter-spacing: .12em; }
+        .v3-card:hover { filter: brightness(1.08); }
+        .v3-card:active { transform: scale(.97); }
+        #toast { transition: opacity .2s, transform .2s; }
+        #toast.off { opacity: 0; transform: translate(-50%, 12px); pointer-events: none; }
+    </style>
+</head>
+<body class="bg-[#0B1220] min-h-screen p-6 md:p-10 text-white">
+
+<div class="max-w-6xl mx-auto">
+
+    <header class="mb-10">
+        <span class="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Propuesta — Calendario de pedidos · Rol Producción</span>
+        <h1 class="text-xl font-semibold mt-1">3 variaciones para palomear en el calendario</h1>
+        <p class="text-gray-400 text-sm mt-1 max-w-3xl">
+            Producción va diciendo "este ya lo hice, este ya lo hice" sobre las mismas tarjetas del calendario.
+            Las tres son interactivas: haz clic en las tarjetas y en sus botones.
+        </p>
+    </header>
+
+    <!-- ============ VARIACIÓN 1 ============ -->
+    <section class="mb-16">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Variación 1</span>
+            <h2 class="text-lg font-semibold">Palomita en la esquina</h2>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo se marca</p>
+                <p class="text-gray-300">Toque en el círculo de la tarjeta. Tocar el resto de la tarjeta sigue abriendo el pedido, como hoy.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">La hecha conserva su color y queda seleccionada: borde blanco, palomita llena y "Hecho 08:40". Aviso con "Deshacer" por si fue error.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">Cuidado</p>
+                <p class="text-gray-300">El círculo es chico (24px). En tablet se puede tocar la tarjeta en vez del círculo y abrir el pedido.</p>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="flex items-center justify-end gap-3 p-2 text-xs text-gray-400">
+                <span><b data-count="v1" class="text-white">0</b> hechos esta semana</span>
+            </div>
+            <div class="bg-[#111928] rounded-lg p-3 overflow-x-auto"><div id="v1"></div></div>
+        </div>
+    </section>
+
+    <!-- ============ VARIACIÓN 2 ============ -->
+    <section class="mb-16">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Variación 2</span>
+            <h2 class="text-lg font-semibold">Botón "Ya lo hice" y sello</h2>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo se marca</p>
+                <p class="text-gray-300">Cada tarjeta trae abajo un botón a todo lo ancho: "Ya lo hice". Al tocarlo aparece el sello HECHO y el botón cambia a "Deshacer".</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">Botón grande y con texto: nadie duda qué hace. El sello se ve de lejos en la pantalla de cocina.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">Cuidado</p>
+                <p class="text-gray-300">Cada tarjeta crece unos 30px: caben menos pedidos por día antes del "+N más".</p>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="flex items-center justify-end gap-3 p-2 text-xs text-gray-400">
+                <span><b data-count="v2" class="text-white">0</b> hechos esta semana</span>
+            </div>
+            <div class="bg-[#111928] rounded-lg p-3 overflow-x-auto"><div id="v2"></div></div>
+        </div>
+    </section>
+
+    <!-- ============ VARIACIÓN 3 ============ -->
+    <section class="mb-12">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Variación 3</span>
+            <h2 class="text-lg font-semibold">Ok en la esquina (siempre activo en Producción)</h2>
+        </div>
+        <div class="grid md:grid-cols-3 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo se marca</p>
+                <p class="text-gray-300">Sin interruptor: cada tarjeta trae el ok en la esquina inferior derecha. Toque en el ok = hecho, otro toque = deshacer. El resto de la tarjeta abre el pedido, como hoy.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">El ok siempre visible dice dónde palomear. La hecha queda en su mismo color, en tono desactivado, con el ok lleno, y no se mueve de su lugar.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">Cuidado</p>
+                <p class="text-gray-300">Si se palomea por error, sale un aviso con "Deshacer". Caja y admin no ven el ok: su toque abre el pedido como hoy.</p>
+            </div>
+        </div>
+        <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 p-2">
+                <span class="text-sm text-purple-200"><i class="icon-ok"></i> Toca el ok de cada pedido que ya terminaste. Tócalo otra vez para deshacer.</span>
+                <span class="text-xs text-gray-400"><b data-count="v3" class="text-white">0</b> hechos esta semana</span>
+            </div>
+            <!-- Leyenda: la misma de colores del calendario + los dos estados de la casilla. -->
+            <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 px-2 pb-3 text-xs sm:text-sm">
+                <span class="flex items-center gap-1"><i class="icon-blank text-lg" style="color:#0E9E6E"></i> Pagado</span>
+                <span class="flex items-center gap-1"><i class="icon-blank text-lg" style="color:#FE6F00"></i> Pendiente</span>
+                <span class="flex items-center gap-1"><i class="icon-blank text-lg" style="color:#E60001"></i> Cancelado</span>
+                <span class="w-px h-5 bg-gray-600"></span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-5 h-5 rounded-full border-[2.5px] border-gray-300 bg-black/25"></span> Por producir
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-5 h-5 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center"><i class="icon-ok text-[10px]"></i></span> Producido
+                </span>
+            </div>
+            <div class="bg-[#111928] rounded-lg p-3 overflow-x-auto"><div id="v3"></div></div>
+        </div>
+    </section>
+
+    <footer class="border-t border-[#1F2A37] pt-5 text-xs text-gray-400 max-w-3xl">
+        <p class="font-semibold text-gray-300 mb-1">Común a las tres</p>
+        <ul class="list-disc pl-4 space-y-1">
+            <li>Se guarda en el pedido: hecho sí/no, quién lo marcó y a qué hora.</li>
+            <li>El filtro "Estado Entrega" podría sumar "Hecho / Por hacer" para ver solo lo pendiente.</li>
+            <li>Producción no toca pagos ni entrega; el color de la tarjeta sigue siendo el del estado del pedido.</li>
+        </ul>
+    </footer>
+</div>
+
+<div id="toast" class="off fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1F2A37] border border-[#374151] shadow-xl rounded-lg px-4 py-3 text-sm flex items-center gap-4 z-50">
+    <span id="toastText"></span>
+    <button type="button" id="toastUndo" class="text-[#3F83F8] font-semibold hover:underline">Deshacer</button>
+</div>
+
+<script>
+    // -- Datos de ejemplo --
+    const DAYS = [
+        { name: 'lun', num: 22 }, { name: 'mar', num: 23 }, { name: 'mié', num: 24 },
+        { name: 'jue', num: 25, today: true }, { name: 'vie', num: 26 }
+    ];
+    const PAGADO = '#0E9E6E', PENDIENTE = '#FE6F00';
+    const ORDERS = [
+        { folio: 'P-781', client: 'Laura Méndez',   type: '🏠 Recoge en sucursal', hour: '10:00', color: PAGADO,    badge: 'Para Producir', day: 0, done: true, at: '08:40' },
+        { folio: 'P-786', client: 'Hotel Tulipán',  type: '🚚 Envío a Domicilio', hour: '09:00', color: PENDIENTE, badge: 'Para Producir', day: 1, done: true, at: '07:55' },
+        { folio: 'P-790', client: 'Jorge Ruiz',     type: '🚚 Envío a Domicilio', hour: '13:30', color: PENDIENTE, badge: 'Para Producir', day: 2 },
+        { folio: 'P-791', client: 'Ana Torres',     type: '🏠 Recoge en sucursal', hour: '17:00', color: PAGADO,    badge: 'Para Producir', day: 2 },
+        { folio: 'P-792', client: 'María Pérez',    type: '🏠 Recoge en sucursal', hour: '16:00', color: PAGADO,    badge: 'Para Producir', day: 3 },
+        { folio: 'P-793', client: 'Café Aurora',    type: '🚚 Envío a Domicilio', hour: '18:00', color: PENDIENTE, badge: 'No entregado',  day: 3 },
+        { folio: 'P-794', client: 'Luis Hernández', type: '🏠 Recoge en sucursal', hour: '19:30', color: PAGADO,    badge: 'Para Producir', day: 3 },
+        { folio: 'P-795', client: 'Andrea Gómez',   type: '🏠 Recoge en sucursal', hour: '11:00', color: PAGADO,    badge: 'Para Producir', day: 4 },
+        { folio: 'P-797', client: 'Roberto Díaz',   type: '🏠 Recoge en sucursal', hour: '12:30', color: PENDIENTE, badge: 'Para Producir', day: 4 }
+    ];
+
+    const now = () => new Date().toTimeString().slice(0, 5);
+    const badgeClass = b => b === 'No entregado' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700';
+
+    // Cabecera y datos comunes de la tarjeta (los mismos del calendario real).
+    const cardHead = o => `
+        <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">${o.folio}</span>
+        <div class="font-semibold text-sm truncate pr-12 ${o.done ? 'ev-strike' : ''}">${o.client}</div>
+        <div class="text-xs opacity-80">${o.type}</div>
+        <div class="text-xs opacity-80"><i class="icon-clock"></i> ${o.hour}</div>`;
+
+    // -- Variación 1: palomita en la esquina --
+    // Hecho = seleccionado: conserva el color del estado; lo marca el borde blanco,
+    // la palomita llena y la etiqueta "Hecho" en el mismo color de la tarjeta.
+    const cardV1 = o => `
+        <div class="ev relative rounded p-2 cursor-pointer ${o.done ? 'ring-[3px] ring-white ring-inset shadow-[0_0_0_1px_rgba(0,0,0,.35)]' : ''}" style="background:${o.color}" data-open="${o.folio}">
+            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">${o.folio}</span>
+            <div class="font-semibold text-sm truncate pr-12">${o.client}</div>
+            <div class="text-xs opacity-80">${o.type}</div>
+            <div class="text-xs opacity-80"><i class="icon-clock"></i> ${o.hour}</div>
+            <div class="flex items-center justify-between mt-1.5">
+                ${o.done
+                    ? `<span class="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded-full text-[11px] font-bold" style="color:${o.color}"><i class="icon-ok"></i> Hecho ${o.at}</span>`
+                    : `<span class="${badgeClass(o.badge)} px-2 py-0.5 rounded-full text-[11px] font-medium">${o.badge}</span>`}
+                <button type="button" data-toggle="${o.folio}" title="${o.done ? 'Quitar palomita' : 'Ya lo hice'}"
+                    class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${o.done ? 'bg-white border-white' : 'border-white/80 text-transparent hover:bg-white/20'}"
+                    ${o.done ? `style="color:${o.color}"` : ''}>
+                    <i class="icon-ok text-xs"></i>
+                </button>
+            </div>
+        </div>`;
+
+    // -- Variación 2: botón "Ya lo hice" y sello --
+    const cardV2 = o => `
+        <div class="ev relative rounded p-2 overflow-hidden ${o.done ? 'ring-2 ring-green-300' : ''}" style="background:${o.color}">
+            ${cardHead(o)}
+            <div class="mt-1.5"><span class="${badgeClass(o.badge)} px-2 py-0.5 rounded-full text-[11px] font-medium ${o.done ? 'opacity-50' : ''}">${o.badge}</span></div>
+            ${o.done ? `<span class="stamp absolute right-2 top-9 border-2 border-white text-white text-[13px] font-black px-2 py-0.5 rounded bg-green-600/80">HECHO</span>` : ''}
+            ${o.done
+                ? `<button type="button" data-toggle="${o.folio}" class="mt-2 w-full h-8 rounded bg-black/30 hover:bg-black/40 text-[11px] font-medium flex items-center justify-center gap-1.5">
+                        <i class="icon-ok"></i> Hecho ${o.at} · <span class="underline">Deshacer</span>
+                   </button>`
+                : `<button type="button" data-toggle="${o.folio}" class="mt-2 w-full h-8 rounded bg-white text-gray-900 hover:bg-gray-100 text-xs font-bold flex items-center justify-center gap-1.5">
+                        <i class="icon-ok"></i> Ya lo hice
+                   </button>`}
+        </div>`;
+
+    // -- Variación 3: ok en la esquina --
+    // El ok vive siempre en la esquina inferior derecha: vacío invita a palomear,
+    // lleno (gris con check del color) dice que ya se hizo. Hecho = el mismo color
+    // mezclado 50% con el fondo del calendario y el contenido atenuado.
+    const cardV3 = o => `
+        <div class="ev v3-card relative rounded p-2 cursor-pointer select-none overflow-hidden"
+             style="background:${o.done ? `color-mix(in srgb, ${o.color} 50%, #111928)` : o.color}" data-card="${o.folio}">
+            <div class="${o.done ? 'opacity-60' : ''}">
+                <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">${o.folio}</span>
+                <div class="font-semibold text-sm truncate pr-12">${o.client}</div>
+                <div class="text-xs opacity-80">${o.type}</div>
+                <div class="text-xs opacity-80"><i class="icon-clock"></i> ${o.hour}</div>
+                <div class="mt-1.5 pr-8">
+                    <span class="${badgeClass(o.badge)} px-2 py-0.5 rounded-full text-[11px] font-medium">${o.badge}</span>
+                </div>
+            </div>
+            <!-- Casilla: vacía = por hacer (solo el aro gris); llena = hecho. -->
+            <button type="button" data-toggle="${o.folio}" title="${o.done ? `Hecho ${o.at} · toca para quitar la palomita` : 'Palomear: ya lo hice'}"
+                class="absolute right-1 bottom-1 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${o.done ? 'bg-gray-300 shadow' : 'border-[2.5px] border-gray-300 bg-black/25 text-transparent hover:text-gray-300/70'}"
+                ${o.done ? `style="color:${o.color}"` : ''}>
+                <i class="icon-ok text-sm"></i>
+            </button>
+        </div>`;
+
+    // -- Motor de las maquetas --
+    const variations = {
+        v1: { state: ORDERS.map(o => ({ ...o })), card: cardV1, doneLast: false },
+        v2: { state: ORDERS.map(o => ({ ...o })), card: cardV2, doneLast: false },
+        v3: { state: ORDERS.map(o => ({ ...o })), card: cardV3, doneLast: false }
+    };
+
+    function render(id) {
+        const v = variations[id];
+        const byDay = i => {
+            const list = v.state.filter(o => o.day === i);
+            return v.doneLast ? [...list.filter(o => !o.done), ...list.filter(o => o.done)] : list;
+        };
+
+        document.getElementById(id).innerHTML = `
+            <div class="grid grid-cols-5 min-w-[760px] text-xs">
+                ${DAYS.map(d => `<div class="bg-[#2B3D4F] py-2 text-center font-semibold">${d.name}</div>`).join('')}
+                ${DAYS.map((d, i) => `
+                    <div class="border border-[#1F2A37] min-h-[210px] p-1 ${d.today ? 'bg-[#2C3E50]' : ''}">
+                        <div class="text-right pr-1 ${d.today ? 'text-white font-semibold' : 'text-gray-400'}">${d.num}</div>
+                        <div class="space-y-1 mt-1">${byDay(i).map(v.card).join('')}</div>
+                    </div>`).join('')}
+            </div>`;
+
+        document.querySelector(`[data-count="${id}"]`).textContent = v.state.filter(o => o.done).length;
+    }
+
+    function toggle(id, folio, withToast) {
+        const o = variations[id].state.find(x => x.folio === folio);
+        o.done = !o.done;
+        o.at   = o.done ? now() : '';
+        render(id);
+
+        if (withToast) toast(`${o.done ? 'Marcaste' : 'Quitaste'} ${o.folio} · ${o.client}`, () => toggle(id, folio, false));
+    }
+
+    let toastTimer;
+    function toast(text, undo) {
+        const el = document.getElementById('toast');
+        document.getElementById('toastText').textContent = text;
+        document.getElementById('toastUndo').style.display = undo ? '' : 'none';
+        document.getElementById('toastUndo').onclick = () => { undo(); el.classList.add('off'); };
+        el.classList.remove('off');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.add('off'), 3500);
+    }
+
+    // V1: el círculo palomea; el resto de la tarjeta "abre" el pedido.
+    document.getElementById('v1').addEventListener('click', e => {
+        const btn = e.target.closest('[data-toggle]');
+        if (btn) return toggle('v1', btn.dataset.toggle, true);
+        const card = e.target.closest('[data-open]');
+        if (card) toast(`Se abre el detalle de ${card.dataset.open} (como hoy)`);
+    });
+
+    // V2: el botón de abajo palomea y deshace.
+    document.getElementById('v2').addEventListener('click', e => {
+        const btn = e.target.closest('[data-toggle]');
+        if (btn) toggle('v2', btn.dataset.toggle, false);
+    });
+
+    // V3: el ok de la esquina palomea; el resto de la tarjeta abre el pedido.
+    document.getElementById('v3').addEventListener('click', e => {
+        const btn = e.target.closest('[data-toggle]');
+        if (btn) return toggle('v3', btn.dataset.toggle, true);
+        const card = e.target.closest('[data-card]');
+        if (card) toast(`Se abre el detalle de ${card.dataset.card} (como hoy)`);
+    });
+
+    Object.keys(variations).forEach(render);
+</script>
+</body>
+</html>

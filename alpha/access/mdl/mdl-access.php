@@ -19,6 +19,7 @@
                     	usr_rols.id AS rol_id,
                     	fayxzvov_admin.companies.social_name AS company,
                         usr_users.key,
+                        usr_users.key2,
                         fayxzvov_admin.companies.name_bd as DB,
                         photo,
                         fullname,

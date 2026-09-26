@@ -625,14 +625,15 @@ class AsistenteProductos extends Templates {
         if (!this.chat) {
             this.chat = this.iaChat({
                 id:          `chat${this.PROJECT_NAME}`,
-                title:       "Asistente de productos",
-                subtitle:    "Altas, cambios de precio y bajas",
+                title:       "Asistente de catálogo",
+                subtitle:    "Productos, categorías, unidades, áreas, almacenes y proveedores",
                 placeholder: "Escribe o adjunta un Excel o una foto…",
                 accept:      ".xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp",
-                welcome:     "Puedo dar de alta productos, cambiar precios de venta y dar de baja. Escríbeme, adjunta un Excel o pega la foto de una lista: te enseño una vista previa y nada se guarda hasta que confirmes.",
+                welcome:     "Puedo dar de alta, cambiar, dar de baja y reactivar productos, categorías, unidades, áreas, almacenes y proveedores. Escríbeme, adjunta un Excel o pega la foto de una lista: te enseño una vista previa y nada se guarda hasta que confirmes.",
                 suggestions: [
-                    "Sube 10% el precio de todas las bebidas",
-                    "Da de alta: Agua natural 1 L, categoría Bebidas, pieza, $18",
+                    "Crea la categoría Cortes y pásale todos los cortes de res",
+                    "Pon la arrachera y la picaña en el área CONGELADOR con mínimo 5",
+                    "Cambia el teléfono del proveedor Walmart a 993 123 4567",
                     "Actualiza los precios con la lista que adjunto"
                 ],
                 actions: {
@@ -640,13 +641,17 @@ class AsistenteProductos extends Templates {
                         label: "Alta",
                         tone:  "bg-emerald-100 text-emerald-700"
                     },
-                    price: {
-                        label: "Precio",
+                    edit: {
+                        label: "Cambio",
                         tone:  "bg-sky-100 text-sky-700"
                     },
                     deactivate: {
                         label: "Baja",
                         tone:  "bg-red-100 text-red-700"
+                    },
+                    activate: {
+                        label: "Reactivar",
+                        tone:  "bg-violet-100 text-violet-700"
                     }
                 },
                 onAttach:  (file) => this.readArchivo(file),
@@ -708,11 +713,40 @@ class AsistenteProductos extends Templates {
             }
         });
 
-        if (response && response.status === 200) products.lsMateriales();
+        if (response && response.status === 200) this.refreshCatalogs((response.data && response.data.entidades) || []);
 
         return response || {
             status:  500,
             message: "No se pudo aplicar. Inténtalo otra vez."
         };
+    }
+
+    // -- Complements --
+
+    // Recarga solo lo que tocó el asistente: las pestañas del catálogo afectadas y los
+    // selects globales que usan el filtro y el formulario de Productos.
+    async refreshCatalogs(entidades) {
+        const toca = (e) => entidades.includes(e);
+
+        if (toca("category") || toca("unit") || toca("area") || toca("supplier")) {
+            const data = await useFetch({ url: this._link, data: { opc: "init" } });
+
+            if (data) {
+                categorias  = data.categorias  || [];
+                unidades    = data.unidades    || [];
+                areas       = data.areas       || [];
+                proveedores = data.proveedores || [];
+            }
+        }
+
+        if (toca("category"))  category.lsCategory();
+        if (toca("unit"))      unit.lsUnit();
+        if (toca("area"))      area.lsArea();
+        if (toca("warehouse")) warehouse.lsWarehouse();
+        if (toca("supplier"))  supplier.lsSupplier();
+
+        // Con categorías o áreas nuevas el filtro de Productos se vuelve a pintar.
+        if (toca("category") || toca("area")) products.render();
+        else if (toca("product"))            products.lsMateriales();
     }
 }

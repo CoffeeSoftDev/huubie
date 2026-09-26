@@ -40,10 +40,12 @@ class Navbar {
         const roleIconMap = { 1: 'shield', 2: 'shopping-basket', 3: 'user', 4: 'book-open', 5: 'crown' };
         const roleIcon = navIcon(roleIconMap[level] || 'user', level == 5 ? 'w-3.5 h-3.5 text-yellow-400' : 'w-3.5 h-3.5');
 
+        // Sin foto, el avatar va en el color del rol (rolColor() en _Utileria.php).
         const hasPhoto = this.settings.imgPerfil
             && this.settings.imgPerfil.trim() !== ''
             && !/df-user\.png$/.test(this.settings.imgPerfil);
-        const avatarFallback = `<div class="w-8 h-8 rounded-full bg-[#7C3AED] flex items-center justify-center text-white">${navIcon('user', 'w-[18px] h-[18px]')}</div>`;
+        const avatarBg = `bg-${this.settings.rolColor || 'gray'}-600`;
+        const avatarFallback = `<div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center text-white">${navIcon('user', 'w-[18px] h-[18px]')}</div>`;
         const navbarAvatar = hasPhoto
             ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full border-2 border-white object-cover" onerror="navbar.onAvatarError(this)" />`
             : avatarFallback;
@@ -60,12 +62,18 @@ class Navbar {
         const canFilter    = isAdmin && subsidiaries.length > 0;
         const canSwitch    = !isAdmin && subsidiaries.length > 1;
 
+        // Paginas de consulta (ej. calendario) arrancan el selector en "Todas" en vez de
+        // la sucursal de sesion. Se recuerda el valor mostrado para regresar a el si el
+        // usuario cancela un switch de sesion.
+        const startAll     = this.settings.startAll === true;
+        this.filterSubId   = startAll ? '0' : String(currentSubId ?? '');
+
         const selectCls       = 'appearance-none bg-transparent text-white text-xs font-medium pl-8 pr-7 py-1.5 focus:outline-none cursor-pointer max-w-[200px]';
         const selectWrapOpen  = `<div class="relative flex items-center bg-[#1F2A37] border border-[#374151] rounded-md hover:bg-[#2D3748] transition">
                     <span class="text-pink-500 absolute left-2.5 pointer-events-none">${navIcon('house', 'w-3.5 h-3.5')}</span>`;
         const selectWrapClose = `<span class="text-gray-400 absolute right-2 pointer-events-none">${navIcon('chevron-down', 'w-3.5 h-3.5')}</span>
                 </div>`;
-        const optionsHtml     = subsidiaries.map(s => `<option value="${s.id}" class="bg-[#1F2A37] text-white" ${currentSubId == s.id ? 'selected' : ''}>${s.valor}</option>`).join('');
+        const optionsHtml     = subsidiaries.map(s => `<option value="${s.id}" class="bg-[#1F2A37] text-white" ${!startAll && currentSubId == s.id ? 'selected' : ''}>${s.valor}</option>`).join('');
 
         let subsidiaryControl;
         if (this.settings.showSubsidiary === false) {
@@ -73,7 +81,7 @@ class Navbar {
         } else if (canFilter) {
             subsidiaryControl = `${selectWrapOpen}
                     <select id="subsidiaries_id" onchange="navbar.onSubsidiaryChange(this.value)" class="${selectCls}">
-                        <option value="0" class="bg-[#1F2A37] text-white">Todas las sucursales</option>
+                        <option value="0" class="bg-[#1F2A37] text-white" ${startAll ? 'selected' : ''}>Todas las sucursales</option>
                         ${optionsHtml}
                     </select>
                     ${selectWrapClose}`;
@@ -83,7 +91,7 @@ class Navbar {
             // onSubsidiarySelect segun el valor.
             subsidiaryControl = `${selectWrapOpen}
                     <select id="subsidiaries_id" onchange="navbar.onSubsidiarySelect(this.value)" class="${selectCls}">
-                        <option value="0" class="bg-[#1F2A37] text-white">Todas las sucursales</option>
+                        <option value="0" class="bg-[#1F2A37] text-white" ${startAll ? 'selected' : ''}>Todas las sucursales</option>
                         ${optionsHtml}
                     </select>
                     ${selectWrapClose}`;
@@ -96,7 +104,7 @@ class Navbar {
 
         const dropdownAvatar = hasPhoto
             ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="navbar.onAvatarError(this, 'lg')" />`
-            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-[#7C3AED] flex items-center justify-center text-white">${navIcon('user', 'w-10 h-10')}</div>`;
+            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg ${avatarBg} flex items-center justify-center text-white">${navIcon('user', 'w-10 h-10')}</div>`;
 
         const navbarHtml = `
             <nav class="bg-[#111827] fixed top-0 left-0 w-full text-white px-4 py-1.5 h-12 z-50 flex items-center justify-between border-b border-pink-500">
@@ -212,17 +220,19 @@ class Navbar {
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
     }
 
-    // Fallback cuando la foto de perfil no carga: avatar morado con icono lucide.
+    // Fallback cuando la foto de perfil no carga: avatar en el color del rol con icono lucide.
     onAvatarError(img, size = 'sm') {
         const big  = size === 'lg';
         const box  = big ? 'w-20 h-20 border-2 border-white shadow-lg' : 'w-8 h-8';
+        const bg   = `bg-${this.settings.rolColor || 'gray'}-600`;
         const icon = navIcon('user', big ? 'w-10 h-10' : 'w-[18px] h-[18px]');
-        img.outerHTML = `<div class="${box} rounded-full bg-[#7C3AED] flex items-center justify-center text-white">${icon}</div>`;
+        img.outerHTML = `<div class="${box} rounded-full ${bg} flex items-center justify-center text-white">${icon}</div>`;
     }
 
     // Al cambiar de sucursal desde la navbar, notificar al modulo activo.
     // Cada modulo decide como reaccionar escuchando el evento 'subsidiaryChanged'.
     onSubsidiaryChange(value) {
+        this.filterSubId = String(value);
         document.dispatchEvent(new CustomEvent('subsidiaryChanged', { detail: { id: value } }));
     }
 
@@ -257,8 +267,10 @@ class Navbar {
             color: "#fff",
         });
 
+        // Al cancelar o fallar, el select regresa a lo que mostraba (puede ser "Todas"),
+        // no a la sucursal de sesion: la vista no cambio.
         if (!result.isConfirmed) {
-            $("#subsidiaries_id").val(current);
+            $("#subsidiaries_id").val(this.filterSubId);
             return;
         }
 
@@ -270,7 +282,7 @@ class Navbar {
         if (res.status === 200) {
             window.location.reload();
         } else {
-            $("#subsidiaries_id").val(current);
+            $("#subsidiaries_id").val(this.filterSubId);
             Swal.fire({
                 icon: "error",
                 title: "No se pudo cambiar de sucursal",
@@ -351,8 +363,10 @@ $(async () => {
         isAdmin: data['is_admin'],
         subsidiaries: data['subsidiaries'],
         showSubsidiary: !window.HIDE_SUBSIDIARY_SWITCH,
+        startAll: window.SUBSIDIARY_START_ALL === true,
         username: user,
         role: data.rol,
+        rolColor: data.rol_color,
         level: data.level,
         parent: "#menu-navbar",
     });

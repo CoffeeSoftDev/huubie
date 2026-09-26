@@ -269,10 +269,12 @@ class IaChat {
     }
 
     previewRow(r) {
-        const a      = this.opts.actions[r.action] || { label: r.action, tone: 'bg-gray-100 text-gray-600' };
-        const change = r.after && r.after !== '—'
-            ? `${this.esc(r.before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> <b class="font-semibold text-gray-800">${this.esc(r.after)}</b>`
-            : this.esc(r.before);
+        const a       = this.opts.actions[r.action] || { label: r.action, tone: 'bg-gray-100 text-gray-600' };
+        const changes = (r.changes && r.changes.length) ? r.changes : (r.after ? [{ label: '', before: r.before, after: r.after }] : []);
+        const lines   = changes.map(ch => `
+                    <div class="text-[11px] text-gray-500 mt-0.5 break-words">
+                        ${ch.label ? `<span class="text-gray-400">${this.esc(ch.label)}:</span> ` : ''}${this.change(ch.before, ch.after)}
+                    </div>`).join('');
 
         return `
             <li class="flex items-start gap-2 px-3 py-2 ${r.valid ? '' : 'bg-gray-50/60'}">
@@ -280,10 +282,11 @@ class IaChat {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 min-w-0">
                         ${this.badge(a, a.label)}
+                        ${r.tag ? `<span class="text-[10px] font-medium uppercase tracking-wide text-gray-400 flex-shrink-0">${this.esc(r.tag)}</span>` : ''}
                         <span class="text-[12px] font-medium truncate ${r.valid ? 'text-gray-800' : 'text-gray-400 line-through'}" title="${this.esc(r.name)}">${this.esc(r.name)}</span>
                         ${r.sku ? `<span class="text-[10px] text-gray-400 flex-shrink-0">${this.esc(r.sku)}</span>` : ''}
                     </div>
-                    ${r.valid ? `<div class="text-[11px] text-gray-500 mt-0.5">${change}</div>` : ''}
+                    ${r.valid ? lines : ''}
                     ${r.valid && r.detail ? `<div class="text-[11px] text-gray-400">${this.esc(r.detail)}</div>` : ''}
                     ${r.warn ? `<div class="text-[11px] text-amber-600 mt-0.5 flex items-start gap-1"><i data-lucide="alert-triangle" class="w-3 h-3 mt-0.5 flex-shrink-0"></i><span>${this.esc(r.warn)}</span></div>` : ''}
                     ${r.note ? `<div class="text-[11px] text-red-600 mt-0.5">${this.esc(r.note)}</div>` : ''}
@@ -402,8 +405,9 @@ class IaChat {
         if (!rows.length) return r.reply || '';
 
         const lines = rows.slice(0, 40).map(x => {
-            const a = this.opts.actions[x.action] ? this.opts.actions[x.action].label : x.action;
-            return `${a} ${x.name}${x.after && x.after !== '—' ? ' → ' + x.after : ''}${x.valid ? '' : ' (no aplica: ' + x.note + ')'}`;
+            const a      = this.opts.actions[x.action] ? this.opts.actions[x.action].label : x.action;
+            const campos = (x.changes || []).map(ch => `${ch.label} ${ch.after}`).join(', ') || x.after || '';
+            return `${a} ${x.tag ? x.tag.toLowerCase() + ' ' : ''}${x.name}${campos ? ' (' + campos + ')' : ''}${x.valid ? '' : ' [no aplica: ' + x.note + ']'}`;
         });
 
         return `${r.reply || ''}\n[Vista previa] ${lines.join('; ')}`;
@@ -616,6 +620,12 @@ class IaChat {
             <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isError ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}">
                 <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
             </div>`;
+    }
+
+    change(before, after) {
+        const antes = before && before !== '—' ? `${this.esc(before)} <i data-lucide="arrow-right" class="inline w-3 h-3 mx-0.5 -mt-px"></i> ` : '';
+
+        return `${antes}<b class="font-semibold text-gray-800">${this.esc(after)}</b>`;
     }
 
     badge(action, text) {

@@ -83,7 +83,11 @@
             return originalUseFetch(options);
         };
     </script>
-    <script src="<?=PATH_MENU?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
+    <!-- Misma navbar que pedidos. El calendario abre en "Todas las sucursales": la
+         navbar arranca igual que el filtro del modulo. El flag debe declararse ANTES
+         de cargar navbar.js. -->
+    <script>window.SUBSIDIARY_START_ALL = true;</script>
+    <script src="<?=PATH_PEDIDOS?>src/js/navbar.js?t=<?php echo time(); ?>"></script>
     <script src="<?=PATH_MENU?>src/js/sidebar.js?t=<?php echo time(); ?>"></script>
 
     <style>

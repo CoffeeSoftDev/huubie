@@ -180,7 +180,7 @@ class User extends MUser{
                 'id'      => $user['id'],
 
                 'Nombre'  => [
-                    'html'  => userBadge($user['fullname'],'' ),
+                    'html'  => userBadge($user['fullname'], '', $user['usr_rols_id']),
                     'class' => 'px-2'
                 ],
                     'User'    => $user['user'],
@@ -189,7 +189,7 @@ class User extends MUser{
                     'class' => ''
                 ],
                 'Rol'     => [
-                    'html'  => rolBadge($user['rols']),
+                    'html'  => rolBadge($user['rols'], $user['usr_rols_id']),
                     'class' => ''
                 ],
                 'a'       => $a,
@@ -614,26 +614,16 @@ class User extends MUser{
 
 // Complements
 
-function userBadge($fullname, $sucursal) {
-    $colors = [
-        'bg-gradient-to-br from-blue-400 to-blue-600',
-        'bg-gradient-to-br from-emerald-400 to-emerald-600',
-        'bg-gradient-to-br from-purple-400 to-purple-600',
-        'bg-gradient-to-br from-rose-400 to-rose-600',
-        'bg-gradient-to-br from-amber-400 to-amber-600',
-        'bg-gradient-to-br from-cyan-400 to-cyan-600',
-        'bg-gradient-to-br from-indigo-400 to-indigo-600',
-        'bg-gradient-to-br from-teal-400 to-teal-600'
-    ];
-
+// El circulo de iniciales va en el color del rol (rolColor() en _Utileria.php).
+function userBadge($fullname, $sucursal, $rolId) {
     $parts = explode(' ', trim($fullname));
     $initials = strtoupper(substr($parts[0], 0, 1));
     if (count($parts) > 1) {
         $initials .= strtoupper(substr(end($parts), 0, 1));
     }
 
-    $colorIndex = crc32($fullname) % count($colors);
-    $bgColor = $colors[abs($colorIndex)];
+    $color   = rolColor($rolId);
+    $bgColor = "bg-gradient-to-br from-{$color}-400 to-{$color}-600";
 
     return '<div class="flex items-center gap-3">'
          . '<div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold ' . $bgColor . '">'
@@ -666,16 +656,9 @@ function subsidiaryBadges($sucursales) {
     return $html;
 }
 
-function rolBadge($rol) {
-    $map = [
-        'Administrador' => 'bg-purple-500/15 text-purple-300',
-        'Supervisor'    => 'bg-indigo-500/15 text-indigo-300',
-        'Cajero'        => 'bg-cyan-500/15 text-cyan-300',
-        'Vendedor'      => 'bg-emerald-500/15 text-emerald-300',
-        'Lectura'       => 'bg-slate-500/15 text-slate-300',
-    ];
-
-    $colors = $map[$rol] ?? 'bg-gray-500/15 text-gray-300';
+function rolBadge($rol, $rolId) {
+    $color  = rolColor($rolId);
+    $colors = "bg-{$color}-500/15 text-{$color}-300";
 
     return '<span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ' . $colors . '">'
          . $rol

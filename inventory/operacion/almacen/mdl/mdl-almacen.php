@@ -213,4 +213,68 @@ class mdl extends CRUD {
             'data'   => $data['data']
         ]);
     }
+
+    // Catálogos que toca el asistente IA (categoría, unidad, área, almacén, proveedor)
+
+    // Lista blanca entidad -> tabla: el nombre de la tabla nunca sale de lo que
+    // proponga el modelo ni de lo que mande el navegador.
+    private function catalogTable($entity) {
+        $tables = [
+            'category'  => 'item_category',
+            'unit'      => 'unit',
+            'area'      => 'warehouse_area',
+            'warehouse' => 'warehouse',
+            'supplier'  => 'supplier'
+        ];
+
+        if (!isset($tables[$entity])) throw new Exception('Catálogo no permitido: ' . $entity);
+
+        return $this->bd . $tables[$entity];
+    }
+
+    // Activos e inactivos: el asistente también reactiva.
+    function listCatalog($entity) {
+        $table = $this->catalogTable($entity);
+        $query = "
+            SELECT *
+            FROM {$table}
+            WHERE companies_id = ?
+            ORDER BY name ASC
+        ";
+        return $this->_Read($query, [$_SESSION['company_id']]);
+    }
+
+    function createCatalog($entity, $data) {
+        return $this->_Insert([
+            'table'  => $this->catalogTable($entity),
+            'values' => $data['values'],
+            'data'   => $data['data']
+        ]);
+    }
+
+    function updateCatalog($entity, $data) {
+        return $this->_Update([
+            'table'  => $this->catalogTable($entity),
+            'values' => $data['values'],
+            'where'  => $data['where'],
+            'data'   => $data['data']
+        ]);
+    }
+
+    function getMaxCatalogId($entity) {
+        $table  = $this->catalogTable($entity);
+        $result = $this->_Read("SELECT MAX(id) AS id FROM {$table}", []);
+        return (int) ($result[0]['id'] ?? 0);
+    }
+
+    function lsBranches() {
+        $query = "
+            SELECT id, name AS valor
+            FROM fayxzvov_erp.branches
+            WHERE company_id = ?
+            AND is_active = 1
+            ORDER BY name ASC
+        ";
+        return $this->_Read($query, [$_SESSION['company_id']]);
+    }
 }

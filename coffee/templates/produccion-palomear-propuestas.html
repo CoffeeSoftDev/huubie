@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta - Palomear pedidos en Producción</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../../alpha/src/plugins/fontello/css/fontello.css">
+    <style>
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+
+        /* -- Opción A: tarjeta del calendario hecha -- */
+        .ev.is-done { filter: saturate(.35); opacity: .6; }
+        .ev.is-done .ev-title { text-decoration: line-through; }
+        .ev .ev-done-badge { display: none; }
+        .ev.is-done .ev-done-badge { display: inline-flex; }
+        .ev.is-done .ev-badge { display: none; }
+        .ev .ev-check i { visibility: hidden; }
+        .ev.is-done .ev-check { background: #fff; color: #0E9E6E; border-color: #fff; }
+        .ev.is-done .ev-check i { visibility: visible; }
+        body.hide-done .ev.is-done { display: none; }
+
+        /* -- Opción B: fila de la lista -- */
+        .row-check i { visibility: hidden; }
+        .prod-row.is-done .row-check { background: #0E9E6E; border-color: #0E9E6E; }
+        .prod-row.is-done .row-check i { visibility: visible; }
+        .prod-row.is-done .row-body { opacity: .5; }
+        .prod-row.is-done .row-client { text-decoration: line-through; }
+        .prod-row .row-when { display: none; }
+        .prod-row.is-done .row-when { display: inline; }
+
+        /* -- Opción C: producto hecho -- */
+        .prod-card .pc-check i { visibility: hidden; }
+        .prod-card.is-done .pc-check { background: #0E9E6E; border-color: #0E9E6E; }
+        .prod-card.is-done .pc-check i { visibility: visible; }
+        .prod-card.is-done { outline: 1px solid rgba(14, 158, 110, .6); }
+        .prod-card.is-done .pc-name { text-decoration: line-through; opacity: .6; }
+        .prod-card .pc-label-done { display: none; }
+        .prod-card.is-done .pc-label-done { display: inline; }
+        .prod-card.is-done .pc-label-todo { display: none; }
+    </style>
+</head>
+<body class="bg-[#0B1220] min-h-screen p-6 md:p-10 text-white">
+
+<div class="max-w-6xl mx-auto">
+
+    <header class="mb-10">
+        <span class="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Propuesta — Calendario de pedidos · Rol Producción</span>
+        <h1 class="text-xl font-semibold mt-1">3 formas de palomear los pedidos ya hechos</h1>
+        <p class="text-gray-400 text-sm mt-1 max-w-3xl">
+            Producción hoy solo mira el calendario. La idea es que marque lo que ya elaboró sin tocar pagos ni entrega.
+            Las maquetas son interactivas: haz clic en las palomitas.
+        </p>
+    </header>
+
+    <!-- ================================================================
+         OPCIÓN A · Palomita en la tarjeta del calendario
+         ================================================================ -->
+    <section class="mb-16">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Opción A</span>
+            <h2 class="text-lg font-semibold">Palomita directo en el calendario</h2>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo funciona</p>
+                <p class="text-gray-300">Cada tarjeta trae un círculo abajo a la derecha. Un toque la marca como hecha: se apaga, se tacha y dice a qué hora.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">Cero pantallas nuevas. Un solo toque. Botón "Ocultar hechos" para ver solo lo pendiente.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">En contra</p>
+                <p class="text-gray-300">Tarjetas chicas: fácil palomear la equivocada en tablet. No se ve qué productos lleva sin abrir el pedido.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-amber-400 font-semibold uppercase text-[10px] mb-1">Qué pide en BD</p>
+                <p class="text-gray-300">En el pedido: marca de hecho, fecha y quién lo marcó. Un pedido = una palomita.</p>
+            </div>
+        </div>
+
+        <!-- Maqueta -->
+        <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 p-2">
+                <div class="flex items-center gap-2 h-10 bg-[#1a2332] border border-[#374151] px-3 rounded-md text-gray-400 text-xs">
+                    <i class="icon-search"></i> Buscar folio o cliente
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" id="hideDoneBtn"
+                        class="flex items-center gap-2 h-10 bg-[#1a2332] hover:bg-[#2B3D4F] border border-[#374151] text-gray-300 px-4 rounded-md text-sm">
+                        <i class="icon-ok"></i> <span>Ocultar hechos</span>
+                    </button>
+                    <span class="text-xs text-gray-400"><b id="aDone" class="text-white">1</b> de <b id="aTotal" class="text-white">6</b> hechos esta semana</span>
+                </div>
+            </div>
+
+            <div class="bg-[#111928] rounded-lg p-4 mt-2 overflow-x-auto">
+                <div class="grid grid-cols-7 min-w-[900px] text-xs">
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">lun</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">mar</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">mié</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">jue</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">vie</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">sáb</div>
+                    <div class="bg-[#2B3D4F] py-2 text-center font-semibold">dom</div>
+
+                    <!-- Celdas -->
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">22</div>
+                        <div class="ev is-done relative rounded mt-1 p-2 bg-[#0E9E6E]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-781</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">Laura Méndez</div>
+                            <div class="text-xs opacity-80">🏠 Recoge en sucursal</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 10:00</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho 08:40</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">23</div></div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">24</div>
+                        <div class="ev relative rounded mt-1 p-2 bg-[#FE6F00]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-790</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">Jorge Ruiz</div>
+                            <div class="text-xs opacity-80">🚚 Envío a Domicilio</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 13:30</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho ahora</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1 bg-[#2C3E50]"><div class="text-right text-white font-semibold pr-1">25</div>
+                        <div class="ev relative rounded mt-1 p-2 bg-[#0E9E6E]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-792</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">María Pérez</div>
+                            <div class="text-xs opacity-80">🏠 Recoge en sucursal</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 16:00</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho ahora</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                        <div class="ev relative rounded mt-1 p-2 bg-[#FE6F00]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-793</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">Café Aurora</div>
+                            <div class="text-xs opacity-80">🚚 Envío a Domicilio</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 18:00</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-[11px] font-medium">No entregado</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho ahora</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">26</div>
+                        <div class="ev relative rounded mt-1 p-2 bg-[#0E9E6E]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-795</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">Andrea Gómez</div>
+                            <div class="text-xs opacity-80">🏠 Recoge en sucursal</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 11:00</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho ahora</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">27</div>
+                        <div class="ev relative rounded mt-1 p-2 bg-[#FE6F00]" data-order>
+                            <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-797</span>
+                            <div class="ev-title font-semibold text-sm truncate pr-12">Roberto Díaz</div>
+                            <div class="text-xs opacity-80">🏠 Recoge en sucursal</div>
+                            <div class="text-xs opacity-80"><i class="icon-clock"></i> 12:30</div>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <span class="ev-badge bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                                <span class="ev-done-badge items-center gap-1 bg-white/90 text-green-700 px-2 py-0.5 rounded-full text-[11px] font-semibold"><i class="icon-ok"></i> Hecho ahora</span>
+                                <button type="button" class="ev-check w-6 h-6 rounded-full border-2 border-white/80 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border border-[#1F2A37] min-h-[190px] p-1"><div class="text-right text-gray-400 pr-1">28</div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================
+         OPCIÓN B · Vista "Producción" en lista del día
+         ================================================================ -->
+    <section class="mb-16">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Opción B</span>
+            <h2 class="text-lg font-semibold">Lista de producción del día</h2>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo funciona</p>
+                <p class="text-gray-300">Una pestaña "Producción" junto al calendario. Muestra los pedidos del día por hora, con sus productos. Lo palomeado baja a "Hechos".</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">Pensada para la tablet de cocina: filas grandes, se ve qué hacer sin abrir nada y cuánto falta del día.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">En contra</p>
+                <p class="text-gray-300">Es una vista nueva que construir. La consulta del día tiene que traer los productos de cada pedido.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-amber-400 font-semibold uppercase text-[10px] mb-1">Qué pide en BD</p>
+                <p class="text-gray-300">Lo mismo que A: marca de hecho, fecha y quién, en el pedido.</p>
+            </div>
+        </div>
+
+        <!-- Maqueta -->
+        <div class="bg-[#1F2A37] rounded-lg p-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 p-2">
+                <div class="inline-flex bg-[#111928] rounded-md p-1 text-sm">
+                    <span class="px-4 py-1.5 rounded text-gray-400">Calendario</span>
+                    <span class="px-4 py-1.5 rounded bg-[#1C64F2] font-semibold">Producción</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <button type="button" class="w-9 h-9 rounded-md bg-[#111928] text-gray-300"><i class="icon-left-open"></i></button>
+                    <span class="px-3 font-semibold">Jueves 25/09/2026</span>
+                    <button type="button" class="w-9 h-9 rounded-md bg-[#111928] text-gray-300"><i class="icon-right-open"></i></button>
+                </div>
+            </div>
+
+            <div class="px-2 mt-2">
+                <div class="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                    <span>Avance del día</span>
+                    <span><b id="bDone" class="text-white">0</b> de <b id="bTotal" class="text-white">4</b> pedidos hechos</span>
+                </div>
+                <div class="h-2 bg-[#111928] rounded-full overflow-hidden"><div id="bBar" class="h-full bg-[#0E9E6E] transition-all" style="width:0%"></div></div>
+            </div>
+
+            <div class="bg-[#111928] rounded-lg p-3 mt-4">
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2 px-1">Por hacer</p>
+                <div id="bTodo" class="space-y-2">
+
+                    <div class="prod-row flex items-stretch gap-3 bg-[#1F2A37] rounded-lg p-3 border-l-4 border-[#0E9E6E]" data-order>
+                        <button type="button" class="row-check self-center w-11 h-11 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xl"></i></button>
+                        <div class="row-body flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-lg font-bold">16:00</span>
+                                <span class="bg-black/30 text-[11px] font-semibold px-1.5 py-0.5 rounded">P-792</span>
+                                <span class="row-client font-semibold">María Pérez</span>
+                                <span class="text-xs text-gray-400">🏠 Recoge en sucursal</span>
+                                <span class="row-when text-xs text-green-400 font-semibold">✓ Hecho ahora</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">2× Pastel tres leches 20p · 1× Gelatina mosaico</p>
+                        </div>
+                    </div>
+
+                    <div class="prod-row flex items-stretch gap-3 bg-[#1F2A37] rounded-lg p-3 border-l-4 border-[#FE6F00]" data-order>
+                        <button type="button" class="row-check self-center w-11 h-11 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xl"></i></button>
+                        <div class="row-body flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-lg font-bold">18:00</span>
+                                <span class="bg-black/30 text-[11px] font-semibold px-1.5 py-0.5 rounded">P-793</span>
+                                <span class="row-client font-semibold">Café Aurora</span>
+                                <span class="text-xs text-gray-400">🚚 Envío a Domicilio</span>
+                                <span class="row-when text-xs text-green-400 font-semibold">✓ Hecho ahora</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">24× Cupcakes vainilla · 1× Pastel personalizado <span class="text-purple-300">(unicornio, 30p)</span></p>
+                        </div>
+                    </div>
+
+                    <div class="prod-row flex items-stretch gap-3 bg-[#1F2A37] rounded-lg p-3 border-l-4 border-[#0E9E6E]" data-order>
+                        <button type="button" class="row-check self-center w-11 h-11 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xl"></i></button>
+                        <div class="row-body flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-lg font-bold">19:30</span>
+                                <span class="bg-black/30 text-[11px] font-semibold px-1.5 py-0.5 rounded">P-794</span>
+                                <span class="row-client font-semibold">Luis Hernández</span>
+                                <span class="text-xs text-gray-400">🏠 Recoge en sucursal</span>
+                                <span class="row-when text-xs text-green-400 font-semibold">✓ Hecho ahora</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">1× Pastel chocolate 15p · Dedicatoria: <span class="italic">"Feliz cumple, Ana"</span></p>
+                        </div>
+                    </div>
+
+                    <div class="prod-row flex items-stretch gap-3 bg-[#1F2A37] rounded-lg p-3 border-l-4 border-[#FE6F00]" data-order>
+                        <button type="button" class="row-check self-center w-11 h-11 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar como hecho"><i class="icon-ok text-xl"></i></button>
+                        <div class="row-body flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-lg font-bold">20:00</span>
+                                <span class="bg-black/30 text-[11px] font-semibold px-1.5 py-0.5 rounded">P-796</span>
+                                <span class="row-client font-semibold">Sofía Castro</span>
+                                <span class="text-xs text-gray-400">🚚 Envío a Domicilio</span>
+                                <span class="row-when text-xs text-green-400 font-semibold">✓ Hecho ahora</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">1× Rosca de reyes grande</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mt-5 mb-2 px-1">Hechos</p>
+                <div id="bDoneList" class="space-y-2">
+                    <p id="bEmpty" class="text-xs text-gray-500 px-1">Todavía no se palomea nada hoy.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================
+         OPCIÓN C · Checklist por producto en el detalle
+         ================================================================ -->
+    <section class="mb-10">
+        <div class="flex flex-wrap items-baseline gap-x-3 mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-[#3F83F8] font-semibold">Opción C</span>
+            <h2 class="text-lg font-semibold">Palomear cada producto dentro del pedido</h2>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-3 mb-5 text-xs">
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-gray-400 font-semibold uppercase text-[10px] mb-1">Cómo funciona</p>
+                <p class="text-gray-300">Al abrir el pedido, cada producto trae su palomita. La tarjeta del calendario muestra el avance (1/3). Con todos palomeados, el pedido queda hecho solo.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-green-400 font-semibold uppercase text-[10px] mb-1">A favor</p>
+                <p class="text-gray-300">El más preciso: sirve cuando un pedido lleva varios productos y los hacen personas o turnos distintos.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-red-400 font-semibold uppercase text-[10px] mb-1">En contra</p>
+                <p class="text-gray-300">Más toques: hay que abrir cada pedido. El más complejo de construir.</p>
+            </div>
+            <div class="bg-[#1F2A37] rounded-lg p-3">
+                <p class="text-amber-400 font-semibold uppercase text-[10px] mb-1">Qué pide en BD</p>
+                <p class="text-gray-300">Marca de hecho, fecha y quién en cada producto del pedido. El pedido se da por hecho cuando están todos.</p>
+            </div>
+        </div>
+
+        <!-- Maqueta -->
+        <div class="grid lg:grid-cols-[220px_1fr] gap-4">
+            <!-- Tarjeta del calendario con avance -->
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Así se ve en el calendario</p>
+                <div class="bg-[#111928] rounded-lg p-2">
+                    <div class="relative rounded p-2 bg-[#FE6F00]">
+                        <span class="absolute top-1 right-1 bg-black/25 text-[10px] font-semibold px-1.5 py-0.5 rounded">P-793</span>
+                        <div class="font-semibold text-sm truncate pr-12">Café Aurora</div>
+                        <div class="text-xs opacity-80">🚚 Envío a Domicilio</div>
+                        <div class="text-xs opacity-80"><i class="icon-clock"></i> 18:00</div>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[11px] font-medium">Para Producir</span>
+                            <span id="cChip" class="bg-black/30 px-2 py-0.5 rounded-full text-[11px] font-semibold">🎂 1/3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalle del pedido -->
+            <div class="bg-[#1F2A37] rounded-lg border border-[#374151]">
+                <div class="flex items-center gap-3 p-4 border-b border-[#374151]">
+                    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">🎂</div>
+                    <div>
+                        <h3 class="text-lg font-semibold">Detalles del Pedido · P-793</h3>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">🚚 Domicilio</span>
+                            <span class="px-2 py-0.5 text-xs rounded bg-gray-600 text-gray-200">Reginas guadalupe</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4">
+                    <div class="bg-[#283341] rounded-lg p-3 mb-3">
+                        <div class="flex items-center justify-between text-sm mb-1.5">
+                            <span class="font-semibold">Avance de producción</span>
+                            <span class="text-gray-300"><b id="cDone" class="text-white">1</b> de <b id="cTotal" class="text-white">3</b> productos listos</span>
+                        </div>
+                        <div class="h-2 bg-[#111928] rounded-full overflow-hidden"><div id="cBar" class="h-full bg-[#0E9E6E] transition-all" style="width:33%"></div></div>
+                        <p id="cAllDone" class="hidden text-xs text-green-400 font-semibold mt-2">✓ Pedido completo: se marcó como hecho.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="prod-card is-done bg-[#2C3E50] rounded-lg p-3 flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-lg bg-[#D8B4E2] flex items-center justify-center shrink-0"><i class="icon-birthday text-2xl"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="pc-name font-bold uppercase">Cupcakes vainilla</h4>
+                                <p class="text-xs text-gray-400">Cantidad: <b class="text-white">24</b></p>
+                                <p class="text-xs text-green-400 pc-label-done">Hecho por Coffee Producción · 12:10</p>
+                            </div>
+                            <button type="button" class="pc-check w-10 h-10 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar producto"><i class="icon-ok text-lg"></i></button>
+                        </div>
+
+                        <div class="prod-card bg-[#2C3E50] rounded-lg p-3 flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-lg bg-[#D8B4E2] flex items-center justify-center shrink-0"><i class="icon-birthday text-2xl"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="pc-name font-bold uppercase">Pastel personalizado</h4>
+                                <p class="text-xs text-gray-400">Porción: <b class="text-white">30</b> · <span class="text-purple-300">Unicornio, betún rosa</span></p>
+                                <p class="text-xs text-gray-500 pc-label-todo">Pendiente</p>
+                                <p class="text-xs text-green-400 pc-label-done">Hecho por Coffee Producción · ahora</p>
+                            </div>
+                            <button type="button" class="pc-check w-10 h-10 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar producto"><i class="icon-ok text-lg"></i></button>
+                        </div>
+
+                        <div class="prod-card bg-[#2C3E50] rounded-lg p-3 flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-lg bg-[#D8B4E2] flex items-center justify-center shrink-0"><i class="icon-birthday text-2xl"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="pc-name font-bold uppercase">Galletas decoradas</h4>
+                                <p class="text-xs text-gray-400">Cantidad: <b class="text-white">12</b> · Dedicatoria: <span class="italic">"Bienvenido"</span></p>
+                                <p class="text-xs text-gray-500 pc-label-todo">Pendiente</p>
+                                <p class="text-xs text-green-400 pc-label-done">Hecho por Coffee Producción · ahora</p>
+                            </div>
+                            <button type="button" class="pc-check w-10 h-10 rounded-lg border-2 border-gray-500 flex items-center justify-center shrink-0" title="Marcar producto"><i class="icon-ok text-lg"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="border-t border-[#1F2A37] pt-5 text-xs text-gray-400 max-w-3xl">
+        <p class="font-semibold text-gray-300 mb-1">Común a las tres</p>
+        <ul class="list-disc pl-4 space-y-1">
+            <li>La palomita se puede quitar si fue por error.</li>
+            <li>Queda registrado quién y a qué hora lo marcó.</li>
+            <li>Producción no toca pagos ni el estado de entrega: eso sigue siendo de caja.</li>
+        </ul>
+    </footer>
+</div>
+
+<script>
+    // -- Opción A --
+    const countA = () => {
+        document.getElementById('aDone').textContent  = document.querySelectorAll('.ev.is-done').length;
+        document.getElementById('aTotal').textContent = document.querySelectorAll('.ev').length;
+    };
+    document.querySelectorAll('.ev-check').forEach(btn => btn.addEventListener('click', () => {
+        btn.closest('.ev').classList.toggle('is-done');
+        countA();
+    }));
+    document.getElementById('hideDoneBtn').addEventListener('click', (e) => {
+        document.body.classList.toggle('hide-done');
+        e.currentTarget.querySelector('span').textContent =
+            document.body.classList.contains('hide-done') ? 'Mostrar hechos' : 'Ocultar hechos';
+    });
+    countA();
+
+    // -- Opción B --
+    const todo = document.getElementById('bTodo');
+    const done = document.getElementById('bDoneList');
+    const countB = () => {
+        const total = document.querySelectorAll('.prod-row').length;
+        const hechos = done.querySelectorAll('.prod-row').length;
+        document.getElementById('bDone').textContent  = hechos;
+        document.getElementById('bTotal').textContent = total;
+        document.getElementById('bBar').style.width   = (hechos / total * 100) + '%';
+        document.getElementById('bEmpty').style.display = hechos ? 'none' : '';
+    };
+    document.querySelectorAll('.row-check').forEach(btn => btn.addEventListener('click', () => {
+        const row = btn.closest('.prod-row');
+        row.classList.toggle('is-done');
+        (row.classList.contains('is-done') ? done : todo).appendChild(row);
+        countB();
+    }));
+    countB();
+
+    // -- Opción C --
+    const countC = () => {
+        const total  = document.querySelectorAll('.prod-card').length;
+        const hechos = document.querySelectorAll('.prod-card.is-done').length;
+        document.getElementById('cDone').textContent  = hechos;
+        document.getElementById('cTotal').textContent = total;
+        document.getElementById('cBar').style.width   = (hechos / total * 100) + '%';
+        document.getElementById('cChip').textContent  = (hechos === total ? '✓ ' : '🎂 ') + hechos + '/' + total;
+        document.getElementById('cAllDone').classList.toggle('hidden', hechos !== total);
+    };
+    document.querySelectorAll('.pc-check').forEach(btn => btn.addEventListener('click', () => {
+        btn.closest('.prod-card').classList.toggle('is-done');
+        countC();
+    }));
+    countC();
+</script>
+</body>
+</html>

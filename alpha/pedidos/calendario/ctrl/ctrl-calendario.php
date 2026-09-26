@@ -13,7 +13,9 @@ require_once '../mdl/mdl-calendario.php';
 $encode = [];
 
 class ctrlCalendario extends MCalendarioPedidos{
-    
+
+    const ROL_PRODUCCION = 8;
+
     function init() {
         $rolId = $_SESSION['ROLID'];
         $company = $_SESSION['COMPANY_ID'];
@@ -43,7 +45,14 @@ class ctrlCalendario extends MCalendarioPedidos{
         $event = [];
         $statuses = isset($_POST['statuses']) ? explode(',', $_POST['statuses']) : ['1', '2', '3', '4'];
         $delivery = isset($_POST['delivery']) ? explode(',', $_POST['delivery']) : ['0', '1'];
-        
+
+        // Produccion no ve cotizaciones (estado 1). Sin estados el modelo no filtra y
+        // traeria todos, por eso se corta aqui si solo pidio cotizaciones.
+        if ($rolId == self::ROL_PRODUCCION) {
+            $statuses = array_values(array_diff($statuses, ['1']));
+            if (empty($statuses)) return [];
+        }
+
         $getCalendar = $this->getOrders($statuses, $delivery, $subsidiaries_id);
 
         foreach ($getCalendar as $key) {
@@ -79,16 +88,59 @@ class ctrlCalendario extends MCalendarioPedidos{
                 'delivery' => $delivered,
                 'type'     => $type,
                 'color'    => $color,
-                'folio'    => formatFolio($key['subsidiaries_id'], $key['id'])
+                'folio'    => formatFolio($key['subsidiaries_id'], $key['id']),
+                // Palomeo de Produccion: fecha y hora en que se marco como elaborado.
+                'produced'   => $key['produced_at'] ? 1 : 0,
+                'producedAt' => $key['produced_at'] ?? ''
             ];
         }
         return $event;
     }
 
+    // Produccion palomea los pedidos que ya elaboro (produced = 1) o quita la
+    // palomita (0). Solo ese rol, y solo pedidos de su empresa que no sean
+    // cotizacion: el id llega del navegador y no se confia en el.
+    function statusProduction() {
+        if ($_SESSION['ROLID'] != self::ROL_PRODUCCION) {
+            return ['status' => 403, 'message' => 'Solo Producción puede palomear los pedidos.'];
+        }
+
+        $order       = $this->getOrderID([$_POST['id']]);
+        $companySubs = array_column($this->getSubsidiariesByCompany([$_SESSION['COMPANY_ID']]), 'id');
+
+        if (empty($order) || !in_array($order[0]['subsidiaries_id'], $companySubs) || $order[0]['status'] == 1) {
+            return ['status' => 404, 'message' => 'El pedido no existe o no es de tu empresa.'];
+        }
+
+        $produced = $_POST['produced'] == 1;
+        $now      = date('Y-m-d H:i:s');
+
+        $data = [
+            'produced_by' => $produced ? $_SESSION['ID'] : '',
+            'produced_at' => $produced ? $now : '',
+            'id'          => $_POST['id']
+        ];
+
+        $update = $this->updateOrderProduction($this->util->sql($data, 1));
+
+        return [
+            'status'     => $update ? 200 : 500,
+            'message'    => $update ? 'Palomita guardada.' : 'No se pudo guardar la palomita.',
+            'producedAt' => $produced ? date('d/m/Y h:i A', strtotime($now)) : ''
+        ];
+    }
+
     function updateDeliveryStatus() {
         $status = 500;
         $message = 'Error al actualizar el estado de entrega';
-        
+
+        if ($_SESSION['ROLID'] == self::ROL_PRODUCCION) {
+            return [
+                'status'  => 403,
+                'message' => 'Tu perfil de Producción solo puede consultar los pedidos.'
+            ];
+        }
+
         $id           = $_POST['id'] ?? null;
         $is_delivered = $_POST['is_delivered'] ?? null;
         

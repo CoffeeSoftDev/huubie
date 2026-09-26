@@ -102,7 +102,8 @@ class MUser extends CRUD {
             usr_users.fullname,
             usr_users.user,
             usr_users.active,
-            usr_rols.rols
+            usr_rols.rols,
+            usr_users.usr_rols_id
         FROM
             usr_users
         INNER JOIN subsidiaries ON usr_users.subsidiaries_id = subsidiaries.id

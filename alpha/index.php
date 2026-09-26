@@ -54,36 +54,50 @@ if (isset($_SESSION['USR'])) {
                     <!-- Usuario -->
                     <div class="flex flex-col w-full md:w-1/2">
                         <label for="user" class="text-sm font-medium">Usuario</label>
-                        <input type="text" id="user" name="user"
-                            class="mt-1 p-2 bg-[#374151] rounded-md outline-none text-white" required>
+                        <input type="text" id="user" name="user" autocomplete="username"
+                            class="mt-1.5 h-14 px-4 text-[15px] bg-[#374151] rounded-md outline-none text-white" required>
+
+                        <!-- Usuario recordado en ESTE navegador. Sustituye al campo de usuario:
+                             solo queda escribir la contraseña. Lo pinta applyRemembered().
+                             El avatar es el mismo de la navbar: su foto, o el morado con icono. -->
+                        <div id="rememberedUser" class="hidden mt-1.5 h-14 pl-3 pr-4 bg-[#374151] rounded-md flex items-center gap-x-3">
+                            <span id="rememberedAvatar" class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0 text-white">
+                                <img id="rememberedPhoto" class="hidden w-full h-full object-cover" alt="">
+                                <i id="rememberedIcon" class="icon-user-7 text-lg"></i>
+                            </span>
+                            <span class="flex flex-col min-w-0 leading-tight">
+                                <span id="rememberedName" class="text-[15px] font-medium truncate"></span>
+                                <span id="rememberedUserName" class="text-xs text-gray-400 truncate"></span>
+                            </span>
+                            <button type="button" id="forgetUserBtn" title="Usar otra cuenta" aria-label="Usar otra cuenta"
+                                class="ml-auto text-gray-400 hover:text-white">
+                                <i class="icon-cancel"></i>
+                            </button>
+                        </div>
                     </div>
                     <!-- Contraseña con Input Group -->
                     <div class="flex flex-col w-full md:w-1/2 mt-4 md:mt-0">
                         <label for="key" class="text-sm font-medium">Contraseña</label>
-                        <div class="relative mt-1">
+                        <div class="relative mt-1.5">
                             <input type="password" id="key" name="key"
-                                class="w-full p-2 pr-10 bg-[#374151] rounded-md outline-none text-white" required>
+                                class="w-full h-14 px-4 pr-12 text-[15px] bg-[#374151] rounded-md outline-none text-white" required>
                             <!-- Icono del ojo -->
                             <button type="button" id="togglePassword"
-                                class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-white">
+                                class="absolute inset-y-0 right-4 flex items-center text-lg text-gray-400 hover:text-white">
                                 <i class="icon-eye"></i>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Recuerdame & ¿Olvidaste la contraseña? -->
-                <div class="flex flex-col md:flex-row justify-between items-center mt-4 text-sm">
-                    <label class="flex items-center gap-x-2 cursor-pointer">
-                        <input type="checkbox" id="rememberMe" name="rememberMe" class="bg-[#374151] w-4 h-4">
-                        Recuerdame
-                    </label>
-                    <a href="#" class="text-blue-400 hover:underline mt-2 md:mt-0">¿Olvidaste la contraseña?</a>
+                <!-- ¿Olvidaste la contraseña? (el usuario se recuerda solo, sin casilla) -->
+                <div class="flex justify-end mt-4 text-sm">
+                    <a href="#" class="text-blue-400 hover:underline">¿Olvidaste la contraseña?</a>
                 </div>
 
                 <!-- Botón -->
                 <button type="submit"
-                    class="w-full mt-4 p-2 bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
+                    class="w-full mt-4 h-14 text-base bg-[#1C64F2] hover:bg-[#0E9E6E] rounded-lg font-semibold transition-colors">
                     Iniciar sesión
                 </button>
             </form>

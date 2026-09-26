@@ -296,6 +296,24 @@ class Utileria{
 }
 
 // funciones de utileria
+
+// Color de cada rol (usr_rols.id) como familia de Tailwind. De aqui salen el badge
+// del rol y el avatar del usuario sin foto, para que los dos hablen el mismo color.
+function rolColor($rolId) {
+    $colors = [
+        1 => 'purple',  // Administrador
+        2 => 'cyan',    // Cajero
+        3 => 'emerald', // Vendedor
+        4 => 'slate',   // Lectura
+        5 => 'amber',   // SuperAdmin
+        6 => 'indigo',  // Supervisor
+        7 => 'blue',    // Supervisor Restringido
+        8 => 'gray',    // Produccion
+    ];
+
+    return $colors[$rolId] ?? 'gray';
+}
+
 function evaluar($val, $simbol = '$'){
     $value = is_nan( $val ) ? 0 : $val;
     if($simbol == ''){

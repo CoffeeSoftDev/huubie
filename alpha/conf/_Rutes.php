@@ -7,6 +7,13 @@
         exit();
     }
 
+    // Produccion (rol 8) solo entra al calendario de pedidos: cualquier otra pantalla,
+    // el hub incluido, lo regresa ahi. Los controladores cierran las escrituras aparte.
+    if (($_SESSION['ROLID'] ?? 0) == 8 && strpos($_SERVER['SCRIPT_NAME'], '/pedidos/calendario/') === false) {
+        header('Location: /alpha/pedidos/calendario/');
+        exit();
+    }
+
     define('PATH_BASE', '/alpha/');
     define('PATH_ACCESS', '/alpha/access/');
     define('PATH_MENU', '/alpha/menus/');

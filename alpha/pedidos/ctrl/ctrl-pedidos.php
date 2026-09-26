@@ -38,6 +38,8 @@ class Pedidos extends MPedidos{
     // Telefono de 10 digitos, id de grupo ('...@g.us') o array de varios. Vacio = no envia.
     const WHATSAPP_TURNO = '9621501886';
 
+    const ROL_PRODUCCION = 8;
+
     function init(){
         $subsidiaries = $this->lsSubsidiaries();
         $dailyClosure = $this->checkDailyClosure();
@@ -850,7 +852,14 @@ class Pedidos extends MPedidos{
         $orderId = $_POST['id'];
         
         $order = $this->getOrderID([$orderId]);
-        
+
+        if ($order && $_SESSION['ROLID'] == self::ROL_PRODUCCION && $order[0]['status'] == 1) {
+            return [
+                'status'  => 403,
+                'message' => 'Las cotizaciones no están disponibles para Producción.'
+            ];
+        }
+
         if ($order) {
             $order[0]['logo'] = $_SESSION['LOGO'];
             $subsidiaries_id    = $order[0]['subsidiaries_id'];
@@ -2727,6 +2736,16 @@ if (!method_exists($obj, $fn)) {
     echo json_encode([
         'status'  => 400,
         'message' => "La operación '{$fn}' no existe en el servidor. Revisa que ctrl-pedidos.php esté actualizado."
+    ]);
+    exit;
+}
+
+// Produccion solo consulta: de este controlador unicamente lee el detalle del pedido
+// que abre el calendario. Cualquier escritura se corta aqui, llegue de donde llegue.
+if (($_SESSION['ROLID'] ?? 0) == Pedidos::ROL_PRODUCCION && $fn !== 'getOrderDetails') {
+    echo json_encode([
+        'status'  => 403,
+        'message' => 'Tu perfil de Producción solo puede consultar los pedidos.'
     ]);
     exit;
 }

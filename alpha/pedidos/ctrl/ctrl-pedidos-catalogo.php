@@ -11,6 +11,8 @@ require_once '../mdl/mdl-pedidos.php';
 
 class ctrl extends MPedidos{
 
+    const ROL_PRODUCCION = 8;
+
     function init(){
 
         $orderResult = $this->getOrderID([$_POST['id']]);
@@ -755,6 +757,15 @@ class ctrl extends MPedidos{
 function formatFolio($subsidiariesId = null, $numero = null) {
     $sucursal = ($subsidiariesId === null || $subsidiariesId === '') ? 'X' : str_pad($subsidiariesId, 2, '0', STR_PAD_LEFT);
     return 'P' . $numero . '-' . $sucursal;
+}
+
+// Produccion no edita pedidos: aqui solo se arman y modifican sus partidas.
+if (($_SESSION['ROLID'] ?? 0) == ctrl::ROL_PRODUCCION) {
+    echo json_encode([
+        'status'  => 403,
+        'message' => 'Tu perfil de Producción solo puede consultar los pedidos.'
+    ]);
+    exit;
 }
 
 $obj = new ctrl();

@@ -8,6 +8,25 @@ require_once('../mdl/mdl-access.php');
 
 class Access extends MAccess {
 
+    const ROL_PRODUCCION = 8;
+
+    // Produccion solo ve el calendario de pedidos en el hub y en el menu lateral.
+    private function routesByRol($routes) {
+        if ($_SESSION['ROLID'] != self::ROL_PRODUCCION) return $routes;
+
+        return array_values(array_filter($routes, fn($route) => $route['route'] == 'pedidos/calendario/'));
+    }
+
+    // key es la clave principal (MD5). key2 es la clave alterna: se acepta en
+    // bcrypt (como la escribe inventory) o en MD5 (como key). Una key2 vacia
+    // nunca abre la puerta.
+    private function validKey($pass, $usr) {
+        if ($usr['key'] === md5($pass)) return true;
+        if (empty($usr['key2'])) return false;
+
+        return password_verify($pass, $usr['key2']) || $usr['key2'] === md5($pass);
+    }
+
     function getUser() {
         // Traer solo por nombre de usuario
         $sql = $this->getUserByData([$_POST['user']]);
@@ -19,8 +38,8 @@ class Access extends MAccess {
         ];
 
 
-        // Verificar existencia y clave
-         if ($sql && $sql['key'] === md5($_POST['key'])) {
+        // Verificar existencia y clave (key o key2)
+         if ($sql && $this->validKey($_POST['key'], $sql)) {
 
             $idUser      = $sql['id'];
             $idRol       = $sql['rol'];
@@ -46,9 +65,16 @@ class Access extends MAccess {
 
             $rute = ($idRol === 1 && $sql['active'] == 0) ? "/alpha/empresas/" : "/alpha/menu/";
 
+            // user, name, photo y color alimentan la tarjeta "usuario recordado" del login.
+            // photo viene como "/src/img/perfil/..." (relativa a /alpha); sin la
+            // diagonal inicial se resuelve contra la propia pagina del login.
             return [
                 "status"  => 200,
-                "message" => $rute
+                "message" => $rute,
+                "user"    => $sql['user'],
+                "name"    => $sql['fullname'],
+                "photo"   => empty($sql['photo']) ? '' : ltrim($sql['photo'], '/'),
+                "color"   => rolColor($sql['rol_id']),
             ];
         }
 
@@ -89,6 +115,7 @@ class Access extends MAccess {
         } else {
             $routes = $this->getRoutes();
         }
+        $routes = $this->routesByRol($routes);
 
         // Todo usuario habilitado puede cambiar de sucursal (switch de sesion):
         // se listan todas las sucursales de su empresa. El admin (ROLID == 1)
@@ -106,6 +133,7 @@ class Access extends MAccess {
             "user"          => $sql['fullname'],
             'level'         => $_SESSION['ROLID'],
             'rol'           =>  $_SESSION['ROL'],
+            'rol_color'     => rolColor($_SESSION['ROLID']),
             'routes'        => $routes,
         ];
     }
@@ -208,6 +236,7 @@ class Access extends MAccess {
         } else {
             $routes = $this->getRoutes();
         }
+        $routes = $this->routesByRol($routes);
 
         $sidebar = [];
         $submenu = [];
