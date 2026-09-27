@@ -509,6 +509,12 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    function qRenameSubmodule($array) {
+        // [name, id]
+        $query = "UPDATE {$this->bd}submodules SET name = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
     function qSetSubmoduleActive($array) {
         // [is_active, id]
         $query = "UPDATE {$this->bd}submodules SET is_active = ? WHERE id = ?";
@@ -518,19 +524,53 @@ class mdl extends CRUD {
     /* ===== Secciones (sections) ===== */
 
     function qSections($array) {
-        // [is_active]
+        // [is_active] · con [] trae activas e inactivas (Estado = Todos)
+        // duplicate_of: nombre de otra sección ACTIVA con el mismo nombre y la misma
+        // ruta; encender esta pintaría dos items idénticos en el menú.
+        $where = $array ? 'WHERE s.is_active = ?' : '';
         $query = "
             SELECT
-                s.id, s.name, s.code, s.route, s.orden, s.is_active, s.module_id, s.submodule_id,
+                s.id, s.name, s.code, s.icon, s.route, s.orden, s.is_active, s.module_id, s.submodule_id,
                 m.name  AS module_name,
-                sm.name AS submodule_name
+                sm.name AS submodule_name,
+                (
+                    SELECT d.name
+                    FROM {$this->bd}sections d
+                    WHERE d.id <> s.id
+                      AND d.is_active = 1
+                      AND LOWER(d.name) = LOWER(s.name)
+                      AND d.route <=> s.route
+                    LIMIT 1
+                ) AS duplicate_of
             FROM {$this->bd}sections s
             LEFT JOIN {$this->bd}modules    m  ON m.id  = s.module_id
             LEFT JOIN {$this->bd}submodules sm ON sm.id = s.submodule_id
-            WHERE s.is_active = ?
+            {$where}
             ORDER BY s.orden ASC, s.id ASC
         ";
-        $r = $this->_Read($query, $array);
+        $r = $this->_Read($query, $array ?: null);
+        return is_array($r) ? $r : [];
+    }
+
+    // Todos los módulos (activos y apagados) para el panel de Secciones.
+    function qModulesCatalog() {
+        $query = "
+            SELECT id, name, icon, is_active
+            FROM {$this->bd}modules
+            ORDER BY orden ASC, id ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    // Todos los submódulos con su módulo, para armar los acordeones de Secciones.
+    function qSubmodulesCatalog() {
+        $query = "
+            SELECT id, name, module_id, is_active
+            FROM {$this->bd}submodules
+            ORDER BY orden ASC, id ASC
+        ";
+        $r = $this->_Read($query, null);
         return is_array($r) ? $r : [];
     }
 
@@ -571,10 +611,25 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    function qRenameSection($array) {
+        // [name, id]
+        $query = "UPDATE {$this->bd}sections SET name = ? WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
     function qSetSectionActive($array) {
         // [is_active, id]
         $query = "UPDATE {$this->bd}sections SET is_active = ? WHERE id = ?";
         return $this->_CUD($query, $array);
+    }
+
+    function qSortSections($array) {
+        // [[id, orden], ...]
+        $query = "UPDATE {$this->bd}sections SET orden = ? WHERE id = ?";
+        foreach ($array as $pair) {
+            if (!$this->_CUD($query, [$pair[1], $pair[0]])) return false;
+        }
+        return true;
     }
 
     /* ===== Tipos de permiso (type_permissions) ===== */

@@ -313,6 +313,7 @@ class AccesosGroup extends Templates {
                     id: 'secciones',
                     tab: 'Secciones',
                     lucideIcon: 'layout-list',
+                    class: 'flex-1 min-h-0 flex flex-col',
                     onClick: () => { sections.render(); sections.lsSections(); }
                 },
                 {

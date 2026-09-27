@@ -101,6 +101,8 @@ $embed = isset($_GET['embed']);
          cuelga sus métodos de Templates.prototype y access.js los usa. -->
     <script src="../src/js/components/cs-icons.js?t=<?php echo time(); ?>"></script>
     <script src="../src/js/components/cs-icon-picker.js?t=<?php echo time(); ?>"></script>
+    <!-- Panel + acordeones de la pestaña Secciones (access.js). -->
+    <script src="../src/js/components/cs-grouped-list.js?t=<?php echo time(); ?>"></script>
 
     <!-- Módulo Administrador del Tenant -->
     <script src="js/saas.js?t=<?php echo time(); ?>"></script>

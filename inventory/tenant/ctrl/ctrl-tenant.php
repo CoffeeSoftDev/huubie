@@ -952,6 +952,17 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Submódulo actualizado correctamente' : 'No se pudo actualizar el submódulo'];
     }
 
+    // Renombrado en línea desde el acordeón de la pestaña Secciones: solo cambia el nombre.
+    function renameSubmodule() {
+        $id   = (int) $_POST['id'];
+        $name = trim($_POST['name']);
+        if ($name === '') return ['status' => 400, 'message' => 'El nombre del submódulo es obligatorio'];
+        if (!$this->qSubmodule([$id])) return ['status' => 404, 'message' => 'Submódulo no encontrado'];
+
+        $ok = $this->qRenameSubmodule([$name, $id]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Submódulo actualizado correctamente' : 'No se pudo actualizar el submódulo'];
+    }
+
     function toggleSubmodule() {
         $id = (int) $_POST['id'];
         if (!$this->qSubmodule([$id])) return ['status' => 404, 'message' => 'Submódulo no encontrado'];
@@ -962,8 +973,9 @@ class ctrl extends mdl {
     /* ===== Secciones (sections) ===== */
 
     function lsSections() {
-        $active = isset($_POST['active']) ? (int) $_POST['active'] : 1;
-        $ls = $this->qSections([$active]);
+        // 'all' = Estado Todos: activas e inactivas.
+        $active = isset($_POST['active']) ? $_POST['active'] : '1';
+        $ls = $active === 'all' ? $this->qSections([]) : $this->qSections([(int) $active]);
 
         $row = [];
         foreach ($ls as $s) {
@@ -979,7 +991,13 @@ class ctrl extends mdl {
             ];
         }
 
-        return ['status' => 200, 'row' => $row, 'ls' => $ls];
+        return [
+            'status'     => 200,
+            'row'        => $row,
+            'ls'         => $ls,
+            'modules'    => $this->qModulesCatalog(),
+            'submodules' => $this->qSubmodulesCatalog()
+        ];
     }
 
     function getSection() {
@@ -1035,6 +1053,33 @@ class ctrl extends mdl {
         if (!$this->qSection([$id])) return ['status' => 404, 'message' => 'Sección no encontrada'];
         $ok = $this->qSetSectionActive([(int) $_POST['active'], $id]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Sección activada' : 'Sección desactivada') : 'No se pudo actualizar el estado'];
+    }
+
+    // Renombrado en línea (doble clic en el nombre): solo cambia el nombre.
+    function renameSection() {
+        $id   = (int) $_POST['id'];
+        $name = trim($_POST['name']);
+        if ($name === '') return ['status' => 400, 'message' => 'El nombre de la sección es obligatorio'];
+        if (!$this->qSection([$id])) return ['status' => 404, 'message' => 'Sección no encontrada'];
+
+        $ok = $this->qRenameSection([$name, $id]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Sección actualizada correctamente' : 'No se pudo actualizar la sección'];
+    }
+
+    // Reorden por arrastre: llegan solo las secciones cuyo orden cambió, [{id, orden}, ...].
+    function sortSections() {
+        $items = json_decode($_POST['items'], true);
+
+        $pairs = [];
+        foreach ((is_array($items) ? $items : []) as $item) {
+            $id    = (int) ($item['id'] ?? 0);
+            $orden = (int) ($item['orden'] ?? 0);
+            if ($id > 0 && $orden >= 0) $pairs[] = [$id, $orden];
+        }
+        if (!$pairs) return ['status' => 400, 'message' => 'No hay secciones que reordenar'];
+
+        $ok = $this->qSortSections($pairs);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Orden actualizado' : 'No se pudo actualizar el orden'];
     }
 
     /* ===== Tipos de permiso (type_permissions) ===== */

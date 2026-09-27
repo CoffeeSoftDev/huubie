@@ -182,76 +182,575 @@ class Submodules extends Templates {
 // -- Secciones --
 
 class Sections extends Templates {
+
+    // -- Initial --
+
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'Sections';
+        this.rows = [];
+        this.moduleCatalog = [];
+        this.submoduleCatalog = [];
+        this.activeModuleId = 0;
+        this.search = '';
+        this.collapsed = {};
     }
 
+    get status() {
+        return String($('#filterbar-sections #active').val() || '1');
+    }
+
+    // -- Interface --
+
     render() {
-        $('#container-secciones').html(`
-            <div id="filterbar-sections" class="mb-2"></div>
-            <div id="table-sections"></div>
-        `);
+        this.search = '';
+        this.layout();
+        this.filterBar();
+    }
+
+    layout() {
+        this.createLayout({
+            parent: 'container-secciones',
+            design: false,
+            data: {
+                id: 'sectionsBoard',
+                class: 'flex flex-col gap-2 flex-1 min-h-0',
+                container: [
+                    {
+                        type: 'div',
+                        id: 'filterbar-sections',
+                        class: 'w-full'
+                    },
+                    {
+                        type: 'div',
+                        id: 'sections-body',
+                        class: 'grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch flex-1 min-h-0',
+                        children: [
+                            {
+                                id: 'sections-modules',
+                                class: 'lg:col-span-3 min-h-0'
+                            },
+                            {
+                                id: 'sections-list',
+                                class: 'lg:col-span-9 min-h-0'
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+    }
+
+    filterBar() {
         this.createfilterBar({
             parent: 'filterbar-sections',
             data: [
-                { opc: 'select', id: 'active', lbl: 'Estado', class: 'col-12 col-md-3', data: dataInit.statusFilter || [], onchange: 'sections.lsSections()' },
-                { opc: 'button', class: 'col-12 col-md-3', id: 'btnNewSection', text: 'Nueva Sección', onClick: () => this.addSection() }
+                {
+                    opc: 'input',
+                    id: 'searchSection',
+                    lbl: 'Buscar',
+                    placeholder: 'Buscar sección…',
+                    class: 'col-12 col-sm-4 col-lg-2',
+                    required: false,
+                    onkeyup: 'sections.onSearch(this.value)'
+                },
+                {
+                    opc: 'select',
+                    id: 'active',
+                    lbl: 'Estado',
+                    class: 'col-12 col-sm-4 col-lg-2',
+                    data: (dataInit.statusFilter || []).concat([
+                        {
+                            id: 'all',
+                            valor: 'Todos'
+                        }
+                    ]),
+                    onchange: 'sections.lsSections()'
+                },
+                {
+                    opc: 'button',
+                    id: 'btnNewSection',
+                    class: 'col-12 col-sm-4 col-lg-2',
+                    text: 'Nueva Sección',
+                    onClick: () => this.addSection()
+                }
             ]
         });
     }
 
-    lsSections() {
-        this.createTable({
-            parent: 'table-sections', idFilterBar: 'filterbar-sections',
-            data: { opc: 'lsSections' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbSections', theme: 'light', striped: true, center: [5, 6], right: [] }
+    renderModules() {
+        this.csNavList({
+            parent: 'sections-modules',
+            id: 'navSectionModules',
+            title: 'Módulos',
+            active: this.activeModuleId,
+            json: this.buildModuleItems(),
+            onSelect: (item) => this.onModuleSelect(item)
         });
+    }
+
+    renderBoard() {
+        const searching = this.search !== '';
+        const hints = {
+            '1': 'Revisa cómo está escrito o cambia Estado a Inactivos: las secciones apagadas viven ahí.',
+            '0': 'Revisa cómo está escrito o cambia Estado a Activos: aquí solo se buscan las apagadas.',
+            all: 'Revisa cómo está escrito.'
+        };
+
+        let empty = {
+            icon: 'mouse-pointer-click',
+            title: 'Elige un módulo para ver sus secciones',
+            text: 'El panel izquierdo las cuenta por módulo, o escribe en el buscador para cruzarlas todas.'
+        };
+
+        if (searching) {
+            empty = {
+                icon: 'search-x',
+                title: `Sin resultados para «${this.search}»`,
+                text: hints[this.status] || hints.all
+            };
+        }
+
+        this.csGroupedList({
+            parent: 'sections-list',
+            id: 'listSections',
+            sortable: !searching,
+            switchable: true,
+            renamable: true,
+            empty: empty,
+            json: searching
+                ? this.buildSearchGroups()
+                : (this.activeModuleId ? this.buildSubmoduleGroups() : []),
+            onSelect: (item) => this.editSection(item.id),
+            onSort: (group, ids) => this.sortSections(group, ids),
+            onToggle: (item) => this.toggleSection(item.id, item.on ? 0 : 1),
+            onRename: (group, name) => this.renameSubmodule(group.submoduleId, name),
+            onRenameItem: (item, name) => this.renameSection(item.id, name),
+            onGroupToggle: (group, open) => this.onGroupToggle(group, open)
+        });
+    }
+
+    // -- CRUD --
+
+    async lsSections() {
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'lsSections',
+                active: this.status
+            }
+        });
+
+        if (!request || request.status !== 200) {
+            notify(request);
+            return;
+        }
+
+        this.rows = request.ls || [];
+        this.moduleCatalog = request.modules || [];
+        this.submoduleCatalog = request.submodules || [];
+        this.sortRows();
+
+        const visible = this.buildModuleItems().some(m => m.id && String(m.id) === String(this.activeModuleId));
+        if (!visible) this.activeModuleId = 0;
+
+        this.renderModules();
+        this.renderBoard();
+    }
+
+    // Reparte los mismos números de orden del grupo en el nuevo acomodo (sin empates)
+    // y solo envía las secciones cuyo orden cambió.
+    async sortSections(group, ids) {
+        const rows = ids.map(id => this.rows.find(r => Number(r.id) === Number(id))).filter(Boolean);
+        const slots = rows.map(r => Number(r.orden)).sort((a, b) => a - b);
+
+        let prev = -Infinity;
+        const items = rows
+            .map((r, i) => {
+                const orden = Math.max(slots[i], prev + 1);
+                prev = orden;
+                return {
+                    id: Number(r.id),
+                    orden: orden
+                };
+            })
+            .filter(x => Number(this.rows.find(r => Number(r.id) === x.id).orden) !== x.orden);
+
+        if (!items.length) return;
+
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'sortSections',
+                items: JSON.stringify(items)
+            }
+        });
+
+        if (request && request.status === 200) {
+            items.forEach((x) => { this.rows.find(r => Number(r.id) === x.id).orden = x.orden; });
+            this.sortRows();
+        } else {
+            notify(request);
+        }
+
+        this.renderBoard();
     }
 
     addSection() {
-        if (!(dataInit.modules || []).length) { alert({ icon: 'info', text: 'Primero registra al menos un módulo activo', btn1: true }); return; }
+        if (!(dataInit.modules || []).length) {
+            alert({
+                icon: 'info',
+                text: 'Primero registra al menos un módulo activo',
+                btn1: true
+            });
+            return;
+        }
+
+        const inherits = (dataInit.modules || []).some(m => String(m.id) === String(this.activeModuleId));
+
         this.createModalForm({
-            id: 'formSectionAdd', data: { opc: 'addSection' }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Nueva Sección' }, json: this.jsonSection(),
+            id: 'formSectionAdd',
+            data: {
+                opc: 'addSection'
+            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: {
+                title: 'Nueva Sección'
+            },
+            autofill: inherits ? { module_id: String(this.activeModuleId) } : false,
+            json: this.jsonSection(),
             success: (r) => afterSave(r, () => this.lsSections())
         });
+
+        modules.mountIconField('formSectionAdd');
     }
 
     async editSection(id) {
-        const request = await useFetch({ url: this._link, data: { opc: 'getSection', id: id } });
-        if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar la sección', btn1: true }); return; }
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'getSection',
+                id: id
+            }
+        });
 
-        const name  = request.data && request.data.name ? request.data.name : '';
+        if (request.status !== 200) {
+            alert({
+                icon: 'error',
+                text: request.message || 'No se pudo cargar la sección',
+                btn1: true
+            });
+            return;
+        }
+
+        const name = request.data && request.data.name ? request.data.name : '';
         const title = name
             ? `Editar Sección · <span class="text-blue-600 font-bold">${esc(name)}</span>`
             : 'Editar Sección';
 
         this.createModalForm({
-            id: 'formSectionEdit', data: { opc: 'editSection', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: title }, autofill: request.data, json: this.jsonSection(),
+            id: 'formSectionEdit',
+            data: {
+                opc: 'editSection',
+                id: id
+            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: {
+                title: title
+            },
+            autofill: request.data,
+            json: this.jsonSection(),
             success: (r) => afterSave(r, () => this.lsSections())
         });
+
+        modules.mountIconField('formSectionEdit', request.data ? request.data.icon : '');
     }
 
     toggleSection(id, active) {
         this.swalQuestion({
-            opts: { title: `¿${active == 1 ? 'Activar' : 'Desactivar'} sección?`, text: `¿Deseas ${active == 1 ? 'activar' : 'desactivar'} esta sección?`, icon: 'warning' },
-            data: { opc: 'toggleSection', id: id, active: active },
-            methods: { send: (r) => afterSave(r, () => this.lsSections()) }
+            opts: {
+                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} sección?`,
+                text: `¿Deseas ${active == 1 ? 'activar' : 'desactivar'} esta sección?`,
+                icon: 'warning'
+            },
+            data: {
+                opc: 'toggleSection',
+                id: id,
+                active: active
+            },
+            methods: {
+                send: (r) => afterSave(r, () => this.lsSections())
+            }
         });
+    }
+
+    async renameSection(id, name) {
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'renameSection',
+                id: id,
+                name: name
+            }
+        });
+
+        notify(request);
+
+        if (request && request.status === 200) {
+            this.lsSections();
+            return;
+        }
+
+        this.renderBoard();
+    }
+
+    async renameSubmodule(id, name) {
+        const request = await useFetch({
+            url: this._link,
+            data: {
+                opc: 'renameSubmodule',
+                id: id,
+                name: name
+            }
+        });
+
+        notify(request);
+
+        if (request && request.status === 200) {
+            const option = (dataInit.submodules || []).find(s => Number(s.id) === Number(id));
+            if (option) option.valor = name;
+            this.lsSections();
+            return;
+        }
+
+        this.renderBoard();
     }
 
     jsonSection() {
         return [
-            { opc: 'input', id: 'name', lbl: 'Nombre de la sección', class: 'col-12 col-md-6 mb-3', required: true, onkeyup: 'autoCode(this.value)' },
-            { opc: 'select', id: 'module_id', lbl: 'Módulo', class: 'col-12 col-md-6 mb-3', required: true, data: dataInit.modules || [] },
-            { opc: 'select', id: 'submodule_id', lbl: 'Submódulo (opcional)', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', data: dataInit.submodules || [] },
-            { opc: 'input', id: 'code', lbl: 'Código (automático)', class: 'col-12 col-md-6 mb-3', readonly: true },
-            { opc: 'input', id: 'icon', lbl: 'Ícono (Lucide)', class: 'col-12 col-md-6 mb-3', placeholder: 'ej. boxes, house, shopping-cart' },
-            { opc: 'select', id: 'route', lbl: 'Ruta', class: 'col-12 col-md-6 mb-3', selected: '-- Selecciona --', select2: true, data: dataInit.routes || [] },
-            { opc: 'input', id: 'orden', lbl: 'Orden', type: 'number', class: 'col-12 col-md-6 mb-3' }
+            {
+                opc: 'input',
+                id: 'name',
+                lbl: 'Nombre de la sección',
+                class: 'col-12 col-md-6 mb-3',
+                required: true,
+                onkeyup: 'autoCode(this.value)'
+            },
+            {
+                opc: 'select',
+                id: 'module_id',
+                lbl: 'Módulo',
+                class: 'col-12 col-md-6 mb-3',
+                required: true,
+                data: dataInit.modules || []
+            },
+            {
+                opc: 'select',
+                id: 'submodule_id',
+                lbl: 'Submódulo (opcional)',
+                class: 'col-12 col-md-6 mb-3',
+                selected: '-- Selecciona --',
+                data: dataInit.submodules || []
+            },
+            {
+                opc: 'input',
+                id: 'code',
+                lbl: 'Código (automático)',
+                class: 'col-12 col-md-6 mb-3',
+                readonly: true
+            },
+            {
+                opc: 'div',
+                id: 'iconFieldWrap',
+                lbl: 'Ícono',
+                class: 'col-12 col-md-6 mb-3'
+            },
+            {
+                opc: 'select',
+                id: 'route',
+                lbl: 'Ruta',
+                class: 'col-12 col-md-6 mb-3',
+                selected: '-- Selecciona --',
+                select2: true,
+                data: dataInit.routes || []
+            },
+            {
+                opc: 'input',
+                id: 'orden',
+                lbl: 'Orden',
+                type: 'number',
+                class: 'col-12 col-md-6 mb-3'
+            }
         ];
+    }
+
+    // -- Complements --
+
+    onModuleSelect(item) {
+        this.activeModuleId = item.id;
+        this.renderModules();
+        this.renderBoard();
+    }
+
+    onSearch(value) {
+        const search = (value || '').trim();
+        if (search === this.search) return;
+        this.search = search;
+        this.renderBoard();
+    }
+
+    onGroupToggle(group, open) {
+        this.collapsed[group.id] = !open;
+    }
+
+    // Módulos activos siempre; los apagados solo si guardan secciones del filtro actual.
+    buildModuleItems() {
+        const status = this.status;
+        const catalog = this.moduleCatalog.slice();
+
+        this.rows.forEach((r) => {
+            if (!catalog.some(m => Number(m.id) === Number(r.module_id))) {
+                catalog.push({
+                    id: r.module_id,
+                    name: r.module_name || 'Sin módulo',
+                    is_active: 0
+                });
+            }
+        });
+
+        const items = catalog
+            .map((m) => {
+                const count = this.rows.filter(r => Number(r.module_id) === Number(m.id)).length;
+                const off = Number(m.is_active) !== 1;
+                return {
+                    id: Number(m.id),
+                    label: m.name,
+                    icon: m.icon || 'layout-grid',
+                    count: count,
+                    meta: this.countLabel(count, status, false),
+                    tag: off ? 'módulo apagado' : '',
+                    muted: off,
+                    off: off
+                };
+            })
+            .filter(m => !m.off || m.count > 0);
+
+        items.unshift({
+            id: 0,
+            label: 'Todos',
+            icon: 'layers',
+            count: this.rows.length,
+            meta: this.countLabel(this.rows.length, status, true)
+        });
+
+        return items;
+    }
+
+    // "Sin submódulo" primero; luego todos los submódulos del módulo, incluidos los apagados.
+    buildSubmoduleGroups() {
+        const moduleId = Number(this.activeModuleId);
+        const inactive = this.status === '0';
+        const rows = this.rows.filter(r => Number(r.module_id) === moduleId);
+
+        const subs = this.submoduleCatalog.filter(s => Number(s.module_id) === moduleId);
+        rows.forEach((r) => {
+            if (r.submodule_id && !subs.some(s => Number(s.id) === Number(r.submodule_id))) {
+                subs.push({
+                    id: r.submodule_id,
+                    name: r.submodule_name || 'Submódulo',
+                    is_active: 1
+                });
+            }
+        });
+
+        const groups = [
+            {
+                id: `${moduleId}-0`,
+                title: 'Sin submódulo',
+                emptyText: inactive
+                    ? 'No hay secciones apagadas sin submódulo.'
+                    : 'Sin secciones todavía. Usa «Nueva Sección» para registrar la primera.',
+                items: rows.filter(r => !r.submodule_id).map(r => this.sectionItem(r))
+            }
+        ];
+
+        subs.forEach((s) => {
+            const off = Number(s.is_active) !== 1;
+            groups.push({
+                id: `${moduleId}-${s.id}`,
+                submoduleId: Number(s.id),
+                title: s.name,
+                editable: true,
+                tag: off ? 'apagado' : '',
+                muted: off,
+                emptyText: inactive
+                    ? 'No hay secciones apagadas en este submódulo.'
+                    : 'Sin secciones en este submódulo.',
+                items: rows.filter(r => Number(r.submodule_id) === Number(s.id)).map(r => this.sectionItem(r))
+            });
+        });
+
+        groups.forEach((g) => { g.open = !this.collapsed[g.id]; });
+
+        return groups;
+    }
+
+    // La búsqueda ignora el módulo elegido: cruza todos y agrupa por módulo.
+    buildSearchGroups() {
+        const query = this.normalize(this.search);
+
+        return this.buildModuleItems()
+            .filter(m => m.id)
+            .map((m) => {
+                const items = this.rows
+                    .filter(r => Number(r.module_id) === m.id && this.normalize(r.name).includes(query))
+                    .map(r => this.sectionItem(r));
+                return {
+                    id: `search-${m.id}`,
+                    title: m.label,
+                    tag: m.tag,
+                    count: `${items.length} ${items.length === 1 ? 'resultado' : 'resultados'}`,
+                    items: items
+                };
+            })
+            .filter(g => g.items.length);
+    }
+
+    sectionItem(row) {
+        const on = Number(row.is_active) === 1;
+        const note = !on && row.duplicate_of
+            ? `Duplica a «${row.duplicate_of}» activa: misma ruta ${row.route || ''}. Encenderla pintaría dos items idénticos en el menú.`
+            : '';
+
+        return {
+            id: Number(row.id),
+            title: row.name,
+            subtitle: row.route || 'Sin ruta',
+            icon: row.icon || 'square',
+            on: on,
+            muted: !on,
+            note: note
+        };
+    }
+
+    sortRows() {
+        this.rows.sort((a, b) => (Number(a.orden) - Number(b.orden)) || (Number(a.id) - Number(b.id)));
+    }
+
+    countLabel(count, status, all) {
+        const noun = `${count} ${count === 1 ? 'sección' : 'secciones'}`;
+        if (all && status === '1') return `${noun} ${count === 1 ? 'activa' : 'activas'}`;
+        if (all && status === '0') return `${noun} ${count === 1 ? 'inactiva' : 'inactivas'}`;
+        if (all) return noun;
+        if (status === '0') return `${count} ${count === 1 ? 'inactiva' : 'inactivas'}`;
+        if (!count) return 'sin secciones aún';
+        return `${count} ${count === 1 ? 'sección' : 'secciones'}`;
+    }
+
+    normalize(text) {
+        return (text || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
     }
 }
 
