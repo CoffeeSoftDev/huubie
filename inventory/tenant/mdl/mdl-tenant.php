@@ -611,6 +611,15 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    function qDeleteSection($array) {
+        // [id] · primero sus permisos, luego la sección
+        $query = "DELETE FROM {$this->bd}permissions WHERE section_id = ?";
+        if (!$this->_CUD($query, $array)) return false;
+
+        $query = "DELETE FROM {$this->bd}sections WHERE id = ?";
+        return $this->_CUD($query, $array);
+    }
+
     function qRenameSection($array) {
         // [name, id]
         $query = "UPDATE {$this->bd}sections SET name = ? WHERE id = ?";

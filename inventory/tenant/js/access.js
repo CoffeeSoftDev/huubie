@@ -6,38 +6,27 @@ class Modules extends Templates {
         this.PROJECT_NAME = 'Modules';
     }
 
-    render() {
-        $('#container-modulos').html(`
-            <div id="filterbar-modules" class="mb-2"></div>
-            <div id="table-modules"></div>
-        `);
-        this.createfilterBar({
-            parent: 'filterbar-modules',
-            data: [
-                { opc: 'select', id: 'active', lbl: 'Estado', class: 'col-12 col-md-3', data: dataInit.statusFilter || [], onchange: 'modules.lsModules()' },
-                { opc: 'button', class: 'col-12 col-md-3', id: 'btnNewModule', text: 'Nuevo Módulo', onClick: () => this.addModule() }
-            ]
-        });
-    }
+    // Ya no tiene pestaña propia: se administra desde el panel de la pestaña Secciones,
+    // que pasa en onSaved cómo refrescarse al guardar.
 
-    lsModules() {
-        this.createTable({
-            parent: 'table-modules', idFilterBar: 'filterbar-modules',
-            data: { opc: 'lsModules' }, coffeesoft: true, conf: { datatable: true, pag: 10 },
-            attr: { id: 'tbModules', theme: 'light', striped: true, center: [4, 5], right: [] }
-        });
-    }
-
-    addModule() {
+    addModule(onSaved) {
         this.createModalForm({
-            id: 'formModuleAdd', data: { opc: 'addModule' }, theme: 'light', coffeesoft: true,
-            bootbox: { title: 'Nuevo Módulo' }, json: this.jsonModule(),
-            success: (r) => afterSave(r, () => this.lsModules())
+            id: 'formModuleAdd',
+            data: {
+                opc: 'addModule'
+            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: {
+                title: 'Nuevo Módulo'
+            },
+            json: this.jsonModule(),
+            success: (r) => afterSave(r, onSaved)
         });
         this.mountIconField('formModuleAdd');
     }
 
-    async editModule(id) {
+    async editModule(id, onSaved) {
         const request = await useFetch({ url: this._link, data: { opc: 'getModule', id: id } });
         if (request.status !== 200) { alert({ icon: 'error', text: request.message || 'No se pudo cargar el módulo', btn1: true }); return; }
 
@@ -49,9 +38,19 @@ class Modules extends Templates {
             : 'Editar Módulo';
 
         this.createModalForm({
-            id: 'formModuleEdit', data: { opc: 'editModule', id: id }, theme: 'light', coffeesoft: true,
-            bootbox: { title: title }, autofill: request.data, json: this.jsonModule(),
-            success: (r) => afterSave(r, () => this.lsModules())
+            id: 'formModuleEdit',
+            data: {
+                opc: 'editModule',
+                id: id
+            },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: {
+                title: title
+            },
+            autofill: request.data,
+            json: this.jsonModule(),
+            success: (r) => afterSave(r, onSaved)
         });
         this.mountIconField('formModuleEdit', request.data ? request.data.icon : '');
     }
@@ -79,11 +78,21 @@ class Modules extends Templates {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    toggleModule(id, active) {
+    toggleModule(id, active, onSaved) {
         this.swalQuestion({
-            opts: { title: `¿${active == 1 ? 'Activar' : 'Desactivar'} módulo?`, text: `¿Deseas ${active == 1 ? 'activar' : 'desactivar'} este módulo?`, icon: 'warning' },
-            data: { opc: 'toggleModule', id: id, active: active },
-            methods: { send: (r) => afterSave(r, () => this.lsModules()) }
+            opts: {
+                title: `¿${active == 1 ? 'Activar' : 'Desactivar'} módulo?`,
+                text: `¿Deseas ${active == 1 ? 'activar' : 'desactivar'} este módulo?`,
+                icon: 'warning'
+            },
+            data: {
+                opc: 'toggleModule',
+                id: id,
+                active: active
+            },
+            methods: {
+                send: (r) => afterSave(r, onSaved)
+            }
         });
     }
 
@@ -283,9 +292,13 @@ class Sections extends Templates {
             parent: 'sections-modules',
             id: 'navSectionModules',
             title: 'Módulos',
+            addTitle: 'Nuevo módulo',
             active: this.activeModuleId,
             json: this.buildModuleItems(),
-            onSelect: (item) => this.onModuleSelect(item)
+            onSelect: (item) => this.onModuleSelect(item),
+            onAdd: () => modules.addModule(() => this.lsSections()),
+            onEdit: (item) => modules.editModule(item.id, () => this.lsSections()),
+            onToggle: (item) => modules.toggleModule(item.id, item.on ? 0 : 1, () => this.lsSections())
         });
     }
 
@@ -326,6 +339,7 @@ class Sections extends Templates {
             onToggle: (item) => this.toggleSection(item.id, item.on ? 0 : 1),
             onRename: (group, name) => this.renameSubmodule(group.submoduleId, name),
             onRenameItem: (item, name) => this.renameSection(item.id, name),
+            onDelete: (item) => this.deleteSection(item.id),
             onGroupToggle: (group, open) => this.onGroupToggle(group, open)
         });
     }
@@ -350,6 +364,15 @@ class Sections extends Templates {
         this.moduleCatalog = request.modules || [];
         this.submoduleCatalog = request.submodules || [];
         this.sortRows();
+
+        // Los selects de Módulo (modal de sección y de submódulo) salen de dataInit:
+        // se refrescan aquí porque los módulos ahora se crean y apagan desde este panel.
+        dataInit.modules = this.moduleCatalog
+            .filter(m => Number(m.is_active) === 1)
+            .map(m => ({
+                id: m.id,
+                valor: m.name
+            }));
 
         const visible = this.buildModuleItems().some(m => m.id && String(m.id) === String(this.activeModuleId));
         if (!visible) this.activeModuleId = 0;
@@ -486,6 +509,23 @@ class Sections extends Templates {
         });
     }
 
+    deleteSection(id) {
+        this.swalQuestion({
+            opts: {
+                title: '¿Eliminar sección?',
+                text: 'Se borran la sección y sus permisos. La carpeta y sus archivos no se tocan. Esta acción no se puede deshacer.',
+                icon: 'warning'
+            },
+            data: {
+                opc: 'deleteSection',
+                id: id
+            },
+            methods: {
+                send: (r) => afterSave(r, () => this.lsSections())
+            }
+        });
+    }
+
     async renameSection(id, name) {
         const request = await useFetch({
             url: this._link,
@@ -568,20 +608,20 @@ class Sections extends Templates {
                 class: 'col-12 col-md-6 mb-3'
             },
             {
-                opc: 'select',
-                id: 'route',
-                lbl: 'Ruta',
-                class: 'col-12 col-md-6 mb-3',
-                selected: '-- Selecciona --',
-                select2: true,
-                data: dataInit.routes || []
-            },
-            {
                 opc: 'input',
                 id: 'orden',
                 lbl: 'Orden',
                 type: 'number',
                 class: 'col-12 col-md-6 mb-3'
+            },
+            {
+                opc: 'select',
+                id: 'route',
+                lbl: 'Ruta',
+                class: 'col-12 mb-3',
+                selected: '-- Selecciona --',
+                select2: true,
+                data: dataInit.routes || []
             }
         ];
     }
@@ -605,7 +645,8 @@ class Sections extends Templates {
         this.collapsed[group.id] = !open;
     }
 
-    // Módulos activos siempre; los apagados solo si guardan secciones del filtro actual.
+    // Activos: módulos encendidos + apagados que guarden secciones del filtro.
+    // Inactivos/Todos: todos los módulos, para poder encender los apagados.
     buildModuleItems() {
         const status = this.status;
         const catalog = this.moduleCatalog.slice();
@@ -615,7 +656,8 @@ class Sections extends Templates {
                 catalog.push({
                     id: r.module_id,
                     name: r.module_name || 'Sin módulo',
-                    is_active: 0
+                    is_active: 0,
+                    orphan: true
                 });
             }
         });
@@ -632,10 +674,13 @@ class Sections extends Templates {
                     meta: this.countLabel(count, status, false),
                     tag: off ? 'módulo apagado' : '',
                     muted: off,
-                    off: off
+                    off: off,
+                    on: !off,
+                    editable: !m.orphan,
+                    switchable: !m.orphan
                 };
             })
-            .filter(m => !m.off || m.count > 0);
+            .filter(m => !m.off || m.count > 0 || status !== '1');
 
         items.unshift({
             id: 0,
@@ -730,6 +775,7 @@ class Sections extends Templates {
             subtitle: row.route || 'Sin ruta',
             icon: row.icon || 'square',
             on: on,
+            deletable: !on,
             muted: !on,
             note: note
         };

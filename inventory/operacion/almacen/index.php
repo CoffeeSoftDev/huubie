@@ -44,6 +44,10 @@ require_once('layout/core-libraries.php');
     <!-- Componente tabLayout -->
     <script src="../../src/js/components/tabLayout.js?t=<?php echo time(); ?>"></script>
 
+    <!-- Selector de íconos Lucide (Catálogo > Orígenes de entrada) -->
+    <script src="../../src/js/components/cs-icons.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-icons.js'); ?>"></script>
+    <script src="../../src/js/components/cs-icon-picker.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-icon-picker.js'); ?>"></script>
+
     <!-- Chat flotante del asistente IA de Productos -->
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
 

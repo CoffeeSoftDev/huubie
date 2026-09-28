@@ -1,6 +1,29 @@
 // -- csNavList · csGroupedList --
 // Panel lateral de selección y lista agrupada en acordeones (arrastre para ordenar + interruptor).
 
+function csGlSwitch(on, onClick) {
+    const sw = $('<button>', {
+        type: 'button',
+        role: 'switch',
+        'aria-checked': on ? 'true' : 'false',
+        title: on ? 'Apagar' : 'Encender',
+        class: 'shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition '
+            + (on ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-300 hover:bg-gray-400')
+    });
+
+    sw.append($('<span>', {
+        class: 'inline-block h-4 w-4 rounded-full bg-white shadow transform transition '
+            + (on ? 'translate-x-4' : 'translate-x-0.5')
+    }));
+
+    sw.on('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+
+    return sw;
+}
+
 Templates.prototype.csNavList = function (options) {
     const defaults = {
         parent: 'root',
@@ -9,7 +32,11 @@ Templates.prototype.csNavList = function (options) {
         class: 'bg-white border border-gray-200 rounded-xl flex flex-col h-full min-h-0 overflow-hidden',
         json: [],
         active: null,
-        onSelect: () => { }
+        addTitle: 'Agregar',
+        onAdd: null,
+        onSelect: () => { },
+        onEdit: () => { },
+        onToggle: () => { }
     };
 
     const opts = Object.assign({}, defaults, options);
@@ -20,10 +47,32 @@ Templates.prototype.csNavList = function (options) {
     });
 
     if (opts.title) {
-        container.append($('<div>', {
-            class: 'px-3 py-2.5 border-b border-gray-100 text-sm font-semibold text-gray-800 shrink-0',
+        const header = $('<div>', {
+            class: 'flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 shrink-0'
+        });
+
+        header.append($('<span>', {
+            class: 'text-sm font-semibold text-gray-800',
             text: opts.title
         }));
+
+        if (typeof opts.onAdd === 'function') {
+            const add = $('<button>', {
+                type: 'button',
+                title: opts.addTitle,
+                class: 'w-7 h-7 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-blue-600'
+            });
+
+            add.append($('<i>', {
+                'data-lucide': 'plus',
+                class: 'w-4 h-4'
+            }));
+
+            add.on('click', () => opts.onAdd());
+            header.append(add);
+        }
+
+        container.append(header);
     }
 
     const list = $('<div>', {
@@ -33,9 +82,9 @@ Templates.prototype.csNavList = function (options) {
     opts.json.forEach((item) => {
         const selected = String(item.id) === String(opts.active);
 
-        const row = $('<button>', {
-            type: 'button',
-            class: 'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition '
+        const row = $('<div>', {
+            role: 'button',
+            class: 'group w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left cursor-pointer transition '
                 + (selected ? 'bg-gray-100' : 'hover:bg-gray-50')
         });
 
@@ -79,7 +128,29 @@ Templates.prototype.csNavList = function (options) {
         text.append(meta);
         row.append(text);
 
-        if (selected) {
+        if (item.editable) {
+            const edit = $('<button>', {
+                type: 'button',
+                title: 'Editar',
+                class: 'shrink-0 w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-blue-600 hover:bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition'
+            });
+
+            edit.append($('<i>', {
+                'data-lucide': 'pencil',
+                class: 'w-3.5 h-3.5'
+            }));
+
+            edit.on('click', (e) => {
+                e.stopPropagation();
+                opts.onEdit(item);
+            });
+
+            row.append(edit);
+        }
+
+        if (item.switchable) {
+            row.append(csGlSwitch(item.on, () => opts.onToggle(item)));
+        } else if (selected) {
             row.append($('<i>', {
                 'data-lucide': 'check',
                 class: 'w-3.5 h-3.5 text-gray-900 shrink-0'
@@ -115,6 +186,7 @@ Templates.prototype.csGroupedList = function (options) {
         onToggle: () => { },
         onRename: () => { },
         onRenameItem: () => { },
+        onDelete: () => { },
         onGroupToggle: () => { }
     };
 
@@ -148,29 +220,6 @@ Templates.prototype.csGroupedList = function (options) {
         }
 
         return box;
-    };
-
-    const buildSwitch = (item, group) => {
-        const sw = $('<button>', {
-            type: 'button',
-            role: 'switch',
-            'aria-checked': item.on ? 'true' : 'false',
-            title: item.on ? 'Apagar' : 'Encender',
-            class: 'shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition '
-                + (item.on ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-300 hover:bg-gray-400')
-        });
-
-        sw.append($('<span>', {
-            class: 'inline-block h-4 w-4 rounded-full bg-white shadow transform transition '
-                + (item.on ? 'translate-x-4' : 'translate-x-0.5')
-        }));
-
-        sw.on('click', (e) => {
-            e.stopPropagation();
-            opts.onToggle(item, group);
-        });
-
-        return sw;
     };
 
     // Cambia `name` por un input; Enter o salir del campo guarda, Esc cancela.
@@ -288,7 +337,27 @@ Templates.prototype.csGroupedList = function (options) {
 
         row.append(text);
 
-        if (opts.switchable) row.append(buildSwitch(item, group));
+        if (item.deletable) {
+            const del = $('<button>', {
+                type: 'button',
+                title: 'Eliminar',
+                class: 'shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50'
+            });
+
+            del.append($('<i>', {
+                'data-lucide': 'trash-2',
+                class: 'w-4 h-4'
+            }));
+
+            del.on('click', (e) => {
+                e.stopPropagation();
+                opts.onDelete(item, group);
+            });
+
+            row.append(del);
+        }
+
+        if (opts.switchable) row.append(csGlSwitch(item.on, () => opts.onToggle(item, group)));
 
         // Con renombrado, el clic simple espera a ver si llega el doble clic.
         let clickTimer = null;

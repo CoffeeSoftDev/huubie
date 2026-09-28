@@ -70,6 +70,39 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    function lsCategorias($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}item_category
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function lsUnidades($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function lsAreas($array) {
+        $query = "
+            SELECT id, name AS valor
+            FROM {$this->bd}warehouse_area
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY name ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     function lsInflowOrigins() {
         $query = "
             SELECT id, code, name, name AS valor, color_hex, requires_supplier
@@ -279,6 +312,7 @@ class mdl extends CRUD {
                 io.bg_hex      AS origin_bg,
                 io.icon        AS origin_icon,
                 w.name         AS warehouse_name,
+                wa.name        AS area_name,
                 s.name         AS branch_name,
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))    AS user_name,
@@ -286,6 +320,7 @@ class mdl extends CRUD {
             FROM {$this->bd}inventory_inflow i
             LEFT JOIN {$this->bd}inflow_origin    io ON io.id = i.inflow_origin_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = i.warehouse_id
+            LEFT JOIN {$this->bd}warehouse_area    wa ON wa.id = i.warehouse_area_id
             LEFT JOIN {$this->bdErp}branches     s  ON s.id  = i.branch_id
             LEFT JOIN {$this->bd}supplier          sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users          u  ON u.id  = i.user_id
@@ -314,10 +349,13 @@ class mdl extends CRUD {
                 d.item_id AS product_id,
                 i.name AS product_name,
                 ia.sku,
+                COALESCE(du.code, iu.code, '') AS unit,
                 i.image
             FROM {$this->bd}detail_inventory_inflow d
             INNER JOIN {$this->bd}item i ON i.id = d.item_id
             LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT  JOIN {$this->bd}unit du ON du.id = d.unit_id
+            LEFT  JOIN {$this->bd}unit iu ON iu.id = ia.unit_id
             WHERE d.inventory_inflow_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";
@@ -330,9 +368,31 @@ class mdl extends CRUD {
             INSERT INTO {$this->bd}inventory_inflow
                 (folio, note, total_products, total_units, total_cost,
                  total_price_without_tax,
-                 status, inflow_origin_id, warehouse_id, supplier_id,
+                 status, inflow_origin_id, warehouse_id, warehouse_area_id, supplier_id,
                  branch_id, user_id, companies_id, date_inflow)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function updateEntradaHeader($array) {
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET note = ?, total_products = ?, total_units = ?, total_cost = ?,
+                total_price_without_tax = ?, inflow_origin_id = ?, warehouse_id = ?,
+                warehouse_area_id = ?, supplier_id = ?, branch_id = ?, date_inflow = ?,
+                updated_at = NOW()
+            WHERE id = ? AND companies_id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Los renglones reemplazados se apagan (la vista inventory_movement ya los ignora).
+    function qDisableEntradaDetail($array) {
+        $query = "
+            UPDATE {$this->bd}detail_inventory_inflow
+            SET active = 0
+            WHERE inventory_inflow_id = ? AND active = 1
         ";
         return $this->_CUD($query, $array);
     }

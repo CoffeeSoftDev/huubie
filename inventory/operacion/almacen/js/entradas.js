@@ -1,4 +1,5 @@
 let apiEntradas = 'ctrl/ctrl-entradas.php';
+let apiAlmacen  = 'ctrl/ctrl-almacen.php';
 let app, entradas, entradasView;
 
 let branch_id;
@@ -33,6 +34,9 @@ class App extends Templates {
                 origenes:        r.origenes_entrada  || [],
                 estados:         r.estados_entrada   || [],
                 almacenes:       r.almacenes         || [],
+                areas:           r.areas             || [],
+                categorias:      r.categorias        || [],
+                unidades:        r.unidades          || [],
                 proveedores:     r.proveedores       || [],
                 productos:       r.productos         || []
             };
@@ -43,6 +47,9 @@ class App extends Templates {
                 origenes:        [],
                 estados:         [],
                 almacenes:       [],
+                areas:           [],
+                categorias:      [],
+                unidades:        [],
                 proveedores:     [],
                 productos:       []
             };
@@ -155,7 +162,7 @@ class App extends Templates {
             {
                 opc:      'select',
                 id:       'fOrigen',
-                lbl:      'Origen:',
+                lbl:      'Tipo de entrada:',
                 class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
@@ -329,8 +336,8 @@ class Entradas extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [2, 3, 7, 9],
-            right:        [8],
+            center:       [2, 3, 6, 8],
+            right:        [7],
             actionsAlign: 'left',
             extends:      true,
             scrollable:   false,
@@ -400,6 +407,7 @@ class Entradas extends Templates {
             origenBadge:   h.origin_badge || '',
             sucursal:      h.branch_name,
             almacen:       h.warehouse_name,
+            destino:       h.area_name || '',
             proveedor:     h.supplier_name,
             registrado:    h.user_name,
             confirmadoPor: h.confirmed_user_name || '',
@@ -409,6 +417,7 @@ class Entradas extends Templates {
                 detailId:  d.id,
                 nombre:    d.product_name,
                 sku:       d.sku,
+                unidad:    d.unit || '',
                 cant:      Number(d.quantity || 0),
                 cantReal:  d.confirmed_quantity != null ? Number(d.confirmed_quantity) : Number(d.quantity || 0),
                 confirmada: d.confirmed_quantity != null,
@@ -464,7 +473,7 @@ class Entradas extends Templates {
         const rowsHtml = productos.map(it => {
             const q  = qtyOf(it);
             const cu = Number(it.costo || 0);
-            return `<tr><td class="prod"><span class="prod-name">${esc(it.nombre)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${esc(q)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">${fmtMoney(q * cu)}</td></tr>`;
+            return `<tr><td class="prod"><span class="prod-name">${esc(it.nombre)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${esc(q)}</td><td class="c">${esc(it.unidad || '-')}</td><td class="r">${fmtMoney(cu)}</td><td class="r">${fmtMoney(q * cu)}</td></tr>`;
         }).join('');
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Entrada ${esc(e.folio||'')}</title>
@@ -473,8 +482,8 @@ class Entradas extends Templates {
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header"><div><div class="doc-title">Comprobante de Entrada</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(e.sucursal||'')}${e.almacen?' &middot; '+esc(e.almacen):''}</div></div><div><div class="folio">${esc(e.folio||'-')}</div>${e.estado?`<span class="status">${esc(e.estado)}</span>`:''}</div></div>
-            <div class="info-grid"><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Almacen</span><span class="v">${esc(e.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div></div>
-            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Subtotal</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody></table>
+            <div class="info-grid"><div class="info-item"><span class="k">Tipo de entrada</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.almacen||'-')}</span></div>${e.destino?`<div class="info-item"><span class="k">Destino</span><span class="v">${esc(e.destino)}</span></div>`:''}<div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div></div>
+            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="c">Unidad</th><th class="r">Costo unit.</th><th class="r">Importe</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
             <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${productos.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totals.uds}</span></div><div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div></div></div>
             ${e.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(e.nota)}</div>`:''}
             <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de entrada</span><span>Generado: ${esc(fmtFecha(new Date().toISOString()))}</span></div>
@@ -504,7 +513,7 @@ class EntradasView extends Templates {
             onPrint:      (e) => { if (e) entradas.printEntrada(e); },
             onReverse:    (e) => this.cancelEntrada(e),
             onConfirm:    (e) => this.confirmEntrada(e),
-            onEdit:       (e) => this.renderDetail(e, true),
+            onEdit:       (e) => this.openEditEntrada(e.id),
             onCancelEdit: (e) => this.renderDetail(e, false),
             onSaveEdit:   (e) => this.saveEntradaEdit(e)
         });
@@ -616,6 +625,75 @@ class EntradasView extends Templates {
 
     openEntradaForm() {
         const curSub = $('#branch_id').val() || app.subId;
+        const form   = this.entradaFormInstance();
+        form.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
+        form.open();
+    }
+
+    // Editar = abrir la orden de entrada en el mismo modal del alta, con sus datos.
+    async openEditEntrada(id) {
+        const r = await useFetch({ url: apiEntradas, data: { opc: 'getEntrada', id: id } });
+        if (!(r && r.status === 200)) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir la entrada' });
+            return;
+        }
+
+        const h        = r.header || {};
+        const catalogo = app.dataInit.productos || [];
+
+        this.entradaFormInstance().openEdit({
+            id:                h.id,
+            folio:             h.folio,
+            origen:            h.inflow_origin_id,
+            branch_id:         h.branch_id,
+            warehouse_id:      h.warehouse_id,
+            warehouse_area_id: h.warehouse_area_id,
+            supplier_id:       h.supplier_id,
+            fecha:             String(h.date_inflow || '').slice(0, 10),
+            nota:              h.note || '',
+            productos: (r.detail || []).map(d => {
+                const prod = catalogo.find(p => String(p.id) === String(d.product_id)) || {};
+                return {
+                    id:          String(d.product_id),
+                    nombre:      d.product_name,
+                    sku:         d.sku || '',
+                    categoria:   prod.categoria || 'Sin categoria',
+                    cantidad:    Number(d.confirmed_quantity != null ? d.confirmed_quantity : d.quantity),
+                    costo:       Number(d.cost || 0),
+                    costoSinTax: Number(d.price_without_tax || 0),
+                    tax:         Number(d.tax || 0),
+                    stock:       0,
+                    image:       d.image || '',
+                    icon:        'package',
+                    bg:          'bg-gray-100',
+                    color:       'text-gray-500'
+                };
+            })
+        });
+    }
+
+    buildEntradaPayload(payload) {
+        return {
+            id:                payload.id || null,
+            note:              payload.nota || null,
+            date_inflow:       payload.fecha,
+            inflow_origin_id:  payload.origen,
+            warehouse_id:      payload.warehouseId,
+            warehouse_area_id: payload.warehouseAreaId || null,
+            branch_id:         payload.sucursalId,
+            supplier_id:       payload.supplierId || null,
+            productos:         payload.productos.map(p => ({
+                product_id:        p.id,
+                quantity:          p.cant,
+                price_without_tax: p.priceWithoutTax,
+                tax:               p.tax,
+                cost:              p.costo
+            }))
+        };
+    }
+
+    entradaFormInstance() {
+        const curSub = $('#branch_id').val() || app.subId;
         if (!this.entradaFormApi) {
             this.entradaFormApi = this.entradaForm({
                 parent: 'body',
@@ -625,6 +703,9 @@ class EntradasView extends Templates {
                     origenes:        (app.dataInit.origenes    || []).filter(o => o.id !== ''),
                     sucursales:      (app.dataInit.sucursales  || []).filter(s => s.id !== ''),
                     almacenes:       app.dataInit.almacenes   || [],
+                    areas:           app.dataInit.areas       || [],
+                    categorias:      app.dataInit.categorias  || [],
+                    unidades:        app.dataInit.unidades    || [],
                     proveedores:     app.dataInit.proveedores || [],
                     fecha:           moment().format('YYYY-MM-DD'),
                     branch_id: curSub
@@ -649,26 +730,53 @@ class EntradasView extends Templates {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
                     }
                 },
-                onAdd: async (payload) => {
-                    const backendPayload = {
-                        note:             payload.nota || null,
-                        date_inflow:      payload.fecha,
-                        inflow_origin_id: payload.origen,
-                        warehouse_id:     payload.warehouseId,
-                        branch_id:  payload.sucursalId,
-                        supplier_id:      payload.supplierId || null,
-                        productos:        payload.productos.map(p => ({
-                            product_id:        p.id,
-                            quantity:          p.cant,
-                            price_without_tax: p.priceWithoutTax,
-                            tax:               p.tax,
-                            cost:              p.costo
-                        }))
-                    };
+                // Misma alta exprés que Solicitudes (ctrl-almacen::addProductoRapido).
+                onCreateProduct: async (data, done) => {
+                    const r = await useFetch({
+                        url:  apiAlmacen,
+                        data: Object.assign({ opc: 'addProductoRapido' }, data)
+                    }).catch(() => null);
 
+                    if (!(r && r.status === 200 && r.id)) {
+                        done(null, (r && r.message) || 'No se pudo crear el producto');
+                        return;
+                    }
+
+                    const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
+                    done({
+                        id:                String(r.id),
+                        nombre:            data.name,
+                        sku:               r.sku || '',
+                        categoria:         cat ? cat.valor : 'Sin categoria',
+                        costo:             0,
+                        price_without_tax: 0,
+                        tax:               0,
+                        stock:             0,
+                        image:             '',
+                        icon:              'package',
+                        bg:                'bg-gray-100',
+                        color:             'text-gray-500'
+                    });
+                },
+                onUpdate: async (payload) => {
                     const r = await useFetch({
                         url:  apiEntradas,
-                        data: { opc: 'saveEntrada', payload: JSON.stringify(backendPayload) }
+                        data: { opc: 'updateEntrada', payload: JSON.stringify(this.buildEntradaPayload(payload)) }
+                    });
+
+                    if (r && r.status === 200) {
+                        this.alertBox({ type: 'success', title: r.message || 'Entrada actualizada', timer: 1600 });
+                        entradas.lsEntradas();
+                        entradas.lsKpis();
+                        if (String(app.selectedId) === String(r.folio)) entradas.getEntrada(r.id);
+                    } else {
+                        this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo actualizar la entrada' });
+                    }
+                },
+                onAdd: async (payload) => {
+                    const r = await useFetch({
+                        url:  apiEntradas,
+                        data: { opc: 'saveEntrada', payload: JSON.stringify(this.buildEntradaPayload(payload)) }
                     });
 
                     if (r && r.status === 200) {
@@ -714,8 +822,7 @@ class EntradasView extends Templates {
                 onClose: () => {}
             });
         }
-        this.entradaFormApi.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
-        this.entradaFormApi.open();
+        return this.entradaFormApi;
     }
 
     kpisRow(options) {
@@ -882,6 +989,7 @@ class EntradasView extends Templates {
                     </td>
                     <td class="py-2 px-1 text-right text-xs text-gray-500 whitespace-nowrap">${fmtMoney(p.costo)}</td>
                     <td class="py-2 px-1 text-center text-xs">${qty}</td>
+                    <td class="py-2 px-1 text-center text-xs text-gray-500">${esc(p.unidad || '-')}</td>
                     <td class="py-2 pl-1 text-right text-xs font-semibold text-gray-700 whitespace-nowrap" id="${opts.id}_sub_${p.detailId}">${fmtMoney(subtotal)}</td>
                 </tr>
             `;
@@ -917,11 +1025,12 @@ class EntradasView extends Templates {
 
                 <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
                     <div class="flex items-center justify-between gap-2 text-xs">
-                        <span class="text-gray-500 w-20 flex-shrink-0">Origen</span>
+                        <span class="text-gray-500 w-24 flex-shrink-0">Tipo de entrada</span>
                         ${e.origenBadge ? e.origenBadge : `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${oP.bg};color:${oP.fg};">${esc(e.origen || '-')}</span>`}
                     </div>
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">${esc(e.sucursal || '-')}</span></div>
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Almacen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}</span></div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Origen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}</span></div>
+                    ${e.destino ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Destino</span><span class="text-gray-700 text-right">${esc(e.destino)}</span></div>` : ''}
                     ${e.proveedor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Proveedor</span><span class="text-gray-700 text-right">${esc(e.proveedor)}</span></div>` : ''}
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Registrado</span><span class="text-gray-700 text-right">${esc(e.registrado || '-')}</span></div>
                     ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
@@ -936,7 +1045,8 @@ class EntradasView extends Templates {
                                 <th class="text-left font-semibold py-1.5">Producto</th>
                                 <th class="text-right font-semibold py-1.5 px-1">Precio</th>
                                 <th class="text-center font-semibold py-1.5 px-1">Cant</th>
-                                <th class="text-right font-semibold py-1.5 pl-1">Subtotal</th>
+                                <th class="text-center font-semibold py-1.5 px-1">Unidad</th>
+                                <th class="text-right font-semibold py-1.5 pl-1">Importe</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -14,7 +14,9 @@ class ctrl extends mdl {
             'categorias'  => $this->lsCategories(),
             'unidades'    => $this->lsUnits(),
             'areas'       => $this->lsAreas(),
-            'proveedores' => $this->lsProveedores()
+            'proveedores' => $this->lsProveedores(),
+            'almacenes'   => $this->lsWarehouses(),
+            'superadmin'  => $this->esSuperAdminIA()
         ];
     }
 
@@ -58,12 +60,6 @@ class ctrl extends mdl {
                 ],
                 'Categoría'  => $item['categoria'] ?? '-',
                 'Área'       => $item['area'] ?? '-',
-                'Stock'      => $item['quantity'],
-                'Mín'        => $item['stock_min'] ?? '-',
-                'Máx'        => $item['stock_max'] ?? '-',
-                'Vida útil'  => isset($item['shelf_life_days']) && $item['shelf_life_days'] !== null
-                    ? $item['shelf_life_days'] . ' días'
-                    : '-',
 
                 // Inventario = costo (como Soft Restaurant con sus insumos). El precio de
                 // venta solo vive en el formulario, para lo que se revende tal cual.
@@ -71,6 +67,12 @@ class ctrl extends mdl {
                     'html'  => '$' . number_format((float) $item['cost_unit'], 2),
                     'class' => 'text-end'
                 ],
+                'Stock'      => renderQuantity($item['quantity']),
+                'Mín'        => renderQuantity($item['stock_min']),
+                'Máx'        => renderQuantity($item['stock_max']),
+                'Vida útil'  => isset($item['shelf_life_days']) && $item['shelf_life_days'] !== null
+                    ? $item['shelf_life_days'] . ' días'
+                    : '-',
                 'Estado'     => renderStatus($item['active']),
                 'a'          => $a
             ];
@@ -165,7 +167,10 @@ class ctrl extends mdl {
 
             // Solo se incluyen si traen valor real; si no, la BD usa su DEFAULT 0.
             if (($_POST['cost_unit'] ?? '') !== '') $attribute['cost_unit'] = $_POST['cost_unit'];
+            if (($_POST['cost_tax'] ?? '') !== '')  $attribute['cost_tax']  = $_POST['cost_tax'];
             if (($_POST['stock_min'] ?? '') !== '') $attribute['stock_min'] = $_POST['stock_min'];
+
+            $attribute['is_inventoriable'] = ($_POST['is_inventoriable'] ?? '1') === '0' ? '0' : '1';
 
             $this->createItemAttribute($this->util->sql($attribute));
 
@@ -260,11 +265,13 @@ class ctrl extends mdl {
         ]);
 
         $this->updateItemAttribute([
-            'values' => 'description = ?, cost_unit = ?, stock_min = ?, stock_max = ?, shelf_life_days = ?, warehouse_area_id = ?, unit_id = ?',
+            'values' => 'description = ?, cost_unit = ?, cost_tax = ?, is_inventoriable = ?, stock_min = ?, stock_max = ?, shelf_life_days = ?, warehouse_area_id = ?, unit_id = ?',
             'where'  => 'item_id = ?',
             'data'   => [
                 $_POST['description'] ?? '',
                 ($_POST['cost_unit'] ?? '') === '' ? 0 : $_POST['cost_unit'],
+                ($_POST['cost_tax'] ?? '') === '' ? null : $_POST['cost_tax'],
+                ($_POST['is_inventoriable'] ?? '1') === '0' ? 0 : 1,
                 ($_POST['stock_min'] ?? '') === '' ? 0 : $_POST['stock_min'],
                 ($_POST['stock_max'] ?? '') === '' ? 0 : $_POST['stock_max'],
                 ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
@@ -341,6 +348,52 @@ class ctrl extends mdl {
         ];
     }
 
+    // Borra el producto de verdad. Solo si nunca se movió: sus entradas, salidas,
+    // traspasos y órdenes son historia y la BD no deja borrarlo (FK RESTRICT).
+    function deleteProducto() {
+        $id       = (int) ($_POST['id'] ?? 0);
+        $material = $this->getMaterialById($id);
+
+        if (!$material || (int) $material['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Producto no encontrado'
+            ];
+        }
+
+        $uso = $this->getMaterialCounts([$id]);
+
+        if ((int) $uso['movimientos'] > 0) {
+            return [
+                'status'  => 409,
+                'message' => 'Este producto ya tiene movimientos en el almacén. Solo se puede desactivar.'
+            ];
+        }
+
+        if ((float) $uso['existencia'] != 0) {
+            return [
+                'status'  => 409,
+                'message' => 'Este producto todavía tiene existencia. Solo se puede desactivar.'
+            ];
+        }
+
+        try {
+            $this->transaction(function () use ($id) {
+                $this->deleteMaterialById([$id]);
+            });
+        } catch (\Throwable $e) {
+            return [
+                'status'  => 500,
+                'message' => 'No se pudo eliminar el producto'
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Producto eliminado'
+        ];
+    }
+
     function statusMaterial() {
         $status  = 500;
         $message = 'No se pudo actualizar el estado';
@@ -359,6 +412,70 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message
+        ];
+    }
+
+    // -- Formato de conteo --
+    // Datos del "Reporte de inventario rápido" de Soft Restaurant para imprimir y
+    // contar a mano. El Excel lo arma el navegador (FormatoConteo en almacen.js).
+    function showFormatoConteo() {
+        $dia   = strtotime($_POST['semana'] ?? '') ?: time();
+        $lunes = strtotime('-' . (date('N', $dia) - 1) . ' days', $dia);
+
+        $filters = [
+            'warehouse_id' => $_POST['warehouse_id'] ?? '',
+            'area_id'      => $_POST['area_id'] ?? '',
+            'category_id'  => $_POST['category_id'] ?? ''
+        ];
+
+        $data = $this->listFormatoConteo($filters);
+
+        if (empty($data)) {
+            return [
+                'status'  => 404,
+                'message' => 'No hay productos activos e inventariables con esos filtros'
+            ];
+        }
+
+        $almacen = 'Todos';
+        foreach ($this->lsWarehouses() as $w) {
+            if ((string) $w['id'] === (string) $filters['warehouse_id']) $almacen = $w['valor'];
+        }
+
+        $filtro = [];
+        if (!empty($filters['area_id']))     $filtro[] = 'Área: ' . $data[0]['area'];
+        if (!empty($filters['category_id'])) $filtro[] = 'Categoría: ' . $data[0]['categoria'];
+
+        $rows = [];
+        foreach ($data as $item) {
+            $rows[] = [
+                'sku'        => $item['sku'] ?? '',
+                'name'       => $item['name'],
+                'unidad'     => $item['unidad'] ?? '',
+                'area_id'    => (int) $item['area_id'],
+                'area'       => $item['area'] ?? 'Sin área',
+                'existencia' => (float) $item['existencia']
+            ];
+        }
+
+        $empresa = $this->getCompanyById([$_SESSION['company_id']]);
+
+        return [
+            'status' => 200,
+            'data'   => [
+                'formato'   => ($_POST['formato'] ?? '') === 'sencillo' ? 'sencillo' : 'completo',
+                'inicial'   => ($_POST['inicial'] ?? '1') === '1',
+                'empresa'   => $empresa['name'] ?? ($_SESSION['company'] ?? ''),
+                'rfc'       => $empresa['rfc'] ?? '',
+                'ubicacion' => $empresa['ubication'] ?? '',
+                'sucursal'  => $_SESSION['branch'] ?? '',
+                'almacen'   => $almacen,
+                'filtro'    => implode('   ·   ', $filtro),
+                'lunes'     => date('Y-m-d', $lunes),
+                'generado'  => date('Y-m-d H:i:s'),
+                'usuario'   => $_SESSION['user'] ?? '',
+                'rows'      => $rows
+            ]
         ];
     }
 
@@ -410,6 +527,37 @@ class ctrl extends mdl {
         'area'      => ['name' => 120, 'description' => 255],
         'warehouse' => ['name' => 120],
         'supplier'  => ['name' => 160, 'contact_name' => 120, 'phone' => 20, 'email' => 120]
+    ];
+
+    // Bloques que vacía el Super Admin, del más chico al más grande. Cada uno
+    // arrastra a los anteriores: no se borran productos que siguen usados por
+    // movimientos, ni categorías que siguen usadas por productos. Las tablas van
+    // en orden de borrado (hijos antes que padres); las null son detalle y no se
+    // cuentan aparte. Unidades, almacenes y sucursales nunca se vacían.
+    const IA_VACIADO = [
+        'movements' => ['nombre' => 'Movimientos del almacén', 'refresca' => ['product'], 'tablas' => [
+            'detail_inventory_inflow'    => null,
+            'inventory_inflow'           => ['entrada', 'entradas'],
+            'detail_inventory_shrinkage' => null,
+            'inventory_shrinkage'        => ['salida o merma', 'salidas y mermas'],
+            'detail_inventory_transfer'  => null,
+            'inventory_transfer_history' => null,
+            'inventory_transfer'         => ['traspaso', 'traspasos'],
+            'detail_purchase_order'      => null,
+            'purchase_order'             => ['orden de compra', 'órdenes de compra'],
+            'stock'                      => ['existencia', 'existencias']
+        ]],
+        'products' => ['nombre' => 'Productos y sus movimientos', 'refresca' => ['product'], 'tablas' => [
+            'inflow_format_item' => null,
+            'inflow_format'      => ['formato de entrada', 'formatos de entrada'],
+            'item_attribute'     => null,
+            'item'               => ['producto', 'productos']
+        ]],
+        'catalogs' => ['nombre' => 'Catálogos, productos y movimientos', 'refresca' => ['product', 'category', 'area', 'supplier'], 'tablas' => [
+            'item_category'  => ['categoría', 'categorías'],
+            'warehouse_area' => ['área', 'áreas'],
+            'supplier'       => ['proveedor', 'proveedores']
+        ]]
     ];
 
     // Lee lo que se adjunta al chat y lo devuelve como texto. No guarda nada en
@@ -492,20 +640,21 @@ class ctrl extends mdl {
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
-        $ctx = $this->contextoIA();
+        $ctx   = $this->contextoIA();
+        $super = $this->esSuperAdminIA();
 
         // Sin esto la sesión queda bloqueada mientras el modelo piensa y las tablas
         // del almacén no pueden recargar en ese rato. Se reabre para guardar la propuesta.
         session_write_close();
         set_time_limit(180);
 
-        $respuesta = $ia->chatJson($this->mensajesIA($mensaje, $adjuntos, $historial, $ctx));
+        $respuesta = $ia->chatJson($this->mensajesIA($mensaje, $adjuntos, $historial, $ctx, $super));
 
         if (!$respuesta['ok']) return ['status' => 502, 'message' => $respuesta['error']];
 
         $cambios = isset($respuesta['data']['changes']) && is_array($respuesta['data']['changes']) ? $respuesta['data']['changes'] : [];
         $reply   = $this->textoIA($respuesta['data']['reply'] ?? '');
-        $vista   = $this->validarCambiosIA($cambios, $ctx);
+        $vista   = $this->vaciadoIA($cambios, $super) ?? $this->validarCambiosIA($cambios, $ctx);
         $token   = '';
 
         if (!empty($vista['validos'])) {
@@ -546,6 +695,11 @@ class ctrl extends mdl {
 
         if (empty($selecciones)) return ['status' => 400, 'message' => 'No marcaste ningún cambio.'];
 
+        // El rol se vuelve a revisar al aplicar: pudo cambiar desde la vista previa.
+        if (in_array('purge', array_column($selecciones, 'entity'), true) && !$this->esSuperAdminIA()) {
+            return ['status' => 403, 'message' => 'Solo el Super Admin puede vaciar la base de datos.'];
+        }
+
         // El índice ya viene en orden de aplicación: catálogos primero, productos después.
         ksort($selecciones);
 
@@ -559,6 +713,11 @@ class ctrl extends mdl {
                 $creados = [];
 
                 foreach ($selecciones as $c) {
+                    if ($c['entity'] === 'purge') {
+                        $n['purge'] = ['scope' => $c['scope'], 'borrados' => $this->vaciarIA($c['scope'], $companies_id)];
+                        continue;
+                    }
+
                     $this->aplicarCambioIA($c, $companies_id, $branch_id, $now, $creados);
 
                     $n[$c['entity']][$c['action']] = ($n[$c['entity']][$c['action']] ?? 0) + 1;
@@ -576,10 +735,12 @@ class ctrl extends mdl {
 
         unset($_SESSION['iaProductos']);
 
+        $entidades = isset($hechos['purge']) ? self::IA_VACIADO[$hechos['purge']['scope']]['refresca'] : array_keys($hechos);
+
         return [
             'status'  => 200,
             'message' => $this->resumenIA($hechos),
-            'data'    => ['entidades' => array_keys($hechos)]
+            'data'    => ['entidades' => $entidades]
         ];
     }
 
@@ -602,8 +763,8 @@ class ctrl extends mdl {
         return $ctx;
     }
 
-    private function mensajesIA($mensaje, $adjuntos, $historial, $ctx) {
-        $mensajes = [['role' => 'system', 'content' => $this->promptIA($ctx)]];
+    private function mensajesIA($mensaje, $adjuntos, $historial, $ctx, $super) {
+        $mensajes = [['role' => 'system', 'content' => $this->promptIA($ctx, $super)]];
 
         foreach (array_slice($historial, -8) as $h) {
             $rol   = is_array($h) ? ($h['role'] ?? '') : '';
@@ -635,7 +796,7 @@ class ctrl extends mdl {
 
     // Tres partes: el contexto editable (ia/asistente-catalogo.md), el contrato
     // (entidades, campos y formato JSON, que valida validarCambiosIA) y los datos vivos.
-    private function promptIA($ctx) {
+    private function promptIA($ctx, $super) {
         $ruta     = __DIR__ . '/../ia/asistente-catalogo.md';
         $reglas   = is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '';
         $sucursal = array_column($ctx['branch'], 'valor', 'id');
@@ -673,7 +834,7 @@ class ctrl extends mdl {
         $recorte = count($ctx['product']) > self::IA_MAX_CATALOGO ? ' (recortado a los ' . self::IA_MAX_CATALOGO . ' más recientes)' : '';
 
         return implode("\n", [
-            $reglas !== '' ? $reglas : 'Eres el asistente del catálogo del almacén. Hablas español, en frases cortas.',
+            $reglas !== '' ? $reglas : 'Eres CoffeeIA, el asistente del catálogo del almacén. Hablas español, en frases cortas.',
             '',
             '== CONTRATO (lo que el sistema acepta) ==',
             'Entidades ("entity") y los campos que puedes mandar en "set":',
@@ -689,6 +850,9 @@ class ctrl extends mdl {
             '- En un producto, "category", "unit" y "area" van con el NOMBRE tal como está en su lista. Si la das de alta en esta misma respuesta, usa el mismo nombre.',
             '- Números sin signo de pesos ni separador de miles: 1250.5',
             '- Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
+            $super
+                ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, mermas, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
+                : '- VACIAR la base de datos es solo para el Super Admin. Si esta persona lo pide, dile que no tiene permiso y no mandes cambios.',
             '',
             'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',
             '{"reply": "Te propongo 4 cambios. Revísalos y confirma.", "changes": [',
@@ -1309,6 +1473,108 @@ class ctrl extends mdl {
         return 'Sucursal ' . $id;
     }
 
+    // -- Asistente IA · vaciado (Super Admin) --
+
+    private function esSuperAdminIA() {
+        if (empty($_SESSION['user_id']) || empty($_SESSION['branch_id'])) return false;
+
+        return $this->isSuperAdmin([$_SESSION['user_id'], $_SESSION['branch_id']]);
+    }
+
+    /*  null si el modelo no pidió vaciar. Si lo pidió, la vista previa es SOLO el
+        vaciado del bloque más grande que nombró: mezclarlo con altas o cambios
+        validados contra datos que están por borrarse no tiene sentido. */
+    private function vaciadoIA($cambios, $super) {
+        $sinonimos = ['movimientos' => 'movements', 'productos' => 'products', 'catalogos' => 'catalogs'];
+        $bloques   = array_keys(self::IA_VACIADO);
+        $pidio     = false;
+        $alcance   = -1;
+
+        foreach ($cambios as $c) {
+            if (!is_array($c)) continue;
+
+            $accion  = $this->normalizarIA($this->textoIA($c['action'] ?? ''));
+            $entidad = $this->normalizarIA($this->textoIA($c['entity'] ?? ''));
+
+            if (!in_array($accion, ['purge', 'vaciar', 'limpiar'], true) && $entidad !== 'purge') continue;
+
+            $scope = $this->normalizarIA($this->textoIA($c['scope'] ?? ''));
+            $i     = array_search($sinonimos[$scope] ?? $scope, $bloques, true);
+            $pidio = true;
+
+            if ($i !== false) $alcance = max($alcance, $i);
+        }
+
+        if (!$pidio) return null;
+
+        $fila = ['idx' => 0, 'action' => 'purge', 'tag' => 'Vaciar', 'name' => 'Base de datos'];
+
+        if (!$super)       return $this->vistaVaciadoIA($fila, 'Solo el Super Admin puede vaciar la base de datos.');
+        if ($alcance < 0)  return $this->vistaVaciadoIA($fila, 'No entendí qué vaciar: movimientos, productos o catálogos.');
+
+        $scope  = $bloques[$alcance];
+        $conteo = $this->conteoVaciadoIA($scope, $_SESSION['company_id']);
+        $fila   = ['name' => self::IA_VACIADO[$scope]['nombre']] + $fila;
+
+        if (empty($conteo)) return $this->vistaVaciadoIA($fila, 'Ya está vacío.');
+
+        $fila += [
+            'detail' => 'Se borra: ' . $this->listaIA($conteo) . '.',
+            'warn'   => 'Solo de ' . ($_SESSION['company'] ?? 'tu empresa') . '. No se puede deshacer.' . ($scope === 'catalogs' ? ' Unidades, almacenes y sucursales se quedan.' : '')
+        ];
+
+        return $this->vistaVaciadoIA($fila, '', ['entity' => 'purge', 'action' => 'purge', 'scope' => $scope, 'nombre' => $fila['name']]);
+    }
+
+    private function vistaVaciadoIA($fila, $nota, $cambio = null) {
+        $row = $this->filaIA($fila + ['note' => $nota, 'valid' => $cambio !== null])['row'];
+
+        return [
+            'row'     => [$row],
+            'validos' => $cambio !== null ? [0 => $cambio] : [],
+            'resumen' => ['purge' => $cambio !== null ? 1 : 0, 'invalid' => $cambio !== null ? 0 : 1]
+        ];
+    }
+
+    // Las tablas del bloque y de todos los anteriores, en orden de borrado.
+    private function tablasVaciadoIA($scope) {
+        $tablas = [];
+
+        foreach (self::IA_VACIADO as $bloque => $def) {
+            $tablas += $def['tablas'];
+
+            if ($bloque === $scope) break;
+        }
+
+        return $tablas;
+    }
+
+    // ["12 productos", "3 entradas"]: solo lo que tiene algo que borrar.
+    private function conteoVaciadoIA($scope, $companies_id) {
+        $conteo = [];
+
+        foreach ($this->tablasVaciadoIA($scope) as $tabla => $nombre) {
+            if ($nombre === null) continue;
+
+            $n = $this->countPurge($tabla, $companies_id);
+
+            if ($n) $conteo[] = $n . ' ' . ($n === 1 ? $nombre[0] : $nombre[1]);
+        }
+
+        return $conteo;
+    }
+
+    // Corre dentro de la transacción de applyAsistente: si una tabla falla, no se borra nada.
+    private function vaciarIA($scope, $companies_id) {
+        $borrados = $this->conteoVaciadoIA($scope, $companies_id);
+
+        foreach (array_keys($this->tablasVaciadoIA($scope)) as $tabla) {
+            if ($this->purge($tabla, $companies_id) !== true) throw new Exception('No pude vaciar ' . $tabla . '.');
+        }
+
+        return $borrados;
+    }
+
     // -- Asistente IA · aplicación --
 
     private function aplicarCambioIA($c, $companies_id, $branch_id, $now, &$creados) {
@@ -1452,6 +1718,10 @@ class ctrl extends mdl {
 
     // "Listo. Altas: 1 categoría y 2 productos · Cambios: 5 productos."
     private function resumenIA($n) {
+        if (isset($n['purge'])) {
+            return empty($n['purge']['borrados']) ? 'Listo. Ya estaba vacío.' : 'Listo. Se borró: ' . $this->listaIA($n['purge']['borrados']) . '.';
+        }
+
         $verbos = ['add' => 'Altas', 'edit' => 'Cambios', 'deactivate' => 'Bajas', 'activate' => 'Reactivados'];
         $partes = [];
 
@@ -1543,6 +1813,13 @@ class ctrl extends mdl {
         return $parecido < 60 ? 'En tu lista decía «' . $pedido . '».' : '';
     }
 
+    // "a, b y c"
+    private function listaIA($items) {
+        $ultimo = array_pop($items);
+
+        return empty($items) ? (string) $ultimo : implode(', ', $items) . ' y ' . $ultimo;
+    }
+
     private function sinNombreIA($changes) {
         return array_values(array_filter($changes, function ($ch) { return $ch['label'] !== 'Nombre'; }));
     }
@@ -1599,11 +1876,16 @@ function renderProductImage($foto, $nombre) {
     // El nombre va SIN clase de tamano: asi hereda el font-size que createTable
     // pinta en la celda (f_size). Con text-xs quedaba clavado en 9.8px, porque
     // compact.css lo fija con !important y eso le gana al estilo del <td>.
+    // La tabla va en minusculas (lowercase); first-letter devuelve la mayuscula inicial.
     return '
         <div class="flex items-center justify-start gap-2 py-1 text-center">
             ' . $img . '
-            <div>' . htmlspecialchars($nombre) . '</div>
+            <div class="first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>
         </div>';
+}
+
+function renderQuantity($cantidad) {
+    return (float) $cantidad == 0 ? '-' : $cantidad;
 }
 
 function renderStatus($estatus) {

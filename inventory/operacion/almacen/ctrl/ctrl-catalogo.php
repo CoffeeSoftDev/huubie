@@ -444,8 +444,8 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'                => $item['id'],
-                'Código'            => $item['code'],
-                'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
+                'Código'            => renderCode($item['code']),
+                'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon']),
                 'Requiere proveedor'=> ($item['requires_supplier'] == 1 ? 'Sí' : 'No'),
                 'Estado'            => renderStatus($item['active']),
                 'a'                 => $a
@@ -1063,6 +1063,10 @@ class ctrl extends mdl {
 }
 
 // Complements
+
+function renderCode($code) {
+    return '<span class="inline-block px-2 py-0.5 rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold font-mono text-gray-600">' . htmlspecialchars($code ?? '', ENT_QUOTES) . '</span>';
+}
 
 function renderStatus($active) {
     switch ($active) {

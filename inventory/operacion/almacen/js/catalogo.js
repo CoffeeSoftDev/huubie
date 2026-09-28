@@ -671,7 +671,7 @@ class InflowOrigin extends Templates {
                 },
                 {
                     opc: "button",
-                    class: "col-12 col-md-3",
+                    class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewInflow",
                     text: "Nuevo origen",
@@ -716,6 +716,7 @@ class InflowOrigin extends Templates {
                 }
             }
         });
+        this.mountIconField("formInflowAdd");
         wireBadgeSimulator("formInflowAdd");
     }
 
@@ -740,8 +741,26 @@ class InflowOrigin extends Templates {
                     }
                 }
             });
+            this.mountIconField("formInflowEdit", request.data ? request.data.icon : "");
             wireBadgeSimulator("formInflowEdit");
         }
+    }
+
+    // Mismo selector que el Admin del Tenant (cs-icon-picker.js). No es un campo de
+    // coffeeForm: se planta en el hueco #iconFieldWrap ya montado el modal, y el
+    // `name` es lo que hace que el icono viaje en el FormData.
+    mountIconField(formId, value) {
+        const $wrap = $(`#${formId}`).find("#iconFieldWrap");
+        if (!$wrap.length) return;
+
+        $wrap.html(this.csIconField({
+            id: "icon",
+            name: "icon",
+            value: value || "",
+            inputClass: this.cfThemedClass(CF_CSS.input, "light")
+        }));
+        this.csIconFieldBind($wrap);
+        if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     statusInflow(id, active) {
@@ -798,10 +817,10 @@ class InflowOrigin extends Templates {
                 ]
             },
             {
-                opc: "input",
-                id: "icon",
+                // Hueco vacío: lo rellena mountIconField() con el selector de iconos.
+                opc: "div",
+                id: "iconFieldWrap",
                 lbl: "Icono",
-                tipo: "texto",
                 class: "col-12 col-md-6 mb-3"
             },
             {

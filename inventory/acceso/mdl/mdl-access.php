@@ -304,6 +304,39 @@ class MAccess extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // ¿Es Super Admin en esta sucursal? El Super Admin no lleva filas en permissions:
+    // la pestaña Permisos del tenant lo trata como "todo concedido" y no deja editarlo.
+    function userIsSuperAdmin($array) {
+        // [user_id, branch_id]
+        $query = "
+            SELECT 1
+            FROM {$this->bd}users_braches ub
+            JOIN {$this->bd}roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ? AND ub.branch_id = ?
+                AND r.code = 'superadmin'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return !empty($r);
+    }
+
+    // Todas las secciones activas (menú del Super Admin). module_id = 0 trae todos los módulos.
+    function getAllActiveSections($array) {
+        // [module_id, module_id]
+        $query = "
+            SELECT
+                s.id, s.name, s.code, s.icon, s.route, s.orden,
+                m.name AS module_name
+            FROM {$this->bd}sections s
+            LEFT JOIN {$this->bd}modules m ON m.id = s.module_id
+            WHERE s.is_active = 1
+                AND (? = 0 OR s.module_id = ?)
+            ORDER BY m.orden ASC, s.orden ASC, s.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // Modulos activos (id + route) ordenados por ruta mas larga primero, para
     // resolver a que modulo pertenece la pagina actual por prefijo de ruta.
     function getModulesForMatch() {

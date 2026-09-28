@@ -58,6 +58,28 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
+    function lsWarehouses() {
+        $query = "
+            SELECT w.id, CONCAT(w.name, IFNULL(CONCAT(' - ', b.name), '')) AS valor
+            FROM {$this->bd}warehouse w
+            LEFT JOIN fayxzvov_erp.branches b ON b.id = w.branch_id
+            WHERE w.active = 1
+            AND w.companies_id = ".$_SESSION['company_id']."
+            ORDER BY b.name ASC, w.is_default DESC, w.name ASC
+        ";
+        return $this->_Read($query, []);
+    }
+
+    function getCompanyById($array) {
+        $query = "
+            SELECT name, rfc, ubication
+            FROM fayxzvov_erp.companies
+            WHERE id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0] ?? null;
+    }
+
     // Insumos (item + item_attribute + stock)
 
     function listMateriales($filters) {
@@ -117,6 +139,59 @@ class mdl extends CRUD {
         return $this->_Read($query, $params);
     }
 
+    // Formato de conteo: activos e inventariables, agrupados por área (donde se
+    // cuentan) y los que no tienen área al final. La existencia es la del almacén
+    // elegido, o la suma de todos.
+    function listFormatoConteo($filters) {
+        $stockWhere = '';
+        $params     = [];
+
+        if (!empty($filters['warehouse_id'])) {
+            $stockWhere = ' AND warehouse_id = ?';
+            $params[]   = $filters['warehouse_id'];
+        }
+
+        $query = "
+            SELECT
+                i.id,
+                ia.sku,
+                i.name,
+                u.code  AS unidad,
+                ic.name AS categoria,
+                COALESCE(ia.warehouse_area_id, 0) AS area_id,
+                wa.name AS area,
+                COALESCE(st.qty, 0) AS existencia
+            FROM {$this->bd}item i
+            LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
+            LEFT JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
+            LEFT JOIN {$this->bd}unit           u  ON u.id  = ia.unit_id
+            LEFT JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) AS qty
+                FROM {$this->bd}stock
+                WHERE active = 1{$stockWhere}
+                GROUP BY item_id
+            ) st ON st.item_id = i.id
+            WHERE i.companies_id = ".$_SESSION['company_id']."
+            AND i.active = 1
+            AND COALESCE(ia.is_inventoriable, 1) = 1
+        ";
+
+        if (!empty($filters['category_id'])) {
+            $query .= " AND i.category_id = ?";
+            $params[] = $filters['category_id'];
+        }
+
+        if (!empty($filters['area_id'])) {
+            $query .= " AND ia.warehouse_area_id = ?";
+            $params[] = $filters['area_id'];
+        }
+
+        $query .= " ORDER BY wa.name IS NULL, wa.name ASC, i.name ASC";
+
+        return $this->_Read($query, $params);
+    }
+
     function getMaterialById($id) {
         $query = "
             SELECT
@@ -126,6 +201,8 @@ class mdl extends CRUD {
                 ia.description,
                 ia.shelf_life_days,
                 ia.cost_unit,
+                COALESCE(ia.cost_tax, i.tax, 0) AS cost_tax,
+                ia.is_inventoriable,
                 ia.stock_min,
                 ia.stock_max,
                 ia.warehouse_area_id,
@@ -136,6 +213,31 @@ class mdl extends CRUD {
         ";
         $result = $this->_Read($query, [$id]);
         return $result[0] ?? null;
+    }
+
+    // Lo que amarra a un producto (FK RESTRICT): renglones de entradas, salidas,
+    // traspasos y órdenes, y su existencia en cualquier almacén.
+    function getMaterialCounts($array) {
+        $id = $array[0];
+
+        $query = "
+            SELECT
+                (SELECT COUNT(*) FROM {$this->bd}detail_inventory_inflow    WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_shrinkage WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_transfer  WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_purchase_order      WHERE item_id = ?) AS movimientos,
+                (SELECT COALESCE(SUM(ABS(quantity)), 0) FROM {$this->bd}stock WHERE item_id = ?) AS existencia
+        ";
+        $result = $this->_Read($query, [$id, $id, $id, $id, $id]);
+        return $result[0] ?? ['movimientos' => 0, 'existencia' => 0];
+    }
+
+    // Hijos primero: renglones de formatos de entrada, existencias en cero y atributo.
+    function deleteMaterialById($array) {
+        $this->_CUD("DELETE FROM {$this->bd}inflow_format_item WHERE item_id = ?", $array);
+        $this->_CUD("DELETE FROM {$this->bd}stock WHERE item_id = ?", $array);
+        $this->_CUD("DELETE FROM {$this->bd}item_attribute WHERE item_id = ?", $array);
+        return $this->_CUD("DELETE FROM {$this->bd}item WHERE id = ?", $array);
     }
 
     function existsItemBySku($array) {
@@ -276,5 +378,74 @@ class mdl extends CRUD {
             ORDER BY name ASC
         ";
         return $this->_Read($query, [$_SESSION['company_id']]);
+    }
+
+    // Vaciado de la empresa (solo Super Admin, desde CoffeeIA)
+
+    // Mismo criterio que el menú: acceso/mdl/mdl-access.php::userIsSuperAdmin.
+    function isSuperAdmin($array) {
+        // [user_id, branch_id]
+        $query = "
+            SELECT 1
+            FROM fayxzvov_erp.users_braches ub
+            JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ? AND ub.branch_id = ?
+                AND r.code = 'superadmin'
+            LIMIT 1
+        ";
+        return !empty($this->_Read($query, $array));
+    }
+
+    // Lista blanca de tablas que se pueden vaciar. Los detalles no llevan
+    // companies_id: se filtran por su encabezado [tabla padre, columna que los une].
+    private function purgeTarget($table) {
+        $targets = [
+            'detail_inventory_inflow'    => ['inventory_inflow', 'inventory_inflow_id'],
+            'inventory_inflow'           => null,
+            'detail_inventory_shrinkage' => ['inventory_shrinkage', 'inventory_shrinkage_id'],
+            'inventory_shrinkage'        => null,
+            'detail_inventory_transfer'  => ['inventory_transfer', 'inventory_transfer_id'],
+            'inventory_transfer_history' => ['inventory_transfer', 'inventory_transfer_id'],
+            'inventory_transfer'         => null,
+            'detail_purchase_order'      => ['purchase_order', 'purchase_order_id'],
+            'purchase_order'             => null,
+            'stock'                      => null,
+            'inflow_format_item'         => ['inflow_format', 'inflow_format_id'],
+            'inflow_format'              => null,
+            'item_attribute'             => ['item', 'item_id'],
+            'item'                       => null,
+            'item_category'              => null,
+            'warehouse_area'             => null,
+            'supplier'                   => null
+        ];
+
+        if (!array_key_exists($table, $targets)) throw new Exception('Tabla no permitida: ' . $table);
+
+        return $targets[$table];
+    }
+
+    function countPurge($table, $companies_id) {
+        $via   = $this->purgeTarget($table);
+        $query = $via === null
+            ? "SELECT COUNT(*) AS n FROM {$this->bd}{$table} WHERE companies_id = ?"
+            : "SELECT COUNT(*) AS n FROM {$this->bd}{$table} d JOIN {$this->bd}{$via[0]} h ON h.id = d.{$via[1]} WHERE h.companies_id = ?";
+
+        $result = $this->_Read($query, [$companies_id]);
+        return (int) ($result[0]['n'] ?? 0);
+    }
+
+    function purge($table, $companies_id) {
+        $via = $this->purgeTarget($table);
+
+        // Los almacenes se quedan: antes de borrar las áreas se sueltan de ellas.
+        if ($table === 'warehouse_area') {
+            $this->_CUD("UPDATE {$this->bd}warehouse SET warehouse_area_id = NULL WHERE companies_id = ?", [$companies_id]);
+        }
+
+        $query = $via === null
+            ? "DELETE FROM {$this->bd}{$table} WHERE companies_id = ?"
+            : "DELETE d FROM {$this->bd}{$table} d JOIN {$this->bd}{$via[0]} h ON h.id = d.{$via[1]} WHERE h.companies_id = ?";
+
+        return $this->_CUD($query, [$companies_id]);
     }
 }

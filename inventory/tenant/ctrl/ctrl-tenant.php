@@ -1055,6 +1055,18 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? ((int) $_POST['active'] ? 'Sección activada' : 'Sección desactivada') : 'No se pudo actualizar el estado'];
     }
 
+    // Solo se elimina una sección desactivada. Borra el acceso (sección + permisos);
+    // la carpeta y los archivos de la ruta en disco no se tocan.
+    function deleteSection() {
+        $id = (int) $_POST['id'];
+        $found = $this->qSection([$id]);
+        if (!$found) return ['status' => 404, 'message' => 'Sección no encontrada'];
+        if ((int) $found['is_active'] === 1) return ['status' => 400, 'message' => 'Solo se puede eliminar una sección desactivada'];
+
+        $ok = $this->qDeleteSection([$id]);
+        return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Sección eliminada' : 'No se pudo eliminar la sección'];
+    }
+
     // Renombrado en línea (doble clic en el nombre): solo cambia el nombre.
     function renameSection() {
         $id   = (int) $_POST['id'];

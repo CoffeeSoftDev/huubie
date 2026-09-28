@@ -426,9 +426,14 @@ class Access extends MAccess {
 
         // Con modulo resuelto se acota a sus secciones; si no (pagina fuera de un
         // modulo) se cae al comportamiento previo: todas las secciones accesibles.
-        $ls = $moduleId > 0
-            ? $this->getAccessibleSectionsByModule([$userId, $branchId, $moduleId])
-            : $this->getAccessibleSections([$userId, $branchId]);
+        // El Super Admin ve todas las secciones activas sin depender de permissions.
+        if ($this->userIsSuperAdmin([$userId, $branchId])) {
+            $ls = $this->getAllActiveSections([$moduleId, $moduleId]);
+        } else {
+            $ls = $moduleId > 0
+                ? $this->getAccessibleSectionsByModule([$userId, $branchId, $moduleId])
+                : $this->getAccessibleSections([$userId, $branchId]);
+        }
 
         $items = [];
         foreach ($ls as $s) {

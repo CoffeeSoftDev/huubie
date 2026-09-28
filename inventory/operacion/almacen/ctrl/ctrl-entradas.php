@@ -50,6 +50,9 @@ class ctrl extends mdl {
             'user_id'          => $this->userId,
             'sucursales'       => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
             'almacenes'        => $this->lsWarehouses(['companies_id' => $this->companiesId]),
+            'areas'            => $this->lsAreas([$this->companiesId]),
+            'categorias'       => $this->lsCategorias([$this->companiesId]),
+            'unidades'         => $this->lsUnidades([$this->companiesId]),
             'proveedores'      => $this->lsSuppliers([$this->companiesId]),
             'origenes_entrada' => $this->lsInflowOrigins(),
             'estados_entrada'  => [
@@ -95,14 +98,21 @@ class ctrl extends mdl {
                 ]
             ];
 
+            if ($r['status'] !== 'Cancelada') {
+                $a[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
+                    'onclick' => "entradasView.openEditEntrada({$r['id']})"
+                ];
+            }
+
             $row[] = [
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
                 'Fecha'      => formatSpanishDate($r['date_inflow']),
-                'Origen'     => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null),
+                'Tipo de entrada' => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null),
                 'Sucursal'   => $r['branch_name'] ?: '-',
-                'Almacen'    => $r['warehouse_name']  ?: '-',
-                'Proveedor'  => $r['supplier_name']   ?: '<span class="italic text-gray-400">N/A</span>',
+                'Origen'     => $r['warehouse_name']  ?: '-',
                 'Productos'  => (int) $r['total_products'],
                 'Costo'      => evaluar((float) $r['total_cost']),
                 'Estado'     => $this->statusBadge($r['status']),
@@ -190,33 +200,7 @@ class ctrl extends mdl {
         }
 
         $folio = $this->nextFolio('ENT-', 'inventory_inflow', $this->companiesId);
-
-        // Normaliza el desglose de impuesto por renglon. tax es el porcentaje
-        // (0, 8, 16...) y el COSTO CON IMPUESTO es el valor pivote (lo que captura
-        // el usuario): la base sin impuesto se deriva = cost / (1 + tax/100). Si
-        // el front solo mandara la base, reconstruimos el costo.
-        $norm = [];
-        foreach ($productos as $p) {
-            $tax  = ($p['tax'] ?? '') === '' || $p['tax'] === null ? 0.0 : (float) $p['tax'];
-            $base = ($p['price_without_tax'] ?? '') === '' || $p['price_without_tax'] === null ? null : (float) $p['price_without_tax'];
-            $cost = ($p['cost'] ?? '') === '' || $p['cost'] === null ? null : (float) $p['cost'];
-
-            if ($cost === null) {
-                $cost = $base !== null ? $base + ($base * $tax / 100) : 0.0;
-            }
-            $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
-
-            $norm[] = [
-                'product_id'        => (int) $p['product_id'],
-                'quantity'          => (float) $p['quantity'],
-                'price_without_tax' => $base,
-                'tax'               => $tax,
-                'cost'              => $cost,
-                'batch_code'        => $p['batch_code'] ?? null,
-                'expires_at'        => $p['expires_at'] ?? null,
-                'unit_id'           => !empty($p['unit_id']) ? (int) $p['unit_id'] : null
-            ];
-        }
+        $norm  = $this->renglonesEntrada($productos);
 
         $totalProducts = count($norm);
         $totalUnits    = 0;
@@ -238,6 +222,7 @@ class ctrl extends mdl {
             $status,
             (int) $payload['inflow_origin_id'],
             (int) $payload['warehouse_id'],
+            !empty($payload['warehouse_area_id']) ? (int) $payload['warehouse_area_id'] : null,
             !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null,
             (int) ($payload['branch_id'] ?? $this->branchId),
             $this->userId,
@@ -303,6 +288,145 @@ class ctrl extends mdl {
             'id'      => $inflowId,
             'pending' => $isProduction
         ];
+    }
+
+    // Normaliza el desglose de impuesto por renglon. tax es el porcentaje
+    // (0, 8, 16...) y el COSTO CON IMPUESTO es el valor pivote (lo que captura
+    // el usuario): la base sin impuesto se deriva = cost / (1 + tax/100). Si
+    // el front solo mandara la base, reconstruimos el costo.
+    private function renglonesEntrada($productos) {
+        $norm = [];
+        foreach ($productos as $p) {
+            $tax  = ($p['tax'] ?? '') === '' || $p['tax'] === null ? 0.0 : (float) $p['tax'];
+            $base = ($p['price_without_tax'] ?? '') === '' || $p['price_without_tax'] === null ? null : (float) $p['price_without_tax'];
+            $cost = ($p['cost'] ?? '') === '' || $p['cost'] === null ? null : (float) $p['cost'];
+
+            if ($cost === null) {
+                $cost = $base !== null ? $base + ($base * $tax / 100) : 0.0;
+            }
+            $base = $tax > 0 ? $cost / (1 + $tax / 100) : $cost;
+
+            $norm[] = [
+                'product_id'        => (int) $p['product_id'],
+                'quantity'          => (float) $p['quantity'],
+                'price_without_tax' => $base,
+                'tax'               => $tax,
+                'cost'              => $cost,
+                'batch_code'        => $p['batch_code'] ?? null,
+                'expires_at'        => $p['expires_at'] ?? null,
+                'unit_id'           => !empty($p['unit_id']) ? (int) $p['unit_id'] : null
+            ];
+        }
+        return $norm;
+    }
+
+    /*  Edición completa desde el modal (tipo, origen, destino, proveedor, fecha,
+        nota y renglones). Si la entrada estaba aplicada, primero se le quita al
+        almacén de antes lo que la entrada le había sumado y luego se suma lo nuevo
+        al almacén elegido. Una orden de producción pendiente solo cambia sus
+        renglones: el stock se aplica al confirmarla. Todo o nada. */
+    function updateEntrada() {
+        $payload   = json_decode($_POST['payload'] ?? '[]', true);
+        $id        = (int) ($payload['id'] ?? 0);
+        $productos = $payload['productos'] ?? [];
+        $header    = $this->qGetEntrada([$id]);
+
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] === 'Cancelada') {
+            return ['status' => 400, 'message' => 'No se puede editar una entrada cancelada'];
+        }
+        if (empty($productos)) {
+            return ['status' => 400, 'message' => 'No se enviaron renglones'];
+        }
+
+        $origin = $this->getInflowOrigin([(int) $payload['inflow_origin_id']]);
+        if ($origin && (int) ($origin['requires_supplier'] ?? 0) === 1 && empty($payload['supplier_id'])) {
+            return ['status' => 400, 'message' => 'Este origen requiere seleccionar un proveedor'];
+        }
+
+        $aplicada     = $header['status'] === 'Aplicada';
+        $oldWarehouse = (int) $header['warehouse_id'];
+        $warehouse    = (int) $payload['warehouse_id'];
+        $norm         = $this->renglonesEntrada($productos);
+
+        $totalUnits = 0;
+        $totalCost  = 0;
+        $totalBase  = 0;
+        foreach ($norm as $p) {
+            $totalUnits += $p['quantity'];
+            $totalCost  += $p['quantity'] * $p['cost'];
+            $totalBase  += $p['quantity'] * $p['price_without_tax'];
+        }
+
+        try {
+            $this->transaction(function () use ($id, $payload, $norm, $aplicada, $oldWarehouse, $warehouse, $totalUnits, $totalCost, $totalBase) {
+                if ($aplicada) {
+                    foreach ($this->qGetEntradaDetail([$id]) as $d) {
+                        $qty      = $d['confirmed_quantity'] !== null ? (float) $d['confirmed_quantity'] : (float) $d['quantity'];
+                        $stockRow = $this->getStockRow([(int) $d['product_id'], $oldWarehouse]);
+                        if ($stockRow) $this->updateStockQuantity([max(0, (float) $stockRow['quantity'] - $qty), (int) $stockRow['id']]);
+                    }
+                }
+
+                $this->qDisableEntradaDetail([$id]);
+
+                $this->updateEntradaHeader([
+                    $payload['note'] ?? null,
+                    count($norm),
+                    $totalUnits,
+                    $totalCost,
+                    $totalBase,
+                    (int) $payload['inflow_origin_id'],
+                    $warehouse,
+                    !empty($payload['warehouse_area_id']) ? (int) $payload['warehouse_area_id'] : null,
+                    !empty($payload['supplier_id']) ? (int) $payload['supplier_id'] : null,
+                    (int) ($payload['branch_id'] ?? $this->branchId),
+                    !empty($payload['date_inflow']) ? $payload['date_inflow'] : date('Y-m-d'),
+                    $id,
+                    $this->companiesId
+                ]);
+
+                foreach ($norm as $p) {
+                    $stockRow = $this->getStockRow([$p['product_id'], $warehouse]);
+                    $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
+                    $post     = $aplicada ? $prev + $p['quantity'] : $prev;
+
+                    $this->insertEntradaDetail([
+                        $p['batch_code'],
+                        $p['quantity'],
+                        $p['cost'],
+                        $p['quantity'] * $p['cost'],
+                        $p['price_without_tax'],
+                        $p['tax'],
+                        $prev,
+                        $post,
+                        $p['expires_at'],
+                        $p['product_id'],
+                        $id,
+                        $p['unit_id']
+                    ]);
+
+                    if ($p['price_without_tax'] > 0) {
+                        $this->updateItemCost([$p['price_without_tax'], $p['tax'], $p['product_id'], $this->companiesId]);
+                    }
+
+                    if ($aplicada) {
+                        if ($stockRow) {
+                            $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                        } else {
+                            $this->insertStockRow([$post, $warehouse, $p['product_id'], $this->companiesId]);
+                        }
+                    }
+                }
+            });
+        } catch (Throwable $e) {
+            error_log('[updateEntrada] ' . $e->getMessage());
+            return ['status' => 500, 'message' => 'No se guardó ningún cambio: la base de datos rechazó la edición'];
+        }
+
+        return ['status' => 200, 'message' => 'Entrada ' . $header['folio'] . ' actualizada', 'folio' => $header['folio'], 'id' => $id];
     }
 
     function confirmEntrada() {

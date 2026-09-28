@@ -39,11 +39,11 @@ class EntradaForm {
 
         this.cls = {
             label:   'block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1',
-            input:   'w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
-            select:  'w-full px-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8',
-            search:  'w-full pl-8 pr-2.5 py-1.5 text-xs text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
-            qtyInp:  'no-spin w-full px-3 py-1.5 text-xs font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
-            cashInp: 'no-spin w-full pl-6 pr-2.5 py-1.5 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
+            input:   'w-full px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            select:  'w-full px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8',
+            search:  'w-full pl-8 pr-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            qtyInp:  'no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
+            cashInp: 'no-spin w-full pl-6 pr-3 py-2 text-sm text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
             btnOut:  'px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
             btnOk:   'px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
             btnIco:  'px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5',
@@ -59,6 +59,9 @@ class EntradaForm {
                 origenes:        [],
                 sucursales:      [],
                 almacenes:       [],
+                areas:           [],
+                categorias:      [],
+                unidades:        [],
                 proveedores:     [],
                 fecha:           '',
                 branch_id: '',
@@ -73,9 +76,11 @@ class EntradaForm {
             labels: {
                 title:        'Nueva Entrada de Stock',
                 subtitle:     'Layout Horizontal · Tabla completa',
-                origen:       'Origen',
+                origen:       'Tipo de entrada',
                 sucursal:     'Sucursal destino',
-                almacen:      'Almacen',
+                almacen:      'Origen',
+                destino:      'Destino',
+                destinoPh:    'Sin área',
                 proveedor:    'Proveedor',
                 provPh:       '-- Selecciona proveedor --',
                 provNuevo:    'Nuevo',
@@ -86,6 +91,15 @@ class EntradaForm {
                 provPhone:    'Telefono',
                 provEmail:    'Correo',
                 provNamePh:   'Nombre del proveedor...',
+                prodCrear:    'Crear producto',
+                prodModalTit: 'Nuevo producto',
+                prodName:     'Nombre del producto',
+                prodCat:      'Categoría',
+                prodCatPh:    'Sin categoría',
+                prodUnit:     'Unidad',
+                prodUnitPh:   'Sin unidad',
+                prodHint:     'El SKU se genera solo. El precio y el costo se capturan después.',
+                prodGuardar:  'Crear y agregar',
                 fecha:        'Fecha',
                 nota:         'Nota (opcional)',
                 buscar:       'Buscar productos',
@@ -114,6 +128,10 @@ class EntradaForm {
                 registrar:    'Registrar Entrada',
                 confirmAdd:   'Deseas crear una entrada?',
                 confirmAddOk: 'Si, crear',
+                titleEdit:    'Editar entrada',
+                guardarEdit:  'Guardar cambios',
+                confirmEdit:  'Deseas guardar los cambios de la entrada?',
+                confirmEditOk:'Si, guardar',
                 stockAuto:    'El stock se actualizara automaticamente',
                 guardar:      'Guardar formato',
                 cargar:       'Cargar formato',
@@ -137,6 +155,7 @@ class EntradaForm {
             onSearch:        null,
             onUpdate:        () => {},
             onCreateSupplier: null,
+            onCreateProduct:  null,
             onLoadFormatos:   null,
             onSaveFormato:    null,
             onDeleteFormato:  null,
@@ -160,6 +179,7 @@ class EntradaForm {
         this.draft        = null;   // renglon vacio pendiente de elegir producto: { term }
         this.float        = null;   // lista flotante abierta (producto del renglon vacio o impuesto)
         this.stockMap     = {};     // stock del almacen seleccionado: { item_id: cantidad }
+        this.editing      = null;   // entrada abierta para editar: { id, folio }; null = alta
 
         this.ensureStyles();
         this.mount();
@@ -179,7 +199,7 @@ class EntradaForm {
                         <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
+                        <h3 id="${o.id}_title" class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
                         <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
@@ -194,7 +214,7 @@ class EntradaForm {
         const cls = this.cls;
         return `
             <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
-                <div id="${o.id}_configGrid" class="grid grid-cols-4 gap-3 items-end">
+                <div id="${o.id}_configGrid" class="grid grid-cols-5 gap-3 items-end">
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.origen)}</label>
                         ${this.selectWrap(`
@@ -216,6 +236,15 @@ class EntradaForm {
                         ${this.selectWrap(`
                             <select id="${o.id}_selAlmacen" class="${cls.select}">
                                 ${this.almacenOptions(o.data.branch_id, o.data.warehouse_id)}
+                            </select>
+                        `)}
+                    </div>
+                    <div>
+                        <label class="${cls.label}">${this.esc(o.labels.destino)}</label>
+                        ${this.selectWrap(`
+                            <select id="${o.id}_selDestino" class="${cls.select}">
+                                <option value="">${this.esc(o.labels.destinoPh)}</option>
+                                ${(o.data.areas || []).map(it => this.optionTag(it)).join('')}
                             </select>
                         `)}
                     </div>
@@ -256,8 +285,8 @@ class EntradaForm {
         const show   = this.requiresSupplier(origen);
         $(`#${o.id}_cellProveedor`).toggleClass('hidden', !show);
         $(`#${o.id}_configGrid`)
-            .toggleClass('grid-cols-5', show)
-            .toggleClass('grid-cols-4', !show);
+            .toggleClass('grid-cols-6', show)
+            .toggleClass('grid-cols-5', !show);
     }
 
     addSupplierOption(sup) {
@@ -343,6 +372,109 @@ class EntradaForm {
         $(`#${modalId}_name`).on('keydown', (e) => {
             if (e.key === 'Enter')  { e.preventDefault(); confirmar(); }
             if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); }
+        });
+    }
+
+    // -- Producto nuevo --
+
+    // Botón de los resultados vacíos: el producto buscado no existe y se da de alta ahí mismo.
+    renderCreateProduct(term) {
+        if (typeof this.opts.onCreateProduct !== 'function' || !String(term || '').trim()) return '';
+        return `
+            <button type="button" class="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-t border-emerald-100 transition-colors" data-create-product="${this.esc(String(term).trim())}">
+                <i data-lucide="package-plus" class="w-3.5 h-3.5"></i>${this.esc(this.opts.labels.prodCrear)} &laquo;${this.esc(String(term).trim())}&raquo;
+            </button>`;
+    }
+
+    openNuevoProducto(prefill) {
+        const o       = this.opts;
+        const modalId = `${o.id}_prodModal`;
+        $(`#${modalId}`).remove();
+        this.closeFloat();
+
+        const selCls  = 'w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all cursor-pointer';
+        const options = (list, ph) => `<option value="">${this.esc(ph)}</option>` + (list || []).map(it => this.optionTag(it)).join('');
+
+        const html = `
+            <div id="${modalId}" class="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-prod-backdrop></div>
+                <div class="relative w-full max-w-sm bg-white border border-gray-200 rounded-xl shadow-2xl shadow-black/30 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <p class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                            <i data-lucide="package-plus" class="w-3.5 h-3.5 text-emerald-600"></i>${this.esc(o.labels.prodModalTit)}
+                        </p>
+                        <button id="${modalId}_close" class="text-gray-400 hover:text-gray-700 transition-colors">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div class="px-4 pt-4 pb-3 flex flex-col gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodName)}</label>
+                            <input id="${modalId}_name" type="text" autocomplete="off" value="${this.esc(prefill || '')}"
+                                class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodCat)}</label>
+                                <select id="${modalId}_cat" class="${selCls}">${options(o.data.categorias, o.labels.prodCatPh)}</select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodUnit)}</label>
+                                <select id="${modalId}_unit" class="${selCls}">${options(o.data.unidades, o.labels.prodUnitPh)}</select>
+                            </div>
+                        </div>
+                        <p id="${modalId}_err" class="hidden text-[11px] font-medium text-red-500"></p>
+                        <p class="text-[10px] text-gray-400">${this.esc(o.labels.prodHint)}</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
+                        <button id="${modalId}_cancel" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 border border-gray-300 hover:border-gray-400 hover:text-gray-800 transition-all">${this.esc(o.labels.cancelar)}</button>
+                        <button id="${modalId}_confirm" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-600 flex items-center gap-1.5 transition-all">
+                            <i data-lucide="check" class="w-3 h-3"></i>${this.esc(o.labels.prodGuardar)}
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+        $('body').append(html);
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => $(`#${modalId}_name`).trigger('focus').trigger('select'), 50);
+
+        const closeModal = () => $(`#${modalId}`).remove();
+        $(`#${modalId}`).on('click', '[data-prod-backdrop]', closeModal);
+        $(`#${modalId}_close`).on('click', closeModal);
+        $(`#${modalId}_cancel`).on('click', closeModal);
+        $(`#${modalId}`).on('keydown', (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); }
+        });
+
+        const confirmar = () => {
+            const name = ($(`#${modalId}_name`).val() || '').trim();
+            if (!name) { $(`#${modalId}_name`).focus(); return; }
+
+            const $btn = $(`#${modalId}_confirm`).prop('disabled', true).addClass('opacity-60');
+            const payload = {
+                name:        name,
+                category_id: $(`#${modalId}_cat`).val()  || '',
+                unit_id:     $(`#${modalId}_unit`).val() || ''
+            };
+
+            o.onCreateProduct(payload, (prod, error) => {
+                if (!prod) {
+                    $btn.prop('disabled', false).removeClass('opacity-60');
+                    $(`#${modalId}_err`).text(error || '').toggleClass('hidden', !error);
+                    return;
+                }
+                (o.json || (o.json = [])).push(prod);
+                closeModal();
+                this.draft = null;
+                this.resetSearchState();
+                this.focusCantidad(this.addOrIncrement(prod, 1));
+            });
+        };
+
+        $(`#${modalId}_confirm`).on('click', confirmar);
+        $(`#${modalId}_name`).on('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
         });
     }
 
@@ -519,7 +651,7 @@ class EntradaForm {
                 </td>
                 <td class="px-2 py-2 align-middle w-24">
                     <div class="relative" title="Impuesto (%): escribe o elige">
-                        <input type="text" inputmode="decimal" autocomplete="off" value="${taxNum}" class="w-full pr-9 pl-2.5 py-1.5 text-xs text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all" data-field="tax" data-idx="${i}">
+                        <input type="text" inputmode="decimal" autocomplete="off" value="${taxNum}" class="w-full pr-9 pl-2.5 py-2 text-sm text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all" data-field="tax" data-idx="${i}">
                         <span class="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-[11px]">%</span>
                         <button type="button" tabindex="-1" class="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-tax-toggle="${i}">
                             <i data-lucide="chevron-down" class="w-3 h-3"></i>
@@ -587,7 +719,7 @@ class EntradaForm {
 
     renderDraftLista(items) {
         if (!items.length) {
-            return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>`;
+            return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>${this.renderCreateProduct(this.draft ? this.draft.term : '')}`;
         }
         return `<div class="max-h-[240px] overflow-y-auto cs-scroll ef-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`;
     }
@@ -725,7 +857,7 @@ class EntradaForm {
                         <i data-lucide="search-x" class="w-5 h-5 text-gray-400"></i>
                     </div>
                     <p class="text-[11px] text-gray-500">${this.esc(o.labels.searchHint)}</p>
-               </div>`;
+               </div>${this.renderCreateProduct(this.searchTerm)}`;
 
         $dd.html(head + body + foot).removeClass('hidden');
         if (window.lucide) lucide.createIcons();
@@ -1209,6 +1341,7 @@ class EntradaForm {
         this.wrap.addClass('hidden');
         this.lote  = [];
         this.draft = null;
+        if (this.editing) this.setMode(null);
         this.renderLote();
         this.opts.onClose();
     }
@@ -1225,7 +1358,7 @@ class EntradaForm {
     // Alertas y modales hijos (proveedor, formato) atienden su propio Escape.
     hasOverlay() {
         const id = this.opts.id;
-        return $(`#${id}_supModal, #${id}_saveFormatoModal`).length > 0 || $('[data-ab-backdrop]').length > 0;
+        return $(`#${id}_supModal, #${id}_prodModal, #${id}_saveFormatoModal`).length > 0 || $('[data-ab-backdrop]').length > 0;
     }
 
     doRegistrar() {
@@ -1244,11 +1377,13 @@ class EntradaForm {
         }
 
         const payload = {
+            id:          this.editing ? this.editing.id : null,
             origen:      origenId,
             sucursal:    $(`#${o.id}_selSucursal option:selected`).text(),
             sucursalId:  $(`#${o.id}_selSucursal`).val(),
             almacen:     $(`#${o.id}_selAlmacen option:selected`).text(),
             warehouseId: warehouseId,
+            warehouseAreaId: $(`#${o.id}_selDestino`).val() || '',
             proveedor:   $(`#${o.id}_selProveedor option:selected`).text(),
             supplierId:  supplierId,
             fecha:       $(`#${o.id}_inpFecha`).val(),
@@ -1272,12 +1407,13 @@ class EntradaForm {
     // usuario cancela. Usa el alertBox propio de CoffeeSoft (via Templates) y
     // cae a confirm nativo si la referencia no esta disponible.
     confirmRegistrar(payload) {
-        const o = this.opts;
-        const proceed = () => { o.onAdd(payload); this.closeModal(); };
+        const o       = this.opts;
+        const editing = !!this.editing;
+        const proceed = () => { (editing ? o.onUpdate : o.onAdd)(payload); this.closeModal(); };
 
-        this.confirmBox(o.labels.confirmAdd, proceed, {
+        this.confirmBox(editing ? o.labels.confirmEdit : o.labels.confirmAdd, proceed, {
             type:    'confirm',
-            okLabel: o.labels.confirmAddOk,
+            okLabel: editing ? o.labels.confirmEditOk : o.labels.confirmAddOk,
             okIcon:  'check',
             focusOk: true
         });
@@ -1590,6 +1726,7 @@ class EntradaForm {
         wrap.on('click', '[data-modal-close]',        () => this.closeModal());
         wrap.on('change', `#${id}_selOrigen`,         () => this.syncProveedorVisibility());
         wrap.on('click', `#${id}_btnNuevoProveedor`,  () => this.openNuevoProveedor());
+        wrap.on('click', '[data-create-product]',     (e) => this.openNuevoProducto($(e.currentTarget).attr('data-create-product')));
         wrap.on('change', `#${id}_selSucursal`,       (e) => { this.refreshAlmacenes(e.target.value); this.reloadStock($(`#${id}_selAlmacen`).val()); });
         wrap.on('change', `#${id}_selAlmacen`,        (e) => this.reloadStock(e.target.value));
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
@@ -1674,6 +1811,48 @@ class EntradaForm {
 
     close() {
         this.closeModal();
+    }
+
+    // Abre una entrada ya registrada con sus datos y renglones. Al guardar llama
+    // onUpdate (en vez de onAdd) con el mismo payload mas el id de la entrada.
+    openEdit(entrada) {
+        const id = this.opts.id;
+        this.setMode(entrada);
+
+        $(`#${id}_selOrigen`).val(String(entrada.origen || ''));
+        this.syncProveedorVisibility();
+        $(`#${id}_selSucursal`).val(String(entrada.branch_id || ''));
+        this.refreshAlmacenes(entrada.branch_id);
+        $(`#${id}_selAlmacen`).val(String(entrada.warehouse_id || ''));
+        $(`#${id}_selDestino`).val(entrada.warehouse_area_id ? String(entrada.warehouse_area_id) : '');
+        $(`#${id}_selProveedor`).val(entrada.supplier_id ? String(entrada.supplier_id) : '');
+        $(`#${id}_inpFecha`).val(entrada.fecha || '');
+        $(`#${id}_inpNota`).val(entrada.nota || '');
+
+        this.lote  = (entrada.productos || []).map(p => Object.assign({}, p));
+        this.draft = null;
+        this.resetSearchState();
+
+        this.wrap.removeClass('hidden');
+        this.renderLote();
+        this.reloadStock(entrada.warehouse_id);
+    }
+
+    // Alta (entrada = null) o edicion: titulo y boton de guardar. Al salir de una
+    // edicion se limpian los campos que setData no toca.
+    setMode(entrada) {
+        const o  = this.opts;
+        const id = o.id;
+        this.editing = entrada ? { id: entrada.id, folio: entrada.folio } : null;
+
+        $(`#${id}_title`).text(entrada ? `${o.labels.titleEdit} ${entrada.folio || ''}`.trim() : o.labels.title);
+        $(`#${id}_btnRegistrar span`).text(entrada ? o.labels.guardarEdit : o.labels.registrar);
+
+        if (!entrada) {
+            $(`#${id}_selDestino`).val('');
+            $(`#${id}_selProveedor`).val('');
+            $(`#${id}_inpNota`).val('');
+        }
     }
 
     setData(newData) {

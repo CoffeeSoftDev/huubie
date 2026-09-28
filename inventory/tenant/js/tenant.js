@@ -297,24 +297,18 @@ class AccesosGroup extends Templates {
             content: { class: 'flex-1 min-h-0 flex flex-col' },
             json: [
                 {
-                    id: 'modulos',
-                    tab: 'Módulos',
-                    lucideIcon: 'layout-grid',
+                    id: 'secciones',
+                    tab: 'Secciones',
+                    lucideIcon: 'layout-list',
+                    class: 'flex-1 min-h-0 flex flex-col',
                     active: true,
-                    onClick: () => { modules.render(); modules.lsModules(); }
+                    onClick: () => { sections.render(); sections.lsSections(); }
                 },
                 {
                     id: 'submodulos',
                     tab: 'Submódulos',
                     lucideIcon: 'folder-tree',
                     onClick: () => { submodules.render(); submodules.lsSubmodules(); }
-                },
-                {
-                    id: 'secciones',
-                    tab: 'Secciones',
-                    lucideIcon: 'layout-list',
-                    class: 'flex-1 min-h-0 flex flex-col',
-                    onClick: () => { sections.render(); sections.lsSections(); }
                 },
                 {
                     id: 'roles',
@@ -352,7 +346,7 @@ class AccesosGroup extends Templates {
     }
 
     renderActiveTab() {
-        modules.render();
-        modules.lsModules();
+        sections.render();
+        sections.lsSections();
     }
 }
