@@ -1,16 +1,22 @@
+// Modal de captura de salidas. Mismo diseño y forma de capturar que el de entradas
+// (entrada-form.js): buscador arriba con desplegable, tabla del lote a todo lo ancho,
+// renglón vacío con ↓ y flechas entre renglones. Lo propio de salidas: motivo,
+// evidencia fotográfica, costo bloqueado (el del producto) y aviso de stock insuficiente.
+
 class SalidaForm {
 
     constructor(options) {
 
         this.cls = {
-            label:   'block text-[9px] font-semibold uppercase tracking-wider text-gray-500 mb-1',
-            input:   'w-full px-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
-            select:  'w-full px-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8',
-            search:  'w-full pl-8 pr-2.5 py-1.5 text-[11px] text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
-            qtyInp:  'no-spin w-full px-3 py-1.5 text-[11px] font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15 transition-all',
-            btnOut:  'px-3 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
-            btnOk:   'px-3 py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-rose-500 to-rose-600 rounded-md hover:from-rose-400 hover:to-rose-500 hover:shadow-lg hover:shadow-rose-500/20 transition-all flex items-center gap-1.5',
-            badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold leading-none'
+            label:   'block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1',
+            input:   'w-full px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            select:  'w-full px-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all cursor-pointer appearance-none pr-8',
+            search:  'w-full pl-8 pr-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
+            qtyInp:  'no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
+            btnOut:  'px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
+            btnOk:   'px-3 py-1.5 text-xs font-bold text-white bg-red-600 rounded-md hover:bg-red-500 hover:shadow-lg transition-all flex items-center gap-1.5',
+            btnIco:  'px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5',
+            badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none'
         };
 
         const defaults = {
@@ -19,44 +25,52 @@ class SalidaForm {
             class:  'hidden fixed inset-0 z-[100] flex items-center justify-center',
             json:   [],
             data: {
-                motivos:         [],
-                sucursales:      [],
-                almacenes:       [],
-                motivo:          '',
-                branch_id: '',
-                warehouse_id:    '',
-                fecha:           '',
-                nota:            ''
+                motivos:      [],
+                sucursales:   [],
+                almacenes:    [],
+                motivo:       '',
+                branch_id:    '',
+                warehouse_id: '',
+                fecha:        '',
+                nota:         ''
             },
             labels: {
-                title:        'Registrar Salida',
-                subtitle:     'Reporta productos dañados, vencidos o perdidos',
-                motivo:       'Motivo',
-                sucursal:     'Sucursal',
-                almacen:      'Almacen',
-                fecha:        'Fecha',
-                nota:         'Observaciones (opcional)',
-                buscar:       'Buscar productos',
-                placeholder:  'Nombre o SKU...',
-                searchHint:   'Sin resultados',
-                fotoLbl:      'Adjuntar evidencia fotografica',
-                fotoBtn:      'Evidencia',
-                fotoOk:       'Adjunta',
-                resumenLbl:   'Resumen del folio',
-                productosLbl: 'Productos',
-                unidadesLbl:  'Unidades',
-                perdidaLbl:   'Valor de salidas',
-                emptyTitle:   'Aun no se han agregado productos',
-                emptyHint:    'Usa el buscador para empezar',
-                limpiar:      'Limpiar',
-                cancelar:     'Cancelar',
-                registrar:    'Registrar Salida',
-                stockAuto:    'El stock se descontara automaticamente',
-                agregar:      'Agregar'
+                title:          'Registrar Salida',
+                subtitle:       'Reporta productos dañados, vencidos o perdidos',
+                motivo:         'Motivo',
+                sucursal:       'Sucursal',
+                almacen:        'Almacen',
+                fecha:          'Fecha',
+                nota:           'Observaciones (opcional)',
+                placeholder:    'Buscar productos por nombre o SKU...',
+                searchHint:     'Sin resultados',
+                fotoLbl:        'Adjuntar evidencia fotografica',
+                fotoBtn:        'Evidencia',
+                quitarFoto:     'Quitar evidencia',
+                productosLbl:   'Productos de la salida',
+                saleDeLbl:      'Sale de',
+                categoriasLbl:  'Categorias',
+                costoRefLbl:    'Costo',
+                perdidaLbl:     'Valor de salidas',
+                emptyTitle:     'Aun no has agregado productos',
+                emptyHint:      'Usa el buscador o presiona ↓ para capturar en un renglon',
+                draftPh:        'Escribe el nombre o SKU del producto...',
+                quitarRenglon:  'Quitar renglon',
+                hintRenglon:    'renglon vacio',
+                hintBuscador:   'volver al buscador',
+                sinAlmacenes:   'Sin almacenes activos',
+                sinAlmacenesMsg:'La sucursal no tiene almacenes activos',
+                stockInsuf:     'Stock insuficiente',
+                confirmClose:   'Descartar los productos capturados?',
+                confirmCloseOk: 'Si, descartar',
+                confirmClear:   'Eliminar todos los productos de la salida?',
+                limpiar:        'Limpiar',
+                cancelar:       'Cancelar',
+                registrar:      'Registrar Salida'
             },
-            onSubmit: () => {},
-            onClose:  () => {},
-            onSearch: null,
+            onSubmit:          () => {},
+            onClose:           () => {},
+            onSearch:          null,
             onWarehouseChange: null
         };
 
@@ -66,10 +80,12 @@ class SalidaForm {
         this.opts.labels = Object.assign({}, defaults.labels, o.labels || {});
 
         this.lote         = [];
+        this.draft        = null;   // renglón vacío con buscador propio ({ term })
+        this.float        = null;   // lista flotante del renglón vacío
         this.photo        = null;
         this.searchTerm   = '';
-        this.activeIdx    = 0;      // resultado resaltado para navegacion por teclado
-        this.catalogItems = [];     // resultados visibles actuales del catalogo
+        this.activeIdx    = 0;      // resultado resaltado para navegación por teclado
+        this.catalogItems = [];     // resultados visibles actuales del catálogo
 
         this.ensureStyles();
         this.mount();
@@ -82,17 +98,17 @@ class SalidaForm {
     renderHeader() {
         const o = this.opts;
         return `
-            <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-300 bg-gray-50 flex-shrink-0">
+            <div class="flex items-center justify-between px-[18px] py-[14px] border-b border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-rose-500/20" style="background:linear-gradient(135deg,#FB7185,#FB923C);">
-                        <i data-lucide="alert-triangle" class="w-5 h-5 text-white"></i>
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                        <i data-lucide="package-minus" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
                         <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
-                <button class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:border-gray-500" data-modal-close>
+                <button class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400" data-modal-close>
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>`;
@@ -101,11 +117,8 @@ class SalidaForm {
     renderConfigRow() {
         const o   = this.opts;
         const cls = this.cls;
-        const almacenesVisibles = (o.data.almacenes || []).filter(a =>
-            !o.data.branch_id || String(a.branch_id) === String(o.data.branch_id)
-        );
         return `
-            <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50">
+            <div class="px-5 pt-3 pb-3 border-b border-gray-200 bg-gray-50/60">
                 <div class="grid grid-cols-4 gap-3 items-end">
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.motivo)}</label>
@@ -118,18 +131,18 @@ class SalidaForm {
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.sucursal)}</label>
                         ${this.selectWrap(`
-                            <select id="${o.id}_selSucursal" class="${cls.select}">
+                            <select id="${o.id}_selSucursal" class="${cls.select} !pl-10">
                                 ${(o.data.sucursales || []).map(it => this.optionTag(it, o.data.branch_id)).join('')}
                             </select>
-                        `)}
+                        `, 'building-2')}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.almacen)}</label>
                         ${this.selectWrap(`
-                            <select id="${o.id}_selAlmacen" class="${cls.select}">
-                                ${almacenesVisibles.map(it => this.optionTag(it, o.data.warehouse_id)).join('')}
+                            <select id="${o.id}_selAlmacen" class="${cls.select} !pl-10">
+                                ${this.almacenOptions(o.data.branch_id, o.data.warehouse_id)}
                             </select>
-                        `)}
+                        `, 'warehouse')}
                     </div>
                     <div>
                         <label class="${cls.label}">${this.esc(o.labels.fecha)}</label>
@@ -139,37 +152,21 @@ class SalidaForm {
             </div>`;
     }
 
-    renderSearchPanel() {
-        const o   = this.opts;
-        const cls = this.cls;
-        return `
-            <div class="flex-shrink-0">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">${this.esc(o.labels.buscar)}</p>
-                <div class="relative">
-                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
-                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
-                    </span>
-                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" class="${cls.search}" autocomplete="off">
-                </div>
-                <p class="mt-1.5 text-[9px] text-gray-500 flex items-center flex-wrap gap-x-1.5 gap-y-1 leading-none">
-                    <span class="mf-kbd">&uarr;&darr;</span><span>navegar</span>
-                    <span class="mf-kbd">Enter</span><span>agregar</span>
-                </p>
-            </div>
-            <div id="${o.id}_catalogoLista" class="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1 -mr-1 cs-scroll mf-scroll bg-gray-50 border border-gray-200 rounded-lg p-1.5"></div>`;
-    }
-
-    renderResumen() {
+    renderSearchBar() {
         const o = this.opts;
         return `
-            <div class="flex-shrink-0 border-t border-gray-200 px-4 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
-                <div class="flex items-center gap-4 text-[10px]">
-                    <span class="text-gray-500"><strong class="text-gray-800 text-[13px]" id="${o.id}_qtyItems">0</strong> prod.</span>
-                    <span class="text-gray-500"><strong class="text-gray-800 text-[13px]" id="${o.id}_qtyUnits">0</strong> uds</span>
-                </div>
-                <div class="flex items-baseline gap-2.5">
-                    <span class="text-[9px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.perdidaLbl)}</span>
-                    <span class="text-rose-600 font-bold text-[16px] leading-none" id="${o.id}_qtyCost">-$0.00</span>
+            <div id="${o.id}_searchBar" class="px-5 py-3 border-b border-gray-200 bg-white">
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input id="${o.id}_buscarProducto" type="text" placeholder="${this.esc(o.labels.placeholder)}" autocomplete="off"
+                        class="w-full pl-9 pr-40 py-2.5 text-sm text-gray-800 bg-white border border-gray-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 text-[10px] text-gray-400 pointer-events-none">
+                        <span class="sf-kbd">&uarr;&darr;</span><span>navegar</span>
+                        <span class="sf-kbd">Enter</span><span>agregar</span>
+                    </div>
+                    <div id="${o.id}_catalogoLista" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
                 </div>
             </div>`;
     }
@@ -178,17 +175,39 @@ class SalidaForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div class="px-5 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50">
                 <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
-                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-rose-600"></i>
+                    <div class="w-6 h-6 rounded-md bg-blue-50 border border-blue-200 flex items-center justify-center">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5 text-blue-600"></i>
                     </div>
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-700">${this.esc(o.labels.productosLbl)}</p>
-                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-gradient-to-br from-rose-500/25 to-rose-500/15 text-rose-600 border border-rose-500/40">0</span>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-600">${this.esc(o.labels.productosLbl)}</p>
+                    <span id="${o.id}_cntProductos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200">0</span>
                 </div>
-                <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-rose-600 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-rose-500/10">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
-                </button>
+                <div class="flex items-center gap-3">
+                    <span class="hidden md:flex items-center gap-1 text-[10px] text-gray-400">
+                        <span class="sf-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
+                        <span class="sf-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
+                    </span>
+                    <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    renderResumen() {
+        const o = this.opts;
+        return `
+            <div class="flex-shrink-0 border-t border-gray-200 px-5 py-2.5 bg-gray-50 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-5 text-[11px] text-gray-500">
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Productos <strong class="text-gray-800 text-sm" id="${o.id}_qtyItems">0</strong></span>
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>${this.esc(o.labels.saleDeLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtySucursal">-</strong></span>
+                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>${this.esc(o.labels.categoriasLbl)} <strong class="text-gray-800 text-sm" id="${o.id}_qtyCats">0</strong></span>
+                </div>
+                <div class="flex items-baseline gap-2.5">
+                    <span class="text-[10px] uppercase tracking-wider text-gray-500">${this.esc(o.labels.perdidaLbl)}</span>
+                    <span class="text-red-600 font-bold text-lg leading-none" id="${o.id}_qtyCost">-$0.00</span>
+                </div>
             </div>`;
     }
 
@@ -196,26 +215,22 @@ class SalidaForm {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-300 bg-gray-50 flex-shrink-0">
+            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-500 flex-shrink-0"></i>
+                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
-                    <input type="file" id="${o.id}_photoInput" accept="image/*" capture="environment" class="hidden">
-                    <button id="${o.id}_btnFoto" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:border-rose-500/50 hover:text-gray-900 transition-all flex-shrink-0" title="${this.esc(o.labels.fotoLbl)}">
-                        <i data-lucide="camera" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.fotoBtn)}</span>
+                    <input id="${o.id}_photoInput" type="file" accept="image/*" capture="environment" class="hidden">
+                    <button id="${o.id}_btnFoto" type="button" class="${cls.btnIco} flex-shrink-0" title="${this.esc(o.labels.fotoLbl)}">
+                        <i data-lucide="camera" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_fotoLbl" class="truncate max-w-[140px]">${this.esc(o.labels.fotoBtn)}</span>
                     </button>
-                    <div id="${o.id}_fotoChip" class="hidden items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 flex-shrink-0">
-                        <img id="${o.id}_photoImg" alt="" class="w-5 h-5 rounded object-cover">
-                        <span class="text-[10px] text-emerald-600 font-medium">${this.esc(o.labels.fotoOk)}</span>
-                        <button id="${o.id}_photoRemove" type="button" class="text-emerald-600 hover:text-gray-900" title="Quitar evidencia">
-                            <i data-lucide="x" class="w-3 h-3"></i>
-                        </button>
-                    </div>
+                    <button id="${o.id}_photoRemove" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarFoto)}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
                     <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
                     <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
-                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
+                        <i data-lucide="package-minus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
                     </button>
                 </div>
             </div>`;
@@ -225,68 +240,70 @@ class SalidaForm {
         const o = this.opts;
         return `
             <div class="flex flex-col items-center justify-center py-12 text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500/10 to-rose-500/5 flex items-center justify-center mb-3">
-                    <i data-lucide="package-x" class="w-8 h-8 text-rose-500"></i>
+                <div class="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-3">
+                    <i data-lucide="package-minus" class="w-8 h-8 text-blue-400"></i>
                 </div>
                 <p class="text-xs font-semibold text-gray-700">${this.esc(o.labels.emptyTitle)}</p>
-                <p class="text-[10px] text-gray-500 mt-1">${this.esc(o.labels.emptyHint)}</p>
+                <p class="text-[11px] text-gray-400 mt-1">${this.esc(o.labels.emptyHint)}</p>
             </div>`;
     }
 
-    // Detalle "Stock actual -> resultante" con aviso cuando la cantidad deja el stock en negativo.
-    stockHint(p) {
-        const cant       = Number(p.cantidad || 0);
-        const stockNum   = Number(p.stock || 0);
-        const nuevoStock = stockNum - cant;
-        const stockColor = stockNum === 0 ? 'text-rose-600' : stockNum < 5 ? 'text-orange-500' : 'text-gray-500';
-        const nuevoColor = nuevoStock < 0 ? 'text-rose-600' : nuevoStock < 5 ? 'text-orange-500' : 'text-gray-700';
-        const negBadge   = nuevoStock < 0
-            ? ` <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 text-[8px] font-bold uppercase tracking-wide" data-neg-warn title="El stock de este producto quedara en negativo">Stock insuficiente</span>`
+    // Stock actual -> resultante; en rojo y con aviso si la salida lo deja en negativo.
+    stockCell(p) {
+        const stock      = Number(p.stock || 0);
+        const nuevo      = this.fmtQty(stock - Number(p.cantidad || 0));
+        const stockColor = stock === 0 ? 'text-red-500' : stock < 5 ? 'text-orange-500' : 'text-green-600';
+        const nuevoColor = nuevo < 0 ? 'text-red-600' : nuevo < 5 ? 'text-orange-500' : 'text-gray-700';
+        const aviso      = nuevo < 0
+            ? `<span class="block mt-0.5 text-[9px] font-bold uppercase tracking-wide text-red-600">${this.esc(this.opts.labels.stockInsuf)}</span>`
             : '';
-        return `Stock <strong class="${stockColor}">${stockNum}</strong> <span class="text-gray-400">&darr;</span> <strong class="${nuevoColor}" data-nuevo-stock>${nuevoStock}</strong>${negBadge}`;
+        return `
+            <span class="text-[11px] text-gray-500">
+                <strong class="${stockColor}">${stock}</strong>
+                <span class="text-gray-300 mx-0.5">&rarr;</span>
+                <strong class="${nuevoColor}">${nuevo}</strong>
+            </span>${aviso}`;
     }
 
     renderProductRow(p, i) {
         const cls         = this.cls;
         const cant        = Number(p.cantidad || 0);
         const costoNum    = Number(p.costo || 0);
-        const costoFmt    = costoNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const subtotal    = (cant * costoNum).toFixed(2);
-        const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
-            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-rose-500/5 transition-colors" data-idx="${i}">
+            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
+                <td class="px-3 py-2 align-middle w-28">
+                    <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
+                </td>
                 <td class="px-3 py-2 align-middle">
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex items-center gap-2.5 min-w-0">
                         ${this.prodThumb(p, 'w-8 h-8', 'w-3.5 h-3.5')}
                         <div class="min-w-0">
-                            <p class="text-[11px] font-semibold text-gray-800 truncate leading-tight">${this.esc(p.nombre)}</p>
-                            <div class="flex items-center gap-1.5 mt-0.5">
-                                <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
-                                <span class="text-gray-300">.</span>
-                                <span class="text-[9px] text-gray-500" data-stock-hint>${this.stockHint(p)}</span>
-                            </div>
+                            <p class="text-xs font-semibold text-gray-800 truncate leading-tight">${this.esc(p.nombre)}</p>
+                            ${p.categoria ? `<p class="text-[10px] text-gray-400 truncate mt-0.5">${this.esc(p.categoria)}</p>` : ''}
                         </div>
                     </div>
                 </td>
+                <td class="px-2 py-2 align-middle text-center w-36" data-stock-cell>${this.stockCell(p)}</td>
                 <td class="px-2 py-2 align-middle w-24">
-                    <input type="number" min="1" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                    <input type="number" min="1" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo del producto (no editable)">
-                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none flex items-center">
+                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
                             <i data-lucide="dollar-sign" class="w-3 h-3"></i>
                         </span>
-                        <div class="w-full pl-6 pr-6 py-1.5 text-[11px] text-right text-gray-700 bg-gray-50 border border-gray-200 rounded select-none cursor-not-allowed">${costoFmt}</div>
+                        <div class="w-full pl-6 pr-6 py-2 text-sm text-right text-gray-600 bg-gray-50 border border-gray-200 rounded select-none cursor-not-allowed">${costoNum.toFixed(2)}</div>
                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
-                            <i data-lucide="lock" class="w-2.5 h-2.5"></i>
+                            <i data-lucide="lock" class="w-3 h-3"></i>
                         </span>
                     </div>
                 </td>
-                <td class="px-2 py-2 align-middle text-right w-24">
-                    <span class="text-rose-600 font-bold text-[12px]" data-subtotal>-$${subtotalFmt}</span>
+                <td class="px-5 py-2 align-middle text-right w-28">
+                    <span class="text-red-600 font-bold text-xs" data-subtotal>-$${subtotalFmt}</span>
                 </td>
                 <td class="px-2 py-2 align-middle text-center w-10">
-                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-500 hover:text-rose-600 hover:bg-rose-500/15 transition-colors" data-remove="${i}" title="Eliminar">
+                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 </td>
@@ -294,64 +311,70 @@ class SalidaForm {
     }
 
     renderProductsTable() {
-        // Agrupa el lote por categoria conservando el indice original en this.lote
-        // (lo usan removeProducto / updateField / refreshRow via data-idx).
-        const groups = {};
-        this.lote.forEach((p, i) => {
-            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
-            (groups[cat] = groups[cat] || []).push({ p, i });
-        });
-        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
-
-        const body = catNames.map(c => {
-            const rows = groups[c].map(({ p, i }) => this.renderProductRow(p, i)).join('');
-            return this.renderLoteCatRow(c, groups[c].length) + rows;
-        }).join('');
-
         return `
             <table class="w-full border-collapse">
-                <thead class="sticky top-0 z-10 bg-white border-b border-gray-300">
+                <thead class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
-                        <th class="text-left px-3 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
-                        <th class="text-center px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Cant.</th>
-                        <th class="text-left px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
-                        <th class="text-right px-2 py-2 text-[9px] uppercase tracking-wider text-gray-500 font-bold w-24">Subtotal</th>
+                        <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">SKU</th>
+                        <th class="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold">Producto</th>
+                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-36">Stock</th>
+                        <th class="text-center px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-24">Cantidad</th>
+                        <th class="text-left px-2 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Costo</th>
+                        <th class="text-right px-5 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-bold w-28">Subtotal</th>
                         <th class="w-10 px-2 py-2"></th>
                     </tr>
                 </thead>
-                <tbody>${body}</tbody>
-            </table>`;
+                <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
+            </table>
+            <div class="h-64" aria-hidden="true"></div>`;
     }
 
-    // Fila separadora de categoria dentro de la tabla del lote.
-    renderLoteCatRow(cat, count) {
+    renderDraftRow() {
+        const o = this.opts;
         return `
-            <tr class="mf-lote-cat">
-                <td colspan="5" class="px-3 pt-2.5 pb-1 bg-gray-50">
-                    <div class="flex items-center justify-between">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 truncate">${this.esc(cat)}</span>
-                        <span class="text-[9px] text-gray-400 flex-shrink-0 ml-2">${count}</span>
+            <tr class="border-b border-gray-100 bg-blue-50/30" data-draft>
+                <td class="px-3 py-2 align-middle w-28"></td>
+                <td class="px-3 py-2 align-middle">
+                    <div class="relative">
+                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none flex items-center">
+                            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        </span>
+                        <input id="${o.id}_draftInput" type="text" autocomplete="off" value="${this.esc(this.draft.term)}" placeholder="${this.esc(o.labels.draftPh)}" class="${this.cls.search}">
                     </div>
+                </td>
+                <td colspan="4"></td>
+                <td class="px-2 py-2 align-middle text-center w-10">
+                    <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-draft-remove title="${this.esc(o.labels.quitarRenglon)}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
                 </td>
             </tr>`;
     }
 
+    renderDraftLista(items) {
+        if (!items.length) return `<div class="px-3 py-4 text-center text-[11px] text-gray-500">${this.esc(this.opts.labels.searchHint)}</div>`;
+        return `<div class="max-h-[240px] overflow-y-auto cs-scroll sf-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`;
+    }
+
     renderSearchResult(p, i) {
-        const stockColor = p.stock === 0 ? 'text-rose-600' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
-        const stockBg    = p.stock === 0 ? 'bg-rose-500/10' : p.stock < 5 ? 'bg-orange-500/10' : 'bg-green-500/10';
+        const o          = this.opts;
+        const stockColor = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
+        const costoFmt   = Number(p.costo || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
-            <div class="mf-cat-item rounded-md flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-transparent border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
+            <div class="sf-cat-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-blue-50/60 border-b border-gray-100 last:border-b-0 transition-all group" data-add-id="${this.esc(p.id)}" data-cat-idx="${i}">
                 ${this.prodThumb(p, 'w-9 h-9', 'w-4 h-4')}
                 <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
-                    <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="text-[9px] px-1.5 py-0.5 rounded ${stockBg} ${stockColor} font-bold">Stock ${p.stock || 0}</span>
-                        <span class="text-[9px] text-gray-500 font-mono">${this.esc(p.sku)}</span>
-                    </div>
+                    <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(p.nombre)}</p>
+                    <p class="text-[10px] text-gray-500 truncate mt-0.5">
+                        <span class="font-mono">${this.esc(p.sku)}</span>${p.categoria ? `<span class="text-gray-300"> &middot; </span>${this.esc(p.categoria)}` : ''}<span class="text-gray-300"> &middot; </span>Stock: <strong class="${stockColor}">${p.stock || 0}</strong>
+                    </p>
                 </div>
-                <span class="text-[10px] font-bold text-gray-700 flex-shrink-0">${this.fmtMoney(p.costo)}</span>
-                <div class="w-7 h-7 rounded-lg bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-500 transition-all">
-                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <div class="text-right flex-shrink-0">
+                    <p class="text-[10px] text-gray-400 leading-none">${this.esc(o.labels.costoRefLbl)}</p>
+                    <p class="text-xs font-bold text-gray-700 mt-0.5">$${costoFmt}</p>
+                </div>
+                <div class="sf-add-btn w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 text-gray-400 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
                 </div>
             </div>`;
     }
@@ -362,15 +385,16 @@ class SalidaForm {
             input.no-spin::-webkit-inner-spin-button,
             input.no-spin::-webkit-outer-spin-button { -webkit-appearance: none !important; appearance: none !important; margin: 0 !important; }
             input.no-spin { -moz-appearance: textfield !important; appearance: textfield !important; }
-            .mf-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
-            .mf-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-            .mf-scroll::-webkit-scrollbar-track { background: transparent; }
-            .mf-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-            .mf-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-            .mf-cat-item.mf-active { background: rgba(147,51,234,0.08); box-shadow: inset 0 0 0 1px rgba(168,85,247,0.45); }
-            @keyframes mfFlash { 0% { background-color: rgba(244,63,94,0.18); } 100% { background-color: transparent; } }
-            tr.mf-flash { animation: mfFlash 0.6s ease-out; }
-            .mf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 8px; line-height: 1; color: #6B7280; font-family: monospace; }`;
+            .sf-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+            .sf-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+            .sf-scroll::-webkit-scrollbar-track { background: transparent; }
+            .sf-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+            .sf-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+            .sf-cat-item.sf-active { background: rgb(var(--brand-600, 192 90 64) / 0.10); box-shadow: inset 0 0 0 1px rgb(var(--brand-600, 192 90 64) / 0.45); }
+            .sf-cat-item.sf-active .sf-add-btn { background: rgb(var(--brand-600, 192 90 64)); border-color: rgb(var(--brand-600, 192 90 64)); color: #fff; }
+            @keyframes sfFlash { 0% { background-color: rgba(239,68,68,0.16); } 100% { background-color: transparent; } }
+            tr.sf-flash { animation: sfFlash 0.6s ease-out; }
+            .sf-kbd { display: inline-flex; align-items: center; padding: 0 4px; height: 14px; border-radius: 3px; border: 1px solid #D1D5DB; background: #F3F4F6; font-size: 9px; line-height: 1; color: #6B7280; font-family: monospace; }`;
         const style = document.createElement('style');
         style.id = 'salidaFormStyles';
         style.textContent = css;
@@ -383,23 +407,16 @@ class SalidaForm {
         const o = this.opts;
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
-            <div class="absolute inset-0 bg-black/60" data-modal-close></div>
-            <div class="relative z-10 w-full max-w-[960px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+            <div class="absolute inset-0 bg-black/40" data-modal-close></div>
+            <div id="${o.id}_panel" class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
                 ${this.renderHeader()}
-                <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
-                    ${this.renderConfigRow()}
-                    <div class="flex flex-1 min-h-0">
-                        <div class="w-[300px] border-r border-gray-200 flex flex-col flex-shrink-0 p-2.5 gap-2 overflow-hidden">
-                            ${this.renderSearchPanel()}
-                        </div>
-                        <div class="flex-1 flex flex-col min-w-0 min-h-0">
-                            ${this.renderLoteHeader()}
-                            <div id="${o.id}_listaProductos" class="flex-1 overflow-y-auto cs-scroll mf-scroll px-3 py-3"></div>
-                            ${this.renderResumen()}
-                        </div>
-                    </div>
-                </div>
+                ${this.renderConfigRow()}
+                ${this.renderSearchBar()}
+                ${this.renderLoteHeader()}
+                <div id="${o.id}_listaProductos" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
+                ${this.renderResumen()}
                 ${this.renderFooter()}
+                <div id="${o.id}_float" class="hidden absolute z-[60] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
             </div>
         `);
 
@@ -408,82 +425,90 @@ class SalidaForm {
         $target.append(this.wrap);
     }
 
-    // -- Render dinamico --
+    // -- Render dinámico --
 
     updateTotals() {
         const o = this.opts;
         const totalItems = this.lote.length;
-        const totalUds   = this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
         const totalCosto = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
+        const totalCats  = new Set(this.lote.map(p => (p.categoria && String(p.categoria).trim()) || 'Sin categoria')).size;
         $(`#${o.id}_qtyItems`).text(totalItems);
-        $(`#${o.id}_qtyUnits`).text(totalUds);
+        $(`#${o.id}_qtySucursal`).text(this.sucursalActual() || '-');
+        $(`#${o.id}_qtyCats`).text(totalCats);
         $(`#${o.id}_qtyCost`).text('-' + this.fmtMoney(totalCosto));
         $(`#${o.id}_cntProductos`).text(totalItems);
     }
 
     renderCatalogo() {
         const o    = this.opts;
-        const $cat = $(`#${o.id}_catalogoLista`);
+        const $dd  = $(`#${o.id}_catalogoLista`);
         const term = (this.searchTerm || '').toLowerCase();
-        const items = (o.json || [])
-            .filter(p => !this.lote.some(x => x.id === p.id))
-            .filter(p => !term || (p.nombre || '').toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
 
-        // Agrupa por categoria, ordenando alfabeticamente los grupos.
-        const groups = {};
-        items.forEach(p => {
-            const cat = (p.categoria && String(p.categoria).trim()) || 'Sin categoria';
-            (groups[cat] = groups[cat] || []).push(p);
-        });
-        const catNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
+        // El desplegable solo aparece al escribir; sin término la tabla ocupa todo el alto.
+        if (!term) {
+            this.catalogItems = [];
+            $dd.addClass('hidden').empty();
+            return;
+        }
 
-        // Reconstruye la lista plana en el mismo orden visual (categoria + items)
-        // para que la navegacion por teclado (activeIdx) siga alineada con el DOM.
-        const ordered = [];
-        catNames.forEach(c => groups[c].forEach(p => ordered.push(p)));
-        this.catalogItems = ordered;
-        if (this.activeIdx >= ordered.length) this.activeIdx = Math.max(0, ordered.length - 1);
+        const disponibles = this.productosDisponibles();
+        const items       = this.matchCatalogo(term);
 
-        if (!ordered.length) {
-            $cat.html(`
-                <div class="flex flex-col items-center justify-center py-8 text-center px-2">
+        // Mismo orden en que se pintan los .sf-cat-item: las flechas indexan por posición.
+        this.catalogItems = items;
+        if (this.activeIdx >= items.length) this.activeIdx = Math.max(0, items.length - 1);
+
+        const head = `
+            <div class="flex items-center justify-between px-3 py-2 bg-blue-50/50 border-b border-gray-200">
+                <span class="text-[11px] font-semibold text-gray-600 flex items-center gap-1.5 truncate">
+                    <i data-lucide="search" class="w-3 h-3 text-blue-600"></i>Resultados para "${this.esc(this.searchTerm)}"
+                </span>
+                <span class="text-[10px] text-gray-400 flex-shrink-0 ml-2">${items.length} ${items.length === 1 ? 'encontrado' : 'encontrados'}</span>
+            </div>`;
+
+        const foot = `
+            <div class="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-400">
+                <span class="flex items-center gap-1"><span class="sf-kbd">&crarr;</span>agregar<span class="sf-kbd ml-1.5">esc</span>cerrar</span>
+                <span>Mostrando ${items.length} de ${disponibles.length}</span>
+            </div>`;
+
+        const body = items.length
+            ? `<div class="max-h-[340px] overflow-y-auto cs-scroll sf-scroll">${items.map((p, i) => this.renderSearchResult(p, i)).join('')}</div>`
+            : `<div class="flex flex-col items-center justify-center py-8 text-center px-2">
                     <div class="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center mb-2">
                         <i data-lucide="search-x" class="w-5 h-5 text-gray-400"></i>
                     </div>
-                    <p class="text-[10px] text-gray-500">${term ? this.esc(o.labels.searchHint) : 'Sin productos disponibles'}</p>
-                </div>`);
-        } else {
-            let gi = 0; // indice global continuo a traves de las categorias
-            const html = catNames.map(c => {
-                const rows = groups[c].map(p => this.renderSearchResult(p, gi++)).join('');
-                return this.renderCatHeader(c, groups[c].length) + rows;
-            }).join('');
-            $cat.html(html);
-        }
+                    <p class="text-[11px] text-gray-500">${this.esc(o.labels.searchHint)}</p>
+               </div>`;
+
+        $dd.html(head + body + foot).removeClass('hidden');
         if (window.lucide) lucide.createIcons();
         this.highlightActive();
     }
 
-    // Encabezado de seccion de categoria dentro del catalogo de busqueda.
-    renderCatHeader(cat, count) {
-        return `
-            <div class="mf-cat-head sticky top-0 z-[5] flex items-center justify-between px-2 py-1 bg-white border-b border-gray-200">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-purple-600 truncate">${this.esc(cat)}</span>
-                <span class="text-[9px] text-gray-400 flex-shrink-0 ml-2">${count}</span>
-            </div>`;
+    // Catálogo que aún no está en el lote.
+    productosDisponibles() {
+        return (this.opts.json || []).filter(p => !this.lote.some(x => String(x.id) === String(p.id)));
+    }
+
+    matchCatalogo(term) {
+        const t = String(term || '').trim().toLowerCase();
+        if (!t) return [];
+        return this.productosDisponibles().filter(p =>
+            (p.nombre || '').toLowerCase().includes(t) || (p.sku || '').toLowerCase().includes(t)
+        );
     }
 
     renderLote() {
         const o = this.opts;
-        const $lista   = $(`#${o.id}_listaProductos`);
-        const $limpiar = $(`#${o.id}_btnLimpiarLote`);
-        if (!this.lote.length) {
-            $lista.html(this.renderEmptyState()).removeClass('p-0').addClass('px-3 py-3');
-            $limpiar.addClass('hidden');
+        const $lista = $(`#${o.id}_listaProductos`);
+        this.closeFloat();
+        if (!this.lote.length && !this.draft) {
+            $lista.html(this.renderEmptyState()).addClass('flex items-center justify-center');
         } else {
-            $lista.html(this.renderProductsTable()).removeClass('px-3 py-3').addClass('p-0');
-            $limpiar.removeClass('hidden');
+            $lista.html(this.renderProductsTable()).removeClass('flex items-center justify-center');
         }
+        $(`#${o.id}_btnLimpiarLote`).toggleClass('hidden', !this.lote.length);
         this.updateTotals();
         this.renderCatalogo();
         if (window.lucide) lucide.createIcons();
@@ -506,125 +531,69 @@ class SalidaForm {
 
     addProducto(id) {
         const prod = (this.opts.json || []).find(p => String(p.id) === String(id));
-        if (!prod) return;
-        this.promptCantidad(prod);
+        this.commitProducto(prod, 1, true);
     }
 
-    // Popover de cantidad anclado al buscador (sin backdrop): enfoca el input
-    // preseleccionado, Enter agrega y devuelve el foco al buscador para encadenar.
-    promptCantidad(prod) {
+    // Agrega (o acumula) y limpia la búsqueda. Con focusQty salta a la cantidad del
+    // renglón para teclearla; sin él, el foco se queda en el buscador (modo escáner).
+    commitProducto(prod, qty, focusQty) {
         if (!prod) return;
-        const o       = this.opts;
-        const popId   = `${o.id}_qtyPop`;
-        const $anchor = $(`#${o.id}_buscarProducto`).closest('.relative');
-        if (!$anchor.length) return;
-        $(`#${popId}`).remove();
-
-        const stockColor = prod.stock === 0 ? 'text-rose-600' : prod.stock < 5 ? 'text-orange-500' : 'text-green-600';
-        const html = `
-            <div id="${popId}" class="absolute top-full left-0 mt-2 z-[60] w-[260px] bg-white rounded-xl shadow-2xl shadow-black/20">
-                <div class="absolute -top-1.5 left-7 w-3 h-3 bg-gray-50 rotate-45"></div>
-                <div class="relative flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-300 bg-gray-50 rounded-t-xl">
-                    ${this.prodThumb(prod, 'w-8 h-8', 'w-3.5 h-3.5')}
-                    <div class="min-w-0">
-                        <p class="text-[11px] font-semibold text-gray-800 truncate">${this.esc(prod.nombre)}</p>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] text-gray-500 font-mono">${this.esc(prod.sku)}</span>
-                            <span class="text-gray-300">.</span>
-                            <span class="text-[9px] text-gray-500">Stock <strong class="${stockColor}">${prod.stock || 0}</strong></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 px-3 py-2.5">
-                    <button id="${popId}_minus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-purple-500/10 hover:text-gray-900 hover:border-purple-500/40 transition-all">
-                        <i data-lucide="minus" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <input id="${popId}_qty" type="number" min="1" value="1" inputmode="numeric"
-                        class="no-spin flex-1 min-w-0 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-center text-base font-bold text-gray-800 outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30 transition-all">
-                    <button id="${popId}_plus" type="button" class="w-8 h-8 flex-shrink-0 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-purple-500/10 hover:text-gray-900 hover:border-purple-500/40 transition-all">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                    </button>
-                    <button id="${popId}_ok" type="button" class="h-8 px-3 flex-shrink-0 rounded-lg text-[11px] font-semibold text-white bg-purple-600 hover:bg-purple-500 flex items-center gap-1 transition-all">
-                        <i data-lucide="corner-down-left" class="w-3 h-3"></i>${this.esc(o.labels.agregar || 'Agregar')}
-                    </button>
-                </div>
-            </div>`;
-
-        $anchor.append(html);
-        if (window.lucide) lucide.createIcons();
-        const $pop = $(`#${popId}`);
-        const $qty = $(`#${popId}_qty`);
-        $qty.trigger('focus').trigger('select');
-
-        const close = () => { $(document).off('mousedown.qtyPopSalida'); $pop.remove(); };
-        const backToSearch = () => {
-            close();
-            this.resetSearchState();
-            this.renderCatalogo();
-            $(`#${o.id}_buscarProducto`).trigger('focus');
-        };
-        const confirmar = () => {
-            const qty = Math.max(1, parseInt($qty.val(), 10) || 1);
-            close();
-            this.resetSearchState();
-            this.addOrIncrement(prod, qty);
-            $(`#${o.id}_buscarProducto`).trigger('focus');
-        };
-        const step = (d) => $qty.val(Math.max(1, (parseInt($qty.val(), 10) || 1) + d)).trigger('select');
-
-        $(`#${popId}_minus`).on('click', () => step(-1));
-        $(`#${popId}_plus`).on('click',  () => step(1));
-        $(`#${popId}_ok`).on('click', confirmar);
-        $qty.on('keydown', (e) => {
-            if (e.key === 'Enter')  { e.preventDefault(); confirmar(); }
-            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); backToSearch(); } // no propagar: el Escape global cierra el modal entero
-        });
-        // Click fuera del popover (y fuera del buscador) lo cierra sin agregar.
-        setTimeout(() => $(document).on('mousedown.qtyPopSalida', (ev) => {
-            if (!$(ev.target).closest(`#${popId}, #${o.id}_buscarProducto`).length) backToSearch();
-        }), 0);
+        this.resetSearchState();
+        const idx = this.addOrIncrement(prod, qty || 1);
+        if (focusQty) this.focusCantidad(idx);
+        else $(`#${this.opts.id}_buscarProducto`).trigger('focus');
     }
 
-    // Suma al lote: si el producto ya existe acumula la cantidad (modo escaner),
-    // si no, lo agrega como nueva fila. Devuelve el indice de la fila afectada.
+    // Enter dentro de la cantidad vuelve al buscador (onRowKeydown) para encadenar.
+    focusCantidad(idx) {
+        const $inp = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="cantidad"]`);
+        if ($inp.length) $inp.trigger('focus').trigger('select');
+        else $(`#${this.opts.id}_buscarProducto`).trigger('focus');
+    }
+
+    // Con la lista llena, el renglón nuevo cae al borde: la lista salta hasta dejarlo
+    // a media altura (debajo queda el espacio en blanco del final).
+    revealRow(el) {
+        const list = $(`#${this.opts.id}_listaProductos`)[0];
+        if (!el || !list) return;
+        const r = el.getBoundingClientRect();
+        const l = list.getBoundingClientRect();
+        if (r.top >= l.top && r.bottom <= l.bottom - r.height) return;
+        list.scrollTop += (r.top - l.top) - (list.clientHeight - r.height) / 2;
+    }
+
+    // Si el producto ya está acumula la cantidad; si no, lo agrega. Devuelve el índice.
     addOrIncrement(prod, qty) {
         qty = Math.max(1, Number(qty) || 1);
         const existing = this.lote.find(x => String(x.id) === String(prod.id));
         let idx;
         if (existing) {
-            existing.cantidad = Number(existing.cantidad || 0) + qty;
+            existing.cantidad = this.fmtQty(Number(existing.cantidad || 0) + qty);
             idx = this.lote.indexOf(existing);
         } else {
             this.lote.push(Object.assign({}, prod, { cantidad: qty }));
             idx = this.lote.length - 1;
         }
         this.renderLote();
+        this.revealRow($(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`)[0]);
         this.flashRow(idx);
         return idx;
     }
 
-    // Enter en el buscador: prioriza SKU exacto (lector de codigo), luego el
-    // resultado resaltado, luego la primera coincidencia. Conserva el foco.
+    // Enter en el buscador: SKU exacto (lector de código) agrega 1 y sigue escaneando;
+    // si no, el resaltado o la primera coincidencia, y salta a su cantidad.
     handleSearchEnter() {
         const all = this.opts.json || [];
         const q   = (this.searchTerm || '').toLowerCase();
-        // SKU exacto = lector de codigo: agrega 1 directo y sigue, sin pedir cantidad.
         if (q) {
             const exact = all.find(p => String(p.sku || '').toLowerCase() === q);
-            if (exact) {
-                this.resetSearchState();
-                this.addOrIncrement(exact, 1);
-                $(`#${this.opts.id}_buscarProducto`).trigger('focus');
-                return;
-            }
+            if (exact) { this.commitProducto(exact, 1, false); return; }
         }
-        // Item resaltado (navegacion con flechas, con o sin texto): pide la cantidad.
         let prod = this.catalogItems.length ? (this.catalogItems[this.activeIdx] || this.catalogItems[0]) : null;
         if (!prod && q) {
             prod = all.find(p => (p.nombre || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
         }
-        if (!prod) return;
-        this.promptCantidad(prod);
+        this.commitProducto(prod, 1, true);
     }
 
     resetSearchState() {
@@ -634,19 +603,19 @@ class SalidaForm {
     }
 
     highlightActive() {
-        const $items = $(`#${this.opts.id}_catalogoLista .mf-cat-item`);
-        $items.removeClass('mf-active');
+        const $items = $(`#${this.opts.id}_catalogoLista .sf-cat-item`);
+        $items.removeClass('sf-active');
         const $a = $items.eq(this.activeIdx);
-        $a.addClass('mf-active');
+        $a.addClass('sf-active');
         if ($a.length && $a[0].scrollIntoView) $a[0].scrollIntoView({ block: 'nearest' });
     }
 
     flashRow(idx) {
         const $row = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`);
         if (!$row.length) return;
-        $row.removeClass('mf-flash');
-        void $row[0].offsetWidth; // reinicia la animacion al re-escanear el mismo producto
-        $row.addClass('mf-flash');
+        $row.removeClass('sf-flash');
+        void $row[0].offsetWidth; // reinicia la animación al re-escanear el mismo producto
+        $row.addClass('sf-flash');
     }
 
     onSearchKeydown(e) {
@@ -654,6 +623,7 @@ class SalidaForm {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (items.length) { this.activeIdx = Math.min(this.activeIdx + 1, items.length - 1); this.highlightActive(); }
+            else if (!this.searchTerm) this.openDraft();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (items.length) { this.activeIdx = Math.max(this.activeIdx - 1, 0); this.highlightActive(); }
@@ -663,18 +633,190 @@ class SalidaForm {
         } else if (e.key === 'Escape') {
             const $inp = $(`#${this.opts.id}_buscarProducto`);
             if (($inp.val() || '').length) {
-                e.stopPropagation(); // primer Escape limpia; el segundo (vacio) cierra el modal
+                e.stopPropagation(); // primer Escape limpia; el segundo (vacío) cierra
                 this.resetSearchState();
                 this.renderCatalogo();
             }
         }
     }
 
-    onQtyKeydown(e) {
+    // En un renglón: Enter vuelve al buscador; flechas cambian de renglón (no suman al
+    // número) y bajar desde el último abre el renglón vacío.
+    onRowKeydown(e) {
+        const $inp  = $(e.currentTarget);
+        const idx   = Number($inp.attr('data-idx'));
+        const field = $inp.attr('data-field');
+
         if (e.key === 'Enter') {
             e.preventDefault();
-            $(`#${this.opts.id}_buscarProducto`).trigger('focus'); // vuelve al buscador para encadenar
+            $(`#${this.opts.id}_buscarProducto`).trigger('focus');
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (idx < this.lote.length - 1) this.focusField(idx + 1, field);
+            else this.openDraft();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (idx > 0) this.focusField(idx - 1, field);
+            else $(`#${this.opts.id}_buscarProducto`).trigger('focus');
         }
+    }
+
+    focusField(idx, field) {
+        const $inp = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="${field}"]`);
+        if (!$inp.length) return;
+        if ($inp[0].scrollIntoView) $inp[0].scrollIntoView({ block: 'nearest' });
+        $inp.trigger('focus').trigger('select');
+    }
+
+    // -- Renglón vacío --
+
+    openDraft() {
+        if (!this.draft) {
+            this.draft = { term: '' };
+            this.renderLote();
+        }
+        const $inp = $(`#${this.opts.id}_draftInput`);
+        if (!$inp.length) return;
+        this.revealRow($inp.closest('tr')[0]);
+        $inp.trigger('focus');
+    }
+
+    removeDraft() {
+        this.draft = null;
+        this.renderLote();
+    }
+
+    onDraftInput(value) {
+        if (!this.draft) return;
+        this.draft.term = String(value || '');
+        if (!this.draft.term.trim()) { this.closeFloat(); return; }
+        const items = this.matchCatalogo(this.draft.term);
+        this.openFloat({
+            items:    items,
+            active:   0,
+            $anchor:  $(`#${this.opts.id}_draftInput`),
+            minWidth: 380
+        }, this.renderDraftLista(items));
+    }
+
+    // Escape limpia lo escrito y, con el renglón ya vacío, lo quita. Arriba sin lista
+    // abierta regresa al último renglón capturado.
+    onDraftKeydown(e) {
+        const id = this.opts.id;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.draft && this.draft.term) {
+                this.draft.term = '';
+                $(e.currentTarget).val('');
+                this.closeFloat();
+            } else {
+                this.removeDraft();
+                $(`#${id}_buscarProducto`).trigger('focus');
+            }
+            return;
+        }
+        if (this.onFloatKeydown(e)) return;
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.commitDraft(this.pickDraft());
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (this.lote.length) this.focusField(this.lote.length - 1, 'cantidad');
+            else $(`#${id}_buscarProducto`).trigger('focus');
+        }
+    }
+
+    // SKU exacto primero (lector de código), luego el resultado resaltado.
+    pickDraft() {
+        const q = String((this.draft && this.draft.term) || '').trim().toLowerCase();
+        if (!q) return null;
+        const exact = (this.opts.json || []).find(p => String(p.sku || '').toLowerCase() === q);
+        if (exact) return exact;
+        const f = this.float;
+        return (f && f.items.length) ? (f.items[f.active] || f.items[0]) : null;
+    }
+
+    commitDraft(prod) {
+        if (!prod) return;
+        this.draft = null;
+        this.focusCantidad(this.addOrIncrement(prod, 1));
+    }
+
+    // -- Lista flotante --
+
+    // Vive en el panel, fuera del scroll de la tabla, para que el renglón del fondo no
+    // la recorte. Nunca tapa la barra de totales: si no cabe, la lista se desplaza (el
+    // espacio libre del final lo permite) y solo sin recorrido posible abre hacia arriba.
+    openFloat(state, html) {
+        this.float = state;
+        $(`#${this.opts.id}_float`).html(html);
+        this.placeFloat(true);
+        this.highlightFloat();
+        if (window.lucide) lucide.createIcons();
+    }
+
+    placeFloat(ensureRoom) {
+        const f = this.float;
+        if (!f || !f.$anchor || !f.$anchor.length) return;
+        const $f    = $(`#${this.opts.id}_float`);
+        const panel = $(`#${this.opts.id}_panel`)[0].getBoundingClientRect();
+        const r     = f.$anchor[0].getBoundingClientRect();
+        const width = Math.min(Math.max(r.width, f.minWidth || 0), panel.width - 16);
+        const left  = Math.max(8, Math.min(r.left - panel.left, panel.width - width - 8));
+
+        $f.css({ left: left, width: width, top: r.bottom - panel.top + 4, bottom: 'auto' }).removeClass('hidden');
+        const h        = $f.outerHeight();
+        const list     = $(`#${this.opts.id}_listaProductos`)[0];
+        const overflow = r.bottom + 4 + h - list.getBoundingClientRect().bottom;
+        if (overflow <= 0) return;
+
+        const room = list.scrollHeight - list.clientHeight - list.scrollTop;
+        if (ensureRoom && room >= overflow) {
+            // El evento scroll de la lista vuelve a llamar a placeFloat ya con espacio.
+            list.scrollTop += Math.ceil(overflow);
+            return;
+        }
+        if (r.top - panel.top > panel.bottom - r.bottom) {
+            $f.css({ top: 'auto', bottom: panel.bottom - r.top + 4 });
+        }
+    }
+
+    closeFloat() {
+        this.float = null;
+        $(`#${this.opts.id}_float`).addClass('hidden').empty();
+    }
+
+    highlightFloat() {
+        if (!this.float) return;
+        const $items = $(`#${this.opts.id}_float .sf-cat-item`);
+        $items.removeClass('sf-active');
+        const $a = $items.eq(this.float.active);
+        $a.addClass('sf-active');
+        if ($a.length && $a[0].scrollIntoView) $a[0].scrollIntoView({ block: 'nearest' });
+    }
+
+    onFloatKeydown(e) {
+        const f = this.float;
+        if (!f) return false;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (f.items.length) {
+                f.active = e.key === 'ArrowDown'
+                    ? Math.min(f.active + 1, f.items.length - 1)
+                    : Math.max(f.active - 1, 0);
+                this.highlightFloat();
+            }
+            return true;
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.closeFloat();
+            return true;
+        }
+        return false;
     }
 
     removeProducto(i) {
@@ -682,49 +824,54 @@ class SalidaForm {
         this.renderLote();
     }
 
+    // Solo la cantidad es editable; 2 decimales como máximo (lo de más se corta).
     updateField($el) {
-        const idx   = Number($el.data('idx'));
-        const field = $el.data('field');
-        if (isNaN(idx) || !this.lote[idx] || !field) return;
-        this.lote[idx][field] = $el.val();
-        if (field === 'cantidad') {
-            this.refreshRow(idx);
-            this.updateTotals();
-        }
+        const idx = Number($el.data('idx'));
+        if (isNaN(idx) || !this.lote[idx] || $el.data('field') !== 'cantidad') return;
+        const raw = String($el.val());
+        const cut = raw.replace(/^(\d*\.\d{2})\d+$/, '$1');
+        if (cut !== raw) $el.val(cut);
+        this.lote[idx].cantidad = $el.val();
+        this.refreshRow(idx);
+        this.updateTotals();
     }
 
     refreshRow(i) {
-        const o = this.opts;
         const p = this.lote[i];
         if (!p) return;
-        const cant        = Number(p.cantidad || 0);
-        const costoNum    = Number(p.costo || 0);
-        const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
+        const subtotalFmt = (Number(p.cantidad || 0) * Number(p.costo || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const $row = $(`#${this.opts.id}_listaProductos tr[data-idx="${i}"]`);
         $row.find('[data-subtotal]').text('-$' + subtotalFmt);
-        $row.find('[data-stock-hint]').html(this.stockHint(p));
+        $row.find('[data-stock-cell]').html(this.stockCell(p));
     }
 
     clearLote() {
         if (!this.lote.length) return;
-        if (confirm('Eliminar todos los productos de la salida?')) {
-            this.lote = [];
+        this.confirmBox(this.opts.labels.confirmClear, () => {
+            this.lote  = [];
+            this.draft = null;
             this.renderLote();
-        }
+        });
     }
 
-    // Filtra los almacenes visibles por la sucursal seleccionada.
-    refreshAlmacenes(branchId) {
-        const o     = this.opts;
-        const $sel  = $(`#${o.id}_selAlmacen`);
-        const items = (o.data.almacenes || []).filter(a =>
+    sucursalActual() {
+        return $(`#${this.opts.id}_selSucursal option:selected`).text().trim();
+    }
+
+    // Almacenes de la sucursal; sin almacenes activos lo dice en el select.
+    almacenOptions(branchId, selected) {
+        const items = (this.opts.data.almacenes || []).filter(a =>
             !branchId || String(a.branch_id) === String(branchId)
         );
-        $sel.html(items.map(it => this.optionTag(it)).join(''));
+        if (!items.length) return `<option value="">${this.esc(this.opts.labels.sinAlmacenes)}</option>`;
+        return items.map(it => this.optionTag(it, selected)).join('');
     }
 
-    // Pide al host el stock del almacen seleccionado y lo refleja en el catalogo
-    // y en el lote (el stock vive por almacen+item, asi que cambia con el almacen).
+    refreshAlmacenes(branchId) {
+        $(`#${this.opts.id}_selAlmacen`).html(this.almacenOptions(branchId));
+    }
+
+    // El stock vive por almacén+producto: al cambiar de almacén se pide al host.
     reloadStock(warehouseId) {
         if (typeof this.opts.onWarehouseChange !== 'function') return;
         this.opts.onWarehouseChange(warehouseId, (stockMap) => this.applyStock(stockMap));
@@ -738,24 +885,23 @@ class SalidaForm {
         this.renderLote();
     }
 
-    // -- Foto / evidencia --
+    // -- Evidencia --
 
+    // Se reduce a 1280 px en JPEG: una foto de cámara pesa varios MB y su base64
+    // excedería el post_max_size de PHP al registrar.
     onPhotoChange(file) {
         if (!file) return;
         const o = this.opts;
 
         const apply = (dataUrl) => {
-            this.photo = { name: file.name, dataUrl };
-            $(`#${o.id}_photoImg`).attr('src', dataUrl);
-            $(`#${o.id}_btnFoto`).addClass('hidden');
-            $(`#${o.id}_fotoChip`).removeClass('hidden').addClass('flex');
-            if (window.lucide) lucide.createIcons();
+            this.photo = { name: file.name, dataUrl: dataUrl };
+            $(`#${o.id}_fotoLbl`).text(file.name || o.labels.fotoBtn);
+            $(`#${o.id}_btnFoto`).addClass('!text-green-700 !border-green-300 !bg-green-50');
+            $(`#${o.id}_photoRemove`).removeClass('hidden');
         };
 
         const reader = new FileReader();
         reader.onload = (ev) => {
-            // Redimensiona a max 1280px y recomprime a JPEG: una foto de camara pesa
-            // varios MB y su base64 excederia el post_max_size de PHP al registrar.
             const img = new Image();
             img.onload = () => {
                 const max = 1280;
@@ -770,7 +916,7 @@ class SalidaForm {
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                 apply(canvas.toDataURL('image/jpeg', 0.8));
             };
-            img.onerror = () => apply(ev.target.result); // fallback: dataURL original
+            img.onerror = () => apply(ev.target.result);
             img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
@@ -780,33 +926,45 @@ class SalidaForm {
         const o = this.opts;
         this.photo = null;
         $(`#${o.id}_photoInput`).val('');
-        $(`#${o.id}_fotoChip`).addClass('hidden').removeClass('flex');
-        $(`#${o.id}_btnFoto`).removeClass('hidden');
+        $(`#${o.id}_fotoLbl`).text(o.labels.fotoBtn);
+        $(`#${o.id}_btnFoto`).removeClass('!text-green-700 !border-green-300 !bg-green-50');
+        $(`#${o.id}_photoRemove`).addClass('hidden');
     }
 
     closeModal() {
         this.wrap.addClass('hidden');
-        this.lote = [];
+        this.lote  = [];
+        this.draft = null;
+        this.resetSearchState();
         this.removePhoto();
         this.renderLote();
         this.opts.onClose();
     }
 
+    // Con productos capturados, cerrar pide confirmación: un doble Escape (limpiar la
+    // búsqueda + cerrar) ya no tira la salida completa.
+    requestClose() {
+        if (!this.lote.length) { this.closeModal(); return; }
+        this.confirmBox(this.opts.labels.confirmClose, () => this.closeModal(), {
+            okLabel: this.opts.labels.confirmCloseOk
+        });
+    }
+
+    hasOverlay() {
+        return $('[data-ab-backdrop]').length > 0;
+    }
+
     doRegistrar() {
-        if (!this.lote.length) {
-            app.alertBox({ type: 'warning', title: 'Agrega al menos un producto a la salida' });
-            return;
-        }
+        if (!this.lote.length) { this.notify('Agrega al menos un producto a la salida'); return; }
         const o = this.opts;
         const warehouseId = $(`#${o.id}_selAlmacen`).val();
-        if (!warehouseId) {
-            app.alertBox({ type: 'warning', title: 'Selecciona un almacen' });
-            return;
-        }
-        const totUds   = this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0);
+        if (!warehouseId) { this.notify(o.labels.sinAlmacenesMsg); return; }
+
+        const totUds   = this.fmtQty(this.lote.reduce((s, p) => s + Number(p.cantidad || 0), 0));
         const totCosto = this.lote.reduce((s, p) => s + Number(p.cantidad || 0) * Number(p.costo || 0), 0);
-        const payload = {
-            motivo:      $(`#${o.id}_selMotivo`).val(),                       // shrinkage_reason_id
+        const totProd  = this.lote.length;
+        const payload  = {
+            motivo:      $(`#${o.id}_selMotivo`).val(),       // shrinkage_reason_id
             sucursalId:  $(`#${o.id}_selSucursal`).val(),
             sucursal:    $(`#${o.id}_selSucursal option:selected`).text(),
             warehouseId: warehouseId,
@@ -825,20 +983,44 @@ class SalidaForm {
             total_costo:    totCosto,
             photo:          this.photo
         };
-        const submit = () => {
-            o.onSubmit(payload);
-            this.closeModal();
-        };
 
-        // El registro es definitivo y descuenta stock del almacen: se pide confirmacion.
-        app.alertBox({
-            type:        'cancel',
-            title:       'Registrar esta salida?',
-            detailHtml:  `Se registraran <strong>${totUds}</strong> uds por un valor de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
+        // El registro es definitivo y descuenta stock del almacén: se pide confirmación.
+        this.confirmBox('Registrar esta salida?', () => { o.onSubmit(payload); this.closeModal(); }, {
+            detailHtml:  `Se registraran <strong>${totProd} ${totProd === 1 ? 'producto' : 'productos'}</strong> de <strong>${this.esc(this.sucursalActual())}</strong> por un valor de <strong>${this.fmtMoney(totCosto)}</strong>.<br>El stock se descontara del almacen y la accion es definitiva.`,
             okLabel:     'Sí, registrar',
-            cancelLabel: 'No',
-            onOk:        submit
+            cancelLabel: 'No'
         });
+    }
+
+    // Aviso con el alertBox de CoffeeSoft; sin la referencia a Templates cae al nativo.
+    notify(title, type = 'warning') {
+        if (this.tpl && typeof this.tpl.alertBox === 'function') {
+            this.tpl.alertBox({ type, title });
+            this.focusAlert('[data-ab-ok]');
+        } else {
+            alert(title);
+        }
+    }
+
+    // Confirmación con el alertBox propio: Enter queda sobre Cancelar (acciones destructivas).
+    confirmBox(title, onOk, opts = {}) {
+        if (this.tpl && typeof this.tpl.alertBox === 'function') {
+            this.tpl.alertBox(Object.assign({
+                type:        'cancel',
+                title:       title,
+                cancelLabel: this.opts.labels.cancelar,
+                onOk:        onOk
+            }, opts));
+            this.focusAlert('[data-ab-cancel]');
+        } else if (confirm(title)) {
+            onOk();
+        }
+    }
+
+    // Saca el foco del botón que abrió la alerta: sin esto, Enter volvía a pulsar
+    // Registrar y apilaba otra confirmación encima.
+    focusAlert(selector) {
+        setTimeout(() => $(selector).last().trigger('focus'), 60);
     }
 
     // -- Eventos --
@@ -847,28 +1029,61 @@ class SalidaForm {
         const wrap = this.wrap;
         const id   = this.opts.id;
 
-        wrap.on('click', '[data-modal-close]',        () => this.closeModal());
-        wrap.on('change', `#${id}_selSucursal`,       (e) => { this.refreshAlmacenes(e.target.value); this.reloadStock($(`#${id}_selAlmacen`).val()); });
-        wrap.on('change', `#${id}_selAlmacen`,         (e) => this.reloadStock(e.target.value));
+        wrap.on('click', '[data-modal-close]',        () => this.requestClose());
+        wrap.on('change', `#${id}_selSucursal`, (e) => {
+            this.refreshAlmacenes(e.target.value);
+            this.reloadStock($(`#${id}_selAlmacen`).val());
+            this.updateTotals();
+        });
+        wrap.on('change', `#${id}_selAlmacen`,        (e) => this.reloadStock(e.target.value));
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
-        wrap.on('keydown', 'input[data-field="cantidad"]', (e) => this.onQtyKeydown(e));
-        wrap.on('click', '[data-add-id]',             (e) => this.addProducto($(e.currentTarget).attr('data-add-id')));
+        wrap.on('keydown', `#${id}_listaProductos input[data-field]`, (e) => this.onRowKeydown(e));
+        wrap.on('click', '[data-add-id]', (e) => {
+            const pid = $(e.currentTarget).attr('data-add-id');
+            if ($(e.currentTarget).closest(`#${id}_float`).length) {
+                this.commitDraft((this.opts.json || []).find(p => String(p.id) === String(pid)));
+            } else {
+                this.addProducto(pid);
+            }
+        });
         wrap.on('click', '[data-remove]',             (e) => this.removeProducto(Number($(e.currentTarget).attr('data-remove'))));
         wrap.on('input', 'input[data-field]',         (e) => this.updateField($(e.currentTarget)));
-        wrap.on('click', `#${id}_btnLimpiarLote`,     () => this.clearLote());
-        wrap.on('click', `#${id}_btnRegistrar`,       () => this.doRegistrar());
 
-        wrap.on('click',  `#${id}_btnFoto`,     () => $(`#${id}_photoInput`).trigger('click'));
-        wrap.on('change', `#${id}_photoInput`,  (e) => this.onPhotoChange(e.target.files && e.target.files[0]));
-        wrap.on('click',  `#${id}_photoRemove`, (e) => { e.stopPropagation(); this.removePhoto(); });
+        wrap.on('input',   `#${id}_draftInput`,       (e) => this.onDraftInput(e.target.value));
+        wrap.on('keydown', `#${id}_draftInput`,       (e) => this.onDraftKeydown(e));
+        wrap.on('click',   '[data-draft-remove]',     () => this.removeDraft());
 
+        // La lista flotante no roba el foco al input: un clic en una opción no dispara
+        // el focusout que la cierra.
+        wrap.on('mousedown', `#${id}_float`,          (e) => e.preventDefault());
+        wrap.on('focusout', `#${id}_draftInput`,      () => this.closeFloat());
+        $(`#${id}_listaProductos`).on('scroll', () => this.placeFloat());
+
+        wrap.on('click',  `#${id}_btnFoto`,           () => $(`#${id}_photoInput`).trigger('click'));
+        wrap.on('change', `#${id}_photoInput`,        (e) => this.onPhotoChange(e.target.files && e.target.files[0]));
+        wrap.on('click',  `#${id}_photoRemove`,       () => this.removePhoto());
+        wrap.on('click',  `#${id}_btnLimpiarLote`,    () => this.clearLote());
+        wrap.on('click',  `#${id}_btnRegistrar`,      () => this.doRegistrar());
+
+        // Clic fuera de la barra de búsqueda cierra el desplegable de resultados.
+        wrap.on('click', (e) => {
+            if (this.searchTerm && !$(e.target).closest(`#${id}_searchBar`).length) {
+                this.resetSearchState();
+                this.renderCatalogo();
+            }
+        });
+
+        // Escape en cascada: lista flotante -> cerrar (con confirmación si hay
+        // productos). Buscador y renglón vacío lo atienden antes.
         $(document).off('keydown.salidaForm').on('keydown.salidaForm', (e) => {
-            if (e.key === 'Escape' && !this.wrap.hasClass('hidden')) this.closeModal();
+            if (e.key !== 'Escape' || this.wrap.hasClass('hidden') || this.hasOverlay()) return;
+            if (this.float) { this.closeFloat(); return; }
+            this.requestClose();
         });
     }
 
-    // -- API publica --
+    // -- API pública --
 
     open() {
         this.wrap.removeClass('hidden');
@@ -884,14 +1099,15 @@ class SalidaForm {
     setData(newData) {
         Object.assign(this.opts.data, newData || {});
         const id = this.opts.id;
-        if (newData && 'motivo' in newData)          $(`#${id}_selMotivo`).val(newData.motivo);
+        if (newData && 'motivo' in newData)       $(`#${id}_selMotivo`).val(newData.motivo);
         if (newData && 'branch_id' in newData) {
             $(`#${id}_selSucursal`).val(newData.branch_id);
             this.refreshAlmacenes(newData.branch_id);
+            this.updateTotals();
         }
-        if (newData && 'warehouse_id' in newData)    $(`#${id}_selAlmacen`).val(newData.warehouse_id);
-        if (newData && 'fecha' in newData)           $(`#${id}_inpFecha`).val(newData.fecha);
-        if (newData && 'nota' in newData)            $(`#${id}_inpNota`).val(newData.nota);
+        if (newData && 'warehouse_id' in newData) $(`#${id}_selAlmacen`).val(newData.warehouse_id);
+        if (newData && 'fecha' in newData)        $(`#${id}_inpFecha`).val(newData.fecha);
+        if (newData && 'nota' in newData)         $(`#${id}_inpNota`).val(newData.nota);
     }
 
     // -- Helpers --
@@ -903,18 +1119,15 @@ class SalidaForm {
     }
 
     prodThumb(p, boxCls, iconCls) {
-        const box = boxCls || 'w-8 h-8';
+        const box = boxCls  || 'w-8 h-8';
         const ico = iconCls || 'w-4 h-4';
         const src = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
         const img = src
             ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
             : '';
-        const bg   = p.bg    || 'bg-purple-500/10';
-        const icon = p.icon  || 'package';
-        const col  = p.color || 'text-purple-600';
         return `
-            <div class="relative ${box} rounded-lg ${this.esc(bg)} flex items-center justify-center flex-shrink-0 ring-1 ring-black/5 overflow-hidden">
-                <i data-lucide="${this.esc(icon)}" class="${ico} ${this.esc(col)}"></i>
+            <div class="relative ${box} rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 ring-1 ring-black/5 overflow-hidden">
+                <i data-lucide="${this.esc(p.icon || 'package')}" class="${ico} text-gray-500"></i>
                 ${img}
             </div>`;
     }
@@ -923,16 +1136,29 @@ class SalidaForm {
         return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    // Unidades con 2 decimales como máximo y sin ceros de relleno (3, 2.5, 1.25).
+    fmtQty(n) {
+        return Number(Number(n || 0).toFixed(2));
+    }
+
     optionTag(item, sel) {
         const val = item.id != null ? item.id : item.valor;
         return `<option value="${this.esc(val)}"${String(sel) === String(val) ? ' selected' : ''}>${this.esc(item.valor)}</option>`;
     }
 
-    selectWrap(selectHtml) {
+    // Con icon, un cuadro con el tinte del acento a la izquierda, igual que el
+    // selector de sucursal de la navbar (branch-pill-icon).
+    selectWrap(selectHtml, icon) {
+        const badge = icon
+            ? `<span class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i data-lucide="${this.esc(icon)}" class="w-4 h-4"></i>
+               </span>`
+            : '';
         return `
             <div class="relative">
+                ${badge}
                 ${selectHtml}
-                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-rose-600/80 flex items-center">
+                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center">
                     <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                 </span>
             </div>`;
@@ -940,5 +1166,8 @@ class SalidaForm {
 }
 
 Templates.prototype.salidaForm = function (options) {
-    return new SalidaForm(options);
+    const form = new SalidaForm(options);
+    // Referencia al Templates para reutilizar componentes propios (alertBox).
+    form.tpl = this;
+    return form;
 };

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 header("Access-Control-Allow-Origin: *");
@@ -8,6 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-entradas.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_IaOllama.php';
 
 class ctrl extends mdl {
 
@@ -110,10 +111,9 @@ class ctrl extends mdl {
                 'id'         => $r['id'],
                 'Folio'      => $r['folio'],
                 'Fecha'      => formatSpanishDate($r['date_inflow']),
-                'Tipo de entrada' => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null),
+                'Tipo de entrada' => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null, $r['origin_icon'] ?? null),
                 'Sucursal'   => $r['branch_name'] ?: '-',
-                'Origen'     => $r['warehouse_name']  ?: '-',
-                'Productos'  => (int) $r['total_products'],
+                'Origen'     => renderOrigen($r['warehouse_name'], $r['area_name'] ?? ''),
                 'Costo'      => evaluar((float) $r['total_cost']),
                 'Estado'     => $this->statusBadge($r['status']),
                 'Registrado' => $r['user_name'] ?: '-',
@@ -141,7 +141,7 @@ class ctrl extends mdl {
         $header = $this->qGetEntrada([$id]);
         if (!$header) return ['status' => 404, 'message' => 'Entrada no encontrada'];
         // Badge del origen con la misma formula y color (color_hex) que el catalogo y la tabla.
-        $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF', 100, $header['origin_bg'] ?? null);
+        $header['origin_badge'] = badge($header['origin_name'] ?? '', $header['origin_color'] ?? '#9CA3AF', 100, $header['origin_bg'] ?? null, $header['origin_icon'] ?? null);
         $detail = $this->qGetEntradaDetail([$id]);
         return ['status' => 200, 'header' => $header, 'detail' => $detail];
     }
@@ -238,6 +238,11 @@ class ctrl extends mdl {
         );
         $inflowId = (int) ($inflowRow[0]['id'] ?? 0);
 
+        if (!empty($payload['voucher_b64'])) {
+            $url = $this->storeVoucher($folio, $payload['voucher_b64']);
+            if ($url) $this->updateEntradaVoucher([$url, $inflowId]);
+        }
+
         foreach ($norm as $p) {
             $productId = $p['product_id'];
             $warehouse = (int) $payload['warehouse_id'];
@@ -325,6 +330,39 @@ class ctrl extends mdl {
         almacén de antes lo que la entrada le había sumado y luego se suma lo nuevo
         al almacén elegido. Una orden de producción pendiente solo cambia sus
         renglones: el stock se aplica al confirmarla. Todo o nada. */
+    // Editar una entrada ya registrada pide la contraseña de quien está en sesión.
+    // Al acertar queda una autorización en sesión para ESA entrada durante
+    // EDIT_WINDOW segundos; updateEntrada/editEntrada la exigen y la consumen.
+    const EDIT_WINDOW = 1800;
+
+    // Tamaño máximo del comprobante ya decodificado (4 MB).
+    const VOUCHER_MAX = 4194304;
+
+    function verifyEditPassword() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetEntrada([$id]);
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+
+        // Misma verificación que el login: bcrypt con respaldo MD5 heredado.
+        $user  = $this->qUserPassword([$this->userId]);
+        $pass  = str_replace("'", "", $_POST['password']);
+        $valid = $user && (
+            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
+            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
+        );
+        if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+
+        $_SESSION['inflow_edit'][$id] = time();
+        return ['status' => 200, 'message' => 'OK'];
+    }
+
+    private function editAuthorized($id) {
+        $at = (int) ($_SESSION['inflow_edit'][$id] ?? 0);
+        return $at > 0 && (time() - $at) <= self::EDIT_WINDOW;
+    }
+
     function updateEntrada() {
         $payload   = json_decode($_POST['payload'] ?? '[]', true);
         $id        = (int) ($payload['id'] ?? 0);
@@ -333,6 +371,9 @@ class ctrl extends mdl {
 
         if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
             return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if (!$this->editAuthorized($id)) {
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la entrada'];
         }
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'No se puede editar una entrada cancelada'];
@@ -388,6 +429,8 @@ class ctrl extends mdl {
                     $this->companiesId
                 ]);
 
+                $this->qMarkEntradaEdited([$this->userId, $id]);
+
                 foreach ($norm as $p) {
                     $stockRow = $this->getStockRow([$p['product_id'], $warehouse]);
                     $prev     = $stockRow ? (float) $stockRow['quantity'] : 0;
@@ -426,6 +469,12 @@ class ctrl extends mdl {
             return ['status' => 500, 'message' => 'No se guardó ningún cambio: la base de datos rechazó la edición'];
         }
 
+        if (!empty($payload['voucher_b64'])) {
+            $url = $this->storeVoucher($header['folio'], $payload['voucher_b64']);
+            if ($url) $this->updateEntradaVoucher([$url, $id]);
+        }
+
+        unset($_SESSION['inflow_edit'][$id]);
         return ['status' => 200, 'message' => 'Entrada ' . $header['folio'] . ' actualizada', 'folio' => $header['folio'], 'id' => $id];
     }
 
@@ -498,6 +547,9 @@ class ctrl extends mdl {
         if (!$header) {
             return ['status' => 404, 'message' => 'Entrada no encontrada'];
         }
+        if (!$this->editAuthorized($id)) {
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para editar la entrada'];
+        }
         if ($header['status'] !== 'Aplicada') {
             return ['status' => 400, 'message' => 'Solo se puede editar una entrada aplicada'];
         }
@@ -544,6 +596,8 @@ class ctrl extends mdl {
         }
 
         $this->updateEntradaTotals([$totalUnits, $totalCost, $totalBase, $id]);
+        $this->qMarkEntradaEdited([$this->userId, $id]);
+        unset($_SESSION['inflow_edit'][$id]);
 
         $udsTxt  = (fmod($totalUnits, 1) == 0) ? (string) (int) $totalUnits : (string) round($totalUnits, 2);
         $prodTxt = $affected . ' ' . ($affected === 1 ? 'producto ajustado' : 'productos ajustados');
@@ -558,6 +612,7 @@ class ctrl extends mdl {
         ];
     }
 
+    // Cancelar pide la misma contraseña que editar (verifyEditPassword).
     function reverseEntrada() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetEntrada([$id]);
@@ -567,6 +622,9 @@ class ctrl extends mdl {
         }
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'La entrada ya esta cancelada'];
+        }
+        if (!$this->editAuthorized($id)) {
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para cancelar la entrada'];
         }
 
         if ($header['status'] === 'Aplicada') {
@@ -584,10 +642,259 @@ class ctrl extends mdl {
         }
 
         $r = $this->qReverseEntrada([$id]);
+        if ($r) unset($_SESSION['inflow_edit'][$id]);
+
         return [
             'status'  => $r ? 200 : 500,
             'message' => $r ? 'Entrada cancelada' : 'No se pudo cancelar'
         ];
+    }
+
+    // -- Comprobante --
+
+    // Sube, cambia o quita (voucher_b64 vacío) el comprobante desde el detalle.
+    function saveEntradaVoucher() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->qGetEntrada([$id]);
+
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Entrada no encontrada'];
+        }
+        if ($header['status'] === 'Cancelada') {
+            return ['status' => 400, 'message' => 'No se puede cambiar el comprobante de una entrada cancelada'];
+        }
+
+        $b64 = $_POST['voucher_b64'] ?? '';
+
+        if ($b64 === '') {
+            $this->dropVoucher($header['voucher_url'] ?? '');
+            $this->updateEntradaVoucher([null, $id]);
+            return ['status' => 200, 'message' => 'Comprobante eliminado'];
+        }
+
+        $url = $this->storeVoucher($header['folio'], $b64);
+        if (!$url) {
+            return ['status' => 400, 'message' => 'El comprobante debe ser una imagen o un PDF de hasta 4 MB'];
+        }
+
+        $this->updateEntradaVoucher([$url, $id]);
+        return ['status' => 200, 'message' => 'Comprobante guardado', 'voucher_url' => $url];
+    }
+
+    // Guarda la foto o PDF (dataURL) como uploads/entradas/{folio}.{ext} y devuelve la
+    // ruta relativa a inventory/, o null si no es válido. Borra la versión anterior
+    // aunque tuviera otra extensión.
+    private function storeVoucher($folio, $b64) {
+        if (!preg_match('#^data:(image/(jpeg|png|webp)|application/pdf);base64,#', $b64, $mm)) return null;
+
+        $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+        if ($data === false || strlen($data) > self::VOUCHER_MAX) return null;
+
+        $name = preg_replace('/[^A-Za-z0-9_-]/', '', $folio);
+        $ext  = $mm[1] === 'application/pdf' ? 'pdf' : ($mm[2] === 'jpeg' ? 'jpg' : $mm[2]);
+        $dir  = __DIR__ . '/../../../uploads/entradas/';
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+        foreach (glob($dir . $name . '.*') ?: [] as $old) @unlink($old);
+        if (@file_put_contents($dir . $name . '.' . $ext, $data) === false) return null;
+
+        return 'uploads/entradas/' . $name . '.' . $ext;
+    }
+
+    private function dropVoucher($url) {
+        if (empty($url)) return;
+        $file = __DIR__ . '/../../../uploads/entradas/' . basename($url);
+        if (is_file($file)) @unlink($file);
+    }
+
+    // -- Subir con IA --
+
+    // El chat es el mismo de Catálogo (ia-chat.js). El adjunto lo lee
+    // ctrl-almacen::readArchivo (la foto la transcribe el modelo de visión); aquí el
+    // modelo de texto empareja cada renglón con el catálogo y el servidor lo valida:
+    // solo entran ids que existen. Lo que no está en el catálogo se propone "Crear".
+    const IA_MAX_CATALOGO  = 800;
+    const IA_MAX_RENGLONES = 100;
+
+    function askEntradaIA() {
+        if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
+        $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
+        $historial = json_decode((string) ($_POST['historial'] ?? '[]'), true);
+        $adjuntos  = is_array($adjuntos) ? $adjuntos : [];
+        $historial = is_array($historial) ? $historial : [];
+
+        if ($mensaje === '' && empty($adjuntos)) {
+            return ['status' => 400, 'message' => 'Adjunta la foto del ticket o escríbeme qué llegó.'];
+        }
+
+        $ia = IaOllama::desdeCredenciales();
+        if ($ia === null) return ['status' => 503, 'message' => 'La IA no está configurada: falta la llave de Ollama.'];
+
+        $catalogo = array_slice($this->qProductsForTransfer([$this->companiesId]), 0, self::IA_MAX_CATALOGO);
+
+        // Sin esto la sesión queda bloqueada mientras el modelo piensa y la tabla de
+        // entradas no puede recargar en ese rato.
+        session_write_close();
+        set_time_limit(180);
+
+        $r = $ia->chatJson($this->mensajesEntradaIA($mensaje, $adjuntos, $historial, $catalogo));
+        if (!$r['ok']) return ['status' => 502, 'message' => $r['error']];
+
+        return ['status' => 200] + $this->validarEntradaIA($r['data'], $catalogo);
+    }
+
+    private function mensajesEntradaIA($mensaje, $adjuntos, $historial, $catalogo) {
+        $filas = array_map(function ($p) {
+            return implode(' | ', array_map(function ($v) {
+                $v = trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $v));
+                return $v === '' ? '-' : $v;
+            }, [$p['id'], $p['sku'], $p['nombre'], $p['categoria'], number_format((float) $p['costo'], 2, '.', '')]));
+        }, $catalogo);
+
+        $sistema = implode("\n", [
+            'Eres CoffeeIA y ayudas a capturar una ENTRADA de mercancía al almacén. Hablas español, en frases cortas.',
+            'Te llega lo que se recibió: la transcripción de una foto (factura, ticket, remisión, nota o lista), un Excel o lo que la persona escribe.',
+            'Por cada renglón con un producto, búscalo en el CATÁLOGO por nombre, SKU o clave, aunque venga abreviado o escrito distinto.',
+            '- Si corresponde a un producto del catálogo va en "items", con el "id" del catálogo y en "ref" el texto del renglón.',
+            '- Si NO está en el catálogo va en "missing", con el nombre como aparece en el documento.',
+            '- Si la persona solo pregunta o no hay productos, "items" y "missing" van vacíos y contestas en "reply".',
+            '- No inventes productos ni cantidades. Un renglón que no se lee no se pone.',
+            '- Si un producto aparece dos veces, suma las cantidades en un solo renglón.',
+            '- "quantity": cantidad que llegó, como número. Si no se ve, 1.',
+            '- "cost": costo unitario CON impuesto, como número sin $ ni comas. Si el documento trae el precio sin IVA y la tasa, súmale el IVA; si solo trae el importe del renglón, divídelo entre la cantidad. Si no hay precio, null.',
+            '- Ignora totales, subtotales, impuestos, descuentos, propinas y los datos fiscales o del proveedor.',
+            '- Como mucho ' . self::IA_MAX_RENGLONES . ' renglones entre "items" y "missing".',
+            '',
+            'Responde SOLO con un objeto JSON, sin texto antes ni después. La forma:',
+            '{"reply": "Encontré 8 productos; 2 no están en el catálogo.", "items": [{"id": 45, "ref": "COCA COLA 600", "quantity": 12, "cost": 19.99}], "missing": [{"name": "Salsa Valentina 1 L", "quantity": 3, "cost": 35.5}]}',
+            '',
+            'CATÁLOGO (id | sku | nombre | categoría | último costo con IVA):',
+            empty($filas) ? '(vacío)' : implode("\n", $filas)
+        ]);
+
+        $mensajes = [['role' => 'system', 'content' => $sistema]];
+
+        foreach (array_slice($historial, -8) as $h) {
+            $rol   = is_array($h) ? ($h['role'] ?? '') : '';
+            $texto = is_array($h) ? mb_substr(trim((string) ($h['content'] ?? '')), 0, 3000) : '';
+            if (($rol === 'user' || $rol === 'assistant') && $texto !== '') $mensajes[] = ['role' => $rol, 'content' => $texto];
+        }
+
+        $pregunta = 'MENSAJE: ' . ($mensaje !== '' ? $mensaje : '(sin texto: solo adjuntó archivos)');
+        $cupo     = 60000;
+
+        foreach (array_slice($adjuntos, 0, 3) as $a) {
+            $texto = is_array($a) ? mb_substr(trim((string) ($a['texto'] ?? '')), 0, min(30000, $cupo)) : '';
+            if ($texto === '') continue;
+
+            $cupo     -= mb_strlen($texto);
+            $pregunta .= "\n\nARCHIVO «" . $this->textoEntradaIA($a['nombre'] ?? 'archivo') . "»:\n" . $texto;
+            if ($cupo <= 0) break;
+        }
+
+        $mensajes[] = ['role' => 'user', 'content' => $pregunta];
+
+        return $mensajes;
+    }
+
+    // Arma la vista previa del chat: "add" = producto del catálogo, "create" = no está
+    // y se da de alta. Un id que no existe no entra como "add": pasa a "create".
+    private function validarEntradaIA($data, $catalogo) {
+        $porId   = array_column($catalogo, null, 'id');
+        $items   = [];
+        $missing = [];
+
+        foreach (array_slice(is_array($data['items'] ?? null) ? $data['items'] : [], 0, self::IA_MAX_RENGLONES) as $it) {
+            if (!is_array($it)) continue;
+
+            $id   = (int) ($it['id'] ?? 0);
+            $qty  = $this->numeroEntradaIA($it['quantity'] ?? null);
+            $cost = $this->numeroEntradaIA($it['cost'] ?? null);
+            $qty  = $qty > 0 ? $qty : 1;
+
+            if (!isset($porId[$id])) {
+                $nombre = $this->textoEntradaIA($it['ref'] ?? '');
+                if ($nombre !== '') $missing[] = ['nombre' => $nombre, 'cantidad' => $qty, 'costo' => $cost];
+                continue;
+            }
+
+            if (isset($items[$id])) {
+                $items[$id]['cantidad'] += $qty;
+                continue;
+            }
+
+            $items[$id] = ['id' => (string) $id, 'nombre' => $porId[$id]['nombre'], 'cantidad' => $qty, 'costo' => $cost];
+        }
+
+        foreach (array_slice(is_array($data['missing'] ?? null) ? $data['missing'] : [], 0, self::IA_MAX_RENGLONES) as $m) {
+            $nombre = is_array($m) ? $this->textoEntradaIA($m['name'] ?? '') : '';
+            if ($nombre === '') continue;
+
+            $qty       = $this->numeroEntradaIA($m['quantity'] ?? null);
+            $missing[] = ['nombre' => $nombre, 'cantidad' => $qty > 0 ? $qty : 1, 'costo' => $this->numeroEntradaIA($m['cost'] ?? null)];
+        }
+
+        $row = [];
+
+        foreach (array_values($items) as $it) {
+            $row[] = [
+                'idx'        => count($row),
+                'action'     => 'add',
+                'valid'      => true,
+                'name'       => $it['nombre'],
+                'sku'        => $porId[$it['id']]['sku'] ?? '',
+                'changes'    => $this->cambiosEntradaIA($it['cantidad'], $it['costo'], 'último costo'),
+                'product_id' => $it['id'],
+                'cantidad'   => $it['cantidad'],
+                'costo'      => $it['costo']
+            ];
+        }
+
+        foreach ($missing as $m) {
+            $row[] = [
+                'idx'      => count($row),
+                'action'   => 'create',
+                'valid'    => true,
+                'name'     => $m['nombre'],
+                'detail'   => 'No está en el catálogo: se da de alta y se agrega.',
+                'changes'  => $this->cambiosEntradaIA($m['cantidad'], $m['costo'], 'sin costo'),
+                'cantidad' => $m['cantidad'],
+                'costo'    => $m['costo']
+            ];
+        }
+
+        $reply = $this->textoEntradaIA($data['reply'] ?? '');
+        if ($reply === '') {
+            $reply = empty($row)
+                ? 'No encontré productos que agregar.'
+                : count($items) . ' en el catálogo' . (count($missing) ? '; ' . count($missing) . ' no están y los puedo crear.' : '.');
+        }
+
+        return [
+            'reply' => $reply,
+            'token' => empty($row) ? '' : bin2hex(random_bytes(8)),
+            'row'   => $row
+        ];
+    }
+
+    private function cambiosEntradaIA($cantidad, $costo, $sinCosto) {
+        return [
+            ['label' => 'Cantidad', 'after' => (string) $cantidad],
+            ['label' => 'Costo',    'after' => $costo !== null ? '$' . number_format($costo, 2) : $sinCosto]
+        ];
+    }
+
+    // Número o texto numérico ("$1,250.50"). null si no hay número o es negativo.
+    private function numeroEntradaIA($v) {
+        if (is_int($v) || is_float($v)) return $v >= 0 ? round((float) $v, 4) : null;
+        $v = str_replace(['$', ',', ' '], '', (string) $v);
+        return is_numeric($v) && (float) $v >= 0 ? round((float) $v, 4) : null;
+    }
+
+    private function textoEntradaIA($v) {
+        return mb_substr(trim(strip_tags(is_string($v) ? $v : '')), 0, 200);
     }
 
     // -- Formatos (plantillas de lote) --
@@ -684,6 +991,15 @@ class ctrl extends mdl {
         return badge(strtoupper($status), $c[0], 100, $c[1]);
     }
 
+}
+
+// Complements.
+
+// Almacén de origen y, en gris, el área de destino: "Almacén General / Vitrina".
+function renderOrigen($almacen, $area) {
+    $html = htmlspecialchars($almacen ?: '-', ENT_QUOTES);
+    if (!empty($area)) $html .= ' <span class="text-gray-400">/ ' . htmlspecialchars($area, ENT_QUOTES) . '</span>';
+    return $html;
 }
 
 $obj = new ctrl();

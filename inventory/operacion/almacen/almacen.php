@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../conf/_Session.php';
 
 // Evita que el navegador sirva una copia vieja del HTML (y por tanto del
 // general.css cacheado). Sin esto, un alert de Swal podia seguir contrayendo el

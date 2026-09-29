@@ -258,12 +258,14 @@ class mdl extends CRUD {
                 ia.sku,
                 i.category_id,
                 ic.name AS category_name,
-                wa.name AS area_name
+                wa.name AS area_name,
+                COALESCE(iu.code, '') AS unit
             FROM {$this->bd}detail_inventory_shrinkage d
             INNER JOIN {$this->bd}item i ON i.id = d.item_id
             LEFT  JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT  JOIN {$this->bd}item_category  ic ON ic.id = i.category_id
             LEFT  JOIN {$this->bd}warehouse_area wa ON wa.id = ia.warehouse_area_id
+            LEFT  JOIN {$this->bd}unit           iu ON iu.id = ia.unit_id
             WHERE d.inventory_shrinkage_id = ? AND d.active = 1
             ORDER BY d.id ASC
         ";

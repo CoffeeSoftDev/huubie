@@ -26,6 +26,31 @@ table a {
   color: black;
   text-decoration: none;
 }
+/* Paginación de DataTables (Bootstrap 5). Sin esto salía el azul de Bootstrap,
+   la página activa cuadrada y "Anterior"/"Siguiente" como bloques grises.
+   El modo oscuro la repinta en dark-mode.css (con !important). */
+.dataTables_wrapper .page-link {
+  margin-left: 0 !important;
+  min-width: 2rem;
+  text-align: center;
+  border: 1px solid var(--line, #E5E7EB);
+  border-radius: 0.5rem !important;
+  background-color: var(--surface, #FFFFFF);
+  color: #4B5563;
+  box-shadow: none !important;
+}
+
+.dataTables_wrapper .page-item:not(.active):not(.disabled) > .page-link:hover {
+  background-color: #F3F4F6;
+  color: var(--primary);
+}
+
+.dataTables_wrapper .disabled > .page-link {
+  background-color: transparent;
+  border-color: transparent;
+  color: #9CA3AF;
+}
+
 .active > .page-link,
 .page-link.active {
   color: var(--aliceblue);

@@ -2,7 +2,7 @@
 
 if (empty($_POST['opc'])) exit(0);
 
-session_start();
+require_once __DIR__ . '/../../../conf/_Session.php';
 require_once '../mdl/mdl-almacen.php';
 require_once '../../../conf/_IaLector.php';
 require_once '../../../conf/_IaOllama.php';
@@ -118,6 +118,16 @@ class ctrl extends mdl {
             ];
         }
 
+        // SKU tecleado por el usuario; vacío = automático (skuFor).
+        $sku = mb_substr(trim($_POST['sku'] ?? ''), 0, 40);
+
+        if ($sku !== '' && $this->existsItemBySku([$sku])) {
+            return [
+                'status'  => 409,
+                'message' => 'Ese código ya lo usa otro producto'
+            ];
+        }
+
         $now          = date('Y-m-d H:i:s');
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
@@ -153,7 +163,7 @@ class ctrl extends mdl {
             // van vacíos para que aplique el DEFAULT de la BD. Si se mandara 0, util->sql() lo
             // convertiría en NULL (gotcha 0 == '' en PHP 7.4) y violaría el NOT NULL.
             $attribute = [
-                'sku'               => $this->skuFor($_POST['category_id'] ?? null),
+                'sku'               => $sku !== '' ? $sku : $this->skuFor($_POST['category_id'] ?? null),
                 'description'       => $_POST['description'] ?? '',
                 'shelf_life_days'   => ($_POST['shelf_life_days'] ?? '') === '' ? null : $_POST['shelf_life_days'],
                 'stock_max'         => ($_POST['stock_max'] ?? '') === '' ? null : $_POST['stock_max'],
@@ -232,7 +242,17 @@ class ctrl extends mdl {
             'created_at'   => $now,
             'active'       => 1
         ];
-        $this->createItemAttribute($this->util->sql($attribute));
+        $attrSql = $this->util->sql($attribute);
+
+        // Costo de compra (lo manda Entradas; Solicitudes no). Se anexa después de
+        // util->sql() por el mismo gotcha del 0 que price.
+        if (isset($_POST['cost_unit']) && $_POST['cost_unit'] !== '') {
+            $attrSql['values'][] = 'cost_unit';
+            $attrSql['values'][] = 'cost_tax';
+            $attrSql['data'][]   = max(0, (float) $_POST['cost_unit']);
+            $attrSql['data'][]   = max(0, (float) ($_POST['cost_tax'] ?? 0));
+        }
+        $this->createItemAttribute($attrSql);
 
         return [
             'status'  => 200,
@@ -247,6 +267,17 @@ class ctrl extends mdl {
         $message = 'Error al editar el insumo';
 
         $id = $_POST['id'];
+
+        // SKU tecleado; si cambió, no puede repetir el de otro producto.
+        $sku      = mb_substr(trim($_POST['sku'] ?? ''), 0, 40);
+        $material = $this->getMaterialById($id);
+
+        if ($sku !== '' && $sku !== ($material['sku'] ?? '') && $this->existsItemBySku([$sku])) {
+            return [
+                'status'  => 409,
+                'message' => 'Ese código ya lo usa otro producto'
+            ];
+        }
 
         [$price, $price_without_tax, $tax] = $this->salePrice();
 
@@ -281,9 +312,17 @@ class ctrl extends mdl {
             ]
         ]);
 
-        // Un producto que llegó sin SKU (p. ej. por una carga masiva) lo recibe al
-        // editarse. Si ya tiene uno, updateItemAttributeSku no lo toca.
-        $this->updateItemAttributeSku([$this->skuFor($_POST['category_id'] ?? null), $id]);
+        // Con código tecleado se guarda ese. Vacío: un producto que llegó sin SKU (p. ej.
+        // por una carga masiva) lo recibe automático; si ya tiene uno, no se toca.
+        if ($sku !== '') {
+            $this->updateItemAttribute([
+                'values' => 'sku = ?',
+                'where'  => 'item_id = ?',
+                'data'   => [$sku, $id]
+            ]);
+        } else {
+            $this->updateItemAttributeSku([$this->skuFor($_POST['category_id'] ?? null), $id]);
+        }
 
         if ($editItem) {
             $status  = 200;
@@ -1598,6 +1637,9 @@ class ctrl extends mdl {
         $valores = $c['values'] + ['companies_id' => $companies_id, 'created_at' => $now, 'active' => 1];
 
         if ($entidad === 'warehouse') $valores += ['branch_id' => $branch_id, 'is_default' => 0];
+
+        // El área vive dentro de un almacén; el asistente no pregunta cuál, usa el de por defecto.
+        if ($entidad === 'area') $valores += ['warehouse_id' => $this->getDefaultWarehouseId([$companies_id, $branch_id])];
 
         if ($this->createCatalog($entidad, $this->sqlIA($valores)) !== true) {
             throw new Exception('No pude dar de alta ' . self::IA_ENTIDADES[$entidad]['uno'] . ' «' . $valores['name'] . '».');

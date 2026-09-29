@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../../conf/_Session.php';
 
 if (empty($_COOKIE["IDU"])) {
     echo json_encode(['success' => false, 'message' => 'Sesión no válida']);

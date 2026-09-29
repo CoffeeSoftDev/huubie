@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../conf/_Session.php';
 
 // Validar sesión de usuario
 if (empty($_SESSION["IDU"])) {
@@ -43,6 +43,8 @@ require_once('layout/core-libraries.php');
 
     <!-- Componentes -->
     <script src="../../src/js/components/entrada-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/entrada-form.js'); ?>"></script>
+    <!-- Chat de CoffeeIA (el mismo de Catálogo) para "Subir con IA" -->
+    <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
 
     <!-- Módulo de Entradas -->
     <script src="js/entradas.js?t=<?php echo time(); ?>"></script>

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../conf/_Session.php';
 
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -45,7 +45,7 @@ require_once('layout/core-libraries.php');
     <script src="../../acceso/src/js/sidebar.js"></script>
 
     <!-- Componentes -->
-    <script src="../../src/js/components/salida-form.js"></script>
+    <script src="../../src/js/components/salida-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/salida-form.js'); ?>"></script>
 
     <!-- Módulo de Salidas -->
     <script src="js/salidas.js?t=<?php echo time(); ?>"></script>

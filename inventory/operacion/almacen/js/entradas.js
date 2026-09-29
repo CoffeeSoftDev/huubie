@@ -336,13 +336,13 @@ class Entradas extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [2, 3, 6, 8],
-            right:        [7],
+            center:       [2, 3, 7],
+            right:        [6],
             actionsAlign: 'left',
             extends:      true,
             scrollable:   false,
             striped:      true,
-            f_size:       13,
+            f_size:       12,
             emptyMessage: 'No se encontraron entradas con los filtros aplicados',
             emptyIcon:    'icon-arrow-down-to-line',
             data:         data
@@ -412,7 +412,12 @@ class Entradas extends Templates {
             registrado:    h.user_name,
             confirmadoPor: h.confirmed_user_name || '',
             confirmadoIso: confRaw ? confRaw.replace(' ', 'T') : '',
+            editadoPor:    h.edited_at ? (h.edited_user_name || 'Usuario sin nombre') : '',
+            editadoFecha:  h.edited_at ? moment(h.edited_at).format('DD/MM/YYYY HH:mm') : '',
             nota:          h.note,
+            // voucher_url es relativa a inventory/ y esta página vive en operacion/almacen/.
+            // El ?v= evita que el navegador muestre el archivo anterior al reemplazarlo.
+            comprobante:   h.voucher_url ? `../../${h.voucher_url}?v=${Date.now()}` : '',
             productos: (detail || []).map(d => ({
                 detailId:  d.id,
                 nombre:    d.product_name,
@@ -447,6 +452,7 @@ class Entradas extends Templates {
     _renderEntradaDoc(e) {
         const esc      = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtUds   = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (iso) => {
@@ -473,7 +479,7 @@ class Entradas extends Templates {
         const rowsHtml = productos.map(it => {
             const q  = qtyOf(it);
             const cu = Number(it.costo || 0);
-            return `<tr><td class="prod"><span class="prod-name">${esc(it.nombre)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${esc(q)}</td><td class="c">${esc(it.unidad || '-')}</td><td class="r">${fmtMoney(cu)}</td><td class="r">${fmtMoney(q * cu)}</td></tr>`;
+            return `<tr><td class="prod"><span class="prod-name">${esc(it.nombre)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${fmtUds(q)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">${fmtMoney(q * cu)}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
         }).join('');
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Entrada ${esc(e.folio||'')}</title>
@@ -482,9 +488,9 @@ class Entradas extends Templates {
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header"><div><div class="doc-title">Comprobante de Entrada</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(e.sucursal||'')}${e.almacen?' &middot; '+esc(e.almacen):''}</div></div><div><div class="folio">${esc(e.folio||'-')}</div>${e.estado?`<span class="status">${esc(e.estado)}</span>`:''}</div></div>
-            <div class="info-grid"><div class="info-item"><span class="k">Tipo de entrada</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.almacen||'-')}</span></div>${e.destino?`<div class="info-item"><span class="k">Destino</span><span class="v">${esc(e.destino)}</span></div>`:''}<div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div></div>
-            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="c">Unidad</th><th class="r">Costo unit.</th><th class="r">Importe</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
-            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${productos.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totals.uds}</span></div><div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div></div></div>
+            <div class="info-grid"><div class="info-item"><span class="k">Tipo de entrada</span><span class="v">${esc(e.origen||'-')}</span></div>${e.proveedor?`<div class="info-item"><span class="k">Proveedor</span><span class="v">${esc(e.proveedor)}</span></div>`:''}<div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(e.fechaIso))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(e.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(e.almacen||'-')}</span></div>${e.destino?`<div class="info-item"><span class="k">Destino</span><span class="v">${esc(e.destino)}</span></div>`:''}<div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(e.registrado||'-')}</span></div>${e.editadoPor?`<div class="info-item"><span class="k">Editado por</span><span class="v">${esc(e.editadoPor)} &middot; ${esc(e.editadoFecha)}</span></div>`:''}</div>
+            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
+            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${productos.length}</span></div><div class="totals-row"><span>Unidades</span><span>${fmtUds(totals.uds)}</span></div><div class="totals-row grand"><span>Costo total</span><span>${fmtMoney(totals.costo)}</span></div></div></div>
             ${e.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(e.nota)}</div>`:''}
             <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de entrada</span><span>Generado: ${esc(fmtFecha(new Date().toISOString()))}</span></div>
         </div></body></html>`;
@@ -515,7 +521,46 @@ class EntradasView extends Templates {
             onConfirm:    (e) => this.confirmEntrada(e),
             onEdit:       (e) => this.openEditEntrada(e.id),
             onCancelEdit: (e) => this.renderDetail(e, false),
-            onSaveEdit:   (e) => this.saveEntradaEdit(e)
+            onSaveEdit:   (e) => this.saveEntradaEdit(e),
+            onUploadVoucher: (e, file) => this.uploadVoucher(e, file),
+            onRemoveVoucher: (e) => this.removeVoucher(e)
+        });
+    }
+
+    async uploadVoucher(e, file) {
+        let dataUrl;
+        try {
+            dataUrl = await EntradaForm.readVoucher(file);
+        } catch (msg) {
+            this.alertBox({ type: 'warning', title: msg });
+            return;
+        }
+
+        const r = await useFetch({ url: apiEntradas, data: { opc: 'saveEntradaVoucher', id: e.id, voucher_b64: dataUrl } }).catch(() => null);
+        if (r && r.status === 200) {
+            this.alertBox({ type: 'success', title: r.message || 'Comprobante guardado', timer: 1600 });
+            entradas.getEntrada(e.id);
+        } else {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el comprobante' });
+        }
+    }
+
+    removeVoucher(e) {
+        this.alertBox({
+            type:        'cancel',
+            title:       'Quitar comprobante?',
+            detailHtml:  'Se eliminara el archivo del comprobante de esta entrada.',
+            okLabel:     'Si, quitar',
+            cancelLabel: 'No',
+            onOk: async () => {
+                const r = await useFetch({ url: apiEntradas, data: { opc: 'saveEntradaVoucher', id: e.id, voucher_b64: '' } }).catch(() => null);
+                if (r && r.status === 200) {
+                    this.alertBox({ type: 'success', title: r.message || 'Comprobante eliminado', timer: 1600 });
+                    entradas.getEntrada(e.id);
+                } else {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo quitar el comprobante' });
+                }
+            }
         });
     }
 
@@ -548,12 +593,15 @@ class EntradasView extends Templates {
         });
     }
 
-    cancelEntrada(e) {
+    // Como Editar, cancelar pide primero la contraseña de quien está en sesión.
+    async cancelEntrada(e) {
         if (!e || !e.id) return;
         if (e.estado === 'Cancelada') {
             this.alertBox({ type: 'message', title: 'La entrada ya esta cancelada' });
             return;
         }
+        if (!(await this.askEditPassword(e.id, false, 'Para cancelar la entrada escribe tu contraseña.'))) return;
+
         this.alertBox({
             type:        'cancel',
             title:       `Cancelar entrada ${e.folio || ''}`.trim(),
@@ -631,7 +679,10 @@ class EntradasView extends Templates {
     }
 
     // Editar = abrir la orden de entrada en el mismo modal del alta, con sus datos.
+    // Antes pide la contraseña de quien está en sesión.
     async openEditEntrada(id) {
+        if (!(await this.askEditPassword(id))) return;
+
         const r = await useFetch({ url: apiEntradas, data: { opc: 'getEntrada', id: id } });
         if (!(r && r.status === 200)) {
             this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir la entrada' });
@@ -672,6 +723,42 @@ class EntradasView extends Templates {
         });
     }
 
+    // Resuelve true si la contraseña es correcta; con una equivocada vuelve a
+    // preguntar y con Cancelar resuelve false. `hint` = para qué se pide.
+    askEditPassword(id, retry, hint = 'Para editar una entrada ya registrada escribe tu contraseña.') {
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry ? 'Contraseña incorrecta. Intenta de nuevo.' : hint,
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Continuar',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const r = await useFetch({
+                        url:  apiEntradas,
+                        data: {
+                            opc:      'verifyEditPassword',
+                            id:       id,
+                            password: password
+                        }
+                    }).catch(() => null);
+
+                    if (r && r.status === 200) { resolve(true); return; }
+                    if (r && r.status === 401) { resolve(await this.askEditPassword(id, true, hint)); return; }
+
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo verificar la contraseña' });
+                    resolve(false);
+                },
+                onCancel: () => resolve(false)
+            });
+        });
+    }
+
     buildEntradaPayload(payload) {
         return {
             id:                payload.id || null,
@@ -682,6 +769,7 @@ class EntradasView extends Templates {
             warehouse_area_id: payload.warehouseAreaId || null,
             branch_id:         payload.sucursalId,
             supplier_id:       payload.supplierId || null,
+            voucher_b64:       payload.voucher || null,
             productos:         payload.productos.map(p => ({
                 product_id:        p.id,
                 quantity:          p.cant,
@@ -730,6 +818,7 @@ class EntradasView extends Templates {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo crear el proveedor' });
                     }
                 },
+                onOpenIA: () => this.openChatIA(),
                 // Misma alta exprés que Solicitudes (ctrl-almacen::addProductoRapido).
                 onCreateProduct: async (data, done) => {
                     const r = await useFetch({
@@ -742,27 +831,20 @@ class EntradasView extends Templates {
                         return;
                     }
 
-                    const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
-                    done({
-                        id:                String(r.id),
-                        nombre:            data.name,
-                        sku:               r.sku || '',
-                        categoria:         cat ? cat.valor : 'Sin categoria',
-                        costo:             0,
-                        price_without_tax: 0,
-                        tax:               0,
-                        stock:             0,
-                        image:             '',
-                        icon:              'package',
-                        bg:                'bg-gray-100',
-                        color:             'text-gray-500'
-                    });
+                    done(this.productoNuevo(r, data));
                 },
                 onUpdate: async (payload) => {
-                    const r = await useFetch({
+                    const send = () => useFetch({
                         url:  apiEntradas,
                         data: { opc: 'updateEntrada', payload: JSON.stringify(this.buildEntradaPayload(payload)) }
                     });
+
+                    // 403 = venció la autorización (30 min desde la contraseña): se pide otra vez.
+                    let r = await send();
+                    if (r && r.status === 403) {
+                        if (!(await this.askEditPassword(payload.id))) return;
+                        r = await send();
+                    }
 
                     if (r && r.status === 200) {
                         this.alertBox({ type: 'success', title: r.message || 'Entrada actualizada', timer: 1600 });
@@ -819,10 +901,141 @@ class EntradasView extends Templates {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo eliminar el formato' });
                     }
                 },
-                onClose: () => {}
+                onClose: () => { if (this.chatIA) this.chatIA.close(); }
             });
         }
         return this.entradaFormApi;
+    }
+
+    // Renglón de catálogo (mismo shape que init) para un producto recién dado de alta.
+    productoNuevo(r, data) {
+        const cat = (app.dataInit.categorias || []).find(c => String(c.id) === String(data.category_id));
+        return {
+            id:                String(r.id),
+            nombre:            data.name,
+            sku:               r.sku || '',
+            categoria:         cat ? cat.valor : 'Sin categoria',
+            costo:             data.costo,
+            price_without_tax: data.cost_unit,
+            tax:               data.cost_tax,
+            stock:             0,
+            image:             '',
+            icon:              'package',
+            bg:                'bg-gray-100',
+            color:             'text-gray-500'
+        };
+    }
+
+    // -- CoffeeIA (Subir con IA) --
+
+    // El mismo chat de Catálogo (iaChat): se adjunta la foto o un Excel, la IA propone
+    // qué agregar y qué falta en el catálogo, y lo que se marca entra al lote del modal.
+    openChatIA() {
+        if (!this.chatIA) {
+            this.chatIA = this.iaChat({
+                id:          'chatEntradaIA',
+                title:       'CoffeeIA',
+                subtitle:    'Productos de la entrada desde una foto o un Excel',
+                placeholder: 'Adjunta la foto del ticket o escribe qué llegó…',
+                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv',
+                welcome:     'Adjunta la foto de la factura, ticket o remisión. Te digo qué productos agrego a la entrada y cuáles faltan en el catálogo. Nada entra sin tu confirmación.',
+                actions: {
+                    add: {
+                        label: 'Agregar',
+                        tone:  'bg-emerald-100 text-emerald-700'
+                    },
+                    create: {
+                        label: 'Crear',
+                        tone:  'bg-amber-100 text-amber-700'
+                    }
+                },
+                onAttach:  (file) => this.readArchivoIA(file),
+                onSend:    (text, adjuntos, historial) => this.askEntradaIA(text, adjuntos, historial),
+                onConfirm: (token, ids) => this.applyEntradaIA(token, ids)
+            });
+        }
+        this.chatIA.open();
+    }
+
+    // Misma lectura que el chat de Catálogo (ctrl-almacen::readArchivo): la foto se
+    // transcribe y el Excel se pasa a texto.
+    async readArchivoIA(file) {
+        const data = new FormData();
+        data.append('opc', 'readArchivo');
+        data.append('archivo', file);
+
+        try {
+            const response = await fetch(apiAlmacen, {
+                method:      'POST',
+                credentials: 'same-origin',
+                body:        data
+            });
+            return await response.json();
+        } catch (e) {
+            return { status: 500, message: 'No pude leer el archivo.' };
+        }
+    }
+
+    async askEntradaIA(text, adjuntos, historial) {
+        const r = await useFetch({
+            url:  apiEntradas,
+            data: {
+                opc:       'askEntradaIA',
+                mensaje:   text,
+                adjuntos:  JSON.stringify(adjuntos),
+                historial: JSON.stringify(historial)
+            }
+        }).catch(() => null);
+
+        if (r && r.status === 200 && r.token) this.iaPropuesta = { token: r.token, row: r.row || [] };
+        return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
+    }
+
+    // "Agregar" toma el producto del catálogo; "Crear" lo da de alta con la alta exprés
+    // (costo leído, sin impuesto) y luego lo agrega. Todo entra al lote en un paso.
+    async applyEntradaIA(token, ids) {
+        const pv = this.iaPropuesta;
+        if (!pv || pv.token !== token) return { status: 400, message: 'Esa vista previa ya no es válida. Pídemela otra vez.' };
+
+        const form     = this.entradaFormInstance();
+        const catalogo = form.opts.json || [];
+        const items    = [];
+        const fallos   = [];
+        let creados    = 0;
+
+        for (const r of pv.row.filter(x => x.valid && ids.includes(x.idx))) {
+            if (r.action === 'add') {
+                const prod = catalogo.find(p => String(p.id) === String(r.product_id));
+                if (prod) items.push({ prod: prod, cantidad: r.cantidad, costo: r.costo });
+                continue;
+            }
+
+            const data = {
+                name:      r.name,
+                costo:     r.costo != null ? r.costo : 0,
+                cost_unit: r.costo != null ? r.costo : '',
+                cost_tax:  0
+            };
+            const res = await useFetch({
+                url:  apiAlmacen,
+                data: Object.assign({ opc: 'addProductoRapido' }, data)
+            }).catch(() => null);
+
+            if (res && res.status === 200 && res.id) {
+                items.push({ prod: this.productoNuevo(res, data), cantidad: r.cantidad, costo: r.costo });
+                creados++;
+            } else {
+                fallos.push(r.name);
+            }
+        }
+
+        const agregados = form.addFromIA(items);
+        if (!agregados && fallos.length) return { status: 500, message: 'No pude crear: ' + fallos.join(', ') };
+
+        let msg = `Agregué ${agregados} ${agregados === 1 ? 'producto' : 'productos'} a la entrada`;
+        if (creados) msg += `; ${creados} ${creados === 1 ? 'es nuevo' : 'son nuevos'} en el catálogo`;
+        if (fallos.length) msg += `. No pude crear: ${fallos.join(', ')}`;
+        return { status: 200, message: msg + '.' };
     }
 
     kpisRow(options) {
@@ -918,7 +1131,10 @@ class EntradasView extends Templates {
                 confirmar:   'Confirmar produccion',
                 editar:      'Editar',
                 guardar:     'Guardar cambios',
-                cancelarEd:  'Cancelar'
+                cancelarEd:  'Cancelar',
+                comprobante: 'Comprobante',
+                subirComp:   'Subir comprobante',
+                sinComp:     'Sin comprobante'
             },
             origenPalettes: {
                 'Produccion':    { bg: 'rgba(124,58,237,0.15)', fg: '#A78BFA' },
@@ -938,7 +1154,9 @@ class EntradasView extends Templates {
             onConfirm:    () => {},
             onEdit:       () => {},
             onSaveEdit:   () => {},
-            onCancelEdit: () => {}
+            onCancelEdit: () => {},
+            onUploadVoucher: () => {},
+            onRemoveVoucher: () => {}
         };
 
         const o    = options || {};
@@ -983,17 +1201,41 @@ class EntradasView extends Templates {
 
             return `
                 <tr class="border-b border-gray-100 align-top">
-                    <td class="py-2 pr-2">
-                        <p class="text-xs font-medium text-gray-700">${esc(p.nombre)}</p>
-                        ${p.sku ? `<p class="text-[10px] text-gray-400">${esc(p.sku)}</p>` : ''}
+                    <td class="!py-1 !pl-0 !pr-2">
+                        <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(p.nombre)}${p.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(p.sku)}</span>` : ''}</p>
                     </td>
-                    <td class="py-2 px-1 text-right text-xs text-gray-500 whitespace-nowrap">${fmtMoney(p.costo)}</td>
-                    <td class="py-2 px-1 text-center text-xs">${qty}</td>
-                    <td class="py-2 px-1 text-center text-xs text-gray-500">${esc(p.unidad || '-')}</td>
-                    <td class="py-2 pl-1 text-right text-xs font-semibold text-gray-700 whitespace-nowrap" id="${opts.id}_sub_${p.detailId}">${fmtMoney(subtotal)}</td>
+                    <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${fmtMoney(p.costo)}</td>
+                    <td class="!py-1 !px-1 text-center text-[11px]">${qty}</td>
+                    <td class="!py-1 !px-1 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap" id="${opts.id}_sub_${p.detailId}">${fmtMoney(subtotal)}</td>
+                    <td class="!py-1 !pl-1 !pr-0 text-center text-[11px] text-gray-500">${esc(p.unidad || '-')}</td>
                 </tr>
             `;
         }).join('');
+
+        // Comprobante: miniatura (o "PDF") que abre el archivo, y subir/cambiar/quitar
+        // mientras la entrada no esté cancelada ni en edición.
+        const voucherEditable = !isCancelled && !opts.editMode;
+        const voucherHtml = (() => {
+            const input = voucherEditable ? `<input type="file" id="${opts.id}_voucherInput" accept="image/*,application/pdf" class="hidden">` : '';
+            const btn   = 'w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors';
+
+            if (!e.comprobante) {
+                return voucherEditable
+                    ? `${input}<button type="button" id="${opts.id}_voucherUpload" class="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirComp)}</button>`
+                    : `<span class="text-gray-400">${esc(opts.labels.sinComp)}</span>`;
+            }
+
+            const isPdf = /\.pdf(\?|$)/i.test(e.comprobante);
+            const view  = isPdf
+                ? `<a href="${esc(e.comprobante)}" target="_blank" rel="noopener" class="flex items-center gap-1 text-gray-700 hover:text-blue-600"><i data-lucide="file-text" class="w-3.5 h-3.5"></i>PDF</a>`
+                : `<a href="${esc(e.comprobante)}" target="_blank" rel="noopener"><img src="${esc(e.comprobante)}" alt="${esc(opts.labels.comprobante)}" class="w-8 h-8 rounded object-cover border border-gray-200"></a>`;
+            const edit  = voucherEditable
+                ? `<button type="button" id="${opts.id}_voucherUpload" class="${btn} hover:text-blue-600" title="Cambiar"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                   <button type="button" id="${opts.id}_voucherRemove" class="${btn} hover:text-red-500" title="Quitar"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`
+                : '';
+
+            return `${input}<span class="flex items-center gap-1">${view}${edit}</span>`;
+        })();
 
         // Total general de la entrada: en edicion parte de las cantidades reales,
         // en lectura usa la cantidad confirmada si existe.
@@ -1029,24 +1271,20 @@ class EntradasView extends Templates {
                         ${e.origenBadge ? e.origenBadge : `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${oP.bg};color:${oP.fg};">${esc(e.origen || '-')}</span>`}
                     </div>
                     <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Sucursal</span><span class="text-gray-700 text-right">${esc(e.sucursal || '-')}</span></div>
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Origen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}</span></div>
-                    ${e.destino ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Destino</span><span class="text-gray-700 text-right">${esc(e.destino)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Origen</span><span class="text-gray-700 text-right">${esc(e.almacen || '-')}${e.destino ? ` <span class="text-gray-400">/ ${esc(e.destino)}</span>` : ''}</span></div>
                     ${e.proveedor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Proveedor</span><span class="text-gray-700 text-right">${esc(e.proveedor)}</span></div>` : ''}
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Registrado</span><span class="text-gray-700 text-right">${esc(e.registrado || '-')}</span></div>
-                    ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
-                    ${e.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.nota)}</span></div>` : ''}
                 </div>
 
-                <div class="flex-1 overflow-y-auto px-4 py-3">
-                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-2">Productos (${(e.productos || []).length})</p>
+                <div class="flex-1 overflow-y-auto px-4 py-2">
+                    <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">Productos (${(e.productos || []).length})</p>
                     <table class="w-full border-collapse">
                         <thead>
                             <tr class="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-200">
-                                <th class="text-left font-semibold py-1.5">Producto</th>
-                                <th class="text-right font-semibold py-1.5 px-1">Precio</th>
-                                <th class="text-center font-semibold py-1.5 px-1">Cant</th>
-                                <th class="text-center font-semibold py-1.5 px-1">Unidad</th>
-                                <th class="text-right font-semibold py-1.5 pl-1">Importe</th>
+                                <th class="text-left font-semibold text-[10px] !py-1 !pl-0 !pr-2">Producto</th>
+                                <th class="text-right font-semibold text-[10px] !py-1 !px-1">Precio</th>
+                                <th class="text-center font-semibold text-[10px] !py-1 !px-1">Cant</th>
+                                <th class="text-right font-semibold text-[10px] !py-1 !px-1">Importe</th>
+                                <th class="text-center font-semibold text-[10px] !py-1 !pl-1 !pr-0">Unidad</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1064,6 +1302,14 @@ class EntradasView extends Templates {
                         <span class="text-sm font-semibold text-gray-700">Total general</span>
                         <span class="text-lg font-bold text-gray-800" id="${opts.id}_totCosto">${fmtMoney(totCosto)}</span>
                     </div>
+                </div>
+
+                <div class="px-4 py-2.5 border-t border-gray-200 flex-shrink-0 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Registrado</span><span class="text-gray-700 text-right">${esc(e.registrado || '-')}</span></div>
+                    ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
+                    ${e.editadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Editado</span><span class="text-gray-700 text-right">${esc(e.editadoPor)} <span class="text-gray-400">· ${esc(e.editadoFecha)}</span></span></div>` : ''}
+                    ${e.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.nota)}</span></div>` : ''}
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
                 </div>
 
                 ${(opts.editMode || !isCancelled) ? `
@@ -1103,6 +1349,14 @@ class EntradasView extends Templates {
         $parent.find(`#${opts.id}_edit`).on('click',       () => opts.onEdit(e));
         $parent.find(`#${opts.id}_saveEdit`).on('click',   () => opts.onSaveEdit(e));
         $parent.find(`#${opts.id}_cancelEdit`).on('click', () => opts.onCancelEdit(e));
+
+        const $voucherInput = $parent.find(`#${opts.id}_voucherInput`);
+        $parent.find(`#${opts.id}_voucherUpload`).on('click', () => $voucherInput.trigger('click'));
+        $parent.find(`#${opts.id}_voucherRemove`).on('click', () => opts.onRemoveVoucher(e));
+        $voucherInput.on('change', (ev) => {
+            const file = ev.target.files && ev.target.files[0];
+            if (file) opts.onUploadVoucher(e, file);
+        });
 
         // En edicion el total general sigue a las cantidades reales en vivo.
         if (opts.editMode) {

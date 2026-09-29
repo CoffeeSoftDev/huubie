@@ -98,10 +98,15 @@ class EntradaForm {
                 prodCatPh:    'Sin categoría',
                 prodUnit:     'Unidad',
                 prodUnitPh:   'Sin unidad',
-                prodHint:     'El SKU se genera solo. El precio y el costo se capturan después.',
+                prodCosto:    'Costo c/imp',
+                prodTax:      'Impuesto',
+                prodHint:     'El SKU se genera solo. El precio de venta se captura después.',
                 prodGuardar:  'Crear y agregar',
+                iaSubir:      'Subir con IA',
                 fecha:        'Fecha',
                 nota:         'Nota (opcional)',
+                comprobante:  'Comprobante',
+                quitarComp:   'Quitar comprobante',
                 buscar:       'Buscar productos',
                 placeholder:  'Buscar productos por nombre o SKU...',
                 searchHint:   'Sin resultados',
@@ -156,6 +161,7 @@ class EntradaForm {
             onUpdate:        () => {},
             onCreateSupplier: null,
             onCreateProduct:  null,
+            onOpenIA:         null,
             onLoadFormatos:   null,
             onSaveFormato:    null,
             onDeleteFormato:  null,
@@ -180,6 +186,7 @@ class EntradaForm {
         this.float        = null;   // lista flotante abierta (producto del renglon vacio o impuesto)
         this.stockMap     = {};     // stock del almacen seleccionado: { item_id: cantidad }
         this.editing      = null;   // entrada abierta para editar: { id, folio }; null = alta
+        this.voucher      = null;   // comprobante adjunto: { name, dataUrl }
 
         this.ensureStyles();
         this.mount();
@@ -243,8 +250,7 @@ class EntradaForm {
                         <label class="${cls.label}">${this.esc(o.labels.destino)}</label>
                         ${this.selectWrap(`
                             <select id="${o.id}_selDestino" class="${cls.select}">
-                                <option value="">${this.esc(o.labels.destinoPh)}</option>
-                                ${(o.data.areas || []).map(it => this.optionTag(it)).join('')}
+                                ${this.destinoOptions(o.data.warehouse_id)}
                             </select>
                         `)}
                     </div>
@@ -423,6 +429,17 @@ class EntradaForm {
                                 <select id="${modalId}_unit" class="${selCls}">${options(o.data.unidades, o.labels.prodUnitPh)}</select>
                             </div>
                         </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodCosto)}</label>
+                                <input id="${modalId}_cost" type="number" min="0" step="0.01" value="0.00"
+                                    class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-right text-gray-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-500">${this.esc(o.labels.prodTax)}</label>
+                                <select id="${modalId}_tax" class="${selCls}">${(o.data.impuestos || []).map(it => this.optionTag(it)).join('')}</select>
+                            </div>
+                        </div>
                         <p id="${modalId}_err" class="hidden text-[11px] font-medium text-red-500"></p>
                         <p class="text-[10px] text-gray-400">${this.esc(o.labels.prodHint)}</p>
                     </div>
@@ -451,11 +468,18 @@ class EntradaForm {
             const name = ($(`#${modalId}_name`).val() || '').trim();
             if (!name) { $(`#${modalId}_name`).focus(); return; }
 
+            const costo = Math.max(0, parseFloat($(`#${modalId}_cost`).val()) || 0);
+            const tax   = this.parseTax($(`#${modalId}_tax`).val());
+
             const $btn = $(`#${modalId}_confirm`).prop('disabled', true).addClass('opacity-60');
             const payload = {
                 name:        name,
                 category_id: $(`#${modalId}_cat`).val()  || '',
-                unit_id:     $(`#${modalId}_unit`).val() || ''
+                unit_id:     $(`#${modalId}_unit`).val() || '',
+                // Costo como lo guarda una entrada: base sin impuesto + tasa.
+                costo:       costo,
+                cost_unit:   this.baseFromCost(costo, tax),
+                cost_tax:    tax
             };
 
             o.onCreateProduct(payload, (prod, error) => {
@@ -473,7 +497,7 @@ class EntradaForm {
         };
 
         $(`#${modalId}_confirm`).on('click', confirmar);
-        $(`#${modalId}_name`).on('keydown', (e) => {
+        $(`#${modalId}_name, #${modalId}_cost`).on('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
         });
     }
@@ -541,6 +565,10 @@ class EntradaForm {
                         <span class="ef-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
                         <span class="ef-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
                     </span>
+                    ${typeof o.onOpenIA === 'function' ? `
+                    <button id="${o.id}_btnIA" type="button" class="${cls.btnIco}">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.iaSubir)}</span>
+                    </button>` : ''}
                     <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
                         <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
                     </button>
@@ -576,6 +604,13 @@ class EntradaForm {
                 <div class="flex items-center gap-1.5 flex-1 min-w-0">
                     <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
                     <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
+                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
+                    <button id="${o.id}_btnVoucher" type="button" class="${cls.btnIco} flex-shrink-0 max-w-[180px]" title="${this.esc(o.labels.comprobante)}">
+                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_voucherLbl" class="truncate">${this.esc(o.labels.comprobante)}</span>
+                    </button>
+                    <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
                 </div>
                 <div class="flex gap-2 flex-shrink-0">
                     <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
@@ -607,10 +642,10 @@ class EntradaForm {
         const subtotal    = (cant * costoNum).toFixed(2);
         const subtotalFmt = Number(subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const baseFmt     = baseNum.toFixed(2);
-        const nuevoStock  = Number(p.stock || 0) + cant;
+        const nuevoStock  = this.fmtQty(Number(p.stock || 0) + cant);
         const stockColor  = p.stock === 0 ? 'text-red-500' : p.stock < 5 ? 'text-orange-500' : 'text-green-600';
         return `
-            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-50/40 transition-colors" data-idx="${i}">
+            <tr class="border-b border-gray-100 last:border-b-0 hover:bg-blue-100/60 transition-colors" data-idx="${i}">
                 <td class="px-3 py-2 align-middle w-28">
                     <span class="block truncate text-[11px] font-mono text-gray-500" title="${this.esc(p.sku)}">${this.esc(p.sku)}</span>
                 </td>
@@ -631,7 +666,7 @@ class EntradaForm {
                     </span>
                 </td>
                 <td class="px-2 py-2 align-middle w-24">
-                    <input type="number" min="1" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
+                    <input type="number" min="1" step="0.01" value="${cant}" class="${cls.qtyInp}" data-field="cantidad" data-idx="${i}">
                 </td>
                 <td class="px-2 py-2 align-middle w-28">
                     <div class="relative" title="Costo con impuesto">
@@ -659,7 +694,7 @@ class EntradaForm {
                     </div>
                 </td>
                 <td class="px-5 py-2 align-middle text-right w-28">
-                    <span class="text-green-600 font-bold text-xs" data-subtotal>$${subtotalFmt}</span>
+                    <span class="text-green-700 font-bold text-xs" data-subtotal>$${subtotalFmt}</span>
                 </td>
                 <td class="px-2 py-2 align-middle text-center w-10">
                     <button class="w-6 h-6 rounded-md inline-flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" data-remove="${i}" title="Eliminar">
@@ -686,7 +721,8 @@ class EntradaForm {
                     </tr>
                 </thead>
                 <tbody>${this.lote.map((p, i) => this.renderProductRow(p, i)).join('')}${this.draft ? this.renderDraftRow() : ''}</tbody>
-            </table>`;
+            </table>
+            <div class="h-64" aria-hidden="true"></div>`;
     }
 
     renderDraftRow() {
@@ -806,7 +842,7 @@ class EntradaForm {
         const totalTax   = totalCosto - totalBase;
         const totalCats  = new Set(this.lote.map(p => (p.categoria && String(p.categoria).trim()) || 'Sin categoria')).size;
         $(`#${o.id}_qtyItems`).text(totalItems);
-        $(`#${o.id}_qtyUnits`).text(totalUds);
+        $(`#${o.id}_qtyUnits`).text(this.fmtQty(totalUds));
         $(`#${o.id}_qtyCats`).text(totalCats);
         $(`#${o.id}_qtyBase`).text(this.fmtMoney(totalBase));
         $(`#${o.id}_qtyTax`).text(this.fmtMoney(totalTax));
@@ -930,11 +966,22 @@ class EntradaForm {
     focusCantidad(idx) {
         const $inp = $(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"] input[data-field="cantidad"]`);
         if ($inp.length) {
-            if ($inp[0].scrollIntoView) $inp[0].scrollIntoView({ block: 'nearest' });
             $inp.trigger('focus').trigger('select');
         } else {
             $(`#${this.opts.id}_buscarProducto`).trigger('focus');
         }
+    }
+
+    // Cuando la lista ya llenó su alto, el renglón nuevo cae al borde (o fuera).
+    // La lista salta hasta dejarlo a media altura: debajo queda el espacio en
+    // blanco del final (h-64) y se aprecia que se agregó.
+    revealRow(el) {
+        const list = $(`#${this.opts.id}_listaProductos`)[0];
+        if (!el || !list) return;
+        const r = el.getBoundingClientRect();
+        const l = list.getBoundingClientRect();
+        if (r.top >= l.top && r.bottom <= l.bottom - r.height) return;
+        list.scrollTop += (r.top - l.top) - (list.clientHeight - r.height) / 2;
     }
 
     // Suma al lote: si el producto ya existe acumula la cantidad (modo escaner),
@@ -944,13 +991,14 @@ class EntradaForm {
         const existing = this.lote.find(x => String(x.id) === String(prod.id));
         let idx;
         if (existing) {
-            existing.cantidad = Number(existing.cantidad || 0) + qty;
+            existing.cantidad = this.fmtQty(Number(existing.cantidad || 0) + qty);
             idx = this.lote.indexOf(existing);
         } else {
             this.lote.push(Object.assign({}, prod, this.seedTax(prod), { cantidad: qty }));
             idx = this.lote.length - 1;
         }
         this.renderLote();
+        this.revealRow($(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`)[0]);
         this.flashRow(idx);
         return idx;
     }
@@ -1087,7 +1135,7 @@ class EntradaForm {
         }
         const $inp = $(`#${this.opts.id}_draftInput`);
         if (!$inp.length) return;
-        if ($inp[0].scrollIntoView) $inp[0].scrollIntoView({ block: 'nearest' });
+        this.revealRow($inp.closest('tr')[0]);
         $inp.trigger('focus');
     }
 
@@ -1224,16 +1272,18 @@ class EntradaForm {
     // -- Lista flotante --
 
     // Vive en el panel del modal, fuera del scroll de la tabla, para que el
-    // renglon del fondo no la recorte; si no cabe abajo abre hacia arriba.
+    // renglon del fondo no la recorte. Nunca tapa la barra de totales: si no cabe
+    // dentro de la lista, la lista se desplaza (el espacio libre del final lo
+    // permite) y solo sin recorrido posible abre hacia arriba.
     openFloat(state, html) {
         this.float = state;
         $(`#${this.opts.id}_float`).html(html);
-        this.placeFloat();
+        this.placeFloat(true);
         this.highlightFloat();
         if (window.lucide) lucide.createIcons();
     }
 
-    placeFloat() {
+    placeFloat(ensureRoom) {
         const f = this.float;
         if (!f || !f.$anchor || !f.$anchor.length) return;
         const $f    = $(`#${this.opts.id}_float`);
@@ -1243,8 +1293,18 @@ class EntradaForm {
         const left  = Math.max(8, Math.min(r.left - panel.left, panel.width - width - 8));
 
         $f.css({ left: left, width: width, top: r.bottom - panel.top + 4, bottom: 'auto' }).removeClass('hidden');
-        const h = $f.outerHeight();
-        if (r.bottom + 4 + h > panel.bottom && r.top - panel.top > panel.bottom - r.bottom) {
+        const h        = $f.outerHeight();
+        const list     = $(`#${this.opts.id}_listaProductos`)[0];
+        const overflow = r.bottom + 4 + h - list.getBoundingClientRect().bottom;
+        if (overflow <= 0) return;
+
+        const room = list.scrollHeight - list.clientHeight - list.scrollTop;
+        if (ensureRoom && room >= overflow) {
+            // El evento scroll de la lista vuelve a llamar a placeFloat ya con espacio.
+            list.scrollTop += Math.ceil(overflow);
+            return;
+        }
+        if (r.top - panel.top > panel.bottom - r.bottom) {
             $f.css({ top: 'auto', bottom: panel.bottom - r.top + 4 });
         }
     }
@@ -1294,6 +1354,12 @@ class EntradaForm {
         const idx   = Number($el.data('idx'));
         const field = $el.data('field');
         if (isNaN(idx) || !this.lote[idx] || !field) return;
+        // Cantidad con 2 decimales como máximo: lo que se teclee de más se corta ahí mismo.
+        if (field === 'cantidad') {
+            const raw = String($el.val());
+            const cut = raw.replace(/^(\d*\.\d{2})\d+$/, '$1');
+            if (cut !== raw) $el.val(cut);
+        }
         this.lote[idx][field] = field === 'tax' ? this.parseTax($el.val()) : $el.val();
         const p = this.lote[idx];
         // Costo c/imp y costo s/imp se recalculan entre si usando el tax:
@@ -1318,7 +1384,7 @@ class EntradaForm {
         const costoNum    = Number(p.costo || 0);
         const baseNum     = Number(p.costoSinTax || 0);
         const subtotalFmt = (cant * costoNum).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const nuevoStock  = Number(p.stock || 0) + cant;
+        const nuevoStock  = this.fmtQty(Number(p.stock || 0) + cant);
         const $row = $(`#${o.id}_listaProductos tr[data-idx="${i}"]`);
         // Solo refresca el input que el usuario NO esta editando, para no pisar
         // el cursor mientras teclea en costo c/imp o en costo s/imp.
@@ -1337,10 +1403,92 @@ class EntradaForm {
         });
     }
 
+    // -- Comprobante --
+
+    // Foto o PDF como dataURL. La foto se reduce a 1280 px en JPEG, igual que la
+    // evidencia de Mermas; el PDF va tal cual hasta 4 MB. Lo usa también el detalle.
+    static readVoucher(file) {
+        return new Promise((resolve, reject) => {
+            const isPdf = file.type === 'application/pdf';
+            if (!isPdf && !/^image\//.test(file.type)) { reject('El comprobante debe ser una imagen o un PDF'); return; }
+            if (isPdf && file.size > 4 * 1024 * 1024) { reject('El PDF pesa mas de 4 MB'); return; }
+
+            const reader = new FileReader();
+            reader.onerror = () => reject('No se pudo leer el archivo');
+            reader.onload  = (ev) => {
+                if (isPdf) { resolve(ev.target.result); return; }
+                const img = new Image();
+                img.onload = () => {
+                    const max = 1280;
+                    let w = img.width, h = img.height;
+                    if (w > max || h > max) { const s = max / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = () => reject('La imagen no se pudo abrir');
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async attachVoucher(file) {
+        try {
+            this.setVoucher({ name: file.name, dataUrl: await EntradaForm.readVoucher(file) });
+        } catch (msg) {
+            this.notify(msg);
+        }
+    }
+
+    // -- Lectura con IA --
+
+    // Lo que se confirma en el chat de CoffeeIA entra aquí: [{prod, cantidad, costo}].
+    // Un producto recién creado desde el chat se suma al catálogo del modal. Un solo
+    // repintado; la cantidad respeta decimales (kilos) y el costo leído, si viene,
+    // reemplaza al último costo del producto. Devuelve cuántos renglones tocó.
+    addFromIA(items) {
+        const catalogo = this.opts.json || (this.opts.json = []);
+        let added = 0;
+        (items || []).forEach((it) => {
+            const prod = it.prod;
+            if (!prod) return;
+            if (!catalogo.some(p => String(p.id) === String(prod.id))) catalogo.push(prod);
+            const qty = Number(it.cantidad) > 0 ? Number(it.cantidad) : 1;
+            let row = this.lote.find(x => String(x.id) === String(prod.id));
+            if (row) {
+                row.cantidad = this.fmtQty(Number(row.cantidad || 0) + qty);
+            } else {
+                row = Object.assign({}, prod, this.seedTax(prod), { cantidad: this.fmtQty(qty) });
+                this.lote.push(row);
+            }
+            if (it.costo != null && it.costo !== '') {
+                row.costo       = Number(it.costo);
+                row.costoSinTax = this.baseFromCost(row.costo, row.tax);
+            }
+            added++;
+        });
+
+        this.draft = null;
+        this.renderLote();
+        return added;
+    }
+
+    setVoucher(voucher) {
+        const id = this.opts.id;
+        this.voucher = voucher;
+        $(`#${id}_voucherInput`).val('');
+        $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.comprobante);
+        $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !bg-green-50', !!voucher);
+        $(`#${id}_voucherClear`).toggleClass('hidden', !voucher);
+    }
+
     closeModal() {
         this.wrap.addClass('hidden');
         this.lote  = [];
         this.draft = null;
+        this.setVoucher(null);
         if (this.editing) this.setMode(null);
         this.renderLote();
         this.opts.onClose();
@@ -1388,6 +1536,7 @@ class EntradaForm {
             supplierId:  supplierId,
             fecha:       $(`#${o.id}_inpFecha`).val(),
             nota:        $(`#${o.id}_inpNota`).val(),
+            voucher:     this.voucher ? this.voucher.dataUrl : null,
             productos:  this.lote.map(p => ({
                 id:     p.id,
                 nombre: p.nombre, sku: p.sku, icon: p.icon, bg: p.bg, color: p.color,
@@ -1664,7 +1813,7 @@ class EntradaForm {
                                 <p class="text-xs font-semibold text-gray-800 truncate">${this.esc(f.name)}</p>
                                 <i data-lucide="${sc.icon}" class="w-3 h-3 flex-shrink-0 ${sc.cls}"></i>
                             </div>
-                            <p class="text-[10px] text-gray-500">${f.productos.length} prod. . ${uds} uds . ${this.fmtMoneyShort(tot)}</p>
+                            <p class="text-[10px] text-gray-500">${f.productos.length} prod. . ${this.fmtQty(uds)} uds . ${this.fmtMoneyShort(tot)}</p>
                         </div>
                         <button class="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0 transition-colors" data-delete-id="${f.id}" title="${this.esc(o.labels.confirmDel)}">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
@@ -1686,6 +1835,20 @@ class EntradaForm {
         );
         if (!items.length) return `<option value="">${this.esc(this.opts.labels.sinAlmacenes)}</option>`;
         return items.map(it => this.optionTag(it, selected)).join('');
+    }
+
+    // El Destino es un área DEL almacén elegido. Un área sin almacén (anterior a esa
+    // regla) se ofrece en todos para no perderla.
+    destinoOptions(warehouseId) {
+        const items = (this.opts.data.areas || []).filter(a =>
+            !a.warehouse_id || String(a.warehouse_id) === String(warehouseId)
+        );
+        return `<option value="">${this.esc(this.opts.labels.destinoPh)}</option>`
+            + items.map(it => this.optionTag(it)).join('');
+    }
+
+    refreshDestinos(warehouseId) {
+        $(`#${this.opts.id}_selDestino`).html(this.destinoOptions(warehouseId));
     }
 
     // Pide al host el stock del almacen seleccionado y lo refleja en el catalogo
@@ -1727,8 +1890,15 @@ class EntradaForm {
         wrap.on('change', `#${id}_selOrigen`,         () => this.syncProveedorVisibility());
         wrap.on('click', `#${id}_btnNuevoProveedor`,  () => this.openNuevoProveedor());
         wrap.on('click', '[data-create-product]',     (e) => this.openNuevoProducto($(e.currentTarget).attr('data-create-product')));
-        wrap.on('change', `#${id}_selSucursal`,       (e) => { this.refreshAlmacenes(e.target.value); this.reloadStock($(`#${id}_selAlmacen`).val()); });
-        wrap.on('change', `#${id}_selAlmacen`,        (e) => this.reloadStock(e.target.value));
+        wrap.on('change', `#${id}_selSucursal`, (e) => {
+            this.refreshAlmacenes(e.target.value);
+            this.refreshDestinos($(`#${id}_selAlmacen`).val());
+            this.reloadStock($(`#${id}_selAlmacen`).val());
+        });
+        wrap.on('change', `#${id}_selAlmacen`, (e) => {
+            this.refreshDestinos(e.target.value);
+            this.reloadStock(e.target.value);
+        });
         wrap.on('input', `#${id}_buscarProducto`,     (e) => this.doSearch(e.target.value));
         wrap.on('keydown', `#${id}_buscarProducto`,   (e) => this.onSearchKeydown(e));
         wrap.on('keydown', `#${id}_listaProductos input[data-field]`, (e) => this.onRowKeydown(e));
@@ -1759,6 +1929,13 @@ class EntradaForm {
         wrap.on('mousedown', `#${id}_float, [data-tax-toggle]`, (e) => e.preventDefault());
         wrap.on('focusout', `#${id}_draftInput, input[data-field="tax"]`, () => this.closeFloat());
         $(`#${id}_listaProductos`).on('scroll', () => this.placeFloat());
+        wrap.on('click', `#${id}_btnVoucher`,         () => $(`#${id}_voucherInput`).trigger('click'));
+        wrap.on('click', `#${id}_voucherClear`,       () => this.setVoucher(null));
+        wrap.on('change', `#${id}_voucherInput`, (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) this.attachVoucher(file);
+        });
+        wrap.on('click', `#${id}_btnIA`,              () => this.opts.onOpenIA());
         wrap.on('click', `#${id}_btnLimpiarLote`,     () => this.clearLote());
         wrap.on('click', `#${id}_btnRegistrar`,       () => this.doRegistrar());
         wrap.on('click', `#${id}_btnSaveFormato`,     () => this.saveFormato());
@@ -1805,6 +1982,7 @@ class EntradaForm {
         this.wrap.removeClass('hidden');
         this.syncProveedorVisibility();
         if (window.lucide) lucide.createIcons();
+        this.refreshDestinos($(`#${this.opts.id}_selAlmacen`).val());
         this.reloadStock($(`#${this.opts.id}_selAlmacen`).val());
         setTimeout(() => $(`#${this.opts.id}_buscarProducto`).trigger('focus'), 50);
     }
@@ -1824,6 +2002,7 @@ class EntradaForm {
         $(`#${id}_selSucursal`).val(String(entrada.branch_id || ''));
         this.refreshAlmacenes(entrada.branch_id);
         $(`#${id}_selAlmacen`).val(String(entrada.warehouse_id || ''));
+        this.refreshDestinos(entrada.warehouse_id);
         $(`#${id}_selDestino`).val(entrada.warehouse_area_id ? String(entrada.warehouse_area_id) : '');
         $(`#${id}_selProveedor`).val(entrada.supplier_id ? String(entrada.supplier_id) : '');
         $(`#${id}_inpFecha`).val(entrada.fecha || '');
@@ -1894,6 +2073,11 @@ class EntradaForm {
 
     fmtMoneyShort(n) {
         return '$' + Number(n).toLocaleString('en-US');
+    }
+
+    // Unidades con 2 decimales como máximo y sin ceros de relleno (3, 2.5, 1.25).
+    fmtQty(n) {
+        return Number(Number(n || 0).toFixed(2));
     }
 
     optionTag(item, sel) {

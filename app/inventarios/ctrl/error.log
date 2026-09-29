@@ -1,3 +1,288 @@
+[ 2026-09-29 16:35:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                w.id,
+                w.name,
+                w.name AS valor,
+                w.is_default,
+                w.subsidiaries_id,
+                w.warehouse_area_id,
+                wa.name AS area_name,
+                wa.color_hex AS area_color,
+                s.name  AS subsidiary_name
+            FROM fayxzvov_reginas.warehouse w
+            LEFT JOIN fayxzvov_reginas.warehouse_area wa ON wa.id = w.warehouse_area_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = w.subsidiaries_id
+            WHERE w.active = 1 AND w.companies_id = ?
+            ORDER BY s.name ASC, w.is_default DESC, w.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.warehouse' doesn't exist
+
+
+[ 2026-09-29 16:35:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                st.product_id       AS product_id,
+                w.subsidiaries_id   AS subsidiaries_id,
+                SUM(st.quantity)    AS qty
+            FROM fayxzvov_reginas.stock st
+            INNER JOIN fayxzvov_reginas.warehouse w ON w.id = st.warehouse_id
+            WHERE st.active = 1 AND w.companies_id = ?
+            GROUP BY st.product_id, w.subsidiaries_id
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.stock' doesn't exist
+
+
+[ 2026-09-29 16:35:13 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                p.id                                       AS id,
+                p.name                                     AS nombre,
+                pa.sku                                     AS sku,
+                oc.classification                          AS categoria,
+                COALESCE(pa.cost_unit, p.price, 0)         AS costo,
+                p.price                                    AS precio,
+                p.image                                    AS image
+            FROM fayxzvov_reginas.order_products p
+            LEFT JOIN fayxzvov_alpha.subsidiaries  ps ON ps.id = p.subsidiaries_id
+            LEFT JOIN fayxzvov_reginas.product_attribute  pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN fayxzvov_reginas.order_category     oc ON oc.id = p.category_id
+            WHERE p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?
+              AND (oc.id IS NULL OR oc.active = 1)
+            ORDER BY p.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.product_attribute' doesn't exist
+
+
+[ 2026-09-29 16:35:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COUNT(t.id) AS total,
+                COUNT(CASE WHEN ts.code = 'REQUESTED'  THEN 1 END) AS pendientes,
+                COUNT(CASE WHEN ts.code = 'AUTHORIZED' THEN 1 END) AS autorizados,
+                COUNT(CASE WHEN ts.code = 'IN_TRANSIT' THEN 1 END) AS en_transito,
+                COUNT(CASE WHEN ts.code = 'RECEIVED'   THEN 1 END) AS recibidos,
+                COUNT(CASE WHEN ts.code = 'REJECTED'   THEN 1 END) AS rechazados
+            FROM fayxzvov_reginas.inventory_transfer t
+            LEFT JOIN fayxzvov_reginas.transfer_status ts ON ts.id = t.status_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_subsidiaries_id = ? OR t.destination_subsidiaries_id = ?)
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.inventory_transfer' doesn't exist
+
+
+[ 2026-09-29 16:35:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                t.id,
+                t.folio,
+                t.note,
+                t.total_products,
+                t.total_units,
+                t.total_cost,
+                t.date_request,
+                t.date_authorized,
+                t.date_sent,
+                t.date_received,
+                t.status_id,
+                ts.code              AS status_code,
+                ts.name              AS status_name,
+                ts.color_hex         AS status_color,
+                ts.is_terminal       AS status_terminal,
+                t.origin_warehouse_id,
+                wo.name              AS origin_warehouse_name,
+                t.destination_warehouse_id,
+                wd.name              AS destination_warehouse_name,
+                t.origin_subsidiaries_id,
+                so.name              AS origin_subsidiary_name,
+                t.destination_subsidiaries_id,
+                sd.name              AS destination_subsidiary_name,
+                t.requested_user_id,
+                ur.fullname          AS requested_user_name,
+                t.authorized_user_id,
+                ua.fullname          AS authorized_user_name,
+                t.received_user_id,
+                urc.fullname         AS received_user_name
+            FROM fayxzvov_reginas.inventory_transfer t
+            LEFT JOIN fayxzvov_reginas.transfer_status ts ON ts.id = t.status_id
+            LEFT JOIN fayxzvov_reginas.warehouse       wo ON wo.id = t.origin_warehouse_id
+            LEFT JOIN fayxzvov_reginas.warehouse       wd ON wd.id = t.destination_warehouse_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries so  ON so.id  = t.origin_subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries sd  ON sd.id  = t.destination_subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    ur  ON ur.id  = t.requested_user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    ua  ON ua.id  = t.authorized_user_id
+            LEFT JOIN fayxzvov_alpha.usr_users    urc ON urc.id = t.received_user_id
+            WHERE t.active = 1 AND t.companies_id = ? AND (t.origin_subsidiaries_id = ? OR t.destination_subsidiaries_id = ?) AND DATE(t.date_request) BETWEEN ? AND ?
+            ORDER BY t.date_request DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.inventory_transfer' doesn't exist
+
+
+[ 2026-09-29 16:35:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, order_index, is_terminal, color_hex
+            FROM fayxzvov_reginas.transfer_status
+            WHERE active = 1
+            ORDER BY order_index ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.transfer_status' doesn't exist
+
+
+[ 2026-09-29 16:35:12 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                w.id,
+                w.name,
+                w.name AS valor,
+                w.is_default,
+                w.subsidiaries_id,
+                w.warehouse_area_id,
+                wa.name AS area_name,
+                wa.color_hex AS area_color,
+                s.name  AS subsidiary_name
+            FROM fayxzvov_reginas.warehouse w
+            LEFT JOIN fayxzvov_reginas.warehouse_area wa ON wa.id = w.warehouse_area_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = w.subsidiaries_id
+            WHERE w.active = 1 AND w.companies_id = ?
+            ORDER BY s.name ASC, w.is_default DESC, w.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.warehouse' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT sr.name AS motivo_top, COUNT(m.id) AS cuenta
+            FROM fayxzvov_reginas.inventory_shrinkage m
+            LEFT JOIN fayxzvov_reginas.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            WHERE m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            GROUP BY sr.id
+            ORDER BY cuenta DESC
+            LIMIT 1
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.inventory_shrinkage' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                COUNT(m.id)                       AS total_mermas,
+                IFNULL(SUM(m.total_cost_loss), 0) AS total_costo,
+                IFNULL(SUM(m.total_units), 0)     AS total_unidades
+            FROM fayxzvov_reginas.inventory_shrinkage m
+            WHERE m.active = 1 AND m.status <> 'Cancelada' AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.inventory_shrinkage' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                m.id,
+                m.folio,
+                m.note,
+                m.evidence_url,
+                m.total_products,
+                m.total_units,
+                m.total_cost_loss,
+                m.status,
+                m.created_at,
+                m.shrinkage_reason_id,
+                sr.name             AS reason_name,
+                sr.color_hex        AS reason_color,
+                sr.icon             AS reason_icon,
+                m.warehouse_id,
+                w.name              AS warehouse_name,
+                m.subsidiaries_id,
+                s.name              AS subsidiary_name,
+                m.user_id,
+                u.fullname          AS user_name
+            FROM fayxzvov_reginas.inventory_shrinkage m
+            LEFT JOIN fayxzvov_reginas.shrinkage_reason sr ON sr.id = m.shrinkage_reason_id
+            LEFT JOIN fayxzvov_reginas.warehouse        w  ON w.id  = m.warehouse_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = m.subsidiaries_id
+            LEFT JOIN fayxzvov_alpha.usr_users    u ON u.id = m.user_id
+            WHERE m.active = 1 AND m.companies_id = ? AND m.subsidiaries_id = ? AND DATE(m.created_at) BETWEEN ? AND ?
+            ORDER BY m.created_at DESC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.inventory_shrinkage' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code, name, name AS valor, icon, color_hex
+            FROM fayxzvov_reginas.shrinkage_reason
+            WHERE active = 1
+            ORDER BY id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.shrinkage_reason' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                w.id,
+                w.name,
+                w.name AS valor,
+                w.is_default,
+                w.subsidiaries_id,
+                w.warehouse_area_id,
+                wa.name AS area_name,
+                wa.color_hex AS area_color,
+                s.name  AS subsidiary_name
+            FROM fayxzvov_reginas.warehouse w
+            LEFT JOIN fayxzvov_reginas.warehouse_area wa ON wa.id = w.warehouse_area_id
+            LEFT JOIN fayxzvov_alpha.subsidiaries s ON s.id = w.subsidiaries_id
+            WHERE w.active = 1 AND w.companies_id = ?
+            ORDER BY s.name ASC, w.is_default DESC, w.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.warehouse' doesn't exist
+
+
+[ 2026-09-29 16:35:03 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT
+                p.id                                       AS id,
+                p.name                                     AS nombre,
+                pa.sku                                     AS sku,
+                oc.classification                          AS categoria,
+                COALESCE(pa.cost_unit, p.price, 0)         AS costo,
+                p.price                                    AS precio,
+                p.image                                    AS image
+            FROM fayxzvov_reginas.order_products p
+            LEFT JOIN fayxzvov_alpha.subsidiaries  ps ON ps.id = p.subsidiaries_id
+            LEFT JOIN fayxzvov_reginas.product_attribute  pa ON pa.product_id = p.id AND pa.active = 1
+            LEFT JOIN fayxzvov_reginas.order_category     oc ON oc.id = p.category_id
+            WHERE p.active = 1 AND COALESCE(p.companies_id, ps.companies_id) = ?
+            ORDER BY p.name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_reginas.product_attribute' doesn't exist
+
+
 [ 2026-07-31 13:24:36 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

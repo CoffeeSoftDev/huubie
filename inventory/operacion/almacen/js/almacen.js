@@ -95,13 +95,6 @@ class Main extends Templates {
                     onClick: () => category.lsCategory()
                 },
                 {
-                    id: "unidades",
-                    tab: "Unidad",
-                    lucideIcon: "ruler",
-                    class: `mb-1 ${paneClass}`,
-                    onClick: () => unit.lsUnit()
-                },
-                {
                     id: "areas",
                     tab: "Área",
                     lucideIcon: "map-pin",
@@ -121,6 +114,13 @@ class Main extends Templates {
                     lucideIcon: "truck",
                     class: paneClass,
                     onClick: () => supplier.lsSupplier()
+                },
+                {
+                    id: "unidades",
+                    tab: "Unidad",
+                    lucideIcon: "ruler",
+                    class: `mb-1 ${paneClass}`,
+                    onClick: () => unit.lsUnit()
                 },
                 {
                     id: "inflows",
@@ -179,6 +179,15 @@ class Productos extends Templates {
         this.createfilterBar({
             parent: `filterBar${this.PROJECT_NAME}`,
             data: [
+                // Mismo orden que las columnas de la tabla: primero qué es, luego dónde está.
+                {
+                    opc: "select",
+                    id: "categoria",
+                    lbl: "Categoría",
+                    class: "col-12 col-md-2",
+                    data: [{ id: '', valor: 'Todas' }, ...categorias],
+                    onchange: 'products.lsMateriales()'
+                },
                 // Área = dónde está dentro del almacén (anaquel, refrigerador...).
                 // Lo que hay en cada almacén se consulta en Stock, no aquí.
                 {
@@ -187,14 +196,6 @@ class Productos extends Templates {
                     lbl: "Área",
                     class: "col-12 col-md-2",
                     data: [{ id: '', valor: 'Todas' }, ...areas],
-                    onchange: 'products.lsMateriales()'
-                },
-                {
-                    opc: "select",
-                    id: "categoria",
-                    lbl: "Categoría",
-                    class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todos' }, ...categorias],
                     onchange: 'products.lsMateriales()'
                 },
                 {
@@ -218,12 +219,14 @@ class Productos extends Templates {
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
                 },
+                // Colores fijos, no del tema: `blue-*` sigue al acento (terracota en Claro),
+                // por eso el azul va en hex (el de erp-pro). El `!` gana al color del preset.
                 {
                     opc: "button",
                     id: "btnAsistenteIA",
                     text: "CoffeeIA",
                     icon: "icon-magic",
-                    className: 'w-100',
+                    className: 'w-100 !border-[#2563EB] !text-[#2563EB] hover:!bg-[#2563EB] hover:!text-white focus:!ring-[#2563EB]',
                     class: "col-12 col-md-2",
                     color_btn: "outline",
                     onClick: () => asistente.render()
@@ -233,7 +236,7 @@ class Productos extends Templates {
                     id: "btnFormatoConteo",
                     text: "Formato conteo",
                     icon: "icon-file-excel",
-                    className: 'w-100',
+                    className: 'w-100 !border-[#217346] !text-[#217346] hover:!bg-[#217346] hover:!text-white focus:!ring-[#217346]',
                     class: "col-12 col-md-2",
                     color_btn: "outline",
                     onClick: () => conteo.render()
@@ -299,14 +302,14 @@ class Productos extends Templates {
         areas = data.areas || [];
     }
 
-    // Orden de captura: identificación (categoría, código, nombre, unidad), costo
+    // Orden de captura: identificación (categoría, nombre, unidad, código), costo
     // (último costo, IVA de compra y costo con impuesto), inventario (inventariable,
     // área, mínimo, máximo, vida útil), venta y notas.
     // Mismo reparto que el POS: el precio de venta vive en item y el costo en item_attribute.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
     jsonMaterial() {
-        const section = "col-12 pb-1 border-b border-gray-200 text-[11px] font-semibold uppercase tracking-wider text-gray-500";
+        const section = "col-12 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500";
 
         return [
             // -- Identificación --
@@ -320,36 +323,34 @@ class Productos extends Templates {
                 opc: "select",
                 id: "category_id",
                 lbl: "Categoría",
-                class: "col-12 col-md-8",
+                class: "col-12 col-md-3",
                 data: categorias,
                 required: true
-            },
-            {
-                // Automático, formato Soft Restaurant (categoría + consecutivo: 04003): lo
-                // asigna el controlador al guardar. Va deshabilitado, así que no viaja en el
-                // POST; solo se enseña.
-                opc: "input",
-                id: "sku",
-                lbl: "Código (SKU)",
-                class: "col-12 col-md-4",
-                placeholder: "Automático",
-                disabled: true,
-                required: false
             },
             {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del producto",
-                class: "col-12 col-md-8",
+                class: "col-12 col-md-4",
                 required: true
             },
             {
                 opc: "select",
                 id: "unit_id",
                 lbl: "Unidad de medida",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-3",
                 data: unidades,
                 required: true
+            },
+            {
+                // Editable. Vacío = automático, formato Soft Restaurant (categoría +
+                // consecutivo: 04003) que asigna el controlador al guardar.
+                opc: "input",
+                id: "sku",
+                lbl: "Código (SKU)",
+                class: "col-12 col-md-2",
+                placeholder: "Auto",
+                required: false
             },
             // {
             //     opc: "input",
@@ -367,14 +368,14 @@ class Productos extends Templates {
                 opc: "label",
                 id: "lblCosto",
                 text: "Costo",
-                class: section + " pt-3"
+                class: section + " pt-1"
             },
             {
                 opc: "input",
                 id: "cost_unit",
                 lbl: "Último costo",
                 tipo: "cifra",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-5",
                 required: false,
                 placeholder: "Se actualiza con cada entrada",
                 onkeyup: "products.calcCostWithTax()",
@@ -384,7 +385,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "cost_tax",
                 lbl: "IVA",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-3",
                 onchange: "products.calcCostWithTax()",
                 data: [
                     { id: '0', valor: '0%' },
@@ -409,13 +410,13 @@ class Productos extends Templates {
                 opc: "label",
                 id: "lblInventario",
                 text: "Inventario",
-                class: section + " pt-3"
+                class: section + " pt-1"
             },
             {
                 opc: "select",
                 id: "is_inventoriable",
                 lbl: "Inventariable",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-2",
                 data: [
                     { id: '1', valor: 'Sí' },
                     { id: '0', valor: 'No' }
@@ -427,7 +428,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "warehouse_area_id",
                 lbl: "Área",
-                class: "col-12 col-md-8",
+                class: "col-12 col-md-3",
                 data: [{ id: '', valor: 'Sin área' }, ...areas],
                 required: false
             },
@@ -437,7 +438,7 @@ class Productos extends Templates {
                 lbl: "Mínimo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-2"
             },
             {
                 opc: "input",
@@ -445,7 +446,7 @@ class Productos extends Templates {
                 lbl: "Máximo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-2"
             },
             {
                 opc: "input",
@@ -453,7 +454,7 @@ class Productos extends Templates {
                 lbl: "Vida útil (días)",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-4"
+                class: "col-12 col-md-3"
             },
 
             // -- Venta --
@@ -464,14 +465,14 @@ class Productos extends Templates {
                 opc: "label",
                 id: "lblVenta",
                 text: "Venta",
-                class: section + " pt-3"
+                class: section + " pt-1"
             },
             {
                 opc: "input",
                 id: "price",
                 lbl: "Precio de venta",
                 tipo: "cifra",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-5",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcPriceWithoutTax()",
@@ -481,7 +482,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "tax",
                 lbl: "IVA",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-3",
                 onchange: "products.calcPriceWithoutTax()",
                 data: [
                     { id: '0', valor: '0%' },
@@ -503,19 +504,13 @@ class Productos extends Templates {
 
             // -- Descripción --
             {
-                opc: "label",
-                id: "lblDescripcion",
-                text: "Descripción",
-                class: section + " pt-3"
-            },
-            {
                 opc: "textarea",
                 id: "description",
-                showLabel: false,
-                class: "col-12",
+                lbl: "Descripción",
+                class: "col-12 pt-1",
                 placeholder: "Notas del producto (opcional)",
                 required: false,
-                rows: 3
+                rows: 2
             }
         ];
     }
@@ -570,15 +565,23 @@ class Productos extends Templates {
         this.syncingCost = false;
     }
 
+    // cfModal limita el cuerpo a 72vh con scroll propio y deja 2rem de margen arriba y
+    // abajo. El formulario de producto va compacto (una fila por sección) y se muestra
+    // entero: sin tope en el cuerpo y con margen corto cabe sin barra en una laptop.
+    noScrollModal(modal) {
+        modal.body.removeClass('max-h-[72vh] overflow-y-auto');
+        modal.el.children().first().removeClass('my-8');
+    }
+
     addMaterial() {
-        this.createModalForm({
+        const modal = this.createModalForm({
             id: 'formMaterialAdd',
             data: { opc: 'addMaterial' },
             theme:'light',
             coffeesoft:true,
             bootbox: {
                 title: 'Nuevo Producto',
-                size: 'small',
+                size: 'large',
                 closeButton: true
             },
             json: this.jsonMaterial(),
@@ -601,6 +604,8 @@ class Productos extends Templates {
                 }
             }
         });
+
+        this.noScrollModal(modal);
     }
 
     async editMaterial(id) {
@@ -610,14 +615,14 @@ class Productos extends Templates {
         });
 
         if (request.status === 200) {
-            this.createModalForm({
+            const modal = this.createModalForm({
                 id: 'formMaterialEdit',
                 data: { opc: 'editMaterial', id: id },
                 theme:'light',
                 coffeesoft:true,
                 bootbox: {
                     title: 'Editar Producto',
-                    size: 'small',
+                    size: 'large',
                     closeButton: true
                 },
                 autofill: request.data,
@@ -641,6 +646,8 @@ class Productos extends Templates {
                     }
                 }
             });
+
+            this.noScrollModal(modal);
         }
     }
 

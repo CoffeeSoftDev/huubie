@@ -363,6 +363,20 @@ class mdl extends CRUD {
         ]);
     }
 
+    // Almacén donde caen las áreas que da de alta el asistente: el de por defecto de la
+    // sucursal y, si no hay, el primero activo de la empresa. Params: [companies_id, branch_id]
+    function getDefaultWarehouseId($array) {
+        $query = "
+            SELECT id
+            FROM {$this->bd}warehouse
+            WHERE companies_id = ?
+            ORDER BY active DESC, (branch_id = ? AND is_default = 1) DESC, is_default DESC, id ASC
+            LIMIT 1
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['id'] ?? null;
+    }
+
     function getMaxCatalogId($entity) {
         $table  = $this->catalogTable($entity);
         $result = $this->_Read("SELECT MAX(id) AS id FROM {$table}", []);

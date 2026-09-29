@@ -308,8 +308,8 @@ class Salidas extends Templates {
             parent:       'tableWrap',
             id:           `tb${this.PROJECT_NAME}`,
             theme:        'light',
-            center:       [2, 3, 5, 6, 8, 9, 10],
-            right:        [7],
+            center:       [2, 3, 4, 7, 8],
+            right:        [6],
             actionsAlign: 'left',
             extends:      true,
             scrollable:   false,
@@ -391,6 +391,7 @@ class Salidas extends Templates {
                 sku:         d.sku,
                 categoria:   d.category_name || '',
                 area:        d.area_name     || '',
+                unidad:      d.unit          || '',
                 qty:         Number(d.quantity || 0),
                 costo_unit:  Number(d.cost || 0),
                 costo_total: Number(d.subtotal_loss != null ? d.subtotal_loss : Number(d.quantity || 0) * Number(d.cost || 0))
@@ -473,60 +474,50 @@ class Salidas extends Templates {
     renderSalidaDoc(m) {
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const fmtUds   = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const DOW = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
         const MON = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const fmtFecha = (iso) => {
             const d = new Date(iso);
             if (isNaN(d.getTime())) return iso || '';
+            const base = `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+            if (d.getHours() === 0 && d.getMinutes() === 0) return base;
             let h = d.getHours();
-            const min = String(d.getMinutes()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2,'0');
             const ampm = h >= 12 ? 'pm' : 'am';
             h = h % 12 || 12;
-            return `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${MON[d.getMonth()]} ${d.getFullYear()} ${h}:${min} ${ampm}`;
+            return `${base} ${h}:${min} ${ampm}`;
         };
 
-        const items = m.items || [];
+        // Mismo formato que el comprobante de entrada (entradas.js::_renderEntradaDoc).
+        const items  = m.items || [];
+        const subOf  = (it) => it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * Number(it.costo_unit || 0);
         const totals = items.reduce((acc, it) => {
-            const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * Number(it.costo_unit || 0);
             acc.uds   += Number(it.qty || 0);
-            acc.costo += sub;
+            acc.costo += subOf(it);
             return acc;
         }, { uds: 0, costo: 0 });
         const totUds   = m.total_unidades != null ? m.total_unidades : totals.uds;
         const totCosto = m.total_costo    != null ? m.total_costo    : totals.costo;
 
-        // Agrupa por Área (anaquel, refrigerador...) para que la hoja sirva de ruta de surtido.
-        const byArea = {};
-        items.forEach(it => {
-            const area = (it.area && String(it.area).trim()) || 'Sin área';
-            (byArea[area] = byArea[area] || { area: area, items: [] }).items.push(it);
-        });
-        const groups = Object.keys(byArea).sort((a, b) => a.localeCompare(b, 'es')).map(k => byArea[k]);
-
-        const rowsHtml = groups.map(g => {
-            const head = `<tr class="cat"><td colspan="4">${esc(g.area)} <span class="cat-count">${g.items.length}</span></td></tr>`;
-            const body = g.items.map(it => {
-                const cu  = Number(it.costo_unit || 0);
-                const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * cu;
-                return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">-${esc(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(sub)}</td></tr>`;
-            }).join('');
-            return head + body;
+        const rowsHtml = items.map(it => {
+            const cu = Number(it.costo_unit || 0);
+            return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${fmtUds(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(subOf(it))}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
         }).join('');
 
-        const reg            = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
-        const fechaImpresion = fmtFecha(new Date().toISOString());
+        const reg = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Salida ${esc(m.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}tr.cat td{background:#efefef;font-weight:700;text-transform:uppercase;font-size:10px;color:#000;letter-spacing:.5px;padding:3px 8px;border-top:1px solid #000}.cat-count{float:right;color:#666;font-weight:600}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.nota{margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222}.nota b{display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header"><div><div class="doc-title">Comprobante de Salida</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(m.sucursal||'')}${m.almacen?' &middot; '+esc(m.almacen):''}</div></div><div><div class="folio">${esc(m.folio||'-')}</div>${m.status?`<span class="status">${esc(m.status)}</span>`:''}</div></div>
-            <div class="info-grid"><div class="info-item"><span class="k">Motivo</span><span class="v">${esc(m.motivo||'-')}</span></div><div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal||'-')}</span></div><div class="info-item"><span class="k">Almacen</span><span class="v">${esc(m.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div><div class="info-item"><span class="k">Productos</span><span class="v">${items.length} tipos · ${totUds} uds</span></div></div>
-            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Subtotal</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="4" class="c">Sin productos</td></tr>'}</tbody></table>
-            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${totUds}</span></div><div class="totals-row grand"><span>Valor de salidas</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
-            ${m.nota?`<div class="nota"><b>Nota</b>${esc(m.nota)}</div>`:''}
-            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de salida</span><span>Generado: ${esc(fechaImpresion)}</span></div>
+            <div class="info-grid"><div class="info-item"><span class="k">Tipo de salida</span><span class="v">${esc(m.motivo||'-')}</span></div><div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(m.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div></div>
+            <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
+            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${fmtUds(totUds)}</span></div><div class="totals-row grand"><span>Valor de salidas</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
+            ${m.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(m.nota)}</div>`:''}
+            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de salida</span><span>Generado: ${esc(fmtFecha(new Date().toISOString()))}</span></div>
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');

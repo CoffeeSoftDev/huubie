@@ -71,7 +71,8 @@ class Category extends Templates {
                 },
                 {
                     opc: "button",
-                    class: "col-12 col-md-3",
+                    class: "col-12 col-md-2",
+                    className: 'w-100',
                     id: "btnNewCategory",
                     text: "Nueva categoría",
                     onClick: () => this.addCategory()
@@ -148,14 +149,17 @@ class Category extends Templates {
     }
 
     // Confirmación con alertBox, igual que Productos: desactivar en rojo ('cancel'), activar en 'confirm'.
+    // Al desactivar se ofrece también eliminarla (va como enlace: alertBox solo tiene dos botones).
     statusCategory(id, active) {
         const activar = active !== 1;
+        const alertId = `alertStatus${this.PROJECT_NAME}`;
 
         this.alertBox({
+            id:         alertId,
             type:       activar ? "confirm" : "cancel",
             theme:      "light",
             title:      activar ? "¿Activar categoría?" : "¿Desactivar categoría?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la categoría`,
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la categoría` + (activar ? "" : deleteLink("Eliminarla definitivamente")),
             okLabel:    activar ? "Activar" : "Desactivar",
             onOk: async () => {
                 const response = await useFetch({
@@ -169,6 +173,39 @@ class Category extends Templates {
                     products.reloadCategorias();
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
+                }
+            }
+        });
+
+        if (activar) return;
+
+        $(`#${alertId} [data-delete]`).on("click", () => {
+            $(`#${alertId} [data-ab-cancel]`).trigger("click");
+            this.deleteCategory(id);
+        });
+    }
+
+    // Los productos de la categoría no se borran: el servidor les deja la categoría en NULL.
+    deleteCategory(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar categoría?",
+            detailHtml: "Se borra para siempre. Los productos que la usan se quedan sin categoría.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteCategory", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 2000 });
+                    this.lsCategory();
+                    products.reloadCategorias();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
                 }
             }
         });
@@ -206,7 +243,7 @@ class Area extends Templates {
                     opc: "select",
                     id: "active",
                     lbl: "Estado",
-                    class: "col-12 col-md-3",
+                    class: "col-12 col-md-2",
                     data: [
                         { id: "1", valor: "Activos" },
                         { id: "0", valor: "Inactivos" }
@@ -235,9 +272,10 @@ class Area extends Templates {
             attr: {
                 id: "tbArea",
                 theme: "light",
+                striped: true,
                 title: "Áreas del almacén",
                 subtitle: "Espacios físicos del almacén",
-                center: [2, 3]
+                center: [3, 4]
             }
         });
     }
@@ -313,8 +351,17 @@ class Area extends Templates {
         });
     }
 
+    // El área es un lugar dentro de UN almacén: el nombre se puede repetir en otro almacén.
     jsonArea() {
         return [
+            {
+                opc: "select",
+                id: "warehouse_id",
+                lbl: "Almacén",
+                class: "col-12 mb-3",
+                data: almacenes,
+                required: true
+            },
             {
                 opc: "input",
                 id: "name",
@@ -380,6 +427,7 @@ class Unit extends Templates {
             attr: {
                 id: "tbUnit",
                 theme: "light",
+                striped: true,
                 title: "Unidades de medida",
                 subtitle: "Unidades para capturar insumos (pza, kg, lt)",
                 center: [3]
@@ -434,12 +482,14 @@ class Unit extends Templates {
 
     statusUnit(id, active) {
         const activar = active !== 1;
+        const alertId = `alertStatus${this.PROJECT_NAME}`;
 
         this.alertBox({
+            id:         alertId,
             type:       activar ? "confirm" : "cancel",
             theme:      "light",
             title:      activar ? "¿Activar unidad?" : "¿Desactivar unidad?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la unidad`,
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la unidad` + (activar ? "" : deleteLink("Eliminarla definitivamente")),
             okLabel:    activar ? "Activar" : "Desactivar",
             onOk: async () => {
                 const response = await useFetch({
@@ -453,6 +503,39 @@ class Unit extends Templates {
                     products.reloadUnidades();
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
+                }
+            }
+        });
+
+        if (activar) return;
+
+        $(`#${alertId} [data-delete]`).on("click", () => {
+            $(`#${alertId} [data-ab-cancel]`).trigger("click");
+            this.deleteUnit(id);
+        });
+    }
+
+    // El servidor lo niega si algún producto o movimiento usa la unidad.
+    deleteUnit(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar unidad?",
+            detailHtml: "Se borra para siempre y no se puede deshacer.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteUnit", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsUnit();
+                    products.reloadUnidades();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
                 }
             }
         });
@@ -717,7 +800,7 @@ class InflowOrigin extends Templates {
             }
         });
         this.mountIconField("formInflowAdd");
-        wireBadgeSimulator("formInflowAdd");
+        wireBadgeSimulator("formInflowAdd", "rounded-full");
     }
 
     async editInflow(id) {
@@ -742,7 +825,7 @@ class InflowOrigin extends Templates {
                 }
             });
             this.mountIconField("formInflowEdit", request.data ? request.data.icon : "");
-            wireBadgeSimulator("formInflowEdit");
+            wireBadgeSimulator("formInflowEdit", "rounded-full");
         }
     }
 
@@ -786,6 +869,17 @@ class InflowOrigin extends Templates {
                 }
             }
         });
+    }
+
+    // Sube o baja el origen un lugar; ese orden es el del selector de Entradas.
+    async moveInflow(id, dir) {
+        const response = await useFetch({ url: this._link, data: { opc: "moveInflow", id: id, dir: dir } });
+
+        if (response && response.status === 200) {
+            this.lsInflow();
+        } else {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo mover el origen" });
+        }
     }
 
     jsonInflow() {
@@ -868,7 +962,7 @@ class ShrinkageReason extends Templates {
                 },
                 {
                     opc: "button",
-                    class: "col-12 col-md-3",
+                    class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewShrinkage",
                     text: "Nuevo motivo",
@@ -891,7 +985,7 @@ class ShrinkageReason extends Templates {
                 striped: true,
                 title: "Motivos de salida",
                 subtitle: "Razones de salida del almacén",
-                center: [1, 3]
+                center: [3]
             }
         });
     }
@@ -913,7 +1007,8 @@ class ShrinkageReason extends Templates {
                 }
             }
         });
-        wireBadgeSimulator("formShrinkageAdd");
+        inflow.mountIconField("formShrinkageAdd");
+        wireBadgeSimulator("formShrinkageAdd", "rounded-full");
     }
 
     async editShrinkage(id) {
@@ -937,7 +1032,8 @@ class ShrinkageReason extends Templates {
                     }
                 }
             });
-            wireBadgeSimulator("formShrinkageEdit");
+            inflow.mountIconField("formShrinkageEdit", request.data ? request.data.icon : "");
+            wireBadgeSimulator("formShrinkageEdit", "rounded-full");
         }
     }
 
@@ -966,6 +1062,17 @@ class ShrinkageReason extends Templates {
         });
     }
 
+    // Sube o baja el motivo un lugar; ese orden es el del selector de Salidas.
+    async moveShrinkage(id, dir) {
+        const response = await useFetch({ url: this._link, data: { opc: "moveShrinkage", id: id, dir: dir } });
+
+        if (response && response.status === 200) {
+            this.lsShrinkage();
+        } else {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo mover el motivo" });
+        }
+    }
+
     jsonShrinkage() {
         return [
             {
@@ -985,10 +1092,10 @@ class ShrinkageReason extends Templates {
                 required: true
             },
             {
-                opc: "input",
-                id: "icon",
+                // Hueco vacío: lo rellena mountIconField() con el selector de iconos.
+                opc: "div",
+                id: "iconFieldWrap",
                 lbl: "Icono",
-                tipo: "texto",
                 class: "col-12 col-md-6 mb-3"
             },
             {
@@ -1318,6 +1425,13 @@ class TransferStatus extends Templates {
     }
 }
 
+// -- Helpers --
+
+// Enlace "Eliminar" que va dentro del detailHtml de un alertBox de desactivar.
+function deleteLink(text) {
+    return `<br><button type="button" data-delete class="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-red-600 hover:text-red-700 hover:underline"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${text}</button>`;
+}
+
 // -- Selector de badge --
 // Espejo JS de badge() en conf/_Utileria.php. Modelo de 2 colores: color_hex = texto,
 // bg_hex = fondo. Si no hay bg_hex se cae al modelo clasico (el color es el fondo y el
@@ -1372,13 +1486,13 @@ function badgeColors(hex) {
 
 // Modelo de 2 colores: fg = color del texto, bg = color del fondo (espejo de badge() PHP).
 // Si no se recibe bg, se cae al modelo clasico (el color es el fondo y el texto se deriva).
-function badgePreview(text, fg, bg) {
+function badgePreview(text, fg, bg, radius = "rounded") {
     const label = (text == null || text === "") ? "-" : text;
     if (bg) {
-        return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:${bg};color:${fg || "#475569"};">${label}</span>`;
+        return `<span class="text-[10px] font-semibold px-3 py-1 ${radius}" style="background:${bg};color:${fg || "#475569"};">${label}</span>`;
     }
     const c = badgeColors(fg);
-    return `<span class="text-[10px] font-semibold px-3 py-1 rounded" style="background:${c.bg};color:${c.fg};">${label}</span>`;
+    return `<span class="text-[10px] font-semibold px-3 py-1 ${radius}" style="background:${c.bg};color:${c.fg};">${label}</span>`;
 }
 
 // Campo de vista previa del badge para inyectar en el json() de un form (theme light).
@@ -1397,7 +1511,8 @@ function badgePreviewField() {
 }
 
 // Cablea la vista previa del badge: la actualiza al cambiar el color o el nombre.
-function wireBadgeSimulator(formId) {
+// `radius` = el mismo redondeo que usa la tabla (rounded | rounded-full).
+function wireBadgeSimulator(formId, radius = "rounded") {
     setTimeout(() => {
         const $form  = $("#" + formId);
         const $color = $form.find('[name="color_hex"], #color_hex').first();
@@ -1412,7 +1527,7 @@ function wireBadgeSimulator(formId) {
             const fg   = $color.val() || "#475569";
             const bg   = $bgInp.length ? ($bgInp.val() || "#F1F5F9") : "";
             const name = ($name.val() || "Etiqueta").toString();
-            $badge.html(badgePreview(name, fg, bg));
+            $badge.html(badgePreview(name, fg, bg, radius));
             $bg.text(bg || "-");
             $fg.text(fg);
         };

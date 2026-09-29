@@ -92,9 +92,10 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // warehouse_id: el Destino del form solo ofrece las áreas del almacén elegido.
     function lsAreas($array) {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, warehouse_id
             FROM {$this->bd}warehouse_area
             WHERE active = 1 AND companies_id = ?
             ORDER BY name ASC
@@ -108,7 +109,7 @@ class mdl extends CRUD {
             SELECT id, code, name, name AS valor, color_hex, requires_supplier
             FROM {$this->bd}inflow_origin
             WHERE active = 1
-            ORDER BY id ASC
+            ORDER BY sort_order ASC, id ASC
         ";
         $r = $this->_Read($query, null);
         if (!is_array($r)) return [];
@@ -230,6 +231,7 @@ class mdl extends CRUD {
                 io.icon        AS origin_icon,
                 i.warehouse_id,
                 w.name         AS warehouse_name,
+                wa.name        AS area_name,
                 i.branch_id,
                 s.name         AS branch_name,
                 i.supplier_id,
@@ -242,6 +244,7 @@ class mdl extends CRUD {
             FROM {$this->bd}inventory_inflow i
             LEFT JOIN {$this->bd}inflow_origin      io ON io.id = i.inflow_origin_id
             LEFT JOIN {$this->bd}warehouse           w  ON w.id  = i.warehouse_id
+            LEFT JOIN {$this->bd}warehouse_area      wa ON wa.id = i.warehouse_area_id
             LEFT JOIN {$this->bdErp}branches       s  ON s.id  = i.branch_id
             LEFT JOIN {$this->bd}supplier            sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users            u  ON u.id  = i.user_id
@@ -316,7 +319,8 @@ class mdl extends CRUD {
                 s.name         AS branch_name,
                 sp.name        AS supplier_name,
                 TRIM(CONCAT(COALESCE(u.name, ''), ' ', COALESCE(u.last_name, '')))    AS user_name,
-                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, '')))  AS confirmed_user_name
+                TRIM(CONCAT(COALESCE(cu.name, ''), ' ', COALESCE(cu.last_name, '')))  AS confirmed_user_name,
+                TRIM(CONCAT(COALESCE(eu.name, ''), ' ', COALESCE(eu.last_name, '')))  AS edited_user_name
             FROM {$this->bd}inventory_inflow i
             LEFT JOIN {$this->bd}inflow_origin    io ON io.id = i.inflow_origin_id
             LEFT JOIN {$this->bd}warehouse         w  ON w.id  = i.warehouse_id
@@ -325,6 +329,7 @@ class mdl extends CRUD {
             LEFT JOIN {$this->bd}supplier          sp ON sp.id = i.supplier_id
             LEFT JOIN {$this->bdErp}users          u  ON u.id  = i.user_id
             LEFT JOIN {$this->bdErp}users          cu ON cu.id = i.confirmed_user_id
+            LEFT JOIN {$this->bdErp}users          eu ON eu.id = i.edited_user_id
             WHERE i.id = ?
             LIMIT 1
         ";
@@ -385,6 +390,41 @@ class mdl extends CRUD {
             WHERE id = ? AND companies_id = ?
         ";
         return $this->_CUD($query, $array);
+    }
+
+    function updateEntradaVoucher($array) {
+        // [voucher_url, id]
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET voucher_url = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Quién guardó la última edición y cuándo (no se usa updated_at: también lo
+    // tocan confirmar, cancelar y el recálculo de totales).
+    function qMarkEntradaEdited($array) {
+        // [edited_user_id, id]
+        $query = "
+            UPDATE {$this->bd}inventory_inflow
+            SET edited_user_id = ?, edited_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Credenciales del usuario en sesión para reconfirmar su contraseña al editar.
+    function qUserPassword($array) {
+        // [user_id]
+        $query = "
+            SELECT password, `key` AS user_key
+            FROM {$this->bdErp}users
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
     // Los renglones reemplazados se apagan (la vista inventory_movement ya los ignora).

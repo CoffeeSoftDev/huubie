@@ -1,3 +1,10 @@
+[ 2026-09-29 06:40:20 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  INSERT INTO fayxzvov_inventory.item (name,image,category_id,branch_id,companies_id,created_at,active,price,price_without_tax,tax) VALUES (?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'companies_id' cannot be null
+
+
 [ 2026-09-28 06:27:54 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

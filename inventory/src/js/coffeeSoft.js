@@ -6496,45 +6496,98 @@ class Templates extends Components {
     // -- Alert component --
 
     alertBox(options) {
-        // Botón OK por defecto: terracota Arcilla Invernal (acento de la casa).
-        // Se puede sobrescribir por llamada pasando `okBg` en options.
-        const OK_TERRACOTA = 'bg-blue-600 hover:bg-blue-700';
+        // Mismo alertBox que ERP-PRO (erp-pro/ERP24, 28/09/2026), pero con los colores
+        // del tema: el OK es el primario (`main`, como el resto de botones principales)
+        // y el foco del input también. En página oscura dark-mode.css repinta la
+        // tarjeta, los textos y el círculo del icono. `okBg` lo sobrescribe por llamada.
+        const OK_PRIMARIO = 'bg-main hover:bg-main-hover';
 
+        /*  La animación es la de SweetAlert2 (igual que ERP-PRO): mismos keyframes
+            y tiempos (entrada .3s, salida .15s, fondo .1s) y la entrada de cada
+            icono: el círculo gira sobre X, la palomita se dibuja, la cruz crece,
+            la "i" y el "!" se balancean y la "?" da la vuelta. */
         if (!document.getElementById('tf-alert-anim')) {
             const style = document.createElement('style');
             style.id = 'tf-alert-anim';
             style.textContent = `
-                @keyframes tfAlertPop {
-                    0%   { transform: scale(.7);  opacity: 0; }
+                @keyframes tfAbShow {
+                    0%   { transform: scale(.7); }
                     45%  { transform: scale(1.05); }
-                    80%  { transform: scale(.97); }
+                    80%  { transform: scale(.95); }
+                    100% { transform: scale(1); }
+                }
+                @keyframes tfAbHide {
+                    0%   { transform: scale(1);  opacity: 1; }
+                    100% { transform: scale(.5); opacity: 0; }
+                }
+                @keyframes tfAbFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes tfAbFadeOut { from { opacity: 1; } to { opacity: 0; } }
+                @keyframes tfAbIcon {
+                    0%   { transform: rotateX(100deg); opacity: 0; }
+                    100% { transform: rotateX(0deg);   opacity: 1; }
+                }
+                @keyframes tfAbIMark {
+                    0%   { transform: rotateZ(45deg);  opacity: 0; }
+                    25%  { transform: rotateZ(-25deg); opacity: .4; }
+                    50%  { transform: rotateZ(15deg);  opacity: .8; }
+                    75%  { transform: rotateZ(-5deg);  opacity: 1; }
+                    100% { transform: rotateX(0);      opacity: 1; }
+                }
+                @keyframes tfAbXMark {
+                    0%   { transform: scale(.4);  opacity: 0; }
+                    50%  { transform: scale(.4);  opacity: 0; }
+                    80%  { transform: scale(1.15); }
                     100% { transform: scale(1);   opacity: 1; }
                 }
-                @keyframes tfAlertHide {
-                    0%   { transform: scale(1);  opacity: 1; }
-                    100% { transform: scale(.6); opacity: 0; }
+                @keyframes tfAbQMark { from { transform: rotateY(-360deg); } to { transform: rotateY(0); } }
+                @keyframes tfAbOkArc {
+                    0%, 28%   { opacity: 0; transform: rotate(-45deg); stroke-dasharray: 0 100; }
+                    32%       { opacity: 1; }
+                    60%       { opacity: 1; transform: rotate(270deg); stroke-dasharray: 25 100; }
+                    68%, 100% { opacity: 0; transform: rotate(315deg); stroke-dasharray: 25 100; }
                 }
-                @keyframes tfAlertFadeIn  { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes tfAlertFadeOut { from { opacity: 1; } to { opacity: 0; } }
-                .tf-alert-card.tf-ab-in   { animation: tfAlertPop  .32s cubic-bezier(.34,1.56,.64,1) both; }
-                .tf-alert-card.tf-ab-out  { animation: tfAlertHide .2s  ease-in both; }
-                .tf-ab-backdrop.tf-ab-in  { animation: tfAlertFadeIn  .25s ease both; }
-                .tf-ab-backdrop.tf-ab-out { animation: tfAlertFadeOut .2s  ease both; }
+                @keyframes tfAbOkCheck {
+                    0%, 54% { stroke-dashoffset: 100; transform: scale(1); }
+                    84%     { stroke-dashoffset: 0;   transform: scale(1.12); }
+                    100%    { stroke-dashoffset: 0;   transform: scale(1); }
+                }
+                @keyframes tfAbOkRing {
+                    0%, 60%   { stroke-opacity: .25; }
+                    68%, 100% { stroke-opacity: 1; }
+                }
+                .tf-ab-ok { width: 28px; height: 28px; overflow: visible; }
+                .tf-ab-ok circle, .tf-ab-ok path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+                .tf-ab-ok-arc   { stroke-dasharray: 25 100; opacity: 0; transform-origin: 12px 12px; }
+                .tf-ab-ok-check { stroke-dasharray: 100; stroke-dashoffset: 0; transform-origin: 12px 12px; }
+                .tf-alert-card.tf-ab-in   { animation: tfAbShow .3s; }
+                .tf-alert-card.tf-ab-out  { animation: tfAbHide .15s forwards; }
+                .tf-ab-backdrop.tf-ab-in  { animation: tfAbFadeIn  .1s both; }
+                .tf-ab-backdrop.tf-ab-out { animation: tfAbFadeOut .1s both; }
+                .tf-ab-in .tf-ab-icon:not(.tf-ab-icon-success) { animation: tfAbIcon .5s; }
+                .tf-ab-in .tf-ab-icon-error   .tf-ab-mark { animation: tfAbXMark .5s; }
+                .tf-ab-in .tf-ab-icon-warning .tf-ab-mark { animation: tfAbIMark .5s; }
+                .tf-ab-in .tf-ab-icon-info    .tf-ab-mark { animation: tfAbIMark .8s; }
+                .tf-ab-in .tf-ab-icon-question .tf-ab-mark { animation: tfAbQMark .8s; }
+                .tf-ab-in .tf-ab-ok-ring  { animation: tfAbOkRing .75s; }
+                .tf-ab-in .tf-ab-ok-arc   { animation: tfAbOkArc .75s ease-in-out; }
+                .tf-ab-in .tf-ab-ok-check { animation: tfAbOkCheck .75s; }
                 @media (prefers-reduced-motion: reduce) {
                     .tf-alert-card.tf-ab-in, .tf-alert-card.tf-ab-out,
-                    .tf-ab-backdrop.tf-ab-in, .tf-ab-backdrop.tf-ab-out { animation: none; }
+                    .tf-ab-backdrop.tf-ab-in, .tf-ab-backdrop.tf-ab-out,
+                    .tf-ab-in .tf-ab-icon, .tf-ab-in .tf-ab-mark, .tf-ab-in .tf-ab-ok-ring,
+                    .tf-ab-in .tf-ab-ok-arc, .tf-ab-in .tf-ab-ok-check { animation: none; }
                 }
             `;
             document.head.appendChild(style);
         }
 
         const presets = {
-            message: { icon: 'info',           iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
-            success: { icon: 'check-circle',   iconBg: 'bg-green-50', iconColor: 'text-green-600', dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
-            error:   { icon: 'x-circle',       iconBg: 'bg-red-50',   iconColor: 'text-red-600',   dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
-            warning: { icon: 'alert-triangle', iconBg: 'bg-amber-50', iconColor: 'text-amber-500', dual: false, okBg: OK_TERRACOTA, okLabel: 'Entendido' },
-            confirm: { icon: 'help-circle',    iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: true,  okBg: OK_TERRACOTA, okLabel: 'Confirmar' },
-            cancel:  { icon: 'alert-triangle', iconBg: 'bg-red-50',   iconColor: 'text-red-500',   dual: true,  okBg: OK_TERRACOTA, okLabel: 'Sí, continuar' }
+            message: { icon: 'info',           iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: false, okBg: OK_PRIMARIO, okLabel: 'Entendido',     anim: 'info' },
+            success: { icon: 'check-circle',   iconBg: 'bg-green-50', iconColor: 'text-green-600', dual: false, okBg: OK_PRIMARIO, okLabel: 'Entendido',     anim: 'success' },
+            error:   { icon: 'x-circle',       iconBg: 'bg-red-50',   iconColor: 'text-red-600',   dual: false, okBg: OK_PRIMARIO, okLabel: 'Entendido',     anim: 'error' },
+            warning: { icon: 'alert-triangle', iconBg: 'bg-amber-50', iconColor: 'text-amber-500', dual: false, okBg: OK_PRIMARIO, okLabel: 'Entendido',     anim: 'warning' },
+            confirm: { icon: 'help-circle',    iconBg: 'bg-blue-50',  iconColor: 'text-blue-600',  dual: true,  okBg: OK_PRIMARIO, okLabel: 'Confirmar',     anim: 'question' },
+            cancel:  { icon: 'alert-triangle', iconBg: 'bg-red-50',   iconColor: 'text-red-500',   dual: true,  okBg: OK_PRIMARIO, okLabel: 'Sí, continuar', anim: 'warning' }
         };
 
         const type = String((options && options.type) || 'message').toLowerCase();
@@ -6547,6 +6600,8 @@ class Templates extends Components {
             icon:        base.icon,
             iconBg:      base.iconBg,
             iconColor:   base.iconColor,
+            // Como entra el icono: success | error | warning | info | question.
+            anim:        base.anim,
             title:       '',
             detailHtml:  '',
             dual:        base.dual,
@@ -6585,15 +6640,25 @@ class Templates extends Components {
             ? `<i data-lucide="${opts.okIcon}" class="w-3.5 h-3.5"></i>`
             : '';
 
+        // El de éxito es un dibujo propio (aro, arco que lo recorre y palomita) para
+        // trazarlos por separado como swal. Con otro `icon` queda el de Lucide.
+        const iconHtml = opts.anim === 'success' && opts.icon === presets.success.icon
+            ? `<svg class="tf-ab-ok ${opts.iconColor}" viewBox="0 0 24 24" aria-hidden="true">
+                   <circle class="tf-ab-ok-ring" cx="12" cy="12" r="10"></circle>
+                   <circle class="tf-ab-ok-arc" cx="12" cy="12" r="10" pathLength="100"></circle>
+                   <path class="tf-ab-ok-check" d="m9 12 2 2 4-4" pathLength="100"></path>
+               </svg>`
+            : `<i data-lucide="${opts.icon}" class="tf-ab-mark w-7 h-7 ${opts.iconColor}"></i>`;
+
         const escAttr = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
 
         const inputType = opts.input === true ? 'text' : opts.input;
         const inputField = inputType === 'textarea'
-            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600">${escAttr(opts.inputValue)}</textarea>`
+            ? `<textarea data-ab-input rows="3" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-main/25 focus:border-main">${escAttr(opts.inputValue)}</textarea>`
             : inputType
-                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/40 focus:border-blue-600">`
+                ? `<input type="${escAttr(inputType)}" data-ab-input value="${escAttr(opts.inputValue)}" placeholder="${escAttr(opts.inputPlaceholder)}" class="w-full px-3 py-2 text-[13px] text-gray-800 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-main/25 focus:border-main">`
                 : '';
 
         const inputHtml = inputField
@@ -6623,8 +6688,8 @@ class Templates extends Components {
                 <div class="absolute inset-0 bg-black/40 tf-ab-backdrop tf-ab-in" data-ab-backdrop></div>
                 <div class="tf-alert-card tf-ab-in relative z-10 ${opts.width} max-w-[88%] bg-white border border-gray-200 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
                     <div class="flex flex-col items-center text-center px-5 pt-5 ${isToast ? 'pb-5' : 'pb-4'}">
-                        <div class="w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
-                            <i data-lucide="${opts.icon}" class="w-7 h-7 ${opts.iconColor}"></i>
+                        <div class="tf-ab-icon tf-ab-icon-${opts.anim} w-14 h-14 rounded-full ${opts.iconBg} flex items-center justify-center mb-3.5">
+                            ${iconHtml}
                         </div>
                         <p class="text-[14px] font-bold text-gray-800 leading-snug">${opts.title}</p>
                         ${detailHtml}

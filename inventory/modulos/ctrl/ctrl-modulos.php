@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 require_once '../mdl/mdl-modulos.php';

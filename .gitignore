@@ -29,6 +29,10 @@ app/facture/sql/backup/
 # Snapshots de Playwright MCP - runtime, no versionar
 .playwright-mcp/
 
+# Sesiones de inventory (conf/_Session.php). La carpeta viaja por su .htaccess;
+# los archivos sess_* son runtime.
+inventory/sessions/sess_*
+
 # ImageLab: credenciales, imagenes generadas y base de trabajos. Todo runtime.
 imagelab/.env
 imagelab/uploads/

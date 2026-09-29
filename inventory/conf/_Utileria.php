@@ -38,14 +38,15 @@ function sql($arreglo,$slice = 0){
 // inventory/operacion/almacen/js/catalogo.js (badgeColors/badgePreview). El color es el
 // FONDO y el texto se adapta (mismo matiz, mas claro y vivo). Mantener los tres en sync
 // (excepcion: la clase cs-badge-soft del modelo de 2 colores es solo de inventory).
-function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon = null) {
+// $radius: clase de redondeo de Tailwind ('rounded' por defecto, 'rounded-full' = pastilla).
+function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon = null, $radius = 'rounded') {
     $label = ($text === null || $text === '') ? '-' : $text;
     $ico   = ($icon !== null && $icon !== '')
         ? '<i data-lucide="' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . '" class="w-3 h-3"></i> '
         : '';
     $spanClass = $ico
-        ? 'inline-flex items-center gap-1 text-[10px] font-semibold px-3 py-1 rounded'
-        : 'text-[10px] font-semibold px-3 py-1 rounded';
+        ? 'inline-flex items-center gap-1 text-[10px] font-semibold px-3 py-1 ' . $radius
+        : 'text-[10px] font-semibold px-3 py-1 ' . $radius;
 
     // Modelo de 2 colores: $bgHex es el fondo explicito y $color el color del texto.
     // Cuando se recibe $bgHex se ignora la derivacion automatica.

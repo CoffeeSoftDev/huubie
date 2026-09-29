@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 
@@ -148,6 +148,40 @@ class ctrl extends mdl {
         ];
     }
 
+    // Los productos de la categoría no se borran: su category_id queda en NULL.
+    function deleteCategory() {
+        $id       = (int) ($_POST['id'] ?? 0);
+        $category = $this->getCategoryById([$id]);
+
+        if (!$category || (int) $category['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Categoría no encontrada'
+            ];
+        }
+
+        $productos = (int) $this->countItemsByCategory([$id]);
+
+        try {
+            $this->transaction(function () use ($id) {
+                $this->updateItemsCategoryNull([$id]);
+                $this->deleteCategoryById([$id]);
+            });
+        } catch (\Throwable $e) {
+            return [
+                'status'  => 500,
+                'message' => 'No se pudo eliminar la categoría'
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => $productos > 0
+                ? "Categoría eliminada. {$productos} producto(s) quedaron sin categoría"
+                : 'Categoría eliminada'
+        ];
+    }
+
     // Area --
 
 
@@ -181,6 +215,7 @@ class ctrl extends mdl {
             $rows[] = [
                 'id'              => $item['id'],
                 'Área'            => $item['valor'],
+                'Almacén'         => $item['almacen'] ?? '-',
                 'Estado'          => renderStatus($item['active']),
                 'a'               => $a
             ];
@@ -217,16 +252,23 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear área';
 
+        if (empty($_POST['warehouse_id'])) {
+            return [
+                'status'  => 400,
+                'message' => 'Elige el almacén al que pertenece el área'
+            ];
+        }
+
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
 
-        $exists = $this->existsAreaByName([$_POST['name']]);
+        $exists = $this->existsAreaByName([$_POST['name'], $_POST['warehouse_id'], 0]);
 
         if ($exists > 0) {
             return [
                 'status'  => 409,
-                'message' => 'Ya existe un área con ese nombre'
+                'message' => 'Ese almacén ya tiene un área con ese nombre'
             ];
         }
 
@@ -311,7 +353,7 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'       => $item['id'],
-                'Código'   => $item['code'],
+                'Código'   => renderCode($item['code']),
                 'Unidad'   => $item['valor'],
                 'Estado'   => renderStatus($item['active']),
                 'a'        => $a
@@ -413,17 +455,48 @@ class ctrl extends mdl {
             'message' => $message
         ];
     }
+
+    // Solo si nadie la usa: productos, entradas y órdenes de compra la referencian (FK RESTRICT).
+    function deleteUnit() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $unit = $this->getUnitById([$id]);
+
+        if (!$unit || (int) $unit['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Unidad no encontrada'
+            ];
+        }
+
+        $uso = (int) $this->countUnitUsage([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Esta unidad la usan {$uso} producto(s) o movimiento(s). Solo se puede desactivar."
+            ];
+        }
+
+        $delete = $this->deleteUnitById([$id]);
+
+        return [
+            'status'  => $delete ? 200 : 500,
+            'message' => $delete ? 'Unidad eliminada' : 'No se pudo eliminar la unidad'
+        ];
+    }
     // Origen de entradas -- (catalogo global)
 
     function lsInflow() {
         $active = $_POST['active'] ?? 1;
-        $ls     = $this->listInflow([$active]);
+        $ls     = $this->listInflow([$active]) ?: [];
         $rows   = [];
+        $last   = count($ls) - 1;
 
-        foreach ($ls as $item) {
+        foreach ($ls as $i => $item) {
             $a = [];
 
             if ($active == 1) {
+                $a   = sortButtons('inflow.moveInflow', $item['id'], $i === 0, $i === $last);
                 $a[] = [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -444,8 +517,8 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'                => $item['id'],
+                'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon'], 'rounded-full'),
                 'Código'            => renderCode($item['code']),
-                'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon']),
                 'Requiere proveedor'=> ($item['requires_supplier'] == 1 ? 'Sí' : 'No'),
                 'Estado'            => renderStatus($item['active']),
                 'a'                 => $a
@@ -483,7 +556,8 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear origen';
 
-        $_POST['active'] = 1;
+        $_POST['active']     = 1;
+        $_POST['sort_order'] = $this->getMaxInflowSort() + 10;
 
         $exists = $this->existsInflowByName([$_POST['name']]);
 
@@ -546,17 +620,44 @@ class ctrl extends mdl {
         ];
     }
 
+    // El orden manda en el selector de Entradas.
+    function moveInflow() {
+        $rows  = $this->listInflow([1]) ?: [];
+        $order = $this->reorder($rows, (int) $_POST['id'], $_POST['dir'] ?? '');
+
+        if (!$order) {
+            return [
+                'status'  => 404,
+                'message' => 'Origen no encontrado'
+            ];
+        }
+
+        $actual = array_column($rows, 'sort_order', 'id');
+
+        foreach ($order as $id => $sort) {
+            if ((int) $actual[$id] === $sort) continue;
+            $this->updateInflow($this->util->sql(['sort_order' => $sort, 'id' => $id], 1));
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Orden actualizado'
+        ];
+    }
+
     // Motivos de salida -- (catalogo global)
 
     function lsShrinkage() {
         $active = $_POST['active'] ?? 1;
-        $ls     = $this->listShrinkage([$active]);
+        $ls     = $this->listShrinkage([$active]) ?: [];
         $rows   = [];
+        $last   = count($ls) - 1;
 
-        foreach ($ls as $item) {
+        foreach ($ls as $i => $item) {
             $a = [];
 
             if ($active == 1) {
+                $a   = sortButtons('shrinkage.moveShrinkage', $item['id'], $i === 0, $i === $last);
                 $a[] = [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -577,8 +678,8 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'      => $item['id'],
-                'Código'  => $item['code'],
-                'Motivo'  => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
+                'Motivo'  => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon'], 'rounded-full'),
+                'Código'  => renderCode($item['code']),
                 'Estado'  => renderStatus($item['active']),
                 'a'       => $a
             ];
@@ -615,7 +716,8 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear motivo';
 
-        $_POST['active'] = 1;
+        $_POST['active']     = 1;
+        $_POST['sort_order'] = $this->getMaxShrinkageSort() + 10;
 
         $exists = $this->existsShrinkageByName([$_POST['name']]);
 
@@ -675,6 +777,31 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message
+        ];
+    }
+
+    // El orden manda en el selector de Salidas.
+    function moveShrinkage() {
+        $rows  = $this->listShrinkage([1]) ?: [];
+        $order = $this->reorder($rows, (int) $_POST['id'], $_POST['dir'] ?? '');
+
+        if (!$order) {
+            return [
+                'status'  => 404,
+                'message' => 'Motivo no encontrado'
+            ];
+        }
+
+        $actual = array_column($rows, 'sort_order', 'id');
+
+        foreach ($order as $id => $sort) {
+            if ((int) $actual[$id] === $sort) continue;
+            $this->updateShrinkage($this->util->sql(['sort_order' => $sort, 'id' => $id], 1));
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Orden actualizado'
         ];
     }
 
@@ -806,7 +933,7 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'          => $item['id'],
-                'Almacén'     => $item['valor'],
+                'Almacén'     => renderWarehouse($item['valor']),
                 'Sucursal'    => $item['branch_name'] ?? '—',
                 'Por defecto' => ($item['is_default'] == 1 ? 'Sí' : 'No'),
                 'Estado'      => renderStatus($item['active']),
@@ -1060,12 +1187,58 @@ class ctrl extends mdl {
             'data'   => $this->listBranchesSelect([$companyId])
         ];
     }
+
+    // Mueve una fila un lugar ('up' | 'down') y renumera todas de 10 en 10, así también
+    // se acomodan las que traían el mismo sort_order. Devuelve [id => sort_order] o [].
+    private function reorder($rows, $id, $dir) {
+        $ids = array_map('intval', array_column($rows, 'id'));
+        $pos = array_search($id, $ids, true);
+
+        if ($pos === false) return [];
+
+        $to = $dir === 'up' ? $pos - 1 : $pos + 1;
+
+        if (isset($ids[$to])) {
+            [$ids[$pos], $ids[$to]] = [$ids[$to], $ids[$pos]];
+        }
+
+        $order = [];
+        foreach ($ids as $i => $rowId) {
+            $order[$rowId] = ($i + 1) * 10;
+        }
+
+        return $order;
+    }
 }
 
 // Complements
 
 function renderCode($code) {
     return '<span class="inline-block px-2 py-0.5 rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold font-mono text-gray-600">' . htmlspecialchars($code ?? '', ENT_QUOTES) . '</span>';
+}
+
+// Flechas de orden manual. La primera fila no sube y la última no baja.
+function sortButtons($fn, $id, $first, $last) {
+    $btn = 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] transition-colors bg-transparent border-0 ';
+
+    return [
+        [
+            'class'   => $btn . ($first ? 'opacity-30 pointer-events-none' : 'hover:text-blue-600 cursor-pointer'),
+            'html'    => '<i data-lucide="chevron-up" class="w-4 h-4"></i>',
+            'title'   => 'Subir',
+            'onclick' => $first ? '' : $fn . '(' . $id . ', \'up\')'
+        ],
+        [
+            'class'   => $btn . ($last ? 'opacity-30 pointer-events-none' : 'hover:text-blue-600 cursor-pointer'),
+            'html'    => '<i data-lucide="chevron-down" class="w-4 h-4"></i>',
+            'title'   => 'Bajar',
+            'onclick' => $last ? '' : $fn . '(' . $id . ', \'down\')'
+        ]
+    ];
+}
+
+function renderWarehouse($name) {
+    return '<span class="inline-flex items-center gap-2"><i data-lucide="warehouse" class="w-4 h-4 text-gray-400"></i>' . htmlspecialchars($name ?? '', ENT_QUOTES) . '</span>';
 }
 
 function renderStatus($active) {

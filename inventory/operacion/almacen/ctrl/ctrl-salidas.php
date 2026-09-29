@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 
 header("Access-Control-Allow-Origin: *");
@@ -78,13 +78,11 @@ class ctrl extends mdl {
             $row[] = [
                 'id'         => $salida['id'],
                 'Folio'      => $salida['folio'],
-                'Motivo'     => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
-                'Sucursal'   => $salida['branch_name'] ?: '-',
-                'Almacen'    => $salida['warehouse_name']  ?: '-',
-                'Productos'  => (int) $salida['total_products'],
-                'Unidades'   => (float) $salida['total_units'],
-                'Costo'      => '<span class="text-red-400">' . evaluar((float) $salida['total_cost_loss']) . '</span>',
                 'Fecha'      => date('Y-m-d H:i', strtotime($salida['created_at'])),
+                'Tipo'       => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
+                'Sucursal'   => $salida['branch_name'] ?: '-',
+                'Origen'     => $salida['warehouse_name']  ?: '-',
+                'Costo'      => '<span class="text-red-400">' . evaluar((float) $salida['total_cost_loss']) . '</span>',
                 'Estado'     => statusBadge($salida['status']),
                 'Registrado' => $salida['user_name'] ?: '-',
                 'a' => [

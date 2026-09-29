@@ -1,16 +1,6 @@
 <?php
-/*  SESION DE 8 HORAS.
-
-    Se fija ANTES de session_start(), que es cuando nace la sesion del login y
-    cuando se manda su cookie: despues ya no sirve de nada. El .htaccess de
-    inventory pone lo mismo para el resto de las peticiones (ahi hace falta
-    porque el recolector de sesiones corre en cualquiera de ellas); esto de aqui
-    cubre la que de verdad importa y funciona aunque el hosting ignore el
-    php_value del .htaccess. */
-ini_set('session.gc_maxlifetime', 28800);
-session_set_cookie_params(28800);
-
-session_start();
+// Sesion de 8 horas, propia de inventory: ver conf/_Session.php.
+require_once __DIR__ . '/../../conf/_Session.php';
 if (empty($_POST['opc'])) exit(0);
 $opc = $_POST['opc'];
 
@@ -42,6 +32,10 @@ class Access extends MAccess {
             if (!$valid) {
                 return false;
             }
+
+            // Id nuevo en cada login: la cookie sale con sus 8 horas completas y
+            // nadie puede entrar con un id que ya conociera de antes.
+            session_regenerate_id(true);
 
             $expira = time() + (365 * 24 * 60 * 60);
             setcookie("IDU",        $usr['IDU'],        $expira, "/");

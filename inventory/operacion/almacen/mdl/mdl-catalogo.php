@@ -67,21 +67,46 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
-    // Área -> warehouse_area
+    function countItemsByCategory($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}item
+            WHERE category_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function updateItemsCategoryNull($array) {
+        return $this->_CUD("UPDATE {$this->bd}item SET category_id = NULL WHERE category_id = ?", $array);
+    }
+
+    function deleteCategoryById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}item_category",
+            'where' => 'id',
+            'data'  => $array
+        ]);
+    }
+
+    // Área -> warehouse_area (cada área es un lugar dentro de un almacén)
 
     function listArea($array) {
         $query = "
             SELECT
-                id,
-                name as valor,
-                description,
-                color_hex,
-                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
-                active
-            FROM {$this->bd}warehouse_area
-            WHERE active = ?
-            AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY id DESC
+                wa.id,
+                wa.name as valor,
+                wa.description,
+                wa.color_hex,
+                wa.warehouse_id,
+                w.name as almacen,
+                DATE_FORMAT(wa.created_at, '%d/%m/%Y') as date_creation,
+                wa.active
+            FROM {$this->bd}warehouse_area wa
+            LEFT JOIN {$this->bd}warehouse w ON w.id = wa.warehouse_id
+            WHERE wa.active = ?
+            AND wa.companies_id = ".$_SESSION['company_id']."
+            ORDER BY wa.id DESC
         ";
         return $this->_Read($query, $array);
     }
@@ -113,11 +138,14 @@ class mdl extends CRUD {
         ]);
     }
 
+    // El nombre se repite solo entre almacenes distintos. Params: [name, warehouse_id, id a excluir]
     function existsAreaByName($array) {
         $query = "
             SELECT COUNT(*) as total
             FROM {$this->bd}warehouse_area
             WHERE LOWER(name) = LOWER(?)
+            AND warehouse_id = ?
+            AND id <> ?
             AND active = 1
             AND companies_id = ".$_SESSION['company_id']."
         ";
@@ -182,6 +210,26 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    function countUnitUsage($array) {
+        $id    = $array[0];
+        $query = "
+            SELECT
+                (SELECT COUNT(*) FROM {$this->bd}item_attribute          WHERE unit_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_inflow WHERE unit_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_purchase_order   WHERE unit_id = ?) AS total
+        ";
+        $result = $this->_Read($query, [$id, $id, $id]);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function deleteUnitById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}unit",
+            'where' => 'id',
+            'data'  => $array
+        ]);
+    }
+
     // Origen de entradas -> inflow_origin (catalogo global, sin companies_id)
 
     function listInflow($array) {
@@ -194,12 +242,18 @@ class mdl extends CRUD {
                 color_hex,
                 bg_hex,
                 requires_supplier,
+                sort_order,
                 active
             FROM {$this->bd}inflow_origin
             WHERE active = ?
-            ORDER BY id DESC
+            ORDER BY sort_order ASC, id ASC
         ";
         return $this->_Read($query, $array);
+    }
+
+    function getMaxInflowSort() {
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}inflow_origin", null);
+        return (int) ($result[0]['total'] ?? 0);
     }
 
     function getInflowById($array) {
@@ -251,12 +305,18 @@ class mdl extends CRUD {
                 icon,
                 color_hex,
                 bg_hex,
+                sort_order,
                 active
             FROM {$this->bd}shrinkage_reason
             WHERE active = ?
-            ORDER BY id DESC
+            ORDER BY sort_order ASC, id ASC
         ";
         return $this->_Read($query, $array);
+    }
+
+    function getMaxShrinkageSort() {
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}shrinkage_reason", null);
+        return (int) ($result[0]['total'] ?? 0);
     }
 
     function getShrinkageById($array) {

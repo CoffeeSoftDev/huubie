@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../conf/_Session.php';
 
 // Validar sesión de usuario
 if (empty($_SESSION["IDU"])) {
