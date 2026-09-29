@@ -38,6 +38,11 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = [
+                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 transition-colors cursor-pointer bg-transparent border-0',
+                    'html'    => '<i data-lucide="trash-2" class="w-4 h-4"></i>',
+                    'onclick' => 'category.deleteCategory(' . $item['id'] . ')'
+                ];
             }
 
             $rows[] = [
