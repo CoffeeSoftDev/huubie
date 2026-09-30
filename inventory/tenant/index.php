@@ -108,6 +108,7 @@ $embed = isset($_GET['embed']);
     <script src="js/saas.js?t=<?php echo time(); ?>"></script>
     <script src="js/access.js?t=<?php echo time(); ?>"></script>
     <script src="js/temas.js?t=<?php echo time(); ?>"></script>
+    <script src="js/coffee-ia.js?t=<?php echo time(); ?>"></script>
     <script src="js/tenant.js?t=<?php echo time(); ?>"></script>
 </body>
 </html>

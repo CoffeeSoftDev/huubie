@@ -16,7 +16,8 @@ class ctrl extends mdl {
             'areas'       => $this->lsAreas(),
             'proveedores' => $this->lsProveedores(),
             'almacenes'   => $this->lsWarehouses(),
-            'superadmin'  => $this->esSuperAdminIA()
+            'superadmin'  => $this->esSuperAdminIA(),
+            'coffeeia'    => $this->iaEncendida()
         ];
     }
 
@@ -490,8 +491,13 @@ class ctrl extends mdl {
 
         El comportamiento (tono y reglas del negocio) vive en ia/asistente-catalogo.md
         y se edita sin tocar PHP. Lo que no se puede romper desde ese archivo --qué
-        entidades y campos existen, el formato JSON y los datos vivos-- lo arma promptIA(). */
+        entidades y campos existen, el formato JSON y los datos vivos-- lo arma promptIA().
 
+        Desde el Administrador (tenant > CoffeeIA) se pueden fijar los modelos, el
+        esfuerzo y un prompt que manda sobre el archivo, y apagar el asistente por
+        empresa. Sin renglón en fayxzvov_erp.ia_assistants todo sigue como arriba. */
+
+    const IA_ASISTENTE    = 'almacen-catalogo';
     const IA_MAX_CAMBIOS  = 150;
     const IA_MAX_CATALOGO = 1500;
 
@@ -592,7 +598,9 @@ class ctrl extends mdl {
         }
 
         if ($clase === 'imagen') {
-            $ia = IaOllama::desdeCredenciales();
+            if (!$this->iaEncendida()) return ['status' => 403, 'message' => 'CoffeeIA está apagado para tu empresa.'];
+
+            $ia = IaOllama::desdeCredenciales($this->ajustesIA() ?? []);
 
             if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
@@ -636,7 +644,9 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Escríbeme qué quieres hacer o adjunta un archivo.'];
         }
 
-        $ia = IaOllama::desdeCredenciales();
+        if (!$this->iaEncendida()) return ['status' => 403, 'message' => 'CoffeeIA está apagado para tu empresa.'];
+
+        $ia = IaOllama::desdeCredenciales($this->ajustesIA() ?? []);
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
@@ -794,11 +804,13 @@ class ctrl extends mdl {
         return $mensajes;
     }
 
-    // Tres partes: el contexto editable (ia/asistente-catalogo.md), el contrato
-    // (entidades, campos y formato JSON, que valida validarCambiosIA) y los datos vivos.
+    // Tres partes: el contexto editable (el prompt del tenant o, si no hay,
+    // ia/asistente-catalogo.md), el contrato (entidades, campos y formato JSON,
+    // que valida validarCambiosIA) y los datos vivos.
     private function promptIA($ctx, $super) {
         $ruta     = __DIR__ . '/../ia/asistente-catalogo.md';
-        $reglas   = is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '';
+        $propio   = trim((string) ($this->ajustesIA()['prompt'] ?? ''));
+        $reglas   = $propio !== '' ? $propio : (is_readable($ruta) ? trim(preg_replace('/<!--.*?-->/s', '', (string) file_get_contents($ruta))) : '');
         $sucursal = array_column($ctx['branch'], 'valor', 'id');
         $estado   = function ($r) { return (int) $r['active'] === 1 ? 'activo' : 'baja'; };
         $filas    = [];
@@ -1471,6 +1483,29 @@ class ctrl extends mdl {
         }
 
         return 'Sucursal ' . $id;
+    }
+
+    // -- Asistente IA · ajustes del tenant --
+
+    // Ajustes del tenant para este asistente, leídos una vez por petición.
+    // null = no hay renglón (o aún no corre la migración): manda el .env y el .md.
+    private $ajustesIA = false;
+
+    private function ajustesIA() {
+        if ($this->ajustesIA === false) $this->ajustesIA = $this->getAssistantIA([self::IA_ASISTENTE]);
+
+        return $this->ajustesIA;
+    }
+
+    // Apagado en el tenant para todas las empresas o solo para esta.
+    private function iaEncendida() {
+        $a = $this->ajustesIA();
+
+        if ($a === null)                return true;
+        if ((int) $a['is_active'] !== 1) return false;
+        if (empty($_SESSION['company_id'])) return true;
+
+        return $this->getAssistantAccessIA([(int) $a['id'], (int) $_SESSION['company_id']]);
     }
 
     // -- Asistente IA · vaciado (Super Admin) --

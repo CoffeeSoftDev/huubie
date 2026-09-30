@@ -50,16 +50,57 @@ class IaOllama {
     }
 
     // null si no hay .env o no trae llave; quien llama lo traduce a "no esta configurado".
-    static function desdeCredenciales() {
+    // $ajustes son los del tenant (fayxzvov_erp.ia_assistants): text_model,
+    // vision_model y think. Vacio o null = lo del .env / las constantes.
+    static function desdeCredenciales($ajustes = []) {
+        $env = self::leerEnv();
+
+        if ($env === null || trim((string) ($env['OLLAMA_API_KEY'] ?? '')) === '') return null;
+
+        return new IaOllama(self::conAjustes($env, is_array($ajustes) ? $ajustes : []));
+    }
+
+    // Lo que corre cuando el tenant no fija nada. El tenant lo muestra como "Por defecto".
+    static function porDefecto() {
+        $env    = self::leerEnv() ?? [];
+        $modelo = trim((string) ($env['IA_PRODUCTOS_MODEL'] ?? '')) ?: self::MODELO;
+
+        return [
+            'text_model'   => $modelo,
+            'vision_model' => trim((string) ($env['IA_VISION_MODEL'] ?? '')) ?: self::VISION,
+            'think'        => isset($env['IA_PRODUCTOS_THINK'])
+                ? trim((string) $env['IA_PRODUCTOS_THINK'])
+                : ($modelo === self::MODELO ? self::ESFUERZO : ''),
+            'key'          => trim((string) ($env['OLLAMA_API_KEY'] ?? '')) !== ''
+        ];
+    }
+
+    private static function leerEnv() {
         $ruta = dirname(__DIR__, 2) . '/coffee/app/credentials/.env';
 
         if (!is_readable($ruta)) return null;
 
         $env = @parse_ini_file($ruta, false, INI_SCANNER_TYPED);
 
-        if (!is_array($env) || trim((string) ($env['OLLAMA_API_KEY'] ?? '')) === '') return null;
+        return is_array($env) ? $env : null;
+    }
 
-        return new IaOllama($env);
+    // Si el tenant cambia el modelo y deja el esfuerzo en automatico, se olvida el
+    // IA_PRODUCTOS_THINK del .env: era para otro modelo y un nivel que no admite es un 400.
+    private static function conAjustes($env, $ajustes) {
+        $modelo = trim((string) ($ajustes['text_model'] ?? ''));
+        $vision = trim((string) ($ajustes['vision_model'] ?? ''));
+        $think  = trim((string) ($ajustes['think'] ?? ''));
+
+        if ($modelo !== '') {
+            $env['IA_PRODUCTOS_MODEL'] = $modelo;
+            if ($think === '') unset($env['IA_PRODUCTOS_THINK']);
+        }
+
+        if ($vision !== '') $env['IA_VISION_MODEL']    = $vision;
+        if ($think !== '')  $env['IA_PRODUCTOS_THINK'] = $think;
+
+        return $env;
     }
 
     // Devuelve ['ok', 'data', 'error']. 'data' es el objeto JSON ya decodificado.

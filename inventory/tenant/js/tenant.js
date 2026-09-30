@@ -64,10 +64,13 @@ $(async () => {
     users           = new Users(api, 'root');
     branches        = new Branches(api, 'root');
     themes          = new Themes('ctrl/ctrl-temas.php', 'root');
+    assistants         = new Assistants(apiCoffeeIA, 'root');
+    assistantCompanies = new AssistantCompanies(apiCoffeeIA, 'root');
 
     facturacion = new FacturacionGroup(api, 'root');
     promociones = new PromocionesGroup(api, 'root');
     accesos     = new AccesosGroup(api, 'root');
+    coffeeIA    = new CoffeeIAGroup(apiCoffeeIA, 'root');
 
     app = new App(api, 'root');
     app.render();
@@ -158,6 +161,13 @@ class App extends Templates {
                     class: 'p-3 flex-1 min-h-0 flex flex-col',
                     lucideIcon: 'palette',
                     onClick: () => themes.render()
+                },
+                {
+                    id: 'grp-coffeeia',
+                    tab: 'CoffeeIA',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
+                    lucideIcon: 'sparkles',
+                    onClick: () => coffeeIA.render()
                 },
             ]
         });

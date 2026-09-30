@@ -396,6 +396,33 @@ class mdl extends CRUD {
         return !empty($this->_Read($query, $array));
     }
 
+    // CoffeeIA desde el tenant (tenant/docs/sql/2026-09-30_coffee-ia.sql).
+    // Si la tabla aún no existe, _Read no devuelve renglones y queda null.
+    function getAssistantIA($array) {
+        // [code]
+        $query = "
+            SELECT id, text_model, vision_model, think, prompt, is_active
+            FROM fayxzvov_erp.ia_assistants
+            WHERE code = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
+    // Sin renglón = encendido.
+    function getAssistantAccessIA($array) {
+        // [assistants_id, companies_id]
+        $query = "
+            SELECT is_active
+            FROM fayxzvov_erp.ia_company_access
+            WHERE assistants_id = ? AND companies_id = ?
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? (int) $r[0]['is_active'] === 1 : true;
+    }
+
     // Lista blanca de tablas que se pueden vaciar. Los detalles no llevan
     // companies_id: se filtran por su encabezado [tabla padre, columna que los une].
     private function purgeTarget($table) {

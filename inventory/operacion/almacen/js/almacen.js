@@ -1,6 +1,6 @@
 let api = 'ctrl/ctrl-almacen.php';
 let main, products, asistente, conteo;
-let categorias, unidades, areas, proveedores, almacenes, superAdmin;
+let categorias, unidades, areas, proveedores, almacenes, superAdmin, iaEncendida;
 
 // Catalogo
 let api_catalogo = 'ctrl/ctrl-catalogo.php';
@@ -14,6 +14,7 @@ $(async () => {
     proveedores    = data.proveedores || [];
     almacenes      = data.almacenes   || [];
     superAdmin     = !!data.superadmin;
+    iaEncendida    = data.coffeeia !== false;
 
     main = new Main(api, "root");
     main.render();
@@ -218,7 +219,8 @@ class Productos extends Templates {
                     color_btn: "primary",
                     onClick: () => this.addMaterial()
                 },
-                {
+                // Apagado desde el tenant (Administrador > CoffeeIA): sin botón.
+                ...(iaEncendida ? [{
                     opc: "button",
                     id: "btnAsistenteIA",
                     text: "CoffeeIA",
@@ -227,7 +229,7 @@ class Productos extends Templates {
                     class: "col-12 col-md-2",
                     color_btn: "outline",
                     onClick: () => asistente.render()
-                },
+                }] : []),
                 {
                     opc: "button",
                     id: "btnFormatoConteo",
