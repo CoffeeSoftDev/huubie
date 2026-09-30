@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Propuesta de vista (Fase 1, mockup estatico): apartado CoffeeIA del Administrador (inventory/tenant). -->
+<title>CoffeeIA en el Tenant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    bg: 'var(--bg)', card: 'var(--card)', sunken: 'var(--sunken)', line: 'var(--line)', 'line-strong': 'var(--line-strong)',
+                    fg: 'var(--fg)', fg2: 'var(--fg-2)', muted: 'var(--muted)',
+                    accent: 'var(--accent)', 'accent-soft': 'var(--accent-soft)', primary: 'var(--primary)',
+                    ok: 'var(--ok)', 'ok-soft': 'var(--ok-soft)', warn: 'var(--warn)', 'warn-soft': 'var(--warn-soft)',
+                    bad: 'var(--bad)', 'bad-soft': 'var(--bad-soft)', info: 'var(--info)', 'info-soft': 'var(--info-soft)'
+                },
+                fontFamily: {
+                    sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+                    mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+                }
+            }
+        }
+    };
+</script>
+<style>
+    /* Layout: marco del tenant -> franja de estado -> maestro (asistentes) / detalle (banco de trabajo con pestañas).
+       Paleta Huubie (coffee-magic-ui.md): claro como el tenant, oscuro #111928/#1F2A37; acento morado, primario azul. */
+    :root {
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --sunken: #f9fafb;
+        --line: #e5e7eb;
+        --line-strong: #d1d5db;
+        --fg: #111928;
+        --fg-2: #374151;
+        --muted: #6b7280;
+        --accent: #7c3aed;
+        --accent-soft: rgba(124, 58, 237, .09);
+        --accent-line: rgba(124, 58, 237, .35);
+        --primary: #1c64f2;
+        --primary-hover: #1a56db;
+        --ok: #057a55;
+        --ok-soft: rgba(14, 159, 110, .12);
+        --warn: #9f580a;
+        --warn-soft: rgba(227, 160, 8, .16);
+        --bad: #c81e1e;
+        --bad-soft: rgba(240, 82, 82, .12);
+        --info: #1a56db;
+        --info-soft: rgba(28, 100, 242, .10);
+        --shadow: 0 1px 2px rgba(17, 25, 40, .06), 0 1px 3px rgba(17, 25, 40, .05);
+        --overlay: rgba(17, 25, 40, .45);
+        --code-bg: #f9fafb;
+        --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --bg: #111928; --card: #1F2A37; --sunken: #1a2332; --line: #374151; --line-strong: #4b5563;
+            --fg: #ffffff; --fg-2: #d1d5db; --muted: #9ca3af;
+            --accent: #a78bfa; --accent-soft: rgba(124, 58, 237, .18); --accent-line: rgba(167, 139, 250, .45);
+            --primary: #1c64f2; --primary-hover: #3f83f8;
+            --ok: #3fc189; --ok-soft: rgba(63, 193, 137, .15); --warn: #facc15; --warn-soft: rgba(250, 204, 21, .13);
+            --bad: #f98080; --bad-soft: rgba(234, 2, 52, .16); --info: #76a9fa; --info-soft: rgba(28, 100, 242, .18);
+            --shadow: 0 1px 2px rgba(0, 0, 0, .3); --overlay: rgba(0, 0, 0, .6); --code-bg: #141d2b;
+            color-scheme: dark;
+        }
+    }
+    :root[data-theme="dark"] {
+        --bg: #111928; --card: #1F2A37; --sunken: #1a2332; --line: #374151; --line-strong: #4b5563;
+        --fg: #ffffff; --fg-2: #d1d5db; --muted: #9ca3af;
+        --accent: #a78bfa; --accent-soft: rgba(124, 58, 237, .18); --accent-line: rgba(167, 139, 250, .45);
+        --primary: #1c64f2; --primary-hover: #3f83f8;
+        --ok: #3fc189; --ok-soft: rgba(63, 193, 137, .15); --warn: #facc15; --warn-soft: rgba(250, 204, 21, .13);
+        --bad: #f98080; --bad-soft: rgba(234, 2, 52, .16); --info: #76a9fa; --info-soft: rgba(28, 100, 242, .18);
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3); --overlay: rgba(0, 0, 0, .6); --code-bg: #141d2b;
+        color-scheme: dark;
+    }
+
+    [hidden] { display: none !important; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; }
+    .wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; }
+    h1, h2, h3 { text-wrap: balance; }
+    .mono { font-family: var(--font-mono); }
+    .num { font-variant-numeric: tabular-nums; }
+    .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+    .raised { box-shadow: var(--shadow); }
+
+    /* Pestañas del tenant: mismo gesto que tabLayout type 'short' */
+    .tt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+    .tt:hover { color: var(--fg); }
+    .tt[aria-selected="true"] { background: var(--card); color: var(--fg); font-weight: 600; box-shadow: var(--shadow); }
+
+    /* Pestañas del detalle */
+    .dt { display: inline-flex; align-items: center; gap: 6px; padding: 10px 2px; margin-right: 18px; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+    .dt:hover { color: var(--fg); }
+    .dt[aria-selected="true"] { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+    .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+    .chip-ok { background: var(--ok-soft); color: var(--ok); }
+    .chip-warn { background: var(--warn-soft); color: var(--warn); }
+    .chip-bad { background: var(--bad-soft); color: var(--bad); }
+    .chip-info { background: var(--info-soft); color: var(--info); }
+    .chip-accent { background: var(--accent-soft); color: var(--accent); }
+    .chip-neutral { background: var(--sunken); color: var(--muted); border: 1px solid var(--line); }
+    .dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; flex: none; }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:not(:disabled):hover { background: var(--primary-hover); }
+    .btn-ghost { background: transparent; color: var(--fg-2); border-color: var(--line-strong); }
+    .btn-ghost:not(:disabled):hover { background: var(--sunken); color: var(--fg); }
+    .btn-danger { background: var(--bad); color: #fff; }
+    .btn-sm { font-size: 12px; padding: 6px 10px; }
+    .btn-link { color: var(--accent); font-weight: 600; font-size: 12.5px; }
+    .btn-link:hover { text-decoration: underline; }
+
+    .field { width: 100%; background: var(--sunken); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--fg); }
+    .field::placeholder { color: var(--muted); }
+    .field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .field[aria-invalid="true"] { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .field:focus-visible { outline: none; }
+
+    /* Control segmentado */
+    .seg { display: inline-flex; background: var(--sunken); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+    .seg button { padding: 5px 11px; font-size: 12px; border-radius: 7px; color: var(--muted); font-weight: 500; }
+    .seg button:hover { color: var(--fg); }
+    .seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); font-weight: 600; box-shadow: var(--shadow); }
+
+    /* Switch */
+    .switch { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--line-strong); transition: background .18s; flex: none; }
+    .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .18s; }
+    .switch[aria-checked="true"] { background: var(--accent); }
+    .switch[aria-checked="true"]::after { transform: translateX(16px); }
+    .switch:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Lista de asistentes */
+    .asst { width: 100%; text-align: left; border: 1px solid transparent; border-radius: 10px; padding: 12px; display: grid; gap: 8px; transition: background .15s, border-color .15s; }
+    .asst:hover { background: var(--sunken); }
+    .asst[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent-line); }
+
+    .row-line + .row-line { border-top: 1px solid var(--line); }
+
+    .editor { width: 100%; min-height: 460px; resize: vertical; background: var(--code-bg); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 10px; padding: 16px 18px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; tab-size: 4; }
+    .editor:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    .contract pre { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--fg-2); }
+
+    .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tbl th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; background: var(--sunken); border-bottom: 1px solid var(--line); }
+    .tbl td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    .tbl tr:last-child td { border-bottom: 0; }
+    .tbl tbody tr:hover td { background: var(--sunken); }
+
+    .bubble { background: var(--sunken); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.55; }
+    .bubble-me { background: var(--accent-soft); border-color: var(--accent-line); }
+
+    .savebar { position: sticky; bottom: 12px; z-index: 20; }
+    .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; }
+    .overlay { position: fixed; inset: 0; background: var(--overlay); z-index: 50; display: grid; place-items: center; padding: 16px; }
+
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+    .scroll-x { overflow-x: auto; scrollbar-width: thin; }
+    .note li { padding-left: 18px; position: relative; }
+    .note li::before { content: ''; position: absolute; left: 4px; top: .6em; width: 5px; height: 5px; border-radius: 999px; background: var(--accent); }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+    <!-- Marco del tenant -->
+    <header class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-xl grid place-items-center bg-info-soft text-info flex-none">
+                <i data-lucide="building-2" class="w-6 h-6"></i>
+            </div>
+            <div class="min-w-0">
+                <h1 class="text-xl sm:text-2xl font-semibold tracking-tight">Administrador CoffeeSoft</h1>
+                <p class="text-sm text-muted flex items-center gap-1.5"><i data-lucide="cloud" class="w-3.5 h-3.5"></i>Plataforma SaaS</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="chip chip-accent"><i data-lucide="pencil-ruler" class="w-3 h-3"></i>Propuesta de vista</span>
+            <label class="flex items-center gap-2 text-xs text-muted cursor-pointer select-none" for="simKey">
+                <button id="simKey" class="switch" role="switch" aria-checked="false" aria-label="Simular sin llave de Ollama"></button>
+                Simular sin llave
+            </label>
+            <button id="themeBtn" class="btn btn-ghost btn-sm" aria-label="Cambiar tema"><i data-lucide="sun-moon" class="w-4 h-4"></i><span id="themeLbl">Tema</span></button>
+        </div>
+    </header>
+
+    <nav class="scroll-x mb-4" aria-label="Secciones del tenant">
+        <div class="inline-flex gap-1 p-1 rounded-xl bg-sunken border border-line min-w-max" role="tablist">
+            <button class="tt" data-tenant-tab role="tab" aria-selected="false"><i data-lucide="shield" class="w-4 h-4"></i>Accesos y permisos</button>
+            <button class="tt" data-tenant-tab role="tab" aria-selected="false"><i data-lucide="credit-card" class="w-4 h-4"></i>Facturación</button>
+            <button class="tt" data-tenant-tab role="tab" aria-selected="false"><i data-lucide="ticket-percent" class="w-4 h-4"></i>Promociones</button>
+            <button class="tt" data-tenant-tab role="tab" aria-selected="false"><i data-lucide="palette" class="w-4 h-4"></i>Personalización</button>
+            <button class="tt" role="tab" aria-selected="true"><i data-lucide="sparkles" class="w-4 h-4"></i>CoffeeIA</button>
+        </div>
+    </nav>
+
+    <!-- Franja de estado: lo primero que se lee -->
+    <section id="strip" class="panel raised grid grid-cols-2 lg:grid-cols-4 mb-4" aria-label="Estado de CoffeeIA"></section>
+
+    <!-- Maestro / detalle -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
+
+        <aside class="panel raised p-3 lg:sticky lg:top-4" aria-label="Asistentes">
+            <div class="flex items-center justify-between px-1 pb-2">
+                <h2 class="text-sm font-semibold">Asistentes</h2>
+                <span id="asstCount" class="text-xs text-muted num"></span>
+            </div>
+            <div class="relative mb-2">
+                <i data-lucide="search" class="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input id="asstSearch" class="field" style="padding-left: 34px" placeholder="Buscar por nombre o código" autocomplete="off">
+            </div>
+            <div id="asstList" class="grid gap-1"></div>
+            <p class="text-[11.5px] text-muted px-1 pt-3 mt-2 border-t border-line leading-relaxed">
+                Un asistente nuevo entra con su migración: su <span class="mono">code</span> es la llave con la que el módulo lo busca.
+            </p>
+        </aside>
+
+        <main id="detail" class="min-w-0 grid grid-cols-1 gap-4"></main>
+    </div>
+
+    <!-- Notas de la propuesta -->
+    <section class="panel mt-6 p-5" aria-labelledby="notesTitle">
+        <h2 id="notesTitle" class="text-sm font-semibold mb-1">Qué cambia frente a la versión actual</h2>
+        <p class="text-[13px] text-muted mb-3">Hoy el apartado es una tabla con tres modales (Modelos, Prompt, Estado) y una segunda pestaña con otra tabla de empresas.</p>
+        <ul class="note grid gap-2 text-[13px] text-fg2 md:grid-cols-2">
+            <li>Maestro-detalle: se elige el asistente a la izquierda y todo lo suyo vive en un solo lugar, sin abrir modales.</li>
+            <li>La franja de arriba contesta lo urgente: si hay llave, cuántos asistentes responden y a cuántas empresas les llega.</li>
+            <li>Modelos muestra lo que corre de verdad: lo heredado del <span class="mono">.env</span> se distingue de lo fijado en el tenant.</li>
+            <li>El prompt se edita a lo ancho, junto a lo que el sistema agrega solo (contrato, formato JSON y datos), para que se vea qué no hace falta escribir.</li>
+            <li>Empresas cambia con un switch en la fila y ofrece deshacer, en lugar de una confirmación por cada empresa.</li>
+            <li>Probar es nuevo: manda una pregunta con los ajustes sin guardar y no aplica nada. Necesita un endpoint aparte (<span class="mono">testAsistente</span>).</li>
+        </ul>
+    </section>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="modal" class="overlay" hidden></div>
+
+<script type="text/plain" id="promptFile"># CoffeeIA · Almacén
+
+Eres **CoffeeIA**, el asistente del **catálogo del almacén** de Coffee Inventory. Ayudas a dar de alta, cambiar, dar de baja y reactivar productos, categorías, unidades, áreas, almacenes y proveedores.
+
+Hablas español de México, en frases cortas y claras. Tratas de "tú".
+
+## Cómo trabajas
+
+- Tú **no aplicas nada**: propones cambios y la persona los revisa en una vista previa antes de confirmar. Aun así, propón solo lo que te pidieron.
+- El **mensaje** manda. Los archivos adjuntos (Excel, CSV o fotos ya transcritas) son material de apoyo para lo que pide el mensaje.
+- Si solo llega un archivo con nombres y precios, entiende que quieren actualizar el precio de los productos que existen y dar de alta los que no existen.
+- Busca cada registro en su lista aunque venga escrito distinto: mayúsculas, acentos, abreviaturas, plural, errores de dedo.
+- Si dudas entre dos registros, no lo incluyas y pregunta en tu respuesta cuál es.
+- Si dos fuentes (el mensaje y un archivo, o dos archivos) dan valores distintos para el mismo campo, no lo incluyas y pregunta cuál vale.
+- Si falta un dato obligatorio para una alta (por ejemplo el nombre), pregúntalo en vez de inventarlo.
+
+## Reglas del negocio
+
+- **Precio de venta**: el que paga el cliente, con IVA incluido. Si te dicen que un precio es "sin IVA" o "más IVA", mándalo como precio sin IVA.
+- **IVA**: solo 0, 8 o 16 %. Si no lo sabes, no lo mandes; el producto conserva el que tiene.
+- **Aumentos o descuentos en porcentaje**: calcula el precio nuevo a partir del precio actual y redondea a 2 decimales.
+- **Costo**: es el último costo de compra sin IVA. Normalmente lo actualizan las entradas de almacén; cámbialo solo si lo piden de forma explícita.
+- **SKU**: se asigna solo al dar de alta (clave de la categoría + consecutivo). No lo propongas ni lo cambies.
+- **Área** es el lugar dentro del almacén (anaquel, refrigerador, congelador). **Categoría** es la familia del producto (cortes, lácteos, empaques). No las confundas.
+- **Borrar** registros sueltos no existe: "eliminar", "quitar" o "borrar" uno o varios es dar de baja (desactivar). Se puede reactivar después.
+- **Vaciar** un bloque completo (movimientos, productos o catálogos) es otra cosa: borra para siempre y solo lo puede pedir el Super Admin. Proponlo solo si la persona dice claramente que quiere vaciar, limpiar o borrar todo.
+- Antes de dar de alta algo que ya existe dado de baja, propón **reactivarlo** en lugar de crear otro igual.
+- Si piden mover productos a una categoría, unidad o área que no existe, propón también darla de alta en la misma respuesta.
+- Los nombres de productos se escriben como la persona los escribió; no los traduzcas ni cambies su estilo (si el catálogo usa MAYÚSCULAS, respétalas).
+
+## Lo que no haces
+
+No registras entradas, salidas, traspasos, mermas, órdenes de compra ni existencias. Si te lo piden, dilo con amabilidad e indica que eso se hace en su pantalla del almacén.</script>
+
+<script>
+(() => {
+    const DEFAULTS = { text_model: 'gpt-oss:120b-cloud', vision_model: 'kimi-k2.7-code', think: 'low', base: 'gpt-oss:120b-cloud' };
+    const PROMPT_MAX = 20000;
+    const FILE_PROMPT = document.getElementById('promptFile').textContent.trim();
+    const THINKS = [
+        { id: null, label: 'Auto' }, { id: 'off', label: 'off' }, { id: 'low', label: 'low' },
+        { id: 'medium', label: 'medium' }, { id: 'high', label: 'high' }
+    ];
+
+    const companies = [
+        { id: 1, name: 'CoffeeSoft S.A.' },
+        { id: 2, name: 'Reginas Pasteleria' }
+    ];
+
+    const state = {
+        keyOk: true,
+        selected: 'almacen-catalogo',
+        tab: 'modelos',
+        search: '',
+        drafts: {},
+        test: null,
+        assistants: [
+            {
+                code: 'almacen-catalogo', name: 'Catálogo del almacén', module: 'operacion/almacen', example: false,
+                file: 'operacion/almacen/ia/asistente-catalogo.md',
+                description: 'Altas, cambios, bajas y reactivaciones de productos, categorías, unidades, áreas, almacenes y proveedores.',
+                text_model: null, vision_model: null, think: null, prompt: null, active: true,
+                updated: '30/09/2026 15:06', updated_by: 'Rosy Velasquez',
+                access: { 1: { on: true, by: null, at: null }, 2: { on: false, by: 'Rosy Velasquez', at: '30/09/2026 15:06' } }
+            },
+            {
+                code: 'almacen-conteo', name: 'Conteo físico', module: 'operacion/almacen', example: true,
+                file: null,
+                description: 'Captura el conteo desde la foto de la hoja impresa del formato de conteo.',
+                text_model: null, vision_model: 'llava:13b', think: null,
+                prompt: 'Eres CoffeeIA, el asistente del conteo físico.\n\nTe llega la transcripción de una hoja de conteo: un renglón por producto con SKU, nombre y cantidad contada.\n\n- Relaciona cada renglón con su producto por SKU; si no hay SKU, por nombre.\n- Si una cantidad no se lee, no la inventes: márcala y pregunta.',
+                active: false, updated: '28/09/2026 11:40', updated_by: 'Rosy Velasquez',
+                access: { 1: { on: true, by: null, at: null }, 2: { on: true, by: null, at: null } }
+            },
+            {
+                code: 'compras-ordenes', name: 'Órdenes de compra', module: 'operacion/compras', example: true,
+                file: 'operacion/compras/ia/asistente-ordenes.md',
+                description: 'Arma órdenes de compra a partir de lo que está por debajo del mínimo.',
+                text_model: 'glm-5.2:cloud', vision_model: null, think: 'off', prompt: null, active: true,
+                updated: '25/09/2026 18:12', updated_by: 'Rosy Velasquez',
+                access: { 1: { on: true, by: null, at: null }, 2: { on: true, by: null, at: null } }
+            }
+        ]
+    };
+
+    // -- Utilidades --
+
+    const $ = (s, el = document) => el.querySelector(s);
+    const esc = (t) => (t == null ? '' : String(t)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const fmt = (n) => n.toLocaleString('es-MX');
+    const icons = () => { if (window.lucide) lucide.createIcons(); };
+    const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,79}$/;
+
+    const saved = () => state.assistants.find(a => a.code === state.selected);
+    const draft = () => {
+        const a = saved();
+        if (!state.drafts[a.code]) state.drafts[a.code] = { text_model: a.text_model, vision_model: a.vision_model, think: a.think, prompt: a.prompt, modes: { text_model: a.text_model ? 'fixed' : 'default', vision_model: a.vision_model ? 'fixed' : 'default' } };
+        return state.drafts[a.code];
+    };
+
+    const basePrompt = (a) => a.prompt ?? (a.file && a.code === 'almacen-catalogo' ? FILE_PROMPT : (a.file ? '# ' + a.name + '\n\n(contenido de ' + a.file + ')' : ''));
+    const draftPrompt = (a, d) => d.prompt ?? basePrompt(a);
+
+    function changes(a, d) {
+        const out = [];
+        if ((d.text_model || null) !== a.text_model || (d.vision_model || null) !== a.vision_model || (d.think ?? null) !== a.think) out.push('Modelos');
+        if (d.prompt !== null && d.prompt !== basePrompt(a)) out.push('Prompt');
+        return out;
+    }
+
+    function offCount(a) { return companies.filter(c => !a.access[c.id].on).length; }
+
+    function effective(d) {
+        const text = d.text_model || DEFAULTS.text_model;
+        let think;
+        if (d.think) think = { v: d.think, src: 'Fijado' };
+        else if (!d.text_model) think = { v: DEFAULTS.think, src: 'Del .env' };
+        else think = { v: text === DEFAULTS.base ? 'low' : 'no se manda', src: 'Automático' };
+        return {
+            text: { v: text, src: d.text_model ? 'Fijado' : 'Del .env' },
+            vision: { v: d.vision_model || DEFAULTS.vision_model, src: d.vision_model ? 'Fijado' : 'Del .env' },
+            think
+        };
+    }
+
+    function toast(msg, undo) {
+        const t = $('#toast');
+        t.innerHTML = `<div class="panel raised flex items-center gap-3 px-4 py-3 text-[13px] max-w-[92vw]">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-ok flex-none"></i><span>${esc(msg)}</span>
+            ${undo ? '<button id="undoBtn" class="btn-link">Deshacer</button>' : ''}</div>`;
+        t.hidden = false;
+        icons();
+        if (undo) $('#undoBtn').onclick = () => { undo(); t.hidden = true; };
+        clearTimeout(toast.t);
+        toast.t = setTimeout(() => { t.hidden = true; }, 4200);
+    }
+
+    function confirmBox({ title, text, ok, danger, onOk }) {
+        const m = $('#modal');
+        m.innerHTML = `<div class="panel raised w-full max-w-[420px] p-6" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-full grid place-items-center flex-none ${danger ? 'bg-bad-soft text-bad' : 'bg-accent-soft text-accent'}"><i data-lucide="${danger ? 'triangle-alert' : 'rotate-ccw'}" class="w-4 h-4"></i></div>
+                <div class="min-w-0"><h3 id="mTitle" class="font-semibold mb-1">${esc(title)}</h3><p class="text-[13px] text-muted leading-relaxed">${esc(text)}</p></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button id="mCancel" class="btn btn-ghost">Cancelar</button>
+                <button id="mOk" class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${esc(ok)}</button>
+            </div></div>`;
+        m.hidden = false;
+        icons();
+        const close = () => { m.hidden = true; };
+        $('#mCancel').onclick = close;
+        $('#mOk').onclick = () => { close(); onOk(); };
+        m.onclick = (e) => { if (e.target === m) close(); };
+        $('#mOk').focus();
+    }
+
+    // -- Franja de estado --
+
+    function renderStrip() {
+        const on = state.assistants.filter(a => a.active).length;
+        const main = state.assistants.find(a => a.code === 'almacen-catalogo');
+        const reach = main.active ? companies.filter(c => main.access[c.id].on).length : 0;
+        const last = state.assistants.map(a => a.updated).sort((x, y) => toDate(y) - toDate(x))[0];
+
+        const cell = (label, value, extra, first) => `<div class="p-4 ${first ? '' : 'border-l border-line'} max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t min-w-0">
+            <p class="eyebrow mb-1.5">${label}</p><div class="flex flex-wrap items-center gap-2">${value}</div>${extra ? `<p class="text-xs text-muted mt-1 truncate">${extra}</p>` : ''}</div>`;
+
+        $('#strip').innerHTML =
+            cell('Llave de Ollama', state.keyOk
+                ? '<span class="chip chip-ok"><span class="dot" style="background:currentColor"></span>Configurada</span>'
+                : '<span class="chip chip-bad"><span class="dot" style="background:currentColor"></span>Falta</span>',
+                state.keyOk ? 'coffee/app/credentials/.env' : 'Agrega OLLAMA_API_KEY al .env', true) +
+            cell('Asistentes que responden', `<span class="text-xl font-bold num">${on}</span><span class="text-muted num">de ${state.assistants.length}</span>`, 'Incluye 2 de ejemplo') +
+            cell('Catálogo del almacén', `<span class="text-xl font-bold num">${reach}</span><span class="text-muted num">de ${companies.length} empresas</span>`, main.active ? (offCount(main) ? offCount(main) + ' apagada por empresa' : 'Llega a todas') : 'Apagado para todas') +
+            cell('Último cambio', `<span class="text-[15px] font-semibold num">${esc(last)}</span>`, 'Rosy Velasquez');
+    }
+
+    function toDate(s) { const [d, t] = s.split(' '); const [dd, mm, yy] = d.split('/'); return new Date(`${yy}-${mm}-${dd}T${t || '00:00'}`); }
+
+    // -- Lista de asistentes --
+
+    function renderList() {
+        const q = state.search.trim().toLowerCase();
+        const list = state.assistants.filter(a => !q || a.name.toLowerCase().includes(q) || a.code.includes(q));
+        $('#asstCount').textContent = `${list.length} de ${state.assistants.length}`;
+
+        $('#asstList').innerHTML = list.length ? list.map(a => {
+            const off = offCount(a);
+            const dirty = state.drafts[a.code] && changes(a, state.drafts[a.code]).length;
+            return `<button class="asst" data-code="${a.code}" aria-current="${a.code === state.selected}">
+                <div class="flex items-start justify-between gap-2 min-w-0">
+                    <div class="min-w-0">
+                        <p class="font-semibold text-[13.5px] truncate">${esc(a.name)}</p>
+                        <p class="mono text-[11px] text-muted truncate">${a.code}</p>
+                    </div>
+                    <span class="dot mt-1.5" title="${a.active ? 'Encendido' : 'Apagado'}" style="background:${a.active ? 'var(--ok)' : 'var(--line-strong)'}"></span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    ${a.prompt ? '<span class="chip chip-accent">Prompt propio</span>' : (a.file ? '<span class="chip chip-neutral">Prompt de archivo</span>' : '<span class="chip chip-warn">Sin prompt</span>')}
+                    ${!a.active ? '<span class="chip chip-neutral">Apagado</span>' : (off ? `<span class="chip chip-warn">${off} apagada${off > 1 ? 's' : ''}</span>` : '')}
+                    ${a.example ? '<span class="chip chip-info">Ejemplo</span>' : ''}
+                    ${dirty ? '<span class="chip chip-warn">Sin guardar</span>' : ''}
+                </div>
+            </button>`;
+        }).join('') : '<p class="text-[13px] text-muted p-3">Ningún asistente coincide con la búsqueda.</p>';
+
+        document.querySelectorAll('.asst').forEach(b => b.onclick = () => { state.selected = b.dataset.code; state.test = null; render(); });
+    }
+
+    // -- Detalle --
+
+    function renderDetail() {
+        const a = saved(), d = draft();
+        const ch = changes(a, d);
+        const tabs = [
+            { id: 'modelos', label: 'Modelos', icon: 'cpu' },
+            { id: 'prompt', label: 'Prompt', icon: 'file-text' },
+            { id: 'empresas', label: 'Empresas', icon: 'building', badge: offCount(a) ? offCount(a) : '' },
+            { id: 'probar', label: 'Probar', icon: 'flask-conical', isNew: true }
+        ];
+
+        $('#detail').innerHTML = `
+            <section class="panel raised">
+                <div class="p-5 pb-0 flex flex-wrap items-start justify-between gap-4">
+                    <div class="min-w-0 max-w-[62ch]">
+                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                            <h2 class="text-lg font-bold tracking-tight">${esc(a.name)}</h2>
+                            ${a.example ? '<span class="chip chip-info">Ejemplo</span>' : ''}
+                        </div>
+                        <p class="text-xs text-muted mb-2"><span class="mono">${a.code}</span> · <span class="mono">${a.module}</span></p>
+                        <p class="text-[13px] text-fg2 leading-relaxed">${esc(a.description)}</p>
+                    </div>
+                    <div class="flex items-center gap-3 rounded-xl border border-line bg-sunken px-3 py-2">
+                        <div class="text-right">
+                            <p class="text-[13px] font-semibold">${a.active ? 'Encendido' : 'Apagado'}</p>
+                            <p class="text-[11px] text-muted">para todas las empresas</p>
+                        </div>
+                        <button id="activeSw" class="switch" role="switch" aria-checked="${a.active}" aria-label="Encender o apagar el asistente"></button>
+                    </div>
+                </div>
+                <div class="px-5 mt-4 border-b border-line scroll-x" role="tablist">
+                    <div class="flex min-w-max">
+                        ${tabs.map(t => `<button class="dt" role="tab" data-tab="${t.id}" aria-selected="${state.tab === t.id}">
+                            <i data-lucide="${t.icon}" class="w-4 h-4"></i>${t.label}
+                            ${t.badge ? `<span class="chip chip-warn" style="padding:2px 6px">${t.badge}</span>` : ''}
+                            ${t.isNew ? '<span class="chip chip-accent" style="padding:2px 6px">Nuevo</span>' : ''}
+                        </button>`).join('')}
+                    </div>
+                </div>
+                <div id="tabBody" class="p-5"></div>
+            </section>
+            ${ch.length ? `<div class="savebar">
+                <div class="panel raised flex flex-wrap items-center justify-between gap-3 px-4 py-3" style="border-color: var(--accent-line)">
+                    <p class="text-[13px] flex items-center gap-2"><i data-lucide="circle-dot" class="w-4 h-4 text-accent"></i>Cambios sin guardar en <b>${ch.join(' y ')}</b></p>
+                    <div class="flex gap-2">
+                        <button id="discardBtn" class="btn btn-ghost btn-sm">Descartar</button>
+                        <button id="saveBtn" class="btn btn-primary btn-sm"><i data-lucide="save" class="w-4 h-4"></i>Guardar cambios</button>
+                    </div>
+                </div></div>` : ''}`;
+
+        document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; renderDetail(); icons(); });
+
+        $('#activeSw').onclick = () => {
+            if (a.active) {
+                confirmBox({
+                    title: '¿Apagar el asistente?', danger: true, ok: 'Apagar para todas',
+                    text: `«${a.name}» deja de responder en todas las empresas, aunque la tengan encendida. Lo de cada empresa se conserva para cuando lo enciendas.`,
+                    onOk: () => { a.active = false; stamp(a); render(); toast('Asistente apagado para todas las empresas'); }
+                });
+            } else {
+                a.active = true; stamp(a); render(); toast('Asistente encendido');
+            }
+        };
+
+        if (ch.length) {
+            $('#discardBtn').onclick = () => { delete state.drafts[a.code]; render(); toast('Cambios descartados'); };
+            $('#saveBtn').onclick = () => save(a, d);
+        }
+
+        ({ modelos: tabModelos, prompt: tabPrompt, empresas: tabEmpresas, probar: tabProbar })[state.tab](a, d);
+    }
+
+    function stamp(a) {
+        const n = new Date();
+        const p = (x) => String(x).padStart(2, '0');
+        a.updated = `${p(n.getDate())}/${p(n.getMonth() + 1)}/${n.getFullYear()} ${p(n.getHours())}:${p(n.getMinutes())}`;
+        a.updated_by = 'Rosy Velasquez';
+    }
+
+    function save(a, d) {
+        for (const k of ['text_model', 'vision_model']) {
+            if (d[k] && !MODEL_RE.test(d[k])) {
+                state.tab = 'modelos'; renderDetail(); icons();
+                toast('Revisa el nombre del modelo: solo letras, números y . : / - _');
+                return;
+            }
+        }
+        if (d.prompt !== null && d.prompt.trim() === '') { state.tab = 'prompt'; renderDetail(); icons(); toast('El prompt no puede ir vacío. Para volver al archivo usa «Volver al archivo».'); return; }
+        if (d.prompt !== null && d.prompt.length > PROMPT_MAX) { state.tab = 'prompt'; renderDetail(); icons(); toast('El prompt pasa del máximo de 20,000 caracteres.'); return; }
+
+        a.text_model = d.text_model || null;
+        a.vision_model = d.vision_model || null;
+        a.think = d.think ?? null;
+        if (d.prompt !== null && d.prompt !== basePrompt(a)) a.prompt = d.prompt.trim();
+        stamp(a);
+        delete state.drafts[a.code];
+        render();
+        toast('Guardado. La siguiente pregunta ya usa estos ajustes.');
+    }
+
+    // -- Pestaña Modelos --
+
+    function tabModelos(a, d) {
+        const eff = effective(d);
+        const fieldRow = (key, label, help, def) => {
+            const fixed = d.modes[key] === 'fixed';
+            const val = d[key] ?? '';
+            const bad = fixed && val && !MODEL_RE.test(val);
+            return `<div class="row-line py-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                <div><p class="text-[13px] font-semibold">${label}</p><p class="text-xs text-muted mt-0.5 leading-relaxed">${help}</p></div>
+                <div class="grid grid-cols-1 gap-2 min-w-0">
+                    <div class="seg" role="group" aria-label="${label}">
+                        <button data-mode="${key}:default" aria-pressed="${!fixed}">Por defecto</button>
+                        <button data-mode="${key}:fixed" aria-pressed="${fixed}">Fijar otro</button>
+                    </div>
+                    ${fixed
+                        ? `<input id="in-${key}" class="field mono max-w-md" value="${esc(val)}" placeholder="${def}" aria-invalid="${bad}" autocomplete="off" spellcheck="false">
+                           ${bad ? '<p class="text-xs text-bad">Solo letras, números y . : / - _ (ej. gpt-oss:120b-cloud)</p>' : ''}`
+                        : `<p class="text-[13px] text-fg2">Usa <span class="mono font-medium">${def}</span> <span class="text-muted">· del .env</span></p>`}
+                </div></div>`;
+        };
+
+        const warnThink = d.text_model && d.text_model !== DEFAULTS.base && d.think && d.think !== 'off';
+
+        $('#tabBody').innerHTML = `<div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px] items-start">
+            <div class="min-w-0">
+                ${fieldRow('text_model', 'Modelo de texto', 'Contesta las preguntas y arma la vista previa de cambios.', DEFAULTS.text_model)}
+                ${fieldRow('vision_model', 'Modelo de visión', 'Transcribe las fotos antes de que las lea el modelo de texto.', DEFAULTS.vision_model)}
+                <div class="row-line py-4 grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <div><p class="text-[13px] font-semibold">Esfuerzo de razonamiento</p><p class="text-xs text-muted mt-0.5 leading-relaxed">Más esfuerzo tarda más. Con gpt-oss:120b-cloud, low contesta en 1.2 a 1.4 s.</p></div>
+                    <div class="grid grid-cols-1 gap-2 min-w-0">
+                        <div class="seg" role="group" aria-label="Esfuerzo">
+                            ${THINKS.map(t => `<button data-think="${t.id ?? ''}" aria-pressed="${(d.think ?? null) === t.id}" class="${t.id ? 'mono' : ''}">${t.label}</button>`).join('')}
+                        </div>
+                        <p class="text-xs text-muted">Auto usa low con gpt-oss:120b-cloud y no manda nada con otro modelo.</p>
+                        ${warnThink ? `<p class="text-xs flex items-start gap-1.5 text-warn"><i data-lucide="triangle-alert" class="w-3.5 h-3.5 mt-px flex-none"></i><span>Comprueba que <span class="mono">${esc(d.text_model)}</span> admita <span class="mono">${d.think}</span>: si no, el servicio responde con error. Usa Probar antes de guardar.</span></p>` : ''}
+                    </div>
+                </div>
+            </div>
+            <aside class="rounded-xl border border-line bg-sunken p-4">
+                <p class="eyebrow mb-3">Así va a correr</p>
+                ${[['Texto', eff.text], ['Visión', eff.vision], ['Esfuerzo', eff.think]].map(([l, e]) => `
+                    <div class="flex items-center justify-between gap-2 py-2 border-b border-line last:border-0">
+                        <span class="text-xs text-muted">${l}</span>
+                        <span class="text-right min-w-0"><span class="mono text-[12px] font-medium block truncate">${esc(e.v)}</span>
+                        <span class="text-[11px] ${e.src === 'Fijado' ? 'text-accent font-semibold' : 'text-muted'}">${e.src}</span></span>
+                    </div>`).join('')}
+                <p class="text-[11.5px] text-muted mt-3 leading-relaxed">Lo que dice «Del .env» cambia solo si alguien edita <span class="mono">coffee/app/credentials/.env</span>.</p>
+            </aside></div>`;
+
+        document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+            const [key, mode] = b.dataset.mode.split(':');
+            d.modes[key] = mode;
+            d[key] = mode === 'fixed' ? (d[key] || DEFAULTS[key]) : null;
+            renderDetail(); renderList(); icons();
+            if (mode === 'fixed') { const i = $('#in-' + key); i.focus(); i.select(); }
+        });
+        ['text_model', 'vision_model'].forEach(key => {
+            const i = $('#in-' + key);
+            if (!i) return;
+            i.oninput = () => { d[key] = i.value.trim() || null; };
+            i.onchange = () => { const pos = i.selectionStart; renderDetail(); renderList(); icons(); const j = $('#in-' + key); if (j) j.setSelectionRange(pos, pos); };
+        });
+        document.querySelectorAll('[data-think]').forEach(b => b.onclick = () => { d.think = b.dataset.think || null; renderDetail(); renderList(); icons(); });
+    }
+
+    // -- Pestaña Prompt --
+
+    function tabPrompt(a, d) {
+        const text = draftPrompt(a, d);
+        const dirty = d.prompt !== null && d.prompt !== basePrompt(a);
+        const src = a.prompt
+            ? '<span class="chip chip-accent"><i data-lucide="pen-line" class="w-3 h-3"></i>Prompt propio</span><span class="text-xs text-muted">Manda sobre el archivo</span>'
+            : (a.file
+                ? `<span class="chip chip-neutral"><i data-lucide="file" class="w-3 h-3"></i>Archivo</span><span class="text-xs text-muted mono truncate">${a.file}</span>`
+                : '<span class="chip chip-warn">Sin prompt</span><span class="text-xs text-muted">Este asistente no tiene archivo; escribe uno.</span>');
+
+        $('#tabBody').innerHTML = `<div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] items-start">
+            <div class="min-w-0 grid grid-cols-1 gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-2 min-w-0">${src}${dirty ? '<span class="chip chip-warn">Sin guardar</span>' : ''}</div>
+                    ${a.prompt ? '<button id="resetBtn" class="btn btn-ghost btn-sm"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>Volver al archivo</button>' : ''}
+                </div>
+                <textarea id="promptEd" class="editor" spellcheck="false" placeholder="Eres CoffeeIA, el asistente de…" aria-label="Prompt del asistente">${esc(text)}</textarea>
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                    <span>Aquí va el tono y las reglas del negocio. ${a.prompt ? '' : 'Al guardar, este texto pasa a ser el prompt propio.'}</span>
+                    <span id="promptCount" class="num"></span>
+                </div>
+            </div>
+            <aside class="contract rounded-xl border border-line bg-sunken p-4 grid gap-4">
+                <div>
+                    <p class="eyebrow mb-1">Lo agrega el sistema</p>
+                    <p class="text-xs text-muted leading-relaxed">Se manda después de tu prompt en cada pregunta. No se edita aquí porque el código lo valida.</p>
+                </div>
+                <details open>
+                    <summary class="text-[12.5px] font-semibold cursor-pointer">Contrato</summary>
+                    <pre class="mt-2">Entidades y campos que acepta:
+- product: name, category, unit, area,
+  price, base, tax (0, 8 o 16), cost,
+  stock_min, stock_max, shelf_life_days
+- category: name
+- unit: code, name
+- area: name, description
+- warehouse: name, branch, is_default
+- supplier: name, contact_name, phone, email
+Acciones: add, edit, deactivate, activate
+Máximo 150 cambios por respuesta</pre>
+                </details>
+                <details>
+                    <summary class="text-[12.5px] font-semibold cursor-pointer">Formato de respuesta</summary>
+                    <pre class="mt-2">{"reply": "Te propongo 4 cambios…",
+ "changes": [
+  {"entity": "product", "action": "edit",
+   "id": 45, "ref": "refresco de cola",
+   "set": {"price": 24.5}}
+ ]}</pre>
+                </details>
+                <details>
+                    <summary class="text-[12.5px] font-semibold cursor-pointer">Datos de la empresa</summary>
+                    <pre class="mt-2">Categorías, unidades, áreas, sucursales,
+almacenes y proveedores completos.
+Productos: los 1,500 más recientes.</pre>
+                </details>
+            </aside></div>`;
+
+        const ed = $('#promptEd');
+        const count = () => {
+            const n = ed.value.length;
+            const el = $('#promptCount');
+            el.textContent = `${fmt(n)} / ${fmt(PROMPT_MAX)} caracteres`;
+            el.style.color = n > PROMPT_MAX ? 'var(--bad)' : '';
+        };
+        count();
+        let wasDirty = dirty;
+        ed.oninput = () => {
+            d.prompt = ed.value === basePrompt(a) ? null : ed.value;
+            count();
+            const nowDirty = d.prompt !== null;
+            if (nowDirty !== wasDirty) {
+                wasDirty = nowDirty;
+                const pos = ed.selectionStart, top = ed.scrollTop;
+                renderDetail(); renderList(); icons();
+                const e2 = $('#promptEd'); e2.focus(); e2.setSelectionRange(pos, pos); e2.scrollTop = top;
+            }
+        };
+
+        if (a.prompt) $('#resetBtn').onclick = () => confirmBox({
+            title: '¿Volver al archivo?', ok: 'Volver al archivo',
+            text: a.file
+                ? `Se borra el prompt propio y «${a.name}» vuelve a leer ${a.file}. Lo que se edite en el archivo le vuelve a llegar al modelo.`
+                : `Se borra el prompt propio. «${a.name}» no tiene archivo, así que se queda sin prompt hasta que escribas otro.`,
+            onOk: () => { a.prompt = null; stamp(a); delete state.drafts[a.code]; render(); toast(`«${a.name}» vuelve a usar el prompt del archivo`); }
+        });
+    }
+
+    // -- Pestaña Empresas --
+
+    function tabEmpresas(a) {
+        const off = offCount(a);
+        $('#tabBody').innerHTML = `
+            ${!a.active ? `<div class="mb-4 rounded-lg px-3 py-2.5 text-[13px] flex items-start gap-2 bg-warn-soft text-warn">
+                <i data-lucide="power-off" class="w-4 h-4 mt-px flex-none"></i>
+                <span>El asistente está apagado para todas. Lo que ajustes aquí aplica cuando lo vuelvas a encender.</span></div>` : ''}
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <p class="text-[13px] text-muted num">${companies.length} empresas activas · ${off ? `<b class="text-fg">${off} apagada${off > 1 ? 's' : ''}</b>` : 'todas encendidas'}</p>
+                <div class="flex gap-2">
+                    <button id="allOn" class="btn btn-ghost btn-sm" ${off === 0 ? 'disabled' : ''}>Encender todas</button>
+                    <button id="allOff" class="btn btn-ghost btn-sm" ${off === companies.length ? 'disabled' : ''}>Apagar todas</button>
+                </div>
+            </div>
+            <div class="scroll-x rounded-xl border border-line">
+                <table class="tbl min-w-[560px]">
+                    <thead><tr><th>Empresa</th><th>CoffeeIA</th><th>Cambió</th><th>Actualizado</th></tr></thead>
+                    <tbody>${companies.map(c => {
+                        const acc = a.access[c.id];
+                        const label = !acc.on ? '<span class="chip chip-bad">Apagado</span>'
+                            : (!a.active ? '<span class="chip chip-warn">Encendido · asistente apagado</span>' : '<span class="chip chip-ok">Encendido</span>');
+                        return `<tr>
+                            <td class="font-medium">${esc(c.name)}</td>
+                            <td><div class="flex items-center gap-3"><button class="switch" role="switch" data-company="${c.id}" aria-checked="${acc.on}" aria-label="CoffeeIA para ${esc(c.name)}"></button>${label}</div></td>
+                            <td class="text-muted">${acc.by ? esc(acc.by) : '—'}</td>
+                            <td class="text-muted num">${acc.at || '—'}</td></tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </div>
+            <p class="text-xs text-muted mt-3">Sin ajuste, una empresa tiene el asistente encendido. Al apagarlo deja de ver el botón CoffeeIA de este asistente.</p>`;
+
+        const setOne = (id, on) => {
+            const acc = a.access[id];
+            const prev = clone(acc);
+            acc.on = on; acc.by = 'Rosy Velasquez';
+            const n = new Date(), p = (x) => String(x).padStart(2, '0');
+            acc.at = `${p(n.getDate())}/${p(n.getMonth() + 1)}/${n.getFullYear()} ${p(n.getHours())}:${p(n.getMinutes())}`;
+            return prev;
+        };
+
+        document.querySelectorAll('[data-company]').forEach(sw => sw.onclick = () => {
+            const id = +sw.dataset.company, c = companies.find(x => x.id === id);
+            const prev = setOne(id, !a.access[id].on);
+            render();
+            toast(`CoffeeIA ${a.access[id].on ? 'encendido' : 'apagado'} para ${c.name}`, () => { a.access[id] = prev; render(); });
+        });
+
+        const bulk = (on) => {
+            const prev = clone(a.access);
+            companies.forEach(c => { if (a.access[c.id].on !== on) setOne(c.id, on); });
+            render();
+            toast(on ? 'CoffeeIA encendido para todas las empresas' : 'CoffeeIA apagado para todas las empresas', () => { a.access = prev; render(); });
+        };
+        $('#allOn').onclick = () => bulk(true);
+        $('#allOff').onclick = () => confirmBox({
+            title: '¿Apagar para todas las empresas?', danger: true, ok: 'Apagar para todas',
+            text: 'Ninguna empresa verá el botón CoffeeIA de este asistente. El asistente queda encendido y puedes volver a encender empresa por empresa.',
+            onOk: () => bulk(false)
+        });
+    }
+
+    // -- Pestaña Probar --
+
+    const SAMPLES = [
+        'Sube 5% el precio de los refrescos',
+        'Da de alta la categoría Bebidas y pon ahí el agua natural 1 L',
+        'Dale de baja al proveedor Distribuidora Norte'
+    ];
+
+    const RESPONSES = {
+        0: { reply: 'Te propongo 3 cambios de precio. Revísalos y confirma.', rows: [
+            ['Producto', 'Editar', 'REFRESCO COLA 600 ML', 'Precio: 22.00 → 23.10'],
+            ['Producto', 'Editar', 'REFRESCO LIMÓN 600 ML', 'Precio: 22.00 → 23.10'],
+            ['Producto', 'Editar', 'REFRESCO NARANJA 2 L', 'Precio: 38.00 → 39.90']] },
+        1: { reply: 'Te propongo 2 cambios: la categoría nueva y el producto en ella.', rows: [
+            ['Categoría', 'Alta', 'Bebidas', '—'],
+            ['Producto', 'Alta', 'Agua natural 1 L', 'Categoría: Bebidas · Unidad: Pieza · IVA 16%']] },
+        2: { reply: 'Te propongo dar de baja a Distribuidora Norte. Se puede reactivar después.', rows: [
+            ['Proveedor', 'Baja', 'Distribuidora Norte', 'Estado: activo → baja']] }
+    };
+
+    function tabProbar(a, d) {
+        const eff = effective(d);
+        const t = state.test;
+        const canRun = state.keyOk && a.active;
+
+        $('#tabBody').innerHTML = `<div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-start">
+            <div class="grid grid-cols-1 gap-3 min-w-0">
+                <p class="text-[13px] text-fg2 leading-relaxed">Pregunta con los ajustes de esta pantalla, <b>aunque no estén guardados</b>. Se usan los datos reales de la empresa que elijas y <b>no se aplica ningún cambio</b>.</p>
+                <div>
+                    <label for="testCo" class="text-xs text-muted block mb-1">Empresa</label>
+                    <select id="testCo" class="field">${companies.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
+                </div>
+                <div>
+                    <label for="testMsg" class="text-xs text-muted block mb-1">Pregunta</label>
+                    <textarea id="testMsg" rows="3" class="field" placeholder="Escribe lo que pediría alguien del almacén">${esc(t ? t.msg : SAMPLES[0])}</textarea>
+                </div>
+                <div class="flex flex-wrap gap-1.5">${SAMPLES.map((s, i) => `<button class="chip chip-neutral hover:text-fg" data-sample="${i}">${esc(s)}</button>`).join('')}</div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button id="runBtn" class="btn btn-primary" ${canRun ? '' : 'disabled'}><i data-lucide="send" class="w-4 h-4"></i>Probar</button>
+                    <span class="text-xs text-muted mono">${esc(eff.text.v)} · ${esc(eff.think.v)}</span>
+                </div>
+                ${!state.keyOk ? '<p class="text-xs text-bad">Sin llave de Ollama no se puede probar.</p>' : (!a.active ? '<p class="text-xs text-warn">Enciende el asistente para probarlo.</p>' : '')}
+                <p class="text-[11.5px] text-muted">En esta propuesta la respuesta es simulada. En producción iría a un endpoint nuevo que llama al modelo y no guarda la vista previa.</p>
+            </div>
+            <div id="testOut" class="min-w-0 rounded-xl border border-line bg-sunken p-4 min-h-[260px]">
+                ${renderTestOut(t)}
+            </div></div>`;
+
+        document.querySelectorAll('[data-sample]').forEach(b => b.onclick = () => { $('#testMsg').value = SAMPLES[+b.dataset.sample]; });
+
+        $('#runBtn').onclick = () => {
+            const msg = $('#testMsg').value.trim();
+            if (!msg) { $('#testMsg').focus(); return; }
+            const idx = SAMPLES.indexOf(msg);
+            state.test = { msg, loading: true };
+            $('#testOut').innerHTML = renderTestOut(state.test); icons();
+            setTimeout(() => {
+                const r = RESPONSES[idx] || { reply: 'No encontré cambios claros en tu mensaje. ¿Qué producto o catálogo quieres cambiar?', rows: [] };
+                state.test = { msg, loading: false, ...r, model: eff.text.v, think: eff.think.v, secs: (1.1 + Math.random() * .5).toFixed(1) };
+                if (state.tab === 'probar' && saved() === a) { $('#testOut').innerHTML = renderTestOut(state.test); icons(); }
+            }, 1100);
+        };
+    }
+
+    function renderTestOut(t) {
+        if (!t) return `<div class="h-full min-h-[228px] grid place-items-center text-center">
+            <div><i data-lucide="message-square-dashed" class="w-7 h-7 text-muted mx-auto mb-2"></i>
+            <p class="text-[13px] font-medium">Aquí aparece la respuesta</p>
+            <p class="text-xs text-muted mt-1">Con la vista previa de cambios que vería la persona, sin aplicarla.</p></div></div>`;
+        if (t.loading) return `<div class="grid gap-3">
+            <div class="bubble bubble-me justify-self-end max-w-[90%]">${esc(t.msg)}</div>
+            <p class="text-xs text-muted flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 spin"></i>Pensando…</p></div>`;
+        return `<div class="grid gap-3">
+            <div class="bubble bubble-me justify-self-end max-w-[90%]">${esc(t.msg)}</div>
+            <div class="bubble max-w-[95%]">${esc(t.reply)}</div>
+            ${t.rows.length ? `<div class="scroll-x rounded-lg border border-line bg-card">
+                <table class="tbl min-w-[460px]"><thead><tr><th>Tipo</th><th>Acción</th><th>Registro</th><th>Cambio</th></tr></thead>
+                <tbody>${t.rows.map(r => `<tr><td>${r[0]}</td><td><span class="chip ${r[1] === 'Alta' ? 'chip-ok' : (r[1] === 'Baja' ? 'chip-bad' : 'chip-info')}">${r[1]}</span></td><td class="font-medium">${esc(r[2])}</td><td class="text-muted num">${esc(r[3])}</td></tr>`).join('')}</tbody></table>
+            </div>` : ''}
+            <p class="text-[11.5px] text-muted mono">${esc(t.model)} · ${esc(t.think)} · ${t.secs} s · simulado · no se aplicó nada</p></div>`;
+    }
+
+    // -- Tema --
+
+    function applyTheme(t) {
+        if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme');
+        const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        $('#themeLbl').textContent = dark ? 'Oscuro' : 'Claro';
+    }
+    let theme = null;
+    try { theme = localStorage.getItem('cia-theme'); } catch (e) { theme = null; }
+    applyTheme(theme);
+    $('#themeBtn').onclick = () => {
+        const dark = document.documentElement.getAttribute('data-theme')
+            ? document.documentElement.getAttribute('data-theme') === 'dark'
+            : matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = dark ? 'light' : 'dark';
+        applyTheme(theme);
+        try { localStorage.setItem('cia-theme', theme); } catch (e) { /* sin almacenamiento */ }
+    };
+
+    // -- Arranque --
+
+    $('#simKey').onclick = () => { state.keyOk = !state.keyOk; $('#simKey').setAttribute('aria-checked', String(!state.keyOk)); render(); };
+    $('#asstSearch').oninput = (e) => { state.search = e.target.value; renderList(); icons(); };
+    document.querySelectorAll('[data-tenant-tab]').forEach(b => b.onclick = () => toast('Esa sección queda fuera de esta propuesta'));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal').hidden = true; });
+
+    function render() { renderStrip(); renderList(); renderDetail(); icons(); }
+    render();
+})();
+</script>
+
+</body>
+</html>
