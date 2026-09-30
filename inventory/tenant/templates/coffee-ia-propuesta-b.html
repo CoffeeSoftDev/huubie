@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Propuesta de vista (Fase 1, mockup estatico): apartado CoffeeIA del Administrador (inventory/tenant). -->
+<title>CoffeeIA en el Tenant · B</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+    /* Layout: barra del tenant -> encabezado CoffeeIA con estado -> tarjetas por asistente; configurar abre un panel lateral y el prompt un editor a pantalla completa.
+       Oscuro primero (paleta Huubie de coffee-magic-ui.md); claro como variante. */
+    :root {
+        --bg: #111928; --card: #1F2A37; --raise: #243244; --input: #1a2332; --head: #141d2b;
+        --line: #374151; --line-soft: #2b3646;
+        --fg: #ffffff; --fg2: #d1d5db; --muted: #9ca3af;
+        --accent: #7c3aed; --accent-fg: #c4b5fd; --accent-soft: rgba(124,58,237,.18);
+        --primary: #1c64f2; --primary-h: #3f83f8;
+        --ok: #3fc189; --ok-soft: rgba(63,193,137,.15);
+        --warn: #facc15; --warn-soft: rgba(250,204,21,.13);
+        --bad: #f87171; --bad-soft: rgba(234,2,52,.16);
+        --overlay: rgba(3,7,18,.62); --shadow: 0 20px 50px rgba(0,0,0,.45);
+        --glow: radial-gradient(120% 140% at 0% 0%, rgba(124,58,237,.30), transparent 55%), radial-gradient(90% 120% at 100% 0%, rgba(28,100,242,.22), transparent 60%);
+        --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+        color-scheme: dark;
+    }
+    @media (prefers-color-scheme: light) {
+        :root:not([data-theme="dark"]) {
+            --bg: #f3f4f6; --card: #ffffff; --raise: #f9fafb; --input: #f9fafb; --head: #ffffff;
+            --line: #e5e7eb; --line-soft: #eef0f3;
+            --fg: #111928; --fg2: #374151; --muted: #6b7280;
+            --accent: #7c3aed; --accent-fg: #6d28d9; --accent-soft: rgba(124,58,237,.10);
+            --primary: #1c64f2; --primary-h: #1a56db;
+            --ok: #057a55; --ok-soft: rgba(14,159,110,.12); --warn: #9f580a; --warn-soft: rgba(227,160,8,.16);
+            --bad: #c81e1e; --bad-soft: rgba(240,82,82,.12);
+            --overlay: rgba(17,25,40,.40); --shadow: 0 20px 50px rgba(17,25,40,.18);
+            --glow: radial-gradient(120% 140% at 0% 0%, rgba(124,58,237,.12), transparent 55%), radial-gradient(90% 120% at 100% 0%, rgba(28,100,242,.10), transparent 60%);
+            color-scheme: light;
+        }
+    }
+    :root[data-theme="light"] {
+        --bg: #f3f4f6; --card: #ffffff; --raise: #f9fafb; --input: #f9fafb; --head: #ffffff;
+        --line: #e5e7eb; --line-soft: #eef0f3;
+        --fg: #111928; --fg2: #374151; --muted: #6b7280;
+        --accent: #7c3aed; --accent-fg: #6d28d9; --accent-soft: rgba(124,58,237,.10);
+        --primary: #1c64f2; --primary-h: #1a56db;
+        --ok: #057a55; --ok-soft: rgba(14,159,110,.12); --warn: #9f580a; --warn-soft: rgba(227,160,8,.16);
+        --bad: #c81e1e; --bad-soft: rgba(240,82,82,.12);
+        --overlay: rgba(17,25,40,.40); --shadow: 0 20px 50px rgba(17,25,40,.18);
+        --glow: radial-gradient(120% 140% at 0% 0%, rgba(124,58,237,.12), transparent 55%), radial-gradient(90% 120% at 100% 0%, rgba(28,100,242,.10), transparent 60%);
+        color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; overflow-x: clip; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--ui); }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; background: none; border: 0; padding: 0; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3 { text-wrap: balance; }
+    .mono { font-family: var(--mono); }
+    .muted { color: var(--muted); }
+    .num { font-variant-numeric: tabular-nums; }
+    .ico { width: 16px; height: 16px; flex: none; }
+
+    .wrap > * { min-width: 0; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; display: grid; gap: 20px; }
+
+    /* Barra del tenant */
+    .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--line); color: var(--accent-fg); }
+    .brand b { font-size: 15px; display: block; }
+    .brand small { color: var(--muted); font-size: 12px; }
+    .crumbs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 3px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; max-width: 100%; min-width: 0; }
+    .crumbs button { padding: 6px 12px; border-radius: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+    .crumbs button:hover { color: var(--fg); }
+    .crumbs button[aria-current="page"] { background: var(--accent); color: #fff; font-weight: 600; }
+    .tools { display: flex; align-items: center; gap: 8px; }
+
+    /* Encabezado CoffeeIA */
+    .hero { position: relative; overflow: hidden; border-radius: 16px; border: 1px solid var(--line); background: var(--card); padding: 24px; display: grid; gap: 18px; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: var(--glow); pointer-events: none; }
+    .hero > * { position: relative; }
+    .hero-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+    .hero h1 .spark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--accent); color: #fff; }
+    .hero-sub { color: var(--fg2); max-width: 60ch; margin-top: 6px; }
+    .meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line-soft); border-radius: 12px; overflow: hidden; border: 1px solid var(--line-soft); }
+    .meter { background: var(--head); padding: 14px 16px; min-width: 0; }
+    .meter span { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .meter b { display: flex; align-items: baseline; gap: 6px; font-size: 22px; margin-top: 4px; }
+    .meter b small { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+    .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+    .pill::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+    .pill.plain::before { display: none; }
+    .p-ok { background: var(--ok-soft); color: var(--ok); }
+    .p-warn { background: var(--warn-soft); color: var(--warn); }
+    .p-bad { background: var(--bad-soft); color: var(--bad); }
+    .p-accent { background: var(--accent-soft); color: var(--accent-fg); }
+    .p-muted { background: var(--input); color: var(--muted); border: 1px solid var(--line); }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: background .15s, border-color .15s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-h); }
+    .btn-ghost { border: 1px solid var(--line); color: var(--fg2); }
+    .btn-ghost:hover { background: var(--raise); color: var(--fg); }
+    .btn-danger { background: var(--bad); color: #fff; }
+    .btn-sm { padding: 6px 11px; font-size: 12px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .icon-btn { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); }
+    .icon-btn:hover { color: var(--fg); background: var(--raise); }
+
+    /* Tarjetas de asistente */
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .section-head h2 { font-size: 15px; }
+    .filters { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 2px; }
+    .filters button { padding: 5px 12px; border-radius: 7px; font-size: 12px; color: var(--muted); }
+    .filters button[aria-pressed="true"] { background: var(--raise); color: var(--fg); font-weight: 600; }
+
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; transition: border-color .15s, transform .15s; min-width: 0; }
+    .card:hover { border-color: var(--accent); }
+    .card.off { opacity: .72; }
+    .card-top { padding: 18px 18px 0; display: flex; gap: 12px; align-items: flex-start; }
+    .glyph { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-fg); flex: none; }
+    .card.off .glyph { background: var(--input); color: var(--muted); }
+    .card-title { min-width: 0; flex: 1; }
+    .card-title h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .card-title p { font-size: 11.5px; color: var(--muted); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-body { padding: 16px 18px; display: grid; gap: 14px; align-content: start; }
+    .model { background: var(--input); border: 1px solid var(--line-soft); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+    .model-main { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-width: 0; }
+    .model-main b { font-family: var(--mono); font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .src { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); flex: none; }
+    .src.fixed { color: var(--accent-fg); }
+    .model-sub { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .model-sub span b { font-family: var(--mono); font-weight: 500; color: var(--fg2); }
+    .meta-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+    .faces { display: flex; align-items: center; }
+    .face { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; font-size: 10px; font-weight: 700; border: 2px solid var(--card); margin-left: -6px; background: var(--primary); color: #fff; }
+    .face:first-child { margin-left: 0; }
+    .face.no { background: var(--input); color: var(--muted); text-decoration: line-through; }
+    .card-foot { border-top: 1px solid var(--line-soft); padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .power { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--fg2); }
+
+    .switch { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--line); transition: background .18s; flex: none; }
+    .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #fff; transition: transform .18s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .switch[aria-checked="true"] { background: var(--accent); }
+    .switch[aria-checked="true"]::after { transform: translateX(16px); }
+
+    .card-new { border-style: dashed; display: grid; place-items: center; text-align: center; padding: 28px; color: var(--muted); min-height: 220px; }
+    .card-new:hover { border-color: var(--line); }
+    .card-new code { font-family: var(--mono); font-size: 11.5px; color: var(--fg2); background: var(--input); padding: 2px 6px; border-radius: 5px; }
+
+    /* Panel lateral */
+    .scrim { position: fixed; inset: 0; background: var(--overlay); z-index: 40; opacity: 0; transition: opacity .2s; }
+    .scrim.show { opacity: 1; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); background: var(--card); border-left: 1px solid var(--line); z-index: 41; display: grid; grid-template-rows: auto 1fr auto; box-shadow: var(--shadow); transform: translateX(100%); visibility: hidden; transition: transform .24s ease, visibility 0s linear .24s; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .drawer.show { transform: none; visibility: visible; transition: transform .24s ease; }
+    .d-head { padding: 18px 20px; border-bottom: 1px solid var(--line-soft); display: flex; gap: 12px; align-items: flex-start; }
+    .d-head .card-title h3 { font-size: 17px; }
+    .d-body { overflow-y: auto; padding: 8px 20px 20px; display: grid; gap: 4px; align-content: start; }
+    .d-foot { border-top: 1px solid var(--line-soft); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--head); }
+    .blk { padding: 18px 0; border-bottom: 1px solid var(--line-soft); display: grid; gap: 12px; }
+    .blk:last-child { border-bottom: 0; }
+    .blk-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .blk-h h4 { margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .lbl { font-size: 11px; color: var(--muted); display: block; margin-bottom: 5px; }
+    .field { width: 100%; background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+    .field:focus { outline: none; border-color: var(--accent); }
+    .field.mono { font-family: var(--mono); font-size: 12.5px; }
+    .two { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: var(--mono); }
+    .chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .hint { font-size: 11.5px; color: var(--muted); }
+    .warnline { font-size: 12px; color: var(--warn); background: var(--warn-soft); padding: 8px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: flex-start; }
+    .peek { position: relative; background: var(--input); border: 1px solid var(--line-soft); border-radius: 10px; padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.65; color: var(--fg2); max-height: 150px; overflow: hidden; white-space: pre-wrap; word-break: break-word; }
+    .peek::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: linear-gradient(transparent, var(--input)); }
+    .co { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--raise); }
+    .co-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .co-l .face { margin: 0; border: 0; width: 30px; height: 30px; }
+    .co-l b { font-size: 13px; font-weight: 600; display: block; }
+    .co-l small { font-size: 11.5px; color: var(--muted); }
+
+    /* Editor de prompt */
+    .editor-wrap { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; grid-template-rows: auto 1fr; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .e-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--head); }
+    .e-main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 0; }
+    .e-pane { display: grid; grid-template-rows: 1fr auto; min-height: 0; }
+    .e-text { width: 100%; height: 100%; resize: none; border: 0; background: var(--bg); padding: 24px 28px; font-family: var(--mono); font-size: 13px; line-height: 1.75; color: var(--fg); }
+    .e-text:focus { outline: none; }
+    .e-status { border-top: 1px solid var(--line); padding: 8px 20px; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); background: var(--head); flex-wrap: wrap; }
+    .e-side { border-left: 1px solid var(--line); background: var(--card); overflow-y: auto; padding: 18px; display: grid; gap: 14px; align-content: start; }
+    .e-side pre { margin: 0; font-family: var(--mono); font-size: 11px; line-height: 1.6; color: var(--fg2); white-space: pre-wrap; word-break: break-word; background: var(--input); border: 1px solid var(--line-soft); border-radius: 8px; padding: 10px; }
+
+    .modal { position: fixed; inset: 0; z-index: 60; background: var(--overlay); display: grid; place-items: center; padding: 16px; }
+    .modal-card { width: min(420px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: var(--shadow); display: grid; gap: 16px; }
+    .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 70; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; display: flex; gap: 10px; align-items: center; font-size: 13px; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+    .toast .ico { color: var(--ok); }
+    .link { color: var(--accent-fg); font-weight: 600; font-size: 12.5px; }
+
+    @media (max-width: 760px) {
+        .meters { grid-template-columns: minmax(0, 1fr); }
+        .two { grid-template-columns: minmax(0, 1fr); }
+        .e-main { grid-template-columns: minmax(0, 1fr); }
+        .e-side { display: none; }
+        .hero h1 { font-size: 23px; }
+        .crumbs { flex: 1 1 100%; order: 3; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+    <div class="topbar">
+        <div class="brand">
+            <div class="brand-mark"><i data-lucide="building-2" class="ico"></i></div>
+            <div><b>Administrador CoffeeSoft</b><small>Plataforma SaaS</small></div>
+        </div>
+        <nav class="crumbs" aria-label="Secciones del tenant">
+            <button data-other><i data-lucide="shield" class="ico"></i>Accesos</button>
+            <button data-other><i data-lucide="credit-card" class="ico"></i>Facturación</button>
+            <button data-other><i data-lucide="ticket-percent" class="ico"></i>Promociones</button>
+            <button data-other><i data-lucide="palette" class="ico"></i>Personalización</button>
+            <button aria-current="page"><i data-lucide="sparkles" class="ico"></i>CoffeeIA</button>
+        </nav>
+        <div class="tools">
+            <span class="pill plain p-accent">Propuesta B</span>
+            <button id="themeBtn" class="icon-btn" aria-label="Cambiar tema"><i data-lucide="sun-moon" class="ico"></i></button>
+        </div>
+    </div>
+
+    <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-top">
+            <div>
+                <h1 id="heroTitle"><span class="spark"><i data-lucide="sparkles" class="ico"></i></span>CoffeeIA</h1>
+                <p class="hero-sub">Los asistentes que responden dentro de los módulos. Elige qué modelo usa cada uno, cómo se comporta y a qué empresas les llega.</p>
+            </div>
+            <span id="keyPill"></span>
+        </div>
+        <div class="meters" id="meters"></div>
+    </section>
+
+    <section class="grid-sec" style="display:grid; gap:14px">
+        <div class="section-head">
+            <h2>Asistentes</h2>
+            <div class="filters" role="group" aria-label="Filtrar">
+                <button data-filter="all" aria-pressed="true">Todos</button>
+                <button data-filter="on" aria-pressed="false">Encendidos</button>
+                <button data-filter="off" aria-pressed="false">Apagados</button>
+            </div>
+        </div>
+        <div class="grid" id="cards"></div>
+    </section>
+</div>
+
+<div id="scrim" class="scrim" hidden></div>
+<aside id="drawer" class="drawer" aria-hidden="true" aria-label="Configurar asistente"></aside>
+<div id="editor" class="editor-wrap" hidden></div>
+<div id="modal" class="modal" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script type="text/plain" id="promptFile"># CoffeeIA · Almacén
+
+Eres **CoffeeIA**, el asistente del **catálogo del almacén** de Coffee Inventory. Ayudas a dar de alta, cambiar, dar de baja y reactivar productos, categorías, unidades, áreas, almacenes y proveedores.
+
+Hablas español de México, en frases cortas y claras. Tratas de "tú".
+
+## Cómo trabajas
+
+- Tú **no aplicas nada**: propones cambios y la persona los revisa en una vista previa antes de confirmar. Aun así, propón solo lo que te pidieron.
+- El **mensaje** manda. Los archivos adjuntos (Excel, CSV o fotos ya transcritas) son material de apoyo para lo que pide el mensaje.
+- Si solo llega un archivo con nombres y precios, entiende que quieren actualizar el precio de los productos que existen y dar de alta los que no existen.
+- Busca cada registro en su lista aunque venga escrito distinto: mayúsculas, acentos, abreviaturas, plural, errores de dedo.
+- Si dudas entre dos registros, no lo incluyas y pregunta en tu respuesta cuál es.
+- Si dos fuentes (el mensaje y un archivo, o dos archivos) dan valores distintos para el mismo campo, no lo incluyas y pregunta cuál vale.
+- Si falta un dato obligatorio para una alta (por ejemplo el nombre), pregúntalo en vez de inventarlo.
+
+## Reglas del negocio
+
+- **Precio de venta**: el que paga el cliente, con IVA incluido. Si te dicen que un precio es "sin IVA" o "más IVA", mándalo como precio sin IVA.
+- **IVA**: solo 0, 8 o 16 %. Si no lo sabes, no lo mandes; el producto conserva el que tiene.
+- **Aumentos o descuentos en porcentaje**: calcula el precio nuevo a partir del precio actual y redondea a 2 decimales.
+- **Costo**: es el último costo de compra sin IVA. Normalmente lo actualizan las entradas de almacén; cámbialo solo si lo piden de forma explícita.
+- **SKU**: se asigna solo al dar de alta (clave de la categoría + consecutivo). No lo propongas ni lo cambies.
+- **Área** es el lugar dentro del almacén (anaquel, refrigerador, congelador). **Categoría** es la familia del producto (cortes, lácteos, empaques). No las confundas.
+- **Borrar** registros sueltos no existe: "eliminar", "quitar" o "borrar" uno o varios es dar de baja (desactivar). Se puede reactivar después.
+- **Vaciar** un bloque completo (movimientos, productos o catálogos) es otra cosa: borra para siempre y solo lo puede pedir el Super Admin. Proponlo solo si la persona dice claramente que quiere vaciar, limpiar o borrar todo.
+- Antes de dar de alta algo que ya existe dado de baja, propón **reactivarlo** en lugar de crear otro igual.
+- Si piden mover productos a una categoría, unidad o área que no existe, propón también darla de alta en la misma respuesta.
+- Los nombres de productos se escriben como la persona los escribió; no los traduzcas ni cambies su estilo (si el catálogo usa MAYÚSCULAS, respétalas).
+
+## Lo que no haces
+
+No registras entradas, salidas, traspasos, mermas, órdenes de compra ni existencias. Si te lo piden, dilo con amabilidad e indica que eso se hace en su pantalla del almacén.</script>
+
+<script>
+(() => {
+    const DEF = { text: 'gpt-oss:120b-cloud', vision: 'kimi-k2.7-code', think: 'low' };
+    const TEXT_MODELS = ['gpt-oss:120b-cloud', 'glm-5.2:cloud', 'qwen3-coder:480b-cloud'];
+    const VISION_MODELS = ['kimi-k2.7-code', 'llava:13b', 'qwen2.5vl:7b'];
+    const THINKS = ['auto', 'off', 'low', 'medium', 'high'];
+    const FILE_PROMPT = document.getElementById('promptFile').textContent.trim();
+    const MAX = 20000;
+    const ME = 'Rosy Velasquez';
+
+    const companies = [{ id: 1, name: 'CoffeeSoft S.A.', ini: 'CS' }, { id: 2, name: 'Reginas Pasteleria', ini: 'RP' }];
+
+    const assistants = [
+        { code: 'almacen-catalogo', name: 'Catálogo del almacén', icon: 'package-search', module: 'Almacén › Productos', file: 'operacion/almacen/ia/asistente-catalogo.md',
+          text: null, vision: null, think: null, prompt: null, active: true, example: false, access: { 1: true, 2: false }, uses: 'Altas, cambios y bajas del catálogo' },
+        { code: 'almacen-conteo', name: 'Conteo físico', icon: 'clipboard-check', module: 'Almacén › Conteo', file: null,
+          text: null, vision: 'llava:13b', think: null, prompt: 'Eres CoffeeIA, el asistente del conteo físico.\n\nTe llega la transcripción de una hoja de conteo: un renglón por producto con SKU, nombre y cantidad.\n\n- Relaciona cada renglón con su producto por SKU; si no hay, por nombre.\n- Si una cantidad no se lee, márcala y pregunta.',
+          active: false, example: true, access: { 1: true, 2: true }, uses: 'Lee la foto de la hoja de conteo' },
+        { code: 'compras-ordenes', name: 'Órdenes de compra', icon: 'shopping-cart', module: 'Compras › Órdenes', file: 'operacion/compras/ia/asistente-ordenes.md',
+          text: 'glm-5.2:cloud', vision: null, think: 'off', prompt: null, active: true, example: true, access: { 1: true, 2: true }, uses: 'Arma órdenes con lo que está bajo el mínimo' }
+    ];
+
+    const state = { keyOk: true, filter: 'all', open: null, draft: null };
+
+    const $ = (s) => document.querySelector(s);
+    const esc = (t) => (t == null ? '' : String(t)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const icons = () => window.lucide && lucide.createIcons();
+    const promptOf = (a) => a.prompt ?? (a.code === 'almacen-catalogo' ? FILE_PROMPT : (a.file ? `# ${a.name}\n\n(contenido de ${a.file})` : ''));
+    const thinkOf = (a) => a.think ?? (!a.text ? DEF.think : (a.text === DEF.text ? 'low' : 'no se manda'));
+    const offCount = (a) => companies.filter(c => !a.access[c.id]).length;
+
+    function toast(msg, undo) {
+        const t = $('#toast');
+        t.innerHTML = `<i data-lucide="check-circle-2" class="ico"></i><span>${esc(msg)}</span>${undo ? '<button class="link" id="undo">Deshacer</button>' : ''}`;
+        t.hidden = false; icons();
+        if (undo) $('#undo').onclick = () => { undo(); t.hidden = true; };
+        clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 4000);
+    }
+
+    function ask({ title, text, ok, danger, onOk }) {
+        const m = $('#modal');
+        m.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="mt">
+            <div style="display:grid; gap:6px"><h3 id="mt" style="font-size:16px">${esc(title)}</h3><p class="muted" style="font-size:13px">${esc(text)}</p></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px"><button class="btn btn-ghost" id="mc">Cancelar</button><button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="mo">${esc(ok)}</button></div></div>`;
+        m.hidden = false;
+        const close = () => m.hidden = true;
+        $('#mc').onclick = close; m.onclick = (e) => { if (e.target === m) close(); };
+        $('#mo').onclick = () => { close(); onOk(); };
+        $('#mo').focus();
+    }
+
+    // -- Encabezado --
+
+    function renderHero() {
+        const on = assistants.filter(a => a.active).length;
+        const reach = companies.filter(c => assistants.some(a => a.active && a.access[c.id])).length;
+        const custom = assistants.filter(a => a.prompt).length;
+        $('#keyPill').innerHTML = state.keyOk
+            ? `<button class="pill p-ok" id="keyBtn" title="Clic para simular sin llave">Ollama conectado</button>`
+            : `<button class="pill p-bad" id="keyBtn" title="Clic para simular con llave">Falta OLLAMA_API_KEY</button>`;
+        $('#keyBtn').onclick = () => { state.keyOk = !state.keyOk; renderHero(); };
+        $('#meters').innerHTML = `
+            <div class="meter"><span>Encendidos</span><b class="num">${on}<small>de ${assistants.length} asistentes</small></b></div>
+            <div class="meter"><span>Empresas con CoffeeIA</span><b class="num">${reach}<small>de ${companies.length}</small></b></div>
+            <div class="meter"><span>Con prompt propio</span><b class="num">${custom}<small>el resto lee su archivo</small></b></div>`;
+    }
+
+    // -- Tarjetas --
+
+    function renderCards() {
+        const list = assistants.filter(a => state.filter === 'all' || (state.filter === 'on') === a.active);
+        $('#cards').innerHTML = list.map(a => {
+            const off = offCount(a);
+            return `<article class="card ${a.active ? '' : 'off'}">
+                <div class="card-top">
+                    <div class="glyph"><i data-lucide="${a.icon}" class="ico" style="width:20px;height:20px"></i></div>
+                    <div class="card-title">
+                        <h3>${esc(a.name)}${a.example ? '<span class="pill plain p-muted">Ejemplo</span>' : ''}</h3>
+                        <p>${a.code} · ${esc(a.module)}</p>
+                    </div>
+                    <button class="icon-btn" data-open="${a.code}" aria-label="Configurar ${esc(a.name)}"><i data-lucide="settings-2" class="ico"></i></button>
+                </div>
+                <div class="card-body">
+                    <p class="muted" style="font-size:12.5px">${esc(a.uses)}</p>
+                    <div class="model">
+                        <div class="model-main"><b>${esc(a.text || DEF.text)}</b><span class="src ${a.text ? 'fixed' : ''}">${a.text ? 'Fijado' : 'Del .env'}</span></div>
+                        <div class="model-sub"><span>Visión <b>${esc(a.vision || DEF.vision)}</b></span><span>Esfuerzo <b>${esc(thinkOf(a))}</b></span></div>
+                    </div>
+                    <div class="meta-row">
+                        <div style="display:flex; align-items:center; gap:10px">
+                            <div class="faces">${companies.map(c => `<span class="face ${a.access[c.id] ? '' : 'no'}" title="${esc(c.name)}: ${a.access[c.id] ? 'encendido' : 'apagado'}">${c.ini}</span>`).join('')}</div>
+                            <span class="muted">${off ? `${off} de ${companies.length} apagada${off > 1 ? 's' : ''}` : 'Todas las empresas'}</span>
+                        </div>
+                        ${a.prompt ? '<span class="pill plain p-accent">Prompt propio</span>' : (a.file ? '<span class="pill plain p-muted">Prompt de archivo</span>' : '<span class="pill plain p-warn">Sin prompt</span>')}
+                    </div>
+                </div>
+                <div class="card-foot">
+                    <label class="power"><button class="switch" role="switch" data-power="${a.code}" aria-checked="${a.active}" aria-label="Encender ${esc(a.name)}"></button>${a.active ? 'Encendido' : 'Apagado'}</label>
+                    <button class="btn btn-ghost btn-sm" data-open="${a.code}">Configurar</button>
+                </div>
+            </article>`;
+        }).join('') + `<div class="card card-new"><div style="display:grid; gap:8px; justify-items:center">
+            <i data-lucide="plus-circle" class="ico" style="width:24px;height:24px"></i>
+            <b style="color:var(--fg2)">¿Un asistente nuevo?</b>
+            <p style="font-size:12.5px; max-width:34ch">Entra con su migración y un <code>code</code> propio. Aparece aquí solo, listo para configurar.</p></div></div>`;
+        icons();
+
+        document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openDrawer(b.dataset.open));
+        document.querySelectorAll('[data-power]').forEach(b => b.onclick = () => power(assistants.find(a => a.code === b.dataset.power)));
+    }
+
+    function power(a) {
+        if (a.active) {
+            ask({ title: `¿Apagar «${a.name}»?`, danger: true, ok: 'Apagar', text: 'Deja de responder en todas las empresas. Lo que tenga cada empresa se conserva para cuando lo enciendas.',
+                onOk: () => { a.active = false; renderAll(); toast(`${a.name} apagado`, () => { a.active = true; renderAll(); }); } });
+        } else { a.active = true; renderAll(); toast(`${a.name} encendido`); }
+    }
+
+    // -- Panel lateral --
+
+    function openDrawer(code) {
+        const a = assistants.find(x => x.code === code);
+        state.open = a;
+        state.draft = { text: a.text, vision: a.vision, think: a.think, prompt: a.prompt, access: { ...a.access } };
+        renderDrawer();
+        const d = $('#drawer'), s = $('#scrim');
+        s.hidden = false;
+        requestAnimationFrame(() => { s.classList.add('show'); d.classList.add('show'); });
+        d.setAttribute('aria-hidden', 'false');
+        s.onclick = closeDrawer;
+    }
+
+    function closeDrawer() {
+        const d = $('#drawer'), s = $('#scrim');
+        d.classList.remove('show'); s.classList.remove('show');
+        d.setAttribute('aria-hidden', 'true');
+        setTimeout(() => { s.hidden = true; }, 220);
+        state.open = null;
+    }
+
+    function dirty() {
+        const a = state.open, d = state.draft;
+        return a.text !== d.text || a.vision !== d.vision || a.think !== d.think || a.prompt !== d.prompt || companies.some(c => a.access[c.id] !== d.access[c.id]);
+    }
+
+    function modelSelect(id, list, value, def) {
+        const opts = [`<option value="">Por defecto · ${def}</option>`].concat(list.filter(m => m !== def).map(m => `<option value="${m}" ${value === m ? 'selected' : ''}>${m}</option>`));
+        const custom = value && !list.includes(value);
+        opts.push(`<option value="__other" ${custom ? 'selected' : ''}>Otro modelo…</option>`);
+        return `<select id="${id}" class="field mono">${opts.join('')}</select>
+            <input id="${id}-other" class="field mono" style="margin-top:6px" placeholder="nombre:etiqueta" value="${custom ? esc(value) : ''}" ${custom ? '' : 'hidden'} spellcheck="false">`;
+    }
+
+    function renderDrawer() {
+        const a = state.open, d = state.draft;
+        const text = promptOf({ ...a, prompt: d.prompt });
+        const lines = text.split('\n').length;
+        const risky = d.text && d.text !== DEF.text && d.think && d.think !== 'off';
+
+        $('#drawer').innerHTML = `
+            <div class="d-head">
+                <div class="glyph"><i data-lucide="${a.icon}" class="ico" style="width:20px;height:20px"></i></div>
+                <div class="card-title"><h3>${esc(a.name)}</h3><p>${a.code} · ${esc(a.module)}</p></div>
+                <button class="icon-btn" id="dClose" aria-label="Cerrar"><i data-lucide="x" class="ico"></i></button>
+            </div>
+            <div class="d-body">
+                <div class="blk">
+                    <div class="blk-h"><h4><i data-lucide="cpu" class="ico"></i>Modelo</h4><span class="hint">Vacío = lo del .env</span></div>
+                    <div class="two">
+                        <div><label class="lbl" for="mText">Texto</label>${modelSelect('mText', TEXT_MODELS, d.text, DEF.text)}</div>
+                        <div><label class="lbl" for="mVision">Visión (fotos)</label>${modelSelect('mVision', VISION_MODELS, d.vision, DEF.vision)}</div>
+                    </div>
+                    <div>
+                        <span class="lbl">Esfuerzo de razonamiento</span>
+                        <div class="chips" role="group" aria-label="Esfuerzo">${THINKS.map(t => `<button data-think="${t}" aria-pressed="${(d.think ?? 'auto') === t}">${t}</button>`).join('')}</div>
+                    </div>
+                    ${risky ? `<p class="warnline"><i data-lucide="triangle-alert" class="ico" style="margin-top:2px"></i><span>No todos los modelos admiten <b class="mono">${d.think}</b>. Si <span class="mono">${esc(d.text)}</span> no lo admite, el asistente responde con error.</span></p>` : ''}
+                </div>
+
+                <div class="blk">
+                    <div class="blk-h"><h4><i data-lucide="file-text" class="ico"></i>Comportamiento</h4>
+                        ${d.prompt ? '<span class="pill plain p-accent">Prompt propio</span>' : (a.file ? '<span class="pill plain p-muted">Del archivo</span>' : '<span class="pill plain p-warn">Sin prompt</span>')}</div>
+                    ${text ? `<div class="peek">${esc(text)}</div>` : '<p class="hint">Este asistente aún no tiene prompt.</p>'}
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
+                        <span class="hint num">${lines} líneas · ${text.length.toLocaleString('es-MX')} caracteres</span>
+                        <div style="display:flex; gap:8px">
+                            ${d.prompt && a.file ? '<button class="btn btn-ghost btn-sm" id="pReset"><i data-lucide="rotate-ccw" class="ico"></i>Volver al archivo</button>' : ''}
+                            <button class="btn btn-ghost btn-sm" id="pEdit"><i data-lucide="maximize-2" class="ico"></i>Editar prompt</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="blk">
+                    <div class="blk-h"><h4><i data-lucide="building" class="ico"></i>Empresas</h4><span class="hint">${a.active ? '' : 'El asistente está apagado'}</span></div>
+                    ${companies.map(c => `<div class="co">
+                        <div class="co-l"><span class="face ${d.access[c.id] ? '' : 'no'}">${c.ini}</span><div style="min-width:0"><b>${esc(c.name)}</b><small>${d.access[c.id] ? 'Ve el botón CoffeeIA' : 'No ve el botón CoffeeIA'}</small></div></div>
+                        <button class="switch" role="switch" data-co="${c.id}" aria-checked="${d.access[c.id]}" aria-label="CoffeeIA para ${esc(c.name)}"></button></div>`).join('')}
+                </div>
+            </div>
+            <div class="d-foot">
+                <span class="hint">${dirty() ? '<span class="pill p-warn">Cambios sin guardar</span>' : 'Sin cambios'}</span>
+                <div style="display:flex; gap:8px">
+                    <button class="btn btn-ghost" id="dCancel">Cancelar</button>
+                    <button class="btn btn-primary" id="dSave" ${dirty() ? '' : 'disabled'}><i data-lucide="save" class="ico"></i>Guardar</button>
+                </div>
+            </div>`;
+        icons();
+
+        $('#dClose').onclick = closeDrawer;
+        $('#dCancel').onclick = closeDrawer;
+        $('#dSave').onclick = save;
+        $('#pEdit').onclick = openEditor;
+        if ($('#pReset')) $('#pReset').onclick = () => ask({ title: '¿Volver al archivo?', ok: 'Volver al archivo', text: `Se borra el prompt propio y vuelve a leer ${a.file}.`, onOk: () => { d.prompt = null; renderDrawer(); } });
+
+        [['mText', 'text'], ['mVision', 'vision']].forEach(([id, key]) => {
+            const sel = $('#' + id), other = $('#' + id + '-other');
+            sel.onchange = () => {
+                if (sel.value === '__other') { other.hidden = false; other.focus(); d[key] = other.value.trim() || null; }
+                else { d[key] = sel.value || null; }
+                renderDrawer();
+            };
+            other.onchange = () => { d[key] = other.value.trim() || null; renderDrawer(); };
+        });
+        document.querySelectorAll('[data-think]').forEach(b => b.onclick = () => { d.think = b.dataset.think === 'auto' ? null : b.dataset.think; renderDrawer(); });
+        document.querySelectorAll('[data-co]').forEach(b => b.onclick = () => { const id = +b.dataset.co; d.access[id] = !d.access[id]; renderDrawer(); });
+    }
+
+    function save() {
+        const a = state.open, d = state.draft;
+        const bad = [d.text, d.vision].find(m => m && !/^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,79}$/.test(m));
+        if (bad) { toast(`«${bad}» no es un nombre de modelo válido`); return; }
+        Object.assign(a, { text: d.text, vision: d.vision, think: d.think, prompt: d.prompt, access: { ...d.access } });
+        closeDrawer(); renderAll();
+        toast(`${a.name} guardado. La siguiente pregunta ya usa estos ajustes.`);
+    }
+
+    // -- Editor de prompt --
+
+    function openEditor() {
+        const a = state.open, d = state.draft;
+        const ed = $('#editor');
+        ed.innerHTML = `
+            <div class="e-head">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0">
+                    <button class="icon-btn" id="eBack" aria-label="Volver"><i data-lucide="arrow-left" class="ico"></i></button>
+                    <div style="min-width:0"><b>Prompt · ${esc(a.name)}</b><div class="hint mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.prompt ? 'Prompt propio, manda sobre el archivo' : (a.file || 'Sin archivo')}</div></div>
+                </div>
+                <div style="display:flex; gap:8px">
+                    <button class="btn btn-ghost btn-sm" id="eCancel">Descartar</button>
+                    <button class="btn btn-primary btn-sm" id="eOk"><i data-lucide="check" class="ico"></i>Usar este texto</button>
+                </div>
+            </div>
+            <div class="e-main">
+                <div class="e-pane">
+                    <textarea id="eText" class="e-text" spellcheck="false" aria-label="Prompt" placeholder="Eres CoffeeIA, el asistente de…">${esc(promptOf({ ...a, prompt: d.prompt }))}</textarea>
+                    <div class="e-status"><span>Tono y reglas del negocio. Lo demás lo agrega el sistema.</span><span id="eCount" class="num"></span></div>
+                </div>
+                <aside class="e-side">
+                    <div><b style="font-size:13px">Lo agrega el sistema</b><p class="hint" style="margin-top:4px">Va después de tu texto en cada pregunta y el código lo valida.</p></div>
+                    <div><span class="lbl">Entidades que acepta</span><pre>product · category · unit
+area · warehouse · supplier
+Acciones: add, edit,
+deactivate, activate
+Máximo 150 cambios</pre></div>
+                    <div><span class="lbl">Formato de respuesta</span><pre>{"reply": "…",
+ "changes": [{ "entity": "product",
+   "action": "edit", "id": 45,
+   "set": {"price": 24.5} }]}</pre></div>
+                    <div><span class="lbl">Datos de la empresa</span><pre>Catálogos completos
+Productos: los 1,500
+más recientes</pre></div>
+                </aside>
+            </div>`;
+        ed.hidden = false; icons();
+        const t = $('#eText');
+        const count = () => { const n = t.value.length; $('#eCount').textContent = `${n.toLocaleString('es-MX')} / ${MAX.toLocaleString('es-MX')}`; $('#eCount').style.color = n > MAX ? 'var(--bad)' : ''; };
+        count(); t.oninput = count; t.focus();
+        const close = () => { ed.hidden = true; };
+        $('#eBack').onclick = close; $('#eCancel').onclick = close;
+        $('#eOk').onclick = () => {
+            const v = t.value.trim();
+            if (!v) { toast('El prompt no puede ir vacío'); return; }
+            if (v.length > MAX) { toast('Pasa del máximo de 20,000 caracteres'); return; }
+            d.prompt = v === promptOf({ ...a, prompt: null }) && !a.prompt ? null : v;
+            close(); renderDrawer();
+        };
+    }
+
+    // -- Tema y arranque --
+
+    const root = document.documentElement;
+    try { const t = localStorage.getItem('cia-b-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) { /* sin almacenamiento */ }
+    $('#themeBtn').onclick = () => {
+        const cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        const next = cur === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        try { localStorage.setItem('cia-b-theme', next); } catch (e) { /* sin almacenamiento */ }
+    };
+    document.querySelectorAll('[data-filter]').forEach(b => b.onclick = () => {
+        state.filter = b.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        renderCards();
+    });
+    document.querySelectorAll('[data-other]').forEach(b => b.onclick = () => toast('Esa sección queda fuera de esta propuesta'));
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!$('#modal').hidden) $('#modal').hidden = true;
+        else if (!$('#editor').hidden) $('#editor').hidden = true;
+        else if (state.open) closeDrawer();
+    });
+
+    function renderAll() { renderHero(); renderCards(); }
+    renderAll();
+})();
+</script>
+
+</body>
+</html>
