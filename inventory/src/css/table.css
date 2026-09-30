@@ -26,29 +26,50 @@ table a {
   color: black;
   text-decoration: none;
 }
-/* Paginación de DataTables (Bootstrap 5). Sin esto salía el azul de Bootstrap,
-   la página activa cuadrada y "Anterior"/"Siguiente" como bloques grises.
-   El modo oscuro la repinta en dark-mode.css (con !important). */
+/* Paginación de DataTables: grupo unido de Bootstrap 5 (esquinas redondeadas
+   solo en los extremos) con el aspecto Tailwind del tema. Bootstrap 5.3 pinta
+   .page-link con variables --bs-pagination-*; aquí se conectan a los tokens de
+   themes.css, así siguen al tema claro/oscuro sin reglas propias.
+   Medidas Tailwind: h-8, px-3, text-[13px] font-medium, rounded-lg, shadow-sm.
+   compact.css le pone padding a .paginate_button pensando en el DataTables
+   clásico; con Bootstrap esa clase es el <li> y el padding separaba los botones. */
+.dataTables_wrapper .dataTables_paginate .paginate_button.page-item {
+  padding: 0 !important;
+}
+
+.dataTables_wrapper .pagination {
+  --bs-pagination-padding-x: 12px;
+  --bs-pagination-padding-y: 5px;
+  --bs-pagination-font-size: 13px;
+  --bs-pagination-border-radius: 0.5rem;
+  --bs-pagination-color: var(--ink-dim);
+  --bs-pagination-bg: var(--surface);
+  --bs-pagination-border-color: var(--line);
+  --bs-pagination-hover-color: var(--ink);
+  --bs-pagination-hover-bg: var(--surface-hover);
+  --bs-pagination-hover-border-color: var(--line);
+  --bs-pagination-focus-color: var(--ink);
+  --bs-pagination-focus-bg: var(--surface-hover);
+  --bs-pagination-focus-box-shadow: 0 0 0 3px rgb(var(--brand-600, 192 90 64) / .20);
+  --bs-pagination-active-color: #FFFFFF;
+  --bs-pagination-active-bg: var(--primary);
+  --bs-pagination-active-border-color: var(--primary);
+  --bs-pagination-disabled-color: rgb(var(--gray-400, 156 163 175));
+  --bs-pagination-disabled-bg: var(--surface);
+  --bs-pagination-disabled-border-color: var(--line);
+  /* inline-flex: la sombra abraza solo los botones, no toda la columna.
+     El lado (derecha o centro en móvil) lo pone el text-align de DataTables. */
+  display: inline-flex;
+  vertical-align: middle;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
 .dataTables_wrapper .page-link {
-  margin-left: 0 !important;
   min-width: 2rem;
+  font-weight: 500;
+  line-height: 20px;
   text-align: center;
-  border: 1px solid var(--line, #E5E7EB);
-  border-radius: 0.5rem !important;
-  background-color: var(--surface, #FFFFFF);
-  color: #4B5563;
-  box-shadow: none !important;
-}
-
-.dataTables_wrapper .page-item:not(.active):not(.disabled) > .page-link:hover {
-  background-color: #F3F4F6;
-  color: var(--primary);
-}
-
-.dataTables_wrapper .disabled > .page-link {
-  background-color: transparent;
-  border-color: transparent;
-  color: #9CA3AF;
 }
 
 .active > .page-link,

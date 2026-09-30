@@ -11,8 +11,11 @@
       texto no admite imagenes, asi que la foto se transcribe antes y lo que
       sigue ya es texto. Mismo camino que coffeeIA de erp-pro (mirarImagen).
 
-    Los modelos se pueden cambiar en el .env con IA_PRODUCTOS_MODEL (y su
-    IA_PRODUCTOS_THINK) e IA_VISION_MODEL; si no estan, mandan las constantes.
+    Quien manda, en orden: la configuracion global de coffeeIA (Administrador >
+    CoffeeIA, tabla fayxzvov_erp.coffeeia_config), el .env (IA_PRODUCTOS_MODEL,
+    IA_PRODUCTOS_THINK, IA_VISION_MODEL) y al final las constantes. Lo que en la
+    tabla queda en NULL ("Predeterminado") pasa al siguiente. El tono de esa
+    misma tabla se suma a las instrucciones de cada chat.
 
     Medido el 23/09/2026 con el catalogo real (126 productos, ~5.000 tokens de
     prompt), tres corridas cada uno y la misma respuesta correcta:
@@ -33,24 +36,32 @@ class IaOllama {
     private $modelo;
     private $esfuerzo;
     private $vision;
+    private $tono;
 
-    private function __construct($env) {
+    private function __construct($env, $ajustes) {
         $this->key    = trim((string) $env['OLLAMA_API_KEY']);
         $this->url    = rtrim((string) ($env['OLLAMA_BASE_URL'] ?? 'https://ollama.com'), '/') . '/api/chat';
         $this->espera = max(30, (int) ($env['OLLAMA_TIMEOUT'] ?? 120));
-        $this->modelo = trim((string) ($env['IA_PRODUCTOS_MODEL'] ?? '')) ?: self::MODELO;
-        $this->vision = trim((string) ($env['IA_VISION_MODEL'] ?? '')) ?: self::VISION;
+        $this->modelo = trim((string) ($ajustes['model'] ?? '')) ?: (trim((string) ($env['IA_PRODUCTOS_MODEL'] ?? '')) ?: self::MODELO);
+        $this->vision = trim((string) ($ajustes['vision_model'] ?? '')) ?: (trim((string) ($env['IA_VISION_MODEL'] ?? '')) ?: self::VISION);
+        $this->tono   = trim((string) ($ajustes['tone'] ?? ''));
         $this->ca     = self::certificado($env);
 
-        // El esfuerzo solo se manda si el modelo lo admite: con otro modelo del .env
-        // y sin IA_PRODUCTOS_THINK no se manda nada (un nivel que no admite es un 400).
-        $this->esfuerzo = isset($env['IA_PRODUCTOS_THINK'])
-            ? trim((string) $env['IA_PRODUCTOS_THINK'])
-            : ($this->modelo === self::MODELO ? self::ESFUERZO : '');
+        // El esfuerzo solo se manda si el modelo lo admite: con otro modelo y sin
+        // esfuerzo elegido (tabla o IA_PRODUCTOS_THINK) no se manda nada (un nivel
+        // que no admite es un 400).
+        $esfuerzo = trim((string) ($ajustes['effort'] ?? ''));
+
+        $this->esfuerzo = $esfuerzo !== '' ? $esfuerzo
+            : (isset($env['IA_PRODUCTOS_THINK'])
+                ? trim((string) $env['IA_PRODUCTOS_THINK'])
+                : ($this->modelo === self::MODELO ? self::ESFUERZO : ''));
     }
 
     // null si no hay .env o no trae llave; quien llama lo traduce a "no esta configurado".
-    static function desdeCredenciales() {
+    // $db: el ctrl que llama (hereda de CRUD) para leer la configuracion global;
+    // sin el, manda solo el .env.
+    static function desdeCredenciales($db = null) {
         $ruta = dirname(__DIR__, 2) . '/coffee/app/credentials/.env';
 
         if (!is_readable($ruta)) return null;
@@ -59,11 +70,31 @@ class IaOllama {
 
         if (!is_array($env) || trim((string) ($env['OLLAMA_API_KEY'] ?? '')) === '') return null;
 
-        return new IaOllama($env);
+        return new IaOllama($env, self::ajustes($db));
+    }
+
+    // La fila unica de Administrador > CoffeeIA. Si la tabla aun no existe
+    // (migracion 2026-09-30_coffeeia-config.sql pendiente), _Read devuelve [].
+    private static function ajustes($db) {
+        if (!is_object($db) || !method_exists($db, '_Read')) return [];
+
+        $r = $db->_Read("SELECT tone, model, effort, vision_model FROM fayxzvov_erp.coffeeia_config WHERE id = ? LIMIT 1", [1]);
+
+        return is_array($r) && !empty($r) ? $r[0] : [];
     }
 
     // Devuelve ['ok', 'data', 'error']. 'data' es el objeto JSON ya decodificado.
     function chatJson($mensajes) {
+        // El tono va justo despues de las instrucciones del chat: las matiza, no
+        // las reemplaza, y no toca el formato JSON que cada chat exige.
+        if ($this->tono !== '') {
+            array_splice($mensajes, 1, 0, [[
+                'role'    => 'system',
+                'content' => 'Tono de tus respuestas: ' . $this->tono . "\n"
+                           . 'Aplica solo a cómo redactas el texto que lee la persona. No cambia el formato JSON ni las reglas anteriores.'
+            ]]);
+        }
+
         $cuerpo = [
             'model'    => $this->modelo,
             'stream'   => false,

@@ -14,6 +14,9 @@
 <script src="../../src/plugin/daterangepicker/moment.min.js"></script>
 <script src="../../src/plugin/daterangepicker/daterangepicker.js"></script>
 
+<!-- Orden manual por arrastre (Catálogo > Origen entradas / Motivos salida) -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
 <!-- DataTables -->
 <script src="../../src/plugin/datatables/datatables.min.js"></script>
 <script src="../../src/plugin/datatables/dataTables.responsive.min.js"></script>

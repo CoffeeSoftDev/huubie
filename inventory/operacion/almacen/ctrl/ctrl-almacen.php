@@ -631,7 +631,7 @@ class ctrl extends mdl {
         }
 
         if ($clase === 'imagen') {
-            $ia = IaOllama::desdeCredenciales();
+            $ia = IaOllama::desdeCredenciales($this);
 
             if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 
@@ -675,7 +675,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Escríbeme qué quieres hacer o adjunta un archivo.'];
         }
 
-        $ia = IaOllama::desdeCredenciales();
+        $ia = IaOllama::desdeCredenciales($this);
 
         if ($ia === null) return ['status' => 503, 'message' => 'El asistente no está configurado: falta la llave de Ollama.'];
 

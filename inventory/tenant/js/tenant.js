@@ -2,7 +2,7 @@ let api = 'ctrl/ctrl-tenant.php';
 let app, facturacion, promociones, accesos;
 let companies, plans, subscriptions, payments, coupons, redemptions;
 let modules, submodules, sections, typePermissions, roles, permissions, users, branches;
-let themes;
+let themes, coffeeIAConfig;
 let dataInit = {};
 
 // -- Helpers --
@@ -64,6 +64,7 @@ $(async () => {
     users           = new Users(api, 'root');
     branches        = new Branches(api, 'root');
     themes          = new Themes('ctrl/ctrl-temas.php', 'root');
+    coffeeIAConfig  = new CoffeeIAConfig('ctrl/ctrl-coffeeia.php', 'root');
 
     facturacion = new FacturacionGroup(api, 'root');
     promociones = new PromocionesGroup(api, 'root');
@@ -158,6 +159,13 @@ class App extends Templates {
                     class: 'p-3 flex-1 min-h-0 flex flex-col',
                     lucideIcon: 'palette',
                     onClick: () => themes.render()
+                },
+                {
+                    id: 'grp-coffeeia',
+                    tab: 'CoffeeIA',
+                    class: 'p-3 flex-1 min-h-0 flex flex-col',
+                    lucideIcon: 'sparkles',
+                    onClick: () => coffeeIAConfig.render()
                 },
             ]
         });

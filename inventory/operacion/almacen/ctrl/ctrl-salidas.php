@@ -8,6 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-salidas.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_IaOllama.php';
 
 class ctrl extends mdl {
 
@@ -200,6 +201,36 @@ class ctrl extends mdl {
         return ['status' => 200, 'message' => 'Salida registrada', 'folio' => $folio, 'id' => $salidaId];
     }
 
+    // Cancelar pide la contraseña de quien está en sesión (igual que en entradas).
+    // Al acertar queda una autorización en sesión para ESA salida durante
+    // CANCEL_WINDOW segundos; cancelSalida la exige y la consume.
+    const CANCEL_WINDOW = 600;
+
+    function verifyCancelPassword() {
+        $id     = (int) $_POST['id'];
+        $header = $this->qGetSalida([$id]);
+        if (!$header || (int) $header['companies_id'] !== $this->companiesId) {
+            return ['status' => 404, 'message' => 'Salida no encontrada'];
+        }
+
+        // Misma verificación que el login: bcrypt con respaldo MD5 heredado.
+        $user  = $this->qUserPassword([$this->userId]);
+        $pass  = str_replace("'", "", $_POST['password']);
+        $valid = $user && (
+            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
+            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
+        );
+        if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+
+        $_SESSION['shrinkage_cancel'][$id] = time();
+        return ['status' => 200, 'message' => 'OK'];
+    }
+
+    private function cancelAuthorized($id) {
+        $at = (int) ($_SESSION['shrinkage_cancel'][$id] ?? 0);
+        return $at > 0 && (time() - $at) <= self::CANCEL_WINDOW;
+    }
+
     function cancelSalida() {
         $id     = (int) $_POST['id'];
         $header = $this->qGetSalida([$id]);
@@ -209,6 +240,9 @@ class ctrl extends mdl {
         }
         if ($header['status'] === 'Cancelada') {
             return ['status' => 400, 'message' => 'La salida ya esta cancelada'];
+        }
+        if (!$this->cancelAuthorized($id)) {
+            return ['status' => 403, 'message' => 'Confirma tu contraseña para cancelar la salida'];
         }
 
         $warehouse = (int) $header['warehouse_id'];
@@ -226,6 +260,7 @@ class ctrl extends mdl {
         }
 
         $r = $this->qCancelSalida([$id]);
+        if ($r) unset($_SESSION['shrinkage_cancel'][$id]);
         return [
             'status'  => $r ? 200 : 500,
             'message' => $r ? 'Salida cancelada y stock restaurado' : 'No se pudo cancelar'
@@ -289,6 +324,184 @@ class ctrl extends mdl {
 
         $this->updateSalidaEvidence([$url, $id]);
         return ['status' => 200, 'message' => 'Evidencia actualizada', 'evidence_url' => $url];
+    }
+
+    // -- CoffeeIA --
+
+    // Mismo chat que Catálogo y Entradas (ia-chat.js). El adjunto lo lee
+    // ctrl-almacen::readArchivo; aquí se empareja con el catálogo y el servidor lo
+    // valida: solo entran ids que existen. El costo no se pide: una salida usa el
+    // costo del producto. Lo que no está en el catálogo se reporta como faltante.
+    const IA_MAX_CATALOGO  = 800;
+    const IA_MAX_RENGLONES = 100;
+
+    function askSalidaIA() {
+        if (empty($_SESSION['company_id'])) return ['status' => 401, 'message' => 'Tu sesión expiró. Vuelve a entrar.'];
+
+        $mensaje   = mb_substr(trim((string) ($_POST['mensaje'] ?? '')), 0, 4000);
+        $adjuntos  = json_decode((string) ($_POST['adjuntos'] ?? '[]'), true);
+        $historial = json_decode((string) ($_POST['historial'] ?? '[]'), true);
+        $adjuntos  = is_array($adjuntos) ? $adjuntos : [];
+        $historial = is_array($historial) ? $historial : [];
+
+        if ($mensaje === '' && empty($adjuntos)) {
+            return ['status' => 400, 'message' => 'Adjunta la foto de la nota o escríbeme qué sale.'];
+        }
+
+        $ia = IaOllama::desdeCredenciales($this);
+        if ($ia === null) return ['status' => 503, 'message' => 'La IA no está configurada: falta la llave de Ollama.'];
+
+        $catalogo = array_slice($this->qProductsForTransfer([$this->companiesId]), 0, self::IA_MAX_CATALOGO);
+
+        // Sin esto la sesión queda bloqueada mientras el modelo piensa.
+        session_write_close();
+        set_time_limit(180);
+
+        $r = $ia->chatJson($this->mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo));
+        if (!$r['ok']) return ['status' => 502, 'message' => $r['error']];
+
+        return ['status' => 200] + $this->validarSalidaIA($r['data'], $catalogo);
+    }
+
+    private function mensajesSalidaIA($mensaje, $adjuntos, $historial, $catalogo) {
+        $filas = array_map(function ($p) {
+            return implode(' | ', array_map(function ($v) {
+                $v = trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $v));
+                return $v === '' ? '-' : $v;
+            }, [$p['id'], $p['sku'], $p['nombre'], $p['categoria']]));
+        }, $catalogo);
+
+        $sistema = implode("\n", [
+            'Eres CoffeeIA y ayudas a capturar una SALIDA de mercancía del almacén (merma, caducidad, consumo interno, surtido). Hablas español, en frases cortas.',
+            'Te llega lo que sale: la transcripción de una foto (nota, hoja de merma, lista o ticket), un Excel o lo que la persona escribe.',
+            'Por cada renglón con un producto, búscalo en el CATÁLOGO por nombre, SKU o clave, aunque venga abreviado o escrito distinto.',
+            '- Si corresponde a un producto del catálogo va en "items", con el "id" del catálogo y en "ref" el texto del renglón.',
+            '- Si NO está en el catálogo va en "missing", con el nombre como aparece en el documento.',
+            '- Si la persona solo pregunta o no hay productos, "items" y "missing" van vacíos y contestas en "reply".',
+            '- No inventes productos ni cantidades. Un renglón que no se lee no se pone.',
+            '- Si un producto aparece dos veces, suma las cantidades en un solo renglón.',
+            '- "quantity": cantidad que sale, como número. Si no se ve, 1.',
+            '- No pongas costos: la salida usa el costo registrado del producto.',
+            '- Como mucho ' . self::IA_MAX_RENGLONES . ' renglones entre "items" y "missing".',
+            '',
+            'Responde SOLO con un objeto JSON, sin texto antes ni después. La forma:',
+            '{"reply": "Encontré 5 productos; 1 no está en el catálogo.", "items": [{"id": 45, "ref": "COCA COLA 600", "quantity": 12}], "missing": [{"name": "Salsa Valentina 1 L", "quantity": 3}]}',
+            '',
+            'CATÁLOGO (id | sku | nombre | categoría):',
+            empty($filas) ? '(vacío)' : implode("\n", $filas)
+        ]);
+
+        $mensajes = [['role' => 'system', 'content' => $sistema]];
+
+        foreach (array_slice($historial, -8) as $h) {
+            $rol   = is_array($h) ? ($h['role'] ?? '') : '';
+            $texto = is_array($h) ? mb_substr(trim((string) ($h['content'] ?? '')), 0, 3000) : '';
+            if (($rol === 'user' || $rol === 'assistant') && $texto !== '') $mensajes[] = ['role' => $rol, 'content' => $texto];
+        }
+
+        $pregunta = 'MENSAJE: ' . ($mensaje !== '' ? $mensaje : '(sin texto: solo adjuntó archivos)');
+        $cupo     = 60000;
+
+        foreach (array_slice($adjuntos, 0, 3) as $a) {
+            $texto = is_array($a) ? mb_substr(trim((string) ($a['texto'] ?? '')), 0, min(30000, $cupo)) : '';
+            if ($texto === '') continue;
+
+            $cupo     -= mb_strlen($texto);
+            $pregunta .= "\n\nARCHIVO «" . $this->textoSalidaIA($a['nombre'] ?? 'archivo') . "»:\n" . $texto;
+            if ($cupo <= 0) break;
+        }
+
+        $mensajes[] = ['role' => 'user', 'content' => $pregunta];
+
+        return $mensajes;
+    }
+
+    // Vista previa del chat: "add" = producto del catálogo; "missing" = no está y no
+    // se puede sacar (se enseña para revisarlo, sin casilla). Un id que no existe no
+    // entra como "add": pasa a faltante con su texto.
+    private function validarSalidaIA($data, $catalogo) {
+        $porId   = array_column($catalogo, null, 'id');
+        $items   = [];
+        $missing = [];
+
+        foreach (array_slice(is_array($data['items'] ?? null) ? $data['items'] : [], 0, self::IA_MAX_RENGLONES) as $it) {
+            if (!is_array($it)) continue;
+
+            $id  = (int) ($it['id'] ?? 0);
+            $qty = $this->numeroSalidaIA($it['quantity'] ?? null);
+            $qty = $qty > 0 ? $qty : 1;
+
+            if (!isset($porId[$id])) {
+                $nombre = $this->textoSalidaIA($it['ref'] ?? '');
+                if ($nombre !== '') $missing[] = ['nombre' => $nombre, 'cantidad' => $qty];
+                continue;
+            }
+
+            if (isset($items[$id])) {
+                $items[$id]['cantidad'] += $qty;
+                continue;
+            }
+
+            $items[$id] = ['id' => (string) $id, 'nombre' => $porId[$id]['nombre'], 'cantidad' => $qty];
+        }
+
+        foreach (array_slice(is_array($data['missing'] ?? null) ? $data['missing'] : [], 0, self::IA_MAX_RENGLONES) as $m) {
+            $nombre = is_array($m) ? $this->textoSalidaIA($m['name'] ?? '') : '';
+            if ($nombre === '') continue;
+
+            $qty       = $this->numeroSalidaIA($m['quantity'] ?? null);
+            $missing[] = ['nombre' => $nombre, 'cantidad' => $qty > 0 ? $qty : 1];
+        }
+
+        $row = [];
+
+        foreach (array_values($items) as $it) {
+            $row[] = [
+                'idx'        => count($row),
+                'action'     => 'add',
+                'valid'      => true,
+                'name'       => $it['nombre'],
+                'sku'        => $porId[$it['id']]['sku'] ?? '',
+                'changes'    => [['label' => 'Cantidad', 'after' => (string) $it['cantidad']]],
+                'product_id' => $it['id'],
+                'cantidad'   => $it['cantidad']
+            ];
+        }
+
+        foreach ($missing as $m) {
+            $row[] = [
+                'idx'      => count($row),
+                'action'   => 'missing',
+                'valid'    => false,
+                'name'     => $m['nombre'],
+                'note'     => 'No está en el catálogo: no se puede sacar (' . $m['cantidad'] . ').',
+                'cantidad' => $m['cantidad']
+            ];
+        }
+
+        $reply = $this->textoSalidaIA($data['reply'] ?? '');
+        if ($reply === '') {
+            $reply = empty($row)
+                ? 'No encontré productos que sacar.'
+                : count($items) . ' en el catálogo' . (count($missing) ? '; ' . count($missing) . ' no están.' : '.');
+        }
+
+        return [
+            'reply' => $reply,
+            'token' => empty($items) ? '' : bin2hex(random_bytes(8)),
+            'row'   => $row
+        ];
+    }
+
+    // Número o texto numérico ("1,250.5"). null si no hay número o es negativo.
+    private function numeroSalidaIA($v) {
+        if (is_int($v) || is_float($v)) return $v >= 0 ? round((float) $v, 4) : null;
+        $v = str_replace(['$', ',', ' '], '', (string) $v);
+        return is_numeric($v) && (float) $v >= 0 ? round((float) $v, 4) : null;
+    }
+
+    private function textoSalidaIA($v) {
+        return mb_substr(trim(strip_tags(is_string($v) ? $v : '')), 0, 200);
     }
 }
 

@@ -46,6 +46,9 @@ require_once('layout/core-libraries.php');
 
     <!-- Componentes -->
     <script src="../../src/js/components/salida-form.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/salida-form.js'); ?>"></script>
+    <!-- Chat de CoffeeIA (el mismo de Catálogo) para revisar y capturar la salida; forja-blob dibuja su muñeco -->
+    <script src="../../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/forja-blob.js'); ?>"></script>
+    <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
 
     <!-- Módulo de Salidas -->
     <script src="js/salidas.js?t=<?php echo time(); ?>"></script>

@@ -127,9 +127,7 @@ class IaChat {
             <div id="${o.id}" class="hidden fixed bottom-4 right-4 z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
                 <div class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0">
                     <div class="flex items-center gap-[9px] min-w-0 flex-1">
-                        <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                            <i data-lucide="sparkles" class="w-4 h-4"></i>
-                        </span>
+                        ${this.avatarBox('w-7 h-7 rounded-lg', 'w-4 h-4')}
                         <div class="min-w-0 flex-1">
                             <div class="text-[13.5px] font-bold text-[#0F2C4C] truncate">${this.marca(o.title)}</div>
                             <div class="text-[10.5px] text-[#94A3B8] mt-px truncate">${this.esc(o.subtitle)}</div>
@@ -204,9 +202,7 @@ class IaChat {
         this.appendNode(`
             <div data-hola class="flex flex-col flex-grow text-center px-[14px] pt-[18px] pb-1.5">
                 <div class="my-auto flex flex-col items-center">
-                    <div class="w-16 h-16 mb-3 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                        <i data-lucide="sparkles" class="w-7 h-7"></i>
-                    </div>
+                    ${this.avatarBox('w-16 h-16 mb-3 rounded-full', 'w-7 h-7')}
                     <div class="mb-2.5 text-[9.5px] font-semibold tracking-[.2em] uppercase text-[#94A3B8]">${this.esc(this.fechaHoy())}</div>
                     <div class="text-[24px] font-medium text-[#0F172A] tracking-[-.5px] leading-[1.15]">Hola, soy ${this.marca(o.title)}</div>
                     <p class="mt-[5px] text-[13.5px] leading-[1.4] text-[#64748B]">${saludo}</p>
@@ -264,12 +260,19 @@ class IaChat {
 
         const inicio = Date.now();
 
+        // Mientras trabaja: la animación «Cargando» del vestidor de erp-pro
+        // (coffeeIA avanza dentro de una barra); sin el motor, los tres puntos.
+        const carga = this.avatar('p_carga', '#F1F5F9');
+        const espera = carga
+            ? `<span class="w-24 h-24 -my-7 -ml-2 flex-shrink-0 [&>svg]:w-full [&>svg]:h-full">${carga}</span>`
+            : `<span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse"></span>
+               <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:180ms]"></span>
+               <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:360ms]"></span>`;
+
         this.appendNode(`
             <div id="${o.id}_typing" class="flex">
-                <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[11px] flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:180ms]"></span>
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:360ms]"></span>
+                <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[11px] flex items-center gap-1 overflow-hidden">
+                    ${espera}
                     <span class="ml-1 text-[11px] italic font-semibold text-[#64748B]">${this.esc(label || o.labels.thinking)} <span id="${o.id}_secs" class="not-italic font-normal tabular-nums">0 s</span></span>
                 </div>
             </div>`);
@@ -780,6 +783,27 @@ class IaChat {
         const msgs = document.getElementById(`${this.opts.id}_msgs`);
 
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    // El muñeco de coffeeIA: la receta de casa del motor de erp-pro (forja-blob.js,
+    // window.Bloub). Es SVG animado --se mueve solo, sin bucle en JS-- y se arma
+    // en cada llamada (~10 ms): cada copia trae sus propios ids de recorte y
+    // reusar la cadena los repetiría en la página. Sin el motor devuelve '' y
+    // quien llama deja el ícono de destellos.
+    avatar(anim, fondo) {
+        const B = window.Bloub;
+        if (!B || !B.CASA) return '';
+
+        return B.animado(B.receta(Object.assign({}, B.CASA[0], { anim: anim, fondo: fondo })), { centrado: true });
+    }
+
+    // Recuadro del muñeco en reposo (cabecera y portada); sin motor, los destellos.
+    avatarBox(box, iconSize) {
+        const cara = this.avatar('ninguna', '#F8F8F8');
+
+        return cara
+            ? `<span class="${box} bg-[#F8F8F8] border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0 [&>svg]:w-full [&>svg]:h-full">${cara}</span>`
+            : `<span class="${box} bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><i data-lucide="sparkles" class="${iconSize}"></i></span>`;
     }
 
     // "CoffeeIA" con el "IA" en el acento, como la marca de erp-pro.

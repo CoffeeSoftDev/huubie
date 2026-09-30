@@ -306,9 +306,18 @@ class Navbar {
             .nav-color-menu { position:absolute; right:0; top:calc(100% + 10px); width:230px; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); padding:6px; z-index:60; }
             .nav-color-opt { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; transition:background .15s ease; }
             .nav-color-opt:hover { background:#F3F4F6; }
-            /* La muestra enseña lo que va a quedar en la barra: el color, o la
-               foto si el tema es de imagen. */
-            .nav-color-swatch { width:22px; height:22px; border-radius:9999px; border:1px solid rgba(0,0,0,.12); box-shadow:inset 0 0 0 1px rgba(15,23,42,.10); flex-shrink:0; }
+            /* La muestra es una ventanita del tema: la barra arriba (su color,
+               o la foto si el tema es de imagen), la página abajo y el acento y
+               el primario como dos botones. Así se distinguen hasta los que
+               comparten barra blanca. La barra va en su propia pieza para que
+               la foto se recorte (cover) en vez de estirarse, y el filo va en
+               ::after para quedar encima de ella. Igual que en erp-pro/avatars. */
+            .nav-color-swatch { position:relative; width:30px; height:22px; border-radius:6px; overflow:hidden; flex-shrink:0; }
+            .nav-color-swatch::after { content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(15,23,42,.16); pointer-events:none; }
+            .nav-swatch-bar { position:absolute; left:0; right:0; top:0; height:7px; }
+            .nav-swatch-acc, .nav-swatch-pri { position:absolute; bottom:4px; height:5px; border-radius:3px; }
+            .nav-swatch-acc { left:4px; width:12px; }
+            .nav-swatch-pri { right:4px; width:7px; }
             .nav-color-name { font-size:13px; font-weight:600; color:#111827; flex:1; }
             .nav-color-badge { font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:9999px; background:#7AAB20; color:#FFFFFF; flex-shrink:0; }
             .nav-color-check { color:var(--nav-accent); opacity:0; flex-shrink:0; }
@@ -372,6 +381,9 @@ class Navbar {
             body.dark-mode .nav-user-rol { color:var(--dk-muted, #9CA3AF); }
             body.dark-mode .nav-color-opt:hover,
             body.dark-mode .branch-dd-close:hover { background:var(--dk-hover, #1a2332); }
+            /* Sobre el menú oscuro, las muestras de los temas oscuros se
+               perderían con el filo oscuro: aquí va claro. */
+            body.dark-mode .nav-color-swatch::after { box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
             body.dark-mode .nav-status-dot { border-color:var(--dk-card, #1F2A37); }
             body.dark-mode .nav-logout-btn { background:transparent; border-color:var(--dk-line, #374151); color:#F87171; }
             body.dark-mode .nav-logout-btn:hover { background:rgba(220,38,38,.12); border-color:rgba(220,38,38,.35); }
@@ -505,11 +517,19 @@ class Navbar {
         return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.secondary || '') ? theme.secondary : this.themeAccent(theme);
     }
 
+    themeColor(theme) {
+        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.color || '') ? theme.color : Navbar.THEME_FALLBACK.color;
+    }
+
+    // El fondo de la página de cada scheme, el de src/css/themes.css (--bg y
+    // --dk-bg): la parte de abajo de la muestra.
+    static get SCHEME_PAGE() {
+        return { light: '#F3F4F6', huubie: '#111928', midnight: '#0B1420' };
+    }
+
     // Pinta las opciones del menú: muestra, nombre, badge opcional y palomita
-    // en el activo. La muestra es un solo color, el que distingue al tema: en
-    // los de barra oscura, la barra; en los de barra blanca (Claro, Agents,
-    // Avatar) la barra es igual en todos, así que va el acento. Con imagen,
-    // la muestra es la foto.
+    // en el activo. La muestra es el tema en chiquito: barra (color o foto),
+    // página, acento y primario.
     buildThemeList() {
         const themes = this.settings.themes || [];
 
@@ -521,15 +541,20 @@ class Navbar {
         }
 
         const rows = themes.map((t) => {
-            const image  = this.themeImage(t);
-            const tone   = t.mode === 'dark' ? t.color : this.themeAccent(t);
-            const swatch = image
-                ? `background:url('${image}') center/cover no-repeat, ${t.color};`
-                : `background:${tone};`;
+            const image = this.themeImage(t);
+            const color = this.themeColor(t);
+            const page  = Navbar.SCHEME_PAGE[t.scheme] || Navbar.SCHEME_PAGE.light;
+            const bar   = image
+                ? `background:url('${image}') center/cover no-repeat, ${color};`
+                : `background:${color};`;
 
             return `
             <div class="nav-color-opt ${t.code === this.settings.theme ? 'is-active' : ''}" data-code="${this.escapeText(t.code)}">
-                <span class="nav-color-swatch" style="${swatch}"></span>
+                <span class="nav-color-swatch" style="background:${page};">
+                    <span class="nav-swatch-bar" style="${bar}"></span>
+                    <span class="nav-swatch-acc" style="background:${this.themeAccent(t)};"></span>
+                    <span class="nav-swatch-pri" style="background:${this.themePrimary(t)};"></span>
+                </span>
                 <span class="nav-color-name">${this.escapeText(t.name)}</span>
                 ${t.badge ? `<span class="nav-color-badge">${this.escapeText(t.badge)}</span>` : ''}
                 <i data-lucide="check" class="nav-color-check w-4 h-4"></i>

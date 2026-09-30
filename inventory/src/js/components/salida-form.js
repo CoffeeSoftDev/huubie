@@ -66,10 +66,12 @@ class SalidaForm {
                 confirmClear:   'Eliminar todos los productos de la salida?',
                 limpiar:        'Limpiar',
                 cancelar:       'Cancelar',
-                registrar:      'Registrar Salida'
+                registrar:      'Registrar Salida',
+                iaBtn:          'CoffeeIA'
             },
             onSubmit:          () => {},
             onClose:           () => {},
+            onOpenIA:          null,
             onSearch:          null,
             onWarehouseChange: null
         };
@@ -188,6 +190,10 @@ class SalidaForm {
                         <span class="sf-kbd">&darr;</span>${this.esc(o.labels.hintRenglon)}
                         <span class="sf-kbd ml-1.5">Enter</span>${this.esc(o.labels.hintBuscador)}
                     </span>
+                    ${typeof o.onOpenIA === 'function' ? `
+                    <button id="${o.id}_btnIA" type="button" class="${cls.btnIco}">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.iaBtn)}</span>
+                    </button>` : ''}
                     <button id="${o.id}_btnLimpiarLote" class="text-[10px] text-gray-500 hover:text-red-500 transition flex items-center gap-1 hidden px-2 py-1 rounded-md hover:bg-red-50">
                         <i data-lucide="trash-2" class="w-3 h-3"></i>${this.esc(o.labels.limpiar)}
                     </button>
@@ -578,6 +584,24 @@ class SalidaForm {
         this.revealRow($(`#${this.opts.id}_listaProductos tr[data-idx="${idx}"]`)[0]);
         this.flashRow(idx);
         return idx;
+    }
+
+    // Lo que se aplica en el chat de CoffeeIA: [{prod, cantidad}]. Un solo repintado;
+    // la cantidad respeta decimales y el costo es siempre el del producto. Devuelve
+    // cuántos renglones tocó.
+    addFromIA(items) {
+        let added = 0;
+        (items || []).forEach((it) => {
+            if (!it.prod) return;
+            const qty = Number(it.cantidad) > 0 ? Number(it.cantidad) : 1;
+            const row = this.lote.find(x => String(x.id) === String(it.prod.id));
+            if (row) row.cantidad = this.fmtQty(Number(row.cantidad || 0) + qty);
+            else this.lote.push(Object.assign({}, it.prod, { cantidad: this.fmtQty(qty) }));
+            added++;
+        });
+        this.draft = null;
+        this.renderLote();
+        return added;
     }
 
     // Enter en el buscador: SKU exacto (lector de código) agrega 1 y sigue escaneando;
@@ -1063,6 +1087,7 @@ class SalidaForm {
         wrap.on('click',  `#${id}_btnFoto`,           () => $(`#${id}_photoInput`).trigger('click'));
         wrap.on('change', `#${id}_photoInput`,        (e) => this.onPhotoChange(e.target.files && e.target.files[0]));
         wrap.on('click',  `#${id}_photoRemove`,       () => this.removePhoto());
+        wrap.on('click',  `#${id}_btnIA`,             () => this.opts.onOpenIA());
         wrap.on('click',  `#${id}_btnLimpiarLote`,    () => this.clearLote());
         wrap.on('click',  `#${id}_btnRegistrar`,      () => this.doRegistrar());
 

@@ -48,7 +48,8 @@ require_once('layout/core-libraries.php');
     <script src="../../src/js/components/cs-icons.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-icons.js'); ?>"></script>
     <script src="../../src/js/components/cs-icon-picker.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/cs-icon-picker.js'); ?>"></script>
 
-    <!-- Chat flotante del asistente IA de Productos -->
+    <!-- Chat flotante del asistente IA de Productos; forja-blob dibuja el muñeco de coffeeIA -->
+    <script src="../../src/js/components/forja-blob.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/forja-blob.js'); ?>"></script>
     <script src="../../src/js/components/ia-chat.js?v=<?php echo filemtime(__DIR__ . '/../../src/js/components/ia-chat.js'); ?>"></script>
 
     <!-- Módulo de Catálogo -->

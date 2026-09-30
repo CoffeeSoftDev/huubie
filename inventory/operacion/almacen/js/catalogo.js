@@ -149,17 +149,15 @@ class Category extends Templates {
     }
 
     // Confirmación con alertBox, igual que Productos: desactivar en rojo ('cancel'), activar en 'confirm'.
-    // Al desactivar se ofrece también eliminarla (va como enlace: alertBox solo tiene dos botones).
+    // Eliminar no va aquí: es un botón propio en las filas de Inactivos.
     statusCategory(id, active) {
         const activar = active !== 1;
-        const alertId = `alertStatus${this.PROJECT_NAME}`;
 
         this.alertBox({
-            id:         alertId,
             type:       activar ? "confirm" : "cancel",
             theme:      "light",
             title:      activar ? "¿Activar categoría?" : "¿Desactivar categoría?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la categoría` + (activar ? "" : deleteLink("Eliminarla definitivamente")),
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la categoría`,
             okLabel:    activar ? "Activar" : "Desactivar",
             onOk: async () => {
                 const response = await useFetch({
@@ -175,13 +173,6 @@ class Category extends Templates {
                     this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
-        });
-
-        if (activar) return;
-
-        $(`#${alertId} [data-delete]`).on("click", () => {
-            $(`#${alertId} [data-ab-cancel]`).trigger("click");
-            this.deleteCategory(id);
         });
     }
 
@@ -351,6 +342,32 @@ class Area extends Templates {
         });
     }
 
+    // Los productos del área no se borran: el servidor les deja el área en NULL.
+    deleteArea(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar área?",
+            detailHtml: "Se borra para siempre. Los productos que la usan se quedan sin área.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteArea", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 2000 });
+                    this.lsArea();
+                    products.reloadAreas();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
+                }
+            }
+        });
+    }
+
     // El área es un lugar dentro de UN almacén: el nombre se puede repetir en otro almacén.
     jsonArea() {
         return [
@@ -375,7 +392,8 @@ class Area extends Templates {
                 id: "description",
                 lbl: "Descripción",
                 // tipo: "texto",
-                class: "col-12 mb-3"
+                class: "col-12 mb-3",
+                required: false
             }
         ];
     }
@@ -480,16 +498,15 @@ class Unit extends Templates {
         }
     }
 
+    // Eliminar no va aquí: es un botón propio en las filas de Inactivos.
     statusUnit(id, active) {
         const activar = active !== 1;
-        const alertId = `alertStatus${this.PROJECT_NAME}`;
 
         this.alertBox({
-            id:         alertId,
             type:       activar ? "confirm" : "cancel",
             theme:      "light",
             title:      activar ? "¿Activar unidad?" : "¿Desactivar unidad?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la unidad` + (activar ? "" : deleteLink("Eliminarla definitivamente")),
+            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} la unidad`,
             okLabel:    activar ? "Activar" : "Desactivar",
             onOk: async () => {
                 const response = await useFetch({
@@ -505,13 +522,6 @@ class Unit extends Templates {
                     this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
             }
-        });
-
-        if (activar) return;
-
-        $(`#${alertId} [data-delete]`).on("click", () => {
-            $(`#${alertId} [data-ab-cancel]`).trigger("click");
-            this.deleteUnit(id);
         });
     }
 
@@ -695,6 +705,31 @@ class Warehouse extends Templates {
         });
     }
 
+    // El servidor lo niega si el almacén tiene stock, movimientos, órdenes o áreas.
+    deleteWarehouse(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar almacén?",
+            detailHtml: "Se borra para siempre y no se puede deshacer.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteWarehouse", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsWarehouse();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
+                }
+            }
+        });
+    }
+
     // El almacén ya no lleva Área: las áreas (anaqueles, refrigerador...) son del producto.
     jsonWarehouse(branches) {
         return [
@@ -764,21 +799,25 @@ class InflowOrigin extends Templates {
         });
     }
 
+    // Sin DataTable: el orden es manual (arrastre) y se ve la lista completa, sin páginas
+    // ni orden por columna. `success` corre antes de pintar la tabla, por eso el arrastre
+    // se engancha en el siguiente ciclo.
     lsInflow() {
         this.createTable({
             parent: "table-inflow",
             idFilterBar: "filterbar-inflow",
             data: { opc: "lsInflow" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: false },
             attr: {
                 id: "tbInflow",
                 theme: "light",
                 striped: true,
                 title: "Orígenes de entrada",
                 subtitle: "Clasificación del origen de las entradas al almacén",
-                center: [ 3, 4]
-            }
+                center: [1, 3, 4, 5]
+            },
+            success: () => setTimeout(() => this.bindSortInflow(), 0)
         });
     }
 
@@ -871,15 +910,45 @@ class InflowOrigin extends Templates {
         });
     }
 
-    // Sube o baja el origen un lugar; ese orden es el del selector de Entradas.
-    async moveInflow(id, dir) {
-        const response = await useFetch({ url: this._link, data: { opc: "moveInflow", id: id, dir: dir } });
+    // Solo los activos se ordenan: ese orden es el del selector de Entradas.
+    bindSortInflow() {
+        if ($("#filterbar-inflow #active").val() !== "1") return;
+        sortableRows("tbInflow", (ids) => this.sortInflow(ids));
+    }
 
-        if (response && response.status === 200) {
-            this.lsInflow();
-        } else {
-            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo mover el origen" });
+    async sortInflow(ids) {
+        const response = await useFetch({ url: this._link, data: { opc: "sortInflow", ids: JSON.stringify(ids) } });
+
+        if (!response || response.status !== 200) {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo guardar el orden" });
         }
+
+        this.lsInflow();
+    }
+
+    // El servidor lo niega si alguna entrada usa el origen.
+    deleteInflow(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar origen?",
+            detailHtml: "Se borra para siempre y no se puede deshacer.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteInflow", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsInflow();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
+                }
+            }
+        });
     }
 
     jsonInflow() {
@@ -972,21 +1041,23 @@ class ShrinkageReason extends Templates {
         });
     }
 
+    // Mismo formato que Orígenes de entrada: orden por arrastre, sin DataTable.
     lsShrinkage() {
         this.createTable({
             parent: "table-shrinkage",
             idFilterBar: "filterbar-shrinkage",
             data: { opc: "lsShrinkage" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: false },
             attr: {
                 id: "tbShrinkage",
                 theme: "light",
                 striped: true,
                 title: "Motivos de salida",
                 subtitle: "Razones de salida del almacén",
-                center: [3]
-            }
+                center: [1, 3, 4]
+            },
+            success: () => setTimeout(() => this.bindSortShrinkage(), 0)
         });
     }
 
@@ -1062,15 +1133,45 @@ class ShrinkageReason extends Templates {
         });
     }
 
-    // Sube o baja el motivo un lugar; ese orden es el del selector de Salidas.
-    async moveShrinkage(id, dir) {
-        const response = await useFetch({ url: this._link, data: { opc: "moveShrinkage", id: id, dir: dir } });
+    // Solo los activos se ordenan: ese orden es el del selector de Salidas.
+    bindSortShrinkage() {
+        if ($("#filterbar-shrinkage #active").val() !== "1") return;
+        sortableRows("tbShrinkage", (ids) => this.sortShrinkage(ids));
+    }
 
-        if (response && response.status === 200) {
-            this.lsShrinkage();
-        } else {
-            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo mover el motivo" });
+    async sortShrinkage(ids) {
+        const response = await useFetch({ url: this._link, data: { opc: "sortShrinkage", ids: JSON.stringify(ids) } });
+
+        if (!response || response.status !== 200) {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo guardar el orden" });
         }
+
+        this.lsShrinkage();
+    }
+
+    // El servidor lo niega si alguna salida usa el motivo.
+    deleteShrinkage(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar motivo?",
+            detailHtml: "Se borra para siempre y no se puede deshacer.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteShrinkage", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsShrinkage();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
+                }
+            }
+        });
     }
 
     jsonShrinkage() {
@@ -1188,6 +1289,7 @@ class Supplier extends Templates {
                 }
             }
         });
+        this.mountSupplierFields("formSupplierAdd");
     }
 
     async editSupplier(id) {
@@ -1211,7 +1313,15 @@ class Supplier extends Templates {
                     }
                 }
             });
+            this.mountSupplierFields("formSupplierEdit");
         }
+    }
+
+    // Iconos de contacto, teléfono y email. El teléfono son 10 dígitos: tipo "numero" ya
+    // borra lo que no sea dígito; aquí se limita el largo y se alinea a la izquierda.
+    mountSupplierFields(formId) {
+        mountInputIcons(formId, { contact_name: "user", phone: "phone", email: "mail" });
+        $(`#${formId} [name="phone"]`).attr({ maxlength: 10, inputmode: "numeric" }).removeClass("text-right");
     }
 
     statusSupplier(id, active) {
@@ -1239,6 +1349,31 @@ class Supplier extends Templates {
         });
     }
 
+    // El servidor lo niega si alguna entrada u orden de compra usa el proveedor.
+    deleteSupplier(id) {
+        this.alertBox({
+            type:       "cancel",
+            theme:      "light",
+            title:      "¿Eliminar proveedor?",
+            detailHtml: "Se borra para siempre y no se puede deshacer.",
+            okLabel:    "Eliminar",
+            okBg:       "bg-red-600 hover:bg-red-700",
+            onOk: async () => {
+                const response = await useFetch({
+                    url:  this._link,
+                    data: { opc: "deleteSupplier", id: id }
+                });
+
+                if (response && response.status === 200) {
+                    this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
+                    this.lsSupplier();
+                } else {
+                    this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
+                }
+            }
+        });
+    }
+
     jsonSupplier() {
         return [
             {
@@ -1261,7 +1396,8 @@ class Supplier extends Templates {
                 opc: "input",
                 id: "phone",
                 lbl: "Teléfono",
-                tipo: "texto",
+                tipo: "numero",
+                placeholder: "10 dígitos",
                 class: "col-12 col-md-6 mb-3",
                 required: false
 
@@ -1270,7 +1406,7 @@ class Supplier extends Templates {
                 opc: "input",
                 id: "email",
                 lbl: "Email",
-                tipo: "texto",
+                tipo: "email",
                 class: "col-12 mb-3",
                 required: false
 
@@ -1427,9 +1563,52 @@ class TransferStatus extends Templates {
 
 // -- Helpers --
 
-// Enlace "Eliminar" que va dentro del detailHtml de un alertBox de desactivar.
-function deleteLink(text) {
-    return `<br><button type="button" data-delete class="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-red-600 hover:text-red-700 hover:underline"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${text}</button>`;
+// Orden manual: cada fila de la tabla se arrastra y se suelta en su nuevo lugar
+// (mismo SortableJS que el Admin del Tenant). Los botones de la fila siguen
+// respondiendo al clic. Al soltar entrega los ids en el nuevo orden; el id sale
+// del id de la primera celda (createCoffeeTable3 la nombra `${columna}_${id}`).
+function sortableRows(tableId, onSort) {
+    const tbody = $(`#${tableId} tbody`);
+    if (!tbody.length || typeof Sortable === "undefined") return;
+
+    tbody.children("tr").addClass("cursor-grab");
+
+    Sortable.create(tbody[0], {
+        animation: 150,
+        ghostClass: "opacity-40",
+        filter: "a, button",
+        preventOnFilter: false,
+        onEnd: (evt) => {
+            if (evt.oldIndex === evt.newIndex) return;
+            const ids = tbody.children("tr").map((_, tr) => Number($(tr).children("td").first().attr("id").split("_").pop())).get();
+            onSort(ids);
+        }
+    });
+}
+
+// Icono Lucide a la izquierda de inputs de un form de coffeeForm. `icons` = { name: "icono" }.
+// El input trae px-3 y en inventory Bootstrap lo fuerza con !important: se cambia por
+// valores arbitrarios para dejar hueco al icono. El aviso de error entra al envoltorio
+// para que coffeeForm lo siga encontrando junto al input.
+function mountInputIcons(formId, icons) {
+    const $form = $(`#${formId}`);
+
+    Object.keys(icons).forEach((name) => {
+        const $input = $form.find(`[name="${name}"]`);
+        if (!$input.length) return;
+
+        const $error = $input.next(".tw-error");
+        const $wrap  = $("<div>", { class: "relative" });
+
+        $input.before($wrap).removeClass("px-3").addClass("pl-[36px] pr-[12px]");
+        $wrap.append(
+            $("<i>", { "data-lucide": icons[name], class: "w-4 h-4 text-gray-400 absolute left-3 top-[10px] pointer-events-none" }),
+            $input,
+            $error
+        );
+    });
+
+    if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
 // -- Selector de badge --

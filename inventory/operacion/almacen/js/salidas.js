@@ -1,4 +1,5 @@
 let apiSalidas = 'ctrl/ctrl-salidas.php';
+let apiAlmacen = 'ctrl/ctrl-almacen.php';
 let app, salidas, salidasView;
 
 let branch_id;
@@ -106,7 +107,7 @@ class App extends Templates {
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: 'w-full md:w-[480px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -451,11 +452,104 @@ class Salidas extends Templates {
                         app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo registrar la salida' });
                     }
                 },
-                onClose: () => {}
+                onOpenIA: () => this.openChatIA(),
+                onClose:  () => { if (this.chatIA) this.chatIA.close(); }
             });
         }
         this.salidaFormApi.setData({ branch_id: curSub, fecha: moment().format('YYYY-MM-DD') });
         this.salidaFormApi.open();
+    }
+
+    // -- CoffeeIA --
+
+    // El mismo chat de Catálogo y Entradas (iaChat): se adjunta la nota o un Excel,
+    // la IA propone qué sale, se revisa en la vista previa y lo marcado entra al lote.
+    openChatIA() {
+        if (!this.chatIA) {
+            this.chatIA = this.iaChat({
+                id:          'chatSalidaIA',
+                title:       'CoffeeIA',
+                subtitle:    'Revisa y captura la salida desde una foto o un Excel',
+                placeholder: 'Adjunta la nota de merma o escribe qué sale…',
+                accept:      '.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv',
+                welcome:     'Adjunta la foto de la nota, hoja de merma o lista. Te digo qué productos salen, cuáles no están en el catálogo y cuáles no tienen stock suficiente. Nada entra sin tu confirmación.',
+                actions: {
+                    add: {
+                        label: 'Agregar',
+                        tone:  'bg-emerald-100 text-emerald-700'
+                    },
+                    missing: {
+                        label: 'Falta',
+                        tone:  'bg-amber-100 text-amber-700'
+                    }
+                },
+                onAttach:  (file) => this.readArchivoIA(file),
+                onSend:    (text, adjuntos, historial) => this.askSalidaIA(text, adjuntos, historial),
+                onConfirm: (token, ids) => this.applySalidaIA(token, ids)
+            });
+        }
+        this.chatIA.open();
+    }
+
+    // Misma lectura que el chat de Catálogo (ctrl-almacen::readArchivo).
+    async readArchivoIA(file) {
+        const data = new FormData();
+        data.append('opc', 'readArchivo');
+        data.append('archivo', file);
+
+        try {
+            const response = await fetch(apiAlmacen, {
+                method:      'POST',
+                credentials: 'same-origin',
+                body:        data
+            });
+            return await response.json();
+        } catch (e) {
+            return { status: 500, message: 'No pude leer el archivo.' };
+        }
+    }
+
+    // Revisión: con el stock del almacén elegido en el modal se avisa qué dejaría el
+    // stock en negativo (se puede agregar igual, como al capturar a mano).
+    async askSalidaIA(text, adjuntos, historial) {
+        const r = await useFetch({
+            url:  apiSalidas,
+            data: {
+                opc:       'askSalidaIA',
+                mensaje:   text,
+                adjuntos:  JSON.stringify(adjuntos),
+                historial: JSON.stringify(historial)
+            }
+        }).catch(() => null);
+
+        if (!(r && r.status === 200)) return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
+
+        const catalogo = this.salidaFormApi ? (this.salidaFormApi.opts.json || []) : [];
+        (r.row || []).forEach((x) => {
+            if (x.action !== 'add') return;
+            const prod  = catalogo.find(p => String(p.id) === String(x.product_id));
+            const stock = prod ? Number(prod.stock || 0) : 0;
+            if (Number(x.cantidad) > stock) x.warn = `Stock insuficiente: hay ${stock}`;
+        });
+
+        if (r.token) this.iaPropuesta = { token: r.token, row: r.row || [] };
+        return r;
+    }
+
+    applySalidaIA(token, ids) {
+        const pv   = this.iaPropuesta;
+        const form = this.salidaFormApi;
+        if (!pv || pv.token !== token) return { status: 400, message: 'Esa vista previa ya no es válida. Pídemela otra vez.' };
+        if (!form || form.wrap.hasClass('hidden')) return { status: 400, message: 'Abre la salida para agregar los productos.' };
+
+        const catalogo = form.opts.json || [];
+        const items    = pv.row
+            .filter(x => x.valid && x.action === 'add' && ids.includes(x.idx))
+            .map(x => ({ prod: catalogo.find(p => String(p.id) === String(x.product_id)), cantidad: x.cantidad }))
+            .filter(i => i.prod);
+
+        const n = form.addFromIA(items);
+        return { status: 200, message: `Agregué ${n} ${n === 1 ? 'producto' : 'productos'} a la salida.` };
     }
 
     async printSalida(arg) {
@@ -502,22 +596,22 @@ class Salidas extends Templates {
 
         const rowsHtml = items.map(it => {
             const cu = Number(it.costo_unit || 0);
-            return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">${fmtUds(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(subOf(it))}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
+            return `<tr><td class="prod"><span class="prod-name">${esc(it.name)}</span>${it.sku ? ` <span class="sku">${esc(it.sku)}</span>` : ''}</td><td class="c">-${fmtUds(it.qty)}</td><td class="r">${fmtMoney(cu)}</td><td class="r">-${fmtMoney(subOf(it))}</td><td class="c">${esc(it.unidad || '-')}</td></tr>`;
         }).join('');
 
         const reg = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
 
         const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Salida ${esc(m.folio||'')}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.doc-footer{margin-top:28px;display:flex;justify-content:space-between;font-size:10px;color:#777;border-top:1px solid #ccc;padding-top:10px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
+        <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#c8c8c8;color:#000;padding:24px}.toolbar{width:816px;max-width:100%;margin:0 auto 16px;display:flex;justify-content:flex-end;gap:8px}.btn{cursor:pointer;border:1px solid #000;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:#333}.btn.gray{background:#777}.sheet{width:816px;max-width:100%;min-height:1056px;margin:0 auto;background:#fff;padding:40px 48px;box-shadow:0 2px 10px rgba(0,0,0,.25)}.doc-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}.doc-title{font-size:22px;font-weight:800;color:#000}.folio{font-size:20px;font-weight:800;color:#000;text-align:right}.status{display:inline-block;margin-top:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 10px;border:1px solid #000;border-radius:3px;color:#000}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 40px;margin-bottom:18px}.info-item{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ccc;padding-bottom:4px;font-size:12px}.info-item .k{color:#555}.info-item .v{font-weight:700;text-align:right;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:18px}thead th{border-bottom:1.5px solid #000;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;text-align:left}thead th.r{text-align:right}thead th.c{text-align:center}tbody td{padding:3px 8px;font-size:11px;border-bottom:1px solid #e2e2e2;color:#000}tbody td.r{text-align:right;white-space:nowrap}tbody td.c{text-align:center;white-space:nowrap}.prod-name{font-weight:600}.sku{color:#777;font-size:10px}.totals{display:flex;justify-content:flex-end}.totals-box{width:280px;border:1px solid #000;border-radius:4px;padding:10px 14px}.totals-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}.totals-row.grand{border-top:1.5px solid #000;margin-top:4px;padding-top:8px;font-size:16px;font-weight:800}.firmas{display:flex;justify-content:space-between;gap:64px;margin-top:72px;page-break-inside:avoid}.firma{flex:1;text-align:center;font-size:11px;color:#000}.firma .linea{border-top:1px solid #000;margin-bottom:6px}.firma .rol{font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px}.firma .sub{color:#777;font-size:10px;margin-top:2px}@media print{body{background:#fff;padding:0}.toolbar{display:none}.sheet{width:auto;min-height:auto;box-shadow:none;padding:0}}</style>
         </head><body>
         <div class="toolbar"><button class="btn" onclick="window.print()">Imprimir</button><button class="btn gray" onclick="window.close()">Cerrar</button></div>
         <div class="sheet">
             <div class="doc-header"><div><div class="doc-title">Comprobante de Salida</div><div style="font-size:12px;color:#555;margin-top:3px">${esc(m.sucursal||'')}${m.almacen?' &middot; '+esc(m.almacen):''}</div></div><div><div class="folio">${esc(m.folio||'-')}</div>${m.status?`<span class="status">${esc(m.status)}</span>`:''}</div></div>
             <div class="info-grid"><div class="info-item"><span class="k">Tipo de salida</span><span class="v">${esc(m.motivo||'-')}</span></div><div class="info-item"><span class="k">Fecha</span><span class="v">${esc(fmtFecha(m.fecha))}</span></div><div class="info-item"><span class="k">Sucursal</span><span class="v">${esc(m.sucursal||'-')}</span></div><div class="info-item"><span class="k">Origen</span><span class="v">${esc(m.almacen||'-')}</span></div><div class="info-item"><span class="k">Registrado por</span><span class="v">${esc(reg)}</span></div></div>
             <table><thead><tr><th>Producto</th><th class="c">Cant</th><th class="r">Costo unit.</th><th class="r">Importe</th><th class="c">Unidad</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="5" class="c">Sin productos</td></tr>'}</tbody></table>
-            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>${fmtUds(totUds)}</span></div><div class="totals-row grand"><span>Valor de salidas</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
+            <div class="totals"><div class="totals-box"><div class="totals-row"><span>Tipos de producto</span><span>${items.length}</span></div><div class="totals-row"><span>Unidades</span><span>-${fmtUds(totUds)}</span></div><div class="totals-row grand"><span>Valor de salidas</span><span>-${fmtMoney(totCosto)}</span></div></div></div>
             ${m.nota?`<div style="margin-top:18px;border-left:3px solid #000;background:#f7f7f7;padding:10px 14px;font-size:12px;color:#222"><b style="display:block;margin-bottom:3px;text-transform:uppercase;font-size:10px;letter-spacing:.5px;color:#555">Nota</b>${esc(m.nota)}</div>`:''}
-            <div class="doc-footer"><span>Huubie &middot; Inventarios &middot; Comprobante de salida</span><span>Generado: ${esc(fmtFecha(new Date().toISOString()))}</span></div>
+            <div class="firmas"><div class="firma"><div class="linea"></div><div class="rol">Almacenista</div><div class="sub">Nombre y firma</div></div><div class="firma"><div class="linea"></div><div class="rol">Supervisor</div><div class="sub">Nombre y firma</div></div></div>
         </div></body></html>`;
 
         const w = window.open('', '_blank', 'width=900,height=1000');
@@ -527,7 +621,47 @@ class Salidas extends Templates {
         w.focus();
     }
 
-    cancelSalida(id) {
+    // Resuelve true si la contraseña del usuario en sesión es correcta; con una
+    // equivocada vuelve a preguntar y con Cancelar resuelve false.
+    askCancelPassword(id, retry) {
+        return new Promise((resolve) => {
+            app.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry
+                    ? 'Contraseña incorrecta. Intenta de nuevo.'
+                    : 'Para cancelar la salida escribe tu contraseña.',
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Continuar',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const r = await useFetch({
+                        url:  apiSalidas,
+                        data: {
+                            opc:      'verifyCancelPassword',
+                            id:       id,
+                            password: password
+                        }
+                    }).catch(() => null);
+
+                    if (r && r.status === 200) { resolve(true); return; }
+                    if (r && r.status === 401) { resolve(await this.askCancelPassword(id, true)); return; }
+
+                    app.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo verificar la contraseña' });
+                    resolve(false);
+                },
+                onCancel: () => resolve(false)
+            });
+        });
+    }
+
+    async cancelSalida(id) {
+        if (!(await this.askCancelPassword(id))) return;
+
         app.alertBox({
             type:        'cancel',
             title:       'Cancelar esta salida?',
@@ -676,21 +810,22 @@ class SalidasView extends Templates {
         const defaults = {
             parent:   'root',
             id:       'salidaDetailPanel',
-            class:    'w-full h-full flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden',
+            class:    'flex-1 min-h-0 flex flex-col overflow-hidden',
             json:     null,
             labels: {
                 emptyTitle:  'Selecciona una salida',
                 emptyHint:   'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
                 subtitleLbl: 'Detalle de la salida',
-                motivo:      'Motivo',
+                motivo:      'Tipo de salida',
+                fecha:       'Fecha',
                 sucursal:    'Sucursal',
-                almacen:     'Almacen',
-                registrado:  'Registrado por',
+                almacen:     'Origen',
+                registrado:  'Registrado',
                 productos:   'Productos',
                 perdidaTot:  'Valor de salidas',
                 detalleLbl:  'Detalle de Productos',
                 notaLbl:     'Nota',
-                evidenciaLbl:'Foto de evidencia',
+                evidenciaLbl:'Evidencia',
                 sinFoto:     'Sin foto de evidencia',
                 subirFoto:   'Subir evidencia',
                 cambiarFoto: 'Cambiar',
@@ -779,94 +914,74 @@ class SalidasView extends Templates {
             reader.readAsDataURL(file);
         };
 
-        const actionsBar = (state) => {
-            const s         = state || {};
-            const empty     = !!s.empty;
-            const cancelled = !!s.cancelled;
-            if (empty) return '';
-            const base      = 'flex-1 px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg flex items-center justify-center gap-1.5';
-            const roseHover = 'hover:bg-rose-500 transition-all';
+        // Mismo visor que el de entradas (entradaDetailPanel): encabezado con folio,
+        // datos, tabla compacta, totales, registro/nota/evidencia y acciones.
+        const infoRow = (label, value) => `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(label)}</span>${value}</div>`;
 
-            const secondBtn = cancelled
-                ? `<button id="${opts.id}_delete" class="${base} bg-rose-600 ${roseHover}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}</button>`
-                : `<button id="${opts.id}_cancel" class="${base} bg-rose-600 ${roseHover}"><i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}</button>`;
-
-            return `
-                <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
-                    ${secondBtn}
-                </div>`;
+        const actionsBar = (cancelled) => {
+            const base = 'flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-rose-600 hover:bg-rose-500 flex items-center justify-center gap-1.5';
+            const btn  = cancelled
+                ? `<button id="${opts.id}_delete" class="${base}"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>${esc(opts.labels.eliminar)}</button>`
+                : `<button id="${opts.id}_cancel" class="${base}"><i data-lucide="ban" class="w-3.5 h-3.5"></i>${esc(opts.labels.cancelar)}</button>`;
+            return `<div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">${btn}</div>`;
         };
 
         const emptyView = () => `
-            <div class="px-3 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
-                <div>
-                    <h3 class="text-sm font-bold text-gray-800">Vista de la Salida</h3>
-                    <p class="text-[10px] text-gray-500">${esc(opts.labels.subtitleLbl)}</p>
-                </div>
+            <div class="flex-1 flex flex-col items-center justify-center text-center px-6 py-12">
+                <i data-lucide="inbox" class="w-10 h-10 text-gray-300 mb-3"></i>
+                <p class="text-sm font-semibold text-gray-500">${esc(opts.labels.emptyTitle)}</p>
+                <p class="text-xs text-gray-400 mt-1 max-w-[200px]">${esc(opts.labels.emptyHint)}</p>
             </div>
-            <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
-                <div class="w-14 h-14 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-3">
-                    <i data-lucide="package-x" class="w-6 h-6 text-gray-500"></i>
-                </div>
-                <p class="text-[11px] text-gray-500">${esc(opts.labels.emptyTitle)}</p>
-                <p class="text-[10px] text-gray-500 mt-1 max-w-[220px]">${esc(opts.labels.emptyHint)}</p>
-            </div>
-            ${actionsBar({ empty: true })}
         `;
 
         const productTable = (m) => {
-            const items = m.items || [];
-            const byArea = {};
-            items.forEach(it => {
-                const area = (it.area && String(it.area).trim()) || 'Sin área';
-                (byArea[area] = byArea[area] || { area: area, items: [] }).items.push(it);
-            });
-            const groups = Object.keys(byArea).sort((a, b) => a.localeCompare(b, 'es')).map(k => byArea[k]);
-
-            const itemRow = (it) => {
+            const rows = (m.items || []).map((it) => {
                 const cu  = Number(it.costo_unit || 0);
                 const sub = it.costo_total != null ? Number(it.costo_total) : Number(it.qty || 0) * cu;
                 return `
-                    <tr class="border-b border-gray-100">
-                        <td class="py-1.5 px-1">
-                            <p class="text-[11px] font-bold text-gray-800 leading-tight">${esc(it.name)}</p>
-                            ${it.sku ? `<p class="text-[10px] text-gray-500 leading-tight">${esc(it.sku)}</p>` : ''}
+                    <tr class="border-b border-gray-100 align-top">
+                        <td class="!py-1 !pl-0 !pr-2">
+                            <p class="text-[11px] font-medium text-gray-700 leading-tight">${esc(it.name)}${it.sku ? ` <span class="text-[10px] font-normal text-gray-400">${esc(it.sku)}</span>` : ''}</p>
                         </td>
-                        <td class="py-1.5 px-1 text-center whitespace-nowrap"><span class="text-rose-600 font-bold">-${it.qty}</span></td>
-                        <td class="py-1.5 px-1 text-right text-gray-800 whitespace-nowrap">${fmtMoney(cu)}</td>
-                        <td class="py-1.5 px-1 text-right text-gray-800 font-bold whitespace-nowrap">-${fmtMoney(sub)}</td>
+                        <td class="!py-1 !px-1 text-right text-[11px] text-gray-500 whitespace-nowrap">${fmtMoney(cu)}</td>
+                        <td class="!py-1 !px-1 text-center text-[11px]"><span class="font-semibold text-gray-800">-${it.qty}</span></td>
+                        <td class="!py-1 !px-1 text-right text-[11px] font-semibold text-gray-700 whitespace-nowrap">-${fmtMoney(sub)}</td>
+                        <td class="!py-1 !pl-1 !pr-0 text-center text-[11px] text-gray-500">${esc(it.unidad || '-')}</td>
                     </tr>`;
-            };
-
-            const groupBlock = (g) => {
-                const head = `<tr><td colspan="4" class="px-2 pt-2.5 pb-1 bg-indigo-50"><div class="flex items-center justify-between"><span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 truncate">${esc(g.area)}</span><span class="text-[10px] text-gray-500 flex-shrink-0 ml-2">${g.items.length}</span></div></td></tr>`;
-                return head + g.items.map(itemRow).join('');
-            };
+            }).join('');
 
             return `
-                <table class="w-full text-[11px] border-collapse">
-                    <thead><tr class="text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                        <th class="py-1 px-1 text-left font-semibold">Producto</th>
-                        <th class="py-1 px-1 text-center font-semibold">${esc(opts.labels.cant)}</th>
-                        <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.costo)}</th>
-                        <th class="py-1 px-1 text-right font-semibold">${esc(opts.labels.subtotal)}</th>
-                    </tr></thead>
-                    <tbody>${groups.map(groupBlock).join('') || `<tr><td colspan="4" class="py-2 text-center text-[12px] text-gray-500 italic">Sin productos</td></tr>`}</tbody>
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-200">
+                            <th class="text-left font-semibold text-[10px] !py-1 !pl-0 !pr-2">Producto</th>
+                            <th class="text-right font-semibold text-[10px] !py-1 !px-1">Precio</th>
+                            <th class="text-center font-semibold text-[10px] !py-1 !px-1">Cant</th>
+                            <th class="text-right font-semibold text-[10px] !py-1 !px-1">Importe</th>
+                            <th class="text-center font-semibold text-[10px] !py-1 !pl-1 !pr-0">Unidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows || '<tr><td colspan="5" class="py-2 text-center text-xs text-gray-400">Sin productos</td></tr>'}</tbody>
                 </table>`;
         };
 
         const fotoHtml = (foto, editable) => {
-            const inputHtml = editable ? `<input type="file" id="${opts.id}_evdInput" accept="image/*" capture="environment" class="hidden">` : '';
+            const input = editable ? `<input type="file" id="${opts.id}_evdInput" accept="image/*" capture="environment" class="hidden">` : '';
+            const btn   = 'w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors';
 
             if (!foto) {
-                if (!editable) return `<div class="bg-gray-50 rounded-lg p-4 border border-dashed border-gray-200 flex flex-col items-center justify-center min-h-[100px]"><i data-lucide="image-off" class="w-7 h-7 text-gray-300 mb-2"></i><p class="text-[10px] text-gray-500 italic">${esc(opts.labels.sinFoto)}</p></div>`;
-                return `${inputHtml}<button type="button" id="${opts.id}_evdUpload" class="w-full bg-gray-50 rounded-lg p-4 border border-dashed border-gray-200 hover:border-sky-500/60 flex flex-col items-center justify-center min-h-[100px] transition-colors group"><i data-lucide="upload-cloud" class="w-7 h-7 text-gray-500 group-hover:text-sky-600 mb-2"></i><p class="text-[10px] text-gray-500 group-hover:text-gray-800">${esc(opts.labels.subirFoto)}</p></button>`;
+                return editable
+                    ? `${input}<button type="button" id="${opts.id}_evdUpload" class="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirFoto)}</button>`
+                    : `<span class="text-gray-400">${esc(opts.labels.sinFoto)}</span>`;
             }
 
-            if (!editable) return `<div class="rounded-lg overflow-hidden border border-gray-200"><img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" /></div>`;
+            const view = `<a href="${esc(foto)}" target="_blank" rel="noopener"><img src="${esc(foto)}" alt="${esc(opts.labels.evidenciaLbl)}" class="w-8 h-8 rounded object-cover border border-gray-200"></a>`;
+            const edit = editable
+                ? `<button type="button" id="${opts.id}_evdUpload" class="${btn} hover:text-blue-600" title="${esc(opts.labels.cambiarFoto)}"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                   <button type="button" id="${opts.id}_evdRemove" class="${btn} hover:text-red-500" title="${esc(opts.labels.quitarFoto)}"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`
+                : '';
 
-            const btnBase = 'px-2 py-1 text-[10px] font-semibold text-white rounded-md flex items-center gap-1 transition-colors';
-            return `${inputHtml}<div class="relative rounded-lg overflow-hidden border border-gray-200"><img src="${esc(foto)}" alt="Evidencia" class="w-full h-32 object-cover" /><div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5 flex items-center justify-end gap-1.5"><button type="button" id="${opts.id}_evdUpload" class="${btnBase} bg-sky-600/90 hover:bg-sky-500"><i data-lucide="refresh-cw" class="w-3 h-3"></i>${esc(opts.labels.cambiarFoto)}</button><button type="button" id="${opts.id}_evdRemove" class="${btnBase} bg-rose-600/90 hover:bg-rose-500"><i data-lucide="trash-2" class="w-3 h-3"></i>${esc(opts.labels.quitarFoto)}</button></div></div>`;
+            return `${input}<span class="flex items-center gap-1">${view}${edit}</span>`;
         };
 
         const filledView = (m) => {
@@ -888,86 +1003,60 @@ class SalidasView extends Templates {
             const motivoIcon  = m.motivo_icon  || motivoC.icon || 'alert-triangle';
             const motivoBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background:${motivoBg};color:${motivoFg};"><i data-lucide="${esc(motivoIcon)}" class="w-3 h-3"></i>${esc(m.motivo || '-')}</span>`;
 
-            const stC         = opts.statusPalettes[m.status] || { bg: 'rgba(156,163,175,0.18)', fg: '#9CA3AF' };
-            const statusBadge = m.status ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide" style="background:${stC.bg};color:${stC.fg};">${esc(m.status)}</span>` : '';
-
-            const reg        = m.registrado_por;
-            const regName    = reg && reg.name ? esc(reg.name) : '-';
-            const regInitial = reg && reg.name ? esc(String(reg.name).trim().charAt(0).toUpperCase()) : '?';
-            const regHtml    = reg && reg.name
-                ? `<span class="flex items-center gap-1.5"><span class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">${regInitial}</span><span class="text-gray-800 font-semibold">${regName}</span></span>`
-                : `<span class="text-gray-800">-</span>`;
-
+            const stC      = opts.statusPalettes[m.status] || { bg: 'rgba(156,163,175,0.15)', fg: '#9CA3AF' };
+            const reg      = m.registrado_por && m.registrado_por.name ? m.registrado_por.name : '-';
             const editable = m.status !== 'Cancelada';
+            const fmtUds   = (n) => (Number(n) % 1 === 0) ? String(n) : Number(n).toFixed(2);
 
             return `
-                <div class="px-3 py-3 border-b border-gray-200 flex-shrink-0 flex items-start justify-between">
-                    <div>
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase tracking-wider">${esc(opts.labels.subtitleLbl)}</p>
+                            <p class="text-base font-bold text-gray-800">${esc(m.folio || '-')}</p>
+                        </div>
                         <div class="flex items-center gap-2">
-                            <h3 class="text-base font-bold text-gray-800">${esc(opts.labels.folioPrefix)} ${esc(m.folio || '')}</h3>
-                            ${statusBadge}
-                        </div>
-                        <p class="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5">
-                            <i data-lucide="clock" class="w-3 h-3"></i>${esc(fmtFecha(m.fecha))}
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-1 flex-shrink-0">
-                        <button id="${opts.id}_print" class="text-gray-600 hover:text-gray-800 transition-colors p-1" title="Imprimir">
-                            <i data-lucide="printer" class="w-4 h-4"></i>
-                        </button>
-                        <button id="${opts.id}_close" class="text-gray-600 hover:text-gray-800 transition-colors p-1" title="Cerrar">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2.5">
-                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500">${esc(opts.labels.motivo)}</span>${motivoBadge}</div>
-                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500">${esc(opts.labels.sucursal)}</span><span class="text-gray-800 font-bold">${esc(m.sucursal || '-')}</span></div>
-                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500">${esc(opts.labels.almacen)}</span><span class="text-gray-800 font-bold">${esc(m.almacen || '-')}</span></div>
-                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500">${esc(opts.labels.registrado)}</span>${regHtml}</div>
-                        <div class="flex justify-between items-center text-[11px]"><span class="text-gray-500">${esc(opts.labels.productos)}</span><span class="text-gray-800 font-bold">${items.length} tipos · ${totUds} uds</span></div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-2 px-1">
-                            <p class="text-[9px] text-gray-500 uppercase tracking-wider font-bold">${esc(opts.labels.detalleLbl)}</p>
-                            <p class="text-[9px] text-gray-500 uppercase tracking-wider font-bold">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                            <div class="overflow-x-auto">${productTable(m)}</div>
-                            <div class="flex items-center justify-between mt-3 pt-3 border-t border-dashed border-gray-200">
-                                <span class="text-[11px] text-gray-500 uppercase font-bold">${esc(opts.labels.perdidaTot)}</span>
-                                <span class="text-xl font-extrabold text-gray-800">-${fmtMoney(totCosto)}</span>
-                            </div>
+                            ${m.status ? `<span class="px-2 py-0.5 rounded text-xs font-bold" style="background:${stC.bg};color:${stC.fg};">${esc(m.status)}</span>` : ''}
+                            <button id="${opts.id}_print" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors" title="${esc(opts.labels.imprimir)}">
+                                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button id="${opts.id}_close" class="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <div>
-                        <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-2">${esc(opts.labels.evidenciaLbl)}</p>
-                        ${fotoHtml(m.foto, editable)}
+                    <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-1.5">
+                        ${infoRow(opts.labels.motivo, motivoBadge)}
+                        ${infoRow(opts.labels.fecha, `<span class="text-gray-700 text-right">${esc(fmtFecha(m.fecha))}</span>`)}
+                        ${infoRow(opts.labels.sucursal, `<span class="text-gray-700 text-right">${esc(m.sucursal || '-')}</span>`)}
+                        ${infoRow(opts.labels.almacen, `<span class="text-gray-700 text-right">${esc(m.almacen || '-')}</span>`)}
                     </div>
 
-                    ${m.nota ? `
-                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <p class="text-[9px] text-gray-500 uppercase tracking-wider mb-1">${esc(opts.labels.notaLbl)}</p>
-                        <p class="text-[11px] text-gray-700">${esc(m.nota)}</p>
-                    </div>` : ''}
+                    <div id="${opts.id}_scroll" class="flex-1 overflow-y-auto px-4 py-2">
+                        <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">${esc(opts.labels.productos)} (${items.length})</p>
+                        ${productTable(m)}
+                    </div>
+
+                    <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                            <span>Unidades</span>
+                            <span class="font-semibold text-gray-700">-${fmtUds(totUds)}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-gray-700">Total general</span>
+                            <span class="text-lg font-bold text-gray-800">-${fmtMoney(totCosto)}</span>
+                        </div>
+                    </div>
+
+                    <div class="px-4 py-2.5 border-t border-gray-200 flex-shrink-0 space-y-1.5">
+                        ${infoRow(opts.labels.registrado, `<span class="text-gray-700 text-right">${esc(reg)}</span>`)}
+                        ${m.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-24 flex-shrink-0">${esc(opts.labels.notaLbl)}</span><span class="text-gray-700 text-right">${esc(m.nota)}</span></div>` : ''}
+                        ${infoRow(opts.labels.evidenciaLbl, fotoHtml(m.foto, editable))}
+                    </div>
+
+                    ${actionsBar(!editable)}
                 </div>
-
-                <div class="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                    <div class="flex items-center justify-between text-[11px] text-gray-500 mb-1">
-                        <span>Unidades</span>
-                        <span class="font-semibold text-gray-800">${(totUds % 1 === 0) ? totUds : Number(totUds).toFixed(2)}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-gray-600">Total general</span>
-                        <span class="text-lg font-bold text-rose-600">-${fmtMoney(totCosto)}</span>
-                    </div>
-                </div>
-
-                ${actionsBar({ empty: false, cancelled: !editable })}
             `;
         };
 

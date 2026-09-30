@@ -303,6 +303,19 @@ class mdl extends CRUD {
         return $this->_CUD($query, $array);
     }
 
+    // Credenciales del usuario en sesión para reconfirmar su contraseña al cancelar.
+    function qUserPassword($array) {
+        // [user_id]
+        $query = "
+            SELECT password, `key` AS user_key
+            FROM {$this->bdErp}users
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
     function updateSalidaEvidence($array) {
         $query = "
             UPDATE {$this->bd}inventory_shrinkage

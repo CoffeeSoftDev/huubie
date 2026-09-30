@@ -38,11 +38,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="trash-2" class="w-4 h-4"></i>',
-                    'onclick' => 'category.deleteCategory(' . $item['id'] . ')'
-                ];
+                $a[] = deleteButton('category.deleteCategory', $item['id']);
             }
 
             $rows[] = [
@@ -215,6 +211,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'area.statusArea(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('area.deleteArea', $item['id']);
             }
 
             $rows[] = [
@@ -329,6 +326,50 @@ class ctrl extends mdl {
         ];
     }
 
+    // Los productos del área no se borran: su área queda en NULL. Si alguna entrada
+    // la usó, es historia y solo se puede desactivar.
+    function deleteArea() {
+        $id   = (int) ($_POST['id'] ?? 0);
+        $area = $this->getAreaById([$id]);
+
+        if (!$area || (int) $area['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Área no encontrada'
+            ];
+        }
+
+        $uso = (int) $this->countAreaMovements([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Esta área la usan {$uso} entrada(s). Solo se puede desactivar."
+            ];
+        }
+
+        $productos = (int) $this->countItemsByArea([$id]);
+
+        try {
+            $this->transaction(function () use ($id) {
+                $this->updateAreaRefsNull([$id]);
+                $this->deleteAreaById([$id]);
+            });
+        } catch (\Throwable $e) {
+            return [
+                'status'  => 500,
+                'message' => 'No se pudo eliminar el área'
+            ];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => $productos > 0
+                ? "Área eliminada. {$productos} producto(s) quedaron sin área"
+                : 'Área eliminada'
+        ];
+    }
+
     function lsUnit() {
         $active = $_POST['active'] ?? 1;
         $ls     = $this->listUnit([$active]);
@@ -354,6 +395,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('unit.deleteUnit', $item['id']);
             }
 
             $rows[] = [
@@ -495,13 +537,11 @@ class ctrl extends mdl {
         $active = $_POST['active'] ?? 1;
         $ls     = $this->listInflow([$active]) ?: [];
         $rows   = [];
-        $last   = count($ls) - 1;
 
-        foreach ($ls as $i => $item) {
+        foreach ($ls as $item) {
             $a = [];
 
             if ($active == 1) {
-                $a   = sortButtons('inflow.moveInflow', $item['id'], $i === 0, $i === $last);
                 $a[] = [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -518,10 +558,12 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'inflow.statusInflow(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('inflow.deleteInflow', $item['id']);
             }
 
             $rows[] = [
                 'id'                => $item['id'],
+                ''                  => renderGrip($active),
                 'Origen'            => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon'], 'rounded-full'),
                 'Código'            => renderCode($item['code']),
                 'Requiere proveedor'=> ($item['requires_supplier'] == 1 ? 'Sí' : 'No'),
@@ -625,22 +667,12 @@ class ctrl extends mdl {
         ];
     }
 
-    // El orden manda en el selector de Entradas.
-    function moveInflow() {
+    // Orden por arrastre; manda en el selector de Entradas.
+    function sortInflow() {
         $rows  = $this->listInflow([1]) ?: [];
-        $order = $this->reorder($rows, (int) $_POST['id'], $_POST['dir'] ?? '');
-
-        if (!$order) {
-            return [
-                'status'  => 404,
-                'message' => 'Origen no encontrado'
-            ];
-        }
-
-        $actual = array_column($rows, 'sort_order', 'id');
+        $order = $this->sortOrder($rows, $_POST['ids'] ?? '[]');
 
         foreach ($order as $id => $sort) {
-            if ((int) $actual[$id] === $sort) continue;
             $this->updateInflow($this->util->sql(['sort_order' => $sort, 'id' => $id], 1));
         }
 
@@ -650,19 +682,46 @@ class ctrl extends mdl {
         ];
     }
 
+    // Solo si ninguna entrada lo usa: es historia (FK RESTRICT).
+    function deleteInflow() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $inflow = $this->getInflowById([$id]);
+
+        if (!$inflow) {
+            return [
+                'status'  => 404,
+                'message' => 'Origen no encontrado'
+            ];
+        }
+
+        $uso = (int) $this->countInflowUsage([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Este origen lo usan {$uso} entrada(s). Solo se puede desactivar."
+            ];
+        }
+
+        $delete = $this->deleteInflowById([$id]);
+
+        return [
+            'status'  => $delete ? 200 : 500,
+            'message' => $delete ? 'Origen eliminado' : 'No se pudo eliminar el origen'
+        ];
+    }
+
     // Motivos de salida -- (catalogo global)
 
     function lsShrinkage() {
         $active = $_POST['active'] ?? 1;
         $ls     = $this->listShrinkage([$active]) ?: [];
         $rows   = [];
-        $last   = count($ls) - 1;
 
-        foreach ($ls as $i => $item) {
+        foreach ($ls as $item) {
             $a = [];
 
             if ($active == 1) {
-                $a   = sortButtons('shrinkage.moveShrinkage', $item['id'], $i === 0, $i === $last);
                 $a[] = [
                     'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
@@ -679,10 +738,12 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'shrinkage.statusShrinkage(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('shrinkage.deleteShrinkage', $item['id']);
             }
 
             $rows[] = [
                 'id'      => $item['id'],
+                ''        => renderGrip($active),
                 'Motivo'  => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null, $item['icon'], 'rounded-full'),
                 'Código'  => renderCode($item['code']),
                 'Estado'  => renderStatus($item['active']),
@@ -785,28 +846,47 @@ class ctrl extends mdl {
         ];
     }
 
-    // El orden manda en el selector de Salidas.
-    function moveShrinkage() {
+    // Orden por arrastre; manda en el selector de Salidas.
+    function sortShrinkage() {
         $rows  = $this->listShrinkage([1]) ?: [];
-        $order = $this->reorder($rows, (int) $_POST['id'], $_POST['dir'] ?? '');
-
-        if (!$order) {
-            return [
-                'status'  => 404,
-                'message' => 'Motivo no encontrado'
-            ];
-        }
-
-        $actual = array_column($rows, 'sort_order', 'id');
+        $order = $this->sortOrder($rows, $_POST['ids'] ?? '[]');
 
         foreach ($order as $id => $sort) {
-            if ((int) $actual[$id] === $sort) continue;
             $this->updateShrinkage($this->util->sql(['sort_order' => $sort, 'id' => $id], 1));
         }
 
         return [
             'status'  => 200,
             'message' => 'Orden actualizado'
+        ];
+    }
+
+    // Solo si ninguna salida lo usa: es historia (FK RESTRICT).
+    function deleteShrinkage() {
+        $id        = (int) ($_POST['id'] ?? 0);
+        $shrinkage = $this->getShrinkageById([$id]);
+
+        if (!$shrinkage) {
+            return [
+                'status'  => 404,
+                'message' => 'Motivo no encontrado'
+            ];
+        }
+
+        $uso = (int) $this->countShrinkageUsage([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Este motivo lo usan {$uso} salida(s). Solo se puede desactivar."
+            ];
+        }
+
+        $delete = $this->deleteShrinkageById([$id]);
+
+        return [
+            'status'  => $delete ? 200 : 500,
+            'message' => $delete ? 'Motivo eliminado' : 'No se pudo eliminar el motivo'
         ];
     }
 
@@ -934,6 +1014,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.statusWarehouse(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('warehouse.deleteWarehouse', $item['id']);
             }
 
             $rows[] = [
@@ -1047,6 +1128,44 @@ class ctrl extends mdl {
         ];
     }
 
+    // Solo si no tiene stock, movimientos, órdenes ni áreas: todo eso cuelga del almacén (FK RESTRICT).
+    function deleteWarehouse() {
+        $id        = (int) ($_POST['id'] ?? 0);
+        $warehouse = $this->getWarehouseById([$id]);
+
+        if (!$warehouse || (int) $warehouse['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Almacén no encontrado'
+            ];
+        }
+
+        $uso = (int) $this->countWarehouseUsage([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Este almacén tiene {$uso} registro(s) de stock, movimientos u órdenes. Solo se puede desactivar."
+            ];
+        }
+
+        $areas = (int) $this->countAreasByWarehouse([$id]);
+
+        if ($areas > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Este almacén tiene {$areas} área(s). Elimínalas primero desde la pestaña Área."
+            ];
+        }
+
+        $delete = $this->deleteWarehouseById([$id]);
+
+        return [
+            'status'  => $delete ? 200 : 500,
+            'message' => $delete ? 'Almacén eliminado' : 'No se pudo eliminar el almacén'
+        ];
+    }
+
     // Proveedores --
 
     function lsSupplier() {
@@ -1074,6 +1193,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
                 ];
+                $a[] = deleteButton('supplier.deleteSupplier', $item['id']);
             }
 
             $rows[] = [
@@ -1118,6 +1238,13 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'Error al crear proveedor';
 
+        if ($this->invalidPhone()) {
+            return [
+                'status'  => 400,
+                'message' => 'El teléfono debe tener 10 dígitos'
+            ];
+        }
+
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
@@ -1147,6 +1274,13 @@ class ctrl extends mdl {
     function editSupplier() {
         $status  = 500;
         $message = 'Error al editar proveedor';
+
+        if ($this->invalidPhone()) {
+            return [
+                'status'  => 400,
+                'message' => 'El teléfono debe tener 10 dígitos'
+            ];
+        }
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
@@ -1183,6 +1317,35 @@ class ctrl extends mdl {
         ];
     }
 
+    // Solo si ninguna entrada ni orden de compra lo usa: son historia (FK RESTRICT).
+    function deleteSupplier() {
+        $id       = (int) ($_POST['id'] ?? 0);
+        $supplier = $this->getSupplierById([$id]);
+
+        if (!$supplier || (int) $supplier['companies_id'] !== (int) $_SESSION['company_id']) {
+            return [
+                'status'  => 404,
+                'message' => 'Proveedor no encontrado'
+            ];
+        }
+
+        $uso = (int) $this->countSupplierUsage([$id]);
+
+        if ($uso > 0) {
+            return [
+                'status'  => 409,
+                'message' => "Este proveedor lo usan {$uso} entrada(s) u orden(es) de compra. Solo se puede desactivar."
+            ];
+        }
+
+        $delete = $this->deleteSupplierById([$id]);
+
+        return [
+            'status'  => $delete ? 200 : 500,
+            'message' => $delete ? 'Proveedor eliminado' : 'No se pudo eliminar el proveedor'
+        ];
+    }
+
     // Catalogos auxiliares para selects de formularios
     function lsBranchesSelect() {
         $companyId = $_SESSION['company_id'] ?? 0;
@@ -1193,26 +1356,27 @@ class ctrl extends mdl {
         ];
     }
 
-    // Mueve una fila un lugar ('up' | 'down') y renumera todas de 10 en 10, así también
-    // se acomodan las que traían el mismo sort_order. Devuelve [id => sort_order] o [].
-    private function reorder($rows, $id, $dir) {
-        $ids = array_map('intval', array_column($rows, 'id'));
-        $pos = array_search($id, $ids, true);
-
-        if ($pos === false) return [];
-
-        $to = $dir === 'up' ? $pos - 1 : $pos + 1;
-
-        if (isset($ids[$to])) {
-            [$ids[$pos], $ids[$to]] = [$ids[$to], $ids[$pos]];
-        }
+    // Renumera de 10 en 10 en el orden de $json (ids tras el arrastre). Ids que no
+    // son de $rows se ignoran y los que falten van al final. Devuelve solo los que
+    // cambian: [id => sort_order].
+    private function sortOrder($rows, $json) {
+        $actual = array_map('intval', array_column($rows, 'sort_order', 'id'));
+        $ids    = array_values(array_intersect(array_map('intval', (array) json_decode($json, true)), array_keys($actual)));
+        $ids    = array_merge($ids, array_values(array_diff(array_keys($actual), $ids)));
 
         $order = [];
-        foreach ($ids as $i => $rowId) {
-            $order[$rowId] = ($i + 1) * 10;
+        foreach ($ids as $i => $id) {
+            $sort = ($i + 1) * 10;
+            if ($actual[$id] !== $sort) $order[$id] = $sort;
         }
 
         return $order;
+    }
+
+    // Teléfono opcional; si viene, 10 dígitos.
+    private function invalidPhone() {
+        $phone = trim($_POST['phone'] ?? '');
+        return $phone !== '' && !preg_match('/^\d{10}$/', $phone);
     }
 }
 
@@ -1222,23 +1386,21 @@ function renderCode($code) {
     return '<span class="inline-block px-2 py-0.5 rounded border border-gray-200 bg-gray-100 text-[10px] font-semibold font-mono text-gray-600">' . htmlspecialchars($code ?? '', ENT_QUOTES) . '</span>';
 }
 
-// Flechas de orden manual. La primera fila no sube y la última no baja.
-function sortButtons($fn, $id, $first, $last) {
-    $btn = 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] transition-colors bg-transparent border-0 ';
-
+// Botón Eliminar de las filas inactivas. $fn = método JS que pregunta y borra.
+function deleteButton($fn, $id) {
     return [
-        [
-            'class'   => $btn . ($first ? 'opacity-30 pointer-events-none' : 'hover:text-blue-600 cursor-pointer'),
-            'html'    => '<i data-lucide="chevron-up" class="w-4 h-4"></i>',
-            'title'   => 'Subir',
-            'onclick' => $first ? '' : $fn . '(' . $id . ', \'up\')'
-        ],
-        [
-            'class'   => $btn . ($last ? 'opacity-30 pointer-events-none' : 'hover:text-blue-600 cursor-pointer'),
-            'html'    => '<i data-lucide="chevron-down" class="w-4 h-4"></i>',
-            'title'   => 'Bajar',
-            'onclick' => $last ? '' : $fn . '(' . $id . ', \'down\')'
-        ]
+        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 transition-colors cursor-pointer bg-transparent border-0',
+        'html'    => '<i data-lucide="trash-2" class="w-4 h-4"></i>',
+        'onclick' => $fn . '(' . $id . ')'
+    ];
+}
+
+// Celda del asa de arrastre para el orden manual: angosta, y vacía en la lista de
+// inactivos (esos no se ordenan).
+function renderGrip($active) {
+    return [
+        'html'  => $active == 1 ? '<i data-lucide="grip-vertical" class="w-4 h-4 text-gray-400"></i>' : '',
+        'class' => 'w-[1%]'
     ];
 }
 

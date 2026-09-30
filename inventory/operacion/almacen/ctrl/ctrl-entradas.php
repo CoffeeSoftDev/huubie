@@ -729,7 +729,7 @@ class ctrl extends mdl {
             return ['status' => 400, 'message' => 'Adjunta la foto del ticket o escríbeme qué llegó.'];
         }
 
-        $ia = IaOllama::desdeCredenciales();
+        $ia = IaOllama::desdeCredenciales($this);
         if ($ia === null) return ['status' => 503, 'message' => 'La IA no está configurada: falta la llave de Ollama.'];
 
         $catalogo = array_slice($this->qProductsForTransfer([$this->companiesId]), 0, self::IA_MAX_CATALOGO);

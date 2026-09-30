@@ -56,6 +56,23 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
+ *  Números de la paginación cortados a la derecha.
+ *
+ *  `main` es hijo flex del body (fila) y por defecto no baja del ancho
+ *  mínimo de su contenido. La barra de 9 pestañas no se parte en líneas
+ *  (~1000px), así que en pantallas de menos de ~1110px el módulo quedaba
+ *  más ancho que la ventana y el body (`overflow: hidden`) recortaba el
+ *  borde derecho: justo donde va la paginación.
+ *
+ *  Con `min-width: 0` el módulo se ajusta a la ventana: la barra de
+ *  pestañas se desplaza de lado (ya trae `overflow-x: auto`) y la tabla
+ *  con su paginación caben completas.
+ * ───────────────────────────────────────────────────────────── */
+main {
+    min-width: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
  *  El tamaño de letra de las tablas NO se toca aquí.
  *
  *  Aquí hubo un parche por id (#tbMateriales) para ganarle al !important

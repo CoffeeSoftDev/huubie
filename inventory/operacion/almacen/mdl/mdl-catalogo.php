@@ -153,6 +153,40 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    // Entradas que llevaron producto a esta área: son historia.
+    function countAreaMovements($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}inventory_inflow
+            WHERE warehouse_area_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function countItemsByArea($array) {
+        $query = "
+            SELECT COUNT(DISTINCT item_id) as total
+            FROM {$this->bd}item_attribute
+            WHERE warehouse_area_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function updateAreaRefsNull($array) {
+        $this->_CUD("UPDATE {$this->bd}item_attribute SET warehouse_area_id = NULL WHERE warehouse_area_id = ?", $array);
+        return $this->_CUD("UPDATE {$this->bd}warehouse SET warehouse_area_id = NULL WHERE warehouse_area_id = ?", $array);
+    }
+
+    function deleteAreaById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}warehouse_area",
+            'where' => 'id',
+            'data'  => $array
+        ]);
+    }
+
     // Unidad -> unit
 
     function listUnit($array) {
@@ -294,6 +328,24 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    function countInflowUsage($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}inventory_inflow
+            WHERE inflow_origin_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function deleteInflowById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}inflow_origin",
+            'where' => 'id',
+            'data'  => $array
+        ]);
+    }
+
     // Motivos de salida -> shrinkage_reason (catalogo global, sin companies_id)
 
     function listShrinkage($array) {
@@ -355,6 +407,24 @@ class mdl extends CRUD {
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
+    }
+
+    function countShrinkageUsage($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}inventory_shrinkage
+            WHERE shrinkage_reason_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function deleteShrinkageById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}shrinkage_reason",
+            'where' => 'id',
+            'data'  => $array
+        ]);
     }
 
     // Estados de traspaso -> transfer_status
@@ -459,6 +529,39 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    // Stock, movimientos y órdenes que cuelgan del almacén.
+    function countWarehouseUsage($array) {
+        $id    = $array[0];
+        $query = "
+            SELECT
+                (SELECT COUNT(*) FROM {$this->bd}stock               WHERE warehouse_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}inventory_inflow    WHERE warehouse_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}inventory_shrinkage WHERE warehouse_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}inventory_transfer  WHERE origin_warehouse_id = ? OR destination_warehouse_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}purchase_order      WHERE warehouse_id = ?) AS total
+        ";
+        $result = $this->_Read($query, [$id, $id, $id, $id, $id, $id]);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function countAreasByWarehouse($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}warehouse_area
+            WHERE warehouse_id = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function deleteWarehouseById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}warehouse",
+            'where' => 'id',
+            'data'  => $array
+        ]);
+    }
+
     // Proveedores -> supplier
 
     function listSupplier($array) {
@@ -516,6 +619,25 @@ class mdl extends CRUD {
         ";
         $result = $this->_Read($query, $array);
         return $result[0]['total'] ?? 0;
+    }
+
+    function countSupplierUsage($array) {
+        $id    = $array[0];
+        $query = "
+            SELECT
+                (SELECT COUNT(*) FROM {$this->bd}inventory_inflow WHERE supplier_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}purchase_order   WHERE supplier_id = ?) AS total
+        ";
+        $result = $this->_Read($query, [$id, $id]);
+        return $result[0]['total'] ?? 0;
+    }
+
+    function deleteSupplierById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}supplier",
+            'where' => 'id',
+            'data'  => $array
+        ]);
     }
 
     // Sucursales activas de la compañía para selects de formularios (cada almacén pertenece a una sucursal).

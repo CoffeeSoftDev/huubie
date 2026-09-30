@@ -3,7 +3,7 @@
 -- Fecha: 29/09/2026
 -- BD:    fayxzvov_inventory
 --
--- OJO: listInflow, getMaxInflowSort, moveInflow (ctrl/mdl-catalogo) y
+-- OJO: listInflow, getMaxInflowSort, sortInflow (ctrl/mdl-catalogo) y
 --   lsInflowOrigins (mdl-entradas) usan esta columna. Si se regresa la BD hay
 --   que regresar también esos ctrl/mdl.
 -- =====================================================================

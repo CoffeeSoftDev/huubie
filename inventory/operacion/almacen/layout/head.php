@@ -28,7 +28,7 @@
          que el navegador sirva una copia vieja cacheada. -->
     <link rel="stylesheet" href="../../src/css/general.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/general.css'); ?>">
     <link rel="stylesheet" href="../../src/css/colors.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/colors.css'); ?>">
-    <link rel="stylesheet" href="../../src/css/table.css">
+    <link rel="stylesheet" href="../../src/css/table.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/table.css'); ?>">
     <link rel="stylesheet" href="../../src/css/buttons.css">
     <link rel="stylesheet" href="../../src/css/background.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/background.css'); ?>">
     <link rel="stylesheet" href="../../src/css/text.css">

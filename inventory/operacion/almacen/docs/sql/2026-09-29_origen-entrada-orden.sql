@@ -7,7 +7,7 @@
 --
 -- Misma columna que ya tiene shrinkage_reason (Motivos de salida). Arranca en
 -- id * 10 para respetar el orden que tenía el selector (id ASC) y dejar hueco.
--- La mueven las flechas de Catálogo > Origen entradas (moveInflow, ctrl-catalogo).
+-- Se acomoda arrastrando filas en Catálogo > Origen entradas (sortInflow, ctrl-catalogo).
 -- El -rollback quita la columna.
 -- =====================================================================
 

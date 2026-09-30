@@ -157,7 +157,28 @@ Templates.prototype.csNavList = function (options) {
             }));
         }
 
-        row.on('click', () => opts.onSelect(item));
+        // Editable: el doble clic abre la edición (igual que el lápiz), así que el
+        // clic simple espera a ver si llega el segundo; onSelect re-pinta la lista
+        // y sin la espera el doble clic caería sobre una fila que ya no existe.
+        let clickTimer = null;
+
+        row.on('click', () => {
+            if (!item.editable) {
+                opts.onSelect(item);
+                return;
+            }
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => opts.onSelect(item), 300);
+        });
+
+        if (item.editable) {
+            row.on('dblclick', (e) => {
+                if ($(e.target).closest('button').length) return;
+                clearTimeout(clickTimer);
+                opts.onEdit(item);
+            });
+        }
+
         list.append(row);
     });
 
