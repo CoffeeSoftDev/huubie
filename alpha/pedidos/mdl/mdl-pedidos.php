@@ -109,10 +109,15 @@ class MPedidos extends CRUD {
             order.total_pay,
             order.subsidiaries_id,
             DATE_FORMAT(date_order, '%d/%m/%Y') AS date_order,
-            DATE_FORMAT(time_order, '%h:%i %p') AS time_order
+            DATE_FORMAT(time_order, '%h:%i %p') AS time_order,
+            created.fullname AS created_by_name,
+            DATE_FORMAT(order.produced_at, '%d/%m/%Y %h:%i %p') AS produced_at,
+            produced.fullname AS produced_by_name
         FROM
             {$this->bd}order
         INNER JOIN {$this->bd}order_clients ON order.client_id = order_clients.id
+        LEFT JOIN fayxzvov_alpha.usr_users created ON created.id = order.created_by
+        LEFT JOIN fayxzvov_alpha.usr_users produced ON produced.id = order.produced_by
 
         WHERE order.id = ?
 

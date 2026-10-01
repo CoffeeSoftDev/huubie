@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajustes de inventario · Modelo de datos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* -- Tokens: los mismos de inventory (grafito + terracota) -- */
+:root {
+    --bg: #F3F4F6; --surface: #FFFFFF; --surface-2: #F9FAFB; --line: #E5E7EB; --line-strong: #D1D5DB;
+    --ink: #111827; --ink-2: #374151; --dim: #6B7280; --faint: #9CA3AF;
+    --new: #C05A40; --new-ink: #A84A33; --new-tint: rgba(192, 90, 64, .08); --new-head: rgba(192, 90, 64, .12);
+    --chg: #B7791F; --chg-ink: #8A5A0B; --chg-tint: rgba(217, 154, 43, .10); --chg-head: rgba(217, 154, 43, .16);
+    --ext: #9CA3AF; --ext-head: #F3F4F6;
+    --ok: #3F6B33; --ok-tint: rgba(79, 121, 66, .13);
+    --bad: #9D3434; --bad-tint: rgba(157, 52, 52, .10);
+    --info: #4A6582; --info-tint: rgba(92, 122, 153, .14);
+    --code-bg: #1C1917; --code-ink: #E7E5E4;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #111928; --surface: #1F2A37; --surface-2: #1A2431; --line: #374151; --line-strong: #4B5563;
+        --ink: #F3F4F6; --ink-2: #D1D5DB; --dim: #9CA3AF; --faint: #6B7280;
+        --new: #E08A70; --new-ink: #E8A68F; --new-tint: rgba(192, 90, 64, .14); --new-head: rgba(192, 90, 64, .24);
+        --chg: #E8BC6A; --chg-ink: #E8BC6A; --chg-tint: rgba(217, 154, 43, .12); --chg-head: rgba(217, 154, 43, .22);
+        --ext: #6B7280; --ext-head: #283341;
+        --ok: #9CC98C; --ok-tint: rgba(79, 121, 66, .24);
+        --bad: #EC9A9A; --bad-tint: rgba(194, 85, 85, .22);
+        --info: #A9C0D8; --info-tint: rgba(92, 122, 153, .26);
+        --code-bg: #0B1220; --code-ink: #E5E7EB;
+    }
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111928; --surface: #1F2A37; --surface-2: #1A2431; --line: #374151; --line-strong: #4B5563;
+    --ink: #F3F4F6; --ink-2: #D1D5DB; --dim: #9CA3AF; --faint: #6B7280;
+    --new: #E08A70; --new-ink: #E8A68F; --new-tint: rgba(192, 90, 64, .14); --new-head: rgba(192, 90, 64, .24);
+    --chg: #E8BC6A; --chg-ink: #E8BC6A; --chg-tint: rgba(217, 154, 43, .12); --chg-head: rgba(217, 154, 43, .22);
+    --ext: #6B7280; --ext-head: #283341;
+    --ok: #9CC98C; --ok-tint: rgba(79, 121, 66, .24);
+    --bad: #EC9A9A; --bad-tint: rgba(194, 85, 85, .22);
+    --info: #A9C0D8; --info-tint: rgba(92, 122, 153, .26);
+    --code-bg: #0B1220; --code-ink: #E5E7EB;
+}
+
+/* -- Base -- */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.page { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.lead { color: var(--dim); margin: 4px 0 0; }
+.block { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
+.block > p.hint { color: var(--dim); font-size: 13px; margin: 0 0 14px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* -- Leyenda -- */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; border: 2px solid; display: inline-block; }
+.sw.new { border-color: var(--new); background: var(--new-tint); }
+.sw.chg { border-color: var(--chg); background: var(--chg-tint); }
+.sw.ext { border-color: var(--ext); background: var(--surface-2); }
+.sw.erp { border-color: var(--ext); border-style: dashed; }
+.ln { width: 26px; height: 0; border-top: 2px solid; display: inline-block; }
+.ln.fk { border-color: var(--new); }
+.ln.old { border-color: var(--ext); }
+.ln.uses { border-color: var(--chg); border-top-style: dashed; }
+
+/* -- Diagrama ER -- */
+.er-scroll { position: relative; }
+#er {
+    position: relative; display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr) minmax(0, 1fr);
+    column-gap: 84px; row-gap: 36px; align-items: start;
+}
+#erLines { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; overflow: visible; }
+.card { position: relative; z-index: 1; background: var(--surface); border: 2px solid var(--ext); border-radius: 10px; overflow: hidden; }
+.card.k-new { border-color: var(--new); }
+.card.k-changed, .card.k-view { border-color: var(--chg); }
+.card.k-view, .card.k-erp { border-style: dashed; }
+.card-h { padding: 9px 12px; background: var(--ext-head); border-bottom: 1px solid var(--line); }
+.k-new .card-h { background: var(--new-head); }
+.k-changed .card-h, .k-view .card-h { background: var(--chg-head); }
+.card-h b { display: block; font-size: 13.5px; }
+.card-h small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 1px; }
+.tag { float: right; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; color: #fff; background: var(--ext); margin-left: 8px; }
+.k-new .tag { background: var(--new); }
+.k-changed .tag, .k-view .tag { background: var(--chg); color: #1C1917; }
+.row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 6px; align-items: start; padding: 5px 12px; border-top: 1px solid var(--line); font-size: 12px; }
+.row:first-child { border-top: 0; }
+.row.hl { background: var(--new-tint); }
+.k-changed .row.hl, .k-view .row.hl { background: var(--chg-tint); }
+.row .nm { min-width: 0; overflow-wrap: anywhere; }
+.row .nm em { display: block; font-style: normal; font-family: 'Inter', system-ui, sans-serif; font-size: 11px; color: var(--dim); line-height: 1.35; }
+.row .nm .ref { color: var(--new-ink); font-weight: 600; }
+.row .ty { color: var(--faint); font-size: 11px; white-space: nowrap; }
+.key { font-size: 9px; font-weight: 700; text-align: center; border-radius: 4px; padding: 1px 0; margin-top: 1px; }
+.key-pk { background: var(--ink); color: var(--surface); }
+.key-fk { background: var(--info-tint); color: var(--info); }
+.key-add { background: var(--chg); color: #1C1917; }
+
+.row .nm .x, .legend .x {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; vertical-align: 1px;
+    font: 700 9px/1.4 'Inter', system-ui, sans-serif; font-style: normal;
+    background: var(--chg-tint); color: var(--chg-ink); border: 1px solid var(--chg);
+}
+.legend .x { margin-left: 0; }
+
+#er .t-adjustment_reason            { grid-column: 1; grid-row: 1; align-self: end; }
+#er .t-warehouse                    { grid-column: 1; grid-row: 2; align-self: end; }
+#er .t-warehouse_area               { grid-column: 1; grid-row: 3; }
+#er .t-item                         { grid-column: 1; grid-row: 4; align-self: end; }
+#er .t-inventory_adjustment         { grid-column: 2; grid-row: 1 / span 2; }
+#er .t-detail_inventory_adjustment  { grid-column: 2; grid-row: 3 / span 2; }
+#er .t-erp                          { grid-column: 3; grid-row: 1; }
+#er .t-inventory_adjustment_history { grid-column: 3; grid-row: 2; }
+#er .t-stock                        { grid-column: 3; grid-row: 3; }
+#er .t-inventory_movement           { grid-column: 3; grid-row: 4; }
+
+@media (max-width: 1020px) {
+    #er { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+    #er .card { grid-column: auto !important; grid-row: auto !important; align-self: auto !important; }
+    #erLines { display: none; }
+}
+
+/* -- Estados -- */
+.states-wrap { overflow-x: auto; }
+.states-wrap svg { display: block; width: 100%; min-width: 760px; height: auto; }
+
+/* -- Tablas -- */
+.tbl-wrap { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 860px; }
+table.t th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+table.t td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.t td.step { font-weight: 600; white-space: nowrap; }
+table.t td .muted { color: var(--faint); }
+table.t tr.go td { background: var(--ok-tint); }
+table.t tr.no td { background: var(--bad-tint); }
+table.t code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.pill { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-tint); color: var(--ok); }
+.pill.no { background: var(--surface-2); color: var(--dim); border: 1px solid var(--line); }
+.callout { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--new-tint); border: 1px solid var(--new); font-size: 13px; }
+.callout b { color: var(--new-ink); }
+pre.sql { margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 12.5px/1.55 'JetBrains Mono', ui-monospace, monospace; }
+pre.sql .c { color: #A8A29E; }
+pre.sql .k { color: #F2C9BA; }
+.foot { color: var(--faint); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+    <h1>Ajustes de inventario · modelo de datos</h1>
+    <p class="lead">Fase F2 del Visor de Stock: conteo físico y ajuste individual, con revisión antes de mover el stock. Sigue el patrón del POS (<span class="mono">app/inventarios</span>).</p>
+    <p class="lead">Migración <span class="mono">docs/sql/2026-10-01_conteo-fisico.sql</span>: crea <b>4 tablas</b>, empieza a usar <b>1 columna</b> que ya existía y agrega <b>1 bloque</b> a la vista del kárdex. Aplicada en local el 01/10/2026.</p>
+
+    <div class="legend">
+        <span><i class="sw new"></i>Tabla nueva</span>
+        <span><i class="sw chg"></i>Ya existe y cambia su uso</span>
+        <span><i class="sw ext"></i>Ya existe, sin cambios</span>
+        <span><i class="sw erp"></i>Otro esquema (fayxzvov_erp)</span>
+        <span><i class="x">solo ERP</i>Columna que el POS no tiene</span>
+        <span><i class="ln fk"></i>Llave foránea nueva</span>
+        <span><i class="ln old"></i>Relación que ya existe</span>
+        <span><i class="ln uses"></i>Al autorizar escribe / lee</span>
+    </div>
+
+    <!-- 1. ER -->
+    <div class="block">
+        <h2>1 · Tablas y relaciones</h2>
+        <p class="hint">Cada línea va de la llave foránea (N) a la tabla que referencia (1). Un ajuste tiene muchos renglones y muchos cambios de estado.</p>
+        <div class="er-scroll">
+            <div id="er">
+                <svg id="erLines" aria-hidden="true"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Estados -->
+    <div class="block">
+        <h2>2 · Estados del ajuste</h2>
+        <p class="hint">El stock solo se mueve en <b>Aplicado</b>. Cada flecha deja una fila en <span class="mono">inventory_adjustment_history</span> con quién y cuándo. El POS solo usa Pendiente, Aplicado y Cancelado, y aplica al guardar.</p>
+        <div class="states-wrap">
+            <svg viewBox="0 0 940 300" role="img" aria-label="Diagrama de estados del ajuste de inventario" font-family="Inter, system-ui, sans-serif">
+                <defs>
+                    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M0,0 L10,5 L0,10 z" style="fill: var(--ink-2)"/>
+                    </marker>
+                </defs>
+
+                <!-- Borrador -->
+                <rect x="20" y="30" width="180" height="78" rx="10" style="fill: var(--surface-2); stroke: var(--ext); stroke-width: 2"/>
+                <text x="110" y="56" text-anchor="middle" font-size="14" font-weight="700" style="fill: var(--ink)">Borrador</text>
+                <text x="110" y="76" text-anchor="middle" font-size="11" style="fill: var(--dim)">Captura quien registra</text>
+                <text x="110" y="94" text-anchor="middle" font-size="11" font-weight="600" style="fill: var(--dim)">Stock: no se toca</text>
+
+                <!-- Pendiente (de revisión) -->
+                <rect x="380" y="30" width="180" height="78" rx="10" style="fill: var(--chg-tint); stroke: var(--chg); stroke-width: 2"/>
+                <text x="470" y="56" text-anchor="middle" font-size="14" font-weight="700" style="fill: var(--ink)">Pendiente</text>
+                <text x="470" y="76" text-anchor="middle" font-size="11" style="fill: var(--dim)">de revisión · nadie lo edita</text>
+                <text x="470" y="94" text-anchor="middle" font-size="11" font-weight="600" style="fill: var(--dim)">Stock: no se toca</text>
+
+                <!-- Aplicado -->
+                <rect x="740" y="30" width="180" height="78" rx="10" style="fill: var(--ok-tint); stroke: var(--ok); stroke-width: 2"/>
+                <text x="830" y="56" text-anchor="middle" font-size="14" font-weight="700" style="fill: var(--ink)">Aplicado</text>
+                <text x="830" y="76" text-anchor="middle" font-size="11" style="fill: var(--dim)">Final, no se edita</text>
+                <text x="830" y="94" text-anchor="middle" font-size="11" font-weight="700" style="fill: var(--ok)">Stock: se ajusta</text>
+                <text x="830" y="134" text-anchor="middle" font-size="11" style="fill: var(--dim)">stock.quantity += difference</text>
+                <text x="830" y="150" text-anchor="middle" font-size="11" style="fill: var(--dim)">si es físico: last_inventory_at</text>
+                <text x="830" y="166" text-anchor="middle" font-size="11" style="fill: var(--dim)">y aparece AJUSTE en el kárdex</text>
+
+                <!-- Rechazado -->
+                <rect x="380" y="200" width="180" height="78" rx="10" style="fill: var(--bad-tint); stroke: var(--bad); stroke-width: 2"/>
+                <text x="470" y="226" text-anchor="middle" font-size="14" font-weight="700" style="fill: var(--ink)">Rechazado</text>
+                <text x="470" y="246" text-anchor="middle" font-size="11" style="fill: var(--dim)">Guarda reject_reason</text>
+                <text x="470" y="264" text-anchor="middle" font-size="11" font-weight="600" style="fill: var(--dim)">Stock: no se toca</text>
+
+                <!-- Cancelado -->
+                <rect x="20" y="200" width="180" height="78" rx="10" style="fill: var(--surface); stroke: var(--ext); stroke-width: 2; stroke-dasharray: 5 4"/>
+                <text x="110" y="226" text-anchor="middle" font-size="14" font-weight="700" style="fill: var(--dim)">Cancelado</text>
+                <text x="110" y="246" text-anchor="middle" font-size="11" style="fill: var(--dim)">Se abrió por error</text>
+                <text x="110" y="264" text-anchor="middle" font-size="11" font-weight="600" style="fill: var(--dim)">Stock: no se toca</text>
+
+                <!-- Flechas -->
+                <path d="M200,69 L376,69" style="stroke: var(--ink-2); stroke-width: 1.6; fill: none" marker-end="url(#arr)"/>
+                <text x="290" y="60" text-anchor="middle" font-size="12" font-weight="700" style="fill: var(--ink)">Enviar a revisión</text>
+                <text x="290" y="86" text-anchor="middle" font-size="11" style="fill: var(--dim)">lo hace quien registró</text>
+
+                <path d="M560,69 L736,69" style="stroke: var(--ink-2); stroke-width: 1.6; fill: none" marker-end="url(#arr)"/>
+                <text x="650" y="60" text-anchor="middle" font-size="12" font-weight="700" style="fill: var(--ink)">Autorizar</text>
+                <text x="650" y="86" text-anchor="middle" font-size="11" style="fill: var(--dim)">otro usuario + contraseña</text>
+
+                <path d="M470,108 L470,196" style="stroke: var(--ink-2); stroke-width: 1.6; fill: none" marker-end="url(#arr)"/>
+                <text x="480" y="150" font-size="12" font-weight="700" style="fill: var(--ink)">Rechazar</text>
+                <text x="480" y="166" font-size="11" style="fill: var(--dim)">con motivo</text>
+
+                <path d="M380,226 C300,226 160,182 152,112" style="stroke: var(--ink-2); stroke-width: 1.6; fill: none" marker-end="url(#arr)"/>
+                <text x="292" y="270" text-anchor="middle" font-size="12" font-weight="700" style="fill: var(--ink)">Reabrir y recontar</text>
+
+                <path d="M90,108 L90,196" style="stroke: var(--ink-2); stroke-width: 1.6; fill: none; stroke-dasharray: 5 4" marker-end="url(#arr)"/>
+                <text x="82" y="156" text-anchor="end" font-size="12" font-weight="700" style="fill: var(--ink)">Cancelar</text>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 3. Pasos -->
+    <div class="block">
+        <h2>3 · Qué escribe cada paso</h2>
+        <p class="hint">Quien registró no puede autorizar su propio ajuste (en el POS sí puede). Al autorizar se pide la contraseña del revisor, igual que al editar una Entrada.</p>
+        <div class="tbl-wrap">
+            <table class="t">
+                <thead>
+                    <tr>
+                        <th>Paso</th><th>Quién</th><th>inventory_adjustment</th><th>detail_inventory_adjustment</th><th>inventory_adjustment_history</th><th>stock y kárdex</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="step">1. Abrir ajuste</td><td>Quien registra</td>
+                        <td>Nueva fila: <code>folio</code> AJU-, <code>adjustment_type</code> (fisico / individual), <code>adjustment_reason_id</code>, <code>status</code> = Borrador, <code>registered_user_id</code>, almacén y área</td>
+                        <td>Si es físico, una fila por producto del almacén o área; si es individual, solo los elegidos. <code>physical_quantity</code> vacío</td>
+                        <td>Fila "Borrador"</td>
+                        <td><span class="pill no">Sin cambios</span></td>
+                    </tr>
+                    <tr>
+                        <td class="step">2. Contar</td><td>Quien registra</td>
+                        <td>Recalcula <code>total_counted</code>, <code>total_differences</code>, <code>total_diff_units</code>, <code>total_diff_cost</code></td>
+                        <td>Al capturar un producto: <code>system_quantity</code> = stock en ese momento, <code>physical_quantity</code>, <code>counted_at</code>, <code>difference</code>, <code>cost_diff</code></td>
+                        <td class="muted">—</td>
+                        <td><span class="pill no">Sin cambios</span></td>
+                    </tr>
+                    <tr>
+                        <td class="step">3. Enviar a revisión</td><td>Quien registra</td>
+                        <td><code>status</code> = Pendiente, <code>submitted_at</code></td>
+                        <td>Ya no se puede editar</td>
+                        <td>Fila "Pendiente"</td>
+                        <td><span class="pill no">Sin cambios</span></td>
+                    </tr>
+                    <tr class="go">
+                        <td class="step">4a. Autorizar</td><td>Supervisor (otro usuario)</td>
+                        <td><code>status</code> = Aplicado, <code>authorized_user_id</code>, <code>authorized_at</code></td>
+                        <td>Solo las filas con diferencia: <code>previous_stock</code> y <code>resulting_stock</code></td>
+                        <td>Fila "Aplicado"</td>
+                        <td><code>quantity</code> += <code>difference</code>; si es físico, <code>last_inventory_at</code> = ahora; aparece AJUSTE en el kárdex</td>
+                    </tr>
+                    <tr class="no">
+                        <td class="step">4b. Rechazar</td><td>Supervisor (otro usuario)</td>
+                        <td><code>status</code> = Rechazado, <code>reject_reason</code>, <code>authorized_user_id</code></td>
+                        <td class="muted">—</td>
+                        <td>Fila "Rechazado" con el motivo</td>
+                        <td><span class="pill no">Sin cambios</span></td>
+                    </tr>
+                    <tr>
+                        <td class="step">5. Reabrir</td><td>Quien registra</td>
+                        <td><code>status</code> = Borrador</td>
+                        <td>Se puede corregir otra vez</td>
+                        <td>Fila "Borrador"</td>
+                        <td><span class="pill no">Sin cambios</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 4. Ejemplo -->
+    <div class="block">
+        <h2>4 · Ejemplo: ARRACHERA en el Refrigerador</h2>
+        <p class="hint">Qué pasa si alguien registra una salida mientras el ajuste espera revisión.</p>
+        <div class="tbl-wrap">
+            <table class="t num">
+                <thead>
+                    <tr><th>Hora</th><th>Qué pasa</th><th>system_quantity</th><th>physical_quantity</th><th>difference</th><th>stock.quantity</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>09:00</td><td>Se abre el ajuste físico AJU-0004 del Refrigerador</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td><td>6.5 kg</td></tr>
+                    <tr><td>09:20</td><td>Se pesa la arrachera: hay 6.1 kg. El sistema dice 6.5 en ese momento</td><td>6.5</td><td>6.1</td><td><b>−0.4</b></td><td>6.5 kg</td></tr>
+                    <tr><td>09:30</td><td>Se envía a revisión (Pendiente)</td><td>6.5</td><td>6.1</td><td>−0.4</td><td>6.5 kg</td></tr>
+                    <tr><td>11:00</td><td>Cocina saca 1 kg con la Salida SAL-0022</td><td>6.5</td><td>6.1</td><td>−0.4</td><td>5.5 kg</td></tr>
+                    <tr class="go"><td>12:00</td><td>El supervisor autoriza: <code>previous_stock</code> = 5.5, <code>resulting_stock</code> = 5.5 + (−0.4)</td><td>6.5</td><td>6.1</td><td>−0.4</td><td><b>5.1 kg</b></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="callout">
+            <b>Se suma la diferencia, no se pone lo contado.</b> Si al autorizar se escribiera 6.1 kg, la salida de 1 kg de las 11:00 desaparecería del stock.
+            Por eso cada renglón guarda las dos fotos: <span class="mono">system_quantity</span> (al contar) y <span class="mono">previous_stock</span> (al autorizar).
+        </div>
+    </div>
+
+    <!-- 5. Vista -->
+    <div class="block">
+        <h2>5 · Bloque nuevo de la vista del kárdex</h2>
+        <p class="hint">Se agrega al final de <span class="mono">inventory_movement</span>, después de los bloques de ENTRADA, MERMA y TRANSFERENCIA. El Visor de Stock ya sabe pintar el tipo AJUSTE (ctrl-stock.php, línea 126).</p>
+<pre class="sql"><span class="k">UNION ALL</span>
+<span class="k">SELECT</span> CONCAT('ADJ-', d.id)                                <span class="k">AS</span> movement_uid,
+       'AJUSTE'                                            <span class="k">AS</span> movement_type,
+       r.folio, r.note,
+       d.difference                                        <span class="k">AS</span> quantity,
+       d.previous_stock                                    <span class="k">AS</span> stock_prev,
+       d.resulting_stock                                   <span class="k">AS</span> stock_post,
+       d.cost                                              <span class="k">AS</span> cost_unit,
+       d.cost_diff                                         <span class="k">AS</span> cost_total,
+       COALESCE(CAST(r.authorized_at <span class="k">AS</span> DATE), r.date_adjustment) <span class="k">AS</span> occurred_at,
+       COALESCE(r.authorized_at, r.created_at)             <span class="k">AS</span> created_at,
+       r.status,
+       d.item_id, r.warehouse_id,
+       COALESCE(r.authorized_user_id, r.registered_user_id) <span class="k">AS</span> user_id,
+       r.branch_id, r.companies_id
+  <span class="k">FROM</span> fayxzvov_inventory.detail_inventory_adjustment d
+  <span class="k">JOIN</span> fayxzvov_inventory.inventory_adjustment r <span class="k">ON</span> r.id = d.inventory_adjustment_id
+ <span class="k">WHERE</span> d.active = 1 <span class="k">AND</span> r.active = 1
+   <span class="k">AND</span> r.status = 'Aplicado'
+   <span class="k">AND</span> d.difference &lt;&gt; 0   <span class="c">-- productos sin diferencia no generan movimiento</span></pre>
+    </div>
+
+    <p class="foot">Nombres del POS (<span class="mono">app/inventarios/mdl/mdl-inventarios.php</span>): <span class="mono">inventory_adjustment</span>, <span class="mono">detail_inventory_adjustment</span>, <span class="mono">adjustment_reason</span>, <span class="mono">physical_quantity</span>, <span class="mono">cost_diff</span>, <span class="mono">registered_user_id</span>, <span class="mono">authorized_user_id</span>. El ERP usa sus propias llaves: <span class="mono">item_id</span> (en el POS <span class="mono">product_id</span>), <span class="mono">branch_id</span> (en el POS <span class="mono">subsidiaries_id</span>) y <span class="mono">fayxzvov_erp.users</span> (en el POS <span class="mono">usr_users</span>). Estilo de tablas: <span class="mono">purchase_order</span>, <span class="mono">shrinkage_reason</span> e <span class="mono">inventory_transfer_history</span>. Las llaves a <span class="mono">fayxzvov_erp</span> usan RESTRICT; renglones e historial usan CASCADE hacia su ajuste.</p>
+</div>
+
+<script>
+// -- Modelo --
+
+const TABLES = [
+    {
+        id: 'warehouse', kind: 'existing', sub: 'Almacenes', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'name', t: 'VARCHAR', d: 'Almacén General, Barra…' },
+            { n: 'branch_id', t: 'INT', k: 'FK' }
+        ]
+    },
+    {
+        id: 'warehouse_area', kind: 'existing', sub: 'Áreas dentro de un almacén', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'name', t: 'VARCHAR', d: 'Refrigerador, Anaquel 1, Vitrina' },
+            { n: 'warehouse_id', t: 'INT', k: 'FK' }
+        ]
+    },
+    {
+        id: 'item', kind: 'existing', sub: 'Productos · el costo sale de item_attribute.cost_unit', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'name', t: 'VARCHAR', d: 'ARRACHERA, RIB EYE…' }
+        ]
+    },
+    {
+        id: 'adjustment_reason', kind: 'new', sub: 'Catálogo de motivos · los 5 del POS', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'code', t: 'VARCHAR(30)', d: 'CONTEO_FISICO, FALTANTE, SOBRANTE, CIERRE_MENSUAL, ENTRADA_NO_REG' },
+            { n: 'name', t: 'VARCHAR(120)', d: 'Conteo físico, Faltante sin explicar…' },
+            { n: 'affects_cost', t: 'TINYINT', d: '1 = cuenta como pérdida o ganancia' },
+            { n: 'icon · color_hex · bg_hex', t: 'VARCHAR', d: 'Chip en pantalla' },
+            { n: 'sort_order', t: 'INT', x: true },
+            { n: 'active', t: 'TINYINT' }
+        ]
+    },
+    {
+        id: 'inventory_adjustment', kind: 'new', sub: 'Encabezado · un ajuste = un folio', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'folio', t: 'VARCHAR(20)', d: 'AJU-0004' },
+            { n: 'note', t: 'VARCHAR(255)', d: 'Nota general' },
+            { n: 'adjustment_type', t: 'VARCHAR(20)', d: 'fisico (conteo) · individual (corrección puntual)', hl: true },
+            { n: 'is_blind', t: 'TINYINT', d: '1 = conteo ciego', x: true },
+            { n: 'total_products', t: 'INT', d: 'Productos en la hoja' },
+            { n: 'total_counted', t: 'INT', d: 'Ya capturados', x: true },
+            { n: 'total_differences', t: 'INT', d: 'Con diferencia', x: true },
+            { n: 'total_diff_units', t: 'DOUBLE', d: 'Suma de diferencias (+ sobra / − falta)' },
+            { n: 'total_diff_cost', t: 'DOUBLE', d: 'Valor del ajuste en $' },
+            { n: 'date_adjustment · time_adjustment', t: 'DATE · TIME', d: 'Día y hora del ajuste' },
+            { n: 'submitted_at', t: 'DATETIME', d: 'Cuándo se envió a revisión', x: true },
+            { n: 'authorized_at', t: 'DATETIME', d: 'Cuándo se autorizó o rechazó', x: true },
+            { n: 'reject_reason', t: 'VARCHAR(255)', d: 'Por qué se rechazó', x: true },
+            { n: 'created_at · updated_at', t: 'DATETIME' },
+            { n: 'status', t: 'VARCHAR(20)', d: 'Borrador · Pendiente · Aplicado · Rechazado · Cancelado', hl: true },
+            { n: 'adjustment_reason_id', t: 'INT', k: 'FK', d: 'Motivo (obligatorio)' },
+            { n: 'registered_user_id', t: 'INT', k: 'FK', d: 'Quién registró o contó', hl: true },
+            { n: 'authorized_user_id', t: 'INT', k: 'FK', d: 'Quién autorizó o rechazó (no puede ser el mismo)', hl: true },
+            { n: 'warehouse_id', t: 'INT', k: 'FK', d: 'Almacén que se ajusta' },
+            { n: 'warehouse_area_id', t: 'INT', k: 'FK', d: 'Área (vacío = todo el almacén)', x: true },
+            { n: 'branch_id', t: 'INT', k: 'FK', d: 'En el POS: subsidiaries_id' },
+            { n: 'companies_id', t: 'INT', k: 'FK' },
+            { n: 'active', t: 'TINYINT' }
+        ]
+    },
+    {
+        id: 'detail_inventory_adjustment', kind: 'new', sub: 'Renglón · un producto ajustado', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'system_quantity', t: 'DOUBLE', d: 'Lo que decía el sistema al capturar', hl: true },
+            { n: 'physical_quantity', t: 'DOUBLE', d: 'Lo que se contó (vacío = pendiente)', hl: true },
+            { n: 'difference', t: 'DOUBLE', d: 'Contado − sistema', hl: true },
+            { n: 'cost', t: 'DOUBLE', d: 'Último costo al capturar' },
+            { n: 'cost_diff', t: 'DOUBLE', d: 'difference × cost' },
+            { n: 'previous_stock', t: 'DOUBLE', d: 'Stock al momento de autorizar' },
+            { n: 'resulting_stock', t: 'DOUBLE', d: 'previous_stock + difference' },
+            { n: 'note', t: 'VARCHAR(255)', d: 'Explica una diferencia grande', x: true },
+            { n: 'counted_at', t: 'DATETIME', d: 'Cuándo se capturó (momento de la foto)', x: true },
+            { n: 'created_at · updated_at', t: 'DATETIME' },
+            { n: 'inventory_adjustment_id', t: 'INT', k: 'FK', d: 'Su ajuste · CASCADE · único por producto' },
+            { n: 'item_id', t: 'INT', k: 'FK', d: 'En el POS: product_id' },
+            { n: 'active', t: 'TINYINT' }
+        ]
+    },
+    {
+        id: 'erp', kind: 'erp', title: 'fayxzvov_erp', sub: 'Otro esquema · ya existe', cols: [
+            { n: 'users', t: 'id', d: 'Quién registró y quién autorizó' },
+            { n: 'branches', t: 'id' },
+            { n: 'companies', t: 'id' }
+        ]
+    },
+    {
+        id: 'inventory_adjustment_history', kind: 'new', sub: 'Bitácora · no existe en el POS', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'status', t: 'VARCHAR(20)', d: 'Estado al que pasó' },
+            { n: 'note', t: 'VARCHAR(255)', d: 'Motivo o comentario' },
+            { n: 'transitioned_at', t: 'DATETIME', d: 'Cuándo' },
+            { n: 'user_id', t: 'INT', k: 'FK', d: 'Quién lo movió', hl: true },
+            { n: 'inventory_adjustment_id', t: 'INT', k: 'FK', d: 'Su ajuste · CASCADE' },
+            { n: 'active', t: 'TINYINT' }
+        ]
+    },
+    {
+        id: 'stock', kind: 'changed', sub: 'Existencia por almacén y producto', cols: [
+            { n: 'id', t: 'INT', k: 'PK' },
+            { n: 'quantity', t: 'DOUBLE', d: 'Al autorizar: += difference', hl: true },
+            { n: 'last_inventory_at', t: 'DATETIME', d: 'Ya existía y nadie la llenaba: se llena en los ajustes físicos', hl: true },
+            { n: 'warehouse_id', t: 'INT', k: 'FK' },
+            { n: 'item_id', t: 'INT', k: 'FK' }
+        ]
+    },
+    {
+        id: 'inventory_movement', kind: 'view', sub: 'Vista del kárdex (no es tabla)', cols: [
+            { n: 'ENTRADA', t: 'inflow' },
+            { n: 'MERMA', t: 'shrinkage' },
+            { n: 'TRANSFERENCIA', t: 'transfer' },
+            { n: 'AJUSTE', t: 'adjustment', k: '+', d: 'Bloque nuevo: renglones con diferencia de ajustes Aplicados', hl: true }
+        ]
+    }
+];
+
+const RELS = [
+    { from: 'inventory_adjustment.adjustment_reason_id',               to: 'adjustment_reason.id' },
+    { from: 'inventory_adjustment.warehouse_id',                       to: 'warehouse.id' },
+    { from: 'inventory_adjustment.warehouse_area_id',                  to: 'warehouse_area.id' },
+    { from: 'inventory_adjustment.registered_user_id',                 to: 'erp.users' },
+    { from: 'inventory_adjustment.authorized_user_id',                 to: 'erp.users' },
+    { from: 'detail_inventory_adjustment.inventory_adjustment_id',     to: 'inventory_adjustment.id' },
+    { from: 'detail_inventory_adjustment.item_id',                     to: 'item.id' },
+    { from: 'inventory_adjustment_history.inventory_adjustment_id',    to: 'inventory_adjustment.id' },
+    { from: 'inventory_adjustment_history.user_id',                    to: 'erp.users' },
+    { from: 'warehouse_area.warehouse_id',                             to: 'warehouse.id', kind: 'old' },
+    { from: 'detail_inventory_adjustment.difference',                  to: 'stock.quantity', kind: 'uses', label: 'al autorizar' },
+    { from: 'detail_inventory_adjustment.difference',                  to: 'inventory_movement.AJUSTE', kind: 'uses', label: 'kárdex' }
+];
+
+const TAGS = { new: 'NUEVA', changed: 'CAMBIA', existing: 'EXISTE', view: 'VISTA · CAMBIA', erp: 'OTRO ESQUEMA' };
+
+
+// -- Tarjetas --
+
+function partes(ref) {
+    const i = ref.indexOf('.');
+    return [ref.slice(0, i), ref.slice(i + 1)];
+}
+
+function cardHtml(t) {
+    const rows = t.cols.map(c => {
+        const ref = RELS.find(r => r.from === `${t.id}.${c.n}` && r.kind !== 'uses');
+        const refTxt = ref ? `<span class="ref"> → ${partes(ref.to)[0] === 'erp' ? 'fayxzvov_erp.' + partes(ref.to)[1] : partes(ref.to)[0]}</span>` : '';
+        const keyCls = c.k ? 'key key-' + (c.k === '+' ? 'add' : c.k.toLowerCase()) : 'key';
+        return `
+        <div class="row${c.hl ? ' hl' : ''}" data-col="${t.id}.${c.n}">
+            <span class="${keyCls}">${c.k || ''}</span>
+            <span class="nm"><span class="mono">${c.n}</span>${c.x ? '<i class="x">solo ERP</i>' : ''}${refTxt}${c.d ? `<em>${c.d}</em>` : ''}</span>
+            <span class="ty mono">${c.t || ''}</span>
+        </div>`;
+    }).join('');
+
+    return `
+    <section class="card k-${t.kind} t-${t.id}" data-table="${t.id}">
+        <header class="card-h">
+            <span class="tag">${TAGS[t.kind]}</span>
+            <b class="mono">${t.title || t.id}</b>
+            <small>${t.sub}</small>
+        </header>
+        <div class="rows">${rows}</div>
+    </section>`;
+}
+
+
+// -- Lineas entre tablas --
+
+const COLOR = { fk: 'var(--new)', old: 'var(--ext)', uses: 'var(--chg)' };
+
+function dibujarRelaciones() {
+    const er  = document.getElementById('er');
+    const svg = document.getElementById('erLines');
+    if (getComputedStyle(svg).display === 'none') return;
+
+    const W = er.scrollWidth, H = er.scrollHeight;
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    const base = er.getBoundingClientRect();
+    const rel  = (r) => ({ left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top, width: r.width, height: r.height });
+    const midY = (el) => { const r = rel(el.getBoundingClientRect()); return r.top + Math.min(r.height, 26) / 2; };
+
+    let out = '';
+    RELS.forEach(R => {
+        const kind = R.kind || 'fk';
+        const [ft] = partes(R.from), [tt] = partes(R.to);
+        const fCard = er.querySelector(`[data-table="${ft}"]`), tCard = er.querySelector(`[data-table="${tt}"]`);
+        const fRow  = er.querySelector(`[data-col="${R.from}"]`), tRow  = er.querySelector(`[data-col="${R.to}"]`);
+        if (!fCard || !tCard || !fRow || !tRow) return;
+
+        const a = rel(fCard.getBoundingClientRect()), b = rel(tCard.getBoundingClientRect());
+        let p1, p2, d, n1, n2;
+
+        if (a.right <= b.left || a.left >= b.right) {
+            const dir = a.right <= b.left ? 1 : -1;
+            p1 = { x: dir > 0 ? a.right : a.left, y: midY(fRow) };
+            p2 = { x: dir > 0 ? b.left : b.right, y: midY(tRow) };
+            const k = Math.max(28, Math.abs(p2.x - p1.x) / 2);
+            d  = `M${p1.x},${p1.y} C${p1.x + k * dir},${p1.y} ${p2.x - k * dir},${p2.y} ${p2.x},${p2.y}`;
+            n1 = { x: p1.x + 9 * dir, y: p1.y - 5, a: dir > 0 ? 'start' : 'end' };
+            n2 = { x: p2.x - 9 * dir, y: p2.y - 5, a: dir > 0 ? 'end' : 'start' };
+        } else {
+            const up = a.top >= b.bottom ? -1 : 1;
+            const x1 = a.left + a.width / 2, x2 = b.left + b.width / 2;
+            p1 = { x: x1, y: up < 0 ? a.top : a.bottom };
+            p2 = { x: x2, y: up < 0 ? b.bottom : b.top };
+            const k = Math.max(18, Math.abs(p2.y - p1.y) / 2);
+            d  = `M${p1.x},${p1.y} C${p1.x},${p1.y + k * up} ${p2.x},${p2.y - k * up} ${p2.x},${p2.y}`;
+            n1 = { x: p1.x + 7, y: p1.y + (up < 0 ? -6 : 14), a: 'start' };
+            n2 = { x: p2.x + 7, y: p2.y + (up < 0 ? 14 : -6), a: 'start' };
+        }
+
+        const dash = kind === 'uses' ? ' stroke-dasharray="6 5"' : '';
+        out += `<path d="${d}" fill="none" style="stroke:${COLOR[kind]}" stroke-width="${kind === 'old' ? 1.4 : 1.8}"${dash}/>`;
+        out += `<circle cx="${p2.x}" cy="${p2.y}" r="3.2" style="fill:${COLOR[kind]}"/>`;
+
+        if (kind === 'uses') {
+            const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+            const w = R.label.length * 6.4 + 14;
+            out += `<rect x="${mx - w / 2}" y="${my - 10}" width="${w}" height="20" rx="10" style="fill:var(--surface);stroke:${COLOR.uses}"/>`;
+            out += `<text x="${mx}" y="${my + 4}" text-anchor="middle" font-size="11" font-weight="600" style="fill:var(--chg-ink)" font-family="Inter, system-ui, sans-serif">${R.label}</text>`;
+        } else {
+            out += `<text x="${n1.x}" y="${n1.y}" text-anchor="${n1.a}" font-size="10.5" font-weight="700" style="fill:${COLOR[kind]}" font-family="Inter, system-ui, sans-serif">N</text>`;
+            out += `<text x="${n2.x}" y="${n2.y}" text-anchor="${n2.a}" font-size="10.5" font-weight="700" style="fill:${COLOR[kind]}" font-family="Inter, system-ui, sans-serif">1</text>`;
+        }
+    });
+    svg.innerHTML = out;
+}
+
+
+// -- Arranque --
+
+document.getElementById('er').insertAdjacentHTML('beforeend', TABLES.map(cardHtml).join(''));
+
+let t;
+window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(dibujarRelaciones, 80); });
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(dibujarRelaciones);
+dibujarRelaciones();
+</script>
+</body>
+</html>

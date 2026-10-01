@@ -13,14 +13,20 @@
 --   account.nationalsoft.com.mx; su boton .btn-orange es #EB6F22.
 --
 -- COMO SE REPARTEN
---   barra      #1C1E23, mode dark -> su negro de marca. Con barra blanca,
---                                    como la de su sitio, se confundia con
---                                    Claro (tambien blanco con terracota).
---   acento     #ED6C20 -> su naranja: pestañas, chips, seleccion.
---   primario   #E25724 -> su naranja de "hover". El #ED6C20 con texto blanco
---                         queda en 3.1:1; este llega a 3.7:1.
---   secundario #584569 -> su morado de titulos: detalles de la barra, foco
---                         y borde de las cards al pasar encima.
+--   Soft Restaurant se reconoce por el naranja: el tema va naranja de punta
+--   a punta. La primera version llevaba la barra en su negro y el secundario
+--   en su morado, y no se leia como Soft Restaurant.
+--   barra      #ED6C20, mode dark -> su naranja, con el texto en blanco como
+--                                    lo pone la nube (#FBF7F7 sobre su
+--                                    boton). Blanco sobre este naranja da
+--                                    3.1:1: se lee en negritas, no en letra
+--                                    chica.
+--   acento     #ED6C20 -> pestañas, chips, seleccion.
+--   primario   #E25724 -> su naranja de "hover", un punto mas hondo: los
+--                         botones se distinguen de la barra y el texto blanco
+--                         llega a 3.7:1.
+--   secundario #ED6C20 -> detalles de la barra, foco y borde de las cards al
+--                         pasar encima, tambien naranja.
 --   scheme     light   -> la nube es clara: pagina gris de siempre.
 --   Es el mismo tema que erp-pro/ERP24/avatars (db/2026-09-30_tema-soft-restaurant.sql).
 --
@@ -35,9 +41,18 @@
 INSERT INTO fayxzvov_erp.themes
     (code, name, tipo, color, image, accent, primary_color, secondary_color, scheme, mode, is_default, orden, is_active, created_at)
 VALUES
-    ('soft-restaurant', 'Soft Restaurant', 'color', '#1C1E23', NULL, '#ED6C20', '#E25724', '#584569', 'light', 'dark', 0, 5, 1, NOW())
+    ('soft-restaurant', 'Soft Restaurant', 'color', '#ED6C20', NULL, '#ED6C20', '#E25724', '#ED6C20', 'light', 'dark', 0, 5, 1, NOW())
 ON DUPLICATE KEY UPDATE
     code = code;
+
+-- La primera version (barra negra, secundario morado) alcanzo a correr en
+-- local. Solo se corrige ese par exacto: lo editado en el panel se respeta.
+UPDATE fayxzvov_erp.themes
+SET color = '#ED6C20',
+    secondary_color = '#ED6C20'
+WHERE code = 'soft-restaurant'
+  AND color = '#1C1E23'
+  AND secondary_color = '#584569';
 
 SELECT code, name, tipo, color, accent, primary_color, secondary_color, scheme, mode, orden, is_active
 FROM fayxzvov_erp.themes

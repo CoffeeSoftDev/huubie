@@ -411,6 +411,7 @@ class Pedidos extends MPedidos{
             'time_order'      => $_POST['time_order'],
             'delivery_type'   => $_POST['delivery_type'],
             'date_creation'   => date('Y-m-d H:i:s'),
+            'created_by'      => $_SESSION['ID'],
             'client_id'       => $client['id'],
             'status'          => 1,
             'type_id'         => 1,

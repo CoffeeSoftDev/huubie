@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor de Stock v2 - Huubie Inventarios</title>
+
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tema de inventory: blue -> terracota (#C05A40). DEBE ir justo despues del CDN. -->
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            blue: {
+                                50:'#FBF3EF',100:'#F7E3DC',200:'#EFC9BC',300:'#E8A68F',400:'#D9826A',
+                                500:'#C8694C',600:'#C05A40',700:'#A84A33',800:'#8F3D2A',900:'#6E2F20',950:'#4A1F16'
+                            }
+                        },
+                        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+                    }
+                }
+            };
+        }
+    </script>
+    <!-- Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family:'Inter',system-ui,sans-serif; background:#f3f4f6; }
+        .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .no-spin{-moz-appearance:textfield}
+        ::-webkit-scrollbar{width:8px;height:8px}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px}
+
+        /* Fila activa de la tabla (mismo patron que entradas / ordenes) */
+        #tbStock tbody tr { cursor:pointer; }
+        #tbStock tbody tr:nth-child(even) { background:#F9FAFB; }
+        #tbStock tbody tr:hover { background:#F3F4F6; }
+        #tbStock tbody tr.row-active { background:#FBF3EF !important; box-shadow: inset 3px 0 0 #C05A40; }
+        #tbStock tbody tr.row-sel { background:#FDF8F6; }
+
+        /* Etiqueta de fase: marca lo que agrega esta propuesta */
+        .nv {
+            display:inline-flex; align-items:center; height:15px; padding:0 5px; margin-left:4px;
+            border-radius:999px; font-size:9px; font-weight:700; letter-spacing:.02em; line-height:1;
+            background:#C05A40; color:#fff; vertical-align:middle; white-space:nowrap; text-transform:none;
+        }
+        body.hide-nv .nv { display:none !important; }
+
+        /* Conteo ciego: oculta lo que dice el sistema mientras se cuenta */
+        #tbConteo.blind .sys { display:none; }
+
+        .tab-btn { padding:6px 10px; font-size:11px; font-weight:500; color:#6B7280; border-bottom:2px solid transparent; white-space:nowrap; }
+        .tab-btn:hover { color:#1F2937; }
+        .tab-btn.active { color:#C05A40; font-weight:700; border-bottom-color:#C05A40; }
+    </style>
+</head>
+
+<body class="min-h-screen md:h-screen md:overflow-hidden text-gray-800">
+
+<div class="md:h-screen p-3 flex flex-col gap-2">
+
+    <!-- ============================================================
+         BANNER DEL TEMPLATE (no va en el modulo real)
+    ============================================================ -->
+    <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg border border-dashed border-blue-300 bg-blue-50 text-[11px] text-blue-900 flex-shrink-0">
+        <div class="flex items-center gap-2">
+            <i data-lucide="layout-template" class="w-4 h-4 text-blue-600"></i>
+            <span><b>Template · Visor de Stock v2.</b> Productos reales del catálogo, cantidades de ejemplo.</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <span class="nv" title="Valor $, exceso, cobertura, filtros por almacén y área, predicción corregida">F1 Visor</span>
+            <span class="nv" title="Conteo físico por área y ajuste con motivo">F2 Conteo</span>
+            <span class="nv" title="Mín/máx por almacén y orden de compra sugerida">F3 Reorden</span>
+            <span class="nv" title="Presentaciones con factor de conversión">F4 Presentaciones</span>
+            <span class="nv" title="Lotes y caducidad">F5 Lotes</span>
+            <span class="nv" title="Recetas y consumo teórico vs real">F6 Recetas</span>
+            <label class="ml-2 inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <input id="tglNovedades" type="checkbox" class="w-3.5 h-3.5 accent-[#C05A40]" checked>
+                Marcar novedades
+            </label>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         LAYOUT: panel principal (flex-1) + panel detalle (aside 420)
+         Mismo esqueleto que stock.js -> App.layout()
+    ============================================================ -->
+    <div id="POSStock" class="md:flex-1 md:min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200">
+
+        <!-- ===================== PANEL PRINCIPAL ===================== -->
+        <div id="mainPanel" class="flex-1 flex flex-col md:overflow-hidden min-w-0 min-h-0 w-full">
+
+            <!-- viewHeader -->
+            <div id="viewHeader" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+                <div>
+                    <h1 class="text-lg font-bold text-gray-800">Visor de Stock <span class="font-bold text-blue-600">· Reginas Guadalupe</span></h1>
+                    <p class="text-xs text-gray-500">Control de existencias por sucursal, almacén, área y nivel</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="btnConteo" type="button" class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-gray-300 bg-white text-[12px] font-semibold text-gray-700 hover:bg-gray-50">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>Conteo físico<span class="nv">F2</span>
+                    </button>
+                    <button id="btnReorden" type="button" class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-[#292524] hover:bg-[#44403C] text-[12px] font-semibold text-white">
+                        <i data-lucide="shopping-cart" class="w-4 h-4"></i>Reorden sugerido<span class="nv">F3</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- filterBar -->
+            <div id="filterBar" class="px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+                <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1.1fr_1fr_1.4fr] gap-3 items-end">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sucursal</label>
+                        <select class="w-full h-9 px-2 rounded-md border border-gray-300 bg-gray-50 text-[12px] text-gray-500" disabled>
+                            <option>Reginas Guadalupe</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén<span class="nv">F1</span></label>
+                        <select id="fAlmacen" class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                            <option value="">Todos</option>
+                            <option value="gen">Almacén General</option>
+                            <option value="bar">Barra</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Área<span class="nv">F1</span></label>
+                        <select id="fArea" class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                            <option value="">Todas</option>
+                            <option value="ref">Refrigerador</option>
+                            <option value="ana">Anaquel 1</option>
+                            <option value="vit">Vitrina</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Categoría</label>
+                        <select id="fCategoria" class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                            <option value="">Todas</option>
+                            <option value="Bebidas">Bebidas</option>
+                            <option value="Carnes">Carnes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nivel</label>
+                        <select id="fNivel" class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                            <option value="">Todos</option>
+                            <option value="ok">Stock OK</option>
+                            <option value="bajo">Stock bajo</option>
+                            <option value="agotado">Agotado</option>
+                            <option value="exceso">Exceso</option>
+                            <option value="caducar">Por caducar</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Movimientos</label>
+                        <select class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                            <option>Todos</option>
+                            <option>Con movimientos</option>
+                            <option>Sin movimientos</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 md:col-span-2 xl:col-span-1">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Buscar</label>
+                        <div class="relative">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+                            <input id="fBuscar" type="text" placeholder="Producto o SKU" class="w-full h-9 pl-8 pr-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- kpisRow -->
+            <div id="kpisRow" class="px-3 py-3 bg-gray-50 border-b border-gray-200 flex-shrink-0"></div>
+
+            <!-- tableWrap -->
+            <div id="tableWrap" class="p-3 md:flex-1 md:min-h-0 overflow-auto bg-white">
+                <table id="tbStock" class="w-full text-[12px] min-w-[940px]">
+                    <thead class="sticky top-0 z-10 bg-white">
+                        <tr class="text-[10px] uppercase tracking-wider text-gray-500 border-b border-gray-200 whitespace-nowrap">
+                            <th class="px-2 py-2 w-8 text-center">
+                                <input id="chkAll" type="checkbox" class="w-4 h-4 accent-[#C05A40] cursor-pointer" title="Seleccionar visibles">
+                            </th>
+                            <th class="px-2 py-2 text-left">Producto</th>
+                            <th class="px-2 py-2 text-left">Área<span class="nv">F1</span></th>
+                            <th class="px-2 py-2 text-right">Stock</th>
+                            <th class="px-2 py-2 text-center">Mín · Máx</th>
+                            <th class="px-2 py-2 text-left">Cobertura<span class="nv">F1</span></th>
+                            <th class="px-2 py-2 text-right">Valor<span class="nv">F1</span></th>
+                            <th class="px-2 py-2 text-center">Estado</th>
+                            <th class="px-2 py-2 text-center" title="Último conteo físico y su diferencia">Conteo<span class="nv">F2</span></th>
+                            <th class="px-2 py-2 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbStockBody"></tbody>
+                </table>
+                <div id="tbEmpty" class="hidden py-14 text-center">
+                    <i data-lucide="package-search" class="w-8 h-8 text-gray-300 mx-auto mb-2"></i>
+                    <p class="text-[12px] text-gray-500">No se encontraron productos con los filtros aplicados</p>
+                </div>
+                <div class="flex items-center justify-between pt-3 text-[11px] text-gray-500">
+                    <span id="tbInfo"></span>
+                    <span class="text-[10px] text-gray-400">Orden: primero lo que requiere atención<span class="nv">F1</span></span>
+                </div>
+            </div>
+
+            <!-- Barra de reorden (aparece al seleccionar filas) -->
+            <div id="reorderBar" class="hidden flex-shrink-0 border-t border-gray-200 bg-[#FBF3EF] px-4 py-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 text-[12px] text-gray-800">
+                        <i data-lucide="shopping-cart" class="w-4 h-4 text-blue-600"></i>
+                        <span id="reorderInfo"></span><span class="nv">F3</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btnLimpiarSel" type="button" class="h-8 px-3 rounded-md text-[12px] font-medium text-gray-600 hover:bg-white">Limpiar</button>
+                        <button id="btnGenerarOC" type="button" class="h-8 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-[12px] font-semibold text-white inline-flex items-center gap-1.5">
+                            <i data-lucide="file-plus-2" class="w-3.5 h-3.5"></i>Generar orden de compra
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== PANEL DETALLE ===================== -->
+        <aside id="detailPanel" class="fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[420px] md:max-w-none md:transition-none md:z-auto flex-shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none"></aside>
+        <div id="detailBackdrop" class="hidden fixed inset-0 bg-black/40 z-40 md:hidden"></div>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL: CONTEO FISICO (F2)
+============================================================ -->
+<div id="mdlConteo" class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-200">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="clipboard-check" class="w-5 h-5 text-blue-600"></i>Conteo físico<span class="nv">F2</span>
+                </h2>
+                <p class="text-[11px] text-gray-500 mt-0.5">Almacén General · 30/09/2026 · Folio <span class="font-mono">AJU-0004</span> (borrador)</p>
+            </div>
+            <button type="button" data-close="mdlConteo" class="p-1 text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-3 border-b border-gray-200">
+            <div id="conteoTabs" class="flex items-center gap-1 overflow-x-auto"></div>
+            <label class="inline-flex items-center gap-2 pb-2 text-[11px] text-gray-600 cursor-pointer select-none">
+                <input id="tglCiego" type="checkbox" class="w-3.5 h-3.5 accent-[#C05A40]">
+                Conteo ciego <span class="text-gray-400">(oculta lo que dice el sistema)</span>
+            </label>
+        </div>
+
+        <div class="px-5 py-2 text-[10px] text-gray-500 flex items-center gap-1.5">
+            <i data-lucide="info" class="w-3 h-3"></i>
+            La hoja sigue el orden físico del almacén: área por área, como está en el anaquel.
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-auto px-5">
+            <table id="tbConteo" class="w-full text-[12px] min-w-[720px]">
+                <thead class="sticky top-0 bg-white z-10">
+                    <tr class="text-[10px] uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                        <th class="px-2 py-2 text-left">Producto</th>
+                        <th class="px-2 py-2 text-left">Área</th>
+                        <th class="px-2 py-2 text-center">Unidad</th>
+                        <th class="px-2 py-2 text-right sys">Sistema</th>
+                        <th class="px-2 py-2 text-center">Contado</th>
+                        <th class="px-2 py-2 text-right sys">Diferencia</th>
+                        <th class="px-2 py-2 text-right sys">Valor dif.</th>
+                    </tr>
+                </thead>
+                <tbody id="tbConteoBody"></tbody>
+            </table>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
+            <div id="conteoResumen" class="flex flex-wrap items-center gap-4 text-[11px] text-gray-600"></div>
+            <div class="flex items-center gap-2">
+                <button id="btnConteoBorrador" type="button" class="h-9 px-3 rounded-md border border-gray-300 bg-white text-[12px] font-semibold text-gray-700 hover:bg-gray-50">Guardar borrador</button>
+                <button id="btnConteoAplicar" type="button" class="h-9 px-3 rounded-md bg-[#292524] hover:bg-[#44403C] text-[12px] font-semibold text-white inline-flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>Aplicar ajuste
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL: ORDEN DE COMPRA SUGERIDA (F3)
+============================================================ -->
+<div id="mdlOrden" class="hidden fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-3">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-200">
+            <div>
+                <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i data-lucide="file-plus-2" class="w-5 h-5 text-blue-600"></i>Orden de compra sugerida<span class="nv">F3</span>
+                </h2>
+                <p class="text-[11px] text-gray-500 mt-0.5">Sugerido = máximo − stock actual. Se redondea a la presentación de compra<span class="nv">F4</span></p>
+            </div>
+            <button type="button" data-close="mdlOrden" class="p-1 text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 px-5 py-3 border-b border-gray-200">
+            <div>
+                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Proveedor</label>
+                <select class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                    <option>Sin proveedor (requisición interna)</option>
+                    <option>Proveedor de carnes (ejemplo)</option>
+                    <option>Distribuidora de bebidas (ejemplo)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Almacén destino</label>
+                <select class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+                    <option>Almacén General</option>
+                    <option>Barra</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Fecha esperada</label>
+                <input type="date" value="2026-10-02" class="w-full h-9 px-2 rounded-md border border-gray-300 bg-white text-[12px]">
+            </div>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-auto px-5">
+            <table class="w-full text-[12px] min-w-[700px]">
+                <thead class="sticky top-0 bg-white z-10">
+                    <tr class="text-[10px] uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                        <th class="px-2 py-2 text-left">Producto</th>
+                        <th class="px-2 py-2 text-right">Stock</th>
+                        <th class="px-2 py-2 text-right">Máx</th>
+                        <th class="px-2 py-2 text-center">Pedir</th>
+                        <th class="px-2 py-2 text-right">Equivale</th>
+                        <th class="px-2 py-2 text-right">Costo u.</th>
+                        <th class="px-2 py-2 text-right">Subtotal</th>
+                        <th class="px-2 py-2 w-8"></th>
+                    </tr>
+                </thead>
+                <tbody id="tbOrdenBody"></tbody>
+            </table>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50">
+            <div class="text-[12px] text-gray-600">Total estimado: <b id="ordenTotal" class="text-gray-900 text-sm"></b></div>
+            <div class="flex items-center gap-2">
+                <button type="button" data-close="mdlOrden" class="h-9 px-3 rounded-md border border-gray-300 bg-white text-[12px] font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button id="btnCrearOC" type="button" class="h-9 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-[12px] font-semibold text-white inline-flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>Crear orden (borrador)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-4 right-4 z-[70] max-w-sm rounded-lg bg-[#292524] text-white text-[12px] px-4 py-3 shadow-2xl flex items-start gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-300 flex-shrink-0 mt-0.5"></i>
+    <span id="toastMsg"></span>
+</div>
+
+<script>
+// -- Datos de ejemplo --
+// Nombres, SKU y costos salen del catalogo local (fayxzvov_inventory.item).
+// Existencias, minimos, lotes, recetas y ventas son inventados para el template.
+
+const HOY = new Date(2026, 8, 30);
+
+const ALMACENES = { gen: 'Almacén General', bar: 'Barra' };
+
+const AREAS = {
+    ref: { name: 'Refrigerador', color: '#0369A1' },
+    ana: { name: 'Anaquel 1',    color: '#A16207' },
+    vit: { name: 'Vitrina',      color: '#7C3AED' }
+};
+
+const PRODUCTS = [
+    {
+        id: 1, name: 'ARRACHERA', sku: '46001', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 359, delta: 12,
+        wh: { gen: { s: 6.5, min: 8, max: 25, use: 3.2 } },
+        count: { date: '27/09/2026', diff: -0.4 },
+        lots: [
+            { code: 'L-0926-A', folio: 'ENT-0011', qty: 2.5, exp: '01/10/2026' },
+            { code: 'L-0928-B', folio: 'ENT-0014', qty: 4.0, exp: '05/10/2026' }
+        ],
+        recipes: [
+            { dish: 'Arrachera 300 g',        qty: 0.300, sold: 38 },
+            { dish: 'Tacos de arrachera (3)', qty: 0.150, sold: 41 },
+            { dish: 'Parrillada para 2',      qty: 0.250, sold: 12 }
+        ],
+        varPct: 8.0
+    },
+    {
+        id: 2, name: 'RIB EYE', sku: '46006', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 529, delta: -4,
+        wh: { gen: { s: 12.4, min: 5, max: 15, use: 1.6 } },
+        count: { date: '27/09/2026', diff: 0 },
+        lots: [ { code: 'L-0928-C', folio: 'ENT-0014', qty: 12.4, exp: '06/10/2026' } ],
+        recipes: [ { dish: 'Rib eye 400 g', qty: 0.400, sold: 26 } ],
+        varPct: 1.5
+    },
+    {
+        id: 3, name: 'PICANA', sku: '46005', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 330, delta: 20,
+        wh: { gen: { s: 0, min: 4, max: 12, use: 1.1 } },
+        count: { date: '20/09/2026', diff: 0 },
+        lots: [],
+        recipes: [ { dish: 'Picaña 350 g', qty: 0.350, sold: 21 } ],
+        varPct: 4.2
+    },
+    {
+        id: 4, name: 'NEW YORK', sku: '46004', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 300, delta: 3,
+        wh: { gen: { s: 9.8, min: 4, max: 12, use: 1.3 } },
+        count: { date: '27/09/2026', diff: 0.2 },
+        lots: [ { code: 'L-0928-D', folio: 'ENT-0014', qty: 9.8, exp: '07/10/2026' } ],
+        recipes: [ { dish: 'New York 350 g', qty: 0.350, sold: 25 } ],
+        varPct: -1.0
+    },
+    {
+        id: 5, name: 'CHORIZO ARGENTINO', sku: '46003', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 149, delta: -15,
+        wh: { gen: { s: 14, min: 3, max: 8, use: 0.6 } },
+        count: { date: '27/09/2026', diff: 0 },
+        lots: [
+            { code: 'L-0920-A', folio: 'ENT-0009', qty: 5.0, exp: '03/10/2026' },
+            { code: 'L-0927-C', folio: 'ENT-0013', qty: 9.0, exp: '12/10/2026' }
+        ],
+        recipes: [
+            { dish: 'Choripán',          qty: 0.120, sold: 22 },
+            { dish: 'Parrillada para 2', qty: 0.150, sold: 12 }
+        ],
+        varPct: 2.5
+    },
+    {
+        id: 6, name: 'TOP SIRLON', sku: '46008', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 270, delta: 6,
+        wh: { gen: { s: 2.1, min: 3, max: 10, use: 0.9 } },
+        count: null,
+        lots: [ { code: 'L-0925-A', folio: 'ENT-0012', qty: 2.1, exp: '02/10/2026' } ],
+        recipes: [ { dish: 'Top sirloin 300 g', qty: 0.300, sold: 20 } ],
+        varPct: 11.0
+    },
+    {
+        id: 7, name: 'TUETANO', sku: '46009', cat: 'Carnes', icon: 'beef', area: 'ref', unit: 'kg', cost: 37.84, delta: 0,
+        wh: { gen: { s: 3.2, min: 2, max: 6, use: 0.4 } },
+        count: null,
+        lots: [ { code: 'L-0927-D', folio: 'ENT-0013', qty: 3.2, exp: '09/10/2026' } ],
+        recipes: [ { dish: 'Tuétanos al horno', qty: 0.250, sold: 11 } ],
+        varPct: 0.5
+    },
+    {
+        id: 8, name: 'COCA COLA LATA', sku: '47003', cat: 'Bebidas', icon: 'cup-soda', area: 'vit', unit: 'pza', cost: 16.20, delta: 9,
+        wh: { gen: { s: 36, min: 24, max: 96, use: 6 }, bar: { s: 16, min: 24, max: 48, use: 8 } },
+        count: { date: '27/09/2026', diff: -2 },
+        pres: { name: 'Caja', abbr: 'cja', factor: 24 },
+        lots: [],
+        recipes: [ { dish: 'Venta directa', qty: 1, sold: 96 } ],
+        varPct: 2.1
+    },
+    {
+        id: 9, name: 'AGUA CIEL', sku: '47001', cat: 'Bebidas', icon: 'glass-water', area: 'ana', unit: 'pza', cost: 9.25, delta: 18,
+        wh: { gen: { s: 12, min: 24, max: 72, use: 2 }, bar: { s: 6, min: 12, max: 24, use: 4 } },
+        count: { date: '27/09/2026', diff: 0 },
+        pres: { name: 'Paquete', abbr: 'paq', factor: 12 },
+        lots: [],
+        recipes: [ { dish: 'Venta directa', qty: 1, sold: 41 } ],
+        varPct: 0
+    },
+    {
+        id: 10, name: 'SPRITE LATA', sku: '47009', cat: 'Bebidas', icon: 'cup-soda', area: 'vit', unit: 'pza', cost: 15.12, delta: -2,
+        wh: { gen: { s: 28, min: 24, max: 72, use: 2 }, bar: { s: 12, min: 12, max: 24, use: 3 } },
+        count: { date: '27/09/2026', diff: 1 },
+        pres: { name: 'Caja', abbr: 'cja', factor: 24 },
+        lots: [],
+        recipes: [ { dish: 'Venta directa', qty: 1, sold: 34 } ],
+        varPct: -0.8
+    },
+    {
+        id: 11, name: 'VICTORIA', sku: '47010', cat: 'Bebidas', icon: 'beer', area: 'vit', unit: 'pza', cost: 8.82, delta: 25,
+        wh: { gen: { s: 0, min: 24, max: 96, use: 3 }, bar: { s: 0, min: 12, max: 48, use: 6 } },
+        count: { date: '27/09/2026', diff: 0 },
+        pres: { name: 'Cartón', abbr: 'ctn', factor: 12 },
+        lots: [],
+        recipes: [ { dish: 'Venta directa', qty: 1, sold: 63 } ],
+        varPct: 6.3
+    },
+    {
+        id: 12, name: 'CONCHA Y TORO MERLOT', sku: '47005', cat: 'Bebidas', icon: 'wine', area: 'ana', unit: 'pza', cost: 107.41, delta: -30,
+        wh: { gen: { s: 18, min: 4, max: 10, use: 0.2 }, bar: { s: 4, min: 2, max: 4, use: 0.3 } },
+        count: { date: '27/09/2026', diff: 0 },
+        pres: { name: 'Caja', abbr: 'cja', factor: 12 },
+        lots: [],
+        recipes: [ { dish: 'Copa de vino tinto', qty: 0.2, sold: 14 }, { dish: 'Botella en mesa', qty: 1, sold: 1 } ],
+        varPct: 3.0
+    }
+];
+
+// Lo que el encargado ya capturo en el conteo de hoy ('' = pendiente).
+const CONTEO_HOY = { 1: 6.1, 2: 12.4, 3: 0, 4: 10, 5: 14, 6: 2.1, 7: '', 8: 34, 9: 12, 10: 29, 11: '', 12: '' };
+
+// El ajuste del conteo del 27/09 se conserva aparte para el kardex.
+PRODUCTS.forEach(p => { p.ajusteInicial = p.count && p.count.date === '27/09/2026' ? p.count.diff : 0; });
+
+const state = { almacen: '', area: '', cat: '', nivel: '', q: '', sort: '', detailId: null, tab: 'resumen', movFilter: 'todos', conteoArea: '', sel: new Set() };
+
+
+// -- Utilidades --
+
+const DIA_LETRA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+
+function esc(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function money(n) {
+    return '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fq(p, n) {
+    const v = Number(n || 0);
+    if (p.unit === 'pza') return Number.isInteger(v) ? String(v) : v.toFixed(1);
+    return String(Math.round(v * 100) / 100);
+}
+
+function rq(p, n) {
+    return p.unit === 'pza' ? Math.round(n) : Math.round(n * 100) / 100;
+}
+
+function parseFecha(str) {
+    const [d, m, y] = str.split('/').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function fmtFecha(date) {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    return `${d}/${m}/${date.getFullYear()}`;
+}
+
+function addDias(date, n) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
+}
+
+function diasPara(str) {
+    return Math.round((parseFecha(str) - HOY) / 86400000);
+}
+
+function icons() {
+    if (window.lucide) lucide.createIcons();
+}
+
+function toast(msg) {
+    $id('toastMsg').innerHTML = msg;
+    $id('toast').classList.remove('hidden');
+    icons();
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => $id('toast').classList.add('hidden'), 4200);
+}
+
+function $id(id) { return document.getElementById(id); }
+
+
+// -- Reglas de stock --
+
+// Existencia, minimo, maximo y consumo diario segun el almacen filtrado.
+// Sin filtro se consolida: los minimos y maximos se suman por almacen.
+function vista(p) {
+    if (state.almacen) return p.wh[state.almacen] || null;
+    return Object.values(p.wh).reduce((a, w) => ({
+        s: a.s + w.s, min: a.min + w.min, max: a.max + w.max, use: a.use + w.use
+    }), { s: 0, min: 0, max: 0, use: 0 });
+}
+
+function nivel(v) {
+    if (v.s <= 0) return 'agotado';
+    if (v.min > 0 && v.s <= v.min) return 'bajo';
+    if (v.max > 0 && v.s > v.max) return 'exceso';
+    return 'ok';
+}
+
+function loteCritico(p) {
+    const lots = (p.lots || []).map(l => Object.assign({ dias: diasPara(l.exp) }, l)).sort((a, b) => a.dias - b.dias);
+    return lots.length && lots[0].dias <= 3 ? lots[0] : null;
+}
+
+function cobertura(v) {
+    if (!v.use) return null;
+    return v.s / v.use;
+}
+
+function sugerido(p, v) {
+    const falta = Math.max(0, v.max - v.s);
+    if (!falta) return { base: 0, pres: 0 };
+    if (p.pres) {
+        const n = Math.ceil(falta / p.pres.factor);
+        return { base: n * p.pres.factor, pres: n };
+    }
+    return { base: rq(p, falta), pres: 0 };
+}
+
+const ORDEN_NIVEL = { agotado: 0, bajo: 1, exceso: 2, ok: 3 };
+
+function productosFiltrados(ignorarNivel) {
+    const q = state.q.trim().toLowerCase();
+    return PRODUCTS.filter(p => {
+        const v = vista(p);
+        if (!v) return false;
+        if (state.area && p.area !== state.area) return false;
+        if (state.cat && p.cat !== state.cat) return false;
+        if (q && !(p.name.toLowerCase().includes(q) || p.sku.includes(q))) return false;
+        if (!ignorarNivel && state.nivel) {
+            if (state.nivel === 'caducar') return !!loteCritico(p);
+            return nivel(v) === state.nivel;
+        }
+        return true;
+    });
+}
+
+
+// -- Badges y celdas --
+
+const BADGE = {
+    ok:      { cls: 'bg-emerald-100 text-emerald-700', lbl: 'OK' },
+    bajo:    { cls: 'bg-amber-100 text-amber-700',     lbl: 'BAJO' },
+    agotado: { cls: 'bg-rose-100 text-rose-700',       lbl: 'AGOTADO' },
+    exceso:  { cls: 'bg-sky-100 text-sky-700',         lbl: 'EXCESO' }
+};
+
+const STOCK_COLOR = { ok: 'text-emerald-700', bajo: 'text-amber-600', agotado: 'text-rose-600', exceso: 'text-sky-700' };
+
+function badge(lv) {
+    const b = BADGE[lv];
+    return `<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${b.cls}">${b.lbl}</span>`;
+}
+
+function areaChip(k) {
+    const a = AREAS[k];
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap" style="background:${a.color}14;color:${a.color}">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:${a.color}"></span>${esc(a.name)}</span>`;
+}
+
+function presTexto(p, s) {
+    if (!p.pres || s <= 0) return '';
+    const n = Math.floor(s / p.pres.factor);
+    const resto = rq(p, s - n * p.pres.factor);
+    if (!n) return `${fq(p, resto)} ${p.unit}`;
+    return resto ? `${n} ${p.pres.abbr} + ${fq(p, resto)} ${p.unit}` : `${n} ${p.pres.abbr}`;
+}
+
+function coberturaHtml(d) {
+    if (d === null) return '<span class="text-[10px] text-gray-300">Sin consumo</span>';
+    const pct = Math.max(4, Math.min(100, d / 14 * 100));
+    const color = d < 3 ? 'bg-rose-500' : d < 7 ? 'bg-amber-500' : d > 21 ? 'bg-sky-500' : 'bg-emerald-500';
+    const txt = d >= 99 ? '+99' : d.toFixed(1);
+    return `<div class="flex items-center gap-2 min-w-[88px]">
+        <div class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div class="h-full ${color}" style="width:${pct}%"></div></div>
+        <span class="text-[11px] tabular-nums text-gray-700 w-10 text-right">${txt} d</span>
+    </div>`;
+}
+
+function conteoHtml(p) {
+    if (!p.count) return '<span class="text-[10px] text-gray-300">Sin conteo</span>';
+    const d = p.count.diff;
+    const diff = d === 0
+        ? '<span class="text-emerald-600">sin dif.</span>'
+        : `<span class="${d < 0 ? 'text-rose-600' : 'text-sky-700'}">${d > 0 ? '+' : ''}${fq(p, d)} ${p.unit}</span>`;
+    return `<div class="leading-tight"><div class="text-[11px] text-gray-700">${p.count.date}</div><div class="text-[10px]">${diff}</div></div>`;
+}
+
+
+// -- KPIs --
+
+function renderKpis() {
+    const lista = productosFiltrados(true);
+    const n = { ok: 0, bajo: 0, agotado: 0, exceso: 0, caducar: 0 };
+    let valor = 0;
+    lista.forEach(p => {
+        const v = vista(p);
+        n[nivel(v)]++;
+        if (loteCritico(p)) n.caducar++;
+        valor += v.s * p.cost;
+    });
+
+    const kpis = [
+        { id: 'valor',   label: 'Valor total', value: money(valor), tone: 'text-gray-800',    bg: 'bg-slate-100',   icon: 'wallet',         f: 'F1', sub: `${lista.length} productos` },
+        { id: 'ok',      label: 'Stock OK',    value: n.ok,         tone: 'text-emerald-600', bg: 'bg-emerald-100', icon: 'check-circle-2' },
+        { id: 'bajo',    label: 'Stock bajo',  value: n.bajo,       tone: 'text-amber-500',   bg: 'bg-amber-100',   icon: 'alert-triangle' },
+        { id: 'agotado', label: 'Agotado',     value: n.agotado,    tone: 'text-rose-600',    bg: 'bg-rose-100',    icon: 'x-circle' },
+        { id: 'exceso',  label: 'Exceso',      value: n.exceso,     tone: 'text-sky-600',     bg: 'bg-sky-100',     icon: 'layers',         f: 'F1', sub: '> máximo' },
+        { id: 'caducar', label: 'Por caducar', value: n.caducar,    tone: 'text-orange-600',  bg: 'bg-orange-100',  icon: 'clock',          f: 'F5', sub: '≤ 3 días' }
+    ];
+
+    const activo = state.sort === 'valor' ? 'valor' : state.nivel;
+
+    $id('kpisRow').innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">${kpis.map(k => `
+        <div data-kpi="${k.id}" class="bg-white rounded-lg border px-3 py-3 cursor-pointer hover:shadow-md transition-shadow ${activo === k.id ? 'ring-1 ring-blue-600 border-blue-600' : 'border-gray-200'}">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 whitespace-nowrap truncate">${esc(k.label)}</p>
+                    <p class="text-lg font-bold ${k.tone} whitespace-nowrap">${esc(k.value)}</p>
+                    ${k.sub ? `<p class="text-[10px] text-gray-400 -mt-0.5 whitespace-nowrap">${esc(k.sub)}${k.f ? `<span class="nv">${k.f}</span>` : ''}</p>` : ''}
+                </div>
+                <div class="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${k.bg}">
+                    <i data-lucide="${k.icon}" class="w-3.5 h-3.5 ${k.tone}"></i>
+                </div>
+            </div>
+        </div>`).join('')}</div>`;
+}
+
+
+// -- Tabla --
+
+function renderTabla() {
+    const lista = productosFiltrados(false).slice();
+    if (state.sort === 'valor') {
+        lista.sort((a, b) => vista(b).s * b.cost - vista(a).s * a.cost);
+    } else {
+        lista.sort((a, b) => (ORDEN_NIVEL[nivel(vista(a))] - ORDEN_NIVEL[nivel(vista(b))]) || a.name.localeCompare(b.name));
+    }
+
+    $id('tbStockBody').innerHTML = lista.map(filaHtml).join('');
+    $id('tbEmpty').classList.toggle('hidden', lista.length > 0);
+    $id('tbInfo').textContent = `Mostrando ${lista.length} de ${PRODUCTS.length} productos`;
+
+    const visibles = lista.map(p => p.id);
+    $id('chkAll').checked = visibles.length > 0 && visibles.every(id => state.sel.has(id));
+    icons();
+}
+
+function filaHtml(p) {
+    const v   = vista(p);
+    const lv  = nivel(v);
+    const cad = loteCritico(p);
+    const sel = state.sel.has(p.id);
+    const cls = [state.detailId === p.id ? 'row-active' : '', sel ? 'row-sel' : ''].join(' ');
+    const pres = presTexto(p, v.s);
+
+    return `
+    <tr data-id="${p.id}" class="${cls} border-b border-gray-100">
+        <td class="px-2 py-2 text-center"><input type="checkbox" class="rowSel w-4 h-4 accent-[#C05A40] cursor-pointer" data-id="${p.id}" ${sel ? 'checked' : ''}></td>
+        <td class="px-2 py-2">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0"><i data-lucide="${p.icon}" class="w-4 h-4"></i></div>
+                <div class="flex flex-col leading-tight min-w-0">
+                    <span class="text-[12px] text-gray-800 truncate">${esc(p.name)}</span>
+                    <span class="text-[10px] text-gray-400"><span class="font-mono">${p.sku}</span> · ${esc(p.cat)}</span>
+                </div>
+            </div>
+        </td>
+        <td class="px-2 py-2">${areaChip(p.area)}</td>
+        <td class="px-2 py-2 text-right whitespace-nowrap">
+            <span class="font-bold ${STOCK_COLOR[lv]}">${fq(p, v.s)}</span> <span class="text-[10px] text-gray-400">${p.unit}</span>
+            ${pres ? `<div class="text-[10px] text-gray-400">${pres}<span class="nv">F4</span></div>` : ''}
+        </td>
+        <td class="px-2 py-2 text-center text-gray-600 whitespace-nowrap">${v.min ? fq(p, v.min) : '-'} · ${v.max ? fq(p, v.max) : '-'}</td>
+        <td class="px-2 py-2">${coberturaHtml(cobertura(v))}</td>
+        <td class="px-2 py-2 text-right tabular-nums whitespace-nowrap">${money(v.s * p.cost)}</td>
+        <td class="px-2 py-2 text-center">
+            ${badge(lv)}
+            ${cad ? `<div class="mt-1"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-100 text-orange-700 whitespace-nowrap"><i data-lucide="clock" class="w-2.5 h-2.5"></i>Caduca ${cad.exp.slice(0, 5)}</span></div>` : ''}
+        </td>
+        <td class="px-2 py-2 text-center">${conteoHtml(p)}</td>
+        <td class="px-2 py-2 text-center">
+            <span class="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-blue-600"><i data-lucide="eye" class="w-4 h-4"></i></span>
+        </td>
+    </tr>`;
+}
+
+
+// -- Seleccion y barra de reorden --
+
+function renderReorden() {
+    const ids = [...state.sel];
+    const bar = $id('reorderBar');
+    if (!ids.length) { bar.classList.add('hidden'); return; }
+
+    let total = 0;
+    ids.forEach(id => {
+        const p = PRODUCTS.find(x => x.id === id);
+        const v = vista(p) || { s: 0, max: 0 };
+        total += sugerido(p, v).base * p.cost;
+    });
+    $id('reorderInfo').innerHTML = `<b>${ids.length}</b> producto${ids.length > 1 ? 's' : ''} seleccionado${ids.length > 1 ? 's' : ''} · llevar al máximo ≈ <b>${money(total)}</b>`;
+    bar.classList.remove('hidden');
+    icons();
+}
+
+function toggleSel(id, on) {
+    if (on) state.sel.add(id); else state.sel.delete(id);
+    renderTabla();
+    renderReorden();
+}
+
+
+// -- Panel de detalle --
+
+function abrirDetalle(id) {
+    state.detailId = id;
+    renderTabla();
+    renderDetalle();
+    $id('detailPanel').classList.remove('translate-x-full');
+    $id('detailBackdrop').classList.remove('hidden');
+}
+
+function cerrarDetalle() {
+    state.detailId = null;
+    renderTabla();
+    renderDetalle();
+    $id('detailPanel').classList.add('translate-x-full');
+    $id('detailBackdrop').classList.add('hidden');
+}
+
+function renderDetalle() {
+    const panel = $id('detailPanel');
+    const p = PRODUCTS.find(x => x.id === state.detailId);
+    const v = p ? vista(p) : null;
+
+    if (!p || !v) {
+        panel.innerHTML = `
+            <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+                <h3 class="text-sm font-bold text-gray-800">Vista del Producto</h3>
+                <p class="text-[10px] text-gray-500">Comportamiento e historial</p>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center text-center px-6">
+                <div class="w-14 h-14 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center mb-3">
+                    <i data-lucide="package-search" class="w-6 h-6 text-gray-500"></i>
+                </div>
+                <p class="text-[11px] text-gray-500">Selecciona un producto</p>
+                <p class="text-[10px] text-gray-500 mt-1 max-w-[220px]">Haz click en cualquier fila para ver su detalle aquí.</p>
+            </div>`;
+        icons();
+        return;
+    }
+
+    const lv = nivel(v);
+    const tabs = [
+        { id: 'resumen', lbl: 'Resumen' },
+        { id: 'lotes',   lbl: 'Lotes',   f: 'F5' },
+        { id: 'kardex',  lbl: 'Kardex' },
+        { id: 'recetas', lbl: 'Recetas', f: 'F6' }
+    ];
+    const almLbl = state.almacen ? ALMACENES[state.almacen] : 'Todos los almacenes (consolidado)';
+
+    const cuerpo = {
+        resumen: tabResumen,
+        lotes:   tabLotes,
+        kardex:  tabKardex,
+        recetas: tabRecetas
+    }[state.tab](p, v);
+
+    panel.innerHTML = `
+        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-gray-800">Vista del Producto</h3>
+                <p class="text-[10px] text-gray-500">${esc(almLbl)}</p>
+            </div>
+            <button id="btnCerrarDetalle" type="button" class="text-gray-600 hover:text-gray-800 p-1" title="Cerrar"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0"><i data-lucide="${p.icon}" class="w-4 h-4"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-gray-800 truncate leading-tight">${esc(p.name)}</p>
+                        <p class="text-[9px] text-gray-500 truncate">SKU: ${p.sku} · ${esc(p.cat)} · ${esc(AREAS[p.area].name)}</p>
+                    </div>
+                    ${badge(lv)}
+                </div>
+                <div class="grid grid-cols-4 gap-2 mt-2 pt-2 border-t border-gray-200">
+                    <div class="text-center leading-tight"><p class="text-[8px] text-gray-500 uppercase">Stock</p><p class="text-sm font-bold ${STOCK_COLOR[lv]}">${fq(p, v.s)} <span class="text-[9px] font-medium text-gray-400">${p.unit}</span></p></div>
+                    <div class="text-center leading-tight"><p class="text-[8px] text-gray-500 uppercase">Mín</p><p class="text-sm font-bold text-gray-800">${fq(p, v.min)}</p></div>
+                    <div class="text-center leading-tight"><p class="text-[8px] text-gray-500 uppercase">Máx</p><p class="text-sm font-bold text-gray-800">${fq(p, v.max)}</p></div>
+                    <div class="text-center leading-tight"><p class="text-[8px] text-gray-500 uppercase">Valor<span class="nv">F1</span></p><p class="text-sm font-bold text-gray-800">${money(v.s * p.cost)}</p></div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+                ${tabs.map(t => `<button type="button" data-tab="${t.id}" class="tab-btn ${state.tab === t.id ? 'active' : ''}">${t.lbl}${t.f ? `<span class="nv">${t.f}</span>` : ''}</button>`).join('')}
+            </div>
+
+            ${cuerpo}
+        </div>`;
+    icons();
+}
+
+
+// -- Pestaña Resumen --
+
+function tabResumen(p, v) {
+    const lv  = nivel(v);
+    const sug = sugerido(p, v);
+    let alerta = '';
+
+    if (lv === 'bajo' || lv === 'agotado') {
+        const tone = lv === 'agotado' ? 'rose' : 'amber';
+        const titulo = lv === 'agotado' ? 'Producto agotado' : 'Atención: stock bajo';
+        const equiv = sug.pres ? ` (${sug.pres} ${p.pres.abbr})` : '';
+        alerta = `
+        <div class="rounded-lg border border-${tone}-200 bg-${tone}-50 px-3 py-2.5">
+            <div class="flex items-start gap-2">
+                <i data-lucide="${lv === 'agotado' ? 'x-circle' : 'alert-triangle'}" class="w-4 h-4 text-${tone}-700 flex-shrink-0 mt-0.5"></i>
+                <div class="flex-1 min-w-0">
+                    <strong class="block text-xs text-${tone}-700">${titulo}</strong>
+                    <p class="text-[10px] text-gray-600">Para llegar al máximo pide <b>${fq(p, sug.base)} ${p.unit}${equiv}</b> · ${money(sug.base * p.cost)}</p>
+                </div>
+            </div>
+            <button type="button" data-add-oc="${p.id}" class="mt-2 w-full h-8 rounded-md bg-[#292524] hover:bg-[#44403C] text-white text-[11px] font-semibold inline-flex items-center justify-center gap-1.5">
+                <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>${state.sel.has(p.id) ? 'Ya está en la orden sugerida' : 'Agregar a orden de compra'}<span class="nv">F3</span>
+            </button>
+        </div>`;
+    } else if (lv === 'exceso') {
+        const sobra = rq(p, v.s - v.max);
+        alerta = `
+        <div class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 flex items-start gap-2">
+            <i data-lucide="layers" class="w-4 h-4 text-sky-700 flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1 min-w-0">
+                <strong class="block text-xs text-sky-700">Exceso de inventario<span class="nv">F1</span></strong>
+                <p class="text-[10px] text-gray-600">${fq(p, sobra)} ${p.unit} arriba del máximo · <b>${money(sobra * p.cost)}</b> detenidos. No conviene pedir más.</p>
+            </div>
+        </div>`;
+    }
+
+    return `
+        ${alerta}
+        ${prediccionHtml(p, v)}
+        ${presentacionesHtml(p, v)}
+        ${almacenesHtml(p)}`;
+}
+
+function prediccionHtml(p, v) {
+    const use = v.use;
+    let texto;
+    if (v.s <= 0) {
+        texto = `Sin existencias. Consumo promedio: <b>${fq(p, use)} ${p.unit}/día</b>.`;
+    } else if (!use) {
+        texto = 'Sin consumo en los últimos 7 días.';
+    } else {
+        const dias = v.s / use;
+        texto = `Al ritmo actual (<b>${fq(p, use)} ${p.unit}/día</b>) se agota en <b>~${dias.toFixed(1)} días</b> (${fmtFecha(addDias(HOY, Math.floor(dias)))}).`;
+    }
+
+    const d = p.delta;
+    const deltaHtml = d === 0
+        ? '<span class="text-[9px] text-gray-400">Igual que la semana anterior</span>'
+        : `<span class="text-[9px] font-bold ${d > 0 ? 'text-emerald-600' : 'text-rose-600'}">${d > 0 ? '+' : ''}${d}% vs semana anterior</span>`;
+
+    const resumenIA = d >= 10
+        ? 'El consumo viene subiendo; el fin de semana se vende casi el doble que entre semana.'
+        : d <= -10
+            ? 'El consumo bajó esta semana; revisa si el máximo sigue siendo correcto.'
+            : 'Consumo estable; el patrón semanal se repite.';
+
+    return `
+    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+        <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-200/70"><i data-lucide="trending-down" class="w-3.5 h-3.5 text-slate-600"></i></span>
+                <span class="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Predicción</span>
+            </div>
+            ${deltaHtml}
+        </div>
+        <p class="text-[11px] text-slate-800 leading-relaxed">${texto}</p>
+        <p class="text-[10px] text-slate-500 mt-1 leading-relaxed flex items-start gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3 flex-shrink-0 mt-0.5 text-blue-600"></i><span>${resumenIA}</span>
+        </p>
+        <div class="mt-2 pt-2 border-t border-slate-200">${graficaSvg(p, v)}</div>
+        <p class="text-[9px] text-slate-500 mt-1.5 leading-snug">
+            <span class="nv" style="margin-left:0;margin-right:4px">F1</span>El consumo se calcula solo con salidas reales (ventas y mermas): los traspasos ya no cuentan y respeta el almacén filtrado. Los números salen del cálculo; la IA solo redacta la explicación.
+        </p>
+    </div>`;
+}
+
+// Curva de stock: 7 dias de historia + 7 de proyeccion. La historia es
+// sintetica para el template (reabasto el dia -2), la proyeccion resta el
+// consumo diario.
+function graficaSvg(p, v) {
+    const use = v.use || 0;
+    const S0  = use * 4;
+    const R   = v.s + 2 * use;
+    const hist = [];
+    let s = S0;
+    for (let d = -6; d <= 0; d++) {
+        if (d > -6) s = s - use + (d === -2 ? R : 0);
+        hist.push(Math.max(0, d === 0 ? v.s : s));
+    }
+    const proy = Array.from({ length: 7 }, (_, k) => Math.max(0, v.s - use * (k + 1)));
+
+    const W = 380, H = 124, padL = 10, padR = 10, padT = 12, padB = 20;
+    const yMax = Math.max(...hist, ...proy, v.min, v.max, 1) * 1.12;
+    const x = i => padL + i * (W - padL - padR) / 13;
+    const y = val => padT + (1 - val / yMax) * (H - padT - padB);
+
+    const ptsHist = hist.map((val, i) => `${x(i).toFixed(1)},${y(val).toFixed(1)}`).join(' ');
+    const ptsProy = [hist[6]].concat(proy).map((val, j) => `${x(6 + j).toFixed(1)},${y(val).toFixed(1)}`).join(' ');
+
+    const linea = (val, color, lbl) => val > 0 ? `
+        <line x1="${padL}" y1="${y(val).toFixed(1)}" x2="${W - padR}" y2="${y(val).toFixed(1)}" stroke="${color}" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="${W - padR}" y="${(y(val) - 3).toFixed(1)}" font-size="8" fill="${color}" text-anchor="end">${lbl} ${fq(p, val)}</text>` : '';
+
+    // El marcador va en el punto exacto (fraccion de dia) donde la linea toca 0.
+    let agotaHtml = '';
+    const diasAgota = use ? v.s / use : Infinity;
+    if (v.s > 0 && diasAgota <= 7) {
+        const cx = x(6 + diasAgota), cy = y(0);
+        agotaHtml = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="#E11D48" stroke="#fff" stroke-width="1.2"/>
+            <text x="${cx.toFixed(1)}" y="${(cy - 7).toFixed(1)}" font-size="8" font-weight="700" fill="#E11D48" text-anchor="middle">Se agota</text>`;
+    }
+
+    const marcas = proy.map((val, k) => `<circle cx="${x(7 + k).toFixed(1)}" cy="${y(val).toFixed(1)}" r="2.4" fill="#C05A40" stroke="#fff" stroke-width=".8"/>`).join('');
+
+    const etiquetas = Array.from({ length: 14 }, (_, i) => {
+        const fecha = addDias(HOY, i - 6);
+        const lbl = i === 6 ? 'Hoy' : DIA_LETRA[fecha.getDay()];
+        const color = i > 6 ? '#C05A40' : (i === 6 ? '#374151' : '#9CA3AF');
+        return `<text x="${x(i).toFixed(1)}" y="${H - 5}" font-size="8" fill="${color}" font-weight="${i === 6 ? 700 : 500}" text-anchor="middle">${lbl}</text>`;
+    }).join('');
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" class="w-full h-auto block" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif">
+        <rect x="${x(6.5).toFixed(1)}" y="${padT - 4}" width="${(W - padR - x(6.5)).toFixed(1)}" height="${H - padT - padB + 4}" fill="#C05A40" opacity=".05"/>
+        ${linea(v.max, '#0284C7', 'máx')}
+        ${linea(v.min, '#D97706', 'mín')}
+        <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#E5E7EB" stroke-width="1"/>
+        <polyline points="${ptsHist}" fill="none" stroke="#64748B" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="${ptsProy}" fill="none" stroke="#C05A40" stroke-width="1.8" stroke-dasharray="4,3" stroke-linejoin="round"/>
+        ${marcas}
+        ${agotaHtml}
+        ${etiquetas}
+    </svg>
+    <div class="flex flex-wrap items-center gap-3 mt-1 text-[9px] text-gray-500">
+        <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-500"></span>Histórico</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-0.5" style="background:repeating-linear-gradient(90deg,#C05A40 0 3px,transparent 3px 5px)"></span>Proyección 7 días</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-0.5" style="background:repeating-linear-gradient(90deg,#D97706 0 3px,transparent 3px 5px)"></span>Mín</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-0.5" style="background:repeating-linear-gradient(90deg,#0284C7 0 3px,transparent 3px 5px)"></span>Máx</span>
+    </div>`;
+}
+
+function presentacionesHtml(p, v) {
+    const head = `<div class="flex items-center justify-between mb-1.5">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Presentaciones<span class="nv">F4</span></h4>
+        <span class="text-[10px] text-gray-400">Unidad base: ${p.unit}</span>
+    </div>`;
+
+    if (!p.pres) {
+        return `<div>${head}
+            <div class="rounded-md border border-dashed border-gray-300 px-3 py-2 text-[10px] text-gray-500">
+                Se compra y se cuenta en <b>${p.unit}</b>. Si el proveedor entrega por caja, aquí se registra la caja y su equivalencia.
+            </div></div>`;
+    }
+
+    return `<div>${head}
+        <div class="rounded-md border border-gray-200 divide-y divide-gray-100">
+            <div class="flex items-center justify-between px-3 py-1.5 text-[11px]">
+                <span class="flex items-center gap-2 text-gray-800"><i data-lucide="package" class="w-3.5 h-3.5 text-gray-400"></i>${esc(p.pres.name)} <span class="text-[9px] text-gray-400">(compra)</span></span>
+                <span class="text-gray-600">1 ${p.pres.abbr} = <b>${p.pres.factor} ${p.unit}</b></span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-1.5 text-[11px]">
+                <span class="flex items-center gap-2 text-gray-800"><i data-lucide="box" class="w-3.5 h-3.5 text-gray-400"></i>Pieza <span class="text-[9px] text-gray-400">(base, venta y conteo)</span></span>
+                <span class="text-gray-600">1 ${p.unit}</span>
+            </div>
+            <div class="px-3 py-1.5 text-[11px] bg-gray-50 text-gray-700">
+                En existencia: <b>${presTexto(p, v.s) || '0'}</b> <span class="text-gray-400">(${fq(p, v.s)} ${p.unit})</span>
+            </div>
+        </div></div>`;
+}
+
+function almacenesHtml(p) {
+    const filas = Object.entries(p.wh).map(([k, w]) => {
+        const lv = nivel(w);
+        return `<tr class="border-t border-gray-100 ${state.almacen === k ? 'bg-[#FBF3EF]' : ''}">
+            <td class="py-1.5 pr-2">
+                <span class="flex items-center gap-1.5 text-gray-800"><i data-lucide="warehouse" class="w-3.5 h-3.5 text-gray-400"></i>${esc(ALMACENES[k])}</span>
+            </td>
+            <td class="py-1.5 text-right font-bold ${STOCK_COLOR[lv]}">${fq(p, w.s)}</td>
+            <td class="py-1.5 text-right text-gray-600">${fq(p, w.min)}</td>
+            <td class="py-1.5 text-right text-gray-600">${fq(p, w.max)}</td>
+            <td class="py-1.5 text-center">${badge(lv)}</td>
+            <td class="py-1.5 text-right">
+                <button type="button" data-edit-minmax="1" class="p-1 text-gray-400 hover:text-blue-600" title="Editar mín/máx"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    return `<div>
+        <div class="flex items-center justify-between mb-1.5">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Mín / máx por almacén<span class="nv">F3</span></h4>
+            <span class="text-[10px] text-gray-400 flex items-center gap-1"><i data-lucide="store" class="w-3 h-3"></i>Reginas Guadalupe</span>
+        </div>
+        <table class="w-full text-[11px]">
+            <thead><tr class="text-[9px] uppercase tracking-wider text-gray-400">
+                <th class="text-left font-semibold pb-1">Almacén</th><th class="text-right font-semibold pb-1">Stock</th>
+                <th class="text-right font-semibold pb-1">Mín</th><th class="text-right font-semibold pb-1">Máx</th>
+                <th class="text-center font-semibold pb-1">Estado</th><th></th>
+            </tr></thead>
+            <tbody>${filas}</tbody>
+        </table>
+        <p class="text-[9px] text-gray-400 mt-1">Hoy el mínimo es uno solo por producto; aquí cada almacén tiene el suyo.</p>
+    </div>`;
+}
+
+
+// -- Pestaña Lotes --
+
+function tabLotes(p) {
+    const lots = (p.lots || []).map(l => Object.assign({ dias: diasPara(l.exp) }, l)).sort((a, b) => a.dias - b.dias);
+
+    if (!lots.length) {
+        return `
+        <div class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center">
+            <i data-lucide="calendar-x-2" class="w-6 h-6 text-gray-300 mx-auto mb-2"></i>
+            <p class="text-[11px] text-gray-600 font-semibold">Este producto no controla caducidad</p>
+            <p class="text-[10px] text-gray-500 mt-1 max-w-[260px] mx-auto">Para activarlo se marca "Controla caducidad" en el catálogo y la Entrada pide lote y fecha.</p>
+        </div>`;
+    }
+
+    const total  = rq(p, lots.reduce((a, l) => a + l.qty, 0));
+    const cuadra = Math.abs(total - p.wh.gen.s) < 0.001;
+    const tarjetas = lots.map((l, i) => {
+        const tone = l.dias <= 3 ? 'rose' : l.dias <= 7 ? 'amber' : 'emerald';
+        const txt  = l.dias <= 0 ? 'Caducado' : `Caduca en ${l.dias} día${l.dias > 1 ? 's' : ''}`;
+        return `
+        <div class="rounded-md border border-gray-200 bg-white px-3 py-2">
+            <div class="flex items-center justify-between gap-2">
+                <span class="font-mono text-[11px] font-semibold text-gray-800">${l.code}</span>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-${tone}-100 text-${tone}-700">${txt}</span>
+            </div>
+            <div class="flex items-center justify-between mt-1 text-[10px] text-gray-500">
+                <span>Entrada ${l.folio} · vence ${l.exp}</span>
+                <span class="font-bold text-gray-800 text-[11px]">${fq(p, l.qty)} ${p.unit}</span>
+            </div>
+            ${i === 0 ? '<div class="mt-1.5 text-[9px] font-bold text-blue-700 flex items-center gap-1"><i data-lucide="arrow-up-right" class="w-3 h-3"></i>Sale primero</div>' : ''}
+        </div>`;
+    }).join('');
+
+    return `
+        <div class="rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-[10px] text-blue-900 flex items-start gap-1.5">
+            <i data-lucide="info" class="w-3 h-3 flex-shrink-0 mt-0.5"></i>
+            <span>Se surte primero el lote que caduca primero. Las Salidas y Mermas descuentan en este orden.</span>
+        </div>
+        <div class="space-y-1.5">${tarjetas}</div>
+        <p class="text-[10px] ${cuadra ? 'text-gray-500' : 'text-rose-600'}">Total en lotes: <b>${fq(p, total)} ${p.unit}</b> · ${cuadra ? 'coincide con la existencia del Almacén General.' : `no coincide con la existencia (${fq(p, p.wh.gen.s)} ${p.unit}).`}</p>`;
+}
+
+
+// -- Pestaña Kardex --
+
+// Movimientos del Almacén General que terminan en el stock actual. Si ya se
+// aplico el conteo de hoy, su ajuste (AJU-0004) entra como ultimo movimiento.
+function kardex(p) {
+    const w   = p.wh.gen;
+    const use = w.use;
+    const m   = rq(p, use * 0.15);
+    const d1  = p.ajusteInicial || 0;
+    const d2  = p.count && p.count.date === '30/09/2026' ? p.count.diff : 0;
+    const t   = p.wh.bar ? rq(p, p.wh.bar.use) : 0;
+    const s   = rq(p, use);
+    let e = rq(p, w.s + m - d1 - d2 + t + s - rq(p, use * 1.5));
+    if (e < use) e = 0;
+
+    const movs = [
+        { fecha: '26/09/2026', tipo: 'merma',   lbl: 'Merma',             folio: 'MER-0005', qty: -m, nota: 'Motivo: producto dañado' },
+        { fecha: '27/09/2026', tipo: 'ajuste',  lbl: 'Ajuste por conteo', folio: 'AJU-0003', qty: d1, nota: 'Diferencia del conteo físico', f: 'F2' },
+        { fecha: '28/09/2026', tipo: 'entrada', lbl: 'Entrada',           folio: 'ENT-0014', qty: e,  nota: `Costo ${money(p.cost)} / ${p.unit}` },
+        { fecha: '29/09/2026', tipo: 'traspaso',lbl: 'Traspaso a Barra',  folio: 'TRA-0006', qty: -t, nota: 'Almacén General → Barra' },
+        { fecha: '30/09/2026', tipo: 'salida',  lbl: 'Salida',            folio: 'SAL-0021', qty: -s, nota: 'Surtido a cocina / barra' },
+        { fecha: '30/09/2026', tipo: 'ajuste',  lbl: 'Ajuste por conteo', folio: 'AJU-0004', qty: d2, nota: 'Conteo físico de hoy', f: 'F2' }
+    ].filter(mv => mv.qty !== 0);
+
+    let stock = rq(p, w.s - movs.reduce((a, mv) => a + mv.qty, 0));
+    movs.forEach(mv => {
+        mv.prev = stock;
+        stock = rq(p, stock + mv.qty);
+        mv.post = stock;
+    });
+    return movs.reverse();
+}
+
+const MOV_CFG = {
+    entrada:  { bg: 'bg-green-100',  ic: 'text-green-600',  icon: 'arrow-down',   qty: 'text-green-600' },
+    salida:   { bg: 'bg-red-100',    ic: 'text-red-600',    icon: 'arrow-up',     qty: 'text-red-600' },
+    merma:    { bg: 'bg-red-100',    ic: 'text-red-600',    icon: 'trash-2',      qty: 'text-red-600' },
+    traspaso: { bg: 'bg-purple-100', ic: 'text-purple-600', icon: 'repeat',       qty: 'text-purple-600' },
+    ajuste:   { bg: 'bg-orange-100', ic: 'text-orange-600', icon: 'scale',        qty: 'text-orange-600' }
+};
+
+function tabKardex(p) {
+    const filtros = [
+        { id: 'todos',  lbl: 'Todos' },
+        { id: 'in',     lbl: '+ Entradas' },
+        { id: 'out',    lbl: '- Salidas' },
+        { id: 'ajuste', lbl: 'Ajustes', f: 'F2' }
+    ];
+    const lista = kardex(p).filter(mv => {
+        if (state.movFilter === 'in')     return mv.qty > 0 && mv.tipo !== 'ajuste';
+        if (state.movFilter === 'out')    return mv.qty < 0 && mv.tipo !== 'ajuste';
+        if (state.movFilter === 'ajuste') return mv.tipo === 'ajuste';
+        return true;
+    });
+
+    const items = lista.map(mv => {
+        const c = MOV_CFG[mv.tipo];
+        return `
+        <div class="flex items-start gap-2 bg-gray-50 rounded-md px-2.5 py-1.5 border ${mv.tipo === 'ajuste' ? 'border-orange-200' : 'border-gray-200'}">
+            <div class="w-5 h-5 rounded ${c.bg} flex items-center justify-center flex-shrink-0 mt-0.5"><i data-lucide="${c.icon}" class="w-2.5 h-2.5 ${c.ic}"></i></div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                    <p class="text-[10px] font-medium text-gray-800">${mv.lbl} · ${mv.folio}${mv.f ? `<span class="nv">${mv.f}</span>` : ''}</p>
+                    <span class="text-[10px] font-bold ${c.qty}">${mv.qty > 0 ? '+' : ''}${fq(p, mv.qty)}</span>
+                </div>
+                <p class="text-[9px] text-gray-500">${mv.fecha} · Almacén General · ${esc(mv.nota)}</p>
+                <p class="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
+                    <span>Antes: <strong class="text-gray-700">${fq(p, mv.prev)}</strong></span>
+                    <i data-lucide="arrow-right" class="w-2.5 h-2.5 text-gray-400"></i>
+                    <span>Quedó: <strong class="text-gray-700">${fq(p, mv.post)}</strong></span>
+                </p>
+            </div>
+        </div>`;
+    }).join('') || '<p class="text-[10px] text-gray-500 italic">Sin movimientos con este filtro</p>';
+
+    return `
+        <div class="flex items-center gap-1 flex-wrap">
+            ${filtros.map(f => `<button type="button" data-mov="${f.id}" class="px-2 py-0.5 rounded text-[10px] whitespace-nowrap ${state.movFilter === f.id ? 'font-bold text-white bg-blue-600' : 'font-medium text-gray-500 hover:bg-gray-100'}">${f.lbl}${f.f ? `<span class="nv">${f.f}</span>` : ''}</button>`).join('')}
+        </div>
+        <div class="space-y-1.5">${items}</div>
+        <a href="#" class="block text-center text-[10px] font-semibold text-blue-600 hover:underline">Ver kardex completo en Movimientos</a>`;
+}
+
+
+// -- Pestaña Recetas --
+
+function tabRecetas(p) {
+    const filas = p.recipes.map(r => `
+        <tr class="border-t border-gray-100">
+            <td class="py-1.5 pr-2 text-gray-800">${esc(r.dish)}</td>
+            <td class="py-1.5 text-right text-gray-600">${fq(p, r.qty)} ${p.unit}</td>
+            <td class="py-1.5 text-right text-gray-600">${r.sold}</td>
+            <td class="py-1.5 text-right font-semibold text-gray-800">${fq(p, rq(p, r.qty * r.sold))} ${p.unit}</td>
+        </tr>`).join('');
+
+    const teorico = rq(p, p.recipes.reduce((a, r) => a + r.qty * r.sold, 0));
+    const real    = rq(p, teorico * (1 + p.varPct / 100));
+    const dif     = rq(p, real - teorico);
+    const abs     = Math.abs(p.varPct);
+    const tone    = abs <= 3 ? 'emerald' : abs <= 7 ? 'amber' : 'rose';
+    const lectura = abs <= 3
+        ? 'Dentro de lo normal.'
+        : dif > 0
+            ? 'Se gastó más de lo que dicen las ventas: revisar porciones, mermas sin registrar o faltantes.'
+            : 'Se gastó menos de lo vendido: revisar recetas o ventas capturadas de más.';
+
+    return `
+        <div>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Se usa en ${p.recipes.length} platillo${p.recipes.length > 1 ? 's' : ''}</h4>
+            <table class="w-full text-[11px]">
+                <thead><tr class="text-[9px] uppercase tracking-wider text-gray-400">
+                    <th class="text-left font-semibold pb-1">Platillo</th><th class="text-right font-semibold pb-1">Por plato</th>
+                    <th class="text-right font-semibold pb-1">Vendidos</th><th class="text-right font-semibold pb-1">Consumo</th>
+                </tr></thead>
+                <tbody>${filas}</tbody>
+            </table>
+            <p class="text-[9px] text-gray-400 mt-1">Semana del 23/09/2026 al 29/09/2026 · ventas del POS</p>
+        </div>
+
+        <div class="rounded-lg border border-${tone}-200 bg-${tone}-50 px-3 py-2.5">
+            <p class="text-[11px] font-bold text-gray-800 uppercase tracking-wide mb-2">Teórico vs real</p>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div><p class="text-[8px] text-gray-500 uppercase">Teórico</p><p class="text-sm font-bold text-gray-800">${fq(p, teorico)} <span class="text-[9px] text-gray-400">${p.unit}</span></p><p class="text-[8px] text-gray-400">ventas × receta</p></div>
+                <div><p class="text-[8px] text-gray-500 uppercase">Real</p><p class="text-sm font-bold text-gray-800">${fq(p, real)} <span class="text-[9px] text-gray-400">${p.unit}</span></p><p class="text-[8px] text-gray-400">según conteos</p></div>
+                <div><p class="text-[8px] text-gray-500 uppercase">Varianza</p><p class="text-sm font-bold text-${tone}-700">${p.varPct > 0 ? '+' : ''}${p.varPct.toFixed(1)}%</p><p class="text-[8px] text-${tone}-700">${dif > 0 ? '+' : ''}${fq(p, dif)} ${p.unit} · ${money(Math.abs(dif) * p.cost)}</p></div>
+            </div>
+            <p class="text-[10px] text-gray-600 mt-2">${lectura}</p>
+        </div>
+        <p class="text-[9px] text-gray-400 leading-snug">Real = conteo inicial + entradas − conteo final. Requiere que el POS mande sus ventas al ERP.</p>`;
+}
+
+
+// -- Conteo fisico --
+
+function abrirConteo() {
+    state.conteoArea = '';
+    renderConteo();
+    $id('mdlConteo').classList.remove('hidden');
+}
+
+function renderConteo() {
+    const base = PRODUCTS.filter(p => p.wh.gen);
+    const porArea = { '': base.length };
+    base.forEach(p => { porArea[p.area] = (porArea[p.area] || 0) + 1; });
+
+    const tabs = [{ id: '', lbl: 'Todas' }].concat(Object.keys(AREAS).filter(k => porArea[k]).map(k => ({ id: k, lbl: AREAS[k].name })));
+    $id('conteoTabs').innerHTML = tabs.map(t => `
+        <button type="button" data-conteo-area="${t.id}" class="tab-btn ${state.conteoArea === t.id ? 'active' : ''}">${esc(t.lbl)} <span class="text-[10px] text-gray-400">(${porArea[t.id] || 0})</span></button>`).join('');
+
+    // Agrupado por area, en el orden fisico del almacen.
+    const ordenArea = Object.keys(AREAS);
+    const lista = base
+        .filter(p => !state.conteoArea || p.area === state.conteoArea)
+        .sort((a, b) => ordenArea.indexOf(a.area) - ordenArea.indexOf(b.area));
+    $id('tbConteoBody').innerHTML = lista.map(p => {
+        const sis = p.wh.gen.s;
+        const val = CONTEO_HOY[p.id];
+        const contado = val !== '' && val != null;
+        const dif = contado ? rq(p, Number(val) - sis) : null;
+        const difTxt = dif === null ? '<span class="text-gray-300">—</span>'
+            : dif === 0 ? '<span class="text-emerald-600">0</span>'
+            : `<span class="font-bold ${dif < 0 ? 'text-rose-600' : 'text-sky-700'}">${dif > 0 ? '+' : ''}${fq(p, dif)}</span>`;
+        const valTxt = dif ? `<span class="${dif < 0 ? 'text-rose-600' : 'text-sky-700'}">${dif < 0 ? '-' : '+'}${money(Math.abs(dif) * p.cost)}</span>` : '<span class="text-gray-300">—</span>';
+
+        return `
+        <tr class="border-b border-gray-100 ${contado ? '' : 'bg-amber-50/40'}">
+            <td class="px-2 py-2">
+                <div class="leading-tight"><div class="text-[12px] text-gray-800">${esc(p.name)}</div><div class="text-[10px] text-gray-400 font-mono">${p.sku}</div></div>
+            </td>
+            <td class="px-2 py-2">${areaChip(p.area)}</td>
+            <td class="px-2 py-2 text-center text-gray-500">${p.unit}</td>
+            <td class="px-2 py-2 text-right text-gray-600 sys">${fq(p, sis)}</td>
+            <td class="px-2 py-2 text-center">
+                <input type="number" step="${p.unit === 'pza' ? 1 : 0.01}" min="0" data-conteo="${p.id}" value="${contado ? val : ''}" placeholder="Pendiente"
+                       class="no-spin w-24 h-8 px-2 text-right rounded-md border ${contado ? 'border-gray-300' : 'border-amber-300'} bg-white text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-600">
+            </td>
+            <td class="px-2 py-2 text-right sys">${difTxt}</td>
+            <td class="px-2 py-2 text-right sys">${valTxt}</td>
+        </tr>`;
+    }).join('');
+
+    renderConteoResumen();
+}
+
+function renderConteoResumen() {
+    const base = PRODUCTS.filter(p => p.wh.gen);
+    let contados = 0, conDif = 0, neto = 0;
+    base.forEach(p => {
+        const val = CONTEO_HOY[p.id];
+        if (val === '' || val == null) return;
+        contados++;
+        const dif = rq(p, Number(val) - p.wh.gen.s);
+        if (dif !== 0) { conDif++; neto += dif * p.cost; }
+    });
+    const ciego = $id('tglCiego').checked;
+    $id('conteoResumen').innerHTML = `
+        <span><b class="text-gray-900">${contados}</b> de ${base.length} contados</span>
+        <span class="${contados < base.length ? 'text-amber-700' : 'text-emerald-700'}">${base.length - contados} pendientes</span>
+        ${ciego ? '<span class="text-gray-400">Diferencias ocultas (conteo ciego)</span>' : `
+        <span><b class="text-gray-900">${conDif}</b> con diferencia</span>
+        <span>Ajuste neto: <b class="${neto < 0 ? 'text-rose-600' : 'text-sky-700'}">${neto < 0 ? '-' : '+'}${money(Math.abs(neto))}</b></span>`}`;
+}
+
+// Un faltante sale del lote que caduca primero; un sobrante entra al mas nuevo.
+function ajustarLotes(p, dif) {
+    const lots = p.lots.slice().sort((a, b) => diasPara(a.exp) - diasPara(b.exp));
+    if (dif > 0) {
+        const ultimo = lots[lots.length - 1];
+        ultimo.qty = rq(p, ultimo.qty + dif);
+        return;
+    }
+    let falta = -dif;
+    for (const l of lots) {
+        const usa = Math.min(l.qty, falta);
+        l.qty = rq(p, l.qty - usa);
+        falta = rq(p, falta - usa);
+        if (!falta) break;
+    }
+    p.lots = p.lots.filter(l => l.qty > 0);
+}
+
+function aplicarConteo() {
+    let n = 0, conDif = 0, neto = 0;
+    PRODUCTS.forEach(p => {
+        const val = CONTEO_HOY[p.id];
+        if (!p.wh.gen || val === '' || val == null) return;
+        const dif = rq(p, Number(val) - p.wh.gen.s);
+        n++;
+        if (dif !== 0) { conDif++; neto += dif * p.cost; }
+        if (dif !== 0 && p.lots.length) ajustarLotes(p, dif);
+        p.wh.gen.s = rq(p, Number(val));
+        p.count = { date: '30/09/2026', diff: dif };
+    });
+    $id('mdlConteo').classList.add('hidden');
+    renderTodo();
+    toast(`Ajuste <b>AJU-0004</b> aplicado a ${n} productos · ${conDif} con diferencia · ${neto < 0 ? '-' : '+'}${money(Math.abs(neto))}. Cada diferencia queda en el kardex como <b>Ajuste</b> (demo).`);
+}
+
+
+// -- Orden de compra sugerida --
+
+function abrirOrden() {
+    if (!state.sel.size) return;
+    renderOrden();
+    $id('mdlOrden').classList.remove('hidden');
+}
+
+function renderOrden() {
+    const ids = [...state.sel];
+    $id('tbOrdenBody').innerHTML = ids.map(id => {
+        const p = PRODUCTS.find(x => x.id === id);
+        const v = vista(p) || { s: 0, max: 0 };
+        const sug = sugerido(p, v);
+        const pedir = p.pres ? sug.pres : sug.base;
+        const unidad = p.pres ? p.pres.abbr : p.unit;
+        return `
+        <tr class="border-b border-gray-100" data-orden-row="${p.id}">
+            <td class="px-2 py-2"><div class="leading-tight"><div class="text-[12px] text-gray-800">${esc(p.name)}</div><div class="text-[10px] text-gray-400 font-mono">${p.sku}</div></div></td>
+            <td class="px-2 py-2 text-right ${STOCK_COLOR[nivel(v)]} font-bold">${fq(p, v.s)}</td>
+            <td class="px-2 py-2 text-right text-gray-600">${fq(p, v.max)}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">
+                <input type="number" min="0" step="${p.pres || p.unit === 'pza' ? 1 : 0.1}" value="${pedir}" data-orden="${p.id}"
+                       class="no-spin w-20 h-8 px-2 text-right rounded-md border border-gray-300 text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-600">
+                <span class="text-[10px] text-gray-500 ml-1">${unidad}</span>
+            </td>
+            <td class="px-2 py-2 text-right text-[11px] text-gray-500" data-equiv="${p.id}"></td>
+            <td class="px-2 py-2 text-right text-gray-600">${money(p.cost)}</td>
+            <td class="px-2 py-2 text-right font-semibold text-gray-800" data-subtotal="${p.id}"></td>
+            <td class="px-2 py-2 text-center"><button type="button" data-quitar="${p.id}" class="p-1 text-gray-400 hover:text-rose-600" title="Quitar"><i data-lucide="x" class="w-3.5 h-3.5"></i></button></td>
+        </tr>`;
+    }).join('');
+    recalcularOrden();
+    icons();
+}
+
+function recalcularOrden() {
+    let total = 0;
+    document.querySelectorAll('[data-orden]').forEach(inp => {
+        const p = PRODUCTS.find(x => x.id === Number(inp.dataset.orden));
+        const n = Math.max(0, Number(inp.value) || 0);
+        const base = p.pres ? n * p.pres.factor : n;
+        const sub = base * p.cost;
+        total += sub;
+        document.querySelector(`[data-equiv="${p.id}"]`).textContent = p.pres ? `${fq(p, base)} ${p.unit}` : '—';
+        document.querySelector(`[data-subtotal="${p.id}"]`).textContent = money(sub);
+    });
+    $id('ordenTotal').textContent = money(total);
+}
+
+
+// -- Eventos --
+
+function renderTodo() {
+    renderKpis();
+    renderTabla();
+    renderReorden();
+    renderDetalle();
+}
+
+function syncFiltros() {
+    state.almacen = $id('fAlmacen').value;
+    state.area    = $id('fArea').value;
+    state.cat     = $id('fCategoria').value;
+    state.nivel   = $id('fNivel').value;
+    state.q       = $id('fBuscar').value;
+    renderTodo();
+}
+
+['fAlmacen', 'fArea', 'fCategoria', 'fNivel'].forEach(id => $id(id).addEventListener('change', syncFiltros));
+$id('fBuscar').addEventListener('input', syncFiltros);
+
+$id('kpisRow').addEventListener('click', e => {
+    const card = e.target.closest('[data-kpi]');
+    if (!card) return;
+    const k = card.dataset.kpi;
+    if (k === 'valor') {
+        state.sort = state.sort === 'valor' ? '' : 'valor';
+    } else {
+        state.nivel = state.nivel === k ? '' : k;
+        $id('fNivel').value = state.nivel;
+    }
+    renderTodo();
+});
+
+$id('tbStockBody').addEventListener('click', e => {
+    const chk = e.target.closest('.rowSel');
+    if (chk) { toggleSel(Number(chk.dataset.id), chk.checked); return; }
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) abrirDetalle(Number(tr.dataset.id));
+});
+
+$id('chkAll').addEventListener('change', e => {
+    productosFiltrados(false).forEach(p => {
+        if (e.target.checked) state.sel.add(p.id); else state.sel.delete(p.id);
+    });
+    renderTabla();
+    renderReorden();
+});
+
+$id('btnReorden').addEventListener('click', () => {
+    let n = 0;
+    productosFiltrados(false).forEach(p => {
+        const lv = nivel(vista(p));
+        if (lv === 'bajo' || lv === 'agotado') { state.sel.add(p.id); n++; }
+    });
+    renderTabla();
+    renderReorden();
+    toast(n ? `Se seleccionaron <b>${n}</b> productos en bajo o agotado. Revisa y genera la orden.` : 'No hay productos en bajo o agotado con estos filtros.');
+});
+
+$id('btnLimpiarSel').addEventListener('click', () => { state.sel.clear(); renderTodo(); });
+$id('btnGenerarOC').addEventListener('click', abrirOrden);
+$id('btnConteo').addEventListener('click', abrirConteo);
+$id('detailBackdrop').addEventListener('click', cerrarDetalle);
+
+$id('detailPanel').addEventListener('click', e => {
+    if (e.target.closest('#btnCerrarDetalle')) { cerrarDetalle(); return; }
+    const tab = e.target.closest('[data-tab]');
+    if (tab) { state.tab = tab.dataset.tab; renderDetalle(); return; }
+    const mov = e.target.closest('[data-mov]');
+    if (mov) { state.movFilter = mov.dataset.mov; renderDetalle(); return; }
+    const add = e.target.closest('[data-add-oc]');
+    if (add) {
+        const id = Number(add.dataset.addOc);
+        state.sel.add(id);
+        renderTodo();
+        toast(`<b>${esc(PRODUCTS.find(x => x.id === id).name)}</b> se agregó a la orden sugerida.`);
+        return;
+    }
+    if (e.target.closest('[data-edit-minmax]')) {
+        toast('En el módulo real, el mínimo y el máximo se editan aquí mismo, por almacén (demo).');
+    }
+});
+
+$id('conteoTabs').addEventListener('click', e => {
+    const t = e.target.closest('[data-conteo-area]');
+    if (!t) return;
+    state.conteoArea = t.dataset.conteoArea;
+    renderConteo();
+});
+
+$id('tbConteoBody').addEventListener('change', e => {
+    const inp = e.target.closest('[data-conteo]');
+    if (!inp) return;
+    CONTEO_HOY[inp.dataset.conteo] = inp.value === '' ? '' : Number(inp.value);
+    renderConteo();
+});
+
+$id('tglCiego').addEventListener('change', e => {
+    $id('tbConteo').classList.toggle('blind', e.target.checked);
+    renderConteoResumen();
+});
+
+$id('btnConteoBorrador').addEventListener('click', () => {
+    $id('mdlConteo').classList.add('hidden');
+    toast('Conteo <b>AJU-0004</b> guardado como borrador. Se puede continuar desde otro dispositivo (demo).');
+});
+$id('btnConteoAplicar').addEventListener('click', aplicarConteo);
+
+$id('tbOrdenBody').addEventListener('input', e => { if (e.target.closest('[data-orden]')) recalcularOrden(); });
+$id('tbOrdenBody').addEventListener('click', e => {
+    const q = e.target.closest('[data-quitar]');
+    if (!q) return;
+    state.sel.delete(Number(q.dataset.quitar));
+    renderTodo();
+    if (!state.sel.size) { $id('mdlOrden').classList.add('hidden'); return; }
+    renderOrden();
+});
+
+$id('btnCrearOC').addEventListener('click', () => {
+    const n = state.sel.size;
+    const total = $id('ordenTotal').textContent;
+    state.sel.clear();
+    $id('mdlOrden').classList.add('hidden');
+    renderTodo();
+    toast(`Orden <b>OC-0008</b> creada como borrador · ${n} productos · ${total}. Sigue el flujo normal de Órdenes de compra (demo).`);
+});
+
+document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => $id(btn.dataset.close).classList.add('hidden')));
+
+$id('tglNovedades').addEventListener('change', e => document.body.classList.toggle('hide-nv', !e.target.checked));
+
+renderTodo();
+icons();
+</script>
+</body>
+</html>

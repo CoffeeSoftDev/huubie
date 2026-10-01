@@ -63,7 +63,7 @@ if (isset($_SESSION['USR'])) {
                         <div id="rememberedUser" class="hidden mt-1.5 h-14 pl-3 pr-4 bg-[#374151] rounded-md flex items-center gap-x-3">
                             <span id="rememberedAvatar" class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden shrink-0 text-white">
                                 <img id="rememberedPhoto" class="hidden w-full h-full object-cover" alt="">
-                                <i id="rememberedIcon" class="icon-user-7 text-lg"></i>
+                                <svg id="rememberedIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             </span>
                             <span class="flex flex-col min-w-0 leading-tight">
                                 <span id="rememberedName" class="text-[15px] font-medium truncate"></span>

@@ -8,6 +8,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 
 require_once '../mdl/mdl-stock.php';
 require_once '../../../conf/coffeSoft.php';
+require_once '../../../conf/_IaOllama.php';
 
 class ctrl extends mdl {
 
@@ -27,7 +28,14 @@ class ctrl extends mdl {
             'status'          => 200,
             'branch_id'       => $this->branchId,
             'sucursales'      => $this->lsSucursales(['company_id' => $this->companiesId, 'user_id' => $this->userId, 'is_owner' => (int) ($_SESSION['is_owner'] ?? 0)]),
-            'categorias'      => $this->lsCategories([$this->companiesId])
+            'categorias'      => $this->lsCategories([$this->companiesId]),
+            'areas'           => $this->lsAreas([$this->companiesId]),
+            'estados_ajuste'  => [
+                ['id' => '',          'valor' => 'Todos los estados'],
+                ['id' => 'Borrador',  'valor' => 'Borrador'],
+                ['id' => 'Aplicado',  'valor' => 'Aplicado'],
+                ['id' => 'Cancelado', 'valor' => 'Cancelado']
+            ]
         ];
     }
 
@@ -36,6 +44,7 @@ class ctrl extends mdl {
             'companies_id'    => $this->companiesId,
             'branch_id'       => $_POST['branch_id'] ?? '',
             'category_id'     => $_POST['category_id']     ?? '',
+            'area_id'         => $_POST['area_id']         ?? '',
             'nivel'           => $_POST['nivel']           ?? '',
             'movimiento'      => $_POST['movimiento']      ?? '',
             'q'               => $_POST['q']               ?? ''
@@ -76,10 +85,235 @@ class ctrl extends mdl {
             'companies_id' => $this->companiesId,
             'branch_id'    => $_POST['branch_id']    ?? '',
             'category_id'  => $_POST['category_id']  ?? '',
+            'area_id'      => $_POST['area_id']      ?? '',
             'movimiento'   => $_POST['movimiento']   ?? '',
             'q'            => $_POST['q']             ?? ''
         ]);
         return ['status' => 200, 'counts' => $kpis];
+    }
+
+    // -- Conteo fisico --
+    // Borrador -> Aplicado | Cancelado. Quien abrio el conteo lo captura y lo aplica;
+    // solo Aplicado mueve stock.
+
+    function lsAjustes() {
+        $rows = $this->listAjustes([
+            'companies_id' => $this->companiesId,
+            'branch_id'    => $_POST['branch_id'] ?? '',
+            'status'       => $_POST['status']    ?? ''
+        ]);
+
+        $row = [];
+        foreach ($rows as $r) {
+            $hora  = $r['time_adjustment'] ? ' ' . substr($r['time_adjustment'], 0, 5) : '';
+            $row[] = [
+                'id'          => $r['id'],
+                'Folio'       => ['html' => "<span class='font-mono font-semibold text-gray-800'>" . htmlspecialchars($r['folio'], ENT_QUOTES) . '</span>'],
+                'Fecha'       => ($r['date_adjustment'] ? date('d/m/Y', strtotime($r['date_adjustment'])) : '-') . $hora,
+                'Almacén'     => $r['warehouse_name'] ?: '-',
+                'Estado'      => $this->_adjustBadge($r['status']),
+                'Contados'    => (int) $r['total_counted'] . ' / ' . (int) $r['total_products'],
+                'Diferencias' => (int) $r['total_differences'],
+                'Ajuste'      => $this->_signedMoney((float) $r['total_diff_cost']),
+                'Registró'    => $r['registered_name'] ?: '-',
+                'Aplicó'      => $r['authorized_name'] ?: '-',
+                'a'           => [
+                    [
+                        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+                        'html'    => '<i data-lucide="eye" class="w-4 h-4"></i>',
+                        'onclick' => "stockCount.render({$r['id']})"
+                    ]
+                ]
+            ];
+        }
+        return ['status' => 200, 'row' => $row];
+    }
+
+    // Abre el conteo del almacen de la sucursal; si ya hay uno abierto, lo retoma.
+    function addConteo() {
+        $branchId  = (int) ($_POST['branch_id'] ?? 0) ?: $this->branchId;
+        $warehouse = $this->getDefaultWarehouse([$branchId, $this->companiesId]);
+        if (!$warehouse) return ['status' => 404, 'message' => 'La sucursal no tiene un almacén activo'];
+
+        $open = $this->getOpenConteo([(int) $warehouse['id'], $this->companiesId]);
+        if ($open) return ['status' => 200, 'id' => (int) $open['id']];
+
+        $reason = $this->getReasonByCode(['CONTEO_FISICO']);
+        if (!$reason) return ['status' => 500, 'message' => 'Falta el motivo CONTEO_FISICO (migración 2026-10-01_conteo-fisico.sql)'];
+
+        $folio  = $this->nextFolio('AJU-', 'inventory_adjustment', $this->companiesId);
+        $userId = $this->userId ?: null;
+
+        try {
+            return $this->transaction(function () use ($folio, $reason, $userId, $warehouse, $branchId) {
+                $this->createConteo([$folio, (int) $reason['id'], $userId, (int) $warehouse['id'], $branchId, $this->companiesId]);
+
+                $row = $this->getConteoIdByFolio([$folio, $this->companiesId]);
+                $id  = (int) ($row['id'] ?? 0);
+                if (!$id) throw new Exception('Sin id del conteo');
+
+                $this->createConteoDetail([$id, $this->companiesId]);
+                $this->createConteoHistory(['Borrador', 'Conteo abierto', $userId, $id]);
+                $this->updateConteoTotals([$id, $id]);
+
+                return ['status' => 200, 'id' => $id, 'folio' => $folio];
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo abrir el conteo'];
+        }
+    }
+
+    function getConteo() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+
+        $areaId = (string) ($_POST['area_id'] ?? '');
+        $items  = $this->listConteoDetail([(int) $header['warehouse_id'], $id]);
+        $perms  = $this->_conteoPerms($header);
+
+        $porArea = [];
+        $sheet   = [];
+        foreach ($items as $it) {
+            $k = (string) $it['area_id'];
+            $porArea[$k] = ($porArea[$k] ?? 0) + 1;
+            $sheet[] = [
+                'id'     => (int) $it['item_id'],
+                'system' => $this->_conteoSystem($it),
+                'cost'   => (float) $it['cost'],
+                'qty'    => $it['physical_quantity'] === null ? null : (float) $it['physical_quantity']
+            ];
+        }
+
+        // Pestanas: "Todas" y cada area del almacen con cuantos productos tiene.
+        $areas = [['id' => '', 'valor' => 'Todas', 'total' => count($items)]];
+        foreach ($this->lsAreas([$this->companiesId]) as $a) {
+            if ((int) $a['warehouse_id'] !== (int) $header['warehouse_id']) continue;
+            $areas[] = [
+                'id'    => (string) $a['id'],
+                'valor' => $a['valor'],
+                'total' => $porArea[(string) $a['id']] ?? 0
+            ];
+        }
+
+        // En "Todas" cada area abre con su renglon de grupo (colgroup).
+        $row   = [];
+        $grupo = null;
+        foreach ($items as $it) {
+            $itArea = (string) $it['area_id'];
+            if ($areaId !== '' && $itArea !== $areaId) continue;
+
+            if ($areaId === '' && $itArea !== $grupo) {
+                $row[] = [
+                    'colgroup' => true,
+                    'Area'     => ($it['area_name'] ?: 'Sin área') . ' · ' . $porArea[$itArea] . ' productos'
+                ];
+                $grupo = $itArea;
+            }
+
+            $row[] = [
+                'id'         => $it['item_id'],
+                'Producto'   => ['html' => $this->_countProduct($it['item_name'], $it['sku'])],
+                'Área'       => ['html' => $this->_areaChip($it['area_name'], $it['area_color'])],
+                'Unidad'     => ['html' => "<span class='text-gray-500'>" . htmlspecialchars($it['unit_code'] ?: '-', ENT_QUOTES) . '</span>'],
+                'Sistema'    => ['html' => "<span class='text-gray-600'>" . $this->_qty($this->_conteoSystem($it)) . '</span>'],
+                'Contado'    => ['html' => $this->_countInput($it, $perms['edit'])],
+                'Diferencia' => ['html' => "<span class='text-gray-300'>—</span>"],
+                'Valor'      => ['html' => "<span class='text-gray-300'>—</span>"]
+            ];
+        }
+
+        return [
+            'status' => 200,
+            'header' => [
+                'id'       => (int) $header['id'],
+                'folio'    => $header['folio'],
+                'status'   => $header['status'],
+                'badge'    => $this->_adjustBadge($header['status']),
+                'subtitle' => ($header['warehouse_name'] ?: 'Almacén') . ' · '
+                            . date('d/m/Y', strtotime($header['date_adjustment'])) . ' · Folio ' . $header['folio'],
+                'is_blind' => (int) $header['is_blind'],
+                'info'     => $this->_conteoInfo($header)
+            ],
+            'perms'  => $perms,
+            'thead'  => $this->_conteoThead(),
+            'row'    => $row,
+            'areas'  => $areas,
+            'sheet'  => $sheet
+        ];
+    }
+
+    // Guarda lo capturado. Solo cambia los renglones cuyo conteo cambio: al
+    // capturar se toma la foto del stock (system_quantity) y la hora (counted_at).
+    function editConteo() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+        if (!$this->_conteoPerms($header)['edit']) {
+            return ['status' => 403, 'message' => 'Solo quien abrió el conteo puede capturarlo mientras es borrador'];
+        }
+
+        $counts  = json_decode($_POST['counts'] ?? '{}', true) ?: [];
+        $isBlind = (int) ($_POST['is_blind'] ?? 0) === 1 ? 1 : 0;
+
+        $byItem = [];
+        foreach ($this->listConteoDetail([(int) $header['warehouse_id'], $id]) as $it) {
+            $byItem[(int) $it['item_id']] = $it;
+        }
+
+        try {
+            return $this->transaction(function () use ($counts, $byItem, $isBlind, $id) {
+                foreach ($counts as $itemId => $value) {
+                    $it = $byItem[(int) $itemId] ?? null;
+                    if (!$it) continue;
+
+                    if ($value === '' || $value === null) {
+                        if ($it['physical_quantity'] !== null) $this->clearConteoDetail([(int) $it['detail_id']]);
+                        continue;
+                    }
+
+                    $physical = max(0, round((float) $value, 4));
+                    if ($it['physical_quantity'] !== null && abs((float) $it['physical_quantity'] - $physical) < 0.00001) continue;
+
+                    $system = (float) $it['stock_live'];
+                    $cost   = (float) $it['cost'];
+                    $diff   = round($physical - $system, 4);
+                    $this->updateConteoDetail([$system, $physical, $diff, $cost, round($diff * $cost, 4), (int) $it['detail_id']]);
+                }
+
+                $this->updateConteo([
+                    'values' => ['is_blind'],
+                    'where'  => ['id'],
+                    'data'   => [$isBlind, $id]
+                ]);
+                $this->updateConteoTotals([$id, $id]);
+
+                return ['status' => 200, 'message' => 'Borrador guardado'];
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo guardar el conteo'];
+        }
+    }
+
+    function statusConteo() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+
+        if (($_POST['action'] ?? '') !== 'aplicar') return ['status' => 400, 'message' => 'Acción no válida'];
+        if (!$this->_conteoPerms($header)['apply']) return ['status' => 403, 'message' => 'Solo quien abrió el conteo puede aplicarlo mientras es borrador'];
+        if ((int) $header['total_counted'] === 0) return ['status' => 400, 'message' => 'Captura al menos un producto antes de aplicar'];
+
+        return $this->_aplicarConteo($header);
+    }
+
+    function cancelConteo() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+        if (!$this->_conteoPerms($header)['cancel']) return ['status' => 403, 'message' => 'Solo quien abrió el conteo puede cancelarlo'];
+
+        return $this->_conteoTransition($id, ['status'], ['Cancelado'], 'Cancelado', 'Conteo cancelado', 'Conteo cancelado');
     }
 
     function getProducto() {
@@ -254,34 +488,26 @@ class ctrl extends mdl {
         $reorden = 0;
         $resumen = '';
 
-        try {
-            require_once '../../../../coffee/app/visor/ctrl/ollama-client.php';
-            $client = new OllamaClient();
-            $result = $client->chat($messages, null, ['temperature' => 0.2]);
+        // Mismo cliente que Entradas y Salidas: modelo de Administrador > CoffeeIA.
+        // El del visor (OllamaClient) leia OLLAMA_DEFAULT_MODEL, retirado (HTTP 410).
+        $ia = IaOllama::desdeCredenciales($this);
 
-            $raw = $result['message']['content'] ?? '';
-            $raw = preg_replace('/^```(?:json)?\s*/i', '', trim($raw));
-            $raw = preg_replace('/\s*```$/', '', $raw);
-            $raw = trim($raw);
+        if ($ia === null) {
+            $iaMsg = 'La IA no está configurada: falta la llave de Ollama.';
+        } else {
+            session_write_close();
+            set_time_limit(180);
 
-            $json = json_decode($raw, true);
-            if (!is_array($json) || !isset($json['dias_agotamiento'])) {
-                preg_match('/\{.*\}/s', $raw, $m2);
-                if (!empty($m2[0])) {
-                    $json = json_decode($m2[0], true);
-                }
-            }
+            $r = $ia->chatJson($messages);
 
-            if (is_array($json)) {
+            if ($r['ok']) {
                 $iaOk    = true;
-                $dias    = (int) ($json['dias_agotamiento'] ?? 0);
-                $reorden = (int) ($json['reorden_sugerido'] ?? 0);
-                $resumen = (string) ($json['resumen'] ?? '');
+                $dias    = (int) ($r['data']['dias_agotamiento'] ?? 0);
+                $reorden = (int) ($r['data']['reorden_sugerido'] ?? 0);
+                $resumen = (string) ($r['data']['resumen'] ?? '');
             } else {
-                $iaMsg = 'La IA no devolvio una respuesta valida.';
+                $iaMsg = $r['error'];
             }
-        } catch (Throwable $e) {
-            $iaMsg = 'No se pudo conectar con la IA.';
         }
 
         // Proyeccion de stock a 7 dias: extrapolacion lineal con el promedio
@@ -417,6 +643,161 @@ class ctrl extends mdl {
                     ' . $skuTag . '
                 </div>
             </div>';
+    }
+
+    // -- Conteo fisico: complementos --
+
+    // Quien abrio el conteo lo captura, lo aplica o lo cancela mientras es borrador.
+    // Pendiente: enviado a revision antes de quitar ese paso (01/10/2026); cuenta como borrador.
+    private function _conteoPerms($header) {
+        $editable = in_array($header['status'], ['Borrador', 'Pendiente'], true)
+            && $this->userId > 0
+            && (int) $header['registered_user_id'] === $this->userId;
+        return [
+            'edit'   => $editable,
+            'apply'  => $editable,
+            'cancel' => $editable
+        ];
+    }
+
+    // Contado: la foto del stock al capturar. Pendiente: el stock vivo.
+    private function _conteoSystem($it) {
+        return $it['physical_quantity'] !== null ? (float) $it['system_quantity'] : (float) $it['stock_live'];
+    }
+
+    private function _conteoInfo($header) {
+        $quien = $header['authorized_name'] ?: 'el usuario';
+        $fecha = $header['authorized_at'] ? date('d/m/Y H:i', strtotime($header['authorized_at'])) : '';
+
+        if ($header['status'] === 'Aplicado') {
+            return ['tone' => 'emerald', 'text' => "Aplicado por {$quien} el {$fecha}. Las diferencias ya están en el stock y en el kárdex."];
+        }
+        if ($header['status'] === 'Cancelado') {
+            return ['tone' => 'gray', 'text' => 'Conteo cancelado. No movió el stock.'];
+        }
+        return ['tone' => 'gray', 'text' => 'La hoja sigue el orden físico del almacén: área por área, como está en el anaquel.'];
+    }
+
+    private function _conteoThead() {
+        $th = function ($label, $align) {
+            return "<div class='text-{$align} text-[9px] uppercase tracking-wider font-semibold text-gray-500'>{$label}</div>";
+        };
+        return [
+            $th('Producto', 'left'),
+            $th('Área', 'left'),
+            $th('Unidad', 'center'),
+            $th('Sistema', 'right'),
+            $th('Contado', 'center'),
+            $th('Diferencia', 'right'),
+            $th('Valor', 'right')
+        ];
+    }
+
+    private function _countProduct($name, $sku) {
+        $skuTag = $sku ? "<div class='text-[9px] text-gray-400 font-mono'>" . htmlspecialchars($sku, ENT_QUOTES) . '</div>' : '';
+        return "<div class='leading-tight'><div class='text-[11px] text-gray-800'>" . htmlspecialchars($name, ENT_QUOTES) . "</div>{$skuTag}</div>";
+    }
+
+    private function _areaChip($name, $color) {
+        if (empty($name)) {
+            return "<span class='text-[9px] text-gray-400'>Sin área</span>";
+        }
+        $hex   = preg_match('/^#[0-9a-fA-F]{6}$/', (string) $color) ? $color : '#6B7280';
+        $label = htmlspecialchars($name, ENT_QUOTES);
+        return "<span class='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold whitespace-nowrap' style='background:{$hex}14;color:{$hex};'>"
+             . "<span class='w-1.5 h-1.5 rounded-full' style='background:{$hex};'></span>{$label}</span>";
+    }
+
+    // El JS calcula diferencia y valor en vivo con data-system y data-cost.
+    // Fuera de borrador se pinta como texto: sin borde y sin captura.
+    // compact.css fuerza 1rem y height:auto (!important) en input number: tamano va en style.
+    // Borde con border-[1px]: la clase `border` de Bootstrap trae color !important.
+    private function _countInput($it, $editable) {
+        $value = $it['physical_quantity'] === null ? '' : $this->_qty($it['physical_quantity']);
+        $skin  = $editable
+            ? 'rounded-lg border-[1px] border-gray-200 bg-gray-50 shadow-sm hover:border-gray-300 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors'
+            : 'border-0 bg-transparent';
+        return '<input type="number" min="0" step="any" inputmode="decimal" placeholder="' . ($editable ? '—' : 'Sin contar') . '"'
+             . ' data-count="' . (int) $it['item_id'] . '" data-system="' . $this->_conteoSystem($it) . '" data-cost="' . (float) $it['cost'] . '"'
+             . ' value="' . $value . '"' . ($editable ? '' : ' disabled')
+             . ' style="font-size:11px !important;height:28px !important;"'
+             . ' class="w-[84px] px-[8px] text-center font-semibold text-gray-800 placeholder:font-normal placeholder:text-gray-300 ' . $skin
+             . ' [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">';
+    }
+
+    private function _adjustBadge($status) {
+        $map = [
+            'Borrador'  => ['cls' => 'bg-gray-100 text-gray-600',       'lbl' => 'BORRADOR'],
+            'Pendiente' => ['cls' => 'bg-gray-100 text-gray-600',       'lbl' => 'BORRADOR'],
+            'Aplicado'  => ['cls' => 'bg-emerald-100 text-emerald-700', 'lbl' => 'APLICADO'],
+            'Cancelado' => ['cls' => 'bg-gray-100 text-gray-400',       'lbl' => 'CANCELADO']
+        ];
+        $c = $map[$status] ?? ['cls' => 'bg-gray-100 text-gray-600', 'lbl' => strtoupper((string) $status)];
+        return "<span class='inline-block px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap {$c['cls']}'>{$c['lbl']}</span>";
+    }
+
+    private function _signedMoney($n) {
+        if (abs($n) < 0.005) return "<span class='text-gray-400'>$0.00</span>";
+        $cls = $n < 0 ? 'text-rose-600' : 'text-sky-700';
+        return "<span class='font-semibold {$cls}'>" . ($n < 0 ? '-' : '+') . '$' . number_format(abs($n), 2) . '</span>';
+    }
+
+    private function _conteoTransition($id, $values, $data, $status, $note, $message) {
+        try {
+            return $this->transaction(function () use ($id, $values, $data, $status, $note, $message) {
+                $this->updateConteo([
+                    'values' => $values,
+                    'where'  => ['id'],
+                    'data'   => array_merge($data, [$id])
+                ]);
+                $this->createConteoHistory([$status, $note, $this->userId ?: null, $id]);
+                return ['status' => 200, 'message' => $message];
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo actualizar el conteo'];
+        }
+    }
+
+    // Se suma la diferencia al stock de ESE momento, no se escribe lo contado:
+    // asi no se pierde una salida registrada mientras se contaba.
+    private function _aplicarConteo($header) {
+        $id        = (int) $header['id'];
+        $warehouse = (int) $header['warehouse_id'];
+        $items     = $this->listConteoDetail([$warehouse, $id]);
+
+        try {
+            return $this->transaction(function () use ($id, $warehouse, $items, $header) {
+                foreach ($items as $it) {
+                    if ($it['physical_quantity'] === null) continue;
+
+                    $diff     = (float) $it['difference'];
+                    $stockRow = $this->getStockRow([(int) $it['item_id'], $warehouse]);
+
+                    if (abs($diff) < 0.00001) {
+                        if ($stockRow) $this->updateStockInventoryAt([(int) $stockRow['id']]);
+                        continue;
+                    }
+
+                    $prev = $stockRow ? (float) $stockRow['quantity'] : 0;
+                    $post = max(0, round($prev + $diff, 4));
+                    $this->updateConteoDetailStock([$prev, $post, (int) $it['detail_id']]);
+
+                    if ($stockRow) $this->updateStockConteo([$post, (int) $stockRow['id']]);
+                    else $this->insertStockConteo([$post, $warehouse, (int) $it['item_id'], $this->companiesId]);
+                }
+
+                $this->updateConteo([
+                    'values' => ['status', 'authorized_user_id', 'authorized_at = NOW()'],
+                    'where'  => ['id'],
+                    'data'   => ['Aplicado', $this->userId, $id]
+                ]);
+                $this->createConteoHistory(['Aplicado', 'Ajuste aplicado', $this->userId, $id]);
+
+                return ['status' => 200, 'message' => "Ajuste {$header['folio']} aplicado al stock"];
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo aplicar el ajuste; el stock no cambió'];
+        }
     }
 
     private function _lastMovBadge($type) {

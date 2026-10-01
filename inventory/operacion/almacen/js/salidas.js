@@ -481,10 +481,14 @@ class Salidas extends Templates {
                     missing: {
                         label: 'Falta',
                         tone:  'bg-amber-100 text-amber-700'
+                    },
+                    exists: {
+                        label: 'Ya está',
+                        tone:  'bg-gray-100 text-gray-500'
                     }
                 },
                 onAttach:  (file) => this.readArchivoIA(file),
-                onSend:    (text, adjuntos, historial) => this.askSalidaIA(text, adjuntos, historial),
+                onSend:    (text, adjuntos, historial, progress) => this.askSalidaIA(text, adjuntos, historial, progress),
                 onConfirm: (token, ids) => this.applySalidaIA(token, ids)
             });
         }
@@ -509,9 +513,19 @@ class Salidas extends Templates {
         }
     }
 
-    // Revisión: con el stock del almacén elegido en el modal se avisa qué dejaría el
-    // stock en negativo (se puede agregar igual, como al capturar a mano).
-    async askSalidaIA(text, adjuntos, historial) {
+    // Revisión: lo que ya tiene renglón en la salida no se vuelve a agregar (queda
+    // como "Ya está", sin casilla), y con el stock del almacén elegido en el modal se
+    // avisa qué dejaría el stock en negativo (se puede agregar igual, como al capturar
+    // a mano). La barra del chat avanza con los dos pasos: buscar en el catálogo (el
+    // 90 % del trabajo, lo hace el modelo) y revisar el stock.
+    async askSalidaIA(text, adjuntos, historial, progress) {
+        const catalogo = this.salidaFormApi ? (this.salidaFormApi.opts.json || []) : [];
+        const pedido   = adjuntos.length
+            ? `lo de ${adjuntos.map(a => a.nombre).join(', ')}`
+            : `«${text.length > 40 ? text.slice(0, 40) + '…' : text}»`;
+
+        progress(`Buscando ${pedido} entre ${catalogo.length} productos del catálogo`, 0.9);
+
         const r = await useFetch({
             url:  apiSalidas,
             data: {
@@ -524,11 +538,21 @@ class Salidas extends Templates {
 
         if (!(r && r.status === 200)) return r || { status: 500, message: 'CoffeeIA no respondió. Inténtalo otra vez.' };
 
-        const catalogo = this.salidaFormApi ? (this.salidaFormApi.opts.json || []) : [];
+        const form    = this.salidaFormApi;
+        const almacen = form ? $(`#${form.opts.id}_selAlmacen option:selected`).text().trim() : '';
+        progress(`Revisando el stock de ${almacen || 'el almacén'}`, 1);
+
+        const yaEstan = this.marcarYaEnSalida(r.row || []);
+        if (yaEstan) {
+            r.reply = `${r.reply || ''}\n${yaEstan} ${yaEstan === 1 ? 'ya está' : 'ya están'} en la salida: no los vuelvo a agregar.`.trim();
+        }
+
+        const usado = {};
         (r.row || []).forEach((x) => {
             if (x.action !== 'add') return;
             const prod  = catalogo.find(p => String(p.id) === String(x.product_id));
-            const stock = prod ? Number(prod.stock || 0) : 0;
+            const stock = Number(((prod ? Number(prod.stock || 0) : 0) - (usado[x.product_id] || 0)).toFixed(2));
+            usado[x.product_id] = (usado[x.product_id] || 0) + Number(x.cantidad);
             if (Number(x.cantidad) > stock) x.warn = `Stock insuficiente: hay ${stock}`;
         });
 
@@ -536,20 +560,48 @@ class Salidas extends Templates {
         return r;
     }
 
+    // Los renglones "add" de un producto que ya está en la salida pasan a "exists".
+    // Devuelve cuántos cambió.
+    marcarYaEnSalida(rows) {
+        const enSalida = new Set((this.salidaFormApi ? this.salidaFormApi.lote : []).map(p => String(p.id)));
+        let n = 0;
+        rows.forEach((x) => {
+            if (x.action !== 'add' || !enSalida.has(String(x.product_id))) return;
+            Object.assign(x, { action: 'exists', valid: false, note: 'Ya está en la salida: no lo vuelvo a agregar.' });
+            n++;
+        });
+        return n;
+    }
+
+    // Al aplicar se revisa otra vez: entre la vista previa y el clic en Aplicar se
+    // pudo capturar a mano alguno de esos productos.
     applySalidaIA(token, ids) {
         const pv   = this.iaPropuesta;
         const form = this.salidaFormApi;
         if (!pv || pv.token !== token) return { status: 400, message: 'Esa vista previa ya no es válida. Pídemela otra vez.' };
         if (!form || form.wrap.hasClass('hidden')) return { status: 400, message: 'Abre la salida para agregar los productos.' };
 
+        const desmarcados = pv.row.filter(x => x.valid && x.action === 'add' && !ids.includes(x.idx));
+        this.marcarYaEnSalida(pv.row.filter(x => ids.includes(x.idx)));
+
         const catalogo = form.opts.json || [];
         const items    = pv.row
             .filter(x => x.valid && x.action === 'add' && ids.includes(x.idx))
-            .map(x => ({ prod: catalogo.find(p => String(p.id) === String(x.product_id)), cantidad: x.cantidad }))
-            .filter(i => i.prod);
+            .map(x => ({ prod: catalogo.find(p => String(p.id) === String(x.product_id)), cantidad: x.cantidad, name: x.name }));
 
-        const n = form.addFromIA(items);
-        return { status: 200, message: `Agregué ${n} ${n === 1 ? 'producto' : 'productos'} a la salida.` };
+        const n     = form.addFromIA(items);
+        const fuera = [
+            ...pv.row.filter(x => x.action === 'exists').map(x => `${x.name} (${x.cantidad}): ya estaba en la salida`),
+            ...pv.row.filter(x => x.action === 'missing').map(x => `${x.name} (${x.cantidad}): no está en el catálogo`),
+            ...items.filter(i => !i.prod).map(i => `${i.name} (${i.cantidad}): no está en el catálogo`),
+            ...desmarcados.map(x => `${x.name} (${x.cantidad}): lo desmarcaste`)
+        ];
+
+        const message = `Agregué ${n} ${n === 1 ? 'producto' : 'productos'} a la salida.`;
+        return {
+            status:  200,
+            message: fuera.length ? `${message}\nNo agregué ${fuera.length}:\n• ${fuera.join('\n• ')}` : message
+        };
     }
 
     async printSalida(arg) {

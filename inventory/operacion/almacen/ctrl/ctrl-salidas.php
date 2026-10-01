@@ -79,7 +79,7 @@ class ctrl extends mdl {
             $row[] = [
                 'id'         => $salida['id'],
                 'Folio'      => $salida['folio'],
-                'Fecha'      => date('Y-m-d H:i', strtotime($salida['created_at'])),
+                'Fecha'      => fechaHoraSalida($salida['created_at']),
                 'Tipo'       => badge($salida['reason_name'], $salida['reason_color'], 100, $salida['reason_bg'] ?? null, $salida['reason_icon'] ?? null),
                 'Sucursal'   => $salida['branch_name'] ?: '-',
                 'Origen'     => $salida['warehouse_name']  ?: '-',
@@ -379,7 +379,7 @@ class ctrl extends mdl {
             '- Si NO está en el catálogo va en "missing", con el nombre como aparece en el documento.',
             '- Si la persona solo pregunta o no hay productos, "items" y "missing" van vacíos y contestas en "reply".',
             '- No inventes productos ni cantidades. Un renglón que no se lee no se pone.',
-            '- Si un producto aparece dos veces, suma las cantidades en un solo renglón.',
+            '- Si un producto aparece varias veces, pon un renglón por cada vez que aparece, con su propia cantidad. No las sumes.',
             '- "quantity": cantidad que sale, como número. Si no se ve, 1.',
             '- No pongas costos: la salida usa el costo registrado del producto.',
             '- Como mucho ' . self::IA_MAX_RENGLONES . ' renglones entre "items" y "missing".',
@@ -418,7 +418,8 @@ class ctrl extends mdl {
 
     // Vista previa del chat: "add" = producto del catálogo; "missing" = no está y no
     // se puede sacar (se enseña para revisarlo, sin casilla). Un id que no existe no
-    // entra como "add": pasa a faltante con su texto.
+    // entra como "add": pasa a faltante con su texto. Un producto repetido en la nota
+    // queda en renglones separados.
     private function validarSalidaIA($data, $catalogo) {
         $porId   = array_column($catalogo, null, 'id');
         $items   = [];
@@ -437,12 +438,7 @@ class ctrl extends mdl {
                 continue;
             }
 
-            if (isset($items[$id])) {
-                $items[$id]['cantidad'] += $qty;
-                continue;
-            }
-
-            $items[$id] = ['id' => (string) $id, 'nombre' => $porId[$id]['nombre'], 'cantidad' => $qty];
+            $items[] = ['id' => (string) $id, 'nombre' => $porId[$id]['nombre'], 'cantidad' => $qty];
         }
 
         foreach (array_slice(is_array($data['missing'] ?? null) ? $data['missing'] : [], 0, self::IA_MAX_RENGLONES) as $m) {
@@ -455,7 +451,7 @@ class ctrl extends mdl {
 
         $row = [];
 
-        foreach (array_values($items) as $it) {
+        foreach ($items as $it) {
             $row[] = [
                 'idx'        => count($row),
                 'action'     => 'add',
@@ -503,6 +499,15 @@ class ctrl extends mdl {
     private function textoSalidaIA($v) {
         return mb_substr(trim(strip_tags(is_string($v) ? $v : '')), 0, 200);
     }
+}
+
+// 20/SEP/2026 10:00 AM. El mes va de una lista fija: strftime depende del locale
+// del servidor y está obsoleto desde PHP 8.1.
+function fechaHoraSalida($fecha) {
+    $ts = strtotime((string) $fecha);
+    if (!$ts) return '-';
+    $meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    return date('d', $ts) . '/' . $meses[(int) date('n', $ts) - 1] . '/' . date('Y h:i A', $ts);
 }
 
 function statusBadge($status) {

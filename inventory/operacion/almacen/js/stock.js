@@ -1,5 +1,5 @@
 let apiStock = 'ctrl/ctrl-stock.php';
-let app, stock, stockView, stockPrediction;
+let app, stock, stockView, stockPrediction, stockCount, ajustes;
 
 let branch_id;
 
@@ -20,6 +20,8 @@ $(async () => {
     stockView      = new StockView(apiStock, 'root');
     stock          = new Stock(apiStock, 'root');
     stockPrediction = new StockPrediction(apiStock, 'root');
+    stockCount     = new StockCount(apiStock, 'root');
+    ajustes        = new Ajustes(apiStock, 'root');
     app            = new App(apiStock, 'root');
     await app.init();
 });
@@ -31,6 +33,7 @@ class App extends Templates {
         this.PROJECT_NAME = 'POSStock';
         this.subId        = null;
         this.selectedId   = null;
+        this.ajustesReady = false;
     }
 
     async init() {
@@ -40,6 +43,8 @@ class App extends Templates {
                 branch_id: r.branch_id || '',
                 sucursales:      r.sucursales      || [],
                 categorias:      r.categorias      || [],
+                areas:           r.areas           || [],
+                estadosAjuste:   r.estados_ajuste  || [],
                 niveles:         NIVELES_STOCK
             };
         } else {
@@ -47,6 +52,8 @@ class App extends Templates {
                 branch_id: '',
                 sucursales:      [],
                 categorias:      [],
+                areas:           [],
+                estadosAjuste:   [],
                 niveles:         NIVELES_STOCK
             };
         }
@@ -58,6 +65,8 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.resizePanel();
+        this.renderTabs();
         this.filterBar();
         stockView.renderDetail(null);
         this.populateFilters();
@@ -86,6 +95,47 @@ class App extends Templates {
         });
     }
 
+    renderTabs() {
+        this.tabLayout({
+            parent:          'tabsRow',
+            id:              'tabsStock',
+            type:            'short',
+            theme:           'light',
+            renderContainer: false,
+            json: [
+                {
+                    id:     'stock',
+                    tab:    'Stock actual',
+                    active: true
+                },
+                {
+                    id:     'ajustes',
+                    tab:    'Ajustes'
+                }
+            ],
+            onChange: (tabId) => this.onChangeTab(tabId)
+        });
+    }
+
+    onChangeTab(tabId) {
+        const isAjustes = tabId === 'ajustes';
+
+        if (isAjustes && this.selectedId) this.selectProduct(null);
+
+        $('#filterBar, #kpisRow, #tableWrap, #detailPanel').toggleClass('hidden', isAjustes);
+        $('#detailResizer').css('display', isAjustes ? 'none' : '');
+        $('#filterBarAjustes, #containerAjustes').toggleClass('hidden', !isAjustes);
+
+        if (!isAjustes) return;
+
+        if (this.ajustesReady) {
+            ajustes.lsAjustes();
+            return;
+        }
+        this.ajustesReady = true;
+        ajustes.render();
+    }
+
     layout() {
 
         const mainPanel = {
@@ -99,6 +149,10 @@ class App extends Templates {
                     class: 'flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
                 {
+                    id:    'tabsRow',
+                    class: 'px-4 py-2 bg-white border-b border-gray-200 flex-shrink-0'
+                },
+                {
                     id: 'filterBar',
                     class: 'px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
                 },
@@ -110,14 +164,29 @@ class App extends Templates {
                     id:    'tableWrap',
                     text:  '#tableWrap',
                     class: 'p-3 flex-1 min-h-0 overflow-auto bg-white'
+                },
+                {
+                    id:    'filterBarAjustes',
+                    class: 'hidden px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0'
+                },
+                {
+                    id:    'containerAjustes',
+                    class: 'hidden p-3 flex-1 min-h-0 overflow-auto bg-white'
                 }
             ]
+        };
+
+        // Tirador entre la tabla y el visor: el ancho del visor vive en --stock-detail-w.
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
         };
 
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[420px] md:max-w-none md:transition-none md:z-auto flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none',
+            class:'detail-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md transform translate-x-full transition-transform duration-300 ease-out md:relative md:translate-x-0 md:w-[var(--stock-detail-w,420px)] md:max-w-[60vw] md:transition-none md:z-auto flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden shadow-2xl md:shadow-none',
             children: [
                 {
                     id:    'emptyDetail',
@@ -144,11 +213,66 @@ class App extends Templates {
             data: {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-row overflow-hidden relative bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel, backdrop]
+                container: [mainPanel, detailResizer, detailPanel, backdrop]
             }
         });
 
         $('#detailBackdrop').off('click').on('click', () => this.selectProduct(null));
+    }
+
+    // Arrastrar el tirador cambia el ancho del visor y la tabla toma el resto.
+    resizePanel() {
+        const handle = document.getElementById('detailResizer');
+        const panel  = document.getElementById('detailPanel');
+        if (!handle || !panel) return;
+
+        this.applyPanelWidth(this.savedPanelWidth() || 420, false);
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', 'Ancho del visor del producto');
+
+        const move = (e) => this.applyPanelWidth(panel.getBoundingClientRect().right - e.clientX, false);
+
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            handle.classList.add('after:bg-blue-600');
+            document.body.style.cursor     = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            const release = () => {
+                handle.classList.remove('after:bg-blue-600');
+                document.body.style.cursor     = '';
+                document.body.style.userSelect = '';
+                handle.removeEventListener('pointermove', move);
+                this.applyPanelWidth(panel.getBoundingClientRect().width, true);
+            };
+
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', release, { once: true });
+            handle.addEventListener('pointercancel', release, { once: true });
+        });
+    }
+
+    applyPanelWidth(px, save) {
+        const width = Math.round(Math.min(760, Math.max(300, px)));
+        document.documentElement.style.setProperty('--stock-detail-w', `${width}px`);
+
+        if (!save) return;
+        try {
+            localStorage.setItem('inventory:stock:detailWidth', width);
+        } catch (e) { }
+    }
+
+    savedPanelWidth() {
+        try {
+            const px = Number(localStorage.getItem('inventory:stock:detailWidth'));
+            return px > 0 ? px : null;
+        } catch (e) {
+            return null;
+        }
     }
 
     openDetailDrawer() {
@@ -168,7 +292,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'branch_id',
                 lbl:      'Sucursal:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeSucursal()',
                 value:    '',
                 data:     [{ id: '', valor: 'Todas las sucursales' }]
@@ -177,16 +301,25 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fCategoria',
                 lbl:      'Categoria:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     [{ id: '', valor: 'Todas las categorias' }].concat(this.dataInit.categorias || [])
             },
             {
                 opc:      'select',
+                id:       'fArea',
+                lbl:      'Área:',
+                class:    'col-12 col-md-4 col-lg-2',
+                onchange: 'app.onChangeFilters()',
+                value:    '',
+                data:     [{ id: '', valor: 'Todas las áreas' }].concat(this.dataInit.areas || [])
+            },
+            {
+                opc:      'select',
                 id:       'fNivel',
                 lbl:      'Nivel:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
                 data:     NIVELES_STOCK
@@ -195,10 +328,20 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMovimiento',
                 lbl:      'Movimientos:',
-                class:    'col-12 col-md-3 col-lg-3',
+                class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    'con',
                 data:     MOVIMIENTOS_STOCK
+            },
+            {
+                opc:       'button',
+                id:        'btnConteoFisico',
+                text:      'Conteo físico',
+                icon:      'icon-clipboard',
+                className: 'w-100',
+                class:     'col-12 col-md-4 col-lg-2',
+                color_btn: 'primary',
+                onClick:   () => stockCount.render()
             }
         ];
 
@@ -236,6 +379,7 @@ class App extends Templates {
         return {
             branch_id: $('#branch_id').val() || this.subId || '',
             categoria:       $('#fCategoria').val()     || '',
+            area:            $('#fArea').val()          || '',
             nivel:           $('#fNivel').val()         || '',
             movimiento:      $('#fMovimiento').val()    || '',
             q:               $('#qBuscar').val()        || ''
@@ -294,6 +438,7 @@ class Stock extends Templates {
                 opc:             'lsStock',
                 branch_id: f.branch_id,
                 category_id:     f.categoria,
+                area_id:         f.area,
                 nivel:           f.nivel,
                 movimiento:      f.movimiento,
                 q:               f.q
@@ -318,6 +463,7 @@ class Stock extends Templates {
                 opc:         'showStock',
                 branch_id:   f.branch_id,
                 category_id: f.categoria,
+                area_id:     f.area,
                 movimiento:  f.movimiento,
                 q:           f.q
             }
@@ -602,6 +748,113 @@ class StockView extends Templates {
             const tab = (opts.json || []).find(t => t.id === id);
             opts.onChange(tab || { id });
         });
+    }
+
+    // Modal del conteo fisico con el diseno de templates/stock/stock-v2.html:
+    // encabezado, pestanas + conteo ciego, aviso, hoja y pie con resumen y acciones.
+    countModal(options) {
+        const defaults = {
+            id:       'mdlConteo',
+            title:    'Conteo físico',
+            subtitle: '',
+            badge:    '',
+            info:     { tone: 'gray', text: '' },
+            blind:    { checked: false, disabled: false },
+            actions:  [],
+            onBlind:  () => { },
+            onClose:  () => { }
+        };
+
+        const o    = options || {};
+        const opts = Object.assign({}, defaults, o);
+        opts.info  = Object.assign({}, defaults.info,  o.info  || {});
+        opts.blind = Object.assign({}, defaults.blind, o.blind || {});
+
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const infoTone = {
+            gray:    { cls: 'text-gray-500',    icon: 'info'           },
+            emerald: { cls: 'text-emerald-700', icon: 'check-circle-2' }
+        }[opts.info.tone] || { cls: 'text-gray-500', icon: 'info' };
+
+        const btnKind = {
+            primary:   'h-9 px-[12px] rounded-md bg-main hover:bg-main-hover text-[12px] font-semibold text-white inline-flex items-center gap-1.5',
+            secondary: 'h-9 px-[12px] rounded-md border border-gray-300 bg-white text-[12px] font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1.5',
+            ghost:     'h-9 px-[12px] rounded-md text-[12px] font-medium text-gray-500 hover:text-rose-600 hover:bg-white inline-flex items-center gap-1.5'
+        };
+
+        const actionsHtml = opts.actions.map(a => `
+            <button type="button" id="${esc(a.id)}" class="${btnKind[a.kind] || btnKind.secondary}">
+                ${a.icon ? `<i data-lucide="${esc(a.icon)}" class="w-4 h-4"></i>` : ''}${esc(a.text)}
+            </button>`).join('');
+
+        const modal = $('<div>', { id: opts.id, class: 'fixed inset-0 z-[1050] bg-black/40 flex items-center justify-center p-[12px]' });
+
+        modal.html(`
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+                <div class="flex items-start justify-between gap-3 px-[20px] py-[16px] border-b border-gray-200">
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                            <i data-lucide="clipboard-check" class="w-5 h-5 text-blue-600"></i>${esc(opts.title)}${opts.badge}
+                        </h2>
+                        <p class="text-[11px] text-gray-500 mt-0.5">${esc(opts.subtitle)}</p>
+                    </div>
+                    <button type="button" data-count-close class="p-1 text-gray-500 hover:text-gray-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 px-[20px] py-[10px] border-b border-gray-200">
+                    <div id="${opts.id}Tabs" class="min-w-0 max-w-full"></div>
+                    <label class="inline-flex items-center gap-2 text-[11px] ${opts.blind.disabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 cursor-pointer'} select-none">
+                        <input id="${opts.id}Blind" type="checkbox" class="w-3.5 h-3.5 accent-blue-600" ${opts.blind.checked ? 'checked' : ''} ${opts.blind.disabled ? 'disabled' : ''}>
+                        Conteo ciego <span class="text-gray-400">(oculta lo que dice el sistema)</span>
+                    </label>
+                </div>
+
+                <div class="px-[20px] py-2 text-[10px] flex items-center gap-1.5 ${infoTone.cls}">
+                    <i data-lucide="${infoTone.icon}" class="w-3 h-3 flex-shrink-0"></i>${esc(opts.info.text)}
+                </div>
+
+                <div id="${opts.id}Table" class="flex-1 min-h-0 overflow-auto px-[20px]"></div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 px-[20px] py-[12px] border-t border-gray-200 bg-gray-50">
+                    <div id="${opts.id}Summary" class="flex flex-wrap items-center gap-4 text-[10px] text-gray-600"></div>
+                    <div class="flex items-center gap-2">${actionsHtml}</div>
+                </div>
+            </div>
+        `);
+
+        $(`#${opts.id}`).remove();
+        $('body').append(modal);
+        if (window.lucide) lucide.createIcons();
+
+        const close = () => {
+            $(document).off('keydown.countModal');
+            modal.remove();
+            opts.onClose();
+        };
+
+        modal.on('click', '[data-count-close]', close);
+        modal.on('change', `#${opts.id}Blind`, () => opts.onBlind());
+        opts.actions.forEach(a => modal.on('click', `#${a.id}`, () => a.onClick()));
+        $(document).on('keydown.countModal', (e) => { if (e.key === 'Escape' && !$('[id^="alertBox_"]').length) close(); });
+
+        const setSummary = (s) => {
+            const pendientes = s.total - s.counted;
+            const net        = Number(s.net || 0);
+            const money      = '$' + Math.abs(net).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            $(`#${opts.id}Summary`).html(`
+                <span><b class="text-gray-900">${s.counted}</b> de ${s.total} contados</span>
+                <span class="${pendientes > 0 ? 'text-gray-500' : 'text-emerald-700'}">${pendientes} pendientes</span>
+                ${s.blind ? '<span class="text-gray-400">Diferencias ocultas (conteo ciego)</span>' : `
+                <span><b class="text-gray-900">${s.differences}</b> con diferencia</span>
+                <span>Ajuste neto: <b class="${net < 0 ? 'text-rose-600' : 'text-sky-700'}">${net < 0 ? '-' : '+'}${money}</b></span>`}
+            `);
+        };
+
+        return { el: modal, close, setSummary };
     }
 
     aiPredictionCard(options) {
@@ -1214,6 +1467,441 @@ class StockPrediction extends Templates {
             proyeccion:     r.proyeccion_stock || [],
             stockActual:    r.stock_actual || 0,
             stockMin:       r.stock_min || 0
+        });
+    }
+}
+
+// -- Conteo fisico --
+
+class StockCount extends Templates {
+
+    // -- Initial --
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'StockCount';
+        this.id           = null;
+        this.areaId       = '';
+        this.counts       = {};
+        this.sheet        = [];
+        this.perms        = {};
+        this.modal        = null;
+    }
+
+    // -- Interface --
+
+    async render(id = null) {
+        if (!id) {
+            const r = await useFetch({ url: apiStock, data: { opc: 'addConteo', branch_id: app.getFilters().branch_id } });
+            if (!r || r.status !== 200) {
+                this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo abrir el conteo' });
+                return;
+            }
+            id = r.id;
+        }
+
+        this.id     = id;
+        this.areaId = '';
+        this.counts = {};
+
+        const data = await this.getConteo();
+        if (!data) return;
+
+        this.modal = stockView.countModal({
+            id:       'mdlConteo',
+            title:    'Conteo físico',
+            subtitle: data.header.subtitle,
+            badge:    data.header.badge,
+            info:     data.header.info,
+            blind: {
+                checked:  data.perms.edit && data.header.is_blind === 1,
+                disabled: !data.perms.edit
+            },
+            actions:  this.jsonActions(data.perms),
+            onBlind:  () => this.toggleBlind(),
+            onClose:  () => this.onClose()
+        });
+
+        $('#mdlConteoTable').on('input', '[data-count]', (e) => this.onCountChange($(e.currentTarget)));
+
+        this.renderTabs(data.areas || []);
+        this.paintSheet(data);
+    }
+
+    // "Todas" llega con id vacio; en la pestana va como 'todas' para que su id del DOM no quede en blanco.
+    renderTabs(areas) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        this.tabLayout({
+            parent:          'mdlConteoTabs',
+            id:              `tabs${this.PROJECT_NAME}`,
+            type:            'short',
+            theme:           'light',
+            renderContainer: false,
+            json:            areas.map(a => ({
+                id:     a.id || 'todas',
+                tab:    `${esc(a.valor)} (${a.total})`,
+                active: a.id === this.areaId
+            })),
+            onChange: (tabId) => {
+                this.areaId = tabId === 'todas' ? '' : tabId;
+                this.lsConteo();
+            }
+        });
+    }
+
+    paintSheet(data) {
+        this.createCoffeeTable3({
+            parent:       'mdlConteoTable',
+            id:           `tb${this.PROJECT_NAME}`,
+            theme:        'light',
+            f_size:       11,
+            class:        'w-full table-fixed text-[11px]',
+            color_th:     'sticky top-0 z-10 bg-white border-b border-gray-200',
+            color_group:  'bg-gray-50 text-gray-600',
+            border_table: '',
+            border_row:   'border-b border-gray-100',
+            center:       [3, 5],
+            right:        [4, 6, 7],
+            emptyMessage: 'No hay productos en esta área',
+            emptyIcon:    'icon-cube',
+            data:         {
+                thead: data.thead || [],
+                row:   data.row   || []
+            }
+        });
+
+        // Anchos fijos: las columnas no se mueven al cambiar de area ni al capturar.
+        const widths = ['30%', '15%', '9%', '10%', '14%', '10%', '12%'];
+        $(`#tb${this.PROJECT_NAME} thead th`).each((i, th) => $(th).css('width', widths[i] || ''));
+
+        this.restoreCounts();
+        this.toggleBlind();
+    }
+
+    // -- CRUD --
+
+    async lsConteo() {
+        const data = await this.getConteo();
+        if (data) this.paintSheet(data);
+    }
+
+    async getConteo() {
+        const r = await useFetch({
+            url:  apiStock,
+            data: {
+                opc:     'getConteo',
+                id:      this.id,
+                area_id: this.areaId
+            }
+        });
+
+        if (!r || r.status !== 200) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cargar el conteo' });
+            return null;
+        }
+
+        this.sheet = r.sheet || [];
+        this.perms = r.perms || {};
+        return r;
+    }
+
+    async editConteo(silent = false) {
+        const r = await useFetch({
+            url:  apiStock,
+            data: {
+                opc:      'editConteo',
+                id:       this.id,
+                counts:   JSON.stringify(this.counts),
+                is_blind: $('#mdlConteoBlind').is(':checked') ? 1 : 0
+            }
+        });
+
+        if (!r || r.status !== 200) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el conteo' });
+            return false;
+        }
+
+        this.sheet.forEach(s => {
+            if (!Object.prototype.hasOwnProperty.call(this.counts, s.id)) return;
+            s.qty = this.counts[s.id] === '' ? null : Number(this.counts[s.id]);
+        });
+        this.counts = {};
+
+        if (!silent) this.alertBox({ type: 'success', title: r.message, timer: 1500 });
+        return true;
+    }
+
+    // Guarda lo capturado y aplica el ajuste: cada diferencia se suma al stock.
+    async statusConteo() {
+        const s       = this.summary();
+        const missing = s.total - s.counted;
+        const ok      = await this.confirm(
+            '¿Aplicar el ajuste?',
+            `Cada diferencia se suma al stock actual del almacén y el conteo ya no se podrá editar.${missing ? ` Quedan ${missing} productos sin contar: no se ajustarán.` : ''}`,
+            'Aplicar'
+        );
+        if (!ok || !(await this.editConteo(true))) return;
+
+        const r = await useFetch({
+            url:  apiStock,
+            data: {
+                opc:    'statusConteo',
+                id:     this.id,
+                action: 'aplicar'
+            }
+        });
+
+        if (!r || r.status !== 200) {
+            this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo aplicar el ajuste' });
+            return;
+        }
+
+        this.alertBox({ type: 'success', title: r.message, timer: 1800 });
+        this.afterChange(true);
+    }
+
+    cancelConteo() {
+        this.alertBox({
+            type:       'cancel',
+            title:      '¿Cancelar el conteo?',
+            detailHtml: 'Se descarta lo capturado. El stock no cambia.',
+            okLabel:    'Sí, cancelar',
+            onOk: async () => {
+                const r = await useFetch({ url: apiStock, data: { opc: 'cancelConteo', id: this.id } });
+                if (!r || r.status !== 200) {
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo cancelar el conteo' });
+                    return;
+                }
+                this.alertBox({ type: 'success', title: r.message, timer: 1500 });
+                this.afterChange(false);
+            }
+        });
+    }
+
+    jsonActions(perms) {
+        const actions = [];
+
+        if (perms.cancel) {
+            actions.push({
+                id:      'btnConteoCancelar',
+                text:    'Cancelar conteo',
+                kind:    'ghost',
+                onClick: () => this.cancelConteo()
+            });
+        }
+        if (perms.edit) {
+            actions.push({
+                id:      'btnConteoBorrador',
+                text:    'Guardar borrador',
+                kind:    'secondary',
+                onClick: () => this.editConteo()
+            });
+        }
+        if (perms.apply) {
+            actions.push({
+                id:      'btnConteoAplicar',
+                text:    'Aplicar ajuste',
+                icon:    'check',
+                kind:    'primary',
+                onClick: () => this.statusConteo()
+            });
+        }
+
+        return actions;
+    }
+
+    // -- Complements --
+
+    onClose() {
+        this.modal = null;
+        if (this.perms.edit && Object.keys(this.counts).length) this.editConteo();
+    }
+
+    onCountChange($input) {
+        this.counts[$input.data('count')] = $input.val();
+        this.paintDiff($input);
+        this.renderSummary();
+    }
+
+    // Lo capturado sin guardar gana sobre lo que trae la base.
+    restoreCounts() {
+        $(`#tb${this.PROJECT_NAME} [data-count]`).each((_, el) => {
+            const id = $(el).data('count');
+            if (Object.prototype.hasOwnProperty.call(this.counts, id)) $(el).val(this.counts[id]);
+            this.paintDiff($(el));
+        });
+    }
+
+    paintDiff($input) {
+        const id      = $input.data('count');
+        const $dif    = $(`#Diferencia_${id}`);
+        const $val    = $(`#Valor_${id}`);
+        const pending = $input.val() === '';
+        const tones   = 'text-rose-600 text-sky-700 text-emerald-600 text-gray-300 font-bold';
+
+        $dif.add($val).removeClass(tones);
+
+        if (pending) {
+            $dif.text('—').addClass('text-gray-300');
+            $val.text('—').addClass('text-gray-300');
+            return;
+        }
+
+        const dif   = Math.round((Number($input.val()) - Number($input.data('system'))) * 100) / 100;
+        const value = Math.abs(dif * Number($input.data('cost')));
+        const tone  = dif < 0 ? 'text-rose-600' : 'text-sky-700';
+
+        if (dif === 0) {
+            $dif.text('0').addClass('text-emerald-600');
+            $val.text('—').addClass('text-gray-300');
+            return;
+        }
+
+        $dif.text((dif > 0 ? '+' : '') + dif).addClass(`${tone} font-bold`);
+        $val.text(value ? (dif < 0 ? '-' : '+') + formatPrice(value) : '—').addClass(value ? tone : 'text-gray-300');
+    }
+
+    // Oculta los valores sin quitar las columnas, asi la hoja no se recorre.
+    toggleBlind() {
+        const blind = $('#mdlConteoBlind').is(':checked');
+        $(`#tb${this.PROJECT_NAME}`).find('td[data-col="4"], td[data-col="6"], td[data-col="7"]').toggleClass('invisible', blind);
+        this.renderSummary();
+    }
+
+    summary() {
+        let counted = 0, differences = 0, net = 0;
+
+        this.sheet.forEach(s => {
+            const dirty = Object.prototype.hasOwnProperty.call(this.counts, s.id);
+            const raw   = dirty ? this.counts[s.id] : s.qty;
+            if (raw === '' || raw === null || raw === undefined) return;
+
+            counted++;
+            const dif = Math.round((Number(raw) - s.system) * 100) / 100;
+            if (dif !== 0) {
+                differences++;
+                net += dif * s.cost;
+            }
+        });
+
+        return {
+            total:       this.sheet.length,
+            counted:     counted,
+            differences: differences,
+            net:         net,
+            blind:       $('#mdlConteoBlind').is(':checked')
+        };
+    }
+
+    renderSummary() {
+        if (this.modal) this.modal.setSummary(this.summary());
+    }
+
+    // Cierra sin autoguardar y, si aplica, vuelve a abrir para ver el nuevo estado.
+    afterChange(reopen) {
+        this.counts = {};
+        if (this.modal) this.modal.close();
+
+        stock.lsStock();
+        stock.lsKpis();
+        if (app.ajustesReady) ajustes.lsAjustes();
+
+        if (reopen) this.render(this.id);
+    }
+
+    confirm(title, detail, okLabel) {
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:       'confirm',
+                title:      title,
+                detailHtml: detail,
+                okLabel:    okLabel,
+                onOk:       () => resolve(true),
+                onCancel:   () => resolve(false)
+            });
+        });
+    }
+}
+
+// -- Ajustes --
+
+class Ajustes extends Templates {
+
+    // -- Initial --
+
+    constructor(link, divModule) {
+        super(link, divModule);
+        this.PROJECT_NAME = 'Ajustes';
+    }
+
+    // -- Interface --
+
+    render() {
+        this.filterBar();
+        this.lsAjustes();
+    }
+
+    filterBar() {
+        this.createfilterBar({
+            parent:     'filterBarAjustes',
+            id:         `filterForm${this.PROJECT_NAME}`,
+            coffeesoft: true,
+            theme:      'light',
+            data: [
+                {
+                    opc:      'select',
+                    id:       'fEstadoAjuste',
+                    lbl:      'Estado:',
+                    class:    'col-12 col-md-4 col-lg-3',
+                    onchange: 'ajustes.lsAjustes()',
+                    value:    '',
+                    required: false,
+                    data:     app.dataInit.estadosAjuste
+                },
+                {
+                    opc:       'button',
+                    id:        'btnConteoAjustes',
+                    text:      'Conteo físico',
+                    icon:      'icon-clipboard',
+                    className: 'w-100',
+                    class:     'col-12 col-md-4 col-lg-2',
+                    color_btn: 'primary',
+                    onClick:   () => stockCount.render()
+                }
+            ]
+        });
+    }
+
+    // -- CRUD --
+
+    lsAjustes() {
+        $('#containerAjustes').off('draw.dt.lucide').on('draw.dt.lucide', () => {
+            if (window.lucide) lucide.createIcons();
+        });
+
+        this.createTable({
+            parent:      'containerAjustes',
+            idFilterBar: 'filterBarAjustes',
+            coffeesoft:  true,
+            conf:       { datatable: true, pag: 15 },
+            data: {
+                opc:       'lsAjustes',
+                branch_id: app.getFilters().branch_id,
+                status:    $('#fEstadoAjuste').val() || ''
+            },
+            attr: {
+                id:           `tb${this.PROJECT_NAME}`,
+                theme:        'light',
+                striped:      true,
+                f_size:       12,
+                center:       [2, 4, 5, 6],
+                right:        [7],
+                emptyMessage: 'Aún no hay conteos registrados',
+                emptyIcon:    'icon-clipboard'
+            }
         });
     }
 }

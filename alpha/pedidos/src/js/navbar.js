@@ -83,18 +83,18 @@ class Navbar {
             className = 'icon-crown text-[14px] text-yellow-400';
         }
 
-        // Sin foto, el avatar va en el color del rol (rolColor() en _Utileria.php).
+        // Sin foto, el avatar va en el color del rol (rolColor() en _Utileria.php)
+        // con el icono de usuario de inventory (lucide "user").
         const hasPhoto = this.settings.imgPerfil
             && this.settings.imgPerfil.trim() !== ''
             && !/df-user\.png$/.test(this.settings.imgPerfil);
-        const avatarBg = `bg-${this.settings.rolColor || 'gray'}-600`;
         const navbarAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-base\\'></i></div>'" />`
-            : `<div class="w-8 h-8 rounded-full ${avatarBg} flex items-center justify-center"><i class="icon-user-7 text-white text-base"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-8 h-8 rounded-full object-cover" onerror="navbar.onAvatarError(this)" />`
+            : this.avatarFallbackHtml('sm');
 
         const dropdownAvatar = hasPhoto
-            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="this.outerHTML='<div class=\\'w-20 h-20 rounded-full border-2 border-white shadow-lg ${avatarBg} flex items-center justify-center\\'><i class=\\'icon-user-7 text-white text-4xl\\'></i></div>'" />`
-            : `<div class="w-20 h-20 rounded-full border-2 border-white shadow-lg ${avatarBg} flex items-center justify-center"><i class="icon-user-7 text-white text-4xl"></i></div>`;
+            ? `<img src="${this.settings.imgPerfil}" alt="Usuario" class="w-20 h-20 rounded-full border-2 border-white shadow-lg object-cover" onerror="navbar.onAvatarError(this, 'lg')" />`
+            : this.avatarFallbackHtml('lg');
 
         // showSubsidiary:false -> se omite todo el control de sucursal (pill, select
         // oculto y toast). Lo usan las paginas que ya traen su propio selector, como
@@ -534,6 +534,24 @@ class Navbar {
 
     toggleUserMenu() {
         $("#userMenuDropdown").toggleClass("opacity-0 scale-95 invisible");
+    }
+
+    // Avatar sin foto: circulo en el color del rol con el icono "user" de lucide,
+    // el mismo que pinta inventory.
+    avatarFallbackHtml(size = 'sm') {
+        const big  = size === 'lg';
+        const box  = big ? 'w-20 h-20 border-2 border-white shadow-lg' : 'w-8 h-8';
+        const icon = big ? 'w-10 h-10' : 'w-[18px] h-[18px]';
+        const bg   = `bg-${this.settings.rolColor || 'gray'}-600`;
+
+        return `<div class="${box} rounded-full ${bg} flex items-center justify-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${icon}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>`;
+    }
+
+    // Si la foto de perfil no carga, se cambia por el avatar sin foto.
+    onAvatarError(img, size = 'sm') {
+        img.outerHTML = this.avatarFallbackHtml(size);
     }
 
     // Recarga "dura" equivalente a Ctrl+F5: limpia el Cache Storage (service worker,

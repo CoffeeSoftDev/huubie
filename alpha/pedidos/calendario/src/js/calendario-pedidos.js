@@ -97,7 +97,7 @@ class App extends Templates {
                             <i class="icon-filter"></i>
                             <span class="md:hidden lg:inline xl:hidden min-[1700px]:inline">Filtrar Estados</span>
                             <span class="hidden md:inline lg:hidden xl:inline min-[1700px]:hidden">Estados</span>
-                            <span id="statusCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">${this.isProduction ? 3 : 4}</span>
+                            <span id="statusCount" class="bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full">${this.isProduction ? 2 : 4}</span>
                             <i class="icon-down-open text-xs ml-auto"></i>
                         </button>
 
@@ -122,11 +122,12 @@ class App extends Templates {
                                     <i class="icon-blank text-lg" style="color: #0E9E6E"></i>
                                     <span class="text-sm text-white">Pagado</span>
                                 </label>
+                                ${this.isProduction ? '' : `
                                 <label class="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded cursor-pointer transition-colors">
                                     <input type="checkbox" value="4" class="status-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
                                     <i class="icon-blank text-lg" style="color: #E60001"></i>
                                     <span class="text-sm text-white">Cancelado</span>
-                                </label>
+                                </label>`}
                             </div>
                             <div class="p-2 border-t border-gray-700 flex gap-2">
                                 <button id="selectAllBtn" class="flex-1 text-xs px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 border border-green-500/30 rounded transition-colors">
@@ -201,9 +202,10 @@ class App extends Templates {
                         <p class="flex items-center">
                             <i class="icon-blank text-lg" style="color: #FE6F00"></i> Pendiente
                         </p>
+                        ${this.isProduction ? '' : `
                         <p class="flex items-center">
                             <i class="icon-blank text-lg" style="color: #E60001"></i> Cancelado
-                        </p>
+                        </p>`}
                         ${this.isProduction ? `
                         <span class="w-px h-5 bg-gray-600 mx-1"></span>
                         <p class="flex items-center gap-1.5">
@@ -405,8 +407,11 @@ class App extends Templates {
             }));
         }
 
+        // Los filtros vuelven a crear el calendario: arranca en el mes y la vista que
+        // el usuario estaba viendo (los guarda datesSet), no en el mes actual.
         this.calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
+            initialView: this.currentView || 'dayGridMonth',
+            initialDate: this.currentDate || new Date(),
             locale: 'es',
             headerToolbar: {
                 left: 'prev,next today',
@@ -437,7 +442,11 @@ class App extends Templates {
                 if (info.jsEvent.target.closest('[data-produce]')) return this.toggleProduced(info.event);
                 this.showOrder(info.event.id);
             },
-            datesSet: () => this.customizeCalendarAppearance()
+            datesSet: (info) => {
+                this.currentView = info.view.type;
+                this.currentDate = info.view.calendar.getDate();
+                this.customizeCalendarAppearance();
+            }
         });
 
         this.calendar.render();
@@ -494,23 +503,27 @@ class App extends Templates {
         // Si es para producir, usar emoji de pastel, sino usar el emoji según tipo de entrega
         let emoji = paraProducir ? "🎂" : (envio_domicilio ? "🚚" : "🏠");
 
+        // Tablet (md a lg) usa una tarjeta mas compacta: menos padding y letra mas chica.
+        // Padding en valores arbitrarios: bootstrap trae .px-N con !important y anula
+        // las variantes md:/xl: de Tailwind.
+
         // Contenedor principal
         let containerEl = document.createElement("div");
-        containerEl.classList.add("px-2", "py-1.5", "w-full", "relative");
+        containerEl.classList.add("px-[8px]", "md:px-[4px]", "xl:px-[8px]", "py-[6px]", "md:py-[3px]", "xl:py-[6px]", "w-full", "relative");
 
         // Folio
         let folioEl = document.createElement("div");
-        folioEl.classList.add("absolute", "top-1", "right-1", "bg-black/25", "text-white", "text-[10px]", "font-semibold", "px-1", "py-px", "rounded");
+        folioEl.classList.add("absolute", "top-1", "right-1", "bg-black/25", "text-white", "text-[10px]", "md:text-[9px]", "xl:text-[10px]", "font-semibold", "px-1", "py-px", "rounded");
         folioEl.textContent = arg.event.extendedProps.folio || '';
 
         // Nombre del cliente
         let titleEl = document.createElement("div");
-        titleEl.classList.add("font-semibold", "text-[13px]", "leading-tight", "mb-0.5", "truncate", "pr-12");
+        titleEl.classList.add("font-semibold", "text-[13px]", "md:text-[11px]", "xl:text-[13px]", "leading-tight", "mb-0.5", "truncate", "pr-12");
         titleEl.innerHTML = arg.event.title;
 
         // Tipo de entrega
         let deliveryEl = document.createElement("div");
-        deliveryEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "mb-0.5", "opacity-80");
+        deliveryEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "md:text-[10px]", "xl:text-[11px]", "mb-0.5", "opacity-80");
         deliveryEl.innerHTML = `
         <span>${emoji}</span>
         <span>${arg.event.extendedProps.type}</span>
@@ -518,7 +531,7 @@ class App extends Templates {
 
         // Hora
         let timeEl = document.createElement("div");
-        timeEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "opacity-80");
+        timeEl.classList.add("flex", "items-center", "gap-1", "text-[11px]", "md:text-[10px]", "xl:text-[11px]", "opacity-80");
         timeEl.innerHTML = `
         <i class='icon-clock'></i>
         <span>${arg.event.extendedProps.hour}</span>
@@ -537,7 +550,7 @@ class App extends Templates {
         }
 
         badgeEl.innerHTML = `
-        <span class="${badgeClass} px-1.5 py-px rounded-full text-[10px] leading-4 font-medium inline-block">
+        <span class="${badgeClass} px-1.5 py-px rounded-full text-[10px] md:text-[9px] xl:text-[10px] leading-4 md:leading-3 xl:leading-4 font-medium inline-block">
             ${arg.event.extendedProps.delivery}
         </span>
     `;
@@ -566,7 +579,7 @@ class App extends Templates {
         if (produced) {
             Array.from(containerEl.children).forEach(el => el.style.opacity = '0.6');
         }
-        badgeEl.classList.add('pr-7');
+        badgeEl.classList.add('pr-7', 'md:pr-6', 'xl:pr-7');
 
         const checkEl = document.createElement('button');
         checkEl.type = 'button';
@@ -575,8 +588,8 @@ class App extends Templates {
             ? `Producido el ${event.extendedProps.producedAt}. Da clic para desmarcarlo.`
             : 'Da clic aquí cuando termines de producir este pedido.';
         checkEl.className = produced
-            ? 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 shadow'
-            : 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center border-[2.5px] border-gray-300 bg-black/25 text-transparent hover:text-gray-300/70 transition-colors';
+            ? 'absolute right-1 bottom-1 w-6 h-6 md:w-5 md:h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center bg-gray-300 shadow'
+            : 'absolute right-1 bottom-1 w-6 h-6 md:w-5 md:h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center border-[2.5px] border-gray-300 bg-black/25 text-transparent hover:text-gray-300/70 transition-colors';
         if (produced) checkEl.style.color = event.extendedProps.baseColor;
 
         const iconEl = document.createElement('i');
@@ -589,11 +602,11 @@ class App extends Templates {
     // Administradores y supervisores: solo el ok lleno, y solo si ya se produjo. Es
     // un span, no un boton: tocarlo abre el pedido como el resto de la tarjeta.
     addProducedMark(containerEl, badgeEl, event) {
-        badgeEl.classList.add('pr-7');
+        badgeEl.classList.add('pr-7', 'md:pr-6', 'xl:pr-7');
 
         const markEl = document.createElement('span');
         markEl.title = `Producción ya elaboró este pedido (${event.extendedProps.producedAt}).`;
-        markEl.className = 'absolute right-1 bottom-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 shadow';
+        markEl.className = 'absolute right-1 bottom-1 w-6 h-6 md:w-5 md:h-5 xl:w-6 xl:h-6 rounded-full flex items-center justify-center bg-gray-300 shadow';
         markEl.style.color = event.backgroundColor;
 
         const iconEl = document.createElement('i');
@@ -1053,6 +1066,14 @@ class App extends Templates {
                     </div>
 
                     <div class="flex items-center gap-2">
+                        ${lucideIcon('user-pen', 'w-4 h-4 text-gray-400 shrink-0')}
+                        <span class="text-gray-400 text-xs">Creado por:</span>
+                        <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.created_by_name || 'Sin registro'}</span>
+                    </div>
+
+                    ${this.seesProduced ? this.producedByRow(orderData) : ''}
+
+                    <div class="flex items-center gap-2">
                         ${lucideIcon('calendar', 'w-4 h-4 text-gray-400 shrink-0')}
                         <span class="text-gray-400 text-xs">Fecha de entrega:</span>
                         <span class="text-white font-semibold text-sm ml-auto text-right">${orderData.formatted_date_order || orderData.date_order || 'N/A'}</span>
@@ -1072,6 +1093,23 @@ class App extends Templates {
                 </div>
             </div>
         `;
+    }
+
+    // Quien palomeo el pedido en Produccion y cuando. Solo lo consultan admin y
+    // supervisores (seesProduced). "Sin registro" = la palomita existe pero el
+    // usuario ya no esta en usr_users.
+    producedByRow(orderData) {
+        const value = orderData.produced_at
+            ? `<span class="block text-white font-semibold text-sm">${orderData.produced_by_name || 'Sin registro'}</span>
+               <span class="block text-gray-400 text-[11px]">${orderData.produced_at}</span>`
+            : `<span class="block text-gray-400 font-semibold text-sm">Sin producir</span>`;
+
+        return `
+            <div class="flex items-center gap-2">
+                ${lucideIcon('cake', 'w-4 h-4 text-gray-400 shrink-0')}
+                <span class="text-gray-400 text-xs">Producido por:</span>
+                <span class="ml-auto text-right leading-tight">${value}</span>
+            </div>`;
     }
 
     // border-1 no existe en Tailwind (la utilidad es `border`), por eso las etiquetas

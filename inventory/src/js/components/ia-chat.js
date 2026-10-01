@@ -1,7 +1,259 @@
 // Chat flotante de CoffeeIA. El aspecto copia el chat coffeeIA de erp-pro
-// (pro/auth/src/js/nav-coffeeia.js): panel de 380×520, cabecera con la marca,
-// portada de bienvenida, burbujas con hora y copiar, y caja con el "+".
+// (pro/auth/src/js/nav-coffeeia.js): panel de 380×520, cabecera con la cara de
+// CoffeeBot, portada con el muñeco vivo y la caja de escribir en el centro,
+// burbujas con hora y copiar, y caja con el "+".
 // El azul de erp-pro va como blue-* para seguir el acento del tema.
+
+// Los números del muñeco de erp-pro (AV_* en nav-coffeeia.js).
+const IA_BOT = {
+    ojoW:    0.186,
+    ojoH:    0.412,
+    split:   15.46,
+    pose:    { yaw: 0, pitch: 0, roll: 0 },
+    alcance: 21,     // grados de giro por unidad de mirada; se dobla al seguir el cursor
+    suelta:  2800,   // ms con el cursor quieto antes de volver a mirar al frente
+    trans:   0.55,   // s que tarda una cara en dar paso a otra
+    ocio:    300,    // s sin cursor ni teclas para dormirse
+    pausa:   600,    // s de calma entre cara y cara del guion
+    guion:   [{ gesto: 'curioso', dur: 1.8 }, { gesto: 'guino', dur: 1.0 }, { gesto: 'sorpresa', dur: 1.2 }],
+    encaje:  'translate(200 180) scale(1.3723) translate(-160 -160)',
+    clases:  { cuerpo: 'cb-cabeza', ojo: 'cb-ojo', punto: 'cb-ojo', grupoOjos: 'fx-ojos', grupoAcc: 'fx-acc' },
+    gestos: {
+        calma:    {},
+        curioso:  { w: 0.21, h: 0.46, gaze: { yaw: 40, pitch: 16, roll: -20 } },
+        sorpresa: { w: 0.34, h: 0.44, split: 19, escala: 1.05 },
+        guino:    { split: 16.25, ojo2: { w: 0.42, h: 0.085 }, gaze: { yaw: -5.37, pitch: 4.55, roll: 6.7 } },
+        sueno:    { w: 0.30, h: 0.06, zzz: true, respira: 0.6, gaze: { yaw: 12, pitch: -18, roll: -8 } }
+    }
+};
+
+// CoffeeBot en reposo (CB_HEAD y CB_IDLE de nav-coffeeia.js): la cara de la cabecera.
+const IA_COFFEEBOT = {
+    head:   'M228.541 114.228C228.541 130.133 225.184 145.994 218.738 160.534C212.674 174.217 203.904 186.669 193.065 196.988C155.933 232.34 99.497 238.596 55.5255 212.24C45.097 205.99 35.6851 198.072 27.7451 188.866C19.1926 178.953 12.3686 167.569 7.65781 155.351C2.60712 142.264 0 128.257 0 114.228C0 98.3219 3.35751 82.4611 9.80315 67.9215C15.8672 54.2382 24.6377 41.7862 35.4767 31.4668C72.6081 -3.88483 129.044 -10.1413 173.016 16.2153C183.444 22.4653 192.856 30.3829 200.796 39.5896C209.349 49.5018 216.173 60.8859 220.883 73.1037C225.934 86.1906 228.541 100.198 228.541 114.228Z',
+    encaje: 'translate(200 180) scale(1.1289) translate(-114.27 -114.23)',
+    cabeza: 'translate(114.27 114.23) rotate(1.64) translate(-114.27 -114.23)',
+    cx:     114.27,
+    cy:     114.23,
+    eyes:   [{"pts":[[-6.26,-20.75],[-3.91,-20.54],[-1.64,-19.92],[0.49,-18.9],[2.35,-17.45],[3.85,-15.64],[5.06,-13.61],[6.11,-11.5],[7.14,-9.37],[8.16,-7.24],[9.17,-5.11],[10.17,-2.97],[11.14,-0.82],[12.09,1.34],[13.01,3.52],[13.9,5.7],[14.75,7.9],[15.37,10.18],[15.48,12.53],[15.02,14.84],[13.97,16.95],[12.42,18.72],[10.48,20.05],[8.28,20.89],[5.94,21.2],[3.6,20.98],[1.36,20.26],[-0.69,19.09],[-2.45,17.51],[-3.84,15.61],[-4.93,13.52],[-5.85,11.35],[-6.75,9.16],[-7.68,6.99],[-8.62,4.83],[-9.59,2.67],[-10.57,0.53],[-11.57,-1.61],[-12.59,-3.74],[-13.69,-5.83],[-14.75,-7.94],[-15.59,-10.14],[-15.9,-12.47],[-15.52,-14.8],[-14.47,-16.9],[-12.87,-18.63],[-10.86,-19.84],[-8.61,-20.54]],"pos":[36.05,-43.69],"s":1.0},{"pts":[[-9.08,-20.13],[-6.97,-19.62],[-4.99,-18.73],[-3.17,-17.56],[-1.49,-16.18],[0.02,-14.62],[1.34,-12.9],[2.51,-11.07],[3.57,-9.18],[4.58,-7.25],[5.57,-5.32],[6.54,-3.37],[7.47,-1.41],[8.36,0.57],[9.23,2.56],[10.05,4.57],[10.84,6.59],[11.58,8.63],[12.28,10.69],[12.78,12.8],[12.94,14.97],[12.71,17.12],[11.89,19.12],[10.26,20.51],[8.14,20.87],[6.02,20.44],[4.07,19.48],[2.34,18.17],[0.84,16.61],[-0.41,14.84],[-1.44,12.92],[-2.29,10.93],[-3.06,8.9],[-3.82,6.86],[-4.62,4.84],[-5.44,2.83],[-6.3,0.84],[-7.2,-1.14],[-8.12,-3.11],[-9.08,-5.06],[-10.07,-6.99],[-11.1,-8.9],[-12.16,-10.8],[-13.15,-12.73],[-13.83,-14.79],[-13.93,-16.95],[-13.07,-18.91],[-11.24,-20.02]],"pos":[85.87,-53.88],"s":1.0}]
+};
+
+// -- Muñeco vivo --
+
+// El motor de la portada de erp-pro (avAnimar): el blob respira y parpadea (eso lo
+// pone forja-blob), sigue al cursor con la mirada, pone cara cuando se la piden y se
+// duerme sin actividad. Cada cuadro repinta solo el encaje.
+class IaBot {
+
+    constructor(fig) {
+        const G = IA_BOT;
+
+        fig.innerHTML = `<svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true"><g transform="${G.encaje}"></g></svg>`;
+
+        this.fig     = fig;
+        this.encaje  = fig.querySelector('g');
+        this.t       = 0;
+        this.raf     = 0;
+        this.k       = 1;        // lo andado de la transición entre dos caras, 0-1
+        this.resta   = 0;        // s que le quedan a la cara antes de volver a calma
+        this.ocio    = 0;
+        this.turno   = 0;
+        this.espera  = G.pausa;
+        this.visto   = '';
+        this.de      = this.pose('calma');
+        this.a       = this.de;
+        this.nombre  = 'calma';
+        this.mira    = { x: 0, y: 0 };
+        this.destino = { x: 0, y: 0 };
+        this.fijo    = 0;        // cuánto te está siguiendo, 0-1
+        this.pedido  = 0;
+        this.ultMira = 0;
+        this.looking = true;
+        this.still   = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+        this.loop    = this.loop.bind(this);
+        this.onMove  = this.onMove.bind(this);
+        this.alive   = this.alive.bind(this);
+        this.release = this.release.bind(this);
+
+        if (this.still) {
+            this.paint(this.de, 0, true);
+            return;
+        }
+
+        window.addEventListener('pointermove', this.onMove, { passive: true });
+        window.addEventListener('keydown', this.alive, { passive: true });
+        document.addEventListener('mouseleave', this.release);
+        window.addEventListener('blur', this.release);
+
+        this.frame(0);
+        this.resume();
+    }
+
+    // -- Public API --
+
+    resume() {
+        if (this.raf || this.still) return;
+        this.last = performance.now();
+        this.raf  = requestAnimationFrame(this.loop);
+    }
+
+    pause() {
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+    }
+
+    stop() {
+        this.pause();
+        window.removeEventListener('pointermove', this.onMove);
+        window.removeEventListener('keydown', this.alive);
+        document.removeEventListener('mouseleave', this.release);
+        window.removeEventListener('blur', this.release);
+    }
+
+    // Una cara pedida cuenta como el cambio del guion: la calma vuelve a contar entera.
+    gesture(nombre, dur) {
+        if (this.still || !IA_BOT.gestos[nombre]) return;
+        this.alive();
+        this.toGesture(nombre, dur);
+        this.visto  = nombre;
+        this.espera = IA_BOT.pausa;
+        this.resume();
+    }
+
+    // Mientras se escribe mira al frente: una cara girando junto al texto distrae.
+    look(on) {
+        this.looking = !!on;
+        if (!this.looking) this.release();
+    }
+
+    // -- Motor --
+
+    loop(now) {
+        const dt = Math.min((now - this.last) / 1000, 0.05);
+        this.last = now;
+        this.t   += dt;
+        this.frame(dt);
+        this.raf = requestAnimationFrame(this.loop);
+    }
+
+    frame(dt) {
+        const G = IA_BOT;
+
+        if (dt > 0) {
+            if (this.k < 1) {
+                this.k = Math.min(1, this.k + dt / G.trans);
+            } else if (this.resta > 0) {
+                this.resta -= dt;
+                if (this.resta <= 0) this.toGesture('calma', 0);
+            } else if (this.nombre === 'calma') {
+                this.espera -= dt;
+                if (this.espera <= 0) {
+                    let paso = G.guion[this.turno % G.guion.length];
+                    if (paso.gesto === this.visto) paso = G.guion[++this.turno % G.guion.length];
+                    this.turno++;
+                    this.espera = G.pausa;
+                    this.visto  = paso.gesto;
+                    this.toGesture(paso.gesto, paso.dur);
+                }
+            }
+
+            this.ocio += dt;
+            if (this.ocio >= G.ocio && this.nombre === 'calma') this.toGesture('sueno', 0);
+        }
+
+        if (this.pedido && performance.now() - this.ultMira > G.suelta) this.release();
+
+        // Suavizados de la forja (por cuadro a 60 fps), sin depender de los FPS.
+        this.fijo += (this.pedido - this.fijo) * (dt > 0 ? 1 - Math.pow(1 - 0.055, dt * 60) : 1);
+
+        const ks = dt > 0 ? 1 - Math.pow(1 - (0.07 + 0.10 * this.fijo), dt * 60) : 1;
+        this.mira.x += (this.destino.x - this.mira.x) * ks;
+        this.mira.y += (this.destino.y - this.mira.y) * ks;
+
+        this.paint(this.blend(this.de, this.a, this.smooth(this.k)), this.t, false);
+    }
+
+    paint(g, t, quieto) {
+        this.encaje.innerHTML = window.Bloub.cuadro(
+            { forma: 'gota', gesto: g, accesorio: 'ninguno', anim: 'ninguna', color: '#FFFFFF' },
+            t, this.mira,
+            { margen: 30, clases: IA_BOT.clases, quieto: quieto, fijo: this.fijo, alcance: IA_BOT.alcance * (1 + this.fijo) }
+        );
+    }
+
+    // Parte de lo que se ve ahora (la mezcla en curso): dos avisos pegados no dan tirón.
+    toGesture(nombre, dur) {
+        this.de     = this.blend(this.de, this.a, this.smooth(this.k));
+        this.a      = this.pose(nombre);
+        this.nombre = nombre;
+        this.k      = 0;
+        this.resta  = dur > 0 ? dur : 0;
+    }
+
+    alive() {
+        this.ocio = 0;
+        if (this.nombre === 'sueno') this.toGesture('calma', 0);
+    }
+
+    // La mirada se mide desde el centro del muñeco contra la ventana: el giro
+    // completo se agota en los bordes de la pantalla.
+    onMove(e) {
+        this.alive();
+        if (!this.looking) return;
+
+        const r = this.fig.getBoundingClientRect();
+        if (!r.width) return;
+
+        this.destino.x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (window.innerWidth * 0.38)));
+        this.destino.y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (window.innerHeight * 0.40)));
+        this.pedido    = 1;
+        this.ultMira   = performance.now();
+    }
+
+    release() {
+        this.pedido    = 0;
+        this.destino.x = 0;
+        this.destino.y = 0;
+    }
+
+    // -- Helpers --
+
+    pose(nombre) {
+        const g = IA_BOT.gestos[nombre] || IA_BOT.gestos.calma;
+        return this.blend(g, g, 0);
+    }
+
+    // Interpola los números de dos caras; lo que no es número cambia a la mitad.
+    blend(a, b, k) {
+        const G   = IA_BOT;
+        const val = (g, campo, def) => g[campo] == null ? def : g[campo];
+        const mix = (x, y) => x + (y - x) * k;
+        const ga  = a.gaze || G.pose;
+        const gb  = b.gaze || G.pose;
+        const wa  = val(a, 'w', G.ojoW), wb = val(b, 'w', G.ojoW);
+        const ha  = val(a, 'h', G.ojoH), hb = val(b, 'h', G.ojoH);
+        const oa  = a.ojo2 || { w: wa, h: ha };
+        const ob  = b.ojo2 || { w: wb, h: hb };
+
+        return {
+            w:       mix(wa, wb),
+            h:       mix(ha, hb),
+            ojo2:    { w: mix(oa.w, ob.w), h: mix(oa.h, ob.h) },
+            split:   mix(val(a, 'split', G.split), val(b, 'split', G.split)),
+            escala:  mix(val(a, 'escala', 1), val(b, 'escala', 1)),
+            respira: mix(val(a, 'respira', 1), val(b, 'respira', 1)),
+            gaze:    { yaw: mix(ga.yaw, gb.yaw), pitch: mix(ga.pitch, gb.pitch), roll: mix(ga.roll, gb.roll) },
+            zzz:     k < 0.5 ? !!a.zzz : !!b.zzz,
+            arco:    k < 0.5 ? !!a.arco : !!b.arco
+        };
+    }
+
+    smooth(k) {
+        return k * k * (3 - 2 * k);
+    }
+}
+
+// -- Chat --
 
 class IaChat {
 
@@ -18,6 +270,7 @@ class IaChat {
             suggestions: [],
             questions:   ['¿Por dónde empezamos?', '¿En qué te ayudo hoy?', '¿Qué buscamos hoy?', '¿Con qué arrancamos?', '¿Qué hacemos primero?'],
             labels: {
+                placeholderHola: 'Escríbelo aquí…',
                 more:       'Más opciones',
                 attach:     'Adjuntar archivos',
                 attachHint: 'Excel, CSV o una imagen',
@@ -29,6 +282,8 @@ class IaChat {
                 drop:       'Suéltalo aquí',
                 notice:     'puede equivocarse. Comprueba los datos importantes antes de decidir con ellos.',
                 reading:    'Leyendo…',
+                readingImage: 'Transcribiendo la foto…',
+                readingSheet: 'Leyendo el Excel…',
                 thinking:   'Pensando',
                 applying:   'Aplicando…',
                 preview:    'Vista previa',
@@ -65,7 +320,9 @@ class IaChat {
         this.expanded  = false;
         this.ticker    = null;
         this.dragDepth = 0;
+        this.bot       = null;
 
+        this.ensureStyles();
         this.mount();
         this.bindEvents();
         this.welcome();
@@ -73,15 +330,24 @@ class IaChat {
 
     // -- Public API --
 
+    // Con la portada a la vista el muñeco levanta la vista, como en erp-pro al abrir.
     open() {
         $(`#${this.opts.id}`).removeClass('hidden').addClass('flex');
+        this.autosize();
+        this.keepInside();
         this.scrollBottom();
         $(`#${this.opts.id}_input`).trigger('focus');
+        if (this.bot) {
+            this.bot.resume();
+            this.bot.gesture('curioso', 3);
+        }
     }
 
+    // Cerrado no se ve: el motor del muñeco se pausa.
     close() {
         this.menu(false);
         $(`#${this.opts.id}`).removeClass('flex').addClass('hidden');
+        if (this.bot) this.bot.pause();
     }
 
     toggle() {
@@ -103,6 +369,7 @@ class IaChat {
         this.previews = {};
         this.dirty    = false;
 
+        this.leavePortada();
         $(`#${this.opts.id}_msgs`).empty();
         $(`#${this.opts.id}_input`).val('');
         this.autosize();
@@ -125,9 +392,9 @@ class IaChat {
 
         parent.append(`
             <div id="${o.id}" class="hidden fixed bottom-4 right-4 z-[1040] w-[380px] max-w-[calc(100vw-16px)] h-[520px] max-h-[72vh] flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-[0_22px_55px_rgba(15,23,42,.20)] overflow-hidden transition-[width,height] duration-200">
-                <div class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0">
+                <div data-head class="flex items-center justify-between gap-2 px-[11px] py-[9px] border-b border-[#F1F5F9] flex-shrink-0 cursor-grab touch-none select-none">
                     <div class="flex items-center gap-[9px] min-w-0 flex-1">
-                        ${this.avatarBox('w-7 h-7 rounded-lg', 'w-4 h-4')}
+                        <span id="${o.id}_cara" class="iac-mini block w-10 h-10 -my-[6px] -ml-[4px] flex-shrink-0">${this.coffeeBot()}</span>
                         <div class="min-w-0 flex-1">
                             <div class="text-[13.5px] font-bold text-[#0F2C4C] truncate">${this.marca(o.title)}</div>
                             <div class="text-[10.5px] text-[#94A3B8] mt-px truncate">${this.esc(o.subtitle)}</div>
@@ -148,29 +415,31 @@ class IaChat {
 
                 <div id="${o.id}_msgs" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-[14px] flex flex-col gap-[11px] bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#E2E8F0] hover:[&::-webkit-scrollbar-thumb]:bg-[#CBD5E1]"></div>
 
-                <div class="relative border-t border-[#F1F5F9] bg-[#F8FAFC] px-3 py-[11px] flex-shrink-0">
-                    <div id="${o.id}_chips" class="hidden flex-wrap gap-[5px] mb-1.5 max-h-[135px] overflow-y-auto"></div>
-                    <div class="flex items-end gap-[7px] bg-white border border-[#CBD5E1] rounded-[11px] p-1 transition-shadow focus-within:border-[#7C3AED] focus-within:shadow-[0_0_0_3px_rgba(124,58,237,.13)]">
-                        <div class="relative flex-shrink-0">
-                            <button type="button" id="${o.id}_plus" title="${this.esc(l.more)}" aria-haspopup="true" aria-expanded="false" class="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#7C3AED] transition-colors">
-                                <i data-lucide="plus" class="w-[17px] h-[17px] transition-transform duration-150"></i>
-                            </button>
-                            <div id="${o.id}_menu" role="menu" class="hidden absolute left-0 bottom-[calc(100%+10px)] z-[46] min-w-[232px] p-1 bg-white border border-[#DBE2EA] rounded-[11px] shadow-[0_12px_28px_rgba(15,44,76,.16)]">
-                                <button type="button" id="${o.id}_attach" role="menuitem" class="group flex items-center gap-2.5 w-full px-[9px] py-[7px] rounded-lg text-left text-[#0F2C4C] hover:bg-[#F5F3FF]">
-                                    <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#F1F5F9] text-[#475569] group-hover:bg-[#EDE9FE] group-hover:text-[#7C3AED]">
-                                        <i data-lucide="paperclip" class="w-[15px] h-[15px]"></i>
-                                    </span>
-                                    <span class="min-w-0 flex flex-col leading-[1.3]">
-                                        <b class="text-[12px] font-bold">${this.esc(l.attach)}</b>
-                                        <span class="text-[10.5px] text-[#8B99AB] truncate max-w-[170px]">${this.esc(l.attachHint)}</span>
-                                    </span>
+                <div id="${o.id}_foot" class="relative border-t border-[#F1F5F9] bg-[#F8FAFC] px-3 py-[11px] flex-shrink-0">
+                    <div id="${o.id}_composer">
+                        <div id="${o.id}_chips" class="hidden flex-wrap gap-[5px] mb-1.5 max-h-[135px] overflow-y-auto"></div>
+                        <div class="iac-wrap flex items-end gap-[7px] bg-white border border-[#CBD5E1] rounded-[11px] p-1 transition-shadow focus-within:border-[#7C3AED] focus-within:shadow-[0_0_0_3px_rgba(124,58,237,.13)]">
+                            <div class="relative flex-shrink-0">
+                                <button type="button" id="${o.id}_plus" title="${this.esc(l.more)}" aria-haspopup="true" aria-expanded="false" class="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#7C3AED] transition-colors">
+                                    <i data-lucide="plus" class="w-[17px] h-[17px] transition-transform duration-150"></i>
                                 </button>
+                                <div id="${o.id}_menu" role="menu" class="hidden absolute left-0 bottom-[calc(100%+10px)] z-[46] min-w-[232px] p-1 bg-white border border-[#DBE2EA] rounded-[11px] shadow-[0_12px_28px_rgba(15,44,76,.16)]">
+                                    <button type="button" id="${o.id}_attach" role="menuitem" class="group flex items-center gap-2.5 w-full px-[9px] py-[7px] rounded-lg text-left text-[#0F2C4C] hover:bg-[#F5F3FF]">
+                                        <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#F1F5F9] text-[#475569] group-hover:bg-[#EDE9FE] group-hover:text-[#7C3AED]">
+                                            <i data-lucide="paperclip" class="w-[15px] h-[15px]"></i>
+                                        </span>
+                                        <span class="min-w-0 flex flex-col leading-[1.3]">
+                                            <b class="text-[12px] font-bold">${this.esc(l.attach)}</b>
+                                            <span class="text-[10.5px] text-[#8B99AB] truncate max-w-[170px]">${this.esc(l.attachHint)}</span>
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
+                            <textarea id="${o.id}_input" rows="1" placeholder="${this.esc(o.placeholder)}" class="iac-input flex-1 min-w-0 resize-none bg-transparent border-0 outline-none text-[12.5px] leading-[1.45] text-[#1E293B] placeholder:text-[#94A3B8] py-1.5 px-0.5 max-h-[132px]"></textarea>
+                            <button type="button" id="${o.id}_send" title="${this.esc(l.send)}" class="iac-send w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-white bg-gradient-to-br from-blue-800 to-blue-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-opacity">
+                                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                            </button>
                         </div>
-                        <textarea id="${o.id}_input" rows="1" placeholder="${this.esc(o.placeholder)}" class="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none text-[12.5px] leading-[1.45] text-[#1E293B] placeholder:text-[#94A3B8] py-1.5 px-0.5 max-h-[132px]"></textarea>
-                        <button type="button" id="${o.id}_send" title="${this.esc(l.send)}" class="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-white bg-gradient-to-br from-blue-800 to-blue-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 transition-opacity">
-                            <i data-lucide="arrow-up" class="w-4 h-4"></i>
-                        </button>
                     </div>
                     <input type="file" id="${o.id}_file" class="hidden" multiple accept="${this.esc(o.accept)}">
                 </div>
@@ -187,12 +456,17 @@ class IaChat {
         this.icons();
     }
 
-    // Portada: fecha, saludo, pregunta al azar y sugerencias. Se va con el primer mensaje.
+    // Portada: muñeco, fecha, saludo, pregunta al azar, la caja de escribir y las
+    // sugerencias. Se va con el primer mensaje.
     welcome() {
         const o      = this.opts;
         const hora   = new Date().getHours();
         const saludo = hora < 12 ? 'Buenos días' : (hora < 20 ? 'Buenas tardes' : 'Buenas noches');
         const preg   = o.questions[Math.floor(Math.random() * o.questions.length)] || '';
+        const motor  = !!(window.Bloub && window.Bloub.cuadro);
+        const bot    = motor
+            ? '<span data-hola-bot class="iac-hola-bot block w-20 h-20 mb-[12px]"></span>'
+            : '<span class="w-16 h-16 mb-3 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><i data-lucide="sparkles" class="w-7 h-7"></i></span>';
 
         const chips = o.suggestions.map(s => `
             <button type="button" data-suggestion="${this.esc(s)}" class="inline-flex items-center gap-1.5 px-3 py-[7px] border border-[#E2E8F0] rounded-full bg-white text-[11.5px] font-medium text-[#42546B] leading-[1.2] text-left hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 transition-colors">
@@ -202,17 +476,67 @@ class IaChat {
         this.appendNode(`
             <div data-hola class="flex flex-col flex-grow text-center px-[14px] pt-[18px] pb-1.5">
                 <div class="my-auto flex flex-col items-center">
-                    ${this.avatarBox('w-16 h-16 mb-3 rounded-full', 'w-7 h-7')}
+                    ${bot}
                     <div class="mb-2.5 text-[9.5px] font-semibold tracking-[.2em] uppercase text-[#94A3B8]">${this.esc(this.fechaHoy())}</div>
                     <div class="text-[24px] font-medium text-[#0F172A] tracking-[-.5px] leading-[1.15]">Hola, soy ${this.marca(o.title)}</div>
                     <p class="mt-[5px] text-[13.5px] leading-[1.4] text-[#64748B]">${saludo}</p>
                     <div class="mt-4 text-[15px] font-bold text-[#0F172A] tracking-[-.2px]">${this.esc(preg)}</div>
                     <span class="block w-[46px] h-[3px] mx-auto mt-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-200"></span>
                     ${o.welcome ? `<p class="mt-3 text-[11.5px] leading-[1.5] text-[#64748B] whitespace-pre-wrap">${this.esc(o.welcome)}</p>` : ''}
+                    <div data-hola-caja class="w-full"></div>
                     ${chips ? `<div class="mt-3 flex flex-wrap justify-center gap-1.5">${chips}</div>` : ''}
                 </div>
                 <div class="pt-4 text-[9.5px] leading-[1.45] text-[#94A3B8]">${this.esc(o.title)} ${this.esc(o.labels.notice)}</div>
             </div>`);
+
+        this.dockComposer(true);
+        this.startBot();
+    }
+
+    // La caja de escribir viaja: en la portada va al centro (como en erp-pro) y con
+    // el primer mensaje vuelve al pie. Se mueve el nodo, así conserva lo escrito,
+    // los adjuntos y sus eventos.
+    dockComposer(portada) {
+        const o     = this.opts;
+        const caja  = $(`#${o.id}_composer`);
+        const input = $(`#${o.id}_input`);
+        const foco  = document.activeElement === input[0];
+        const hueco = $(`#${o.id}_msgs [data-hola-caja]`);
+        const hola  = !!portada && hueco.length > 0;
+
+        if (hola) hueco.append(caja);
+        else $(`#${o.id}_foot`).prepend(caja);
+
+        caja.toggleClass('iac-portada', hola);
+        $(`#${o.id}_foot`).toggleClass('hidden', hola);
+        $(`#${o.id}`).toggleClass('iac-con-portada', hola);
+        input.attr('placeholder', hola ? o.labels.placeholderHola : o.placeholder);
+        this.autosize();
+        if (foco) input.trigger('focus');
+    }
+
+    leavePortada() {
+        this.stopBot();
+        this.dockComposer(false);
+        $(`#${this.opts.id}_msgs [data-hola]`).remove();
+    }
+
+    // El muñeco de la portada nace pausado si el chat está cerrado, y sin mirar al
+    // cursor si se está escribiendo.
+    startBot() {
+        this.stopBot();
+
+        const fig = $(`#${this.opts.id}_msgs [data-hola-bot]`)[0];
+        if (!fig) return;
+
+        this.bot = new IaBot(fig);
+        if (!this.isOpen()) this.bot.pause();
+        this.bot.look(document.activeElement !== $(`#${this.opts.id}_input`)[0]);
+    }
+
+    stopBot() {
+        if (this.bot) this.bot.stop();
+        this.bot = null;
     }
 
     // -- Mensajes --
@@ -252,34 +576,123 @@ class IaChat {
         this.busy = on;
         this.syncSend();
         this.syncClear();
+        $(`#${o.id}_cara`).toggleClass('is-activo', !!on);
 
         clearInterval(this.ticker);
         $(`#${o.id}_typing`).remove();
 
         if (!on) return;
 
-        const inicio = Date.now();
+        this.steps  = [];
+        this.step   = { label: label || o.labels.thinking, at: Date.now(), inicial: !label };
+        this.avance = { p: 0, desde: 0, hasta: 1, at: Date.now(), t0: Date.now(), fin: 0 };
+        this.renderBusy();
 
-        // Mientras trabaja: la animación «Cargando» del vestidor de erp-pro
-        // (coffeeIA avanza dentro de una barra); sin el motor, los tres puntos.
-        const carga = this.avatar('p_carga', '#F1F5F9');
-        const espera = carga
-            ? `<span class="w-24 h-24 -my-7 -ml-2 flex-shrink-0 [&>svg]:w-full [&>svg]:h-full">${carga}</span>`
-            : `<span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse"></span>
-               <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:180ms]"></span>
-               <span class="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-pulse [animation-delay:360ms]"></span>`;
+        this.ticker = setInterval(() => this.tickBusy(), 80);
+    }
 
-        this.appendNode(`
+    // Paso del proceso real, lo manda quien atiende onSend con la fracción del total
+    // que queda hecha al terminarlo (`hasta`, 0-1). El «Pensando» genérico del
+    // arranque se reemplaza; al pasar a otro paso el anterior queda palomeado con su
+    // tiempo y la barra llega a su marca.
+    progress(label, hasta) {
+        if (!this.busy) return;
+
+        const a = this.avance;
+
+        if (!this.step.inicial) {
+            this.steps.push({ label: this.step.label, secs: this.segundos(this.step.at) });
+            a.p = a.desde = a.hasta;
+        }
+
+        a.hasta = Math.min(1, Math.max(a.desde, hasta == null ? 1 : Number(hasta)));
+        a.at    = Date.now();
+
+        this.step = { label: label, at: Date.now() };
+        this.renderBusy();
+    }
+
+    // Al terminar bien, la barra se completa (y coffeeIA da su brinco) antes de dar
+    // paso a la respuesta.
+    finishBusy() {
+        if (!this.busy) return Promise.resolve();
+
+        this.avance.fin = Date.now();
+        return new Promise(resolve => setTimeout(resolve, 450));
+    }
+
+    // Dentro de un paso no hay avance que medir (el modelo contesta de una vez): la
+    // barra se acerca a la marca del paso sin alcanzarla (90 % del tramo a lo más) y
+    // solo la toca cuando el paso de verdad termina.
+    tickBusy() {
+        const o    = this.opts;
+        const a    = this.avance;
+        const meta = a.desde + (a.hasta - a.desde) * 0.9 * (1 - Math.exp(-(Date.now() - a.at) / 8000));
+
+        a.p = Math.max(a.p, meta);
+
+        $(`#${o.id}_carga`).html(this.cargaHtml());
+        $(`#${o.id}_secs`).text(this.segundos(this.step.at) + ' s');
+    }
+
+    // La animación «Cargando» del vestidor de erp-pro con la barra donde va el
+    // proceso: un cuadro fijo por tic en vez del bucle que se llena solo cada 3 s.
+    // Sin el motor, una barra simple.
+    cargaHtml() {
+        const a  = this.avance;
+        const B  = window.Bloub;
+        const an = B && B.CASA && B.ANIMS ? B.ANIMS.p_carga : null;
+
+        if (!an) {
+            return `<span class="block w-16 h-1.5 rounded-full bg-[#E2E8F0] overflow-hidden"><span class="block h-full rounded-full bg-blue-600" style="width:${Math.round((a.fin ? 1 : a.p) * 100)}%"></span></span>`;
+        }
+
+        const u   = a.fin ? 0.78 + 0.17 * Math.min(1, (Date.now() - a.fin) / 450) : this.faseCarga(a.p);
+        const rec = B.receta(Object.assign({}, B.CASA[0], { anim: 'p_carga', fondo: '#F1F5F9' }));
+
+        return B.svg(rec, (Date.now() - a.t0) / 1000, null, { centrado: true, fase: u * an.per });
+    }
+
+    // En cargaK (forja-blob.js) la barra se llena entre el 6 % y el 78 % de la vuelta
+    // con una curva suave (smoothstep); esto la invierte para pedir el cuadro con la
+    // barra llena justo en `p`.
+    faseCarga(p) {
+        const s = 0.5 - Math.sin(Math.asin(1 - 2 * Math.min(1, Math.max(0, p))) / 3);
+        return 0.06 + 0.72 * s;
+    }
+
+    // La burbuja de espera: la barra de avance y la lista de pasos.
+    renderBusy() {
+        const o      = this.opts;
+        const motor  = !!(window.Bloub && window.Bloub.CASA);
+        const espera = `<span id="${o.id}_carga" class="${motor ? 'w-24 h-24 -my-7 -ml-2 [&>svg]:w-full [&>svg]:h-full' : ''} flex items-center flex-shrink-0">${this.cargaHtml()}</span>`;
+
+        const hechos = this.steps.map(s => `
+            <span class="flex items-center gap-1 text-[10.5px] text-[#94A3B8]">
+                <i data-lucide="check" class="w-3 h-3 text-emerald-500 flex-shrink-0"></i>${this.esc(s.label)} <span class="tabular-nums">${s.secs} s</span>
+            </span>`).join('');
+
+        const html = `
             <div id="${o.id}_typing" class="flex">
-                <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[11px] flex items-center gap-1 overflow-hidden">
+                <div class="bg-[#F1F5F9] rounded-[13px] rounded-bl-[4px] px-3 py-[11px] flex items-center gap-1 overflow-hidden max-w-[92%]">
                     ${espera}
-                    <span class="ml-1 text-[11px] italic font-semibold text-[#64748B]">${this.esc(label || o.labels.thinking)} <span id="${o.id}_secs" class="not-italic font-normal tabular-nums">0 s</span></span>
+                    <div class="ml-1 min-w-0 flex flex-col gap-0.5">
+                        ${hechos}
+                        <span class="text-[11px] italic font-semibold text-[#64748B]">${this.esc(this.step.label)} <span id="${o.id}_secs" class="not-italic font-normal tabular-nums">${this.segundos(this.step.at)} s</span></span>
+                    </div>
                 </div>
-            </div>`);
+            </div>`;
 
-        this.ticker = setInterval(() => {
-            $(`#${o.id}_secs`).text(Math.round((Date.now() - inicio) / 1000) + ' s');
-        }, 1000);
+        const prev = $(`#${o.id}_typing`);
+
+        if (!prev.length) {
+            this.appendNode(html);
+            return;
+        }
+
+        prev.replaceWith(html);
+        this.icons();
+        this.scrollBottom();
     }
 
     // -- Vista previa --
@@ -456,7 +869,7 @@ class IaChat {
         const l    = this.opts.labels;
         const pv   = this.previews[token];
         const card = $(`#${pv.uid}`);
-        const text = { applied: message || l.applied, discarded: l.discarded, replaced: l.replaced }[state];
+        const text = { applied: String(message || l.applied).split('\n')[0], discarded: l.discarded, replaced: l.replaced }[state];
         const icon = { applied: 'check-circle-2', discarded: 'x-circle', replaced: 'history' }[state];
         const tone = state === 'applied' ? 'text-emerald-600' : 'text-[#64748B]';
 
@@ -480,7 +893,7 @@ class IaChat {
         input.val('');
         this.autosize();
         this.menu(false);
-        $(`#${o.id}_msgs [data-hola]`).remove();
+        this.leavePortada();
 
         const names   = files.map(f => f.name);
         const history = this.history.slice(-8);
@@ -493,10 +906,12 @@ class IaChat {
         let r = null;
 
         try {
-            r = await o.onSend(text, files.map(f => ({ nombre: f.name, texto: f.texto })), history);
+            r = await o.onSend(text, files.map(f => ({ nombre: f.name, texto: f.texto })), history, (label, hasta) => this.progress(label, hasta));
         } catch (e) {
             r = null;
         }
+
+        if (r && r.status === 200) await this.finishBusy();
 
         this.setBusy(false);
 
@@ -623,7 +1038,7 @@ class IaChat {
 
         chips.removeClass('hidden').addClass('flex').html(this.files.map(f => {
             const icon = f.status === 'reading' ? 'loader-2' : (f.status === 'error' ? 'alert-circle' : (f.clase === 'imagen' ? 'image' : 'file-spreadsheet'));
-            const info = f.status === 'reading' ? o.labels.reading : f.detalle;
+            const info = f.status === 'reading' ? this.leyendo(f.name) : f.detalle;
 
             return `
                 <span class="flex items-center gap-1.5 max-w-[calc(50%-3px)] border rounded-[9px] px-[7px] py-[5px] text-[11px] ${tones[f.status]}" title="${this.esc(f.name)}${info ? ' · ' + this.esc(info) : ''}">
@@ -638,6 +1053,17 @@ class IaChat {
 
         this.icons();
         this.syncSend();
+    }
+
+    // Lo que de verdad pasa al leer el adjunto: la foto se transcribe, el Excel se lee.
+    leyendo(name) {
+        const l   = this.opts.labels;
+        const ext = String(name).toLowerCase().split('.').pop();
+
+        if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return l.readingImage;
+        if (['xlsx', 'xls', 'csv'].includes(ext)) return l.readingSheet;
+
+        return l.reading;
     }
 
     accepts(name) {
@@ -679,6 +1105,9 @@ class IaChat {
             this.autosize();
             this.syncSend();
         });
+
+        input.on('focus', () => { if (this.bot) this.bot.look(false); });
+        input.on('blur',  () => { if (this.bot) this.bot.look(true); });
 
         input.on('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -724,6 +1153,7 @@ class IaChat {
             this.addFiles(e.originalEvent.dataTransfer.files);
         });
 
+        this.bindDrag();
         this.syncSend();
     }
 
@@ -737,6 +1167,7 @@ class IaChat {
         panel.find('[data-list]').toggleClass('max-h-[280px]', !this.expanded).toggleClass('max-h-[55vh]', this.expanded);
         $(`#${o.id}_expand`).html(`<i data-lucide="${this.expanded ? 'minimize-2' : 'maximize-2'}" class="w-4 h-4"></i>`);
         this.icons();
+        setTimeout(() => this.keepInside(), 220);
     }
 
     // El "+" gira a "×" mientras su menú está abierto.
@@ -764,13 +1195,82 @@ class IaChat {
         $(`#${this.opts.id}_clear`).prop('disabled', this.busy || !this.dirty);
     }
 
+    // La caja crece con el texto hasta 132 px y de ahí manda su scroll (crecer() de
+    // erp-pro). El alto va con !important: compact.css fuerza `textarea { height:auto
+    // !important }` y sin esto el alto calculado no se aplicaba. Con el chat cerrado
+    // no hay medida (scrollHeight 0) y se deja sin alto hasta abrirlo.
     autosize() {
         const el = document.getElementById(`${this.opts.id}_input`);
 
         if (!el) return;
 
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 132) + 'px';
+        el.style.setProperty('height', 'auto', 'important');
+
+        if (!el.scrollHeight) {
+            el.style.removeProperty('height');
+            return;
+        }
+
+        el.style.setProperty('height', Math.min(el.scrollHeight, 132) + 'px', 'important');
+        el.style.overflowY = el.scrollHeight > 132 ? 'auto' : 'hidden';
+    }
+
+    // Se mueve agarrándolo por la cabecera, como en erp-pro (engancharCabecera). Los
+    // botones de la cabecera no arrastran y el panel nunca sale de la ventana.
+    bindDrag() {
+        const o     = this.opts;
+        const panel = $(`#${o.id}`);
+        const head  = panel.find('[data-head]');
+        let agarre  = null;
+
+        head.on('pointerdown', e => {
+            if (e.button > 0 || $(e.target).closest('button').length) return;
+
+            const r = panel[0].getBoundingClientRect();
+
+            agarre = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+            panel.addClass('iac-moviendo');
+            try { head[0].setPointerCapture(e.pointerId); } catch (err) { }
+            e.preventDefault();
+        });
+
+        head.on('pointermove', e => {
+            if (agarre) this.place(e.clientX - agarre.dx, e.clientY - agarre.dy);
+        });
+
+        head.on('pointerup pointercancel', e => {
+            if (!agarre) return;
+
+            agarre = null;
+            panel.removeClass('iac-moviendo');
+            try { head[0].releasePointerCapture(e.pointerId); } catch (err) { }
+        });
+
+        $(window).off(`resize.${o.id}`).on(`resize.${o.id}`, () => this.keepInside());
+    }
+
+    // Lleva el panel a (left, top) con 8 px de margen contra los bordes de la ventana.
+    place(left, top) {
+        const el = document.getElementById(this.opts.id);
+        const m  = 8;
+
+        $(el).css({
+            left:   Math.max(m, Math.min(left, window.innerWidth  - el.offsetWidth  - m)),
+            top:    Math.max(m, Math.min(top,  window.innerHeight - el.offsetHeight - m)),
+            right:  'auto',
+            bottom: 'auto'
+        });
+
+        this.moved = true;
+    }
+
+    // Tras cambiar la ventana o el tamaño del panel, lo devuelve adentro si se salió.
+    keepInside() {
+        if (!this.moved || !this.isOpen()) return;
+
+        const r = document.getElementById(this.opts.id).getBoundingClientRect();
+
+        this.place(r.left, r.top);
     }
 
     appendNode(html) {
@@ -785,25 +1285,59 @@ class IaChat {
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
 
-    // El muñeco de coffeeIA: la receta de casa del motor de erp-pro (forja-blob.js,
-    // window.Bloub). Es SVG animado --se mueve solo, sin bucle en JS-- y se arma
-    // en cada llamada (~10 ms): cada copia trae sus propios ids de recorte y
-    // reusar la cadena los repetiría en la página. Sin el motor devuelve '' y
-    // quien llama deja el ícono de destellos.
-    avatar(anim, fondo) {
-        const B = window.Bloub;
-        if (!B || !B.CASA) return '';
+    // La cara de la cabecera es CoffeeBot, como en erp-pro: a este tamaño sus ojos se
+    // leen mejor que los del blob. El ojo va dentro de un grupo que lo coloca para que
+    // el parpadeo (scaleY por CSS) lo cierre sobre sí mismo.
+    coffeeBot() {
+        const C    = IA_COFFEEBOT;
+        const clip = `${this.opts.id}_cbClip`;
+        const ojos = C.eyes.map(e => `<g transform="translate(${(C.cx + e.pos[0]).toFixed(2)} ${(C.cy + e.pos[1]).toFixed(2)}) scale(${e.s})"><path class="cb-ojo" d="M${e.pts.map(p => p.join(' ')).join('L')}Z"/></g>`).join('');
 
-        return B.animado(B.receta(Object.assign({}, B.CASA[0], { anim: anim, fondo: fondo })), { centrado: true });
+        return `
+            <span class="iac-bot block w-full h-full">
+                <svg viewBox="0 0 400 400" class="block w-full h-full" aria-hidden="true">
+                    <defs><clipPath id="${clip}"><path d="${C.head}"/></clipPath></defs>
+                    <g transform="${C.encaje}"><g transform="${C.cabeza}">
+                        <path class="cb-cabeza" d="${C.head}"/>
+                        <g class="fx-ojos" clip-path="url(#${clip})">${ojos}</g>
+                    </g></g>
+                </svg>
+            </span>`;
     }
 
-    // Recuadro del muñeco en reposo (cabecera y portada); sin motor, los destellos.
-    avatarBox(box, iconSize) {
-        const cara = this.avatar('ninguna', '#F8F8F8');
+    // Lo que Tailwind no alcanza: el color del muñeco (el motor pinta con clases),
+    // sus animaciones (las de .ia-mini de erp-pro) y la caja de escribir en la
+    // portada (.ia-hola-caja). Los !important le ganan a las utilidades de Bootstrap
+    // y al font-size que compact.css fuerza en todos los textarea.
+    ensureStyles() {
+        if (document.getElementById('iaChatStyles')) return;
 
-        return cara
-            ? `<span class="${box} bg-[#F8F8F8] border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0 [&>svg]:w-full [&>svg]:h-full">${cara}</span>`
-            : `<span class="${box} bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><i data-lucide="sparkles" class="${iconSize}"></i></span>`;
+        const css = `
+            .iac-bot .cb-cabeza, .iac-hola-bot .cb-cabeza { fill:#FFFFFF; stroke:#D6D6D6; stroke-width:1px; vector-effect:non-scaling-stroke; }
+            .iac-bot .cb-ojo { fill:#1E293B; }
+            .iac-hola-bot .cb-ojo { fill:none; stroke:#1E293B; stroke-linecap:round; }
+            .iac-mini .iac-bot { transform-origin:50% 58%; animation:iacRespira 4.6s ease-in-out infinite; }
+            .iac-mini .cb-ojo { transform-box:fill-box; transform-origin:center; animation:iacPestanea 6.4s ease-in-out infinite; }
+            .iac-mini.is-activo { animation:iacFlota 1.1s ease-in-out infinite; }
+            .iac-mini.is-activo .fx-ojos { animation:iacPiensa 1.1s ease-in-out infinite; }
+            .iac-con-portada .iac-mini { display:none !important; }
+            @keyframes iacRespira { 0%,100% { transform:scale(1) rotate(0deg); } 50% { transform:scale(1.035) rotate(-1.2deg); } }
+            @keyframes iacPestanea { 0%,93%,100% { transform:scaleY(1); } 96% { transform:scaleY(.08); } }
+            @keyframes iacFlota { 0%,100% { transform:translateY(0) rotate(-2deg); } 50% { transform:translateY(-5px) rotate(2deg); } }
+            @keyframes iacPiensa { 0%,100% { transform:translate(-16px, 6px); } 50% { transform:translate(16px, 6px); } }
+            @media (prefers-reduced-motion: reduce) { .iac-mini, .iac-mini .iac-bot, .iac-mini .cb-ojo, .iac-mini .fx-ojos { animation:none !important; } }
+            .iac-wrap .iac-input { font-size:12.5px !important; overflow-y:hidden; }
+            .iac-moviendo, .iac-moviendo * { cursor:grabbing !important; user-select:none !important; }
+            .iac-portada { width:100%; margin-top:26px; text-align:left; position:relative; }
+            .iac-portada .iac-wrap { border-color:#E5EAF0 !important; border-radius:18px !important; padding:6px 6px 6px 8px !important; box-shadow:0 8px 24px rgba(15,23,42,.07) !important; }
+            .iac-portada .iac-wrap:focus-within { border-color:rgb(var(--brand-600, 192 90 64) / .3) !important; box-shadow:0 0 0 3px rgb(var(--brand-600, 192 90 64) / .08), 0 8px 24px rgba(15,23,42,.07) !important; }
+            .iac-portada .iac-input { font-size:13px !important; }
+            .iac-portada .iac-send { width:34px !important; height:34px !important; border-radius:9999px !important; background:rgb(var(--brand-600, 192 90 64)) !important; box-shadow:0 4px 12px rgb(var(--brand-600, 192 90 64) / .35); }`;
+
+        const style = document.createElement('style');
+        style.id = 'iaChatStyles';
+        style.textContent = css;
+        document.head.appendChild(style);
     }
 
     // "CoffeeIA" con el "IA" en el acento, como la marca de erp-pro.
@@ -822,6 +1356,10 @@ class IaChat {
         } catch (e) {
             return '';
         }
+    }
+
+    segundos(desde) {
+        return Math.round((Date.now() - desde) / 1000);
     }
 
     hora() {

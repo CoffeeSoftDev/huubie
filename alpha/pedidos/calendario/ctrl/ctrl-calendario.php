@@ -46,10 +46,10 @@ class ctrlCalendario extends MCalendarioPedidos{
         $statuses = isset($_POST['statuses']) ? explode(',', $_POST['statuses']) : ['1', '2', '3', '4'];
         $delivery = isset($_POST['delivery']) ? explode(',', $_POST['delivery']) : ['0', '1'];
 
-        // Produccion no ve cotizaciones (estado 1). Sin estados el modelo no filtra y
-        // traeria todos, por eso se corta aqui si solo pidio cotizaciones.
+        // Produccion no ve cotizaciones (estado 1) ni cancelados (estado 4). Sin estados
+        // el modelo no filtra y traeria todos, por eso se corta aqui si solo pidio esos.
         if ($rolId == self::ROL_PRODUCCION) {
-            $statuses = array_values(array_diff($statuses, ['1']));
+            $statuses = array_values(array_diff($statuses, ['1', '4']));
             if (empty($statuses)) return [];
         }
 
