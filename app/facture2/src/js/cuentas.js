@@ -396,7 +396,7 @@ class Cuentas extends Templates {
 
             cuentas.selected = row.find('td').first().text().trim();
 
-            $('#navMesas').text(`MESA(S): ${row.find('td').eq(1).text().trim()}`);
+            $('#navMesas').text(`MESA(S): ${row.find('td').eq(1).text().trim()}`).removeClass('hidden');
         });
     }
 

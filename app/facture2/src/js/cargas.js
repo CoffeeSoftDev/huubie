@@ -1,5 +1,9 @@
-let apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
+let apiCargas = '/app/facture2/ctrl/ctrl-facture2-cargas.php';
 let app, cargas, cargasView;
+
+// "Eliminar todo" se resuelve en el controlador de la terminal y no en el de
+// cargas: es el que sabe quien entro, con que permiso y con que PIN.
+const apiPos = '/app/facture2/ctrl/ctrl-facture2-pos.php';
 
 $(async () => {
     cargasView = new CargasView(apiCargas, 'root');
@@ -107,7 +111,10 @@ class App extends Templates {
                     // 300 px alcanzaban para dos selectores; con el boton de subir
                     // al lado —y su icono— el mes se leia «Ago» y el año «202». El
                     // titulo de la izquierda cede el espacio sin apretarse: es flex-1.
-                    { type: 'div', id: 'filterBar',  class: 'flex-shrink-0 w-full sm:w-[460px]' }
+                    //
+                    // 620 y no 460 desde que entro «Eliminar todo»: son cuatro
+                    // columnas y cada una conserva el ancho que tenian las tres.
+                    { type: 'div', id: 'filterBar',  class: 'flex-shrink-0 w-full sm:w-[620px]' }
                 ]
             }
         });
@@ -211,7 +218,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fMes',
                 lbl:      'Mes:',
-                class:    'col-6 col-md-4',
+                class:    'col-6 col-md-3',
                 value:    hoy.mes || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -221,7 +228,7 @@ class App extends Templates {
                 opc:      'select',
                 id:       'fAnio',
                 lbl:      'Año:',
-                class:    'col-6 col-md-4',
+                class:    'col-6 col-md-3',
                 value:    hoy.anio || '',
                 required: false,
                 onchange: 'app.onChangeFilters()',
@@ -247,8 +254,20 @@ class App extends Templates {
                 // unica accion que escribe en la base tiene que distinguirse de la
                 // decoracion.
                 color_btn: 'success',
-                class:     'col-12 col-md-4',
+                class:     'col-6 col-md-3',
                 onClick:   () => cargas.pickFile()
+            },
+            // Borra lo cargado del mes que esta en los dos selectores de al lado, con
+            // sus tickets y generaciones; los demas meses se quedan. Vive aqui porque
+            // es donde se ve lo que hay cargado, y donde una carga con tickets se
+            // niega a borrarse sola. Rojo, para no confundirse con Subir.
+            {
+                opc:       'button',
+                id:        'btnEliminarTodo',
+                text:      'Eliminar todo',
+                color_btn: 'danger',
+                class:     'col-6 col-md-3',
+                onClick:   () => cargas.deleteOperacion()
             }
         ];
 
@@ -1378,6 +1397,71 @@ class Cargas extends Templates {
 
             alert({ icon: data.status === 200 ? 'success' : 'error', title: data.message, timer: 1600 });
         });
+    }
+
+    // -- Eliminar todo --
+
+    // Lo que una carga sola no puede hacer cuando ya tiene tickets: se lleva el mes
+    // de los selectores completo —sus cargas, ventas, tickets y generaciones—. Primero
+    // se cuenta y despues se pregunta, y se pide el PIN de quien esta adentro porque
+    // es lo unico de la terminal que no se deshace.
+    async deleteOperacion() {
+        const data = await useFetch({ url: apiPos, data: Object.assign({ opc: 'showOperacion' }, app.getFilters()) });
+
+        if (!data || data.status !== 200) {
+            return alert({ icon: 'error', title: (data && data.message) || 'No se pudo consultar lo que hay cargado' });
+        }
+
+        if (!data.ventas && !data.tickets && !data.cargas) {
+            return alert({ icon: 'info', title: `${data.periodo} no tiene datos que borrar`, timer: 1800 });
+        }
+
+        const result = await this.swalQuestion({
+            extends: true,
+            opts: {
+                title:               `Eliminar ${data.periodo}`,
+                text:                `Se va a borrar todo ${data.periodo}: ${this.cuantos(data.ventas, 'venta', 'ventas')}, ${this.cuantos(data.tickets, 'ticket', 'tickets')}, ${this.cuantos(data.corridas, 'generación', 'generaciones')} y ${this.cuantos(data.cargas, 'carga de Excel', 'cargas de Excel')} de ${data.sucursal}. Los demás meses, catálogos, emisor y usuarios se quedan. No se puede deshacer.`,
+                icon:                'warning',
+                input:               'password',
+                inputLabel:          'Teclea tu PIN para confirmar',
+                inputAttributes:     { inputmode: 'numeric', autocomplete: 'off', maxlength: 12 },
+                confirmButtonText:   'Eliminar todo',
+                cancelButtonText:    'Cancelar',
+                showLoaderOnConfirm: true,
+                allowOutsideClick:   () => !Swal.isLoading(),
+                preConfirm:          (pin) => this.confirmDeleteOperacion(pin)
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        this.lsBitacora(app.activeTab);
+
+        alert({ icon: 'success', title: result.value.message, timer: 2500 });
+    }
+
+    // Un PIN equivocado no cierra el aviso: se dice ahi mismo y se vuelve a teclear,
+    // en vez de empezar otra vez desde el boton.
+    async confirmDeleteOperacion(pin) {
+        if (!pin) {
+            Swal.showValidationMessage('Captura tu PIN');
+            return false;
+        }
+
+        const data = await useFetch({ url: apiPos, data: Object.assign({ opc: 'deleteOperacion', pin: pin }, app.getFilters()) });
+
+        if (!data || data.status !== 200) {
+            Swal.showValidationMessage((data && data.message) || 'No se pudo borrar');
+            return false;
+        }
+
+        return data;
+    }
+
+    // "1 carga", "2 cargas": el aviso se lee antes de confirmar y tiene que leerse
+    // bien.
+    cuantos(n, uno, varios) {
+        return `${n} ${n === 1 ? uno : varios}`;
     }
 }
 

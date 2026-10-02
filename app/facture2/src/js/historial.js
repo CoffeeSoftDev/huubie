@@ -1,4 +1,4 @@
-let apiHistorial = '/app/facture/ctrl/ctrl-facture-historial.php';
+let apiHistorial = '/app/facture2/ctrl/ctrl-facture2-historial.php';
 let app, historial;
 
 $(() => {

@@ -40,12 +40,11 @@ const WANSOFT_PALETTE = {
     swal:     { bg: '#FFFFFF', popup: 'bg-white text-gray-900 rounded-lg shadow-lg' }
 };
 
-// Datos de la terminal que la banda superior rotula. Son fijos mientras el modulo
-// no tenga backend: cuando exista, esta constante la reemplaza la respuesta de su
-// propio ctrl.
+// Datos de la terminal que la banda superior rotula. usuario va vacio: la banda lo
+// pide a la base (getSession en ctrl-facture2-pos.php); el resto sigue fijo.
 const WANSOFT_TERMINAL = {
     marca:   'wansoft',
-    usuario: 'Pruebas',
+    usuario: '',
     turno:   '1',
     version: '25.0.6.4',
     soporte: '(81) 4445 3800'

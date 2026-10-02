@@ -1,4 +1,4 @@
-<?php require_once(__DIR__ . "/conf/_Rutes.php"); ?>
+<?php require_once(__DIR__ . "/conf/_Rutes.php"); wansoftCierra(); ?>
 <!DOCTYPE html>
 <html lang="es">
 

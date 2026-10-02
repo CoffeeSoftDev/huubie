@@ -1,4 +1,4 @@
-let apiEmisor = '/app/facture/ctrl/ctrl-facture-emisor.php';
+let apiEmisor = '/app/facture2/ctrl/ctrl-facture2-emisor.php';
 let app, emisor, emisorView;
 
 // El ticket de la muestra es el mismo consumo en los dos sistemas: cambia el

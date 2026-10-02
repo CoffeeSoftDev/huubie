@@ -175,6 +175,13 @@ class MPedidos extends CRUD {
             $endDate
         ];
 
+        // Un pedido es personalizado si alguna de sus lineas apunta a order_custom.
+        $esPersonalizado = "EXISTS (
+            SELECT 1 FROM {$this->bd}order_package
+            WHERE order_package.pedidos_id = order.id
+              AND order_package.custom_id IS NOT NULL
+        )";
+
         $query = "
         SELECT
             order.id AS id,
@@ -198,7 +205,8 @@ class MPedidos extends CRUD {
             DATE_FORMAT(order.time_order, '%h:%i %p') AS time_order,
 
             status_process.id AS idStatus,
-            order.cash_shift_id
+            order.cash_shift_id,
+            {$esPersonalizado} AS is_custom
         FROM
             {$this->bd}order
         INNER JOIN {$this->bd}order_clients ON client_id = order_clients.id
@@ -206,6 +214,11 @@ class MPedidos extends CRUD {
         WHERE
         {$fechas}
         ";
+
+        // Tipo de pedido: solo los que llevan al menos un pastel personalizado.
+        if (($data['order_type'] ?? '') === 'custom') {
+            $query .= " AND {$esPersonalizado}";
+        }
 
         // Filtrar por subsidiaries_id si se proporciona y es diferente de 0
         if (!empty($data['subsidiaries_id']) && $data['subsidiaries_id'] != 0) {

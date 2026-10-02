@@ -638,6 +638,11 @@ html[data-wansoft-theme] #root .ws-stat-hero .ws-stat-val { font-size: 18px; fon
 html[data-wansoft-theme] #root .ws-stat-blue .ws-stat-val { color: var(--ws-blue-dk); }
 html[data-wansoft-theme] #root .ws-stat-ok   .ws-stat-val { color: var(--ws-ok); }
 
+/* "Por capturar": la division 16% / 0% antes de capturar la meta del dia. Apagado
+   y en letra de texto, porque no es un monto sino lo que falta decidir. */
+html[data-wansoft-theme] #root .ws-stat-pend .ws-stat-val { font-size: 13px; font-weight: 600; color: var(--ws-muted); }
+html[data-wansoft-theme] #root .ws-stat-nota { font-size: 10.5px; color: var(--ws-muted); }
+
 /* -- El dia bajo llave, en papel --
 
    La silueta se dibuja en facture.css con la escala del tema oscuro: barras claras
@@ -1383,4 +1388,24 @@ html[data-wansoft-theme] #root .ws-btn-print {
     --bs-gutter-x: 0;
     margin-left: 0;
     margin-right: 0;
+}
+
+/* -- Barras de scroll de la vista previa del reparto --
+
+   Las del navegador miden 15px y llegan en el gris de Windows, con flechas: en el
+   modal del mes eran columnas grises pegadas a la lista y al panel del dia. Aqui
+   bajan a 6px, sin carril ni flechas y en el azul claro de las teclas; al pasar el
+   cursor suben un tono para que se note que se pueden arrastrar.
+
+   Sin el scope de #root: el modal se cuelga del <body>. El par estandar es solo
+   para Firefox; Chrome, en cuanto lo ve, ignora los pseudoelementos y vuelve a su
+   ancho de fabrica. */
+
+.ws-scroll::-webkit-scrollbar             { width: 6px; height: 6px; }
+.ws-scroll::-webkit-scrollbar-track       { background: transparent; }
+.ws-scroll::-webkit-scrollbar-thumb       { background: var(--ws-key-act); border-radius: 6px; }
+.ws-scroll::-webkit-scrollbar-thumb:hover { background: var(--ws-key-on); }
+
+@supports not selector(::-webkit-scrollbar) {
+    .ws-scroll { scrollbar-width: thin; scrollbar-color: var(--ws-key-act) transparent; }
 }

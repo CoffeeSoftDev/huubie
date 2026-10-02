@@ -1,4 +1,4 @@
-<?php require_once(__DIR__ . "/conf/_Rutes.php"); ?>
+<?php require_once(__DIR__ . "/conf/_Rutes.php"); wansoftExige(); ?>
 <!DOCTYPE html>
 <html lang="es">
 
@@ -29,7 +29,7 @@
         <div class="flex-1 flex flex-col min-h-0" id="root"></div>
     </div>
 
-    <!-- Banda superior propia de la terminal (sin fetch) -->
+    <!-- Banda superior propia de la terminal (pide el usuario a la base) -->
     <script src="/app/facture2/src/js/navbar-wansoft.js?t=<?php echo time(); ?>"></script>
 
     <!-- Componentes del modulo -->

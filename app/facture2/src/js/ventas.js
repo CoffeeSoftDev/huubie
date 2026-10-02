@@ -1,4 +1,4 @@
-let apiVentas = '/app/facture/ctrl/ctrl-facture-ventas.php';
+let apiVentas = '/app/facture2/ctrl/ctrl-facture2-ventas.php';
 let app, ventas, ventasView;
 
 $(async () => {

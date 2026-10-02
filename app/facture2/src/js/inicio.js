@@ -60,11 +60,18 @@ class Inicio extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'inicio';
+        this.permisos     = [];
     }
 
     // -- Interface --
 
-    renderInicio() {
+    // Los permisos los decide el rol de quien entro: la tarjeta que el rol no tiene
+    // sale con candado, igual que las que aun no tienen modulo.
+    async renderInicio() {
+        const data = await useFetch({ url: apiPos, data: { opc: 'getSession' } });
+
+        this.permisos = (data && data.permisos) || [];
+
         this.inicioLayout();
 
         moduleCard({
@@ -100,22 +107,25 @@ class Inicio extends Templates {
     cardsJson() {
         return [
             {
-                id:   'tcGenerar',
-                icon: 'ticket',
-                text: 'Tickets',
-                fn:   () => posGo('/app/facture2/tickets.php')
+                id:     'tcGenerar',
+                icon:   'ticket',
+                text:   'Tickets',
+                locked: !this.can('tickets'),
+                fn:     () => posGo('/app/facture2/tickets.php')
             },
             {
-                id:   'tcReimprimir',
-                icon: 'printer',
-                text: 'Reimpresión de Tickets',
-                fn:   () => posGo('/app/facture2/reimpresion.php')
+                id:     'tcReimprimir',
+                icon:   'printer',
+                text:   'Reimpresión de Tickets',
+                locked: !this.can('reimpresion'),
+                fn:     () => posGo('/app/facture2/reimpresion.php')
             },
             {
-                id:   'tcConfiguracion',
-                icon: 'settings',
-                text: 'Configuración',
-                fn:   () => posGo('admin')
+                id:     'tcConfiguracion',
+                icon:   'settings',
+                text:   'Configuración',
+                locked: !this.can('catalogos'),
+                fn:     () => posGo('admin')
             },
             {
                 id:     'tcReportes',
@@ -157,5 +167,11 @@ class Inicio extends Templates {
                 fn:   () => posExit()
             }
         ];
+    }
+
+    // -- Complements --
+
+    can(permiso) {
+        return this.permisos.includes(permiso);
     }
 }

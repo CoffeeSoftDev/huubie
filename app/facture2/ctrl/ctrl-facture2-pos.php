@@ -10,7 +10,7 @@ require_once '../mdl/mdl-facture2-pos.php';
 define('CAJERO_TERMINAL', 'ADMINISTRACION');
 
 // Las dos partidas que imprime el papel real cuando la comanda del dia no esta
-// cargada. Son las mismas del Facturador (ctrl-facture-tickets.php): el ticket que
+// cargada. Son las mismas del modulo Tickets (ctrl-facture2-tickets.php): el ticket que
 // se reimprime aqui tiene que salir identico al que se emitio alla.
 define('CONCEPTO_SERVICIO', 'SERVICIO DE MESA');
 define('CONCEPTO_CONSUMO',  'CONSUMO');
@@ -60,6 +60,158 @@ class ctrl extends mdl {
     // como un dia vacio, no como una pantalla rota.
     function filas($ls) {
         return is_array($ls) ? $ls : [];
+    }
+
+    // -- Acceso --
+
+    // La terminal entra con un PIN y nada mas: el PIN es el que dice quien es. Por
+    // eso se recorre a los usuarios de la sucursal en vez de buscar uno por nombre.
+    //
+    // La sesion de la terminal va aparte de la de Huubie (USR): la pantalla de
+    // acceso la cierra (wansoftCierra en conf/_Rutes.php) sin tocar la otra.
+    function login() {
+        $pin = preg_replace('/\D/', '', (string) ($_POST['pin'] ?? ''));
+
+        if ($pin === '') return ['status' => 400, 'message' => 'Captura tu contraseña'];
+
+        foreach ($this->filas($this->listUsers([$this->branchId()])) as $user) {
+            if (!password_verify($pin, $user['pin'])) continue;
+
+            $permisos = array_column($this->filas($this->listPermissionsByRole([$user['role_id']])), 'code');
+
+            session_regenerate_id(true);
+
+            $_SESSION['WANSOFT_USER']  = (int) $user['id'];
+            $_SESSION['WANSOFT_PERMS'] = $permisos;
+
+            return [
+                'status' => 200,
+                'name'   => $user['name'],
+                'role'   => $user['role_name']
+            ];
+        }
+
+        return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+    }
+
+    // Quien esta en la terminal y que puede hacer, leido de la base: la sesion solo
+    // guarda el id de quien tecleo su PIN. La banda lo pide para su rotulo y el
+    // menu para cerrar con candado lo que el rol no tiene.
+    //
+    // Los permisos leidos se copian a la sesion, que es de donde los toman los
+    // candados de pagina (wansoftExige): asi la tarjeta que el menu abre es la
+    // misma pagina que deja pasar, sin volver a teclear el PIN.
+    function getSession() {
+        $ls = $this->filas($this->getUserById([$_SESSION['WANSOFT_USER'] ?? 0]));
+
+        if (empty($ls)) {
+            return [
+                'status'   => 401,
+                'message'  => 'Sin sesión en la terminal',
+                'permisos' => []
+            ];
+        }
+
+        $user     = $ls[0];
+        $permisos = array_column($this->filas($this->listPermissionsByRole([$user['role_id']])), 'code');
+
+        $_SESSION['WANSOFT_PERMS'] = $permisos;
+
+        return [
+            'status'   => 200,
+            'name'     => $user['name'],
+            'role'     => $user['role_name'],
+            'permisos' => $permisos
+        ];
+    }
+
+    // -- Datos de operacion --
+
+    // Lo que "Eliminar todo" se llevaria del mes que esta en los selectores de
+    // Importacion, contado antes de preguntar: el aviso dice cuanto se borra, de que
+    // mes y de que sucursal, para que nadie confirme a ciegas.
+    function showOperacion() {
+        $periodo = periodoDeOperacion();
+
+        if (!$periodo) return ['status' => 400, 'message' => 'Elige el mes y el año a borrar'];
+
+        $b  = $this->branchId();
+        $ls = $this->filas($this->getOperacionCounts([
+            $b, $periodo['ym'],
+            $b, $periodo['ym'],
+            $b, $periodo['ym'],
+            $b, $periodo['anio'], $periodo['mes']
+        ]));
+        $c  = $ls[0] ?? [];
+
+        return [
+            'status'   => 200,
+            'sucursal' => $this->emisor()['razon'],
+            'periodo'  => $periodo['texto'],
+            'ventas'   => (int) ($c['ventas']   ?? 0),
+            'tickets'  => (int) ($c['tickets']  ?? 0),
+            'corridas' => (int) ($c['corridas'] ?? 0),
+            'cargas'   => (int) ($c['cargas']   ?? 0)
+        ];
+    }
+
+    // Borra lo operativo de UN mes de la sucursal: sus cargas de Excel y lo que
+    // salio de ellas (ventas, pagos, comandas, tickets y corridas). Los otros meses,
+    // los catalogos, el emisor y los usuarios se quedan.
+    //
+    // El PIN se vuelve a pedir aunque haya sesion: es la unica accion de la terminal
+    // que no se deshace, y la pantalla pudo quedarse abierta en manos de otro.
+    //
+    // El orden lo imponen las FK —el ticket antes que su corrida, la corrida antes
+    // que su venta de corte— y todo va en una transaccion: un error a la mitad deja
+    // la base como estaba, no a medio borrar.
+    function deleteOperacion() {
+        if (!$this->esPinDeQuienEntro($_POST['pin'] ?? '')) {
+            return ['status' => 401, 'message' => 'Ese no es tu PIN'];
+        }
+
+        $antes = $this->showOperacion();
+
+        if ($antes['status'] !== 200) return $antes;
+
+        $periodo = periodoDeOperacion();
+        $porMes  = [$this->branchId(), $periodo['ym']];
+        $porLote = [$this->branchId(), $periodo['anio'], $periodo['mes']];
+
+        try {
+            $this->transaction(function () use ($porMes, $porLote) {
+                $this->deleteVirtualTicketByMonth($porMes);
+                $this->deleteGenerationRunByMonth($porMes);
+                $this->deletePaymentCardByPeriod($porLote);
+                $this->deleteSalePaymentByPeriod($porLote);
+                $this->deleteSaleDetailByPeriod($porLote);
+                $this->deleteDeletedPaymentByMonth($porMes);
+                $this->deleteDailySummaryByMonth($porMes);
+                $this->deleteSaleByMonth($porMes);
+                $this->deleteImportBatchByPeriod($porLote);
+            });
+        } catch (Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo borrar; la base quedó como estaba'];
+        }
+
+        return [
+            'status'  => 200,
+            'message' => "Borrado de {$antes['periodo']}: " . cuantos($antes['ventas'], 'venta', 'ventas') . ', '
+                       . cuantos($antes['tickets'], 'ticket', 'tickets') . ' y '
+                       . cuantos($antes['cargas'], 'carga de Excel', 'cargas de Excel')
+        ];
+    }
+
+    // El PIN tiene que ser el de quien esta adentro: uno de otro usuario con el
+    // mismo permiso no autoriza a nombre de este.
+    function esPinDeQuienEntro($pin) {
+        $pin = preg_replace('/\D/', '', (string) $pin);
+
+        if ($pin === '') return false;
+
+        $ls = $this->filas($this->getUserById([$_SESSION['WANSOFT_USER'] ?? 0]));
+
+        return !empty($ls) && password_verify($pin, $ls[0]['pin']);
     }
 
     // -- Interface --
@@ -520,11 +672,38 @@ class ctrl extends mdl {
 
 // -- Complements --
 
+// -- Permisos por opcion --
+//
+// login y getSession quedan abiertas: una es la puerta y la otra solo responde
+// quien esta. Todo lo demas pide a alguien adentro, y las opciones de la
+// Reimpresion y de Administracion piden ademas su permiso. El mismo candado que la
+// pagina, pero del lado del servidor: sin el, la pantalla se brinca llamando al
+// controlador.
+function opcPermitida($opc) {
+    $abiertas = ['login', 'getSession'];
+    $permisos = [
+        'init'            => 'reimpresion',
+        'lsTickets'       => 'reimpresion',
+        'getTicket'       => 'reimpresion',
+        'getTickets'      => 'reimpresion',
+        'showOperacion'   => 'catalogos',
+        'deleteOperacion' => 'catalogos'
+    ];
+
+    if (in_array($opc, $abiertas, true)) return true;
+
+    if (empty($_SESSION['WANSOFT_USER'])) return false;
+
+    if (!isset($permisos[$opc])) return true;
+
+    return in_array($permisos[$opc], $_SESSION['WANSOFT_PERMS'] ?? [], true);
+}
+
 // -- Los dos papeles del dia --
 //
 // Cual de los dos se esta reimprimiendo. Es la pregunta que reparte todo el armado:
 // el aprobado copia su documento y el real se arma de la cuenta. Son las mismas
-// reglas del Facturador (ctrl-facture-tickets.php) y tienen que serlo: un papel
+// reglas del modulo Tickets (ctrl-facture2-tickets.php) y tienen que serlo: un papel
 // reimpreso aqui sale identico al que se emitio alla.
 function esVirtual($item) {
     return !empty($item['virtual_id']);
@@ -556,6 +735,32 @@ function tasaEfectiva($item) {
 
 function money($valor) {
     return '$' . number_format((float) $valor, 2);
+}
+
+// "1 carga", "2 cargas": el aviso final cuenta lo que se borro y tiene que leerse
+// bien con uno o con muchos.
+function cuantos($n, $uno, $varios) {
+    return $n . ' ' . ((int) $n === 1 ? $uno : $varios);
+}
+
+// El mes que "Eliminar todo" tiene que borrar: el de los selectores de
+// Importacion. Sin un mes valido no hay nada que borrar —nunca "todo"—, y por eso
+// devuelve null en vez de caer a un periodo por omision.
+function periodoDeOperacion() {
+    $mes  = (int) ($_POST['mes']  ?? 0);
+    $anio = (int) ($_POST['anio'] ?? 0);
+
+    if ($mes < 1 || $mes > 12 || $anio < 2000) return null;
+
+    $nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+                'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    return [
+        'mes'   => $mes,
+        'anio'  => $anio,
+        'ym'    => sprintf('%04d-%02d', $anio, $mes),
+        'texto' => $nombres[$mes - 1] . ' ' . $anio
+    ];
 }
 
 // La cantidad se imprime entera cuando lo es: los productos puente se venden por
@@ -604,7 +809,7 @@ function emisorVacio() {
 // mismo ticket muestra hoy y en un ano las mismas personas. Un rand() daria un papel
 // distinto en cada reimpresion, que es justo lo contrario de reimprimir.
 //
-// Son las mismas funciones del Facturador (ctrl-facture-tickets.php): un papel
+// Son las mismas funciones del modulo Tickets (ctrl-facture2-tickets.php): un papel
 // reimpreso aqui tiene que salir identico al que se emitio alla.
 function semillaFolio($folio) {
     return crc32((string) $folio);
@@ -697,6 +902,11 @@ $obj = new ctrl();
 
 if (!method_exists($obj, $_POST['opc'])) {
     echo json_encode(['status' => 400, 'message' => "Opción no disponible: {$_POST['opc']}"]);
+    exit(0);
+}
+
+if (!opcPermitida($_POST['opc'])) {
+    echo json_encode(['status' => 403, 'message' => 'Sin permiso para esta opción']);
     exit(0);
 }
 

@@ -1,4 +1,4 @@
-let apiCatalogos = '/app/facture/ctrl/ctrl-facture-catalogos.php';
+let apiCatalogos = '/app/facture2/ctrl/ctrl-facture2-catalogos.php';
 let app, catalogos, catalogosView;
 
 $(async () => {

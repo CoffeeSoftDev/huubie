@@ -1,7 +1,7 @@
-let apiTickets = '/app/facture/ctrl/ctrl-facture-tickets.php';
+let apiTickets = '/app/facture2/ctrl/ctrl-facture2-tickets.php';
 let app, tickets, ticketsView;
 
-const apiCargas = '/app/facture/ctrl/ctrl-facture-cargas.php';
+const apiCargas = '/app/facture2/ctrl/ctrl-facture2-cargas.php';
 
 const UPLOAD_TAB   = 'sales-report';
 const COMMANDS_TAB = 'commands';
@@ -428,7 +428,7 @@ class App extends Templates {
         this.metaTouched = { valor: true, cero: false };
 
         this.metaModal = this.cfModal({
-            title:         'Distribucion IVA 16% / IVA 0%',
+            title:         'Distribución IVA 16% / IVA 0%',
             size:          'small',
             theme:         FACTURE_THEME,
             okLabel:       'Aplicar',
@@ -463,7 +463,7 @@ class App extends Templates {
                 {
                     opc:      'input',
                     id:       'fMetaValor',
-                    lbl:      'Monto IVA 16%:',
+                    lbl:      this.rotuloMeta(16, this.meta.modo),
                     type:     'number',
                     tipo:     'numero',
                     class:    'col-12 col-sm-6',
@@ -473,7 +473,7 @@ class App extends Templates {
                 {
                     opc:      'input',
                     id:       'fMetaCero',
-                    lbl:      'Monto IVA 0%:',
+                    lbl:      this.rotuloMeta(0, this.meta.modo),
                     type:     'number',
                     tipo:     'numero',
                     class:    'col-12 col-sm-6',
@@ -521,9 +521,18 @@ class App extends Templates {
         this.renderMetaPreview();
     }
 
+    // El rotulo dice que se escribe: en porcentaje un "70" no es un monto, y
+    // "Monto IVA 16%" con un 70 adentro se leia como setenta pesos.
+    rotuloMeta(tasa, modo) {
+        return `IVA ${tasa}% (${modo === 'monto' ? '$' : '%'}):`;
+    }
+
     onChangeMetaModo() {
         const modo  = $('#fMetaModo').val();
         const total = parseFloat(this.dataKpis.total) || 0;
+
+        $('label[for$="fMetaValor"]').text(this.rotuloMeta(16, modo));
+        $('label[for$="fMetaCero"]').text(this.rotuloMeta(0, modo));
 
         const convertir = (v) => modo === 'monto'
             ? total * v / 100
@@ -758,7 +767,7 @@ class App extends Templates {
                 nombre:   'Reporte de ventas',
                 archivo:  'ReporteVentasPorFormaDePago',
                 desglosa: 'Trae los folios, los montos y la forma de cobro del día',
-                falta:    'Sin el no se puede repartir el dia.'
+                falta:    'Sin él no se puede repartir el día.'
             },
             {
                 tipo:     COMMANDS_TAB,
@@ -1016,7 +1025,7 @@ class App extends Templates {
                     : `Faltan ${faltan.length} archivos del periodo`,
                 text:              faltan.map((s) => s.falta).join(' '),
                 icon:              'warning',
-                confirmButtonText: 'Generar asi',
+                confirmButtonText: 'Generar así',
                 cancelButtonText:  'Mejor lo subo'
             }
         }).then((result) => {
@@ -1024,10 +1033,27 @@ class App extends Templates {
         });
     }
 
-    abreScope(info) {
+    // Desde la subida tambien se pasa por la meta: el 16% y el 0% se capturan antes
+    // de pedir propuesta, se llegue a generar por el boton de la barra o por aqui.
+    // Antes este camino saltaba directo al alcance y repartia con la meta que
+    // hubiera quedado guardada en el navegador.
+    //
+    // La meta se captura sobre el total del dia del filtro, y recien subido el
+    // archivo ese filtro suele estar en un dia sin ventas —hoy—: el modal pediria
+    // repartir $0.00. Por eso primero se mueve al primer dia pendiente del periodo,
+    // el mismo que el alcance propone.
+    async abreScope(info) {
         this.uploadModal.close();
 
-        this.openScopeModal(info);
+        const primero = (info.dias || []).find((d) => d.sinRepartir);
+
+        if (primero && primero.dia !== this.getFilters().dia) {
+            $('#fDia').val(primero.dia);
+
+            await this.onChangeFilters();
+        }
+
+        this.conMeta(() => this.openScopeModal(info));
     }
 
     anotarCarga(slot, data) {
@@ -1307,7 +1333,10 @@ class App extends Templates {
             ? (this.dataKpis.objetivoTexto || this.moneyText(this.meta.valor))
             : `${this.pctText(this.meta.valor)}%`;
 
-        $('#btnMetaConfig').attr('title', `Distribucion IVA 16% / IVA 0% · al 16%: ${valor}`);
+        $('#btnMetaConfig').attr({
+            title:        `Distribución IVA 16% / IVA 0% · al 16%: ${valor}`,
+            'aria-label': 'Distribución IVA 16% / IVA 0%'
+        });
     }
 
     moneyText(n) {
@@ -1363,9 +1392,13 @@ class App extends Templates {
         ok.removeClass('bg-[#1C64F2] hover:bg-[#1a53d4]')
           .addClass('bg-[#047857] hover:bg-[#036B4A] text-white');
 
+        // "Regenerar" a secas no decia que cambia: solo la mezcla de productos de los
+        // tickets, nunca los montos ni las tasas. En una terminal de dedo no hay
+        // tooltip que lo aclare, asi que lo dice el propio boton.
         const regenerar = $('<button>', {
             type:  'button',
-            text:  this.previewScope === 'mes' ? 'Regenerar el mes' : 'Regenerar',
+            text:  this.previewScope === 'mes' ? 'Regenerar productos del mes' : 'Regenerar productos',
+            title: 'Arma los tickets con otra combinación de productos. Los montos y las tasas no cambian.',
             class: 'rounded-lg text-sm font-medium px-4 py-2 ' + (FACTURE_THEME_IS_LIGHT
                 ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 : 'bg-[#1a2332] text-[#9CA3AF] border border-[#374151] hover:bg-[#283341] hover:text-white')
@@ -1377,10 +1410,26 @@ class App extends Templates {
 
         if (!this.scopeInfo) return;
 
-        this.previewModal.footer.find('button').first()
-            .text('‹ Volver')
-            .off('click')
-            .on('click', () => this.volverAlAlcance());
+        // "Volver" se agrega y ya no reemplaza a "Cancelar": quien llego desde el
+        // alcance tiene que poder regresar a elegir otro dia y tambien salir sin
+        // generar nada. Antes la unica salida era la ×.
+        const volver = $('<button>', {
+            type:  'button',
+            text:  '‹ Volver',
+            class: 'mr-auto rounded-lg text-sm font-medium px-3 py-2 ' + (FACTURE_THEME_IS_LIGHT
+                ? 'text-gray-600 hover:bg-gray-100'
+                : 'text-[#9CA3AF] hover:bg-[#283341] hover:text-white')
+        });
+
+        volver.on('click', () => this.volverAlAlcance());
+
+        this.previewModal.footer.prepend(volver);
+
+        // Con cuatro botones el modal de un dia no alcanza: "‹ Volver" y "Regenerar
+        // productos" se partian en dos renglones. Un renglon cada uno y menos aire.
+        this.previewModal.footer.find('button')
+            .removeClass('px-4')
+            .addClass('px-3 whitespace-nowrap');
     }
 
     volverAlAlcance() {
@@ -1402,7 +1451,7 @@ class App extends Templates {
 
         const imprimir = $('<button>', {
             type:  'button',
-            text:  'Imprimir tickets del dia',
+            text:  'Imprimir tickets del día',
             class: 'rounded-lg text-sm font-medium px-4 py-2 ' + (FACTURE_THEME_IS_LIGHT
                 ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 : 'bg-[#1a2332] text-[#9CA3AF] border border-[#374151] hover:bg-[#283341] hover:text-white')
@@ -1515,8 +1564,8 @@ class App extends Templates {
         const desde = Date.now();
 
         this.lockScope(alcance === 'mes'
-            ? `Armando la propuesta de ${cuantos} dia${cuantos !== 1 ? 's' : ''}...`
-            : 'Armando la propuesta del dia...');
+            ? `Armando la propuesta de ${cuantos} ${cuantos !== 1 ? 'días' : 'día'}...`
+            : 'Armando la propuesta del día...');
 
         // Un dia responde en un parpadeo y el aviso no daba tiempo ni a leerse. El
         // mes no espera nada de mas: para cuando llega, el minimo ya se cumplio.
@@ -1664,7 +1713,7 @@ class Tickets extends Templates {
         const servicio = counts.servicio || 0;
         const aparte   = servicio > 0 ? `, ${servicio} de servicio de mesa` : '';
 
-        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} del dia${aparte}`);
+        app.updateFooterInfo(`Mostrando ${counts.mostrados} ticket${counts.mostrados !== 1 ? 's' : ''} del día${aparte}`);
     }
 
     dataTable(id, data) {
@@ -1695,7 +1744,7 @@ class Tickets extends Templates {
         app.syncActionButtons(counts);
         app.syncMetaButton();
 
-        app.updateFooterInfo(`${ventas} venta${ventas !== 1 ? 's' : ''} del dia, sin repartir`);
+        app.updateFooterInfo(`${ventas} venta${ventas !== 1 ? 's' : ''} del día, sin repartir`);
     }
 
     // -- Actions --
@@ -1816,8 +1865,8 @@ class Tickets extends Templates {
         this.swalQuestion({
             extends: true,
             opts: {
-                title:             'Rehacer el reparto del dia',
-                text:              'Rehacer vuelve a repartir la venta del dia entre IVA 16% e IVA 0% y reemplaza los tickets ya generados; las notas no cambian. Solo eliminar borra los tickets del dia y la corrida que los genero, y deja el dia sin repartir.',
+                title:             'Rehacer el reparto del día',
+                text:              'Rehacer vuelve a repartir la venta del día entre IVA 16% e IVA 0% y reemplaza los tickets ya generados; las notas no cambian. Solo eliminar borra los tickets del día y la generación que los creó, y deja el día sin repartir.',
                 icon:              'question',
                 showDenyButton:    true,
                 confirmButtonText: 'Si, rehacer',
@@ -1870,7 +1919,7 @@ class Tickets extends Templates {
             extends: true,
             opts: {
                 title:             'Generar tickets virtuales',
-                text:              'Se generaran los tickets virtuales del dia que van al 0% y aun no tienen uno.',
+                text:              'Se generarán los tickets virtuales del día que van al 0% y aún no tienen uno.',
                 icon:              'question',
                 confirmButtonText: 'Si, generar',
                 cancelButtonText:  'No'
@@ -1922,9 +1971,9 @@ class Tickets extends Templates {
 
     pendingNotice(motivo) {
         const titulo = {
-            'sin-comanda':     'Esta venta llego sin su comanda: su papel se arma al generar los tickets del dia',
-            'comanda-parcial': 'El folio ampara solo parte de la cuenta: su papel se arma al generar los tickets del dia'
-        }[motivo] || 'Su papel se arma al generar los tickets del dia';
+            'sin-comanda':     'Esta venta llegó sin su comanda: su papel se arma al generar los tickets del día',
+            'comanda-parcial': 'El folio ampara solo parte de la cuenta: su papel se arma al generar los tickets del día'
+        }[motivo] || 'Su papel se arma al generar los tickets del día';
 
         this.alertBox({
             theme: FACTURE_THEME,
@@ -2039,12 +2088,12 @@ class TicketsView extends Templates {
                     motivo: 'vacio',
                     icon:   'calendar-x',
                     title:  `Sin ventas cargadas el ${fecha}`,
-                    text:   'El reporte del punto de venta se sube en Importacion. Cuando entre el de este dia, aqui salen sus tickets y se habilita el reparto.'
+                    text:   'El reporte del punto de venta se sube en Importación. Cuando entre el de este día, aquí salen sus tickets y se habilita el reparto.'
                 }
                 : {
                     motivo: 'error',
-                    title:  'No se pudo cargar el dia',
-                    text:   'El servidor no devolvio el listado. Vuelve a intentarlo; si sigue igual, el detalle queda en el log del modulo.',
+                    title:  'No se pudo cargar el día',
+                    text:   'El servidor no devolvió el listado. Vuelve a intentarlo; si sigue igual, el detalle queda en el log del módulo.',
                     action: { text: 'Reintentar', icon: 'refresh-cw', onClick: () => tickets.lsTickets() }
                 }
         });
@@ -2052,7 +2101,7 @@ class TicketsView extends Templates {
 
     renderCutNote(corte) {
         const texto = corte && corte.hay
-            ? `· la linea ambar corta el IVA 16%: ${corte.cuenta16} ventas por ${corte.logradoTexto} de ${corte.objetivoTexto}, y ${corte.cuenta0} al IVA 0% (${corte.monto0Texto})`
+            ? `· la línea ámbar corta el IVA 16%: ${corte.cuenta16} ventas por ${corte.logradoTexto} de ${corte.objetivoTexto}, y ${corte.cuenta0} al IVA 0% (${corte.monto0Texto})`
             : '';
 
         $('#viewFooter_cut').text(texto);
@@ -2071,15 +2120,28 @@ class TicketsView extends Templates {
             ? ` · ${k.servicio} de servicio de mesa, que no facturan`
             : '';
 
-        row.append(this.statCell('Tarjeta de credito', k.totalTexto, 'ws-stat-hero',
+        row.append(this.statCell('Tarjeta de crédito', k.totalTexto, 'ws-stat-hero',
             `${k.tickets || 0} folios con cargo a tarjeta${servicio}`));
 
-        row.append(this.statCell(rotulo16, k.objetivoTexto, 'ws-stat-blue',
-            `${k.metaPct || 70}% de la venta con tarjeta`));
+        // Antes de capturar la meta del dia la division no es un hecho: sale de la
+        // ultima meta guardada en el navegador y se leia como si el dia ya estuviera
+        // repartido. Se muestra al aplicar la meta, o si el dia ya se genero.
+        const porCapturar = (counts.generados || 0) === 0 && app.metaOkDia !== app.getFilters().dia;
 
-        row.append(this.statCell(`IVA 0% · ${pctCero}%`,
-            k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto, '',
-            k.ceroGenerado ? `generado · objetivo ${k.objetivoCeroTexto}` : `${pctCero}% de la venta con tarjeta`));
+        if (porCapturar) {
+            row.append(this.statCell('IVA 16%', 'Por capturar', 'ws-stat-pend',
+                'Se define al capturar la meta en «Generar ticket»', 'se define al generar'));
+
+            row.append(this.statCell('IVA 0%', 'Por capturar', 'ws-stat-pend',
+                'Se define al capturar la meta en «Generar ticket»', 'se define al generar'));
+        } else {
+            row.append(this.statCell(rotulo16, k.objetivoTexto, 'ws-stat-blue',
+                `${k.metaPct || 70}% de la venta con tarjeta`));
+
+            row.append(this.statCell(`IVA 0% · ${pctCero}%`,
+                k.ceroGenerado ? k.obtenidoCeroTexto : k.objetivoCeroTexto, '',
+                k.ceroGenerado ? `generado · objetivo ${k.objetivoCeroTexto}` : `${pctCero}% de la venta con tarjeta`));
+        }
 
         row.append(this.statCell('Ya facturado', k.facturadoTexto, 'ws-stat-ok',
             `${k.facturados || 0} tickets facturados realmente`));
@@ -2094,11 +2156,13 @@ class TicketsView extends Templates {
         if (window.lucide) lucide.createIcons();
     }
 
-    statCell(label, value, tone, detalle) {
+    statCell(label, value, tone, detalle, nota) {
         const cell = $('<div>', { class: `ws-stat ${tone}`.trim(), title: detalle || '' });
 
         cell.append($('<div>', { class: 'ws-stat-lbl', text: label }));
         cell.append($('<div>', { class: 'ws-stat-val', text: value || '$0.00' }));
+
+        if (nota) cell.append($('<div>', { class: 'ws-stat-nota', text: nota }));
 
         return cell;
     }
@@ -2146,7 +2210,7 @@ class TicketsView extends Templates {
                     <span class="tk-lock-ico"><i data-lucide="lock" class="w-4 h-4"></i></span>
                     <span class="tk-lock-txt">
                         <b>${ventas} venta${ventas !== 1 ? 's' : ''} sin repartir</b>
-                        <span>Dale a Generar ticket para ver el detalle del dia</span>
+                        <span>Dale a Generar ticket para ver el detalle del día</span>
                     </span>
                     <button type="button" class="tk-lock-btn" onclick="tickets.startGenerate()">Generar ticket</button>
                 </div>
@@ -2179,12 +2243,12 @@ class TicketsView extends Templates {
         const pendientes = info.dias.filter((d) => d.sinRepartir).length;
 
         $('#scopeModalBody').html(`
-            <p class="text-[11px] ${label}">${esc(info.mesTexto)} · ${esc(info.dias.length)} dia${info.dias.length !== 1 ? 's' : ''} con ventas · ${esc(pendientes)} sin repartir</p>
+            <p class="text-[11px] ${label}">${esc(info.mesTexto)} · ${esc(info.dias.length)} ${info.dias.length !== 1 ? 'días' : 'día'} con ventas · ${esc(pendientes)} sin repartir</p>
 
             <label class="mt-3 block rounded-lg border ${marco} p-3 cursor-pointer" data-scope="dia">
                 <span class="flex items-center gap-2">
                     <input type="radio" name="scopeKind" value="dia" checked class="accent-[#1C64F2]">
-                    <span class="text-[12.5px] font-semibold ${valor}">Un dia</span>
+                    <span class="text-[12.5px] font-semibold ${valor}">Un día</span>
                 </span>
                 <select id="fScopeDia" class="mt-2 w-full rounded-lg border px-2 py-1.5 text-[12px] ${campo}">
                     ${info.dias.map(opcion).join('')}
@@ -2198,12 +2262,12 @@ class TicketsView extends Templates {
                     <span class="ml-auto text-[12px] font-bold ${valor}">${esc(info.totalTexto)}</span>
                 </span>
                 <span class="mt-1 block pl-6 text-[10.5px] ${label}">
-                    ${esc(info.dias.length)} dias · ${esc(info.movimientos)} movimientos · ${esc(info.conCargo)} con cargo a tarjeta
+                    ${esc(info.dias.length)} ${info.dias.length !== 1 ? 'días' : 'día'} · ${esc(info.movimientos)} movimientos · ${esc(info.conCargo)} con cargo a tarjeta
                 </span>
             </label>
 
             <p class="mt-2 text-[10.5px] facture-warn">
-                El mes se cierra dia por dia, con la misma meta y su propia numeracion de notas: son varias corridas, no una sola del mes.
+                El mes se genera día por día con la misma meta. Cada día numera sus tickets desde el 1.
             </p>
         `);
 
@@ -2260,20 +2324,20 @@ class TicketsView extends Templates {
         `;
 
         const sugerido = p.sugerido ? `
-            <p class="mt-2 text-[10px] facture-info">El monto al IVA ${esc(p.sugerido)}% es el resto del total. Corrigelo si el acuerdo es otro.</p>
+            <p class="mt-2 text-[10px] facture-info">El monto al IVA ${esc(p.sugerido)}% es el resto del total. Corrígelo si el acuerdo es otro.</p>
         ` : '';
 
         const aviso = p.cuadra ? '' : `
             <p class="mt-2 text-[10px] facture-warn flex items-start gap-1.5">
                 <i data-lucide="alert-triangle" class="w-3 h-3 shrink-0 mt-[1px]"></i>
-                ${p.sobra ? 'Sobran' : 'Faltan'} ${esc(p.difTexto)} para que las dos tasas sumen el Total Tarjeta de Credito.
+                ${p.sobra ? 'Sobran' : 'Faltan'} ${esc(p.difTexto)} para que las dos tasas sumen el Total Tarjeta de Crédito.
             </p>
         `;
 
         $('#metaModalPreview').html(`
             <div class="mt-4 rounded-lg border ${panel} px-3 py-2">
                 <div class="flex items-center justify-between pb-1.5 border-b ${linea}">
-                    <span class="text-[11px] ${label}">Total Tarjeta de Credito</span>
+                    <span class="text-[11px] ${label}">Total Tarjeta de Crédito</span>
                     <span class="text-[12px] font-bold ${valor}">${esc(p.totalTexto)}</span>
                 </div>
                 ${fila('#1C64F2', 'IVA 16%', p.pct16, p.texto16)}
@@ -2307,16 +2371,6 @@ class TicketsView extends Templates {
         const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
         const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
 
-        const tasa = (color, nombre, pct, tickets, monto) => `
-            <div class="flex items-baseline gap-2.5 py-1.5">
-                <span class="w-2 h-2 rounded-full shrink-0" style="background:${color};"></span>
-                <span class="text-[12px] font-semibold ${valor}">${esc(nombre)}</span>
-                <span class="w-12 text-[11.5px] font-semibold tabular-nums ${valor}">${esc(pct)}%</span>
-                <span class="text-[10.5px] ${label}">${esc(tickets)} ticket${Number(tickets) !== 1 ? 's' : ''}</span>
-                <span class="ml-auto text-[13px] font-bold ${valor}">${esc(monto)}</span>
-            </div>
-        `;
-
         const tono = p.sobreMeta ? '#1C64F2' : '#F59E0B';
 
         const marcador = `
@@ -2329,37 +2383,52 @@ class TicketsView extends Templates {
             </div>
         `;
 
-        const distancia = `
-            <p class="mt-1 text-[10.5px] ${label}">
-                Objetivo capturado ${esc(p.objetivoTexto)} ·
-                ${p.sobreMeta ? 'se rebasa por' : 'faltan'} <span class="font-semibold" style="color:${tono};">${esc(String(p.difTexto).replace(/^[+-]/, ''))}</span>
-            </p>
+        const g = p.grupos || {};
+
+        // El $0.00 se abre en sus dos origenes: el servicio de mesa presta folio y
+        // el $0.00 de origen nunca cobro. Lo ya facturado va aparte porque cuenta
+        // como ticket del dia pero no se le arma papel nuevo.
+        const desglose = (nombre, cuantos) => `
+            <div class="flex items-baseline justify-between py-[2px]">
+                <span class="text-[11px] ${label}">${esc(nombre)}</span>
+                <span class="text-[11px] font-semibold tabular-nums ${valor}">${esc(cuantos || 0)}</span>
+            </div>
         `;
 
         const movidos = p.reasignados || [];
 
+        // Cada mudanza lleva su motivo, igual que en el panel del mes: un folio que
+        // cambia de dueño sin decir por que es justo lo que hay que poder explicar.
         const mudanza = movidos.length ? `
             <div class="mt-3 pt-3 border-t ${linea}">
                 <p class="text-[9.5px] font-semibold uppercase tracking-wider ${label}">Folios reasignados</p>
                 ${movidos.map(m => `
-                    <div class="flex items-baseline gap-2 mt-1.5 text-[12px]">
-                        <span class="font-semibold ${valor}">${esc(m.origen)}</span>
-                        ${m.destino
-                            ? `<span class="${label}">&rsaquo;</span><span class="font-semibold text-[#1C64F2]">${esc(m.destino)}</span>`
-                            : `<span class="text-[10.5px] facture-warn">sin folio libre</span>`}
-                        <span class="ml-auto ${valor}">${esc(m.montoTexto)}</span>
+                    <div class="mt-1.5">
+                        <div class="flex items-baseline gap-2 text-[12px]">
+                            <span class="font-semibold ${valor}">${esc(m.origen)}</span>
+                            ${m.destino
+                                ? `<span class="${label}">&rsaquo;</span><span class="font-semibold text-[#1C64F2]">${esc(m.destino)}</span>`
+                                : `<span class="text-[10.5px] facture-warn">sin folio libre</span>`}
+                            <span class="ml-auto ${valor}">${esc(m.montoTexto)}</span>
+                        </div>
+                        ${m.motivo ? `<p class="mt-0.5 text-[10.5px] ${label}">${esc(m.motivo)}</p>` : ''}
                     </div>
                 `).join('')}
             </div>
         ` : '';
 
         $('#previewDayBody').html(`
-            <p class="text-[11px] ${label}">${esc(p.fechaTexto)} · todavia no se guarda nada</p>
+            <div class="flex items-baseline justify-between gap-2">
+                <p class="text-[11px] ${label}">${esc(p.fechaTexto)} · todavía no se guarda nada</p>
+                ${this.chipCombinacion(p.semilla)}
+            </div>
+            ${this.notaCombinacion(p.semilla)}
 
             <div class="mt-3">
-                <p class="text-[9.5px] uppercase tracking-wider ${label}">Tarjeta de credito</p>
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">Tarjeta de crédito</p>
                 <p class="text-[26px] font-bold leading-tight ${valor}">${esc(p.totalTexto)}</p>
                 <p class="text-[11px] ${label}">${esc(p.movimientos)} movimientos · ${esc(p.conCargo)} con cargo a tarjeta</p>
+                ${this.notaRecibidos(movidos) ? `<p class="text-[11px] text-[#1C64F2]">${esc(this.notaRecibidos(movidos))}</p>` : ''}
             </div>
 
             <div class="mt-4 pt-3 border-t ${linea}">
@@ -2368,21 +2437,25 @@ class TicketsView extends Templates {
                     <div class="flex items-center justify-center" style="flex:${esc(p.pct16)};background:#1C64F2;">${esc(p.pct16)}%</div>
                     <div class="flex items-center justify-center" style="flex:${esc(p.pct0)};background:#F59E0B;">${esc(p.pct0)}%</div>
                 </div>
-                <div class="mt-2">
-                    ${tasa('#1C64F2', 'IVA 16%', p.pct16, p.cuenta16, p.monto16Texto)}
-                    ${tasa('#F59E0B', 'IVA 0%',  p.pct0,  p.cuenta0,  p.monto0Texto)}
-                </div>
-                ${distancia}
+                ${this.tablaReparto(p)}
             </div>
 
             <div class="mt-3 pt-3 border-t ${linea}">
                 <div class="flex items-baseline justify-between">
-                    <span class="text-[12.5px] font-bold ${valor}">Tickets del dia</span>
+                    <span class="text-[12.5px] font-bold ${valor}">Tickets del día</span>
                     <span class="text-[12.5px] font-bold ${valor}">${esc(p.tickets)}</span>
                 </div>
                 <div class="flex items-baseline justify-between mt-1">
                     <span class="text-[11.5px] ${label}">de $0.00</span>
                     <span class="text-[11.5px] ${label}">${esc(p.cero)}</span>
+                </div>
+                <div class="mt-0.5 ml-0.5 pl-2.5 border-l ${linea}">
+                    ${desglose('Servicio de mesa', g.servicio)}
+                    ${desglose('$0.00 de origen',  g.ceroOrigen)}
+                </div>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span class="text-[11.5px] ${label}">Ya facturado</span>
+                    <span class="text-[11.5px] ${label}">${esc(g.facturados || 0)}</span>
                 </div>
             </div>
 
@@ -2390,6 +2463,104 @@ class TicketsView extends Templates {
         `);
     }
 
+    // -- Meta contra generado --
+
+    // Meta, generado y diferencia de las dos tasas en una sola tabla. La usan la
+    // vista de un dia, el panel del mes y la columna del mes, para que las tres se
+    // lean igual. La diferencia en cero se dice con palabras: un "+$0.00" se leia
+    // como descuadre.
+    tablaReparto(p, compacto) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const linea = FACTURE_THEME_IS_LIGHT ? 'border-gray-200' : 'border-[#374151]';
+        const valor = FACTURE_THEME_IS_LIGHT ? 'text-gray-900' : 'text-white';
+        const label = FACTURE_THEME_IS_LIGHT ? 'text-gray-600' : 'text-gray-400';
+
+        const titulo = `pb-1 pl-2 text-right text-[9.5px] font-medium uppercase tracking-wider whitespace-nowrap ${label}`;
+        const celda  = `py-1.5 pl-2 text-right align-top whitespace-nowrap border-t ${linea}`;
+
+        const cuenta = (n) => compacto ? `${n} tk` : `${n} ticket${Number(n) !== 1 ? 's' : ''}`;
+
+        const fila = (color, nombre, meta, metaPct, generado, pct, tickets, dif) => `
+            <tr>
+                <td class="py-1.5 align-top whitespace-nowrap border-t ${linea}">
+                    <span class="inline-flex items-center gap-1.5 text-[11.5px] font-semibold ${valor}">
+                        <span class="w-2 h-2 rounded-full shrink-0" style="background:${color};"></span>${esc(nombre)}
+                    </span>
+                </td>
+                <td class="${celda}">
+                    <span class="block ${compacto ? 'text-[11px]' : 'text-[12px]'} font-semibold ${label}">${esc(meta)}</span>
+                    ${compacto ? '' : `<span class="block text-[10px] ${label}">${esc(metaPct)}%</span>`}
+                </td>
+                <td class="${celda}">
+                    <span class="block ${compacto ? 'text-[11.5px]' : 'text-[12.5px]'} font-bold ${valor}">${esc(generado)}</span>
+                    <span class="block text-[10px] ${label}">${esc(pct)}% · ${esc(cuenta(tickets))}</span>
+                </td>
+                <td class="${celda}">
+                    ${p.difCero
+                        ? '<span class="text-[10.5px] font-semibold text-[#047857]">Sin diferencia</span>'
+                        : `<span class="text-[11.5px] font-semibold" style="color:${color};">${esc(dif)}</span>`}
+                </td>
+            </tr>
+        `;
+
+        return `
+            <div class="mt-2 overflow-x-auto">
+                <table class="w-full tabular-nums">
+                    <thead>
+                        <tr>
+                            <th class="pb-1 text-left text-[9.5px] font-medium uppercase tracking-wider ${label}">${compacto ? 'Mes' : 'Tasa'}</th>
+                            <th class="${titulo}">Meta</th>
+                            <th class="${titulo}">Generado</th>
+                            <th class="${titulo}">${compacto ? 'Dif.' : 'Diferencia'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fila('#1C64F2', compacto ? '16%' : 'IVA 16%', p.objetivoTexto,     p.metaPct,     p.monto16Texto, p.pct16, p.cuenta16, p.difTexto)}
+                        ${fila('#F59E0B', compacto ? '0%'  : 'IVA 0%',  p.objetivoCeroTexto, p.metaCeroPct, p.monto0Texto,  p.pct0,  p.cuenta0,  p.dif0Texto)}
+                    </tbody>
+                </table>
+            </div>
+            ${p.difCero ? '' : `<p class="mt-1 text-[10.5px] ${label}">Los tickets no se parten: el que cruza la meta entra completo.</p>`}
+        `;
+    }
+
+    // Regenerar solo cambia los productos de cada ticket, asi que sin una marca la
+    // pantalla quedaba identica y parecia que el boton no hizo nada. La semilla es
+    // la combinacion: 0 es la primera.
+    chipCombinacion(semilla) {
+        const n = (parseInt(semilla, 10) || 0) + 1;
+
+        return `<span class="inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-semibold whitespace-nowrap"
+                      style="background:#EEF2FF;color:#3730A3;">Combinación ${n}</span>`;
+    }
+
+    notaCombinacion(semilla) {
+        if (!(parseInt(semilla, 10) > 0)) return '';
+
+        return '<p class="mt-0.5 text-[10.5px]" style="color:#3730A3;">Otra mezcla de productos. Montos, tasas y folios no cambian.</p>';
+    }
+
+    // El folio que recibe un cargo mudado ya ampara un cargo con tarjeta y por eso
+    // cuenta "con cargo": sin decirlo, el conteo crecia sin explicacion (7 cuentas
+    // con tarjeta en el archivo, 8 en la propuesta). Dice solo lo que es seguro
+    // —que recibio el cargo y de donde—, no con que se pago esa cuenta.
+    notaRecibidos(movidos) {
+        const recibidos = (movidos || []).filter((m) => m.destino);
+        const folios    = [...new Set(recibidos.map((m) => m.destino))];
+
+        if (!folios.length) return '';
+
+        if (folios.length === 1) {
+            const origenes = [...new Set(recibidos.map((m) => m.origen))].join(' y ');
+
+            return `incluye el ${folios[0]}, que recibió un cargo mudado del ${origenes}`;
+        }
+
+        return `incluye los folios ${folios.slice(0, -1).join(', ')} y ${folios[folios.length - 1]}, que recibieron cargos mudados`;
+    }
 
     // -- El mes en dos zonas: la lista elige, el panel explica --
 
@@ -2403,7 +2574,11 @@ class TicketsView extends Templates {
             dias:      p.dias || [],
             tituloMes: p.fechaTexto,
             totalTexto: p.totalTexto,
-            subtitulo: `${p.movimientos} movimientos · todavia no se guarda nada`
+            subtitulo: `${p.movimientos} movimientos · todavía no se guarda nada`,
+            resumen:   p,
+            // La semilla que devuelve previewMonth puede ser la del ultimo dia
+            // regenerado: la del mes es la que se pidio.
+            semilla:   tickets.semilla
         });
     }
 
@@ -2452,24 +2627,54 @@ class TicketsView extends Templates {
             `;
         };
 
-        $('#' + cfg.host).html(`
-            <div class="flex flex-col md:flex-row md:gap-4">
-                <div class="md:w-[38%] md:shrink-0">
+        // Lo que el Confirmar va a escribir en todo el mes, antes de bajar al detalle
+        // de cada dia. Solo en la vista previa: el cierre ya tiene su resumen.
+        const r = cfg.resumen;
+
+        const totalesMes = r ? `
+            <div class="mt-1 flex items-center justify-end">${this.chipCombinacion(cfg.semilla)}</div>
+            ${this.notaCombinacion(cfg.semilla)}
+            <div class="mt-2 pt-2 border-t ${linea}">
+                ${this.tablaReparto(r, true)}
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-[12px] font-bold ${valor}">Tickets del mes</span>
+                    <span class="text-[12px] font-bold tabular-nums ${valor}">${esc(r.tickets)}</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-[11px] ${label}">de $0.00</span>
+                    <span class="text-[11px] tabular-nums ${label}">${esc(r.cero)}</span>
+                </div>
+            </div>
+        ` : '';
+
+        const host = $('#' + cfg.host);
+
+        // En md el cuerpo del modal deja de desplazarse: las dos zonas llenan su alto
+        // y cada una lleva su propio scroll. Con el del cuerpo encima, el panel del
+        // dia quedaba con dos barras juntas.
+        host.addClass('md:flex-1 md:min-h-0');
+        host.parent().addClass('ws-scroll md:h-[72vh] md:flex md:flex-col');
+        host.closest('.cf-modal').addClass('ws-scroll');
+
+        host.html(`
+            <div class="flex flex-col md:flex-row md:gap-4 md:h-full">
+                <div class="md:w-[38%] md:shrink-0 md:flex md:flex-col md:min-h-0">
                     <p class="flex items-baseline justify-between gap-2">
                         <span class="text-[12.5px] font-bold ${valor}">${esc(cfg.tituloMes)}</span>
-                        <span class="text-[10.5px] ${label}">${dias.length} dia${dias.length !== 1 ? 's' : ''}</span>
+                        <span class="text-[10.5px] ${label}">${dias.length} ${dias.length !== 1 ? 'días' : 'día'}</span>
                     </p>
                     <p class="text-[20px] font-bold leading-tight ${valor}">${esc(cfg.totalTexto)}</p>
                     <p class="text-[10.5px] ${label}">${esc(cfg.subtitulo)}</p>
+                    ${totalesMes}
 
-                    <div id="previewMonthList" class="mt-2 grid gap-1 overflow-y-auto pr-1" style="max-height:52vh;">
+                    <div id="previewMonthList" class="mt-2 grid content-start gap-1 overflow-y-auto ws-scroll pr-1 max-h-[52vh] md:max-h-none md:flex-1 md:min-h-0">
                         ${dias.map(renglon).join('')}
                     </div>
                 </div>
 
                 <div id="previewMonthPanel"
                      class="hidden md:block md:flex-1 md:min-w-0 fixed md:static inset-x-0 bottom-0 z-[70] md:z-auto
-                            h-[70vh] md:h-auto md:max-h-[62vh] overflow-y-auto
+                            h-[70vh] md:h-auto overflow-y-auto ws-scroll
                             border ${linea} ${fondo} rounded-t-2xl md:rounded-lg shadow-2xl md:shadow-none p-3">
                 </div>
             </div>
@@ -2524,7 +2729,7 @@ class TicketsView extends Templates {
         if (!d) {
             $('#previewMonthPanel').html(`
                 ${asa}
-                <p class="py-10 text-center text-[11.5px] ${label}">Selecciona un dia de la lista para ver su detalle</p>
+                <p class="py-10 text-center text-[11.5px] ${label}">Selecciona un día de la lista para ver su detalle</p>
             `);
 
             if (window.lucide) lucide.createIcons();
@@ -2546,16 +2751,6 @@ class TicketsView extends Templates {
 
         const tono = d.sobreMeta ? '#1C64F2' : '#F59E0B';
 
-        const tasa = (color, nombre, pct, tickets, monto) => `
-            <div class="flex items-baseline gap-2.5 py-1">
-                <span class="w-2 h-2 rounded-full shrink-0" style="background:${color};"></span>
-                <span class="text-[11.5px] font-semibold ${valor}">${esc(nombre)}</span>
-                <span class="w-11 text-[11px] font-semibold tabular-nums ${valor}">${esc(pct)}%</span>
-                <span class="text-[10.5px] ${label}">${esc(tickets)} ticket${Number(tickets) !== 1 ? 's' : ''}</span>
-                <span class="ml-auto text-[12px] font-bold ${valor}">${esc(monto)}</span>
-            </div>
-        `;
-
         const movidos = d.reasignados || [];
 
         const mudanzas = movidos.length
@@ -2571,7 +2766,7 @@ class TicketsView extends Templates {
                     ${m.motivo ? `<p class="mt-0.5 text-[10.5px] ${label}">${esc(m.motivo)}</p>` : ''}
                 </div>
             `).join('')
-            : `<p class="mt-1.5 text-[11px] ${label}">Sin folios reasignados este dia</p>`;
+            : `<p class="mt-1.5 text-[11px] ${label}">Sin folios reasignados este día</p>`;
 
         const g = d.grupos || {};
 
@@ -2594,23 +2789,30 @@ class TicketsView extends Templates {
         const accion = cerrado
             ? ''
             : d.repartido
-                ? `<p class="mt-3 text-[10.5px] ${label}">Este dia ya lo cerro una corrida anterior: aqui va solo para consulta.</p>`
+                ? `<p class="mt-3 text-[10.5px] ${label}">Este día ya se generó antes: aquí va solo para consulta.</p>`
                 : `<button type="button" id="previewPanelRedo"
+                           title="Arma los tickets de este día con otra combinación de productos. Los montos y las tasas no cambian."
                            class="mt-3 w-full rounded-lg border ${linea} px-3 py-1.5 text-[11.5px] font-medium ${valor}">
-                       Regenerar este dia
+                       Regenerar productos de este día
                    </button>`;
+
+        // Cada dia lleva su propia combinacion: "Regenerar productos de este dia"
+        // solo mueve la suya. Un dia cerrado ya no tiene combinacion que elegir.
+        const combinacion = cerrado || d.repartido ? '' : this.chipCombinacion(d.semilla);
 
         $('#previewMonthPanel').html(`
             ${asa}
             <div class="flex items-baseline gap-2">
                 <p class="text-[13px] font-bold ${valor}">${esc(d.fechaLarga)}</p>
                 ${sello}
+                <span class="ml-auto">${combinacion}</span>
             </div>
 
             <div class="mt-2">
-                <p class="text-[9.5px] uppercase tracking-wider ${label}">1 · Resumen del dia</p>
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">1 · Resumen del día</p>
                 <p class="mt-1 text-[22px] font-bold leading-tight ${valor}">${esc(d.totalTexto)}</p>
                 <p class="text-[10.5px] ${label}">${esc(d.movimientos)} movimientos · ${esc(d.conCargo)} con cargo a tarjeta</p>
+                ${this.notaRecibidos(movidos) ? `<p class="text-[10.5px] text-[#1C64F2]">${esc(this.notaRecibidos(movidos))}</p>` : ''}
 
                 <div class="mt-2 flex items-baseline justify-between gap-2">
                     <span class="text-[10.5px] ${label}">Reparto aplicado</span>
@@ -2625,16 +2827,16 @@ class TicketsView extends Templates {
                     <div class="flex items-center justify-center" style="flex:${esc(d.pct0)};background:#F59E0B;">${esc(d.pct0)}%</div>
                 </div>
 
-                <div class="mt-1">
-                    ${tasa('#1C64F2', 'IVA 16%', d.pct16, d.cuenta16, d.monto16Texto)}
-                    ${tasa('#F59E0B', 'IVA 0%',  d.pct0,  d.cuenta0,  d.monto0Texto)}
-                </div>
+                ${this.tablaReparto(d)}
 
-                <p class="text-[10.5px] ${label}">
-                    Objetivo capturado ${esc(d.objetivoTexto)} ·
-                    ${d.sobreMeta ? 'se rebasa por' : 'faltan'}
-                    <span class="font-semibold" style="color:${tono};">${esc(String(d.difTexto).replace(/^[+-]/, ''))}</span>
-                </p>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-[12px] font-bold ${valor}">Tickets del día</span>
+                    <span class="text-[12px] font-bold tabular-nums ${valor}">${esc(d.tickets)}</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-[11px] ${label}">de $0.00</span>
+                    <span class="text-[11px] tabular-nums ${label}">${esc(d.cero)}</span>
+                </div>
             </div>
 
             <div class="mt-3 pt-2.5 border-t ${linea}">
@@ -2643,7 +2845,7 @@ class TicketsView extends Templates {
             </div>
 
             <div class="mt-3 pt-2.5 border-t ${linea}">
-                <p class="text-[9.5px] uppercase tracking-wider ${label}">3 · Movimientos del dia</p>
+                <p class="text-[9.5px] uppercase tracking-wider ${label}">3 · Movimientos del día</p>
                 <div class="mt-1">
                     ${grupo('Con cargo a tarjeta', g.conCargo)}
                     ${grupo('Servicio de mesa',    g.servicio)}
@@ -2676,7 +2878,7 @@ class TicketsView extends Templates {
 
         app.previewDiaSel = null;
         app.cierreModal   = app.cfModal({
-            title:         `Reparto de ${r.fechaTexto} · ${dias.filter((d) => !d.error).length} dias cerrados`,
+            title:         `Reparto de ${r.fechaTexto} · ${dias.filter((d) => !d.error).length} día(s) cerrados`,
             size:          'xl',
             theme:         FACTURE_THEME,
             okLabel:       'Entendido',
@@ -2775,11 +2977,11 @@ class TicketsView extends Templates {
             ${separador}
         ` : '';
 
-        const periodo = r.mes ? 'del mes' : 'del dia';
+        const periodo = r.mes ? 'del mes' : 'del día';
 
         const cerrados = (r.dias || []).length ? `
             ${separador}
-            <span class="block text-left text-gray-300 font-semibold">${esc(r.dias.length)} dia(s) cerrados</span>
+            <span class="block text-left text-gray-300 font-semibold">${esc(r.dias.length)} día(s) cerrados</span>
             ${r.dias.map(d => renglon(`${d.fechaTexto} · ${d.generacion || ''}`, `${d.tickets} con cargo`)).join('')}
         ` : '';
 
@@ -3016,7 +3218,7 @@ class TicketsView extends Templates {
             return $('#uploadModalState').html(`
                 <p class="mt-3 flex items-start gap-2 text-[11.5px] facture-warn">
                     <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
-                    <span>Falta 1 archivo de ${total}. Se puede subir asi, pero el dia queda incompleto.</span>
+                    <span>Falta 1 archivo de ${total}. Se puede subir así, pero el día queda incompleto.</span>
                 </p>
             `) && (window.lucide ? lucide.createIcons() : null);
         }
@@ -3024,7 +3226,7 @@ class TicketsView extends Templates {
         $('#uploadModalState').html(`
             <p class="mt-3 flex items-start gap-2 text-[11.5px] facture-info">
                 <i data-lucide="check" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
-                Se subiran los ${total} archivos del dia.
+                Se subirán los ${total} archivos del día.
             </p>
             <p class="mt-1 text-[11px] text-gray-500">
                 Cada movimiento se guarda en el mes de su fecha. Los que ya se procesaron se omiten: solo entran los nuevos.
@@ -3444,7 +3646,7 @@ class TicketsView extends Templates {
 
         const dias = (info.dias || []).filter((d) => d.sinRepartir);
         const lista = dias.slice(0, 3).map((d) => d.fechaTexto).join(', ')
-                    + (dias.length > 3 ? ` y ${dias.length - 3} mas` : '');
+                    + (dias.length > 3 ? ` y ${dias.length - 3} más` : '');
 
         $('#uploadModalState').append(`
             <div class="mt-1.5 flex items-start gap-2.5 rounded-lg border px-2.5 py-1.5"
@@ -3452,9 +3654,9 @@ class TicketsView extends Templates {
                 <i data-lucide="receipt" class="w-4 h-4 shrink-0 facture-info mt-[1px]"></i>
                 <span class="min-w-0">
                     <span class="block text-[11.5px] facture-info">
-                        ${esc(info.mesTexto)} tiene ${esc(dias.length)} dia${dias.length !== 1 ? 's' : ''} sin tickets: ${esc(lista)}
+                        ${esc(info.mesTexto)} tiene ${esc(dias.length)} ${dias.length !== 1 ? 'días' : 'día'} sin tickets: ${esc(lista)}
                     </span>
-                    <span class="block text-[10.5px] text-gray-500">Continua con la generacion y elige si repartes uno o el mes completo.</span>
+                    <span class="block text-[10.5px] text-gray-500">Continúa con la generación y elige si repartes uno o el mes completo.</span>
                 </span>
             </div>
         `);

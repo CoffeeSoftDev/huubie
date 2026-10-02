@@ -422,7 +422,7 @@ class UploadCheck {
         const cabeza = `
             <div class="chk-vs">
                 <div class="chk-vs-side">
-                    <span class="chk-vs-lbl">Lo estas cargando en</span>
+                    <span class="chk-vs-lbl">Lo estás cargando en</span>
                     <span class="chk-vs-val chk-vs-bad">${esc(filtro)}</span>
                 </div>
                 <span class="chk-vs-sep">≠</span>

@@ -6,8 +6,10 @@
 // porque la terminal Wansoft no los tiene. Lo que si tiene es el reloj vivo, que
 // en un POS es dato de turno, no adorno.
 //
-// Sin fetch: los rotulos salen de WANSOFT_TERMINAL mientras el modulo no tenga
-// backend propio.
+// El usuario sale de la base —quien entro con su PIN, por getSession del ctrl de
+// la terminal—; el resto de rotulos sigue saliendo de WANSOFT_TERMINAL.
+
+const NAVBAR_API = '/app/facture2/ctrl/ctrl-facture2-pos.php';
 
 class Navbar {
 
@@ -22,6 +24,7 @@ class Navbar {
     init(options) {
         this.render(options);
         this.startClock();
+        this.loadUser();
     }
 
     render(options) {
@@ -72,7 +75,7 @@ class Navbar {
         this.fields().forEach((field) => {
             box.append($('<span>', {
                 id:    field.id,
-                class: 'ws-meta',
+                class: 'ws-meta' + (field.oculto ? ' hidden' : ''),
                 text:  field.text
             }));
         });
@@ -100,6 +103,10 @@ class Navbar {
 
     // En una pagina de modulo el rotulo de usuario cede su lugar al nombre del
     // modulo, igual que hace el menu de administracion.
+    //
+    // "MESA(S):" solo se ve cuando hay mesa que decir: vacio se leia como un dato
+    // que no cargo, en todas las pantallas de la terminal. El elemento se queda
+    // oculto y no se quita, porque Cuentas escribe en el al elegir una cuenta.
     fields() {
         return [
             {
@@ -115,8 +122,9 @@ class Navbar {
             //     text: `Fecha Op: ${this.settings.fechaOp}`
             // },
             {
-                id:   'navMesas',
-                text: `MESA(S): ${this.settings.mesas}`
+                id:     'navMesas',
+                text:   `MESA(S): ${this.settings.mesas}`,
+                oculto: !this.settings.mesas
             }
         ];
     }
@@ -192,6 +200,19 @@ class Navbar {
     }
 
     // -- Complements --
+
+    // En una pagina de modulo el rotulo es el modulo: ahi no hay usuario que pedir.
+    async loadUser() {
+        if (this.settings.modulo) return;
+
+        const data = await useFetch({ url: NAVBAR_API, data: { opc: 'getSession' } });
+
+        if (!data || data.status !== 200) return;
+
+        this.settings.usuario = data.name;
+
+        $('#navUsuario').text(`Usuario: ${data.name}`);
+    }
 
     startClock() {
         clearInterval(this.timer);

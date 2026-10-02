@@ -5,7 +5,7 @@ require_once '../../conf/_Utileria.php';
 // Modelo de la terminal Wansoft. Lee el mismo esquema del Facturador —es la misma
 // operacion vista desde el mostrador— pero solo lo que la terminal necesita: el
 // papel que YA se emitio. Nada de aqui genera folios ni reparte el dia; eso vive
-// en mdl-facture-tickets.php y ahi se queda.
+// en mdl-facture2-tickets.php y ahi se queda.
 class mdl extends CRUD {
 
     public $util;
@@ -15,6 +15,169 @@ class mdl extends CRUD {
     public function __construct() {
         $this->util = new Utileria;
         $this->bd   = 'fayxzvov_facturacion.';
+    }
+
+    // -- Acceso --
+
+    // Los usuarios que pueden entrar a la terminal de esta sucursal. El PIN viaja
+    // en hash: lo compara password_verify en el controlador, porque un bcrypt
+    // lleva su propia sal y no se puede buscar con un WHERE.
+    //
+    // El usuario sin rol vivo no entra: no tendria ningun permiso que ejercer.
+    function listUsers($array) {
+        $query = "
+            SELECT u.id, u.name, u.pin, u.role_id, r.name AS role_name
+            FROM {$this->bd}user u
+            JOIN {$this->bd}role r ON r.id = u.role_id AND r.active = 1
+            WHERE u.active = 1
+              AND u.branch_id <=> ?
+            ORDER BY u.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Quien esta en la terminal, por el id que dejo el login. Se lee de la base en
+    // cada pantalla y no de la sesion: un cambio de nombre o de rol se ve al
+    // recargar, sin volver a entrar.
+    function getUserById($array) {
+        $query = "
+            SELECT u.id, u.name, u.pin, u.role_id, r.name AS role_name
+            FROM {$this->bd}user u
+            JOIN {$this->bd}role r ON r.id = u.role_id AND r.active = 1
+            WHERE u.active = 1
+              AND u.id = ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Los permisos del rol, por su code: es la llave que preguntan las paginas, y
+    // no cambia aunque cambie el rotulo.
+    function listPermissionsByRole($array) {
+        $query = "
+            SELECT p.code
+            FROM {$this->bd}role_permission rp
+            JOIN {$this->bd}permission p ON p.id = rp.permission_id AND p.active = 1
+            WHERE rp.role_id = ?
+            ORDER BY p.id ASC
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // -- Datos de operacion --
+    //
+    // Lo que "Eliminar todo" se lleva de UN mes: las cargas de Excel de ese periodo
+    // y lo que salio de ellas. Catalogos, emisor y usuarios no se tocan. Todo va
+    // por sucursal: el esquema guarda tambien la del otro punto de venta.
+    //
+    // Cada dato dice su mes como puede:
+    //
+    //   ventas, resumenes y pagos eliminados   su fecha de operacion
+    //   tickets y corridas                     la fecha del papel (issue_date);
+    //                                          la corrida lleva la de sus tickets
+    //   pagos, vouchers y comanda              la carga de la que vinieron —y su
+    //                                          venta, por CASCADE—
+    //   cargas                                 su periodo
+    //
+    // Una carga es siempre de un solo mes: el importador parte el archivo en un
+    // lote por mes (ctxDelPeriodo), asi que su periodo y la fecha de sus filas
+    // dicen lo mismo.
+
+    // Se cuentan todas las filas, vivas o no, porque el borrado se las lleva todas.
+    function getOperacionCounts($array) {
+        $query = "
+            SELECT
+                (SELECT COUNT(*) FROM {$this->bd}sale
+                  WHERE branch_id <=> ? AND DATE_FORMAT(operation_date, '%Y-%m') = ?) AS ventas,
+                (SELECT COUNT(*) FROM {$this->bd}virtual_ticket
+                  WHERE branch_id <=> ? AND DATE_FORMAT(issue_date, '%Y-%m') = ?)     AS tickets,
+                (SELECT COUNT(*) FROM {$this->bd}generation_run
+                  WHERE branch_id <=> ? AND DATE_FORMAT(issue_date, '%Y-%m') = ?)     AS corridas,
+                (SELECT COUNT(*) FROM {$this->bd}import_batch
+                  WHERE branch_id <=> ? AND period_year = ? AND period_month = ?)     AS cargas
+        ";
+        return $this->_Read($query, $array);
+    }
+
+    // Su detalle se va por el CASCADE de detail_virtual_ticket.
+    function deleteVirtualTicketByMonth($array) {
+        $query = "
+            DELETE FROM {$this->bd}virtual_ticket
+            WHERE branch_id <=> ? AND DATE_FORMAT(issue_date, '%Y-%m') = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteGenerationRunByMonth($array) {
+        $query = "
+            DELETE FROM {$this->bd}generation_run
+            WHERE branch_id <=> ? AND DATE_FORMAT(issue_date, '%Y-%m') = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Pagos, vouchers y renglones de comanda se borran por su carga y no solo por
+    // su venta: el borrado de una carga los desliga de la venta (sale_id NULL) y
+    // el CASCADE de sale ya no los alcanzaria.
+    function deletePaymentCardByPeriod($array) {
+        $query = "
+            DELETE c FROM {$this->bd}detail_sale_payment_card c
+            INNER JOIN {$this->bd}import_batch b ON b.id = c.import_batch_id
+            WHERE b.branch_id <=> ? AND b.period_year = ? AND b.period_month = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteSalePaymentByPeriod($array) {
+        $query = "
+            DELETE p FROM {$this->bd}detail_sale_payment p
+            INNER JOIN {$this->bd}import_batch b ON b.id = p.import_batch_id
+            WHERE b.branch_id <=> ? AND b.period_year = ? AND b.period_month = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteSaleDetailByPeriod($array) {
+        $query = "
+            DELETE d FROM {$this->bd}detail_sale d
+            INNER JOIN {$this->bd}import_batch b ON b.id = d.import_batch_id
+            WHERE b.branch_id <=> ? AND b.period_year = ? AND b.period_month = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteDeletedPaymentByMonth($array) {
+        $query = "
+            DELETE FROM {$this->bd}deleted_sale_payment
+            WHERE branch_id <=> ? AND DATE_FORMAT(operation_date, '%Y-%m') = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteDailySummaryByMonth($array) {
+        $query = "
+            DELETE FROM {$this->bd}daily_sale_summary
+            WHERE branch_id <=> ? AND DATE_FORMAT(operation_date, '%Y-%m') = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Lo que siga colgado de la venta —comanda y pagos sin carga— se va con su
+    // CASCADE.
+    function deleteSaleByMonth($array) {
+        $query = "
+            DELETE FROM {$this->bd}sale
+            WHERE branch_id <=> ? AND DATE_FORMAT(operation_date, '%Y-%m') = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    function deleteImportBatchByPeriod($array) {
+        $query = "
+            DELETE FROM {$this->bd}import_batch
+            WHERE branch_id <=> ? AND period_year = ? AND period_month = ?
+        ";
+        return $this->_CUD($query, $array);
     }
 
     // -- Emisor --

@@ -140,6 +140,17 @@ class App extends Templates {
                     { id: "", valor: "Todos los estados" },
                     ...estado
                 ]
+            },
+            {
+                opc: "select",
+                id: "order_type",
+                lbl: "Tipo de pedido:",
+                class: "col-12 col-md-3 col-lg-2",
+                onchange: "app.ls()",
+                data: [
+                    { id: "", valor: "Todos los pedidos" },
+                    { id: "custom", valor: "Personalizados" }
+                ]
             }
         );
 

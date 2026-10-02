@@ -363,13 +363,28 @@ class Acceso extends Templates {
         $('#passAcceso').val('').trigger('focus');
     }
 
-    enter() {
-        if (!this.pass) return this.shakeField();
+    async enter() {
+        if (!this.pass) return this.shakeField('Captura tu contraseña');
+
+        const data = await useFetch({
+            url:  apiPos,
+            data: { opc: 'login', pin: this.pass }
+        });
+
+        if (!data || data.status !== 200) return this.denyAccess(data);
 
         posGo('inicio');
     }
 
-    shakeField() {
+    // El PIN equivocado se borra entero: sin ver lo tecleado no hay digito que
+    // corregir, solo volver a empezar.
+    denyAccess(data) {
+        this.clearPass();
+
+        this.shakeField((data && data.message) || 'No se pudo validar la contraseña');
+    }
+
+    shakeField(title) {
         const field = $('#passAcceso');
 
         field.removeClass('ws-shake');
@@ -383,7 +398,7 @@ class Acceso extends Templates {
         this.alertBox({
             theme: WANSOFT_THEME,
             type:  'warning',
-            title: 'Captura tu contraseña',
+            title: title,
             timer: 1600
         });
     }

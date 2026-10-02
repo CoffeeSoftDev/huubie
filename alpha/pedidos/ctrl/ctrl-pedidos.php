@@ -189,6 +189,7 @@ class Pedidos extends MPedidos{
             'subsidiaries_id' => $buscando && $verTodas ? '0' : $subsidiaries_id,
             'search'          => $search,
             'folio'           => $folioId,
+            'order_type'      => $_POST['order_type'] ?? '',
             'limit'           => $buscando ? 15 : 0
 
         ]) ?? [];
@@ -233,6 +234,10 @@ class Pedidos extends MPedidos{
             $clicPagos  = $puedePagar ? ['onclick' => $pagos] : [];
             $cursorPago = $puedePagar ? ' cursor-pointer' : '';
 
+            $badgePastel = $order['is_custom']
+                ? "<i class='icon-birthday ml-1 text-[10px] text-[#C4B5FD]' title='Pedido personalizado'></i>"
+                : '';
+
             $rows[] = [
                 'id'       => $order['id'],
                 'folio'    => [
@@ -248,7 +253,7 @@ class Pedidos extends MPedidos{
 
                 'Cliente' => [
                     'html' => "
-                        <p class='text-gray-300'>{$order['name_client']}</p>
+                        <p class='text-gray-300 flex items-center'>{$order['name_client']}{$badgePastel}</p>
                         <p class='text-gray-500'><i class='icon-phone'></i> {$order['phone']}</p>
                     ",
                     'class'   => 'text-left px-3 py-2 truncate cursor-pointer',
