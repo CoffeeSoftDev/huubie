@@ -28,17 +28,9 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'category.editCategory(' . $item['id'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('category.statusCategory', $item['id'], $item['active']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'category.statusCategory(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('category.statusCategory', $item['id'], $item['active']);
                 $a[] = deleteButton('category.deleteCategory', $item['id']);
             }
 
@@ -201,23 +193,17 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'area.editArea(' . $item['id'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'area.statusArea(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('area.statusArea', $item['id'], $item['active']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'area.statusArea(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('area.statusArea', $item['id'], $item['active']);
                 $a[] = deleteButton('area.deleteArea', $item['id']);
             }
 
+            $tone = areaColors($item['id'], $item['color_hex']);
+
             $rows[] = [
                 'id'              => $item['id'],
-                'Área'            => $item['valor'],
+                'Área'            => badge($item['valor'], $tone['fg'], 100, $tone['bg'], null, 'rounded-full'),
                 'Almacén'         => $item['almacen'] ?? '-',
                 'Estado'          => renderStatus($item['active']),
                 'a'               => $a
@@ -239,6 +225,9 @@ class ctrl extends mdl {
         $area    = $this->getAreaById([$id]);
 
         if ($area) {
+            // Sin color elegido el form muestra el automático, el que ya pinta el badge.
+            $area['color_hex'] = areaColors($area['id'], $area['color_hex'])['fg'];
+
             $status  = 200;
             $message = 'Área encontrada';
             $data    = $area;
@@ -265,6 +254,7 @@ class ctrl extends mdl {
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
+        $_POST['color_hex']    = $this->colorHex($_POST['color_hex']);
 
         $exists = $this->existsAreaByName([$_POST['name'], $_POST['warehouse_id'], 0]);
 
@@ -291,6 +281,8 @@ class ctrl extends mdl {
     function editArea() {
         $status  = 500;
         $message = 'Error al editar área';
+
+        $_POST['color_hex'] = $this->colorHex($_POST['color_hex']);
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
@@ -385,17 +377,9 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'unit.editUnit(' . $item['id'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('unit.statusUnit', $item['id'], $item['active']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'unit.statusUnit(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('unit.statusUnit', $item['id'], $item['active']);
                 $a[] = deleteButton('unit.deleteUnit', $item['id']);
             }
 
@@ -561,9 +545,9 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = editButton('inflow.editInflow', $item['id']);
-                $a[] = deactivateButton('inflow.statusInflow', $item['id']);
+                $a[] = statusSwitch('inflow.statusInflow', $item['id'], 1);
             } else {
-                $a[] = reactivateButton('inflow.statusInflow', $item['id']);
+                $a[] = statusSwitch('inflow.statusInflow', $item['id'], 0);
                 $a[] = deleteButton('inflow.deleteInflow', $item['id']);
             }
 
@@ -736,9 +720,9 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = editButton('shrinkage.editShrinkage', $item['id']);
-                $a[] = deactivateButton('shrinkage.statusShrinkage', $item['id']);
+                $a[] = statusSwitch('shrinkage.statusShrinkage', $item['id'], 1);
             } else {
-                $a[] = reactivateButton('shrinkage.statusShrinkage', $item['id']);
+                $a[] = statusSwitch('shrinkage.statusShrinkage', $item['id'], 0);
                 $a[] = deleteButton('shrinkage.deleteShrinkage', $item['id']);
             }
 
@@ -913,9 +897,9 @@ class ctrl extends mdl {
 
             if ($active == 1) {
                 $a[] = editButton('transferStatus.editTransferStatus', $item['id']);
-                $a[] = deactivateButton('transferStatus.statusTransferStatus', $item['id']);
+                $a[] = statusSwitch('transferStatus.statusTransferStatus', $item['id'], 1);
             } else {
-                $a[] = reactivateButton('transferStatus.statusTransferStatus', $item['id']);
+                $a[] = statusSwitch('transferStatus.statusTransferStatus', $item['id'], 0);
             }
 
             $row = [
@@ -1020,17 +1004,9 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'warehouse.editWarehouse(' . $item['id'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'warehouse.statusWarehouse(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('warehouse.statusWarehouse', $item['id'], $item['active']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'warehouse.statusWarehouse(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('warehouse.statusWarehouse', $item['id'], $item['active']);
                 $a[] = deleteButton('warehouse.deleteWarehouse', $item['id']);
             }
 
@@ -1199,17 +1175,9 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'supplier.editSupplier(' . $item['id'] . ')'
                 ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('supplier.statusSupplier', $item['id'], $item['active']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'supplier.statusSupplier(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = statusSwitch('supplier.statusSupplier', $item['id'], $item['active']);
                 $a[] = deleteButton('supplier.deleteSupplier', $item['id']);
             }
 
@@ -1422,6 +1390,13 @@ class ctrl extends mdl {
         $phone = trim($_POST['phone'] ?? '');
         return $phone !== '' && !preg_match('/^\d{10}$/', $phone);
     }
+
+    // Color del badge de un área: solo #RRGGBB; cualquier otra cosa se guarda NULL
+    // y el badge vuelve al color automático (areaColors).
+    private function colorHex($hex) {
+        $hex = trim((string) $hex);
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $hex) ? strtoupper($hex) : null;
+    }
 }
 
 // Complements
@@ -1446,26 +1421,6 @@ function editButton($fn, $id) {
         'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
         'title'   => 'Editar',
         'onclick' => $fn . '(' . $id . ')'
-    ];
-}
-
-// Dar de baja (filas activas): rojo, porque saca el registro de los selectores. $fn es el
-// status() del JS, que avisa antes de hacerlo; el 1 es el estado actual de la fila.
-function deactivateButton($fn, $id) {
-    return [
-        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer bg-transparent border-0',
-        'html'    => '<i data-lucide="ban" class="w-4 h-4"></i>',
-        'title'   => 'Dar de baja',
-        'onclick' => $fn . '(' . $id . ', 1)'
-    ];
-}
-
-function reactivateButton($fn, $id) {
-    return [
-        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-        'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-        'title'   => 'Reactivar',
-        'onclick' => $fn . '(' . $id . ', 0)'
     ];
 }
 

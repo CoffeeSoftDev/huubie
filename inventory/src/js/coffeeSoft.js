@@ -563,6 +563,21 @@ class Complements {
         }
     }
 
+    // Plantilla de select2 para campos con badge:true: la opción como pastilla con su
+    // color (data-color = texto, data-bg = fondo). cs-badge-soft + --b-fg la vuelven
+    // velo en páginas oscuras (dark-mode.css), igual que el badge de las tablas.
+    // Las opciones sin color (ej. "Sin área") van en texto chico y gris.
+    cfBadgeOption(opt) {
+        const color = opt.element ? opt.element.getAttribute('data-color') : null;
+        if (!color) return $('<span>', { class: 'text-xs text-gray-500', text: opt.text });
+
+        return $('<span>', {
+            class: 'cs-badge-soft inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap',
+            text: opt.text,
+            style: `--b-fg:${color};background:${opt.element.getAttribute('data-bg') || 'transparent'};color:${color};`
+        });
+    }
+
     cfToTailwindGrid(bsClass) {
         let result = bsClass;
         result = result.replace(/\bcol-(sm|md|lg|xl)-(\d{1,2})\b/g, (_, bp, n) => `${bp}:col-span-${n}`);
@@ -1027,6 +1042,9 @@ class Components extends Complements {
                                 value: item.id,
                                 text: item.valor,
                                 selected: bandera,
+                                // badge:true -> cada opción lleva su color (texto) y bg (fondo).
+                                'data-color': x.badge ? item.color : undefined,
+                                'data-bg': x.badge ? item.bg : undefined,
                             }));
                         });
                     }
@@ -1039,7 +1057,8 @@ class Components extends Complements {
                         select2Fields.push({
                             id: opts.prefijo + x.id,
                             placeholder: x.selected || x.placeholder || '',
-                            tags: !!x.tags
+                            tags: !!x.tags,
+                            badge: !!x.badge
                         });
                     } else {
                         selectWrap.append($('<div>', {
@@ -1241,6 +1260,16 @@ class Components extends Complements {
                 const $modal = $sel.closest('.cf-modal, .modal, .bootbox');
                 const cfg = { theme: 'bootstrap-5', width: '100%', placeholder: f.placeholder, tags: f.tags };
                 if ($modal.length) cfg.dropdownParent = $modal;
+                if (f.badge) {
+                    // Opciones con data-color/data-bg se pintan como el badge de la tabla
+                    // (lista y valor elegido); las demás (ej. "Sin área") van en texto plano.
+                    // La búsqueda solo aparece con listas largas.
+                    cfg.templateResult = cfg.templateSelection = (opt) => self.cfBadgeOption(opt);
+                    cfg.minimumResultsForSearch = 10;
+                    // Con placeholder (aunque sea '') select2 esconde la opción de valor vacío
+                    // y "Sin área" no se podría elegir.
+                    if (!f.placeholder) delete cfg.placeholder;
+                }
                 $sel.select2(cfg);
             });
         }

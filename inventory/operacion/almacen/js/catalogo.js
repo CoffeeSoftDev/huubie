@@ -289,6 +289,8 @@ class Area extends Templates {
                 }
             }
         });
+
+        wireBadgeSimulator("formAreaAdd", "rounded-full", true, true);
     }
 
     async editArea(id) {
@@ -313,6 +315,8 @@ class Area extends Templates {
                     }
                 }
             });
+
+            wireBadgeSimulator("formAreaEdit", "rounded-full", false, true);
         }
     }
 
@@ -394,7 +398,18 @@ class Area extends Templates {
                 // tipo: "texto",
                 class: "col-12 mb-3",
                 required: false
-            }
+            },
+            // Un solo color: el texto del badge; el fondo es su tono claro (areaTint).
+            {
+                opc: "input",
+                id: "color_hex",
+                lbl: "Color del badge",
+                type: "color",
+                class: "col-12 col-md-10 mb-3",
+                required: false
+            },
+            badgeWandField(),
+            badgePreviewField()
         ];
     }
 }
@@ -1839,11 +1854,21 @@ function contrastRatio(a, b) {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
+// Fondo del badge de un área: su color 85 % hacia blanco. Espejo de areaColors() en
+// conf/_Utileria.php; mantener ambos en sync.
+function areaTint(hex) {
+    const n   = parseInt(String(hex || "#475569").replace("#", ""), 16);
+    const mix = (c) => Math.round(c + (255 - c) * 0.85).toString(16).padStart(2, "0").toUpperCase();
+
+    return `#${mix((n >> 16) & 255)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+}
+
 // Cablea la vista previa del badge: la actualiza al cambiar el color, el nombre o el
 // icono (el selector dispara `input` al elegir). `radius` = el mismo redondeo que usa
 // la tabla (rounded | rounded-full). `randomColors` arranca con una combinación al azar
-// (formularios de alta: el input color vacío pinta negro sobre negro).
-function wireBadgeSimulator(formId, radius = "rounded", randomColors = false) {
+// (formularios de alta: el input color vacío pinta negro sobre negro). `tint` = modelo
+// de un solo color (Área): color_hex es el texto y el fondo sale de areaTint().
+function wireBadgeSimulator(formId, radius = "rounded", randomColors = false, tint = false) {
     setTimeout(() => {
         const $form  = $("#" + formId);
         const $color = $form.find('[name="color_hex"], #color_hex').first();
@@ -1857,7 +1882,7 @@ function wireBadgeSimulator(formId, radius = "rounded", randomColors = false) {
 
         const render = () => {
             const fg   = $color.val() || "#475569";
-            const bg   = $bgInp.length ? ($bgInp.val() || "#F1F5F9") : "";
+            const bg   = $bgInp.length ? ($bgInp.val() || "#F1F5F9") : (tint ? areaTint(fg) : "");
             const name = ($name.val() || "Etiqueta").toString();
             const icon = String($icon.val() || "").trim();
             const ok   = icon !== "" && typeof csIconExists === "function" && csIconExists(icon);
@@ -1869,11 +1894,12 @@ function wireBadgeSimulator(formId, radius = "rounded", randomColors = false) {
         };
 
         // Varita: escribe la combinación en los dos inputs color, así viaja al guardar.
+        // En modo `tint` solo hay un color: un tono oscuro que se lee sobre su fondo claro.
         let hue = null;
         const shuffle = () => {
             const combo = randomBadgeCombo(hue);
             hue = combo.hue;
-            $color.val(combo.fg);
+            $color.val(tint ? readableHex(hue, 0.7, 0.4, "#FFFFFF") : combo.fg);
             $bgInp.val(combo.bg);
             render();
         };
@@ -1888,7 +1914,7 @@ function wireBadgeSimulator(formId, radius = "rounded", randomColors = false) {
         $wand.off("click.sim").on("click.sim", shuffle);
         if (typeof lucide !== "undefined") lucide.createIcons();
 
-        if (randomColors && $bgInp.length) shuffle();
+        if (randomColors && ($bgInp.length || tint)) shuffle();
         else render();
     }, 30);
 }

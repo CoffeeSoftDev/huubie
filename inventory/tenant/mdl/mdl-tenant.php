@@ -1314,4 +1314,46 @@ class mdl extends CRUD {
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];
     }
+
+    /* ===== Temas por empresa (company_themes) ===== */
+
+    // Temas asignables: activos y sin el de por defecto, que toda empresa ve siempre.
+    function lsAssignableThemes() {
+        $query = "
+            SELECT id, name AS valor, code, color, accent
+            FROM {$this->bd}themes
+            WHERE is_active = 1
+                AND COALESCE(is_default, 0) = 0
+            ORDER BY orden ASC, id ASC
+        ";
+        $r = $this->_Read($query, null);
+        return is_array($r) ? $r : [];
+    }
+
+    function listCompanyThemes($array) {
+        // [company_id]
+        $query = "
+            SELECT theme_id
+            FROM {$this->bd}company_themes
+            WHERE company_id = ?
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
+    function createCompanyTheme($array) {
+        return $this->_Insert([
+            'table'  => "{$this->bd}company_themes",
+            'values' => $array['values'],
+            'data'   => $array['data']
+        ]);
+    }
+
+    function deleteCompanyThemesById($array) {
+        return $this->_Delete([
+            'table' => "{$this->bd}company_themes",
+            'where' => $array['where'],
+            'data'  => $array['data']
+        ]);
+    }
 }

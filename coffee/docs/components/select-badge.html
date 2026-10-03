@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Select con badges — CoffeeSoft</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <link rel="stylesheet" href="../../../inventory/src/plugin/select2/bootstrap/select2.min.css">
+    <link rel="stylesheet" href="../../../inventory/src/plugin/select2/bootstrap/select2-bootstrap-5-theme.min.css">
+    <script src="../../../inventory/src/plugin/select2/bootstrap/select2.min.js"></script>
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-6">
+
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-xl font-semibold mb-1">coffeeForm · select con badges</h1>
+        <p class="text-sm text-gray-500 mb-6">
+            Opción <code>badge: true</code> de un campo <code>select</code> con <code>select2: true</code>:
+            cada opción se pinta como la pastilla de color de las tablas, en la lista y en el valor elegido.
+            Las opciones sin <code>color</code> (ej. "Sin área") quedan en texto plano.
+        </p>
+
+        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-8">
+            <div id="preview"></div>
+        </div>
+
+        <h2 class="text-base font-semibold mb-2">Uso</h2>
+        <pre class="bg-gray-900 text-gray-200 text-xs rounded-lg p-4 overflow-x-auto">{
+    opc:     "select",
+    id:      "warehouse_area_id",
+    lbl:     "Área",
+    class:   "col-12 col-md-4",
+    select2: true,
+    badge:   true,
+    data: [
+        { id: '',   valor: 'Sin área' },
+        { id: '18', valor: 'Vitrina', color: '#0F766E', bg: '#CCFBF1' }
+    ]
+}</pre>
+
+        <h2 class="text-base font-semibold mt-6 mb-2">Opciones</h2>
+        <table class="w-full text-xs">
+            <thead class="text-gray-500 text-left border-b border-gray-200">
+                <tr><th class="py-2">Opción</th><th>Default</th><th>Qué hace</th></tr>
+            </thead>
+            <tbody class="text-gray-700">
+                <tr class="border-b border-gray-100"><td class="py-2 font-mono">select2</td><td class="font-mono">false</td><td>Obligatorio para el badge: el select nativo no puede pintar HTML en sus opciones</td></tr>
+                <tr class="border-b border-gray-100"><td class="py-2 font-mono">badge</td><td class="font-mono">false</td><td>Pinta cada opción con su <code>color</code> (texto) y <code>bg</code> (fondo)</td></tr>
+                <tr><td class="py-2 font-mono">data[].color / bg</td><td class="font-mono">—</td><td>Hex de cada opción. En inventory los arma <code>areaColors()</code> (conf/_Utileria.php)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+<script src="../../../inventory/src/js/coffeeSoft.js"></script>
+<script>
+$(function () {
+    const demo = new Templates('', 'preview');
+
+    demo.coffeeForm({
+        parent: 'preview',
+        id:     'formDemo',
+        theme:  'light',
+        json: [
+            {
+                opc:     'select',
+                id:      'warehouse_area_id',
+                lbl:     'Área',
+                class:   'col-12 col-md-6',
+                select2: true,
+                badge:   true,
+                required: false,
+                data: [
+                    { id: '',   valor: 'Sin área' },
+                    { id: '21', valor: 'Anaquel 1',    color: '#047857', bg: '#D1FAE5' },
+                    { id: '19', valor: 'Refrigerador', color: '#A21CAF', bg: '#FAE8FF' },
+                    { id: '18', valor: 'Vitrina',      color: '#0F766E', bg: '#CCFBF1' }
+                ]
+            }
+        ],
+        autofill: { warehouse_area_id: '19' }
+    });
+});
+</script>
+</body>
+</html>

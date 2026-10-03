@@ -1,9 +1,9 @@
 class Sidebar {
     async init(options) {
         this.injectStyles();
-        // Menú 100% dinámico: las opciones salen de las secciones a las que el
-        // usuario tiene permiso (endpoint menu). Fail-closed: si no hay permisos
-        // o falla la carga, el rail queda vacío.
+        // Menú dinámico: las opciones salen de las secciones a las que el usuario
+        // tiene permiso (endpoint menu), debajo del Inicio fijo. Fail-closed: si no
+        // hay permisos o falla la carga, solo queda Inicio.
         const menuItems = await this.fetchMenu();
         this.render(Object.assign({ menuItems }, options));
         this.renderOverlay();
@@ -88,8 +88,17 @@ class Sidebar {
         }
     }
 
+    // Inicio: las cards de módulos. Va siempre primero y no depende de permisos.
+    homeItem() {
+        return {
+            icon: "house",
+            title: "Inicio",
+            url: this.inventoryBase() + "/modulos/"
+        };
+    }
+
     render(options) {
-        // Fail-closed: sin items (sin permisos o fallo de carga) => rail vacío.
+        // Fail-closed: sin items (sin permisos o fallo de carga) el rail solo trae Inicio.
         const defaults = {
             parent: "#menu-sidebar",
             logo: "../../src/img/logos/coffee_icon.png",
@@ -101,7 +110,7 @@ class Sidebar {
         this.isOpen = false;
 
         const sidebarHtml = `
-            ${this.createMenuItems(this.settings.menuItems)}
+            ${this.createMenuItems([this.homeItem(), ...this.settings.menuItems])}
             <div class="flex-1"></div>
         `;
 
