@@ -55,6 +55,7 @@ class ctrl extends mdl {
             $qty = (float) $r['quantity_total'];
             $min = (float) $r['stock_min'];
             $max = (float) $r['stock_max'];
+            $txt = $this->_qty($qty);
             $row[] = [
                 'id'        => $r['product_id'],
                 'Producto'  => [
@@ -62,7 +63,7 @@ class ctrl extends mdl {
                     'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '')
                 ],
                 'Categoria' => $r['category_name'] ?: '-',
-                'Stock'     => $this->_qty($qty),
+                'Stock'     => in_array($txt, ['0', '-0'], true) ? '-' : $txt,
                 'Min'       => $min > 0 ? $this->_qty($min) : '-',
                 'Max'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
@@ -103,12 +104,16 @@ class ctrl extends mdl {
             'status'       => $_POST['status']    ?? ''
         ]);
 
+        $newId = (int) ($_POST['new_id'] ?? 0);
         $row = [];
         foreach ($rows as $r) {
+            $dot   = $newId && (int) $r['id'] === $newId
+                ? "<span title='Nuevo' class='inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle'></span>"
+                : '';
             $hora  = $r['time_adjustment'] ? ' ' . substr($r['time_adjustment'], 0, 5) : '';
             $row[] = [
                 'id'          => $r['id'],
-                'Folio'       => ['html' => "<span class='font-mono font-semibold text-gray-800'>" . htmlspecialchars($r['folio'], ENT_QUOTES) . '</span>'],
+                'Folio'       => ['html' => $dot . "<span class='font-mono font-semibold text-gray-800'>" . htmlspecialchars($r['folio'], ENT_QUOTES) . '</span>'],
                 'Fecha'       => ($r['date_adjustment'] ? date('d/m/Y', strtotime($r['date_adjustment'])) : '-') . $hora,
                 'Almacén'     => $r['warehouse_name'] ?: '-',
                 'Estado'      => $this->_adjustBadge($r['status']),
@@ -307,11 +312,46 @@ class ctrl extends mdl {
         return $this->_aplicarConteo($header);
     }
 
+    // Al acertar queda una autorización en sesión para ESE conteo durante
+    // CANCEL_WINDOW segundos; cancelConteo la exige y la consume.
+    const CANCEL_WINDOW = 600;
+
+    function verifyCancelPassword() {
+        $id     = (int) ($_POST['id'] ?? 0);
+        $header = $this->getConteoById([$id, $this->companiesId]);
+        if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
+
+        $user  = $this->qUserPassword([$this->userId]);
+        $pass  = str_replace("'", "", $_POST['password'] ?? '');
+        $valid = $user && (
+            (!empty($user['password']) && password_verify($pass, $user['password'])) ||
+            (!empty($user['user_key']) && $user['user_key'] === md5($pass))
+        );
+        if (!$valid) return ['status' => 401, 'message' => 'Contraseña incorrecta'];
+
+        $_SESSION['adjustment_cancel'][$id] = time();
+        return ['status' => 200, 'message' => 'OK'];
+    }
+
+    private function cancelAuthorized($id) {
+        $at = (int) ($_SESSION['adjustment_cancel'][$id] ?? 0);
+        return $at > 0 && (time() - $at) <= self::CANCEL_WINDOW;
+    }
+
     function cancelConteo() {
         $id     = (int) ($_POST['id'] ?? 0);
         $header = $this->getConteoById([$id, $this->companiesId]);
         if (!$header) return ['status' => 404, 'message' => 'Conteo no encontrado'];
-        if (!$this->_conteoPerms($header)['cancel']) return ['status' => 403, 'message' => 'Solo quien abrió el conteo puede cancelarlo'];
+        if (!$this->_conteoPerms($header)['cancel']) {
+            $vencido = $header['status'] === 'Aplicado' && !$this->_cancelVigente($header);
+            return ['status' => 403, 'message' => $vencido
+                ? 'Pasaron más de ' . self::CANCEL_DAYS . ' días desde que se aplicó: ya no se puede cancelar'
+                : 'Solo quien abrió el conteo puede cancelarlo'];
+        }
+        if (!$this->cancelAuthorized($id)) return ['status' => 403, 'message' => 'Confirma tu contraseña para cancelar el conteo'];
+        unset($_SESSION['adjustment_cancel'][$id]);
+
+        if ($header['status'] === 'Aplicado') return $this->_revertirConteo($header);
 
         return $this->_conteoTransition($id, ['status'], ['Cancelado'], 'Cancelado', 'Conteo cancelado', 'Conteo cancelado');
     }
@@ -648,16 +688,28 @@ class ctrl extends mdl {
     // -- Conteo fisico: complementos --
 
     // Quien abrio el conteo lo captura, lo aplica o lo cancela mientras es borrador.
+    // Ya aplicado, solo el puede cancelarlo durante CANCEL_DAYS: se revierte el stock.
     // Pendiente: enviado a revision antes de quitar ese paso (01/10/2026); cuenta como borrador.
+    const CANCEL_DAYS = 2;
+
     private function _conteoPerms($header) {
-        $editable = in_array($header['status'], ['Borrador', 'Pendiente'], true)
-            && $this->userId > 0
-            && (int) $header['registered_user_id'] === $this->userId;
+        $owner    = $this->userId > 0 && (int) $header['registered_user_id'] === $this->userId;
+        $editable = $owner && in_array($header['status'], ['Borrador', 'Pendiente'], true);
         return [
             'edit'   => $editable,
             'apply'  => $editable,
-            'cancel' => $editable
+            'cancel' => $editable || ($owner && $this->_cancelVigente($header))
         ];
+    }
+
+    private function _cancelVigente($header) {
+        return $header['status'] === 'Aplicado'
+            && !empty($header['authorized_at'])
+            && time() <= $this->_cancelLimite($header);
+    }
+
+    private function _cancelLimite($header) {
+        return strtotime($header['authorized_at']) + self::CANCEL_DAYS * 86400;
     }
 
     // Contado: la foto del stock al capturar. Pendiente: el stock vivo.
@@ -670,10 +722,17 @@ class ctrl extends mdl {
         $fecha = $header['authorized_at'] ? date('d/m/Y H:i', strtotime($header['authorized_at'])) : '';
 
         if ($header['status'] === 'Aplicado') {
-            return ['tone' => 'emerald', 'text' => "Aplicado por {$quien} el {$fecha}. Las diferencias ya están en el stock y en el kárdex."];
+            $limite = $this->_cancelVigente($header)
+                ? ' Se puede cancelar hasta el ' . date('d/m/Y H:i', $this->_cancelLimite($header)) . '.'
+                : '';
+            return ['tone' => 'emerald', 'text' => "Aplicado por {$quien} el {$fecha}. Las diferencias ya están en el stock y en el kárdex.{$limite}"];
         }
         if ($header['status'] === 'Cancelado') {
-            return ['tone' => 'gray', 'text' => 'Conteo cancelado. No movió el stock.'];
+            $text = $header['authorized_at'] ? 'Ajuste cancelado. El stock volvió a como estaba.' : 'Conteo cancelado. No movió el stock.';
+            return ['tone' => 'gray', 'text' => $text];
+        }
+        if ($this->_conteoPerms($header)['edit']) {
+            return ['tone' => 'blue', 'text' => 'Captura en «Contado» lo que hay físicamente en el anaquel. La hoja va área por área, como está en el almacén.'];
         }
         return ['tone' => 'gray', 'text' => 'La hoja sigue el orden físico del almacén: área por área, como está en el anaquel.'];
     }
@@ -793,10 +852,44 @@ class ctrl extends mdl {
                 ]);
                 $this->createConteoHistory(['Aplicado', 'Ajuste aplicado', $this->userId, $id]);
 
-                return ['status' => 200, 'message' => "Ajuste {$header['folio']} aplicado al stock"];
+                return ['status' => 200, 'message' => "Ajuste {$header['folio']} aplicado correctamente"];
             });
         } catch (\Throwable $e) {
             return ['status' => 500, 'message' => 'No se pudo aplicar el ajuste; el stock no cambió'];
+        }
+    }
+
+    // Resta al stock de ESE momento lo que el ajuste sumo (resulting - previous),
+    // igual que al aplicar: no se pisan los movimientos posteriores.
+    private function _revertirConteo($header) {
+        $id        = (int) $header['id'];
+        $warehouse = (int) $header['warehouse_id'];
+        $items     = $this->listConteoDetail([$warehouse, $id]);
+
+        try {
+            return $this->transaction(function () use ($id, $warehouse, $items, $header) {
+                foreach ($items as $it) {
+                    if ($it['previous_stock'] === null || $it['resulting_stock'] === null) continue;
+
+                    $applied  = (float) $it['resulting_stock'] - (float) $it['previous_stock'];
+                    $stockRow = $this->getStockRow([(int) $it['item_id'], $warehouse]);
+                    if (!$stockRow || abs($applied) < 0.00001) continue;
+
+                    $post = max(0, round((float) $stockRow['quantity'] - $applied, 4));
+                    $this->updateStockQuantity([$post, (int) $stockRow['id']]);
+                }
+
+                $this->updateConteo([
+                    'values' => ['status'],
+                    'where'  => ['id'],
+                    'data'   => ['Cancelado', $id]
+                ]);
+                $this->createConteoHistory(['Cancelado', 'Ajuste cancelado; stock revertido', $this->userId ?: null, $id]);
+
+                return ['status' => 200, 'message' => "Ajuste {$header['folio']} cancelado y stock restaurado"];
+            });
+        } catch (\Throwable $e) {
+            return ['status' => 500, 'message' => 'No se pudo cancelar el ajuste; el stock no cambió'];
         }
     }
 

@@ -776,6 +776,7 @@ class StockView extends Templates {
 
         const infoTone = {
             gray:    { cls: 'text-gray-500',    icon: 'info'           },
+            blue:    { cls: 'text-blue-600 font-medium', icon: 'pencil-line' },
             emerald: { cls: 'text-emerald-700', icon: 'check-circle-2' }
         }[opts.info.tone] || { cls: 'text-gray-500', icon: 'info' };
 
@@ -793,7 +794,7 @@ class StockView extends Templates {
         const modal = $('<div>', { id: opts.id, class: 'fixed inset-0 z-[1050] bg-black/40 flex items-center justify-center p-[12px]' });
 
         modal.html(`
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="bg-white rounded-xl shadow-2xl w-[1024px] max-w-full h-[88vh] flex flex-col overflow-hidden">
                 <div class="flex items-start justify-between gap-3 px-[20px] py-[16px] border-b border-gray-200">
                     <div>
                         <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
@@ -1560,7 +1561,7 @@ class StockCount extends Templates {
             f_size:       11,
             class:        'w-full table-fixed text-[11px]',
             color_th:     'sticky top-0 z-10 bg-white border-b border-gray-200',
-            color_group:  'bg-gray-50 text-gray-600',
+            color_group:  'bg-gray-200 text-gray-700',
             border_table: '',
             border_row:   'border-b border-gray-100',
             center:       [3, 5],
@@ -1579,6 +1580,28 @@ class StockCount extends Templates {
 
         this.restoreCounts();
         this.toggleBlind();
+        if (!this.areaId && (data.row || []).some(r => r.colgroup)) this.groupToggles();
+
+        if (this.perms.edit) $(`#tb${this.PROJECT_NAME} [data-count]:enabled`).first().trigger('focus');
+    }
+
+    // En "Todas" cada renglon de area contrae o expande sus productos.
+    groupToggles() {
+        const $groups = $(`#tb${this.PROJECT_NAME} tbody tr`).has('td[colspan]');
+
+        $groups.addClass('cursor-pointer select-none').attr('title', 'Contraer / expandir');
+        $groups.find('td').prepend(
+            $('<span>', { 'data-group-chevron': '', class: 'inline-flex align-middle mr-1.5 transition-transform' })
+                .append($('<i>', { 'data-lucide': 'chevron-down', class: 'w-3.5 h-3.5' }))
+        );
+        if (window.lucide) lucide.createIcons();
+
+        $groups.on('click', (e) => {
+            const $group = $(e.currentTarget);
+            const closed = !$group.hasClass('is-collapsed');
+            $group.toggleClass('is-collapsed', closed).find('[data-group-chevron]').toggleClass('-rotate-90', closed);
+            $group.nextUntil($groups).toggleClass('hidden', closed);
+        });
     }
 
     // -- CRUD --
@@ -1640,7 +1663,7 @@ class StockCount extends Templates {
         const missing = s.total - s.counted;
         const ok      = await this.confirm(
             '¿Aplicar el ajuste?',
-            `Cada diferencia se suma al stock actual del almacén y el conteo ya no se podrá editar.${missing ? ` Quedan ${missing} productos sin contar: no se ajustarán.` : ''}`,
+            `Se ajustarán <b class="text-blue-600">${s.counted} ${s.counted === 1 ? 'producto' : 'productos'}</b>. Cada diferencia se suma al stock actual del almacén y el conteo ya no se podrá editar.${missing ? ` Quedan ${missing} productos sin contar: no se ajustarán.` : ''}`,
             'Aplicar'
         );
         if (!ok || !(await this.editConteo(true))) return;
@@ -1663,11 +1686,50 @@ class StockCount extends Templates {
         this.afterChange(true);
     }
 
-    cancelConteo() {
+    askCancelPassword(retry) {
+        return new Promise((resolve) => {
+            this.alertBox({
+                type:             'confirm',
+                icon:             'lock',
+                title:            'Confirma tu contraseña',
+                detailHtml:       retry
+                    ? 'Contraseña incorrecta. Intenta de nuevo.'
+                    : 'Para cancelar el conteo escribe tu contraseña.',
+                input:            'password',
+                inputPlaceholder: 'Tu contraseña',
+                inputRequired:    true,
+                inputError:       'Escribe tu contraseña',
+                okLabel:          'Continuar',
+                cancelLabel:      'Cancelar',
+                onOk: async (password) => {
+                    const r = await useFetch({
+                        url:  apiStock,
+                        data: { opc: 'verifyCancelPassword', id: this.id, password: password }
+                    }).catch(() => null);
+
+                    if (r && r.status === 200) { resolve(true); return; }
+                    if (r && r.status === 401) { resolve(await this.askCancelPassword(true)); return; }
+
+                    this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo verificar la contraseña' });
+                    resolve(false);
+                },
+                onCancel: () => resolve(false)
+            });
+        });
+    }
+
+    async cancelConteo() {
+        if (!(await this.askCancelPassword(false))) return;
+
+        // Sin captura editable = ya aplicado: cancelar revierte el stock.
+        const applied = !this.perms.edit;
+
         this.alertBox({
             type:       'cancel',
-            title:      '¿Cancelar el conteo?',
-            detailHtml: 'Se descarta lo capturado. El stock no cambia.',
+            title:      applied ? '¿Cancelar el ajuste?' : '¿Cancelar el conteo?',
+            detailHtml: applied
+                ? 'El stock vuelve a como estaba antes de aplicar y el ajuste sale del kárdex.'
+                : 'Se descarta lo capturado. El stock no cambia.',
             okLabel:    'Sí, cancelar',
             onOk: async () => {
                 const r = await useFetch({ url: apiStock, data: { opc: 'cancelConteo', id: this.id } });
@@ -1687,7 +1749,7 @@ class StockCount extends Templates {
         if (perms.cancel) {
             actions.push({
                 id:      'btnConteoCancelar',
-                text:    'Cancelar conteo',
+                text:    perms.edit ? 'Cancelar conteo' : 'Cancelar ajuste',
                 kind:    'ghost',
                 onClick: () => this.cancelConteo()
             });
@@ -1800,16 +1862,17 @@ class StockCount extends Templates {
         if (this.modal) this.modal.setSummary(this.summary());
     }
 
-    // Cierra sin autoguardar y, si aplica, vuelve a abrir para ver el nuevo estado.
-    afterChange(reopen) {
+    // Cierra sin autoguardar; al aplicar, el conteo queda marcado como nuevo en Ajustes.
+    afterChange(applied) {
         this.counts = {};
         if (this.modal) this.modal.close();
 
         stock.lsStock();
         stock.lsKpis();
-        if (app.ajustesReady) ajustes.lsAjustes();
 
-        if (reopen) this.render(this.id);
+        if (applied) ajustes.newId = this.id;
+        else if (ajustes.newId === this.id) ajustes.newId = null;
+        if (app.ajustesReady) ajustes.lsAjustes();
     }
 
     confirm(title, detail, okLabel) {
@@ -1835,6 +1898,7 @@ class Ajustes extends Templates {
     constructor(link, divModule) {
         super(link, divModule);
         this.PROJECT_NAME = 'Ajustes';
+        this.newId        = null;
     }
 
     // -- Interface --
@@ -1890,7 +1954,8 @@ class Ajustes extends Templates {
             data: {
                 opc:       'lsAjustes',
                 branch_id: app.getFilters().branch_id,
-                status:    $('#fEstadoAjuste').val() || ''
+                status:    $('#fEstadoAjuste').val() || '',
+                new_id:    this.newId || ''
             },
             attr: {
                 id:           `tb${this.PROJECT_NAME}`,

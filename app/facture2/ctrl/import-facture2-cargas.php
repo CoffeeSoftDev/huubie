@@ -2503,7 +2503,30 @@ class ImportFacture2Cargas {
         //
         // La lectura recorre el archivo entero pero solo dos columnas, que es lo que
         // la vuelve viable aqui (ver `fechasDelArchivo`).
-        $periodo = $this->periodoDelArchivo($ruta, $presentes, $contrato, $mapas, $ctx);
+        //
+        // Sin mes elegido, el mes lo dice el archivo: el modal de Tickets ya no lo
+        // pregunta, lo confirma. Las notas emitidas se revisan contra ese mes.
+        $detectado = (int) ($ctx['mes'] ?? 0) < 1
+            ? $this->mesDelArchivo($ruta, $presentes, $contrato, $mapas)
+            : null;
+
+        if ($detectado) {
+            $notas = $this->notasDelPeriodo(array_merge($ctx, ['mes' => $detectado['mes'], 'anio' => $detectado['anio']]));
+
+            if ($notas) {
+                return [
+                    'status'     => 200,
+                    'destino'    => $destino,
+                    'movido'     => $movido,
+                    'hojas'      => [],
+                    'validacion' => $notas
+                ];
+            }
+        }
+
+        $periodo = $detectado
+            ? ['ajeno' => null, 'reparto' => $detectado['reparto']]
+            : $this->periodoDelArchivo($ruta, $presentes, $contrato, $mapas, $ctx);
         $ajeno   = $periodo ? $periodo['ajeno'] : null;
         $reparto = $periodo ? $periodo['reparto'] : [];
 
@@ -2533,6 +2556,14 @@ class ImportFacture2Cargas {
             'libro'   => $hojas,
             'reparto' => $reparto
         ];
+
+        if ($detectado) {
+            $revision['periodo'] = [
+                'mes'   => $detectado['mes'],
+                'anio'  => $detectado['anio'],
+                'texto' => $detectado['texto']
+            ];
+        }
 
         if ($otroTab) $revision['validacion'] = $otroTab;
 
@@ -2588,6 +2619,42 @@ class ImportFacture2Cargas {
             return [
                 'ajeno'   => $ajeno,
                 'reparto' => repartoPorMes($conteo, $mes, $anio)
+            ];
+        }
+
+        return null;
+    }
+
+    // El mes del archivo cuando nadie lo eligio: el que mas movimientos pone. Se
+    // lee la misma hoja con las mismas dos columnas que `periodoDelArchivo`, y el
+    // reparto sale sin mes de filtro porque aqui no hay filtro.
+    private function mesDelArchivo($ruta, $presentes, $contrato, $mapas) {
+        foreach ($presentes as $nombre) {
+            $config = $contrato[$nombre];
+
+            if (!isset($config['dateIndex']) || !isset($mapas[$nombre])) continue;
+
+            $fechas = $this->fechasDelArchivo($ruta, $nombre, $config, $mapas[$nombre]);
+            $conteo = conteoDeFechas($fechas, 0, 0);
+            $meses  = $conteo['todos'];
+
+            if (empty($meses)) continue;
+
+            arsort($meses);
+
+            $manda = key($meses);
+            $mes   = (int) strtok($manda, '/');
+            $anio  = (int) substr($manda, strpos($manda, '/') + 1);
+
+            $reparto = repartoPorMes($conteo, $mes, $anio);
+
+            foreach ($reparto as $i => $item) $reparto[$i]['esDelFiltro'] = false;
+
+            return [
+                'mes'     => $mes,
+                'anio'    => $anio,
+                'texto'   => periodoTexto($mes, $anio),
+                'reparto' => $reparto
             ];
         }
 

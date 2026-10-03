@@ -476,6 +476,19 @@ class mdl extends CRUD {
         return is_array($r) && !empty($r) ? $r[0] : null;
     }
 
+    // Credenciales del usuario en sesión para reconfirmar su contraseña al cancelar.
+    function qUserPassword($array) {
+        // [user_id]
+        $query = "
+            SELECT password, `key` AS user_key
+            FROM {$this->bdErp}users
+            WHERE id = ? AND status = 'active'
+            LIMIT 1
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) && !empty($r) ? $r[0] : null;
+    }
+
     // Renglones con el stock vivo del almacen, ordenados por area (sin area al final).
     function listConteoDetail($array) {
         // [warehouse_id, inventory_adjustment_id]
@@ -489,6 +502,8 @@ class mdl extends CRUD {
                 d.cost,
                 d.cost_diff,
                 d.counted_at,
+                d.previous_stock,
+                d.resulting_stock,
                 i.name              AS item_name,
                 ia.sku              AS sku,
                 u.code              AS unit_code,
@@ -641,6 +656,17 @@ class mdl extends CRUD {
         $query = "
             UPDATE {$this->bd}stock
             SET quantity = ?, last_movement_at = NOW(), last_inventory_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Al cancelar un ajuste aplicado: no es inventario, no toca last_inventory_at.
+    function updateStockQuantity($array) {
+        // [quantity, id]
+        $query = "
+            UPDATE {$this->bd}stock
+            SET quantity = ?, last_movement_at = NOW(), updated_at = NOW()
             WHERE id = ?
         ";
         return $this->_CUD($query, $array);

@@ -618,7 +618,7 @@ class App extends Templates {
         this.openMetaModal(accion);
     }
 
-    // -- Actualizar ventas --
+    // -- Subir ventas del POS --
 
     openUploadModal() {
         if (this.uploadModal) return;
@@ -635,7 +635,7 @@ class App extends Templates {
         this.periodosTab  = {};
 
         this.uploadModal = this.cfModal({
-            title:         'Actualizar ventas',
+            title:         'Subir ventas del POS',
             size:          'large',
             theme:         FACTURE_THEME,
             okLabel:       'Subir ventas',
@@ -654,10 +654,6 @@ class App extends Templates {
                 container: [
                     {
                         type: 'div',
-                        id:   'uploadModalForm'
-                    },
-                    {
-                        type: 'div',
                         id:   'uploadModalDrop'
                     },
                     {
@@ -672,45 +668,15 @@ class App extends Templates {
             }
         });
 
+        // Sin selector: el mes arranca en el del dia de Tickets y lo cambia el
+        // archivo al revisarse.
         const hoy = new Date(this.dataInit.dia + 'T00:00:00');
 
-        this.createfilterBar({
-            parent:     'uploadModalForm',
-            id:         'frmUploadTickets',
-            coffeesoft: true,
-            theme:      FACTURE_THEME,
-            data: [
-                {
-                    opc:      'select',
-                    id:       'fUpMes',
-                    lbl:      'Mes de estas ventas:',
-                    class:    'col-12 col-sm-7',
-                    value:    String(hoy.getMonth() + 1),
-                    required: false,
-                    data: MESES.map((m, i) => ({ id: String(i + 1), valor: m }))
-                },
-                {
-                    opc:      'select',
-                    id:       'fUpAnio',
-                    lbl:      'Año:',
-                    class:    'col-12 col-sm-5',
-                    value:    String(hoy.getFullYear()),
-                    required: false,
-                    data:     this.uploadYears()
-                }
-            ]
-        });
+        this.periodoUpload = { mes: hoy.getMonth() + 1, anio: hoy.getFullYear() };
 
         this.renderUploadList();
-
-        $('#fUpMes, #fUpAnio').on('change', () => this.onPeriodChange());
 
         this.loadPeriodFiles();
-    }
-
-    onPeriodChange() {
-        this.renderUploadList();
-        this.showPeriodFiles();
     }
 
     async loadPeriodFiles() {
@@ -750,12 +716,6 @@ class App extends Templates {
         this.uploadModal.body.attr('id', 'uploadModalBody');
 
         return 'uploadModalBody';
-    }
-
-    uploadYears() {
-        const actual = new Date(this.dataInit.dia + 'T00:00:00').getFullYear();
-
-        return [0, 1, 2].map((n) => ({ id: String(actual - n), valor: String(actual - n) }));
     }
 
     // -- Los dos archivos del dia --
@@ -831,7 +791,6 @@ class App extends Templates {
         this.setUploadAction('Subir ventas', () => this.sendUpload());
         this.setUploadCancel(null);
 
-        $('#uploadModalForm').show();
         $('#uploadModalFiles').show();
         $('#uploadModalDrop').show().css({ opacity: '', 'pointer-events': '' });
 
@@ -874,27 +833,19 @@ class App extends Templates {
     }
 
     uploadPeriod() {
-        return {
-            mes:  $('#fUpMes').val(),
-            anio: $('#fUpAnio').val()
-        };
+        return this.periodoUpload;
     }
 
     periodoTexto() {
-        return `${$('#fUpMes option:selected').text()} ${$('#fUpAnio').val()}`;
+        return `${MESES[this.periodoUpload.mes - 1]} ${this.periodoUpload.anio}`;
     }
 
-    // Revisar y cargar, en ese orden: inspectFile lee el libro SIN guardar nada y de
-    // ahi sale a que pestaña pertenece —lo decide el CONTENIDO, no el nombre ni la
-    // pantalla—. Las ventas se suben antes que las comandas, que cuelgan de sus folios.
+    // Revisar, confirmar el mes y cargar, en ese orden: inspectFile lee el libro SIN
+    // guardar nada y de ahi salen su pestaña y su mes —los decide el CONTENIDO, no
+    // el nombre ni la pantalla—. Las ventas se suben antes que las comandas, que
+    // cuelgan de sus folios.
     async sendUpload() {
         if (!this.uploadFiles.length) return;
-
-        const periodo = this.uploadPeriod();
-
-        if (!periodo.mes || !periodo.anio) {
-            return this.alertBox({ theme: FACTURE_THEME, type: 'message', title: 'Indica el mes y el año de estas ventas' });
-        }
 
         this.lockUploadOk(true);
 
@@ -904,7 +855,7 @@ class App extends Templates {
             ticketsView.renderUploadStep(`Revisando ${file.name}...`);
 
             const porNombre = this.slotDelNombre(file.name);
-            const revision  = await this.postFile('inspectFile', periodo, (porNombre || {}).tipo || UPLOAD_TAB, file);
+            const revision  = await this.postFile('inspectFile', { mes: 0, anio: 0 }, (porNombre || {}).tipo || UPLOAD_TAB, file);
 
             if (!revision || revision.status !== 200) {
                 ticketsView.renderUploadError(
@@ -936,20 +887,16 @@ class App extends Templates {
                 return;
             }
 
-            revisados.push({ file: file, destino: destino, slot: slot, reparto: revision.reparto || [] });
+            revisados.push({
+                file:    file,
+                destino: destino,
+                slot:    slot,
+                reparto: revision.reparto || [],
+                periodo: revision.periodo || null
+            });
         }
 
-        const conVariosMeses = revisados.find((r) => this.mesesDelReparto(r.reparto).length > 1);
-
-        if (conVariosMeses && !this.repartoConfirmado) {
-            this.revisadosPrevios = revisados;
-
-            ticketsView.renderRepartoPrevio(conVariosMeses);
-            this.syncSeleccion({ reparto: conVariosMeses.reparto });
-            this.setUploadCancel(() => this.backToPick());
-
-            return;
-        }
+        if (!this.repartoConfirmado) return this.confirmarMes(revisados);
 
         this.repartoConfirmado = false;
         this.revisadosPrevios  = null;
@@ -961,7 +908,7 @@ class App extends Templates {
 
             await this.watchProgress(item);
 
-            const carga = await this.postFile('uploadFile', periodo, item.destino, item.file);
+            const carga = await this.postFile('uploadFile', this.periodoDeCarga(item), item.destino, item.file);
 
             this.stopProgress();
 
@@ -992,6 +939,55 @@ class App extends Templates {
         this.setUploadCancel(null);
 
         this.lockUploadOk(false);
+    }
+
+    // El mes sale del archivo y aqui solo se confirma. El archivo que trae varios
+    // meses pregunta cuales subir.
+    confirmarMes(revisados) {
+        this.revisadosPrevios = revisados;
+
+        const detectado = revisados.map((r) => r.periodo).find(Boolean);
+
+        if (detectado) this.setUploadPeriod(detectado.mes, detectado.anio);
+
+        this.setUploadCancel(() => this.backToPick());
+
+        const conVariosMeses = revisados.find((r) => this.mesesDelReparto(r.reparto).length > 1);
+
+        if (conVariosMeses) {
+            ticketsView.renderRepartoPrevio(conVariosMeses);
+            this.syncSeleccion({ reparto: conVariosMeses.reparto });
+
+            return;
+        }
+
+        const meses = revisados
+            .map((r) => (r.periodo || {}).texto || this.periodoTexto())
+            .filter((m, i, todos) => todos.indexOf(m) === i);
+
+        ticketsView.renderPeriodoDetectado(revisados, meses);
+
+        this.setUploadAction(meses.length === 1 ? `Subir ${meses[0]}` : 'Subir los archivos', () => this.confirmarPeriodo());
+        this.lockUploadOk(false);
+    }
+
+    confirmarPeriodo() {
+        this.repartoConfirmado = true;
+
+        return this.sendUpload();
+    }
+
+    // Cada archivo viaja con su mes. Si ese mes se desmarco, con el primero que
+    // quedo marcado.
+    periodoDeCarga(item) {
+        const periodo  = item.periodo || this.uploadPeriod();
+        const elegidos = this.mesesElegidos || [];
+
+        if (!elegidos.length || elegidos.indexOf(UploadCheck.claveDeMes(periodo)) >= 0) return periodo;
+
+        const partes = elegidos[0].split('-');
+
+        return { mes: Number(partes[1]), anio: Number(partes[0]) };
     }
 
     async scopeDelPeriodo() {
@@ -1112,9 +1108,21 @@ class App extends Templates {
         this.lockUploadOk(false);
         this.setUploadCancel(() => this.backToPick());
 
-        if (!UploadCheck.mudaPeriodo(v)) return;
+        if (!UploadCheck.mudaPeriodo(v)) {
+            return this.setUploadAction('Subir otro archivo', () => this.subirOtroArchivo(fileName));
+        }
 
         this.syncSeleccion(v);
+    }
+
+    // El archivo rechazado sale de la lista y se abre el selector para elegir el
+    // que va en su lugar.
+    subirOtroArchivo(fileName) {
+        this.uploadFiles = this.uploadFiles.filter((f) => f.name !== fileName);
+
+        this.renderUploadList();
+
+        $('#fUpFile').trigger('click');
     }
 
     mesesDelReparto(reparto) {
@@ -1163,11 +1171,7 @@ class App extends Templates {
     }
 
     movePeriodTo(mes, anio) {
-        if (!this.setUploadPeriod(mes, anio)) {
-            return ticketsView.renderUploadError(
-                `El año ${anio} no esta en la lista del modal: esa carga se hace desde Importacion.`
-            );
-        }
+        this.setUploadPeriod(mes, anio);
 
         this.setUploadAction('Subir ventas', () => this.sendUpload());
 
@@ -1188,7 +1192,8 @@ class App extends Templates {
 
         const boton = this.uploadModal.footer.find('button').first();
 
-        boton.off('click');
+        // El boton que regresa no cancela: se llama por lo que hace.
+        boton.off('click').text(accion ? 'Volver' : 'Cancelar');
 
         if (accion) boton.on('click', accion);
         else        boton.on('click', () => this.uploadModal.close());
@@ -1200,13 +1205,11 @@ class App extends Templates {
         this.revisadosPrevios  = null;
 
         this.renderUploadList();
+        this.showPeriodFiles();
     }
 
     setUploadPeriod(mes, anio) {
-        $('#fUpMes').val(String(mes));
-        $('#fUpAnio').val(String(anio));
-
-        return $('#fUpMes').val() === String(mes) && $('#fUpAnio').val() === String(anio);
+        this.periodoUpload = { mes: Number(mes), anio: Number(anio) };
     }
 
     // -- Cuanto lleva guardado --
@@ -1387,7 +1390,8 @@ class App extends Templates {
     }
 
     decoratePreviewFooter() {
-        const ok = this.previewModal.footer.find('button').last();
+        const cancelar = this.previewModal.footer.find('button').first();
+        const ok       = this.previewModal.footer.find('button').last();
 
         ok.removeClass('bg-[#1C64F2] hover:bg-[#1a53d4]')
           .addClass('bg-[#047857] hover:bg-[#036B4A] text-white');
@@ -1410,9 +1414,11 @@ class App extends Templates {
 
         if (!this.scopeInfo) return;
 
-        // "Volver" se agrega y ya no reemplaza a "Cancelar": quien llego desde el
-        // alcance tiene que poder regresar a elegir otro dia y tambien salir sin
-        // generar nada. Antes la unica salida era la ×.
+        // "Volver" regresa al alcance y reemplaza a "Cancelar", en el dia y en el mes:
+        // Cancelar vive solo en el inicio del flujo, y para salir sin generar quedan
+        // Volver y la ×. Sin alcance la propuesta es el inicio, por eso ahi se queda.
+        cancelar.remove();
+
         const volver = $('<button>', {
             type:  'button',
             text:  '‹ Volver',
@@ -1425,8 +1431,8 @@ class App extends Templates {
 
         this.previewModal.footer.prepend(volver);
 
-        // Con cuatro botones el modal de un dia no alcanza: "‹ Volver" y "Regenerar
-        // productos" se partian en dos renglones. Un renglon cada uno y menos aire.
+        // En el modal de un dia "‹ Volver" y "Regenerar productos" se partian en dos
+        // renglones. Un renglon cada uno y menos aire.
         this.previewModal.footer.find('button')
             .removeClass('px-4')
             .addClass('px-3 whitespace-nowrap');
@@ -2400,24 +2406,34 @@ class TicketsView extends Templates {
         // Cada mudanza lleva su motivo, igual que en el panel del mes: un folio que
         // cambia de dueño sin decir por que es justo lo que hay que poder explicar.
         const mudanza = movidos.length ? `
-            <div class="mt-3 pt-3 border-t ${linea}">
+            <div class="mt-3 pt-3 border-t ${linea} flex flex-col min-h-0">
                 <p class="text-[9.5px] font-semibold uppercase tracking-wider ${label}">Folios reasignados</p>
-                ${movidos.map(m => `
-                    <div class="mt-1.5">
-                        <div class="flex items-baseline gap-2 text-[12px]">
-                            <span class="font-semibold ${valor}">${esc(m.origen)}</span>
-                            ${m.destino
-                                ? `<span class="${label}">&rsaquo;</span><span class="font-semibold text-[#1C64F2]">${esc(m.destino)}</span>`
-                                : `<span class="text-[10.5px] facture-warn">sin folio libre</span>`}
-                            <span class="ml-auto ${valor}">${esc(m.montoTexto)}</span>
+                <div class="min-h-0 overflow-y-auto ws-scroll pr-1">
+                    ${movidos.map(m => `
+                        <div class="mt-1.5">
+                            <div class="flex items-baseline gap-2 text-[12px]">
+                                <span class="font-semibold ${valor}">${esc(m.origen)}</span>
+                                ${m.destino
+                                    ? `<span class="${label}">&rsaquo;</span><span class="font-semibold text-[#1C64F2]">${esc(m.destino)}</span>`
+                                    : `<span class="text-[10.5px] facture-warn">sin folio libre</span>`}
+                                <span class="ml-auto ${valor}">${esc(m.montoTexto)}</span>
+                            </div>
+                            ${m.motivo ? `<p class="mt-0.5 text-[10.5px] ${label}">${esc(m.motivo)}</p>` : ''}
                         </div>
-                        ${m.motivo ? `<p class="mt-0.5 text-[10.5px] ${label}">${esc(m.motivo)}</p>` : ''}
-                    </div>
-                `).join('')}
+                    `).join('')}
+                </div>
             </div>
         ` : '';
 
-        $('#previewDayBody').html(`
+        const host = $('#previewDayBody');
+
+        // Todo cabe en el modal: si no alcanza, el que cede es la lista de folios
+        // reasignados y solo ella se desplaza. El cuerpo del modal ya no lleva scroll.
+        host.addClass('flex flex-col min-h-0');
+        host.parent().addClass('ws-scroll flex flex-col');
+        host.closest('.cf-modal').addClass('ws-scroll');
+
+        host.html(`
             <div class="flex items-baseline justify-between gap-2">
                 <p class="text-[11px] ${label}">${esc(p.fechaTexto)} · todavía no se guarda nada</p>
                 ${this.chipCombinacion(p.semilla)}
@@ -2507,7 +2523,7 @@ class TicketsView extends Templates {
         `;
 
         return `
-            <div class="mt-2 overflow-x-auto">
+            <div class="mt-2 overflow-x-auto ws-scroll">
                 <table class="w-full tabular-nums">
                     <thead>
                         <tr>
@@ -2649,9 +2665,9 @@ class TicketsView extends Templates {
 
         const host = $('#' + cfg.host);
 
-        // En md el cuerpo del modal deja de desplazarse: las dos zonas llenan su alto
-        // y cada una lleva su propio scroll. Con el del cuerpo encima, el panel del
-        // dia quedaba con dos barras juntas.
+        // En md el cuerpo del modal deja de desplazarse: las dos zonas llenan su alto.
+        // La lista de dias lleva su scroll y el panel solo el de los folios
+        // reasignados; con el del cuerpo encima, el panel quedaba con dos barras.
         host.addClass('md:flex-1 md:min-h-0');
         host.parent().addClass('ws-scroll md:h-[72vh] md:flex md:flex-col');
         host.closest('.cf-modal').addClass('ws-scroll');
@@ -2673,7 +2689,7 @@ class TicketsView extends Templates {
                 </div>
 
                 <div id="previewMonthPanel"
-                     class="hidden md:block md:flex-1 md:min-w-0 fixed md:static inset-x-0 bottom-0 z-[70] md:z-auto
+                     class="flex flex-col hidden md:flex md:flex-1 md:min-w-0 fixed md:static inset-x-0 bottom-0 z-[70] md:z-auto
                             h-[70vh] md:h-auto overflow-y-auto ws-scroll
                             border ${linea} ${fondo} rounded-t-2xl md:rounded-lg shadow-2xl md:shadow-none p-3">
                 </div>
@@ -2800,6 +2816,9 @@ class TicketsView extends Templates {
         // solo mueve la suya. Un dia cerrado ya no tiene combinacion que elegir.
         const combinacion = cerrado || d.repartido ? '' : this.chipCombinacion(d.semilla);
 
+        // El resumen y la accion se quedan fijos; el scroll empieza en los folios
+        // reasignados y arrastra a los movimientos. Con solo los folios desplazandose,
+        // a 900px de alto quedaba una tarjeta a la vista y a 768px ninguna.
         $('#previewMonthPanel').html(`
             ${asa}
             <div class="flex items-baseline gap-2">
@@ -2839,18 +2858,18 @@ class TicketsView extends Templates {
                 </div>
             </div>
 
-            <div class="mt-3 pt-2.5 border-t ${linea}">
+            <div class="mt-3 pt-2.5 border-t ${linea} min-h-0 overflow-y-auto ws-scroll pr-1">
                 <p class="text-[9.5px] uppercase tracking-wider ${label}">2 · Folios reasignados</p>
                 ${mudanzas}
-            </div>
 
-            <div class="mt-3 pt-2.5 border-t ${linea}">
-                <p class="text-[9.5px] uppercase tracking-wider ${label}">3 · Movimientos del día</p>
-                <div class="mt-1">
-                    ${grupo('Con cargo a tarjeta', g.conCargo)}
-                    ${grupo('Servicio de mesa',    g.servicio)}
-                    ${grupo('$0.00 de origen',     g.ceroOrigen)}
-                    ${grupo('Ya facturado',        g.facturados)}
+                <div class="mt-3 pt-2.5 border-t ${linea}">
+                    <p class="text-[9.5px] uppercase tracking-wider ${label}">3 · Movimientos del día</p>
+                    <div class="mt-1">
+                        ${grupo('Con cargo a tarjeta', g.conCargo)}
+                        ${grupo('Servicio de mesa',    g.servicio)}
+                        ${grupo('$0.00 de origen',     g.ceroOrigen)}
+                        ${grupo('Ya facturado',        g.facturados)}
+                    </div>
                 </div>
             </div>
 
@@ -3036,7 +3055,7 @@ class TicketsView extends Templates {
         });
     }
 
-    // -- Actualizar ventas --
+    // -- Subir ventas del POS --
 
     renderDropZone() {
         const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-300 bg-gray-50' : 'border-[#374151] bg-[#141d2b]';
@@ -3104,6 +3123,8 @@ class TicketsView extends Templates {
         const p   = app.uploadPeriod();
         const mes = String(p.mes || '').padStart(2, '0');
 
+        const completo = cargados.length === archivos.length;
+
         $('#uploadModalFiles').html(`
             <a href="/app/facture2/cargas.php?mes=${encodeURIComponent(mes)}&anio=${encodeURIComponent(p.anio)}"
                target="_blank" rel="noopener"
@@ -3114,6 +3135,9 @@ class TicketsView extends Templates {
                 </p>
                 <div class="flex flex-wrap gap-1.5">${cargados.map(ficha).join('')}</div>
             </a>
+            ${completo
+                ? `<p class="mt-1.5 text-[11px] text-gray-500">${esc(periodo)} ya está completo. Si vuelves a subir, solo entran los movimientos nuevos.</p>`
+                : ''}
         `);
 
         if (window.lucide) lucide.createIcons();
@@ -3150,7 +3174,7 @@ class TicketsView extends Templates {
                 <span class="text-[11px] ${sub} shrink-0">${esc(a.peso)}</span>
                 ${a.slot
                     ? `<span class="text-[10.5px] shrink-0 px-1.5 py-0.5 rounded border ${marco} ${sub}">${esc(a.slot)}</span>`
-                    : ''}
+                    : `<span class="text-[10.5px] font-semibold shrink-0 facture-warn">No es el archivo correcto</span>`}
                 <span class="flex-1"></span>
                 <button type="button" data-quitar="${i}" class="text-[11.5px] px-2 py-1 rounded border ${marco} ${sub}">Quitar</button>
             </div>
@@ -3299,13 +3323,56 @@ class TicketsView extends Templates {
                     <span class="font-semibold">Este archivo trae ${esc(meses.length)} meses</span>
                 </p>
                 <div class="chk-box">
-                    <p class="chk-lead">Sus <strong>${esc(Number(total).toLocaleString('en-US'))}</strong> movimientos se guardan en el mes de cada uno. Desmarca el que no quieras cargar:</p>
+                    <p class="chk-lead">Sus <strong>${esc(Number(total).toLocaleString('en-US'))}</strong> movimientos se guardan en el mes de cada uno. Si desmarcas un mes, sus movimientos no se suben:</p>
                     ${UploadCheck.reparto({ reparto: item.reparto })}
                 </div>
             </div>
         `);
 
         $('#uploadModalState .chk-mes').on('change', () => app.syncSeleccion({ reparto: item.reparto }));
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // El mes que trae cada archivo, para confirmarlo antes de subir.
+    renderPeriodoDetectado(revisados, meses) {
+        const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
+        const marco = FACTURE_THEME_IS_LIGHT ? 'border-gray-300' : 'border-[#374151]';
+
+        const fila = (r) => {
+            const p     = r.periodo || app.uploadPeriod();
+            const suyo  = (r.reparto || []).find((m) => m.mes === p.mes && m.anio === p.anio);
+            const texto = (r.periodo || {}).texto || app.periodoTexto();
+            const movs  = suyo ? ` · ${Number(suyo.movimientos).toLocaleString('en-US')} movimientos` : '';
+
+            return `
+                <div class="flex items-center gap-2 rounded-lg border ${marco} px-3 py-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0" style="color:#217346"></i>
+                    <span class="text-[12px] font-medium truncate">${esc(r.slot.nombre)}</span>
+                    <span class="flex-1"></span>
+                    <span class="text-[11.5px] font-semibold facture-info shrink-0">${esc(texto)}${esc(movs)}</span>
+                </div>
+            `;
+        };
+
+        const titulo = meses.length === 1
+            ? `${revisados.length > 1 ? 'Estos archivos son' : 'Este archivo es'} de ${meses[0]}`
+            : 'Cada archivo trae un mes distinto';
+
+        this.hidePickStep();
+
+        $('#uploadModalState').html(`
+            <div class="mt-3">
+                <p class="flex items-start gap-2 text-[12px] facture-info mb-2">
+                    <i data-lucide="calendar-check" class="w-3.5 h-3.5 shrink-0 mt-[1px]"></i>
+                    <span class="font-semibold">${esc(titulo)}</span>
+                </p>
+                <div class="flex flex-col gap-2">${revisados.map(fila).join('')}</div>
+            </div>
+        `);
 
         if (window.lucide) lucide.createIcons();
     }
@@ -3420,7 +3487,6 @@ class TicketsView extends Templates {
     }
 
     hidePickStep() {
-        $('#uploadModalForm').hide();
         $('#uploadModalFiles').hide();
         $('#uploadModalDrop').hide();
     }
