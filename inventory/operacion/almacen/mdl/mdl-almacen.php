@@ -25,13 +25,14 @@ class mdl extends CRUD {
         return $this->_Read($query, []);
     }
 
+    // Orden del Catálogo > Unidad (arrastre). sort_order: docs/sql/2026-10-02_unidad-orden.sql.
     function lsUnits() {
         $query = "
             SELECT id, code, name AS valor
             FROM {$this->bd}unit
             WHERE active = 1
             AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY name ASC
+            ORDER BY sort_order ASC, name ASC
         ";
         return $this->_Read($query, []);
     }
@@ -101,6 +102,7 @@ class mdl extends CRUD {
                 ia.description,
                 ic.name AS categoria,
                 u.code  AS unidad,
+                wa.id   AS area_id,
                 wa.name AS area,
                 COALESCE(st.qty, 0) AS quantity
             FROM {$this->bd}item i

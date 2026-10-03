@@ -9,7 +9,8 @@ class ctrl extends mdl {
 
     function init() {
         return [
-            'status' => 200
+            'status'     => 200,
+            'superadmin' => $this->esSuperAdmin()
         ];
     }
 
@@ -400,6 +401,7 @@ class ctrl extends mdl {
 
             $rows[] = [
                 'id'       => $item['id'],
+                ''         => renderGrip($active),
                 'Código'   => renderCode($item['code']),
                 'Unidad'   => $item['valor'],
                 'Estado'   => renderStatus($item['active']),
@@ -441,6 +443,7 @@ class ctrl extends mdl {
         $_POST['created_at']   = date('Y-m-d H:i:s');
         $_POST['active']       = 1;
         $_POST['companies_id'] = $_SESSION['company_id'];
+        $_POST['sort_order']   = $this->getMaxUnitSort() + 10;
 
         $exists = $this->existsUnitByName([$_POST['name']]);
 
@@ -503,6 +506,21 @@ class ctrl extends mdl {
         ];
     }
 
+    // Orden por arrastre; manda en los selectores de Productos y Entradas.
+    function sortUnit() {
+        $rows  = $this->listUnit([1]) ?: [];
+        $order = $this->sortOrder($rows, $_POST['ids'] ?? '[]');
+
+        foreach ($order as $id => $sort) {
+            $this->updateUnit($this->util->sql(['sort_order' => $sort, 'id' => $id], 1));
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Orden actualizado'
+        ];
+    }
+
     // Solo si nadie la usa: productos, entradas y órdenes de compra la referencian (FK RESTRICT).
     function deleteUnit() {
         $id   = (int) ($_POST['id'] ?? 0);
@@ -542,22 +560,10 @@ class ctrl extends mdl {
             $a = [];
 
             if ($active == 1) {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
-                    'onclick' => 'inflow.editInflow(' . $item['id'] . ')'
-                ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'inflow.statusInflow(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = editButton('inflow.editInflow', $item['id']);
+                $a[] = deactivateButton('inflow.statusInflow', $item['id']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'inflow.statusInflow(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = reactivateButton('inflow.statusInflow', $item['id']);
                 $a[] = deleteButton('inflow.deleteInflow', $item['id']);
             }
 
@@ -615,6 +621,10 @@ class ctrl extends mdl {
             ];
         }
 
+        $_POST['code'] = $this->codeFromName($_POST['name'], function ($code) {
+            return $this->existsInflowCode([$code]);
+        });
+
         $create = $this->createInflow($this->util->sql($_POST));
 
         if ($create) {
@@ -631,6 +641,9 @@ class ctrl extends mdl {
     function editInflow() {
         $status  = 500;
         $message = 'Error al editar origen';
+
+        // El código no se edita: es la clave fija que se generó al crear el origen.
+        unset($_POST['code']);
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
@@ -722,22 +735,10 @@ class ctrl extends mdl {
             $a = [];
 
             if ($active == 1) {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
-                    'onclick' => 'shrinkage.editShrinkage(' . $item['id'] . ')'
-                ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'shrinkage.statusShrinkage(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = editButton('shrinkage.editShrinkage', $item['id']);
+                $a[] = deactivateButton('shrinkage.statusShrinkage', $item['id']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'shrinkage.statusShrinkage(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = reactivateButton('shrinkage.statusShrinkage', $item['id']);
                 $a[] = deleteButton('shrinkage.deleteShrinkage', $item['id']);
             }
 
@@ -794,6 +795,10 @@ class ctrl extends mdl {
             ];
         }
 
+        $_POST['code'] = $this->codeFromName($_POST['name'], function ($code) {
+            return $this->existsShrinkageCode([$code]);
+        });
+
         $create = $this->createShrinkage($this->util->sql($_POST));
 
         if ($create) {
@@ -810,6 +815,9 @@ class ctrl extends mdl {
     function editShrinkage() {
         $status  = 500;
         $message = 'Error al editar motivo';
+
+        // El código no se edita: Órdenes busca SURTIDO_SUC por su valor.
+        unset($_POST['code']);
 
         // Regla CoffeeSoft: sql(,1) usa el ULTIMO campo como WHERE.
         $id = $_POST['id'];
@@ -892,43 +900,37 @@ class ctrl extends mdl {
 
     // Estados de traspaso --
 
+    // Sin columna Orden: el orden se acomoda arrastrando. El código es la clave interna
+    // del flujo de Traspasos; solo el Super Admin lo ve (al final, para no mover columnas).
     function lsTransferStatus() {
         $active = $_POST['active'] ?? 1;
         $ls     = $this->listTransferStatus([$active]);
+        $super  = $this->esSuperAdmin();
         $rows   = [];
 
         foreach ($ls as $item) {
             $a = [];
 
             if ($active == 1) {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
-                    'onclick' => 'transferStatus.editTransferStatus(' . $item['id'] . ')'
-                ];
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-right" class="w-4 h-4"></i>',
-                    'onclick' => 'transferStatus.statusTransferStatus(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = editButton('transferStatus.editTransferStatus', $item['id']);
+                $a[] = deactivateButton('transferStatus.statusTransferStatus', $item['id']);
             } else {
-                $a[] = [
-                    'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'transferStatus.statusTransferStatus(' . $item['id'] . ', ' . $item['active'] . ')'
-                ];
+                $a[] = reactivateButton('transferStatus.statusTransferStatus', $item['id']);
             }
 
-            $rows[] = [
-                'id'        => $item['id'],
-                'Código'    => $item['code'],
-                'Estado'    => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
-                'Yo envío'  => $item['name_out'] ?: '-',
-                'Yo recibo' => $item['name_in'] ?: '-',
-                'Orden'     => $item['order_index'],
-                'Activo'    => renderStatus($item['active']),
-                'a'         => $a
+            $row = [
+                'id'                 => $item['id'],
+                ''                   => renderGrip($active),
+                'Estado'             => badge($item['valor'], $item['color_hex'], 100, $item['bg_hex'] ?? null),
+                'Lo ve quien envía'  => $item['name_out'] ?: '-',
+                'Lo ve quien recibe' => $item['name_in'] ?: '-',
+                'Activo'             => renderStatus($item['active'])
             ];
+
+            if ($super) $row['Código'] = renderCode($item['code']);
+
+            $row['a'] = $a;
+            $rows[]   = $row;
         }
 
         return [
@@ -984,6 +986,21 @@ class ctrl extends mdl {
         return [
             'status'  => $status,
             'message' => $message
+        ];
+    }
+
+    // Orden por arrastre; manda en el filtro de estados de Traspasos.
+    function sortTransferStatus() {
+        $rows  = $this->listTransferStatus([1]);
+        $order = $this->sortOrder($rows, $_POST['ids'] ?? '[]', 'order_index');
+
+        foreach ($order as $id => $sort) {
+            $this->updateTransferStatus($this->util->sql(['order_index' => $sort, 'id' => $id], 1));
+        }
+
+        return [
+            'status'  => 200,
+            'message' => 'Orden actualizado'
         ];
     }
 
@@ -1356,11 +1373,38 @@ class ctrl extends mdl {
         ];
     }
 
+    // Mismo criterio que ctrl-almacen::esSuperAdminIA (rol 'superadmin' en la sucursal).
+    private function esSuperAdmin() {
+        if (empty($_SESSION['user_id']) || empty($_SESSION['branch_id'])) return false;
+
+        return $this->isSuperAdmin([$_SESSION['user_id'], $_SESSION['branch_id']]);
+    }
+
+    // Código a partir del nombre: "Pedido complementario" -> PEDIDO_COMPLEMENTARIO.
+    // Mayúsculas sin acentos, máx. 30 (largo de la columna). Si ya existe se le pone
+    // _2, _3... $exists recibe el código y devuelve cuántos hay.
+    private function codeFromName($name, $exists) {
+        $plain = strtr(mb_strtoupper(trim($name ?? ''), 'UTF-8'), [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N'
+        ]);
+        $base  = rtrim(substr(trim(preg_replace('/[^A-Z0-9]+/', '_', $plain), '_'), 0, 30), '_');
+        $base  = $base !== '' ? $base : 'CODIGO';
+        $code  = $base;
+        $next  = 2;
+
+        while ((int) $exists($code) > 0) {
+            $suffix = '_' . $next++;
+            $code   = rtrim(substr($base, 0, 30 - strlen($suffix)), '_') . $suffix;
+        }
+
+        return $code;
+    }
+
     // Renumera de 10 en 10 en el orden de $json (ids tras el arrastre). Ids que no
     // son de $rows se ignoran y los que falten van al final. Devuelve solo los que
-    // cambian: [id => sort_order].
-    private function sortOrder($rows, $json) {
-        $actual = array_map('intval', array_column($rows, 'sort_order', 'id'));
+    // cambian: [id => $column].
+    private function sortOrder($rows, $json, $column = 'sort_order') {
+        $actual = array_map('intval', array_column($rows, $column, 'id'));
         $ids    = array_values(array_intersect(array_map('intval', (array) json_decode($json, true)), array_keys($actual)));
         $ids    = array_merge($ids, array_values(array_diff(array_keys($actual), $ids)));
 
@@ -1391,7 +1435,37 @@ function deleteButton($fn, $id) {
     return [
         'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 transition-colors cursor-pointer bg-transparent border-0',
         'html'    => '<i data-lucide="trash-2" class="w-4 h-4"></i>',
+        'title'   => 'Eliminar',
         'onclick' => $fn . '(' . $id . ')'
+    ];
+}
+
+function editButton($fn, $id) {
+    return [
+        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
+        'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
+        'title'   => 'Editar',
+        'onclick' => $fn . '(' . $id . ')'
+    ];
+}
+
+// Dar de baja (filas activas): rojo, porque saca el registro de los selectores. $fn es el
+// status() del JS, que avisa antes de hacerlo; el 1 es el estado actual de la fila.
+function deactivateButton($fn, $id) {
+    return [
+        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer bg-transparent border-0',
+        'html'    => '<i data-lucide="ban" class="w-4 h-4"></i>',
+        'title'   => 'Dar de baja',
+        'onclick' => $fn . '(' . $id . ', 1)'
+    ];
+}
+
+function reactivateButton($fn, $id) {
+    return [
+        'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
+        'html'    => '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
+        'title'   => 'Reactivar',
+        'onclick' => $fn . '(' . $id . ', 0)'
     ];
 }
 

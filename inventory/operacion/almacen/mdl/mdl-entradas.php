@@ -81,12 +81,13 @@ class mdl extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Orden del Catálogo > Unidad (arrastre). sort_order: docs/sql/2026-10-02_unidad-orden.sql.
     function lsUnidades($array) {
         $query = "
             SELECT id, name AS valor
             FROM {$this->bd}unit
             WHERE active = 1 AND companies_id = ?
-            ORDER BY name ASC
+            ORDER BY sort_order ASC, name ASC
         ";
         $r = $this->_Read($query, $array);
         return is_array($r) ? $r : [];

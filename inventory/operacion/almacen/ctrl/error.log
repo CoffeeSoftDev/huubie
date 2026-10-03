@@ -1,3 +1,252 @@
+[ 2026-10-02 23:32:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 23:31:06 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:30:22 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:29:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:23:16 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 23:18:09 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:18:08 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:18:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:17:57 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:17:54 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 23:17:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 23:13:00 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
+[ 2026-10-02 23:12:59 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 22:13:50 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-02 21:40:02 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: ROSY$
+[ INFO ] ::  
+            SELECT
+                id,
+                code,
+                name as valor,
+                sort_order,
+                DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
+                active
+            FROM fayxzvov_inventory.unit
+            WHERE active = ?
+            AND companies_id = 1
+            ORDER BY sort_order ASC, id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'field list'
+
+
 [ 2026-09-30 23:50:58 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-FHJB2CN$

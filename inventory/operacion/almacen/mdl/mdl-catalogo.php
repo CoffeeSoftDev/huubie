@@ -189,20 +189,27 @@ class mdl extends CRUD {
 
     // Unidad -> unit
 
+    // sort_order lo agrega docs/sql/2026-10-02_unidad-orden.sql.
     function listUnit($array) {
         $query = "
             SELECT
                 id,
                 code,
                 name as valor,
+                sort_order,
                 DATE_FORMAT(created_at, '%d/%m/%Y') as date_creation,
                 active
             FROM {$this->bd}unit
             WHERE active = ?
             AND companies_id = ".$_SESSION['company_id']."
-            ORDER BY id DESC
+            ORDER BY sort_order ASC, id ASC
         ";
         return $this->_Read($query, $array);
+    }
+
+    function getMaxUnitSort() {
+        $result = $this->_Read("SELECT COALESCE(MAX(sort_order), 0) AS total FROM {$this->bd}unit WHERE companies_id = ".$_SESSION['company_id'], null);
+        return (int) ($result[0]['total'] ?? 0);
     }
 
     function getUnitById($array) {
@@ -328,6 +335,17 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    // El código lo genera el servidor: se revisa contra activos e inactivos.
+    function existsInflowCode($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}inflow_origin
+            WHERE code = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
     function countInflowUsage($array) {
         $query = "
             SELECT COUNT(*) as total
@@ -409,6 +427,16 @@ class mdl extends CRUD {
         return $result[0]['total'] ?? 0;
     }
 
+    function existsShrinkageCode($array) {
+        $query = "
+            SELECT COUNT(*) as total
+            FROM {$this->bd}shrinkage_reason
+            WHERE code = ?
+        ";
+        $result = $this->_Read($query, $array);
+        return $result[0]['total'] ?? 0;
+    }
+
     function countShrinkageUsage($array) {
         $query = "
             SELECT COUNT(*) as total
@@ -430,6 +458,7 @@ class mdl extends CRUD {
     // Estados de traspaso -> transfer_status
     // Catalogo de sistema: los codigos (code) son fijos y referenciados por el flujo,
     // por eso el admin es solo edicion (nombres/colores/etiquetas relativas), sin alta.
+    // order_index se acomoda arrastrando filas (sortTransferStatus).
 
     function listTransferStatus($array) {
         $query = "
@@ -445,7 +474,7 @@ class mdl extends CRUD {
                 active
             FROM {$this->bd}transfer_status
             WHERE active = ?
-            ORDER BY order_index ASC
+            ORDER BY order_index ASC, id ASC
         ";
         $result = $this->_Read($query, $array);
         return is_array($result) ? $result : [];
@@ -638,6 +667,20 @@ class mdl extends CRUD {
             'where' => 'id',
             'data'  => $array
         ]);
+    }
+
+    // Mismo criterio que el menú: acceso/mdl/mdl-access.php::userIsSuperAdmin.
+    function isSuperAdmin($array) {
+        // [user_id, branch_id]
+        $query = "
+            SELECT 1
+            FROM fayxzvov_erp.users_braches ub
+            JOIN fayxzvov_erp.roles r ON r.id = ub.role_id AND r.is_active = 1
+            WHERE ub.user_id = ? AND ub.branch_id = ?
+                AND r.code = 'superadmin'
+            LIMIT 1
+        ";
+        return !empty($this->_Read($query, $array));
     }
 
     // Sucursales activas de la compañía para selects de formularios (cada almacén pertenece a una sucursal).

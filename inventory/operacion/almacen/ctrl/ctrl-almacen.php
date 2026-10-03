@@ -32,6 +32,9 @@ class ctrl extends mdl {
         $rows = [];
         $totalValue = 0;
 
+        // Con "Activos" o "Inactivos" el estado ya lo dice el filtro: la columna solo sale con "Todos".
+        $showStatus = $filters['estado'] === '';
+
         foreach ($data as $item) {
             // El inventario se valúa al último costo de compra, no al precio de venta.
             $value = floatval($item['quantity']) * floatval($item['cost_unit']);
@@ -52,14 +55,14 @@ class ctrl extends mdl {
                 ]
             ];
 
-            $rows[] = [
+            $row = [
                 'id'         => $item['id'],
                 'Insumo'     => [
                     'class' => 'justify-center px-2 py-2',
                     'html'  => renderProductImage($item['image'] ?? '', $item['name'])
                 ],
                 'Categoría'  => $item['categoria'] ?? '-',
-                'Área'       => $item['area'] ?? '-',
+                'Área'       => renderArea($item['area_id'] ?? null, $item['area'] ?? null),
 
                 // Inventario = costo (como Soft Restaurant con sus insumos). El precio de
                 // venta solo vive en el formulario, para lo que se revende tal cual.
@@ -72,10 +75,13 @@ class ctrl extends mdl {
                 'Máx'        => renderQuantity($item['stock_max']),
                 'Vida útil'  => isset($item['shelf_life_days']) && $item['shelf_life_days'] !== null
                     ? $item['shelf_life_days'] . ' días'
-                    : '-',
-                'Estado'     => renderStatus($item['active']),
-                'a'          => $a
+                    : '-'
             ];
+
+            if ($showStatus) $row['Estado'] = renderStatus($item['active']);
+
+            $row['a'] = $a;
+            $rows[]   = $row;
         }
 
         return [
@@ -1924,6 +1930,32 @@ function renderProductImage($foto, $nombre) {
             ' . $img . '
             <div class="first-letter:uppercase">' . htmlspecialchars($nombre) . '</div>
         </div>';
+}
+
+// Badge del área con color fijo por área: el id elige el tono de la paleta, así la
+// misma área sale igual en todas las filas y en cada carga. cs-badge-soft deja que
+// dark-mode.css lo convierta en velo si la página va en oscuro.
+function renderArea($areaId, $name) {
+    if (empty($areaId) || $name === null || $name === '') return '-';
+
+    $palette = [
+        ['fg' => '#1D4ED8', 'bg' => '#DBEAFE'],
+        ['fg' => '#047857', 'bg' => '#D1FAE5'],
+        ['fg' => '#6D28D9', 'bg' => '#EDE9FE'],
+        ['fg' => '#B45309', 'bg' => '#FEF3C7'],
+        ['fg' => '#BE123C', 'bg' => '#FFE4E6'],
+        ['fg' => '#0E7490', 'bg' => '#CFFAFE'],
+        ['fg' => '#C2410C', 'bg' => '#FFEDD5'],
+        ['fg' => '#4338CA', 'bg' => '#E0E7FF'],
+        ['fg' => '#0F766E', 'bg' => '#CCFBF1'],
+        ['fg' => '#A21CAF', 'bg' => '#FAE8FF']
+    ];
+    $tone = $palette[(int) $areaId % count($palette)];
+
+    return '<span class="cs-badge-soft inline-block px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap first-letter:uppercase"'
+         . ' style="--b-fg:' . $tone['fg'] . ';background:' . $tone['bg'] . ';color:' . $tone['fg'] . ';">'
+         . htmlspecialchars($name)
+         . '</span>';
 }
 
 function renderQuantity($cantidad) {

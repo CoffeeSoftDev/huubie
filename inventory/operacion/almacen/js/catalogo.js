@@ -92,8 +92,8 @@ class Category extends Templates {
                 id: "tbCategory",
                 theme: "light",
                 striped: true,
-                title: "Categorías de insumos",
-                subtitle: "Clasificación de materiales e insumos",
+                title: "Categorías de productos",
+                subtitle: "Clasificación de los productos del almacén",
                 center: [2]
             }
         });
@@ -435,21 +435,23 @@ class Unit extends Templates {
         });
     }
 
+    // Mismo formato que Motivos de salida: orden por arrastre, sin DataTable.
     lsUnit() {
         this.createTable({
             parent: "table-unit",
             idFilterBar: "filterbar-unit",
             data: { opc: "lsUnit" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: false },
             attr: {
                 id: "tbUnit",
                 theme: "light",
                 striped: true,
                 title: "Unidades de medida",
                 subtitle: "Unidades para capturar insumos (pza, kg, lt)",
-                center: [3]
-            }
+                center: [1, 4]
+            },
+            success: () => setTimeout(() => this.bindSortUnit(), 0)
         });
     }
 
@@ -523,6 +525,23 @@ class Unit extends Templates {
                 }
             }
         });
+    }
+
+    // Solo las activas se ordenan: ese orden es el de los selectores de Productos y Entradas.
+    bindSortUnit() {
+        if ($("#filterbar-unit #active").val() !== "1") return;
+        sortableRows("tbUnit", (ids) => this.sortUnit(ids));
+    }
+
+    async sortUnit(ids) {
+        const response = await useFetch({ url: this._link, data: { opc: "sortUnit", ids: JSON.stringify(ids) } });
+
+        if (!response || response.status !== 200) {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo guardar el orden" });
+        }
+
+        this.lsUnit();
+        products.reloadUnidades();
     }
 
     // El servidor lo niega si algún producto o movimiento usa la unidad.
@@ -647,6 +666,7 @@ class Warehouse extends Templates {
                 if (response.status === 200) {
                     this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsWarehouse();
+                    products.reloadAlmacenes();
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: response.message });
                 }
@@ -672,6 +692,7 @@ class Warehouse extends Templates {
                     if (response.status === 200) {
                         this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                         this.lsWarehouse();
+                        products.reloadAlmacenes();
                     } else {
                         this.alertBox({ type: "error", theme: "light", title: response.message });
                     }
@@ -698,6 +719,7 @@ class Warehouse extends Templates {
                 if (response && response.status === 200) {
                     this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsWarehouse();
+                    products.reloadAlmacenes();
                 } else {
                     this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo actualizar el estado" });
                 }
@@ -723,6 +745,7 @@ class Warehouse extends Templates {
                 if (response && response.status === 200) {
                     this.alertBox({ type: "success", theme: "light", title: response.message, timer: 1500 });
                     this.lsWarehouse();
+                    products.reloadAlmacenes();
                 } else {
                     this.alertBox({ type: "warning", theme: "light", title: "No se pudo eliminar", detailHtml: (response && response.message) || "Inténtalo otra vez." });
                 }
@@ -731,13 +754,13 @@ class Warehouse extends Templates {
     }
 
     // El almacén ya no lleva Área: las áreas (anaqueles, refrigerador...) son del producto.
+    // El nombre va sin tipo "texto": ese tipo borra los dígitos y hay almacenes como "Bodega 2".
     jsonWarehouse(branches) {
         return [
             {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del almacén",
-                tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
             },
@@ -839,7 +862,7 @@ class InflowOrigin extends Templates {
             }
         });
         this.mountIconField("formInflowAdd");
-        wireBadgeSimulator("formInflowAdd", "rounded-full");
+        wireBadgeSimulator("formInflowAdd", "rounded-full", true);
     }
 
     async editInflow(id) {
@@ -868,32 +891,44 @@ class InflowOrigin extends Templates {
         }
     }
 
-    // Mismo selector que el Admin del Tenant (cs-icon-picker.js). No es un campo de
-    // coffeeForm: se planta en el hueco #iconFieldWrap ya montado el modal, y el
-    // `name` es lo que hace que el icono viaje en el FormData.
+    // Mismo selector que el Admin del Tenant (cs-icon-picker.js), en su forma compacta:
+    // un recuadro antes del nombre que abre el selector con un clic. No es un campo de
+    // coffeeForm: se planta junto a #name ya montado el modal, y el `name` del valor
+    // oculto es lo que hace que el icono viaje en el FormData. Es obligatorio: con
+    // `required`, cfValidateForm no deja guardar y el recuadro se pinta de rojo.
+    // Fuera del Super Admin no se ve el nombre del icono, ni en el tooltip ni en el selector.
     mountIconField(formId, value) {
-        const $wrap = $(`#${formId}`).find("#iconFieldWrap");
-        if (!$wrap.length) return;
+        const $name = $(`#${formId}`).find("#name");
+        if (!$name.length) return;
 
-        $wrap.html(this.csIconField({
+        // La columna del nombre (label, input, error) pasa a rejilla: el recuadro y el
+        // input comparten fila, y el error sigue como hermano del input, que es donde
+        // cfValidateForm lo busca para el "El campo es requerido".
+        const $col = $name.parent();
+        $col.css({ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: "8px" });
+        $col.children("label, .tw-error").css("gridColumn", "1 / -1");
+
+        $name.before(this.csIconField({
             id: "icon",
             name: "icon",
             value: value || "",
-            inputClass: this.cfThemedClass(CF_CSS.input, "light")
+            showName: isSuperAdmin(),
+            compact: true,
+            required: true
         }));
-        this.csIconFieldBind($wrap);
+        this.csIconFieldBind($col);
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     statusInflow(id, active) {
         const activar = active !== 1;
+        const aviso   = activar
+            ? { type: "confirm", title: "¿Activar origen?", detailHtml: "Esta acción activará el origen", okLabel: "Activar" }
+            : deactivateAlert("Vas a dar de baja este origen: ya no aparecerá al registrar entradas.");
 
         this.alertBox({
-            type:       activar ? "confirm" : "cancel",
-            theme:      "light",
-            title:      activar ? "¿Activar origen?" : "¿Desactivar origen?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el origen`,
-            okLabel:    activar ? "Activar" : "Desactivar",
+            ...aviso,
+            theme: "light",
             onOk: async () => {
                 const response = await useFetch({
                     url:  this._link,
@@ -951,55 +986,42 @@ class InflowOrigin extends Templates {
         });
     }
 
+    // Sin campo Código: lo genera el servidor a partir del nombre (addInflow).
     jsonInflow() {
         return [
-            {
-                opc: "input",
-                id: "code",
-                lbl: "Código",
-                tipo: "texto",
-                class: "col-12 col-md-4 mb-3",
-                required: true
-            },
             {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del origen",
                 tipo: "texto",
-                class: "col-12 col-md-8 mb-3",
+                class: "col-12 mb-3",
                 required: true
             },
             {
                 opc: "select",
                 id: "requires_supplier",
                 lbl: "¿Requiere proveedor?",
-                class: "col-12 col-md-6 mb-3",
+                class: "col-12 mb-3",
                 data: [
                     { id: "0", valor: "No" },
                     { id: "1", valor: "Sí" }
                 ]
             },
             {
-                // Hueco vacío: lo rellena mountIconField() con el selector de iconos.
-                opc: "div",
-                id: "iconFieldWrap",
-                lbl: "Icono",
-                class: "col-12 col-md-6 mb-3"
-            },
-            {
                 opc: "input",
                 id: "color_hex",
                 lbl: "Color de texto",
                 type: "color",
-                class: "col-12 col-md-3 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
             {
                 opc: "input",
                 id: "bg_hex",
                 lbl: "Color de fondo",
                 type: "color",
-                class: "col-12 col-md-3 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
+            badgeWandField(),
             badgePreviewField()
         ];
     }
@@ -1079,7 +1101,7 @@ class ShrinkageReason extends Templates {
             }
         });
         inflow.mountIconField("formShrinkageAdd");
-        wireBadgeSimulator("formShrinkageAdd", "rounded-full");
+        wireBadgeSimulator("formShrinkageAdd", "rounded-full", true);
     }
 
     async editShrinkage(id) {
@@ -1110,13 +1132,13 @@ class ShrinkageReason extends Templates {
 
     statusShrinkage(id, active) {
         const activar = active !== 1;
+        const aviso   = activar
+            ? { type: "confirm", title: "¿Activar motivo?", detailHtml: "Esta acción activará el motivo", okLabel: "Activar" }
+            : deactivateAlert("Vas a dar de baja este motivo: ya no aparecerá al registrar salidas.");
 
         this.alertBox({
-            type:       activar ? "confirm" : "cancel",
-            theme:      "light",
-            title:      activar ? "¿Activar motivo?" : "¿Desactivar motivo?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el motivo`,
-            okLabel:    activar ? "Activar" : "Desactivar",
+            ...aviso,
+            theme: "light",
             onOk: async () => {
                 const response = await useFetch({
                     url:  this._link,
@@ -1174,45 +1196,32 @@ class ShrinkageReason extends Templates {
         });
     }
 
+    // Sin campo Código: lo genera el servidor a partir del nombre (addShrinkage).
     jsonShrinkage() {
         return [
-            {
-                opc: "input",
-                id: "code",
-                lbl: "Código",
-                tipo: "texto",
-                class: "col-12 col-md-4 mb-3",
-                required: true
-            },
             {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del motivo",
                 tipo: "texto",
-                class: "col-12 col-md-8 mb-3",
+                class: "col-12 mb-3",
                 required: true
-            },
-            {
-                // Hueco vacío: lo rellena mountIconField() con el selector de iconos.
-                opc: "div",
-                id: "iconFieldWrap",
-                lbl: "Icono",
-                class: "col-12 col-md-6 mb-3"
             },
             {
                 opc: "input",
                 id: "color_hex",
                 lbl: "Color de texto",
                 type: "color",
-                class: "col-12 col-md-3 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
             {
                 opc: "input",
                 id: "bg_hex",
                 lbl: "Color de fondo",
                 type: "color",
-                class: "col-12 col-md-3 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
+            badgeWandField(),
             badgePreviewField()
         ];
     }
@@ -1443,21 +1452,24 @@ class TransferStatus extends Templates {
         });
     }
 
+    // Mismo formato que Motivos de salida: orden por arrastre, sin DataTable. La columna
+    // Código (solo Super Admin) va al final, así los índices de center no cambian.
     lsTransferStatus() {
         this.createTable({
             parent: "table-transfer-status",
             idFilterBar: "filterbar-transfer-status",
             data: { opc: "lsTransferStatus" },
             coffeesoft: true,
-            conf: { datatable: true, pag: 15 },
+            conf: { datatable: false },
             attr: {
                 id: "tbTransferStatus",
                 theme: "light",
                 striped: true,
                 title: "Estados de traspaso",
-                subtitle: "Etiquetas que ve el origen (envía) y el destino (recibe)",
-                center: [4, 5, 6]
-            }
+                subtitle: "Texto que ve la sucursal que envía y la que recibe",
+                center: [1, 5, 6]
+            },
+            success: () => setTimeout(() => this.bindSortTransferStatus(), 0)
         });
     }
 
@@ -1482,19 +1494,23 @@ class TransferStatus extends Templates {
                     }
                 }
             });
+            mountFieldHints("formTransferStatusEdit", {
+                name_out: "La sucursal de donde sale la mercancía.",
+                name_in:  "La sucursal a donde llega la mercancía."
+            });
             wireBadgeSimulator("formTransferStatusEdit");
         }
     }
 
     statusTransferStatus(id, active) {
         const activar = active !== 1;
+        const aviso   = activar
+            ? { type: "confirm", title: "¿Activar estado?", detailHtml: "Esta acción activará el estado de traspaso", okLabel: "Activar" }
+            : deactivateAlert("Vas a dar de baja este estado: dejará de mostrarse en Traspasos.");
 
         this.alertBox({
-            type:       activar ? "confirm" : "cancel",
-            theme:      "light",
-            title:      activar ? "¿Activar estado?" : "¿Desactivar estado?",
-            detailHtml: `Esta acción ${activar ? "activará" : "desactivará"} el estado de traspaso`,
-            okLabel:    activar ? "Activar" : "Desactivar",
+            ...aviso,
+            theme: "light",
             onOk: async () => {
                 const response = await useFetch({
                     url:  this._link,
@@ -1511,57 +1527,98 @@ class TransferStatus extends Templates {
         });
     }
 
+    // Solo los activos se ordenan: ese orden es el del filtro de estados de Traspasos.
+    bindSortTransferStatus() {
+        if ($("#filterbar-transfer-status #active").val() !== "1") return;
+        sortableRows("tbTransferStatus", (ids) => this.sortTransferStatus(ids));
+    }
+
+    async sortTransferStatus(ids) {
+        const response = await useFetch({ url: this._link, data: { opc: "sortTransferStatus", ids: JSON.stringify(ids) } });
+
+        if (!response || response.status !== 200) {
+            this.alertBox({ type: "error", theme: "light", title: (response && response.message) || "No se pudo guardar el orden" });
+        }
+
+        this.lsTransferStatus();
+    }
+
+    // name_out / name_in: cómo se llama el estado para la sucursal que envía y para la
+    // que recibe (relativeStatusName en ctrl-traspasos). Vacíos, se usa el nombre general.
+    // Sin campo Orden: se acomoda arrastrando la fila en la tabla.
     jsonTransferStatus() {
         return [
             {
                 opc: "input",
                 id: "name",
-                lbl: "Nombre global",
+                lbl: "Nombre general",
                 tipo: "texto",
                 class: "col-12 mb-3",
                 required: true
             },
             {
+                opc: "label",
+                id: "lblTransferNames",
+                text: "Cada sucursal puede verlo con otro nombre. Si lo dejas vacío, ve el nombre general.",
+                class: "col-12 pb-1 text-[11px] text-gray-500"
+            },
+            {
                 opc: "input",
                 id: "name_out",
-                lbl: "Como lo ve el origen (envía)",
+                lbl: "Texto que ve quien envía",
                 tipo: "texto",
-                class: "col-12 col-md-6 mb-3"
+                placeholder: "Ej. Enviado",
+                class: "col-12 col-md-6 mb-3",
+                required: false
             },
             {
                 opc: "input",
                 id: "name_in",
-                lbl: "Como lo ve el destino (recibe)",
+                lbl: "Texto que ve quien recibe",
                 tipo: "texto",
-                class: "col-12 col-md-6 mb-3"
-            },
-            {
-                opc: "input",
-                id: "order_index",
-                lbl: "Orden",
-                type: "number",
-                class: "col-12 col-md-4 mb-3"
+                placeholder: "Ej. Por recibir",
+                class: "col-12 col-md-6 mb-3",
+                required: false
             },
             {
                 opc: "input",
                 id: "color_hex",
                 lbl: "Color de texto",
                 type: "color",
-                class: "col-12 col-md-4 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
             {
                 opc: "input",
                 id: "bg_hex",
                 lbl: "Color de fondo",
                 type: "color",
-                class: "col-12 col-md-4 mb-3"
+                class: "col-12 col-md-5 mb-3"
             },
+            badgeWandField(),
             badgePreviewField()
         ];
     }
 }
 
 // -- Helpers --
+
+// Bandera `superadmin` del init (ctrl-almacen y ctrl-catalogo usan la misma consulta de
+// rol). La carga el orquestador almacen.js; sin él, el catálogo se ve como usuario normal.
+function isSuperAdmin() {
+    return typeof superAdmin !== "undefined" && superAdmin === true;
+}
+
+// Opciones de alertBox para "dar de baja": rojo y explícito, porque el registro sale de
+// los selectores. `detail` dice qué deja de pasar; se completa con cómo deshacerlo.
+function deactivateAlert(detail) {
+    return {
+        type:       "cancel",
+        title:      "¡Cuidado!",
+        detailHtml: `${detail}<br>Podrás reactivarlo desde <b>Inactivos</b>.`,
+        okLabel:    "Sí, dar de baja",
+        okBg:       "bg-red-600 hover:bg-red-700"
+    };
+}
 
 // Orden manual: cada fila de la tabla se arrastra y se suelta en su nuevo lugar
 // (mismo SortableJS que el Admin del Tenant). Los botones de la fila siguen
@@ -1609,6 +1666,19 @@ function mountInputIcons(formId, icons) {
     });
 
     if (typeof lucide !== "undefined") lucide.createIcons();
+}
+
+// Nota corta debajo de inputs de un form de coffeeForm. `hints` = { name: "texto" }.
+// Va al final del contenedor del input, después del aviso de error.
+function mountFieldHints(formId, hints) {
+    const $form = $(`#${formId}`);
+
+    Object.keys(hints).forEach((name) => {
+        const $input = $form.find(`input[name="${name}"]`);
+        if (!$input.length) return;
+
+        $input.parent().append($("<p>", { class: "mt-1 text-[11px] leading-snug text-gray-400", text: hints[name] }));
+    });
 }
 
 // -- Selector de badge --
@@ -1665,17 +1735,28 @@ function badgeColors(hex) {
 
 // Modelo de 2 colores: fg = color del texto, bg = color del fondo (espejo de badge() PHP).
 // Si no se recibe bg, se cae al modelo clasico (el color es el fondo y el texto se deriva).
-function badgePreview(text, fg, bg, radius = "rounded") {
+// `icon` = nombre lucide ya validado; va a la izquierda, igual que en la tabla.
+function badgePreview(text, fg, bg, radius = "rounded", icon = "") {
     const label = (text == null || text === "") ? "-" : text;
+    const ico   = icon ? `<i data-lucide="${icon}" class="w-3 h-3"></i> ` : "";
+    const cls   = ico
+        ? `inline-flex items-center gap-1 text-[10px] font-semibold px-3 py-1 ${radius}`
+        : `text-[10px] font-semibold px-3 py-1 ${radius}`;
+
     if (bg) {
-        return `<span class="text-[10px] font-semibold px-3 py-1 ${radius}" style="background:${bg};color:${fg || "#475569"};">${label}</span>`;
+        return `<span class="${cls}" style="background:${bg};color:${fg || "#475569"};">${ico}${label}</span>`;
     }
     const c = badgeColors(fg);
-    return `<span class="text-[10px] font-semibold px-3 py-1 ${radius}" style="background:${c.bg};color:${c.fg};">${label}</span>`;
+    return `<span class="${cls}" style="background:${c.bg};color:${c.fg};">${ico}${label}</span>`;
 }
 
 // Campo de vista previa del badge para inyectar en el json() de un form (theme light).
+// Los HEX solo los ve el Super Admin: al resto le basta ver cómo queda.
 function badgePreviewField() {
+    const hex = isSuperAdmin()
+        ? `<span class="text-[10px] text-gray-500 whitespace-nowrap">Fondo <code id="badgePreviewBg" class="text-gray-700"></code> &middot; Texto <code id="badgePreviewFg" class="text-gray-700"></code></span>`
+        : "";
+
     return {
         opc: "div",
         id: "badgePreview",
@@ -1684,19 +1765,91 @@ function badgePreviewField() {
             <label class="block text-[11px] font-medium text-gray-500 mb-1">Vista previa</label>
             <div class="flex items-center gap-3 flex-wrap p-3 rounded-lg bg-gray-50 border border-gray-200">
                 <span id="badgePreviewBadge"></span>
-                <span class="text-[10px] text-gray-500 whitespace-nowrap">Fondo <code id="badgePreviewBg" class="text-gray-700"></code> &middot; Texto <code id="badgePreviewFg" class="text-gray-700"></code></span>
+                ${hex}
             </div>`
     };
 }
 
-// Cablea la vista previa del badge: la actualiza al cambiar el color o el nombre.
-// `radius` = el mismo redondeo que usa la tabla (rounded | rounded-full).
-function wireBadgeSimulator(formId, radius = "rounded") {
+// Varita junto a los colores: cada clic arma otra combinación al azar (la cablea
+// wireBadgeSimulator). Va al final de la fila de colores; en móvil ocupa la fila y
+// dice qué hace.
+function badgeWandField() {
+    return {
+        opc: "div",
+        id: "badgeWand",
+        class: "col-12 col-md-2 mb-3 flex flex-col justify-end",
+        html: `
+            <button type="button" id="badgeWandBtn" title="Probar otra combinación de colores"
+                class="w-full min-h-[27px] inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white text-gray-500 text-xs font-medium transition hover:border-blue-600 hover:text-blue-600">
+                <i data-lucide="wand-sparkles" class="w-4 h-4"></i>
+                <span class="md:hidden">Probar otra combinación</span>
+            </button>`
+    };
+}
+
+// Combinación al azar que siempre se lee bien. Dos estilos: suave (fondo pastel y texto
+// oscuro del mismo tono, como la mayoría de los badges) o sólido (fondo intenso y texto
+// blanco). Con `prevHue` el tono nuevo cae al menos 60° lejos del anterior, para que
+// cada clic de la varita se note.
+function randomBadgeCombo(prevHue) {
+    const rnd = (min, max) => min + Math.random() * (max - min);
+    const hue = prevHue == null ? rnd(0, 360) : (prevHue + rnd(60, 300)) % 360;
+
+    if (Math.random() < 0.7) {
+        const bg = hslToHex(hue, rnd(0.65, 0.9), rnd(0.9, 0.95));
+        return { hue: hue, bg: bg, fg: readableHex(hue, rnd(0.6, 0.8), rnd(0.25, 0.32), bg) };
+    }
+
+    return { hue: hue, bg: readableHex(hue, rnd(0.55, 0.75), rnd(0.4, 0.5), "#FFFFFF"), fg: "#FFFFFF" };
+}
+
+// Oscurece el tono hasta que contraste AA (4.5:1) contra `other`. Los amarillos y verdes
+// son los que más bajan: a la misma luminosidad se ven mucho más claros que un azul.
+function readableHex(h, s, l, other) {
+    let hex = hslToHex(h, s, l);
+
+    while (l > 0.12 && contrastRatio(hex, other) < 4.5) {
+        l -= 0.02;
+        hex = hslToHex(h, s, l);
+    }
+    return hex;
+}
+
+// h en grados, s y l de 0 a 1.
+function hslToHex(h, s, l) {
+    const k  = (n) => (n + h / 30) % 12;
+    const a  = s * Math.min(l, 1 - l);
+    const f  = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    const hx = (x) => Math.round(x * 255).toString(16).padStart(2, "0").toUpperCase();
+
+    return `#${hx(f(0))}${hx(f(8))}${hx(f(4))}`;
+}
+
+// Contraste WCAG entre dos HEX de 6 dígitos (1 = iguales, 21 = negro sobre blanco).
+function contrastRatio(a, b) {
+    const lum = (hex) => {
+        const c = String(hex).replace("#", "").match(/../g).map((x) => {
+            const v = parseInt(x, 16) / 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const la = lum(a), lb = lum(b);
+
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Cablea la vista previa del badge: la actualiza al cambiar el color, el nombre o el
+// icono (el selector dispara `input` al elegir). `radius` = el mismo redondeo que usa
+// la tabla (rounded | rounded-full). `randomColors` arranca con una combinación al azar
+// (formularios de alta: el input color vacío pinta negro sobre negro).
+function wireBadgeSimulator(formId, radius = "rounded", randomColors = false) {
     setTimeout(() => {
         const $form  = $("#" + formId);
         const $color = $form.find('[name="color_hex"], #color_hex').first();
         const $bgInp = $form.find('[name="bg_hex"], #bg_hex').first();
         const $name  = $form.find('[name="name"], #name').first();
+        const $icon  = $form.find('[name="icon"]').first();
         const $badge = $form.find("#badgePreviewBadge");
         const $bg    = $form.find("#badgePreviewBg");
         const $fg    = $form.find("#badgePreviewFg");
@@ -1706,15 +1859,37 @@ function wireBadgeSimulator(formId, radius = "rounded") {
             const fg   = $color.val() || "#475569";
             const bg   = $bgInp.length ? ($bgInp.val() || "#F1F5F9") : "";
             const name = ($name.val() || "Etiqueta").toString();
-            $badge.html(badgePreview(name, fg, bg, radius));
+            const icon = String($icon.val() || "").trim();
+            const ok   = icon !== "" && typeof csIconExists === "function" && csIconExists(icon);
+
+            $badge.html(badgePreview(name, fg, bg, radius, ok ? icon : ""));
+            if (ok) csIconRender($badge[0]);
             $bg.text(bg || "-");
             $fg.text(fg);
+        };
+
+        // Varita: escribe la combinación en los dos inputs color, así viaja al guardar.
+        let hue = null;
+        const shuffle = () => {
+            const combo = randomBadgeCombo(hue);
+            hue = combo.hue;
+            $color.val(combo.fg);
+            $bgInp.val(combo.bg);
+            render();
         };
 
         $color.off("input.sim change.sim").on("input.sim change.sim", render);
         $bgInp.off("input.sim change.sim").on("input.sim change.sim", render);
         $name.off("input.sim").on("input.sim", render);
-        render();
+        $icon.off("input.sim").on("input.sim", render);
+        // La varita toma el alto del input color, que es más bajo que un input de texto.
+        const $wand = $form.find("#badgeWandBtn");
+        if ($color.outerHeight()) $wand.css("height", $color.outerHeight());
+        $wand.off("click.sim").on("click.sim", shuffle);
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+        if (randomColors && $bgInp.length) shuffle();
+        else render();
     }, 30);
 }
 

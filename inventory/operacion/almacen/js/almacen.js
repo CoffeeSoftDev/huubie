@@ -198,15 +198,16 @@ class Productos extends Templates {
                     data: [{ id: '', valor: 'Todas' }, ...areas],
                     onchange: 'products.lsMateriales()'
                 },
+                // Arranca en Activos. La columna Estado solo sale con "Todos" (lsMateriales).
                 {
                     opc: "select",
                     id: "estado",
                     lbl: "Estado",
                     class: "col-12 col-md-2",
                     data: [
-                        { id: '', valor: 'Todos' },
                         { id: '1', valor: 'Activos' },
-                        { id: '0', valor: 'Inactivos' }
+                        { id: '0', valor: 'Inactivos' },
+                        { id: '', valor: 'Todos' }
                     ],
                     onchange: 'products.lsMateriales()'
                 },
@@ -256,7 +257,7 @@ class Productos extends Templates {
             idFilterBar: `filterBar${this.PROJECT_NAME}`,
             data: { opc: 'lsMateriales' },
             coffeesoft: true,
-            conf: { datatable: true, pag: 10 },
+            conf: { datatable: true, fn_datatable: 'productsDataTable', pag: 25 },
             attr: {
                 id: 'tbMateriales',
                 theme: 'light',
@@ -302,9 +303,17 @@ class Productos extends Templates {
         areas = data.areas || [];
     }
 
+    // Recarga el catálogo global de almacenes tras cambios en la pestaña Almacenes:
+    // el select del formulario "Nueva área" y el Formato de conteo leen `almacenes`.
+    async reloadAlmacenes() {
+        const data = await useFetch({ url: this._link, data: { opc: "init" } });
+        almacenes = data.almacenes || [];
+    }
+
     // Orden de captura: identificación (categoría, nombre, unidad, código), costo
     // (último costo, IVA de compra y costo con impuesto), inventario (inventariable,
     // área, mínimo, máximo, vida útil), venta y notas.
+    // Rejilla de 2 en 2 (col-md-6, mismo ancho en todos); la descripción a lo ancho.
     // Mismo reparto que el POS: el precio de venta vive en item y el costo en item_attribute.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
@@ -323,7 +332,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "category_id",
                 lbl: "Categoría",
-                class: "col-12 col-md-3",
+                class: "col-12 col-md-6",
                 data: categorias,
                 required: true
             },
@@ -331,14 +340,14 @@ class Productos extends Templates {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del producto",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-6",
                 required: true
             },
             {
                 opc: "select",
                 id: "unit_id",
                 lbl: "Unidad de medida",
-                class: "col-12 col-md-3",
+                class: "col-12 col-md-6",
                 data: unidades,
                 required: true
             },
@@ -348,7 +357,7 @@ class Productos extends Templates {
                 opc: "input",
                 id: "sku",
                 lbl: "Código (SKU)",
-                class: "col-12 col-md-2",
+                class: "col-12 col-md-6",
                 placeholder: "Auto",
                 required: false
             },
@@ -364,6 +373,7 @@ class Productos extends Templates {
             // Último costo de compra sin IVA. Cada entrada y cada recepción de orden lo
             // reemplaza (con su IVA); aquí solo se captura si el producto aún no tiene
             // compras. El costo con impuesto no se guarda: se calcula de los otros dos.
+            // La nota "Se actualiza con cada entrada" va debajo (mountMaterialHints).
             {
                 opc: "label",
                 id: "lblCosto",
@@ -375,9 +385,9 @@ class Productos extends Templates {
                 id: "cost_unit",
                 lbl: "Último costo",
                 tipo: "cifra",
-                class: "col-12 col-md-5",
+                class: "col-12 col-md-6",
                 required: false,
-                placeholder: "Se actualiza con cada entrada",
+                placeholder: "0.00",
                 onkeyup: "products.calcCostWithTax()",
                 onchange: "products.calcCostWithTax()"
             },
@@ -385,7 +395,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "cost_tax",
                 lbl: "IVA",
-                class: "col-12 col-md-3",
+                class: "col-12 col-md-6",
                 onchange: "products.calcCostWithTax()",
                 data: [
                     { id: '0', valor: '0%' },
@@ -398,7 +408,7 @@ class Productos extends Templates {
                 id: "cost_with_tax",
                 lbl: "Costo c/impuesto",
                 tipo: "cifra",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-6",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcCostUnit()",
@@ -416,7 +426,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "is_inventoriable",
                 lbl: "Inventariable",
-                class: "col-12 col-md-2",
+                class: "col-12 col-md-6",
                 data: [
                     { id: '1', valor: 'Sí' },
                     { id: '0', valor: 'No' }
@@ -428,7 +438,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "warehouse_area_id",
                 lbl: "Área",
-                class: "col-12 col-md-3",
+                class: "col-12 col-md-6",
                 data: [{ id: '', valor: 'Sin área' }, ...areas],
                 required: false
             },
@@ -438,7 +448,7 @@ class Productos extends Templates {
                 lbl: "Mínimo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-2"
+                class: "col-12 col-md-6"
             },
             {
                 opc: "input",
@@ -446,7 +456,7 @@ class Productos extends Templates {
                 lbl: "Máximo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-2"
+                class: "col-12 col-md-6"
             },
             {
                 opc: "input",
@@ -454,7 +464,7 @@ class Productos extends Templates {
                 lbl: "Vida útil (días)",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-3"
+                class: "col-12 col-md-6"
             },
 
             // -- Venta --
@@ -472,7 +482,7 @@ class Productos extends Templates {
                 id: "price",
                 lbl: "Precio de venta",
                 tipo: "cifra",
-                class: "col-12 col-md-5",
+                class: "col-12 col-md-6",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcPriceWithoutTax()",
@@ -482,7 +492,7 @@ class Productos extends Templates {
                 opc: "select",
                 id: "tax",
                 lbl: "IVA",
-                class: "col-12 col-md-3",
+                class: "col-12 col-md-6",
                 onchange: "products.calcPriceWithoutTax()",
                 data: [
                     { id: '0', valor: '0%' },
@@ -495,7 +505,7 @@ class Productos extends Templates {
                 id: "price_without_tax",
                 lbl: "Precio sin IVA",
                 tipo: "cifra",
-                class: "col-12 col-md-4",
+                class: "col-12 col-md-6",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcPrice()",
@@ -565,16 +575,15 @@ class Productos extends Templates {
         this.syncingCost = false;
     }
 
-    // cfModal limita el cuerpo a 72vh con scroll propio y deja 2rem de margen arriba y
-    // abajo. El formulario de producto va compacto (una fila por sección) y se muestra
-    // entero: sin tope en el cuerpo y con margen corto cabe sin barra en una laptop.
-    noScrollModal(modal) {
-        modal.body.removeClass('max-h-[72vh] overflow-y-auto');
-        modal.el.children().first().removeClass('my-8');
+    // La nota del último costo va debajo del input, en chico (antes era el placeholder).
+    // Con la rejilla de 2 en 2 el formulario ya no cabe entero: se deja el scroll propio
+    // del cuerpo de cfModal (72vh), así los botones Aceptar/Cancelar siempre se ven.
+    mountMaterialHints(formId) {
+        mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
     }
 
     addMaterial() {
-        const modal = this.createModalForm({
+        this.createModalForm({
             id: 'formMaterialAdd',
             data: { opc: 'addMaterial' },
             theme:'light',
@@ -605,7 +614,7 @@ class Productos extends Templates {
             }
         });
 
-        this.noScrollModal(modal);
+        this.mountMaterialHints('formMaterialAdd');
     }
 
     async editMaterial(id) {
@@ -615,7 +624,7 @@ class Productos extends Templates {
         });
 
         if (request.status === 200) {
-            const modal = this.createModalForm({
+            this.createModalForm({
                 id: 'formMaterialEdit',
                 data: { opc: 'editMaterial', id: id },
                 theme:'light',
@@ -647,7 +656,7 @@ class Productos extends Templates {
                 }
             });
 
-            this.noScrollModal(modal);
+            this.mountMaterialHints('formMaterialEdit');
         }
     }
 
@@ -739,6 +748,51 @@ class Productos extends Templates {
             }
         });
     }
+}
+
+// -- Tabla de Productos --
+// DataTable de Productos (conf.fn_datatable): como simple_data_table, más el selector
+// de cuántos ver (10/25/50/100), que se recuerda en la sesión. createCoffeeTable3 deja el
+// zebra fijo por fila y al ordenar o cambiar de página quedaban dos grises (o dos
+// blancos) juntos: se repinta en cada draw sobre las filas visibles.
+function productsDataTable(table, no) {
+    const key   = `${table.replace("#", "")}_length`;
+    const saved = parseInt(sessionStorage.getItem(key), 10);
+
+    $(table)
+        .on("draw.dt", () => repaintZebra(table))
+        .on("length.dt", (e, settings, len) => sessionStorage.setItem(key, len));
+
+    $(table).DataTable({
+        pageLength: [10, 25, 50, 100].includes(saved) ? saved : no,
+        lengthMenu: [10, 25, 50, 100],
+        lengthChange: true,
+        destroy: true,
+        searching: false,
+        order: [],
+        info: true,
+        language: {
+            lengthMenu: "Mostrar _MENU_ registros",
+            info: "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
+            infoEmpty: "Mostrando del 0 al 0 de un total de 0 registros",
+            loadingRecords: "Por favor espere - cargando...",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        }
+    });
+
+    getPageDataTable(table);
+}
+
+// Mismo gris que el striped del tema light de createCoffeeTable3 (color_row_alt).
+function repaintZebra(table, alt = "bg-gray-100") {
+    $(table).children("tbody").children("tr").each((i, tr) => {
+        $(tr).children("td").toggleClass(alt, i % 2 === 0);
+    });
 }
 
 // -- Asistente --

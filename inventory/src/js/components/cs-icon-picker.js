@@ -18,14 +18,24 @@
                              de siempre y el servidor recibe el mismo nombre en
                              kebab-case de antes. Escribirlo a mano sigue
                              funcionando, y la muestra se actualiza al teclear.
+                             Con f.showName === false el texto va oculto (sigue
+                             viajando en el form), el boton dice "Elegir icono" y
+                             el selector tampoco muestra nombres: para usuarios
+                             que solo eligen viendo el dibujo.
+                             Con f.compact === true queda solo la muestra (el
+                             clic en ella abre el selector) y el valor oculto,
+                             sin texto ni boton. f.required pone `required` al
+                             valor: coffeeForm no guarda sin icono y la muestra
+                             se pinta de rojo.
 
       csIconFieldBind(host)  Engancha los eventos de TODOS los campos de icono
                              que haya dentro de host, por delegacion: los que se
                              pinten despues tambien quedan enganchados. Se llama
                              una vez por contenedor; repetirlo no duplica nada.
 
-      csIconPicker(opts)     El panel flotante en si. Lo abre el boton del campo,
-                             pero tambien se puede llamar directo:
+      csIconPicker(opts)     El panel flotante en si. Lo abre el boton del campo
+                             o un clic en la muestra del icono, pero tambien se
+                             puede llamar directo:
 
                              this.csIconPicker({
                                  value: 'calculator',
@@ -198,6 +208,13 @@ function csIconPickerCSS() {
         + '.cs-icon-prev svg, .cs-icon-btn svg { width:17px; height:17px; }'
         + '.cs-icon-btn { cursor:pointer; color:#64748B; transition:.15s; }'
         + '.cs-icon-btn:hover { border-color:var(--cs-ip-accent); color:var(--cs-ip-accent); background:#F8FAFC; }'
+        + '.cs-icon-prev { cursor:pointer; transition:.15s; }'
+        + '.cs-icon-prev:hover { border-color:var(--cs-ip-accent); background:#F8FAFC; }'
+        + '.cs-icon-field.is-compact .cs-icon-prev { min-height:38px; }'
+        /*  cfValidateForm marca el valor oculto con is-invalid; el rojo se ve en
+            la muestra, que es lo unico visible del campo. */
+        + '.cs-icon-field:has(input.is-invalid) .cs-icon-prev { border-color:#EF4444; color:#EF4444; box-shadow:0 0 0 1px #EF4444; }'
+        + '.cs-icon-field.is-nameless .cs-icon-btn { flex:1; width:auto; min-height:38px; gap:8px; padding:0 12px; justify-content:flex-start; font-size:13px; }'
 
         /* ---- el panel ---- */
         /*  PORT A INVENTORY: el z-index original (140) bastaba en erp-pro, donde el
@@ -253,34 +270,51 @@ Templates.prototype.csIconField = function (f) {
 
     csIconPickerCSS();
 
-    const value = String(f.value == null ? '' : f.value).trim();
-    const ok    = csIconExists(value);
+    const value    = String(f.value == null ? '' : f.value).trim();
+    const ok       = csIconExists(value);
+    const showName = f.showName !== false;
+    const compact  = f.compact === true;
+    const title    = csIconPrevTitle(value, ok, showName, compact);
 
     return ''
-        + '<div class="cs-icon-field">'
-        +   `<span class="cs-icon-prev${ok ? '' : ' is-missing'}" title="${ok ? esc(value) : 'Sin icono'}">`
+        + `<div class="cs-icon-field${showName ? '' : ' is-nameless'}${compact ? ' is-compact' : ''}">`
+        +   `<span class="cs-icon-prev${ok ? '' : ' is-missing'}" title="${esc(title)}">`
         +     `<i data-lucide="${esc(ok ? value : 'circle-dashed')}"></i>`
         +   '</span>'
         /*  PORT A INVENTORY: el `name` es aditivo. csModal de erp-pro recoge el
             valor con find('#id'), pero createModalForm de CoffeeSoft arma el
             envío con FormData sobre el <form>, y FormData ignora los campos sin
             name. Sin esto el icono no llegaría al servidor. */
-        +   `<input type="text" id="${esc(f.id)}"${f.name ? ` name="${esc(f.name)}"` : ''} value="${esc(value)}" class="${esc(f.inputClass || '')}"`
-        +        ` placeholder="${esc(f.ph || 'layout-grid')}" spellcheck="false" autocomplete="off">`
-        +   '<button type="button" class="cs-icon-btn" title="Elegir icono"><i data-lucide="layout-grid"></i></button>'
+        +   `<input type="${showName && !compact ? 'text' : 'hidden'}" id="${esc(f.id)}"${f.name ? ` name="${esc(f.name)}"` : ''} value="${esc(value)}" class="${esc(f.inputClass || '')}"`
+        +        ` placeholder="${esc(f.ph || 'layout-grid')}" spellcheck="false" autocomplete="off"${f.required ? ' required' : ''}>`
+        +   (compact ? '' : `<button type="button" class="cs-icon-btn" title="Elegir icono"><i data-lucide="layout-grid"></i>${showName ? '' : '<span>Elegir icono</span>'}</button>`)
         + '</div>';
 };
+
+/*  Tooltip de la muestra. Sin nombre visible no se dice cual es; en el campo
+    compacto la muestra es el boton, asi que invita a elegir. */
+function csIconPrevTitle(value, ok, showName, compact) {
+    if (ok) return showName ? value : (compact ? 'Cambiar icono' : 'Icono elegido');
+    if (compact) return 'Elegir icono';
+
+    return value === '' || !showName ? 'Sin icono' : `"${value}" no existe en lucide`;
+}
 
 /*  Repinta la muestra de un campo con lo que diga su texto. Es lo que corre al
     teclear y al elegir en el selector. */
 function csIconRefresh(field) {
-    const $f    = $(field);
-    const value = String($f.find('input').val() || '').trim();
-    const ok    = csIconExists(value);
-    const $prev = $f.find('.cs-icon-prev');
+    const $f     = $(field);
+    const $in    = $f.find('input');
+    const value  = String($in.val() || '').trim();
+    const ok     = csIconExists(value);
+    const $prev  = $f.find('.cs-icon-prev');
+    const title  = csIconPrevTitle(value, ok, !$f.hasClass('is-nameless'), $f.hasClass('is-compact'));
+
+    // Ya hay icono: se apaga el rojo que dejo cfValidateForm al intentar guardar.
+    if (ok) $in.removeClass('is-invalid');
 
     $prev.toggleClass('is-missing', !ok)
-         .attr('title', ok ? value : (value === '' ? 'Sin icono' : `"${value}" no existe en lucide`))
+         .attr('title', title)
          .html(`<i data-lucide="${ok ? value : 'circle-dashed'}"></i>`);
 
     csIconRender($prev[0]);
@@ -297,12 +331,14 @@ Templates.prototype.csIconFieldBind = function (host) {
         csIconRefresh($(e.currentTarget).closest('.cs-icon-field'));
     });
 
-    $host.on('click', '.cs-icon-btn', (e) => {
+    // La muestra también abre el selector: es lo primero que se intenta clicar.
+    $host.on('click', '.cs-icon-btn, .cs-icon-prev', (e) => {
         const $field = $(e.currentTarget).closest('.cs-icon-field');
         const $in    = $field.find('input');
 
         this.csIconPicker({
             value: $in.val(),
+            showNames: !$field.hasClass('is-nameless'),
             onPick: (name) => {
                 $in.val(name);
                 csIconRefresh($field);
@@ -317,9 +353,11 @@ Templates.prototype.csIconFieldBind = function (host) {
    EL PANEL
    ------------------------------------------------------------------ */
 Templates.prototype.csIconPicker = function (options) {
+    // showNames:false quita el nombre bajo cada icono, su tooltip y el del pie.
     const defaults = {
         id: 'csIconPicker',
         value: '',
+        showNames: true,
         onPick: () => {}
     };
 
@@ -369,8 +407,8 @@ Templates.prototype.csIconPicker = function (options) {
     const $use    = panel.find('.cs-ip-use');
 
     const item = (n) => ''
-        + `<button type="button" class="cs-ip-item${n === actual ? ' is-active' : ''}" data-icon="${esc(n)}" title="${esc(n)}">`
-        +   `<i data-lucide="${esc(n)}"></i><span>${esc(n)}</span>`
+        + `<button type="button" class="cs-ip-item${n === actual ? ' is-active' : ''}" data-icon="${esc(n)}"${opts.showNames ? ` title="${esc(n)}"` : ''}>`
+        +   `<i data-lucide="${esc(n)}"></i>${opts.showNames ? `<span>${esc(n)}</span>` : ''}`
         + '</button>';
 
     const pie = () => {
@@ -380,7 +418,7 @@ Templates.prototype.csIconPicker = function (options) {
             return;
         }
 
-        $sel.html(`<i data-lucide="${esc(actual)}" style="width:16px;height:16px;"></i> &nbsp;Seleccionado: <code>${esc(actual)}</code>`);
+        $sel.html(`<i data-lucide="${esc(actual)}" style="width:16px;height:16px;"></i> &nbsp;Seleccionado${opts.showNames ? `: <code>${esc(actual)}</code>` : ''}`);
         $use.prop('disabled', false);
 
         csIconRender($sel[0]);
