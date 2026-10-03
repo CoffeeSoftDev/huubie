@@ -2,6 +2,10 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
+// La pagina de ventas solo pide que haya alguien adentro (wansoftExige sin permiso).
+require_once '../conf/_Terminal.php';
+terminalExige();
+
 require_once '../mdl/mdl-facture2-ventas.php';
 
 class ctrl extends mdl {

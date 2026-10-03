@@ -44,8 +44,8 @@ class EntradaForm {
             search:  'w-full pl-8 pr-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
             qtyInp:  'no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
             cashInp: 'no-spin w-full pl-6 pr-3 py-2 text-sm text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
-            btnOut:  'px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-100 hover:text-gray-800 hover:border-gray-400 transition-all',
-            btnOk:   'px-3 py-1.5 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
+            btnCancel: 'px-4 py-2 text-xs font-bold text-gray-700 bg-white border-[1px] border-gray-400 rounded-md hover:bg-gray-100 hover:border-gray-500 hover:text-gray-900 transition-all flex items-center gap-1.5',
+            btnOk:   'px-4 py-2 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
             btnIco:  'px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5',
             badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none'
         };
@@ -105,7 +105,9 @@ class EntradaForm {
                 iaSubir:      'Subir con IA',
                 fecha:        'Fecha',
                 nota:         'Nota (opcional)',
+                notaPh:       'Escribe una nota para esta entrada',
                 comprobante:  'Comprobante',
+                compDrop:     'Arrastra aquí la foto o PDF, o haz clic',
                 quitarComp:   'Quitar comprobante',
                 buscar:       'Buscar productos',
                 placeholder:  'Buscar productos por nombre o SKU...',
@@ -139,6 +141,7 @@ class EntradaForm {
                 confirmEditOk:'Si, guardar',
                 stockAuto:    'El stock se actualizara automaticamente',
                 guardar:      'Guardar formato',
+                guardarDia:   'Guardar también como formato',
                 cargar:       'Cargar formato',
                 formatosTit:  'Formatos guardados',
                 sinFormatos:  'No hay formatos guardados',
@@ -187,6 +190,7 @@ class EntradaForm {
         this.stockMap     = {};     // stock del almacen seleccionado: { item_id: cantidad }
         this.editing      = null;   // entrada abierta para editar: { id, folio }; null = alta
         this.voucher      = null;   // comprobante adjunto: { name, dataUrl }
+        this.formatoAplicado = null; // id del formato cargado en el lote; null = lote capturado a mano
 
         this.ensureStyles();
         this.mount();
@@ -206,13 +210,10 @@ class EntradaForm {
                         <i data-lucide="package-plus" class="w-5 h-5 text-white"></i>
                     </div>
                     <div>
-                        <h3 id="${o.id}_title" class="text-sm font-bold text-gray-800">${this.esc(o.labels.title)}</h3>
+                        <h3 id="${o.id}_title" class="text-lg font-bold text-gray-800 leading-tight">${this.esc(o.labels.title)}</h3>
                         <p class="text-[11px] text-gray-500">${this.esc(o.labels.subtitle)}</p>
                     </div>
                 </div>
-                <button class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-400" data-modal-close>
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
             </div>`;
     }
 
@@ -601,22 +602,37 @@ class EntradaForm {
                         <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                    <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
-                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.nota)}..." class="${cls.input}">
-                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
-                    <button id="${o.id}_btnVoucher" type="button" class="${cls.btnIco} flex-shrink-0 max-w-[180px]" title="${this.esc(o.labels.comprobante)}">
-                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i><span id="${o.id}_voucherLbl" class="truncate">${this.esc(o.labels.comprobante)}</span>
-                    </button>
-                    <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                    </button>
-                </div>
                 <div class="flex gap-2 flex-shrink-0">
-                    <button class="${cls.btnOut}" data-modal-close>${this.esc(o.labels.cancelar)}</button>
+                    <button class="${cls.btnCancel}" data-modal-close>
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cancelar)}</span>
+                    </button>
                     <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
                         <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
                     </button>
+                </div>
+            </div>`;
+    }
+
+    renderDetalles() {
+        const o   = this.opts;
+        const cls = this.cls;
+        return `
+            <div class="flex items-end gap-3 px-5 py-2.5 border-t border-gray-200 bg-white flex-shrink-0">
+                <div class="flex-1 min-w-0">
+                    <label for="${o.id}_inpNota" class="${cls.label}">${this.esc(o.labels.nota)}</label>
+                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.notaPh)}..." class="${cls.input}">
+                </div>
+                <div class="w-[300px] flex-shrink-0">
+                    <label class="${cls.label}">${this.esc(o.labels.comprobante)}</label>
+                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
+                    <div id="${o.id}_btnVoucher" role="button" tabindex="0" title="${this.esc(o.labels.compDrop)}"
+                        class="h-[38px] px-3 flex items-center gap-2 rounded-md border-[1px] border-dashed border-gray-300 bg-gray-50 text-[11px] text-gray-500 cursor-pointer hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all">
+                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                        <span id="${o.id}_voucherLbl" class="flex-1 min-w-0 truncate">${this.esc(o.labels.compDrop)}</span>
+                        <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </div>
                 </div>
             </div>`;
     }
@@ -820,6 +836,7 @@ class EntradaForm {
                 ${this.renderLoteHeader()}
                 <div id="${o.id}_listaProductos" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
                 ${this.renderResumen()}
+                ${this.renderDetalles()}
                 ${this.renderFooter()}
                 <div id="${o.id}_float" class="hidden absolute z-[60] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
             </div>
@@ -924,6 +941,7 @@ class EntradaForm {
             $lista.html(this.renderProductsTable()).removeClass('flex items-center justify-center');
         }
         $limpiar.toggleClass('hidden', !this.lote.length);
+        this.syncSaveFormato();
         this.updateTotals();
         this.renderCatalogo();
         if (window.lucide) lucide.createIcons();
@@ -1347,6 +1365,7 @@ class EntradaForm {
 
     removeProducto(i) {
         this.lote.splice(i, 1);
+        if (!this.lote.length) this.formatoAplicado = null;
         this.renderLote();
     }
 
@@ -1399,6 +1418,7 @@ class EntradaForm {
         this.confirmBox('Eliminar todos los productos del lote?', () => {
             this.lote  = [];
             this.draft = null;
+            this.formatoAplicado = null;
             this.renderLote();
         });
     }
@@ -1479,8 +1499,8 @@ class EntradaForm {
         const id = this.opts.id;
         this.voucher = voucher;
         $(`#${id}_voucherInput`).val('');
-        $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.comprobante);
-        $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !bg-green-50', !!voucher);
+        $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.compDrop);
+        $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !border-solid !bg-green-50', !!voucher);
         $(`#${id}_voucherClear`).toggleClass('hidden', !voucher);
     }
 
@@ -1488,6 +1508,7 @@ class EntradaForm {
         this.wrap.addClass('hidden');
         this.lote  = [];
         this.draft = null;
+        this.formatoAplicado = null;
         this.setVoucher(null);
         if (this.editing) this.setMode(null);
         this.renderLote();
@@ -1556,15 +1577,29 @@ class EntradaForm {
     // usuario cancela. Usa el alertBox propio de CoffeeSoft (via Templates) y
     // cae a confirm nativo si la referencia no esta disponible.
     confirmRegistrar(payload) {
-        const o       = this.opts;
-        const editing = !!this.editing;
-        const proceed = () => { (editing ? o.onUpdate : o.onAdd)(payload); this.closeModal(); };
+        const o         = this.opts;
+        const editing   = !!this.editing;
+        const dia       = this.formatoDelDia();
+        const chkId     = `${o.id}_chkFormatoDia`;
+        const productos = this.lote.map(p => Object.assign({}, p));
+
+        const proceed = () => {
+            const guardarDia = !!dia && $(`#${chkId}`).is(':checked');
+            (editing ? o.onUpdate : o.onAdd)(payload);
+            this.closeModal();
+            if (guardarDia) this.storeFormato(dia, 'user', productos, true);
+        };
 
         this.confirmBox(editing ? o.labels.confirmEdit : o.labels.confirmAdd, proceed, {
-            type:    'confirm',
-            okLabel: editing ? o.labels.confirmEditOk : o.labels.confirmAddOk,
-            okIcon:  'check',
-            focusOk: true
+            type:       'confirm',
+            okLabel:    editing ? o.labels.confirmEditOk : o.labels.confirmAddOk,
+            okIcon:     'check',
+            focusOk:    true,
+            detailHtml: dia ? `
+                <label class="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border-[1px] border-blue-200 text-[12px] font-medium text-blue-700 cursor-pointer select-none">
+                    <input id="${chkId}" type="checkbox" checked class="w-3.5 h-3.5 accent-blue-600">
+                    <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>${this.esc(o.labels.guardarDia)} «${this.esc(dia)}»
+                </label>` : ''
         });
     }
 
@@ -1732,14 +1767,9 @@ class EntradaForm {
             const scope     = $(`input[name="${modalId}_scope"]:checked`).val() || 'user';
             const productos = this.lote.map(p => Object.assign({}, p));
 
-            if (typeof this.opts.onSaveFormato === 'function') {
-                await this.opts.onSaveFormato({ name: name, scope: scope, productos: productos });
-            } else {
-                const formatos = this.loadLocalFormatos();
-                formatos.unshift({ id: Date.now(), name: name, scope: scope, productos: productos, createdAt: new Date().toISOString() });
-                this.persistLocalFormatos(formatos);
-            }
-            await this.refreshFormatos();
+            await this.storeFormato(name, scope, productos);
+            this.formatoAplicado = true;
+            this.syncSaveFormato();
             closeSaveModal();
         });
 
@@ -1747,6 +1777,36 @@ class EntradaForm {
             if (e.key === 'Enter')  $(`#${modalId}_confirm`).trigger('click');
             if (e.key === 'Escape') { e.stopPropagation(); closeSaveModal(); }
         });
+    }
+
+    // formatoAplicado: el lote salio de un formato o ya se guardo como uno.
+    syncSaveFormato() {
+        const sugerir = this.lote.length > 0 && !this.formatoAplicado && !this.editing;
+        $(`#${this.opts.id}_btnSaveFormato`).toggleClass('!bg-blue-50 !text-blue-700 !border-blue-300 font-semibold', sugerir);
+    }
+
+    // silent: guardado ofrecido al registrar; el aviso de la entrada ya cubre el exito.
+    async storeFormato(name, scope, productos, silent = false) {
+        if (typeof this.opts.onSaveFormato === 'function') {
+            await this.opts.onSaveFormato({ name: name, scope: scope, productos: productos, silent: silent });
+        } else {
+            const formatos = this.loadLocalFormatos();
+            formatos.unshift({ id: Date.now(), name: name, scope: scope, productos: productos, createdAt: new Date().toISOString() });
+            this.persistLocalFormatos(formatos);
+        }
+        await this.refreshFormatos();
+    }
+
+    // Nombre del dia de la fecha de la entrada ("Lunes"), si aun no existe un
+    // formato con ese nombre y el lote no salio de un formato; si no, null.
+    formatoDelDia() {
+        if (this.editing || this.formatoAplicado || !this.lote.length) return null;
+        const fecha = String($(`#${this.opts.id}_inpFecha`).val() || '').split('-').map(Number);
+        if (fecha.length !== 3 || !fecha[0]) return null;
+
+        const dia  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][new Date(fecha[0], fecha[1] - 1, fecha[2]).getDay()];
+        const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+        return (this.formatos || []).some(f => norm(f.name) === norm(dia)) ? null : dia;
     }
 
     applyFormato(id) {
@@ -1759,6 +1819,7 @@ class EntradaForm {
         this.lote = (f.productos || []).map(p =>
             Object.assign({}, p, this.seedTax(p), { cantidad: Number(p.cantidad || 0), stock: this.stockOf(p.id) })
         );
+        this.formatoAplicado = f.id;
         $(`#${this.opts.id}_formatosDropdown`).addClass('hidden');
         this.renderLote();
     }
@@ -1930,10 +1991,29 @@ class EntradaForm {
         wrap.on('focusout', `#${id}_draftInput, input[data-field="tax"]`, () => this.closeFloat());
         $(`#${id}_listaProductos`).on('scroll', () => this.placeFloat());
         wrap.on('click', `#${id}_btnVoucher`,         () => $(`#${id}_voucherInput`).trigger('click'));
-        wrap.on('click', `#${id}_voucherClear`,       () => this.setVoucher(null));
+        // Solo la zona: Enter sobre la X de adentro debe quitar, no abrir el selector.
+        wrap.on('keydown', `#${id}_btnVoucher`, (e) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $(`#${id}_voucherInput`).trigger('click'); }
+        });
+        wrap.on('click', `#${id}_voucherClear`, (e) => { e.stopPropagation(); this.setVoucher(null); });
         wrap.on('change', `#${id}_voucherInput`, (e) => {
             const file = e.target.files && e.target.files[0];
             if (file) this.attachVoucher(file);
+        });
+
+        // El wrap cancela dragover/drop: un archivo soltado fuera de la zona no
+        // hace que el navegador lo abra y se pierda el lote.
+        const dropOn = 'ring-2 ring-blue-400 !border-blue-400 !bg-blue-50';
+        wrap.on('dragover drop', (e) => e.preventDefault());
+        wrap.on('dragenter dragover', `#${id}_btnVoucher`, (e) => $(e.currentTarget).addClass(dropOn));
+        wrap.on('dragleave', `#${id}_btnVoucher`, (e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) $(e.currentTarget).removeClass(dropOn);
+        });
+        wrap.on('drop', `#${id}_btnVoucher`, (e) => {
+            $(e.currentTarget).removeClass(dropOn);
+            const files = e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files;
+            if (files && files[0]) this.attachVoucher(files[0]);
         });
         wrap.on('click', `#${id}_btnIA`,              () => this.opts.onOpenIA());
         wrap.on('click', `#${id}_btnLimpiarLote`,     () => this.clearLote());
@@ -1980,6 +2060,7 @@ class EntradaForm {
 
     open() {
         this.wrap.removeClass('hidden');
+        this.refreshFormatos();
         this.syncProveedorVisibility();
         if (window.lucide) lucide.createIcons();
         this.refreshDestinos($(`#${this.opts.id}_selAlmacen`).val());

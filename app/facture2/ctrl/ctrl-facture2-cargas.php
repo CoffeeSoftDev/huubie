@@ -2,6 +2,11 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
+// Lo usan dos pantallas: Importacion (catalogos) y el modal de subir ventas de
+// Tickets (tickets).
+require_once '../conf/_Terminal.php';
+terminalExige(['tickets', 'catalogos']);
+
 // El modelo de Wansoft extiende al de Soft Restaurant, asi que este require trae
 // los dos: el controlador hereda las dos familias de consultas y puede correr
 // cualquiera de los dos importadores sin preguntar de quien es cada una.
@@ -34,10 +39,20 @@ class ctrl extends mdl2 {
     private $import;
     private $pos;
 
+    // El usuario de la carga es quien tecleo su PIN en la terminal (punto 31), no la
+    // sesion de Huubie: esa puede ser de otra persona, y en local es la de pruebas.
     public function __construct() {
         parent::__construct();
         $this->branch = $this->resolveBranch();
-        $this->userId = (int) ($_SESSION['USR'] ?? $_POST['user_id'] ?? 1);
+        $this->userId = (int) ($_SESSION['WANSOFT_USER'] ?? 0) ?: null;
+    }
+
+    function nombreDelUsuario() {
+        if (!$this->userId) return '';
+
+        $ls = $this->getUserById([$this->userId]);
+
+        return (string) ($ls[0]['name'] ?? '');
     }
 
     // -- Que POS esta operando --
@@ -1002,7 +1017,7 @@ class ctrl extends mdl2 {
         //
         // No se pierde nada al cerrarla: la sucursal ya se resolvio y se cacheo en el
         // constructor, y de aqui en adelante nadie vuelve a escribir en $_SESSION.
-        $userName = $_SESSION['NAME'] ?? '';
+        $userName = $this->nombreDelUsuario();
 
         if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
@@ -1058,9 +1073,9 @@ class ctrl extends mdl2 {
             // La pestana viaja solo para redactar el aviso cuando el libro no trae
             // ninguna hoja conocida: sirve para decir que se esperaba ahi.
             // El usuario viaja con la carga para quedar en la bitacora. El nombre se
-            // manda ademas del id porque se guarda como copia: el catalogo de
-            // usuarios vive en otro esquema y una bitacora de auditoria no puede
-            // depender de que ese usuario siga existiendo para poder leerse.
+            // manda ademas del id porque se guarda como copia: una bitacora de
+            // auditoria no puede depender de que ese usuario siga existiendo para
+            // poder leerse.
             $resultado = $importador->procesarLibro($documento, $ctx);
         }
 

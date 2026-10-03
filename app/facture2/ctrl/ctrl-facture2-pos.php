@@ -272,7 +272,9 @@ class ctrl extends mdl {
 
             if ($conHora) $fila['hora'] = $this->horaDe($item);
 
-            $fila['total'] = money($this->totalDe($item));
+            $fila['generado'] = horaDeGeneracion($item);
+            $fila['tasa']     = tasaTexto(tasaEfectiva($item));
+            $fila['total']    = money($this->totalDe($item));
 
             $__row[] = $fila;
         }
@@ -295,9 +297,7 @@ class ctrl extends mdl {
 
         if ($conHora) $thead[] = 'Hora';
 
-        $thead[] = 'Total';
-
-        return $thead;
+        return array_merge($thead, ['Hora gen.', 'Tasa', 'Total']);
     }
 
     // El ticket que se pide por los dos numeros que el cajero tiene a la vista. Se
@@ -735,6 +735,23 @@ function tasaEfectiva($item) {
 
 function money($valor) {
     return '$' . number_format((float) $valor, 2);
+}
+
+function tasaTexto($tasa) {
+    return round((float) $tasa * 100) . '%';
+}
+
+// La hora a la que se emitio el papel. Lleva el dia delante cuando no es el del
+// ticket: julio se puede cerrar en octubre, y "10:42" a secas se leeria como la hora
+// de la venta.
+function horaDeGeneracion($item) {
+    if (empty($item['generated_at'])) return '—';
+
+    $momento = strtotime($item['generated_at']);
+
+    if (date('Y-m-d', $momento) === $item['issue_date']) return date('H:i', $momento);
+
+    return date('d/m H:i', $momento);
 }
 
 // "1 carga", "2 cargas": el aviso final cuenta lo que se borro y tiene que leerse

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes · Boceto</title>
+
+<!-- Mismas librerias que templates/punto-19-seguimiento.html -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+    colors: {
+      ws: {
+        blue: '#2B4FD8', blueDk: '#2340BC', blueLt: '#4667E0', key: '#E4E8F8',
+        ink: '#1F2937', muted: '#6B7280', line: '#E5E7EB', lineDk: '#D1D5DB',
+        ok: '#047857', warn: '#B45309'
+      }
+    }
+  }}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  html, body { height: 100%; }
+  body { font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { outline: none; }
+
+  /* Franja de cifras: copia de .ws-stat de wansoft-theme.css */
+  .ws-stat      { padding: 0 22px; border-left: 1px solid #E5E7EB; }
+  .ws-stat:first-child { padding-left: 0; border-left: 0; }
+  .ws-stat-lbl  { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6B7280; white-space: nowrap; }
+  .ws-stat-val  { font-size: 15px; font-weight: 600; color: #1F2937; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ws-stat-hero .ws-stat-val { font-size: 18px; font-weight: 700; }
+  .ws-stat-blue .ws-stat-val { color: #2340BC; }
+  .ws-stat-amber .ws-stat-val { color: #B45309; }
+
+  /* Tabla con el encabezado azul de la terminal */
+  .tbl            { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .tbl thead th   { background: #2B4FD8; color: #fff; text-align: left; font-size: 11px; font-weight: 600;
+                    padding: 6px 10px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  .tbl tbody td   { padding: 6px 10px; border-bottom: 1px solid #E5E7EB; white-space: nowrap; }
+  .tbl tbody tr:nth-child(even) td { background: #F9FAFB; }
+  .tbl tbody tr:hover td { background: #E4E8F8; }
+  .tbl tfoot td   { padding: 7px 10px; font-weight: 700; background: #F3F4F6; border-top: 2px solid #D1D5DB; white-space: nowrap;
+                    position: sticky; bottom: 0; }
+  .num, .tbl thead th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ilus           { color: #9CA3AF; font-style: italic; }
+
+  /* La mezcla del dia en una barra: azul lo que fue al 16%, ambar lo que fue al 0% */
+  .mezcla { display: flex; width: 90px; height: 7px; border-radius: 2px; overflow: hidden; background: #E5E7EB; }
+  .mezcla i { display: block; height: 100%; }
+
+  .ws-radio { accent-color: #2B4FD8; width: 15px; height: 15px; }
+  .campo { background: #F3F4F6; border: 1px solid #D1D5DB; border-radius: 4px; padding: 5px 8px; font-size: 13px; }
+  .campo:disabled { opacity: .45; }
+
+  .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #D6DCF6; border-radius: 6px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+
+<body class="h-screen flex flex-col bg-white text-ws-ink">
+
+<!-- Banda superior: los rotulos que arma navbar-wansoft.js -->
+<div class="h-11 shrink-0 flex items-center justify-between px-3 bg-ws-blue border-b border-ws-blueLt">
+  <div class="flex items-center gap-6 min-w-0">
+    <button class="w-6 h-6 rounded bg-white/20 text-white flex items-center justify-center shrink-0" title="Regresar al menú">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    <span class="text-[17px] font-bold text-white">wansoft</span>
+    <span class="text-[13px] text-white">Reportes</span>
+    <span class="text-[13px] text-white hidden md:inline">Usuario: Admin</span>
+    <span class="text-[13px] text-white hidden lg:inline">Turno: 1</span>
+  </div>
+  <span class="text-[11px] text-white/80 hidden sm:inline">Boceto · cifras de la vista previa de julio 2026 (base local)</span>
+</div>
+
+<!-- Filtros del punto 28: una fecha o un periodo -->
+<div class="shrink-0 flex flex-wrap items-end gap-x-6 gap-y-3 px-4 py-3 border-b border-ws-line">
+  <div class="flex items-center gap-5">
+    <label class="flex items-center gap-2 text-[13px] cursor-pointer">
+      <input type="radio" name="modo" value="fecha" class="ws-radio"> Fecha
+    </label>
+    <label class="flex items-center gap-2 text-[13px] cursor-pointer">
+      <input type="radio" name="modo" value="periodo" class="ws-radio" checked> Periodo
+    </label>
+  </div>
+
+  <div class="flex items-end gap-2">
+    <div class="flex flex-col gap-0.5">
+      <label class="text-[11px] text-ws-muted font-medium" for="fDesde" id="lblDesde">Desde</label>
+      <input type="date" id="fDesde" class="campo" value="2026-07-01" min="2026-07-01" max="2026-07-31">
+    </div>
+    <div class="flex flex-col gap-0.5" id="wrapHasta">
+      <label class="text-[11px] text-ws-muted font-medium" for="fHasta">Hasta</label>
+      <input type="date" id="fHasta" class="campo" value="2026-07-31" min="2026-07-01" max="2026-07-31">
+    </div>
+  </div>
+
+  <div class="flex-1"></div>
+
+  <button id="btnImprimir" class="text-[12px] px-3 py-1.5 rounded border border-ws-lineDk text-ws-muted flex items-center gap-1.5">
+    <i data-lucide="printer" class="w-3.5 h-3.5"></i> Imprimir
+  </button>
+</div>
+
+<!-- Franja de cifras del periodo: los siete datos del punto 28 -->
+<div id="stats" class="shrink-0 flex flex-wrap gap-y-3 px-4 py-3 border-b border-ws-line"></div>
+
+<!-- Total generado por fecha -->
+<main class="flex-1 min-h-0 px-3 py-2 flex flex-col">
+  <div class="w-full flex-1 min-h-0 bg-white border border-ws-line rounded-lg px-3 py-2 flex flex-col">
+    <div class="flex-1 min-h-0 overflow-auto scroll-thin">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="num">Movimientos</th>
+            <th class="num">Total generado</th>
+            <th class="num">IVA 16%</th>
+            <th class="num">Tasa 0%</th>
+            <th>16% / 0%</th>
+            <th class="num">Tickets</th>
+            <th class="num">De $0.00</th>
+            <th class="num">Reimpresos</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot id="tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</main>
+
+<div class="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-t border-ws-line bg-gray-50 text-[11.5px] text-ws-muted">
+  <span id="pie"></span>
+  <span><span class="ilus">Reimpresos</span>: ilustrativo hasta que exista la bitácora (punto 35)</span>
+</div>
+
+<script>
+  // Las cifras de julio 2026 salen de la vista previa del mes en la base local
+  // (meta 70 / 30). Reimpresos es inventado: hoy nadie registra una reimpresion.
+  // [fecha, total, 16%, 0%, tickets, de $0.00, movimientos, reimpresos]
+  const DIAS = [
+    ['2026-07-01', 22206.00, 15673.00, 6533.00, 25, 2, 25, 3],
+    ['2026-07-02', 26837.00, 18873.50, 7963.50, 35, 8, 35, 1],
+    ['2026-07-03', 42947.00, 30819.00, 12128.00, 51, 16, 51, 0],
+    ['2026-07-04', 49638.00, 35285.00, 14353.00, 66, 17, 66, 2],
+    ['2026-07-05', 20143.00, 14870.00, 5273.00, 27, 9, 27, 0],
+    ['2026-07-06', 24128.00, 17174.00, 6954.00, 27, 2, 27, 1],
+    ['2026-07-07', 24179.00, 17002.00, 7177.00, 30, 0, 30, 0],
+    ['2026-07-08', 25147.00, 17851.00, 7296.00, 23, 0, 23, 0],
+    ['2026-07-09', 30641.00, 21692.00, 8949.00, 30, 7, 30, 2],
+    ['2026-07-10', 38853.00, 28491.00, 10362.00, 39, 11, 39, 1],
+    ['2026-07-11', 37594.00, 26410.00, 11184.00, 40, 9, 40, 0],
+    ['2026-07-12', 34910.00, 24562.00, 10348.00, 45, 20, 45, 0],
+    ['2026-07-13', 31385.00, 22278.00, 9107.00, 29, 8, 29, 1],
+    ['2026-07-14', 17148.00, 12456.00, 4692.00, 27, 13, 27, 0],
+    ['2026-07-15', 42903.50, 31730.50, 11173.00, 41, 12, 41, 3],
+    ['2026-07-16', 30891.00, 22282.00, 8609.00, 31, 2, 31, 0],
+    ['2026-07-17', 38276.00, 27201.00, 11075.00, 39, 4, 39, 1],
+    ['2026-07-18', 49985.00, 35103.00, 14882.00, 64, 30, 64, 2],
+    ['2026-07-19', 12752.00, 9934.00, 2818.00, 22, 8, 22, 0],
+    ['2026-07-20', 25482.00, 18063.00, 7419.00, 31, 10, 31, 0],
+    ['2026-07-21', 21366.00, 15278.00, 6088.00, 24, 6, 24, 1],
+    ['2026-07-22', 25191.00, 18135.00, 7056.00, 26, 7, 26, 0],
+    ['2026-07-23', 27946.00, 21607.00, 6339.00, 33, 9, 33, 0],
+    ['2026-07-24', 53293.00, 39793.00, 13500.00, 56, 18, 56, 2],
+    ['2026-07-25', 32275.00, 23383.00, 8892.00, 54, 22, 54, 1],
+    ['2026-07-26', 40609.00, 28530.00, 12079.00, 48, 18, 48, 0],
+    ['2026-07-27', 29255.00, 21115.00, 8140.00, 31, 4, 31, 0],
+    ['2026-07-28', 18739.90, 13417.90, 5322.00, 23, 3, 23, 1],
+    ['2026-07-29', 22516.00, 16015.00, 6501.00, 28, 8, 28, 0],
+    ['2026-07-30', 31426.00, 24221.00, 7205.00, 33, 13, 33, 0],
+    ['2026-07-31', 26557.00, 20492.00, 6065.00, 41, 13, 41, 2]
+  ];
+
+  const DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+  const money = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const entero = (n) => n.toLocaleString('en-US');
+  const pct = (parte, total) => total > 0 ? (Math.round(parte / total * 1000) / 10) + '%' : '0%';
+
+  function fechaCorta(iso) {
+    const [a, m, d] = iso.split('-');
+    const dia = new Date(Number(a), Number(m) - 1, Number(d)).getDay();
+    return `${DIAS_SEMANA[dia]} ${d}/${m}/${a}`;
+  }
+
+  function modo() {
+    return document.querySelector('input[name="modo"]:checked').value;
+  }
+
+  function periodo() {
+    const desde = document.getElementById('fDesde').value;
+    const hasta = modo() === 'fecha' ? desde : document.getElementById('fHasta').value;
+
+    return desde <= hasta ? [desde, hasta] : [hasta, desde];
+  }
+
+  function stat(label, valor, clase, detalle) {
+    return `
+      <div class="ws-stat ${clase || ''}">
+        <div class="ws-stat-lbl">${label}</div>
+        <div class="ws-stat-val">${valor}</div>
+        ${detalle ? `<div class="text-[10.5px] text-ws-muted">${detalle}</div>` : ''}
+      </div>`;
+  }
+
+  function render() {
+    const [desde, hasta] = periodo();
+    const filas = DIAS.filter(d => d[0] >= desde && d[0] <= hasta);
+
+    const s = filas.reduce((a, d) => ({
+      total: a.total + d[1], m16: a.m16 + d[2], m0: a.m0 + d[3],
+      tickets: a.tickets + d[4], cero: a.cero + d[5], mov: a.mov + d[6], reimp: a.reimp + d[7]
+    }), { total: 0, m16: 0, m0: 0, tickets: 0, cero: 0, mov: 0, reimp: 0 });
+
+    document.getElementById('stats').innerHTML = [
+      stat('Total generado', money(s.total), 'ws-stat-hero'),
+      stat('IVA 16%', money(s.m16), 'ws-stat-blue', pct(s.m16, s.total)),
+      stat('Tasa 0%', money(s.m0), 'ws-stat-amber', pct(s.m0, s.total)),
+      stat('Tickets', entero(s.tickets)),
+      stat('Tickets de $0.00', entero(s.cero)),
+      stat('Movimientos procesados', entero(s.mov)),
+      stat('Tickets reimpresos', `<span class="ilus">${entero(s.reimp)}</span>`)
+    ].join('');
+
+    document.getElementById('tbody').innerHTML = filas.map(d => `
+      <tr>
+        <td>${fechaCorta(d[0])}</td>
+        <td class="num">${entero(d[6])}</td>
+        <td class="num font-semibold">${money(d[1])}</td>
+        <td class="num">${money(d[2])}</td>
+        <td class="num">${money(d[3])}</td>
+        <td><span class="mezcla" title="${pct(d[2], d[1])} / ${pct(d[3], d[1])}"><i style="width:${d[2] / d[1] * 100}%;background:#2B4FD8"></i><i style="width:${d[3] / d[1] * 100}%;background:#F59E0B"></i></span></td>
+        <td class="num">${entero(d[4])}</td>
+        <td class="num">${entero(d[5])}</td>
+        <td class="num ilus">${entero(d[7])}</td>
+      </tr>`).join('') || '<tr><td colspan="9" class="text-center text-ws-muted py-8">Sin generaciones en el periodo</td></tr>';
+
+    document.getElementById('tfoot').innerHTML = filas.length > 1 ? `
+      <tr>
+        <td>Total del periodo</td>
+        <td class="num">${entero(s.mov)}</td>
+        <td class="num">${money(s.total)}</td>
+        <td class="num">${money(s.m16)}</td>
+        <td class="num">${money(s.m0)}</td>
+        <td></td>
+        <td class="num">${entero(s.tickets)}</td>
+        <td class="num">${entero(s.cero)}</td>
+        <td class="num ilus">${entero(s.reimp)}</td>
+      </tr>` : '';
+
+    document.getElementById('pie').textContent = filas.length === 1
+      ? `1 día · ${fechaCorta(desde)}`
+      : `${filas.length} días · ${fechaCorta(desde)} al ${fechaCorta(hasta)}`;
+  }
+
+  function syncModo() {
+    const unaFecha = modo() === 'fecha';
+
+    document.getElementById('wrapHasta').style.display = unaFecha ? 'none' : '';
+    document.getElementById('lblDesde').textContent    = unaFecha ? 'Fecha' : 'Desde';
+
+    render();
+  }
+
+  document.querySelectorAll('input[name="modo"]').forEach(r => r.addEventListener('change', syncModo));
+  document.getElementById('fDesde').addEventListener('change', render);
+  document.getElementById('fHasta').addEventListener('change', render);
+  document.getElementById('btnImprimir').addEventListener('click', () => window.print());
+
+  syncModo();
+  if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

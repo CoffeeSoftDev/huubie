@@ -3824,6 +3824,12 @@ class TicketsView extends Templates {
             return ` Se cuadro con un descuento de ${ticket.descuento}, que pasa la tolerancia de ${ticket.tolerancia}.`;
         }
 
+        // El excedente de la tolerancia no desaparece: se le cargo al producto que
+        // remata el papel, y la nota lo dice para que el ajuste no quede escondido.
+        if (ticket.conAlProducto) {
+            return ` Se cuadro con un descuento de ${ticket.descuento}, el tope de la tolerancia; los ${ticket.alProducto} restantes se descontaron del importe del producto.`;
+        }
+
         return ` Se cuadro con un descuento de ${ticket.descuento}.`;
     }
 

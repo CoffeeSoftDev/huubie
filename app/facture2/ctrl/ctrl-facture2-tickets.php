@@ -2,6 +2,9 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
+require_once '../conf/_Terminal.php';
+terminalExige(['tickets']);
+
 require_once '../mdl/mdl-facture2-tickets.php';
 
 define('META_FACTURACION', 0.7);
@@ -379,7 +382,7 @@ class ctrl extends mdl {
             $propuesta = !empty($lineas);
         }
 
-        $ticket = array_merge($this->cabecera($item), $this->papelDe($item, $lineas, $generado), [
+        $ticket = array_merge($this->cabecera($item), $this->papelDe($item, $lineas, $generado, $propuesta), [
             'generado' => $generado
         ]);
 
@@ -467,7 +470,22 @@ class ctrl extends mdl {
         return (string) ($ls[0]['file_name'] ?? '');
     }
 
+    // Quien tecleo su PIN en la terminal (punto 29). La sesion de Huubie (USR, NAME)
+    // puede ser de otra persona —en local es la de pruebas—, y la corrida responde
+    // por quien estaba en la caja.
+    function usuarioTerminal() {
+        $id = (int) ($_SESSION['WANSOFT_USER'] ?? 0);
+        $ls = $id > 0 ? $this->filas($this->getUserById([$id])) : [];
+
+        return [
+            'id'   => empty($ls) ? null : $id,
+            'name' => (string) ($ls[0]['name'] ?? '')
+        ];
+    }
+
     function abrirCorrida($kind, $dia, $plan = null) {
+        $usuario = $this->usuarioTerminal();
+
         $campos = [
             'folio'                => $this->folioDeCorrida(),
             'kind'                 => $kind,
@@ -475,8 +493,8 @@ class ctrl extends mdl {
             'source_file'          => $this->archivoDelDia($dia),
             'adjustment_tolerance' => $this->tolerancia(),
             'paper_seed'           => $this->semillaDelReparto(),
-            'user_name'            => $_SESSION['NAME'] ?? '',
-            'user_id'              => (int) ($_SESSION['USR'] ?? 0) ?: null,
+            'user_name'            => $usuario['name'],
+            'user_id'              => $usuario['id'],
             'branch_id'            => $this->branchId()
         ];
 
@@ -643,7 +661,7 @@ class ctrl extends mdl {
         return $this->toleranciaAjuste;
     }
 
-    function ajusteDe($descuento) {
+    function ajusteDe($descuento, $alProducto = 0) {
         $ajuste = round(max(0, (float) $descuento), 2);
         $tope   = $this->tolerancia();
 
@@ -651,7 +669,9 @@ class ctrl extends mdl {
             'descuento'       => money($ajuste),
             'tolerancia'      => money($tope),
             'conAjuste'       => $ajuste > 0,
-            'fueraTolerancia' => $tope > 0 && $ajuste > $tope
+            'fueraTolerancia' => $tope > 0 && $ajuste > $tope,
+            'alProducto'      => money($alProducto),
+            'conAlProducto'   => $alProducto > 0
         ];
     }
 
@@ -825,6 +845,8 @@ class ctrl extends mdl {
             $puestas++;
         }
 
+        $barato = null;
+
         if ($restante > 0.009) {
             $barato = end($productos);
             $id     = $barato['id'];
@@ -833,7 +855,32 @@ class ctrl extends mdl {
             else                     $cuenta[$id] = ['producto' => $barato, 'cant' => 1];
         }
 
-        return $this->renglonesDe($cuenta);
+        $armado = $this->renglonesDe($cuenta);
+
+        return $barato ? $this->dentroDeTolerancia($armado, $total, $barato['id']) : $armado;
+    }
+
+    // Lo que el ajuste pasa de la tolerancia se descuenta del producto que remata el
+    // papel —el mas barato, el que se puso de mas para cubrir el resto—: el ticket
+    // conserva un ajuste igual al tope y el excedente baja el importe de ese renglon.
+    // El excedente siempre es menor que el precio del remate, asi que el renglon
+    // nunca queda en cero ni en negativo. Tolerancia en cero es sin tope.
+    function dentroDeTolerancia($armado, $total, $productoId) {
+        $tope   = $this->tolerancia();
+        $exceso = round($armado['subtotal'] - (float) $total - $tope, 2);
+
+        if ($tope <= 0 || $exceso <= 0) return $armado;
+
+        foreach ($armado['lineas'] as $i => $linea) {
+            if ($linea['product_id'] != $productoId) continue;
+
+            $armado['lineas'][$i]['amount'] = round($linea['amount'] - $exceso, 2);
+            $armado['subtotal']             = round($armado['subtotal'] - $exceso, 2);
+
+            break;
+        }
+
+        return $armado;
     }
 
     function renglonesDe($cuenta) {
@@ -1838,7 +1885,7 @@ class ctrl extends mdl {
         return [$base, round($total - $base, 2)];
     }
 
-    function papelDe($item, $lineas, $esVirtual) {
+    function papelDe($item, $lineas, $esVirtual, $deCatalogo = false) {
         $total = totalDelPapel($item);
 
         if (!$esVirtual && empty($lineas)) {
@@ -1877,7 +1924,7 @@ class ctrl extends mdl {
             'subtotal'  => money($subtotal),
             'iva'       => money($iva),
             'total'     => money($total)
-        ], $this->ajusteDe($descuento));
+        ], $this->ajusteDe($descuento, $esVirtual || $deCatalogo ? descuentoAlProducto($lineas) : 0));
     }
 
     function generateAllZero() {
@@ -2076,6 +2123,20 @@ function esServicio($item) {
 
 function esCeroDeOrigen($item) {
     return (float) ($item['sale_total'] ?? 0) <= 0;
+}
+
+// Lo que los renglones armados del catalogo cobran de menos contra su precio: es el
+// excedente de la tolerancia que se le cargo al producto (ver dentroDeTolerancia).
+function descuentoAlProducto($lineas) {
+    $suma = 0;
+
+    foreach ($lineas as $linea) {
+        if (!isset($linea['unit_price'])) continue;
+
+        $suma += max(0, (float) $linea['quantity'] * (float) $linea['unit_price'] - (float) $linea['amount']);
+    }
+
+    return round($suma, 2);
 }
 
 function totalDelPapel($item) {

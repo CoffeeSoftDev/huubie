@@ -190,6 +190,9 @@ class mdl extends CRUD {
         if (!empty($array['branch_id'])) {
             $where .= ' AND i.branch_id = ?';
             $data[] = $array['branch_id'];
+        } elseif (!empty($array['branch_ids'])) {
+            $where .= ' AND i.branch_id IN (' . implode(',', array_fill(0, count($array['branch_ids']), '?')) . ')';
+            $data   = array_merge($data, $array['branch_ids']);
         }
         if (!empty($array['origin_id'])) {
             $where .= ' AND i.inflow_origin_id = ?';
@@ -264,6 +267,9 @@ class mdl extends CRUD {
         if (!empty($array['branch_id'])) {
             $where .= ' AND i.branch_id = ?';
             $data[] = $array['branch_id'];
+        } elseif (!empty($array['branch_ids'])) {
+            $where .= ' AND i.branch_id IN (' . implode(',', array_fill(0, count($array['branch_ids']), '?')) . ')';
+            $data   = array_merge($data, $array['branch_ids']);
         }
         if (!empty($array['origin_id'])) {
             $where .= ' AND i.inflow_origin_id = ?';

@@ -2,6 +2,9 @@
 session_start();
 if (empty($_POST['opc'])) exit(0);
 
+require_once '../conf/_Terminal.php';
+terminalExige(['catalogos']);
+
 require_once '../mdl/mdl-facture2-historial.php';
 
 // Cuantos dias hacia atras abre la pantalla. El registro se consulta para explicar

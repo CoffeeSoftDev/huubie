@@ -70,6 +70,11 @@ class ImportFacture2Cargas {
     // mes del archivo— y el total de la hoja es la suma de todos.
     private $reemplazadas = 0;
 
+    // Los pagos validos que entraron con el lote de detalle (punto 31) y su suma.
+    // NULL en las hojas que no se miden asi: comandas, terminal bancaria, eliminados.
+    private $validos     = null;
+    private $totalValido = null;
+
     function __construct($mdl) {
         $this->mdl  = $mdl;
         $this->util = $mdl->util;
@@ -1209,6 +1214,8 @@ class ImportFacture2Cargas {
         $this->omitidos   = 0;
         $this->difieren   = 0;
         $this->diferencias = [];
+        $this->validos     = null;
+        $this->totalValido = null;
     }
 
     private function contadores() {
@@ -1284,6 +1291,10 @@ class ImportFacture2Cargas {
         // explican la diferencia.
         if ($insertadas !== count($limpias) || $this->omitidos > 0) {
             $this->mdl->updateImportBatchRows([$insertadas, $this->controlInsertado, $this->omitidos, $batchId]);
+        }
+
+        if ($this->validos !== null) {
+            $this->mdl->updateImportBatchValid([$this->validos, $this->totalValido, $batchId]);
         }
 
         return $insertadas;
@@ -1388,6 +1399,8 @@ class ImportFacture2Cargas {
         $this->omitidos = count($conocidos);
         $this->difieren = $this->contarDiferencias($rows, $conocidos);
 
+        $this->medirValidos($nuevos);
+
         // Todo el archivo ya estaba: no se crea catalogo ni resumen por algo que no
         // aporta un dato nuevo.
         if (empty($nuevos)) return 0;
@@ -1436,6 +1449,26 @@ class ImportFacture2Cargas {
         // Lo que cuenta como "insertadas" de esta hoja son los pagos: es lo que
         // tiene una fila por cada fila del Excel. Las ventas son agrupaciones.
         return $this->pagos;
+    }
+
+    // Cuantos de los pagos que entran son validos para el reparto y cuanto suman: la
+    // regla de esTarjetaCredito() del modulo Tickets mas el estatus Pagada. Los
+    // nombres se comparan normalizados porque el POS los escribe con y sin acento.
+    private function medirValidos($filas) {
+        $tarjetas = ['tarjeta de credito', 'visa', 'mastercard', 'american express'];
+
+        $this->validos     = 0;
+        $this->totalValido = 0;
+
+        foreach ($filas as $v) {
+            if (normalizeHeader($v[6]) !== 'pagada')                 continue;
+            if (!in_array(normalizeHeader($v[9]), $tarjetas, true)) continue;
+
+            $this->validos++;
+            $this->totalValido += numVal($v[15]);
+        }
+
+        $this->totalValido = round($this->totalValido, 2);
     }
 
     // Engancha las comandas que esperaban su venta y devuelve CUANTAS engancho.

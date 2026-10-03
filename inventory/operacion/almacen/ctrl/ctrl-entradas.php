@@ -82,6 +82,7 @@ class ctrl extends mdl {
         $rows = $this->qEntradas([
             'companies_id'    => $this->companiesId,
             'branch_id'       => $_POST['branch_id'] ?? '',
+            'branch_ids'      => $this->_userBranchIds(),
             'origin_id'       => $_POST['origin_id']       ?? '',
             'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
@@ -109,7 +110,9 @@ class ctrl extends mdl {
 
             $row[] = [
                 'id'         => $r['id'],
-                'Folio'      => $r['folio'],
+                'Folio'      => [
+                    'html' => renderFolioLink($r['folio'], $r['id'])
+                ],
                 'Fecha'      => formatSpanishDate($r['date_inflow']),
                 'Tipo de entrada' => badge($r['origin_name'], $r['origin_color'], 100, $r['origin_bg'] ?? null, $r['origin_icon'] ?? null),
                 'Sucursal'   => $r['branch_name'] ?: '-',
@@ -127,6 +130,7 @@ class ctrl extends mdl {
         $kpis = $this->getEntradaKpis([
             'companies_id'    => $this->companiesId,
             'branch_id'       => $_POST['branch_id'] ?? '',
+            'branch_ids'      => $this->_userBranchIds(),
             'origin_id'       => $_POST['origin_id']       ?? '',
             'status'          => $_POST['status']          ?? '',
             'fi'              => $_POST['fi']              ?? '',
@@ -980,6 +984,19 @@ class ctrl extends mdl {
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Formato eliminado' : 'No se pudo eliminar el formato'];
     }
 
+    // "Todas" = las sucursales que el usuario puede ver; un dueño ve la empresa
+    // completa ([] = sin filtro) y un usuario sin sucursales no ve nada ([0]).
+    private function _userBranchIds() {
+        if ((int) ($_SESSION['is_owner'] ?? 0) === 1) return [];
+
+        $ids = array_map(function ($s) { return (int) $s['id']; }, $this->lsSucursales([
+            'company_id' => $this->companiesId,
+            'user_id'    => $this->userId,
+            'is_owner'   => 0
+        ]));
+        return $ids ?: [0];
+    }
+
     private function statusBadge($status) {
         // [color de texto, color de fondo] - modelo pastel de 2 colores (igual que los motivos).
         $map = [
@@ -994,6 +1011,12 @@ class ctrl extends mdl {
 }
 
 // Complements.
+
+function renderFolioLink($folio, $id) {
+    $label = htmlspecialchars($folio, ENT_QUOTES);
+    return "<a href='#' onclick=\"app.selectEntrada('{$label}', " . (int) $id . "); return false;\""
+         . " class='font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700' title='Ver detalle de recepción'>{$label}</a>";
+}
 
 // Almacén de origen y, en gris, el área de destino: "Almacén General / Vitrina".
 function renderOrigen($almacen, $area) {

@@ -191,7 +191,7 @@
 <div class="band">
   <div class="in">
     <h1>Revisión del requerimiento «Wan Soft SAT» contra el Facturador Wansoft</h1>
-    <p>Documento revisado: <b>Wan Soft SAT (1).docx</b> · 44 puntos · revisión del 03/10/2026</p>
+    <p>Documento revisado: <b>Wan Soft SAT (1).docx</b> · 44 puntos · revisión del 03/10/2026 · actualizada con el avance del mismo día</p>
   </div>
 </div>
 
@@ -207,48 +207,71 @@
       Cada punto pendiente trae un <b>ejemplo visual</b>: a la izquierda cómo sale hoy (rojo) y a la
       derecha cómo lo pide el documento (verde). Folios, montos y productos salen de la base local.
       Cuando un dato es inventado para armar el ejemplo, lleva la marca <span class="ilus">ilustrativo</span>.
+      En los puntos que se resolvieron el 03/10/2026 los dos lados dicen «Antes» y «Ahora»; en los que
+      decidiste dejar como están, el lado del documento dice «descartado».
     </p>
     <p class="muted" style="margin-bottom:0">
       No se revisó producción. Lo que dice «hoy» es lo que hace el código al 03/10/2026.
     </p>
   </div>
 
+  <h2>Avance del 03/10/2026</h2>
+  <div class="card wrap" style="padding:0">
+    <table>
+      <thead><tr><th class="n">Punto</th><th>Tu indicación</th><th>Qué se hizo</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td class="n"><a href="#p10">10</a></td><td>No llegar exacto al 70% es aceptable</td><td>Decisión registrada; no hay código que cambiar</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p11">11</a></td><td>El ticket original no trae «cantidad»</td><td>Se leyó como precio unitario: el papel se queda como la tira de Wansoft (cantidad, producto e importe)</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p13">13</a></td><td>Si se pasa la tolerancia, descontar al producto</td><td>El excedente baja el importe del producto que remata el papel; el ajuste del ticket queda en el tope</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p15">15</a></td><td>Explicar cómo se resuelve</td><td>Explicación paso a paso en el punto 15</td><td><span class="st st-parcial">Parcial</span></td></tr>
+        <tr><td class="n"><a href="#p18">18</a></td><td>El efectivo conserva su ticket con «servicio de mesa»</td><td>Decisión registrada; es como funciona hoy</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p25">25</a></td><td>Agregar Tasa y Hora gen.</td><td>Las dos columnas ya salen en Reimpresión</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p28">28</a></td><td>Una plantilla para decidir la vista</td><td><code>app/facture2/templates/reportes.html</code> con las cifras de julio</td><td><span class="st st-no">No implementado</span></td></tr>
+        <tr><td class="n"><a href="#p29">29</a></td><td>Guardar la sesión y el nombre</td><td>La corrida guarda a quien tecleó el PIN</td><td><span class="st st-parcial">Parcial</span></td></tr>
+        <tr><td class="n"><a href="#p31">31</a></td><td>Guardar la información</td><td>El lote guarda usuario del PIN, movimientos válidos y total válido (migración 20)</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p33">33</a></td><td>Redondear a 2 decimales; no se entendió lo de centavos</td><td>El dinero se guarda en DECIMAL(12,2) (migración 21); la cuenta en centavos se explica de nuevo en el punto 33</td><td><span class="st st-parcial">Parcial</span></td></tr>
+        <tr><td class="n"><a href="#p34">34</a></td><td>Agregar el control de sesión</td><td>Los 6 controladores piden PIN y permiso</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p35">35</a></td><td>Propuesta de diseño de la bitácora</td><td><code>app/facture2/templates/bitacora.html</code>: pantalla, qué se registra y modelo de datos</td><td><span class="st st-parcial">Parcial</span></td></tr>
+        <tr><td class="n"><a href="#p36">36</a></td><td>Aplicar la corrección</td><td>La impresión sale en rollo de 80 mm</td><td><span class="st st-cumple">Cumple</span></td></tr>
+        <tr><td class="n"><a href="#p37">37</a></td><td>El membrete no importa si los productos se conservan</td><td>Decisión registrada; los productos ya se guardan con el ticket</td><td><span class="st st-cumple">Cumple</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <h2>Resumen</h2>
   <div class="kpis">
-    <div class="kpi k-ok"><b>26</b><span>Cumple</span></div>
-    <div class="kpi k-warn"><b>16</b><span>Parcial</span></div>
-    <div class="kpi k-dif"><b>1</b><span>Hecho distinto a lo pedido</span></div>
+    <div class="kpi k-ok"><b>36</b><span>Cumple</span></div>
+    <div class="kpi k-warn"><b>7</b><span>Parcial</span></div>
+    <div class="kpi k-dif"><b>0</b><span>Hecho distinto a lo pedido</span></div>
     <div class="kpi k-bad"><b>1</b><span>No implementado</span></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <b>Lo más importante, en orden de urgencia</b>
+    <b>Lo que falta, en orden de urgencia</b>
     <ol class="pasos" style="margin-top:8px">
-      <li><span class="bad">Seguridad:</span> 6 de los 7 controladores no revisan quién tecleó el PIN. Cualquiera que conozca la dirección puede generar o borrar tickets (<a href="#p34">punto 34</a>).</li>
-      <li><span class="bad">Historia que se borra:</span> «Rehacer reparto» borra los tickets del día y su registro GEN (<a href="#p29">29</a>, <a href="#p37">37</a>, <a href="#p41">41</a>).</li>
-      <li><span class="warn">Usuario equivocado:</span> importaciones y generaciones guardan el usuario de Huubie («Pruebas» en local), no a quien tecleó el PIN (<a href="#p29">29</a>, <a href="#p31">31</a>, <a href="#p35">35</a>).</li>
-      <li><span class="warn">Dinero en punto flotante:</span> los importes se guardan como <code>DOUBLE</code> (<a href="#p33">33</a>).</li>
-      <li><span class="warn">El reparto no cuadra al centavo:</span> el 16% casi siempre se pasa por un ticket (<a href="#p10">10</a>, <a href="#p38">38</a>). Necesita tu decisión.</li>
-      <li><span class="warn">Tickets de $0.00 para efectivo:</span> el documento dice que el efectivo no lleva ticket de servicio (<a href="#p18">18</a>). Necesita tu decisión.</li>
-      <li>Falta la pantalla <b>Reportes</b> y no se registra cuándo se reimprime (<a href="#p28">28</a>, <a href="#p35">35</a>).</li>
+      <li><span class="bad">Historia que se borra:</span> «Rehacer reparto» borra los tickets del día y su registro GEN (<a href="#p29">29</a>, <a href="#p41">41</a>).</li>
+      <li><span class="warn">Un día cerrado no acepta movimientos nuevos</span> sin rehacerse entero (<a href="#p40">40</a>).</li>
+      <li><span class="warn">Llave de duplicados por movimiento:</span> un pago nuevo de un movimiento ya cargado se pierde (<a href="#p15">15</a>). Ya está explicado; falta tu decisión.</li>
+      <li>Construir <b>Reportes</b> y la <b>bitácora</b>: las dos plantillas esperan tu visto bueno (<a href="#p28">28</a>, <a href="#p35">35</a>).</li>
+      <li>La cuenta en centavos enteros (<a href="#p33">33</a>): el dinero ya se guarda exacto; falta decidir si las sumas también.</li>
     </ol>
+    <p class="muted" style="margin:8px 0 0">Resuelto el 03/10/2026: candado de los controladores (34), usuario del PIN en corridas e importaciones (29, 31), válidos del lote (31), dinero en DECIMAL (33), Tasa y Hora en Reimpresión (25), excedente al producto (13) y papel de 80 mm (36).</p>
   </div>
 
   <div class="card" style="margin-top:12px">
     <b>Tu lista TODO va atrasada.</b>
     <span class="muted">Estos puntos siguen sin palomear en «Facturador Wansoft» y en el código ya funcionan:</span>
     <a href="#p19">19</a>, <a href="#p20">20</a>, <a href="#p21">21</a> y <a href="#p30">30</a>.
-    El <a href="#p29">29</a> está hecho, salvo lo del usuario y el borrado.
+    El <a href="#p29">29</a> está hecho, salvo el borrado al rehacer.
   </div>
 
   <h2>Los 44 puntos</h2>
   <div class="filtros" id="filtros">
     <button class="on" data-f="todos">Todos (44)</button>
-    <button data-f="cumple">Cumple (26)</button>
-    <button data-f="parcial">Parcial (16)</button>
-    <button data-f="distinto">Distinto (1)</button>
+    <button data-f="cumple">Cumple (36)</button>
+    <button data-f="parcial">Parcial (7)</button>
     <button data-f="no">No implementado (1)</button>
-    <button data-f="pendiente">Todo lo que falta (18)</button>
+    <button data-f="pendiente">Todo lo que falta (8)</button>
   </div>
 
   <div class="card wrap" style="padding:0">
@@ -264,39 +287,39 @@
         <tr data-estado="cumple"><td class="n">7</td><td><a href="#p7">Validación del estatus</a></td><td><span class="st st-cumple">Cumple</span></td><td>Solo ventas «Pagada».</td></tr>
         <tr data-estado="cumple"><td class="n">8</td><td><a href="#p8">Total de tarjeta de crédito</a></td><td><span class="st st-cumple">Cumple</span></td><td>Se ve en la franja de cifras y en el modal de distribución.</td></tr>
         <tr data-estado="cumple"><td class="n">9</td><td><a href="#p9">Distribución 16% / 0%</a></td><td><span class="st st-cumple">Cumple</span></td><td>No deja seguir si no suman el total.</td></tr>
-        <tr data-estado="parcial"><td class="n">10</td><td><a href="#p10">Generación de Tickets</a></td><td><span class="st st-parcial">Parcial</span></td><td>Cada tasa se pasa o se queda corta por un ticket.</td></tr>
-        <tr data-estado="parcial"><td class="n">11</td><td><a href="#p11">Construcción de cada Ticket</a></td><td><span class="st st-parcial">Parcial</span></td><td>No imprime el precio unitario; falta cotejarlo con la tira física.</td></tr>
+        <tr data-estado="cumple"><td class="n">10</td><td><a href="#p10">Generación de Tickets</a></td><td><span class="st st-cumple">Cumple</span></td><td>La diferencia de un ticket se acepta (decisión 03/10).</td></tr>
+        <tr data-estado="cumple"><td class="n">11</td><td><a href="#p11">Construcción de cada Ticket</a></td><td><span class="st st-cumple">Cumple</span></td><td>Igual que la tira original: sin precio unitario (decisión 03/10).</td></tr>
         <tr data-estado="cumple"><td class="n">12</td><td><a href="#p12">Algoritmo de composición</a></td><td><span class="st st-cumple">Cumple</span></td><td>Combinación exacta primero; respaldo con ajuste.</td></tr>
-        <tr data-estado="parcial"><td class="n">13</td><td><a href="#p13">Ajuste de diferencia</a></td><td><span class="st st-parcial">Parcial</span></td><td>Hay tolerancia, pero no bloquea y no se ve antes de confirmar.</td></tr>
+        <tr data-estado="cumple"><td class="n">13</td><td><a href="#p13">Ajuste de diferencia</a></td><td><span class="st st-cumple">Cumple</span></td><td>Lo que pasa la tolerancia se descuenta del producto.</td></tr>
         <tr data-estado="cumple"><td class="n">14</td><td><a href="#p14">Relación con movimientos originales</a></td><td><span class="st st-cumple">Cumple</span></td><td>Cada ticket llega hasta su fila del Excel.</td></tr>
         <tr data-estado="parcial"><td class="n">15</td><td><a href="#p15">Prevención de duplicidades</a></td><td><span class="st st-parcial">Parcial</span></td><td>La llave es el movimiento entero, no cada pago.</td></tr>
         <tr data-estado="cumple"><td class="n">16</td><td><a href="#p16">Segunda carga del mismo Excel</a></td><td><span class="st st-cumple">Cumple</span></td><td>Omite y dice cuántos omitió.</td></tr>
         <tr data-estado="cumple"><td class="n">17</td><td><a href="#p17">Reasignación de folios</a></td><td><span class="st st-cumple">Cumple</span></td><td>Automática y registrada; dos preguntas abiertas.</td></tr>
-        <tr data-estado="distinto"><td class="n">18</td><td><a href="#p18">Registros originalmente en $0</a></td><td><span class="st st-distinto">Distinto</span></td><td>El efectivo también recibe ticket de $0.00.</td></tr>
+        <tr data-estado="cumple"><td class="n">18</td><td><a href="#p18">Registros originalmente en $0</a></td><td><span class="st st-cumple">Cumple</span></td><td>El efectivo conserva su ticket de servicio de mesa (decisión 03/10).</td></tr>
         <tr data-estado="cumple"><td class="n">19</td><td><a href="#p19">Proceso de generación</a></td><td><span class="st st-cumple">Cumple</span></td><td>Los 20 pasos existen.</td></tr>
         <tr data-estado="cumple"><td class="n">20</td><td><a href="#p20">Vista previa antes de confirmar</a></td><td><span class="st st-cumple">Cumple</span></td><td>Los 10 datos y las acciones.</td></tr>
         <tr data-estado="cumple"><td class="n">21</td><td><a href="#p21">Confirmación</a></td><td><span class="st st-cumple">Cumple</span></td><td>La vista previa no escribe nada.</td></tr>
         <tr data-estado="cumple"><td class="n">22</td><td><a href="#p22">Folios de Ticket</a></td><td><span class="st st-cumple">Cumple</span></td><td>Folio = Movimiento PDV; ID interno aparte.</td></tr>
         <tr data-estado="cumple"><td class="n">23</td><td><a href="#p23">Fecha del Ticket</a></td><td><span class="st st-cumple">Cumple</span></td><td>Se reparte por día de operación.</td></tr>
         <tr data-estado="cumple"><td class="n">24</td><td><a href="#p24">Reimpresión de Tickets</a></td><td><span class="st st-cumple">Cumple</span></td><td>Por ticket, por fecha o por rango.</td></tr>
-        <tr data-estado="parcial"><td class="n">25</td><td><a href="#p25">Resultado de búsqueda</a></td><td><span class="st st-parcial">Parcial</span></td><td>Faltan las columnas Tasa y Hora de generación.</td></tr>
+        <tr data-estado="cumple"><td class="n">25</td><td><a href="#p25">Resultado de búsqueda</a></td><td><span class="st st-cumple">Cumple</span></td><td>Ya trae Tasa y Hora gen.</td></tr>
         <tr data-estado="cumple"><td class="n">26</td><td><a href="#p26">Reimpresión sin duplicar</a></td><td><span class="st st-cumple">Cumple</span></td><td>Imprime lo guardado, no recalcula.</td></tr>
         <tr data-estado="cumple"><td class="n">27</td><td><a href="#p27">Conservación histórica de precios</a></td><td><span class="st st-cumple">Cumple</span></td><td>El precio queda en cada renglón.</td></tr>
-        <tr data-estado="no"><td class="n">28</td><td><a href="#p28">Reportes</a></td><td><span class="st st-no">No implementado</span></td><td>Botón con candado; Historial ya tiene casi todo el dato.</td></tr>
-        <tr data-estado="parcial"><td class="n">29</td><td><a href="#p29">Registro de generación</a></td><td><span class="st st-parcial">Parcial</span></td><td>GEN-000123 existe; usuario equivocado y se borra al rehacer.</td></tr>
+        <tr data-estado="no"><td class="n">28</td><td><a href="#p28">Reportes</a></td><td><span class="st st-no">No implementado</span></td><td>Plantilla lista para decidir; la pantalla falta.</td></tr>
+        <tr data-estado="parcial"><td class="n">29</td><td><a href="#p29">Registro de generación</a></td><td><span class="st st-parcial">Parcial</span></td><td>Ya guarda al usuario del PIN; falta no borrar al rehacer.</td></tr>
         <tr data-estado="cumple"><td class="n">30</td><td><a href="#p30">Relación de información</a></td><td><span class="st st-cumple">Cumple</span></td><td>La cadena Excel → ticket está completa.</td></tr>
-        <tr data-estado="parcial"><td class="n">31</td><td><a href="#p31">Archivos Excel importados</a></td><td><span class="st st-parcial">Parcial</span></td><td>Falta usuario real, movimientos válidos y total válido.</td></tr>
+        <tr data-estado="cumple"><td class="n">31</td><td><a href="#p31">Archivos Excel importados</a></td><td><span class="st st-cumple">Cumple</span></td><td>Guarda usuario del PIN, válidos y total válido.</td></tr>
         <tr data-estado="cumple"><td class="n">32</td><td><a href="#p32">Validación del Excel</a></td><td><span class="st st-cumple">Cumple</span></td><td>Las 6 columnas obligatorias y el mensaje del documento.</td></tr>
-        <tr data-estado="parcial"><td class="n">33</td><td><a href="#p33">Formatos monetarios</a></td><td><span class="st st-parcial">Parcial</span></td><td>Lee bien los formatos; guarda en punto flotante.</td></tr>
-        <tr data-estado="parcial"><td class="n">34</td><td><a href="#p34">Usuarios</a></td><td><span class="st st-parcial">Parcial</span></td><td>Roles bien en pantallas; controladores abiertos.</td></tr>
-        <tr data-estado="parcial"><td class="n">35</td><td><a href="#p35">Auditoría</a></td><td><span class="st st-parcial">Parcial</span></td><td>No registra cambios de catálogo ni reimpresiones.</td></tr>
-        <tr data-estado="parcial"><td class="n">36</td><td><a href="#p36">Impresión</a></td><td><span class="st st-parcial">Parcial</span></td><td>Formato listo; falta fijar el ancho de la impresora.</td></tr>
-        <tr data-estado="parcial"><td class="n">37</td><td><a href="#p37">Estabilidad histórica</a></td><td><span class="st st-parcial">Parcial</span></td><td>El membrete se lee en vivo; rehacer borra tickets.</td></tr>
-        <tr data-estado="parcial"><td class="n">38</td><td><a href="#p38">Caso funcional principal</a></td><td><span class="st st-parcial">Parcial</span></td><td>El flujo corre; «Diferencia $0» no se cumple.</td></tr>
+        <tr data-estado="parcial"><td class="n">33</td><td><a href="#p33">Formatos monetarios</a></td><td><span class="st st-parcial">Parcial</span></td><td>Se guarda en DECIMAL; las sumas siguen en flotante.</td></tr>
+        <tr data-estado="cumple"><td class="n">34</td><td><a href="#p34">Usuarios</a></td><td><span class="st st-cumple">Cumple</span></td><td>Pantallas y controladores piden PIN y permiso.</td></tr>
+        <tr data-estado="parcial"><td class="n">35</td><td><a href="#p35">Auditoría</a></td><td><span class="st st-parcial">Parcial</span></td><td>Propuesta de bitácora lista; falta construirla.</td></tr>
+        <tr data-estado="cumple"><td class="n">36</td><td><a href="#p36">Impresión</a></td><td><span class="st st-cumple">Cumple</span></td><td>Imprime en rollo de 80 mm.</td></tr>
+        <tr data-estado="cumple"><td class="n">37</td><td><a href="#p37">Estabilidad histórica</a></td><td><span class="st st-cumple">Cumple</span></td><td>Los productos se conservan; el membrete en vivo se acepta.</td></tr>
+        <tr data-estado="cumple"><td class="n">38</td><td><a href="#p38">Caso funcional principal</a></td><td><span class="st st-cumple">Cumple</span></td><td>Con las decisiones de los puntos 10 y 18.</td></tr>
         <tr data-estado="cumple"><td class="n">39</td><td><a href="#p39">Caso de reimportación</a></td><td><span class="st st-cumple">Cumple</span></td><td>Nada nuevo, nada se genera.</td></tr>
         <tr data-estado="parcial"><td class="n">40</td><td><a href="#p40">Caso de archivo actualizado</a></td><td><span class="st st-parcial">Parcial</span></td><td>Un día cerrado no acepta movimientos nuevos sin rehacerse.</td></tr>
         <tr data-estado="parcial"><td class="n">41</td><td><a href="#p41">Criterios de aceptación</a></td><td><span class="st st-parcial">Parcial</span></td><td>3 de 5 condiciones; fallan historia y reproceso.</td></tr>
-        <tr data-estado="parcial"><td class="n">42</td><td><a href="#p42">Restricciones principales</a></td><td><span class="st st-parcial">Parcial</span></td><td>9 de 12 se cumplen.</td></tr>
+        <tr data-estado="parcial"><td class="n">42</td><td><a href="#p42">Restricciones principales</a></td><td><span class="st st-parcial">Parcial</span></td><td>11 de 12 cumplen o se decidieron; falta el reproceso (40).</td></tr>
         <tr data-estado="cumple"><td class="n">43</td><td><a href="#p43">Diseño esperado</a></td><td><span class="st st-cumple">Cumple</span></td><td>Réplica de las tres capturas del documento.</td></tr>
         <tr data-estado="cumple"><td class="n">44</td><td><a href="#p44">Entregable al equipo</a></td><td><span class="st st-cumple">Cumple</span></td><td>Repartido en varios documentos.</td></tr>
       </tbody>
@@ -311,7 +334,7 @@
     <header><span class="num">1</span><h3>Objetivo general</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Importar Excel, quedarse con tarjeta de crédito, sumar, repartir 16%/0%, generar tickets con dos catálogos, guardar sin duplicar y reimprimir por fecha.</dd>
-      <dt>Hoy</dt><dd>Los ocho objetivos tienen pantalla y lógica. Lo que no cuadra al detalle está en los puntos <a href="#p10">10</a>, <a href="#p15">15</a> y <a href="#p18">18</a>.</dd>
+      <dt>Hoy</dt><dd>Los ocho objetivos tienen pantalla y lógica. Lo que falta al detalle está en los puntos <a href="#p15">15</a>, <a href="#p29">29</a> y <a href="#p40">40</a>.</dd>
     </dl>
   </article>
 
@@ -391,28 +414,22 @@
   </article>
 
   <!-- 10 -->
-  <article class="pt falta" id="p10" data-estado="parcial">
-    <header><span class="num">10</span><h3>Generación de Tickets</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p10" data-estado="cumple">
+    <header><span class="num">10</span><h3>Generación de Tickets</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Que lo generado al 16% sume exactamente el monto capturado para el 16%, y lo mismo para el 0%.</dd>
       <dt>Hoy</dt><dd><code>planReparto()</code> recorre las ventas del día y manda cada ticket <b>entero</b> al 16% hasta alcanzar la meta. El ticket que cruza la meta entra completo. Por eso el 16% se pasa y el 0% se queda corto por la misma cantidad.</dd>
-      <dt class="f">Ejemplo</dt><dd>
+      <dt>Decisión</dt><dd><b>03/10/2026:</b> se acepta que no llegue exacto al 70%. La diferencia de un ticket se queda; no hace falta el ticket mixto.</dd>
+      <dt>Ejemplo</dt><dd>
         <div class="ej">Vista previa del 01/07/2026 (base local). Total tarjeta $22,206.00, meta 70% / 30%.
           <div class="wrap"><table>
             <thead><tr><th>Tasa</th><th class="n">Meta</th><th class="n">Generado</th><th class="n">Diferencia</th></tr></thead>
             <tbody>
-              <tr><td>IVA 16%</td><td class="n">$15,544.20</td><td class="n">$15,673.00 (16 tickets)</td><td class="n bad">+$128.80</td></tr>
-              <tr><td>IVA 0%</td><td class="n">$6,661.80</td><td class="n">$6,533.00 (7 tickets)</td><td class="n bad">−$128.80</td></tr>
+              <tr><td>IVA 16%</td><td class="n">$15,544.20</td><td class="n">$15,673.00 (16 tickets)</td><td class="n warn">+$128.80</td></tr>
+              <tr><td>IVA 0%</td><td class="n">$6,661.80</td><td class="n">$6,533.00 (7 tickets)</td><td class="n warn">−$128.80</td></tr>
             </tbody>
           </table></div>
         </div>
-      </dd>
-      <dt class="f">Qué hacer</dt><dd>Es una decisión de negocio. Tres caminos:
-        <ul>
-          <li><b>Ticket mixto:</b> el ticket que cruza la meta lleva $128.80 en productos de 0% y el resto en productos de 16%. Así las dos tasas cuadran al centavo. El punto 11 lo permite si se aprueba.</li>
-          <li><b>Mejor combinación:</b> escoger qué tickets van al 16% buscando la suma más cercana a la meta, no en orden de llegada. Reduce la diferencia; no la garantiza en cero.</li>
-          <li><b>Aceptar la diferencia:</b> fijar una tolerancia para el reparto y escribirla en el documento.</li>
-        </ul>
       </dd>
       <dt>Dónde</dt><dd><code>app/facture2/ctrl/ctrl-facture2-tickets.php</code> → <code>planReparto()</code></dd>
     </dl>
@@ -420,14 +437,14 @@
       <div class="tit">Ejemplo visual · 01/07/2026 · total tarjeta $22,206.00</div>
       <div class="fila-barra"><span>Lo que capturaste</span>
         <div class="barra2"><div class="b16" style="flex:70">IVA 16%&nbsp;· $15,544.20</div><div class="b0" style="flex:30"><span class="amt">IVA 0%&nbsp;· </span>$6,661.80</div></div></div>
-      <div class="fila-barra"><span class="bad">Lo que genera hoy</span>
+      <div class="fila-barra"><span class="ok">Lo que se genera · aceptado</span>
         <div class="barra2"><div class="b16" style="flex:70.58">IVA 16%&nbsp;· $15,673.00<span class="amt">&nbsp;(+$128.80)</span></div><div class="b0" style="flex:29.42"><span class="amt">IVA 0%&nbsp;· </span>$6,533.00</div></div></div>
-      <div class="fila-barra"><span class="ok">Con ticket mixto</span>
+      <div class="fila-barra"><span class="muted">Con ticket mixto · descartado</span>
         <div class="barra2"><div class="b16" style="flex:70">IVA 16%&nbsp;· $15,544.20</div><div class="b0" style="flex:30"><span class="amt">IVA 0%&nbsp;· </span>$6,661.80</div></div></div>
 
       <div class="vs" style="margin-top:12px">
         <div class="lado">
-          <div class="cap hoy">Hoy · el ticket que cruza la meta entra entero <span class="ilus">montos ilustrativos</span></div>
+          <div class="cap debe">Se queda así · el ticket que cruza la meta entra entero <span class="ilus">montos ilustrativos</span></div>
           <div class="cuerpo">
             <div class="track">
               <div class="b16" style="flex:400">#14</div>
@@ -436,11 +453,11 @@
               <div class="b0" style="flex:400">#17</div>
               <div class="b0" style="flex:400">#18</div>
             </div>
-            <div class="pie">Los $403.80 del #16 se van completos al 16%. Lo que pasa de la línea ($128.80) es la diferencia. El #16 está dibujado más grande para que se lea.</div>
+            <div class="pie">Los $403.80 del #16 se van completos al 16%. Lo que pasa de la línea ($128.80) es la diferencia que se acepta. El #16 está dibujado más grande para que se lea.</div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Ticket mixto · el #16 se parte en la meta</div>
+          <div class="cap neu">Ticket mixto · descartado</div>
           <div class="cuerpo">
             <div class="track">
               <div class="b16" style="flex:400">#14</div>
@@ -449,52 +466,7 @@
               <div class="b0" style="flex:400">#17</div>
               <div class="b0" style="flex:400">#18</div>
             </div>
-            <div class="pie">El #16 lleva $275.00 en productos de 16% y $128.80 en productos de 0%. Las dos tasas cierran exactas.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="vs" style="margin-top:12px">
-        <div class="lado">
-          <div class="cap neu">Cómo se vería el papel del ticket mixto <span class="ilus">ilustrativo</span></div>
-          <div class="cuerpo">
-            <div class="tk">
-              <div class="logo">RYORI RYOKAN</div>
-              <div class="c" style="font-weight:700;margin-top:6px">Ticket de Pagado<br>Venta en Mesa</div>
-              <div class="rule"></div>
-              <div class="row"><b>Movimiento:</b><b>4xxx</b></div>
-              <div class="row"><b>Fecha operación:</b><b>01/07/2026</b></div>
-              <div class="rule"></div>
-              <table>
-                <thead><tr><th style="width:30px;text-align:left">Cant.</th><th style="text-align:left">Descripción</th><th class="r">Importe</th></tr></thead>
-                <tbody>
-                  <tr><td colspan="3"><div class="blq">IVA 16%</div></td></tr>
-                  <tr><td>1</td><td>YAKIMESHI DE VEGETALES</td><td class="r">110.00</td></tr>
-                  <tr><td>1</td><td>MINI ROLLOS PRIMAVERA</td><td class="r">110.00</td></tr>
-                  <tr><td>1</td><td>CAFE AMERICANO</td><td class="r">55.00</td></tr>
-                  <tr><td colspan="3"><div class="blq">TASA 0%</div></td></tr>
-                  <tr><td>1</td><td>FIDEO PARA RAMEN SECO 500 G</td><td class="r">89.00</td></tr>
-                  <tr><td>1</td><td>TE VERDE EN HOJA 100 G</td><td class="r">25.00</td></tr>
-                  <tr><td>1</td><td>HIELO EN BOLSA 2 KG</td><td class="r">15.00</td></tr>
-                </tbody>
-              </table>
-              <div class="rule"></div>
-              <div class="r">Descuento: $0.20</div>
-              <div class="r">Subtotal 16%: $237.07 · IVA: $37.93</div>
-              <div class="r">Subtotal 0%: $128.80</div>
-              <div class="gt">Gran Total: $403.80</div>
-            </div>
-          </div>
-        </div>
-        <div class="lado">
-          <div class="cap neu">Qué se lee en el papel</div>
-          <div class="cuerpo" style="font-size:13px">
-            <ul style="margin:0;padding-left:18px">
-              <li>Productos reales de los dos catálogos: los de 16% son del menú y los de 0% son los productos puente (PTE001…PTE010).</li>
-              <li>Un subtotal por tasa: así se ve qué parte del cobro es 16% y cuál es 0%.</li>
-              <li>Los $0.20 de descuento son el ajuste de cuadre: los productos de 0% suman $129.00 y la parte de 0% es $128.80 (<a href="#p13">punto 13</a>).</li>
-              <li>El total del ticket no cambia: sigue siendo el cargo de tarjeta.</li>
-            </ul>
+            <div class="pie">El #16 se partía en $275.00 de 16% y $128.80 de 0% para cerrar exacto. Ya no hace falta.</div>
           </div>
         </div>
       </div>
@@ -502,24 +474,19 @@
   </article>
 
   <!-- 11 -->
-  <article class="pt falta" id="p11" data-estado="parcial">
-    <header><span class="num">11</span><h3>Construcción de cada Ticket</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p11" data-estado="cumple">
+    <header><span class="num">11</span><h3>Construcción de cada Ticket</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Folio, fecha, productos, cantidad, precio unitario, importe, subtotal, IVA y total, revisado contra el ticket de Wansoft.</dd>
       <dt>Hoy</dt><dd>El papel (<code>TicketPaper</code>, formato wansoft) imprime folio, fecha, productos, cantidad, importe, subtotal, IVA y total. Un ticket al 16% con comanda real imprime lo que se consumió; los demás llevan papel armado del catálogo de su tasa.</dd>
-      <dt class="f">Qué falta</dt><dd>
-        <ul>
-          <li>El <b>precio unitario no se imprime</b>: el papel solo trae Cant., Descripción e Importe (<code>renglones()</code> en <code>ctrl-facture2-pos.php</code>). El dato sí está guardado en <code>detail_virtual_ticket.unit_price</code>.</li>
-          <li>La revisión contra la tira física que tu lista TODO tiene abierta: ticket virtual, reimpresión y emisor.</li>
-        </ul>
-      </dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Imprimir el folio 4510 del 02/07/2026 desde la terminal Wansoft y desde Reimpresión. Ponerlos lado a lado y anotar cada renglón distinto: membrete, orden de bloques, leyendas, formato de fecha y hora.</div></dd>
+      <dt>Decisión</dt><dd><b>03/10/2026:</b> la tira original de Wansoft no trae precio unitario, así que el papel se queda igual: Cant., Descripción e Importe. El precio unitario sigue guardado en <code>detail_virtual_ticket.unit_price</code>.</dd>
+      <dt>Ojo</dt><dd>Tu nota dice «no trae cantidad». La leí como el precio unitario, porque la tira sí trae la columna Cant.: <code>ticketPaper.js</code> está cotejado contra ella. Si lo que querías era quitar Cant., se quita en <code>renglones()</code> de <code>ctrl-facture2-pos.php</code> y en el papel.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · folio 4510 del 02/07/2026 · $906.00 <span class="ilus">productos ilustrativos</span></div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · sin precio unitario</div>
+          <div class="cap debe">Se queda así · igual que la tira original</div>
           <div class="cuerpo">
             <div class="tk">
               <div class="logo">RYORI RYOKAN</div>
@@ -551,7 +518,7 @@
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento · con precio unitario</div>
+          <div class="cap neu">Documento · con precio unitario · descartado</div>
           <div class="cuerpo">
             <div class="tk">
               <div class="logo">RYORI RYOKAN</div>
@@ -566,11 +533,11 @@
               <div class="row"><span>Mesa:</span><span>7</span></div>
               <div class="rule"></div>
               <table>
-                <thead><tr><th style="text-align:left;width:30px">Cant.</th><th style="text-align:left">Descripción</th><th class="r falta">P. Unit.</th><th class="r">Importe</th></tr></thead>
+                <thead><tr><th style="text-align:left;width:30px">Cant.</th><th style="text-align:left">Descripción</th><th class="r marca">P. Unit.</th><th class="r">Importe</th></tr></thead>
                 <tbody>
-                  <tr><td>4</td><td>CALPIS DE NARANJA</td><td class="r falta">99.00</td><td class="r">396.00</td></tr>
-                  <tr><td>3</td><td>YAKIMESHI DE VEGETALES</td><td class="r falta">110.00</td><td class="r">330.00</td></tr>
-                  <tr><td>4</td><td>TÉ VERDE SENCHA</td><td class="r falta">45.00</td><td class="r">180.00</td></tr>
+                  <tr><td>4</td><td>CALPIS DE NARANJA</td><td class="r marca">99.00</td><td class="r">396.00</td></tr>
+                  <tr><td>3</td><td>YAKIMESHI DE VEGETALES</td><td class="r marca">110.00</td><td class="r">330.00</td></tr>
+                  <tr><td>4</td><td>TÉ VERDE SENCHA</td><td class="r marca">45.00</td><td class="r">180.00</td></tr>
                 </tbody>
               </table>
               <div class="rule"></div>
@@ -583,7 +550,7 @@
           </div>
         </div>
       </div>
-      <div class="pie">Si la tira real de Wansoft tampoco trae precio unitario, hay que decidir cuál manda: el documento o la tira.</div>
+      <div class="pie">Manda la tira: la columna P. Unit. no se agrega (decisión del 03/10/2026).</div>
     </div>
   </article>
 
@@ -596,58 +563,20 @@
   </article>
 
   <!-- 13 -->
-  <article class="pt falta" id="p13" data-estado="parcial">
-    <header><span class="num">13</span><h3>Ajuste de diferencia</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p13" data-estado="cumple">
+    <header><span class="num">13</span><h3>Ajuste de diferencia</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Una tolerancia máxima; aceptar la diferencia solo dentro de ella; nunca en silencio; el usuario ve cada ajuste.</dd>
-      <dt>Hoy</dt><dd>La tolerancia se captura en Emisor (<code>branch.adjustment_tolerance</code>, $10 por defecto). Si los productos no cierran el monto, el papel imprime un descuento de ajuste. Si pasa la tolerancia, el ticket <b>se genera igual</b> y se marca en amarillo (decisión del 27/08/2026).</dd>
-      <dt class="f">Qué falta</dt><dd>
-        <ul>
-          <li>La vista previa no arma los papeles: el ajuste se ve hasta después de confirmar.</li>
-          <li>Fuera de tolerancia no se detiene nada, y el documento pide no aceptarlo.</li>
-        </ul>
-      </dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Ticket al 0% de $1,000.00. Si los productos cierran en $999.98, el ajuste es $0.02: dentro de $10, se acepta y se ve en el detalle. Si cierran en $985.00, el ajuste es $15.00: hoy se genera y queda en amarillo; según el documento no debería aceptarse.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>Mostrar en la vista previa «N tickets con ajuste, M fuera de tolerancia» y decidir si M &gt; 0 bloquea el Confirmar o pide autorización.</dd>
+      <dt>Hoy</dt><dd>La tolerancia se captura en Emisor (<code>branch.adjustment_tolerance</code>, $10 por defecto). Si los productos no cierran el monto, el papel imprime un descuento de ajuste hasta ese tope. Lo que pase del tope se descuenta del importe del producto que remata el papel, y el detalle del ticket lo dice. El ajuste se ve en el detalle después de confirmar.</dd>
+      <dt>Decisión</dt><dd><b>03/10/2026:</b> si el ajuste se pasa de la tolerancia, el excedente se descuenta del producto para que el ticket quede dentro.</dd>
+      <dt>Hecho</dt><dd><code>dentroDeTolerancia()</code> en <code>ctrl-facture2-tickets.php</code>, llamado al final de <code>armarConDescuento()</code>. Probado con 16,212 casos (montos de $1.00 a $2,999.85, con tolerancia de $10.00 y sin ella): ningún descuento pasó el tope y ningún renglón quedó en $0 o negativo.</dd>
+      <dt>Ejemplo</dt><dd><div class="ej">Ticket al 0% de $4.00 con tolerancia de $10.00. El producto puente más barato es HIELO EN BOLSA 2 KG a $15.00. Antes: descuento de $11.00, fuera de tolerancia. Ahora: el hielo se imprime en $14.00 y el descuento queda en $10.00.</div></dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · ticket al 0% de $4.00 · tolerancia de RYORI RYOKAN: $10.00 <span class="ilus">monto ilustrativo</span></div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · la vista previa no avisa</div>
-          <div class="cuerpo">
-            <div class="win">
-              <div class="barra">Vista previa del reparto <span>01/07/2026</span></div>
-              <div class="dentro">
-                <div class="row" style="display:flex;justify-content:space-between"><b>Tickets del día</b><b>25</b></div>
-                <div style="display:flex;justify-content:space-between" class="muted"><span>de $0.00</span><span>2</span></div>
-                <div class="muted" style="margin-top:6px;font-size:11px">2 · FOLIOS REASIGNADOS …</div>
-                <div style="margin-top:10px;text-align:right"><span class="tile" style="display:inline-block;background:#047857;padding:6px 12px">Confirmar</span></div>
-              </div>
-            </div>
-            <div class="pie">El ajuste de $11.00 aparece hasta después de confirmar, como marca amarilla en el listado.</div>
-          </div>
-        </div>
-        <div class="lado">
-          <div class="cap debe">Documento · se ve antes y no pasa en silencio</div>
-          <div class="cuerpo">
-            <div class="win">
-              <div class="barra">Vista previa del reparto <span>01/07/2026</span></div>
-              <div class="dentro">
-                <div style="display:flex;justify-content:space-between"><b>Tickets del día</b><b>25</b></div>
-                <div style="display:flex;justify-content:space-between" class="muted"><span>de $0.00</span><span>2</span></div>
-                <div style="margin-top:8px;padding:6px 8px;border-radius:4px;background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;font-size:11.5px">
-                  <b>Ajustes de cuadre:</b> 2 tickets · <b>1 fuera de tolerancia</b><br>Folio 4xxx: ajuste $11.00 &gt; $10.00
-                </div>
-                <div style="margin-top:10px;text-align:right"><span class="tile lock" style="display:inline-block;padding:6px 12px">Confirmar (pide autorización)</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="vs" style="margin-top:12px">
-        <div class="lado">
-          <div class="cap neu">El papel de ese ticket</div>
+          <div class="cap hoy">Antes · el descuento pasaba la tolerancia</div>
           <div class="cuerpo">
             <div class="tk">
               <div class="logo">RYORI RYOKAN</div>
@@ -662,14 +591,26 @@
               <div class="r marca">Descuento: $11.00</div>
               <div class="gt">Gran Total: $4.00</div>
             </div>
+            <div class="pie">$11.00 de ajuste contra un tope de $10.00: el ticket salía marcado en amarillo.</div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap neu">Por qué pasa</div>
-          <div class="cuerpo" style="font-size:13px">
-            El producto puente más barato es <b>HIELO EN BOLSA 2 KG</b> a $15.00. Un cargo de $4.00 no se puede
-            armar exacto: el papel pone el hielo y descuenta $11.00. El descuento pasa la tolerancia de $10.00.
-            Con un producto puente de $5.00 en el catálogo, ese ajuste bajaría a $1.00.
+          <div class="cap debe">Ahora · el excedente se descuenta del producto</div>
+          <div class="cuerpo">
+            <div class="tk">
+              <div class="logo">RYORI RYOKAN</div>
+              <div class="rule"></div>
+              <div class="row"><b>Movimiento:</b><b>4xxx</b></div>
+              <div class="rule"></div>
+              <table>
+                <thead><tr><th style="text-align:left;width:30px">Cant.</th><th style="text-align:left">Descripción</th><th class="r">Importe</th></tr></thead>
+                <tbody><tr><td>1</td><td>HIELO EN BOLSA 2 KG</td><td class="r falta">14.00</td></tr></tbody>
+              </table>
+              <div class="rule"></div>
+              <div class="r">Descuento: $10.00</div>
+              <div class="gt">Gran Total: $4.00</div>
+            </div>
+            <div class="pie">El descuento se queda en el tope. El $1.00 que sobraba baja el importe del hielo, y el detalle del ticket avisa: «los $1.00 restantes se descontaron del importe del producto».</div>
           </div>
         </div>
       </div>
@@ -690,8 +631,26 @@
     <dl>
       <dt>Pide</dt><dd>Una llave estable, sabiendo que un mismo Movimiento PDV puede venir en varias filas.</dd>
       <dt>Hoy</dt><dd>La llave es el Movimiento PDV por sucursal (<code>movimientosConocidos()</code>). Si el movimiento ya está en base, se saltan <b>todas</b> sus filas. Si el total cambió, solo se avisa: «con un total distinto al guardado».</dd>
+      <dt>Paso a paso</dt><dd>Lo que hace hoy la carga (<code>guardarDetalle()</code> en <code>import-facture2-cargas.php</code>):
+        <ol class="pasos" style="margin-top:4px">
+          <li>Junta las filas del Excel por Movimiento PDV.</li>
+          <li>Pregunta a la base cuáles de esos movimientos ya existen en la sucursal (<code>sale.pdv_movement</code>).</li>
+          <li>Movimiento que ya existe: omite todas sus filas. Movimiento nuevo: entran todas.</li>
+          <li>De los omitidos compara el total del archivo contra el guardado. Si cambió, el aviso lo cuenta, pero no carga nada.</li>
+        </ol>
+        Funciona al subir dos veces el mismo archivo (<a href="#p16">16</a>). Falla cuando un archivo posterior trae <b>más pagos</b> de un movimiento que ya entró.
+      </dd>
       <dt class="f">Ejemplo</dt><dd><div class="ej">El folio 4488 del 01/07/2026 trae 6 filas: efectivo $195 y 5 cargos de tarjeta ($205, $257, $340, $710 y $800). Si un primer archivo trajo solo las 3 primeras filas y uno posterior las 6, el segundo no carga los $1,850 que faltan ($340 + $710 + $800). Solo muestra el aviso.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>Llave por fila de pago, no por movimiento: Movimiento PDV + Forma de pago + Total + Transacción, Referencia o Código de validación. Las filas repetidas se omiten y las nuevas entran.</dd>
+      <dt class="f">Propuesta</dt><dd>Llave por fila de pago, no por movimiento:
+        <ol class="pasos" style="margin-top:4px">
+          <li>Cada fila lleva su huella: Movimiento PDV + Forma de pago + Total.</li>
+          <li>Filas iguales del mismo movimiento cuentan por separado: si el archivo trae dos cargos de $205 y la base tiene uno, entra solo el otro.</li>
+          <li>Se compara contra los pagos ya guardados de ese movimiento (<code>detail_sale_payment</code>). Huella que ya está: se omite. Huella nueva: entra, se cuelga del movimiento que ya existe y su total se recalcula.</li>
+          <li>Si el día ya se cerró, los pagos nuevos esperan su ticket igual que en el punto <a href="#p40">40</a>.</li>
+        </ol>
+      </dd>
+      <dt class="f">Por qué así</dt><dd>Los datos bancarios no sirven de llave. En los 816 cargos de tarjeta de julio, Transacción y Código de validación vienen vacíos, Referencia viene en «0» y Fecha de pago trae solo el día (consulta a <code>detail_sale_payment</code>, lote 33). Con Movimiento + Forma de pago + Total, ninguna de las 1,284 filas de julio se repite (misma consulta). Esto corrige lo que propuse antes, que contaba con Transacción o Referencia.</dd>
+      <dt class="f">Falta</dt><dd>Tu visto bueno para cambiar la llave.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · las 6 filas del folio 4488 (01/07/2026) <span class="ilus">el archivo 1 es supuesto</span></div>
@@ -748,28 +707,28 @@
   </article>
 
   <!-- 18 -->
-  <article class="pt falta" id="p18" data-estado="distinto">
-    <header><span class="num">18</span><h3>Registros originalmente con importe $0</h3><span class="st st-distinto">Distinto</span></header>
+  <article class="pt" id="p18" data-estado="cumple">
+    <header><span class="num">18</span><h3>Registros originalmente con importe $0</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Ticket «Servicio» de $0.00 solo para el movimiento que vino en $0.00 en el Excel. El efectivo que se pone en $0 para prestar folio <b>no</b> lleva ticket de servicio (18.2 y punto 42).</dd>
-      <dt>Hoy</dt><dd>El $0.00 de origen sí recibe su ticket: $0.00 con un renglón <code>SERVICIO DE MESA</code>. Pero también lo recibe toda cuenta pagada sin tarjeta que no prestó folio, para que la numeración del día no salte.</dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Vista previa del 02/07/2026: 35 movimientos, de los cuales 27 son con tarjeta, 7 de efectivo y 1 en $0.00 de origen. Hoy salen 35 tickets, 8 de ellos de $0.00. Según el documento serían 28 tickets: los 27 con tarjeta y 1 de $0.00.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>Decidir (ya está anotado como pendiente en <code>app/facture/docs/punto-18-movimientos-en-cero.md</code>). Si el efectivo se queda sin papel, sus números de nota quedan vacíos en la hoja del día.</dd>
+      <dt>Hoy</dt><dd>El $0.00 de origen recibe su ticket: $0.00 con un renglón <code>SERVICIO DE MESA</code>. También lo recibe toda cuenta pagada sin tarjeta que no prestó folio, para que la numeración del día no salte.</dd>
+      <dt>Decisión</dt><dd><b>03/10/2026:</b> el efectivo conserva su ticket, con el concepto «SERVICIO DE MESA». Se queda como funciona hoy; el 18.2 y esa línea del punto 42 no aplican.</dd>
+      <dt>Ejemplo</dt><dd><div class="ej">Vista previa del 02/07/2026: 35 movimientos, de los cuales 27 son con tarjeta, 7 de efectivo y 1 en $0.00 de origen. Salen 35 tickets, 8 de ellos de $0.00 con «SERVICIO DE MESA».</div></dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · los 35 movimientos pagados del 02/07/2026</div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · 35 tickets, 8 de $0.00</div>
+          <div class="cap debe">Se queda así · 35 tickets, 8 de $0.00</div>
           <div class="cuerpo">
             <div class="chips">
               <span class="chip c-efe">4499</span><span class="chip c-tdc">4500</span><span class="chip c-tdc">4501</span><span class="chip c-tdc">4502</span><span class="chip c-efe">4503</span><span class="chip c-efe">4504</span><span class="chip c-tdc">4505</span><span class="chip c-efe">4506</span><span class="chip c-tdc">4507</span><span class="chip c-efe">4508</span><span class="chip c-tdc">4509</span><span class="chip c-tdc">4510</span><span class="chip c-tdc">4511</span><span class="chip c-tdc">4512</span><span class="chip c-tdc">4513</span><span class="chip c-efe">4514</span><span class="chip c-tdc">4515</span><span class="chip c-tdc">4516</span><span class="chip c-tdc">4517</span><span class="chip c-tdc">4518</span><span class="chip c-tdc">4519</span><span class="chip c-cero">4520</span><span class="chip c-tdc">4521</span><span class="chip c-efe">4522</span><span class="chip c-recv">4523</span><span class="chip c-recv">4524</span><span class="chip c-recv">4525</span><span class="chip c-recv">4526</span><span class="chip c-recv">4527</span><span class="chip c-tdc">4528</span><span class="chip c-tdc">4529</span><span class="chip c-tdc">4530</span><span class="chip c-tdc">4531</span><span class="chip c-tdc">4532</span><span class="chip c-tdc">4533</span>
             </div>
-            <div class="pie">Los 7 rojos pagaron en efectivo y no prestaron folio: hoy salen con un papel de $0.00 que dice <code>SERVICIO DE MESA</code>.</div>
+            <div class="pie">Los 7 rojos pagaron en efectivo y no prestaron folio: conservan su papel de $0.00 que dice <code>SERVICIO DE MESA</code>.</div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento · 28 tickets, 1 de $0.00</div>
+          <div class="cap neu">Documento · 28 tickets, 1 de $0.00 · descartado</div>
           <div class="cuerpo">
             <div class="chips">
               <span class="chip c-efe tachado">4499</span><span class="chip c-tdc">4500</span><span class="chip c-tdc">4501</span><span class="chip c-tdc">4502</span><span class="chip c-efe tachado">4503</span><span class="chip c-efe tachado">4504</span><span class="chip c-tdc">4505</span><span class="chip c-efe tachado">4506</span><span class="chip c-tdc">4507</span><span class="chip c-efe tachado">4508</span><span class="chip c-tdc">4509</span><span class="chip c-tdc">4510</span><span class="chip c-tdc">4511</span><span class="chip c-tdc">4512</span><span class="chip c-tdc">4513</span><span class="chip c-efe tachado">4514</span><span class="chip c-tdc">4515</span><span class="chip c-tdc">4516</span><span class="chip c-tdc">4517</span><span class="chip c-tdc">4518</span><span class="chip c-tdc">4519</span><span class="chip c-cero">4520</span><span class="chip c-tdc">4521</span><span class="chip c-efe tachado">4522</span><span class="chip c-recv">4523</span><span class="chip c-recv">4524</span><span class="chip c-recv">4525</span><span class="chip c-recv">4526</span><span class="chip c-recv">4527</span><span class="chip c-tdc">4528</span><span class="chip c-tdc">4529</span><span class="chip c-tdc">4530</span><span class="chip c-tdc">4531</span><span class="chip c-tdc">4532</span><span class="chip c-tdc">4533</span>
@@ -836,19 +795,24 @@
   </article>
 
   <!-- 25 -->
-  <article class="pt falta" id="p25" data-estado="parcial">
-    <header><span class="num">25</span><h3>Resultado de búsqueda para reimpresión</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p25" data-estado="cumple">
+    <header><span class="num">25</span><h3>Resultado de búsqueda para reimpresión</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Pide</dt><dd>Folio, Fecha, Total, Tasa y Hora de generación; seleccionar uno, varios o todos y reimprimir.</dd>
-      <dt>Hoy</dt><dd>Orden, Movimiento (el folio), Mesa, Mesero y Total. La Fecha sale solo con rango. La Hora sale solo si la venta trae hora, y Wansoft no la exporta. La selección de uno, varios y todos ya funciona.</dd>
-      <dt class="f">Qué hacer</dt><dd>Agregar la columna Tasa (<code>virtual_ticket.tax_rate</code>) y la Hora de generación (<code>virtual_ticket.created_at</code>) en <code>theadTickets()</code> y <code>lsTickets()</code> de <code>ctrl-facture2-pos.php</code>.</dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Fila esperada: <code>4527 · 02/07/2026 · $300.00 · 0% · 03/10/2026 10:42</code></div></dd>
+      <dt>Hoy</dt><dd>Orden, Movimiento (el folio), Mesa, Mesero, Hora gen., Tasa y Total. La Fecha sale solo con rango. La selección de uno, varios y todos funciona.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b> Hora gen. y Tasa en <code>theadTickets()</code> y <code>lsTickets()</code> de <code>ctrl-facture2-pos.php</code>.
+        <ul>
+          <li><b>Hora gen.:</b> la del ticket generado (<code>virtual_ticket.created_at</code>) o, si no lo hay, la de la corrida GEN del día (<code>horaDeGeneracion()</code>). Si el día no se ha generado, sale «—». Si se generó otro día, lleva la fecha: «03/10 10:42».</li>
+          <li><b>Tasa:</b> la del ticket (<code>tasaEfectiva()</code>): 16% o 0%. Los de servicio salen en 0%.</li>
+        </ul>
+      </dd>
+      <dt>Ejemplo</dt><dd><div class="ej">Fila: <code>02/07/2026 · 29 · 4527 · 9 · 03/10 10:42 · 0% · $300.00</code> <span class="ilus">hora y tasa ilustrativas</span></div></dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · Reimpresión, rango 01/07/2026 al 02/07/2026 <span class="ilus">tasas y horas ilustrativas</span></div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy</div>
+          <div class="cap hoy">Antes</div>
           <div class="cuerpo wrap">
             <table class="mt">
               <thead><tr><th>☐</th><th>Fecha</th><th>Orden</th><th>Movimiento</th><th>Mesa</th><th class="n">Total</th></tr></thead>
@@ -858,21 +822,21 @@
                 <tr><td>☐</td><td>02/07</td><td>29</td><td>4527</td><td>9</td><td class="n">$300.00</td></tr>
               </tbody>
             </table>
-            <div class="pie">No se sabe de qué tasa es cada ticket ni cuándo se generó.</div>
+            <div class="pie">No se sabía de qué tasa era cada ticket ni cuándo se generó.</div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento</div>
+          <div class="cap debe">Ahora</div>
           <div class="cuerpo wrap">
             <table class="mt">
-              <thead><tr><th>☐</th><th>Fecha</th><th>Movimiento</th><th class="hl-ok" style="color:#047857">Tasa</th><th class="hl-ok" style="color:#047857">Hora gen.</th><th class="n">Total</th></tr></thead>
+              <thead><tr><th>☐</th><th>Fecha</th><th>Orden</th><th>Movimiento</th><th>Mesa</th><th class="hl-ok" style="color:#047857">Hora gen.</th><th class="hl-ok" style="color:#047857">Tasa</th><th class="n">Total</th></tr></thead>
               <tbody>
-                <tr><td>☐</td><td>02/07</td><td>4510</td><td class="hl-ok">16%</td><td class="hl-ok">10:41</td><td class="n">$906.00</td></tr>
-                <tr><td>☐</td><td>02/07</td><td>4511</td><td class="hl-ok">16%</td><td class="hl-ok">10:41</td><td class="n">$1,053.00</td></tr>
-                <tr><td>☐</td><td>02/07</td><td>4527</td><td class="hl-ok">0%</td><td class="hl-ok">10:42</td><td class="n">$300.00</td></tr>
+                <tr><td>☐</td><td>02/07</td><td>12</td><td>4510</td><td>7</td><td class="hl-ok">03/10 10:41</td><td class="hl-ok">16%</td><td class="n">$906.00</td></tr>
+                <tr><td>☐</td><td>02/07</td><td>13</td><td>4511</td><td>3</td><td class="hl-ok">03/10 10:41</td><td class="hl-ok">16%</td><td class="n">$1,053.00</td></tr>
+                <tr><td>☐</td><td>02/07</td><td>29</td><td>4527</td><td>9</td><td class="hl-ok">03/10 10:42</td><td class="hl-ok">0%</td><td class="n">$300.00</td></tr>
               </tbody>
             </table>
-            <div class="pie">Tasa sale de <code>virtual_ticket.tax_rate</code> y la hora de <code>virtual_ticket.created_at</code>.</div>
+            <div class="pie">Julio se generó en octubre: por eso la hora lleva la fecha delante.</div>
           </div>
         </div>
       </div>
@@ -901,10 +865,12 @@
     <dl>
       <dt>Pide</dt><dd>Total generado por fecha, 16%, 0%, número de tickets, tickets de $0, movimientos procesados y tickets reimpresos, con filtro de fecha y periodo.</dd>
       <dt>Hoy</dt><dd>La tarjeta Reportes del menú está con candado. Configuración → Historial (solo administrador) ya lista las corridas GEN con fecha, usuario, movimientos, total y tickets, y resume el periodo: 16%, 0%, reasignados y tickets de $0.</dd>
-      <dt class="f">Qué hacer</dt><dd>
+      <dt>Plantilla</dt><dd><b>03/10/2026:</b> <a href="../templates/reportes.html">app/facture2/templates/reportes.html</a>. Pantalla al estilo Wansoft con filtro Fecha o Periodo, la franja con los siete datos del punto y la tabla día por día de julio con las cifras de la vista previa. «Reimpresos» va inventado: ese dato no existe hasta crear la bitácora.</dd>
+      <dt class="f">Falta</dt><dd>
         <ul>
-          <li>Abrir Reportes con el permiso <code>reportes</code>, que ya existe en la base, y reusar las consultas de Historial.</li>
-          <li>Crear la bitácora de reimpresiones (<a href="#p35">35</a>): sin ella no hay forma de contar «Tickets reimpresos».</li>
+          <li>Tu visto bueno a la plantilla.</li>
+          <li>Construir la pantalla: abrir Reportes con el permiso <code>reportes</code>, que ya existe en la base, y reusar las consultas de Historial.</li>
+          <li>La bitácora de reimpresiones (<a href="#p35">35</a>): sin ella no hay forma de contar «Tickets reimpresos».</li>
         </ul>
       </dd>
       <dt class="f">Ejemplo</dt><dd><div class="ej">Renglón esperado: <code>01/07/2026 · $22,206.00 · 16% $15,673.00 · 0% $6,533.00 · 25 tickets · 2 de $0 · 25 movimientos · 3 reimpresos</code></div></dd>
@@ -962,10 +928,10 @@
   <article class="pt falta" id="p29" data-estado="parcial">
     <header><span class="num">29</span><h3>Registro de generación</h3><span class="st st-parcial">Parcial</span></header>
     <dl>
-      <dt>Hoy</dt><dd><code>generation_run</code> guarda el folio GEN-000123, la fecha, el archivo, los movimientos, el total, el 16%, el 0%, los tickets, los reasignados, los de $0.00 y la fecha-hora. Historial lo muestra.</dd>
-      <dt class="f">Falla 1</dt><dd>El usuario sale de la sesión de Huubie (<code>$_SESSION['NAME']</code>), no de quien tecleó el PIN. En local los 3 lotes de julio dicen «Pruebas», aunque entraste como «Admin» (consulta a <code>import_batch</code>).</dd>
-      <dt class="f">Falla 2</dt><dd>«Rehacer reparto» llama a <code>deleteDay()</code>, que borra con <code>DELETE</code> los tickets del día y su corrida GEN. El registro maestro desaparece.</dd>
-      <dt class="f">Qué hacer</dt><dd>Guardar <code>$_SESSION['WANSOFT_USER']</code> y su nombre (tabla <code>user</code>). Al rehacer, anular la corrida vieja (<code>active = 0</code>, quién y cuándo) en vez de borrarla; la nueva apunta a la anulada.</dd>
+      <dt>Hoy</dt><dd><code>generation_run</code> guarda el folio GEN-000123, la fecha, el archivo, los movimientos, el total, el 16%, el 0%, los tickets, los reasignados, los de $0.00, la fecha-hora y quién tecleó el PIN. Historial lo muestra.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b> la corrida guarda al usuario del PIN (<code>$_SESSION['WANSOFT_USER']</code>) y su nombre, leído de la tabla <code>user</code> (<code>usuarioTerminal()</code> en <code>ctrl-facture2-tickets.php</code>). Antes guardaba el de la sesión de Huubie: «Pruebas». Las corridas viejas conservan el nombre con que se guardaron.</dd>
+      <dt class="f">Falta</dt><dd>«Rehacer reparto» llama a <code>deleteDay()</code>, que borra con <code>DELETE</code> los tickets del día y su corrida GEN. El registro maestro desaparece.</dd>
+      <dt class="f">Qué hacer</dt><dd>Al rehacer, anular la corrida vieja (<code>active = 0</code>, quién y cuándo) en vez de borrarla; la nueva apunta a la anulada. Espera tu visto bueno.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · ficha del registro en Historial y qué pasa al rehacer el 01/07/2026 <span class="ilus">folios GEN y horas ilustrativos</span></div>
@@ -976,7 +942,7 @@
             <div class="win">
               <div class="barra">GEN-000001 <span>Cierre del día · 01/07/2026</span></div>
               <div class="dentro">
-                <div style="display:flex;justify-content:space-between"><span class="muted">Usuario</span><b class="hl-bad" style="padding:0 4px">Pruebas</b></div>
+                <div style="display:flex;justify-content:space-between"><span class="muted">Usuario</span><b class="hl-ok" style="padding:0 4px">Admin (PIN)</b></div>
                 <div style="display:flex;justify-content:space-between"><span class="muted">Movimientos</span><b>25</b></div>
                 <div style="display:flex;justify-content:space-between"><span class="muted">Total</span><b>$22,206.00</b></div>
               </div>
@@ -985,7 +951,7 @@
               <div class="gen borrada"><b>GEN-000001</b> · <span class="tachado">01/07/2026 09:30 · 25 tickets</span> · borrada al rehacer</div>
               <div class="gen"><b>GEN-000002</b> · 01/07/2026 · 03/10/2026 10:20 · 25 tickets</div>
             </div>
-            <div class="pie">Entraste con el PIN de «Admin», pero la ficha dice «Pruebas». Y al rehacer, la primera corrida desaparece sin dejar rastro.</div>
+            <div class="pie">La ficha ya dice quién tecleó el PIN (03/10/2026). Lo que falta: al rehacer, la primera corrida desaparece sin dejar rastro.</div>
           </div>
         </div>
         <div class="lado">
@@ -1019,24 +985,24 @@
   </article>
 
   <!-- 31 -->
-  <article class="pt falta" id="p31" data-estado="parcial">
-    <header><span class="num">31</span><h3>Archivos Excel importados</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p31" data-estado="cumple">
+    <header><span class="num">31</span><h3>Archivos Excel importados</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
-      <dt>Hoy</dt><dd><code>import_batch</code> guarda nombre del archivo, hoja, periodo, fecha de carga, filas, insertadas, omitidas y total de control.</dd>
-      <dt class="f">Qué falta</dt><dd>
+      <dt>Hoy</dt><dd><code>import_batch</code> guarda nombre del archivo, hoja, periodo, fecha de carga, filas, insertadas, omitidas, total de control, quién tecleó el PIN, movimientos válidos y total válido.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b>
         <ul>
-          <li>El usuario real (mismo problema que el <a href="#p29">29</a>).</li>
-          <li>«Movimientos válidos» y «Total válido»: el lote suma todo lo que entró, no solo la tarjeta de crédito pagada.</li>
+          <li>Migración 20 (<code>app/facture/sql/migra-20-lote-validos.sql</code>): columnas <code>valid_count</code> y <code>valid_total</code>. Aplicada en local; <b>falta producción</b>.</li>
+          <li>La carga las llena con la regla del reparto: estatus Pagada y tarjeta de crédito (<code>medirValidos()</code> en <code>import-facture2-cargas.php</code>).</li>
+          <li>El usuario sale del PIN (<code>nombreDelUsuario()</code> en <code>ctrl-facture2-cargas.php</code>), no de la sesión de Huubie.</li>
         </ul>
       </dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Lote 33 de julio: total de control $1,482,682.00 (todas las formas de pago). El total válido de tarjeta es $955,219.40, y esa cifra no queda en el lote.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>Dos columnas en <code>import_batch</code> (<code>valid_count</code>, <code>valid_total</code>), llenadas al cargar con la misma regla de <code>esTarjetaCredito()</code> + Pagada.</dd>
+      <dt>Ejemplo</dt><dd><div class="ej">Lote 33 de julio: total de control $1,482,682.00 (todas las formas de pago). La migración llenó sus válidos: 816 cargos de tarjeta por $955,219.40 (consulta a <code>import_batch</code>).</div></dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · lote 33 de julio (datos reales de <code>import_batch</code>)</div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · lo que guarda el lote</div>
+          <div class="cap hoy">Antes · lo que guardaba el lote</div>
           <div class="cuerpo wrap">
             <table class="mt">
               <tbody>
@@ -1052,7 +1018,7 @@
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento · lo que debería guardar</div>
+          <div class="cap debe">Ahora · lo que guarda el lote</div>
           <div class="cuerpo wrap">
             <table class="mt">
               <tbody>
@@ -1060,11 +1026,12 @@
                 <tr><td class="muted">Filas</td><td>1,284</td></tr>
                 <tr><td class="muted">Duplicadas</td><td>0</td></tr>
                 <tr><td class="muted">Total de control</td><td>$1,482,682.00</td></tr>
-                <tr><td class="muted">Usuario</td><td class="hl-ok">Admin (PIN)</td></tr>
+                <tr><td class="muted">Usuario</td><td class="hl-ok">quien tecleó el PIN</td></tr>
                 <tr><td class="muted">Movimientos válidos</td><td class="hl-ok">816 cargos de tarjeta</td></tr>
                 <tr><td class="muted">Total válido</td><td class="hl-ok">$955,219.40</td></tr>
               </tbody>
             </table>
+            <div class="pie">El lote 33 sigue diciendo «Pruebas»: se cargó antes del cambio. Las cargas nuevas guardan al usuario del PIN.</div>
           </div>
         </div>
       </div>
@@ -1083,15 +1050,23 @@
   <article class="pt falta" id="p33" data-estado="parcial">
     <header><span class="num">33</span><h3>Formatos monetarios</h3><span class="st st-parcial">Parcial</span></header>
     <dl>
-      <dt>Hoy</dt><dd><code>numVal()</code> quita <code>$</code>, comas y espacios: lee bien $926.00, $1,138.00, 1138 y 1138.00. Pero todos los importes se guardan en columnas <code>DOUBLE</code> (<code>sale.total</code>, <code>detail_sale_payment.amount</code>, <code>virtual_ticket.total</code>, <code>generation_run</code>…) y se suman con flotantes de PHP. El documento lo prohíbe.</dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">En PHP, <code>33.10 * 3</code> da <code>99.30000000000001</code>. Sumando cientos de importes con centavos, el error se acumula y hoy lo tapan los redondeos y comparaciones como <code>&lt; 0.005</code>.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>Migrar las columnas de dinero a <code>DECIMAL(12,2)</code> y sumar en centavos enteros: <code>(int) round($monto * 100)</code>.</dd>
+      <dt>Hoy</dt><dd><code>numVal()</code> quita <code>$</code>, comas y espacios: lee bien $926.00, $1,138.00, 1138 y 1138.00. Los importes se <b>guardan</b> en <code>DECIMAL(12,2)</code>: exactos, a 2 decimales. Las <b>cuentas</b> en PHP siguen con flotantes y se redondean a 2 decimales en cada paso.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b> migración 21 (<code>app/facture/sql/migra-21-dinero-decimal.sql</code>) pasó las 33 columnas de dinero de <code>DOUBLE</code> a <code>DECIMAL(12,2)</code>: <code>sale</code>, <code>detail_sale_payment</code>, <code>virtual_ticket</code>, <code>generation_run</code>, <code>product.price</code> y las demás. Los totales de julio salen idénticos antes y después: $955,219.40 de tarjeta, $689,736.90 al 16% y $265,482.50 al 0%. Aplicada en local; <b>falta producción</b>.</dd>
+      <dt class="f">Los centavos</dt><dd>Son dos cosas distintas: guardar y calcular.
+        <ol class="pasos" style="margin-top:4px">
+          <li><b>Guardar</b> ya quedó: la base guarda $33.10 exacto.</li>
+          <li><b>Calcular</b> es lo que hace PHP con ese dato. Lo lee como flotante, y un flotante no puede guardar 33.10 exacto: por dentro es 33.10000000000000142… Al multiplicar o sumar, ese sobrante aparece: <code>33.10 * 3</code> da <code>99.30000000000001</code>.</li>
+          <li><b>Contar en centavos</b> quiere decir hacer la cuenta con números enteros: $33.10 se vuelve 3310. Se calcula <code>3310 * 3 = 9930</code> y al final se divide entre 100: $99.30. Los enteros no dejan sobrantes.</li>
+          <li>Hoy el sobrante se tapa redondeando a 2 decimales en cada paso y comparando con márgenes como <code>&lt; 0.005</code>. Por eso los totales de julio cuadran.</li>
+        </ol>
+      </dd>
+      <dt class="f">Falta decidir</dt><dd>Si las cuentas también pasan a centavos. Mi recomendación: no por ahora. Cada paso ya redondea a 2 decimales y julio cuadra al centavo. Si un día aparece un centavo de diferencia, esa cuenta se pasa a centavos.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · la misma cuenta con flotantes y con centavos</div>
       <div class="card wrap" style="padding:0">
         <table class="mt">
-          <thead><tr><th>Operación</th><th>Hoy · DOUBLE (flotante)</th><th>Documento · centavos enteros</th></tr></thead>
+          <thead><tr><th>Operación</th><th>Flotante · como calcula PHP hoy</th><th>Centavos enteros</th></tr></thead>
           <tbody>
             <tr><td>3 tickets de $33.10</td><td class="hl-bad"><code>33.10 * 3</code> = 99.30000000000001</td><td class="hl-ok"><code>3310 * 3</code> = 9930 → $99.30</td></tr>
             <tr><td>$0.10 + $0.20</td><td class="hl-bad"><code>0.1 + 0.2</code> = 0.30000000000000004</td><td class="hl-ok"><code>10 + 20</code> = 30 → $0.30</td></tr>
@@ -1099,38 +1074,48 @@
           </tbody>
         </table>
       </div>
-      <div class="pie">Cada error es diminuto. El peligro está al redondear al centavo, por ejemplo al sacar base e IVA: un monto que en flotante queda en …4999 en vez de …5 se redondea hacia el lado contrario. Por eso el documento pide no usar flotantes.</div>
+      <div class="pie">Cada sobrante es diminuto y el redondeo a 2 decimales de cada paso lo borra. El documento pide no usar flotantes para no depender de ese redondeo.</div>
     </div>
   </article>
 
   <!-- 34 -->
-  <article class="pt falta" id="p34" data-estado="parcial">
-    <header><span class="num">34</span><h3>Usuarios</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p34" data-estado="cumple">
+    <header><span class="num">34</span><h3>Usuarios</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
-      <dt>Hoy</dt><dd>Roles en la base: Administrador (catálogos, reportes, reimpresión, tickets) y Operador (tickets, reimpresión). Cada página pide su permiso con <code>wansoftExige()</code>.</dd>
-      <dt class="f">Falla</dt><dd>De 7 controladores, solo <code>ctrl-facture2-pos.php</code> revisa sesión y permiso (<code>opcPermitida()</code>). Tickets, catálogos, cargas, emisor, historial y ventas responden a cualquiera.</dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Un POST a <code>ctrl-facture2-tickets.php</code> con <code>opc=deleteDay&amp;dia=2026-07-01</code> borra los tickets del día sin haber tecleado PIN.</div></dd>
-      <dt class="f">Qué hacer</dt><dd>En cada controlador, antes de ejecutar la opción, exigir <code>$_SESSION['WANSOFT_USER']</code> y el permiso de su pantalla, con el mismo patrón que <code>opcPermitida()</code>.</dd>
+      <dt>Hoy</dt><dd>Roles en la base: Administrador (catálogos, reportes, reimpresión, tickets) y Operador (tickets, reimpresión). Cada página pide su permiso con <code>wansoftExige()</code> y cada controlador también.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b> <code>terminalExige()</code> en <code>app/facture2/conf/_Terminal.php</code>. Cada controlador lo llama antes de ejecutar la opción:
+        <div class="wrap"><table>
+          <thead><tr><th>Controlador</th><th>Pide</th></tr></thead>
+          <tbody>
+            <tr><td><code>ctrl-facture2-tickets.php</code></td><td>PIN y permiso <code>tickets</code></td></tr>
+            <tr><td><code>ctrl-facture2-cargas.php</code></td><td>PIN y permiso <code>tickets</code> o <code>catalogos</code></td></tr>
+            <tr><td><code>ctrl-facture2-catalogos.php</code>, <code>-emisor.php</code>, <code>-historial.php</code></td><td>PIN y permiso <code>catalogos</code></td></tr>
+            <tr><td><code>ctrl-facture2-ventas.php</code></td><td>PIN</td></tr>
+            <tr><td><code>ctrl-facture2-pos.php</code></td><td>PIN y permiso por opción (<code>opcPermitida()</code>, ya existía)</td></tr>
+          </tbody>
+        </table></div>
+      </dd>
+      <dt>Probado</dt><dd>Sin PIN, los 6 controladores responden 401. Con el PIN de Operador, catálogos, emisor e historial responden 403; tickets, cargas y ventas responden normal. Con el de Administrador, todos responden normal.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · dos peticiones directas al servidor</div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy</div>
+          <div class="cap hoy">Antes</div>
           <div class="cuerpo" style="display:grid;gap:10px">
             <div class="flujo"><span class="caja">Navegador sin PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-tickets.php</code><br>opc=deleteDay · dia=2026-07-01</span><span class="flecha">→</span><span class="caja mala">Borra los 25 tickets del 01/07</span></div>
             <div class="flujo"><span class="caja">Operador con PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-catalogos.php</code><br>opc=saveProducto</span><span class="flecha">→</span><span class="caja mala">Cambia el precio de un producto</span></div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento</div>
+          <div class="cap debe">Ahora</div>
           <div class="cuerpo" style="display:grid;gap:10px">
-            <div class="flujo"><span class="caja">Navegador sin PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-tickets.php</code><br>opc=deleteDay · dia=2026-07-01</span><span class="flecha">→</span><span class="caja buena">401 · «Teclea tu PIN para continuar»</span></div>
-            <div class="flujo"><span class="caja">Operador con PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-catalogos.php</code><br>opc=saveProducto</span><span class="flecha">→</span><span class="caja buena">403 · «Tu rol no tiene permiso de Catálogos»</span></div>
+            <div class="flujo"><span class="caja">Navegador sin PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-tickets.php</code><br>opc=deleteDay · dia=2026-07-01</span><span class="flecha">→</span><span class="caja buena">401 · «Sin sesión en la terminal: vuelve a teclear tu PIN»</span></div>
+            <div class="flujo"><span class="caja">Operador con PIN</span><span class="flecha">→</span><span class="caja"><code>ctrl-facture2-catalogos.php</code><br>opc=saveProducto</span><span class="flecha">→</span><span class="caja buena">403 · «Sin permiso para esta opción»</span></div>
           </div>
         </div>
       </div>
-      <div class="pie">Hoy el candado vive solo en la página (<code>wansoftExige()</code>): esconde el botón, pero no protege la dirección que el botón llama.</div>
+      <div class="pie">Antes el candado vivía solo en la página (<code>wansoftExige()</code>): escondía el botón, pero no protegía la dirección que el botón llama. Ahora la dirección también pide PIN y permiso.</div>
     </div>
   </article>
 
@@ -1142,15 +1127,23 @@
         <div class="wrap"><table>
           <thead><tr><th>Acción</th><th>¿Se registra?</th></tr></thead>
           <tbody>
-            <tr><td>Importación</td><td class="ok">Sí, en <code>import_batch</code> (usuario equivocado)</td></tr>
-            <tr><td>Generación y confirmación</td><td class="ok">Sí, en <code>generation_run</code> (usuario equivocado)</td></tr>
+            <tr><td>Importación</td><td class="ok">Sí, en <code>import_batch</code>, con el usuario del PIN</td></tr>
+            <tr><td>Generación y confirmación</td><td class="ok">Sí, en <code>generation_run</code>, con el usuario del PIN</td></tr>
             <tr><td>Reasignación de folio</td><td class="ok">Sí, por <code>reassignment_run_id</code></td></tr>
             <tr><td>Modificación de catálogo</td><td class="bad">No</td></tr>
             <tr><td>Reimpresión</td><td class="bad">No</td></tr>
           </tbody>
         </table></div>
       </dd>
-      <dt class="f">Qué hacer</dt><dd>Una tabla <code>audit_log</code> (usuario, acción, entidad, id, antes, después, fecha-hora) llamada desde <code>saveProducto()</code>, <code>editProductoStatus()</code>, <code>editProductoFlag()</code> y la impresión de Reimpresión.</dd>
+      <dt>Propuesta</dt><dd><b>03/10/2026:</b> <a href="../templates/bitacora.html">app/facture2/templates/bitacora.html</a>, en tres pestañas:
+        <ul>
+          <li><b>Pantalla:</b> lista con filtros de fecha, usuario y acción, y el detalle de cada renglón con su antes y después.</li>
+          <li><b>Qué se registra:</b> las seis acciones (importación, confirmación, reasignación, catálogo, reimpresión y eliminación), cuándo se escribe cada una y desde qué función.</li>
+          <li><b>Modelo de datos:</b> una sola tabla <code>audit_log</code> que solo crece, con la copia del nombre del usuario.</li>
+        </ul>
+        Trae cuatro preguntas «Por decidir»; la principal: registrar también «Rehacer reparto» y «Eliminar todo», que el punto 35 no pide.
+      </dd>
+      <dt class="f">Falta</dt><dd>Tu visto bueno a la propuesta; después, crear la tabla y conectarla en los controladores.</dd>
       <dt class="f">Ejemplo</dt><dd><div class="ej"><code>03/10/2026 10:15 · Admin · producto PTE010 · precio $15.00 → $17.00</code></div></dd>
     </dl>
     <div class="visual">
@@ -1185,23 +1178,19 @@
   </article>
 
   <!-- 36 -->
-  <article class="pt falta" id="p36" data-estado="parcial">
-    <header><span class="num">36</span><h3>Impresión</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p36" data-estado="cumple">
+    <header><span class="num">36</span><h3>Impresión</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
-      <dt>Hoy</dt><dd>El papel copia la tira de Wansoft sobre 40 columnas: logo, encabezado, productos, totales, folio y fecha. Los de $0.00 salen con <code>SERVICIO DE MESA $0.00</code>. Se imprime con el diálogo del navegador (<code>@page { margin: 0 }</code>, ancho 100%).</dd>
-      <dt class="f">Qué falta</dt><dd>
-        <ul>
-          <li>Fijar el ancho de la impresora objetivo. Hoy depende del papel que elija quien imprime; en tamaño carta el ticket sale estirado.</li>
-          <li>El papel de Wansoft no imprime RFC ni domicilio, para parecerse a la tira. Confirmar si esa información fiscal es obligatoria.</li>
-        </ul>
-      </dd>
-      <dt class="f">Ejemplo</dt><dd><div class="ej">Térmica de 80 mm: <code>@page { size: 80mm auto; margin: 0 }</code> en el bloque <code>@media print</code>.</div></dd>
+      <dt>Hoy</dt><dd>El papel copia la tira de Wansoft sobre 40 columnas: logo, encabezado, productos, totales, folio y fecha. Los de $0.00 salen con <code>SERVICIO DE MESA $0.00</code>. Se imprime con el diálogo del navegador en una hoja de 80 mm de ancho.</dd>
+      <dt>Hecho</dt><dd><b>03/10/2026:</b> <code>@page { size: 80mm 297mm; margin: 0 }</code> dentro de <code>@media print</code>, en <code>app/facture2/src/css/wansoft-theme.css</code>. Probado generando el PDF desde Chrome: la hoja sale de 80 × 297 mm.</dd>
+      <dt>Corrección</dt><dd>Lo que propuse antes, <code>size: 80mm auto</code>, estaba mal: <code>auto</code> no se puede combinar con una medida, Chrome ignora ese tamaño completo y la hoja vuelve a quedar a merced del diálogo. Por eso lleva alto fijo. Un ticket más largo que 297 mm seguiría en una segunda hoja.</dd>
+      <dt>Abierto</dt><dd>El papel no imprime RFC ni domicilio, igual que la tira de Wansoft. Si hacen falta, se activan en el membrete del papel: ya se capturan en el Emisor.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · el mismo ticket según el papel que elija quien imprime</div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · manda el diálogo de impresión</div>
+          <div class="cap hoy">Antes · mandaba el diálogo de impresión</div>
           <div class="cuerpo">
             <div class="papeles">
               <div>
@@ -1220,7 +1209,7 @@
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento · manda la impresora objetivo</div>
+          <div class="cap debe">Ahora · manda la impresora de 80 mm</div>
           <div class="cuerpo">
             <div class="papeles">
               <div>
@@ -1238,7 +1227,7 @@
                 <div class="pie" style="text-align:center">Hoja carta<br><span class="ok">conserva el ancho de 80 mm</span></div>
               </div>
             </div>
-            <div class="pie"><code>@page { size: 80mm auto; margin: 0 }</code> le dice al navegador el ancho de la tira: el ticket deja de estirarse al ancho de la hoja.</div>
+            <div class="pie"><code>@page { size: 80mm 297mm; margin: 0 }</code> le dice al navegador el ancho de la tira: el ticket deja de estirarse al ancho de la hoja.</div>
           </div>
         </div>
       </div>
@@ -1246,19 +1235,18 @@
   </article>
 
   <!-- 37 -->
-  <article class="pt falta" id="p37" data-estado="parcial">
-    <header><span class="num">37</span><h3>Estabilidad histórica</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p37" data-estado="cumple">
+    <header><span class="num">37</span><h3>Estabilidad histórica</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
-      <dt>Hoy</dt><dd>Renglones, precios, folio visible, folio original, tasa y ajuste quedan guardados. La reimpresión no reconstruye nada.</dd>
-      <dt class="f">Falla 1</dt><dd>El encabezado (logo y razón social) se lee del Emisor al imprimir. Si cambias el logo, los tickets de julio salen con el logo nuevo.</dd>
-      <dt class="f">Falla 2</dt><dd>«Rehacer reparto» y «Eliminar todo» borran tickets que ya pudieron entregarse.</dd>
-      <dt class="f">Qué hacer</dt><dd>Copiar el membrete al ticket o a su corrida al generar, y no borrar al rehacer (<a href="#p29">29</a>).</dd>
+      <dt>Hoy</dt><dd>Renglones, cantidades, precios, importes, folio visible, folio original, tasa y ajuste quedan guardados con cada ticket (<code>virtual_ticket</code> y <code>detail_virtual_ticket</code>). La reimpresión no reconstruye nada. El encabezado (logo y razón social) se lee del Emisor al imprimir.</dd>
+      <dt>Decisión</dt><dd><b>03/10/2026:</b> el folio y el membrete no son problema mientras los productos no cambien, y esos ya se guardan. Si el Agua pasa de $30 a $35 en septiembre, el ticket de agosto sigue diciendo $30 (<a href="#p27">27</a>).</dd>
+      <dt>Ojo</dt><dd>Lo único que cambia los productos de un ticket ya generado es «Rehacer reparto» o «Eliminar todo»: borran y vuelven a armar. Eso sigue pendiente en el punto <a href="#p29">29</a>.</dd>
     </dl>
     <div class="visual">
       <div class="tit">Ejemplo visual · el ticket 4510 impreso en julio y reimpreso después de cambiar el Emisor <span class="ilus">membrete nuevo ilustrativo</span></div>
       <div class="vs">
         <div class="lado">
-          <div class="cap hoy">Hoy · la reimpresión toma el membrete actual</div>
+          <div class="cap debe">Se queda así · la reimpresión toma el membrete actual</div>
           <div class="cuerpo">
             <div class="papeles" style="justify-content:center">
               <div class="tk" style="width:150px">
@@ -1269,18 +1257,18 @@
                 <div class="pie" style="text-align:center;margin-top:4px">impreso 02/07/2026</div>
               </div>
               <div class="tk" style="width:150px">
-                <div class="logo hl-bad" style="font-size:13px">RYORI · CENTRO</div>
+                <div class="logo marca" style="font-size:13px">RYORI · CENTRO</div>
                 <div class="rule"></div>
                 <div class="row"><span>Mov.</span><span>4510</span></div>
                 <div class="gt" style="font-size:12px">$906.00</div>
                 <div class="pie" style="text-align:center;margin-top:4px">reimpreso 15/11/2026</div>
               </div>
             </div>
-            <div class="pie">Productos y montos salen iguales, pero el encabezado ya no es el que recibió el cliente.</div>
+            <div class="pie">Productos y montos salen iguales. El encabezado puede cambiar, y se acepta.</div>
           </div>
         </div>
         <div class="lado">
-          <div class="cap debe">Documento · la reimpresión copia la original</div>
+          <div class="cap neu">Documento · la reimpresión copia la original · descartado</div>
           <div class="cuerpo">
             <div class="papeles" style="justify-content:center">
               <div class="tk" style="width:150px">
@@ -1298,7 +1286,7 @@
                 <div class="pie" style="text-align:center;margin-top:4px">reimpreso 15/11/2026</div>
               </div>
             </div>
-            <div class="pie">El membrete se guarda al generar, igual que ya se guardan los renglones y los precios.</div>
+            <div class="pie">Guardar el membrete con cada ticket ya no hace falta.</div>
           </div>
         </div>
       </div>
@@ -1306,14 +1294,14 @@
   </article>
 
   <!-- 38 -->
-  <article class="pt falta" id="p38" data-estado="parcial">
-    <header><span class="num">38</span><h3>Caso funcional principal</h3><span class="st st-parcial">Parcial</span></header>
+  <article class="pt" id="p38" data-estado="cumple">
+    <header><span class="num">38</span><h3>Caso funcional principal</h3><span class="st st-cumple">Cumple</span></header>
     <dl>
       <dt>Hoy</dt><dd>El caso corre completo con los datos de julio 2026: lee, filtra, muda folios, aparta los $0.00, calcula, valida, genera, confirma y guarda.</dd>
-      <dt class="f">No cumple</dt><dd>
+      <dt>Decisión</dt><dd>Los dos puntos que no cuadraban con el caso quedaron aceptados el 03/10/2026:
         <ul>
-          <li>«Diferencia: $0»: el reparto se pasa por un ticket (<a href="#p10">10</a>).</li>
-          <li>«Tickets de $0: cantidad correspondiente»: también cuenta el efectivo (<a href="#p18">18</a>).</li>
+          <li>«Diferencia: $0»: el reparto se pasa por un ticket, y se acepta (<a href="#p10">10</a>).</li>
+          <li>«Tickets de $0: cantidad correspondiente»: el efectivo conserva su ticket de servicio de mesa (<a href="#p18">18</a>).</li>
         </ul>
       </dd>
     </dl>
@@ -1407,14 +1395,14 @@
             <tr><td>Solo tarjeta de crédito suma</td><td class="ok">Cumple</td></tr>
             <tr><td>El efectivo presta folios</td><td class="ok">Cumple (también débito y transferencia, <a href="#p17">17</a>)</td></tr>
             <tr><td>No reprocesar movimientos usados</td><td class="warn">Parcial (<a href="#p40">40</a>)</td></tr>
-            <tr><td>16% + 0% suman exacto el total</td><td class="warn">Parcial: la captura sí, lo generado no (<a href="#p10">10</a>)</td></tr>
+            <tr><td>16% + 0% suman exacto el total</td><td class="ok">La captura sí; lo generado se pasa por un ticket y se acepta (<a href="#p10">10</a>)</td></tr>
             <tr><td>Cada catálogo solo para su tasa</td><td class="ok">Cumple</td></tr>
-            <tr><td>Los tickets históricos no cambian</td><td class="warn">Parcial (<a href="#p37">37</a>)</td></tr>
+            <tr><td>Los tickets históricos no cambian</td><td class="ok">Cumple; salvo «Rehacer reparto» (<a href="#p29">29</a>)</td></tr>
             <tr><td>Reimprimir no es regenerar</td><td class="ok">Cumple</td></tr>
             <tr><td>Un folio visible, un ticket</td><td class="ok">Cumple</td></tr>
             <tr><td>Conservar el Movimiento PDV original</td><td class="ok">Cumple</td></tr>
-            <tr><td>Servicio $0.00 solo para el $0 de origen</td><td class="bad">No cumple (<a href="#p18">18</a>)</td></tr>
-            <tr><td>El efectivo en $0 no es ticket de servicio</td><td class="bad">No cumple (<a href="#p18">18</a>)</td></tr>
+            <tr><td>Servicio $0.00 solo para el $0 de origen</td><td class="ok">No aplica: el efectivo conserva su ticket (<a href="#p18">18</a>)</td></tr>
+            <tr><td>El efectivo en $0 no es ticket de servicio</td><td class="ok">No aplica: lleva «SERVICIO DE MESA» (<a href="#p18">18</a>)</td></tr>
           </tbody>
         </table></div>
       </dd>
@@ -1444,12 +1432,29 @@
     <table>
       <thead><tr><th class="n">Punto</th><th>Pregunta</th><th>Qué cambia según la respuesta</th></tr></thead>
       <tbody>
-        <tr><td class="n"><a href="#p10">10</a></td><td>¿Se permite un ticket con productos de 16% y de 0% para cuadrar al centavo?</td><td>Sí: diferencia $0 siempre. No: se acepta la diferencia de un ticket con una tolerancia escrita.</td></tr>
-        <tr><td class="n"><a href="#p18">18</a></td><td>¿El efectivo que no prestó folio lleva ticket de $0.00?</td><td>No: el 02/07 pasa de 35 a 28 tickets y quedan números de nota vacíos.</td></tr>
-        <tr><td class="n"><a href="#p13">13</a></td><td>¿Un ticket fuera de tolerancia bloquea el Confirmar?</td><td>Sí: hay que ampliar el catálogo de 0% antes de cerrar. No: se queda la marca amarilla.</td></tr>
-        <tr><td class="n"><a href="#p17">17</a></td><td>¿Débito y transferencia pueden prestar folio, o solo el efectivo?</td><td>Solo efectivo: menos folios libres, y más casos de cargo que se queda sin mudar.</td></tr>
-        <tr><td class="n"><a href="#p36">36</a></td><td>¿Qué impresora (58 u 80 mm) y el papel lleva RFC?</td><td>Fija el <code>@page</code> y el membrete del papel de Wansoft.</td></tr>
+        <tr><td class="n"><a href="#p29">29</a></td><td>¿Al rehacer un día se anula la corrida vieja en vez de borrarla?</td><td>Sí: Historial conserva las dos corridas y quién anuló la primera.</td></tr>
+        <tr><td class="n"><a href="#p15">15</a></td><td>¿La llave de duplicados pasa a ser por fila de pago (Movimiento + Forma de pago + Total)?</td><td>Sí: un movimiento que llega con pagos nuevos carga solo los nuevos.</td></tr>
         <tr><td class="n"><a href="#p40">40</a></td><td>¿Un día cerrado acepta tickets nuevos sin rehacerse?</td><td>Sí: hay que construir la generación incremental del día.</td></tr>
+        <tr><td class="n"><a href="#p28">28</a></td><td>¿La plantilla de Reportes es la vista que necesitan?</td><td>Sí: se construye la pantalla con el permiso <code>reportes</code>.</td></tr>
+        <tr><td class="n"><a href="#p35">35</a></td><td>¿Va la propuesta de bitácora, con «Eliminación» incluida?</td><td>Sí: se crea <code>audit_log</code> y se conecta en los controladores.</td></tr>
+        <tr><td class="n"><a href="#p33">33</a></td><td>¿Las cuentas también pasan a centavos enteros?</td><td>Sí: se reescriben las sumas del reparto. Mi recomendación es no por ahora.</td></tr>
+        <tr><td class="n"><a href="#p17">17</a></td><td>¿Débito y transferencia pueden prestar folio, o solo el efectivo?</td><td>Solo efectivo: menos folios libres, y más casos de cargo que se queda sin mudar.</td></tr>
+        <tr><td class="n"><a href="#p36">36</a></td><td>¿El papel lleva RFC y domicilio?</td><td>Sí: se activan en el membrete del papel de Wansoft.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Decisiones que ya tomaste</h2>
+  <div class="card wrap" style="padding:0">
+    <table>
+      <thead><tr><th class="n">Punto</th><th>Pregunta</th><th>Respuesta del 03/10/2026</th></tr></thead>
+      <tbody>
+        <tr><td class="n"><a href="#p10">10</a></td><td>¿Lo generado debe llegar exacto al 70%?</td><td class="ok">No: la diferencia de un ticket se acepta.</td></tr>
+        <tr><td class="n"><a href="#p11">11</a></td><td>¿El papel lleva precio unitario?</td><td class="ok">No: se queda como la tira original.</td></tr>
+        <tr><td class="n"><a href="#p13">13</a></td><td>¿Qué pasa si el ajuste se pasa de la tolerancia?</td><td class="ok">El excedente se descuenta del producto.</td></tr>
+        <tr><td class="n"><a href="#p18">18</a></td><td>¿El efectivo que no prestó folio lleva ticket de $0.00?</td><td class="ok">Sí, con el concepto «SERVICIO DE MESA».</td></tr>
+        <tr><td class="n"><a href="#p36">36</a></td><td>¿Qué impresora?</td><td class="ok">Térmica de 80 mm.</td></tr>
+        <tr><td class="n"><a href="#p37">37</a></td><td>¿El membrete se guarda con el ticket?</td><td class="ok">No hace falta: basta con que los productos no cambien.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1457,15 +1462,13 @@
   <h2>Orden sugerido para cerrar lo que falta</h2>
   <div class="card">
     <ol class="pasos">
-      <li><b>Candado en los 6 controladores</b> (<a href="#p34">34</a>). Es un riesgo hoy, no una mejora.</li>
-      <li><b>Usuario del PIN</b> en generaciones e importaciones (<a href="#p29">29</a>, <a href="#p31">31</a>).</li>
-      <li><b>No borrar al rehacer:</b> anular corridas y conservar tickets (<a href="#p29">29</a>, <a href="#p37">37</a>, <a href="#p41">41</a>).</li>
-      <li><b>Dinero en DECIMAL</b> (<a href="#p33">33</a>).</li>
+      <li><b>No borrar al rehacer:</b> anular corridas y conservar tickets (<a href="#p29">29</a>, <a href="#p41">41</a>).</li>
+      <li><b>Generación incremental</b> de un día cerrado (<a href="#p40">40</a>).</li>
       <li><b>Llave por fila de pago</b> en la importación (<a href="#p15">15</a>).</li>
-      <li><b>Bitácora</b> de catálogo y reimpresión, y pantalla de <b>Reportes</b> (<a href="#p35">35</a>, <a href="#p28">28</a>).</li>
-      <li>Columnas Tasa y Hora en Reimpresión (<a href="#p25">25</a>), ancho de la impresora (<a href="#p36">36</a>) y membrete guardado (<a href="#p37">37</a>).</li>
-      <li>Lo que depende de tus decisiones: <a href="#p10">10</a>, <a href="#p13">13</a>, <a href="#p18">18</a> y <a href="#p40">40</a>.</li>
+      <li><b>Bitácora</b> y pantalla de <b>Reportes</b>, cuando apruebes las plantillas (<a href="#p35">35</a>, <a href="#p28">28</a>).</li>
+      <li><b>Cuentas en centavos</b>, solo si lo decides (<a href="#p33">33</a>).</li>
     </ol>
+    <p class="muted" style="margin:8px 0 0">Hecho el 03/10/2026: candado en los controladores (34), usuario del PIN (29, 31), válidos del lote (31), dinero en DECIMAL (33), Tasa y Hora en Reimpresión (25), excedente al producto (13) y papel de 80 mm (36). Las migraciones 20 y 21 están aplicadas en local; falta producción.</p>
   </div>
 
 </main>

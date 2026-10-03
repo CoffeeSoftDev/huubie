@@ -156,6 +156,29 @@ class mdl2 extends mdl {
         return $this->_CUD($query, $array);
     }
 
+    // Los movimientos validos que trajo el lote de detalle (punto 31): los pagos con
+    // tarjeta de credito de ventas Pagada y su suma. Ver migra-20.
+    function updateImportBatchValid($array) {
+        $query = "
+            UPDATE {$this->bd}import_batch
+            SET valid_count = ?, valid_total = ?
+            WHERE id = ?
+        ";
+        return $this->_CUD($query, $array);
+    }
+
+    // Quien tecleo su PIN en la terminal: el lote guarda su nombre como copia.
+    function getUserById($array) {
+        $query = "
+            SELECT id, name
+            FROM {$this->bd}user
+            WHERE active = 1
+              AND id = ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
     // -- Meseros y cajeros por nombre --
 
     // Wansoft manda el nombre completo y ningun codigo, asi que el catalogo se

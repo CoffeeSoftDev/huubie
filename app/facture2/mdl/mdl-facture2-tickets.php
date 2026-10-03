@@ -563,6 +563,18 @@ class mdl extends CRUD {
 
     // -- Corrida de generacion --
 
+    // Quien tecleo su PIN en la terminal: la corrida guarda su nombre (punto 29).
+    function getUserById($array) {
+        $query = "
+            SELECT id, name
+            FROM {$this->bd}user
+            WHERE active = 1
+              AND id = ?
+            LIMIT 1
+        ";
+        return $this->_Read($query, $array);
+    }
+
     function createGenerationRun($array) {
         return $this->_Insert([
             'table'  => "{$this->bd}generation_run",

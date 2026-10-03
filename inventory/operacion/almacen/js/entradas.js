@@ -241,13 +241,13 @@ class App extends Templates {
         if (sucursales.length) {
             this.populateSelect('branch_id', sucursales);
         }
-        // Arrancamos en la sucursal activa del usuario. Si solo tiene una, el
-        // select queda fijo (sin opcion "Todas" y deshabilitado).
+        // Arrancamos en "Todas". Si solo tiene una sucursal, el select queda fijo
+        // en ella (sin opcion "Todas" y deshabilitado).
         if (sucursales.length <= 1) {
             $('#branch_id').find('option[value=""]').remove();
             $('#branch_id').val(this.subId).prop('disabled', true);
         } else {
-            $('#branch_id').val(this.subId);
+            $('#branch_id').val('');
         }
     }
 
@@ -888,7 +888,7 @@ class EntradasView extends Templates {
                         }
                     });
                     if (r && r.status === 200) {
-                        this.alertBox({ type: 'success', title: r.message || 'Formato guardado', timer: 1600 });
+                        if (!data.silent) this.alertBox({ type: 'success', title: r.message || 'Formato guardado', timer: 1600 });
                     } else {
                         this.alertBox({ type: 'error', title: (r && r.message) || 'No se pudo guardar el formato' });
                     }
@@ -1133,7 +1133,8 @@ class EntradasView extends Templates {
                 guardar:     'Guardar cambios',
                 cancelarEd:  'Cancelar',
                 comprobante: 'Comprobante',
-                subirComp:   'Subir comprobante',
+                subirComp:   'Arrastra aquí o sube el comprobante',
+                cambiarComp: 'Arrastra otro archivo aquí para cambiarlo',
                 sinComp:     'Sin comprobante'
             },
             origenPalettes: {
@@ -1221,7 +1222,7 @@ class EntradasView extends Templates {
 
             if (!e.comprobante) {
                 return voucherEditable
-                    ? `${input}<button type="button" id="${opts.id}_voucherUpload" class="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirComp)}</button>`
+                    ? `${input}<button type="button" id="${opts.id}_voucherUpload" class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-md border-[1px] border-dashed border-gray-300 bg-gray-50 text-[11px] font-semibold text-blue-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-colors"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirComp)}</button>`
                     : `<span class="text-gray-400">${esc(opts.labels.sinComp)}</span>`;
             }
 
@@ -1309,7 +1310,7 @@ class EntradasView extends Templates {
                     ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
                     ${e.editadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Editado</span><span class="text-gray-700 text-right">${esc(e.editadoPor)} <span class="text-gray-400">· ${esc(e.editadoFecha)}</span></span></div>` : ''}
                     ${e.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.nota)}</span></div>` : ''}
-                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
+                    <div id="${opts.id}_voucherRow" class="flex items-center justify-between gap-2 text-xs rounded-md transition-all" ${voucherEditable && e.comprobante ? `title="${esc(opts.labels.cambiarComp)}"` : ''}><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
                 </div>
 
                 ${(opts.editMode || !isCancelled) ? `
@@ -1357,6 +1358,21 @@ class EntradasView extends Templates {
             const file = ev.target.files && ev.target.files[0];
             if (file) opts.onUploadVoucher(e, file);
         });
+
+        // El panel cancela dragover/drop: un archivo soltado fuera del renglón no
+        // hace que el navegador lo abra.
+        $parent.off('dragover.voucher drop.voucher').on('dragover.voucher drop.voucher', (ev) => ev.preventDefault());
+        if (voucherEditable) {
+            const $row   = $parent.find(`#${opts.id}_voucherRow`);
+            const dropOn = 'ring-2 ring-blue-400 bg-blue-50';
+            $row.on('dragenter dragover', () => $row.addClass(dropOn));
+            $row.on('dragleave', (ev) => { if (!$row[0].contains(ev.relatedTarget)) $row.removeClass(dropOn); });
+            $row.on('drop', (ev) => {
+                $row.removeClass(dropOn);
+                const files = ev.originalEvent.dataTransfer && ev.originalEvent.dataTransfer.files;
+                if (files && files[0]) opts.onUploadVoucher(e, files[0]);
+            });
+        }
 
         // En edicion el total general sigue a las cantidades reales en vivo.
         if (opts.editMode) {

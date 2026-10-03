@@ -1123,6 +1123,24 @@ html[data-wansoft-theme] #root #ticketPrintArea .ticket-paper {
     html[data-wansoft-theme] #root #ticketPrintArea .ticket-paper { min-height: 0; }
 }
 
+/* -- El rollo de la termica (punto 36) --
+
+   Todo lo que la terminal imprime es un ticket —el seleccionado, la hoja del dia y
+   la Reimpresion—, asi que la hoja se fija aqui al rollo de 80 mm. Sin esto el ancho
+   lo decidia el papel que trajera el dialogo de impresion, y en carta el ticket
+   salia estirado de lado a lado.
+
+   El alto va en 297 mm porque `size` no acepta un alto automatico: Chrome descarta
+   `80mm auto` completo y la hoja vuelve a quedar a merced del dialogo. 80 x 297 es
+   el largo de pagina que traen los controladores de las termicas; si la impresora
+   del cliente usa otro, se cambia aqui.
+
+   Vive en este archivo y no en facture.css porque aquel lo comparte el Facturador:
+   el papel de su impresora se decide alla. */
+@media print {
+    @page { size: 80mm 297mm; margin: 0; }
+}
+
 /* -- La mesa donde se apoya el ticket --
 
    Con un ticket abierto el hueco va en gris: es lo que despega la tira blanca del

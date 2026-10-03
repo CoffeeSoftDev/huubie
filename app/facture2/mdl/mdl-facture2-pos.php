@@ -344,12 +344,29 @@ class mdl extends CRUD {
             v.subtotal AS virtual_subtotal, v.discount AS virtual_discount,
             v.tax AS virtual_tax, v.total AS virtual_total,
             v.origin_folio, v.visible_folio,
+            {$this->generadoSelect()},
             COALESCE(v.issue_date, DATE(s.operation_date)) AS issue_date,
             {$this->folioImpreso()} AS folio,
             s.id AS sale_id, s.folio AS sale_folio, s.operation_date,
             s.subtotal, s.tax, s.total,
             EXISTS ({$this->conDetalle()}) AS tiene_detalle,
             {$this->comandaSelect()}
+        ";
+    }
+
+    // Cuando quedo emitido el papel (punto 25). El inventado trae su propia hora; el
+    // real no guarda fila, y su hora es la del cierre del dia que lo aprobo. Un dia
+    // sin cierre no tiene hora que dar.
+    function generadoSelect() {
+        return "
+            COALESCE(v.created_at, (
+                SELECT MAX(r.created_at)
+                  FROM {$this->bd}generation_run r
+                 WHERE r.active = 1
+                   AND r.kind = 'dia'
+                   AND r.branch_id <=> s.branch_id
+                   AND r.issue_date = DATE(s.operation_date)
+            )) AS generated_at
         ";
     }
 
