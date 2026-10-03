@@ -181,6 +181,12 @@ class ctrl extends mdl {
                 'onclick' => 'companies.editCompany(' . $c['id'] . ')'
             ];
             $a[] = [
+                'class'   => $this->actionBtnClass('neutral'),
+                'html'    => '<i class="icon-palette"></i>',
+                'title'   => 'Temas',
+                'onclick' => 'companies.editCompanyThemes(' . $c['id'] . ')'
+            ];
+            $a[] = [
                 'class'   => $this->actionBtnClass('neutral', true),
                 'html'    => '<i class="icon-cog"></i>',
                 'onclick' => "companies.changeStatus(" . $c['id'] . ", '" . $c['status'] . "')"
@@ -269,6 +275,67 @@ class ctrl extends mdl {
         return [
             'status'  => $ok ? 200 : 500,
             'message' => $ok ? 'Estado de la empresa actualizado' : 'No se pudo actualizar el estado'
+        ];
+    }
+
+    /* ===== Temas por empresa (company_themes) ===== */
+
+    // Temas asignables y los que ya tiene la empresa, para el modal "Temas".
+    function getCompanyThemes() {
+        $companyId = (int) $_POST['company_id'];
+        $company   = $this->qCompany([$companyId]);
+
+        if (!$company) {
+            return ['status' => 404, 'message' => 'Empresa no encontrada'];
+        }
+
+        return [
+            'status'   => 200,
+            'company'  => $company['name'],
+            'themes'   => $this->lsAssignableThemes(),
+            'selected' => array_map('intval', array_column($this->listCompanyThemes([$companyId]), 'theme_id'))
+        ];
+    }
+
+    // Reemplaza los temas de la empresa por los marcados. El modal manda un checkbox por
+    // tema (theme_9=true) y solo viajan los marcados. Solo entran temas asignables:
+    // el de por defecto lo ven todas las empresas siempre.
+    function editCompanyThemes() {
+        $companyId = (int) $_POST['company_id'];
+
+        if (!$this->qCompany([$companyId])) {
+            return ['status' => 404, 'message' => 'Empresa no encontrada'];
+        }
+
+        $checked = [];
+        foreach ($_POST as $key => $value) {
+            if (preg_match('/^theme_(\d+)$/', $key, $m) && $value === 'true') $checked[] = (int) $m[1];
+        }
+
+        $assignable = array_map('intval', array_column($this->lsAssignableThemes(), 'id'));
+        $selected   = array_intersect($assignable, $checked);
+
+        $this->deleteCompanyThemesById([
+            'where' => 'company_id',
+            'data'  => [$companyId]
+        ]);
+
+        $now    = date('Y-m-d H:i:s');
+        $failed = 0;
+
+        foreach ($selected as $themeId) {
+            $ok = $this->createCompanyTheme($this->util->sql([
+                'company_id' => $companyId,
+                'theme_id'   => $themeId,
+                'created_at' => $now
+            ]));
+
+            if (!$ok) $failed++;
+        }
+
+        return [
+            'status'  => $failed === 0 ? 200 : 500,
+            'message' => $failed === 0 ? 'Temas de la empresa actualizados' : 'No se pudieron guardar todos los temas'
         ];
     }
 

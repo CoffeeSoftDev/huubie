@@ -364,6 +364,22 @@ class MAccess extends CRUD {
         return is_array($r) ? $r : [];
     }
 
+    // Temas que puede ver una empresa: los asignados en company_themes más el de
+    // por defecto, que siempre está. Sin asignaciones queda solo el de por defecto.
+    function getThemesByCompany($array) {
+        // [company_id]
+        $query = "
+            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.scheme, t.mode, t.badge, t.is_default, t.orden
+            FROM {$this->bd}themes t
+            LEFT JOIN {$this->bd}company_themes ct ON ct.theme_id = t.id AND ct.company_id = ?
+            WHERE t.is_active = 1
+                AND (t.is_default = 1 OR ct.id IS NOT NULL)
+            ORDER BY t.orden ASC, t.id ASC
+        ";
+        $r = $this->_Read($query, $array);
+        return is_array($r) ? $r : [];
+    }
+
     // Tema guardado del usuario. NULL cuando nunca ha elegido uno.
     function getUserTheme($array) {
         // [user_id]

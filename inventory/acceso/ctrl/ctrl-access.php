@@ -555,7 +555,7 @@ class Access extends MAccess {
     // de la pagina (hex). El fondo de la pagina no cambia.
     function themes() {
         $userId = (int) ($_SESSION['user_id'] ?? $_SESSION['IDU'] ?? 0);
-        $ls     = $this->getThemes();
+        $ls     = $this->allowedThemes($userId);
 
         $themes  = [];
         $codes   = [];
@@ -616,8 +616,26 @@ class Access extends MAccess {
         if ($code === '')                 return ['status' => 400, 'message' => 'Tema no válido'];
         if (!$this->themeExists([$code])) return ['status' => 404, 'message' => 'Ese tema no existe'];
 
+        $allowed = array_column($this->allowedThemes($userId), 'code');
+        if (!in_array($code, $allowed, true)) {
+            return ['status' => 403, 'message' => 'Ese tema no está habilitado para tu empresa'];
+        }
+
         $ok = $this->setUserTheme([$code, $userId]);
         return ['status' => $ok ? 200 : 500, 'message' => $ok ? 'Tema guardado' : 'No se pudo guardar el tema'];
+    }
+
+    // Temas que puede elegir el usuario: el Super Admin (en su sucursal activa) todos;
+    // los demás, los de su empresa más el de por defecto. Sin sesión, solo el de por
+    // defecto (la barra del login).
+    private function allowedThemes($userId) {
+        $branchId = (int) ($_SESSION['branch_id'] ?? 0);
+
+        if ($userId > 0 && $this->userIsSuperAdmin([$userId, $branchId])) {
+            return $this->getThemes();
+        }
+
+        return $this->getThemesByCompany([(int) ($_SESSION['company_id'] ?? 0)]);
     }
 
     // SESSION

@@ -310,11 +310,10 @@ class Productos extends Templates {
         almacenes = data.almacenes || [];
     }
 
-    // Orden de captura: identificación (categoría, nombre, unidad, código), costo
+    // Orden de captura: identificación (nombre, categoría, unidad, código), costo
     // (último costo, IVA de compra y costo con impuesto), inventario (inventariable,
-    // área, mínimo, máximo, vida útil), venta y notas.
-    // Rejilla de 2 en 2 (col-md-6, mismo ancho en todos); la descripción a lo ancho.
-    // Mismo reparto que el POS: el precio de venta vive en item y el costo en item_attribute.
+    // área, mínimo, máximo, vida útil) y notas. El precio de venta no se captura aquí.
+    // Rejilla de 3 en 3 (col-md-4, mismo ancho en todos); la descripción a lo ancho.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
     // pasa al contenedor (cfToTailwindGrid borra mt-N / p-N, por eso se usa pt-/pb-).
     jsonMaterial() {
@@ -329,25 +328,25 @@ class Productos extends Templates {
                 class: section
             },
             {
-                opc: "select",
-                id: "category_id",
-                lbl: "Categoría",
-                class: "col-12 col-md-6",
-                data: categorias,
-                required: true
-            },
-            {
                 opc: "input",
                 id: "name",
                 lbl: "Nombre del producto",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
+                required: true
+            },
+            {
+                opc: "select",
+                id: "category_id",
+                lbl: "Categoría",
+                class: "col-12 col-md-4",
+                data: categorias,
                 required: true
             },
             {
                 opc: "select",
                 id: "unit_id",
                 lbl: "Unidad de medida",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 data: unidades,
                 required: true
             },
@@ -357,7 +356,7 @@ class Productos extends Templates {
                 opc: "input",
                 id: "sku",
                 lbl: "Código (SKU)",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 placeholder: "Auto",
                 required: false
             },
@@ -385,7 +384,7 @@ class Productos extends Templates {
                 id: "cost_unit",
                 lbl: "Último costo",
                 tipo: "cifra",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcCostWithTax()",
@@ -395,12 +394,21 @@ class Productos extends Templates {
                 opc: "select",
                 id: "cost_tax",
                 lbl: "IVA",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 onchange: "products.calcCostWithTax()",
                 data: [
-                    { id: '0', valor: '0%' },
-                    { id: '8', valor: '8%' },
-                    { id: '16', valor: '16%' }
+                    {
+                        id: '0',
+                        valor: '0%'
+                    },
+                    {
+                        id: '8',
+                        valor: '8%'
+                    },
+                    {
+                        id: '16',
+                        valor: '16%'
+                    }
                 ]
             },
             {
@@ -408,7 +416,7 @@ class Productos extends Templates {
                 id: "cost_with_tax",
                 lbl: "Costo c/impuesto",
                 tipo: "cifra",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 required: false,
                 placeholder: "0.00",
                 onkeyup: "products.calcCostUnit()",
@@ -426,20 +434,35 @@ class Productos extends Templates {
                 opc: "select",
                 id: "is_inventoriable",
                 lbl: "Inventariable",
-                class: "col-12 col-md-6",
+                class: "col-12 col-md-4",
                 data: [
-                    { id: '1', valor: 'Sí' },
-                    { id: '0', valor: 'No' }
+                    {
+                        id: '1',
+                        valor: 'Sí'
+                    },
+                    {
+                        id: '0',
+                        valor: 'No'
+                    }
                 ]
             },
             // Área = en qué parte del almacén se guarda. Tiene que viajar siempre:
             // editMaterial la escribe, y si falta en el form la dejaría en NULL.
+            // Cada área trae su color (init de ctrl-almacen) y se pinta como en la tabla.
             {
                 opc: "select",
                 id: "warehouse_area_id",
                 lbl: "Área",
-                class: "col-12 col-md-6",
-                data: [{ id: '', valor: 'Sin área' }, ...areas],
+                class: "col-12 col-md-4",
+                select2: true,
+                badge: true,
+                data: [
+                    {
+                        id: '',
+                        valor: 'Sin área'
+                    },
+                    ...areas
+                ],
                 required: false
             },
             {
@@ -448,7 +471,7 @@ class Productos extends Templates {
                 lbl: "Mínimo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-6"
+                class: "col-12 col-md-4"
             },
             {
                 opc: "input",
@@ -456,7 +479,7 @@ class Productos extends Templates {
                 lbl: "Máximo",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-6"
+                class: "col-12 col-md-4"
             },
             {
                 opc: "input",
@@ -464,52 +487,7 @@ class Productos extends Templates {
                 lbl: "Vida útil (días)",
                 tipo: "numero",
                 required: false,
-                class: "col-12 col-md-6"
-            },
-
-            // -- Venta --
-            // Primero el precio final (el que paga el cliente); el precio sin IVA se
-            // calcula solo. También funciona al revés: teclear la base calcula el precio.
-            // Opcional: un insumo que no se vende se queda en 0.
-            {
-                opc: "label",
-                id: "lblVenta",
-                text: "Venta",
-                class: section + " pt-1"
-            },
-            {
-                opc: "input",
-                id: "price",
-                lbl: "Precio de venta",
-                tipo: "cifra",
-                class: "col-12 col-md-6",
-                required: false,
-                placeholder: "0.00",
-                onkeyup: "products.calcPriceWithoutTax()",
-                onchange: "products.calcPriceWithoutTax()"
-            },
-            {
-                opc: "select",
-                id: "tax",
-                lbl: "IVA",
-                class: "col-12 col-md-6",
-                onchange: "products.calcPriceWithoutTax()",
-                data: [
-                    { id: '0', valor: '0%' },
-                    { id: '8', valor: '8%' },
-                    { id: '16', valor: '16%' }
-                ]
-            },
-            {
-                opc: "input",
-                id: "price_without_tax",
-                lbl: "Precio sin IVA",
-                tipo: "cifra",
-                class: "col-12 col-md-6",
-                required: false,
-                placeholder: "0.00",
-                onkeyup: "products.calcPrice()",
-                onchange: "products.calcPrice()"
+                class: "col-12 col-md-4"
             },
 
             // -- Descripción --
@@ -525,34 +503,8 @@ class Productos extends Templates {
         ];
     }
 
-    // Precio sin IVA = precio de venta / (1 + IVA / 100). Corre al teclear el precio y al
-    // cambiar el IVA. Sin precio no toca nada, para no borrar datos al editar.
-    // La bandera _syncingPrice evita que los dos cálculos se llamen entre sí.
-    calcPriceWithoutTax() {
-        if (this._syncingPrice) return;
-        const price = parseFloat($('#price').val());
-        if (isNaN(price)) return;
-        const taxPct = parseFloat($('#tax').val()) || 0;
-
-        this._syncingPrice = true;
-        $('#price_without_tax').val((price / (1 + taxPct / 100)).toFixed(2));
-        this._syncingPrice = false;
-    }
-
-    // Camino inverso: precio de venta = precio sin IVA + (precio sin IVA * IVA / 100).
-    calcPrice() {
-        if (this._syncingPrice) return;
-        const base = parseFloat($('#price_without_tax').val());
-        if (isNaN(base)) return;
-        const taxPct = parseFloat($('#tax').val()) || 0;
-
-        this._syncingPrice = true;
-        $('#price').val((base + (base * taxPct / 100)).toFixed(2));
-        this._syncingPrice = false;
-    }
-
-    // Costo c/impuesto = último costo + IVA de compra. Mismo par que el precio: al
-    // editar, el autofill cambia el select del IVA y eso lo pinta con el costo guardado.
+    // Costo c/impuesto = último costo + IVA de compra. Al editar, el autofill cambia el
+    // select del IVA y eso lo pinta con el costo guardado.
     calcCostWithTax() {
         if (this.syncingCost) return;
         const cost = parseFloat($('#cost_unit').val());
@@ -576,8 +528,8 @@ class Productos extends Templates {
     }
 
     // La nota del último costo va debajo del input, en chico (antes era el placeholder).
-    // Con la rejilla de 2 en 2 el formulario ya no cabe entero: se deja el scroll propio
-    // del cuerpo de cfModal (72vh), así los botones Aceptar/Cancelar siempre se ven.
+    // Si el formulario no cabe entero se deja el scroll propio del cuerpo de cfModal
+    // (72vh), así los botones Aceptar/Cancelar siempre se ven.
     mountMaterialHints(formId) {
         mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
     }
@@ -624,6 +576,9 @@ class Productos extends Templates {
         });
 
         if (request.status === 200) {
+            // Sin área llega NULL; '' selecciona la opción "Sin área" del select.
+            request.data.warehouse_area_id = request.data.warehouse_area_id || '';
+
             this.createModalForm({
                 id: 'formMaterialEdit',
                 data: { opc: 'editMaterial', id: id },

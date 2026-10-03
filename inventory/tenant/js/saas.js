@@ -111,6 +111,47 @@ class Companies extends Templates {
         });
     }
 
+    async editCompanyThemes(id) {
+        const request = await useFetch({ url: this._link, data: { opc: 'getCompanyThemes', company_id: id } });
+        if (request.status !== 200) {
+            alert({ icon: 'error', text: request.message || 'No se pudieron cargar los temas', btn1: true });
+            return;
+        }
+
+        this.createModalForm({
+            id: 'formCompanyThemes',
+            data: { opc: 'editCompanyThemes', company_id: id },
+            theme: 'light',
+            coffeesoft: true,
+            bootbox: { title: `Temas · <span class="text-blue-600 font-bold">${esc(request.company)}</span>` },
+            json: this.jsonCompanyThemes(request.themes || [], request.selected || []),
+            success: (r) => afterSave(r, () => this.lsCompanies())
+        });
+    }
+
+    // Un checkbox por tema (theme_<id>). El de por defecto no se lista: lo ven todas.
+    jsonCompanyThemes(themes, selected) {
+        return [
+            {
+                opc: 'label',
+                id: 'lblCompanyThemes',
+                text: 'Temas que pueden elegir sus usuarios. Claro (por defecto) siempre está disponible.',
+                class: 'col-12 mb-2 text-xs text-gray-500'
+            },
+            {
+                opc: 'checkbox',
+                id: 'themes',
+                class: 'col-12 mb-3',
+                required: false,
+                data: themes.map((t) => ({
+                    id: `theme_${t.id}`,
+                    valor: t.valor,
+                    checked: selected.includes(Number(t.id))
+                }))
+            }
+        ];
+    }
+
     jsonCompany(isNew) {
         const fields = [
             {

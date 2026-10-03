@@ -106,3 +106,47 @@ function badge($text, $color = '#9CA3AF', $degrade = 100, $bgHex = null, $icon =
 
     return '<span class="' . $spanClass . '" style="background:' . $bg . ';color:' . $fg . ';">' . $ico . $label . '</span>';
 }
+
+// Colores del badge de un área (warehouse_area). Con color_hex elegido en Catálogo > Área:
+// ese es el texto y el fondo es su tono claro. Sin él, un tono fijo de la paleta por id,
+// así la misma área sale igual en todas las filas. Lo usan la tabla de Productos, el
+// select de Área (init de ctrl-almacen) y el catálogo de Áreas.
+function areaColors($id, $hex) {
+    if (preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $hex)) {
+        $rgb = sscanf($hex, '#%02x%02x%02x');
+        $bg  = array_map(function ($c) { return (int) round($c + (255 - $c) * 0.85); }, $rgb);
+
+        return ['fg' => strtoupper($hex), 'bg' => vsprintf('#%02X%02X%02X', $bg)];
+    }
+
+    $palette = [
+        ['fg' => '#1D4ED8', 'bg' => '#DBEAFE'],
+        ['fg' => '#047857', 'bg' => '#D1FAE5'],
+        ['fg' => '#6D28D9', 'bg' => '#EDE9FE'],
+        ['fg' => '#B45309', 'bg' => '#FEF3C7'],
+        ['fg' => '#BE123C', 'bg' => '#FFE4E6'],
+        ['fg' => '#0E7490', 'bg' => '#CFFAFE'],
+        ['fg' => '#C2410C', 'bg' => '#FFEDD5'],
+        ['fg' => '#4338CA', 'bg' => '#E0E7FF'],
+        ['fg' => '#0F766E', 'bg' => '#CCFBF1'],
+        ['fg' => '#A21CAF', 'bg' => '#FAE8FF']
+    ];
+
+    return $palette[(int) $id % count($palette)];
+}
+
+// Switch de estado de las filas de catálogo: encendido = activo (clic da de baja),
+// apagado = inactivo (clic activa). $fn es el status() del JS, que confirma antes y
+// recibe el estado actual de la fila como número (compara con !== 1).
+function statusSwitch($fn, $id, $active) {
+    $on = (int) $active === 1;
+
+    return [
+        'class'   => 'inline-flex items-center justify-center h-9 px-2 cursor-pointer',
+        'html'    => '<span class="relative inline-flex items-center w-9 h-5 rounded-full transition-colors ' . ($on ? 'bg-[#6366F1]' : 'bg-gray-300') . '">'
+                   . '<span class="inline-block w-4 h-4 rounded-full bg-white shadow transition-transform ' . ($on ? 'translate-x-[18px]' : 'translate-x-0.5') . '"></span>'
+                   . '</span>',
+        'title'   => $on ? 'Dar de baja' : 'Activar',
+        'onclick' => $fn . '(' . (int) $id . ', ' . ($on ? 1 : 0) . ')'
+    ];
+}

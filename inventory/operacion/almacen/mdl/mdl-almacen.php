@@ -39,7 +39,7 @@ class mdl extends CRUD {
 
     function lsAreas() {
         $query = "
-            SELECT id, name AS valor
+            SELECT id, name AS valor, color_hex
             FROM {$this->bd}warehouse_area
             WHERE active = 1
             AND companies_id = ".$_SESSION['company_id']."
@@ -104,6 +104,7 @@ class mdl extends CRUD {
                 u.code  AS unidad,
                 wa.id   AS area_id,
                 wa.name AS area,
+                wa.color_hex AS area_color,
                 COALESCE(st.qty, 0) AS quantity
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
@@ -136,7 +137,8 @@ class mdl extends CRUD {
             $params[] = $filters['estado'];
         }
 
-        $query .= " ORDER BY i.id DESC";
+        // Por categoría y luego por nombre; los productos sin categoría van al final.
+        $query .= " ORDER BY ic.name IS NULL, ic.name ASC, i.name ASC";
 
         return $this->_Read($query, $params);
     }

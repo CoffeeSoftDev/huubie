@@ -10,10 +10,16 @@ require_once '../../../conf/_IaOllama.php';
 class ctrl extends mdl {
 
     function init() {
+        // Cada área lleva los colores de su badge para que el select la pinte igual que la tabla.
+        $areas = array_map(function ($area) {
+            $tone = areaColors($area['id'], $area['color_hex']);
+            return ['id' => $area['id'], 'valor' => $area['valor'], 'color' => $tone['fg'], 'bg' => $tone['bg']];
+        }, $this->lsAreas() ?: []);
+
         return [
             'categorias'  => $this->lsCategories(),
             'unidades'    => $this->lsUnits(),
-            'areas'       => $this->lsAreas(),
+            'areas'       => $areas,
             'proveedores' => $this->lsProveedores(),
             'almacenes'   => $this->lsWarehouses(),
             'superadmin'  => $this->esSuperAdminIA()
@@ -46,13 +52,7 @@ class ctrl extends mdl {
                     'html'    => '<i data-lucide="pencil" class="w-4 h-4"></i>',
                     'onclick' => 'products.editMaterial(' . $item['id'] . ')'
                 ],
-                [
-                    'class'   => $item['active'] == 1
-                        ? 'inline-flex items-center justify-center w-9 h-9 p-2 text-emerald-500 hover:text-red-600 transition-colors cursor-pointer bg-transparent border-0'
-                        : 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-emerald-600 transition-colors cursor-pointer bg-transparent border-0',
-                    'html'    => $item['active'] == 1 ? '<i data-lucide="toggle-right" class="w-4 h-4"></i>' : '<i data-lucide="toggle-left" class="w-4 h-4"></i>',
-                    'onclick' => 'products.statusMaterial(' . $item['id'] . ', ' . $item['active'] . ')'
-                ]
+                statusSwitch('products.statusMaterial', $item['id'], $item['active'])
             ];
 
             $row = [
@@ -62,7 +62,7 @@ class ctrl extends mdl {
                     'html'  => renderProductImage($item['image'] ?? '', $item['name'])
                 ],
                 'Categoría'  => $item['categoria'] ?? '-',
-                'Área'       => renderArea($item['area_id'] ?? null, $item['area'] ?? null),
+                'Área'       => renderArea($item['area_id'] ?? null, $item['area'] ?? null, $item['area_color'] ?? null),
 
                 // Inventario = costo (como Soft Restaurant con sus insumos). El precio de
                 // venta solo vive en el formulario, para lo que se revende tal cual.
@@ -115,8 +115,7 @@ class ctrl extends mdl {
         $status  = 500;
         $message = 'No se pudo agregar el insumo';
 
-        // Solo el nombre es obligatorio. El precio de venta es opcional (un insumo
-        // que no se vende queda en 0) y el costo lo van dejando las entradas.
+        // Solo el nombre es obligatorio. El costo lo van dejando las entradas.
         if (trim($_POST['name'] ?? '') === '') {
             return [
                 'status'  => 400,
@@ -138,8 +137,6 @@ class ctrl extends mdl {
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
 
-        [$price, $price_without_tax, $tax] = $this->salePrice();
-
         $item = [
             'name'            => $_POST['name'] ?? '',
             'image'           => $_POST['image'] ?? '',
@@ -150,15 +147,15 @@ class ctrl extends mdl {
             'active'          => 1
         ];
 
-        // price, price_without_tax y tax se anexan DESPUÉS de util->sql() para evitar el gotcha
-        // 0 == '' (PHP 7.4), que convertiría un 0 en NULL y violaría item.price NOT NULL.
+        // El precio de venta ya no se captura aquí: entra en 0 (columnas NOT NULL). Se anexa
+        // DESPUÉS de util->sql() por el gotcha 0 == '' (PHP 7.4), que volvería el 0 NULL.
         $sql = $this->util->sql($item);
         $sql['values'][] = 'price';
         $sql['values'][] = 'price_without_tax';
         $sql['values'][] = 'tax';
-        $sql['data'][]   = $price;
-        $sql['data'][]   = $price_without_tax;
-        $sql['data'][]   = $tax;
+        $sql['data'][]   = 0;
+        $sql['data'][]   = 0;
+        $sql['data'][]   = 0;
 
         $create = $this->createMaterial($sql);
 
@@ -285,17 +282,14 @@ class ctrl extends mdl {
             ];
         }
 
-        [$price, $price_without_tax, $tax] = $this->salePrice();
-
+        // price / price_without_tax / tax no se tocan: el formulario ya no los trae y
+        // se conserva lo que haya en la BD.
         $editItem = $this->updateMaterial([
-            'values' => 'name = ?, image = ?, price = ?, price_without_tax = ?, tax = ?, category_id = ?',
+            'values' => 'name = ?, image = ?, category_id = ?',
             'where'  => 'id = ?',
             'data'   => [
                 $_POST['name'] ?? '',
                 $_POST['image'] ?? '',
-                $price,
-                $price_without_tax,
-                $tax,
                 $_POST['category_id'] ?? null,
                 $id
             ]
@@ -339,17 +333,6 @@ class ctrl extends mdl {
             'status'  => $status,
             'message' => $message
         ];
-    }
-
-    // Precio de venta: el pivote es el precio CON IVA (lo que paga el cliente) y el
-    // precio sin IVA se deriva aquí, para que las dos columnas siempre cuadren
-    // aunque el formulario redondee. Devuelve [price, price_without_tax, tax].
-    private function salePrice() {
-        $price = ($_POST['price'] ?? '') === '' ? 0 : floatval($_POST['price']);
-        $tax   = ($_POST['tax'] ?? '') === '' ? 0 : floatval($_POST['tax']);
-        $base  = $tax > 0 ? round($price / (1 + $tax / 100), 2) : $price;
-
-        return [$price, $base, $tax];
     }
 
     /*  SKU con el formato de claves de Soft Restaurant: clave del grupo (2 dígitos)
@@ -1396,7 +1379,7 @@ class ctrl extends mdl {
             $out['changes'][] = ['label' => $etiquetas[$campo], 'before' => $antes, 'after' => $ref['name'] . (isset($ref['nueva']) ? ' (nueva)' : '')];
         }
 
-        // Precio de venta: el precio con IVA manda y la base se deriva (salePrice()).
+        // Precio de venta: el precio con IVA manda y la base se deriva (precioIA()).
         $tocaPrecio = array_key_exists('price', $set) || array_key_exists('base', $set);
 
         if ($tocaPrecio || array_key_exists('tax', $set)) {
@@ -1793,7 +1776,7 @@ class ctrl extends mdl {
 
     // -- Asistente IA · utilidades --
 
-    // Mismo pivote que salePrice(): el precio CON IVA manda y la base se deriva.
+    // El precio CON IVA manda y la base se deriva, para que las dos columnas cuadren.
     // Devuelve [precio, base, iva]; precio null si no hay un precio usable.
     private function precioIA($c, $ivaActual, $permitirCero) {
         $iva    = $this->ivaIA($c['tax'] ?? null, $ivaActual);
@@ -1932,25 +1915,13 @@ function renderProductImage($foto, $nombre) {
         </div>';
 }
 
-// Badge del área con color fijo por área: el id elige el tono de la paleta, así la
-// misma área sale igual en todas las filas y en cada carga. cs-badge-soft deja que
-// dark-mode.css lo convierta en velo si la página va en oscuro.
-function renderArea($areaId, $name) {
+// Badge del área: el color elegido en Catálogo > Área, o el automático por id
+// (areaColors en conf/_Utileria.php). cs-badge-soft deja que dark-mode.css lo
+// convierta en velo si la página va en oscuro.
+function renderArea($areaId, $name, $hex = null) {
     if (empty($areaId) || $name === null || $name === '') return '-';
 
-    $palette = [
-        ['fg' => '#1D4ED8', 'bg' => '#DBEAFE'],
-        ['fg' => '#047857', 'bg' => '#D1FAE5'],
-        ['fg' => '#6D28D9', 'bg' => '#EDE9FE'],
-        ['fg' => '#B45309', 'bg' => '#FEF3C7'],
-        ['fg' => '#BE123C', 'bg' => '#FFE4E6'],
-        ['fg' => '#0E7490', 'bg' => '#CFFAFE'],
-        ['fg' => '#C2410C', 'bg' => '#FFEDD5'],
-        ['fg' => '#4338CA', 'bg' => '#E0E7FF'],
-        ['fg' => '#0F766E', 'bg' => '#CCFBF1'],
-        ['fg' => '#A21CAF', 'bg' => '#FAE8FF']
-    ];
-    $tone = $palette[(int) $areaId % count($palette)];
+    $tone = areaColors($areaId, $hex);
 
     return '<span class="cs-badge-soft inline-block px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap first-letter:uppercase"'
          . ' style="--b-fg:' . $tone['fg'] . ';background:' . $tone['bg'] . ';color:' . $tone['fg'] . ';">'
