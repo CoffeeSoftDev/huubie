@@ -13,7 +13,7 @@
                 
                 //  La opción especifica que se debe ejecutar el comando "SET NAMES utf8" para asegurarse de que la conexión use la codificación de caracteres UTF-8.
                 $opc = array(
-                        PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
+                        PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4',
                     );
 
                 try {

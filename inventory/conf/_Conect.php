@@ -14,9 +14,10 @@
                 $pass = "";
                 $db   = "fayxzvov_erp";
                 
-                //  La opción especifica que se debe ejecutar el comando "SET NAMES utf8" para asegurarse de que la conexión use la codificación de caracteres UTF-8.
+                //  La conexión va en utf8mb4: el "utf8" de MySQL solo guarda caracteres de hasta 3 bytes
+                //  y rechaza los emojis (4 bytes) con "Incorrect string value", aunque la columna sea utf8mb4.
                 $opc = array(
-                        PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
+                        PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4',
                     );
 
                 try {

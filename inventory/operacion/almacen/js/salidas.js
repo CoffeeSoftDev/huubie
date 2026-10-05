@@ -177,7 +177,7 @@ class App extends Templates {
                 opc:       'button',
                 id:        'btnNuevaSalida',
                 text:      'Nueva Salida',
-                color_btn: 'invernal',
+                color_btn: 'primary',
                 class:     'col-12 col-md-6 col-lg-3',
                 onClick:   () => salidas.openSalidaForm()
             }

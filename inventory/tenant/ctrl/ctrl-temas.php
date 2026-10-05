@@ -12,7 +12,7 @@ class ctrl extends mdl {
 
     private $modes   = ['light', 'dark'];
     private $tipos   = ['color', 'imagen'];
-    private $schemes = ['light', 'huubie', 'midnight'];
+    private $schemes = ['light', 'huubie', 'midnight', 'rose'];
 
     // La clave es el tipo que detecta getimagesize() leyendo el archivo, no la
     // extensión que manda el cliente: esta carpeta la sirve Apache.
@@ -42,7 +42,8 @@ class ctrl extends mdl {
             'schemes' => [
                 ['id' => 'light',    'valor' => 'Clara (gris de siempre)'],
                 ['id' => 'huubie',   'valor' => 'Oscura Huubie (navy)'],
-                ['id' => 'midnight', 'valor' => 'Oscura Midnight (azul noche)']
+                ['id' => 'midnight', 'valor' => 'Oscura Midnight (azul noche)'],
+                ['id' => 'rose',     'valor' => 'Oscura Rosé (vino)']
             ]
         ];
     }
@@ -424,7 +425,8 @@ function renderThemeScheme($scheme) {
     $schemes = [
         'light'    => ['#F3F4F6', 'Clara'],
         'huubie'   => ['#111928', 'Huubie'],
-        'midnight' => ['#0B1420', 'Midnight']
+        'midnight' => ['#0B1420', 'Midnight'],
+        'rose'     => ['#1A1216', 'Rosé']
     ];
     $s = $schemes[$scheme] ?? $schemes['light'];
 

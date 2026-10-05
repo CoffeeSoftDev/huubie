@@ -1,0 +1,21 @@
+[ 2026-10-05 14:24:52 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.themes (code,name,tipo,color,accent,primary_color,secondary_color,scheme,mode,badge,is_default,orden,is_active,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xF0\x9F\x8D\x92' for column 'name' at row 1
+
+
+[ 2026-10-05 14:24:33 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.themes (code,name,tipo,color,accent,primary_color,secondary_color,scheme,mode,badge,is_default,orden,is_active,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xF0\x9F\x8D\x92' for column 'name' at row 1
+
+
+[ 2026-10-05 14:20:48 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-56GL0L8$
+[ INFO ] ::  INSERT INTO fayxzvov_erp.themes (code,name,tipo,color,accent,primary_color,secondary_color,scheme,mode,badge,is_default,orden,is_active,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+[ ERROR C.U.D. ] :: SQLSTATE[HY000]: General error: 1366 Incorrect string value: '\xF0\x9F\x8D\x92' for column 'name' at row 1
+
+

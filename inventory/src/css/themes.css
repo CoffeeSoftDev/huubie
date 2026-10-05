@@ -14,7 +14,7 @@
    cargan dark-mode.css (modulos/, sucursales/).
 
    Con tema claro el fondo es gris #F3F4F6 siempre. Con tema de página
-   oscura (scheme huubie | midnight) InventoryPalette pone body.dark-mode.
+   oscura (scheme huubie | midnight | rose) InventoryPalette pone body.dark-mode.
    ============================================================ */
 
 :root {
@@ -76,6 +76,30 @@
     --dk-text:      #EAF2FB;
     --dk-text-soft: #D3E0EF;
     --dk-muted:     #8CA0B8;
+}
+
+/* Rosé: oscuro con tinte vino para los temas rosados (Regina's). Saturación
+   baja (~18%) para que no canse en jornadas largas; el rosa fuerte lo pone el
+   acento, no las superficies. Mismos papeles que Midnight. Contrastes sobre
+   --dk-card: texto 14.6:1, tenue 7.1:1. */
+:root[data-scheme="rose"] {
+    --dk-bg:        #1A1216;
+    --dk-chrome:    #1E1519;
+    --dk-card:      #251A20;
+    --dk-card-hi:   #2A1E25;
+    --dk-th:        #3B2A33;
+    --dk-row:       #2E2128;
+    --dk-row-alt:   #251A20;
+    --dk-row-hover: #3F2D37;
+    --dk-hover:     #2E2128;
+    --dk-input:     #2A1E25;
+    --dk-raised:    #33242C;
+    --dk-raised-hover: #40303A;
+    --dk-line:      #3F2D37;
+    --dk-line-hi:   #55404B;
+    --dk-text:      #F5EDF0;
+    --dk-text-soft: #E8DCE1;
+    --dk-muted:     #B9A3AD;
 }
 
 /* En página oscura los tokens de página toman esas superficies: todo lo que

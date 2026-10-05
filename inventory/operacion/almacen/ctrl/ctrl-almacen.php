@@ -9,6 +9,9 @@ require_once '../../../conf/_IaOllama.php';
 
 class ctrl extends mdl {
 
+    // Tope de la foto del producto, ya decodificada (4 MB, igual que el comprobante de Entradas).
+    const IMAGE_MAX = 4194304;
+
     function init() {
         // Cada área lleva los colores de su badge para que el select la pinte igual que la tabla.
         $areas = array_map(function ($area) {
@@ -133,13 +136,21 @@ class ctrl extends mdl {
             ];
         }
 
+        $photo = $_POST['image_b64'] ?? '';
+
+        if ($photo !== '' && !$this->decodeProductImage($photo)) {
+            return [
+                'status'  => 400,
+                'message' => 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 4 MB'
+            ];
+        }
+
         $now          = date('Y-m-d H:i:s');
         $companies_id = $_SESSION['company_id'];
         $branch_id    = $_SESSION['branch_id'];
 
         $item = [
             'name'            => $_POST['name'] ?? '',
-            'image'           => $_POST['image'] ?? '',
             'category_id'     => $_POST['category_id'] ?? null,
             'branch_id'       => $branch_id,
             'companies_id'    => $companies_id,
@@ -186,6 +197,9 @@ class ctrl extends mdl {
             $attribute['is_inventoriable'] = ($_POST['is_inventoriable'] ?? '1') === '0' ? '0' : '1';
 
             $this->createItemAttribute($this->util->sql($attribute));
+
+            // La foto lleva el id en el nombre: se guarda ya creado el producto.
+            if ($photo !== '') $this->saveProductImage($itemId, $photo);
 
             $status  = 200;
             $message = 'Insumo agregado correctamente';
@@ -282,18 +296,38 @@ class ctrl extends mdl {
             ];
         }
 
+        $photo = $_POST['image_b64'] ?? '';
+
+        if ($photo !== '' && !$this->decodeProductImage($photo)) {
+            return [
+                'status'  => 400,
+                'message' => 'La foto debe ser una imagen JPG, PNG o WEBP de hasta 4 MB'
+            ];
+        }
+
         // price / price_without_tax / tax no se tocan: el formulario ya no los trae y
-        // se conserva lo que haya en la BD.
+        // se conserva lo que haya en la BD. La foto va aparte (abajo).
         $editItem = $this->updateMaterial([
-            'values' => 'name = ?, image = ?, category_id = ?',
+            'values' => 'name = ?, category_id = ?',
             'where'  => 'id = ?',
             'data'   => [
                 $_POST['name'] ?? '',
-                $_POST['image'] ?? '',
                 $_POST['category_id'] ?? null,
                 $id
             ]
         ]);
+
+        // Foto nueva: reemplaza la anterior. "Quitar foto": la borra. Sin cambios no se toca.
+        if ($photo !== '') {
+            $this->saveProductImage($id, $photo);
+        } elseif (($_POST['image_remove'] ?? '') === '1') {
+            $this->dropProductImage($id);
+            $this->updateMaterial([
+                'values' => 'image = ?',
+                'where'  => 'id = ?',
+                'data'   => [null, $id]
+            ]);
+        }
 
         $this->updateItemAttribute([
             'values' => 'description = ?, cost_unit = ?, cost_tax = ?, is_inventoriable = ?, stock_min = ?, stock_max = ?, shelf_life_days = ?, warehouse_area_id = ?, unit_id = ?',
@@ -352,6 +386,48 @@ class ctrl extends mdl {
         ]);
 
         return $prefix . str_pad($last + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    // -- Foto del producto --
+
+    // Guarda la foto (dataURL, ya comprimida en el navegador) como
+    // uploads/productos/{id}_{único}.{ext} y deja esa ruta, relativa a inventory/, en
+    // item.image. El nombre cambia en cada foto para que el navegador no siga mostrando
+    // la anterior desde su caché; las versiones anteriores del producto se borran.
+    private function saveProductImage($id, $b64) {
+        $image = $this->decodeProductImage($b64);
+        if (!$image) return false;
+
+        $dir = __DIR__ . '/../../../uploads/productos/';
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+
+        $name = (int) $id . '_' . substr(md5(uniqid('', true)), 0, 8) . '.' . $image['ext'];
+
+        $this->dropProductImage($id);
+        if (@file_put_contents($dir . $name, $image['data']) === false) return false;
+
+        return $this->updateMaterial([
+            'values' => 'image = ?',
+            'where'  => 'id = ?',
+            'data'   => ['uploads/productos/' . $name, $id]
+        ]);
+    }
+
+    // La extensión sale de lo que trae el archivo por dentro, no de lo que dice el dataURL.
+    private function decodeProductImage($b64) {
+        if (!preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', (string) $b64)) return null;
+
+        $data = base64_decode(substr($b64, strpos($b64, ',') + 1), true);
+        if ($data === false || strlen($data) > self::IMAGE_MAX) return null;
+
+        $info = @getimagesizefromstring($data);
+        $ext  = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$info['mime'] ?? ''] ?? null;
+
+        return $ext ? ['ext' => $ext, 'data' => $data] : null;
+    }
+
+    private function dropProductImage($id) {
+        foreach (glob(__DIR__ . '/../../../uploads/productos/' . (int) $id . '_*') ?: [] as $old) @unlink($old);
     }
 
     function deleteMaterial() {
@@ -415,6 +491,8 @@ class ctrl extends mdl {
                 'message' => 'No se pudo eliminar el producto'
             ];
         }
+
+        $this->dropProductImage($id);
 
         return [
             'status'  => 200,
@@ -1895,11 +1973,14 @@ class ctrl extends mdl {
 
 // Complements
 
+// La foto se guarda relativa a inventory/ (uploads/productos/...) y la tabla se pinta
+// en operacion/almacen/. Una URL completa o absoluta se respeta tal cual.
 function renderProductImage($foto, $nombre) {
-    $src = !empty($foto) ? $foto : '';
+    $src = '';
+    if (!empty($foto)) $src = preg_match('#^(https?:)?//|^/#', $foto) ? $foto : '../../' . $foto;
 
     $img = !empty($src)
-        ? '<img src="' . htmlspecialchars($src) . '" alt="Imagen Insumo" class="w-8 h-8 bg-gray-500 rounded-md object-cover" />'
+        ? '<img src="' . htmlspecialchars($src) . '" alt="Imagen Insumo" class="w-10 h-10 bg-gray-100 rounded-sm object-cover" />'
         : '<div class="w-10 h-10 bg-gray-200 rounded-sm flex items-center justify-center">
                 <i class="icon-picture-5 text-gray-600"></i>
            </div>';

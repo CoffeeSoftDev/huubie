@@ -17,7 +17,7 @@
  * Y un `scheme` para el fondo de la página:
  *   light              -> el gris de siempre (#F3F4F6). Los temas claros nunca
  *                         lo cambian.
- *   huubie | midnight  -> página oscura: body.dark-mode (src/css/dark-mode.css)
+ *   huubie | midnight | rose -> página oscura: body.dark-mode (src/css/dark-mode.css)
  *                         con sus superficies según data-scheme en <html>, y la
  *                         clase `dark` para las variantes dark: de Tailwind.
  *
@@ -156,7 +156,7 @@
         Object.keys(scale).forEach(function (k) { style.setProperty('--' + token + '-' + k, scale[k]); });
     }
 
-    var SCHEMES = ['light', 'huubie', 'midnight'];
+    var SCHEMES = ['light', 'huubie', 'midnight', 'rose'];
 
     // body.dark-mode es la llave que usan dark-mode.css, sidebar.js y las
     // páginas con script inline. En el <head> el body aún no existe: se pone

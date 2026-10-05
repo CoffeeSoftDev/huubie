@@ -1,8 +1,8 @@
 /* ============================================================
    PÁGINA OSCURA DE INVENTORY
    ============================================================
-   Solo aplica con un tema de página oscura (themes.scheme 'huubie' o
-   'midnight'): InventoryPalette (src/js/tailwind-theme.js) pone
+   Solo aplica con un tema de página oscura (themes.scheme 'huubie',
+   'midnight' o 'rose'): InventoryPalette (src/js/tailwind-theme.js) pone
    body.dark-mode y el data-scheme de <html>. Los temas claros nunca la
    activan: su fondo es siempre el gris de la página.
 
@@ -379,6 +379,34 @@ body.dark-mode .select2-results__option--highlighted {
     background-color: var(--dk-card-hi) !important;
 }
 
+/* coffeeForm arma sus select2 con el tema bootstrap-5 (Productos > Área, en el
+   filtro y en el formulario): caja como los inputs oscuros, flecha clara y el
+   buscador de la lista con la misma superficie. */
+body.dark-mode .select2-container--bootstrap-5 .select2-selection {
+    background-color: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-selection--single {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-selection__rendered,
+body.dark-mode .select2-container--bootstrap-5 .select2-selection__placeholder {
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-container--bootstrap-5 .select2-search__field {
+    background-color: var(--dk-input) !important;
+    border-color: var(--dk-line) !important;
+    color: var(--dk-text) !important;
+}
+
+body.dark-mode .select2-results__option--selected {
+    background-color: var(--dk-hover) !important;
+}
+
 /* Breadcrumb Dark Mode */
 body.dark-mode .breadcrumb {
     background-color: transparent !important;
@@ -600,25 +628,26 @@ body.dark-mode .border-purple-200,  body.dark-mode .border-purple-300  { border-
 body.dark-mode .border-pink-200,    body.dark-mode .border-pink-300    { border-color: rgb(236 72 153 / .35) !important; }
 body.dark-mode .border-slate-200,   body.dark-mode .border-slate-300   { border-color: var(--dk-line) !important; }
 
-/* Midnight: las variantes oscuras de los componentes de coffeeSoft.js traen
-   los hex de Huubie clavados. En Huubie ya son su paleta; en Midnight se
-   remapean a sus superficies para que ningún componente quede en otro tono. */
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#111928\],
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#111827\],
-:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#111928\]:hover { background-color: var(--dk-bg) !important; }
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1F2A37\],
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1E293B\] { background-color: var(--dk-card) !important; }
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#283341\] { background-color: var(--dk-row) !important; }
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#1a2332\],
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#334155\],
-:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#283341\]:hover,
-:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#334155\]:hover,
-:root[data-scheme="midnight"] body.dark-mode .hover\:bg-\[\#374151\]:hover { background-color: var(--dk-hover) !important; }
-/* bg-[#374151] es el header de las tablas oscuras de coffeeSoft: en Midnight
-   va a su header de tabla, más claro que las filas, igual que en alpha/. */
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#374151\] { background-color: var(--dk-th) !important; }
-:root[data-scheme="midnight"] body.dark-mode .border-\[\#374151\],
-:root[data-scheme="midnight"] body.dark-mode .border-gray-700 { border-color: var(--dk-line) !important; }
+/* Midnight, Rosé y las que vengan: las variantes oscuras de los componentes de
+   coffeeSoft.js traen los hex de Huubie clavados. En Huubie ya son su paleta; en
+   las demás páginas oscuras se remapean a sus superficies (--dk-*) para que
+   ningún componente quede en otro tono. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#111928\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#111827\],
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#111928\]:hover { background-color: var(--dk-bg) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1F2A37\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1E293B\] { background-color: var(--dk-card) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#283341\] { background-color: var(--dk-row) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#1a2332\],
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#334155\],
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#283341\]:hover,
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#334155\]:hover,
+:root:not([data-scheme="huubie"]) body.dark-mode .hover\:bg-\[\#374151\]:hover { background-color: var(--dk-hover) !important; }
+/* bg-[#374151] es el header de las tablas oscuras de coffeeSoft: fuera de Huubie
+   va al header de tabla del scheme, más claro que las filas, igual que en alpha/. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#374151\] { background-color: var(--dk-th) !important; }
+:root:not([data-scheme="huubie"]) body.dark-mode .border-\[\#374151\],
+:root:not([data-scheme="huubie"]) body.dark-mode .border-gray-700 { border-color: var(--dk-line) !important; }
 
 /* Tintes claros del acento (chips, pestañas, badges): en oscuro pasan a un
    velo del acento y su texto se aclara para seguir leyéndose. */
@@ -716,8 +745,8 @@ body.dark-mode [id*="container"] {
 }
 
 /* Barra de pestañas de la variante oscura de tabLayout (#19232D): es la de
-   Huubie tal cual; en Midnight toma su fondo de página. */
-:root[data-scheme="midnight"] body.dark-mode .bg-\[\#19232D\] {
+   Huubie tal cual; en las demás páginas oscuras toma su fondo de página. */
+:root:not([data-scheme="huubie"]) body.dark-mode .bg-\[\#19232D\] {
     background-color: var(--dk-bg) !important;
 }
 

@@ -1058,7 +1058,8 @@ class Components extends Complements {
                             id: opts.prefijo + x.id,
                             placeholder: x.selected || x.placeholder || '',
                             tags: !!x.tags,
-                            badge: !!x.badge
+                            badge: !!x.badge,
+                            search: !!x.search
                         });
                     } else {
                         selectWrap.append($('<div>', {
@@ -1263,9 +1264,9 @@ class Components extends Complements {
                 if (f.badge) {
                     // Opciones con data-color/data-bg se pintan como el badge de la tabla
                     // (lista y valor elegido); las demás (ej. "Sin área") van en texto plano.
-                    // La búsqueda solo aparece con listas largas.
+                    // La búsqueda solo aparece con listas largas, salvo con search:true.
                     cfg.templateResult = cfg.templateSelection = (opt) => self.cfBadgeOption(opt);
-                    cfg.minimumResultsForSearch = 10;
+                    cfg.minimumResultsForSearch = f.search ? 0 : 10;
                     // Con placeholder (aunque sea '') select2 esconde la opción de valor vacío
                     // y "Sin área" no se podría elegir.
                     if (!f.placeholder) delete cfg.placeholder;
@@ -2194,6 +2195,7 @@ class Components extends Complements {
             backdropClose: false,
             okLabel: 'Aceptar',
             cancelLabel: 'Cancelar',
+            okBg: '',
             onOk: () => { },
             onClose: () => { }
         }, opts);
@@ -2217,8 +2219,9 @@ class Components extends Complements {
             cancel: 'bg-gray-100 text-gray-800 hover:bg-gray-200'
         };
         // Aceptar = acción principal: el primario del tema, igual que los botones
-        // principales de los formularios y el bootbox.
-        const okCls = 'bg-main text-white hover:bg-main-hover';
+        // principales de los formularios y el bootbox. `okBg` lo cambia por llamada
+        // (ej. el acento: 'bg-blue-600 hover:bg-blue-700'), como en alertBox.
+        const okCls = 'text-white ' + (o.okBg || 'bg-main hover:bg-main-hover');
 
         const overlay = $('<div>', {
             class: 'cf-modal fixed inset-0 z-[1090] flex items-start justify-center overflow-y-auto p-4 bg-black/50 opacity-0 transition-opacity duration-150 ease-out'
@@ -2329,6 +2332,7 @@ class Components extends Complements {
                 size: bb.size || 'default',
                 theme: conf.theme,
                 closeButton: bb.closeButton !== false,
+                okBg: conf.okBg,
                 onOk: () => { if (self.cfModalForm) self.cfModalForm.trigger('submit'); }
             });
             modal.body.append(host);

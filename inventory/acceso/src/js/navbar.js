@@ -312,7 +312,7 @@ class Navbar {
             .nav-logout-btn:hover { background:#FEF2F2; border-color:#FECACA; }
 
             /* ── Selector de temas (estilo del de erp-pro) ── */
-            .nav-color-menu { position:absolute; right:0; top:calc(100% + 10px); width:230px; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); padding:6px; z-index:60; }
+            .nav-color-menu { position:absolute; right:0; top:calc(100% + 10px); width:250px; background:#FFFFFF; border:1px solid #E5E7EB; border-radius:14px; box-shadow:0 16px 40px rgba(17,24,39,.16); padding:6px; z-index:60; }
             .nav-color-opt { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; cursor:pointer; transition:background .15s ease; }
             .nav-color-opt:hover { background:#F3F4F6; }
             /* La muestra es una ventanita del tema: la barra arriba (su color,
@@ -359,6 +359,34 @@ class Navbar {
             .navbar-main.nav-dark .nav-theme-toggle[aria-expanded="true"],
             .navbar-main.nav-dark #btn-mobile-menu:hover { color:#FFFFFF; background:rgba(255,255,255,.10); }
 
+            /* ── Barra clara con color (mode: light sobre rosa, menta...) ──
+               Los grises de arriba son para la barra blanca: sobre un color se
+               pierden (#9CA3AF sobre rosa #F5A3B2 da 1.3:1). Aquí van en tinta
+               translúcida, que toma el tono de la barra y se lee en cualquier
+               color claro (≈5:1 sobre ese rosa); la píldora y los hover, en
+               blanco translúcido. Lo enciende applyTheme() (isTintedBar). */
+            .navbar-main.nav-tinted { border-bottom-color:rgba(17,24,39,.10) !important; }
+            .navbar-main.nav-tinted .navbar-subtitle,
+            .navbar-main.nav-tinted .nav-user-rol,
+            .navbar-main.nav-tinted .branch-pill-label { color:rgba(17,24,39,.72); }
+            .navbar-main.nav-tinted .nav-chevron,
+            .navbar-main.nav-tinted .branch-pill-chev,
+            .navbar-main.nav-tinted .nav-theme-toggle,
+            .navbar-main.nav-tinted #btn-mobile-menu { color:rgba(17,24,39,.78); }
+            .navbar-main.nav-tinted .nav-theme-toggle:hover,
+            .navbar-main.nav-tinted .nav-theme-toggle[aria-expanded="true"],
+            .navbar-main.nav-tinted #btn-mobile-menu:hover { color:#111827; background:rgba(255,255,255,.45); }
+            .navbar-main.nav-tinted .nav-user-pill { border-left-color:rgba(17,24,39,.14); }
+            .navbar-main.nav-tinted .nav-user-pill:hover { background:rgba(255,255,255,.40); border-color:rgba(17,24,39,.10); }
+            .navbar-main.nav-tinted .nav-avatar { box-shadow:0 0 0 2px rgba(255,255,255,.70); }
+            /* La píldora de sucursal, como en la barra oscura: vidrio translúcido
+               y el ícono en el color del texto (no en el acento), para que se
+               lea como parte de la barra y no como un botón pegado encima. */
+            .navbar-main.nav-tinted .branch-pill,
+            .navbar-main.nav-tinted .branch-pill.branch-pill-static:hover { background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.40); }
+            .navbar-main.nav-tinted .branch-pill:hover { background:rgba(255,255,255,.34); border-color:rgba(255,255,255,.60); }
+            .navbar-main.nav-tinted .branch-pill-icon { background:rgba(255,255,255,.32); color:rgba(17,24,39,.78); }
+
             /* ── Barra con imagen (tipo: imagen) ──
                El velo es flojo a propósito para que la foto se vea; lo que
                hace legible el texto es esta sombra. En barra clara la sombra
@@ -376,7 +404,7 @@ class Navbar {
             .navbar-main.nav-imagen .nav-theme-toggle { background:rgba(255,255,255,.14); }
             .navbar-main.nav-imagen.nav-dark .nav-theme-toggle { background:rgba(0,0,0,.18); }
 
-            /* ── Desplegables con página oscura (scheme huubie / midnight) ──
+            /* ── Desplegables con página oscura (scheme huubie / midnight / rose) ──
                Toman las superficies de dark-mode.css (--dk-*). */
             body.dark-mode .nav-dropdown,
             body.dark-mode .nav-color-menu,
@@ -531,10 +559,20 @@ class Navbar {
         return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(theme.color || '') ? theme.color : Navbar.THEME_FALLBACK.color;
     }
 
+    // Barra con color (no blanca): con texto oscuro lleva .nav-tinted. Casi blanco
+    // (todos los canales arriba de 235, como el #F5F5F5 de Pulpos) cuenta como blanca.
+    isTintedBar(color) {
+        let hex = String(color || '').replace('#', '');
+        if (/^[0-9A-Fa-f]{3}$/.test(hex)) hex = hex.replace(/(.)/g, '$1$1');
+        if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return false;
+
+        return [0, 2, 4].some((i) => parseInt(hex.substr(i, 2), 16) < 235);
+    }
+
     // El fondo de la página de cada scheme, el de src/css/themes.css (--bg y
     // --dk-bg): la parte de abajo de la muestra.
     static get SCHEME_PAGE() {
-        return { light: '#F3F4F6', huubie: '#111928', midnight: '#0B1420' };
+        return { light: '#F3F4F6', huubie: '#111928', midnight: '#0B1420', rose: '#1A1216' };
     }
 
     // Pinta las opciones del menú: muestra, nombre, badge opcional y palomita
@@ -605,7 +643,9 @@ class Navbar {
                 nav.style.removeProperty("box-shadow");
             }
 
-            $nav.toggleClass("nav-dark", dark).toggleClass("nav-imagen", !!image);
+            $nav.toggleClass("nav-dark", dark)
+                .toggleClass("nav-imagen", !!image)
+                .toggleClass("nav-tinted", !dark && !image && this.isTintedBar(theme.color));
         }
 
         this.settings.theme = theme.code;

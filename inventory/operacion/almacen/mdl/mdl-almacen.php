@@ -127,9 +127,21 @@ class mdl extends CRUD {
             $params[] = $filters['categoria'];
         }
 
-        if (!empty($filters['area'])) {
-            $query .= " AND ia.warehouse_area_id = ?";
-            $params[] = $filters['area'];
+        // Área (checklist del filtro): '' todas · '3,5,none' solo esas, 'none' = sin
+        // área · '__none__' ninguna marcada, no sale nada.
+        if (($filters['area'] ?? '') !== '') {
+            $picked = explode(',', $filters['area']);
+            $ids    = array_values(array_filter($picked, 'ctype_digit'));
+            $or     = [];
+
+            if ($ids) {
+                $or[]   = "ia.warehouse_area_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")";
+                $params = array_merge($params, $ids);
+            }
+
+            if (in_array('none', $picked, true)) $or[] = "ia.warehouse_area_id IS NULL";
+
+            $query .= $or ? " AND (" . implode(' OR ', $or) . ")" : " AND 1 = 0";
         }
 
         if (isset($filters['estado']) && $filters['estado'] !== '') {

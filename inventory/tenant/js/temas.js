@@ -264,7 +264,8 @@ class Themes extends Templates {
         const pages = {
             light: '#F3F4F6',
             huubie: '#111928',
-            midnight: '#0B1420'
+            midnight: '#0B1420',
+            rose: '#1A1216'
         };
 
         let linked    = this.hexOf($accent.val(), '') === this.hexOf($primary.val(), '');
@@ -307,14 +308,21 @@ class Themes extends Templates {
                 background: image ? `url("${image}") center/cover no-repeat, ${color}` : color,
                 boxShadow: image ? `inset 0 0 0 9999px ${veil}` : 'none'
             });
-            $title.add($user).css('color', dark ? '#F8FAFC' : '#111827');
-            $subtitle.css('color', dark ? 'rgba(255,255,255,.62)' : '#9CA3AF');
+            // Barra clara con color (rosa, menta...): tinta translúcida, como .nav-tinted de navbar.js.
+            const tinted = !dark && !image && this.isTintedBar(color);
 
-            // En barra oscura la píldora se vuelve translúcida, como en navbar.js.
-            // En clara lleva el secundario, que es el color de la barra.
-            $chip.css(dark
-                ? { color: '#F8FAFC', background: 'rgba(255,255,255,.08)', borderColor: 'rgba(255,255,255,.18)' }
-                : { color: second, background: `${second}1F`, borderColor: `${second}47` });
+            $title.add($user).css('color', dark ? '#F8FAFC' : '#111827');
+            $subtitle.css('color', dark ? 'rgba(255,255,255,.62)' : (tinted ? 'rgba(17,24,39,.72)' : '#9CA3AF'));
+
+            // En barra oscura la píldora se vuelve translúcida, como en navbar.js;
+            // en barra clara con color, blanca translúcida. En blanca lleva el secundario.
+            if (dark) {
+                $chip.css({ color: '#F8FAFC', background: 'rgba(255,255,255,.08)', borderColor: 'rgba(255,255,255,.18)' });
+            } else if (tinted) {
+                $chip.css({ color: '#111827', background: 'rgba(255,255,255,.22)', borderColor: 'rgba(255,255,255,.40)' });
+            } else {
+                $chip.css({ color: second, background: `${second}1F`, borderColor: `${second}47` });
+            }
 
             $tab.css({ color: accent, background: `${accent}1A` });
             $button.css({ background: primary });
@@ -378,5 +386,10 @@ class Themes extends Templates {
         if (/^#[0-9A-Fa-f]{6}$/.test(v)) return v.toUpperCase();
         if (/^#[0-9A-Fa-f]{3}$/.test(v)) return ('#' + v.slice(1).replace(/(.)/g, '$1$1')).toUpperCase();
         return fallback;
+    }
+
+    // Espejo de isTintedBar() de navbar.js: casi blanco (#F5F5F5) cuenta como blanca.
+    isTintedBar(hex) {
+        return [1, 3, 5].some((i) => parseInt(hex.substr(i, 2), 16) < 235);
     }
 }

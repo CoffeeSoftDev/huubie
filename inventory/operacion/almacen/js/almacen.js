@@ -190,13 +190,19 @@ class Productos extends Templates {
                 },
                 // Área = dónde está dentro del almacén (anaquel, refrigerador...).
                 // Lo que hay en cada almacén se consulta en Stock, no aquí.
+                // Buscador con casillas para excluir áreas (mountAreaFilter).
                 {
                     opc: "select",
                     id: "area",
                     lbl: "Área",
                     class: "col-12 col-md-2",
-                    data: [{ id: '', valor: 'Todas' }, ...areas],
-                    onchange: 'products.lsMateriales()'
+                    select2: true,
+                    badge: true,
+                    data: [
+                        { id: '', valor: 'Todas las áreas' },
+                        ...areas,
+                        { id: 'none', valor: 'Sin área' }
+                    ]
                 },
                 // Arranca en Activos. La columna Estado solo sale con "Todos" (lsMateriales).
                 {
@@ -217,7 +223,7 @@ class Productos extends Templates {
                     text: "Nuevo Producto",
                     className:'w-100',
                     class: "col-12 col-md-2",
-                    color_btn: "invernal",
+                    color_btn: "primary",
                     onClick: () => this.addMaterial()
                 },
                 // Colores fijos, no del tema: `blue-*` sigue al acento (terracota en Claro),
@@ -243,6 +249,19 @@ class Productos extends Templates {
                     onClick: () => conteo.render()
                 }
             ]
+        });
+
+        this.mountAreaFilter();
+    }
+
+    mountAreaFilter() {
+        select2Checklist({
+            id: "area",
+            placeholder: "áreas",
+            all: "Todas las áreas",
+            none: "Ninguna área",
+            format: (opt) => this.cfBadgeOption(opt),
+            onChange: () => this.lsMateriales()
         });
     }
 
@@ -310,8 +329,8 @@ class Productos extends Templates {
         almacenes = data.almacenes || [];
     }
 
-    // Orden de captura: identificación (nombre, categoría, unidad, código), costo
-    // (último costo, IVA de compra y costo con impuesto), inventario (inventariable,
+    // Orden de captura: identificación (nombre, categoría, unidad, código, foto), costo
+    // (costo con impuesto, IVA de compra y último costo), inventario (inventariable,
     // área, mínimo, máximo, vida útil) y notas. El precio de venta no se captura aquí.
     // Rejilla de 3 en 3 (col-md-4, mismo ancho en todos); la descripción a lo ancho.
     // Los encabezados son `opc: "label"`; su estilo va en la clase porque coffeeForm la
@@ -339,6 +358,7 @@ class Productos extends Templates {
                 id: "category_id",
                 lbl: "Categoría",
                 class: "col-12 col-md-4",
+                select2: true,
                 data: categorias,
                 required: true
             },
@@ -360,13 +380,14 @@ class Productos extends Templates {
                 placeholder: "Auto",
                 required: false
             },
-            // {
-            //     opc: "input",
-            //     id: "image",
-            //     lbl: "Imagen (URL)",
-            //     class: "col-12 col-md-6 mb-3",
-            //     placeholder: "https://... o ruta de la imagen"
-            // },
+            // Lo llena mountProductPhoto: vista previa, subir/cambiar y quitar.
+            {
+                opc: "div",
+                id: "photoField",
+                lbl: "Foto",
+                class: "col-12 col-md-8",
+                required: false
+            },
 
             // -- Costo --
             // Último costo de compra sin IVA. Cada entrada y cada recepción de orden lo
@@ -381,21 +402,21 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "cost_unit",
-                lbl: "Último costo",
+                id: "cost_with_tax",
+                lbl: "Costo c/impuesto",
                 tipo: "cifra",
                 class: "col-12 col-md-4",
                 required: false,
                 placeholder: "0.00",
-                onkeyup: "products.calcCostWithTax()",
-                onchange: "products.calcCostWithTax()"
+                onkeyup: "products.calcCostUnit()",
+                onchange: "products.calcCostUnit()"
             },
             {
                 opc: "select",
                 id: "cost_tax",
                 lbl: "IVA",
                 class: "col-12 col-md-4",
-                onchange: "products.calcCostWithTax()",
+                onchange: "products.calcCostByTax()",
                 data: [
                     {
                         id: '0',
@@ -413,14 +434,14 @@ class Productos extends Templates {
             },
             {
                 opc: "input",
-                id: "cost_with_tax",
-                lbl: "Costo c/impuesto",
+                id: "cost_unit",
+                lbl: "Último costo",
                 tipo: "cifra",
                 class: "col-12 col-md-4",
                 required: false,
                 placeholder: "0.00",
-                onkeyup: "products.calcCostUnit()",
-                onchange: "products.calcCostUnit()"
+                onkeyup: "products.calcCostWithTax()",
+                onchange: "products.calcCostWithTax()"
             },
 
             // -- Inventario --
@@ -456,6 +477,7 @@ class Productos extends Templates {
                 class: "col-12 col-md-4",
                 select2: true,
                 badge: true,
+                search: true,
                 data: [
                     {
                         id: '',
@@ -511,6 +533,7 @@ class Productos extends Templates {
         if (isNaN(cost)) return;
         const taxPct = parseFloat($('#cost_tax').val()) || 0;
 
+        this.costAnchor  = 'unit';
         this.syncingCost = true;
         $('#cost_with_tax').val((cost * (1 + taxPct / 100)).toFixed(2));
         this.syncingCost = false;
@@ -522,9 +545,18 @@ class Productos extends Templates {
         if (isNaN(total)) return;
         const taxPct = parseFloat($('#cost_tax').val()) || 0;
 
+        this.costAnchor  = 'withTax';
         this.syncingCost = true;
         $('#cost_unit').val((total / (1 + taxPct / 100)).toFixed(2));
         this.syncingCost = false;
+    }
+
+    // Al cambiar el IVA se respeta el costo que se tecleó al último: si fue el de
+    // c/impuesto se recalcula el último costo, y al revés. Cada formulario arranca
+    // anclado al último costo (lo que trae el autofill al editar).
+    calcCostByTax() {
+        if (this.costAnchor === 'withTax') this.calcCostUnit();
+        else this.calcCostWithTax();
     }
 
     // La nota del último costo va debajo del input, en chico (antes era el placeholder).
@@ -534,7 +566,64 @@ class Productos extends Templates {
         mountFieldHints(formId, { cost_unit: "Se actualiza con cada entrada." });
     }
 
+    // Foto: vista previa, "Subir foto" / "Cambiar foto" y "Quitar". Se achica en el
+    // navegador (compressPhoto) y viaja como dataURL en el oculto image_b64;
+    // image_remove = 1 le pide a editMaterial que la borre. Si no se toca, los dos van
+    // vacíos y la foto guardada se queda. El input de archivo va sin `name` para no
+    // entrar al FormData del formulario.
+    mountProductPhoto(formId, image = '') {
+        const $field  = $(`#${formId} #photoField`);
+        const $b64    = $('<input>', { type: 'hidden', name: 'image_b64', value: '' });
+        const $remove = $('<input>', { type: 'hidden', name: 'image_remove', value: '0' });
+        const $file   = $('<input>', { type: 'file', accept: 'image/jpeg,image/png,image/webp', class: 'hidden' });
+        const $thumb  = $('<div>', { class: 'w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 overflow-hidden' });
+        const $pick   = $('<button>', { type: 'button', class: 'inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 transition hover:border-blue-600 hover:text-blue-600' });
+        const $drop   = $('<button>', { type: 'button', text: 'Quitar', class: 'text-xs font-medium text-red-500 hover:text-red-700 hover:underline' });
+
+        const paint = (src) => {
+            $thumb.empty().append(src
+                ? $('<img>', { src: src, alt: 'Foto del producto', class: 'w-full h-full object-cover' })
+                : $('<i>', { 'data-lucide': 'image', class: 'w-5 h-5 text-gray-400' }));
+            $pick.empty().append(
+                $('<i>', { 'data-lucide': 'upload', class: 'w-4 h-4' }),
+                $('<span>', { text: src ? 'Cambiar foto' : 'Subir foto' })
+            );
+            $drop.toggleClass('hidden', !src);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+
+        $pick.on('click', () => $file.trigger('click'));
+
+        $file.on('change', async () => {
+            const file = $file[0].files[0];
+            $file.val('');
+            if (!file) return;
+
+            const dataUrl = await compressPhoto(file);
+
+            if (!dataUrl) {
+                this.alertBox({ type: 'warning', theme: 'light', title: 'No se pudo leer la foto', detailHtml: 'Usa una imagen JPG, PNG o WEBP.' });
+                return;
+            }
+
+            $b64.val(dataUrl);
+            $remove.val('0');
+            paint(dataUrl);
+        });
+
+        $drop.on('click', () => {
+            $b64.val('');
+            $remove.val('1');
+            paint('');
+        });
+
+        $field.addClass('flex items-center gap-3').append($thumb, $pick, $drop, $file, $b64, $remove);
+        paint(productImageUrl(image));
+    }
+
     addMaterial() {
+        this.costAnchor = 'unit';
+
         this.createModalForm({
             id: 'formMaterialAdd',
             data: { opc: 'addMaterial' },
@@ -567,6 +656,7 @@ class Productos extends Templates {
         });
 
         this.mountMaterialHints('formMaterialAdd');
+        this.mountProductPhoto('formMaterialAdd');
     }
 
     async editMaterial(id) {
@@ -578,6 +668,7 @@ class Productos extends Templates {
         if (request.status === 200) {
             // Sin área llega NULL; '' selecciona la opción "Sin área" del select.
             request.data.warehouse_area_id = request.data.warehouse_area_id || '';
+            this.costAnchor = 'unit';
 
             this.createModalForm({
                 id: 'formMaterialEdit',
@@ -612,6 +703,7 @@ class Productos extends Templates {
             });
 
             this.mountMaterialHints('formMaterialEdit');
+            this.mountProductPhoto('formMaterialEdit', request.data.image);
         }
     }
 
@@ -706,8 +798,27 @@ class Productos extends Templates {
 }
 
 // -- Tabla de Productos --
+// Lo escrito en el buscador de la tabla. Cada filtro vuelve a pintar la tabla; con esto
+// la búsqueda sigue puesta en vez de borrarse.
+let productsSearch = "";
+
+const plainText = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// El buscador no distingue acentos ni mayúsculas ("azucar" encuentra "Azúcar") y acepta
+// varias palabras en cualquier orden. La búsqueda propia de DataTables 1.13 compara los
+// acentos tal cual, por eso se filtra aquí y solo en la tabla de Productos.
+if ($.fn.dataTable) {
+    $.fn.dataTable.ext.search.push((settings, data) => {
+        if (settings.nTable.id !== "tbMateriales" || !productsSearch.trim()) return true;
+
+        const row = plainText(data.join(" "));
+        return plainText(productsSearch).split(/\s+/).filter(Boolean).every((word) => row.includes(word));
+    });
+}
+
 // DataTable de Productos (conf.fn_datatable): como simple_data_table, más el selector
-// de cuántos ver (10/25/50/100), que se recuerda en la sesión. createCoffeeTable3 deja el
+// de cuántos ver (10/25/50/100), que se recuerda en la sesión, y el buscador (busca en
+// las filas ya cargadas: nombre, categoría, área...). createCoffeeTable3 deja el
 // zebra fijo por fila y al ordenar o cambiar de página quedaban dos grises (o dos
 // blancos) juntos: se repinta en cada draw sobre las filas visibles.
 function productsDataTable(table, no) {
@@ -718,15 +829,19 @@ function productsDataTable(table, no) {
         .on("draw.dt", () => repaintZebra(table))
         .on("length.dt", (e, settings, len) => sessionStorage.setItem(key, len));
 
-    $(table).DataTable({
+    const dt = $(table).DataTable({
         pageLength: [10, 25, 50, 100].includes(saved) ? saved : no,
         lengthMenu: [10, 25, 50, 100],
         lengthChange: true,
         destroy: true,
-        searching: false,
+        searching: true,
         order: [],
         info: true,
         language: {
+            search: "",
+            searchPlaceholder: "Buscar producto...",
+            zeroRecords: "Ningún producto coincide con la búsqueda",
+            infoFiltered: "(filtrados de _MAX_)",
             lengthMenu: "Mostrar _MENU_ registros",
             info: "Mostrando del (_START_ al _END_) de un total de _TOTAL_ registros",
             infoEmpty: "Mostrando del 0 al 0 de un total de 0 registros",
@@ -740,6 +855,13 @@ function productsDataTable(table, no) {
         }
     });
 
+    // El buscador filtra con el ext.search de arriba: se suelta la búsqueda propia de
+    // DataTables y solo se vuelve a dibujar.
+    $(`${table}_filter input`).val(productsSearch).off().on("input", function () {
+        productsSearch = this.value;
+        dt.draw();
+    });
+
     getPageDataTable(table);
 }
 
@@ -747,6 +869,132 @@ function productsDataTable(table, no) {
 function repaintZebra(table, alt = "bg-gray-100") {
     $(table).children("tbody").children("tr").each((i, tr) => {
         $(tr).children("td").toggleClass(alt, i % 2 === 0);
+    });
+}
+
+// -- Foto del producto --
+
+// item.image es relativa a inventory/ (uploads/productos/...) y esta página vive en
+// operacion/almacen/. Espejo de renderProductImage (ctrl-almacen); mantener ambos en sync.
+function productImageUrl(path) {
+    if (!path) return "";
+    return /^(https?:)?\/\/|^\//i.test(path) ? path : `../../${path}`;
+}
+
+// La foto lista para guardar: JPEG de máximo `max` px por lado. Va sobre blanco para que
+// lo transparente de un PNG no salga negro. Resuelve "" si el navegador no la puede abrir.
+function compressPhoto(file, max = 800) {
+    return new Promise((resolve) => {
+        if (!file || !/^image\//.test(file.type)) return resolve("");
+
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const scale  = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width  = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve("");
+        };
+        img.src = url;
+    });
+}
+
+// -- Filtro con casillas --
+// Select2 con buscador y una casilla por opción, todas marcadas al inicio: quitar una la
+// excluye (como el filtro de estados de Actividades en corporativogv). Las dos primeras
+// filas marcan o quitan todas. El select se queda en su opción vacía, que hace de
+// etiqueta ("Todas las áreas", "Barra, Bodega", "3 de 8 áreas"), y su `name` pasa a un
+// input oculto, que es lo que lee el filterBar:
+//     ''          todas marcadas (sin filtro)
+//     'a,b'       solo esas
+//     '__none__'  ninguna marcada (no sale nada)
+// Cada clic llama `onChange` (agrupa los clics seguidos). `format(opt)` pinta la
+// etiqueta de cada opción, ej. el badge del área.
+function select2Checklist(opts) {
+    const ALL    = "__all__";
+    const NONE   = "__none__";
+    const $sel   = $(`#${opts.id}`);
+    const all    = $sel.find("option").map((i, o) => o.value).get().filter((v) => v !== "");
+    const $value = $("<input>", { type: "hidden", name: $sel.attr("name"), value: "" });
+    let checked  = all.slice();
+    let timer    = null;
+
+    if (!$sel.length || !$.fn.select2) return;
+
+    const names = () => all.filter((id) => checked.includes(id)).map((id) => $sel.find(`option[value="${id}"]`).text());
+
+    const summary = () => {
+        if (checked.length === all.length) return opts.all;
+        if (!checked.length) return opts.none;
+        return checked.length <= 2 ? names().join(", ") : `${checked.length} de ${all.length} ${opts.placeholder}`;
+    };
+
+    const serialize = () => {
+        if (checked.length === all.length) return "";
+        if (!checked.length) return NONE;
+        return all.filter((id) => checked.includes(id)).join(",");
+    };
+
+    const paint = () => {
+        $(`#select2-${opts.id}-results input[data-check]`).each((i, box) => { box.checked = checked.includes(box.dataset.check); });
+        $value.val(serialize());
+        $sel.trigger("change.select2");
+
+        clearTimeout(timer);
+        timer = setTimeout(opts.onChange, 250);
+    };
+
+    $sel.attr("name", "").after($value);
+    $sel.find('option[value=""]').after(
+        $("<option>", { value: ALL, text: "Marcar todas" }),
+        $("<option>", { value: NONE, text: "Quitar todas" })
+    );
+
+    // Con placeholder la opción vacía no sale en la lista y la etiqueta se pinta con
+    // templateSelection. Al elegir una fila se cancela la selección (el select no cambia)
+    // y solo se marca o desmarca su casilla: así la lista sigue abierta.
+    $sel.select2({
+        theme: "bootstrap-5",
+        width: "100%",
+        dropdownAutoWidth: true,
+        selectionCssClass: "cs-select2-filter",
+        placeholder: { id: "", text: opts.all },
+        templateSelection: () => $("<span>", {
+            class: checked.length === all.length ? "text-gray-800" : "font-semibold text-blue-600",
+            text: summary()
+        }),
+        templateResult: (opt) => {
+            if (!opt.element) return opt.text;
+            if (opt.id === ALL || opt.id === NONE) return $("<span>", { class: "text-xs font-semibold text-blue-600", text: opt.text });
+
+            return $("<span>", { class: "flex items-center gap-2" }).append(
+                $("<input>", { type: "checkbox", tabindex: -1, "data-check": opt.id, class: "pointer-events-none accent-blue-600" }).prop("checked", checked.includes(opt.id)),
+                opts.format ? opts.format(opt) : opt.text
+            );
+        }
+    }).on("select2:selecting", (e) => {
+        e.preventDefault();
+
+        const id = e.params.args.data.id;
+
+        if (id === ALL) checked = all.slice();
+        else if (id === NONE) checked = [];
+        else checked = checked.includes(id) ? checked.filter((c) => c !== id) : checked.concat(id);
+
+        paint();
     });
 }
 
