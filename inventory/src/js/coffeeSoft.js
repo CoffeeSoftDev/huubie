@@ -6893,6 +6893,19 @@ class Templates extends Components {
 
 }
 
+// Archivo guardado con ruta relativa a inventory/ (ej. item.image =
+// uploads/productos/12_ab12cd34.jpg) visto desde cualquier página de inventory,
+// sin importar su profundidad. Una URL completa o una ruta absoluta va tal cual.
+// Espejo en PHP: renderProductImage (ctrl-almacen) y _productCell (ctrl-stock).
+function inventoryFileUrl(path) {
+    const clean = String(path || '').trim();
+    if (!clean) return '';
+    if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('/')) return clean;
+
+    const base = window.location.pathname.split('/inventory/')[0];
+    return encodeURI(`${base}/inventory/${clean}`);
+}
+
 
 async function useFetch(options = {}) {
 

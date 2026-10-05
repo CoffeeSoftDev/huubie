@@ -1178,7 +1178,7 @@ class SalidaForm {
     prodThumb(p, boxCls, iconCls) {
         const box = boxCls  || 'w-8 h-8';
         const ico = iconCls || 'w-4 h-4';
-        const src = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
+        const src = inventoryFileUrl(p.image);
         const img = src
             ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
             : '';

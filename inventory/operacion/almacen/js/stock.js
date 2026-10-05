@@ -1344,9 +1344,13 @@ class StockView extends Templates {
             <div class="flex-1 overflow-y-auto cs-scroll px-4 py-3 space-y-3">
                 <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
                     <div class="flex items-center gap-2">
+                        ${p.image ? `
+                        <a href="${esc(inventoryFileUrl(p.image))}" target="_blank" rel="noopener" title="Ver foto" class="w-12 h-12 rounded-md bg-gray-100 overflow-hidden flex-shrink-0 ring-1 ring-black/5 hover:ring-2 hover:ring-blue-400/60 transition">
+                            <img src="${esc(inventoryFileUrl(p.image))}" alt="${esc(p.name)}" class="w-full h-full object-cover">
+                        </a>` : `
                         <div class="w-8 h-8 rounded-md ${p.iconBg} flex items-center justify-center ${p.iconText} flex-shrink-0">
                             <i data-lucide="package" class="w-4 h-4"></i>
-                        </div>
+                        </div>`}
                         <div class="flex-1 min-w-0">
                             <p class="text-xs font-bold text-gray-800 truncate leading-tight">${esc(p.name)}</p>
                             <p class="text-[9px] text-gray-500 truncate">SKU: ${esc(p.sku)} · ${esc(p.categoria)}</p>

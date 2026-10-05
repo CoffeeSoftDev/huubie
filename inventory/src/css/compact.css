@@ -191,6 +191,16 @@ table .dropdown-item {
     padding: 0.2rem 0.4rem !important;
 }
 
+/* El select de "Mostrar N registros" es un .form-select: su flecha va de fondo y
+   necesita hueco a la derecha. Con el padding de arriba la flecha caía encima del
+   número. */
+.dataTables_wrapper .dataTables_length select {
+    padding-right: 1.6rem !important;
+    min-width: 3.6rem;
+    background-position: right 0.4rem center !important;
+    background-size: 12px 9px !important;
+}
+
 .dataTables_wrapper .dataTables_paginate .paginate_button {
     font-size: 0.75rem !important;
     padding: 0.25rem 0.5rem !important;

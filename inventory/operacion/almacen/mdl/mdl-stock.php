@@ -275,6 +275,7 @@ class mdl extends CRUD {
             SELECT
                 i.id,
                 i.name,
+                i.image,
                 i.price,
                 i.category_id,
                 i.companies_id,

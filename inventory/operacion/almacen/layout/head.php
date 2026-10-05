@@ -44,7 +44,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
    
   <!-- Compact Styles -->
-    <link rel="stylesheet" href="../../src/css/compact.css">
+    <link rel="stylesheet" href="../../src/css/compact.css?v=<?php echo filemtime(__DIR__ . '/../../../src/css/compact.css'); ?>">
 
     <!-- Tokens del tema activo. Va al final: redefine lo que las hojas de arriba
          dejaron con el color clavado. -->

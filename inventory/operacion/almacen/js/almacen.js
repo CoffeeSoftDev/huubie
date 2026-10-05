@@ -618,7 +618,7 @@ class Productos extends Templates {
         });
 
         $field.addClass('flex items-center gap-3').append($thumb, $pick, $drop, $file, $b64, $remove);
-        paint(productImageUrl(image));
+        paint(inventoryFileUrl(image));
     }
 
     addMaterial() {
@@ -873,13 +873,6 @@ function repaintZebra(table, alt = "bg-gray-100") {
 }
 
 // -- Foto del producto --
-
-// item.image es relativa a inventory/ (uploads/productos/...) y esta página vive en
-// operacion/almacen/. Espejo de renderProductImage (ctrl-almacen); mantener ambos en sync.
-function productImageUrl(path) {
-    if (!path) return "";
-    return /^(https?:)?\/\/|^\//i.test(path) ? path : `../../${path}`;
-}
 
 // La foto lista para guardar: JPEG de máximo `max` px por lado. Va sobre blanco para que
 // lo transparente de un PNG no salga negro. Resuelve "" si el navegador no la puede abrir.

@@ -1390,7 +1390,7 @@ class EntradasView extends Templates {
                 ${(opts.editMode || !isCancelled) ? `
                 <div class="px-4 py-3 border-t border-gray-200 flex gap-2 flex-shrink-0">
                     ${opts.editMode ? `
-                        <button id="${opts.id}_saveEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5">
+                        <button id="${opts.id}_saveEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-main hover:bg-main-hover flex items-center justify-center gap-1.5">
                             <i data-lucide="save" class="w-3.5 h-3.5"></i>${esc(opts.labels.guardar)}
                         </button>
                         <button id="${opts.id}_cancelEdit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-gray-700 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center gap-1.5">
@@ -1402,7 +1402,7 @@ class EntradasView extends Templates {
                                 <i data-lucide="check" class="w-3.5 h-3.5"></i>${esc(opts.labels.confirmar)}
                             </button>
                         ` : `
-                            <button id="${opts.id}_edit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5">
+                            <button id="${opts.id}_edit" class="flex-1 px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-main hover:bg-main-hover flex items-center justify-center gap-1.5">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>${esc(opts.labels.editar)}
                             </button>
                         `}

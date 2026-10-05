@@ -340,7 +340,7 @@ class EntradaForm {
                     </div>
                     <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
                         <button id="${modalId}_cancel" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 border border-gray-300 hover:border-gray-400 hover:text-gray-800 transition-all">${this.esc(o.labels.cancelar)}</button>
-                        <button id="${modalId}_confirm" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-600 flex items-center gap-1.5 transition-all">
+                        <button id="${modalId}_confirm" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-main hover:bg-main-hover border border-main flex items-center gap-1.5 transition-all">
                             <i data-lucide="check" class="w-3 h-3"></i>${this.esc(o.labels.btnGuardar)}
                         </button>
                     </div>
@@ -2144,7 +2144,7 @@ class EntradaForm {
     prodThumb(p, boxCls, iconCls) {
         const box  = boxCls  || 'w-8 h-8';
         const ico  = iconCls || 'w-4 h-4';
-        const src  = p.image ? `https://huubie.com.mx/${String(p.image).replace(/^\/+/, '')}` : '';
+        const src  = inventoryFileUrl(p.image);
         const img  = src
             ? `<img src="${this.esc(src)}" alt="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'">`
             : '';

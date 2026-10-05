@@ -436,6 +436,7 @@ class ctrl extends mdl {
 
         $producto = [
             'name'      => $product['name'],
+            'image'     => $product['image'] ?? '',
             'sku'       => $product['sku'] ?: '-',
             'categoria' => $product['category_name'] ?: 'Sin categoria',
             'estado'    => $estado,
@@ -651,17 +652,19 @@ class ctrl extends mdl {
         return (fmod($n, 1) == 0) ? (string) (int) $n : (string) round($n, 2);
     }
 
+    // La foto (item.image) es relativa a inventory/ (uploads/productos/...) y esta tabla
+    // se pinta en operacion/almacen/: mismo criterio que renderProductImage (ctrl-almacen)
+    // e inventoryFileUrl (coffeeSoft.js). Si no carga, queda el cubo.
     private function _productCell($image, $name, $id = 0, $sku = '') {
-        $path  = ltrim((string) $image, '/');
-        $local = !empty($path) ? '/' . $path : '';
-        $prod  = !empty($path) ? 'https://huubie.com.mx/' . $path : '';
+        $image = trim((string) $image);
+        $src   = '';
+        if ($image !== '') $src = preg_match('#^(https?:)?//|^/#', $image) ? $image : '../../' . $image;
         $label = htmlspecialchars(trim((string) $name), ENT_QUOTES);
         $sku   = trim((string) $sku);
         $id    = (int) $id;
 
-        $imgTag = !empty($local)
-            ? '<img src="' . $local . '" data-prod="' . $prod . '"'
-                . ' onerror="if(this.dataset.prod){this.src=this.dataset.prod;this.dataset.prod=\'\';}else{this.remove();}"'
+        $imgTag = $src !== ''
+            ? '<img src="' . htmlspecialchars($src, ENT_QUOTES) . '" onerror="this.remove();"'
                 . ' alt="Producto" class="absolute inset-0 w-full h-full object-cover" />'
             : '';
 
