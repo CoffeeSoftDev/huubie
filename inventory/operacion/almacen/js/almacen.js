@@ -217,7 +217,7 @@ class Productos extends Templates {
                     text: "Nuevo Producto",
                     className:'w-100',
                     class: "col-12 col-md-2",
-                    color_btn: "primary",
+                    color_btn: "invernal",
                     onClick: () => this.addMaterial()
                 },
                 // Colores fijos, no del tema: `blue-*` sigue al acento (terracota en Claro),

@@ -74,6 +74,7 @@ class Category extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewCategory",
+                    color_btn: "invernal",
                     text: "Nueva categoría",
                     onClick: () => this.addCategory()
                 }
@@ -246,6 +247,7 @@ class Area extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewArea",
+                    color_btn: "invernal",
                     text: "Nueva área",
                     onClick: () => this.addArea()
                 }
@@ -443,6 +445,7 @@ class Unit extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewUnit",
+                    color_btn: "invernal",
                     text: "Nueva unidad",
                     onClick: () => this.addUnit()
                 }
@@ -636,6 +639,7 @@ class Warehouse extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewWarehouse",
+                    color_btn: "invernal",
                     text: "Nuevo almacén",
                     onClick: () => this.addWarehouse()
                 }
@@ -830,6 +834,7 @@ class InflowOrigin extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewInflow",
+                    color_btn: "invernal",
                     text: "Nuevo origen",
                     onClick: () => this.addInflow()
                 }
@@ -1071,6 +1076,7 @@ class ShrinkageReason extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewShrinkage",
+                    color_btn: "invernal",
                     text: "Nuevo motivo",
                     onClick: () => this.addShrinkage()
                 }
@@ -1271,6 +1277,7 @@ class Supplier extends Templates {
                     class: "col-12 col-md-2",
                     className: 'w-100',
                     id: "btnNewSupplier",
+                    color_btn: "invernal",
                     text: "Nuevo proveedor",
                     onClick: () => this.addSupplier()
                 }
