@@ -1,0 +1,106 @@
+[ 2026-10-05 14:26:45 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  DELETE FROM fayxzvov_inventory.item WHERE companies_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`fayxzvov_inventory`.`detail_inventory_adjustment`, CONSTRAINT `fk_dadj_item` FOREIGN KEY (`item_id`) REFERENCES `item` (`id`))
+
+
+[ 2026-10-05 14:26:42 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  DELETE FROM fayxzvov_inventory.item WHERE companies_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`fayxzvov_inventory`.`detail_inventory_adjustment`, CONSTRAINT `fk_dadj_item` FOREIGN KEY (`item_id`) REFERENCES `item` (`id`))
+
+
+[ 2026-10-05 14:26:37 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  DELETE FROM fayxzvov_inventory.item WHERE companies_id = ?
+[ ERROR C.U.D. ] :: SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`fayxzvov_inventory`.`detail_inventory_adjustment`, CONSTRAINT `fk_dadj_item` FOREIGN KEY (`item_id`) REFERENCES `item` (`id`))
+
+
+[ 2026-10-03 16:27:14 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:23:24 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:23:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:23:05 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:22:32 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, code, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1
+            AND companies_id = 1
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:22:17 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+
+[ 2026-10-03 16:21:21 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT id, name AS valor
+            FROM fayxzvov_inventory.unit
+            WHERE active = 1 AND companies_id = ?
+            ORDER BY sort_order ASC, name ASC
+        
+[ ERROR READ] :: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sort_order' in 'order clause'
+
+

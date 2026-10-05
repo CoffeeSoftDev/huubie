@@ -564,16 +564,19 @@ class ctrl extends mdl {
     // cuentan aparte. Unidades, almacenes y sucursales nunca se vacían.
     const IA_VACIADO = [
         'movements' => ['nombre' => 'Movimientos del almacén', 'refresca' => ['product'], 'tablas' => [
-            'detail_inventory_inflow'    => null,
-            'inventory_inflow'           => ['entrada', 'entradas'],
-            'detail_inventory_shrinkage' => null,
-            'inventory_shrinkage'        => ['salida o merma', 'salidas y mermas'],
-            'detail_inventory_transfer'  => null,
-            'inventory_transfer_history' => null,
-            'inventory_transfer'         => ['traspaso', 'traspasos'],
-            'detail_purchase_order'      => null,
-            'purchase_order'             => ['orden de compra', 'órdenes de compra'],
-            'stock'                      => ['existencia', 'existencias']
+            'detail_inventory_inflow'      => null,
+            'inventory_inflow'             => ['entrada', 'entradas'],
+            'detail_inventory_shrinkage'   => null,
+            'inventory_shrinkage'          => ['salida o merma', 'salidas y mermas'],
+            'detail_inventory_adjustment'  => null,
+            'inventory_adjustment_history' => null,
+            'inventory_adjustment'         => ['ajuste', 'ajustes'],
+            'detail_inventory_transfer'    => null,
+            'inventory_transfer_history'   => null,
+            'inventory_transfer'           => ['traspaso', 'traspasos'],
+            'detail_purchase_order'        => null,
+            'purchase_order'               => ['orden de compra', 'órdenes de compra'],
+            'stock'                        => ['existencia', 'existencias']
         ]],
         'products' => ['nombre' => 'Productos y sus movimientos', 'refresca' => ['product'], 'tablas' => [
             'inflow_format_item' => null,
@@ -879,7 +882,7 @@ class ctrl extends mdl {
             '- Números sin signo de pesos ni separador de miles: 1250.5',
             '- Como mucho ' . self::IA_MAX_CAMBIOS . ' cambios por respuesta; si hay más, propone los primeros y avísalo en "reply".',
             $super
-                ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, mermas, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
+                ? '- VACIAR (esta persona es Super Admin): si pide vaciar, limpiar o borrar TODO un bloque, manda un solo cambio {"entity": "purge", "action": "purge", "scope": "..."} y ningún otro. scope: "movements" (entradas, salidas, mermas, ajustes, traspasos, órdenes de compra y existencias), "products" (todos los productos, con sus movimientos) o "catalogs" (categorías, áreas y proveedores, con productos y movimientos). Unidades, almacenes y sucursales no se vacían. Para quitar registros sueltos usa "deactivate", nunca "purge".'
                 : '- VACIAR la base de datos es solo para el Super Admin. Si esta persona lo pide, dile que no tiene permiso y no mandes cambios.',
             '',
             'Responde SOLO con un objeto JSON, sin texto antes ni después. Ejemplo de la forma:',

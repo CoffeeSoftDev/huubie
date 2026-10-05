@@ -1,3 +1,31 @@
+[ 2026-10-05 13:34:34 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.scheme, t.mode, t.badge, t.is_default, t.orden
+            FROM fayxzvov_erp.themes t
+            LEFT JOIN fayxzvov_erp.company_themes ct ON ct.theme_id = t.id AND ct.company_id = ?
+            WHERE t.is_active = 1
+                AND (t.is_default = 1 OR ct.id IS NOT NULL)
+            ORDER BY t.orden ASC, t.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
+[ 2026-10-05 13:34:30 ]
+[ UNIX_USR ] :: nt authority\system
+[ WINDOWS_USR ] :: DESKTOP-FHJB2CN$
+[ INFO ] ::  
+            SELECT t.code, t.name, t.tipo, t.color, t.image, t.accent, t.primary_color, t.secondary_color, t.scheme, t.mode, t.badge, t.is_default, t.orden
+            FROM fayxzvov_erp.themes t
+            LEFT JOIN fayxzvov_erp.company_themes ct ON ct.theme_id = t.id AND ct.company_id = ?
+            WHERE t.is_active = 1
+                AND (t.is_default = 1 OR ct.id IS NOT NULL)
+            ORDER BY t.orden ASC, t.id ASC
+        
+[ ERROR READ] :: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'fayxzvov_erp.company_themes' doesn't exist
+
+
 [ 2026-06-15 07:38:33 ]
 [ UNIX_USR ] :: nt authority\system
 [ WINDOWS_USR ] :: DESKTOP-O7AOGR9$

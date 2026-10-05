@@ -30,7 +30,7 @@
 --  money(), asi que no hay que tocar consultas.
 --
 --  ── Esquema compartido ──────────────────────────────────────────────────────
---  app/facture (Soft Restaurant) y app/facture2 (Wansoft) usan estas mismas
+--  app/facture (Soft Restaurant) y app/wansoft (Wansoft) usan estas mismas
 --  tablas: el cambio vale para los dos modulos.
 --
 --  Cada columna conserva su NULL, su valor por omision y su comentario.
@@ -65,8 +65,11 @@ DELIMITER ;
 
 
 -- -- Sucursal ---------------------------------------------------------------------
+--
+-- NOT NULL, como la creo migra-07: tolerancia() lee un NULL como 0, y 0 es "sin
+-- tope". La base local la traia sin el NOT NULL; esta linea no la debe aflojar.
 
-CALL moneyToDecimal('branch', 'adjustment_tolerance', "DECIMAL(12,2) NULL DEFAULT 10.00 COMMENT 'tolerancia maxima del ajuste de cuadre, $ · 0 = sin tope'");
+CALL moneyToDecimal('branch', 'adjustment_tolerance', "DECIMAL(12,2) NOT NULL DEFAULT 10.00 COMMENT 'tolerancia maxima del ajuste de cuadre, $ · 0 = sin tope'");
 
 -- -- Resumen del dia -------------------------------------------------------------
 

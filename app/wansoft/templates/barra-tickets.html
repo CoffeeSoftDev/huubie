@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barra de Tickets · Boceto</title>
+
+<!-- Mismas librerias que templates/reportes.html -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+    colors: {
+      ws: {
+        blue: '#2B4FD8', blueDk: '#2340BC', blueLt: '#4667E0', key: '#E4E8F8',
+        ink: '#1F2937', muted: '#6B7280', line: '#E5E7EB', lineDk: '#D1D5DB',
+        ok: '#047857', warn: '#B45309'
+      }
+    }
+  }}};
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  html, body { height: 100%; }
+  body { font-family: "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+  /* La barra: tres botones numerados en el orden del trabajo y la meta como enlace */
+  .btn { height: 38px; border-radius: 8px; padding: 0 14px; font-size: 14px; font-weight: 600; line-height: 1;
+         display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; border: 0; cursor: pointer;
+         background: #F3F4F6; color: #1F2937; transition: background-color .15s ease; }
+  .btn:hover { background: #E5E7EB; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-barra { min-width: 176px; }
+  .btn-primary { background: #2B4FD8; color: #fff; }
+  .btn-primary:hover { background: #2340BC; }
+  .btn-done { background: #E7F5EF; color: #047857; }
+  .btn-done:hover { background: #D7EFE4; }
+  .btn .num { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center;
+              font-size: 12px; font-weight: 700; background: rgba(31,41,55,.1); }
+  .btn-primary .num { background: rgba(255,255,255,.25); }
+  .btn-done .num { background: rgba(4,120,87,.15); }
+  .btn:focus-visible, .lnk:focus-visible, .opcion:focus-within { outline: 2px solid #2B4FD8; outline-offset: 2px; }
+  .sep { width: 1px; height: 28px; background: #E1E5EC; align-self: flex-end; margin-bottom: 5px; }
+  .lnk { height: 38px; display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; font-size: 13.5px; font-weight: 500;
+         color: #2B4FD8; text-decoration: underline; text-decoration-color: #C7D2F7; text-underline-offset: 4px; cursor: pointer;
+         background: none; border: 0; }
+  .campo { height: 38px; border: 1px solid #D1D5DB; border-radius: 8px; padding: 0 10px; font-size: 14px; color: #111827; background: #fff; }
+
+  /* Franja de cifras: copia de .ws-stat de wansoft-theme.css */
+  .ws-stat      { padding: 0 22px; border-left: 1px solid #E5E7EB; }
+  .ws-stat:first-child { padding-left: 0; border-left: 0; }
+  .ws-stat-lbl  { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6B7280; white-space: nowrap; }
+  .ws-stat-val  { font-size: 18px; font-weight: 700; color: #1F2937; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ws-stat-blue .ws-stat-val { color: #2340BC; }
+  .ws-stat-sub  { font-size: 10.5px; color: #6B7280; }
+
+  /* Tabla con el encabezado azul de la terminal */
+  .tbl            { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .tbl thead th   { background: #2B4FD8; color: #fff; text-align: center; font-size: 11.5px; font-weight: 600;
+                    padding: 8px 10px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  .tbl tbody td   { padding: 8px 10px; border-bottom: 1px solid #EDF0F4; white-space: nowrap; text-align: center; }
+  .tbl tbody tr:hover td { background: #F3F5FB; }
+  .tbl tr.corte td { border-top: 2px solid #F59E0B; }
+  .num-cell       { font-variant-numeric: tabular-nums; }
+  .dot            { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+
+  /* Ventanas */
+  .velo  { position: fixed; inset: 0; background: rgba(17,24,39,.5); z-index: 50; display: flex; align-items: flex-start;
+           justify-content: center; padding: 64px 16px; overflow-y: auto; }
+  .ventana { background: #fff; border-radius: 12px; padding: 22px 24px; width: 100%; max-width: 400px;
+             box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .opcion { display: block; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 12px; cursor: pointer; }
+  .opcion.activa { border-color: #2B4FD8; }
+  .opcion.apagada { opacity: .5; cursor: not-allowed; }
+  .aviso { max-width: 470px; text-align: center; padding: 28px 26px 22px; border-radius: 6px; }
+  .aviso .q { width: 72px; height: 72px; border-radius: 50%; border: 4px solid #C9DAE1; color: #87ADBD;
+              display: grid; place-items: center; margin: 0 auto 14px; font-size: 44px; font-weight: 600; }
+  .ab { height: 42px; border-radius: 6px; padding: 0 16px; font-size: 14.5px; font-weight: 600; border: 1px solid #D1D5DB;
+        background: #fff; color: #1F2937; cursor: pointer; }
+  .ab.azul { background: #2B4FD8; border-color: #2B4FD8; color: #fff; }
+  .ab:disabled { opacity: .4; cursor: not-allowed; }
+
+  .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #D6DCF6; border-radius: 6px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .silueta i { display: block; height: 9px; border-radius: 4px; background: #E3E7EF; }
+</style>
+</head>
+
+<body class="h-screen flex flex-col bg-[#EEF1F6] text-ws-ink">
+
+<!-- Banda superior: los rotulos que arma navbar-wansoft.js -->
+<div class="h-11 shrink-0 flex items-center justify-between px-3 bg-ws-blue border-b border-ws-blueLt">
+  <div class="flex items-center gap-6 min-w-0">
+    <button class="w-6 h-6 rounded bg-white/20 text-white flex items-center justify-center shrink-0" title="Regresar al menú">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+    </button>
+    <span class="text-[17px] font-bold text-white">wansoft</span>
+    <span class="text-[13px] text-white">Tickets</span>
+    <span class="text-[13px] text-white hidden lg:inline">Turno: 1</span>
+  </div>
+  <span class="text-[11px] text-white/80 hidden sm:inline">Boceto · opción F · cifras de julio 2026 (base local)</span>
+</div>
+
+<div class="flex-1 min-h-0 flex">
+  <main class="flex-1 min-w-0 flex flex-col">
+
+    <!-- La barra -->
+    <div class="shrink-0 px-3 pt-3 pb-1">
+      <div class="bg-white rounded-lg px-3 py-2.5 flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="fDia" class="text-[12.5px] font-medium text-gray-700">Día:</label>
+          <input type="date" id="fDia" class="campo" value="2026-07-01" min="2026-07-01" max="2026-07-31">
+        </div>
+        <span class="sep"></span>
+        <button type="button" id="b1" class="btn btn-barra"><span class="num">1</span><i data-lucide="upload" class="w-4 h-4 text-[#217346]"></i>Subir ventas</button>
+        <button type="button" id="b2" class="btn btn-barra btn-primary"></button>
+        <button type="button" id="b3" class="btn btn-barra"><span class="num">3</span>Imprimir tickets</button>
+        <button type="button" id="bMes" class="btn btn-barra">Ver mes</button>
+        <span class="flex-1"></span>
+        <button type="button" id="lnkMeta" class="lnk"><i data-lucide="settings" class="w-4 h-4"></i>Meta 70/30</button>
+      </div>
+    </div>
+
+    <!-- Franja de cifras del dia -->
+    <div id="cifras" class="shrink-0 flex flex-wrap items-center gap-y-3 px-4 py-3"></div>
+
+    <!-- Tickets del dia -->
+    <div class="flex-1 min-h-0 px-3 pb-2 flex flex-col">
+      <div id="caja" class="flex-1 min-h-0 bg-white rounded-lg px-3 py-3 overflow-auto scroll-thin relative"></div>
+    </div>
+
+    <div class="shrink-0 flex items-center justify-between gap-3 px-4 py-2 text-[11.5px] text-ws-muted">
+      <span id="pie"></span>
+      <button type="button" id="lnkReinicia" class="lnk" style="height:auto;font-size:11.5px">Reiniciar boceto</button>
+    </div>
+  </main>
+
+  <!-- El visor del ticket no cambia -->
+  <aside class="hidden lg:flex w-[360px] shrink-0 bg-white border-l border-ws-line flex-col">
+    <div class="px-4 py-3 border-b border-ws-line flex items-center gap-2 text-[13px] font-semibold">
+      <i data-lucide="receipt" class="w-4 h-4 text-ws-muted"></i>Ticket virtual
+    </div>
+    <div class="flex-1 grid place-items-center text-[11px] text-gray-400">Sin ticket seleccionado</div>
+  </aside>
+</div>
+
+<div id="capa"></div>
+
+<div id="toast" class="hidden fixed bottom-4 right-4 z-[60] max-w-sm bg-ws-ink text-white text-[13px] leading-snug rounded-lg px-4 py-3 shadow-lg" role="status" aria-live="polite"></div>
+
+<script>
+  // Cifras de julio 2026 de la base local, las mismas de templates/reportes.html.
+  // [fecha, total, 16%, 0%, tickets, de $0.00, movimientos]
+  const DIAS = [
+    ['2026-07-01', 22206.00, 15673.00, 6533.00, 25, 2, 25],
+    ['2026-07-02', 26837.00, 18873.50, 7963.50, 35, 8, 35],
+    ['2026-07-03', 42947.00, 30819.00, 12128.00, 51, 16, 51],
+    ['2026-07-04', 49638.00, 35285.00, 14353.00, 66, 17, 66],
+    ['2026-07-05', 20143.00, 14870.00, 5273.00, 27, 9, 27],
+    ['2026-07-06', 24128.00, 17174.00, 6954.00, 27, 2, 27],
+    ['2026-07-07', 24179.00, 17002.00, 7177.00, 30, 0, 30],
+    ['2026-07-08', 25147.00, 17851.00, 7296.00, 23, 0, 23],
+    ['2026-07-09', 30641.00, 21692.00, 8949.00, 30, 7, 30],
+    ['2026-07-10', 38853.00, 28491.00, 10362.00, 39, 11, 39],
+    ['2026-07-11', 37594.00, 26410.00, 11184.00, 40, 9, 40],
+    ['2026-07-12', 34910.00, 24562.00, 10348.00, 45, 20, 45],
+    ['2026-07-13', 31385.00, 22278.00, 9107.00, 29, 8, 29],
+    ['2026-07-14', 17148.00, 12456.00, 4692.00, 27, 13, 27],
+    ['2026-07-15', 42903.50, 31730.50, 11173.00, 41, 12, 41],
+    ['2026-07-16', 30891.00, 22282.00, 8609.00, 31, 2, 31],
+    ['2026-07-17', 38276.00, 27201.00, 11075.00, 39, 4, 39],
+    ['2026-07-18', 49985.00, 35103.00, 14882.00, 64, 30, 64],
+    ['2026-07-19', 12752.00, 9934.00, 2818.00, 22, 8, 22],
+    ['2026-07-20', 25482.00, 18063.00, 7419.00, 31, 10, 31],
+    ['2026-07-21', 21366.00, 15278.00, 6088.00, 24, 6, 24],
+    ['2026-07-22', 25191.00, 18135.00, 7056.00, 26, 7, 26],
+    ['2026-07-23', 27946.00, 21607.00, 6339.00, 33, 9, 33],
+    ['2026-07-24', 53293.00, 39793.00, 13500.00, 56, 18, 56],
+    ['2026-07-25', 32275.00, 23383.00, 8892.00, 54, 22, 54],
+    ['2026-07-26', 40609.00, 28530.00, 12079.00, 48, 18, 48],
+    ['2026-07-27', 29255.00, 21115.00, 8140.00, 31, 4, 31],
+    ['2026-07-28', 18739.90, 13417.90, 5322.00, 23, 3, 23],
+    ['2026-07-29', 22516.00, 16015.00, 6501.00, 28, 8, 28],
+    ['2026-07-30', 31426.00, 24221.00, 7205.00, 33, 13, 33],
+    ['2026-07-31', 26557.00, 20492.00, 6065.00, 41, 13, 41]
+  ];
+
+  // Como esta hoy la base local: solo el 01/07 tiene tickets.
+  const INICIAL = ['2026-07-01'];
+
+  // Primer folio de julio en la base local; cada dia sigue donde acabo el anterior.
+  const FOLIO_JULIO = 4474;
+
+  const estado = { dia: '2026-07-01', generados: new Set(INICIAL) };
+
+  const $ = (id) => document.getElementById(id);
+  const money = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const entero = (n) => n.toLocaleString('en-US');
+  const pct = (parte, total) => total > 0 ? (Math.round(parte / total * 1000) / 10) + '%' : '0%';
+  const ddmm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  const ddmmaaaa = (iso) => ddmm(iso) + '/' + iso.slice(0, 4);
+
+  const delDia = (iso) => DIAS.find((d) => d[0] === iso);
+  const pendientes = () => DIAS.filter((d) => !estado.generados.has(d[0]));
+  const iconos = () => { if (window.lucide) lucide.createIcons(); };
+
+  // -- Barra --
+
+  function pintaBarra() {
+    const faltan = pendientes().length;
+    const b2 = $('b2');
+    const b3 = $('b3');
+
+    if (faltan > 0) {
+      b2.className = 'btn btn-barra btn-primary';
+      b2.innerHTML = '<span class="num">2</span>Generar tickets';
+      b3.className = 'btn btn-barra';
+    } else {
+      b2.className = 'btn btn-barra btn-done';
+      b2.innerHTML = '<span class="num"><i data-lucide="check" class="w-3.5 h-3.5"></i></span>Tickets generados';
+      b3.className = 'btn btn-barra btn-primary';
+    }
+
+    b3.disabled = estado.generados.size === 0;
+
+    // «Ver mes» es el de hoy: aparece en un dia que ya tiene tickets.
+    $('bMes').classList.toggle('hidden', !estado.generados.has(estado.dia));
+  }
+
+  // -- Cifras y tabla del dia --
+
+  function cifra(label, valor, clase, sub) {
+    return `
+      <div class="ws-stat ${clase || ''}">
+        <div class="ws-stat-lbl">${label}</div>
+        <div class="ws-stat-val">${valor}</div>
+        ${sub ? `<div class="ws-stat-sub">${sub}</div>` : ''}
+      </div>`;
+  }
+
+  function pintaCifras() {
+    const d = delDia(estado.dia);
+    const hecho = estado.generados.has(estado.dia);
+
+    $('cifras').innerHTML = [
+      cifra('Tarjeta de crédito', money(d[1])),
+      hecho ? cifra('IVA 16% · ' + pct(d[2], d[1]), money(d[2]), 'ws-stat-blue') : cifra('IVA 16%', 'Por capturar', '', 'se define al generar'),
+      hecho ? cifra('IVA 0% · ' + pct(d[3], d[1]), money(d[3])) : cifra('IVA 0%', 'Por capturar', '', 'se define al generar'),
+      cifra('Ya facturado', '$0.00'),
+      `<span class="ml-auto text-[11.5px] font-semibold rounded-full px-3 py-0.5 border ${hecho
+        ? 'border-ws-blue text-ws-blue bg-[#EEF2FD]">' + d[4] + ' generados'
+        : 'border-ws-lineDk text-ws-muted bg-white">sin repartir'}</span>`
+    ].join('');
+  }
+
+  // Filas de ejemplo que cuadran con las cifras del dia: el 16% primero, el 0%
+  // despues de la linea ambar, y los de servicio de mesa repartidos entre ellos.
+  function aleatorio(semilla) {
+    let s = semilla >>> 0;
+    return () => {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function partes(total, cuantas, azar) {
+    if (cuantas <= 0) return [];
+    const pesos = Array.from({ length: cuantas }, () => 0.4 + azar());
+    const suma = pesos.reduce((a, b) => a + b, 0);
+    const salida = pesos.map((p) => Math.round(total * p / suma));
+    salida[cuantas - 1] = Math.round((total - salida.slice(0, -1).reduce((a, b) => a + b, 0)) * 100) / 100;
+    return salida;
+  }
+
+  function filasDelDia(iso) {
+    const indice = DIAS.findIndex((d) => d[0] === iso);
+    const d = DIAS[indice];
+    const azar = aleatorio(indice + 7);
+
+    const folio0 = FOLIO_JULIO + DIAS.slice(0, indice).reduce((a, x) => a + x[6], 0);
+    const conCargo = d[6] - d[5];
+    const n16 = Math.max(1, Math.round(conCargo * d[2] / d[1]));
+    const n0 = conCargo - n16;
+
+    const montos = partes(d[2], n16, azar).map((m) => ['16', m]).concat(partes(d[3], n0, azar).map((m) => ['0', m]));
+    const cada = d[5] > 0 ? Math.max(2, Math.floor(d[6] / d[5])) : 0;
+
+    const filas = [];
+    let servicios = 0;
+
+    for (let i = 0; i < d[6]; i++) {
+      const toca = cada && servicios < d[5] && (i % cada === 0 || d[6] - i <= d[5] - servicios);
+
+      if (toca || !montos.length) { filas.push(['serv', 0]); servicios++; continue; }
+
+      filas.push(montos.shift());
+    }
+
+    return filas.map((f, i) => ({ nota: i + 1, folio: folio0 + i, tasa: f[0], monto: f[1] }));
+  }
+
+  function pintaTabla() {
+    const d = delDia(estado.dia);
+
+    if (!estado.generados.has(estado.dia)) {
+      $('caja').innerHTML = `
+        <div class="silueta grid gap-4 p-4 opacity-70">
+          ${Array.from({ length: 9 }, () => '<div class="grid grid-cols-[60px_80px_1fr_100px] gap-6"><i></i><i></i><i style="width:40%"></i><i></i></div>').join('')}
+        </div>
+        <div class="absolute inset-0 grid place-items-center pointer-events-none">
+          <div class="pointer-events-auto bg-white border border-ws-line rounded-xl shadow-md px-5 py-4 flex items-center gap-4">
+            <span class="w-9 h-9 rounded-full bg-gray-100 grid place-items-center"><i data-lucide="lock" class="w-4 h-4 text-ws-muted"></i></span>
+            <div>
+              <p class="text-[14px] font-semibold">${d[6]} ventas sin repartir</p>
+              <p class="text-[12px] text-ws-muted">Dale a «2 Generar tickets» para repartir el día</p>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const filas = filasDelDia(estado.dia);
+    let corte = false;
+
+    $('caja').innerHTML = `
+      <table class="tbl">
+        <thead><tr><th>Nota</th><th>Folio</th><th>Estado</th><th>Monto</th><th></th></tr></thead>
+        <tbody>
+          ${filas.map((f) => {
+            const primeraDel0 = f.tasa === '0' && !corte;
+            if (primeraDel0) corte = true;
+            const estadoTxt = f.tasa === 'serv'
+              ? '<span class="dot" style="background:#D1D5DB"></span>Servicio'
+              : `<span class="dot" style="background:${f.tasa === '16' ? '#2B4FD8' : '#12A594'}"></span>IVA ${f.tasa}%`;
+            return `
+              <tr class="${primeraDel0 ? 'corte' : ''}">
+                <td class="font-semibold">#${f.nota}</td>
+                <td class="font-mono text-[11px] text-ws-muted">${f.folio}</td>
+                <td class="text-left" style="padding-left:12%">${estadoTxt}</td>
+                <td class="num-cell font-semibold">${f.tasa === 'serv' ? '-' : money(f.monto)}</td>
+                <td class="text-ws-blue"><i data-lucide="eye" class="w-4 h-4 inline"></i></td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function pintaPie() {
+    const d = delDia(estado.dia);
+
+    $('pie').textContent = estado.generados.has(estado.dia)
+      ? `Mostrando ${d[4]} tickets del día, ${d[5]} de servicio de mesa · filas de ejemplo que cuadran con las cifras del día`
+      : `${d[6]} ventas del día, sin repartir`;
+  }
+
+  function pinta() {
+    $('fDia').value = estado.dia;
+    pintaBarra();
+    pintaCifras();
+    pintaTabla();
+    pintaPie();
+    iconos();
+  }
+
+  // -- Ventanas --
+
+  function abre(html, clase) {
+    $('capa').innerHTML = `<div class="velo" id="velo"><div class="ventana ${clase || ''}" role="dialog" aria-modal="true">${html}</div></div>`;
+    $('velo').addEventListener('mousedown', (e) => { if (e.target.id === 'velo') cierra(); });
+    iconos();
+  }
+
+  function cierra() { $('capa').innerHTML = ''; }
+
+  function toast(texto) {
+    const t = $('toast');
+    t.textContent = texto;
+    t.classList.remove('hidden');
+    clearTimeout(toast.reloj);
+    toast.reloj = setTimeout(() => t.classList.add('hidden'), 4200);
+  }
+
+  // 2 · Generar tickets: la ventana que ya existe (un dia o todo el mes), con
+  // «Rehacer» cuando el dia ya tiene tickets.
+  function abreGenerar() {
+    const faltan = pendientes();
+    const totalFaltan = faltan.reduce((a, d) => a + d[1], 0);
+    const movFaltan = faltan.reduce((a, d) => a + d[6], 0);
+    const diaHecho = estado.generados.has(estado.dia);
+    const alMes = faltan.length > 0 && diaHecho;
+
+    abre(`
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-[16px] font-semibold">Generar tickets</h3>
+        <button type="button" class="text-gray-400 text-2xl leading-none" data-cierra aria-label="Cerrar">&times;</button>
+      </div>
+      <p class="text-[11.5px] text-gray-600">Julio 2026 · 31 días con ventas · ${faltan.length} sin repartir</p>
+
+      <label class="opcion mt-3 ${alMes ? '' : 'activa'}" data-op="dia">
+        <span class="flex items-center gap-2">
+          <input type="radio" name="alcance" value="dia" ${alMes ? '' : 'checked'} class="accent-[#2B4FD8]">
+          <span class="text-[13px] font-semibold" id="lblDia">${diaHecho ? 'Rehacer un día' : 'Un día'}</span>
+        </span>
+        <select id="selDia" class="mt-2 w-full rounded-lg border border-ws-lineDk px-2 py-1.5 text-[12.5px] bg-white">
+          ${DIAS.map((d) => `<option value="${d[0]}" ${d[0] === estado.dia ? 'selected' : ''}>${ddmmaaaa(d[0])} · ${money(d[1])}${estado.generados.has(d[0]) ? ' · ya repartido' : ''}</option>`).join('')}
+        </select>
+        <span id="notaDia" class="${diaHecho ? '' : 'hidden'} mt-2 block text-[11px] text-ws-warn">Rehacer reemplaza los tickets ya generados de ese día.</span>
+      </label>
+
+      <label class="opcion mt-2 ${faltan.length ? (alMes ? 'activa' : '') : 'apagada'}" data-op="mes">
+        <span class="flex items-center gap-2">
+          <input type="radio" name="alcance" value="mes" ${alMes ? 'checked' : ''} ${faltan.length ? '' : 'disabled'} class="accent-[#2B4FD8]">
+          <span class="text-[13px] font-semibold">Todo el mes</span>
+          <span class="ml-auto text-[12.5px] font-bold">${faltan.length ? money(totalFaltan) : ''}</span>
+        </span>
+        <span class="mt-1 block pl-6 text-[11px] text-gray-600">${faltan.length
+          ? `Los ${faltan.length} días sin repartir · ${entero(movFaltan)} movimientos`
+          : 'Julio ya está completo'}</span>
+      </label>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" class="btn" data-cierra>Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnPropuesta">Ver propuesta</button>
+      </div>
+    `);
+
+    const sincroniza = () => {
+      const elegido = document.querySelector('input[name="alcance"]:checked').value;
+      document.querySelectorAll('.opcion').forEach((o) => o.classList.toggle('activa', o.dataset.op === elegido));
+
+      const hecho = estado.generados.has($('selDia').value);
+      $('lblDia').textContent = hecho ? 'Rehacer un día' : 'Un día';
+      $('notaDia').classList.toggle('hidden', !hecho);
+    };
+
+    document.querySelectorAll('input[name="alcance"]').forEach((r) => r.addEventListener('change', sincroniza));
+    $('selDia').addEventListener('change', () => {
+      document.querySelector('input[value="dia"]').checked = true;
+      sincroniza();
+    });
+
+    $('btnPropuesta').addEventListener('click', aplicaGenerar);
+    document.querySelectorAll('[data-cierra]').forEach((b) => b.addEventListener('click', cierra));
+  }
+
+  function aplicaGenerar() {
+    const alcance = document.querySelector('input[name="alcance"]:checked').value;
+    const nota = 'Boceto: aquí siguen la vista previa y «Confirmar», como hoy. ';
+
+    if (alcance === 'mes') {
+      const faltan = pendientes();
+      faltan.forEach((d) => estado.generados.add(d[0]));
+      cierra();
+      pinta();
+      toast(nota + `Se generaron ${faltan.length} días; julio quedó completo.`);
+      return;
+    }
+
+    const dia = $('selDia').value;
+    const rehecho = estado.generados.has(dia);
+
+    estado.generados.add(dia);
+    estado.dia = dia;
+    cierra();
+    pinta();
+    toast(nota + `${rehecho ? 'Se rehízo' : 'Se generó'} el ${ddmmaaaa(dia)}.`);
+  }
+
+  // 3 · Imprimir tickets: con dias por generar pregunta; con el mes completo
+  // imprime todo sin preguntar.
+  function imprime() {
+    const faltan = pendientes().length;
+    const creados = estado.generados.size;
+
+    if (!creados) return;
+
+    if (faltan === 0) {
+      toast('Boceto: se imprimen los tickets de los 31 días de julio, sin preguntar.');
+      return;
+    }
+
+    const diaHecho = estado.generados.has(estado.dia);
+
+    abre(`
+      <div class="q">?</div>
+      <h3 class="text-[24px] font-semibold text-gray-800">¿Qué tickets imprimo?</h3>
+      <p class="mt-2 text-[15px] text-gray-600">A julio le faltan ${faltan} ${faltan === 1 ? 'día' : 'días'} por generar. Puedes imprimir solo el día elegido o todo lo que ya está creado.</p>
+      <div class="mt-5 flex flex-wrap justify-center gap-2">
+        <button type="button" class="ab azul" id="impDia" ${diaHecho ? '' : 'disabled title="Ese día todavía no tiene tickets"'}>Solo el ${ddmm(estado.dia)}</button>
+        <button type="button" class="ab" id="impTodos">Todos los creados (${creados} ${creados === 1 ? 'día' : 'días'})</button>
+        <button type="button" class="ab" data-cierra>Cancelar</button>
+      </div>
+    `, 'aviso');
+
+    $('impDia').addEventListener('click', () => { cierra(); toast(`Boceto: se imprimen los tickets del ${ddmmaaaa(estado.dia)}.`); });
+    $('impTodos').addEventListener('click', () => { cierra(); toast(`Boceto: se imprimen los tickets de los ${creados} días creados.`); });
+    document.querySelectorAll('[data-cierra]').forEach((b) => b.addEventListener('click', cierra));
+  }
+
+  // -- Eventos --
+
+  $('fDia').addEventListener('change', (e) => {
+    if (!e.target.value || !delDia(e.target.value)) return;
+    estado.dia = e.target.value;
+    pinta();
+  });
+
+  $('b1').addEventListener('click', () => toast('Boceto: abre «Subir ventas del POS», igual que hoy.'));
+  $('b2').addEventListener('click', abreGenerar);
+  $('b3').addEventListener('click', imprime);
+  $('bMes').addEventListener('click', () => toast('Boceto: abre «Ver mes», el mismo de hoy.'));
+  $('lnkMeta').addEventListener('click', () => toast('Boceto: abre «Distribución IVA 16% / IVA 0%», igual que el engrane de hoy.'));
+
+  $('lnkReinicia').addEventListener('click', () => {
+    estado.dia = '2026-07-01';
+    estado.generados = new Set(INICIAL);
+    cierra();
+    pinta();
+    toast('Boceto reiniciado: julio con 1 día generado (01/07).');
+  });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cierra(); });
+
+  pinta();
+</script>
+</body>
+</html>
