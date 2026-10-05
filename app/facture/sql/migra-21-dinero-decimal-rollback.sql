@@ -34,7 +34,7 @@ END$$
 
 DELIMITER ;
 
-CALL moneyToDouble('branch', 'adjustment_tolerance', "DOUBLE NULL DEFAULT 10 COMMENT 'tolerancia maxima del ajuste de cuadre, $ · 0 = sin tope'");
+CALL moneyToDouble('branch', 'adjustment_tolerance', "DOUBLE NOT NULL DEFAULT 10 COMMENT 'tolerancia maxima del ajuste de cuadre, $ · 0 = sin tope'");
 
 CALL moneyToDouble('daily_sale_summary', 'subtotal',           "DOUBLE NOT NULL DEFAULT 0");
 CALL moneyToDouble('daily_sale_summary', 'tax',                "DOUBLE NOT NULL DEFAULT 0");

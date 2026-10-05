@@ -232,19 +232,20 @@ class mdl extends CRUD {
     }
 
     // Lo que amarra a un producto (FK RESTRICT): renglones de entradas, salidas,
-    // traspasos y órdenes, y su existencia en cualquier almacén.
+    // ajustes, traspasos y órdenes, y su existencia en cualquier almacén.
     function getMaterialCounts($array) {
         $id = $array[0];
 
         $query = "
             SELECT
-                (SELECT COUNT(*) FROM {$this->bd}detail_inventory_inflow    WHERE item_id = ?)
-              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_shrinkage WHERE item_id = ?)
-              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_transfer  WHERE item_id = ?)
-              + (SELECT COUNT(*) FROM {$this->bd}detail_purchase_order      WHERE item_id = ?) AS movimientos,
+                (SELECT COUNT(*) FROM {$this->bd}detail_inventory_inflow     WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_shrinkage  WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_adjustment WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_inventory_transfer   WHERE item_id = ?)
+              + (SELECT COUNT(*) FROM {$this->bd}detail_purchase_order       WHERE item_id = ?) AS movimientos,
                 (SELECT COALESCE(SUM(ABS(quantity)), 0) FROM {$this->bd}stock WHERE item_id = ?) AS existencia
         ";
-        $result = $this->_Read($query, [$id, $id, $id, $id, $id]);
+        $result = $this->_Read($query, [$id, $id, $id, $id, $id, $id]);
         return $result[0] ?? ['movimientos' => 0, 'existencia' => 0];
     }
 
@@ -430,23 +431,26 @@ class mdl extends CRUD {
     // companies_id: se filtran por su encabezado [tabla padre, columna que los une].
     private function purgeTarget($table) {
         $targets = [
-            'detail_inventory_inflow'    => ['inventory_inflow', 'inventory_inflow_id'],
-            'inventory_inflow'           => null,
-            'detail_inventory_shrinkage' => ['inventory_shrinkage', 'inventory_shrinkage_id'],
-            'inventory_shrinkage'        => null,
-            'detail_inventory_transfer'  => ['inventory_transfer', 'inventory_transfer_id'],
-            'inventory_transfer_history' => ['inventory_transfer', 'inventory_transfer_id'],
-            'inventory_transfer'         => null,
-            'detail_purchase_order'      => ['purchase_order', 'purchase_order_id'],
-            'purchase_order'             => null,
-            'stock'                      => null,
-            'inflow_format_item'         => ['inflow_format', 'inflow_format_id'],
-            'inflow_format'              => null,
-            'item_attribute'             => ['item', 'item_id'],
-            'item'                       => null,
-            'item_category'              => null,
-            'warehouse_area'             => null,
-            'supplier'                   => null
+            'detail_inventory_inflow'      => ['inventory_inflow', 'inventory_inflow_id'],
+            'inventory_inflow'             => null,
+            'detail_inventory_shrinkage'   => ['inventory_shrinkage', 'inventory_shrinkage_id'],
+            'inventory_shrinkage'          => null,
+            'detail_inventory_adjustment'  => ['inventory_adjustment', 'inventory_adjustment_id'],
+            'inventory_adjustment_history' => ['inventory_adjustment', 'inventory_adjustment_id'],
+            'inventory_adjustment'         => null,
+            'detail_inventory_transfer'    => ['inventory_transfer', 'inventory_transfer_id'],
+            'inventory_transfer_history'   => ['inventory_transfer', 'inventory_transfer_id'],
+            'inventory_transfer'           => null,
+            'detail_purchase_order'        => ['purchase_order', 'purchase_order_id'],
+            'purchase_order'               => null,
+            'stock'                        => null,
+            'inflow_format_item'           => ['inflow_format', 'inflow_format_id'],
+            'inflow_format'                => null,
+            'item_attribute'               => ['item', 'item_id'],
+            'item'                         => null,
+            'item_category'                => null,
+            'warehouse_area'               => null,
+            'supplier'                     => null
         ];
 
         if (!array_key_exists($table, $targets)) throw new Exception('Tabla no permitida: ' . $table);

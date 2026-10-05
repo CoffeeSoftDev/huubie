@@ -62,6 +62,7 @@ class App extends Templates {
 
     render() {
         this.layout();
+        this.resizePanel();
         this.filterBar();
         entradasView.renderDetail(null);
         this.populateFilters();
@@ -112,10 +113,17 @@ class App extends Templates {
             ]
         };
 
+        // Tirador entre la tabla y el visor: el ancho del visor vive en --entradas-detail-w.
+        const detailResizer = {
+            type:  'div',
+            id:    'detailResizer',
+            class: "hidden md:block relative z-[5] flex-shrink-0 w-[6px] -mx-[3px] cursor-col-resize touch-none after:content-[''] after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] after:-translate-x-1/2 after:rounded-full after:transition-colors hover:after:bg-gray-400"
+        };
+
         const detailPanel = {
             type: 'aside',
             id:   'detailPanel',
-            class: 'w-full md:w-[420px] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
+            class: 'w-full md:w-[var(--entradas-detail-w,420px)] md:max-w-[60vw] flex-shrink-0 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col overflow-hidden',
             children: [
                 {
                     id:    'emptyDetail',
@@ -134,9 +142,65 @@ class App extends Templates {
             data: {
                 id:        this.PROJECT_NAME,
                 class:     'flex-1 min-h-0 w-full flex flex-col md:flex-row overflow-hidden bg-white rounded-lg border border-gray-200',
-                container: [mainPanel, detailPanel]
+                container: [mainPanel, detailResizer, detailPanel]
             }
         });
+    }
+
+    // Arrastrar el tirador cambia el ancho del visor y la tabla toma el resto.
+    // Sin ancho guardado, en laptop (< 1600 px) el visor arranca más angosto.
+    resizePanel() {
+        const handle = document.getElementById('detailResizer');
+        const panel  = document.getElementById('detailPanel');
+        if (!handle || !panel) return;
+
+        this.applyPanelWidth(this.savedPanelWidth() || (window.innerWidth < 1600 ? 340 : 420), false);
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', 'Ancho del detalle de recepción');
+
+        const move = (e) => this.applyPanelWidth(panel.getBoundingClientRect().right - e.clientX, false);
+
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+            handle.classList.add('after:bg-blue-600');
+            document.body.style.cursor     = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            const release = () => {
+                handle.classList.remove('after:bg-blue-600');
+                document.body.style.cursor     = '';
+                document.body.style.userSelect = '';
+                handle.removeEventListener('pointermove', move);
+                this.applyPanelWidth(panel.getBoundingClientRect().width, true);
+            };
+
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', release, { once: true });
+            handle.addEventListener('pointercancel', release, { once: true });
+        });
+    }
+
+    applyPanelWidth(px, save) {
+        const width = Math.round(Math.min(760, Math.max(300, px)));
+        document.documentElement.style.setProperty('--entradas-detail-w', `${width}px`);
+
+        if (!save) return;
+        try {
+            localStorage.setItem('inventory:entradas:detailWidth', width);
+        } catch (e) { }
+    }
+
+    savedPanelWidth() {
+        try {
+            const px = Number(localStorage.getItem('inventory:entradas:detailWidth'));
+            return px > 0 ? px : null;
+        } catch (e) {
+            return null;
+        }
     }
 
     filterBar() {
@@ -1133,8 +1197,9 @@ class EntradasView extends Templates {
                 guardar:     'Guardar cambios',
                 cancelarEd:  'Cancelar',
                 comprobante: 'Comprobante',
-                subirComp:   'Arrastra aquí o sube el comprobante',
-                cambiarComp: 'Arrastra otro archivo aquí para cambiarlo',
+                subirComp:   'Subir',
+                arrastrarComp: 'También puedes arrastrar la foto o PDF al panel',
+                soltarComp:  'Suelta el archivo para cargarlo como comprobante',
                 sinComp:     'Sin comprobante'
             },
             origenPalettes: {
@@ -1168,6 +1233,10 @@ class EntradasView extends Templates {
 
         const $parent = $(`#${opts.parent}`);
         if (!$parent.length) return;
+
+        // El panel se repinta en cada selección: se sueltan los handlers de arrastre
+        // de la entrada anterior para que un archivo no caiga en ella.
+        $parent.off('.voucher');
 
         const esc = (str) => String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1222,7 +1291,7 @@ class EntradasView extends Templates {
 
             if (!e.comprobante) {
                 return voucherEditable
-                    ? `${input}<button type="button" id="${opts.id}_voucherUpload" class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-md border-[1px] border-dashed border-gray-300 bg-gray-50 text-[11px] font-semibold text-blue-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-colors"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirComp)}</button>`
+                    ? `${input}<button type="button" id="${opts.id}_voucherUpload" class="flex items-center gap-1 text-[11px] text-gray-500 hover:text-blue-600 transition-colors" title="${esc(opts.labels.arrastrarComp)}"><i data-lucide="upload" class="w-3 h-3"></i>${esc(opts.labels.subirComp)}</button>`
                     : `<span class="text-gray-400">${esc(opts.labels.sinComp)}</span>`;
             }
 
@@ -1248,7 +1317,12 @@ class EntradasView extends Templates {
         const totCosto = (e.productos || []).reduce((s, p) => s + qtyOf(p) * Number(p.costo || 0), 0);
 
         $parent.html(`
-            <div class="flex-1 flex flex-col overflow-hidden">
+            <div class="relative flex-1 flex flex-col overflow-hidden">
+                ${voucherEditable ? `
+                <div id="${opts.id}_drop" class="hidden absolute inset-2 z-20 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50/90 flex-col items-center justify-center gap-2 text-center px-6 pointer-events-none">
+                    <i data-lucide="paperclip" class="w-7 h-7 text-blue-600"></i>
+                    <p class="text-xs font-semibold text-blue-700">${esc(opts.labels.soltarComp)}</p>
+                </div>` : ''}
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                     <div>
                         <p class="text-xs text-gray-500 uppercase tracking-wider">${esc(opts.labels.subtitleLbl)}</p>
@@ -1310,7 +1384,7 @@ class EntradasView extends Templates {
                     ${e.confirmadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Confirmado</span><span class="text-gray-700 text-right">${esc(e.confirmadoPor)}</span></div>` : ''}
                     ${e.editadoPor ? `<div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Editado</span><span class="text-gray-700 text-right">${esc(e.editadoPor)} <span class="text-gray-400">· ${esc(e.editadoFecha)}</span></span></div>` : ''}
                     ${e.nota ? `<div class="flex items-start justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">Nota</span><span class="text-gray-700 text-right">${esc(e.nota)}</span></div>` : ''}
-                    <div id="${opts.id}_voucherRow" class="flex items-center justify-between gap-2 text-xs rounded-md transition-all" ${voucherEditable && e.comprobante ? `title="${esc(opts.labels.cambiarComp)}"` : ''}><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
+                    <div class="flex items-center justify-between gap-2 text-xs"><span class="text-gray-500 w-20 flex-shrink-0">${esc(opts.labels.comprobante)}</span>${voucherHtml}</div>
                 </div>
 
                 ${(opts.editMode || !isCancelled) ? `
@@ -1359,16 +1433,26 @@ class EntradasView extends Templates {
             if (file) opts.onUploadVoucher(e, file);
         });
 
-        // El panel cancela dragover/drop: un archivo soltado fuera del renglón no
-        // hace que el navegador lo abra.
-        $parent.off('dragover.voucher drop.voucher').on('dragover.voucher drop.voucher', (ev) => ev.preventDefault());
+        // Un archivo soltado en cualquier parte del panel es el comprobante. Sin
+        // comprobante editable igual se cancela el drop: el navegador no lo abre.
+        $parent.on('dragover.voucher drop.voucher', (ev) => ev.preventDefault());
         if (voucherEditable) {
-            const $row   = $parent.find(`#${opts.id}_voucherRow`);
-            const dropOn = 'ring-2 ring-blue-400 bg-blue-50';
-            $row.on('dragenter dragover', () => $row.addClass(dropOn));
-            $row.on('dragleave', (ev) => { if (!$row[0].contains(ev.relatedTarget)) $row.removeClass(dropOn); });
-            $row.on('drop', (ev) => {
-                $row.removeClass(dropOn);
+            const $drop    = $parent.find(`#${opts.id}_drop`);
+            const hasFiles = (ev) => Array.from((ev.originalEvent.dataTransfer || {}).types || []).includes('Files');
+            let depth = 0;
+            $parent.on('dragenter.voucher', (ev) => {
+                if (!hasFiles(ev)) return;
+                depth++;
+                $drop.removeClass('hidden').addClass('flex');
+            });
+            $parent.on('dragleave.voucher', (ev) => {
+                if (!hasFiles(ev)) return;
+                depth = Math.max(0, depth - 1);
+                if (!depth) $drop.removeClass('flex').addClass('hidden');
+            });
+            $parent.on('drop.voucher', (ev) => {
+                depth = 0;
+                $drop.removeClass('flex').addClass('hidden');
                 const files = ev.originalEvent.dataTransfer && ev.originalEvent.dataTransfer.files;
                 if (files && files[0]) opts.onUploadVoucher(e, files[0]);
             });

@@ -20,7 +20,7 @@ El módulo son cuatro capas y el flujo las recorre en este orden:
 
 | Capa | Archivo | Qué le toca del flujo |
 |---|---|---|
-| Pantalla | `app/facture2/src/js/tickets.js` | pasos 1, 2, 11, 12, 16, 17, 19 |
+| Pantalla | `app/wansoft/src/js/tickets.js` | pasos 1, 2, 11, 12, 16, 17, 19 |
 | Controlador de Tickets | `app/facture/ctrl/ctrl-facture-tickets.php` | pasos 1, 6, 7, 9, 10, 13, 14, 15, 18, 19 |
 | Modelo de Tickets | `app/facture/mdl/mdl-facture-tickets.php` | pasos 4, 5 (el universo del día) |
 | Cargas / importador Wansoft | `ctrl-facture-cargas.php` · `import-facture2-cargas.php` | pasos 2, 3, 8 |

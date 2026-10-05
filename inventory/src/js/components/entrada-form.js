@@ -44,7 +44,7 @@ class EntradaForm {
             search:  'w-full pl-8 pr-3 py-2 text-sm text-gray-800 bg-white border border-gray-300 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400',
             qtyInp:  'no-spin w-full px-3 py-2 text-sm font-bold text-center text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
             cashInp: 'no-spin w-full pl-6 pr-3 py-2 text-sm text-right text-gray-800 bg-white border border-gray-300 rounded outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all',
-            btnCancel: 'px-4 py-2 text-xs font-bold text-gray-700 bg-white border-[1px] border-gray-400 rounded-md hover:bg-gray-100 hover:border-gray-500 hover:text-gray-900 transition-all flex items-center gap-1.5',
+            btnCancel: 'px-4 py-2 text-xs font-bold text-red-600 bg-white border-[1px] border-red-400 rounded-md hover:bg-red-50 hover:border-red-500 hover:text-red-700 transition-all flex items-center gap-1.5',
             btnOk:   'px-4 py-2 text-xs font-bold text-white bg-green-600 rounded-md hover:bg-green-500 hover:shadow-lg transition-all flex items-center gap-1.5',
             btnIco:  'px-2.5 py-1.5 text-[11px] font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center gap-1.5',
             badge:   'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none'
@@ -105,9 +105,9 @@ class EntradaForm {
                 iaSubir:      'Subir con IA',
                 fecha:        'Fecha',
                 nota:         'Nota (opcional)',
-                notaPh:       'Escribe una nota para esta entrada',
                 comprobante:  'Comprobante',
-                compDrop:     'Arrastra aquí la foto o PDF, o haz clic',
+                compDrop:     'Arrastra la foto o PDF a la ventana, o haz clic',
+                compSuelta:   'Suelta el archivo para adjuntarlo como comprobante',
                 quitarComp:   'Quitar comprobante',
                 buscar:       'Buscar productos',
                 placeholder:  'Buscar productos por nombre o SKU...',
@@ -191,6 +191,7 @@ class EntradaForm {
         this.editing      = null;   // entrada abierta para editar: { id, folio }; null = alta
         this.voucher      = null;   // comprobante adjunto: { name, dataUrl }
         this.formatoAplicado = null; // id del formato cargado en el lote; null = lote capturado a mano
+        this.dragDepth    = 0;      // dragenter/dragleave anidados mientras se arrastra un archivo
 
         this.ensureStyles();
         this.mount();
@@ -577,16 +578,17 @@ class EntradaForm {
             </div>`;
     }
 
+    // compact.css fuerza height:auto y 1rem (!important) en textarea: el alto va en style.
     renderFooter() {
         const o   = this.opts;
         const cls = this.cls;
         return `
-            <div class="flex items-center justify-between gap-3 px-[18px] py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+            <div class="flex items-center gap-2 px-[18px] py-2 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                 <div class="flex items-center gap-2 relative flex-shrink-0">
-                    <button id="${o.id}_btnSaveFormato" class="${cls.btnIco}" title="${this.esc(o.labels.guardar)}">
+                    <button id="${o.id}_btnSaveFormato" class="${cls.btnIco} h-[44px]" title="${this.esc(o.labels.guardar)}">
                         <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.guardar)}</span>
                     </button>
-                    <button id="${o.id}_btnLoadFormato" class="${cls.btnIco}" title="${this.esc(o.labels.cargar)}">
+                    <button id="${o.id}_btnLoadFormato" class="${cls.btnIco} h-[44px]" title="${this.esc(o.labels.cargar)}">
                         <i data-lucide="folder-open" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cargar)}</span>
                         <span id="${o.id}_cntFormatos" class="${cls.badge} bg-blue-50 text-blue-700 border border-blue-200 ml-0.5 hidden">0</span>
                     </button>
@@ -602,37 +604,29 @@ class EntradaForm {
                         <div id="${o.id}_formatosLista" class="max-h-[260px] overflow-y-auto cs-scroll"></div>
                     </div>
                 </div>
+                <div class="relative flex-1 min-w-[160px]">
+                    <span class="absolute left-2.5 top-[13px] text-gray-400 pointer-events-none flex">
+                        <i data-lucide="sticky-note" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <textarea id="${o.id}_inpNota" rows="2" placeholder="${this.esc(o.labels.nota)}..." title="${this.esc(o.labels.nota)}" style="height:44px !important;"
+                        class="block w-full !pl-8 pr-3 py-[4px] leading-[18px] text-gray-800 bg-white border-[1px] border-gray-300 rounded-md outline-none resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 hover:border-gray-400 transition-all placeholder:text-gray-400">${this.esc(o.data.nota)}</textarea>
+                </div>
+                <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
+                <div id="${o.id}_btnVoucher" role="button" tabindex="0" title="${this.esc(o.labels.compDrop)}"
+                    class="h-[44px] w-[170px] flex-shrink-0 px-2.5 flex items-center gap-1.5 rounded-md border-[1px] border-dashed border-gray-300 bg-white text-[11px] font-medium text-gray-600 cursor-pointer hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all">
+                    <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                    <span id="${o.id}_voucherLbl" class="flex-1 min-w-0 truncate">${this.esc(o.labels.comprobante)}</span>
+                    <button id="${o.id}_voucherClear" type="button" class="hidden w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                </div>
                 <div class="flex gap-2 flex-shrink-0">
-                    <button class="${cls.btnCancel}" data-modal-close>
+                    <button class="${cls.btnCancel} h-[44px]" data-modal-close>
                         <i data-lucide="x" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.cancelar)}</span>
                     </button>
-                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk}">
+                    <button id="${o.id}_btnRegistrar" class="${cls.btnOk} h-[44px]">
                         <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>${this.esc(o.labels.registrar)}</span>
                     </button>
-                </div>
-            </div>`;
-    }
-
-    renderDetalles() {
-        const o   = this.opts;
-        const cls = this.cls;
-        return `
-            <div class="flex items-end gap-3 px-5 py-2.5 border-t border-gray-200 bg-white flex-shrink-0">
-                <div class="flex-1 min-w-0">
-                    <label for="${o.id}_inpNota" class="${cls.label}">${this.esc(o.labels.nota)}</label>
-                    <input id="${o.id}_inpNota" type="text" value="${this.esc(o.data.nota)}" placeholder="${this.esc(o.labels.notaPh)}..." class="${cls.input}">
-                </div>
-                <div class="w-[300px] flex-shrink-0">
-                    <label class="${cls.label}">${this.esc(o.labels.comprobante)}</label>
-                    <input id="${o.id}_voucherInput" type="file" accept="image/*,application/pdf" class="hidden">
-                    <div id="${o.id}_btnVoucher" role="button" tabindex="0" title="${this.esc(o.labels.compDrop)}"
-                        class="h-[38px] px-3 flex items-center gap-2 rounded-md border-[1px] border-dashed border-gray-300 bg-gray-50 text-[11px] text-gray-500 cursor-pointer hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all">
-                        <i data-lucide="paperclip" class="w-3.5 h-3.5 flex-shrink-0"></i>
-                        <span id="${o.id}_voucherLbl" class="flex-1 min-w-0 truncate">${this.esc(o.labels.compDrop)}</span>
-                        <button id="${o.id}_voucherClear" type="button" class="hidden w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0" title="${this.esc(o.labels.quitarComp)}">
-                            <i data-lucide="x" class="w-3 h-3"></i>
-                        </button>
-                    </div>
                 </div>
             </div>`;
     }
@@ -828,15 +822,18 @@ class EntradaForm {
         const o = this.opts;
         this.wrap = $('<div>', { id: o.id, class: o.class });
         this.wrap.html(`
-            <div class="absolute inset-0 bg-black/40" data-modal-close></div>
+            <div class="absolute inset-0 bg-black/40"></div>
             <div id="${o.id}_panel" class="relative z-10 w-full max-w-[1080px] h-[90vh] mx-3 bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div id="${o.id}_drop" class="hidden absolute inset-2 z-[80] rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/90 flex-col items-center justify-center gap-2 pointer-events-none">
+                    <i data-lucide="paperclip" class="w-8 h-8 text-blue-600"></i>
+                    <p class="text-sm font-semibold text-blue-700">${this.esc(o.labels.compSuelta)}</p>
+                </div>
                 ${this.renderHeader()}
                 ${this.renderConfigRow()}
                 ${this.renderSearchBar()}
                 ${this.renderLoteHeader()}
                 <div id="${o.id}_listaProductos" class="flex-1 min-h-0 overflow-y-auto cs-scroll"></div>
                 ${this.renderResumen()}
-                ${this.renderDetalles()}
                 ${this.renderFooter()}
                 <div id="${o.id}_float" class="hidden absolute z-[60] bg-white border border-gray-200 rounded-lg shadow-2xl shadow-black/20 overflow-hidden"></div>
             </div>
@@ -1499,7 +1496,7 @@ class EntradaForm {
         const id = this.opts.id;
         this.voucher = voucher;
         $(`#${id}_voucherInput`).val('');
-        $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.compDrop);
+        $(`#${id}_voucherLbl`).text(voucher ? voucher.name : this.opts.labels.comprobante);
         $(`#${id}_btnVoucher`).toggleClass('!text-green-700 !border-green-300 !border-solid !bg-green-50', !!voucher);
         $(`#${id}_voucherClear`).toggleClass('hidden', !voucher);
     }
@@ -2002,16 +1999,26 @@ class EntradaForm {
             if (file) this.attachVoucher(file);
         });
 
-        // El wrap cancela dragover/drop: un archivo soltado fuera de la zona no
-        // hace que el navegador lo abra y se pierda el lote.
-        const dropOn = 'ring-2 ring-blue-400 !border-blue-400 !bg-blue-50';
-        wrap.on('dragover drop', (e) => e.preventDefault());
-        wrap.on('dragenter dragover', `#${id}_btnVoucher`, (e) => $(e.currentTarget).addClass(dropOn));
-        wrap.on('dragleave', `#${id}_btnVoucher`, (e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) $(e.currentTarget).removeClass(dropOn);
+        // Un archivo soltado en cualquier parte del modal es el comprobante. Solo
+        // reacciona a archivos: arrastrar texto dentro del modal no pinta la capa.
+        const $drop    = $(`#${id}_drop`);
+        const hasFiles = (e) => Array.from((e.originalEvent.dataTransfer || {}).types || []).includes('Files');
+        wrap.on('dragenter', (e) => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            this.dragDepth++;
+            $drop.removeClass('hidden').addClass('flex');
         });
-        wrap.on('drop', `#${id}_btnVoucher`, (e) => {
-            $(e.currentTarget).removeClass(dropOn);
+        wrap.on('dragover', (e) => e.preventDefault());
+        wrap.on('dragleave', (e) => {
+            if (!hasFiles(e)) return;
+            this.dragDepth = Math.max(0, this.dragDepth - 1);
+            if (!this.dragDepth) $drop.removeClass('flex').addClass('hidden');
+        });
+        wrap.on('drop', (e) => {
+            e.preventDefault();
+            this.dragDepth = 0;
+            $drop.removeClass('flex').addClass('hidden');
             const files = e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files;
             if (files && files[0]) this.attachVoucher(files[0]);
         });

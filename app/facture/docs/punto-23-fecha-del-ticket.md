@@ -122,7 +122,7 @@ $anio = (int) $_POST['anio'];
 ([ctrl-facture-cargas.php:919](../ctrl/ctrl-facture-cargas.php))
 
 El propio JS lo declara: *«El periodo lo fija el filtro del modulo, no el nombre del archivo»*
-(`confirmarPeriodo`, [cargas.js:1128](../../facture2/src/js/cargas.js)). Y la revisión previa no
+(`confirmarPeriodo`, [cargas.js:1128](../../wansoft/src/js/cargas.js)). Y la revisión previa no
 podría desmentirlo aunque quisiera: `inspectFile()` **no abre el libro** —le basta con los
 nombres de las hojas y la fila de encabezados— así que jamás ve una fecha.
 
