@@ -138,13 +138,14 @@ function areaColors($id, $hex) {
 // Switch de estado de las filas de catálogo: encendido = activo (clic da de baja),
 // apagado = inactivo (clic activa). $fn es el status() del JS, que confirma antes y
 // recibe el estado actual de la fila como número (compara con !== 1).
+// Encendido va con el acento del tema (`blue-*` sigue a --brand-*), en degradado.
 function statusSwitch($fn, $id, $active) {
     $on = (int) $active === 1;
 
     return [
         'class'   => 'inline-flex items-center justify-center h-9 px-2 cursor-pointer',
-        'html'    => '<span class="relative inline-flex items-center w-9 h-5 rounded-full transition-colors ' . ($on ? 'bg-[#6366F1]' : 'bg-gray-300') . '">'
-                   . '<span class="inline-block w-4 h-4 rounded-full bg-white shadow transition-transform ' . ($on ? 'translate-x-[18px]' : 'translate-x-0.5') . '"></span>'
+        'html'    => '<span class="relative inline-flex items-center w-11 h-6 rounded-full transition-colors hover:brightness-110 ' . ($on ? 'bg-gradient-to-r from-blue-700 to-blue-500 shadow-sm' : 'bg-gray-300') . '">'
+                   . '<span class="inline-block w-5 h-5 rounded-full bg-white shadow-md transition-transform ' . ($on ? 'translate-x-[22px]' : 'translate-x-0.5') . '"></span>'
                    . '</span>',
         'title'   => $on ? 'Dar de baja' : 'Activar',
         'onclick' => $fn . '(' . (int) $id . ', ' . ($on ? 1 : 0) . ')'
