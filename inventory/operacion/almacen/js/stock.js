@@ -12,8 +12,7 @@ const NIVELES_STOCK = [
 
 const MOVIMIENTOS_STOCK = [
     { id: '',    valor: 'Todos los productos' },
-    { id: 'con', valor: 'Con movimientos'     },
-    { id: 'sin', valor: 'Sin movimientos'     }
+    { id: 'con', valor: 'Con movimientos'     }
 ];
 
 $(async () => {
@@ -90,7 +89,7 @@ class App extends Templates {
         stockView.renderHeader({
             title:     'Visor de Stock',
             titleHtml: titleHtml,
-            subtitle:  'Control de existencias por sucursal, categoria y nivel',
+            subtitle:  'Control de existencias por sucursal, categoría y nivel',
             // back:      { href: 'index.php', title: 'Regresar al inicio' }
         });
     }
@@ -300,11 +299,11 @@ class App extends Templates {
             {
                 opc:      'select',
                 id:       'fCategoria',
-                lbl:      'Categoria:',
+                lbl:      'Categoría:',
                 class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
                 value:    '',
-                data:     [{ id: '', valor: 'Todas las categorias' }].concat(this.dataInit.categorias || [])
+                data:     [{ id: '', valor: 'Todas las categorías' }].concat(this.dataInit.categorias || [])
             },
             {
                 opc:      'select',
@@ -330,7 +329,7 @@ class App extends Templates {
                 lbl:      'Movimientos:',
                 class:    'col-12 col-md-4 col-lg-2',
                 onchange: 'app.onChangeFilters()',
-                value:    'con',
+                value:    '',
                 data:     MOVIMIENTOS_STOCK
             },
             {
@@ -393,6 +392,13 @@ class App extends Templates {
         if (this.selectedId) {
             this.selectProduct(null);
         }
+    }
+
+    filterByKpi(kpi) {
+        const rel     = (kpi && kpi.rel) || '';
+        const current = $('#fNivel').val() || '';
+        $('#fNivel').val(current === rel ? '' : rel);
+        this.onChangeFilters();
     }
 
     onChangeSucursal() {
@@ -464,6 +470,7 @@ class Stock extends Templates {
                 branch_id:   f.branch_id,
                 category_id: f.categoria,
                 area_id:     f.area,
+                nivel:       f.nivel,
                 movimiento:  f.movimiento,
                 q:           f.q
             }
@@ -472,13 +479,42 @@ class Stock extends Templates {
         const c = (r && r.status === 200) ? r.counts : {};
 
         const kpis = [
-            { id: 'kpiTotal',   label: 'Total Productos', value: parseInt(c.total_productos || 0, 10), tone: 'default', icon: 'package'         },
-            { id: 'kpiOk',      label: 'Stock OK',        value: parseInt(c.total_ok        || 0, 10), tone: 'success', icon: 'check-circle-2'  },
-            { id: 'kpiBajo',    label: 'Stock Bajo',      value: parseInt(c.total_bajo      || 0, 10), tone: 'warning', icon: 'alert-triangle'  },
-            { id: 'kpiAgotado', label: 'Agotado',         value: parseInt(c.total_agotado   || 0, 10), tone: 'danger',  icon: 'x-circle'        },
-            { id: 'kpiVida',    label: 'Vida util',       value: 0,                                    tone: 'purple',  icon: 'clock'           }
+            {
+                id:    'kpiTotal',
+                label: 'Total Productos',
+                value: parseInt(c.total_productos || 0, 10),
+                tone:  'default',
+                icon:  'package',
+                rel:   ''
+            },
+            {
+                id:    'kpiOk',
+                label: 'Stock OK',
+                value: parseInt(c.total_ok || 0, 10),
+                tone:  'success',
+                icon:  'check-circle-2',
+                rel:   'ok'
+            },
+            {
+                id:    'kpiBajo',
+                label: 'Stock Bajo',
+                value: parseInt(c.total_bajo || 0, 10),
+                tone:  'warning',
+                icon:  'alert-triangle',
+                rel:   'bajo'
+            },
+            {
+                id:    'kpiAgotado',
+                label: 'Agotado',
+                value: parseInt(c.total_agotado || 0, 10),
+                tone:  'danger',
+                icon:  'x-circle',
+                rel:   'agotado'
+            }
         ];
-        stockView.renderInfoCards(kpis);
+
+        const match = kpis.find(k => k.rel === f.nivel);
+        stockView.renderInfoCards(kpis, match ? match.id : null);
     }
 
     async getProducto(id) {
@@ -518,12 +554,13 @@ class StockView extends Templates {
         });
     }
 
-    renderInfoCards(rows) {
+    renderInfoCards(rows, activeId) {
         this.kpisRow({
-            parent:  'kpisRow',
-            json:    rows,
-            cols:5,
-            onClick: (kpi) => console.log('[kpisRow] click', kpi.id)
+            parent:   'kpisRow',
+            json:     rows,
+            cols:     4,
+            activeId: activeId,
+            onClick:  (kpi) => app.filterByKpi(kpi)
         });
     }
 
@@ -878,7 +915,7 @@ class StockView extends Templates {
             historicoColor:   '#94A3B8',
             proyeccionColor:  '#475569',
             minLineColor:     '#CBD5E1',
-            errorMsg:         'No se pudo obtener la prediccion.',
+            errorMsg:         'No se pudo obtener la predicción.',
             accentColor:      '#475569',
             accentBg:         'bg-slate-50',
             accentBorder:     'border-slate-200',
@@ -902,7 +939,7 @@ class StockView extends Templates {
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                     </svg>
-                    <span class="text-[11px] ${opts.accentSubtext}">Analizando patron...</span>
+                    <span class="text-[11px] ${opts.accentSubtext}">Analizando patrón...</span>
                 </div>
             `;
         } else if (opts.state === 'error') {
@@ -913,12 +950,12 @@ class StockView extends Templates {
                 </div>
             `;
         } else if (opts.iaOk) {
-            const diasHtml   = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.dias)} dias</strong>`;
+            const diasHtml   = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.dias)} días</strong>`;
             const reordHtml  = `<strong class="font-bold" style="color:${opts.accentColor};">${esc(opts.reorden)} unidades</strong>`;
 
             inner = `
                 <p class="text-[11px] ${opts.accentText} leading-relaxed">
-                    Al ritmo actual, el stock se agotara en ~${diasHtml}.
+                    Al ritmo actual, el stock se agotará en ~${diasHtml}.
                     Sugerimos reorden de ${reordHtml}.
                 </p>
                 ${opts.resumen ? `<p class="text-[10px] ${opts.accentSubtext} mt-1 leading-relaxed">${esc(opts.resumen)}</p>` : ''}
@@ -928,7 +965,7 @@ class StockView extends Templates {
             inner = `
                 <p class="text-[11px] ${opts.accentSubtext} leading-relaxed flex items-start gap-1.5">
                     <i data-lucide="info" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"></i>
-                    <span>${esc(opts.iaMsg || 'Recomendacion IA no disponible.')} Mostramos el comportamiento real.</span>
+                    <span>${esc(opts.iaMsg || 'Recomendación IA no disponible.')} Mostramos el comportamiento real.</span>
                 </p>
             `;
         }
@@ -1123,7 +1160,7 @@ class StockView extends Templates {
                           style="background:rgba(71,85,105,0.12);">
                         <i data-lucide="lightbulb" class="w-3.5 h-3.5" style="color:${opts.accentColor};"></i>
                     </span>
-                    <span class="text-[11px] font-bold ${opts.accentText} uppercase tracking-wide">Prediccion IA</span>
+                    <span class="text-[11px] font-bold ${opts.accentText} uppercase tracking-wide">Predicción IA</span>
                 </div>
                 ${inner}
                 ${chartHtml}
@@ -1144,19 +1181,19 @@ class StockView extends Templates {
             sucursalName: 'Todas las sucursales',
             labels: {
                 emptyTitle:   'Selecciona un producto',
-                emptyHint:    'Haz click en cualquier fila o en el icono ojo para ver el detalle aqui.',
+                emptyHint:    'Haz click en cualquier fila o en el icono ojo para ver el detalle aquí.',
                 comportLbl:   'Comportamiento e historial',
-                stockBajo:    'Atencion: stock bajo',
+                stockBajo:    'Atención: stock bajo',
                 stockAgotado: 'Producto agotado',
-                msgBajo:      (min) => `Existencias por debajo del minimo (${min}). Considera reabastecer pronto.`,
+                msgBajo:      (min) => `Existencias por debajo del mínimo (${min}). Considera reabastecer pronto.`,
                 msgAgotado:   'Sin existencias disponibles. Considera generar un reabastecimiento.',
                 existencias:  'Existencias por sucursal',
                 almacenes:    'Almacenes disponibles',
                 historial:    'Historial de movimientos',
                 stock:        'Stock',
-                min:          'Min',
-                max:          'Max',
-                vidaUtilLbl:  'Vida util'
+                min:          'Mín',
+                max:          'Máx',
+                vidaUtilLbl:  'Vida útil'
             },
             sucursales: [
                 { id: 'kafeto',  name: 'Reginas Kafeto'  },
@@ -1165,8 +1202,8 @@ class StockView extends Templates {
                 { id: 'sur',     name: 'Reginas Sur'     }
             ],
             statusMap: {
-                ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango optimo.',                stockColor: 'text-emerald-600' },
-                bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual esta por debajo del minimo recomendado.', stockColor: 'text-orange-600'  },
+                ok:      { palette: 'emerald', icon: 'check-circle-2', label: 'Stock OK',   msg: 'Nivel saludable, dentro del rango óptimo.',                stockColor: 'text-emerald-600' },
+                bajo:    { palette: 'orange',  icon: 'alert-triangle', label: 'Stock Bajo', msg: 'El nivel actual está por debajo del mínimo recomendado.', stockColor: 'text-orange-600'  },
                 agotado: { palette: 'rose',    icon: 'x-circle',       label: 'Agotado',    msg: 'No hay existencias disponibles.',                          stockColor: 'text-rose-600'    }
             },
             statusPalettes: {
@@ -1175,10 +1212,10 @@ class StockView extends Templates {
                 rose:    { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700'    }
             },
             vidaMap: {
-                critico: { palette: 'rose',    icon: 'alert-octagon', label: 'Critica',   msg: 'Caducidad inminente, prioriza la rotacion.' },
-                proximo: { palette: 'amber',   icon: 'clock',         label: 'Proxima',   msg: 'Cercano a su fecha de caducidad.'           },
-                ok:      { palette: 'emerald', icon: 'leaf',          label: 'Saludable', msg: 'Vida util dentro del rango optimo.'         },
-                na:      { palette: 'slate',   icon: 'minus',         label: 'No aplica', msg: 'Producto sin vida util registrada.'         }
+                critico: { palette: 'rose',    icon: 'alert-octagon', label: 'Crítica',   msg: 'Caducidad inminente, prioriza la rotación.' },
+                proximo: { palette: 'amber',   icon: 'clock',         label: 'Próxima',   msg: 'Cercano a su fecha de caducidad.'           },
+                ok:      { palette: 'emerald', icon: 'leaf',          label: 'Saludable', msg: 'Vida útil dentro del rango óptimo.'         },
+                na:      { palette: 'slate',   icon: 'minus',         label: 'No aplica', msg: 'Producto sin vida útil registrada.'         }
             },
             vidaPalettes: {
                 rose:    { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700'    },
@@ -1248,7 +1285,7 @@ class StockView extends Templates {
         const tieneVida     = !!(p.vida && p.vida.label && p.vida.label !== 'na');
         const vidaCfg       = opts.vidaMap[(p.vida && p.vida.label) || 'na'];
         const vidaPalette   = opts.vidaPalettes[vidaCfg.palette];
-        const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} dias restantes` : 'Sin caducidad activa';
+        const vidaText      = p.vida && p.vida.dias != null ? `${p.vida.dias} días restantes` : 'Sin caducidad activa';
 
         const stockColor = (q) => q <= 0 ? 'text-red-600' : (q < p.min ? 'text-orange-600' : 'text-green-600');
 
@@ -1293,7 +1330,7 @@ class StockView extends Templates {
                         <p class="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">
                             <span>Antes: <strong class="text-gray-700">${esc(m.prev)}</strong></span>
                             <i data-lucide="arrow-right" class="w-2.5 h-2.5 text-gray-400"></i>
-                            <span>Quedo: <strong class="text-gray-700">${esc(m.post)}</strong></span>
+                            <span>Quedó: <strong class="text-gray-700">${esc(m.post)}</strong></span>
                         </p>` : '';
             const sucursalTrace = m.branch ? `
                         <p class="text-[9px] text-gray-500 mt-0.5 flex items-center gap-1">

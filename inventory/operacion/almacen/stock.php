@@ -23,13 +23,7 @@ require_once('layout/core-libraries.php');
         <div id="menu-navbar"></div>
 
         <div id="main__content">
-            <!-- Breadcrumb Navigation -->
-            <!-- <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item text-uppercase text-muted">Operación</li>
-                    <li class="breadcrumb-item fw-bold active">Visor de Stock</li>
-                </ol>
-            </nav> -->
+        
 
             <!-- Contenedor principal -->
             <div class="" id="root"></div>

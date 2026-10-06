@@ -619,7 +619,8 @@ class Productos extends Templates {
                 $('<span>', { text: 'Nueva' })
             );
 
-            $label.removeClass('mb-1.5').wrap($('<div>', { class: 'flex items-center justify-between gap-2 mb-1.5' }));
+            // El label conserva su margen (compact.css lo fuerza): así el select no baja.
+            $label.wrap($('<div>', { class: 'flex items-start justify-between gap-2' }));
             $label.after($btn.on('click', onClick));
         };
 

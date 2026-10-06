@@ -62,13 +62,13 @@ class ctrl extends mdl {
                     'class' => 'justify-start px-2 py-2',
                     'html'  => $this->_productCell($r['image'] ?? '', $r['product_name'], $r['product_id'], $r['sku'] ?: '')
                 ],
-                'Categoria' => $r['category_name'] ?: '-',
+                'Categoría' => $r['category_name'] ?: '-',
                 'Stock'     => in_array($txt, ['0', '-0'], true) ? '-' : $txt,
-                'Min'       => $min > 0 ? $this->_qty($min) : '-',
-                'Max'       => $max > 0 ? $this->_qty($max) : '-',
+                'Mín'       => $min > 0 ? $this->_qty($min) : '-',
+                'Máx'       => $max > 0 ? $this->_qty($max) : '-',
                 'Unidad'    => $r['unit_code'] ?: '-',
                 'Estado'    => $this->_levelBadge($qty, $min),
-                'Ult. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
+                'Últ. Mov'  => $this->_lastMovBadge($r['last_movement_type'] ?? ''),
                 'a'         => [
                     [
                         'class'   => 'inline-flex items-center justify-center w-9 h-9 p-2 text-[#9CA3AF] hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0',
@@ -87,6 +87,7 @@ class ctrl extends mdl {
             'branch_id'    => $_POST['branch_id']    ?? '',
             'category_id'  => $_POST['category_id']  ?? '',
             'area_id'      => $_POST['area_id']      ?? '',
+            'nivel'        => $_POST['nivel']        ?? '',
             'movimiento'   => $_POST['movimiento']   ?? '',
             'q'            => $_POST['q']             ?? ''
         ]);
@@ -441,7 +442,7 @@ class ctrl extends mdl {
             'name'      => $product['name'],
             'image'     => $product['image'] ?? '',
             'sku'       => $product['sku'] ?: '-',
-            'categoria' => $product['category_name'] ?: 'Sin categoria',
+            'categoria' => $product['category_name'] ?: 'Sin categoría',
             'estado'    => $estado,
             'min'       => (float) ($product['stock_min'] ?? 0),
             'max'       => (float) ($product['stock_max'] ?? 0),

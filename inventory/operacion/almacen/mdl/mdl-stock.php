@@ -219,6 +219,16 @@ class mdl extends CRUD {
             }
         }
 
+        if (!empty($array['nivel'])) {
+            if ($array['nivel'] === 'ok') {
+                $where .= ' AND COALESCE(s.q, 0) > COALESCE(ia.stock_min, 0)';
+            } elseif ($array['nivel'] === 'bajo') {
+                $where .= ' AND COALESCE(s.q, 0) > 0 AND COALESCE(s.q, 0) <= COALESCE(ia.stock_min, 0)';
+            } elseif ($array['nivel'] === 'agotado') {
+                $where .= ' AND COALESCE(s.q, 0) <= 0';
+            }
+        }
+
         $data = array_merge($stockParams, $whereParams);
 
         $query = "
@@ -226,7 +236,7 @@ class mdl extends CRUD {
                 COUNT(DISTINCT i.id) AS total_productos,
                 SUM(CASE WHEN COALESCE(s.q, 0) > COALESCE(ia.stock_min, 0) THEN 1 ELSE 0 END) AS total_ok,
                 SUM(CASE WHEN COALESCE(s.q, 0) > 0 AND COALESCE(s.q, 0) <= COALESCE(ia.stock_min, 0) THEN 1 ELSE 0 END) AS total_bajo,
-                SUM(CASE WHEN COALESCE(s.q, 0) = 0 THEN 1 ELSE 0 END) AS total_agotado
+                SUM(CASE WHEN COALESCE(s.q, 0) <= 0 THEN 1 ELSE 0 END) AS total_agotado
             FROM {$this->bd}item i
             LEFT JOIN {$this->bd}item_attribute ia ON ia.item_id = i.id AND ia.active = 1
             LEFT JOIN (

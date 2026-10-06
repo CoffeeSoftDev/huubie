@@ -2712,12 +2712,19 @@ class ImportFacture2Cargas {
         $claveCol = columnLetter($claveIdx);
         $fechaCol = columnLetter($fechaIdx);
 
-        $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
-        $lector->setReadDataOnly(true);
-        $lector->setLoadSheetsOnly($nombre);
-        $lector->setReadFilter(filtroDeColumnas($nombre, [$claveCol, $fechaCol], $config['headerRow'] + 1));
+        // En streaming, como `leerBloque`: el filtro de columnas solo ahorraba
+        // objetos, no el XML entero que PhpSpreadsheet arma antes de filtrar.
+        $doc = libroXlsx($ruta, $nombre, $config['headerRow'] + 1, null, [$claveCol, $fechaCol]);
 
-        $doc  = $lector->load($ruta);
+        if ($doc === null) {
+            $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+            $lector->setReadDataOnly(true);
+            $lector->setLoadSheetsOnly($nombre);
+            $lector->setReadFilter(filtroDeColumnas($nombre, [$claveCol, $fechaCol], $config['headerRow'] + 1));
+
+            $doc = $lector->load($ruta);
+        }
+
         $hoja = $doc->getSheetByName($nombre);
 
         $__row = [];
@@ -2734,7 +2741,13 @@ class ImportFacture2Cargas {
         return $__row;
     }
 
+    // Primero en streaming (ver `libroXlsx`). PhpSpreadsheet queda de respaldo para
+    // lo que el lector no cubre —una formula, una hoja que no encuentra—, y ahi
+    // responde exactamente lo mismo que antes.
     private function leerBloque($ruta, $nombre, $desde, $filas) {
+        $libro = libroXlsx($ruta, $nombre, $desde, $desde + $filas - 1);
+        if ($libro !== null) return $libro;
+
         $lector = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
         $lector->setReadDataOnly(true);
         $lector->setLoadSheetsOnly($nombre);
@@ -3060,4 +3073,396 @@ function filtroDeColumnas($hoja, $columnas, $desde) {
             return isset($this->columnas[$column]);
         }
     };
+}
+
+/*
+    Lector de UNA hoja de un .xlsx en streaming: la alternativa a `load()` para la
+    hoja de comandas.
+
+    Los filtros de arriba no bastaban. PhpSpreadsheet arma la hoja ENTERA con
+    SimpleXML antes de preguntar al filtro por la primera celda, y esa memoria es de
+    libxml, no de PHP: `memory_limit` no la ve. Medido con el export de 4.5 MB (37.5
+    MB de XML adentro), cada `load()` lleva el proceso a 994 MB mientras
+    memory_get_peak_usage() dice 44. En local pasaba; en el servidor el hosting mata
+    el proceso al rebasar su tope y LiteSpeed contesta 503, y la pantalla solo puede
+    decir "no se pudo leer el archivo". La carga por bloques no se salvaba: cada
+    bloque repetia el mismo `load()`.
+
+    XMLReader recorre el XML nodo por nodo y solo guarda las celdas del rango. Las
+    filas antes de `desde` se saltan sin bajar a sus celdas, y la lectura se corta en
+    cuanto pasa de `hasta`: leer los encabezados ya no cuesta abrir el archivo.
+
+    Devuelve lo mismo que `leerBloque`: un libro con getSheetByName() y
+    disconnectWorksheets(), cuya hoja responde getCell()->getValue() con los MISMOS
+    valores que daria PhpSpreadsheet con setReadDataOnly(true). Por eso cada valor
+    se pasa por una celda real de PhpSpreadsheet (`setValue` / `setValueExplicit`)
+    en vez de convertirlo a mano: el entero, el flotante, el texto con ceros a la
+    izquierda y el booleano salen de su propio codigo y no pueden divergir.
+
+    getHighestRow() es la ultima fila con celda dentro del rango, en entero.
+    PhpSpreadsheet a veces da la misma como texto, o una mayor si hay filas ocultas
+    o agrupadas sin celdas en el rango. Aqui solo se usa como tope de un ciclo, y
+    esas filas de mas no traen nada que leer.
+
+    Devuelve null cuando no puede garantizar eso —una celda con formula, un tipo que
+    no reconoce, una hoja que no encuentra— y quien llama vuelve a PhpSpreadsheet.
+    Los exports del POS no traen formulas: es la red, no el camino.
+*/
+function libroXlsx($ruta, $hoja, $desde, $hasta = null, $columnas = null) {
+    $partes = partesXlsx($ruta);
+    if ($partes === null || !isset($partes['hojas'][$hoja])) return null;
+
+    $compartidas = cadenasXlsx($ruta, $partes['compartidas']);
+    if ($compartidas === null) return null;
+
+    // `load()` fija el calendario de las fechas al leer el libro, y cleanDate lo usa
+    // para convertir el serial: sin esto un libro de Mac (1904) cambiaria de dia.
+    if ($partes['calendario'] !== null) {
+        \PhpOffice\PhpSpreadsheet\Shared\Date::setExcelCalendar($partes['calendario']);
+    }
+
+    $xml = new XMLReader();
+    if (!@$xml->open('zip://' . $ruta . '#' . $partes['hojas'][$hoja])) return null;
+
+    $permitidas = $columnas === null ? null : array_flip($columnas);
+    $celda      = celdaDePaso();
+    $celdas     = [];
+    $alta       = 1;
+
+    // El respaldo de PhpSpreadsheet para la celda sin `r`: la columna es su lugar en
+    // la fila y la fila es el numero de <row> recorridos, no el `r` del renglon.
+    $filaSec = 0;
+    $colSec  = 0;
+
+    // Solo cuenta lo que esta dentro de <sheetData>, igual que en `load()`: fuera de
+    // ella (extLst, por ejemplo) puede haber nodos que tambien se llamen `c`.
+    $dentro = false;
+    $sigue  = $xml->read();
+
+    while ($sigue) {
+        if ($xml->localName === 'sheetData') {
+            if ($dentro || $xml->nodeType === XMLReader::END_ELEMENT || $xml->isEmptyElement) break;
+
+            $dentro = true;
+            $sigue  = $xml->read();
+            continue;
+        }
+
+        if (!$dentro || $xml->nodeType !== XMLReader::ELEMENT) { $sigue = $xml->read(); continue; }
+
+        if ($xml->localName === 'row') {
+            $filaSec++;
+            $colSec = 0;
+
+            $r = (int) $xml->getAttribute('r');
+
+            // Las filas van en orden en el XML: pasado `hasta` ya no hay nada que leer.
+            if ($r > 0 && $hasta !== null && $r > $hasta) break;
+
+            if ($r > 0 && $r < $desde) { $sigue = $xml->next(); continue; }
+
+            $sigue = $xml->read();
+            continue;
+        }
+
+        if ($xml->localName !== 'c') { $sigue = $xml->read(); continue; }
+
+        $colSec++;
+
+        $ref = (string) $xml->getAttribute('r');
+        if ($ref === '') $ref = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colSec) . $filaSec;
+
+        if (!preg_match('/^([A-Za-z]+)(\d+)$/', $ref, $m)) { $xml->close(); return null; }
+
+        $fila  = (int) $m[2];
+        $entra = $fila >= $desde
+            && ($hasta === null || $fila <= $hasta)
+            && ($permitidas === null || isset($permitidas[$m[1]]));
+
+        if (!$entra) { $sigue = $xml->next(); continue; }
+
+        $tipo  = (string) $xml->getAttribute('t');
+        $datos = contenidoDeCelda($xml);
+
+        if ($datos === null) { $xml->close(); return null; }
+
+        try {
+            $valor = valorDeCelda($celda, $tipo, $datos, $compartidas);
+        } catch (\Throwable $e) {
+            $xml->close();
+            return null;
+        }
+
+        // Con setReadEmptyCells en su valor por defecto, PhpSpreadsheet guarda tambien
+        // la celda vacia, y esa cuenta para getHighestRow. La llave va en mayusculas
+        // porque getCell() las pasa a mayusculas antes de buscar.
+        $celdas[strtoupper($ref)] = $valor;
+        if ($fila > $alta) $alta = $fila;
+
+        // `contenidoDeCelda` dejo el cursor en el cierre de la celda: el siguiente
+        // nodo es su hermana.
+        $sigue = $xml->read();
+    }
+
+    $xml->close();
+
+    return new class($hoja, $celdas, $alta) {
+
+        private $nombre;
+        private $celdas;
+        private $alta;
+
+        public function __construct($nombre, $celdas, $alta) {
+            $this->nombre = $nombre;
+            $this->celdas = $celdas;
+            $this->alta   = $alta;
+        }
+
+        public function getSheetByName($nombre) {
+            return $nombre === $this->nombre ? $this : null;
+        }
+
+        public function disconnectWorksheets() {
+            $this->celdas = [];
+        }
+
+        public function getHighestRow() {
+            return $this->alta;
+        }
+
+        public function getCell($ref) {
+            return new class($this->celdas[strtoupper($ref)] ?? null) {
+                private $valor;
+                public function __construct($valor) { $this->valor = $valor; }
+                public function getValue() { return $this->valor; }
+            };
+        }
+    };
+}
+
+// Lo que trae una celda por dentro: su <v>, el texto plano de su <is> (cadena en
+// linea) y si lleva <f>. Con formula devuelve null: PhpSpreadsheet devuelve la
+// formula y no su resultado, y replicar las compartidas no vale el riesgo.
+//
+// Deja el cursor en el cierre de la celda, listo para que `read()` siga.
+function contenidoDeCelda($xml) {
+    $datos = ['v' => null, 'is' => null];
+
+    if ($xml->isEmptyElement) return $datos;
+
+    $nivel = $xml->depth;
+
+    while ($xml->read()) {
+        if ($xml->nodeType === XMLReader::END_ELEMENT && $xml->depth === $nivel) break;
+        if ($xml->nodeType !== XMLReader::ELEMENT || $xml->depth !== $nivel + 1) continue;
+
+        if ($xml->localName === 'f')  return null;
+        if ($xml->localName === 'v')  $datos['v']  = $xml->readString();
+        if ($xml->localName === 'is') $datos['is'] = textoPlanoXlsx(simplexml_load_string($xml->readOuterXml()));
+    }
+
+    return $datos;
+}
+
+// El valor final de la celda, por el mismo camino que Reader\Xlsx::load(): mismo
+// cast segun el tipo y la misma asignacion a la celda. Lanza en lo que
+// PhpSpreadsheet tambien habria rechazado —un "n" que no es numero, un tipo que no
+// conoce— para que la lectura vuelva a el y falle igual que siempre.
+function valorDeCelda($celda, $tipo, $datos, $compartidas) {
+    $v = $datos['v'];
+
+    switch ($tipo) {
+        case 's':
+            $celda->setValueExplicit($v !== null && $v !== '' ? ($compartidas[(int) $v] ?? '') : '', 's');
+            break;
+
+        case 'b':
+            // castToBoolean: "0" y "1" con comparacion suelta, como el original; lo
+            // demas cuenta como verdadero si el <v> trae algo.
+            $celda->setValueExplicit($v !== null && $v !== '' && $v != '0', 'b');
+            break;
+
+        case 'inlineStr':
+            $celda->setValueExplicit((string) $datos['is'], 'inlineStr');
+            break;
+
+        case 'e':
+        case 'str':
+        case 'n':
+            $celda->setValueExplicit($v, $tipo);
+            break;
+
+        case '':
+            $celda->setValue($v);
+            break;
+
+        default:
+            throw new \UnexpectedValueException('Tipo de celda sin soporte: ' . $tipo);
+    }
+
+    return $celda->getValue();
+}
+
+// Una sola celda de PhpSpreadsheet para convertir todos los valores: lo que se
+// guarda es lo que devuelve getValue(), no la celda.
+function celdaDePaso() {
+    static $celda = null;
+
+    if ($celda === null) {
+        $celda = (new \PhpOffice\PhpSpreadsheet\Spreadsheet())->getActiveSheet()->getCell('A1');
+    }
+
+    return $celda;
+}
+
+// El texto de un <si> o un <is> como lo deja PhpSpreadsheet con readDataOnly: el
+// <t> directo si lo hay; si no, sus corridas <r> pegadas.
+function textoPlanoXlsx($nodo) {
+    if ($nodo === false || $nodo === null) return null;
+
+    $limpia = '\PhpOffice\PhpSpreadsheet\Shared\StringHelper::controlCharacterOOXML2PHP';
+
+    if (isset($nodo->t)) return $limpia((string) $nodo->t);
+    if (!isset($nodo->r)) return null;
+
+    $texto = '';
+    foreach ($nodo->r as $corrida) $texto .= $limpia((string) $corrida->t);
+
+    return $texto;
+}
+
+// Donde vive cada pieza del libro, resuelto como lo hace `load()`: _rels/.rels lleva
+// al libro, y los rels del libro a cada hoja y a las cadenas compartidas. Se guarda
+// por peticion: la carga por bloques lo pide una vez por bloque.
+function partesXlsx($ruta) {
+    static $cache = [];
+
+    $clave = $ruta . '|' . @filesize($ruta) . '|' . @filemtime($ruta);
+    if (array_key_exists($clave, $cache)) return $cache[$clave];
+
+    $cache[$clave] = null;
+
+    $zip = new ZipArchive();
+    if ($zip->open($ruta) !== true) return null;
+
+    $leer = function ($nombre) use ($zip) {
+        $xml = $zip->getFromName($nombre, 0, ZipArchive::FL_NOCASE);
+
+        return $xml === false ? null : @simplexml_load_string($xml);
+    };
+
+    // El nombre exacto dentro del zip: zip:// distingue mayusculas y el libro no
+    // siempre las respeta.
+    $real = function ($nombre) use ($zip) {
+        $info = $zip->statName($nombre, ZipArchive::FL_NOCASE);
+
+        return $info === false ? null : $info['name'];
+    };
+
+    $rel   = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    $rels  = $leer('_rels/.rels');
+    $libro = null;
+
+    foreach ($rels ? $rels->Relationship : [] as $r) {
+        if ((string) $r['Type'] === $rel . '/officeDocument') $libro = rutaEnZip('', (string) $r['Target']);
+    }
+
+    if ($libro === null) { $zip->close(); return null; }
+
+    $dir       = dirname($libro) === '.' ? '' : dirname($libro);
+    $relsLibro = $leer(rutaEnZip($dir, '_rels/' . basename($libro) . '.rels'));
+    $xmlLibro  = $leer($libro);
+
+    if (!$relsLibro || !$xmlLibro) { $zip->close(); return null; }
+
+    $destinos    = [];
+    $compartidas = null;
+
+    foreach ($relsLibro->Relationship as $r) {
+        $tipo = (string) $r['Type'];
+
+        if ($tipo === $rel . '/worksheet')     $destinos[(string) $r['Id']] = (string) $r['Target'];
+        if ($tipo === $rel . '/sharedStrings') $compartidas = $real(rutaEnZip($dir, (string) $r['Target']));
+    }
+
+    $hojas = [];
+
+    if (isset($xmlLibro->sheets->sheet)) {
+        foreach ($xmlLibro->sheets->sheet as $sheet) {
+            $id = (string) $sheet->attributes($rel)['id'];
+
+            if (!isset($destinos[$id])) continue;
+
+            $entrada = $real(rutaEnZip($dir, $destinos[$id]));
+            if ($entrada !== null) $hojas[(string) $sheet['name']] = $entrada;
+        }
+    }
+
+    // Mismo criterio que Reader\Xlsx::boolean(): numerico por su valor, si no solo
+    // la palabra "true" en minusculas.
+    $calendario = null;
+
+    if ($xmlLibro->workbookPr) {
+        $mac        = (string) $xmlLibro->workbookPr['date1904'];
+        $calendario = (is_numeric($mac) ? (bool) $mac : $mac === 'true')
+            ? \PhpOffice\PhpSpreadsheet\Shared\Date::CALENDAR_MAC_1904
+            : \PhpOffice\PhpSpreadsheet\Shared\Date::CALENDAR_WINDOWS_1900;
+    }
+
+    $zip->close();
+
+    return $cache[$clave] = ['hojas' => $hojas, 'compartidas' => $compartidas, 'calendario' => $calendario];
+}
+
+// La ruta dentro del zip para el Target de un rels: relativo a la carpeta del libro,
+// salvo que venga absoluto (/xl/...), y con los ".." resueltos. PhpSpreadsheet
+// acepta las dos formas y el lector tiene que llegar a la misma entrada.
+function rutaEnZip($dir, $destino) {
+    $ruta   = $destino !== '' && $destino[0] === '/' ? $destino : $dir . '/' . $destino;
+    $partes = [];
+
+    foreach (explode('/', $ruta) as $parte) {
+        if ($parte === '' || $parte === '.') continue;
+        if ($parte === '..') { array_pop($partes); continue; }
+
+        $partes[] = $parte;
+    }
+
+    return implode('/', $partes);
+}
+
+// Las cadenas compartidas, en streaming tambien: en un export con muchos platillos
+// distintos este archivo deja de ser chico. Se guardan por peticion, como las partes.
+//
+// Un <si> sin <t> ni <r> no se agrega, y no es descuido: PhpSpreadsheet tampoco lo
+// agrega, y saltarlo distinto correria todos los indices de despues.
+function cadenasXlsx($ruta, $entrada) {
+    static $cache = [];
+
+    if ($entrada === null) return [];
+
+    $clave = $ruta . '|' . @filesize($ruta) . '|' . @filemtime($ruta);
+    if (isset($cache[$clave])) return $cache[$clave];
+
+    $xml = new XMLReader();
+    if (!@$xml->open('zip://' . $ruta . '#' . $entrada)) return null;
+
+    $lista = [];
+    $sigue = $xml->read();
+
+    while ($sigue) {
+        if ($xml->nodeType === XMLReader::ELEMENT && $xml->localName === 'si') {
+            $texto = textoPlanoXlsx(@simplexml_load_string($xml->readOuterXml()));
+            if ($texto !== null) $lista[] = $texto;
+
+            $sigue = $xml->next();
+            continue;
+        }
+
+        $sigue = $xml->read();
+    }
+
+    $xml->close();
+
+    return $cache[$clave] = $lista;
 }
